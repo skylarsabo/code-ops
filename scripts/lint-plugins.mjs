@@ -165,15 +165,21 @@ if (existsSync(rootReadmePath)) {
 }
 
 // ---- 6. bundled runtime scripts must match the canonical (copy-on-build) ----
-// revalidate-register.mjs is invoked by skills via ${CLAUDE_PLUGIN_ROOT}/scripts/,
-// so it must ship inside each plugin and stay byte-identical to the repo-root source.
-const canonicalRevalidate = join(ROOT, 'scripts', 'revalidate-register.mjs');
-if (existsSync(canonicalRevalidate)) {
-  const canon = readFileSync(canonicalRevalidate, 'utf8');
+// Skills invoke these via ${CLAUDE_PLUGIN_ROOT}/scripts/, so each must ship inside
+// every plugin that references it and stay byte-identical to the repo-root source.
+const RUNTIME_SCRIPTS = [
+  { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor'] },
+  { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite'] },
+];
+for (const rs of RUNTIME_SCRIPTS) {
+  const canonical = join(ROOT, 'scripts', rs.name);
+  if (!existsSync(canonical)) { fail(`missing canonical scripts/${rs.name}`); continue; }
+  const canon = readFileSync(canonical, 'utf8');
   for (const p of plugins) {
-    const copy = join(p.dir, 'scripts', 'revalidate-register.mjs');
-    if (!existsSync(copy)) fail(`${p.name}: missing bundled scripts/revalidate-register.mjs (CONVENTIONS references it)`);
-    else if (readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: scripts/revalidate-register.mjs has drifted from the canonical scripts/revalidate-register.mjs — re-copy it`);
+    const copy = join(p.dir, 'scripts', rs.name);
+    const mustHave = rs.plugins.includes(p.name);
+    if (mustHave && !existsSync(copy)) fail(`${p.name}: missing bundled scripts/${rs.name} (a skill references it)`);
+    else if (existsSync(copy) && readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: scripts/${rs.name} has drifted from the canonical scripts/${rs.name} — re-copy it`);
   }
 }
 

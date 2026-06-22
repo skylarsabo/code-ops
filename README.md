@@ -2,8 +2,8 @@
 
 One marketplace, three installable plugins of adaptive, multi-agent engineering workflows. Add the marketplace once, then install whichever plugin a project needs.
 
-- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization. (14 skills)
-- **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate. (13 skills)
+- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization, PR-splitting. (15 skills)
+- **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate, authorship hygiene. (14 skills)
 - **`rigor`** — verification-first quality: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, ship measured improvements. Prove-it-or-don't-report-it. (11 skills)
 
 **Which to use:** install `code-ops-suite` on any project for breadth. Add `privacy-opsec-suite` when the project has anonymity/opsec requirements (anonymous sessions, Tor/onion routing, strong metadata minimization). Reach for `rigor` when you want **proven** bugs and enforced consistency rather than a long list — it's the highest-signal, highest-rigor option. They compose: a broad `code-ops-suite:codebase-audit` for the map, then `rigor:bug-hunt` to prove the real defects, then `privacy-opsec-suite:tor-egress-audit` for the anonymity-specific pass.
@@ -116,14 +116,14 @@ code-ops-plugins/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
     │   ├── CONVENTIONS.md                # shared backbone
-    │   ├── skills/                       # 14 workflows (incl. full-sweep + everything orchestrators)
+    │   ├── skills/                       # 15 workflows (incl. pr-split + full-sweep/everything orchestrators)
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # PR-review GitHub Actions workflow
     │   └── README.md
     └── privacy-opsec-suite/
         ├── .claude-plugin/plugin.json
         ├── CONVENTIONS.md                # backbone + the anonymity/opsec model (§A)
-        ├── skills/                       # 13 privacy/opsec workflows (incl. full-sweep orchestrator)
+        ├── skills/                       # 14 privacy/opsec workflows (incl. authorship-hygiene + full-sweep)
         ├── agents/                       # leak-aware explorer + privacy-reviewer
         ├── examples/                     # opsec PR-gate GitHub Actions workflow
         └── README.md

@@ -15,6 +15,7 @@ Every skill operates inside this envelope. When in doubt, the most privacy-prese
   - **Fail closed** — on proxy/route/circuit failure, stop; never fall back to clearnet or a less-anonymous path.
   - **No new egress path, log line, identifier, fingerprint vector, or third-party dependency without explicit scrutiny** against this model.
   - **Minimize metadata everywhere** and **never weaken an existing anonymity guarantee silently.**
+  - **No tooling/AI trace in published work** — commit metadata, message/PR prose, and code idiom are a fingerprint surface; published work reflects the author, not the tool. Verify fail-closed (`scan-ai-tells.mjs`) before pushing. See `authorship-hygiene`.
 
 ## 1 · Operating model — dynamic orchestration
 Adaptive loop: assess → plan units → fan out parallel sub-agents → collect structured results → deepen / broaden / converge / escalate → repeat until the "Done when" criteria are met. **Conflict-aware** fan-out for code edits (parallel on disjoint files, serial on shared/dependent ones); read-only analysis parallelizes freely. Use a **stronger model** for threat reasoning, synthesis, and review; a **faster model** for breadth sweeps and mechanical work. Use bundled/reusable subagents; keep a live task list.

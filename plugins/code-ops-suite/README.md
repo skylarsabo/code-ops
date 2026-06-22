@@ -23,6 +23,7 @@ Invoke with `/code-ops-suite:<name>`. All are manual-invoke (they won't auto-fir
 **Gate / consistency**
 - `pr-review` — rigorous pre-merge review of one PR/diff against all lenses; prioritized comments + verdict.
 - `normalize` — one consistent professional style repo-wide; removes the artifacts of hasty/generated code; behavior-preserving.
+- `pr-split` — carve an existing big branch into a clean stack of small, independently-green PRs, scrubbed of AI/tooling trace (composes `privacy-opsec-suite:authorship-hygiene`, fail-closed); never auto-merges.
 
 **Docs / knowledge**
 - `doc-alignment` — reconcile doc drift against code; establish a clean single source of truth.
