@@ -2,7 +2,7 @@
 
 One marketplace, three installable plugins of adaptive, multi-agent engineering workflows. Add the marketplace once, then install whichever plugin a project needs.
 
-- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization, PR-splitting, ship, debug. (17 skills)
+- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization, PR-splitting, ship, debug, current-docs. (18 skills)
 - **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate, authorship hygiene. (14 skills)
 - **`rigor`** — verification-first quality: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, ship measured improvements. Prove-it-or-don't-report-it. (11 skills)
 
@@ -85,6 +85,7 @@ After editing a plugin, **bump its `version`** in `plugins/<name>/.claude-plugin
 - `scripts/lint-plugins.mjs` — structural linter (the CI gate in `.github/workflows/validate.yml`): manifest/version parity, README skill-count parity, required `SKILL.md` fields, frontmatter YAML-safety, orchestrator skill-reference resolution, runtime-script parity, and a verbatim-CONVENTIONS duplication guard. Run `node scripts/lint-plugins.mjs`.
 - `evals/` — the eval harness. `evals/register-staleness/run.mjs` is an automated regression test (also in CI) that pins the register-freshness behavior; see `evals/README.md` for the judgment-eval approach.
 - `scripts/revalidate-register.mjs` — register freshness checker, also copied into each plugin so skills invoke it via `${CLAUDE_PLUGIN_ROOT}/scripts/`. Re-greps each register item's `file:line` against the current tree (FRESH / MOVED / GONE / NO-REF) so stale findings are re-triaged before they're acted on: `node scripts/revalidate-register.mjs <register.md> --root <repo>`.
+- `scripts/lib-docs.mjs` — in-house, local-first "current docs" engine (a Context7 alternative): resolves a library's **installed** version and returns its README + type exports with zero network (fetch fallback only). Bundled into each plugin, and also exposed as the `code-ops-docs` MCP server (`scripts/lib-docs-mcp.mjs`, declared in `code-ops-suite`'s manifest).
 
 ## Optional: always-on conventions
 Each plugin ships its own `CONVENTIONS.md` (its operating model, interaction protocol, safety rails, schemas, and lenses), and every skill reads its plugin's file first via `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. To make those principles apply in *every* session — not just inside a skill — add a line to the project's `CLAUDE.md`:
@@ -116,7 +117,7 @@ code-ops-plugins/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
     │   ├── CONVENTIONS.md                # shared backbone
-    │   ├── skills/                       # 17 workflows (incl. ship/debug + pr-split + full-sweep/everything)
+    │   ├── skills/                       # 18 workflows (incl. current-docs + ship/debug + pr-split + orchestrators)
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # PR-review GitHub Actions workflow
     │   └── README.md

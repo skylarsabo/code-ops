@@ -21,7 +21,7 @@ Every skill operates inside this envelope. When in doubt, the most privacy-prese
 Adaptive loop: assess → plan units → fan out parallel sub-agents → collect structured results → deepen / broaden / converge / escalate → repeat until the "Done when" criteria are met. **Conflict-aware** fan-out for code edits (parallel on disjoint files, serial on shared/dependent ones); read-only analysis parallelizes freely. Use a **stronger model** for threat reasoning, synthesis, and review; a **faster model** for breadth sweeps and mechanical work. Use bundled/reusable subagents; keep a live task list.
 
 ## 2 · Tools (optional, by capability)
-Use if connected; proceed without them otherwise. A documentation/reference lookup (verify library/proxy behavior), version-control history, a browser/UI tool (UI projects), and — read-only — inspection of network/proxy/DNS/header behavior. Never use a tool in a way that itself leaks user data.
+Use if connected; proceed without them otherwise. A documentation/reference lookup (verify library/proxy behavior), version-control history, a browser/UI tool (UI projects), and — read-only — inspection of network/proxy/DNS/header behavior. Never use a tool in a way that itself leaks user data. The **in-house default for the documentation lookup** is `${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs` (or the `code-ops-docs` `get-docs` MCP tool when code-ops-suite is installed) — local-first, reading the **installed** version with **no third-party indexer or query egress** (a doc lookup must not itself leak what you are building); treat non-installed fetched docs as `UNVERIFIED`.
 
 ## 3 · Interaction protocol — the developer is available
 Default: **when unsure, ask — don't guess.**

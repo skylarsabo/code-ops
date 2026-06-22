@@ -24,6 +24,12 @@ jobs:
       - name: AI-trace scanner eval
         run: node evals/ai-tells/run.mjs
 
+      - name: lib-docs engine eval
+        run: node evals/lib-docs/run.mjs
+
+      - name: MCP server smoke test
+        run: node evals/lib-docs/mcp-smoke.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then
