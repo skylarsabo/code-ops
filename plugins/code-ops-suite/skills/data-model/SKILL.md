@@ -1,0 +1,27 @@
+---
+description: "Use when you need a clear data-model reference for a codebase — an ER diagram plus per-entity fields, relationships, constraints, invariants, and schema evolution — generated from the real schema and migrations."
+disable-model-invocation: true
+---
+
+# DATA-MODEL — Entities, Relationships, Invariants
+
+**Invoked as `/code-ops-suite:data-model`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)**.
+**Mode:** DOCUMENT. **Produces:** `DATA-MODEL.md` in the repo's docs location.
+
+## Phase 0 — Detect the schema  *(checkpoint)*
+Find the source of truth for data: SQL migrations, ORM models, a schema file, or NoSQL document shapes. If there's no persistent data model, say so and stop. Confirm scope + docs location.
+
+## Phase 1 — The map
+A Mermaid **erDiagram** of the entities and their relationships (cardinality, FK direction). Keep it legible — split into domain clusters if large.
+
+## Phase 2 — Per-entity reference
+For each entity (from the schema, cited): fields + types, keys/indexes, constraints, relationships, and the **invariants the code relies on** (uniqueness, soft-delete, ownership, retention) that the raw schema doesn't show.
+
+## Phase 3 — Evolution & lifecycle
+How the schema has evolved (migration history), the data lifecycle (creation, mutation, retention/deletion), and any denormalization or derived data + why.
+
+## Assemble (per `§13`)
+Exec summary (the core entities + the one diagram), then the reference. Cite the schema/migration `file:line`; mark inferred invariants `UNVERIFIED`; stamp the SHA.
+
+## Done when
+Every entity/field/relationship maps to the real schema/migrations (cited), the ER diagram renders and matches it, the non-obvious invariants are stated, and an engineer could safely write a query or a migration from this doc.

@@ -30,6 +30,13 @@ Invoke with `/code-ops-suite:<name>`. All are manual-invoke (they won't auto-fir
 - `onboarding` — generate a verified, code-grounded orientation guide with an architecture diagram.
 - `current-docs` — current, version-accurate docs for a library from the version installed in this project (local-first, no third-party) — the in-house Context7 alternative. Also shipped as the `code-ops-docs` MCP server (`resolve-library` / `get-docs`) and wired as the `CONVENTIONS §2` documentation-lookup default suite-wide.
 
+**Documentation generation** (Mode: DOCUMENT — beautiful, code-grounded, Mermaid-diagram docs per `CONVENTIONS §13`)
+- `architecture` — deep architecture reference: C4 structure (context → container → component), critical-path sequence flows, cross-cutting concerns, and key decisions.
+- `api-docs` — accurate API/interface reference (HTTP/GraphQL/RPC endpoints or a library's exports): signatures, request/response shapes, auth, errors, real examples — from the code/types.
+- `data-model` — data-model reference: an ER diagram + per-entity fields, relationships, constraints, and the invariants the code relies on, plus schema evolution.
+- `adr` — Architecture Decision Records: backfill the load-bearing past decisions or author a new one (context / options / decision / consequences), code-grounded.
+- `ops-docs` — the operator's runbook: deploy/rollback, configuration reference, incident runbooks (symptom → diagnosis → fix), and health/observability.
+
 **Orchestrators**
 - `full-sweep` — run the whole suite end-to-end as one developer-in-the-loop pipeline (ground truth → assess → safety-net → fix → deep-dives → consistency → capture), pausing at each phase boundary. Intra-plugin.
 - `everything` — the cross-plugin superset: orchestrates every phase across all three plugins (map → prove → leak-audit → safety-net → remediate → close → improve → normalize). Requires `rigor` and `privacy-opsec-suite` installed; the most thorough and most token-expensive option.
