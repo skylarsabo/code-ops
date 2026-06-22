@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ILLUSTRATIVE opsec PR gate using the privacy-opsec-suite review criteria.
+#
+# Starting point, not a drop-in guarantee — the official action's exact input
+# names evolve. The canonical way to get a correct, current workflow is to run
+#   /install-github-app   inside Claude Code (installs the GitHub App, sets the
+# ANTHROPIC_API_KEY secret, generates a working starter workflow). Then paste the
+# `prompt` below in and tune.  Docs: https://code.claude.com/docs/
+# ─────────────────────────────────────────────────────────────────────────────
+name: OpSec PR Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  opsec-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Anonymity / OpSec review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # If the privacy-opsec-suite plugin is available in CI, invoke directly:
+          #   "/privacy-opsec-suite:opsec-pr-gate for this pull request".
+          # Otherwise inline the criteria so the gate is self-contained:
+          prompt: |
+            Review this pull request as a pre-merge OpSec gate for an anonymity-preserving
+            system. Review the diff against the surrounding code.
+
+            Treat the following as BLOCKING regressions (request changes):
+              - a new network egress path, or a fallback that bypasses the proxy / breaks fail-closed
+              - a new log line touching PII / identifiers / IPs, or any added telemetry
+              - a new identifier, cookie, or fingerprint vector, or anything increasing cross-session linkability
+              - a new correlation surface (timing / payload size / request volume) or metadata leak
+              - a new third-party dependency that phones home or opens an egress path
+              - any weakened default (less-anonymous by default, or privacy made opt-in)
+
+            Also verify fail-closed still holds, metadata stays minimized, and stream/connection
+            isolation is not undone.
+
+            Post inline comments at file:line with concrete fixes, labeled Blocking / Should-fix / Nit.
+            End with a verdict (approve / approve-with-nits / request-changes) and a 2-3 line risk read.
+            Do NOT approve any change that weakens anonymity. Never echo real identifiers or IPs.
+          claude_args: "--allowed-tools Read,Grep,Glob"

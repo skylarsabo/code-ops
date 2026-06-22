@@ -1,0 +1,25 @@
+---
+description: "Use when you need to vet dependencies for telemetry/phone-home/egress, CVEs, and build/lockfile integrity under an anonymity-hostile model."
+disable-model-invocation: true
+---
+
+# SUPPLY-CHAIN TRUST — Dependencies That Don't Betray Anonymity
+
+**Invoked as `/privacy-opsec-suite:supply-chain-trust`.** First read the bundled `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` (search the plugin directory for it if needed) — it defines the operating model, the central **anonymity & OpSec model** (§A), the interaction protocol, safety rails, schemas, and lenses this skill references by section.
+**Mode:** AUDIT (+ safe fixes with confirmation) · **Produces:** findings → `LEAK_REGISTER.md`; report.
+
+## Phase 0 — Inventory dependencies & their behavior  *(checkpoint)*
+Catalogue direct and transitive dependencies, their network behavior, known CVEs (by severity), and build/lockfile integrity.
+> **CHECKPOINT:** present the inventory with telemetry/egress and CVE flags highlighted; confirm scope.
+
+## Phase 1 — Assess trust under the model
+- **Egress/telemetry (the anonymity risk):** does any dependency phone home, send analytics/telemetry, make third-party calls, or add an egress path or fingerprint vector? Each is an anonymity finding, not just bloat — flag it and propose a privacy-preserving alternative or a way to disable it.
+- **Vulnerabilities:** known CVEs by severity; abandoned/unmaintained packages.
+- **Integrity:** lockfile integrity; reproducible builds; postinstall/build scripts that could exfiltrate; secrets pulled in via deps.
+- **Provenance:** typosquat/lookalike risk; prefer minimal, audited, offline-capable dependencies.
+
+## Deliverables
+`LEAK_REGISTER.md` entries for egress/telemetry deps (leak-class `egress`/`secret`) and CVEs; a report listing what should be removed/replaced/pinned/disabled, with safe removals or pins applied only with confirmation.
+
+## Done when
+Every dependency is assessed for egress/telemetry/CVE/integrity; risky ones are flagged with concrete remediation; safe fixes verified (build/tests green).

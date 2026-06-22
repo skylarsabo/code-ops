@@ -1,0 +1,55 @@
+{
+  "fixture": "leak-lab",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.66, "maxDecoys": 0 },
+  "planted": [
+    {
+      "id": "LEAK-1",
+      "file": "src/client.js",
+      "line": 6,
+      "anchor": "email: user.email",
+      "leakClass": "metadata",
+      "desc": "raw email + IP written to logs"
+    },
+    {
+      "id": "LEAK-2",
+      "file": "src/client.js",
+      "line": 18,
+      "anchor": "fetch(url, { body })",
+      "leakClass": "egress",
+      "desc": "clearnet fallback bypasses the proxy on error (fail-open)"
+    },
+    {
+      "id": "LEAK-3",
+      "file": "src/client.js",
+      "line": 28,
+      "anchor": "stableDeviceId()",
+      "leakClass": "linkability",
+      "desc": "persistent 1-year device-linking cookie"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "DEC-1",
+      "file": "src/client.js",
+      "line": 11,
+      "anchor": "redact(user.email)",
+      "why": "identifier is redacted before logging — not a leak"
+    },
+    {
+      "id": "DEC-2",
+      "file": "src/client.js",
+      "line": 24,
+      "anchor": "agent: torAgent",
+      "why": "always routed through the Tor agent with no fallback — safe egress"
+    },
+    {
+      "id": "DEC-3",
+      "file": "src/client.js",
+      "line": 32,
+      "anchor": "X-Request-Id",
+      "why": "per-request correlation id, not a persistent/identifying value"
+    }
+  ]
+}

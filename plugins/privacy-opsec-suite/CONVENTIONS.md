@@ -1,0 +1,81 @@
+# Privacy & OpSec Suite — Shared Conventions
+
+A toolkit of operational workflows for building, auditing, and operating **privacy-respecting, anonymity-preserving** software with a capable agentic coding agent (e.g. Claude Code / Opus 4.8). Bundled with the **privacy-opsec-suite** plugin; each skill is a namespaced slash command (e.g. `/privacy-opsec-suite:tor-egress-audit`) and reads this file first. Skills reference it by section instead of repeating it.
+
+## 0 · Scope & stance
+This suite is **defensive privacy engineering**: protect the system's *own users'* privacy and anonymity, and find and fix leaks in *your own* codebase. Treat anonymity and operational security as primary product properties, not add-ons. The work is hardening and auditing the system you build — not attacking anyone or deanonymizing third parties.
+
+## A · The anonymity & OpSec model (central, non-negotiable)
+Every skill operates inside this envelope. When in doubt, the most privacy-preserving option wins.
+
+- **Adversaries to assume:** passive network observer (ISP, hosting network, a global passive adversary correlating traffic); active network attacker (MITM, injection, downgrade); malicious or compromised operator/insider; the hosting/infrastructure provider; legal/coercion/subpoena; a compromised dependency or build; a malicious peer/user; and an adversary correlating activity **across sessions and over time**.
+- **Anonymity goals:** *unlinkability* (actions and sessions can't be tied to one user or to each other), *unobservability* (an observer can't tell who is doing what, or that an action even happened), *deniability*, and *data minimization* (what isn't collected can't leak or be compelled).
+- **Non-negotiables:**
+  - **Anonymous/private by default** — never opt-in.
+  - **Fail closed** — on proxy/route/circuit failure, stop; never fall back to clearnet or a less-anonymous path.
+  - **No new egress path, log line, identifier, fingerprint vector, or third-party dependency without explicit scrutiny** against this model.
+  - **Minimize metadata everywhere** and **never weaken an existing anonymity guarantee silently.**
+
+## 1 · Operating model — dynamic orchestration
+Adaptive loop: assess → plan units → fan out parallel sub-agents → collect structured results → deepen / broaden / converge / escalate → repeat until the "Done when" criteria are met. **Conflict-aware** fan-out for code edits (parallel on disjoint files, serial on shared/dependent ones); read-only analysis parallelizes freely. Use a **stronger model** for threat reasoning, synthesis, and review; a **faster model** for breadth sweeps and mechanical work. Use bundled/reusable subagents; keep a live task list.
+
+## 2 · Tools (optional, by capability)
+Use if connected; proceed without them otherwise. A documentation/reference lookup (verify library/proxy behavior), version-control history, a browser/UI tool (UI projects), and — read-only — inspection of network/proxy/DNS/header behavior. Never use a tool in a way that itself leaks user data.
+
+## 3 · Interaction protocol — the developer is available
+Default: **when unsure, ask — don't guess.**
+**ASK when:** intent is ambiguous; a decision has real trade-offs; **anything would change the anonymity/opsec posture, an egress path, logging, identifiers, fingerprint surface, or a default** (these are the high-stakes calls — confirm them); an action is risky or irreversible; a design direction must be chosen; input looks stale; or you've found a likely **leak/deanonymization vector** (surface it immediately). Pause at phase-boundary checkpoints.
+**PROCEED when:** the work is clear, safe, in agreed scope, or following an approved plan.
+**HOW:** batch questions; give numbered options + a recommendation + a default; keep momentum on independent work while a decision is pending; honor steering.
+
+## 4 · Safety rails
+- Work on a **branch**; commit atomically in reviewable chunks.
+- **Never break the build**; keep tests green.
+- **Behavior preservation by default** — *except* opsec hardening that intentionally tightens behavior (fail-closed, stripping a leaking field, enforcing isolation). Those changes are the point; confirm them with the developer and pin them with tests.
+- **Secrets/PII are radioactive** → redact to `<REDACTED:reason>` everywhere; a discovered live secret is a **critical** finding (report location + rotation, never the value).
+- **Never log or emit real identifiers, IPs, or user data during analysis** — work from patterns and redacted samples.
+- Detect shell/OS; stay in-repo; never fabricate (`UNVERIFIED`). Ask before destructive/irreversible actions.
+
+**Automation level (set once at the start; default `gated`).** Governs every code-changing step:
+- `gated` *(default)* — pause for approval at each fix/closure batch.
+- `auto-safe` *(recommended ceiling)* — auto-apply only **NOW-SAFE** items (each on a branch, test-backed, trivially revertible; opsec-tightening that is itself the fix is confirmed first); pause for NEEDS-REVIEW, NEEDS-DESIGN, and the always-gated categories below.
+- `auto-all` — *not recommended.*
+- **Always gated, regardless of level:** anything that changes the anonymity/opsec posture, an egress path, logging, identifiers, or a default; security/auth changes; secret handling; data migrations or destructive/irreversible operations; public API/contract changes. **Never auto-merge.**
+
+## 5 · Modes
+Each skill declares one: **AUDIT** (read-only + document; safe hardening only with confirmation) · **DISCOVERY** (read-only; produces a backlog/specs) · **IMPLEMENT** (ships code via §10) · **REVIEW** (produces a review; no changes unless asked) · **DOCUMENT** (edits docs only).
+
+## 6 · Tracks & leak/finding schema
+Tracks: **NOW-SAFE** (local, low-risk, safe to apply) · **NEEDS-REVIEW** (behavior-/contract-changing or risky → bring to the developer) · **NEEDS-DESIGN** (architectural → proposal with options).
+```
+ID · Title · Lens · Adversary (who observes/exploits it) ·
+Leak-class (linkability | observability | identification | metadata | egress | secret | correlation) ·
+Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
+Location (file:line) · Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
+Scenario (how it deanonymizes / links / leaks) · Disconfirmation (what you ruled out) ·
+Impact (who is exposed, over what window) · Remediation · Track · Effort · Risk-if-fixed
+```
+
+## 7 · Severity & priority
+**critical** = a real deanonymization, linkability, or secret leak · high · medium · low · nit. Rank by severity × exploitability. An anonymity regression is never "low".
+
+## 8 · Evidence standard
+Every finding cites `file:line`, gives minimal redacted evidence, names the adversary and scenario, and ends with a concrete remediation. State confidence honestly; mark unconfirmed items `UNVERIFIED`.
+
+## 9 · Quality lenses (privacy/opsec-centric)
+- **Anonymity & linkability** *(primary)* — can actions/sessions be tied to a user or to each other (identifiers, cookies, accounts, device binding, cross-session correlation)?
+- **Observability & traffic analysis** — can an observer tell who/what, or that an action happened? timing, payload size, request volume, and other side channels.
+- **Egress & routing** — every outbound path; Tor/SOCKS/proxy correctness; DNS/WebRTC/IPv6/NTP leaks; proxy/stream isolation; fail-closed behavior; onion-service hygiene. **Control coverage (multi-boundary):** for any anonymity control or gate (proxy enforcement, fail-closed, isolation, redaction, a feature gate), enumerate **every** entry point and runtime that can reach the protected action and verify it at each — *enforced at one boundary but not enumerated is a leak, not a pass.*
+- **Identification & fingerprinting** — re-identification surface; header/TLS/behavioral uniqueness; vectors that re-link "anonymous" sessions.
+- **Metadata minimization** — PII/identifiers in logs/telemetry/errors/crash reports; metadata embedded in served/generated files (EXIF, document/build metadata, timestamps, paths); headers; retention/deletion.
+- **Secrets & supply-chain trust** — secrets hygiene; whether a dependency phones home / adds telemetry / opens a third-party egress path; CVEs; build/lockfile integrity.
+- **Data handling & defaults** — minimization, retention, private-/anonymous-by-default.
+- **Correctness (leak-relevant)** — the bug subset that creates leaks: races/TOCTOU on session or routing state, error/exception paths that leak, fallback paths that bypass the proxy.
+- **Documentation accuracy** — privacy promises, threat model, and opsec runbooks vs. the code.
+- Standard **modularity/performance** where relevant, but always subordinate to the model above.
+
+## 10 · The implementation loop (IMPLEMENT-mode)
+Re-validate/understand → plan → **confirm with the developer anything touching anonymity/egress/logging/identifiers/defaults** → implement (smallest correct change; uphold the lenses) → test (cover edge/error and the leak scenario) → verify, and **re-check the anonymity/opsec posture on the actual implementation** (fail-closed holds, no new egress/log/identifier slipped in) → self-review → commit atomically (referencing the ID) → close the loop (update the register and any privacy doc the change affects).
+
+## 11 · Shared artifacts & single source of truth
+Registers are **live backlogs / SSOT**; item **IDs are stable across the lifecycle**. **Registers stay fresh:** before a leak is written, carried across a phase boundary, or consumed by `opsec-hardening`, re-confirm it still reproduces against the current tree; drop/re-tier anything that no longer does (`OBSOLETE-AT <sha>`) and stamp each entry `Verified-at: <sha>` (`§6`). The canonical mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`** (FRESH / MOVED / GONE / NO-REF); a non-FRESH item is re-triaged, never silently re-shown. Run artifacts go in a dated folder under the repo's docs location (e.g. `docs/privacy/<date>/`); the **threat model, privacy promises, and opsec runbooks are SSOT**, reconciled in place as code changes. Detect and match the repo's existing docs conventions. Standard filenames skills produce: `ANONYMITY_THREAT_MODEL.md`, `LEAK_REGISTER.md`, `OPSEC_RUNBOOK.md`, `EXECUTIVE_SUMMARY.md`.

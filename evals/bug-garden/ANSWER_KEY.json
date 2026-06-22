@@ -1,0 +1,63 @@
+{
+  "fixture": "bug-garden",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.75, "maxDecoys": 0 },
+  "planted": [
+    {
+      "id": "BUG-1",
+      "file": "src/cart.js",
+      "line": 6,
+      "anchor": "i <= items.length",
+      "category": "off-by-one",
+      "desc": "loop bound <= reads items[items.length] (undefined) past the end"
+    },
+    {
+      "id": "BUG-2",
+      "file": "src/cart.js",
+      "line": 20,
+      "anchor": "prices.sort()[0]",
+      "category": "logic + mutation",
+      "desc": "Array.sort() is lexicographic and mutates the input; returns the wrong 'cheapest'"
+    },
+    {
+      "id": "BUG-3",
+      "file": "src/auth.js",
+      "line": 5,
+      "anchor": "return row.profile",
+      "category": "null deref",
+      "desc": "row is null/undefined when the user is not found"
+    },
+    {
+      "id": "BUG-4",
+      "file": "src/auth.js",
+      "line": 20,
+      "anchor": "parseInt(s)",
+      "category": "missing radix",
+      "desc": "parseInt without a radix mis-parses inputs like '0x10' or a legacy leading-zero string"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "DEC-1",
+      "file": "src/cart.js",
+      "line": 26,
+      "anchor": "found == null",
+      "why": "intentional null|undefined idiom — a correct use of ==, not a bug"
+    },
+    {
+      "id": "DEC-2",
+      "file": "src/auth.js",
+      "line": 10,
+      "anchor": "void sendAudit",
+      "why": "deliberate fire-and-forget audit; not a missing await"
+    },
+    {
+      "id": "DEC-3",
+      "file": "src/auth.js",
+      "line": 16,
+      "anchor": "now >= token.expiresAt",
+      "why": "correct exclusive-expiry boundary; not an off-by-one"
+    }
+  ]
+}

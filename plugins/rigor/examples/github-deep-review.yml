@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ILLUSTRATIVE deep-review gate using the rigor suite's verification bar.
+#
+# Starting point, not a drop-in guarantee — the official action's input names
+# evolve. The canonical way to get a correct, current workflow is to run
+#   /install-github-app   inside Claude Code, then paste the prompt below in.
+# Docs: https://code.claude.com/docs/
+# ─────────────────────────────────────────────────────────────────────────────
+name: Rigor Deep Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deep-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Make the real toolchain available so the review starts from facts
+      # (adjust to your stack: setup-node / setup-python / setup-go, install, etc.)
+
+      - name: Verification-first review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # If the rigor plugin is available in CI, invoke directly:
+          #   "/rigor:deep-review for this pull request".
+          # Otherwise inline the bar so the gate is self-contained:
+          prompt: |
+            Review this pull request at a verification-first bar. Review the diff against
+            the surrounding code, and run the project's typecheck / lint / tests first so
+            the review starts from facts.
+
+            For each concern, assign an evidence tier:
+              - CONFIRMED  — you reproduced it (a failing test or trace on this code)
+              - PROBABLE   — strong static evidence, not executed
+              - SPECULATIVE — a low-confidence lead
+            Before reporting anything, run a disconfirmation pass: is it reachable, already
+            handled elsewhere, intentional, or already tested? Drop what doesn't survive.
+
+            Post inline comments at file:line, each with its tier and a concrete fix, grouped
+            Blocking (CONFIRMED defect or regression) / Should-fix / Nit. Also flag if the change
+            introduces a new inconsistency or regresses an existing lint/test enforcement.
+
+            End with a verdict (approve / approve-with-nits / request-changes) and a short risk read.
+            Do NOT inflate tiers: never block on a SPECULATIVE, never wave through a CONFIRMED defect.
+          claude_args: "--allowed-tools Read,Grep,Glob,Bash"

@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+// Register-staleness regression eval — pins the one behavior the field lost
+// (a register re-listing already-fixed items). Asserts revalidate-register.mjs
+// classifies a seeded mixed-freshness register correctly and fails closed.
+//
+//   node evals/register-staleness/run.mjs   (exit 0 = pass)
+
+import { spawnSync } from 'node:child_process';
+import { dirname, resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const checker = resolve(here, '..', '..', 'scripts', 'revalidate-register.mjs');
+const register = join(here, 'FINDINGS_REGISTER.seed.md');
+const repo = join(here, 'repo');
+
+const fails = [];
+const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+
+// Report-only run: capture the classification of each item.
+const r = spawnSync('node', [checker, register, '--root', repo, '--report-only'], { encoding: 'utf8' });
+const out = (r.stdout || '') + (r.stderr || '');
+const statusOf = (id) => (out.match(new RegExp(`(FRESH|MOVED|GONE|NO-REF)\\s+${id}\\b`)) || [])[1] || '(none)';
+
+expect(statusOf('BUG-001') === 'FRESH', `BUG-001 should be FRESH, got ${statusOf('BUG-001')}`);
+expect(statusOf('BUG-002') === 'MOVED', `BUG-002 should be MOVED, got ${statusOf('BUG-002')}`);
+expect(statusOf('BUG-003') === 'GONE', `BUG-003 should be GONE, got ${statusOf('BUG-003')}`);
+
+// Without --report-only, a stale register must fail closed (non-zero exit).
+const gated = spawnSync('node', [checker, register, '--root', repo], { encoding: 'utf8' });
+expect(gated.status === 1, `stale register should exit 1 (fail closed), got ${gated.status}`);
+
+if (fails.length) {
+  console.error('FAIL — register-staleness eval:');
+  for (const f of fails) console.error('  x ' + f);
+  console.error('\n--- checker output ---\n' + out);
+  process.exit(1);
+}
+console.log('PASS — register-staleness eval: FRESH/MOVED/GONE classified correctly; stale register fails closed.');

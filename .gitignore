@@ -1,0 +1,11 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Claude Code install-time markers (created in the plugin cache, never part of source)
+.in_use/
+
+# node (none today, but defensive)
+node_modules/

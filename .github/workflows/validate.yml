@@ -1,0 +1,34 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  structural-lint:
+    runs-on: ubuntu-latest
+    steps:
+      # NOTE: pin these to a commit SHA per the suite's own supply-chain-trust skill.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Structural lint (the gate)
+        run: node scripts/lint-plugins.mjs
+
+      - name: Register-staleness regression eval
+        run: node evals/register-staleness/run.mjs
+
+      - name: claude plugin validate (best-effort)
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            claude plugin validate . || true
+            for p in plugins/*/; do
+              echo "validating $p"
+              claude plugin validate "$p" || true
+            done
+          else
+            echo "claude CLI not on runner; structural-lint is the gate."
+          fi

@@ -1,0 +1,62 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ILLUSTRATIVE automated PR review using the code-ops-suite review criteria.
+#
+# This is a STARTING POINT, not a drop-in guarantee — the official action's exact
+# input names evolve. The canonical way to get a correct, current workflow is to
+# run  /install-github-app  inside Claude Code (it installs the GitHub App,
+# configures the ANTHROPIC_API_KEY secret, and generates a working starter
+# workflow). Then paste the `prompt` below into that workflow and tune.
+#
+# Docs: https://code.claude.com/docs/  (Claude Code GitHub Actions)
+# ─────────────────────────────────────────────────────────────────────────────
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Least privilege: allow reading the repo and writing PR review comments only.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so the review can see the base branch
+
+      - name: Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # If the code-ops-suite plugin is installed in CI (e.g. via a seeded
+          # plugins dir or extraKnownMarketplaces), you can invoke the skill
+          # directly: "/code-ops-suite:pr-review for this pull request".
+          # Otherwise, inline the review criteria so the action is self-contained:
+          prompt: |
+            Review this pull request before merge, held to a senior engineering bar.
+            Review the diff against the surrounding code, not in isolation.
+
+            Check, where relevant to the change:
+              - correctness & intricate bugs (edge/error/null cases, races, contract mismatches)
+              - design & modularity (fits the architecture; no new coupling/duplication; right-sized)
+              - performance/efficiency regressions
+              - security introduced (injection, authz, SSRF, IDOR, etc.)
+              - privacy / data handling: NO new data collection, logging of PII, third-party
+                calls, identifiers/correlation surface, or weakened defaults — treat a
+                privacy regression as BLOCKING (scaled to how much sensitive data this system handles)
+              - UI/theming/accessibility for UI changes (design tokens, all states, parity)
+              - tests present and meaningful for the change's logic and edge/error paths
+              - docs updated where behavior/contracts changed
+              - convention/style fit with the repo
+
+            Post inline comments at file:line with a concrete suggested change.
+            Label each: Blocking / Should-fix / Nit. End with a verdict
+            (approve / approve-with-nits / request-changes) and a 2-3 line risk summary.
+            Do not approve a PR that introduces a security or privacy regression.
+          # Restrict tools for safety in CI (read + comment; no arbitrary writes).
+          # Confirm the exact tool-name syntax against the current action docs.
+          claude_args: "--allowed-tools Read,Grep,Glob"
