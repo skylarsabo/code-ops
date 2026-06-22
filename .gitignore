@@ -9,3 +9,7 @@ Thumbs.db
 
 # node (none today, but defensive)
 node_modules/
+
+
+docs/specs
+docs/superpowers

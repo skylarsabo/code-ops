@@ -21,6 +21,7 @@ Invoke with `/privacy-opsec-suite:<name>`. All are manual-invoke (deliberate ope
 - `opsec-hardening` — implement the fixes from the leak backlog safely; each leak gets a regression test that fails if it returns.
 - `privacy-feature-design` — find + specify high-value privacy/trust features, each gated against the anonymity model.
 - `leak-incident-response` — triage, contain, scope blast radius, and plan remediation for a suspected leak — without making it worse.
+- `authorship-hygiene` — remove AI/tooling trace from a commit, PR, or branch across metadata, prose voice, and code idiom (bundled `scan-ai-tells.mjs`; fail-closed before publish).
 
 **Docs / gate**
 - `privacy-doc-alignment` — reconcile privacy promises / threat model / opsec runbooks against code; surface any **unkept promise**; establish the SSOT.

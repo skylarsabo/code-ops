@@ -21,6 +21,9 @@ jobs:
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs
 
+      - name: AI-trace scanner eval
+        run: node evals/ai-tells/run.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then
