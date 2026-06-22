@@ -15,7 +15,7 @@ Each prompt runs an **adaptive loop**: assess → plan units of work → fan out
 - **Live task tracking.** Maintain an evolving task list so the developer can see the work graph and its state at any checkpoint.
 
 ## 2 · Tools (optional, by capability)
-Use if connected; proceed without them if not. By capability: a **documentation/reference lookup** (confirm current, idiomatic library/framework usage), **version-control history** (understand why code is the way it is), and a **browser/UI automation tool** (for UI projects: render and exercise the UI to confirm behavior/appearance). The UI tool simply doesn't apply to non-UI projects.
+Use if connected; proceed without them if not. By capability: a **documentation/reference lookup** (confirm current, idiomatic library/framework usage), **version-control history** (understand why code is the way it is), and a **browser/UI automation tool** (for UI projects: render and exercise the UI to confirm behavior/appearance). The UI tool simply doesn't apply to non-UI projects. The **in-house default for the documentation/reference lookup** is `${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs` (or the `code-ops-docs` `get-docs` MCP tool) — local-first and version-accurate (it reads the version installed in the project), with no third-party indexer or query egress; prefer it over coding an API from memory, and treat non-installed fetched docs as `UNVERIFIED`. See `current-docs`.
 
 ## 3 · Interaction protocol — the developer is available
 Default: **when unsure, ask — don't guess.** Calibrate to be consultative, not paralyzed.

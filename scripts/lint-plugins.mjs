@@ -170,6 +170,8 @@ if (existsSync(rootReadmePath)) {
 const RUNTIME_SCRIPTS = [
   { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor'] },
   { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite'] },
+  { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor'] },
+  { name: 'lib-docs-mcp.mjs', plugins: ['code-ops-suite'] },
 ];
 for (const rs of RUNTIME_SCRIPTS) {
   const canonical = join(ROOT, 'scripts', rs.name);
