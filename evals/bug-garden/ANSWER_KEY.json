@@ -34,7 +34,7 @@
       "line": 20,
       "anchor": "parseInt(s)",
       "category": "missing radix",
-      "desc": "parseInt without a radix mis-parses inputs like '0x10' or a legacy leading-zero string"
+      "desc": "parseInt without an explicit radix relies on implicit base-10 inference and silently accepts trailing non-numeric characters (e.g. '12px' parses to 12); pass the radix explicitly"
     }
   ],
   "decoys": [

@@ -21,7 +21,7 @@ const expect = (cond, msg) => { if (!cond) fails.push(msg); };
 // Dirty: report-only to read categories, then gated to confirm fail-closed.
 const d = run([dirty, '--report-only']);
 const out = (d.stdout || '') + (d.stderr || '');
-for (const cat of ['TRAILER', 'EMOJI', 'EMDASH', 'PHRASE', 'BOILERPLATE']) {
+for (const cat of ['TRAILER', 'TOOL', 'EMOJI', 'EMDASH', 'PHRASE', 'BOILERPLATE']) {
   expect(out.includes(cat), `dirty.md should flag ${cat}, did not`);
 }
 expect(run([dirty]).status === 1, 'dirty.md should exit 1 (fail closed)');

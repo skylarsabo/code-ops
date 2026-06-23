@@ -25,6 +25,7 @@ const statusOf = (id) => (out.match(new RegExp(`(FRESH|MOVED|GONE|NO-REF)\\s+${i
 expect(statusOf('BUG-001') === 'FRESH', `BUG-001 should be FRESH, got ${statusOf('BUG-001')}`);
 expect(statusOf('BUG-002') === 'MOVED', `BUG-002 should be MOVED, got ${statusOf('BUG-002')}`);
 expect(statusOf('BUG-003') === 'GONE', `BUG-003 should be GONE, got ${statusOf('BUG-003')}`);
+expect(statusOf('BUG-004') === 'NO-REF', `BUG-004 should be NO-REF, got ${statusOf('BUG-004')}`);
 
 // Without --report-only, a stale register must fail closed (non-zero exit).
 const gated = spawnSync('node', [checker, register, '--root', repo], { encoding: 'utf8' });

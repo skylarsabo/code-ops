@@ -14,3 +14,7 @@ Evidence: off-by-one in slice bounds.
 ## BUG-003 — already fixed, file removed (must be GONE)
 Tier: CONFIRMED · Location: src/legacy.js:10
 Evidence: SQL built by string concatenation. Represents an item the team fixed; the register went stale and still lists it.
+
+## BUG-004 — no location cited (must be NO-REF)
+Tier: PROBABLE
+Evidence: a finding that names no checkable file and line, so it must be re-triaged by hand and counts toward the fail-closed exit.
