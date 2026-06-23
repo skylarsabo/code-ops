@@ -7,14 +7,18 @@
 // suite's own `doc-alignment` / `rigor` skills preach catching but that the
 // marketplace had no automated backstop for:
 //
-//   1. Manifests parse; marketplace <-> plugin.json name/version agree; sources resolve.
+//   1. Manifests parse + carry name/version/description; marketplace <-> plugin.json
+//      agree; sources resolve; no duplicate entries; no unregistered plugin dir.
 //   2. Every README "(N skills)" count matches the real skills/ dir count, and
-//      every skill slug is mentioned in its plugin README (discoverability).
-//   3. Every SKILL.md has frontmatter `description:`, a `## Done when` section,
+//      every skill slug is mentioned (word-boundary) in its plugin README.
+//   3. Every SKILL.md has a frontmatter `description:`, a `## Done when` heading,
 //      and references CONVENTIONS.md (the suite's completion + backbone contract).
 //   4. Each plugin has the CONVENTIONS.md its skills reference.
-//   5. Orchestrator skills only reference skills that actually exist (the bug
-//      that shipped: full-sweep -> nonexistent `code-normalization`).
+//   5. Orchestrator skills only reference skills that actually exist — intra-plugin
+//      orchestrators against their OWN plugin, `everything` across all — and every
+//      qualified `<plugin>:<skill>` reference (in any skill) resolves.
+//   6. Every ${CLAUDE_PLUGIN_ROOT}/scripts/X a skill references is bundled in that
+//      plugin and byte-identical to the canonical scripts/X.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -28,21 +32,25 @@ const warnings = [];
 const fail = (m) => errors.push(m);
 const warn = (m) => warnings.push(m);
 const rel = (p) => p.slice(ROOT.length + 1).replaceAll('\\', '/');
+const readText = (p) => readFileSync(p, 'utf8').replace(/^﻿/, ''); // tolerate a UTF-8 BOM when parsing
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Orchestrator skills invoke OTHER skills by name; their references must resolve.
-const ORCHESTRATOR_SKILLS = new Set(['full-sweep', 'everything', 'rigor-sweep']);
-// Hyphenated, slug-shaped tokens that legitimately appear emphasized in an
-// orchestrator but are NOT skills (track names, automation levels, plugin names,
-// opsec terms). Add here only after confirming the token is intentional.
+// `everything` is the cross-plugin orchestrator (references skills across all plugins);
+// full-sweep / rigor-sweep are intra-plugin (must reference only their OWN plugin's skills).
+const CROSS_PLUGIN_ORCH = new Set(['everything']);
+const INTRA_PLUGIN_ORCH = new Set(['full-sweep', 'rigor-sweep']);
+// Lowercase slug-shaped tokens that legitimately appear emphasized in an orchestrator but
+// are NOT skills (track names, automation levels, plugin names, opsec terms, phase words).
 const ORCH_TOKEN_ALLOWLIST = new Set([
-  'assess-only', 'audit-only', 'auto-all', 'auto-safe', 'fail-closed',
-  'code-ops-suite', 'privacy-opsec-suite',
+  'assess-only', 'audit-only', 'auto-all', 'auto-safe', 'auto-fix', 'fail-closed', 'gated',
+  'code-ops-suite', 'privacy-opsec-suite', 'rigor',
+  'full', 'track', // emphasized prose words in the sweeps ("the full pass", "per track"), not skills
 ]);
-const SLUG_RE = /[a-z0-9]+(?:-[a-z0-9]+)+/; // a hyphenated lowercase token
+const SLUGISH = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // single-word OR hyphenated lowercase token
 
 function readJSON(path) {
   try {
-    return JSON.parse(readFileSync(path, 'utf8'));
+    return JSON.parse(readText(path));
   } catch (e) {
     fail(`invalid JSON: ${rel(path)} — ${e.message}`);
     return null;
@@ -53,11 +61,16 @@ function listDirs(path) {
     ? readdirSync(path, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
     : [];
 }
+// Skill dirs only: ignore `_`/`.`-prefixed helper/asset directories (LINT-013).
+const listSkillDirs = (path) => listDirs(path).filter((d) => !d.startsWith('_') && !d.startsWith('.'));
 function emphasizedSlugTokens(body) {
   const toks = new Set();
-  for (const m of body.matchAll(/\*\*([a-z0-9-]+)\*\*/g)) if (SLUG_RE.test(m[1])) toks.add(m[1]);
-  for (const m of body.matchAll(/`([a-z0-9-]+)`/g)) if (SLUG_RE.test(m[1])) toks.add(m[1]);
+  for (const m of body.matchAll(/\*\*([a-z0-9][a-z0-9-]*)\*\*/g)) if (SLUGISH.test(m[1])) toks.add(m[1]);
+  for (const m of body.matchAll(/`([a-z0-9][a-z0-9-]*)`/g)) if (SLUGISH.test(m[1])) toks.add(m[1]);
   return toks;
+}
+function mentions(text, slug) {
+  return new RegExp('(^|[^a-z0-9-])' + escapeRe(slug) + '([^a-z0-9-]|$)').test(text);
 }
 
 // ---- 1. marketplace + manifests --------------------------------------------
@@ -66,13 +79,21 @@ if (!existsSync(mpPath)) fail('missing .claude-plugin/marketplace.json');
 const mp = existsSync(mpPath) ? readJSON(mpPath) : null;
 
 const plugins = []; // { name, dir, manifest, skills, readme }
+const seenNames = new Set();
+const seenSources = new Set();
+const registeredSources = new Set();
 if (mp && Array.isArray(mp.plugins)) {
   for (const entry of mp.plugins) {
+    if (seenNames.has(entry.name)) fail(`duplicate marketplace entry name "${entry.name}"`);
+    seenNames.add(entry.name);
     if (typeof entry.source !== 'string') {
       warn(`marketplace entry "${entry.name}": non-local source, skipping path checks`);
       continue;
     }
+    if (seenSources.has(entry.source)) fail(`duplicate marketplace source "${entry.source}"`);
+    seenSources.add(entry.source);
     const dir = resolve(ROOT, entry.source);
+    registeredSources.add(dir);
     if (!existsSync(dir)) {
       fail(`marketplace entry "${entry.name}": source dir missing (${entry.source})`);
       continue;
@@ -82,9 +103,12 @@ if (mp && Array.isArray(mp.plugins)) {
     if (!manifest) {
       fail(`"${entry.name}": missing .claude-plugin/plugin.json`);
     } else {
+      for (const f of ['name', 'version', 'description']) {
+        if (typeof manifest[f] !== 'string' || !manifest[f].trim()) fail(`"${entry.name}": plugin.json missing non-empty ${f}`);
+      }
       if (manifest.name !== entry.name)
         fail(`name mismatch: marketplace "${entry.name}" vs plugin.json "${manifest.name}"`);
-      if (entry.version && manifest.version && entry.version !== manifest.version)
+      if (entry.version !== manifest.version)
         fail(`version mismatch for "${entry.name}": marketplace ${entry.version} vs plugin.json ${manifest.version}`);
     }
     if (!existsSync(join(dir, 'CONVENTIONS.md')))
@@ -95,20 +119,29 @@ if (mp && Array.isArray(mp.plugins)) {
       name: entry.name,
       dir,
       manifest,
-      skills: listDirs(join(dir, 'skills')),
-      readme: existsSync(readmePath) ? readFileSync(readmePath, 'utf8') : '',
+      skills: listSkillDirs(join(dir, 'skills')),
+      readme: existsSync(readmePath) ? readText(readmePath) : '',
     });
   }
 } else if (mp) {
   fail('marketplace.json has no "plugins" array');
 }
 
+// Any on-disk plugin dir not registered in the marketplace is invisible to every check above.
+for (const d of listDirs(join(ROOT, 'plugins'))) {
+  if (!registeredSources.has(resolve(ROOT, 'plugins', d))) fail(`plugins/${d} is not registered in marketplace.json`);
+}
+
 const allSlugs = new Set(plugins.flatMap((p) => p.skills));
+const pluginByName = new Map(plugins.map((p) => [p.name, p]));
+const QUALIFIED_RE = plugins.length
+  ? new RegExp(`\\b(${plugins.map((p) => escapeRe(p.name)).join('|')}):([a-z0-9-]+)`, 'g')
+  : null;
 
 // ---- 2/3/5. per-plugin: README mentions, SKILL.md structure, orchestrator refs
 for (const p of plugins) {
   for (const slug of p.skills) {
-    if (p.readme && !p.readme.includes(slug))
+    if (p.readme && !mentions(p.readme, slug))
       fail(`${p.name}/README.md does not mention skill "${slug}"`);
   }
   for (const slug of p.skills) {
@@ -117,10 +150,10 @@ for (const p of plugins) {
       fail(`${p.name}/${slug}: missing SKILL.md`);
       continue;
     }
-    const body = readFileSync(skPath, 'utf8');
+    const body = readText(skPath);
     const fm = body.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!fm) fail(`${p.name}/${slug}: missing YAML frontmatter`);
-    else if (!/\bdescription:\s*\S/.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`);
+    else if (!/^description:\s*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`);
     if (fm) {
       // An unquoted scalar containing ": " (colon-space) or a trailing colon breaks
       // the YAML parser, so the frontmatter silently loads as EMPTY metadata at runtime.
@@ -134,31 +167,40 @@ for (const p of plugins) {
           fail(`${p.name}/${slug}: frontmatter "${kv[1]}" has an unquoted colon — wrap the value in double quotes (breaks YAML; metadata silently dropped at runtime)`);
       }
     }
-    if (!/##\s*Done when/i.test(body)) fail(`${p.name}/${slug}: missing "## Done when" section`);
+    if (!/^##\s+Done when/im.test(body)) fail(`${p.name}/${slug}: missing "## Done when" section`);
     if (!body.includes('CONVENTIONS.md')) fail(`${p.name}/${slug}: does not reference CONVENTIONS.md`);
 
-    if (ORCHESTRATOR_SKILLS.has(slug)) {
+    // Qualified <plugin>:<skill> references must resolve (checked in every skill, not just orchestrators).
+    if (QUALIFIED_RE) {
+      for (const m of body.matchAll(QUALIFIED_RE)) {
+        const target = pluginByName.get(m[1]);
+        if (target && !target.skills.includes(m[2]))
+          fail(`${p.name}/${slug}: references ${m[1]}:${m[2]} but "${m[2]}" is not a skill in ${m[1]}`);
+      }
+    }
+
+    // Bare emphasized skill tokens in an orchestrator must be in scope.
+    const validSet = CROSS_PLUGIN_ORCH.has(slug) ? allSlugs : (INTRA_PLUGIN_ORCH.has(slug) ? new Set(p.skills) : null);
+    if (validSet) {
       for (const tok of emphasizedSlugTokens(body)) {
-        if (!allSlugs.has(tok) && !ORCH_TOKEN_ALLOWLIST.has(tok))
-          fail(`${p.name}/${slug}: references unknown skill-like token "${tok}" — not a skill slug (rename it, or add to ORCH_TOKEN_ALLOWLIST if intentional)`);
+        if (!validSet.has(tok) && !ORCH_TOKEN_ALLOWLIST.has(tok))
+          fail(`${p.name}/${slug}: references unknown skill-like token "${tok}" — not a skill in scope (rename it, or add to ORCH_TOKEN_ALLOWLIST if intentional)`);
       }
     }
   }
 }
 
-// ---- 4. root README skill-count parity -------------------------------------
+// ---- 4. root README skill-count parity (scoped to the plugin's own bullet line) ----
 const rootReadmePath = join(ROOT, 'README.md');
 if (existsSync(rootReadmePath)) {
-  const rr = readFileSync(rootReadmePath, 'utf8');
+  const rr = readText(rootReadmePath);
   for (const p of plugins) {
-    const re = new RegExp('`' + p.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '`[\\s\\S]{0,500}?\\((\\d+)\\s+skills\\)');
-    const m = rr.match(re);
-    if (!m) {
-      warn(`root README: no "(N skills)" count found near \`${p.name}\``);
-      continue;
+    let count = null;
+    for (const line of rr.split('\n')) {
+      if (line.includes('`' + p.name + '`')) { const m = line.match(/\((\d+)\s+skills\)/); if (m) { count = Number(m[1]); break; } }
     }
-    if (Number(m[1]) !== p.skills.length)
-      fail(`root README count for ${p.name}: says ${m[1]}, actual ${p.skills.length}`);
+    if (count === null) { warn(`root README: no "(N skills)" count found on the \`${p.name}\` line`); continue; }
+    if (count !== p.skills.length) fail(`root README count for ${p.name}: says ${count}, actual ${p.skills.length}`);
   }
 } else {
   warn('no root README.md');
@@ -169,10 +211,12 @@ if (existsSync(rootReadmePath)) {
 // every plugin that references it and stay byte-identical to the repo-root source.
 const RUNTIME_SCRIPTS = [
   { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor'] },
-  { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite'] },
+  { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite', 'code-ops-suite'] },
   { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor'] },
   { name: 'lib-docs-mcp.mjs', plugins: ['code-ops-suite'] },
 ];
+// RUNTIME_SCRIPTS plugin names must be real (a typo silently disables the missing-script check).
+for (const rs of RUNTIME_SCRIPTS) for (const pn of rs.plugins) if (!pluginByName.has(pn)) fail(`RUNTIME_SCRIPTS lists unknown plugin "${pn}" for ${rs.name}`);
 for (const rs of RUNTIME_SCRIPTS) {
   const canonical = join(ROOT, 'scripts', rs.name);
   if (!existsSync(canonical)) { fail(`missing canonical scripts/${rs.name}`); continue; }
@@ -182,6 +226,19 @@ for (const rs of RUNTIME_SCRIPTS) {
     const mustHave = rs.plugins.includes(p.name);
     if (mustHave && !existsSync(copy)) fail(`${p.name}: missing bundled scripts/${rs.name} (a skill references it)`);
     else if (existsSync(copy) && readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: scripts/${rs.name} has drifted from the canonical scripts/${rs.name} — re-copy it`);
+  }
+}
+// Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a skill/CONVENTIONS must be bundled+identical.
+const SCRIPT_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([\w.-]+\.mjs)/g;
+for (const p of plugins) {
+  const refd = new Set();
+  const bodies = [...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')), join(p.dir, 'CONVENTIONS.md')];
+  for (const f of bodies) if (existsSync(f)) for (const m of readText(f).matchAll(SCRIPT_REF_RE)) refd.add(m[1]);
+  for (const name of refd) {
+    const copy = join(p.dir, 'scripts', name);
+    const canonical = join(ROOT, 'scripts', name);
+    if (!existsSync(copy)) fail(`${p.name}: a skill references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
+    else if (existsSync(canonical) && readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
   }
 }
 
@@ -194,14 +251,14 @@ const normWords = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().spli
 for (const p of plugins) {
   const convPath = join(p.dir, 'CONVENTIONS.md');
   if (!existsSync(convPath)) continue;
-  const conv = normWords(readFileSync(convPath, 'utf8'));
+  const conv = normWords(readText(convPath));
   if (conv.length < DUP_NGRAM) continue;
   const grams = new Set();
   for (let i = 0; i + DUP_NGRAM <= conv.length; i++) grams.add(conv.slice(i, i + DUP_NGRAM).join(' '));
   for (const slug of p.skills) {
     const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
     if (!existsSync(skPath)) continue;
-    const w = normWords(readFileSync(skPath, 'utf8'));
+    const w = normWords(readText(skPath));
     for (let i = 0; i + DUP_NGRAM <= w.length; i++) {
       if (grams.has(w.slice(i, i + DUP_NGRAM).join(' '))) {
         fail(`${p.name}/${slug}: copies a ${DUP_NGRAM}+ word passage verbatim from CONVENTIONS ('${w.slice(i, i + 8).join(' ')}...') — reference the section instead`);
