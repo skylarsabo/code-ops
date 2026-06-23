@@ -66,7 +66,11 @@ for (const f of files) {
 }
 if (gitRange) {
   // execFileSync (no shell) — the range is passed as argv tokens, so shell metacharacters cannot inject.
-  try { targets.push({ label: `git ${gitRange}`, text: execFileSync('git', ['log', '--format=%B', ...gitRange.split(/\s+/).filter(Boolean)], { encoding: 'utf8' }) }); }
+  // SCR-016: also reject option-like tokens (leading '-') so a range value cannot smuggle git options
+  // (e.g. --output=<path>); a real rev-range never starts with '-'. A trailing '--' marks end-of-options.
+  const rangeTokens = gitRange.split(/\s+/).filter(Boolean);
+  if (rangeTokens.some((t) => t.startsWith('-'))) { console.error(`x --git range must not contain option-like tokens: ${gitRange}`); process.exit(2); }
+  try { targets.push({ label: `git ${gitRange}`, text: execFileSync('git', ['log', '--format=%B', ...rangeTokens, '--'], { encoding: 'utf8' }) }); }
   catch (e) { console.error(`x git log ${gitRange} failed: ${e.message}`); process.exitCode = 2; }
 }
 if (targets.length === 0) { console.error('usage: scan-ai-tells.mjs <file> [...] [--git <range>] [--report-only]'); process.exit(2); }

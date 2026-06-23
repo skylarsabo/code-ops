@@ -158,7 +158,7 @@ for (const p of plugins) {
     const body = readText(skPath);
     const fm = body.match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!fm) fail(`${p.name}/${slug}: missing YAML frontmatter`);
-    else if (!/^description:\s*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`);
+    else if (!/^description:[ \t]*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`); // [ \t] not \s: \s spans the newline and matches the next key
     if (fm) {
       // An unquoted scalar containing ": " (colon-space) or a trailing colon breaks
       // the YAML parser, so the frontmatter silently loads as EMPTY metadata at runtime.
@@ -244,7 +244,8 @@ for (const p of plugins) {
     const copy = join(p.dir, 'scripts', name);
     const canonical = join(ROOT, 'scripts', name);
     if (!existsSync(copy)) fail(`${p.name}: a skill references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
-    else if (existsSync(canonical) && readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
+    else if (!existsSync(canonical)) fail(`${p.name}: bundled scripts/${name} has no canonical scripts/${name} at the repo root — cannot verify it against a source of truth`);
+    else if (readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
   }
 }
 

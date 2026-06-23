@@ -69,7 +69,11 @@ async function handle(msg) {
     }
   }
   if (typeof method === 'string' && method.startsWith('notifications/')) return; // fire-and-forget
-  if (id !== undefined) fail(id, -32601, `method not found: ${method}`);
+  if (id !== undefined) {
+    // SCR-020: a missing/non-string method is an Invalid Request (-32600), not Method-not-found (-32601).
+    if (typeof method !== 'string') return fail(id, -32600, 'Invalid Request: "method" must be a string');
+    fail(id, -32601, `method not found: ${method}`);
+  }
 }
 
 let buf = '';

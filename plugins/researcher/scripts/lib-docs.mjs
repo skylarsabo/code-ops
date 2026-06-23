@@ -116,7 +116,7 @@ export function safeFetchUrl(u) {
   return true;
 }
 
-async function readCapped(resp, maxBytes = 256 * 1024) {
+export async function readCapped(resp, maxBytes = 256 * 1024) {
   const reader = resp.body && resp.body.getReader ? resp.body.getReader() : null;
   if (!reader) return (await resp.text()).slice(0, maxBytes);
   const dec = new TextDecoder();
@@ -124,8 +124,13 @@ async function readCapped(resp, maxBytes = 256 * 1024) {
   while (received < maxBytes) {
     const { done, value } = await reader.read();
     if (done) break;
-    received += value.length;
-    out += dec.decode(value, { stream: true });
+    // SCR-013: enforce the cap on the appended bytes, not just at loop entry, so one oversized
+    // chunk cannot blow past maxBytes.
+    const room = maxBytes - received;
+    const chunk = value.length > room ? value.subarray(0, room) : value;
+    received += chunk.length;
+    out += dec.decode(chunk, { stream: true });
+    if (received >= maxBytes) break;
   }
   try { await reader.cancel(); } catch { /* best-effort */ }
   return out;
