@@ -13,3 +13,5 @@ node_modules/
 
 docs/specs
 docs/superpowers
+# local audit-run artifacts (findings registers, summaries) — never tracked
+docs/code-ops-run/
