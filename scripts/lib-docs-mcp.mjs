@@ -18,14 +18,14 @@ const TOOLS = [
   },
   {
     name: 'get-docs',
-    description: 'Get current, version-accurate docs for a library from its INSTALLED version (README + exported type signatures), local-first; fetches from the library source only as a fallback. Use before coding against an unfamiliar API instead of relying on memory.',
+    description: 'Get current, version-accurate docs for a library from its INSTALLED version (README + exported type signatures), local-only by default. Use before coding against an unfamiliar API instead of relying on memory.',
     inputSchema: {
       type: 'object',
       properties: {
         library: { type: 'string' },
         topic: { type: 'string', description: 'optional focus, e.g. "streaming" or "auth"' },
         root: { type: 'string', description: 'project root (default: cwd)' },
-        noFetch: { type: 'boolean', description: 'disable the network fallback (default false)' },
+        noFetch: { type: 'boolean', description: 'disable the network fallback (default true — local only; pass false to opt in to the library-source fallback)' },
       },
       required: ['library'],
     },
@@ -38,12 +38,18 @@ const fail = (id, code, message) => send({ jsonrpc: '2.0', id, error: { code, me
 
 async function callTool(name, args = {}) {
   const root = args.root || process.cwd();
+  if (name === 'resolve-library' || name === 'get-docs') {
+    // BUG-005: enforce the declared required:['library'] contract with a clear error
+    // rather than letting an internal path error surface from deeper in the engine.
+    if (typeof args.library !== 'string' || !args.library.trim()) throw new Error('missing or invalid required argument: library (non-empty string)');
+  }
   if (name === 'resolve-library') {
     const pkg = resolveInstalled(args.library, root);
     return pkg ? `${pkg.name}@${pkg.version}${pkg.homepage ? ` — ${pkg.homepage}` : ''}` : `${args.library}: not installed under ${root}/node_modules`;
   }
   if (name === 'get-docs') {
-    const res = await getDocs({ library: args.library, topic: args.topic || '', root, noFetch: !!args.noFetch });
+    // PRIV-001: local-only unless the caller explicitly opts in with noFetch:false.
+    const res = await getDocs({ library: args.library, topic: args.topic || '', root, noFetch: args.noFetch !== false });
     return res.text;
   }
   throw new Error(`unknown tool: ${name}`);
