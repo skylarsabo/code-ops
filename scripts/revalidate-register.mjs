@@ -54,9 +54,11 @@ const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', '
 const REF_RE = /\b((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
 const VERIFIED_RE = /Verified-at:\s*([0-9a-f]{7,40}|HEAD)\b/i;
 
-function isItemId(id, after) {
+function isItemId(id, after, afterNext) {
   if (ID_IGNORE.has(id.split('-')[0].toUpperCase())) return false;
-  if (after === '-') return false; // part of a longer token, e.g. CVE-2021-44228
+  // SCR-015: only a digit after the trailing '-' marks a longer numeric token (CVE-2021-44228);
+  // a slug suffix (BUG-042-auth-bypass) is still a real item ID.
+  if (after === '-' && /\d/.test(afterNext || '')) return false;
   return true;
 }
 
@@ -100,12 +102,15 @@ function findByName(refPath) {
 
 let totalStale = 0;
 let totalItems = 0;
+// SCR-014: explicit status precedence so a later MOVED cannot clobber an earlier AMBIGUOUS.
+const RANK = { FRESH: 0, MOVED: 1, AMBIGUOUS: 2, GONE: 3 };
+const escalate = (cur, next) => (RANK[next] > RANK[cur] ? next : cur);
 
 for (const file of files) {
   const regPath = isAbsolute(file) ? file : resolve(file);
   if (!existsSync(regPath)) { console.error(`x register not found: ${file}`); totalStale++; continue; }
   const text = readFileSync(regPath, 'utf8');
-  const ids = [...text.matchAll(ID_RE)].filter((m) => isItemId(m[1], text[m.index + m[0].length]));
+  const ids = [...text.matchAll(ID_RE)].filter((m) => isItemId(m[1], text[m.index + m[0].length], text[m.index + m[0].length + 1]));
   console.log(`\n# ${file}${headSha ? `  (HEAD ${headSha})` : ''}`);
   if (ids.length === 0) { console.log('  (no item IDs found — not a register, or a free-form doc)'); continue; }
 
@@ -137,25 +142,25 @@ for (const file of files) {
       for (const r of item.refs) {
         const abs = resolve(root, r.path);
         if (abs !== root && !abs.startsWith(root + sep)) { // SEC-004: refuse to stat paths escaping root
-          if (status === 'FRESH') status = 'AMBIGUOUS';
+          status = escalate(status, 'AMBIGUOUS');
           notes.push(`${r.path} escapes root — not checked`);
           continue;
         }
         if (existsSync(abs) && statSync(abs).isFile()) {
           const lc = lineCount(abs);
-          if (lc >= 0 && r.line > lc) { if (status !== 'GONE') status = 'MOVED'; notes.push(`${r.path}:${r.line} > ${lc} lines`); }
+          if (lc >= 0 && r.line > lc) { status = escalate(status, 'MOVED'); notes.push(`${r.path}:${r.line} > ${lc} lines`); }
           continue;
         }
         // BUG-008: literal path missing — resolve by name before declaring GONE
         const found = findByName(r.path);
         if (found.length === 1) {
           const lc = lineCount(found[0]);
-          if (lc >= 0 && r.line > lc) { if (status !== 'GONE') status = 'MOVED'; notes.push(`${r.path} (as ${found[0].slice(root.length + 1)}):${r.line} > ${lc} lines`); }
+          if (lc >= 0 && r.line > lc) { status = escalate(status, 'MOVED'); notes.push(`${r.path} (as ${found[0].slice(root.length + 1)}):${r.line} > ${lc} lines`); }
         } else if (found.length > 1) {
-          if (status === 'FRESH') status = 'AMBIGUOUS';
+          status = escalate(status, 'AMBIGUOUS');
           notes.push(`${r.path}: ${found.length} files match by name — verify by hand`);
         } else {
-          status = 'GONE'; notes.push(`${r.path} missing`);
+          status = escalate(status, 'GONE'); notes.push(`${r.path} missing`);
         }
       }
     }
