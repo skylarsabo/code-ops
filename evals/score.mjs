@@ -30,6 +30,9 @@ if (tolArg >= 0) {
   tol = Number(args[tolArg + 1]);
   if (!Number.isFinite(tol) || tol < 0) { console.error('x --tolerance needs a non-negative number'); process.exit(2); }
 }
+// SCR-012: validate the RESOLVED tolerance (key-derived or CLI). A typo'd key.lineTolerance
+// (e.g. a string or negative) must fail loudly, not silently collapse matching to recall 0.
+if (!Number.isFinite(tol) || tol < 0) { console.error('x lineTolerance (answer key or --tolerance) must be a non-negative number'); process.exit(2); }
 const keyDir = resolve(dirname(resolve(keyPath)));
 const repoRoot = resolve(keyDir, key.repo ?? 'repo');
 // SEC-005: the fixture root must stay under the key's own directory.
@@ -64,6 +67,8 @@ if (!planted.length) { console.error('x answer key defines no planted items — 
 let cand = [];
 if (candidatePath.endsWith('.json')) {
   cand = JSON.parse(readFileSync(candidatePath, 'utf8'));
+  // SCR-019: a single object / null candidate must give a clean diagnostic, not an unhandled TypeError.
+  if (!Array.isArray(cand)) { console.error('x candidate JSON must be an array of {file,line} objects'); process.exit(2); }
 } else {
   // BUG-012: require a known file extension so version strings / host:port are not parsed as refs.
   const re = /\b((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
