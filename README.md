@@ -2,7 +2,7 @@
 
 One marketplace, three installable plugins of adaptive, multi-agent engineering workflows. Add the marketplace once, then install whichever plugin a project needs.
 
-- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization, PR-splitting, ship, debug, current-docs. (18 skills)
+- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization, PR-splitting, ship, debug, current-docs, plus architecture & API/data-model/ADR/ops doc generation. (23 skills)
 - **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate, authorship hygiene. (14 skills)
 - **`rigor`** — verification-first quality: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, ship measured improvements. Prove-it-or-don't-report-it. (11 skills)
 
@@ -117,7 +117,7 @@ code-ops-plugins/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
     │   ├── CONVENTIONS.md                # shared backbone
-    │   ├── skills/                       # 18 workflows (incl. current-docs + ship/debug + pr-split + orchestrators)
+    │   ├── skills/                       # 23 workflows (incl. architecture/API/data-model/ADR/ops doc generators + current-docs + orchestrators)
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # PR-review GitHub Actions workflow
     │   └── README.md

@@ -110,3 +110,13 @@ For each unit of work:
 - **Run artifacts** go in a dated folder under the repo's docs location (e.g. `docs/<area>/<date>/`), or repo root if there's no docs convention. **Authoritative reference docs** live in the repo's existing docs/SSOT location and are reconciled in place.
 - **Detect and match the repo's existing docs structure and conventions** — never impose a new structure without asking.
 - **Standard filenames** prompts produce: `FINDINGS_REGISTER.md`, `FEATURE_OPPORTUNITIES.md` + feature specs, `EXECUTIVE_SUMMARY.md`, and per-prompt logs/reports named in each prompt.
+
+## 13 · Documentation quality standard (for generated docs)
+The **DOCUMENT-mode generators** (`architecture`, `api-docs`, `data-model`, `adr`, `ops-docs`) follow this house style so the output is beautiful, deep, and trustworthy — not a skeleton. `doc-alignment` keeps these docs true afterward.
+- **Altitude — write for a senior engineer new to *this* system.** Explain the **why and how** — trade-offs, invariants, failure modes, non-obvious constraints — never a flat "A → B". No filler; every sentence earns its place.
+- **Layered.** Open with a **≤1-page exec summary** (what it is, the 3–5 things that actually matter, one orienting diagram) so a reader can stop there and be oriented; then progressive deep-dives.
+- **Diagrams are first-class — Mermaid, the right tool per job.** **C4** (`C4Context`/`C4Container`/`C4Component`, or a flowchart) for structure; **sequence** for runtime flows; **erDiagram** for data; **stateDiagram** for lifecycles; **flowchart** for logic. Conventions: a legend, consistent shapes + role colors, real component names, ≤~15 nodes per diagram (split a bigger one). Use fenced `mermaid` code blocks so they render on GitHub/IDEs and diff in PRs.
+- **Code-grounded & verified.** Every component, flow, field, endpoint, and decision traces to real code — cite `file:line`/symbol. **Never invent** a component or flow; mark anything inferred `UNVERIFIED`. After writing, re-confirm the cited paths still exist (`§12` freshness); use the in-house docs lookup (`§2`) for dependency facts.
+- **House style.** Consistent headings + a short glossary for domain terms; present tense, active voice; define each acronym once; reference matter in tables; call out invariants/gotchas/"why" explicitly. American spelling, no emoji.
+- **Self-scoping.** Each generator detects whether it applies (e.g. `api-docs` only with a real API surface) and states what it covered and what it did not.
+- **Freshness stamp.** Each generated doc records the commit SHA it was generated against, so drift is detectable and `doc-alignment` can reconcile it.
