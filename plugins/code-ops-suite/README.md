@@ -2,6 +2,8 @@
 
 Adaptive, multi-agent engineering workflows for **any codebase**, packaged as a Claude Code plugin. Each workflow is a namespaced skill you invoke as `/code-ops-suite:<name>`; they run a dynamic, conflict-aware multi-agent loop and check in with you at the decisions that matter. Shared rules live once in `CONVENTIONS.md`, which every skill reads first.
 
+New to the suite? See the handbook at `docs/handbook/` (from the repo root) to learn to use it.
+
 ## Skills
 
 Invoke with `/code-ops-suite:<name>`. All are manual-invoke (they won't auto-fire) since they're deliberate operations.

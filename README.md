@@ -11,6 +11,8 @@ One marketplace, four installable plugins of adaptive, multi-agent engineering w
 
 Each plugin reads its bundled `CONVENTIONS.md` first (shared operating model, developer-in-the-loop interaction protocol, safety rails, schemas, quality lenses). Skills are **manual-invoke** (they run only when you call them, never automatically).
 
+**New here?** Start with the handbook in [`docs/handbook/`](docs/handbook/) — the guide to learning and using the suite.
+
 ---
 
 ## Prerequisites

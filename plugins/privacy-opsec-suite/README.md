@@ -4,6 +4,8 @@ Adaptive, multi-agent workflows for building, auditing, and operating **privacy-
 
 **Stance:** defensive privacy engineering — protect your system's *own users'* anonymity and find/fix leaks in *your own* code. Anonymous-by-default, fail-closed.
 
+New to the suite? See the handbook at `docs/handbook/` (from the repo root) to learn to use it.
+
 ## Skills
 
 Invoke with `/privacy-opsec-suite:<name>`. All are manual-invoke (deliberate operations).

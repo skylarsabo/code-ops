@@ -19,6 +19,10 @@
 //      qualified `<plugin>:<skill>` reference (in any skill) resolves.
 //   6. Every ${CLAUDE_PLUGIN_ROOT}/scripts/X a skill references is bundled in that
 //      plugin and byte-identical to the canonical scripts/X.
+//   7. No skill copy-pastes a 40+ word passage verbatim out of its CONVENTIONS.md.
+//   8. (when docs/handbook/commands/ exists) every skill has an entry heading
+//      `### `/<plugin>:<skill>`` in docs/handbook/commands/<plugin>.md AND a qualified
+//      reference in the README router table; every such heading names a real skill.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -265,6 +269,63 @@ for (const p of plugins) {
       if (grams.has(w.slice(i, i + DUP_NGRAM).join(' '))) {
         fail(`${p.name}/${slug}: copies a ${DUP_NGRAM}+ word passage verbatim from CONVENTIONS ('${w.slice(i, i + 8).join(' ')}...') — reference the section instead`);
         break;
+      }
+    }
+  }
+}
+
+// ---- 8. handbook command reference parity (per-plugin page + router table) ----
+// The handbook is the human-facing front door; it drifts the moment a skill is added or
+// renamed without touching docs. For every skill we require BOTH:
+//   a) an entry heading of the exact form `### ` + "`/<plugin>:<skill>`" in
+//      docs/handbook/commands/<plugin>.md, and
+//   b) a qualified `/<plugin>:<skill>` reference in the README router table.
+// The reverse also has to hold: every `### `/<plugin>:<skill>`` heading must name a real skill.
+const handbookDir = join(ROOT, 'docs', 'handbook', 'commands');
+if (existsSync(handbookDir)) {
+  // Router table: the `## The task → command router` section of the index, sliced off at the
+  // next `##` heading so the per-plugin reference list below it does not count as "in the router".
+  const routerReadmePath = join(handbookDir, 'README.md');
+  let routerText = null;
+  if (!existsSync(routerReadmePath)) {
+    fail(`handbook: missing ${rel(routerReadmePath)} (the command router index)`);
+  } else {
+    const rr = readText(routerReadmePath);
+    const start = rr.search(/^##\s+The task .* command router\s*$/m);
+    if (start === -1) {
+      fail(`handbook: ${rel(routerReadmePath)} has no "## The task → command router" section`);
+    } else {
+      const rest = rr.slice(start + 1);
+      const next = rest.search(/^##\s+/m);
+      routerText = next === -1 ? rr.slice(start) : rr.slice(start, start + 1 + next);
+    }
+  }
+
+  for (const p of plugins) {
+    const pagePath = join(handbookDir, `${p.name}.md`);
+    if (!existsSync(pagePath)) {
+      fail(`handbook: missing ${rel(pagePath)} (referenced for every ${p.name} skill)`);
+    } else {
+      const page = readText(pagePath);
+      // Collect every `### `/<plugin>:<skill>`` heading on this page (exact form), then diff
+      // against the real skill set in both directions.
+      const headingRe = new RegExp(`^###\\s+\`/${escapeRe(p.name)}:([a-z0-9-]+)\`\\s*$`, 'gm');
+      const headedSkills = new Set();
+      for (const m of page.matchAll(headingRe)) headedSkills.add(m[1]);
+      for (const slug of p.skills) {
+        if (!headedSkills.has(slug))
+          fail(`handbook: ${rel(pagePath)} has no entry heading "### \`/${p.name}:${slug}\`" for skill "${slug}"`);
+      }
+      for (const slug of headedSkills) {
+        if (!p.skills.includes(slug))
+          fail(`handbook: ${rel(pagePath)} has entry heading "### \`/${p.name}:${slug}\`" but "${slug}" is not a skill in ${p.name}`);
+      }
+    }
+    // Router-table membership: a qualified `/<plugin>:<skill>` reference inside the router slice.
+    if (routerText !== null) {
+      for (const slug of p.skills) {
+        if (!mentions(routerText, `/${p.name}:${slug}`))
+          fail(`handbook: README router table does not reference "/${p.name}:${slug}"`);
       }
     }
   }
