@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.2.0
+- **`revalidate-register` hardened:** correct line count (off-by-one EOF), stop parsing standards tokens (RFC/CVE/ISO) and version/host strings as references, resolve bare-filename references (new `AMBIGUOUS` status), confine reference paths to the repo root, and a clear error when `--root` is given no value. `lib-docs` (bundled) is now local-only by default.
+
 ## 2.1.0
 - **Register freshness:** §10 SSOT now requires re-confirming a finding's proof still fails before it is written, carried across a phase boundary, or consumed; added `Verified-at: <sha>` to the §6 finding schema and bundled `scripts/revalidate-register.mjs` as a fast pre-filter; `fix-verified` runs it at Phase 0.
 - **Automation-level ladder** (`gated` / `auto-safe` = CONFIRMED+NOW-SAFE / `auto-all`; always-gated categories; never auto-merge) promoted into CONVENTIONS §4.

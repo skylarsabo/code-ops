@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.4.0
+- **`scan-ai-tells` hardened.** Replaced the shell-string `git log` call with a no-shell `execFileSync` (removes a command-injection sink), made `--emdash-max` fail closed on a malformed value instead of silently disabling the check, widened emoji coverage (regional-indicator flags + the low symbol band) and the tool/vendor list, and dropped an over-broad two-letter token that false-matched `.ai` addresses.
+- **`revalidate-register` hardened** (off-by-one EOF, standards-token/version mis-parse, bare-path resolution with a new `AMBIGUOUS` status, reference-path confinement); `lib-docs` is now local-only by default.
+
 ## 1.3.0
 - **New skill `authorship-hygiene`** + bundled `scripts/scan-ai-tells.mjs` — remove AI/tooling trace from commits/PRs/code across three surfaces: L1 metadata (attribution trailers, identity), L2 prose voice (match the author's style; kill assistant tells), L3 code-idiom blend-in (behavior-preserving; delegates repo-wide style to `normalize`, concept-divergence to `consistency-closure`). New CONVENTIONS §A non-negotiable: no tooling/AI trace in published work, fail-closed before push.
 
