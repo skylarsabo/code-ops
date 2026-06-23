@@ -15,22 +15,32 @@
 // Exit non-zero on any hit (so it can gate a push fail-closed), unless --report-only.
 
 import { readFileSync, existsSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 const argv = process.argv.slice(2);
 const reportOnly = argv.includes('--report-only');
 const emIdx = argv.indexOf('--emdash-max');
-const EMDASH_MAX = emIdx >= 0 ? Number(argv[emIdx + 1]) : 3;
+const EMDASH_MAX = (() => {
+  if (emIdx < 0) return 3;
+  const n = Number(argv[emIdx + 1]);
+  if (!Number.isFinite(n) || n < 1) {
+    console.error(`x --emdash-max needs a positive number (got: ${argv[emIdx + 1] ?? '<missing>'})`);
+    process.exit(2); // fail closed on a malformed gate config rather than silently disabling the check
+  }
+  return n;
+})();
 const gitIdx = argv.indexOf('--git');
 const gitRange = gitIdx >= 0 ? argv[gitIdx + 1] : null;
 const files = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--git' && argv[i - 1] !== '--emdash-max');
 
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F0FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
+// Includes regional-indicator flags (1F1E6-1F1FF) and the low band from 231A (watch/hourglass/alarm) up.
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{1F000}-\u{1F0FF}\u{231A}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
 const LINE_CHECKS = [
-  { cat: 'TRAILER', re: /^\s*co-authored-by:\s*.*(claude|anthropic|gpt|copilot|chatgpt|\bai\b)/i },
-  { cat: 'TRAILER', re: /generated (with|by)\b.*(claude|cursor|copilot|chatgpt|llm)/i },
-  { cat: 'TOOL', re: /\b(claude code|cursor|github copilot|chatgpt|as an ai language model|i am an ai|large language model)\b/i },
+  // Concrete tool/vendor names only — no bare \bai\b (it false-positives on .ai emails and the surname "Ai").
+  { cat: 'TRAILER', re: /^\s*co-authored-by:\s*.*\b(claude|anthropic|gpt|chatgpt|copilot|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|perplexity|tabnine)\b/i },
+  { cat: 'TRAILER', re: /generated (with|by)\b.*(claude|cursor|copilot|chatgpt|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|llm)/i },
+  { cat: 'TOOL', re: /\b(claude code|cursor|github copilot|chatgpt|gemini|codeium|windsurf|aider|as an ai language model|i am an ai|large language model)\b/i },
   { cat: 'PHRASE', re: /(^|\s)(notably,|importantly,|in summary,)/i },
   { cat: 'PHRASE', re: /here's what (i|we)\b/i },
   { cat: 'BOILERPLATE', re: /^#{1,4}\s*test plan\b/i },
@@ -44,7 +54,7 @@ function scanText(label, text) {
     for (const c of LINE_CHECKS) if (c.re.test(line)) hits.push({ cat: c.cat, line: i + 1, snippet: line.trim().slice(0, 70) });
     if (EMOJI.test(line)) hits.push({ cat: 'EMOJI', line: i + 1, snippet: line.trim().slice(0, 70) });
   });
-  const emdashes = (text.match(/—/g) || []).length;
+  const emdashes = (text.match(/[–—―−]/g) || []).length; // em/en/horizontal-bar/minus look-alikes
   if (emdashes >= EMDASH_MAX) hits.push({ cat: 'EMDASH', line: 0, snippet: `${emdashes} em-dashes (threshold ${EMDASH_MAX})` });
   return { label, hits };
 }
@@ -55,7 +65,8 @@ for (const f of files) {
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
 }
 if (gitRange) {
-  try { targets.push({ label: `git ${gitRange}`, text: execSync(`git log --format=%B ${gitRange}`, { encoding: 'utf8' }) }); }
+  // execFileSync (no shell) — the range is passed as argv tokens, so shell metacharacters cannot inject.
+  try { targets.push({ label: `git ${gitRange}`, text: execFileSync('git', ['log', '--format=%B', ...gitRange.split(/\s+/).filter(Boolean)], { encoding: 'utf8' }) }); }
   catch (e) { console.error(`x git log ${gitRange} failed: ${e.message}`); process.exitCode = 2; }
 }
 if (targets.length === 0) { console.error('usage: scan-ai-tells.mjs <file> [...] [--git <range>] [--report-only]'); process.exit(2); }
