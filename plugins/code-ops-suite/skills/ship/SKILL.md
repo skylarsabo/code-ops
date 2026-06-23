@@ -26,7 +26,7 @@ Add tests that fail before and pass after; keep the full suite green; run the re
 If the change touches egress, logging, identifiers, or a default — and `privacy-opsec-suite` is installed — run its gate: no new leak/egress/identifier/fingerprint, fail-closed preserved. Surface any anonymity regression as blocking.
 
 ## Phase 5 — Finish traceless
-Ship the work as a clean PR: `code-ops-suite:pr-split` if it warrants a stack, otherwise a single PR scrubbed by `privacy-opsec-suite:authorship-hygiene`. `scan-ai-tells` passes fail-closed before push; **never auto-merge**.
+Ship the work as a clean PR: `code-ops-suite:pr-split` if it warrants a stack, otherwise a single PR scrubbed by `privacy-opsec-suite:authorship-hygiene`. `scan-ai-tells` passes fail-closed before push — if `privacy-opsec-suite` is not installed, run the bundled `${CLAUDE_PLUGIN_ROOT}/scripts/scan-ai-tells.mjs` over the commit/PR text directly as the gate. **Never auto-merge**.
 
 ## Done when
 The change is implemented at the smallest correct scope, proven (failing→passing tests, suite + regression guard green), behavior-preserving where intended, privacy posture intact (if applicable), docs updated, and shipped as a clean, trace-free PR/stack with nothing auto-merged. Present a summary, the PR link(s), and anything left for your decision.

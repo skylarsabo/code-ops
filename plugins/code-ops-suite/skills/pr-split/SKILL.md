@@ -18,7 +18,7 @@ Build a change-unit graph over the diff and group hunks into PRs by **dependency
 For each PR in order: create the stacked branch on its parent, apply only its hunks, and **build/test green at that step**. Green-at-every-step is the invariant that makes the split usable — if an intermediate is red, regroup (the hunk has an unstated dependency). Keep a growing record so a later PR can't silently break an earlier one.
 
 ## Phase 3 — Trace scrub (fail-closed)
-Run `privacy-opsec-suite:authorship-hygiene` over the whole stack — L1 metadata, L2 prose voice, L3 code-idiom blend-in — which runs `scan-ai-tells.mjs` fail-closed. **Abort the push if the trace can't be cleaned.**
+Run `privacy-opsec-suite:authorship-hygiene` over the whole stack — L1 metadata, L2 prose voice, L3 code-idiom blend-in — which runs `scan-ai-tells.mjs` fail-closed. If `privacy-opsec-suite` is not installed, run the bundled `${CLAUDE_PLUGIN_ROOT}/scripts/scan-ai-tells.mjs` directly as the mechanical floor. **Abort the push if the trace can't be cleaned.**
 
 ## Phase 4 — Publish
 Push the stack and open each PR via `gh`, targeting its parent branch (a true stack), with the voice-matched descriptions. **Never auto-merge**; never force-push over an existing remote branch without confirmation. Per the automation level: `gated` pauses before push; `auto-safe`/full-auto proceed after one abortable dry-run summary.

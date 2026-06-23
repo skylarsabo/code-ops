@@ -1,0 +1,63 @@
+name: Deep Review (rigor)
+
+# Verification-first PR gate. Runs the rigor suite's deep-review bar on every PR.
+# Needs the ANTHROPIC_API_KEY secret (set by /install-github-app); skips cleanly without it
+# (e.g. fork PRs) so it never blocks on a missing secret. Actions pinned to commit SHAs per
+# the suite's own supply-chain-trust skill — bump deliberately (the trailing comment tracks the tag).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deep-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect API key
+        id: key
+        run: echo "present=${{ secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Verification-first review
+        if: steps.key.outputs.present == 'true'
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Run /rigor:deep-review for this pull request if the rigor plugin is available.
+            If it is not, apply the verification-first bar inline:
+
+            Ground truth first — run `node scripts/lint-plugins.mjs`, `node scripts/check-no-deps.mjs`,
+            and the harnesses under `evals/` so the review starts from facts, then review the diff
+            against the surrounding code.
+
+            Assign each concern an evidence tier: CONFIRMED (reproduced — a failing test or trace on
+            this code) / PROBABLE (strong static evidence, not executed) / SPECULATIVE (a low-confidence
+            lead). Before reporting anything, run a disconfirmation pass: is it reachable, already handled,
+            intentional, or already tested? Drop what does not survive.
+
+            Post inline comments at file:line, each with its tier and a concrete fix, grouped Blocking
+            (CONFIRMED defect or regression) / Should-fix / Nit. Flag any new inconsistency or a regressed
+            lint/eval enforcement. For this repo specifically, treat as Blocking: a bundled plugin copy
+            that drifts from its canonical scripts/ source, and any change that makes lint-plugins or an
+            eval pass while the behavior it guards is broken.
+
+            End with a verdict (approve / approve-with-nits / request-changes) and a short risk read.
+            Do NOT inflate tiers: never block on a SPECULATIVE, never wave through a CONFIRMED defect.
+          claude_args: "--allowed-tools Read,Grep,Glob,Bash"
+
+      - name: Gate skipped
+        if: steps.key.outputs.present != 'true'
+        run: echo "ANTHROPIC_API_KEY not set — deep-review gate skipped (fork PR or unconfigured repo)."

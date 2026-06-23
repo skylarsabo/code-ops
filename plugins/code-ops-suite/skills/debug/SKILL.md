@@ -24,7 +24,7 @@ Run the `rigor:fix-verified` loop: the repro now passes, the suite is green, the
 If the fix touches egress, logging, identifiers, or a default — and `privacy-opsec-suite` is installed — run its leak gate; fail-closed preserved.
 
 ## Phase 5 — Finish traceless
-Ship as a clean PR scrubbed by `privacy-opsec-suite:authorship-hygiene` (use `code-ops-suite:pr-split` if the fix is multi-part); `scan-ai-tells` passes fail-closed before push; **never auto-merge**.
+Ship as a clean PR scrubbed by `privacy-opsec-suite:authorship-hygiene` (use `code-ops-suite:pr-split` if the fix is multi-part); `scan-ai-tells` passes fail-closed before push — if `privacy-opsec-suite` is not installed, run the bundled `${CLAUDE_PLUGIN_ROOT}/scripts/scan-ai-tells.mjs` directly as the gate; **never auto-merge**.
 
 ## Done when
 The symptom is reproduced then resolved, fixed at root cause with a regression test that failed before and passes now, siblings handled and an enforcement added, the regression guard + suite green, privacy posture intact (if applicable), and shipped as a clean trace-free PR with nothing auto-merged.

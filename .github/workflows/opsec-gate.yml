@@ -1,0 +1,57 @@
+name: OpSec PR Gate (privacy-opsec-suite)
+
+# Pre-merge anonymity/opsec gate. Runs the privacy-opsec-suite gate on every PR.
+# Needs the ANTHROPIC_API_KEY secret (set by /install-github-app); skips cleanly without it
+# (e.g. fork PRs). Actions pinned to commit SHAs per the suite's own supply-chain-trust skill.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  opsec-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect API key
+        id: key
+        run: echo "present=${{ secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Anonymity / OpSec review
+        if: steps.key.outputs.present == 'true'
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Run /privacy-opsec-suite:opsec-pr-gate for this pull request if the privacy-opsec-suite
+            plugin is available. If it is not, apply the gate inline, reviewing the diff against the
+            surrounding code.
+
+            Treat the following as BLOCKING regressions (request changes). The first four are the
+            properties this repo's own tooling promises and must not silently weaken:
+              - a new outbound network path, or re-enabling lib-docs' fetch by default / removing its
+                https-and-public-host allowlist (egress must stay opt-in and host-constrained)
+              - a new third-party import (the suite is dependency-free — check-no-deps must stay green)
+              - a weakened default or a loosened authorship/freshness gate (scan-ai-tells, revalidate-register):
+                a fail-closed check turned fail-open, a removed validation, or coverage narrowed
+              - a new log line or output emitting secrets / identifiers / IPs, or added telemetry
+            Plus the standard checks: no new identifier/fingerprint/correlation surface, fail-closed
+            preserved, metadata minimized.
+
+            Post inline comments at file:line with concrete fixes, labeled Blocking / Should-fix / Nit.
+            End with a verdict (approve / approve-with-nits / request-changes) and a 2-3 line risk read.
+            Do NOT approve any change that weakens an anonymity or fail-closed guarantee. Never echo real
+            identifiers, secrets, or IPs.
+          claude_args: "--allowed-tools Read,Grep,Glob"
+
+      - name: Gate skipped
+        if: steps.key.outputs.present != 'true'
+        run: echo "ANTHROPIC_API_KEY not set — opsec gate skipped (fork PR or unconfigured repo)."
