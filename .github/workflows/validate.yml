@@ -40,6 +40,9 @@ jobs:
       - name: Researcher egress-manifest eval
         run: node evals/research-manifest/run.mjs
 
+      - name: Script-guard regression eval (2026-06-23 audit fixes)
+        run: node evals/script-guards/run.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then

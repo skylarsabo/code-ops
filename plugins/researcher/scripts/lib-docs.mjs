@@ -10,7 +10,7 @@
 // Exposes getDocs()/resolveInstalled() for the MCP server (lib-docs-mcp.mjs) to reuse.
 
 import { readFileSync, existsSync, readdirSync, openSync, readSync, closeSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Accept only real npm package specifiers — no path separators, no '..', no leading dot/underscore.
@@ -58,8 +58,14 @@ function findReadme(dir) {
   return null;
 }
 
-function findTypes(pkg) {
-  if (pkg.types) { const p = join(pkg.dir, pkg.types); if (existsSync(p)) return p; }
+export function findTypes(pkg) {
+  if (pkg.types) {
+    // SEC-001 (fix): a package-supplied `types` value must not escape the package dir
+    // (e.g. "../../secret.d.ts"). Resolve and confine before reading it.
+    const p = resolve(pkg.dir, pkg.types);
+    const base = resolve(pkg.dir);
+    if ((p === base || p.startsWith(base + sep)) && existsSync(p)) return p;
+  }
   const idx = join(pkg.dir, 'index.d.ts');
   if (existsSync(idx)) return idx;
   for (const f of readdirSync(pkg.dir)) if (f.endsWith('.d.ts')) return join(pkg.dir, f);
@@ -95,7 +101,7 @@ function filterReadme(md, topic, maxLines = 160) {
 // SEC-002: only fetch https URLs to public hosts — never a package-supplied http URL or a
 // loopback/private/link-local host (an installed dependency must not be able to point the
 // fallback at an internal endpoint).
-function safeFetchUrl(u) {
+export function safeFetchUrl(u) {
   let url;
   try { url = new URL(u); } catch { return false; }
   if (url.protocol !== 'https:') return false;
@@ -103,6 +109,10 @@ function safeFetchUrl(u) {
   if (h === 'localhost' || h.endsWith('.localhost') || h === '::1' || h === '0.0.0.0') return false;
   if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h)) return false;
   if (/^(fc|fd)[0-9a-f]{2}:/i.test(h) || /^fe80:/i.test(h)) return false; // IPv6 ULA / link-local
+  // SEC-002 (fix): IPv4-mapped/compatible IPv6 (e.g. ::ffff:7f00:1, the hex-normalized form the
+  // WHATWG URL parser produces for [::ffff:127.0.0.1] / [::ffff:169.254.169.254]) slips past the
+  // dotted-decimal IPv4 checks above. Reject any IPv6 literal that maps or embeds an IPv4 address.
+  if (h.includes(':') && (/^::ffff:/i.test(h) || /\d{1,3}(\.\d{1,3}){3}/.test(h))) return false;
   return true;
 }
 
