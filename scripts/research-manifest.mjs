@@ -29,9 +29,17 @@ const HEADER = '# Egress Manifest\n\nEvery external (web) request the researcher
 function recordedHosts() {
   if (!existsSync(manifestPath)) return new Set();
   const hosts = new Set();
-  for (const m of readFileSync(manifestPath, 'utf8').matchAll(URL_RE)) {
-    const h = hostOf(stripTrailing(m[0]));
-    if (h) hosts.add(h);
+  // SEC (fix): derive disclosed hosts ONLY from the structured `host` and `url` table columns,
+  // never from a free-text `why` cell (a URL in a rationale must not silently whitelist its host),
+  // and honor the explicit `--host` override recorded in the host column (incl. non-http(s) urls).
+  for (const line of readFileSync(manifestPath, 'utf8').split('\n')) {
+    if (!line.startsWith('|')) continue;
+    const cells = line.split('|').map((c) => c.trim()); // ['', timestamp, tool, host, url, why, '']
+    const host = cells[3], url = cells[4];
+    if (!host || host === 'host' || /^-+$/.test(host)) continue; // skip the header + separator rows
+    hosts.add(host.toLowerCase());
+    const hu = hostOf(stripTrailing(url || ''));
+    if (hu) hosts.add(hu);
   }
   return hosts;
 }

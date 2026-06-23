@@ -115,7 +115,13 @@ for (const file of files) {
     const id = ids[i][1];
     const block = text.slice(ids[i].index, ids[i + 1]?.index ?? text.length);
     const cur = items.get(id) ?? { refs: [], verifiedAt: null };
-    for (const m of block.matchAll(REF_RE)) cur.refs.push({ path: m[1], line: Number(m[2]) });
+    for (const m of block.matchAll(REF_RE)) {
+      // SEC-004 (fix): REF_RE's leading \b drops a path-traversal/absolute prefix (../, ./, /),
+      // which would silently re-root an escaping citation inside the repo and report it FRESH.
+      // Restore the prefix so the confinement check below classifies it AMBIGUOUS instead.
+      const esc = block.slice(0, m.index).match(/(?:\.{0,2}\/)+$/);
+      cur.refs.push({ path: (esc ? esc[0] : '') + m[1], line: Number(m[2]) });
+    }
     const v = block.match(VERIFIED_RE);
     if (v && !cur.verifiedAt) cur.verifiedAt = v[1];
     items.set(id, cur);
