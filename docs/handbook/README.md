@@ -13,7 +13,7 @@ A shared backbone runs through all four: developer-in-the-loop, evidence at `fil
 
 ## Task → command router (condensed)
 
-The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 55 commands, see [commands/README.md](commands/README.md).
+The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 55 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
 
 | I want to… | Command |
 | --- | --- |
