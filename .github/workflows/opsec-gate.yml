@@ -1,8 +1,9 @@
 name: OpSec PR Gate (privacy-opsec-suite)
 
 # Pre-merge anonymity/opsec gate. Runs the privacy-opsec-suite gate on every PR.
-# Needs the ANTHROPIC_API_KEY secret (set by /install-github-app); skips cleanly without it
-# (e.g. fork PRs). Actions pinned to commit SHAs per the suite's own supply-chain-trust skill.
+# Needs a Claude credential: a Pro/Max subscription token (CLAUDE_CODE_OAUTH_TOKEN, from
+# `claude setup-token`) OR an Anthropic API key (ANTHROPIC_API_KEY). Skips cleanly without
+# either (e.g. fork PRs). Actions pinned to commit SHAs per the suite's own supply-chain-trust skill.
 
 on:
   pull_request:
@@ -16,9 +17,9 @@ jobs:
   opsec-gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Detect API key
+      - name: Detect credential
         id: key
-        run: echo "present=${{ secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+        run: echo "present=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
 
       - if: steps.key.outputs.present == 'true'
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -29,6 +30,7 @@ jobs:
         if: steps.key.outputs.present == 'true'
         uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             Run /privacy-opsec-suite:opsec-pr-gate for this pull request if the privacy-opsec-suite
@@ -54,4 +56,4 @@ jobs:
 
       - name: Gate skipped
         if: steps.key.outputs.present != 'true'
-        run: echo "ANTHROPIC_API_KEY not set — opsec gate skipped (fork PR or unconfigured repo)."
+        run: echo "No Claude credential set (CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY) — opsec gate skipped (fork PR or unconfigured repo)."
