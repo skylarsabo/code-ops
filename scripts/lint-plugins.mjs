@@ -338,4 +338,5 @@ if (errors.length) {
   for (const e of errors) console.error(`  x ${e}`);
   process.exit(1);
 }
-console.log(`OK — ${plugins.length} plugins, ${allSlugs.size} skills, no structural problems.`);
+const totalCommands = plugins.reduce((n, p) => n + p.skills.length, 0);
+console.log(`OK — ${plugins.length} plugins, ${totalCommands} commands (${allSlugs.size} unique skills), no structural problems.`);

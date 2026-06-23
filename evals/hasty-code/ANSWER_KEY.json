@@ -1,0 +1,48 @@
+{
+  "fixture": "hasty-code",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.66, "maxDecoys": 0 },
+  "planted": [
+    {
+      "id": "HASTY-1",
+      "file": "src/util.js",
+      "line": 4,
+      "anchor": "unusedHelper",
+      "category": "dead-code",
+      "desc": "unusedHelper is never called and never exported — dead code normalize should remove"
+    },
+    {
+      "id": "HASTY-2",
+      "file": "src/util.js",
+      "line": 25,
+      "anchor": "const sentinel",
+      "category": "unreachable",
+      "desc": "statement after an unconditional return — unreachable dead code"
+    },
+    {
+      "id": "HASTY-3",
+      "file": "src/util.js",
+      "line": 12,
+      "anchor": "takes the input list and returns the sum",
+      "category": "generated-comment",
+      "desc": "verbose generated-style comment restating the code line by line; a normalization tell"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "DEC-1",
+      "file": "src/util.js",
+      "line": 29,
+      "anchor": "publicEntry",
+      "why": "looks unused in this file but is the package's public entry point (re-exported); not dead code"
+    },
+    {
+      "id": "DEC-2",
+      "file": "src/util.js",
+      "line": 35,
+      "anchor": "n || 0",
+      "why": "intentional, correct default-guard idiom; not a bug or a hasty construct"
+    }
+  ]
+}
