@@ -252,9 +252,9 @@ stops the same false positive from being re-derived on the next pass.
 
 - [`05-evidence-and-tiers.md`](../handbook/05-evidence-and-tiers.md) — the tier this
   pass assigns once a finding survives.
-- [`reading-a-findings-register.md`](./reading-a-findings-register.md) — where
+- [`reading-a-findings-register.md`](reading-a-findings-register.md) — where
   survivors are recorded and how to read them.
-- [`choosing-an-automation-level.md`](./choosing-an-automation-level.md) — what a
+- [`choosing-an-automation-level.md`](choosing-an-automation-level.md) — what a
   `CONFIRMED` survivor is allowed to trigger automatically.
 - [`plugins/rigor/CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) — **§A**
   tiers, **§B** the disconfirmation pass (the five questions), **§C** ground-truth /

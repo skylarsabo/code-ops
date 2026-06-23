@@ -40,6 +40,11 @@ The first slice, all under `docs/` and tracked in the repo.
 - [03-orchestrators.md](03-orchestrators.md) — `full-sweep`, `everything`, `ship`, `debug`, `rigor-sweep`, `research-sweep`, and the privacy `full-sweep`: when to use which, their phases, and relative cost.
 - [04-registers-and-freshness.md](04-registers-and-freshness.md) — the FINDINGS / CONSISTENCY / LEAK / RESEARCH_FINDINGS / IDEAS / EGRESS_MANIFEST register schemas, the NOW-SAFE / NEEDS-REVIEW / NEEDS-DESIGN tracks, Verified-at stamps, `revalidate-register.mjs`, OBSOLETE-AT, and recovery.
 - [05-evidence-and-tiers.md](05-evidence-and-tiers.md) — CONFIRMED / PROBABLE / SPECULATIVE and the disconfirmation pass as lived practice.
+- [06-privacy-opsec-primer.md](06-privacy-opsec-primer.md) — orientation to the anonymity track: when a repo needs it, and why anonymity is a stronger property than privacy.
+- [07-researcher-egress.md](07-researcher-egress.md) — the disclosed, fail-closed egress model end-to-end: every outbound request as a first-class, disclosed event.
+- [08-ci-and-automation.md](08-ci-and-automation.md) — wiring the per-PR gates and recurring skills: what each gate blocks, and the one credential and permission they need.
+- [09-cost-and-scoping.md](09-cost-and-scoping.md) — cost as a control you hold: choosing the orchestrator, scope, track, and check-in cadence to fit a budget.
+- [10-recovery-and-troubleshooting.md](10-recovery-and-troubleshooting.md) — what to do when a run stalls or a register goes stale: re-ground against current code, then continue.
 
 **Command reference**
 - [commands/README.md](commands/README.md) — the command-reference index and the full task → command router covering all 55 commands.
@@ -52,21 +57,23 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../guides/audit-a-risky-subsystem.md](../guides/audit-a-risky-subsystem.md) — the rigor journey: ground-truth → test-suite-audit → bug-hunt + quality-scan → safety-net → fix-verified.
 - [../guides/ship-a-verified-fix.md](../guides/ship-a-verified-fix.md) — `code-ops-suite:ship` across rigor, the privacy gate, and a traceless PR.
 - [../guides/the-everything-pass.md](../guides/the-everything-pass.md) — the `everything` orchestrator end-to-end, checkpoint by checkpoint.
+- [../guides/debug-symptom-to-root-cause.md](../guides/debug-symptom-to-root-cause.md) — driving `code-ops-suite:debug` from a live symptom to a proven root-cause fix: reproduce first, fix at the cause, lock it behind a regression test.
+- [../guides/harden-anonymity.md](../guides/harden-anonymity.md) — the anonymity-track journey through `privacy-opsec-suite:full-sweep`: model, audits, hardening, and docs/gate as one fail-closed pipeline.
+- [../guides/respond-to-a-suspected-leak.md](../guides/respond-to-a-suspected-leak.md) — the incident journey: `leak-incident-response` then `opsec-hardening`, confirming from redacted evidence and locking the leak shut.
+- [../guides/research-a-library-choice.md](../guides/research-a-library-choice.md) — an A-vs-B-vs-build decision via `researcher:library-eval` → `research-verify` → `code-ops-suite:adr`, proven before anyone writes code.
+- [../guides/wire-ci-gates.md](../guides/wire-ci-gates.md) — the hands-on companion to chapter 08: standing up the three per-PR review gates and recurring researcher runs on a repo.
 
 **Techniques (focused how-tos)**
 - [../techniques/reading-a-findings-register.md](../techniques/reading-a-findings-register.md) — how to read and act on a findings register.
 - [../techniques/disconfirmation-pass.md](../techniques/disconfirmation-pass.md) — running the disconfirmation pass that kills false positives.
 - [../techniques/choosing-an-automation-level.md](../techniques/choosing-an-automation-level.md) — picking gated vs auto-safe vs auto-all, and the always-gated categories.
+- [../techniques/register-carry-forward.md](../techniques/register-carry-forward.md) — the narrow move at a phase boundary: re-grounding a register so a fixed item is never re-listed, re-ranked, and worked twice.
+- [../techniques/subagent-trade-offs.md](../techniques/subagent-trade-offs.md) — which subagents exist, when a skill fans out to them, and the context-isolation trade-offs you buy when it does.
+- [../techniques/applying-quality-lenses.md](../techniques/applying-quality-lenses.md) — treating the ten quality lenses as a decision aid: choosing which apply to your stack and how to weight them.
+- [../techniques/redaction-discipline.md](../techniques/redaction-discipline.md) — the mechanical rule for secrets and PII: redact to `<REDACTED:reason>` everywhere, never reproduce a live secret or real identifier.
 
-## Coming next
+## The handbook is complete
 
-These chapters are planned for a later slice and are not yet written:
-
-- Privacy-opsec primer — orientation to the anonymity track for newcomers.
-- Researcher-egress walkthrough — the disclosed, fail-closed egress flow end-to-end.
-- CI / automation chapter — wiring the PR gates and scheduled skills.
-- Cost / scoping chapter — how to scope a run and reason about token cost.
-- Recovery / troubleshooting chapter — what to do when a run stalls or a register goes stale.
-- The remaining guides (5) and techniques (4).
+This is the full handbook: ten chapters, the command reference, eight guides, and seven techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
 *Verified-at: c2b37e9*
