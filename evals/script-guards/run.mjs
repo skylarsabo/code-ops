@@ -10,7 +10,7 @@
 import { safeFetchUrl, findTypes, readCapped } from '../../scripts/lib-docs.mjs';
 import { findThirdPartySpecs } from '../../scripts/check-no-deps.mjs';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -116,6 +116,57 @@ try {
     cp.stdin.write('{"jsonrpc":"2.0","id":1}\n'); // no method
   });
   check('SCR-020 missing method maps to -32600', code === -32600);
+
+  // --- remaining audit fixes (2026-06-23) ---
+
+  // SCR-010 — an import written inside a comment is not a false positive; a real import still is
+  const realImport = readFileSync(join(FIX, 'multiline.txt'), 'utf8');
+  check('SCR-010 import in a line comment not flagged', findThirdPartySpecs('// ' + realImport.replace(/\n/g, ' ')).length === 0);
+  check('SCR-010 import in a block comment not flagged', findThirdPartySpecs('/*\n' + realImport + '\n*/').length === 0);
+  check('SCR-010 real import still flagged', findThirdPartySpecs(realImport).includes('axios'));
+
+  // SCR-014 — for a multi-ref item, AMBIGUOUS outranks MOVED (label precedence)
+  const r14 = join(work, 'r14');
+  mkdirSync(join(r14, 'a'), { recursive: true });
+  mkdirSync(join(r14, 'b'), { recursive: true });
+  writeFileSync(join(r14, 'a', 'dup.js'), 'x\n');
+  writeFileSync(join(r14, 'b', 'dup.js'), 'x\n'); // dup.js: 2 files match by name → AMBIGUOUS
+  writeFileSync(join(r14, 'only.js'), 'a\nb\n');   // 2 lines → :999 is MOVED
+  const reg14 = join(work, 'reg14.md');
+  writeFileSync(reg14, '## BUG-1\nLocation: dup.js:1\nLocation: only.js:999\n');
+  const out14 = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg14, '--root', r14, '--report-only']).out;
+  check('SCR-014 AMBIGUOUS outranks MOVED', /AMBIGUOUS/.test(out14) && !/MOVED/.test(out14));
+
+  // SCR-015 — a slug-style item ID (BUG-042-auth-bypass) is recognized, not dropped
+  const reg15 = join(work, 'reg15.md');
+  writeFileSync(reg15, '## BUG-042-auth-bypass\nLocation: nope.js:5\n');
+  const r15 = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg15, '--root', work]);
+  check('SCR-015 slug-style ID recognized + gates', /BUG-042/.test(r15.out) && r15.code !== 0);
+
+  // SCR-018 — a root-level third-party import is caught by the whole-repo scan
+  const sb = join(work, 'sb');
+  mkdirSync(join(sb, 'scripts'), { recursive: true });
+  copyFileSync(join(REPO, 'scripts', 'check-no-deps.mjs'), join(sb, 'scripts', 'check-no-deps.mjs'));
+  const offender = join(sb, 'offender.mjs');
+  writeFileSync(offender, readFileSync(join(FIX, 'multiline.txt'), 'utf8')); // root-level bare import
+  check('SCR-018 root-level offender caught', runNode([join(sb, 'scripts', 'check-no-deps.mjs')]).code === 1);
+  rmSync(offender);
+  check('SCR-018 clean sandbox passes', runNode([join(sb, 'scripts', 'check-no-deps.mjs')]).code === 0);
+
+  // SCR-006 — a tools/call still in flight when stdin closes is drained, not dropped
+  const drained = await new Promise((res) => {
+    const cp = spawn('node', [join(REPO, 'scripts', 'lib-docs-mcp.mjs')], { stdio: ['pipe', 'pipe', 'ignore'] });
+    let out = '';
+    const fin = (v) => { clearTimeout(t); try { cp.kill(); } catch { /* ignore */ } res(v); };
+    const t = setTimeout(() => fin(false), 8000);
+    cp.stdout.on('data', (d) => {
+      out += d;
+      for (const ln of out.split('\n')) { if (!ln.trim()) continue; try { if (JSON.parse(ln).id === 7) return fin(true); } catch { /* partial */ } }
+    });
+    cp.stdin.write('{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get-docs","arguments":{"library":"nope"}}}\n');
+    cp.stdin.end(); // close immediately — the drain must still deliver the id:7 response
+  });
+  check('SCR-006 in-flight response drained on stdin end', drained === true);
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

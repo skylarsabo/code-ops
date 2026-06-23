@@ -77,6 +77,7 @@ async function handle(msg) {
 }
 
 let buf = '';
+const pending = new Set();
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => {
   buf += chunk;
@@ -87,7 +88,14 @@ process.stdin.on('data', (chunk) => {
     if (!line) continue;
     let msg;
     try { msg = JSON.parse(line); } catch { continue; }
-    Promise.resolve(handle(msg)).catch((e) => process.stderr.write(`handler error: ${e.message}\n`));
+    // SCR-006: track the in-flight handler so a tools/call still awaiting (e.g. the network
+    // fallback) is not silently dropped when the read side closes.
+    const p = Promise.resolve(handle(msg)).catch((e) => process.stderr.write(`handler error: ${e.message}\n`)).finally(() => pending.delete(p));
+    pending.add(p);
   }
 });
-process.stdin.on('end', () => process.exit(0));
+// SCR-006: drain in-flight handlers before exiting (bounded so a hung handler cannot wedge exit).
+process.stdin.on('end', async () => {
+  await Promise.race([Promise.allSettled([...pending]), new Promise((r) => setTimeout(r, 10000))]);
+  process.exit(0);
+});
