@@ -37,6 +37,9 @@ jobs:
       - name: MCP server smoke test
         run: node evals/lib-docs/mcp-smoke.mjs
 
+      - name: Researcher egress-manifest eval
+        run: node evals/research-manifest/run.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then

@@ -47,6 +47,23 @@
         "testing",
         "code-review"
       ]
+    },
+    {
+      "name": "researcher",
+      "source": "./plugins/researcher",
+      "description": "Code-grounded research: ground in the codebase (or given materials), gather external knowledge, and propose improvements, design briefs, library evaluations, and new ideas. Every claim cited and tiered; local-first with disclosed, fail-closed egress. Proposes and hands implementation to the other suites.",
+      "version": "0.1.0",
+      "category": "engineering",
+      "keywords": [
+        "research",
+        "design",
+        "prior-art",
+        "library-evaluation",
+        "ideation",
+        "local-first",
+        "workflow",
+        "agents"
+      ]
     }
   ]
 }

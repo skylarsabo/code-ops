@@ -1,10 +1,11 @@
 # Code-Ops — Claude Code plugin marketplace
 
-One marketplace, three installable plugins of adaptive, multi-agent engineering workflows. Add the marketplace once, then install whichever plugin a project needs.
+One marketplace, four installable plugins of adaptive, multi-agent engineering workflows. Add the marketplace once, then install whichever plugin a project needs.
 
 - **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization, PR-splitting, ship, debug, current-docs, plus architecture & API/data-model/ADR/ops doc generation. (23 skills)
 - **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate, authorship hygiene. (14 skills)
 - **`rigor`** — verification-first quality: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, ship measured improvements. Prove-it-or-don't-report-it. (11 skills)
+- **`researcher`** — code-grounded research: ground in the codebase (or given materials), gather external knowledge, and propose improvements, design briefs (spikes), library evaluations, ideas, and an ecosystem watch. Every claim cited and tiered; local-first with disclosed, fail-closed egress; it proposes and hands implementation to the other suites. (7 skills)
 
 **Which to use:** install `code-ops-suite` on any project for breadth. Add `privacy-opsec-suite` when the project has anonymity/opsec requirements (anonymous sessions, Tor/onion routing, strong metadata minimization). Reach for `rigor` when you want **proven** bugs and enforced consistency rather than a long list — it's the highest-signal, highest-rigor option. They compose: a broad `code-ops-suite:codebase-audit` for the map, then `rigor:bug-hunt` to prove the real defects, then `privacy-opsec-suite:tor-egress-audit` for the anonymity-specific pass.
 
@@ -28,6 +29,7 @@ Unzip this folder somewhere, then inside Claude Code (run from any repo):
 /plugin install code-ops-suite@code-ops
 /plugin install privacy-opsec-suite@code-ops      # optional
 /plugin install rigor@code-ops                    # verification-first bug/quality suite
+/plugin install researcher@code-ops               # code-grounded research
 ```
 On Windows, a path like `C:\Users\you\code-ops-plugins` works too.
 Equivalent from the terminal (non-interactive):
@@ -36,6 +38,7 @@ claude plugin marketplace add /absolute/path/to/code-ops-plugins
 claude plugin install code-ops-suite@code-ops
 claude plugin install privacy-opsec-suite@code-ops
 claude plugin install rigor@code-ops
+claude plugin install researcher@code-ops
 ```
 
 ### B) GitHub (shareable with your team)
@@ -45,6 +48,7 @@ Push the `code-ops-plugins` folder to a GitHub repo, then:
 /plugin install code-ops-suite@code-ops
 /plugin install privacy-opsec-suite@code-ops
 /plugin install rigor@code-ops
+/plugin install researcher@code-ops
 ```
 Any git host works too: `/plugin marketplace add https://gitlab.com/your-org/code-ops-plugins.git`
 
@@ -60,7 +64,8 @@ Add to the project's `.claude/settings.json` so teammates are prompted to instal
   "enabledPlugins": {
     "code-ops-suite@code-ops": true,
     "privacy-opsec-suite@code-ops": true,
-    "rigor@code-ops": true
+    "rigor@code-ops": true,
+    "researcher@code-ops": true
   }
 }
 ```
@@ -118,7 +123,7 @@ Rule of thumb: `code-ops-suite` for breadth, **`rigor` for proof**, `privacy-ops
 ```
 code-ops/
 ├── .claude-plugin/
-│   └── marketplace.json                 # catalog → three plugins
+│   └── marketplace.json                 # catalog → four plugins
 └── plugins/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
@@ -134,12 +139,19 @@ code-ops/
         ├── agents/                       # leak-aware explorer + privacy-reviewer
         ├── examples/                     # opsec PR-gate GitHub Actions workflow
         └── README.md
-    └── rigor/
+    ├── rigor/
         ├── .claude-plugin/plugin.json
         ├── CONVENTIONS.md                # the verification-first methodology (v2)
         ├── skills/                       # 11 bug/quality workflows
         ├── agents/                       # tracer (read-only) + verifier (runs repros/mutations)
         ├── examples/                     # deep-review GitHub Actions workflow
+        └── README.md
+    └── researcher/
+        ├── .claude-plugin/plugin.json
+        ├── CONVENTIONS.md                # research integrity + the egress model (§A)
+        ├── skills/                       # 7 code-grounded research workflows
+        ├── agents/                       # gatherer + claim-checker subagents
+        ├── scripts/                      # bundled research-manifest.mjs + lib-docs + revalidate-register
         └── README.md
 ```
 See each plugin's `README.md` for its full skill list, the loops/automation guidance, and how its skills chain together.

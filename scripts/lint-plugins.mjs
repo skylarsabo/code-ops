@@ -38,13 +38,14 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // `everything` is the cross-plugin orchestrator (references skills across all plugins);
 // full-sweep / rigor-sweep are intra-plugin (must reference only their OWN plugin's skills).
 const CROSS_PLUGIN_ORCH = new Set(['everything']);
-const INTRA_PLUGIN_ORCH = new Set(['full-sweep', 'rigor-sweep']);
+const INTRA_PLUGIN_ORCH = new Set(['full-sweep', 'rigor-sweep', 'research-sweep']);
 // Lowercase slug-shaped tokens that legitimately appear emphasized in an orchestrator but
 // are NOT skills (track names, automation levels, plugin names, opsec terms, phase words).
 const ORCH_TOKEN_ALLOWLIST = new Set([
   'assess-only', 'audit-only', 'auto-all', 'auto-safe', 'auto-fix', 'fail-closed', 'gated',
-  'code-ops-suite', 'privacy-opsec-suite', 'rigor',
+  'code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher',
   'full', 'track', // emphasized prose words in the sweeps ("the full pass", "per track"), not skills
+  'deep-research', 'lib-docs', 'code-ops-docs', // external skill / bundled script / MCP server the researcher composes, not researcher skills
 ]);
 const SLUGISH = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // single-word OR hyphenated lowercase token
 
@@ -210,10 +211,11 @@ if (existsSync(rootReadmePath)) {
 // Skills invoke these via ${CLAUDE_PLUGIN_ROOT}/scripts/, so each must ship inside
 // every plugin that references it and stay byte-identical to the repo-root source.
 const RUNTIME_SCRIPTS = [
-  { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor'] },
+  { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite', 'code-ops-suite'] },
-  { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor'] },
+  { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'lib-docs-mcp.mjs', plugins: ['code-ops-suite'] },
+  { name: 'research-manifest.mjs', plugins: ['researcher'] },
 ];
 // RUNTIME_SCRIPTS plugin names must be real (a typo silently disables the missing-script check).
 for (const rs of RUNTIME_SCRIPTS) for (const pn of rs.plugins) if (!pluginByName.has(pn)) fail(`RUNTIME_SCRIPTS lists unknown plugin "${pn}" for ${rs.name}`);
