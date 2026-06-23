@@ -15,7 +15,7 @@ disable-model-invocation: true
 Detect the stack/size; confirm all three plugins are available. Verify library/framework facts against the **installed versions** via the in-house docs lookup (`§2`), never memory. Confirm with me:
 - **Scope** — the whole repo, or the riskiest subsystems first (recommended for large repos; bug-hunting goes deep per subsystem).
 - **Privacy track** — include the privacy-opsec phases? (yes if the project has anonymity/opsec requirements; otherwise skip them).
-- **Remediation automation level** (the canonical ladder, `CONVENTIONS §4`) — governs every code-changing phase:
+- **Remediation automation level** (the canonical ladder — code-ops `§4`, applied with rigor's tier gate `rigor §4`/`§H`) — governs every code-changing phase:
   - `gated` *(default)* — pause for my approval at each fix/closure batch.
   - `auto-safe` *(recommended ceiling)* — automatically apply **CONFIRMED + NOW-SAFE** fixes (each on a branch, each carrying a failing→passing regression test, each passing the regression guard); pause only for NEEDS-REVIEW, NEEDS-DESIGN, and the always-gated categories.
   - `auto-all` — *not recommended*; even here the always-gated categories still stop for me, and NEEDS-DESIGN is never auto-applied.

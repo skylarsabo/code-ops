@@ -20,7 +20,7 @@ Run **anonymity-threat-model** to map adversaries, the assets that identify/link
 Run the audits, parallelizing the independent ones: **anon-session-audit**, **tor-egress-audit**, **metadata-leak-audit**, **fingerprint-resistance**, **traffic-analysis-resistance**, **supply-chain-trust**. Merge everything into `LEAK_REGISTER.md` (schema `§6`). → *Checkpoint:* ranked leaks led by any clearnet/DNS/identifier exposure; decide what to fix.
 
 ## Phase 3 — Harden (writes code — requires approval)
-Run **opsec-hardening** against `LEAK_REGISTER.md`: enforce proxy routing and **fail-closed**, close DNS/WebRTC/IPv6 leaks, enforce stream isolation, strip metadata, redact/remove sensitive logging — each fix pinned with a **regression test that fails if the leak returns**. → *Checkpoint per batch* (`CONVENTIONS §6`); intentional behavior-tightening confirmed with you.
+Run **opsec-hardening** against `LEAK_REGISTER.md`: enforce proxy routing and **fail-closed**, close DNS/WebRTC/IPv6 leaks, enforce stream isolation, strip metadata, redact/remove sensitive logging — each fix pinned with a **regression test that fails if the leak returns**. → *Checkpoint per batch* (`CONVENTIONS §4`); intentional behavior-tightening confirmed with you.
 
 ## Phase 4 — Docs & gate
 Run **privacy-doc-alignment** to reconcile the privacy promises, threat model, and opsec runbooks against the code — surfacing any **unkept promise** loudly — and establish the SSOT. Then wire **opsec-pr-gate** into review so future changes that add egress, logging, identifiers, fingerprint surface, or weakened defaults are blocked before merge.

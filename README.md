@@ -35,6 +35,7 @@ Equivalent from the terminal (non-interactive):
 claude plugin marketplace add /absolute/path/to/code-ops-plugins
 claude plugin install code-ops-suite@code-ops
 claude plugin install privacy-opsec-suite@code-ops
+claude plugin install rigor@code-ops
 ```
 
 ### B) GitHub (shareable with your team)
@@ -43,6 +44,7 @@ Push the `code-ops-plugins` folder to a GitHub repo, then:
 /plugin marketplace add your-org/code-ops-plugins
 /plugin install code-ops-suite@code-ops
 /plugin install privacy-opsec-suite@code-ops
+/plugin install rigor@code-ops
 ```
 Any git host works too: `/plugin marketplace add https://gitlab.com/your-org/code-ops-plugins.git`
 
@@ -57,7 +59,8 @@ Add to the project's `.claude/settings.json` so teammates are prompted to instal
   },
   "enabledPlugins": {
     "code-ops-suite@code-ops": true,
-    "privacy-opsec-suite@code-ops": true
+    "privacy-opsec-suite@code-ops": true,
+    "rigor@code-ops": true
   }
 }
 ```
@@ -83,9 +86,9 @@ After editing a plugin, **bump its `version`** in `plugins/<name>/.claude-plugin
 
 **Bundled scripts:**
 - `scripts/lint-plugins.mjs` — structural linter (the CI gate in `.github/workflows/validate.yml`): manifest/version parity, README skill-count parity, required `SKILL.md` fields, frontmatter YAML-safety, orchestrator skill-reference resolution, runtime-script parity, and a verbatim-CONVENTIONS duplication guard. Run `node scripts/lint-plugins.mjs`.
-- `evals/` — the eval harness. `evals/register-staleness/run.mjs` is an automated regression test (also in CI) that pins the register-freshness behavior; see `evals/README.md` for the judgment-eval approach.
+- `evals/` — the eval harness. Four automated regression evals run in `.github/workflows/validate.yml` (register-staleness, ai-tells, lib-docs engine, MCP smoke) plus a zero-dependency guard; see `evals/README.md` for these and the judgment-eval approach.
 - `scripts/revalidate-register.mjs` — register freshness checker, also copied into each plugin so skills invoke it via `${CLAUDE_PLUGIN_ROOT}/scripts/`. Re-greps each register item's `file:line` against the current tree (FRESH / MOVED / GONE / NO-REF) so stale findings are re-triaged before they're acted on: `node scripts/revalidate-register.mjs <register.md> --root <repo>`.
-- `scripts/lib-docs.mjs` — in-house, local-first "current docs" engine (a Context7 alternative): resolves a library's **installed** version and returns its README + type exports with zero network (fetch fallback only). Bundled into each plugin, and also exposed as the `code-ops-docs` MCP server (`scripts/lib-docs-mcp.mjs`, declared in `code-ops-suite`'s manifest).
+- `scripts/lib-docs.mjs` — in-house, local-first "current docs" engine (a Context7 alternative): resolves a library's **installed** version and returns its README + type exports with zero network by default (opt-in `--fetch` fallback to the library's own source). Bundled into each plugin, and also exposed as the `code-ops-docs` MCP server (`scripts/lib-docs-mcp.mjs`, declared in `code-ops-suite`'s manifest).
 
 ## Optional: always-on conventions
 Each plugin ships its own `CONVENTIONS.md` (its operating model, interaction protocol, safety rails, schemas, and lenses), and every skill reads its plugin's file first via `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. To make those principles apply in *every* session — not just inside a skill — add a line to the project's `CLAUDE.md`:
@@ -110,7 +113,7 @@ Rule of thumb: `code-ops-suite` for breadth, **`rigor` for proof**, `privacy-ops
 
 ## What's inside
 ```
-code-ops-plugins/
+code-ops/
 ├── .claude-plugin/
 │   └── marketplace.json                 # catalog → three plugins
 └── plugins/
@@ -121,7 +124,7 @@ code-ops-plugins/
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # PR-review GitHub Actions workflow
     │   └── README.md
-    └── privacy-opsec-suite/
+    ├── privacy-opsec-suite/
         ├── .claude-plugin/plugin.json
         ├── CONVENTIONS.md                # backbone + the anonymity/opsec model (§A)
         ├── skills/                       # 14 privacy/opsec workflows (incl. authorship-hygiene + full-sweep)

@@ -5,18 +5,25 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   structural-lint:
     runs-on: ubuntu-latest
     steps:
-      # NOTE: pin these to a commit SHA per the suite's own supply-chain-trust skill.
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Pinned to commit SHAs (per the suite's own supply-chain-trust skill) so a moved tag
+      # cannot inject code into CI. Bump deliberately; the trailing comment tracks the version.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
 
       - name: Structural lint (the gate)
         run: node scripts/lint-plugins.mjs
+
+      - name: Zero-dependency guard
+        run: node scripts/check-no-deps.mjs
 
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs

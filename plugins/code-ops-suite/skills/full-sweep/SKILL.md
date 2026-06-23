@@ -23,7 +23,7 @@ Run **codebase-audit** (broad lenses), then **security-privacy-audit** (adversar
 Run **test-hardening** on the critical/risky paths the audits flagged, and write characterization tests for anything queued for change — so the next phase is provably behavior-preserving. → *Checkpoint:* coverage on target areas, go/no-go.
 
 ## Phase 4 — Fix (writes code — requires approval)
-Run **remediation** against `FINDINGS_REGISTER.md`: it **re-validates the register first** (`§12`) — dropping anything already fixed — then fixes per the chosen automation level (`§4`), conflict-aware, each fix tested and committed. → *Checkpoint per fix batch* (`CONVENTIONS §6`).
+Run **remediation** against `FINDINGS_REGISTER.md`: it **re-validates the register first** (`§12`) — dropping anything already fixed — then fixes per the chosen automation level (`§4`), conflict-aware, each fix tested and committed. → *Checkpoint per fix batch* (`CONVENTIONS §4`).
 
 ## Phase 5 — Deep-dives (optional, as scoped)
 Run any of **performance** and **dependency-upgrade** you selected; each ships its own verified improvements (measured before→after) and feeds residual items back to the register.

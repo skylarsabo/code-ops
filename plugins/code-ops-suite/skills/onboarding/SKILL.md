@@ -6,7 +6,7 @@ disable-model-invocation: true
 # CODEBASE ONBOARDING — Generate the Orientation Guide
 
 **Invoked as `/code-ops-suite:onboarding`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin (search the plugin directory for it if needed) — it defines the operating model, interaction protocol, safety rails, schemas, and quality lenses this skill references by section.
-**Mode:** DOCUMENT · **Produces:** `ONBOARDING.md` (or a small `docs/onboarding/` set) with an architecture diagram.
+**Mode:** DOCUMENT · **Produces:** `ONBOARDING.md` (or a small `docs/onboarding/` set) with an architecture diagram, following the documentation quality standard (`§13`).
 
 Produce a high-quality, **code-grounded** orientation guide so a new engineer — or a fresh agent — becomes productive fast. **Code is ground truth** — verify everything; don't just paraphrase existing (possibly drifted) docs, and **run the setup steps** to confirm they work. Flag uncertainties as open questions rather than inventing.
 
