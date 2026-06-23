@@ -1,0 +1,48 @@
+{
+  "fixture": "drifted-docs",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.66, "maxDecoys": 0 },
+  "planted": [
+    {
+      "id": "DRIFT-1",
+      "file": "README.md",
+      "line": 7,
+      "anchor": "default port is 3000",
+      "category": "stale-value",
+      "desc": "README says the default port is 3000, but src/server.js sets DEFAULT_PORT = 8080"
+    },
+    {
+      "id": "DRIFT-2",
+      "file": "README.md",
+      "line": 13,
+      "anchor": "returns a Promise",
+      "category": "wrong-contract",
+      "desc": "README says start() returns a Promise, but the code returns the port number synchronously"
+    },
+    {
+      "id": "DRIFT-3",
+      "file": "README.md",
+      "line": 17,
+      "anchor": "connect(url)",
+      "category": "phantom-api",
+      "desc": "README documents connect(url), but no such function is exported by src/server.js"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "DEC-1",
+      "file": "README.md",
+      "line": 21,
+      "anchor": "not yet implemented",
+      "why": "an explicitly aspirational Roadmap item — intentionally absent from code, not drift"
+    },
+    {
+      "id": "DEC-2",
+      "file": "README.md",
+      "line": 25,
+      "anchor": "is exported so tests",
+      "why": "accurate claim — src/server.js does export DEFAULT_PORT; not drift"
+    }
+  ]
+}

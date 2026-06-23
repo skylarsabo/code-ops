@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  id-token: write # claude-code-action mints an OIDC token for the Pro/Max OAuth path
 
 jobs:
   opsec-gate:

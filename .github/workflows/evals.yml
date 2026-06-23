@@ -1,0 +1,103 @@
+name: Judgment Evals (scheduled)
+
+# Model-in-the-loop quality evals for the suite's headline claim: high recall AND low
+# false-positive rate. For each fixture it drives the relevant skill (read from this
+# checkout's SKILL.md, so it works even though the plugins are not installed on the
+# runner) over the fixture repo, then scores the result deterministically with score.mjs.
+#
+# Deliberately NOT a per-PR gate: model-in-the-loop recall/FP varies run to run, so this
+# tracks the weekly trend in the run summary rather than blocking a merge. One rep per
+# fixture per run; the weekly cadence is the variance signal over time.
+#
+# Needs a Claude credential (CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`, or
+# ANTHROPIC_API_KEY). Skips cleanly without either. Actions pinned to commit SHAs per the
+# suite's own supply-chain-trust skill — bump deliberately (trailing comment tracks the tag).
+
+on:
+  schedule:
+    - cron: '17 9 * * 1' # Mondays 09:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # claude-code-action mints an OIDC token for the Pro/Max OAuth path
+
+jobs:
+  judgment-evals:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: bug-garden
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/bug-garden/repo
+            key: evals/bug-garden/ANSWER_KEY.json
+            out: evals/bug-garden/_run/findings.json
+          - name: leak-lab
+            skilldocs: plugins/privacy-opsec-suite/skills/metadata-leak-audit/SKILL.md plugins/privacy-opsec-suite/skills/tor-egress-audit/SKILL.md plugins/privacy-opsec-suite/skills/anon-session-audit/SKILL.md
+            target: evals/leak-lab/repo
+            key: evals/leak-lab/ANSWER_KEY.json
+            out: evals/leak-lab/_run/findings.json
+          - name: drifted-docs
+            skilldocs: plugins/code-ops-suite/skills/doc-alignment/SKILL.md
+            target: evals/drifted-docs/repo
+            key: evals/drifted-docs/ANSWER_KEY.json
+            out: evals/drifted-docs/_run/findings.json
+          - name: hasty-code
+            skilldocs: plugins/code-ops-suite/skills/normalize/SKILL.md
+            target: evals/hasty-code/repo
+            key: evals/hasty-code/ANSWER_KEY.json
+            out: evals/hasty-code/_run/findings.json
+    steps:
+      - name: Detect credential
+        id: key
+        run: echo "present=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Run the skill over the fixture (read-only)
+        if: steps.key.outputs.present == 'true'
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are running a quality eval. Read this repository's skill definition file(s):
+            ${{ matrix.skilldocs }}
+            and the CONVENTIONS.md in the same plugin directory. Then apply that skill's
+            methodology to the fixture at ${{ matrix.target }}.
+
+            This is READ-ONLY analysis: do NOT modify any file under ${{ matrix.target }}.
+            Identify only genuine issues — be precise and avoid false positives; the fixture
+            contains intentional decoys that look like issues but are correct.
+
+            Write your findings as a JSON array of objects
+            {"file": "<path within the fixture repo>", "line": <number>, "note": "<short>"}
+            to ${{ matrix.out }} (create the directory if needed). Write nothing else to disk.
+          claude_args: "--allowed-tools Read,Grep,Glob,Write"
+
+      - name: Score (deterministic, non-blocking)
+        if: steps.key.outputs.present == 'true'
+        run: |
+          # Restore the fixture in case the run touched it, so scoring uses the pristine repo.
+          git checkout -- "${{ matrix.target }}" 2>/dev/null || true
+          {
+            echo "## ${{ matrix.name }}"
+            echo '```'
+            if [ -f "${{ matrix.out }}" ]; then
+              node evals/score.mjs "${{ matrix.key }}" "${{ matrix.out }}" --no-exit
+            else
+              echo "no findings file produced at ${{ matrix.out }} (the run wrote nothing)"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Skipped
+        if: steps.key.outputs.present != 'true'
+        run: echo "No Claude credential set (CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY) — judgment evals skipped."

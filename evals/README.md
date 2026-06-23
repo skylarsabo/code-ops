@@ -33,5 +33,9 @@ Candidates are matched to keyed items by **path suffix + basename** (not basenam
 **Built fixtures:**
 - **`bug-garden/`** — 4 planted bugs + 3 decoys for `rigor:bug-hunt` / `quality-scan` / `code-ops-suite:codebase-audit`.
 - **`leak-lab/`** — 3 planted leaks + 3 decoys for the privacy audits.
+- **`drifted-docs/`** — 3 planted doc/code drifts + 2 decoys for `code-ops-suite:doc-alignment`.
+- **`hasty-code/`** — 3 planted hasty-code issues + 2 decoys for `code-ops-suite:normalize`.
+
+**Scheduled runner.** `.github/workflows/evals.yml` runs these judgment evals on a weekly cron (and on `workflow_dispatch`): for each fixture it drives the relevant skill — read from this checkout's `SKILL.md`, so it works even though the plugins are not installed on the runner — over the fixture repo with `claude-code-action`, then scores the result with `score.mjs` and records recall / false-positives in the run summary. It needs a Claude credential and skips cleanly without one. It is deliberately **not** a per-PR gate — model-in-the-loop recall/FP varies run to run, so it tracks the trend rather than blocking a merge.
 
 **To add one** (e.g. `drifted-docs` for `doc-alignment`, `hasty-code` for `normalize`): drop in a `repo/`, write `ANSWER_KEY.json` (`planted` + `decoys`, each with a `line` and a short `anchor` substring on that line) and an `ANSWER_KEY.md`, then `node evals/score.mjs <key> --check` to confirm the key matches. Keep planted and decoy lines apart enough to be distinct, and keep `ANSWER_KEY.*` out of any context handed to the skill.
