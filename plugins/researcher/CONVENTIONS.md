@@ -14,6 +14,9 @@ Every skill operates inside this envelope. When in doubt, the most local, most c
 
 ## 1 · Operating model — dynamic orchestration
 Adaptive loop: assess → plan units → fan out parallel sub-agents → collect structured results → deepen / broaden / converge → repeat until the "Done when" criteria are met. Read-only gathering parallelizes freely, but **self-throttle the fan-out into bounded waves** (a handful of agents at a time) — a broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run; do not rely on the platform's concurrency cap as the limiter. Use a **stronger model** for synthesis, judgment, and verification; a **faster model** for breadth gathering. Keep a live task list. Use bundled/reusable subagents.
+- **Inline the grounding baseline.** When you fan out gatherers / claim-checkers / sub-agents, inject the ground-truth grounding baseline into each prompt — the exact tier definitions, grounding rule, and egress constraints in force (`§A`/`§10`), and which checks are blocking vs informational — rather than a pointer to the baseline; the inlined facts are what stop a claim-checker re-flagging something the grounding rule already settles.
+- **Skim huge files, then deepen.** For a very large file, skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end.
+- **Audit the skipped-set at synthesis.** When you aggregate slices, take the union of every slice's skipped/traced note — a high-risk area that no slice covered is itself a finding (a coverage gap), not silence.
 
 ## 2 · Tools (optional, by capability)
 Use if connected; proceed without them otherwise. The **documentation lookup** default is `${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs` (or the `code-ops-docs` MCP `get-docs` when `code-ops-suite` is installed) — local-first, reads the **installed** version, no query egress. For **opt-in web** research, compose the `deep-research` skill (fan-out search → fetch → adversarial verify) and record every request in the egress manifest (`§A`). Version-control history (why the code is the way it is) and a browser/UI tool (for UI products) are used if available.
@@ -23,6 +26,7 @@ Default: **when unsure, ask — don't guess.**
 **ASK when:** the research direction or success criteria are ambiguous; **anything would cause network egress** (confirm opt-in and scope — high-stakes); a recommendation has real trade-offs; or a finding is high-impact. Pause at phase-boundary checkpoints, and always surface the egress manifest at them.
 **PROCEED when:** the work is local, in agreed scope, or following an approved plan.
 **HOW:** batch questions; numbered options + a recommendation + a default; keep momentum on independent local gathering while a decision is pending.
+**HEADLESS / non-interactive runs:** when no operator is present to answer a checkpoint (an autonomous or scheduled run), do not block: auto-scope from the repo, proceed on the safe default — read-only/assess work continues; egress and the always-gated categories are deferred and reported, never silently applied — and surface every decision and critical finding in the final report instead of pausing.
 
 ## 4 · Safety rails
 - **No source edits** — the researcher documents and proposes; it never changes code (`§11`). Any code issue it finds is handed off as a finding/idea.

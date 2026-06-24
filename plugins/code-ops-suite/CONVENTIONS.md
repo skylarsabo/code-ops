@@ -12,6 +12,9 @@ Each prompt runs an **adaptive loop**: assess → plan units of work → fan out
 - **Conflict-aware fan-out.** For anything that edits code: run agents in **parallel on disjoint file sets**, and **serialize** work that touches shared or newly-extracted files or has dependency edges. Read-only analysis parallelizes freely, but **self-throttle the fan-out into bounded waves** (a handful of agents at a time) even for read-only analysis — a broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run; do not rely on the platform's concurrency cap as the limiter.
 - **Model routing.** If your environment supports it, use the **stronger model** for planning, hard reasoning, design, and review, and a **faster model** for breadth sweeps and mechanical work. Verify all output regardless of which model produced it.
 - **Reusable subagents.** Use any reusable agents your setup provides; otherwise spawn ephemeral specialists per unit of work.
+- **Inline the enforced ruleset.** When you fan out reviewers / sub-agents, inject the ground-truth tool-enforced ruleset into each prompt — the exact lint/type rules in force and which are warnings vs errors — rather than a pointer to `GROUND_TRUTH.md`; the inlined facts are what stop a reviewer re-flagging a rule a tool already enforces.
+- **Skim huge files, then deepen.** For a very large file, skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end.
+- **Audit the skipped-set at synthesis.** When you aggregate slices, take the union of every slice's skipped/traced note — a high-risk area that no slice covered is itself a finding (a coverage gap), not silence.
 - **Live task tracking.** Maintain an evolving task list so the developer can see the work graph and its state at any checkpoint.
 
 ## 2 · Tools (optional, by capability)
@@ -25,6 +28,8 @@ Default: **when unsure, ask — don't guess.** Calibrate to be consultative, not
 **PROCEED without asking when:** the work is clear, safe, low-stakes, and in agreed scope; you're following an approved plan or a decision already made; it's a mechanical step inside an approved unit.
 
 **HOW to ask:** batch related questions at a checkpoint; give **numbered options + a recommendation + a default**, each with a one-line trade-off; keep momentum on independent work while a decision is pending; honor steering ("auto-approve the low-risk ones," "skip X," "always open a PR per item") and remember it for the run.
+
+**Headless / non-interactive runs:** when no operator is present to answer a checkpoint (an autonomous or scheduled run), do not block: auto-scope from the repo, proceed on the safe default — read-only/assess work continues; code-changing work and the always-gated categories are deferred and reported, never silently applied — and surface every decision and critical finding in the final report instead of pausing.
 
 ## 4 · Safety rails
 - Work on a **branch**; commit **atomically** in reviewable chunks with messages stating what/why/how-verified and any item ID.
