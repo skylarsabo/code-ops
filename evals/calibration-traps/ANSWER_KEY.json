@@ -1,0 +1,18 @@
+{
+  "fixture": "calibration-traps",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.5, "maxDecoys": 1 },
+  "planted": [
+    { "id": "BUG-1", "file": "src/sample.js", "line": 12, "anchor": "Number(input)", "category": "leading-zero-coercion", "desc": "Number() drops leading zeros from a fixed-width code" },
+    { "id": "BUG-2", "file": "src/sample.js", "line": 26, "anchor": "clearDependent(id)", "category": "best-effort-before-durable", "desc": "dependent state cleared before a remove() that can throw — lost on the failure path" },
+    { "id": "BUG-3", "file": "src/sample.js", "line": 41, "anchor": "audit({ action: 'grant', actor })", "category": "audit-omits-subject", "desc": "privileged-action audit records the actor but never the grantee" },
+    { "id": "BUG-4", "file": "src/sample.js", "line": 53, "anchor": "check().then", "category": "fail-closed-leaks-rejection", "desc": "a fail-closed preflight does not await/catch its async, leaking an unhandled rejection" }
+  ],
+  "decoys": [
+    { "id": "DEC-1", "file": "src/sample.js", "line": 7, "anchor": "x.slice(1)", "why": "accepted-deferred trade-off documented + tracked at the line (KNOWN / TKT-419) — not a defect" },
+    { "id": "DEC-2", "file": "src/sample.js", "line": 17, "anchor": "renderFallback(body)", "why": "fallback is unreachable — render's only caller (renderJson) always passes ctype 'json'" },
+    { "id": "DEC-3", "file": "src/sample.js", "line": 35, "anchor": "body.n", "why": "n is clamped by the sole caller (handleBatchSafe); the inner layer correctly trusts the invariant" },
+    { "id": "DEC-4", "file": "src/sample.js", "line": 47, "anchor": "return null", "why": "statusFor returns null for 'b' in every state, so A/B ordering is contractually neutral" }
+  ]
+}
