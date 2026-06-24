@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.5.0
+- **CONVENTIONS hardened from a real-scale calibration of the suite.** Disconfirmation (`§8`) gains two false-positive killers — read the cited line's by-design / accepted-deferred annotation, and *locate* the would-be handler before claiming a "nothing else handles this" gap. The operating model (`§1`) self-throttles the fan-out into **bounded waves**, injects the tool-enforced ruleset **inline** into reviewer prompts, **skims-then-deepens** very large files, and **audits the union of slice skipped-sets** at synthesis. A `claims-vs-enforcement` documentation sub-lens (`§9`) and a **headless / non-interactive contract** (`§3`) round it out.
+- **Bundled runtime-script hardening** (`lib-docs`, `revalidate-register`, `scan-ai-tells`): `lib-docs` rejects a package `types` value that escapes the package dir and an IPv4-mapped-IPv6 SSRF, and caps an oversized streamed fetch chunk; `revalidate-register` classifies an escaping `Location:` citation `AMBIGUOUS` instead of `FRESH`; `scan-ai-tells` rejects option-injecting `--git` range tokens.
+
 ## 1.4.0
 - **`scan-ai-tells` hardened.** Replaced the shell-string `git log` call with a no-shell `execFileSync` (removes a command-injection sink), made `--emdash-max` fail closed on a malformed value instead of silently disabling the check, widened emoji coverage (regional-indicator flags + the low symbol band) and the tool/vendor list, and dropped an over-broad two-letter token that false-matched `.ai` addresses.
 - **`revalidate-register` hardened** (off-by-one EOF, standards-token/version mis-parse, bare-path resolution with a new `AMBIGUOUS` status, reference-path confinement); `lib-docs` is now local-only by default.

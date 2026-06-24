@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.3.0
+- **CONVENTIONS hardened from a real-scale calibration of the suite.** The disconfirmation pass (`§B`) gains two false-positive killers — read the cited line's by-design / accepted-deferred annotation, and *locate* the would-be handler before claiming a "nothing else handles this" gap. The operating model (`§1`) self-throttles the fan-out into **bounded waves**, injects the tool-enforced ruleset **inline** into reviewer prompts, **skims-then-deepens** very large files, and **audits the union of slice skipped-sets** at synthesis. A `claims-vs-enforcement` sub-lens on the interface-consistency lens (`§7`) and a **headless / non-interactive contract** (`§3`) round it out.
+- **Bundled runtime-script hardening** (`lib-docs`, `revalidate-register`): `lib-docs` rejects a package `types` value that escapes the package dir and an IPv4-mapped-IPv6 SSRF, and caps an oversized streamed fetch chunk; `revalidate-register` classifies an escaping `Location:` citation `AMBIGUOUS` instead of re-rooting it `FRESH`.
+
 ## 2.2.0
 - **`revalidate-register` hardened:** correct line count (off-by-one EOF), stop parsing standards tokens (RFC/CVE/ISO) and version/host strings as references, resolve bare-filename references (new `AMBIGUOUS` status), confine reference paths to the repo root, and a clear error when `--root` is given no value. `lib-docs` (bundled) is now local-only by default.
 
