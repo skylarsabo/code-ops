@@ -18,7 +18,7 @@ Every skill operates inside this envelope. When in doubt, the most privacy-prese
   - **No tooling/AI trace in published work** — commit metadata, message/PR prose, and code idiom are a fingerprint surface; published work reflects the author, not the tool. Verify fail-closed (`scan-ai-tells.mjs`) before pushing. See `authorship-hygiene`.
 
 ## 1 · Operating model — dynamic orchestration
-Adaptive loop: assess → plan units → fan out parallel sub-agents → collect structured results → deepen / broaden / converge / escalate → repeat until the "Done when" criteria are met. **Conflict-aware** fan-out for code edits (parallel on disjoint files, serial on shared/dependent ones); read-only analysis parallelizes freely. Use a **stronger model** for threat reasoning, synthesis, and review; a **faster model** for breadth sweeps and mechanical work. Use bundled/reusable subagents; keep a live task list.
+Adaptive loop: assess → plan units → fan out parallel sub-agents → collect structured results → deepen / broaden / converge / escalate → repeat until the "Done when" criteria are met. **Conflict-aware** fan-out for code edits (parallel on disjoint files, serial on shared/dependent ones); read-only analysis parallelizes freely but in **bounded waves**. Self-throttle the fan-out into bounded waves (a handful of agents at a time) even for read-only analysis — a broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run; do not rely on the platform's concurrency cap as the limiter. Use a **stronger model** for threat reasoning, synthesis, and review; a **faster model** for breadth sweeps and mechanical work. Use bundled/reusable subagents; keep a live task list.
 
 ## 2 · Tools (optional, by capability)
 Use if connected; proceed without them otherwise. A documentation/reference lookup (verify library/proxy behavior), version-control history, a browser/UI tool (UI projects), and — read-only — inspection of network/proxy/DNS/header behavior. Never use a tool in a way that itself leaks user data. The **in-house default for the documentation lookup** is `${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs` (or the `code-ops-docs` `get-docs` MCP tool when code-ops-suite is installed) — local-first, reading the **installed** version with **no third-party indexer or query egress** (a doc lookup must not itself leak what you are building); treat non-installed fetched docs as `UNVERIFIED`.
@@ -62,6 +62,9 @@ Impact (who is exposed, over what window) · Remediation · Track · Effort · R
 
 ## 8 · Evidence standard
 Every finding cites `file:line`, gives minimal redacted evidence, names the adversary and scenario, and ends with a concrete remediation. State confidence honestly; mark unconfirmed items `UNVERIFIED`.
+**Disconfirm before reporting** (record the result in the `§6` Disconfirmation field) — try to kill the finding first:
+- **Intent annotation** — before reporting, read the cited line's immediate neighbors and any referenced ticket/finding id for an explicit by-design / accepted-deferred / KNOWN annotation, or a docstring/comment that matches the observed behavior — if the intent is documented at the line, it is not a defect; downgrade to informational.
+- **Locate the handler** — a finding whose severity rests on "nothing else handles / guards / catches this" must actively LOCATE the would-be handler — the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement — and report that search. Never assert the absence of a handler without looking for it.
 
 ## 9 · Quality lenses (privacy/opsec-centric)
 - **Anonymity & linkability** *(primary)* — can actions/sessions be tied to a user or to each other (identifiers, cookies, accounts, device binding, cross-session correlation)?
@@ -72,7 +75,7 @@ Every finding cites `file:line`, gives minimal redacted evidence, names the adve
 - **Secrets & supply-chain trust** — secrets hygiene; whether a dependency phones home / adds telemetry / opens a third-party egress path; CVEs; build/lockfile integrity.
 - **Data handling & defaults** — minimization, retention, private-/anonymous-by-default.
 - **Correctness (leak-relevant)** — the bug subset that creates leaks: races/TOCTOU on session or routing state, error/exception paths that leak, fallback paths that bypass the proxy.
-- **Documentation accuracy** — privacy promises, threat model, and opsec runbooks vs. the code.
+- **Documentation accuracy** — privacy promises, threat model, and opsec runbooks vs. the code. **Claims-vs-enforcement** — a doc / comment / contract / JSDoc asserts X while the adjacent code / schema / migration / type enforces Y (a "pinned to match" comment that no longer matches, a stale doc contradicted by a migration, a dead error path the data layer can never raise). Cheap to hunt against the adjacent definition and high-yield.
 - Standard **modularity/performance** where relevant, but always subordinate to the model above.
 
 ## 10 · The implementation loop (IMPLEMENT-mode)
