@@ -49,6 +49,16 @@ jobs:
             target: evals/hasty-code/repo
             key: evals/hasty-code/ANSWER_KEY.json
             out: evals/hasty-code/_run/findings.json
+          - name: trap-garden
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/trap-garden/repo
+            key: evals/trap-garden/ANSWER_KEY.json
+            out: evals/trap-garden/_run/findings.json
+          - name: calibration-traps
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/calibration-traps/repo
+            key: evals/calibration-traps/ANSWER_KEY.json
+            out: evals/calibration-traps/_run/findings.json
     steps:
       - name: Detect credential
         id: key

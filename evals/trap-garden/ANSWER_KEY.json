@@ -1,0 +1,21 @@
+{
+  "fixture": "trap-garden",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.6, "maxDecoys": 1 },
+  "planted": [
+    { "id": "BUG-1", "file": "src/checkout.js", "line": 11, "anchor": "parseInt(s)", "category": "missing-radix", "desc": "parseInt without radix mis-parses leading-zero / 0x inputs" },
+    { "id": "BUG-2", "file": "src/checkout.js", "line": 21, "anchor": "price * qty * 100", "category": "float-money", "desc": "money computed in floats with no rounding accumulates error" },
+    { "id": "BUG-3", "file": "src/checkout.js", "line": 33, "anchor": "i <= items.length", "category": "off-by-one", "desc": "<= reads items[items.length] (undefined) past the end" },
+    { "id": "BUG-4", "file": "src/checkout.js", "line": 46, "anchor": "status == 0", "category": "coercion", "desc": "'' == 0 is true, so an empty status reads as paid" },
+    { "id": "BUG-5", "file": "src/checkout.js", "line": 58, "anchor": "runningTotal = t + a", "category": "race-toctou", "desc": "shared accumulator read before an await and written after — concurrent calls lose updates" }
+  ],
+  "decoys": [
+    { "id": "DEC-1", "file": "src/checkout.js", "line": 6, "anchor": "createHash('md5')", "why": "md5 for a non-security cache key is fine — not an insecure-hash bug" },
+    { "id": "DEC-2", "file": "src/checkout.js", "line": 16, "anchor": "parseInt(s, 10)", "why": "radix is supplied — correct" },
+    { "id": "DEC-3", "file": "src/checkout.js", "line": 26, "anchor": "user == null", "why": "deliberate null-or-undefined idiom" },
+    { "id": "DEC-4", "file": "src/checkout.js", "line": 40, "anchor": "i <= max", "why": "inclusive bound is intentional (0..max inclusive, max+1 slots)" },
+    { "id": "DEC-5", "file": "src/checkout.js", "line": 51, "anchor": "void sendMetric", "why": "intentional fire-and-forget, not a missing await" },
+    { "id": "DEC-6", "file": "src/checkout.js", "line": 64, "anchor": "[A-Z]{2,}", "why": "regex over length-capped input; not a ReDoS in practice" }
+  ]
+}

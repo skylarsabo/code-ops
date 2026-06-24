@@ -43,6 +43,13 @@ jobs:
       - name: Script-guard regression eval (2026-06-23 audit fixes)
         run: node evals/script-guards/run.mjs
 
+      - name: Fixture-drift guard (answer keys still match their fixtures)
+        run: |
+          for k in evals/*/ANSWER_KEY.json; do
+            echo "== $k =="
+            node evals/score.mjs "$k" --check
+          done
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then

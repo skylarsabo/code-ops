@@ -35,6 +35,10 @@ Candidates are matched to keyed items by **path suffix + basename** (not basenam
 - **`leak-lab/`** — 3 planted leaks + 3 decoys for the privacy audits.
 - **`drifted-docs/`** — 3 planted doc/code drifts + 2 decoys for `code-ops-suite:doc-alignment`.
 - **`hasty-code/`** — 3 planted hasty-code issues + 2 decoys for `code-ops-suite:normalize`.
+- **`trap-garden/`** — 5 subtle bugs + 6 tempting decoys (precision-under-temptation) for `rigor:bug-hunt`.
+- **`calibration-traps/`** — 4 bugs + 4 decoys encoding the bug/decoy classes from a real-scale calibration; the decoys are the regression guard for the disconfirmation rules (intent-annotation, locate-the-handler).
+
+A deterministic **fixture-drift guard** in `validate.yml` runs `score.mjs --check` over every `ANSWER_KEY.json`, so an answer key can never silently drift from its fixture.
 
 **Scheduled runner.** `.github/workflows/evals.yml` runs these judgment evals on a weekly cron (and on `workflow_dispatch`): for each fixture it drives the relevant skill — read from this checkout's `SKILL.md`, so it works even though the plugins are not installed on the runner — over the fixture repo with `claude-code-action`, then scores the result with `score.mjs` and records recall / false-positives in the run summary. It needs a Claude credential and skips cleanly without one. It is deliberately **not** a per-PR gate — model-in-the-loop recall/FP varies run to run, so it tracks the trend rather than blocking a merge.
 
