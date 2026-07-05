@@ -17,6 +17,8 @@ Detect the stack and tooling; build the real **service/module inventory** (purpo
 ## Phase 1 — Adaptive review
 Run the loop (`CONVENTIONS §1`). Each sub-agent applies the relevant lenses (`§10`) to its slice and returns findings in the finding schema (`§7`), classified by track (`§6`). Deepen on dense/risky areas; converge and check off clean ones. **Surface critical findings to the developer immediately** (`§3`). Apply confirmed NOW-SAFE fixes via the implementation loop (`§11`), logging each.
 
+At synthesis, route every **critical/high-severity or fix-driving** finding through **independent refutation** (`§7`): a fresh sub-agent that did not find it tries to kill it by locating a dominating guard/handler in another function, file, or boundary; a majority-refuted finding drops or downgrades to SPECULATIVE with the cited guard. Skip the panel only for a finding already proven by an executed repro. Every reported finding quotes a verbatim **Anchor** of its cited line (`§9`).
+
 Pay particular attention to the priorities most likely to matter: **modularity, performance, intricate correctness bugs**, plus **security** and (scaled to the system's data sensitivity) **privacy/data handling**, and — for UIs — **styling/theming/a11y consistency** (use the UI tool to inspect live).
 
 ## Deliverables

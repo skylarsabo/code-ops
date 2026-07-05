@@ -11,14 +11,17 @@
 // the original defect is still there — confirm survivors by reading them.
 //
 // Statuses per item:
-//   FRESH      every cited file:line still exists and is in range
+//   FRESH      every cited file:line still exists and is in range (and, if an Anchor is given, still carries it)
 //   MOVED      file exists but the cited line is now out of range (code shifted/shrank)
+//   DRIFTED    the cited line still exists but no longer contains the item's `Anchor:` substring — the
+//              code under the citation changed (a hallucinated or stale citation). Only checked when the
+//              item carries an `Anchor:` (a verbatim substring copied from the cited line, CONVENTIONS §9/§E).
 //   GONE       a cited file no longer exists anywhere in the tree (likely resolved/moved)
 //   AMBIGUOUS  the literal path is gone but >1 file matches its name, or a ref escapes root — verify by hand
 //   NO-REF     the item cites no file:line (can't be auto-checked — verify by hand)
 // Plus an advisory (non-gating) when an item's `Verified-at:` sha != the repo's current HEAD.
 //
-// Exit: non-zero if any item is MOVED/GONE/AMBIGUOUS/NO-REF (needs re-triage), unless --report-only.
+// Exit: non-zero if any item is MOVED/DRIFTED/GONE/AMBIGUOUS/NO-REF (needs re-triage), unless --report-only.
 
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -53,6 +56,10 @@ const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', '
 // directory part is matched segment-by-segment so the path quantifiers cannot overlap (no ReDoS).
 const REF_RE = /\b((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
 const VERIFIED_RE = /Verified-at:\s*([0-9a-f]{7,40}|HEAD)\b/i;
+// An optional per-item `Anchor:` — a verbatim substring of the cited line (CONVENTIONS §9/§E), delimited
+// by backticks or quotes so it can contain spaces/punctuation. When present, the cited line must still
+// contain it or the item is DRIFTED. Absent → the item is checked exactly as before (backward-compatible).
+const ANCHOR_RE = /Anchor:\s*(?:`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)')/i;
 
 function isItemId(id, after, afterNext) {
   if (ID_IGNORE.has(id.split('-')[0].toUpperCase())) return false;
@@ -69,6 +76,14 @@ function lineCount(absPath) {
     const nl = (t.match(/\n/g) || []).length;
     return t.endsWith('\n') ? nl : nl + 1; // a trailing newline does not add a line
   } catch { return -1; }
+}
+
+// Read a single 1-indexed line's text (for the optional Anchor check); null if unreadable/out of range.
+function readLineAt(absPath, lineNo) {
+  try {
+    const line = readFileSync(absPath, 'utf8').split('\n')[lineNo - 1];
+    return line ?? null;
+  } catch { return null; }
 }
 
 // Walk the repo once (excluding .git/node_modules) so a bare-filename ref (cited without its
@@ -103,7 +118,7 @@ function findByName(refPath) {
 let totalStale = 0;
 let totalItems = 0;
 // SCR-014: explicit status precedence so a later MOVED cannot clobber an earlier AMBIGUOUS.
-const RANK = { FRESH: 0, MOVED: 1, AMBIGUOUS: 2, GONE: 3 };
+const RANK = { FRESH: 0, MOVED: 1, DRIFTED: 2, AMBIGUOUS: 3, GONE: 4 };
 const escalate = (cur, next) => (RANK[next] > RANK[cur] ? next : cur);
 
 for (const file of files) {
@@ -119,7 +134,7 @@ for (const file of files) {
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i][1];
     const block = text.slice(ids[i].index, ids[i + 1]?.index ?? text.length);
-    const cur = items.get(id) ?? { refs: [], verifiedAt: null };
+    const cur = items.get(id) ?? { refs: [], verifiedAt: null, anchor: null };
     for (const m of block.matchAll(REF_RE)) {
       // SEC-004 (fix): REF_RE's leading \b drops a path-traversal/absolute prefix (../, ./, /),
       // which would silently re-root an escaping citation inside the repo and report it FRESH.
@@ -129,6 +144,8 @@ for (const file of files) {
     }
     const v = block.match(VERIFIED_RE);
     if (v && !cur.verifiedAt) cur.verifiedAt = v[1];
+    const a = block.match(ANCHOR_RE);
+    if (a && !cur.anchor) cur.anchor = a[1] ?? a[2] ?? a[3];
     items.set(id, cur);
   }
 
@@ -136,6 +153,9 @@ for (const file of files) {
     totalItems++;
     let status = 'FRESH';
     const notes = [];
+    // Anchor check (only when the item carries one): the anchor must appear on at least one of the
+    // item's still-in-range cited lines, else the citation has DRIFTED off the code it named.
+    let anchorCheckable = false, anchorHit = false;
     if (item.refs.length === 0) {
       status = 'NO-REF';
     } else {
@@ -146,22 +166,34 @@ for (const file of files) {
           notes.push(`${r.path} escapes root — not checked`);
           continue;
         }
+        let target = null; // the resolved file whose cited line we can anchor-check (null if line is out of range)
         if (existsSync(abs) && statSync(abs).isFile()) {
           const lc = lineCount(abs);
           if (lc >= 0 && r.line > lc) { status = escalate(status, 'MOVED'); notes.push(`${r.path}:${r.line} > ${lc} lines`); }
-          continue;
-        }
-        // BUG-008: literal path missing — resolve by name before declaring GONE
-        const found = findByName(r.path);
-        if (found.length === 1) {
-          const lc = lineCount(found[0]);
-          if (lc >= 0 && r.line > lc) { status = escalate(status, 'MOVED'); notes.push(`${r.path} (as ${found[0].slice(root.length + 1)}):${r.line} > ${lc} lines`); }
-        } else if (found.length > 1) {
-          status = escalate(status, 'AMBIGUOUS');
-          notes.push(`${r.path}: ${found.length} files match by name — verify by hand`);
+          else target = abs;
         } else {
-          status = escalate(status, 'GONE'); notes.push(`${r.path} missing`);
+          // BUG-008: literal path missing — resolve by name before declaring GONE
+          const found = findByName(r.path);
+          if (found.length === 1) {
+            const lc = lineCount(found[0]);
+            if (lc >= 0 && r.line > lc) { status = escalate(status, 'MOVED'); notes.push(`${r.path} (as ${found[0].slice(root.length + 1)}):${r.line} > ${lc} lines`); }
+            else target = found[0];
+          } else if (found.length > 1) {
+            status = escalate(status, 'AMBIGUOUS');
+            notes.push(`${r.path}: ${found.length} files match by name — verify by hand`);
+          } else {
+            status = escalate(status, 'GONE'); notes.push(`${r.path} missing`);
+          }
         }
+        if (item.anchor && target) {
+          const lineText = readLineAt(target, r.line);
+          if (lineText != null) { anchorCheckable = true; if (lineText.includes(item.anchor)) anchorHit = true; }
+        }
+      }
+      // The cited line(s) still exist but none carries the anchor → the citation drifted off its code.
+      if (item.anchor && anchorCheckable && !anchorHit) {
+        status = escalate(status, 'DRIFTED');
+        notes.push(`anchor ${JSON.stringify(item.anchor)} not on cited line`);
       }
     }
     if (item.verifiedAt && headSha && item.verifiedAt !== 'HEAD' && item.verifiedAt !== headSha)

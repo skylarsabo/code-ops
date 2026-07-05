@@ -18,3 +18,11 @@ Evidence: SQL built by string concatenation. Represents an item the team fixed; 
 ## BUG-004 — no location cited (must be NO-REF)
 Tier: PROBABLE
 Evidence: a finding that names no checkable file and line, so it must be re-triaged by hand and counts toward the fail-closed exit.
+
+## BUG-005 — anchored, code still on the cited line (must be FRESH)
+Tier: CONFIRMED · Location: src/auth.js:5 · Anchor: `given == expected` · Verified-at: HEAD
+Evidence: naive == token comparison; the verbatim anchor still sits on the cited line, so the citation is real.
+
+## BUG-006 — anchored, citation drifted off its code (must be DRIFTED)
+Tier: PROBABLE · Location: src/auth.js:5 · Anchor: `crypto.timingSafeEqual`
+Evidence: the register claims a timing-safe compare on this line, but line 5 says `given == expected` — a stale/hallucinated citation the anchor check catches even though the file and line still exist.

@@ -59,6 +59,11 @@ jobs:
             target: evals/calibration-traps/repo
             key: evals/calibration-traps/ANSWER_KEY.json
             out: evals/calibration-traps/_run/findings.json
+          - name: xfn-traps
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/xfn-traps/repo
+            key: evals/xfn-traps/ANSWER_KEY.json
+            out: evals/xfn-traps/_run/findings.json
     steps:
       - name: Detect credential
         id: key

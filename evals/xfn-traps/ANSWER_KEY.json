@@ -1,0 +1,18 @@
+{
+  "fixture": "xfn-traps",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.5, "maxDecoys": 1 },
+  "planted": [
+    { "id": "BUG-1", "file": "src/xfn.js", "line": 16, "anchor": "items.slice(0, n)", "category": "unbounded-slice", "desc": "sliceTopB slices by n with no clamp; its sole caller pageRaw passes req.n raw" },
+    { "id": "BUG-2", "file": "src/xfn.js", "line": 32, "anchor": "return dangerB(body)", "category": "reachable-fallback", "desc": "renderB's non-json branch is reachable because its sole caller emitAny forwards an arbitrary ctype" },
+    { "id": "BUG-3", "file": "src/xfn.js", "line": 50, "anchor": "u.name.toUpperCase()", "category": "null-deref", "desc": "useNameB dereferences u.name; its sole caller greetRaw passes lookup(id) which can be null" },
+    { "id": "BUG-4", "file": "src/xfn.js", "line": 65, "anchor": "price - price * pct", "category": "unbounded-pct", "desc": "applyDiscountB uses pct unbounded; its sole caller checkoutRaw passes pct raw, so pct>1 gives a negative price" }
+  ],
+  "decoys": [
+    { "id": "DEC-1", "file": "src/xfn.js", "line": 9, "anchor": "items.slice(0, n)", "why": "sliceTopA's only caller pageClamped clamps n via Math.min(req.n ?? 0, 100) before the slice" },
+    { "id": "DEC-2", "file": "src/xfn.js", "line": 24, "anchor": "return dangerA(body)", "why": "renderA's non-json branch is unreachable: its only caller emitJson pins ctype to the literal 'json'" },
+    { "id": "DEC-3", "file": "src/xfn.js", "line": 41, "anchor": "u.name.toUpperCase()", "why": "useNameA's only caller greet guards with if (!u) return 'guest' before calling, so u is never null here" },
+    { "id": "DEC-4", "file": "src/xfn.js", "line": 58, "anchor": "price - price * pct", "why": "applyDiscountA's only caller checkoutClamped clamps pct via Math.max(0, Math.min(pct, 1))" }
+  ]
+}
