@@ -19,7 +19,8 @@
 //   GONE       a cited file no longer exists anywhere in the tree (likely resolved/moved)
 //   AMBIGUOUS  the literal path is gone but >1 file matches its name, or a ref escapes root — verify by hand
 //   NO-REF     the item cites no file:line (can't be auto-checked — verify by hand)
-// Plus an advisory (non-gating) when an item's `Verified-at:` sha != the repo's current HEAD.
+// Plus advisories (non-gating): an item's `Verified-at:` sha != the repo's current HEAD, and an
+// item whose `Anchor:` value is not backtick/quote-delimited (unparseable, so its DRIFTED check is skipped).
 //
 // Exit: non-zero if any item is MOVED/DRIFTED/GONE/AMBIGUOUS/NO-REF (needs re-triage), unless --report-only.
 
@@ -59,6 +60,8 @@ const VERIFIED_RE = /Verified-at:\s*([0-9a-f]{7,40}|HEAD)\b/i;
 // An optional per-item `Anchor:` — a verbatim substring of the cited line (CONVENTIONS §9/§E), delimited
 // by backticks or quotes so it can contain spaces/punctuation. When present, the cited line must still
 // contain it or the item is DRIFTED. Absent → the item is checked exactly as before (backward-compatible).
+// An `Anchor:` label whose value has no delimiter cannot be parsed — that earns a per-item advisory in
+// the report below, never a silent fall-back to plain line-existence checking.
 const ANCHOR_RE = /Anchor:\s*(?:`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)')/i;
 
 function isItemId(id, after, afterNext) {
@@ -134,7 +137,7 @@ for (const file of files) {
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i][1];
     const block = text.slice(ids[i].index, ids[i + 1]?.index ?? text.length);
-    const cur = items.get(id) ?? { refs: [], verifiedAt: null, anchor: null };
+    const cur = items.get(id) ?? { refs: [], verifiedAt: null, anchor: null, anchorUnparsed: false };
     for (const m of block.matchAll(REF_RE)) {
       // SEC-004 (fix): REF_RE's leading \b drops a path-traversal/absolute prefix (../, ./, /),
       // which would silently re-root an escaping citation inside the repo and report it FRESH.
@@ -146,6 +149,7 @@ for (const file of files) {
     if (v && !cur.verifiedAt) cur.verifiedAt = v[1];
     const a = block.match(ANCHOR_RE);
     if (a && !cur.anchor) cur.anchor = a[1] ?? a[2] ?? a[3];
+    if (!a && /\bAnchor:/i.test(block)) cur.anchorUnparsed = true; // labeled but undelimited — unparseable
     items.set(id, cur);
   }
 
@@ -196,6 +200,10 @@ for (const file of files) {
         notes.push(`anchor ${JSON.stringify(item.anchor)} not on cited line`);
       }
     }
+    // Advisory: an `Anchor:` whose value is not backtick/quote-delimited is invisible to ANCHOR_RE —
+    // say so instead of silently degrading the DRIFTED gate to plain line-existence checking.
+    if (item.anchorUnparsed && !item.anchor)
+      notes.push('Anchor present but not backtick/quote-delimited — unparseable, DRIFTED check skipped');
     if (item.verifiedAt && headSha && item.verifiedAt !== 'HEAD' && item.verifiedAt !== headSha)
       notes.push(`Verified-at ${item.verifiedAt} != HEAD ${headSha} — re-confirm`); // advisory only (non-gating)
     if (status !== 'FRESH') totalStale++;

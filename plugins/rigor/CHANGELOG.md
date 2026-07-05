@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.6.0
+- **Anchor delimiter promoted from script comment to spec (`§6` schema, `§E`).** `revalidate-register.mjs` can only parse an `Anchor:` value that is backtick- or quote-delimited; that requirement lived solely in a script comment, so an executing model following CONVENTIONS could emit an undelimited anchor and silently lose the `DRIFTED` gate — the item fell open to plain line-existence checking. The schema and `§E` now state the syntax with a micro-example (`` Anchor: `given == expected` ``); `verifier` carries it inline.
+- **`revalidate-register` warns on an unparseable anchor.** An `Anchor:` label whose value has no delimiter now earns a per-item advisory (`unparseable, DRIFTED check skipped`) instead of being silently ignored. Non-gating; anchor-less registers are checked exactly as before.
+
 ## 2.5.0
 - **Cascade circuit-breaker (`§H`).** Three or more fixes in a single run rejected by the regression guard or themselves spawning new CONFIRMED findings now stop the fix loop — a cascading cluster is evidence of an architectural problem, not a bug collection. The affected items reclassify as NEEDS-DESIGN (`§6`) with the cascade chain recorded in the register/log and options presented at a checkpoint (deferred and reported in headless runs, `§3`). Wired into `fix-verified`; mirrored in code-ops-suite `§11`.
 - **Explicit cold paths (generate, not degrade).** `bug-hunt` and `quality-scan` now state the missing-`GROUND_TRUTH.md` path — run `/rigor:ground-truth` first (recommended) or harvest the `§C` toolchain baseline for the scoped area yourself; never reason ahead of the toolchain. `fix-verified` stops and routes to `bug-hunt` when `FINDINGS_REGISTER.md` is absent — never synthesize a register from memory.

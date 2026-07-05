@@ -12,7 +12,7 @@ The four-step recovery, in order:
 
 1. **Find the run folder.** Artifacts land in a dated folder under the repo's docs location — `docs/<area>/<date>/` (e.g. `docs/rigor/<date>/`, `docs/privacy/<date>/`), or repo root if the repo has no docs convention ([code-ops CONVENTIONS §12](../../plugins/code-ops-suite/CONVENTIONS.md)). The standard filenames are `FINDINGS_REGISTER.md`, `LEAK_REGISTER.md`, and `EXECUTIVE_SUMMARY.md`, plus per-plugin registers and logs.
 2. **Re-validate every carried register against current `HEAD`** — `node scripts/revalidate-register.mjs <register> --root <repo>` — *before* you re-run or resume anything.
-3. **Re-triage every non-`FRESH` item** (`MOVED` / `GONE` / `AMBIGUOUS` / `NO-REF`), and re-read the `FRESH` survivors. Anything already fixed gets stamped `OBSOLETE-AT <sha>` and is never re-shown.
+3. **Re-triage every non-`FRESH` item** (`MOVED` / `DRIFTED` / `GONE` / `AMBIGUOUS` / `NO-REF`), and re-read the `FRESH` survivors. Anything already fixed gets stamped `OBSOLETE-AT <sha>` and is never re-shown.
 4. **Resume from the last clean phase boundary.** Re-enter the orchestrator at Phase 0; it re-scopes, re-opens the master plan, and carries the revalidated registers forward.
 
 If you read nothing else: **registers are the only thing worth recovering, and you recover them by revalidating, never by trusting them as-is.**
@@ -34,7 +34,7 @@ flowchart TD
 
   A --> B --> C --> D
   D -->|FRESH| E --> G
-  D -->|MOVED / GONE /<br/>AMBIGUOUS / NO-REF| F --> G
+  D -->|MOVED / DRIFTED / GONE /<br/>AMBIGUOUS / NO-REF| F --> G
   G --> H
 ```
 
@@ -122,26 +122,27 @@ The run/authoritative split from §1 maps almost exactly onto delete/keep.
 node scripts/revalidate-register.mjs <register> --root <repo>
 ```
 
-(Inside a skill the canonical invocation is `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`; the script is byte-identical at the repo root `scripts/` and in each `plugins/<name>/scripts/`.) It scans the register for item IDs, collects every cited `file:line` and the `Verified-at` sha under each ID, re-greps each reference against the current tree, and assigns each item exactly one status:
+(Inside a skill the canonical invocation is `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`; the script is byte-identical at the repo root `scripts/` and in each `plugins/<name>/scripts/`.) It scans the register for item IDs, collects every cited `file:line`, the `Verified-at` sha, and any delimited `Anchor:` under each ID, re-greps each reference against the current tree, and assigns each item exactly one status:
 
 | Status | Meaning | Re-triage action |
 | --- | --- | --- |
 | **FRESH** | Every cited `file:line` still exists and is in range. | Re-read on current code to confirm the defect still holds (the script is a *floor, not a proof*), then act. |
 | **MOVED** | The cited line is now out of range — at the original path or at a single relocated file found by name. | Re-locate on current code; update `Location`; re-stamp `Verified-at`. |
+| **DRIFTED** | The cited line still exists but no longer contains the item's `Anchor:` substring (checked only when the item carries a delimited `Anchor:`). | The citation is stale or hallucinated — re-locate on the current tree and re-tier, or drop. |
 | **GONE** | A cited file no longer exists anywhere in the tree. | Likely fixed or relocated — verify, then `OBSOLETE-AT <sha>` or re-point. |
 | **AMBIGUOUS** | The literal path is gone but more than one file matches its bare name, or a reference escapes the repo root. | Resolve by hand; the script refuses to guess. Update `Location` so the next run is unambiguous. |
 | **NO-REF** | The item cites no `file:line` at all — nothing to auto-check. | Add a citation or verify by hand; an uncited finding is not yet actionable. |
 
-There is also a non-gating **advisory**: when an item's `Verified-at` sha differs from the repo's current `HEAD`, the report appends `Verified-at <sha> != HEAD <sha> — re-confirm`. After an interruption this advisory fires on nearly everything — that is the signal, not noise: the run paused, the repo moved, every carried item needs a re-confirming read.
+There are also non-gating **advisories** (including an `Anchor:` value that is not backtick/quote-delimited — unparseable, so its `DRIFTED` check is skipped). The one that matters most here: when an item's `Verified-at` sha differs from the repo's current `HEAD`, the report appends `Verified-at <sha> != HEAD <sha> — re-confirm`. After an interruption this advisory fires on nearly everything — that is the signal, not noise: the run paused, the repo moved, every carried item needs a re-confirming read.
 
-**Exit behavior.** The script exits **non-zero if any item is `MOVED`, `GONE`, `AMBIGUOUS`, or `NO-REF`**, so it can gate a resume or a CI step — *unless* `--report-only` is passed, which prints the report and always exits zero. Use the gating form when resuming so you cannot accidentally act on a drifted register; use `--report-only` for a read-only health check.
+**Exit behavior.** The script exits **non-zero if any item is `MOVED`, `DRIFTED`, `GONE`, `AMBIGUOUS`, or `NO-REF`**, so it can gate a resume or a CI step — *unless* `--report-only` is passed, which prints the report and always exits zero. Use the gating form when resuming so you cannot accidentally act on a drifted register; use `--report-only` for a read-only health check.
 
 ### Re-triage the non-`FRESH` items
 
 For each non-`FRESH` item, decide its fate and record it in the register:
 
 1. **Already fixed in code** → stamp **`OBSOLETE-AT <sha>`** with a one-line reason. It stays in the file for traceability but is permanently excluded from re-ranking and re-showing. This is the discipline that defeats the proven failure mode — *a register re-listing an item already fixed in code* ([04 §3](04-registers-and-freshness.md)).
-2. **Still real but relocated** (`MOVED`, or `GONE`/`AMBIGUOUS` resolved by hand to a real location) → update `Location` to the current `file:line` and re-stamp `Verified-at` with the sha you re-confirmed on.
+2. **Still real but relocated** (`MOVED` or `DRIFTED`, or `GONE`/`AMBIGUOUS` resolved by hand to a real location) → update `Location` (and the `Anchor`, copied verbatim from the new line) to the current `file:line` and re-stamp `Verified-at` with the sha you re-confirmed on.
 3. **Uncited** (`NO-REF`) → add the `file:line` citation ([code-ops §9](../../plugins/code-ops-suite/CONVENTIONS.md) requires every finding cite a location) or verify by hand before relying on it.
 
 Then **re-read every `FRESH` survivor** on the current code. `FRESH` is a location check, not a defect check — a finding can be `FRESH` and already fixed if someone patched the logic without moving the line. The script narrows the set you must re-read; it does not replace the reading.
@@ -193,6 +194,6 @@ For the full carry-forward discipline — the re-validate-then-carry-what-surviv
 
 ## Coming next
 
-Related material lives in adjacent chapters: the register schemas, tracks, and the full `revalidate-register.mjs` reference in [04-registers-and-freshness](04-registers-and-freshness.md); the orchestrators' phase structure and checkpoints in [03-orchestrators](03-orchestrators.md); evidence tiers and the disconfirmation pass behind re-reading a survivor in [05-evidence-and-tiers](05-evidence-and-tiers.md). The dedicated carry-forward technique linked above, [techniques/register-carry-forward](../techniques/register-carry-forward.md), is planned for a later slice and is not yet authored.
+Related material lives in adjacent chapters: the register schemas, tracks, and the full `revalidate-register.mjs` reference in [04-registers-and-freshness](04-registers-and-freshness.md); the orchestrators' phase structure and checkpoints in [03-orchestrators](03-orchestrators.md); evidence tiers and the disconfirmation pass behind re-reading a survivor in [05-evidence-and-tiers](05-evidence-and-tiers.md). The dedicated carry-forward technique linked above is [techniques/register-carry-forward](../techniques/register-carry-forward.md).
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*

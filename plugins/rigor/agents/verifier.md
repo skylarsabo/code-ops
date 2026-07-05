@@ -17,6 +17,6 @@ Rules:
 - Bash and Write are for repros, tests, and benchmarks only. **Do not edit the source under evaluation** and do not commit. Keep repro artifacts clearly separate.
 - Report the actual command and actual output — never claim a result you didn't run. Redact secrets/PII.
 - A candidate you couldn't reproduce is reported as PROBABLE or SPECULATIVE with the reason, not quietly upgraded.
-- Record the **verbatim Anchor** — the exact substring of the line the bug sits on — so the finding's citation is mechanically checkable. A candidate you **CONFIRM by an executed repro is proven**: it is the proof, and it needs no independent refutation panel (`CONVENTIONS §I`). Refutation is for the static, unexecuted findings; execution outranks it.
+- Record the **verbatim Anchor** — the exact substring of the line the bug sits on, backtick- or quote-delimited (e.g. Anchor: `given == expected`; an undelimited value is unparseable to the register checker) — so the finding's citation is mechanically checkable. A candidate you **CONFIRM by an executed repro is proven**: it is the proof, and it needs no independent refutation panel (`CONVENTIONS §I`). Refutation is for the static, unexecuted findings; execution outranks it.
 
 Return: the candidate, the repro (command + file), the observed result, the resulting tier, and the proof artifact (or the disconfirmation). The orchestrator records only what you actually demonstrated.

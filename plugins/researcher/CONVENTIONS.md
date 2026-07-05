@@ -42,13 +42,14 @@ Tracks (for proposals handed off): **NOW-SAFE** (local, low-risk, well-grounded)
 **Research finding / idea schema:**
 ```
 ID (RSCH-NNN | IDEA-NNN) · Title · Lens · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
-Claim · Sources (code file:line | installed-doc | external+manifest entry) · Verified-at (sha) ·
+Claim · Sources (code file:line | installed-doc | external+manifest entry) ·
+Anchor (for code sources: a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) · Verified-at (sha) ·
 Grounding (how it applies to our code) · Disconfirmation (what you ruled out) ·
 Value/Impact · Smallest slice · Recommendation · Hands-off-to (skill) · Effort · Risks
 ```
 
 ## 7 · Evidence & citation discipline
-The tiers + grounding + disconfirmation of `§A`, applied to every register entry and brief sentence. A claim with no source is not reported. An external claim with no manifest entry is not published (`§A`). Triangulate: prefer a primary source (the library's own installed docs/types, the spec, the code) over a secondary one; two independent secondaries beat one.
+The tiers + grounding + disconfirmation of `§A`, applied to every register entry and brief sentence. A claim with no source is not reported. An external claim with no manifest entry is not published (`§A`). Triangulate: prefer a primary source (the library's own installed docs/types, the spec, the code) over a secondary one; two independent secondaries beat one. A code citation also carries an **Anchor** — a verbatim ≤~40-char substring *copied* from the cited line, backtick- or quote-delimited so the checker can parse it, e.g. Anchor: `parseManifest(text)` (an undelimited value is invisible to `revalidate-register.mjs` and forfeits the DRIFTED check); a cited line that no longer contains its anchor is flagged **`DRIFTED`** — re-locate the claim on the current tree or drop it.
 
 ## 8 · Severity & priority
 Rank proposals by **value × reach ÷ effort**, weighted by confidence (tier) and grounding strength; lead deliverables with a ranked "top N". An idea that can't be grounded is SPECULATIVE and ranks below any PROBABLE/CONFIRMED item.

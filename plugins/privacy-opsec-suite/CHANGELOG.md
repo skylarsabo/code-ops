@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.9.0
+- **`Anchor` added to the leak schema (`§6`, `§8`).** The bundled `revalidate-register` has carried the verbatim-anchor `DRIFTED` gate since 1.6.0, but this suite's schema never told an executing model to emit an `Anchor:` — so the gate was unreachable for registers produced here. The schema and evidence standard now define the field, including the parse-critical backtick/quote delimiter (an undelimited value is invisible to the checker and forfeits the check). `§11`'s status list now names `DRIFTED` and `AMBIGUOUS`.
+- **`revalidate-register` warns on an unparseable anchor** (per-item advisory instead of a silent skip; vendored from the canonical script).
+
 ## 1.8.0
 - **`opsec-pr-gate` names its real subagent.** Phase 0 said "fan out to the reviewer subagent", but this plugin bundles `explorer` and `privacy-reviewer` — `reviewer` is a code-ops-suite agent, so the tuned `privacy-reviewer` was never invoked by name. The prose now says `privacy-reviewer`. Guarded going forward by two new repo-level lint checks (`scripts/lint-plugins.mjs` #9/#10): every `§<id>` citation in a SKILL.md/agent must resolve to a real CONVENTIONS section, and "the X subagent" prose must name an agent actually bundled in the plugin.
 

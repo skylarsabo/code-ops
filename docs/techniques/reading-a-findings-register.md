@@ -14,13 +14,14 @@ A `FINDINGS_REGISTER.md` is the authoritative backlog an audit or review produce
 
 ## The schema, field by field
 
-The canonical finding schema (`plugins/code-ops-suite/CONVENTIONS.md:60-66`) is:
+The canonical finding schema (`plugins/code-ops-suite/CONVENTIONS.md:67-73`) is:
 
 ```
 ID · Title · Lens · Scope · Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
-Location (file:line) · Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
-Disconfirmation (what you ruled out) · Impact · Recommendation ·
-Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
+Location (file:line) · Anchor (a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) ·
+Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
+Disconfirmation (what you ruled out) · Refutation (independent: survived, or the guard that killed it) ·
+Impact · Recommendation · Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
 ```
 
 Here is a synthetic entry that exercises every field, annotated. (It is illustrative; it does not describe real code in this repo.)
@@ -32,6 +33,8 @@ Here is a synthetic entry that exercises every field, annotated. (It is illustra
 - **Tier:** CONFIRMED                          ← evidence strength: reproduced with a runnable repro
 - **Location:** `src/api/orders.ts:88` (handler reads `req.query.accountId` and
   joins straight to `orders`), reached via route `src/router.ts:31`     ← every claim cites file:line
+- **Anchor:** `req.query.accountId`             ← verbatim substring copied from the cited line, backtick-
+  delimited so `revalidate-register.mjs` can parse it (undelimited = the DRIFTED check is skipped)
 - **Verified-at:** c2b37e9                      ← the sha this was last confirmed against
 - **Evidence:** `GET /orders?accountId=<OTHER_ACCT>` returned another tenant's
   order rows; auth middleware authenticates the *session* but never checks that
@@ -40,6 +43,8 @@ Here is a synthetic entry that exercises every field, annotated. (It is illustra
   builder `src/db/orders.ts:12`); ruled out a gateway-level tenant check (gateway
   config `infra/gateway.yaml:44` scopes by host, not account); reachable from the
   public router, not internal-only.                              ← what was checked and rejected
+- **Refutation:** survived — an independent refuter hunted for a dominating tenant
+  guard in the caller, middleware, and gateway and found none    ← an independent kill attempt, not self-review
 - **Impact:** any authenticated user reads any tenant's orders (cross-tenant data
   exposure). Reach: every order-detail and order-list endpoint on this handler.
 - **Recommendation:** derive `accountId` from the authenticated session, not the
@@ -61,9 +66,11 @@ What each field is *for*:
 | **Confidence** | How sure the author is of the *claim* | Down-weights the priority score when low. Distinct from Tier. |
 | **Tier** | Strength of *evidence*: `CONFIRMED` / `PROBABLE` / `SPECULATIVE` | Gates automation: only `CONFIRMED` drives an automated fix (`§7`). |
 | **Location** | `file:line` + how it's reached | Where to look; also what `revalidate-register.mjs` re-checks. |
+| **Anchor** | A verbatim ≤~40-char substring copied from the cited line — backtick- or quote-delimited, e.g. `req.query.accountId` | Makes the citation mechanically checkable: `revalidate-register.mjs` flags a cited line that no longer contains it as `DRIFTED`. An undelimited anchor is unparseable and forfeits that check. |
 | **Verified-at** | The sha the item was last confirmed on | If it ≠ current HEAD, re-confirm before acting (`§12`). |
 | **Evidence** | Minimal, redacted proof or precise description | Lets you confirm the finding yourself. Secrets/PII → `<REDACTED:reason>` (`§4`). |
 | **Disconfirmation** | What was ruled out (reachable? already handled? intentional? already tested?) | Tells you the finding survived a falsification pass — see [the disconfirmation pass](disconfirmation-pass.md). |
+| **Refutation** | Whether an *independent* adversary tried to kill the finding (`§7`) | Load-bearing findings only: `survived` earns the severity; a cited guard means it was downgraded or dropped. |
 | **Impact** | Concrete consequence + reach | Feeds the `× reach` term of the priority score. |
 | **Recommendation** | The concrete fix | Your starting point; never vague. |
 | **Track** | `NOW-SAFE` / `NEEDS-REVIEW` / `NEEDS-DESIGN` (`§6`) | The routing decision. See below. |
@@ -134,17 +141,18 @@ A register is a *live* backlog, and the proven failure mode is a register that r
    node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register.md> --root <repo>
    ```
 
-   It re-greps each cited `file:line` against the current tree and reports one status per item:
+   It re-greps each cited `file:line` against the current tree — and, when an item carries a delimited `Anchor:`, re-checks that the anchor still sits on the cited line — and reports one status per item:
 
    | Status | Meaning | What to do |
    |---|---|---|
    | `FRESH` | Every cited `file:line` still exists and is in range | Re-read the location to confirm the defect survives — `FRESH` is a floor (the path exists), not proof the bug is still there. |
    | `MOVED` | File exists but the cited line is out of range | Re-locate and re-tier. |
+   | `DRIFTED` | A cited line still exists but no longer contains the item's `Anchor:` substring | The citation drifted off the code it named (stale or hallucinated) — re-locate it on the current tree and re-tier, or drop it. |
    | `GONE` | A cited file no longer exists | Likely resolved/moved — verify, then mark `OBSOLETE-AT <sha>` if fixed. |
    | `AMBIGUOUS` | Path gone but >1 file matches by name, or a ref escapes root | Verify by hand. |
    | `NO-REF` | The item cites no `file:line` | Can't be auto-checked — verify by hand. |
 
-   It exits non-zero if any item is `MOVED`/`GONE`/`AMBIGUOUS`/`NO-REF` (re-triage needed), unless `--report-only`. A `Verified-at` sha that differs from HEAD is reported as a **non-gating advisory** — a nudge to re-confirm, not a failure. A non-`FRESH` item is **re-triaged, never silently re-shown**.
+   It exits non-zero if any item is `MOVED`/`DRIFTED`/`GONE`/`AMBIGUOUS`/`NO-REF` (re-triage needed), unless `--report-only`. A `Verified-at` sha that differs from HEAD is reported as a **non-gating advisory** — a nudge to re-confirm, not a failure; so is an `Anchor:` whose value is not backtick- or quote-delimited (unparseable, so its `DRIFTED` check is skipped). A non-`FRESH` item is **re-triaged, never silently re-shown**.
 
 Resolved findings are not deleted — they're stamped `OBSOLETE-AT <sha>` so the history stays auditable (see the `RESOLUTION` note at the top of `docs/code-ops-run/2026-06-22/FINDINGS_REGISTER.md`).
 
@@ -157,4 +165,4 @@ Resolved findings are not deleted — they're stamped `OBSOLETE-AT <sha>` so the
 - [Registers and freshness](../handbook/04-registers-and-freshness.md) — the full register schema, tracks, `Verified-at`, and `revalidate-register.mjs`.
 - [Evidence and tiers](../handbook/05-evidence-and-tiers.md) — `CONFIRMED` / `PROBABLE` / `SPECULATIVE` as lived practice.
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*

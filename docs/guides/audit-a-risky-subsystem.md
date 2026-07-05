@@ -201,7 +201,7 @@ Both AUDIT skills above write into one register. It is a **live backlog and sing
 node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .
 ```
 
-It reports each item as `FRESH` / `MOVED` / `GONE` / `NO-REF` (with `AMBIGUOUS` for name collisions, plus a non-gating advisory when an item's `Verified-at` sha differs from current HEAD). Anything not `FRESH` needs re-triage before you act on it. See [`docs/handbook/04-registers-and-freshness.md`](../handbook/04-registers-and-freshness.md) and the deeper read in [`docs/techniques/reading-a-findings-register.md`](../techniques/reading-a-findings-register.md). For what each tier means in lived practice, [`docs/handbook/05-evidence-and-tiers.md`](../handbook/05-evidence-and-tiers.md).
+It reports each item as `FRESH` / `MOVED` / `DRIFTED` / `GONE` / `NO-REF` (with `AMBIGUOUS` for name collisions; `DRIFTED` fires when a cited line no longer contains the finding's delimited `Anchor:` substring; plus a non-gating advisory when an item's `Verified-at` sha differs from current HEAD). Anything not `FRESH` needs re-triage before you act on it. See [`docs/handbook/04-registers-and-freshness.md`](../handbook/04-registers-and-freshness.md) and the deeper read in [`docs/techniques/reading-a-findings-register.md`](../techniques/reading-a-findings-register.md). For what each tier means in lived practice, [`docs/handbook/05-evidence-and-tiers.md`](../handbook/05-evidence-and-tiers.md).
 
 **Your job at this checkpoint:** bless the CONFIRMED items you want fixed. You decide `BUG-007` and `BUG-011` go forward; `BUG-014` stays PROBABLE until reproduced; `Q-003` is routed to `/rigor:consistency-closure` later, not to a fix.
 
@@ -258,4 +258,4 @@ To ship the fix as a verified, low-trace PR, continue with [`docs/guides/ship-a-
 
 ---
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*
