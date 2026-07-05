@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.7.0
+- **`supply-chain-trust` gains an agent-ingested-content (prompt-injection) audit axis.** Anything an agent will *read* from a dependency — a vendored skill/plugin, an MCP server's tool descriptions, rules files (`.claude/`, `.cursor/`), READMEs surfaced by doc lookups — is treated as untrusted input, never instructions, and audited for instruction-override/role-hijack phrasing, hidden zero-width/bidi or HTML-comment directives, encoded payloads, exfiltration prompts, and credential-path references inside the payload. A working injection→egress chain files as a critical `egress`/`secret` leak against the compromised-dependency adversary (`§A`) and blocks adoption (`§4`). The `§9` secrets & supply-chain lens is extended to match, operationalizing the prompt-injection vector of the compromised-dependency adversary (`§A`) — prior coverage stopped at phone-home/telemetry, CVEs, lockfile integrity, and postinstall exfiltration.
+
 ## 1.6.0
 - **Bundled `revalidate-register` gains the verbatim-anchor gate.** The canonical script (vendored into this plugin) now classifies a citation whose cited line no longer contains its optional `Anchor:` substring as **`DRIFTED`** (fail-closed), on top of FRESH/MOVED/GONE — catching a hallucinated or stale finding location before it is acted on. Backward-compatible: registers without anchors are checked exactly as before.
 

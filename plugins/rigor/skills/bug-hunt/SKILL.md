@@ -9,7 +9,7 @@ disable-model-invocation: true
 **Mode:** AUDIT (reads + *executes* repros; no source fixes) · **Produces:** tiered findings with proof → `FINDINGS_REGISTER.md`; repro tests saved. The flagship skill.
 
 ## Phase 0 — Scope  *(checkpoint)*
-Pick a component/subsystem (go deep, not wide — hunting a whole large repo at once produces blind spots). Read `GROUND_TRUTH.md` so you don't re-derive facts or re-flag tool findings.
+Pick a component/subsystem (go deep, not wide — hunting a whole large repo at once produces blind spots). Read `GROUND_TRUTH.md` so you don't re-derive facts or re-flag tool findings. If it's absent, run `/rigor:ground-truth` first (recommended — it also yields the coverage/blind-spot map), or harvest the `§C` toolchain baseline for the scoped area yourself before hunting; never reason ahead of the toolchain.
 
 ## Phase 1 — Derive intent
 Extract the **invariants, contracts, and assumptions** the scoped code must uphold — from types, docs, tests, and call sites. Write down what must *always* hold (pre/postconditions, state invariants, ordering/lifetime rules). Bugs are violations of these.

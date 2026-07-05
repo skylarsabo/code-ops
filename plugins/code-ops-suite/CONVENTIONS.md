@@ -114,6 +114,8 @@ For each unit of work:
 8. **Commit** atomically, referencing the item ID; open/update a PR per the developer's preference.
 9. **Close the loop** — update the backlog status and update any documentation the change affects (don't create doc drift).
 
+**Cascade circuit-breaker:** if three or more fixes in a single run fail verification (step 6) or themselves spawn new confirmed findings, stop the fix loop — a cascading cluster is evidence of an architectural problem, not a bug collection. Reclassify the affected items as **NEEDS-DESIGN** (`§6`), record the cascade chain in the run's log (`IMPLEMENTATION_LOG.md` where the skill produces one), and present options at a checkpoint instead of attempting the next fix; in a headless run, defer the remaining cluster and report it (`§3`).
+
 ## 12 · Shared artifacts & single source of truth
 - **Registers are live backlogs / SSOT** — discovery and audit prompts write them; implementation prompts update them as items ship.
 - **Stable IDs across the lifecycle** (`PERF-007`, `SEC-003`, `FEAT-012`, …) so an item is traceable discovery → register → commit/PR → log.
