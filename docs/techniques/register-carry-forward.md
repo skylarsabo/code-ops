@@ -8,7 +8,7 @@ A **register** is a live backlog — one stable ID per item, every item cited at
 
 So "carry forward" never means "copy." It means **re-validate, then carry forward what survives**:
 
-1. **Run the mechanical pre-filter** — `node scripts/revalidate-register.mjs <register> --root <repo>`. It re-greps every cited `file:line` and labels each item `FRESH` / `MOVED` / `GONE` / `AMBIGUOUS` / `NO-REF`.
+1. **Run the mechanical pre-filter** — `node scripts/revalidate-register.mjs <register> --root <repo>`. It re-greps every cited `file:line` (and any delimited `Anchor:` substring) and labels each item `FRESH` / `MOVED` / `DRIFTED` / `GONE` / `AMBIGUOUS` / `NO-REF`.
 2. **Re-read the survivors.** `FRESH` means the location still exists, **not** that the defect is still there. Confirm each by reading the current code.
 3. **Re-triage the rest.** A `MOVED` item gets re-located and re-stamped; an item that was fixed gets stamped **`OBSOLETE-AT <sha>`** and is never re-ranked again.
 4. **Re-stamp `Verified-at`** on every item you carried, with the sha you confirmed it on.
@@ -144,7 +144,7 @@ sequenceDiagram
 
 ---
 
-## 3 · The five statuses, and what each means for carry-forward
+## 3 · The six statuses, and what each means for carry-forward
 
 `revalidate-register.mjs` assigns exactly one status per item (definitions from the script header):
 
@@ -152,13 +152,14 @@ sequenceDiagram
 |---|---|---|
 | **FRESH** | Every cited `file:line` still exists and is in range. | Re-read to confirm the defect survives, then carry it. `FRESH` is a floor, not proof — `PERF-011` above was `FRESH` and already moot. |
 | **MOVED** | The cited line is out of range — at the original path, or at a path found by name-search after the original was gone. | Re-locate on current code, update `Location`, re-stamp `Verified-at`. |
+| **DRIFTED** | The cited line still exists but no longer contains the item's `Anchor:` substring (checked only when the item carries a backtick- or quote-delimited `Anchor:`). | The citation is stale or hallucinated — re-locate on the current tree and re-tier, or drop. |
 | **GONE** | A cited file no longer exists anywhere in the tree. | Likely resolved or relocated — verify, then `OBSOLETE-AT <sha>` if fixed, or re-point if it merely moved with no single name match. |
 | **AMBIGUOUS** | The literal path is gone but >1 file matches its bare name, or a reference escapes the repo root. | The script refuses to guess. Resolve by hand, then fix the `Location` so the next run is unambiguous. |
 | **NO-REF** | The item cites no `file:line` — nothing to auto-check. | Add a citation or verify by hand; an uncited finding is not yet actionable. |
 
-A non-gating **advisory** also fires when an item's `Verified-at` sha is present and differs from `HEAD`: the report appends `Verified-at <sha> != HEAD <sha> — re-confirm`. It does not change the status — the cited lines may be untouched — but it tells you the item was last confirmed against older code, which is exactly the carry-forward signal.
+A non-gating **advisory** also fires when an item's `Verified-at` sha is present and differs from `HEAD`: the report appends `Verified-at <sha> != HEAD <sha> — re-confirm`. It does not change the status — the cited lines may be untouched — but it tells you the item was last confirmed against older code, which is exactly the carry-forward signal. A second advisory fires when an item's `Anchor:` value is not backtick- or quote-delimited: it is unparseable, so its `DRIFTED` check is skipped — fix the delimiter rather than trusting the plain line-existence result.
 
-**Exit behavior, and the gate.** The script exits non-zero if any item is `MOVED` / `GONE` / `AMBIGUOUS` / `NO-REF` — so it can gate a CI step or a skill's phase boundary. Pass `--report-only` to print the report and always exit zero (informational, no gate). The `--root <repo>` flag points it at the tree to check against (defaults to the current directory); a reference that escapes the root is reported `AMBIGUOUS` rather than stat-ed, by design.
+**Exit behavior, and the gate.** The script exits non-zero if any item is `MOVED` / `DRIFTED` / `GONE` / `AMBIGUOUS` / `NO-REF` — so it can gate a CI step or a skill's phase boundary. Pass `--report-only` to print the report and always exit zero (informational, no gate). The `--root <repo>` flag points it at the tree to check against (defaults to the current directory); a reference that escapes the root is reported `AMBIGUOUS` rather than stat-ed, by design.
 
 > The script resolves moved files by name: if a finding cites `auth/session.ts:88`, that exact path is gone, and a single `session.ts` exists elsewhere, it reports against the relocated file instead of falsely declaring `GONE`. More than one match → `AMBIGUOUS`. This is why a renamed-but-shrunk file can surface as `MOVED` rather than `GONE`.
 
@@ -178,4 +179,4 @@ node scripts/revalidate-register.mjs <register> --root <repo>
 
 For the full register schema, the three tracks (`NOW-SAFE` / `NEEDS-REVIEW` / `NEEDS-DESIGN`), the always-gated rails, and how all four plugins share this backbone, see [Registers and freshness](../handbook/04-registers-and-freshness.md). For reading and prioritizing a populated register, see [Reading a findings register](reading-a-findings-register.md).
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*

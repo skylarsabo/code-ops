@@ -159,7 +159,7 @@ The incident is now a tracked leak. It shares the schema every leak in the suite
 node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs LEAK_REGISTER.md --root .
 ```
 
-It reports each item as `FRESH` / `MOVED` / `GONE` / `AMBIGUOUS` / `NO-REF`; anything not `FRESH` is re-triaged, never silently re-shown ([`revalidate-register.mjs`](../../plugins/privacy-opsec-suite/scripts/revalidate-register.mjs) statuses; cf. [`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §11). For the register lifecycle and freshness, see [`docs/handbook/04-registers-and-freshness.md`](../handbook/04-registers-and-freshness.md); for reading findings by tier and track, [`docs/handbook/05-evidence-and-tiers.md`](../handbook/05-evidence-and-tiers.md).
+It reports each item as `FRESH` / `MOVED` / `DRIFTED` / `GONE` / `AMBIGUOUS` / `NO-REF`; anything not `FRESH` is re-triaged, never silently re-shown ([`revalidate-register.mjs`](../../plugins/privacy-opsec-suite/scripts/revalidate-register.mjs) statuses; cf. [`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §11). For the register lifecycle and freshness, see [`docs/handbook/04-registers-and-freshness.md`](../handbook/04-registers-and-freshness.md); for reading findings by tier and track, [`docs/handbook/05-evidence-and-tiers.md`](../handbook/05-evidence-and-tiers.md).
 
 **Your job at this checkpoint:** bless the durable fix. Containment stopped the bleeding; now you authorize `opsec-hardening` to ship the real fix and the test that locks it shut.
 
@@ -225,4 +225,4 @@ For the full command reference, see [`docs/handbook/commands/privacy-opsec-suite
 
 ---
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*

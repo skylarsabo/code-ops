@@ -222,7 +222,7 @@ All six audits write into one register. It is a **live backlog and single source
 node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs LEAK_REGISTER.md --root .
 ```
 
-It reports each item as `FRESH` / `MOVED` / `GONE` / `AMBIGUOUS` / `NO-REF` (`AMBIGUOUS`: the literal path is gone but more than one file matches its name, or a ref escapes root — verify by hand); anything not `FRESH` is re-triaged, never silently re-shown ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §11). See [`docs/handbook/04-registers-and-freshness.md`](../handbook/04-registers-and-freshness.md) and [`docs/techniques/reading-a-findings-register.md`](../techniques/reading-a-findings-register.md).
+It reports each item as `FRESH` / `MOVED` / `DRIFTED` / `GONE` / `AMBIGUOUS` / `NO-REF` (`DRIFTED`: the cited line no longer contains the leak's delimited `Anchor:` substring — a stale or hallucinated citation; `AMBIGUOUS`: the literal path is gone but more than one file matches its name, or a ref escapes root — verify by hand); anything not `FRESH` is re-triaged, never silently re-shown ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §11). See [`docs/handbook/04-registers-and-freshness.md`](../handbook/04-registers-and-freshness.md) and [`docs/techniques/reading-a-findings-register.md`](../techniques/reading-a-findings-register.md).
 
 > **CHECKPOINT — decide what to fix.** `full-sweep` presents the ranked leaks led by any clearnet/DNS/identifier exposure ([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 2). You bless `EGRESS-003`, `DNS-001`, `LINK-005`, and `META-002` for hardening; `FP-009` stays PROBABLE until reproduced; `TA-004` is routed to a `traffic-analysis-resistance` mitigation, not a fix.
 
@@ -305,4 +305,4 @@ For the full anonymity-track orientation and where each skill fits, see [`docs/h
 
 ---
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*

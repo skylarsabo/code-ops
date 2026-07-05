@@ -141,7 +141,7 @@ flowchart LR
 Two consequences follow from this flow, both reinforced by [04-registers-and-freshness.md](04-registers-and-freshness.md):
 
 - **Promotion is the only path up.** A PROBABLE item becomes CONFIRMED only by being reproduced. There is no "I'm now more sure" promotion — the bar is execution.
-- **Tiers can decay.** A register is a live document; before a finding is acted on it is re-validated against the current tree. The fast pre-filter is `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>` (reporting FRESH / MOVED / GONE / AMBIGUOUS / NO-REF; see [`plugins/rigor/scripts/revalidate-register.mjs`](../../plugins/rigor/scripts/revalidate-register.mjs)), and a CONFIRMED item whose repro no longer fails is re-tiered or marked `OBSOLETE-AT <sha>` — never silently re-shown.
+- **Tiers can decay.** A register is a live document; before a finding is acted on it is re-validated against the current tree. The fast pre-filter is `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>` (reporting FRESH / MOVED / DRIFTED / GONE / AMBIGUOUS / NO-REF; see [`plugins/rigor/scripts/revalidate-register.mjs`](../../plugins/rigor/scripts/revalidate-register.mjs)), and a CONFIRMED item whose repro no longer fails is re-tiered or marked `OBSOLETE-AT <sha>` — never silently re-shown.
 
 ---
 
@@ -165,4 +165,4 @@ Two consequences follow from this flow, both reinforced by [04-registers-and-fre
 - [commands/rigor.md](commands/rigor.md) — the `rigor` command reference (`bug-hunt`, `fix-verified`, `deep-review`, and the rest).
 - [`plugins/rigor/CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) — §0, §A, §B, §C, §D, §E, §6: the source of every rule above.
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*

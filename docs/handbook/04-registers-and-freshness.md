@@ -10,7 +10,7 @@ The whole apparatus exists to defeat one specific, proven failure mode: **a regi
 
 1. **Stable IDs** (`BUG-007`, `SEC-003`, `FEAT-012`) so one item is traceable from discovery to register to commit to log, and so two phases can talk about the same thing.
 2. **`Verified-at: <sha>`** on every entry — the commit the item was last confirmed on. When it no longer equals `HEAD`, the item is suspect.
-3. **`revalidate-register.mjs`**, a mechanical floor that re-greps every cited `file:line` against the *current* tree and labels each item `FRESH` / `MOVED` / `GONE` / `AMBIGUOUS` / `NO-REF`. Anything non-`FRESH` is re-triaged, never silently re-shown.
+3. **`revalidate-register.mjs`**, a mechanical floor that re-greps every cited `file:line` against the *current* tree — and re-checks each item's verbatim `Anchor:` substring, when it carries one — and labels each item `FRESH` / `MOVED` / `DRIFTED` / `GONE` / `AMBIGUOUS` / `NO-REF`. Anything non-`FRESH` is re-triaged, never silently re-shown.
 
 The standard registers, one per plugin lens:
 
@@ -69,15 +69,16 @@ A register entry is a structured block, not a paragraph. The canonical **Finding
 
 ```
 ID · Title · Lens · Scope · Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
-Location (file:line) · Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
-Disconfirmation (what you ruled out) · Impact · Recommendation ·
-Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
+Location (file:line) · Anchor (a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) ·
+Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
+Disconfirmation (what you ruled out) · Refutation (independent: survived, or the guard that killed it) ·
+Impact · Recommendation · Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
 ```
 
 Read the fields as three jobs:
 
 - **Identity & routing** — `ID`, `Title`, `Lens` (which quality lens, code-ops §10), `Scope`, `Track`. These say *what it is* and *who handles it next*.
-- **Trust** — `Tier`, `Confidence`, `Verified-at`, `Evidence`, `Disconfirmation`. These say *how much to believe it* and *what was ruled out*. (Tiers are their own chapter: see [05-evidence-and-tiers](05-evidence-and-tiers.md).)
+- **Trust** — `Tier`, `Confidence`, `Anchor` (a verbatim, backtick- or quote-delimited substring of the cited line, so the citation is mechanically checkable), `Verified-at`, `Evidence`, `Disconfirmation`, `Refutation` (did an *independent* adversary fail to kill it?). These say *how much to believe it* and *what was ruled out*. (Tiers are their own chapter: see [05-evidence-and-tiers](05-evidence-and-tiers.md).)
 - **Action** — `Severity`, `Location`, `Impact`, `Recommendation`, `Effort`, `Risk-if-fixed`. These say *why it matters* and *what to do*.
 
 The other plugins extend the same skeleton for their lens — the trust fields (`Tier`, `Verified-at`, `Disconfirmation`, `Location`) and the track are constant across all four:
@@ -145,19 +146,20 @@ One script, byte-identical across all four plugins (`plugins/<name>/scripts/reva
 node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register.md> [...more] [--root <repo>] [--report-only]
 ```
 
-It scans the register for item IDs (`BUG-007`, `PERF-003` — skipping standards identifiers like `RFC-2616`, `CVE-2021-44228`, `UTF-8`), collects every `file:line` reference and the `Verified-at` sha under each ID, and re-greps each reference against the current tree. Each item gets exactly one status:
+It scans the register for item IDs (`BUG-007`, `PERF-003` — skipping standards identifiers like `RFC-2616`, `CVE-2021-44228`, `UTF-8`), collects every `file:line` reference, the `Verified-at` sha, and any delimited `Anchor:` under each ID, and re-greps each reference against the current tree. Each item gets exactly one status:
 
 | Status | Meaning | What to do |
 | --- | --- | --- |
 | **FRESH** | Every cited `file:line` still exists and is in range. | Re-read to confirm the defect still holds (the script is a floor, not a proof), then act. |
 | **MOVED** | The cited line is now out of range — either at the original path, or at a relocated path found by name-search after the original was gone. The file need not still exist at its original path. | Re-locate the item on the current code; update the `Location` and re-stamp. |
+| **DRIFTED** | The cited line still exists but no longer contains the item's `Anchor:` substring — the code under the citation changed. Only checked when the item carries a backtick- or quote-delimited `Anchor:`. | The citation is stale or hallucinated — re-locate it on the current tree and re-tier, or drop it. |
 | **GONE** | A cited file no longer exists anywhere in the tree. | Likely resolved or relocated — verify, then `OBSOLETE-AT` or re-point. |
 | **AMBIGUOUS** | The literal path is gone but more than one file matches its bare name, or a reference escapes the repo root. | Verify by hand; the script refuses to guess. |
 | **NO-REF** | The item cites no `file:line` at all — nothing to auto-check. | Add a citation or verify by hand; an uncited finding is not yet a finding. |
 
-There is also a non-gating **advisory**: when an item's `Verified-at` sha is present and differs from the repo's current `HEAD`, the report appends `Verified-at <sha> != HEAD <sha> — re-confirm`. It does not change the status (the cited lines may be untouched), but it flags that the item was last confirmed against older code.
+There are also two non-gating **advisories**: when an item's `Verified-at` sha is present and differs from the repo's current `HEAD`, the report appends `Verified-at <sha> != HEAD <sha> — re-confirm`; and when an item's `Anchor:` value is not backtick- or quote-delimited, the report says so (`unparseable, DRIFTED check skipped`) rather than silently degrading to a plain line-existence check. Neither changes the status, but both flag trust the item hasn't re-earned.
 
-**Exit behavior.** The script exits non-zero if any item is `MOVED`, `GONE`, `AMBIGUOUS`, or `NO-REF` — so it can gate CI or a skill's phase boundary — **unless** `--report-only` is passed, which prints the report and always exits zero. The `--root <repo>` flag points it at the tree to check against (defaults to the current directory); paths that escape the root are reported `AMBIGUOUS` rather than stat-ed, by design.
+**Exit behavior.** The script exits non-zero if any item is `MOVED`, `DRIFTED`, `GONE`, `AMBIGUOUS`, or `NO-REF` — so it can gate CI or a skill's phase boundary — **unless** `--report-only` is passed, which prints the report and always exits zero. The `--root <repo>` flag points it at the tree to check against (defaults to the current directory); paths that escape the root are reported `AMBIGUOUS` rather than stat-ed, by design.
 
 Two properties worth internalizing:
 
@@ -234,4 +236,4 @@ For a deeper walkthrough of how to read, prioritize, and act on a populated regi
 
 Deeper register and freshness material lands in later first-slice files: the disconfirmation pass as lived practice in [05-evidence-and-tiers](05-evidence-and-tiers.md) and [techniques/disconfirmation-pass](../techniques/disconfirmation-pass.md); how to read a populated register in [techniques/reading-a-findings-register](../techniques/reading-a-findings-register.md). A register-carry-forward technique and a CI/automation chapter are planned but not yet authored.
 
-*Verified-at: c2b37e9*
+*Verified-at: a181b36*
