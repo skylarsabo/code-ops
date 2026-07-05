@@ -26,6 +26,7 @@ Every orchestrator here follows the same backbone, so once you have read one you
 - **Registers are the single source of truth and are kept fresh.** Before any phase consumes a finding, the orchestrator re-validates it against current HEAD; a finding fixed earlier in the run is stamped `OBSOLETE-AT <sha>` and never re-shown. See [04-registers-and-freshness.md](04-registers-and-freshness.md).
 - **A running `EXECUTIVE_SUMMARY.md` spans the phases** and separates CONFIRMED from PROBABLE/SPECULATIVE at the end.
 - **Developer-in-the-loop, never auto-merge.** Work happens on a branch; even fully-automatic fixes land as commits/PRs for review.
+- **The fix phase has a cascade circuit-breaker.** Whichever fix skill an orchestrator chains (`remediation`, `fix-verified`, `opsec-hardening`) carries the same guard: if three or more fixes in a run are rejected by the regression guard or spawn new CONFIRMED findings, the fix loop stops and the cluster is reclassified **NEEDS-DESIGN** at a checkpoint rather than patched further (`code-ops-suite/CONVENTIONS.md §11`, `rigor/CONVENTIONS.md §H`). A cascade is an architectural signal, not a bug collection.
 
 The differences are *which* skills get chained, in *what* order, and *what prerequisites* must be installed.
 

@@ -163,6 +163,28 @@ cardinal sin.
 
 ---
 
+## The independent complement (§I)
+
+The pass above is run by the agent that **found** the candidate, so it reliably
+catches the guard *in the same function* and reliably misses the one the finder
+already reasoned past — a clamp in another file, a cap in the caller, a second
+gate at a different boundary, a dominating type/invariant. So a finding that will
+**drive a fix or block a change**, and whose confidence rests on static
+reachability rather than an executed repro, gets a second pass by an *independent*
+adversary that did **not** find it — a `tracer` or `reviewer` in **refutation
+mode** (see [subagent trade-offs](subagent-trade-offs.md)). Its sole task is to
+**kill** the finding by locating that dominating guard in a different
+function/file/boundary; it defaults to REFUTED when it finds one and cites its
+`file:line`. For a high-severity finding, spawn a small **odd panel (default 3)**;
+**majority-REFUTED drops the finding or downgrades it to SPECULATIVE** with the
+cited guard. A `CONFIRMED` item already backed by an executed repro needs no
+panel — the repro is the proof, and refutation cannot overturn a demonstrated
+failure. This is [CONVENTIONS](../../plugins/rigor/CONVENTIONS.md) **§I** (rigor)
+/ **§7** (code-ops-suite): self-disconfirmation is necessary, an independent kill
+attempt is what makes a high-severity static finding trustworthy.
+
+---
+
 ## Worked example A — a candidate that gets killed
 
 **Candidate:** In `src/cart/discount.ts:42`, `applyCoupon(code)` indexes
@@ -259,7 +281,8 @@ stops the same false positive from being re-derived on the next pass.
 - [`plugins/rigor/CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) — **§A**
   tiers, **§B** the disconfirmation pass (the five questions), **§C** ground-truth /
   never re-flag a tool, **§D** reachability, **§E** evidence standard / `file:line`,
-  **§6** finding schema, **§8** the fix–prove–guard loop.
+  **§I** independent refutation (the adversarial complement), **§6** finding schema,
+  **§8** the fix–prove–guard loop.
 - Skills that run this pass: `/rigor:bug-hunt`, `/rigor:quality-scan`,
   `/rigor:deep-review`.
 

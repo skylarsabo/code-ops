@@ -235,6 +235,8 @@ The output gives the **regression guard** (§H) something concrete to protect, a
   7. **Add an enforcement** so the class cannot recur: the kept regression test plus a type/lint/assertion (the `refund <= remaining` invariant; the unique `(event_id)` constraint for `BUG-011`).
   8. Self-review, commit atomically referencing the finding ID + proof, update the register (closed-with-proof).
 
+If the run's fixes start cascading — three or more rejected by the regression guard or spawning new CONFIRMED findings — the **cascade circuit-breaker** (§H) halts the loop and reclassifies the cluster as **NEEDS-DESIGN**: a cascade this size is an architectural problem, not a bug collection, so it goes to a checkpoint rather than the next patch.
+
 **The shape of a shipped fix**, in three artifacts:
 
 1. A **failing → passing regression test** (`refund.exceeds-capture.spec.ts` failed on `c2b37e9`, passes after the fix).
