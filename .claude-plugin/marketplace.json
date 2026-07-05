@@ -27,7 +27,7 @@
       "name": "privacy-opsec-suite",
       "source": "./plugins/privacy-opsec-suite",
       "description": "Privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, and an opsec PR gate.",
-      "version": "1.6.0",
+      "version": "1.6.1",
       "category": "security",
       "keywords": ["privacy", "opsec", "anonymity", "tor", "leak-prevention", "audit", "workflow"]
     },

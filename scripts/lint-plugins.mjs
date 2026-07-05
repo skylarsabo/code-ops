@@ -23,6 +23,12 @@
 //   8. (when docs/handbook/commands/ exists) every skill has an entry heading
 //      `### `/<plugin>:<skill>`` in docs/handbook/commands/<plugin>.md AND a qualified
 //      reference in the README router table; every such heading names a real skill.
+//   9. Every `§<id>` cited in a SKILL.md or agents/*.md resolves to a real `## <id> ·`
+//      section of the owning plugin's CONVENTIONS.md — or of a plugin named earlier on
+//      the same line ("rigor §H"); subsection forms (§11.9) resolve on the base id.
+//  10. "the <name> subagent" prose in a SKILL.md or agents/*.md names an agent actually
+//      bundled in that plugin (agents/*.md frontmatter `name:`), modulo a small
+//      generic-word allowlist (mirrors ORCH_TOKEN_ALLOWLIST).
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -327,6 +333,75 @@ if (existsSync(handbookDir)) {
       for (const slug of p.skills) {
         if (!mentions(routerText, `/${p.name}:${slug}`))
           fail(`handbook: README router table does not reference "/${p.name}:${slug}"`);
+      }
+    }
+  }
+}
+
+// ---- 9/10. section-reference + agent-name integrity (SKILL.md + agents/*.md) ----
+// Skills and agents cite CONVENTIONS sections (`§9`, `CONVENTIONS §A`, `rigor §H`) and
+// bundled subagents ("fan out to the privacy-reviewer subagent") by name. A renumbered
+// section or a renamed/unbundled agent silently orphans every such reference — the
+// pointer reads fine and resolves to nothing at runtime.
+const docFiles = (p) => [
+  ...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')),
+  ...(existsSync(join(p.dir, 'agents'))
+    ? readdirSync(join(p.dir, 'agents')).filter((f) => f.endsWith('.md')).map((f) => join(p.dir, 'agents', f))
+    : []),
+].filter(existsSync);
+
+// 9. §<id> tokens resolve against the owning plugin's CONVENTIONS section ids, or —
+// for cross-plugin prose like "rigor §4" — against a plugin named earlier on the same
+// line. A subsection form (§11.9) resolves on the part before the dot.
+const sectionIds = new Map(); // plugin name -> Set of `## <id> ·` heading ids
+for (const p of plugins) {
+  const ids = new Set();
+  const convPath = join(p.dir, 'CONVENTIONS.md');
+  if (existsSync(convPath)) for (const m of readText(convPath).matchAll(/^##\s+(\S+)\s*·/gm)) ids.add(m[1]);
+  sectionIds.set(p.name, ids);
+}
+const SECTION_TOKEN_RE = /§([A-Za-z0-9]+(?:\.[0-9]+)?)/g;
+for (const p of plugins) {
+  const own = sectionIds.get(p.name);
+  for (const f of docFiles(p)) {
+    const lines = readText(f).split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].matchAll(SECTION_TOKEN_RE)) {
+        const base = m[1].split('.')[0];
+        if (own.has(base)) continue;
+        const before = lines[i].slice(0, m.index);
+        if (plugins.some((q) => sectionIds.get(q.name).has(base) && mentions(before, q.name))) continue;
+        fail(`${rel(f)}:${i + 1}: references §${m[1]} but no "## ${base} ·" section exists in ${p.name}/CONVENTIONS.md (or in a plugin named earlier on the line)`);
+      }
+    }
+  }
+}
+
+// 10. "the <name> subagent" prose must name an agent bundled in the plugin (built from
+// agents/*.md frontmatter `name:`). Handles slash-joined lists ("the tracer/verifier
+// subagents") and backticked names; generic determiner-phrases ("a fresh sub-agent")
+// pass via the allowlist. Non-determiner prose ("each sub-agent") is not matched.
+const AGENT_PROSE_ALLOWLIST = new Set(['fresh', 'parallel']);
+const AGENT_REF_RE = /\b(?:the|a|an)\s+([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*)\s+sub-?agents?\b/gi;
+for (const p of plugins) {
+  const agentNames = new Set();
+  const agentsDir = join(p.dir, 'agents');
+  if (existsSync(agentsDir)) {
+    for (const f of readdirSync(agentsDir)) {
+      if (!f.endsWith('.md')) continue;
+      const fm = readText(join(agentsDir, f)).match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      const nm = fm && fm[1].match(/^name:[ \t]*(\S+)/m);
+      agentNames.add(nm ? nm[1] : f.slice(0, -3));
+    }
+  }
+  for (const f of docFiles(p)) {
+    const lines = readText(f).split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].replaceAll('`', '').matchAll(AGENT_REF_RE)) {
+        for (const name of m[1].toLowerCase().split('/')) {
+          if (!agentNames.has(name) && !AGENT_PROSE_ALLOWLIST.has(name))
+            fail(`${rel(f)}:${i + 1}: prose names "the ${name} subagent" but ${p.name} bundles ${agentNames.size ? [...agentNames].join(', ') : 'no agents'} — rename it, or add to AGENT_PROSE_ALLOWLIST if it's a generic word`);
+        }
       }
     }
   }
