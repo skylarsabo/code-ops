@@ -19,5 +19,7 @@ Apply the relevant lenses (`§10`): **correctness & intricate bugs** (does it do
 ## Output — the review
 Prioritized, each comment at `file:line` with the issue **and** a concrete suggested change: **Blocking** (bugs, security/privacy regressions, broken contracts, missing critical tests) · **Should-fix** · **Nit** (clearly labeled, low-pressure). Briefly note what's done well. End with an overall **verdict** — *approve / approve-with-nits / request-changes* — and a 2–3 line summary of quality and risk. Surface **blocking** items at the top.
 
+Before any item ships as **Blocking**, put it through **independent refutation** (`CONVENTIONS §7`): hand it to a fresh `reviewer`/`tracer` in refutation mode — one that did *not* raise it — whose only job is to kill it by locating a dominating guard or handler elsewhere (another function, file, or boundary). A refuted item drops or downgrades, citing the guard. Each comment quotes a verbatim **Anchor** of its cited line (`§9`) so the citation is checkable.
+
 ## Done when
 Every changed file reviewed against the applicable lenses; each issue has a location + concrete fix and a priority; UI changes verified; a clear verdict + summary given; blocking items first. If asked to fix rather than flag, switch to the implementation loop.

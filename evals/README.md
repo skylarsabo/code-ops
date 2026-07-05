@@ -37,6 +37,7 @@ Candidates are matched to keyed items by **path suffix + basename** (not basenam
 - **`hasty-code/`** — 3 planted hasty-code issues + 2 decoys for `code-ops-suite:normalize`.
 - **`trap-garden/`** — 5 subtle bugs + 6 tempting decoys (precision-under-temptation) for `rigor:bug-hunt`.
 - **`calibration-traps/`** — 4 bugs + 4 decoys encoding the bug/decoy classes from a real-scale calibration; the decoys are the regression guard for the disconfirmation rules (intent-annotation, locate-the-handler).
+- **`xfn-traps/`** — 4 bugs + 4 decoys as look-alike pairs where each decoy is safe **only** because of a guard in its **sole caller** (no in-file tell). The one fixture that isolates **independent refutation** (`§I` / `§7`) from line-local self-review — clearing a decoy requires tracing cross-function to the caller.
 
 A deterministic **fixture-drift guard** in `validate.yml` runs `score.mjs --check` over every `ANSWER_KEY.json`, so an answer key can never silently drift from its fixture.
 

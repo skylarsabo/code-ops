@@ -24,7 +24,7 @@ Before model reasoning, run and harvest the **deterministic toolchain** and trea
 Rank by **demonstrated blast radius**, not theoretical severity. Downgrade issues on dead/unreachable paths. A CONFIRMED crash on a hot path outranks a PROBABLE edge case behind three feature flags. State the reach of each finding.
 
 ## E · Evidence standard
-Every finding cites `file:line` **and** its proof artifact (the test name, repro steps, trace, or measured number). No invented locations — if you can't point to it on the current code, you haven't found it. Anything unexecuted is PROBABLE or SPECULATIVE, never CONFIRMED.
+Every finding cites `file:line` **and** its proof artifact (the test name, repro steps, trace, or measured number). No invented locations — if you can't point to it on the current code, you haven't found it. Anything unexecuted is PROBABLE or SPECULATIVE, never CONFIRMED. Every finding also carries an **Anchor** — a short **verbatim** substring *copied* from the cited line (not paraphrased); if it isn't literally present at `file:line` on the current tree, the citation is invented and the finding is rejected. `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>` checks it mechanically (a cited line that no longer contains its anchor is **`DRIFTED`**), making "no invented locations" a deterministic gate rather than a promise.
 
 ## F · Trust the test suite only as far as it's proven  *(new in v2)*
 A green suite is **not** proof until its fault-catching power on the relevant code is established — your repro and regression tests are only as strong as the suite's ability to detect faults. Therefore, for code you rely on as a proof or intend to change:
@@ -38,6 +38,9 @@ Trace every CONFIRMED bug to its **root cause** and fix at the correct layer, no
 
 ## H · Regression guard  *(new in v2)*
 Maintain a growing **proof set**: every repro, characterization, and regression test produced during the run. After each change, re-run the full proof set **plus** the suite; a change that breaks any prior proof or a previously-green test is rejected and reworked. **Never delete or weaken a proof to make a change pass.** Nondeterministic results are quarantined and investigated, not ignored.
+
+## I · Independent refutation — kill load-bearing findings with a fresh adversary  *(new in v2)*
+The disconfirmation pass (`§B`) is run by the finder, so it catches the guard *in the same function* and misses the one the finder already reasoned past — a clamp/normalize in another file, a cap in the caller, a second gate at a different boundary, a dominating type/invariant. So a finding that will **drive a fix** or **block a change** — and whose confidence rests on static reachability reasoning rather than an executed repro — is handed to an **independent adversary that did not find it** (a `tracer` or `reviewer` in *refutation mode*): its sole task is to **kill** the finding by locating that dominating guard/handler in a different function, file, or boundary, defaulting to REFUTED when it finds one and citing its `file:line`. For a high-severity finding spawn a small **odd panel (default 3)**; **majority-REFUTED → the finding drops, or downgrades to SPECULATIVE with the cited guard.** A CONFIRMED item already backed by an **executed repro** (`§A`) needs no panel — the repro is the proof, and refutation cannot overturn a demonstrated failure; the panel is for the static, false-positive-prone PROBABLE findings and for high-severity claims whose severity rests on "nothing else guards this." Only survivors are reported CONFIRMED/blocking or fixed. This is the adversarial complement to `§B`: self-disconfirmation is necessary, an independent kill attempt is what makes a high-severity static finding trustworthy.
 
 ## 1 · Operating model — dynamic orchestration
 Adaptive loop: assess → plan units → fan out parallel sub-agents → collect structured results → deepen / converge / escalate → repeat until the "Done when" criteria are met. Read-only analysis parallelizes freely, but **self-throttle the fan-out into bounded waves** (a handful of agents at a time) — a broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run; do not rely on the platform's concurrency cap as the limiter. Code edits are **conflict-aware** (parallel on disjoint files, serial on shared/dependent ones). Use a **stronger model** for invariant reasoning, bug hunting, root-cause analysis, and review; a **faster model** for breadth sweeps and mechanical migration. Keep a live task list. Use the bundled subagents: a read-only `tracer` for investigation, and a `verifier` that *executes* repros/mutations/benchmarks to confirm or kill candidates.
@@ -72,10 +75,12 @@ Tracks: **NOW-SAFE** (CONFIRMED, local, low-risk) · **NEEDS-REVIEW** (behavior-
 ```
 ID · Title · Lens · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
 Proof (test name / repro steps / trace / measurement) · Location (file:line) ·
+Anchor (a verbatim substring copied from the cited line) ·
 Verified-at (sha the proof last passed on) ·
 Root-cause · Class/siblings (other sites of the same cause) ·
 Reachability (preconditions) · Impact (demonstrated blast radius) ·
-Disconfirmation (what you ruled out) · Fix · Enforcement (how recurrence is prevented) ·
+Disconfirmation (what you ruled out) · Refutation (independent: survived, or the guard that killed it) ·
+Fix · Enforcement (how recurrence is prevented) ·
 Track · Effort · Risk-if-fixed
 ```
 

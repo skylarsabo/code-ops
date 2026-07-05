@@ -15,6 +15,7 @@ Each prompt runs an **adaptive loop**: assess → plan units of work → fan out
 - **Inline the enforced ruleset.** When you fan out reviewers / sub-agents, inject the ground-truth tool-enforced ruleset into each prompt — the exact lint/type rules in force and which are warnings vs errors — rather than a pointer to `GROUND_TRUTH.md`; the inlined facts are what stop a reviewer re-flagging a rule a tool already enforces.
 - **Skim huge files, then deepen.** For a very large file, skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end.
 - **Audit the skipped-set at synthesis.** When you aggregate slices, take the union of every slice's skipped/traced note — a high-risk area that no slice covered is itself a finding (a coverage gap), not silence.
+- **Refute before you report the load-bearing ones.** At synthesis, route every critical/high-severity or fix-driving finding through an **independent refutation** (`§7`) — a fresh sub-agent that did not find it, tasked only to kill it. This is a distinct fan-out from the finding pass; keep it inside the same bounded-wave throttling. Only survivors ship at that severity.
 - **Live task tracking.** Maintain an evolving task list so the developer can see the work graph and its state at any checkpoint.
 
 ## 2 · Tools (optional, by capability)
@@ -65,9 +66,10 @@ Classify every actionable item:
 **Finding** (audit / review / security):
 ```
 ID · Title · Lens · Scope · Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
-Location (file:line) · Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
-Disconfirmation (what you ruled out) · Impact · Recommendation ·
-Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
+Location (file:line) · Anchor (a verbatim ≤~40-char substring copied from the cited line) ·
+Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
+Disconfirmation (what you ruled out) · Refutation (independent: survived, or the guard that killed it) ·
+Impact · Recommendation · Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
 ```
 **Idea** (discovery):
 ```
@@ -77,11 +79,15 @@ Proposed feature · Value · Smallest slice · Builds-on · Effort · Confidence
 
 **Tier honesty & disconfirmation (borrowed from `rigor`).** `CONFIRMED` = reproduced (a failing test / runnable repro / executed trace); `PROBABLE` = ≥2 independent static-evidence lines; `SPECULATIVE` = a single lead. Before reporting, run a disconfirmation pass — reachable? already handled (caller/wrapper/framework/type)? intentional? already tested? **Intent annotation:** before reporting, read the cited line's immediate neighbors and any referenced ticket/finding id for an explicit by-design / accepted-deferred / KNOWN annotation, or a docstring/comment that matches the observed behavior — if the intent is documented at the line, it is not a defect; downgrade to informational. **Locate-the-handler:** a finding whose severity rests on "nothing else handles / guards / catches this" must actively LOCATE the would-be handler — the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement — and report that search; never assert the absence of a handler without looking for it. And **never re-flag what a deterministic tool already enforces**. Only **CONFIRMED** items drive an automated fix; when unsure between tiers, pick the lower.
 
+**Independent refutation (load-bearing findings).** The disconfirmation above is run by the agent that found the bug, so it reliably catches the guard *in the same function* and reliably misses the one the finder already reasoned past — a clamp/normalize in another file, a size cap in the caller, a second gate at a different boundary, a dominating type/CA/invariant. So a finding that would ship as **critical/high severity** or drive a fix — and whose confidence rests on static reachability reasoning rather than an executed repro — is handed to an **independent sub-agent that did not find it** (a `reviewer` or `tracer` in *refutation mode*) whose sole job is to **kill** it: locate the dominating guard/handler — in a *different* function, file, or boundary than the finding cites — that makes the path unreachable or safe, defaulting to REFUTED when one is found and citing its `file:line`. For a critical finding spawn a small **odd panel (default 3)**; **majority-REFUTED → drop the finding, or downgrade it to SPECULATIVE with the cited guard.** A finding stays critical/high (or fix-eligible) only if it survives. Scale to stakes: a nit, or a CONFIRMED item already proven by an executed repro, needs no panel — the repro is the proof; the ambiguous, high-severity, statically-argued findings are exactly the ones this catches.
+
 ## 8 · Severity & priority
 Severity: **critical** (data loss/leak, security breach, corruption) · **high** · **medium** · **low** · **nit**. Rank by impact × reach ÷ effort (weighted by confidence), with severity as a floor. Lead deliverables with a ranked "top N."
 
 ## 9 · Evidence standard
 Every finding cites `file:line`, gives minimal redacted evidence (or a precise description), states concrete impact, and ends with a concrete recommendation — never "consider maybe." State confidence honestly; mark unconfirmed items `UNVERIFIED`.
+
+Every finding also carries an **Anchor**: a short **verbatim** substring *copied* from the cited line (not paraphrased, not reconstructed from memory). A finding whose Anchor is not literally present at `file:line` on its `Verified-at` sha is a **hallucinated citation** — re-locate it against the real tree or drop it; do not report it. This is the deterministic floor under "never fabricate a location": the mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`**, which flags a citation whose line no longer contains its anchor as **`DRIFTED`** (alongside FRESH / MOVED / GONE). The anchor is what makes the no-invented-locations rule enforceable instead of honor-system, and it is what an independent refuter (`§7`) reads first.
 
 ## 10 · Quality lenses (shared definitions)
 Prompts reference these by name. Apply the ones relevant to the task and the project.
