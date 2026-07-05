@@ -26,3 +26,7 @@ Evidence: naive == token comparison; the verbatim anchor still sits on the cited
 ## BUG-006 — anchored, citation drifted off its code (must be DRIFTED)
 Tier: PROBABLE · Location: src/auth.js:5 · Anchor: `crypto.timingSafeEqual`
 Evidence: the register claims a timing-safe compare on this line, but line 5 says `given == expected` — a stale/hallucinated citation the anchor check catches even though the file and line still exist.
+
+## BUG-007 — anchor labeled but not delimited (must be FRESH plus an unparseable-anchor advisory)
+Tier: PROBABLE · Location: src/auth.js:5 · Anchor: given == expected
+Evidence: the anchor value carries no backtick or quote delimiter, so the checker cannot parse it; the report must say so instead of silently skipping the item's anchor comparison.

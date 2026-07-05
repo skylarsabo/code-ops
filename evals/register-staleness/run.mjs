@@ -30,6 +30,11 @@ expect(statusOf('BUG-004') === 'NO-REF', `BUG-004 should be NO-REF, got ${status
 // still carries its anchor is FRESH; one whose line exists but no longer contains the anchor is DRIFTED.
 expect(statusOf('BUG-005') === 'FRESH', `BUG-005 (anchor present) should be FRESH, got ${statusOf('BUG-005')}`);
 expect(statusOf('BUG-006') === 'DRIFTED', `BUG-006 (anchor drifted off the line) should be DRIFTED, got ${statusOf('BUG-006')}`);
+// An `Anchor:` label whose value has no backtick/quote delimiter is unparseable: the item must NOT
+// silently degrade to line-existence checking — it stays FRESH but carries an explicit advisory.
+const bug7 = out.split('\n').find((l) => l.includes('BUG-007')) || '';
+expect(statusOf('BUG-007') === 'FRESH', `BUG-007 (undelimited anchor) should be FRESH, got ${statusOf('BUG-007')}`);
+expect(bug7.includes('unparseable'), `BUG-007 should carry the unparseable-anchor advisory, got: ${bug7 || '(no report line)'}`);
 
 // Without --report-only, a stale register must fail closed (non-zero exit).
 const gated = spawnSync('node', [checker, register, '--root', repo], { encoding: 'utf8' });
@@ -41,4 +46,4 @@ if (fails.length) {
   console.error('\n--- checker output ---\n' + out);
   process.exit(1);
 }
-console.log('PASS — register-staleness eval: FRESH/MOVED/DRIFTED/GONE/NO-REF classified correctly (incl. the verbatim-anchor gate); stale register fails closed.');
+console.log('PASS — register-staleness eval: FRESH/MOVED/DRIFTED/GONE/NO-REF classified correctly (incl. the verbatim-anchor gate + the unparseable-anchor advisory); stale register fails closed.');

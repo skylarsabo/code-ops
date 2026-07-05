@@ -11,7 +11,7 @@ Apply the quality lenses from the plugin's `CONVENTIONS.md` (§10) that are rele
 
 Rules:
 - Bash is for read-only verification only (e.g. running the existing test suite or a linter). Do not modify files, and do not commit.
-- Every finding cites `path/to/file:line` **and quotes a verbatim Anchor** — the exact substring of that line, copied not paraphrased — so the citation is mechanically checkable; if you can't quote the line, you haven't confirmed the location. State the concrete problem and impact and give a concrete suggested change — never "consider maybe". Redact secrets/PII. Mark anything unconfirmed `UNVERIFIED`.
+- Every finding cites `path/to/file:line` **and quotes a verbatim Anchor** — the exact substring of that line, copied not paraphrased, backtick- or quote-delimited (an undelimited value is unparseable to the register checker) — so the citation is mechanically checkable; if you can't quote the line, you haven't confirmed the location. State the concrete problem and impact and give a concrete suggested change — never "consider maybe". Redact secrets/PII. Mark anything unconfirmed `UNVERIFIED`.
 - **Disconfirm before you flag.** For each candidate ask: is the path actually reachable? is it already handled by a caller, wrapper, middleware, framework, or the type system? is it intentional (read the cited line's neighbors and any referenced ticket for a by-design / accepted-deferred note)? is it already tested? A severity that rests on "nothing else handles this" must *locate* the would-be handler and report that search — never assert an absent handler you didn't look for. Never re-flag what a linter/typechecker already enforces.
 - Be honest and specific; note what is done well briefly.
 

@@ -66,7 +66,7 @@ Classify every actionable item:
 **Finding** (audit / review / security):
 ```
 ID · Title · Lens · Scope · Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
-Location (file:line) · Anchor (a verbatim ≤~40-char substring copied from the cited line) ·
+Location (file:line) · Anchor (a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) ·
 Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
 Disconfirmation (what you ruled out) · Refutation (independent: survived, or the guard that killed it) ·
 Impact · Recommendation · Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
@@ -87,7 +87,7 @@ Severity: **critical** (data loss/leak, security breach, corruption) · **high**
 ## 9 · Evidence standard
 Every finding cites `file:line`, gives minimal redacted evidence (or a precise description), states concrete impact, and ends with a concrete recommendation — never "consider maybe." State confidence honestly; mark unconfirmed items `UNVERIFIED`.
 
-Every finding also carries an **Anchor**: a short **verbatim** substring *copied* from the cited line (not paraphrased, not reconstructed from memory). A finding whose Anchor is not literally present at `file:line` on its `Verified-at` sha is a **hallucinated citation** — re-locate it against the real tree or drop it; do not report it. This is the deterministic floor under "never fabricate a location": the mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`**, which flags a citation whose line no longer contains its anchor as **`DRIFTED`** (alongside FRESH / MOVED / GONE). The anchor is what makes the no-invented-locations rule enforceable instead of honor-system, and it is what an independent refuter (`§7`) reads first.
+Every finding also carries an **Anchor**: a short **verbatim** substring *copied* from the cited line (not paraphrased, not reconstructed from memory), ≤~40 chars and backtick- or quote-delimited so the checker can parse it — e.g. Anchor: `req.query.accountId`; an undelimited value is invisible to `revalidate-register.mjs` and forfeits the DRIFTED check. A finding whose Anchor is not literally present at `file:line` on its `Verified-at` sha is a **hallucinated citation** — re-locate it against the real tree or drop it; do not report it. This is the deterministic floor under "never fabricate a location": the mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`**, which flags a citation whose line no longer contains its anchor as **`DRIFTED`** (alongside FRESH / MOVED / GONE). The anchor is what makes the no-invented-locations rule enforceable instead of honor-system, and it is what an independent refuter (`§7`) reads first.
 
 ## 10 · Quality lenses (shared definitions)
 Prompts reference these by name. Apply the ones relevant to the task and the project.

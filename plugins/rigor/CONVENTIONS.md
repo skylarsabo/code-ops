@@ -24,7 +24,7 @@ Before model reasoning, run and harvest the **deterministic toolchain** and trea
 Rank by **demonstrated blast radius**, not theoretical severity. Downgrade issues on dead/unreachable paths. A CONFIRMED crash on a hot path outranks a PROBABLE edge case behind three feature flags. State the reach of each finding.
 
 ## E · Evidence standard
-Every finding cites `file:line` **and** its proof artifact (the test name, repro steps, trace, or measured number). No invented locations — if you can't point to it on the current code, you haven't found it. Anything unexecuted is PROBABLE or SPECULATIVE, never CONFIRMED. Every finding also carries an **Anchor** — a short **verbatim** substring *copied* from the cited line (not paraphrased); if it isn't literally present at `file:line` on the current tree, the citation is invented and the finding is rejected. `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>` checks it mechanically (a cited line that no longer contains its anchor is **`DRIFTED`**), making "no invented locations" a deterministic gate rather than a promise.
+Every finding cites `file:line` **and** its proof artifact (the test name, repro steps, trace, or measured number). No invented locations — if you can't point to it on the current code, you haven't found it. Anything unexecuted is PROBABLE or SPECULATIVE, never CONFIRMED. Every finding also carries an **Anchor** — a short **verbatim** substring *copied* from the cited line (not paraphrased), ≤~40 chars and backtick- or quote-delimited so the checker can parse it, e.g. Anchor: `given == expected` (an undelimited value is invisible to `revalidate-register.mjs` and forfeits the DRIFTED check); if it isn't literally present at `file:line` on the current tree, the citation is invented and the finding is rejected. `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>` checks it mechanically (a cited line that no longer contains its anchor is **`DRIFTED`**), making "no invented locations" a deterministic gate rather than a promise.
 
 ## F · Trust the test suite only as far as it's proven  *(new in v2)*
 A green suite is **not** proof until its fault-catching power on the relevant code is established — your repro and regression tests are only as strong as the suite's ability to detect faults. Therefore, for code you rely on as a proof or intend to change:
@@ -75,7 +75,7 @@ Tracks: **NOW-SAFE** (CONFIRMED, local, low-risk) · **NEEDS-REVIEW** (behavior-
 ```
 ID · Title · Lens · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
 Proof (test name / repro steps / trace / measurement) · Location (file:line) ·
-Anchor (a verbatim substring copied from the cited line) ·
+Anchor (a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) ·
 Verified-at (sha the proof last passed on) ·
 Root-cause · Class/siblings (other sites of the same cause) ·
 Reachability (preconditions) · Impact (demonstrated blast radius) ·
