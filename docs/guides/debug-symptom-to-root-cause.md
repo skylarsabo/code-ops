@@ -78,6 +78,8 @@ With the cause confirmed and a go in hand, `debug` runs the [`/rigor:fix-verifie
 3. **The regression guard holds** (`rigor §H`). The guard maintains a growing **proof set** — every repro, characterization, and regression test produced in the run — and re-runs *all of it* plus the suite. A change that breaks any prior proof is **rejected and reworked.** You **never weaken a proof to make the fix pass.**
 4. **Siblings are swept and an enforcement is added.** This is what separates `debug` from a one-off patch. It sweeps the codebase for **other sites of the same cause** (`§G`) — every other call-site that assumes the data-access function never returns `undefined` — and fixes the whole class, not just the one that paged you. Then it adds an **enforcement** (a kept regression test plus a type/lint/assertion) so the class **cannot recur unnoticed**. A bug fixed without its siblings handled is a bug that pages you again next week wearing a different stack trace.
 
+If the sibling sweep turns into a cascade — three or more fixes rejected by the regression guard or spawning new CONFIRMED findings — the **cascade circuit-breaker** (`rigor §H` / code-ops `§11`) stops the fix loop and reclassifies the cluster as **NEEDS-DESIGN** rather than continuing to patch. A cascade is an architectural signal, not a bug collection.
+
 ### Phase 4 — Privacy gate *(conditional)*
 
 This phase runs only when **both** conditions hold: `privacy-opsec-suite` is installed, **and** the fix touches a **privacy surface** — egress, logging, identifiers, or a default. Our empty-result fix touches none of those, so `debug` skips it for this bug. But it is worth knowing what would happen if it didn't.

@@ -164,6 +164,8 @@ Each change is tested, behavior-preserving, atomic, and on the branch.
 
 **Checkpoint behavior.** Under `gated`, every fix/closure batch pauses for approval. Under `auto-safe`, CONFIRMED + NOW-SAFE fixes apply automatically (each branch-isolated, test-backed, guarded) and only NEEDS-REVIEW, NEEDS-DESIGN, and always-gated categories pause. The always-gated categories — security/auth, secrets, data migrations, public contracts, irreversible ops — stop for you at **every** level.
 
+**Cascade circuit-breaker.** A whole-repo `everything` run is the most cascade-prone context there is, so both `fix-verified` (`rigor §H`) and `remediation` (`§11`) carry the same brake: if three or more fixes are rejected by the regression guard or spawn new CONFIRMED findings, the fix loop stops and the cluster is reclassified **NEEDS-DESIGN** at a checkpoint rather than patched further. A cascade means the run has hit an architectural problem, not a bug collection.
+
 ---
 
 ## Phase 8 — Close inconsistencies  *(rigor `consistency-closure`)*

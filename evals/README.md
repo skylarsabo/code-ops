@@ -7,14 +7,16 @@ Two kinds, by what can be checked deterministically:
 ## 1. Automated regression evals (run in CI)
 Pure-Node assertions, no model in the loop. They guard mechanical behaviors the suite depends on.
 
-All four are wired into `.github/workflows/validate.yml`.
+All six are wired into `.github/workflows/validate.yml`.
 
-- **`register-staleness/`** — the highest-signal test: it pins the one behavior the field actually lost (a register re-listing items already fixed in code). It seeds a register with a mix of fresh / moved / already-fixed / no-reference items against a fixture repo and asserts `scripts/revalidate-register.mjs` classifies each correctly and fails closed on stale entries. Run: `node evals/register-staleness/run.mjs` (exit 0 = pass).
+- **`register-staleness/`** — the highest-signal test: it pins the one behavior the field actually lost (a register re-listing items already fixed in code). It seeds a register with a mix of fresh / moved / already-fixed / no-reference items against a fixture repo and asserts `scripts/revalidate-register.mjs` classifies each correctly and fails closed on stale entries. It also exercises the **verbatim-anchor gate**: seeded anchored items assert a `DRIFTED` classification when an anchor no longer sits on its cited line, plus the unparseable-anchor advisory for an undelimited `Anchor:` value. Run: `node evals/register-staleness/run.mjs` (exit 0 = pass).
 - **`ai-tells/`** — asserts `scripts/scan-ai-tells.mjs` flags a dirty PR body across every category (TRAILER, TOOL, EMOJI, EMDASH, PHRASE, BOILERPLATE) and fails closed, while staying silent on a clean body that contains decoys. Run: `node evals/ai-tells/run.mjs`.
 - **`lib-docs/run.mjs`** — builds a throwaway `node_modules` fixture and asserts `scripts/lib-docs.mjs` resolves the installed version, returns the topic-matched README section + type exports, rejects a traversal-shaped name, and makes **no** network call under `noFetch` (a stubbed fetch is asserted uncalled). Run: `node evals/lib-docs/run.mjs`.
 - **`lib-docs/mcp-smoke.mjs`** — drives `scripts/lib-docs-mcp.mjs` over stdio JSON-RPC (initialize → tools/list → tools/call) against a fixture and asserts the protocol and tool responses. Run: `node evals/lib-docs/mcp-smoke.mjs`.
+- **`research-manifest/`** — pins the researcher plugin's egress-disclosure gate: a recorded request validates clean, an artifact citing an **unrecorded** web source fails closed, and a local-only artifact (no web citations) passes. Run: `node evals/research-manifest/run.mjs`.
+- **`script-guards/`** — the regression guard for the 2026-06-23 bundled-script audit fixes (`SCR-001..005`), exercising the real `lib-docs` / `check-no-deps` / `revalidate-register` / `research-manifest` scripts so a fixed defect can't silently regress. Run: `node evals/script-guards/run.mjs`.
 
-A fifth structural step, `node scripts/check-no-deps.mjs`, guards the zero-dependency invariant (no third-party imports).
+A structural step, `node scripts/check-no-deps.mjs`, guards the zero-dependency invariant (no third-party imports), and a **fixture-drift guard** runs `score.mjs --check` over every `ANSWER_KEY.json` (see below).
 
 ## 2. Judgment evals (model-in-the-loop — run manually or in a scheduled job)
 These measure skill *quality* and can't be a pure assertion — they need a skill run, then scoring against an answer key. Build them as fixtures + `ANSWER_KEY.md` and score **both** axes:

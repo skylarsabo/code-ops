@@ -27,7 +27,7 @@ any one of them the same way:
 | --- | --- |
 | **Invoke** | The exact slash command, e.g. `/code-ops-suite:codebase-audit`. |
 | **One-liner** | The single sentence from the plugin's own `README.md` Skills list. |
-| **Mode** | The operating mode the skill declares (AUDIT, BUILD/writes code, DISCOVERY, REVIEW, DOCUMENT). DISCOVERY/REVIEW/DOCUMENT never edit source. |
+| **Mode** | The operating mode the skill declares (AUDIT, IMPLEMENT/writes code, DISCOVERY, REVIEW, DOCUMENT). DISCOVERY/REVIEW/DOCUMENT never edit source. |
 | **Produces** | The real artifacts it writes — registers (`FINDINGS_REGISTER.md`, `LEAK_REGISTER.md`, `RESEARCH_FINDINGS.md`, `IDEAS_REGISTER.md`), threat models, design briefs, logs, or a verdict. |
 | **Checkpoints** | Where it pauses for you. Every command is developer-in-the-loop; orchestrators pause at each phase boundary. |
 | **Composes / hands off to** | Which other commands it calls or feeds, so chains are explicit. |
