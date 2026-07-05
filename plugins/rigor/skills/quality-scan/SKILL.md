@@ -9,7 +9,7 @@ disable-model-invocation: true
 **Mode:** AUDIT (reads + light execution) · **Produces:** tiered findings → `FINDINGS_REGISTER.md`; summary. Targets issues that *cause defects or real maintenance pain* — cosmetic style is the formatter's job and is out of scope.
 
 ## Phase 0 — Scope  *(checkpoint)*
-Pick the area; read `GROUND_TRUTH.md` so you skip what the linter/type-checker already enforces.
+Pick the area; read `GROUND_TRUTH.md` so you skip what the linter/type-checker already enforces. If it's absent, run `/rigor:ground-truth` first (recommended), or harvest the `§C` toolchain baseline for the area yourself before scanning; never reason ahead of the toolchain.
 
 ## Phase 1 — Find defect-causing quality issues
 Hunt the maintainability/`§7` lenses that actually bite: **complexity hotspots** (with a concrete metric, not a vibe); **error-handling gaps** (swallowed/re-thrown errors, missing cleanup/rollback, partial-failure paths); **resource leaks** (unclosed handles/connections/subscriptions, leaked timers/listeners); **type-safety holes** (unsafe casts, escape hatches, unchecked nullability at boundaries); **fragile coupling** (hidden temporal coupling, shared mutable state); **dead/duplicated code that hides intent**. For each: `file:line`, reachability/impact (`§D`), a tier (`§A`), and the **disconfirmation pass** (`§B`). Suppress low-confidence noise or mark it SPECULATIVE — do not pad the report.

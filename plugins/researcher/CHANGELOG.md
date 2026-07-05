@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.4.0
+- **`Anchor` added to the research schema (`§6`, `§7`).** The bundled `revalidate-register` has carried the verbatim-anchor `DRIFTED` gate since 0.3.0, but this suite's schema never told an executing model to emit an `Anchor:` — so the gate was unreachable for registers produced here. The schema and citation discipline now define the field for code sources, including the parse-critical backtick/quote delimiter (an undelimited value is invisible to the checker and forfeits the check).
+- **`revalidate-register` warns on an unparseable anchor** (per-item advisory instead of a silent skip; vendored from the canonical script).
+
 ## 0.3.0
 - **Bundled `revalidate-register` gains the verbatim-anchor gate.** The canonical script (vendored into this plugin) now classifies a citation whose cited line no longer contains its optional `Anchor:` substring as **`DRIFTED`** (fail-closed), on top of FRESH/MOVED/GONE — catching a hallucinated or stale finding location before it is acted on. Backward-compatible: registers without anchors are checked exactly as before.
 

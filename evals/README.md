@@ -23,6 +23,16 @@ These measure skill *quality* and can't be a pure assertion — they need a skil
 - **Precision / false-positive rate** — did it stay quiet on the planted **decoys** (intentional non-issues: already-handled paths, dead code, intentional patterns)? FP rate is the suite's whole differentiator, so decoys are mandatory.
 - **Baseline** — run each fixture **with** and **without** the skill (3+ reps each; record variance). An improvement that needs the token cost has to beat the no-skill control.
 
+**Measurement protocol — pre-register before running.** Every model-in-the-loop *comparison or calibration* — a with/without-skill fixture comparison or a real-scale calibration, i.e. any run that tests a hypothesis — fills this in **before** the first scored run, and every calibration report — including a sanitized calibration note — opens with the filled block. (The scheduled weekly runner below tracks a trend and tests no hypothesis; it is out of scope.)
+
+1. **Hypothesis** — the one sentence the run can falsify.
+2. **Arms, matched** — same model, same rep count, same panel/shot count per arm; vary *only* the mechanism under test, or pre-declare any asymmetry as a known confound.
+3. **n per arm + stopping rule** — fixed in advance; never extended after seeing results in search of a flipped delta.
+4. **Metric + minimum practically-significant delta** — pre-declare what delta would justify the mechanism's token cost (the "beat the no-skill control" criterion, made quantitative per run).
+5. **Instrument check** — will this fixture discriminate, or is it known-saturated (regression-guard-only)?
+
+Reports state the observed delta vs. run-to-run noise and practical significance **separately** (at n=3, a non-unanimous delta is *directional, not definitive*) and end with a validity-threats list (confounded arms, saturation, peeking, answer-key leakage into skill context).
+
 **Scoring is automated** even though the skill run isn't. `score.mjs` compares a skill's findings (a `*_REGISTER.md`, or a JSON array of `{file,line}`) against a fixture's `ANSWER_KEY.json` and reports recall, decoys-flagged (false positives), and unkeyed flags with a PASS/FAIL verdict:
 ```
 node evals/score.mjs evals/bug-garden/ANSWER_KEY.json <findings.md|findings.json>

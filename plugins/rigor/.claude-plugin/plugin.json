@@ -1,7 +1,7 @@
 {
   "name": "rigor",
   "description": "Verification-first workflows for finding real bugs, closing inconsistencies, and making measured improvements. Prove-it-or-don't-report-it: every finding carries an evidence tier and a proof artifact, fixes ship a failing-then-passing regression test fixed at root cause, and inconsistencies are closed with a mechanical enforcement. v2 adds test-suite validation (flaky + mutation testing), characterization safety nets, root-cause sibling sweeps, regression bisection, and a regression guard.",
-  "version": "2.4.0",
+  "version": "2.6.0",
   "license": "MIT",
   "author": {
     "name": "Skylar"

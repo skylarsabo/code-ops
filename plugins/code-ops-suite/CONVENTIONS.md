@@ -66,7 +66,7 @@ Classify every actionable item:
 **Finding** (audit / review / security):
 ```
 ID · Title · Lens · Scope · Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
-Location (file:line) · Anchor (a verbatim ≤~40-char substring copied from the cited line) ·
+Location (file:line) · Anchor (a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) ·
 Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
 Disconfirmation (what you ruled out) · Refutation (independent: survived, or the guard that killed it) ·
 Impact · Recommendation · Track (NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN) · Effort · Risk-if-fixed
@@ -87,7 +87,7 @@ Severity: **critical** (data loss/leak, security breach, corruption) · **high**
 ## 9 · Evidence standard
 Every finding cites `file:line`, gives minimal redacted evidence (or a precise description), states concrete impact, and ends with a concrete recommendation — never "consider maybe." State confidence honestly; mark unconfirmed items `UNVERIFIED`.
 
-Every finding also carries an **Anchor**: a short **verbatim** substring *copied* from the cited line (not paraphrased, not reconstructed from memory). A finding whose Anchor is not literally present at `file:line` on its `Verified-at` sha is a **hallucinated citation** — re-locate it against the real tree or drop it; do not report it. This is the deterministic floor under "never fabricate a location": the mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`**, which flags a citation whose line no longer contains its anchor as **`DRIFTED`** (alongside FRESH / MOVED / GONE). The anchor is what makes the no-invented-locations rule enforceable instead of honor-system, and it is what an independent refuter (`§7`) reads first.
+Every finding also carries an **Anchor**: a short **verbatim** substring *copied* from the cited line (not paraphrased, not reconstructed from memory), ≤~40 chars and backtick- or quote-delimited so the checker can parse it — e.g. Anchor: `req.query.accountId`; an undelimited value is invisible to `revalidate-register.mjs` and forfeits the DRIFTED check. A finding whose Anchor is not literally present at `file:line` on its `Verified-at` sha is a **hallucinated citation** — re-locate it against the real tree or drop it; do not report it. This is the deterministic floor under "never fabricate a location": the mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`**, which flags a citation whose line no longer contains its anchor as **`DRIFTED`** (alongside FRESH / MOVED / GONE). The anchor is what makes the no-invented-locations rule enforceable instead of honor-system, and it is what an independent refuter (`§7`) reads first.
 
 ## 10 · Quality lenses (shared definitions)
 Prompts reference these by name. Apply the ones relevant to the task and the project.
@@ -114,10 +114,12 @@ For each unit of work:
 8. **Commit** atomically, referencing the item ID; open/update a PR per the developer's preference.
 9. **Close the loop** — update the backlog status and update any documentation the change affects (don't create doc drift).
 
+**Cascade circuit-breaker:** if three or more fixes in a single run fail verification (step 6) or themselves spawn new confirmed findings, stop the fix loop — a cascading cluster is evidence of an architectural problem, not a bug collection. Reclassify the affected items as **NEEDS-DESIGN** (`§6`), record the cascade chain in the run's log (`IMPLEMENTATION_LOG.md` where the skill produces one), and present options at a checkpoint instead of attempting the next fix; in a headless run, defer the remaining cluster and report it (`§3`).
+
 ## 12 · Shared artifacts & single source of truth
 - **Registers are live backlogs / SSOT** — discovery and audit prompts write them; implementation prompts update them as items ship.
 - **Stable IDs across the lifecycle** (`PERF-007`, `SEC-003`, `FEAT-012`, …) so an item is traceable discovery → register → commit/PR → log.
-- **Registers stay fresh — re-validate before you write, carry forward, or act.** Before a finding is written, re-presented across a phase boundary, or consumed by an implementation skill, re-confirm it still reproduces against the current tree; drop or re-tier anything that no longer does (mark it `OBSOLETE-AT <sha>`). Stamp every entry with `Verified-at: <sha>` (`§7`). The canonical mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`** (reports FRESH / MOVED / GONE / NO-REF); a non-FRESH item is re-triaged, never silently re-shown. This is the guard for the real failure mode — a register re-listing items already fixed in code.
+- **Registers stay fresh — re-validate before you write, carry forward, or act.** Before a finding is written, re-presented across a phase boundary, or consumed by an implementation skill, re-confirm it still reproduces against the current tree; drop or re-tier anything that no longer does (mark it `OBSOLETE-AT <sha>`). Stamp every entry with `Verified-at: <sha>` (`§7`). The canonical mechanical check is **`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>`** (reports FRESH / MOVED / DRIFTED / GONE / AMBIGUOUS / NO-REF); a non-FRESH item is re-triaged, never silently re-shown. This is the guard for the real failure mode — a register re-listing items already fixed in code.
 - **Run artifacts** go in a dated folder under the repo's docs location (e.g. `docs/<area>/<date>/`), or repo root if there's no docs convention. **Authoritative reference docs** live in the repo's existing docs/SSOT location and are reconciled in place.
 - **Detect and match the repo's existing docs structure and conventions** — never impose a new structure without asking.
 - **Standard filenames** prompts produce: `FINDINGS_REGISTER.md`, `FEATURE_OPPORTUNITIES.md` + feature specs, `EXECUTIVE_SUMMARY.md`, and per-prompt logs/reports named in each prompt.

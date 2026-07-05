@@ -18,7 +18,7 @@ Trace the control/data path with `rigor`'s tracer and derive the invariants the 
 Identify the real cause at the correct layer (not the nearest symptom), cited `file:line`, with a disconfirmation pass (reachable? handled elsewhere? intentional?). Present the root cause + the proposed fix and get a go before editing.
 
 ## Phase 3 — Fix with proof
-Run the `rigor:fix-verified` loop: the repro now passes, the suite is green, the regression guard holds, sweep for **siblings** (other sites of the same cause), and add an enforcement so the class can't recur.
+Run the `rigor:fix-verified` loop: the repro now passes, the suite is green, the regression guard holds, sweep for **siblings** (other sites of the same cause), and add an enforcement so the class can't recur. If the fix keeps cascading into new findings, the **cascade circuit-breaker** (`CONVENTIONS §11`) stops the loop and escalates as NEEDS-DESIGN.
 
 ## Phase 4 — Privacy gate  *(if applicable)*
 If the fix touches egress, logging, identifiers, or a default — and `privacy-opsec-suite` is installed — run its leak gate; fail-closed preserved.

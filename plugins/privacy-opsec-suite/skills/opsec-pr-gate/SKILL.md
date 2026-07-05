@@ -9,7 +9,7 @@ disable-model-invocation: true
 **Mode:** REVIEW (name the PR/branch/diff) · **Produces:** prioritized review + verdict (PR comments if a VCS tool is connected, else `REVIEW.md`). Review-only by default.
 
 ## Phase 0 — Understand the change
-Pull the PR/diff and its intent (description, linked issue/leak ID/spec) and the surrounding code. For large PRs, fan out to the reviewer subagent and synthesize.
+Pull the PR/diff and its intent (description, linked issue/leak ID/spec) and the surrounding code. For large PRs, fan out to the privacy-reviewer subagent and synthesize.
 
 ## Phase 1 — Review against the anonymity/opsec model
 Apply the lenses (`§9`). Treat these as **BLOCKING** regressions:
