@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.8.0
+- **`opsec-pr-gate` names its real subagent.** Phase 0 said "fan out to the reviewer subagent", but this plugin bundles `explorer` and `privacy-reviewer` — `reviewer` is a code-ops-suite agent, so the tuned `privacy-reviewer` was never invoked by name. The prose now says `privacy-reviewer`. Guarded going forward by two new repo-level lint checks (`scripts/lint-plugins.mjs` #9/#10): every `§<id>` citation in a SKILL.md/agent must resolve to a real CONVENTIONS section, and "the X subagent" prose must name an agent actually bundled in the plugin.
+
 ## 1.7.0
 - **`supply-chain-trust` gains an agent-ingested-content (prompt-injection) audit axis.** Anything an agent will *read* from a dependency — a vendored skill/plugin, an MCP server's tool descriptions, rules files (`.claude/`, `.cursor/`), READMEs surfaced by doc lookups — is treated as untrusted input, never instructions, and audited for instruction-override/role-hijack phrasing, hidden zero-width/bidi or HTML-comment directives, encoded payloads, exfiltration prompts, and credential-path references inside the payload. A working injection→egress chain files as a critical `egress`/`secret` leak against the compromised-dependency adversary (`§A`) and blocks adoption (`§4`). The `§9` secrets & supply-chain lens is extended to match, operationalizing the prompt-injection vector of the compromised-dependency adversary (`§A`) — prior coverage stopped at phone-home/telemetry, CVEs, lockfile integrity, and postinstall exfiltration.
 
