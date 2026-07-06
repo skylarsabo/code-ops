@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.15.1
+- **Tier-honesty line moved in-phase** in `doc-alignment` and `normalize` — the post-hardening floor snapshot (evals/FLOOR_TABLE.md) measured that the rule suppresses weak-model tier inflation when embedded at the finding-emitting step (the bug-hunt pattern, 0 inflation) but not as a trailing line (4-9 remained). Placement beats presence; pre-registered iteration, nothing else changed.
+
 ## 1.15.0
 - **CONVENTIONS restructured for clause visibility.** The dense tier-honesty, independent-refutation, and anchor paragraphs in `§7`/`§9` are now one clause per line (numbered), so an executing model weighs every clause of the conjunctions instead of skimming a 200-word sentence; the refutation protocol carries the identical numbered structure as rigor `§I`. Section headings and every pinned doctrine core are byte-unchanged.
 - **New lint check #14: SHARED_PASSAGES drift gate.** The deliberately-duplicated doctrine cores (fan-out throttle, disconfirmation protocols, headless contract, circuit-breaker, non-secret-anchor rule, terminal forms, the always-gated list) are pinned byte-identically across every file that carries them — a partial rollout of a doctrine change now fails CI instead of silently diverging. Caught and fixed one live drift on landing: `everything`'s always-gated copy had drifted from the pinned byte-form (a separate "anything irreversible" clause instead of "destructive/irreversible operations", and no never-auto-merge rider).
