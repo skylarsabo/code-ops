@@ -19,7 +19,7 @@ Detect the stack/size; confirm all three plugins are available. Verify library/f
   - `gated` *(default)* — pause for my approval at each fix/closure batch.
   - `auto-safe` *(recommended ceiling)* — automatically apply **CONFIRMED + NOW-SAFE** fixes (each on a branch, each carrying a failing→passing regression test, each passing the regression guard); pause only for NEEDS-REVIEW, NEEDS-DESIGN, and the always-gated categories.
   - `auto-all` — *not recommended*; even here the always-gated categories still stop for me, and NEEDS-DESIGN is never auto-applied.
-  - **Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive operations, public API/contract changes, and anything irreversible.
+  - **Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge.**
 - **Check-in level** — normal (per phase) or minimal (only at the consolidated review + always-gated items).
 Open the master registers (`FINDINGS_REGISTER.md`, `CONSISTENCY_REGISTER.md`, and `LEAK_REGISTER.md` if privacy is in scope), a running `EXECUTIVE_SUMMARY.md`, a coverage map, and a growing proof set. **Keep every register fresh across phases** — re-validate items against current HEAD before any phase consumes them (`§12`); a finding fixed earlier in the run is marked `OBSOLETE-AT <sha>`, never re-ranked or re-shown. **Surface any CONFIRMED critical finding immediately.** Always work on a branch; **never auto-merge** — even fully-auto fixes land as commits/PRs for review.
 

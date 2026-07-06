@@ -498,6 +498,47 @@ for (const p of plugins) {
   }
 }
 
+// ---- 14. shared doctrine passages: intentional duplication gets a drift gate ----
+// Each entry pins a CORE span (a clause or sentence, free of per-plugin § references) that
+// must appear byte-identically in every listed file. Rolling out a doctrine change means
+// editing every copy in the same commit — this check makes a partial rollout fail CI
+// instead of silently diverging (the enabler for inlining rules at point of use).
+const CONVS = (...names) => names.map((p) => `plugins/${p}/CONVENTIONS.md`);
+const SHARED_PASSAGES = [
+  { id: 'fanout-throttle', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: "a broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run; do not rely on the platform's concurrency cap as the limiter" },
+  { id: 'skim-then-deepen', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: 'skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end' },
+  { id: 'skipped-set', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: "take the union of every slice's skipped/traced note — a high-risk area that no slice covered is itself a finding (a coverage gap), not silence" },
+  { id: 'intent-annotation', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: "read the cited line's immediate neighbors and any referenced ticket/finding id for an explicit by-design / accepted-deferred / KNOWN annotation, or a docstring/comment that matches the observed behavior" },
+  { id: 'locate-the-handler', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: 'must actively LOCATE the would-be handler — the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement' },
+  { id: 'headless-default', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: 'do not block: auto-scope from the repo, proceed on the safe default' },
+  { id: 'headless-defer', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: 'are deferred and reported, never silently applied — and surface every decision and critical finding in the final report instead of pausing' },
+  { id: 'circuit-breaker-core', files: CONVS('code-ops-suite', 'rigor'),
+    text: 'stop the fix loop — a cascading cluster is evidence of an architectural problem, not a bug collection' },
+  { id: 'circuit-breaker-checkpoint', files: CONVS('code-ops-suite', 'rigor'),
+    text: 'present options at a checkpoint instead of attempting the next fix; in a headless run, defer the remaining cluster and report it' },
+  { id: 'non-secret-anchor', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: 'For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value); if no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.' },
+  { id: 'terminal-forms', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: 'A consumed item ends in exactly one pinned terminal form — `closed-with-proof <commit/PR>`, `deferred-with-reason <reason>`, or `OBSOLETE-AT <sha>` — and never silently disappears' },
+  { id: 'always-gated-core', files: ['plugins/code-ops-suite/CONVENTIONS.md', 'plugins/code-ops-suite/skills/everything/SKILL.md'],
+    text: '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge' },
+];
+for (const p of SHARED_PASSAGES) {
+  for (const f of p.files) {
+    const abs = join(ROOT, ...f.split('/'));
+    if (!existsSync(abs)) { fail(`SHARED_PASSAGES ${p.id}: listed file missing: ${f}`); continue; }
+    if (!readText(abs).includes(p.text))
+      fail(`${f}: shared passage "${p.id}" is absent or has drifted — doctrine cores are edited in every listed copy in the same commit (SHARED_PASSAGES in this linter)`);
+  }
+}
+
 // ---- report ----------------------------------------------------------------
 for (const w of warnings) console.log(`  warning: ${w}`);
 if (errors.length) {
