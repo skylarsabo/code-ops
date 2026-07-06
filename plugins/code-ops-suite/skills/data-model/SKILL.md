@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # DATA-MODEL — Entities, Relationships, Invariants
 
-**Invoked as `/code-ops-suite:data-model`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)**. For this DOCUMENT-mode skill the binding sections are §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those four; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
+**Invoked as `/code-ops-suite:data-model`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)**. For this DOCUMENT-mode skill the binding sections are §2 (tools/in-house docs lookup), §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those five; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
 **Mode:** DOCUMENT. **Produces:** `DATA-MODEL.md` in the repo's docs location.
 
 ## Phase 0 — Detect the schema  *(checkpoint)*

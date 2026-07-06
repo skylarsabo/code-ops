@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # ARCHITECTURE — The System, Explained for a Senior Engineer
 
-**Invoked as `/code-ops-suite:architecture`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — operating model, quality lenses, the **documentation quality standard (`§13`)** this doc obeys, and the SSOT/freshness rules (`§12`). For this DOCUMENT-mode skill the binding sections are §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those four; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
+**Invoked as `/code-ops-suite:architecture`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — operating model, quality lenses, the **documentation quality standard (`§13`)** this doc obeys, and the SSOT/freshness rules (`§12`). For this DOCUMENT-mode skill the binding sections are §2 (tools/in-house docs lookup), §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those five; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
 **Mode:** DOCUMENT (writes docs only; log any code issue as a finding, don't fix it here). **Produces:** `ARCHITECTURE.md` in the repo's docs location — diagram-rich and code-grounded.
 
 ## Phase 0 — Inventory  *(checkpoint)*
