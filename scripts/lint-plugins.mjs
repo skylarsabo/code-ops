@@ -36,6 +36,10 @@
 //      AGENT_MODEL_FLOORS (haiku < sonnet < opus) — downgrading the verification core is
 //      a visible diff, never a silent frontmatter tweak; the handbook's "(model: `X`)"
 //      annotations must match the frontmatter.
+//  13. The register-producing skills' Done-when keeps running revalidate-register.mjs
+//      (the producer-side anchor gate cannot silently regress out of the wiring).
+//  14. SHARED_PASSAGES: the deliberately-duplicated doctrine cores are pinned byte-identically
+//      across every file that carries them — a partial doctrine rollout fails CI.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -425,24 +429,6 @@ for (const p of plugins) {
   }
 }
 
-// ---- 13. producer register self-check wiring ---------------------------------
-// The register-producing skills must gate their own Done-when on revalidate-register
-// (the producer-side anchor gate) — this guard keeps that wiring from silently
-// regressing in a later edit, the same pattern as the runtime-script checks.
-const PRODUCER_SELFCHECK = [
-  'plugins/rigor/skills/bug-hunt/SKILL.md',
-  'plugins/rigor/skills/quality-scan/SKILL.md',
-  'plugins/rigor/skills/consistency-closure/SKILL.md',
-  'plugins/code-ops-suite/skills/codebase-audit/SKILL.md',
-];
-for (const rel of PRODUCER_SELFCHECK) {
-  const f = join(ROOT, ...rel.split('/'));
-  if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_SELFCHECK)'); continue; }
-  const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
-  if (!dw.includes('revalidate-register.mjs'))
-    fail(rel + ': Done-when no longer runs revalidate-register.mjs — the producer-side anchor gate must not silently regress');
-}
-
 // ---- 12. agent model floors -------------------------------------------------
 // The verification core (verifier, refutation-mode reviewers/tracers) is only as strong
 // as the model tier behind it. Each bundled agent declares a `model:` alias; this floor
@@ -496,6 +482,24 @@ for (const p of plugins) {
       }
     }
   }
+}
+
+// ---- 13. producer register self-check wiring ---------------------------------
+// The register-producing skills must gate their own Done-when on revalidate-register
+// (the producer-side anchor gate) — this guard keeps that wiring from silently
+// regressing in a later edit, the same pattern as the runtime-script checks.
+const PRODUCER_SELFCHECK = [
+  'plugins/rigor/skills/bug-hunt/SKILL.md',
+  'plugins/rigor/skills/quality-scan/SKILL.md',
+  'plugins/rigor/skills/consistency-closure/SKILL.md',
+  'plugins/code-ops-suite/skills/codebase-audit/SKILL.md',
+];
+for (const rel of PRODUCER_SELFCHECK) {
+  const f = join(ROOT, ...rel.split('/'));
+  if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_SELFCHECK)'); continue; }
+  const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
+  if (!dw.includes('revalidate-register.mjs'))
+    fail(rel + ': Done-when no longer runs revalidate-register.mjs — the producer-side anchor gate must not silently regress');
 }
 
 // ---- 14. shared doctrine passages: intentional duplication gets a drift gate ----

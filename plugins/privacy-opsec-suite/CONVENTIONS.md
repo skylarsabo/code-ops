@@ -64,6 +64,7 @@ Verified-at (sha the item was last confirmed on) · Evidence (redacted) ·
 Scenario (how it deanonymizes / links / leaks) · Disconfirmation (what you ruled out) ·
 Impact (who is exposed, over what window) · Remediation · Track · Effort · Risk-if-fixed
 ```
+Tier semantics: CONFIRMED = reproduced or directly observed on the current tree; PROBABLE = strong static evidence (two independent lines); SPECULATIVE = a single lead. When unsure between tiers, pick the lower.
 
 ## 7 · Severity & priority
 **critical** = a real deanonymization, linkability, or secret leak · high · medium · low · nit. Rank by severity × exploitability. An anonymity regression is never "low".
