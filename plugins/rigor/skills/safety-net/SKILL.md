@@ -18,4 +18,4 @@ Write **characterization tests** that capture *current observable behavior* of t
 The characterization tests, committed and tagged so the regression guard can find them; a list of suspicious behaviors observed → `FINDINGS_REGISTER.md`. A note of which targets are now safe to change.
 
 ## Done when
-The targeted/blind-spot code has characterization coverage that passes on current code; suspicious behaviors are logged (not fixed); refactors and fixes in those areas can now be proven behavior-preserving.
+The targeted/blind-spot code has characterization coverage that passes on current code; suspicious behaviors are logged (not fixed); refactors and fixes in those areas can now be proven behavior-preserving. Each kept characterization test is pinned via `node ${CLAUDE_PLUGIN_ROOT}/scripts/check-proof-integrity.mjs record PROOF_MANIFEST.md <finding-id> <test path>` so later fix batches mechanically detect a weakened or deleted proof (`§H`).

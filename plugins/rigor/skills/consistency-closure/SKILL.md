@@ -25,4 +25,4 @@ Migrate every other site to the canonical form — behavior-preserving, conflict
 `CONSISTENCY_REGISTER.md` (concept → canonical form → sites migrated → enforcement added), the diffs, and the enforcement config/rule; a summary of what's now canonical and guarded.
 
 ## Done when
-Each inconsistency group has a canonical form, every site is migrated, a working enforcement is in place, and tests are green. "Closed" means recurrence is mechanically prevented.
+Each inconsistency group has a canonical form, every site is migrated, a working enforcement is in place, and tests are green. "Closed" means recurrence is mechanically prevented. The finished CONSISTENCY_REGISTER.md passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs CONSISTENCY_REGISTER.md --root .` with exit 0 — a non-FRESH citation is re-located against the real tree or dropped before the run is done (`§E`).

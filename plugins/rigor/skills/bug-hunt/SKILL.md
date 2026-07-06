@@ -27,4 +27,4 @@ For each CONFIRMED bug, trace it to its **root cause** (not just the symptom) an
 `FINDINGS_REGISTER.md` entries (schema `§6`: tier, proof, `file:line`, root-cause, siblings, reachability, impact, disconfirmation), repro tests committed. Summary **led by CONFIRMED**. Honest coverage note: what you traced vs. didn't.
 
 ## Done when
-The scoped code is traced against its invariants; every reported bug carries a tier + evidence; CONFIRMED bugs have a runnable repro, a root cause, and a sibling sweep; disconfirmation is done; coverage is stated.
+The scoped code is traced against its invariants; every reported bug carries a tier + evidence; CONFIRMED bugs have a runnable repro, a root cause, and a sibling sweep; disconfirmation is done; coverage is stated. The finished FINDINGS_REGISTER.md passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .` with exit 0 — a non-FRESH citation is re-located against the real tree or dropped before the run is done (`§E`).
