@@ -37,6 +37,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # The credential exchange rate-limits per-credential bursts: 84 jobs arriving at once
+      # returns non-JSON errors (Failed to parse JSON) for most of them. Throttle the fan-out
+      # so the exchange endpoint sees a trickle, not a stampede.
+      max-parallel: 4
       matrix:
         tier: [strong, weak]
         arm: [skill, control]
