@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to know whether a green suite actually catches faults: detects flaky tests, weak assertions, and (via mutation testing) where passing tests guard nothing. Validates the tests other proofs rest on."
+description: "Use when you need to know whether a green suite actually catches faults. Validates the tests other proofs rest on."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you want REAL bugs found and proven, not a list of guesses: derives invariants, traces flow, proves each candidate with a failing test, then root-causes and sweeps for siblings. The flagship."
+description: "Use when you want REAL bugs found and proven, not a list of guesses — each candidate proven with a failing test. The flagship."
 disable-model-invocation: true
 ---
 

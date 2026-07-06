@@ -1,5 +1,5 @@
 ---
-description: "Use when you want grounded, high-value feature ideas mined from the codebase (not a generic wishlist); produces a ranked register, specs, and a roadmap. Discovery only — writes no code."
+description: "Use when you want grounded, high-value feature ideas mined from the codebase (not a generic wishlist). Discovery only — writes no code."
 disable-model-invocation: true
 ---
 

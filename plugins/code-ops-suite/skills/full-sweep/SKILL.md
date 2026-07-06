@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline (assess to safety-net to fix to polish to document). Intra-plugin orchestrator; for the cross-plugin superset use everything."
+description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. Intra-plugin orchestrator; for the cross-plugin superset use everything."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to reduce the fingerprinting/uniqueness surface (header/TLS/JA3/behavioral) that could re-link anonymous users. Owns identity-fingerprint distinctiveness — NOT traffic timing/size (see traffic-analysis-resistance)."
+description: "Use when you need to reduce the fingerprinting/uniqueness surface that could re-link anonymous users. Owns identity-fingerprint distinctiveness — NOT traffic timing/size (see traffic-analysis-resistance)."
 disable-model-invocation: true
 ---
 

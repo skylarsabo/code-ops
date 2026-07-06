@@ -1,5 +1,5 @@
 ---
-description: "Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the version installed in this project, not from memory or a third-party index."
+description: "Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when the same concept is implemented divergently and you want it closed for good: one canonical form, every site migrated, and a mechanical enforcement so it cannot silently return. For whole-repo style normalization, see code-ops-suite:normalize."
+description: "Use when the same concept is implemented divergently and you want it closed for good — one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize."
 disable-model-invocation: true
 ---
 

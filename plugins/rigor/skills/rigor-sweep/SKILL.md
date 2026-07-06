@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the whole rigor suite run end-to-end (ground-truth to test-trust to prove to safety-net to fix to close to improve) as a checkpointed pipeline; start assess-only. Intra-plugin orchestrator."
+description: "Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline; start assess-only. Intra-plugin orchestrator."
 disable-model-invocation: true
 ---
 

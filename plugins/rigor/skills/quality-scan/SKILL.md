@@ -1,5 +1,5 @@
 ---
-description: "Use when you want high-signal, defect-causing quality issues (complexity, error-handling gaps, leaks, type holes, fragile coupling) with evidence and tiers — not cosmetic nits."
+description: "Use when you want high-signal, defect-causing quality issues with evidence and tiers — not cosmetic nits."
 disable-model-invocation: true
 ---
 

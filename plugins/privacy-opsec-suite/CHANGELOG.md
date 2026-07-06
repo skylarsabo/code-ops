@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.12.0
+- **Token economy.** Read-once CONVENTIONS clause and pre-filter-first register reads (pinned in SHARED_PASSAGES). Descriptions trimmed with every trigger/disambiguator kept verbatim.
+
 ## 1.11.1
 - **Tier-honesty line moved in-phase** in the three leak audits (same measured rationale as code-ops-suite 1.15.1).
 

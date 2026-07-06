@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to find PII/identifiers leaking in logs, telemetry, errors, response headers, or embedded file metadata (EXIF/document/build), plus retention. Owns at-rest/in-band metadata — NOT timing/size side channels (see traffic-analysis-resistance)."
+description: "Use when you need to find PII/identifiers leaking in logs, telemetry, errors, response headers, or embedded file metadata. Owns at-rest/in-band metadata — NOT timing/size side channels (see traffic-analysis-resistance)."
 disable-model-invocation: true
 ---
 

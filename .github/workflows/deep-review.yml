@@ -15,6 +15,12 @@ permissions:
   pull-requests: write
   id-token: write # claude-code-action mints an OIDC token for the Pro/Max OAuth path
 
+# A newer push to the same PR supersedes the running review — cancel it instead of paying
+# a full model review for a commit that can no longer merge. The new head runs in full.
+concurrency:
+  group: deep-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   deep-review:
     runs-on: ubuntu-latest
@@ -27,13 +33,30 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Scope check (generated data only?)
+        id: scope
+        if: steps.key.outputs.present == 'true'
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE" --quiet
+          files=$(git diff --name-only "origin/$BASE"...HEAD)
+          echo "changed files:"; echo "$files"
+          # Machine-generated data artifacts (deterministically drift-checked in validate.yml).
+          if [ -n "$files" ] && [ -z "$(echo "$files" | grep -v -E '^evals/FLOOR_TABLE\.md$')" ]; then
+            echo "substantive=false" >> "$GITHUB_OUTPUT"
+            echo "generated-data-only diff — deep review skipped (validate.yml drift-checks these; opsec-gate still reviews)"
+          else
+            echo "substantive=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - if: steps.key.outputs.present == 'true'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
 
       - name: Verification-first review
-        if: steps.key.outputs.present == 'true'
+        if: steps.key.outputs.present == 'true' && steps.scope.outputs.substantive == 'true'
         uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

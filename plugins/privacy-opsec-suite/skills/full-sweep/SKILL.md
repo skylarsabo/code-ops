@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the whole privacy-opsec-suite run end-to-end (threat model to audits to harden to docs/gate) as a guided, checkpointed pipeline. Intra-plugin orchestrator."
+description: "Use when you want the whole privacy-opsec-suite run end-to-end as a guided, checkpointed pipeline. Intra-plugin orchestrator."
 disable-model-invocation: true
 ---
 

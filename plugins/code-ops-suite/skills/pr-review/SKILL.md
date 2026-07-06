@@ -1,5 +1,5 @@
 ---
-description: "Use when you want a rigorous pre-merge review of one PR/diff against all quality lenses; prioritized comments + a verdict. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review; for an anonymity gate, privacy-opsec-suite:opsec-pr-gate."
+description: "Use when you want a rigorous pre-merge review of one PR/diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review; for an anonymity gate, privacy-opsec-suite:opsec-pr-gate."
 disable-model-invocation: true
 ---
 

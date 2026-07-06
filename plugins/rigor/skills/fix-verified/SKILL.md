@@ -1,5 +1,5 @@
 ---
-description: "Use when CONFIRMED bugs exist and you want them fixed at root cause with proof (failing-then-passing regression test, regression guard, sibling sweep, enforcement). Requires CONFIRMED findings as input."
+description: "Use when CONFIRMED bugs exist and you want them fixed at root cause with proof. Requires CONFIRMED findings as input."
 disable-model-invocation: true
 ---
 
