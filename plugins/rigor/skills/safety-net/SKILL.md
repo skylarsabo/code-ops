@@ -1,5 +1,5 @@
 ---
-description: "Use before refactoring or fixing low-coverage code: writes characterization tests that lock current observable behavior so the change is provably behavior-preserving."
+description: "Use before refactoring or fixing low-coverage code — writes characterization tests that lock current observable behavior."
 disable-model-invocation: true
 ---
 

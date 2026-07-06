@@ -1,7 +1,7 @@
 {
   "name": "researcher",
   "description": "Code-grounded research workflows: ground in the codebase (or given materials), gather external knowledge, and propose improvements, design briefs, library evaluations, and new ideas. Every claim is cited and tiered; local-first with disclosed, fail-closed egress. It proposes and hands implementation to the other suites. Developer-in-the-loop.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "MIT",
   "author": {
     "name": "Skylar"

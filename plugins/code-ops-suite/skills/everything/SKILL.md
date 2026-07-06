@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the most exhaustive end-to-end pass across all three plugins (map to prove to leak-audit to fix to close to improve to document); token-expensive and checkpointed. Cross-plugin superset — requires code-ops-suite, rigor, and privacy-opsec-suite installed."
+description: "Use when you want the most exhaustive end-to-end pass across all three plugins; token-expensive and checkpointed. Cross-plugin superset — requires code-ops-suite, rigor, and privacy-opsec-suite installed."
 disable-model-invocation: true
 ---
 

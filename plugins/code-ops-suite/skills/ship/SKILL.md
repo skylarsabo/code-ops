@@ -1,5 +1,5 @@
 ---
-description: "Use when you want to implement one change — a feature or a one-off — end to end at high quality: design-checked, proven with tests, privacy-gated, and shipped as a clean traceless PR."
+description: "Use when you want to implement one change — a feature or a one-off — end to end at high quality, shipped as a clean traceless PR."
 disable-model-invocation: true
 ---
 

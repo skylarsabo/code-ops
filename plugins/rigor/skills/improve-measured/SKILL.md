@@ -1,5 +1,5 @@
 ---
-description: "Use when you want measured, behavior-preserving improvements (baseline to change to before/after delta), not speculative refactors. For profiling-led hot-path optimization specifically, see code-ops-suite:performance."
+description: "Use when you want measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization specifically, see code-ops-suite:performance."
 disable-model-invocation: true
 ---
 

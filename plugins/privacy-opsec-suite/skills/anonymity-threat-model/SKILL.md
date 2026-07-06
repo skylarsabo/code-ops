@@ -1,5 +1,5 @@
 ---
-description: "Use when you need the keystone anonymity threat model (adversaries, identifying/linking assets, deanonymization paths, residual risk) that the other privacy audits build on."
+description: "Use when you need the keystone anonymity threat model that the other privacy audits build on."
 disable-model-invocation: true
 ---
 

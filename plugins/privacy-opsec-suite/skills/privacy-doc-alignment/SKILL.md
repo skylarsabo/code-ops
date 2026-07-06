@@ -1,5 +1,5 @@
 ---
-description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled (loudly surfacing any unkept promise) into the SSOT."
+description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the SSOT."
 disable-model-invocation: true
 ---
 

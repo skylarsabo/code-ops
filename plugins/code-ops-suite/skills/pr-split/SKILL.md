@@ -1,5 +1,5 @@
 ---
-description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs — each independently green — with no AI/tooling trace on the commits or PRs."
+description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless."
 disable-model-invocation: true
 ---
 

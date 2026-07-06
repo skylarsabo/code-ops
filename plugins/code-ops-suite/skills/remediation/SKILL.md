@@ -1,5 +1,5 @@
 ---
-description: "Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW/NEEDS-DESIGN items implemented safely with tests (re-validates the register first). Requires a register as input."
+description: "Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW/NEEDS-DESIGN items implemented safely with tests. Requires a register as input."
 disable-model-invocation: true
 ---
 

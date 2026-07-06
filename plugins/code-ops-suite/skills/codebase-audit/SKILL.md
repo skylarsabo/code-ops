@@ -1,5 +1,5 @@
 ---
-description: "Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; maps every module and writes a ranked findings backlog (applies only safe fixes)."
+description: "Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you need an accurate API/interface reference for a codebase — endpoints or exported surface with signatures, request/response shapes, auth, errors, and real examples — generated from the code and types, not memory."
+description: "Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory."
 disable-model-invocation: true
 ---
 

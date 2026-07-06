@@ -1,5 +1,5 @@
 ---
-description: "Use when critical paths lack meaningful coverage or tests are flaky; builds deterministic characterization + regression tests. To audit whether existing tests actually catch faults (mutation/assertion strength), use rigor:test-suite-audit."
+description: "Use when critical paths lack meaningful coverage or tests are flaky; builds characterization + regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit."
 disable-model-invocation: true
 ---
 

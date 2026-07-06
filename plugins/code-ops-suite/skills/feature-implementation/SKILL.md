@@ -1,5 +1,5 @@
 ---
-description: "Use when feature specs already exist and you want them built incrementally behind flags with tests, smallest valuable slice first. Requires specs as input."
+description: "Use when feature specs already exist and you want them built incrementally. Requires specs as input."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the factual baseline before any analysis: run the real toolchain (build/typecheck, lint, tests + coverage, static analysis) and capture it as ground truth + a coverage/blind-spot map. Run first."
+description: "Use when you want the factual baseline before any analysis — run the real toolchain and capture ground truth + a coverage/blind-spot map. Run first."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor: reproduce, isolate, confirm the cause, then fix with a regression proof and ship traceless."
+description: "Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor."
 disable-model-invocation: true
 ---
 

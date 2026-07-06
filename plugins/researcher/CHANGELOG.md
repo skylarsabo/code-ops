@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.6.0
+- **Skill bodies compressed 22%** (60.5KB → 47.1KB) — narrative framing and restated schema fields cut; every gate clause (egress manifest recording/validation, checkpoint definitions, tier rules, Done-when criteria, script invocations) kept near-verbatim and token-drop-scanned. The residual ~4KB/file is irreducible gate machinery the other plugins don't carry per-file.
+- **Read-once CONVENTIONS clause + pre-filter-first register reads** (pinned in SHARED_PASSAGES).
+- **Floor calibration: strong arm drops to n=1** (pre-registered in evals/README.md; 126 consecutive strong cells measured constant-zero tier inflation — the variance budget belongs to the weak arm).
+
 ## 0.5.0
 - **New `scan-injection-tells.mjs`** — `research-verify` scans every fetched or carried-in artifact before ingestion: external content is data to verify, never instructions to follow.
 - The vendored `revalidate-register.mjs` gains the strict/consumed extension set (`--strict --profile research` requires Tier + Verified-at per item; Anchor/Location required only for items carrying code citations) and the `<REDACTED-LINE>` anchor carve-out; the anchor rule now requires a non-secret anchor on a secret-bearing line.

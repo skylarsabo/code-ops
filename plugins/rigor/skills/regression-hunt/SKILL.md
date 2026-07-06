@@ -1,5 +1,5 @@
 ---
-description: "Use when something used to work and you need to pinpoint the commit that broke it (VCS bisection) and find related regressions in recent changes."
+description: "Use when something used to work and you need to pinpoint the commit that broke it and find related regressions in recent changes."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you need a deep, diagram-rich architecture reference for a codebase — C4 structure, critical runtime flows, cross-cutting concerns, and key decisions — written for a senior engineer and grounded in the actual code."
+description: "Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code."
 disable-model-invocation: true
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you need an operational runbook for a codebase — deploy/rollback, configuration, incident runbooks, and health/observability — written for the senior engineer who has to operate or be on-call for it."
+description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate or be on-call for it."
 disable-model-invocation: true
 ---
 

@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.16.0
+- **Token economy (measured, gate-preserving).** Read-once clause for CONVENTIONS (an orchestrator-loaded copy is inherited, not re-read — an `everything` pass instructed ~35 reads of ~15K unique tokens); pre-filter-first register reads (run the checker, then read only non-FRESH entries, wholesale only for synthesis); refutation-panel economy (a SURVIVED verdict whose receipts still pass `--strict --refutation-log` is not re-paneled; panelists get the finding block + cited region inline, never the full register); `everything` no longer preloads sibling skill files (invocation re-injects them). All new doctrine cores pinned in SHARED_PASSAGES.
+- **DOCUMENT-mode generators read scoped sections** — `architecture`/`api-docs`/`data-model`/`ops-docs`/`onboarding` read the four sections that bind DOCUMENT mode instead of the full file (the fan-out/fix machinery cannot apply to them). `adr` and `doc-alignment` keep full reads (they log tiered findings).
+- **Frontmatter descriptions trimmed** across the marketplace (~26%; every Use-when trigger and sibling disambiguator kept verbatim; all skills are manual-invoke so routing is unaffected).
+- **CI: both PR gates cancel superseded runs** (a newer push stops paying for reviews of dead commits) and deep-review skips generated-data-only diffs (in-job check, never paths-ignore — required-check semantics preserved; validate.yml drift-checks those files; opsec-gate still reviews every PR).
+
 ## 1.15.1
 - **Tier-honesty line moved in-phase** in `doc-alignment` and `normalize` — the post-hardening floor snapshot (evals/FLOOR_TABLE.md) measured that the rule suppresses weak-model tier inflation when embedded at the finding-emitting step (the bug-hunt pattern, 0 inflation) but not as a trailing line (4-9 remained). Placement beats presence; pre-registered iteration, nothing else changed.
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when you need a clear data-model reference for a codebase — an ER diagram plus per-entity fields, relationships, constraints, invariants, and schema evolution — generated from the real schema and migrations."
+description: "Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations."
 disable-model-invocation: true
 ---
 

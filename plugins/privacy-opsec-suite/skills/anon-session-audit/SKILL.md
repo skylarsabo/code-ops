@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to verify sessions are truly unlinkable; checks identifiers, session lifecycle, hidden persistent IDs, cross-session correlation. Owns linkability/session identity — not network egress or file metadata."
+description: "Use when you need to verify sessions are truly unlinkable. Owns linkability/session identity — not network egress or file metadata."
 disable-model-invocation: true
 ---
 

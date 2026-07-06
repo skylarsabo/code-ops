@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.9.0
+- **Token economy.** Read-once CONVENTIONS clause; pre-filter-first register reads; refutation-panel economy in `§I` (receipt-verified SURVIVED verdicts are not re-paneled on re-runs; panelist handoff is the finding block + cited region, never the full register). Cores pinned in SHARED_PASSAGES.
+
 ## 2.8.0
 - **CONVENTIONS restructured for clause visibility.** `§B` (disconfirmation) and `§I` (independent refutation) are now numbered protocols — one kill-question / one rule per line — with the intent-annotation and locate-the-handler bodies byte-identical across the three plugins that carry them (pinned by lint #14). Two worked micro-examples added: a correctly-tiered finding contrast in `§A` and a panel-tally line in `§I`.
 

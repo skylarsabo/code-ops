@@ -1,5 +1,5 @@
 ---
-description: "Use when a commit, PR, or branch must carry no AI/tooling trace: strip attribution metadata, match your prose voice, and blend code idioms into the surrounding codebase before publishing."
+description: "Use when a commit, PR, or branch must carry no AI/tooling trace before publishing."
 disable-model-invocation: true
 ---
 

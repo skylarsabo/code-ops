@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to prove no traffic escapes the proxy/Tor; checks proxy enforcement, fail-closed, DNS/WebRTC/IPv6 leaks, stream isolation, onion-service hygiene. Owns network egress + routing."
+description: "Use when you need to prove no traffic escapes the proxy/Tor. Owns network egress + routing."
 disable-model-invocation: true
 ---
 
