@@ -1,6 +1,6 @@
 # Command Reference — Index & Task Router
 
-The code-ops marketplace ships **55 commands** across four plugins. Every command is a
+The code-ops marketplace ships **56 commands** across four plugins. Every command is a
 manual-invoke Claude Code skill you call as `/<plugin>:<skill>` — they never auto-fire,
 because each is a deliberate operation. This page is the front door: it tells you how to
 read a command entry, maps the goal you actually have to the command(s) that serve it in
@@ -75,6 +75,7 @@ marks a single command that strings the others together for you.
 | **Review a PR at the verification bar** (depth) | `/rigor:deep-review` | rigor | Blocks only on `CONFIRMED` defects/regressions. The high-signal counterpart to `pr-review`. |
 | **Normalize a repo to one consistent style** | `/code-ops-suite:normalize` | code-ops-suite | Behavior-preserving; removes the artifacts of hasty/generated code. |
 | **Split a big branch into clean small PRs** | `/code-ops-suite:pr-split` | code-ops-suite (+ privacy) | Composes `privacy-opsec-suite:authorship-hygiene` (fail-closed); never auto-merges. |
+| **Hand a long run to a fresh session** | `/code-ops-suite:handoff` | code-ops-suite | Write verifiable state (decisions, dead ends, anchored pointers) before a context limit; Resume re-verifies every claim before continuing. |
 | **Close an inconsistency so it cannot return** | `/rigor:consistency-closure` | rigor | Pick a canonical form, migrate every site, add a lint/test enforcement. |
 | **Model how a user could be deanonymized** | `/privacy-opsec-suite:anonymity-threat-model` | privacy-opsec-suite | The keystone artifact every leak audit frames against. |
 | **Find anonymity leaks across the surface** | `/privacy-opsec-suite:anonymity-threat-model` → `/privacy-opsec-suite:tor-egress-audit` + `/privacy-opsec-suite:metadata-leak-audit` + `/privacy-opsec-suite:anon-session-audit` + `/privacy-opsec-suite:fingerprint-resistance` + `/privacy-opsec-suite:traffic-analysis-resistance` + `/privacy-opsec-suite:supply-chain-trust` | privacy-opsec-suite | The six parallel leak audits → `LEAK_REGISTER.md`. |

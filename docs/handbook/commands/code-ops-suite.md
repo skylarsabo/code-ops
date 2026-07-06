@@ -1,8 +1,8 @@
 # code-ops-suite — Command Reference
 
-The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 23 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. All skills are manual-invoke (`disable-model-invocation: true`) because they are deliberate operations. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
+The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 24 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. All skills are manual-invoke (`disable-model-invocation: true`) because they are deliberate operations. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
 
-A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate beautiful, code-grounded reference docs. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
+A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate code-grounded reference docs and run-continuity state. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
 
 ## Index
 
@@ -32,6 +32,7 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 - [`data-model`](#code-ops-suitedata-model) — ER diagram + per-entity invariants
 - [`adr`](#code-ops-suiteadr) — architecture decision records
 - [`ops-docs`](#code-ops-suiteops-docs) — the operator's runbook
+- [`handoff`](#code-ops-suitehandoff) — capture or resume a run's verifiable session state
 
 **Orchestrators**
 - [`full-sweep`](#code-ops-suitefull-sweep) — the whole suite end-to-end (intra-plugin)
@@ -273,6 +274,17 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 **When to use it.** When a system needs an operator's runbook or on-call documentation. Do **not** expect secret values in it — they are named and redacted by rule (`§4`).
 
 **Prerequisites & hand-offs.** No prerequisites. Kept true afterward by `doc-alignment`.
+
+### `/code-ops-suite:handoff`
+**Mode:** DOCUMENT
+
+**How it works.** Two directions, picked at the start. **Write** — when a long run is near a context limit, ending, or changing hands — captures the run's true state as `HANDOFF.md` in the dated artifact folder: goal and state of play (phases complete/in-flight/not-started, automation level, operator steering), every register/artifact path stamped `Verified-at: <sha>`, decisions made with the options rejected, traps and dead ends (approaches that failed, mistakes the successor will be tempted to repeat), and in-flight boundaries with `file:line` pointers each carrying a verbatim Anchor. The rule throughout is **state, not instructions** — describe what is true ("the leak gate is implemented; the register sweep is not started"), never what to do next. **Resume** treats every claim as context to verify, not fact to trust: it runs `revalidate-register.mjs` on every named register, checks the anchored pointers (a `DRIFTED` pointer is stale state), re-runs the deterministic baseline if the tree moved, then re-plans from what verified — surfacing contradictions at a checkpoint instead of silently re-deciding.
+
+**Why it's useful.** Registers carry findings across phases, but nothing else carried decisions, rejected approaches, and in-flight boundaries across a context limit — the most valuable and least recoverable session state. A verifiable handoff turns "trust the summary" into "check the anchors."
+
+**When to use it.** Before a long run (`everything`, `full-sweep`, a big audit) hits a context limit or a session ends mid-run; on the other side, to resume from a `HANDOFF.md` someone else (or an earlier session) wrote. Do **not** use it as a findings store — findings belong in the registers it points to.
+
+**Prerequisites & hand-offs.** No prerequisites to write; Resume expects the `HANDOFF.md` plus whatever registers it names. Composes with every orchestrator; the registers it points at are kept fresh by `revalidate-register.mjs` (`§12`).
 
 ---
 

@@ -29,6 +29,9 @@
 //  10. "the <name> subagent" prose in a SKILL.md or agents/*.md names an agent actually
 //      bundled in that plugin (agents/*.md frontmatter `name:`), modulo a small
 //      generic-word allowlist (mirrors ORCH_TOKEN_ALLOWLIST).
+//  11. No `<` / `>` in a SKILL.md frontmatter value — frontmatter is injected verbatim
+//      into the system prompt at discovery (before the body is read), so angle-bracketed
+//      markup there is a prompt-injection surface no body-level guard sees.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -173,9 +176,15 @@ for (const p of plugins) {
         const kv = line.match(/^([A-Za-z0-9_-]+):[ \t]+(.+?)[ \t]*$/);
         if (!kv) continue;
         const val = kv[2];
-        if (/^["'[{|>&*]/.test(val)) continue; // already quoted or block/flow scalar
-        if (val.includes(': ') || /:$/.test(val))
-          fail(`${p.name}/${slug}: frontmatter "${kv[1]}" has an unquoted colon — wrap the value in double quotes (breaks YAML; metadata silently dropped at runtime)`);
+        if (!/^["'[{|>&*]/.test(val)) { // quoted / block / flow scalars are exempt from the colon check only
+          if (val.includes(': ') || /:$/.test(val))
+            fail(`${p.name}/${slug}: frontmatter "${kv[1]}" has an unquoted colon — wrap the value in double quotes (breaks YAML; metadata silently dropped at runtime)`);
+        }
+        // Frontmatter values are injected verbatim into the system prompt at discovery
+        // time (before the body is ever read), so angle-bracketed markup in one is a
+        // prompt-injection surface no body-level guard ever sees. Quoting does not help.
+        if (/[<>]/.test(val) && !/^[|>]/.test(val))
+          fail(`${p.name}/${slug}: frontmatter "${kv[1]}" contains "<" or ">" — angle brackets inject into the system prompt at discovery; rephrase without them`);
       }
     }
     if (!/^##\s+Done when/im.test(body)) fail(`${p.name}/${slug}: missing "## Done when" section`);
