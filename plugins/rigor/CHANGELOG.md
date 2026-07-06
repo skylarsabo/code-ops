@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.8.0
+- **CONVENTIONS restructured for clause visibility.** `§B` (disconfirmation) and `§I` (independent refutation) are now numbered protocols — one kill-question / one rule per line — with the intent-annotation and locate-the-handler bodies byte-identical across the three plugins that carry them (pinned by lint #14). Two worked micro-examples added: a correctly-tiered finding contrast in `§A` and a panel-tally line in `§I`.
+
 ## 2.7.0
 - **Weak-model gate batch.** The vendored `revalidate-register.mjs` gains `--strict --profile finding-rigor` — schema completeness plus **CONFIRMED requires a resolvable Proof** (cited file exists, backticked command, or a test name that greps in the tree; else "attach a resolvable proof or downgrade to PROBABLE"), the Panel-exempt severity floor, refutation receipts, `--consumed` terminal states, and the `<REDACTED-LINE>` anchor carve-out.
 - **New `run-proof.mjs`** — the `verifier` records every repro/mutation/benchmark through it (`RUN_RECEIPTS.md`); `fix-verified` Phase 0 replays receipts and fails a fix whose repro no longer exits the same way. Fabricated tool output stops being cheap.

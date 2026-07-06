@@ -24,5 +24,7 @@ List **all** outbound network behavior: HTTP clients, raw sockets, DNS, telemetr
 ## Deliverables
 An **egress map** classifying every path as *anonymized / intentionally-clear / leak*; findings (schema `§6`, leak-class `egress`/`observability`) → `LEAK_REGISTER.md`; a summary led by any clearnet/DNS/WebRTC leak.
 
+Tier honesty at point of use: a leak you did not reproduce or directly observe is PROBABLE at most — never CONFIRMED (`§6`); when unsure between tiers, pick the lower.
+
 ## Done when
 Every egress path is classified; **fail-closed** verified on all failure paths; DNS-through-proxy and stream isolation verified; onion-service hygiene checked (if applicable); leaks have concrete remediation.
