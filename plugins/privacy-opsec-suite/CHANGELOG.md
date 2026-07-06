@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.11.1
+- **Tier-honesty line moved in-phase** in the three leak audits (same measured rationale as code-ops-suite 1.15.1).
+
 ## 1.11.0
 - **CONVENTIONS `§1` operating model bulleted** (was a single wall of text) with the pinned throttle/skim/skipped-set cores byte-unchanged, mirroring code-ops-suite `§1`.
 - **Tier honesty inlined at point of use** in `metadata-leak-audit`, `tor-egress-audit`, and `anon-session-audit` — the baseline model-floor calibration measured weak-model tier inflation in the leak audits (8 fake CONFIRMED across reps) while inlined-discipline skills emitted zero; a leak not reproduced or directly observed is PROBABLE at most.

@@ -74,7 +74,62 @@ exists.
 deltas directional; the control prompt names the fixture directory, which may leak topic
 hints; tier emission depends on the prompt requesting honest tiers in both arms (it does).
 
-## Post-hardening — to be appended
+## Post-hardening — after the three hardening batches
 
-Dispatch `evals-floor.yml` on main after the hardening batches merge; append the same table
-shape and compare against the pre-registered deltas above.
+Run: `28815659268` (dispatched on main after the gate batch and the conventions
+restructure/inlining merged; same models, same protocol).
+
+| Fixture | Model tier | Arm | Reps | Mean recall | Mean decoys flagged | CONFIRMED emitted (read-only run ⇒ inflation) |
+| --- | --- | --- | --- | --- | --- | --- |
+| bug-garden | strong | control | 3 | 4.0/4 | 0.0/3 | 0 |
+| bug-garden | strong | skill | 3 | 4.0/4 | 0.0/3 | 0 |
+| bug-garden | weak | control | 3 | 4.0/4 | 0.0/3 | 10 |
+| bug-garden | weak | skill | 3 | 3.7/4 | 0.0/3 | 0 |
+| calibration-traps | strong | control | 3 | 4.0/4 | 0.0/4 | 0 |
+| calibration-traps | strong | skill | 3 | 4.0/4 | 0.0/4 | 0 |
+| calibration-traps | weak | control | 3 | 4.0/4 | 0.0/4 | 12 |
+| calibration-traps | weak | skill | 3 | 4.0/4 | 0.0/4 | 0 |
+| drifted-docs | strong | control | 3 | 3.0/3 | 0.0/2 | 0 |
+| drifted-docs | strong | skill | 3 | 3.0/3 | 0.0/2 | 0 |
+| drifted-docs | weak | control | 3 | 3.0/3 | 0.0/2 | 9 |
+| drifted-docs | weak | skill | 3 | 3.0/3 | 0.0/2 | 4 |
+| hasty-code | strong | control | 3 | 2.0/3 | 0.7/2 | 0 |
+| hasty-code | strong | skill | 3 | 3.0/3 | 0.0/2 | 0 |
+| hasty-code | weak | control | 3 | 2.3/3 | 0.0/2 | 6 |
+| hasty-code | weak | skill | 3 | 3.0/3 | 0.0/2 | 8 |
+| leak-lab | strong | control | 3 | 3.0/3 | 0.0/3 | 0 |
+| leak-lab | strong | skill | 3 | 3.0/3 | 0.0/3 | 0 |
+| leak-lab | weak | control | 3 | 2.7/3 | 0.3/3 | 7 |
+| leak-lab | weak | skill | 3 | 3.0/3 | 0.0/3 | 9 |
+| trap-garden | strong | control | 3 | 5.0/5 | 0.0/6 | 0 |
+| trap-garden | strong | skill | 3 | 5.0/5 | 0.0/6 | 0 |
+| trap-garden | weak | control | 3 | 5.0/5 | 0.0/6 | 10 |
+| trap-garden | weak | skill | 3 | 5.0/5 | 0.0/6 | 5 |
+| xfn-traps | strong | control | 3 | 3.3/4 | 0.0/4 | 0 |
+| xfn-traps | strong | skill | 3 | 3.0/4 | 0.0/4 | 0 |
+| xfn-traps | weak | control | 3 | 4.0/4 | 0.0/4 | 4 |
+| xfn-traps | weak | skill | 3 | 3.3/4 | 0.0/4 | 0 |
+
+## Verdict against the pre-registered deltas
+
+**Primary metric (weak-with-skill inflation → 0 on all fixtures): NOT met.** Totals moved
+62→58 (control) and 27→26 (with-skill) — flat within noise. Per fixture, with-skill:
+bug-garden 4→0, calibration-traps 0→0, xfn-traps 0→0, drifted-docs 6→4, hasty-code 9→8,
+leak-lab 8→9, trap-garden 0→5. **Secondary metric (recall/decoys regress ≤0.3/cell): met**
+(all deltas within bounds or in the control arm; at n=3 these are directional).
+
+**What the split actually shows.** The three consistently-zero fixtures all run `bug-hunt`,
+whose tier rules are embedded IN the working phase ("prove it with a failing test/repro →
+CONFIRMED; if you can't execute it, tier it PROBABLE … or SPECULATIVE" at the exact step
+where findings are emitted). The batch's one-line "Tier honesty at point of use" additions
+sit before Done-when — end-of-file position — and did not reliably suppress inflation
+(drifted-docs 4, hasty-code 8, leak-lab 9 remain). trap-garden's 0→5 (its skill text is
+bug-hunt, barely changed) bounds the run-to-run noise at roughly ±5 per cell-group.
+
+**Measured lesson: placement beats presence.** A tier rule works at the step that emits the
+finding, not as a trailing line. Next pre-registered iteration: move the tier-honesty line
+of `doc-alignment`, `normalize`, and the three leak audits into their finding-emitting
+phase step (mirroring bug-hunt's in-phase form), change nothing else, and re-run this
+protocol. Per the measurement protocol, this table was not extended with additional reps
+after seeing results, and the verdict stands against the deltas declared before the
+baseline run.
