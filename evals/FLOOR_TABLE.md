@@ -133,3 +133,33 @@ phase step (mirroring bug-hunt's in-phase form), change nothing else, and re-run
 protocol. Per the measurement protocol, this table was not extended with additional reps
 after seeing results, and the verdict stands against the deltas declared before the
 baseline run.
+
+## Iteration 2 — tier-honesty lines moved in-phase
+
+Run: `28818263308` (main at the in-phase placement; matrix throttled to `max-parallel: 4`
+after 84-job bursts rate-limited the credential exchange — two earlier attempts of this
+run failed in bulk at the token exchange and were discarded whole, per protocol).
+
+Weak-with-skill CONFIRMED inflation across the three snapshots (baseline → trailing-line →
+in-phase): bug-garden 4→0→**0** · calibration-traps 0→0→**0** · xfn-traps 0→0→**0** ·
+trap-garden 0→5→**0** · hasty-code 9→8→**3** · drifted-docs 6→4→**6** · leak-lab 8→9→**9**.
+Totals: 27→26→**24** with-skill; 62→58→**58** control. Strong tier: still **zero** across
+all 42 cells (126 read-only strong cells over three snapshots without one inflated tier).
+Recall/decoys: within the pre-registered ±0.3 bound everywhere (leak-lab weak-skill 2.7
+recall + 0.3 decoys is at the bound, directional only).
+
+**Verdict: primary target (→0 everywhere) still not met; the split is now legible.**
+In-phase placement re-zeroed trap-garden and cut `normalize` (hasty-code) to 3 — it works
+where the phase emits findings itemized, one at a time, so the rule sits adjacent to each
+emission. It did nothing measurable for `doc-alignment` (6) and the leak audits (9), whose
+finding-emission is diffuse (drift lists, multi-surface sweeps) — and at the ±5 noise
+bound those numbers are flat across all three snapshots. **Prose has hit its ceiling on
+diffuse-emission skills.**
+
+**Why this is acceptable, by design:** the residue is exactly what the mechanical layer
+catches. A weak-model CONFIRMED with no resolvable proof does not survive consumption —
+`revalidate-register.mjs --strict --profile <type>` rejects it ("attach a resolvable proof
+or downgrade to PROBABLE") before `fix-verified`/`remediation`/`opsec-hardening` act on it,
+and the read-only judgment evals flag it as inflation-by-construction. Prose reduces the
+rate; the gate makes the survivors harmless. Further prose iterations against these three
+fixtures are not planned — the layered defense is the design, not a workaround.
