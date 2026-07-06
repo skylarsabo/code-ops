@@ -149,7 +149,7 @@ jobs:
               echo "no findings file produced (the run wrote nothing)"
             fi
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Skipped
         if: steps.key.outputs.present != 'true'
