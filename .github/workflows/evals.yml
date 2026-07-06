@@ -99,7 +99,7 @@ jobs:
             read-only run cannot perform — so your findings are PROBABLE or SPECULATIVE.
           # Model pinned so the weekly trend is not confounded by action-default model
           # changes — comparability run to run is the point of the cadence. Bump deliberately.
-          claude_args: "--allowed-tools Read,Grep,Glob,Write --model claude-opus-4-8"
+          claude_args: "--allowed-tools Read,Grep,Glob,Write --permission-mode acceptEdits --model claude-opus-4-8"
 
       - name: Score (deterministic, non-blocking)
         if: steps.key.outputs.present == 'true'
