@@ -114,7 +114,7 @@ jobs:
             to evals/${{ matrix.fixture }}/_run/findings.json (create the directory if
             needed). Write nothing else to disk. Tier honestly: CONFIRMED requires an
             executed reproduction, which this read-only run cannot perform.
-          claude_args: "--allowed-tools Read,Grep,Glob,Write --model ${{ steps.model.outputs.id }}"
+          claude_args: "--allowed-tools Read,Grep,Glob,Write --permission-mode acceptEdits --model ${{ steps.model.outputs.id }}"
 
       - name: Control arm — no skill context (read-only)
         if: steps.key.outputs.present == 'true' && matrix.arm == 'control'
@@ -133,7 +133,7 @@ jobs:
             to evals/${{ matrix.fixture }}/_run/findings.json (create the directory if
             needed). Write nothing else to disk. Tier honestly: CONFIRMED requires an
             executed reproduction, which this read-only run cannot perform.
-          claude_args: "--allowed-tools Read,Grep,Glob,Write --model ${{ steps.model.outputs.id }}"
+          claude_args: "--allowed-tools Read,Grep,Glob,Write --permission-mode acceptEdits --model ${{ steps.model.outputs.id }}"
 
       - name: Score cell (raw, non-gating)
         if: steps.key.outputs.present == 'true'
@@ -149,7 +149,7 @@ jobs:
               echo "no findings file produced (the run wrote nothing)"
             fi
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Skipped
         if: steps.key.outputs.present != 'true'
