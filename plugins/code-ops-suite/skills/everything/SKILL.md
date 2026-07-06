@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 **Invoked as `/code-ops-suite:everything`.** This orchestrates every workflow across the three code-ops plugins into one exhaustive pipeline. It does not replace the individual skills — it runs them in the right order, deduplicated, carrying every register and a growing **proof set** forward, and checking in at phase boundaries.
 
-**Prerequisites:** `code-ops-suite`, `rigor`, and `privacy-opsec-suite` all installed. First read this plugin's `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, then also load the `CONVENTIONS.md` and the relevant skill files from the **rigor** and **privacy-opsec-suite** plugins (search the plugin directories) so each phase applies its governing methodology — especially rigor's verification-first rules (evidence tiers, the disconfirmation pass, the regression guard).
+**Prerequisites:** `code-ops-suite`, `rigor`, and `privacy-opsec-suite` all installed. First read this plugin's `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, then also load the `CONVENTIONS.md` from the **rigor** and **privacy-opsec-suite** plugins (search the plugin directories; skill files load themselves at invocation — do not preload them) so each phase applies its governing methodology — especially rigor's verification-first rules (evidence tiers, the disconfirmation pass, the regression guard).
 
 **Cost & shape:** this is deliberately the most thorough and most token-expensive option. It is **phased with checkpoints, not a blind firehose** — you can widen or narrow scope and dial check-ins up or down at Phase 0.
 

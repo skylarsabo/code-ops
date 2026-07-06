@@ -531,6 +531,12 @@ const SHARED_PASSAGES = [
     text: 'For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value); if no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.' },
   { id: 'terminal-forms', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
     text: 'A consumed item ends in exactly one pinned terminal form — `closed-with-proof <commit/PR>`, `deferred-with-reason <reason>`, or `OBSOLETE-AT <sha>` — and never silently disappears' },
+  { id: 'read-once', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: 'Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it' },
+  { id: 'prefilter-first', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: 'Pre-filter first, read narrow: at a phase boundary run the checker BEFORE any wholesale register read, then read only the non-FRESH/DRIFTED entries in full' },
+  { id: 'repanel-skip', files: CONVS('code-ops-suite', 'rigor'),
+    text: 'is NOT re-paneled — the receipts are the verdict; any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline — never the full register' },
   { id: 'always-gated-core', files: ['plugins/code-ops-suite/CONVENTIONS.md', 'plugins/code-ops-suite/skills/everything/SKILL.md'],
     text: '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge' },
 ];

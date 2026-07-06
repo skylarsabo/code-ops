@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # OPS-DOCS — The Operator's Runbook
 
-**Invoked as `/code-ops-suite:ops-docs`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)** and the secret-redaction safety rail (`§4`).
+**Invoked as `/code-ops-suite:ops-docs`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)** and the secret-redaction safety rail (`§4`). For this DOCUMENT-mode skill the binding sections are §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those four; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
 **Mode:** DOCUMENT. **Produces:** `RUNBOOK.md` (and/or ops docs) in the repo's docs location.
 
 ## Phase 0 — Detect the operational surface  *(checkpoint)*

@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # API-DOCS — The Interface Reference
 
-**Invoked as `/code-ops-suite:api-docs`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)** this doc obeys.
+**Invoked as `/code-ops-suite:api-docs`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)** this doc obeys. For this DOCUMENT-mode skill the binding sections are §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those four; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
 **Mode:** DOCUMENT. **Produces:** `API.md` (or per-service) in the repo's docs location.
 
 ## Phase 0 — Detect the surface  *(checkpoint)*

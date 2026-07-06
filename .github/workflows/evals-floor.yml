@@ -46,6 +46,12 @@ jobs:
         arm: [skill, control]
         rep: [1, 2, 3]
         fixture: [bug-garden, leak-lab, drifted-docs, hasty-code, trap-garden, calibration-traps, xfn-traps]
+        # Pre-registered asymmetry (evals/README.md): the strong arm is the control and has
+        # measured constant-zero tier inflation across 126 consecutive read-only cells
+        # (evals/FLOOR_TABLE.md) — 1 sanity rep suffices; the weak arm under test keeps n=3.
+        exclude:
+          - { tier: strong, rep: 2 }
+          - { tier: strong, rep: 3 }
         include:
           - fixture: bug-garden
             skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
