@@ -49,6 +49,9 @@ jobs:
       - name: Autofix scope-gate eval
         run: node evals/autofix-scope/run.mjs
 
+      - name: Redaction + injection-tell scanner eval
+        run: node evals/redaction-scan/run.mjs
+
       - name: Fixture-drift guard (answer keys still match their fixtures)
         run: |
           for k in evals/*/ANSWER_KEY.json; do

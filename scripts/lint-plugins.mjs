@@ -242,6 +242,8 @@ const RUNTIME_SCRIPTS = [
   { name: 'check-autofix-scope.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite'] },
   { name: 'run-proof.mjs', plugins: ['code-ops-suite', 'rigor'] },
   { name: 'check-proof-integrity.mjs', plugins: ['rigor'] },
+  { name: 'scan-redaction.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite'] },
+  { name: 'scan-injection-tells.mjs', plugins: ['privacy-opsec-suite', 'researcher'] },
 ];
 // RUNTIME_SCRIPTS plugin names must be real (a typo silently disables the missing-script check).
 for (const rs of RUNTIME_SCRIPTS) for (const pn of rs.plugins) if (!pluginByName.has(pn)) fail(`RUNTIME_SCRIPTS lists unknown plugin "${pn}" for ${rs.name}`);

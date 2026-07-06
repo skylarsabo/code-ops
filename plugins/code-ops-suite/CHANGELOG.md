@@ -3,6 +3,13 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.14.0
+- **Weak-model gate batch.** `revalidate-register.mjs` gains an opt-in `--strict --profile <type>` schema gate (mandatory per-item fields; a mangled zero-ID register fails instead of silently vacating the anchor gate), a `--consumed <pre-run>` terminal-state mode (a consumed item never vanishes and closures use `closed-with-proof` / `deferred-with-reason` / `OBSOLETE-AT`), a Panel-exempt severity floor (a sensitive-path finding below high needs an explicit exemption — deflation cannot dodge the refutation panel), refutation receipts (`--refutation-log` validates panel size, tally, and that every REFUTED verdict's guard anchor still greps), and a `<REDACTED-LINE>` anchor carve-out so the anchor rule never forces a secret into a register.
+- **New `check-autofix-scope.mjs`** — the auto-apply diff gate: denies always-gated paths (auth/migrations/lockfiles/workflows/schemas), oversize diffs, and export-touching lines before an agent may auto-apply a NOW-SAFE item; fail-closed by default (no flags = deny everything), wired into the §4 auto-safe lane.
+- **New `run-proof.mjs`** (execution receipts: a claimed test result with no replayable receipt is narration, not proof) and **`scan-redaction.mjs`** (fail-closed secret shapes over the run's own output artifacts — the §4 radioactive rule gains a mechanical floor; matched secrets are masked in the scanner's own output).
+- **Producer/consumer self-checks wired:** `codebase-audit` gates its Done-when on a clean revalidate pass of the finished register; `remediation` and `feature-implementation` gate theirs on `--consumed`; `handoff` scans itself before handover. Guarded by lint check #13 so the wiring cannot silently regress.
+- **Evals:** register-staleness extended (strict/consumed/redacted-anchor cases); new `proof-receipts`, `autofix-scope`, and `redaction-scan` regression evals wired into validate.yml.
+
 ## 1.13.1
 - **Doctrine line untethered from a model name.** CONVENTIONS line 3 now targets "a capable agentic coding agent (e.g. Claude Code)" — the Opus 4.8 example pinned the suite to a model generation; capability is the contract, and the model floor is measured (see the model-floor calibration workflow) rather than named.
 

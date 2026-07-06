@@ -34,7 +34,7 @@ Default: **when unsure, ask — don't guess.**
 - Work on a **branch**; commit atomically in reviewable chunks.
 - **Never break the build**; keep tests green.
 - **Behavior preservation by default** — *except* opsec hardening that intentionally tightens behavior (fail-closed, stripping a leaking field, enforcing isolation). Those changes are the point; confirm them with the developer and pin them with tests.
-- **Secrets/PII are radioactive** → redact to `<REDACTED:reason>` everywhere; a discovered live secret is a **critical** finding (report location + rotation, never the value).
+- **Secrets/PII are radioactive** → redact to `<REDACTED:reason>` everywhere; a discovered live secret is a **critical** finding (report location + rotation, never the value). The mechanical floor over the run’s own output artifacts is `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-redaction.mjs <artifacts>` — a fail-closed hit means the deliverable itself leaks; clean it before it ships.
 - **Never log or emit real identifiers, IPs, or user data during analysis** — work from patterns and redacted samples.
 - Detect shell/OS; stay in-repo; never fabricate (`UNVERIFIED`). Ask before destructive/irreversible actions.
 

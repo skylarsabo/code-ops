@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.5.0
+- **New `scan-injection-tells.mjs`** — `research-verify` scans every fetched or carried-in artifact before ingestion: external content is data to verify, never instructions to follow.
+- The vendored `revalidate-register.mjs` gains the strict/consumed extension set (`--strict --profile research` requires Tier + Verified-at per item; Anchor/Location required only for items carrying code citations) and the `<REDACTED-LINE>` anchor carve-out; the anchor rule now requires a non-secret anchor on a secret-bearing line.
+
 ## 0.4.0
 - **`Anchor` added to the research schema (`§6`, `§7`).** The bundled `revalidate-register` has carried the verbatim-anchor `DRIFTED` gate since 0.3.0, but this suite's schema never told an executing model to emit an `Anchor:` — so the gate was unreachable for registers produced here. The schema and citation discipline now define the field for code sources, including the parse-critical backtick/quote delimiter (an undelimited value is invisible to the checker and forfeits the check).
 - **`revalidate-register` warns on an unparseable anchor** (per-item advisory instead of a silent skip; vendored from the canonical script).

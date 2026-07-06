@@ -3,6 +3,13 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.7.0
+- **Weak-model gate batch.** The vendored `revalidate-register.mjs` gains `--strict --profile finding-rigor` — schema completeness plus **CONFIRMED requires a resolvable Proof** (cited file exists, backticked command, or a test name that greps in the tree; else "attach a resolvable proof or downgrade to PROBABLE"), the Panel-exempt severity floor, refutation receipts, `--consumed` terminal states, and the `<REDACTED-LINE>` anchor carve-out.
+- **New `run-proof.mjs`** — the `verifier` records every repro/mutation/benchmark through it (`RUN_RECEIPTS.md`); `fix-verified` Phase 0 replays receipts and fails a fix whose repro no longer exits the same way. Fabricated tool output stops being cheap.
+- **New `check-proof-integrity.mjs`** — `safety-net` pins its characterization tests in `PROOF_MANIFEST.md`; the §H regression guard verifies pins, so the canonical weak-agent cheat (edit the failing proof test until green) is a loud `PROOF-AMENDED` event that demotes the fix to NEEDS-REVIEW, never a silent pass.
+- **`check-autofix-scope.mjs`** wired into the §4 auto-safe lane with `--require-test`.
+- **Producers self-check:** `bug-hunt`, `quality-scan`, and `consistency-closure` gate their Done-when on a clean revalidate pass of the finished register (lint #13 guards the wiring); `fix-verified` gates its updated register on `--consumed`.
+
 ## 2.6.1
 - **Doctrine line untethered from a model name** (CONVENTIONS line 3, as in code-ops-suite 1.13.1). The verification bar is enforced by tiers, proofs, and the register gates — not by naming a model generation.
 

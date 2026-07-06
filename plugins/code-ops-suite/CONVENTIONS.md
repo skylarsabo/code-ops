@@ -36,7 +36,7 @@ Default: **when unsure, ask — don't guess.** Calibrate to be consultative, not
 - Work on a **branch**; commit **atomically** in reviewable chunks with messages stating what/why/how-verified and any item ID.
 - **Never break the build.** For code-editing work, keep tests green at every step.
 - **Behavior preservation is the default** for cleanup/refactor/fix/optimization work: changes are intentional, confirmed with the developer, pinned by tests, and documented. Never smuggle a silent behavior change.
-- **Secrets/PII are radioactive** → redact to `<REDACTED:reason>` everywhere, including evidence. A discovered live secret is a **critical** finding — report its location and rotation steps, never reproduce the value.
+- **Secrets/PII are radioactive** → redact to `<REDACTED:reason>` everywhere, including evidence. A discovered live secret is a **critical** finding — report its location and rotation steps, never reproduce the value. The mechanical floor over the run’s own output artifacts (registers, reports, summaries, handoffs) is `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-redaction.mjs <artifacts>` — a fail-closed hit means the deliverable itself leaks; clean it before it ships.
 - **Detect the shell/OS**; don't assume bash. Use cross-platform or shell-native commands accordingly.
 - **Stay in-repo.** No exfiltration; don't reach into unrelated systems.
 - **Never fabricate** paths, symbols, APIs, or facts — mark anything unconfirmed `UNVERIFIED` with what's needed to confirm.
