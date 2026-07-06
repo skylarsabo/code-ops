@@ -31,12 +31,22 @@ Detect tooling (Prettier/ESLint, Black/Ruff, gofmt, rustfmt, clang-format, etc.)
 - **Inconsistent terminology** — same concept called different names across files.
 
 ## Phase 1 — Normalize (fan out, conflict-aware)
-**A. Style/formatting uniformity** via the single config (quoting, terminators, indentation, trailing commas, line length, import ordering, layout). **B. Naming standardization** (consistent casing per kind; meaningful names; one canonical term per concept). **C. Comment & doc hygiene** (strip the tells; keep terse *why*-comments; standardize doc-comment usage to one rule). **D. Dead code & cruft removal** (unused imports/vars/functions/exports/files, unreachable code; **verify before deleting** anything possibly used dynamically/via config/reflection/build — else ask). **E. Standardize recurring operations** (one canonical pattern for: error handling, logging [no stray prints/emoji/sensitive data], validation, API shapes, data access, config access, async/concurrency, types, module exports, constants). **F. Modularization** — extract duplicated complex logic into one well-named shared module; break up oversized functions/files; clean boundaries; right-size (don't abstract trivial one-offs) — **structural extractions confirmed first**. **G. Method clarity** (single responsibility, early returns over deep nesting, no obscuring cleverness). **H. README/docs** rewritten to concise professional voice. **I. VCS history** — emoji/AI-voiced commit messages are a tell; adopt a convention going forward; rewriting existing history is destructive → developer's decision, not unilateral.
+- **A. Style/formatting uniformity** via the single config (quoting, terminators, indentation, trailing commas, line length, import ordering, layout).
+- **B. Naming standardization** (consistent casing per kind; meaningful names; one canonical term per concept).
+- **C. Comment & doc hygiene** (strip the tells; keep terse *why*-comments; standardize doc-comment usage to one rule).
+- **D. Dead code & cruft removal** (unused imports/vars/functions/exports/files, unreachable code; **verify before deleting** anything possibly used dynamically/via config/reflection/build — else ask).
+- **E. Standardize recurring operations** (one canonical pattern for: error handling, logging [no stray prints/emoji/sensitive data], validation, API shapes, data access, config access, async/concurrency, types, module exports, constants).
+- **F. Modularization** — extract duplicated complex logic into one well-named shared module; break up oversized functions/files; clean boundaries; right-size (don't abstract trivial one-offs) — **structural extractions confirmed first**.
+- **G. Method clarity** (single responsibility, early returns over deep nesting, no obscuring cleverness).
+- **H. README/docs** rewritten to concise professional voice.
+- **I. VCS history** — emoji/AI-voiced commit messages are a tell; adopt a convention going forward; rewriting existing history is destructive → developer's decision, not unilateral.
 
 Run each change through the implementation loop (`§11`), committing in **reviewable logical chunks** (a giant reformat-everything commit is its own red flag).
 
 ## Deliverables
 The normalized codebase (behavior-preserving, tests green); **`STYLE_GUIDE.md`** (the ratified standard, SSOT for future code); **updated linter/formatter config + a recommended pre-commit/CI gate** so consistency is machine-enforced; **`NORMALIZATION_LOG.md`** (what was standardized, tells removed, dead code deleted, modules extracted); professionalized README/docs; a **separate list of behavior-changing issues** found (not fixed here).
+
+Tier honesty at point of use: a reported issue you did not execute a repro for is PROBABLE at most — never CONFIRMED (`§7`); when unsure between tiers, pick the lower.
 
 ## Done when
 One consistent style applied repo-wide and recurring operations standardized (nothing sticks out between files); every tell cleared; dead code gone, shared complexity extracted, oversized functions/files broken up; **behavior unchanged (tests green) and no safety-critical path weakened**; the standard documented and enforced by config/hooks. Then a **final hostile-reviewer pass** — read as a skeptical engineer hunting for anything that betrays inconsistency or careless generation, and fix what stands out. Present `NORMALIZATION_LOG.md` and `STYLE_GUIDE.md`, noting items (history rewrite, behavior-changing finds) awaiting a decision.

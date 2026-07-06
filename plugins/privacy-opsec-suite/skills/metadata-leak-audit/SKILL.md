@@ -24,5 +24,7 @@ Goal throughout: **strip or minimize** — what isn't emitted can't leak or be c
 ## Deliverables
 Findings (schema `§6`, leak-class `metadata`/`observability`) → `LEAK_REGISTER.md`; a summary with concrete minimization/stripping recommendations, highest-impact first.
 
+Tier honesty at point of use: a leak you did not reproduce or directly observe is PROBABLE at most — never CONFIRMED (`§6`); when unsure between tiers, pick the lower.
+
 ## Done when
 Every metadata source is assessed; minimization recommendations are concrete and actionable; retention gaps flagged.

@@ -27,5 +27,7 @@ One authoritative source per topic (non-authoritative mentions defer/link to it)
 ## Deliverables (run artifacts in a dated folder; docs edited in place)
 **Reconciled documentation**; **`DRIFT_REPORT.md`** (every item, type, resolution, evidence; totals; highest-impact first); **`SSOT_MAP.md`** (topic→authoritative doc, how duplicates were resolved); **`OPEN_QUESTIONS.md`** (awaiting decision: stale-vs-aspirational, ambiguous reality, structural proposals). Note any likely *code* bugs for the audit/remediation prompts.
 
+Tier honesty at point of use: a drift you did not execute a check for is PROBABLE at most — never CONFIRMED (`§7`); when unsure between tiers, pick the lower.
+
 ## Done when
 Every doc claim verified; unambiguous drift fixed and committed; stale-vs-aspirational and structural calls brought to the developer and resolved/queued; SSOT clean (one authority per topic, links resolve, index exists); deliverables consistent; no code changed; a final self-audit for unverified claims and missed links. Present `DRIFT_REPORT.md` first, highest-impact reconciliations and open questions at the top.

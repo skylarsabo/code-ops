@@ -22,5 +22,7 @@ Trace how identity and sessions work: session identifiers, cookies/tokens, the a
 ## Deliverables
 Findings (schema `§6`, leak-class `linkability`/`identification`) → `LEAK_REGISTER.md`; a short summary of the linkability posture and the highest-risk vectors.
 
+Tier honesty at point of use: a leak you did not reproduce or directly observe is PROBABLE at most — never CONFIRMED (`§6`); when unsure between tiers, pick the lower.
+
 ## Done when
 The session/identity model is fully traced for linkability; hidden-ID vectors checked; defaults verified anonymous; findings have evidence + remediation.
