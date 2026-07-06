@@ -143,7 +143,8 @@ sequenceDiagram
 One script, byte-identical across all four plugins (`plugins/<name>/scripts/revalidate-register.mjs`, with a copy at the repo root `scripts/`). Invoke it the same way everywhere:
 
 ```sh
-node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register.md> [...more] [--root <repo>] [--report-only]
+node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register.md> [...more] [--root <repo>] [--report-only] \
+  [--strict --profile <finding|finding-rigor|leak|research|idea>] [--refutation-log <log>] [--consumed <pre-run register>]
 ```
 
 It scans the register for item IDs (`BUG-007`, `PERF-003` — skipping standards identifiers like `RFC-2616`, `CVE-2021-44228`, `UTF-8`), collects every `file:line` reference, the `Verified-at` sha, and any delimited `Anchor:` under each ID, and re-greps each reference against the current tree. Each item gets exactly one status:
@@ -159,12 +160,21 @@ It scans the register for item IDs (`BUG-007`, `PERF-003` — skipping standards
 
 There are also two non-gating **advisories**: when an item's `Verified-at` sha is present and differs from the repo's current `HEAD`, the report appends `Verified-at <sha> != HEAD <sha> — re-confirm`; and when an item's `Anchor:` value is not backtick- or quote-delimited, the report says so (`unparseable, DRIFTED check skipped`) rather than silently degrading to a plain line-existence check. Neither changes the status, but both flag trust the item hasn't re-earned.
 
+One anchor carve-out is deliberate: a secret-bearing line may never put any part of its value in the register, so when no safe substring of the line exists, the item carries the literal `Anchor: <REDACTED-LINE>` — the checker then verifies line existence only, skips the `DRIFTED` comparison, and says so in the report (`redacted anchor — line-existence check only`). The anchor rule never forces a secret into the register.
+
 **Exit behavior.** The script exits non-zero if any item is `MOVED`, `DRIFTED`, `GONE`, `AMBIGUOUS`, or `NO-REF` — so it can gate CI or a skill's phase boundary — **unless** `--report-only` is passed, which prints the report and always exits zero. The `--root <repo>` flag points it at the tree to check against (defaults to the current directory); paths that escape the root are reported `AMBIGUOUS` rather than stat-ed, by design.
 
 Two properties worth internalizing:
 
 - **`FRESH` is a location check, not a defect check.** A finding can be `FRESH` and already fixed (someone patched the logic without moving the line). This is exactly why step 2 of carry-forward — re-reading survivors — is mandatory and not optional. The script narrows the set you must re-read by hand; it does not replace the reading.
 - **It resolves moved files by name.** If a finding cites `auth/session.ts:88` and that exact path is gone but a single `session.ts` exists elsewhere, the script reports against the relocated file rather than falsely declaring it `GONE`. More than one match → `AMBIGUOUS`, because guessing would be worse than asking.
+
+### Strict mode and the consumed gate (opt-in)
+
+Without these flags the default behavior above is unchanged; both are fail-closed extensions for skills that gate on the checker.
+
+- **`--strict --profile <finding|finding-rigor|leak|research|idea>`** adds a **schema gate** on top of the location checks: every item block must carry its profile's labeled fields with non-empty values (e.g. `finding` requires `Tier`, `Location`, `Anchor`, `Verified-at`, `Disconfirmation`, `Refutation`, `Track`; `finding-rigor` adds `Proof`). Under `finding-rigor`, a `Tier: CONFIRMED` item must also carry a `Proof:` that **resolves** — a cited file that exists in the tree, a backticked runnable command, or a quoted test name found by grep — else the report says *attach a resolvable proof or downgrade to PROBABLE* and the run fails. Two rails ride along. First, a **Panel-exempt severity floor**: an item citing a sensitive path (auth / session / token / secret / crypto / migration / deletion / payment) or a security/privacy `Lens` whose `Severity` sits below high must carry an explicit `Panel-exempt: <reason>` line — deflation may not silently dodge the refutation panel. Second, a **mangled-register check**: a file carrying schema labels but zero parseable item IDs fails under strict (exiting 0 there would vacate every per-item gate), while a genuinely empty register passes with an explicit notice. A companion flag, `--refutation-log <REFUTATION_LOG.md>`, validates the refutation panel's receipt lines against the register — see [05-evidence-and-tiers](05-evidence-and-tiers.md).
+- **`--consumed <pre-run copy>`** is the **terminal-state gate** for the register-consuming skills (`remediation`, `fix-verified`, `opsec-hardening`, `feature-implementation`): every ID present before the run must still exist after it — a missing one is reported **`VANISHED`** — and a closure claim must use exactly one of the three pinned terminal forms, **`closed-with-proof <commit/PR>`**, **`deferred-with-reason <reason>`**, or **`OBSOLETE-AT <sha>`**; anything else is reported **`UNTERMED`**. A consumed item ends in a pinned terminal state; it never silently disappears.
 
 ### A note on `EGRESS_MANIFEST.md`
 
