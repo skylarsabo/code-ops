@@ -1,6 +1,6 @@
 # Rigor Suite — Shared Conventions (verification-first, v2)
 
-A toolkit for **finding real bugs, closing inconsistencies, and making measured improvements** with a capable agentic coding agent (e.g. Claude Code / Opus 4.8). Bundled with the **rigor** plugin; each skill is a namespaced slash command (e.g. `/rigor:bug-hunt`) and reads this file first, referencing it by section instead of repeating it.
+A toolkit for **finding real bugs, closing inconsistencies, and making measured improvements** with a capable agentic coding agent (e.g. Claude Code). Bundled with the **rigor** plugin; each skill is a namespaced slash command (e.g. `/rigor:bug-hunt`) and reads this file first, referencing it by section instead of repeating it.
 
 This suite trades breadth-and-speed for **signal and proof**. It finds fewer things than a fire-hose audit — but the things it reports are real, the things it fixes stay fixed, and the tests that prove them are themselves verified.
 

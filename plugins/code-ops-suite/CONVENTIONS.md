@@ -1,6 +1,6 @@
 # Agentic Code-Ops Suite — Shared Conventions
 
-A portable toolkit of operational prompts for running serious engineering work on **any codebase**, in any language, with a capable agentic coding agent (e.g. Claude Code / Opus 4.8). Bundled with the **code-ops-suite** plugin. Each skill in this plugin is invoked as a namespaced slash command (e.g. `/code-ops-suite:codebase-audit`) and runs an adaptive, multi-agent workflow to completion.
+A portable toolkit of operational prompts for running serious engineering work on **any codebase**, in any language, with a capable agentic coding agent (e.g. Claude Code). Bundled with the **code-ops-suite** plugin. Each skill in this plugin is invoked as a namespaced slash command (e.g. `/code-ops-suite:codebase-audit`) and runs an adaptive, multi-agent workflow to completion.
 
 **Every skill in this suite assumes the conventions below; the skills reference this file by section instead of repeating it.** When a skill starts, it reads this file first. Where a skill overrides something here, it says so explicitly.
 

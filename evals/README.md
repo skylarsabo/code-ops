@@ -33,6 +33,10 @@ These measure skill *quality* and can't be a pure assertion — they need a skil
 4. **Metric + minimum practically-significant delta** — pre-declare what delta would justify the mechanism's token cost (the "beat the no-skill control" criterion, made quantitative per run).
 5. **Instrument check** — will this fixture discriminate, or is it known-saturated (regression-guard-only)?
 
+Real-scale calibrations run against a **private mirror repo** (large enough that the toy fixtures' saturation doesn't mask differences); that channel is one-way — only a sanitized calibration note (counts, bug/decoy classes, no internals) crosses back into this repo.
+
+The **model floor** is measured, never assumed: `.github/workflows/evals-floor.yml` (dispatch-only) runs the pre-registered 2x2 — {strong, weak} model x {with-skill, no-skill control} — over every fixture with n=3 reps per cell, recording raw recall/FP/tier counts; snapshot the summaries into `evals/FLOOR_TABLE.md` before and after a hardening change. The weekly trend job pins its model for comparability.
+
 Reports state the observed delta vs. run-to-run noise and practical significance **separately** (at n=3, a non-unanimous delta is *directional, not definitive*) and end with a validity-threats list (confounded arms, saturation, peeking, answer-key leakage into skill context).
 
 **Scoring is automated** even though the skill run isn't. `score.mjs` compares a skill's findings (a `*_REGISTER.md`, or a JSON array of `{file,line}`) against a fixture's `ANSWER_KEY.json` and reports recall, decoys-flagged (false positives), and unkeyed flags with a PASS/FAIL verdict:

@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.13.1
+- **Doctrine line untethered from a model name.** CONVENTIONS line 3 now targets "a capable agentic coding agent (e.g. Claude Code)" — the Opus 4.8 example pinned the suite to a model generation; capability is the contract, and the model floor is measured (see the model-floor calibration workflow) rather than named.
+
 ## 1.13.0
 - **New skill `handoff`** (Mode: DOCUMENT) — session continuity for long runs. **Write** captures the run's true state as a verifiable `HANDOFF.md` before a context limit / session end / operator change: goal and state of play, every register path stamped `Verified-at: <sha>`, decisions with their rejected alternatives, traps & dead ends (the most valuable and least recoverable session state), and in-flight boundaries with anchored `file:line` pointers. The rule is *state, not instructions*. **Resume** treats every claim as context to verify, not fact to trust — `revalidate-register.mjs` on every named register, anchors checked, contradictions surfaced at a checkpoint. Registers carried findings across phases; nothing carried decisions and dead-ends across sessions until now.
 - **Lint check #11: frontmatter angle-bracket injection guard.** `lint-plugins.mjs` now fails any SKILL.md whose frontmatter value contains `<` or `>` — frontmatter is injected verbatim into the system prompt at discovery (before the body is read), so angle-bracketed markup there is a prompt-injection surface no body-level guard sees. Complements the supply-chain-trust agent-ingested-content lens with a mechanical floor for this repo's own skills.

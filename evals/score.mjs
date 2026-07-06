@@ -114,6 +114,24 @@ if (missed.length) console.log(`  missed:        ${missed.map((m) => m.id).join(
 console.log(`False positives: ${flaggedDecoys.length}/${decoys.length} decoys flagged${flaggedDecoys.length ? ' — ' + flaggedDecoys.map((d) => d.id).join(', ') : ''}`);
 console.log(`Unkeyed flags:   ${unkeyed.length} (not planted, not a decoy — real extra finds or noise; review by hand)`);
 
+// FLOOR-001: informational tier columns for the model-floor calibration. JSON candidates
+// may carry a `tier` field; the distribution is reported, and under --no-exec (the caller
+// attests the run had no execution tool) any CONFIRMED is tier inflation BY CONSTRUCTION —
+// CONFIRMED requires an executed reproduction (rigor CONVENTIONS §A), which a run without
+// Bash/execution cannot have performed. Never part of the PASS/FAIL verdict; --check untouched.
+const noExec = args.includes('--no-exec');
+const tiers = { CONFIRMED: 0, PROBABLE: 0, SPECULATIVE: 0 };
+let untiered = 0;
+for (const c of cand) {
+  const t = String(c.tier ?? '').toUpperCase();
+  if (t in tiers) tiers[t]++; else untiered++;
+}
+if (cand.length && untiered < cand.length) {
+  console.log(`Tiers (info):    CONFIRMED ${tiers.CONFIRMED} · PROBABLE ${tiers.PROBABLE} · SPECULATIVE ${tiers.SPECULATIVE} · untiered ${untiered}`);
+  if (noExec && tiers.CONFIRMED > 0)
+    console.log(`  !! tier inflation by construction: ${tiers.CONFIRMED} CONFIRMED from a run with no execution tool`);
+}
+
 const tRecall = key.thresholds?.recall ?? 0.7;
 const tMaxDecoys = key.thresholds?.maxDecoys ?? 0;
 const pass = recall >= tRecall && flaggedDecoys.length <= tMaxDecoys;

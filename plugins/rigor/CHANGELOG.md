@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.6.1
+- **Doctrine line untethered from a model name** (CONVENTIONS line 3, as in code-ops-suite 1.13.1). The verification bar is enforced by tiers, proofs, and the register gates — not by naming a model generation.
+
 ## 2.6.0
 - **Anchor delimiter promoted from script comment to spec (`§6` schema, `§E`).** `revalidate-register.mjs` can only parse an `Anchor:` value that is backtick- or quote-delimited; that requirement lived solely in a script comment, so an executing model following CONVENTIONS could emit an undelimited anchor and silently lose the `DRIFTED` gate — the item fell open to plain line-existence checking. The schema and `§E` now state the syntax with a micro-example (`` Anchor: `given == expected` ``); `verifier` carries it inline.
 - **`revalidate-register` warns on an unparseable anchor.** An `Anchor:` label whose value has no delimiter now earns a per-item advisory (`unparseable, DRIFTED check skipped`) instead of being silently ignored. Non-gating; anchor-less registers are checked exactly as before.
