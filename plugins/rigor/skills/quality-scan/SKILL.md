@@ -18,4 +18,4 @@ Hunt the maintainability/`§7` lenses that actually bite: **complexity hotspots*
 `FINDINGS_REGISTER.md` entries ranked by **demonstrated impact**; a summary separating CONFIRMED from PROBABLE/SPECULATIVE. Each item names how it could be enforced once fixed.
 
 ## Done when
-Real, defect-causing quality issues are surfaced with evidence, tier, and impact; cosmetic noise excluded; disconfirmation done; nothing inflated.
+Real, defect-causing quality issues are surfaced with evidence, tier, and impact; cosmetic noise excluded; disconfirmation done; nothing inflated. The finished FINDINGS_REGISTER.md passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .` with exit 0 — a non-FRESH citation is re-located against the real tree or dropped before the run is done (`§E`).

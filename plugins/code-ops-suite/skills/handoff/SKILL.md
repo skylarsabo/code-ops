@@ -19,7 +19,7 @@ Describe what **is true**, never what the next session should do: "the leak gate
 - **Decisions made** — each with its why and the options rejected. Decisions and rejected approaches are the most valuable and least recoverable session state.
 - **Traps & dead ends** — approaches already tried that FAILED, and the things the next session will be tempted to do wrong. This section is what saves the successor from repeating expensive mistakes.
 - **In-flight boundaries** — branch names, uncommitted work, the exact done/not-done line, and the load-bearing `file:line` pointers, each carrying a verbatim **Anchor** (`§9`) so the successor can check them mechanically.
-Secrets/PII are redacted (`§4`) — a handoff travels further than a register.
+Secrets/PII are redacted (`§4`) — a handoff travels further than a register. Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-redaction.mjs HANDOFF.md` before handing it over — the mechanical floor under that rule.
 
 ## Resume — verify, then continue
 Treat every claim in the handoff as **context to verify against the tree, not fact to trust**: run `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root .` on every register it names and re-triage non-FRESH items (`§12`); check the anchored pointers (a `DRIFTED` pointer marks stale state, not an instruction); re-run the deterministic baseline if the tree moved. Then re-plan from what verified: the traps & dead-ends section prunes the search space, and recorded decisions carry forward unless current code contradicts them — surface the contradiction at a checkpoint (`§3`) instead of silently re-deciding.

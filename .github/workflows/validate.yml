@@ -43,6 +43,15 @@ jobs:
       - name: Script-guard regression eval (2026-06-23 audit fixes)
         run: node evals/script-guards/run.mjs
 
+      - name: Proof-receipt + proof-integrity eval
+        run: node evals/proof-receipts/run.mjs
+
+      - name: Autofix scope-gate eval
+        run: node evals/autofix-scope/run.mjs
+
+      - name: Redaction + injection-tell scanner eval
+        run: node evals/redaction-scan/run.mjs
+
       - name: Fixture-drift guard (answer keys still match their fixtures)
         run: |
           for k in evals/*/ANSWER_KEY.json; do

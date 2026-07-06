@@ -7,7 +7,7 @@ Two kinds, by what can be checked deterministically:
 ## 1. Automated regression evals (run in CI)
 Pure-Node assertions, no model in the loop. They guard mechanical behaviors the suite depends on.
 
-All six are wired into `.github/workflows/validate.yml`.
+All nine are wired into `.github/workflows/validate.yml`.
 
 - **`register-staleness/`** — the highest-signal test: it pins the one behavior the field actually lost (a register re-listing items already fixed in code). It seeds a register with a mix of fresh / moved / already-fixed / no-reference items against a fixture repo and asserts `scripts/revalidate-register.mjs` classifies each correctly and fails closed on stale entries. It also exercises the **verbatim-anchor gate**: seeded anchored items assert a `DRIFTED` classification when an anchor no longer sits on its cited line, plus the unparseable-anchor advisory for an undelimited `Anchor:` value. Run: `node evals/register-staleness/run.mjs` (exit 0 = pass).
 - **`ai-tells/`** — asserts `scripts/scan-ai-tells.mjs` flags a dirty PR body across every category (TRAILER, TOOL, EMOJI, EMDASH, PHRASE, BOILERPLATE) and fails closed, while staying silent on a clean body that contains decoys. Run: `node evals/ai-tells/run.mjs`.
@@ -15,6 +15,9 @@ All six are wired into `.github/workflows/validate.yml`.
 - **`lib-docs/mcp-smoke.mjs`** — drives `scripts/lib-docs-mcp.mjs` over stdio JSON-RPC (initialize → tools/list → tools/call) against a fixture and asserts the protocol and tool responses. Run: `node evals/lib-docs/mcp-smoke.mjs`.
 - **`research-manifest/`** — pins the researcher plugin's egress-disclosure gate: a recorded request validates clean, an artifact citing an **unrecorded** web source fails closed, and a local-only artifact (no web citations) passes. Run: `node evals/research-manifest/run.mjs`.
 - **`script-guards/`** — the regression guard for the 2026-06-23 bundled-script audit fixes (`SCR-001..005`), exercising the real `lib-docs` / `check-no-deps` / `revalidate-register` / `research-manifest` scripts so a fixed defect can't silently regress. Run: `node evals/script-guards/run.mjs`.
+- **`proof-receipts/`** — pins `run-proof.mjs` (record tees + appends replayable receipts and passes exit codes through; verify replays fail-closed and refuses traversal/metacharacter commands) and `check-proof-integrity.mjs` (tampered or deleted pinned proofs fail closed; re-pins only via a loud `PROOF-AMENDED`). Run: `node evals/proof-receipts/run.mjs`.
+- **`autofix-scope/`** — pins `check-autofix-scope.mjs`: always-gated paths, oversize diffs, and export-touching lines are denied; the no-flags default denies everything; config extension honored; option-smuggling `--git` refs rejected. Run: `node evals/autofix-scope/run.mjs`.
+- **`redaction-scan/`** — pins both scanners: every fail-closed secret shape and every injection-tell category flags on the dirty fixture while the decoy-laden clean fixture stays silent (emoji ZWJ and integrity/`Verified-at` hashes exempt). Run: `node evals/redaction-scan/run.mjs`.
 
 A structural step, `node scripts/check-no-deps.mjs`, guards the zero-dependency invariant (no third-party imports), and a **fixture-drift guard** runs `score.mjs --check` over every `ANSWER_KEY.json` (see below).
 

@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.10.0
+- **New `scan-injection-tells.mjs`** — the deterministic floor under the `supply-chain-trust` agent-ingested-content lens: ZEROWIDTH/COMMENT/OVERRIDE/IMPERATIVE/BLOB/TOOLCALL tells reported before any payload is read raw; hits are triage input, never auto-findings; report-only by default with opt-in `--fail-on` for near-zero-FP categories. Emoji ZWJ sequences and integrity/`Verified-at` hashes are exempt by design.
+- **New `scan-redaction.mjs`** — fail-closed secret shapes (AWS/GitHub tokens, PEM, JWT, bearer, key=value literals) over the suite's own output artifacts; `authorship-hygiene` publishes nothing with a fail-closed hit. The anchor rule in all four plugins now REQUIRES a non-secret anchor on a secret-bearing line (`<REDACTED-LINE>` when none exists — checked as line-existence-only).
+- **`opsec-hardening`** gates its updated `LEAK_REGISTER.md` on `--consumed` terminal states; the vendored `revalidate-register.mjs` carries the full strict/consumed/severity-floor/refutation-receipt extension set.
+- **`check-autofix-scope.mjs`** wired into the §4 auto-safe lane.
+
 ## 1.9.1
 - **Doctrine line untethered from a model name** (CONVENTIONS line 3, as in code-ops-suite 1.13.1).
 

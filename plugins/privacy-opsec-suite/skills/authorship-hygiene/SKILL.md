@@ -26,4 +26,4 @@ Run the repo's own **formatter + linter first** (mechanical style is their job).
 Before anything is published, `scan-ai-tells.mjs` must exit 0 over the commit range + PR bodies. If it can't be cleaned, stop and surface it — never publish a known trace.
 
 ## Done when
-Every in-scope surface is clean: `scan-ai-tells.mjs` exits 0; commit/PR prose matches the author's voice with no assistant tells; changed-code idioms match their neighbors (behavior-preserving, suite green) with anything risky surfaced; author/committer identity is the human's. Report what was scrubbed per surface and anything left for a human decision.
+Every in-scope surface is clean: `scan-ai-tells.mjs` exits 0; commit/PR prose matches the author's voice with no assistant tells; changed-code idioms match their neighbors (behavior-preserving, suite green) with anything risky surfaced; author/committer identity is the human's. Any run artifacts being published also pass `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-redaction.mjs` (no fail-closed secret hits). Report what was scrubbed per surface and anything left for a human decision.

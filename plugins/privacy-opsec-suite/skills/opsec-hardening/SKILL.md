@@ -29,4 +29,4 @@ For every fix, add a **regression test that fails if the leak returns** (e.g. as
 Fixes (atomic PRs, tests green); updated `LEAK_REGISTER.md` (items done/deferred); `IMPLEMENTATION_LOG.md` (what changed, behavior changes + the decision behind them, verification); updated opsec docs.
 
 ## Done when
-Leaks are fixed or deferred-with-reason; **fail-closed and isolation are verified on the actual implementation**; tests green; regression tests lock the leaks shut; a final integration pass shows no new egress/log/identifier introduced.
+Leaks are fixed or deferred-with-reason; **fail-closed and isolation are verified on the actual implementation**; tests green; regression tests lock the leaks shut; a final integration pass shows no new egress/log/identifier introduced. The updated LEAK_REGISTER.md passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs LEAK_REGISTER.md --root . --consumed <pre-run copy>` — no consumed item vanishes or closes without a pinned terminal form.

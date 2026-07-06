@@ -37,6 +37,8 @@ CONFIRMED is the only tier backed by *execution*. Something ran and demonstrated
 
 Per §E (evidence standard), anything *unexecuted* is PROBABLE or SPECULATIVE — **never** CONFIRMED. You cannot reason your way to CONFIRMED; you have to run something.
 
+The claim is now also mechanically checkable: under strict register validation (`revalidate-register.mjs --strict --profile finding-rigor`), a `Tier: CONFIRMED` item must carry a `Proof:` that *resolves* on the current tree — a cited file that exists, a backticked runnable command, or a quoted test name found by grep — or the register fails with "attach a resolvable proof or downgrade to PROBABLE." A CONFIRMED with no checkable proof no longer passes silently.
+
 ### PROBABLE — strong static evidence, two independent lines
 
 PROBABLE is for findings you have not executed but for which the static case is strong. The bar is explicit and worth internalizing: **two independent lines of evidence.** §A gives the canonical examples — a data-flow path *and* a contradicting contract, or two distinct call sites that both exhibit the problem. One line of reasoning, however clean, is not PROBABLE; it is SPECULATIVE. PROBABLE findings need a repro (which promotes them to CONFIRMED) or human confirmation before anyone fixes them.
@@ -138,10 +140,11 @@ flowchart LR
     SP --> H
 ```
 
-Two consequences follow from this flow, both reinforced by [04-registers-and-freshness.md](04-registers-and-freshness.md):
+Three consequences follow from this flow, all reinforced by [04-registers-and-freshness.md](04-registers-and-freshness.md):
 
 - **Promotion is the only path up.** A PROBABLE item becomes CONFIRMED only by being reproduced. There is no "I'm now more sure" promotion — the bar is execution.
 - **Tiers can decay.** A register is a live document; before a finding is acted on it is re-validated against the current tree. The fast pre-filter is `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root <repo>` (reporting FRESH / MOVED / DRIFTED / GONE / AMBIGUOUS / NO-REF; see [`plugins/rigor/scripts/revalidate-register.mjs`](../../plugins/rigor/scripts/revalidate-register.mjs)), and a CONFIRMED item whose repro no longer fails is re-tiered or marked `OBSOLETE-AT <sha>` — never silently re-shown.
+- **Proofs and refutation verdicts leave receipts.** A kept proof test is pinned in `PROOF_MANIFEST.md` (`check-proof-integrity.mjs`, rigor `§H`): pins are add-only, so a later batch that weakens or deletes a pinned proof fails mechanically, and any legitimate re-pin surfaces loudly as `PROOF-AMENDED`. And when a load-bearing static finding is handed to an independent refutation panel (rigor `§I` — a fresh adversary whose sole job is to kill it), each verdict is one receipt line in `REFUTATION_LOG.md`, keyed by the finding's ID; `revalidate-register.mjs --strict --refutation-log` validates presence, odd panel size, tally consistency, and that every REFUTED verdict's killing-guard anchor still greps on its cited line.
 
 ---
 
@@ -153,7 +156,7 @@ Two consequences follow from this flow, both reinforced by [04-registers-and-fre
 - **Disconfirmation pass** — the mandatory attempt to *kill* a candidate (reachable? handled elsewhere? intentional? already tested? already enforced?) before it is reported; only survivors become findings.
 - **Tier inflation** — claiming a higher tier than the evidence supports; labeling a guess CONFIRMED is "the cardinal sin" (§A).
 - **Promotion** — moving a PROBABLE item to CONFIRMED by reproducing it; the only way the tier rises.
-- **Proof artifact** — the concrete evidence a CONFIRMED finding carries: a failing test, repro steps, an executed trace, or a measured number (§E).
+- **Proof artifact** — the concrete evidence a CONFIRMED finding carries: a failing test, repro steps, an executed trace, or a measured number (§E); once kept, it is pinned in `PROOF_MANIFEST.md` so it cannot be silently weakened or deleted (§H).
 
 ---
 

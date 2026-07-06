@@ -239,6 +239,11 @@ const RUNTIME_SCRIPTS = [
   { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'lib-docs-mcp.mjs', plugins: ['code-ops-suite'] },
   { name: 'research-manifest.mjs', plugins: ['researcher'] },
+  { name: 'check-autofix-scope.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite'] },
+  { name: 'run-proof.mjs', plugins: ['code-ops-suite', 'rigor'] },
+  { name: 'check-proof-integrity.mjs', plugins: ['rigor'] },
+  { name: 'scan-redaction.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite'] },
+  { name: 'scan-injection-tells.mjs', plugins: ['privacy-opsec-suite', 'researcher'] },
 ];
 // RUNTIME_SCRIPTS plugin names must be real (a typo silently disables the missing-script check).
 for (const rs of RUNTIME_SCRIPTS) for (const pn of rs.plugins) if (!pluginByName.has(pn)) fail(`RUNTIME_SCRIPTS lists unknown plugin "${pn}" for ${rs.name}`);
@@ -418,6 +423,24 @@ for (const p of plugins) {
       }
     }
   }
+}
+
+// ---- 13. producer register self-check wiring ---------------------------------
+// The register-producing skills must gate their own Done-when on revalidate-register
+// (the producer-side anchor gate) — this guard keeps that wiring from silently
+// regressing in a later edit, the same pattern as the runtime-script checks.
+const PRODUCER_SELFCHECK = [
+  'plugins/rigor/skills/bug-hunt/SKILL.md',
+  'plugins/rigor/skills/quality-scan/SKILL.md',
+  'plugins/rigor/skills/consistency-closure/SKILL.md',
+  'plugins/code-ops-suite/skills/codebase-audit/SKILL.md',
+];
+for (const rel of PRODUCER_SELFCHECK) {
+  const f = join(ROOT, ...rel.split('/'));
+  if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_SELFCHECK)'); continue; }
+  const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
+  if (!dw.includes('revalidate-register.mjs'))
+    fail(rel + ': Done-when no longer runs revalidate-register.mjs — the producer-side anchor gate must not silently regress');
 }
 
 // ---- 12. agent model floors -------------------------------------------------
