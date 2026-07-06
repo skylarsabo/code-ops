@@ -30,13 +30,13 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
 
 ### The spine: `code-ops-suite`
 
-`code-ops-suite` ([README](../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **23 skills**, grouped by intent:
+`code-ops-suite` ([README](../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **24 skills**, grouped by intent:
 
 - **Assess** — `codebase-audit` (broad multi-lens review → `FINDINGS_REGISTER.md`), `security-privacy-audit` (STRIDE + LINDDUN threat assessment → `THREAT_MODEL.md`).
 - **Build** — `remediation` (implements the findings backlog), `feature-discovery` (finds and specs grounded features), `feature-implementation` (builds the smallest valuable slice behind flags).
 - **Deep-dives** — `performance` (measure → optimize the proven-hot → prove with before/after numbers), `test-hardening` (meaningful, deterministic coverage), `dependency-upgrade` (safe, staged upgrades + CVE remediation).
 - **Gate / consistency** — `pr-review` (rigorous pre-merge review), `normalize` (one consistent professional style repo-wide, behavior-preserving), `pr-split` (carve a big branch into a clean stack of small green PRs; composes `privacy-opsec-suite:authorship-hygiene`, fail-closed).
-- **Docs / knowledge** — `doc-alignment` (reconcile doc drift, establish the SSOT), `onboarding` (verified orientation guide), `current-docs` (version-accurate dependency docs, local-first; also the `code-ops-docs` MCP server).
+- **Docs / knowledge** — `doc-alignment` (reconcile doc drift, establish the SSOT), `onboarding` (verified orientation guide), `current-docs` (version-accurate dependency docs, local-first; also the `code-ops-docs` MCP server). `handoff` (capture or resume a long run's verifiable session state).
 - **Documentation generators** (Mode: DOCUMENT) — `architecture`, `api-docs`, `data-model`, `adr`, `ops-docs`.
 - **Orchestrators** — `full-sweep` (the whole suite end-to-end, intra-plugin), `everything` (the cross-plugin superset across all three engineering/anonymity plugins), `ship` (one change at full rigor), `debug` (symptom → proven root-cause fix).
 

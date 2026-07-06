@@ -10,7 +10,7 @@
       "name": "code-ops-suite",
       "source": "./plugins/code-ops-suite",
       "description": "General engineering: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization.",
-      "version": "1.12.0",
+      "version": "1.13.0",
       "category": "engineering",
       "keywords": [
         "audit",

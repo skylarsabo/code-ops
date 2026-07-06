@@ -13,7 +13,7 @@ A shared backbone runs through all four: developer-in-the-loop, evidence at `fil
 
 ## Task → command router (condensed)
 
-The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 55 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
+The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 56 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
 
 | I want to… | Command |
 | --- | --- |
@@ -47,8 +47,8 @@ The first slice, all under `docs/` and tracked in the repo.
 - [10-recovery-and-troubleshooting.md](10-recovery-and-troubleshooting.md) — what to do when a run stalls or a register goes stale: re-ground against current code, then continue.
 
 **Command reference**
-- [commands/README.md](commands/README.md) — the command-reference index and the full task → command router covering all 55 commands.
-- [commands/code-ops-suite.md](commands/code-ops-suite.md) — the 23 code-ops-suite commands.
+- [commands/README.md](commands/README.md) — the command-reference index and the full task → command router covering all 56 commands.
+- [commands/code-ops-suite.md](commands/code-ops-suite.md) — the 24 code-ops-suite commands.
 - [commands/rigor.md](commands/rigor.md) — the 11 rigor commands.
 - [commands/privacy-opsec-suite.md](commands/privacy-opsec-suite.md) — the 14 privacy-opsec-suite commands.
 - [commands/researcher.md](commands/researcher.md) — the 7 researcher commands.

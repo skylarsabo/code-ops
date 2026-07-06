@@ -31,6 +31,7 @@ Invoke with `/code-ops-suite:<name>`. All are manual-invoke (they won't auto-fir
 - `doc-alignment` — reconcile doc drift against code; establish a clean single source of truth.
 - `onboarding` — generate a verified, code-grounded orientation guide with an architecture diagram.
 - `current-docs` — current, version-accurate docs for a library from the version installed in this project (local-first, no third-party) — the in-house Context7 alternative. Also shipped as the `code-ops-docs` MCP server (`resolve-library` / `get-docs`) and wired as the `CONVENTIONS §2` documentation-lookup default suite-wide.
+- `handoff` — capture a long run's true state (decisions, dead ends, in-flight boundaries, anchored pointers, register paths) as a verifiable `HANDOFF.md` before a context limit or session end — or resume from one, re-verifying every claim against the tree first.
 
 **Documentation generation** (Mode: DOCUMENT — beautiful, code-grounded, Mermaid-diagram docs per `CONVENTIONS §13`)
 - `architecture` — deep architecture reference: C4 structure (context → container → component), critical-path sequence flows, cross-cutting concerns, and key decisions.

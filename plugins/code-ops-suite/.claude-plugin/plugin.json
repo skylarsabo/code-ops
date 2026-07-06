@@ -1,7 +1,7 @@
 {
   "name": "code-ops-suite",
   "description": "Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "license": "MIT",
   "author": {
     "name": "Skylar"
