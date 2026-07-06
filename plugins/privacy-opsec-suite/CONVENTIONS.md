@@ -1,6 +1,6 @@
 # Privacy & OpSec Suite — Shared Conventions
 
-A toolkit of operational workflows for building, auditing, and operating **privacy-respecting, anonymity-preserving** software with a capable agentic coding agent (e.g. Claude Code / Opus 4.8). Bundled with the **privacy-opsec-suite** plugin; each skill is a namespaced slash command (e.g. `/privacy-opsec-suite:tor-egress-audit`) and reads this file first. Skills reference it by section instead of repeating it.
+A toolkit of operational workflows for building, auditing, and operating **privacy-respecting, anonymity-preserving** software with a capable agentic coding agent (e.g. Claude Code). Bundled with the **privacy-opsec-suite** plugin; each skill is a namespaced slash command (e.g. `/privacy-opsec-suite:tor-egress-audit`) and reads this file first. Skills reference it by section instead of repeating it.
 
 ## 0 · Scope & stance
 This suite is **defensive privacy engineering**: protect the system's *own users'* privacy and anonymity, and find and fix leaks in *your own* codebase. Treat anonymity and operational security as primary product properties, not add-ons. The work is hardening and auditing the system you build — not attacking anyone or deanonymizing third parties.

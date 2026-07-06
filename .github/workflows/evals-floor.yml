@@ -1,0 +1,156 @@
+name: Model-Floor Calibration (dispatch only)
+
+# Measures the suite's model floor: the same judgment fixtures as evals.yml, run as a
+# pre-registered 2x2 — {strong model, weak model} x {with-skill, no-skill control} —
+# with n reps per cell, raw recall/FP/tier counts recorded per rep in the run summary.
+# Never scheduled and never a gate: this exists to MEASURE degradation when the
+# strongest available model drops a tier, before and after hardening changes, per the
+# measurement protocol in evals/README.md. Snapshot the summaries into
+# evals/FLOOR_TABLE.md by hand (the job runs with contents: read and cannot commit).
+#
+# The no-skill control names the fixture but never the SKILL.md — the delta between
+# arms is what the skill buys on that model. Findings carry an optional "tier" so
+# score.mjs can report tier distribution; a read-only run emitting CONFIRMED is tier
+# inflation by construction (no execution tool), which score.mjs --no-exec flags.
+#
+# Needs a Claude credential; skips cleanly without one. Actions pinned to commit SHAs
+# per the suite's own supply-chain-trust skill — bump deliberately.
+
+on:
+  workflow_dispatch:
+    inputs:
+      strong_model:
+        description: 'Strong-arm model id'
+        required: false
+        default: 'claude-opus-4-8'
+      weak_model:
+        description: 'Weak-arm model id'
+        required: false
+        default: 'claude-haiku-4-5-20251001'
+
+permissions:
+  contents: read
+  id-token: write # claude-code-action mints an OIDC token for the Pro/Max OAuth path
+
+jobs:
+  floor:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tier: [strong, weak]
+        arm: [skill, control]
+        rep: [1, 2, 3]
+        fixture: [bug-garden, leak-lab, drifted-docs, hasty-code, trap-garden, calibration-traps, xfn-traps]
+        include:
+          - fixture: bug-garden
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/bug-garden/repo
+            key: evals/bug-garden/ANSWER_KEY.json
+          - fixture: leak-lab
+            skilldocs: plugins/privacy-opsec-suite/skills/metadata-leak-audit/SKILL.md plugins/privacy-opsec-suite/skills/tor-egress-audit/SKILL.md plugins/privacy-opsec-suite/skills/anon-session-audit/SKILL.md
+            target: evals/leak-lab/repo
+            key: evals/leak-lab/ANSWER_KEY.json
+          - fixture: drifted-docs
+            skilldocs: plugins/code-ops-suite/skills/doc-alignment/SKILL.md
+            target: evals/drifted-docs/repo
+            key: evals/drifted-docs/ANSWER_KEY.json
+          - fixture: hasty-code
+            skilldocs: plugins/code-ops-suite/skills/normalize/SKILL.md
+            target: evals/hasty-code/repo
+            key: evals/hasty-code/ANSWER_KEY.json
+          - fixture: trap-garden
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/trap-garden/repo
+            key: evals/trap-garden/ANSWER_KEY.json
+          - fixture: calibration-traps
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/calibration-traps/repo
+            key: evals/calibration-traps/ANSWER_KEY.json
+          - fixture: xfn-traps
+            skilldocs: plugins/rigor/skills/bug-hunt/SKILL.md
+            target: evals/xfn-traps/repo
+            key: evals/xfn-traps/ANSWER_KEY.json
+    steps:
+      - name: Detect credential
+        id: key
+        run: echo "present=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve model for this cell
+        id: model
+        if: steps.key.outputs.present == 'true'
+        run: |
+          if [ "${{ matrix.tier }}" = "strong" ]; then
+            echo "id=${{ inputs.strong_model }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "id=${{ inputs.weak_model }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Skill arm — run the skill over the fixture (read-only)
+        if: steps.key.outputs.present == 'true' && matrix.arm == 'skill'
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are running a quality eval. Read this repository's skill definition file(s):
+            ${{ matrix.skilldocs }}
+            and the CONVENTIONS.md in the same plugin directory. Then apply that skill's
+            methodology to the fixture at ${{ matrix.target }}.
+
+            This is READ-ONLY analysis: do NOT modify any file under ${{ matrix.target }}.
+            Identify only genuine issues — be precise and avoid false positives; the fixture
+            contains intentional decoys that look like issues but are correct.
+
+            Write your findings as a JSON array of objects
+            {"file": "<path within the fixture repo>", "line": <number>, "note": "<short>", "tier": "<CONFIRMED|PROBABLE|SPECULATIVE>"}
+            to evals/${{ matrix.fixture }}/_run/findings.json (create the directory if
+            needed). Write nothing else to disk. Tier honestly: CONFIRMED requires an
+            executed reproduction, which this read-only run cannot perform.
+          claude_args: "--allowed-tools Read,Grep,Glob,Write --model ${{ steps.model.outputs.id }}"
+
+      - name: Control arm — no skill context (read-only)
+        if: steps.key.outputs.present == 'true' && matrix.arm == 'control'
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review the repository at ${{ matrix.target }} for genuine defects and issues.
+
+            This is READ-ONLY analysis: do NOT modify any file under ${{ matrix.target }}.
+            Be precise and avoid false positives.
+
+            Write your findings as a JSON array of objects
+            {"file": "<path within the fixture repo>", "line": <number>, "note": "<short>", "tier": "<CONFIRMED|PROBABLE|SPECULATIVE>"}
+            to evals/${{ matrix.fixture }}/_run/findings.json (create the directory if
+            needed). Write nothing else to disk. Tier honestly: CONFIRMED requires an
+            executed reproduction, which this read-only run cannot perform.
+          claude_args: "--allowed-tools Read,Grep,Glob,Write --model ${{ steps.model.outputs.id }}"
+
+      - name: Score cell (raw, non-gating)
+        if: steps.key.outputs.present == 'true'
+        run: |
+          git checkout -- "${{ matrix.target }}" 2>/dev/null || true
+          out="evals/${{ matrix.fixture }}/_run/findings.json"
+          {
+            echo "## ${{ matrix.fixture }} · ${{ matrix.tier }}(${{ steps.model.outputs.id }}) · ${{ matrix.arm }} · rep ${{ matrix.rep }}"
+            echo '```'
+            if [ -f "$out" ]; then
+              node evals/score.mjs "${{ matrix.key }}" "$out" --no-exit --no-exec
+            else
+              echo "no findings file produced (the run wrote nothing)"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Skipped
+        if: steps.key.outputs.present != 'true'
+        run: echo "No Claude credential set — model-floor calibration skipped."

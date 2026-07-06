@@ -93,9 +93,13 @@ jobs:
             contains intentional decoys that look like issues but are correct.
 
             Write your findings as a JSON array of objects
-            {"file": "<path within the fixture repo>", "line": <number>, "note": "<short>"}
+            {"file": "<path within the fixture repo>", "line": <number>, "note": "<short>", "tier": "<CONFIRMED|PROBABLE|SPECULATIVE>"}
             to ${{ matrix.out }} (create the directory if needed). Write nothing else to disk.
-          claude_args: "--allowed-tools Read,Grep,Glob,Write"
+            Tier honestly: CONFIRMED requires an executed reproduction, which this
+            read-only run cannot perform — so your findings are PROBABLE or SPECULATIVE.
+          # Model pinned so the weekly trend is not confounded by action-default model
+          # changes — comparability run to run is the point of the cadence. Bump deliberately.
+          claude_args: "--allowed-tools Read,Grep,Glob,Write --model claude-opus-4-8"
 
       - name: Score (deterministic, non-blocking)
         if: steps.key.outputs.present == 'true'
@@ -106,7 +110,7 @@ jobs:
             echo "## ${{ matrix.name }}"
             echo '```'
             if [ -f "${{ matrix.out }}" ]; then
-              node evals/score.mjs "${{ matrix.key }}" "${{ matrix.out }}" --no-exit
+              node evals/score.mjs "${{ matrix.key }}" "${{ matrix.out }}" --no-exit --no-exec
             else
               echo "no findings file produced at ${{ matrix.out }} (the run wrote nothing)"
             fi

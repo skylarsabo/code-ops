@@ -53,7 +53,8 @@ jobs:
             End with a verdict (approve / approve-with-nits / request-changes) and a 2-3 line risk read.
             Do NOT approve any change that weakens an anonymity or fail-closed guarantee. Never echo real
             identifiers, secrets, or IPs.
-          claude_args: "--allowed-tools Read,Grep,Glob"
+          # Model tier pinned — gate quality must not silently track the action default; bump deliberately.
+          claude_args: "--allowed-tools Read,Grep,Glob --model claude-opus-4-8"
 
       - name: Gate skipped
         if: steps.key.outputs.present != 'true'

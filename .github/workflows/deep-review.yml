@@ -59,7 +59,8 @@ jobs:
 
             End with a verdict (approve / approve-with-nits / request-changes) and a short risk read.
             Do NOT inflate tiers: never block on a SPECULATIVE, never wave through a CONFIRMED defect.
-          claude_args: "--allowed-tools Read,Grep,Glob,Bash"
+          # Model tier pinned — gate quality must not silently track the action default; bump deliberately.
+          claude_args: "--allowed-tools Read,Grep,Glob,Bash --model claude-opus-4-8"
 
       - name: Gate skipped
         if: steps.key.outputs.present != 'true'

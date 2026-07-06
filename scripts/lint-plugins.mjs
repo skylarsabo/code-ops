@@ -32,6 +32,10 @@
 //  11. No `<` / `>` in a SKILL.md frontmatter value — frontmatter is injected verbatim
 //      into the system prompt at discovery (before the body is read), so angle-bracketed
 //      markup there is a prompt-injection surface no body-level guard sees.
+//  12. Every bundled agent declares a frontmatter `model:` tier at or above its floor in
+//      AGENT_MODEL_FLOORS (haiku < sonnet < opus) — downgrading the verification core is
+//      a visible diff, never a silent frontmatter tweak; the handbook's "(model: `X`)"
+//      annotations must match the frontmatter.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -411,6 +415,61 @@ for (const p of plugins) {
           if (!agentNames.has(name) && !AGENT_PROSE_ALLOWLIST.has(name))
             fail(`${rel(f)}:${i + 1}: prose names "the ${name} subagent" but ${p.name} bundles ${agentNames.size ? [...agentNames].join(', ') : 'no agents'} — rename it, or add to AGENT_PROSE_ALLOWLIST if it's a generic word`);
         }
+      }
+    }
+  }
+}
+
+// ---- 12. agent model floors -------------------------------------------------
+// The verification core (verifier, refutation-mode reviewers/tracers) is only as strong
+// as the model tier behind it. Each bundled agent declares a `model:` alias; this floor
+// table makes a downgrade a VISIBLE diff (the floor must be edited in the same change)
+// instead of a silent frontmatter tweak. Also keeps the handbook's "(model: `X`)"
+// annotations in docs/techniques/subagent-trade-offs.md in sync with the frontmatter.
+const MODEL_TIER = { haiku: 0, sonnet: 1, opus: 2 };
+const AGENT_MODEL_FLOORS = {
+  'rigor/verifier': 'opus',
+  'rigor/tracer': 'opus',
+  'code-ops-suite/reviewer': 'opus',
+  'privacy-opsec-suite/privacy-reviewer': 'opus',
+  'researcher/claim-checker': 'sonnet',
+  'code-ops-suite/explorer': 'haiku',
+  'privacy-opsec-suite/explorer': 'haiku',
+  'researcher/gatherer': 'haiku',
+};
+const agentModelByName = new Map();
+for (const p of plugins) {
+  const agentsDir = join(p.dir, 'agents');
+  if (!existsSync(agentsDir)) continue;
+  for (const f of readdirSync(agentsDir)) {
+    if (!f.endsWith('.md')) continue;
+    const fm = readText(join(agentsDir, f)).match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    const nm = fm && fm[1].match(/^name:[ \t]*(\S+)/m);
+    const md = fm && fm[1].match(/^model:[ \t]*(\S+)/m);
+    const agentKey = `${p.name}/${nm ? nm[1] : f.slice(0, -3)}`;
+    if (!md) { fail(`${agentKey}: agents/${f} has no frontmatter model: field — declare the tier explicitly`); continue; }
+    agentModelByName.set(agentKey, md[1]);
+    const floor = AGENT_MODEL_FLOORS[agentKey];
+    if (floor === undefined) { fail(`${agentKey}: not in AGENT_MODEL_FLOORS — add it with a deliberate tier floor`); continue; }
+    if (!(md[1] in MODEL_TIER)) { fail(`${agentKey}: model "${md[1]}" is not a known tier alias (haiku|sonnet|opus)`); continue; }
+    if (MODEL_TIER[md[1]] < MODEL_TIER[floor])
+      fail(`${agentKey}: model "${md[1]}" is below its declared floor "${floor}" — downgrading the verification core requires editing AGENT_MODEL_FLOORS in the same change`);
+  }
+}
+{
+  const tradeoffs = join(ROOT, 'docs', 'techniques', 'subagent-trade-offs.md');
+  if (existsSync(tradeoffs)) {
+    const lines = readText(tradeoffs).split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      // The doc writes shorthand plugin prefixes ("code-ops `explorer`"); resolve the
+      // prefix to a real plugin name so the two `explorer` agents cannot collide.
+      for (const m of lines[i].matchAll(/\*\*([a-z-]+) `([a-z-]+)`\*\*[^(]*\(model: `([a-z-]+)`/g)) {
+        const pluginName = plugins.some((p) => p.name === m[1]) ? m[1]
+          : plugins.some((p) => p.name === `${m[1]}-suite`) ? `${m[1]}-suite` : null;
+        if (!pluginName) continue;
+        const actual = agentModelByName.get(`${pluginName}/${m[2]}`);
+        if (actual && actual !== m[3])
+          fail(`docs/techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
       }
     }
   }

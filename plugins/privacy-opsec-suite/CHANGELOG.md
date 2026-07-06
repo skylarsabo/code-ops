@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.9.1
+- **Doctrine line untethered from a model name** (CONVENTIONS line 3, as in code-ops-suite 1.13.1).
+
 ## 1.9.0
 - **`Anchor` added to the leak schema (`§6`, `§8`).** The bundled `revalidate-register` has carried the verbatim-anchor `DRIFTED` gate since 1.6.0, but this suite's schema never told an executing model to emit an `Anchor:` — so the gate was unreachable for registers produced here. The schema and evidence standard now define the field, including the parse-critical backtick/quote delimiter (an undelimited value is invisible to the checker and forfeits the check). `§11`'s status list now names `DRIFTED` and `AMBIGUOUS`.
 - **`revalidate-register` warns on an unparseable anchor** (per-item advisory instead of a silent skip; vendored from the canonical script).
