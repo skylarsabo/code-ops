@@ -81,6 +81,10 @@ expect(cu.status === 1 && ((cu.stdout || '') + cu.stderr).includes('UNTERMED'), 
 writeFileSync(join(sdir, 'upd-ok.md'), 'CBUG-001 · one — closed-with-proof PR#12\nLocation: code.mjs:2\n');
 const co = spawnSync('node', [checker, join(sdir, 'upd-ok.md'), '--root', sdir, '--consumed', join(sdir, 'pre.md')], { encoding: 'utf8' });
 expect(co.status === 0, `pinned terminal form should pass, got exit ${co.status}`);
+// A still-open carried-forward item whose PROSE mentions closure words must not trip UNTERMED.
+writeFileSync(join(sdir, 'upd-prose.md'), 'CBUG-001 · one\nLocation: code.mjs:2\nTrack: NOW-SAFE\nNotes: not yet resolved; the deferred discussion continues; uses a closed-loop check\n');
+const cp = spawnSync('node', [checker, join(sdir, 'upd-prose.md'), '--root', sdir, '--consumed', join(sdir, 'pre.md')], { encoding: 'utf8' });
+expect(cp.status === 0, `open item with closure words in prose should pass consumed gate, got exit ${cp.status}: ${((cp.stdout || '') + cp.stderr).split('\n').find((l) => l.includes('CBUG')) || ''}`);
 // A `<REDACTED-LINE>` anchor is line-existence-only, never DRIFTED, with an explicit advisory.
 writeFileSync(join(sdir, 'redacted.md'), 'RBUG-001 · secret line\nLocation: code.mjs:2\nAnchor: `<REDACTED-LINE>`\n');
 const rd = spawnSync('node', [checker, join(sdir, 'redacted.md'), '--root', sdir, '--report-only'], { encoding: 'utf8' });

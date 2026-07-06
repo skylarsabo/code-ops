@@ -190,7 +190,7 @@ function proofResolves(value) {
       for (const f of set) {
         try { if (statSync(f).size < 524288 && readFileSync(f, 'utf8').includes(tok)) return true; } catch { /* unreadable */ }
       }
-      if (set === testish && testish.length) break; // full-tree scan only when no test files exist
+      // fall through: token not found in test-ish files — the full tree is a genuine fallback
     }
   }
   return false;
@@ -382,7 +382,10 @@ for (const file of files) {
       const preText = readFileSync(prePath, 'utf8');
       const preIds = new Set([...preText.matchAll(ID_RE)].filter((m) => isItemId(m[1], preText[m.index + m[0].length], preText[m.index + m[0].length + 1])).map((m) => m[1]));
       const TERMINAL_RE = /closed-with-proof\s+\S|deferred-with-reason\s+\S|OBSOLETE-AT\s+[0-9a-f]{7,40}/i;
-      const CLAIM_RE = /\b(closed|resolved|deferred|obsolete\w*)\b/i;
+      // A closure CLAIM is a status-position token (start of a line/cell, optionally behind a
+      // Status/Resolution/Track/State label or the item heading dash) — free prose like
+      // 'not yet resolved' or 'the deferred discussion' must not demand a terminal form.
+      const CLAIM_RE = /(?:^|\n)\s*(?:[|>*-]\s*)*(?:\*\*)?(?:status|resolution|track|state)?(?:\*\*)?\s*[:\u2014-]?\s*(closed|resolved|deferred|obsoleted?)\b|\u00b7[^\n]{0,40}\u2014\s*(closed|resolved|deferred|obsoleted?)\b/i;
       for (const id of preIds) {
         if (!items.has(id)) { totalStale++; console.log(`  !! VANISHED  ${id}  — present before the run, absent after; a consumed item must end in a pinned terminal state, never disappear`); continue; }
         const blk = items.get(id).block;
