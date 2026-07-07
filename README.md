@@ -154,7 +154,7 @@ code-ops/
         ├── CONVENTIONS.md                # research integrity + the egress model (§A)
         ├── skills/                       # 7 code-grounded research workflows
         ├── agents/                       # gatherer + claim-checker subagents
-        ├── scripts/                      # bundled research-manifest.mjs + lib-docs + revalidate-register
+        ├── scripts/                      # bundled research-manifest.mjs + lib-docs + revalidate-register + scan-injection-tells
         └── README.md
 ```
 See each plugin's `README.md` for its full skill list, the loops/automation guidance, and how its skills chain together.

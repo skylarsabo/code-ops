@@ -79,7 +79,7 @@ The workflow detects presence with a first step and gates every other step on it
   run: echo "present=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
 ```
 
-When neither secret is set — a fork PR, or a repo nobody has configured — the gate **skips cleanly** (it logs `gate skipped` and exits green) rather than failing on a missing secret ([`deep-review.yml`](../../.github/workflows/deep-review.yml) lines 22–24, 64–66). This is deliberate: a missing credential must not turn into a red X that blocks unrelated work or a contributor's fork.
+When neither secret is set — a fork PR, or a repo nobody has configured — the gate **skips cleanly** (it logs `gate skipped` and exits green) rather than failing on a missing secret ([`deep-review.yml`](../../.github/workflows/deep-review.yml) lines 28–30, 88–90). This is deliberate: a missing credential must not turn into a red X that blocks unrelated work or a contributor's fork.
 
 #### The `id-token: write` permission
 
@@ -139,7 +139,7 @@ Some skills are built to run on a cadence rather than per-PR. Put them on a **Ro
 - **`code-ops-suite:dependency-upgrade`** — staged, verified upgrades on a cadence. It deliberately refuses a bulk bump-everything pass ([`commands/code-ops-suite.md`](commands/code-ops-suite.md)).
 - **`code-ops-suite:security-privacy-audit`** — a recurring security/privacy sweep; good after security-relevant changes or whenever the system handles sensitive data.
 
-The pattern is the same for all three: a scheduled run diffs against the last register's `Verified-at` SHA and acts only on what is new ([researcher `ecosystem-watch/SKILL.md`](../../plugins/researcher/skills/ecosystem-watch/SKILL.md), "Recurring schedule", line 33 — the diff-against-last-`Verified-at`-SHA model; the [researcher `README.md`](../../plugins/researcher/README.md) line 60 and [code-ops-suite `README.md`](../../plugins/code-ops-suite/README.md) line 64 cover putting these skills on a schedule). See [`04-registers-and-freshness.md`](04-registers-and-freshness.md) for how the SHA stamp and `revalidate-register.mjs` make that diff trustworthy.
+The pattern is the same for all three: a scheduled run diffs against the last register's `Verified-at` SHA and acts only on what is new ([researcher `ecosystem-watch/SKILL.md`](../../plugins/researcher/skills/ecosystem-watch/SKILL.md), "Recurring schedule", line 29 — the diff-against-last-`Verified-at`-SHA model; the [researcher `README.md`](../../plugins/researcher/README.md) line 60 and [code-ops-suite `README.md`](../../plugins/code-ops-suite/README.md) line 65 cover putting these skills on a schedule). See [`04-registers-and-freshness.md`](04-registers-and-freshness.md) for how the SHA stamp and `revalidate-register.mjs` make that diff trustworthy.
 
 ---
 
@@ -165,4 +165,4 @@ Two rules hold at every level: the **always-gated categories** (security/auth, s
 - [04 · Registers and freshness](04-registers-and-freshness.md) — the `Verified-at` SHA and `revalidate-register.mjs` that make scheduled diffs trustworthy.
 - [The evals directory](../../evals/README.md) — the harnesses the `validate` gate runs.
 
-*Verified-at: c2b37e9*
+*Verified-at: b22d0da*

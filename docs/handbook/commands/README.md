@@ -119,7 +119,7 @@ marks a single command that strings the others together for you.
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) — **23 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
+- [code-ops-suite.md](code-ops-suite.md) — **24 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
 - [rigor.md](rigor.md) — **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) — **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) — **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).
@@ -129,4 +129,4 @@ For the concepts the commands assume, see
 [evidence and tiers](../05-evidence-and-tiers.md); for when to reach for an orchestrator,
 [chapter 03](../03-orchestrators.md).
 
-*Verified-at: c2b37e9*
+*Verified-at: b22d0da*
