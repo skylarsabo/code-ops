@@ -13,7 +13,9 @@ break silently.
 - **Traceless publishing on ALL paths.** No AI/tool attribution trailers, emoji, or
   assistant-voice prose in commit messages or PR bodies — including direct commits that
   bypass the ship skill. Self-gate: `node scripts/scan-ai-tells.mjs <files...>` (or
-  `--git <range>`).
+  `--git <range>`). The code-ops-suite `PreToolUse` hook (`enforce-traceless`) also
+  blocks a flagged `git commit` / `gh pr create|merge` at the tool layer; CI stays the
+  fail-closed backstop.
 - **PR-gate workflows only take effect once merged to main.** A PR that edits
   `.github/workflows/deep-review.yml` or `opsec-gate.yml` is not reviewed by its own
   edit; verify gate changes on a follow-up PR that does not touch the workflows.

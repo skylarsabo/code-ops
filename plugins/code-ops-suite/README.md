@@ -60,6 +60,7 @@ For **always-on** application (not just inside a skill), add a pointer in your r
 > This repo follows the conventions in the code-ops-suite plugin (`CONVENTIONS.md`): developer-in-the-loop, behavior-preserving changes, evidence (`file:line`) on every finding, secrets/PII redacted, and the quality lenses defined there.
 
 ## Loops & automation
+- **Tool-layer traceless gate:** a bundled `PreToolUse` hook (`hooks/hooks.json` + `hooks/enforce-traceless.mjs`) scans a `git commit` / `gh pr create|merge` Bash call for AI/tool trace before it runs and blocks on a hit; CI stays the fail-closed backstop.
 - **In-session loop:** run a skill repeatedly toward its "Done when" criteria with the built-in `/loop`.
 - **On every PR:** wire `pr-review` into CI with the official `anthropics/claude-code-action@v1`. See `examples/github-pr-review.yml` — but the canonical setup is to run `/install-github-app`, which generates a correct workflow; then paste the review criteria in.
 - **Recurring maintenance:** put `dependency-upgrade` and `security-privacy-audit` on a schedule with Routines (`/schedule`).
