@@ -1,6 +1,6 @@
 # rigor
 
-Verification-first workflows for **finding real bugs, closing inconsistencies, and making measured improvements** — packaged as a Claude Code plugin. Each workflow is a namespaced skill (`/rigor:<name>`).
+Verification-first workflows for **finding real bugs, closing inconsistencies, and making measured improvements** — authored here as the canonical Claude Code package and rendered into a native Codex package. Invoke `/rigor:<name>` in Claude Code or name `rigor:<name>` in Codex.
 
 Built on one rule: **prove it or don't report it; measure it or don't claim it; close it so it can't come back.** This is the deliberate answer to why fire-hose audits disappoint — they *assert* findings, *sample* instead of cover, and *inflate* confidence. Rigor trades some breadth and speed for signal and proof.
 
@@ -24,7 +24,7 @@ New to the suite? See the handbook at `docs/handbook/` (from the repo root) to l
 
 ## Skills
 
-Invoke with `/rigor:<name>` (all manual-invoke).
+Invoke with `/rigor:<name>` in Claude Code or `rigor:<name>` in Codex (all manual-invoke).
 
 - `ground-truth` — run the toolchain; capture the factual baseline + coverage/blind-spot map. **Run first.**
 - `test-suite-audit` — validate the tests the proofs rest on (flaky, assertion strength, mutation kill-rate); harden the gaps.

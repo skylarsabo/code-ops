@@ -1,0 +1,31 @@
+#!/bin/sh
+# Keep the tracked Codex render in lockstep with the canonical Claude source.
+# This hook stages only derived marketplace artifacts; it never stages authored source files.
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+renderer_inputs="plugins .claude-plugin/marketplace.json scripts/build-codex-marketplace.mjs"
+renderer_paths="$renderer_inputs .agents/plugins/marketplace.json codex-marketplace"
+
+# Do no work for commits unrelated to either source or generated marketplace artifacts.
+if git diff --cached --quiet -- $renderer_paths; then
+  exit 0
+fi
+
+# Rendering reads the working tree while a commit records the index. Refuse to mix
+# staged source with a different unstaged/untracked renderer input; otherwise the
+# hook could stage output for source that is absent from the commit.
+if ! git diff --quiet -- $renderer_inputs || test -n "$(git ls-files --others --exclude-standard -- $renderer_inputs)"; then
+  echo "Stage or stash all Codex-renderer inputs before committing." >&2
+  exit 1
+fi
+
+command -v node >/dev/null 2>&1 || {
+  echo "node is required to render the Codex marketplace." >&2
+  exit 1
+}
+
+node scripts/build-codex-marketplace.mjs
+git add -A -- .agents/plugins/marketplace.json codex-marketplace/

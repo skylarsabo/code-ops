@@ -1,0 +1,6 @@
+interface:
+  display_name: "Fingerprint Resistance"
+  short_description: "Use when you need to reduce the fingerprinting/uniqueness surface that could re-link anonymous users. Owns identity-fingerprint distinctiveness — NOT traffic timing/size (see traffic-analysis-resistance)."
+  default_prompt: "Use privacy-opsec-suite:fingerprint-resistance for this task."
+policy:
+  allow_implicit_invocation: false

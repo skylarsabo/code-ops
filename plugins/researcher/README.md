@@ -1,6 +1,6 @@
 # researcher
 
-Adaptive, multi-agent workflows for **code-grounded research** — packaged as a Claude Code plugin. Each workflow is a namespaced skill (`/researcher:<name>`) that grounds external knowledge in *your own* code (or the materials you hand it), gathers prior art and library capabilities, and **proposes** improvements, design directions, library calls, and net-new ideas — then hands the implementation to the other suites. It **researches and proposes; it never edits source.** And it is honest about what leaves the machine: every external request is disclosed, recorded, and confirmed first (`CONVENTIONS.md`, §A).
+Adaptive, multi-agent workflows for **code-grounded research** — authored here as the canonical Claude Code package and rendered into a native Codex package. Invoke `/researcher:<name>` in Claude Code or name `researcher:<name>` in Codex. The workflows ground external knowledge in *your own* code (or the materials you hand them), gather prior art and library capabilities, and **propose** improvements, design directions, library calls, and net-new ideas — then hand implementation to the other suites. They **research and propose; they never edit source.** And they are honest about what leaves the machine: every external request is disclosed, recorded, and confirmed first (`CONVENTIONS.md`, §A).
 
 **Stance:** local-first, cited, disconfirmed. The most local, most cited, most disconfirmed answer wins. Every claim names a source and a confidence tier; web retrieval is opt-in per run and never silent.
 
@@ -10,7 +10,7 @@ New to the suite? See the handbook at `docs/handbook/` (from the repo root) to l
 
 ## Skills
 
-Invoke with `/researcher:<name>`. All are manual-invoke (deliberate operations — they won't auto-fire).
+Invoke with `/researcher:<name>` in Claude Code or `researcher:<name>` in Codex. All are manual-invoke (deliberate operations — they won't auto-fire).
 
 **Discover & propose** (Mode: DISCOVERY — produces registers and briefs, never code)
 - `research-spike` — given a task or plan, gather prior art and approach options with trade-offs into a cited **design brief** + recommendation. Feeds `code-ops-suite:feature-implementation` / `code-ops-suite:ship` / `code-ops-suite:adr`.

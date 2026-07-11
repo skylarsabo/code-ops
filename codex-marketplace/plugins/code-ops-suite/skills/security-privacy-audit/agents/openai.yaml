@@ -1,0 +1,6 @@
+interface:
+  display_name: "Security Privacy Audit"
+  short_description: "Use when you need an adversarial security + privacy threat assessment of attack surface and deanonymization paths — deeper than the audit's security lens. For anonymity-specific egress/metadata/fingerprint work, use the privacy-opsec-suite."
+  default_prompt: "Use code-ops-suite:security-privacy-audit for this task."
+policy:
+  allow_implicit_invocation: false

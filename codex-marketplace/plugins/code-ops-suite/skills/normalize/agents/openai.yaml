@@ -1,0 +1,6 @@
+interface:
+  display_name: "Normalize"
+  short_description: "Use when a codebase has inconsistent style or the artifacts of hasty/generated code and you want one professional, behavior-preserving standard. To close divergent implementations of a concept, see rigor:consistency-closure."
+  default_prompt: "Use code-ops-suite:normalize for this task."
+policy:
+  allow_implicit_invocation: false

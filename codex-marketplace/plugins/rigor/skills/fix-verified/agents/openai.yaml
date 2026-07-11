@@ -1,0 +1,6 @@
+interface:
+  display_name: "Fix Verified"
+  short_description: "Use when CONFIRMED bugs exist and you want them fixed at root cause with proof. Requires CONFIRMED findings as input."
+  default_prompt: "Use rigor:fix-verified for this task."
+policy:
+  allow_implicit_invocation: false

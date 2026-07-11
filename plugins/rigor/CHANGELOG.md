@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.9.1
+- **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, with the same workflow content and an explicit per-skill manual-invocation policy.
+
 ## 2.9.0
 - **Token economy.** Read-once CONVENTIONS clause; pre-filter-first register reads; refutation-panel economy in `§I` (receipt-verified SURVIVED verdicts are not re-paneled on re-runs; panelist handoff is the finding block + cited region, never the full register). Cores pinned in SHARED_PASSAGES.
 

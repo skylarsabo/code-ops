@@ -1,0 +1,6 @@
+interface:
+  display_name: "Tor Egress Audit"
+  short_description: "Use when you need to prove no traffic escapes the proxy/Tor. Owns network egress + routing."
+  default_prompt: "Use privacy-opsec-suite:tor-egress-audit for this task."
+policy:
+  allow_implicit_invocation: false

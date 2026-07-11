@@ -38,9 +38,9 @@ const files = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--gi
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{1F000}-\u{1F0FF}\u{231A}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
 const LINE_CHECKS = [
   // Concrete tool/vendor names only — no bare \bai\b (it false-positives on .ai emails and the surname "Ai").
-  { cat: 'TRAILER', re: /^\s*co-authored-by:\s*.*\b(claude|anthropic|gpt|chatgpt|copilot|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|perplexity|tabnine)\b/i },
-  { cat: 'TRAILER', re: /generated (with|by)\b.*(claude|cursor|copilot|chatgpt|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|llm)/i },
-  { cat: 'TOOL', re: /\b(claude code|cursor|github copilot|chatgpt|gemini|codeium|windsurf|aider|as an ai language model|i am an ai|large language model)\b/i },
+  { cat: 'TRAILER', re: /^\s*co-authored-by:\s*.*\b(claude|anthropic|codex|openai|gpt|chatgpt|copilot|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|perplexity|tabnine)\b/i },
+  { cat: 'TRAILER', re: /generated (with|by)\b.*(claude|codex|openai|cursor|copilot|chatgpt|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|llm)/i },
+  { cat: 'TOOL', re: /\b(claude code|codex(?: cli)?|cursor|github copilot|chatgpt|gemini|codeium|windsurf|aider|as an ai language model|i am an ai|large language model)\b/i },
   { cat: 'PHRASE', re: /(^|\s)(notably,|importantly,|in summary,)/i },
   { cat: 'PHRASE', re: /here's what (i|we)\b/i },
   { cat: 'BOILERPLATE', re: /^#{1,4}\s*test plan\b/i },

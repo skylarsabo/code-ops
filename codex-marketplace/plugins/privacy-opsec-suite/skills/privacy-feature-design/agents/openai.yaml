@@ -1,0 +1,6 @@
+interface:
+  display_name: "Privacy Feature Design"
+  short_description: "Use when you want high-value privacy/trust features found and specified, each gated against the anonymity model. Discovery/spec only."
+  default_prompt: "Use privacy-opsec-suite:privacy-feature-design for this task."
+policy:
+  allow_implicit_invocation: false

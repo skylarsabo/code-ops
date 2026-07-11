@@ -1,0 +1,6 @@
+interface:
+  display_name: "Onboarding"
+  short_description: "Use when you need a verified, code-grounded orientation guide (with an architecture diagram) for a new contributor."
+  default_prompt: "Use code-ops-suite:onboarding for this task."
+policy:
+  allow_implicit_invocation: false

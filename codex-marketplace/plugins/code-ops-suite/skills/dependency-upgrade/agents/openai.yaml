@@ -1,0 +1,6 @@
+interface:
+  display_name: "Dependency Upgrade"
+  short_description: "Use when dependencies are outdated or have known CVEs and you want safe, staged upgrades verified at each step; never bulk-bumps."
+  default_prompt: "Use code-ops-suite:dependency-upgrade for this task."
+policy:
+  allow_implicit_invocation: false

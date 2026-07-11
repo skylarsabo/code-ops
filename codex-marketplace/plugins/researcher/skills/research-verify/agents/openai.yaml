@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research Verify"
+  short_description: "Use when a claim, recommendation, or draft research artifact needs adversarial fact-checking against sources and our code before anyone acts on it. Review only — writes no code."
+  default_prompt: "Use researcher:research-verify for this task."
+policy:
+  allow_implicit_invocation: false

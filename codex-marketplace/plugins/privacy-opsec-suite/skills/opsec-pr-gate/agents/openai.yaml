@@ -1,0 +1,6 @@
+interface:
+  display_name: "OpSec Pr Gate"
+  short_description: "Use when you want a pre-merge gate that blocks any change adding egress, logging, identifiers, fingerprint surface, correlation, or weakened anonymity defaults. The anonymity counterpart to code-ops-suite:pr-review and rigor:deep-review."
+  default_prompt: "Use privacy-opsec-suite:opsec-pr-gate for this task."
+policy:
+  allow_implicit_invocation: false

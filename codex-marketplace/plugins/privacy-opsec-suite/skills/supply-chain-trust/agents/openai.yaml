@@ -1,0 +1,6 @@
+interface:
+  display_name: "Supply Chain Trust"
+  short_description: "Use when you need to vet dependencies for telemetry/phone-home/egress, CVEs, and build/lockfile integrity under an anonymity-hostile model."
+  default_prompt: "Use privacy-opsec-suite:supply-chain-trust for this task."
+policy:
+  allow_implicit_invocation: false

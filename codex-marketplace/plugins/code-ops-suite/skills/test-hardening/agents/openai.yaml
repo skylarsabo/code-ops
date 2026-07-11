@@ -1,0 +1,6 @@
+interface:
+  display_name: "Test Hardening"
+  short_description: "Use when critical paths lack meaningful coverage or tests are flaky; builds characterization + regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit."
+  default_prompt: "Use code-ops-suite:test-hardening for this task."
+policy:
+  allow_implicit_invocation: false

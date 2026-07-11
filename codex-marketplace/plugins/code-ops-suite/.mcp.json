@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "code-ops-docs": {
+      "command": "node",
+      "args": [
+        "./scripts/lib-docs-mcp.mjs"
+      ],
+      "cwd": "."
+    }
+  }
+}

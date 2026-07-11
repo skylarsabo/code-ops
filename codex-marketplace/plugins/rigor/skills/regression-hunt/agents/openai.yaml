@@ -1,0 +1,6 @@
+interface:
+  display_name: "Regression Hunt"
+  short_description: "Use when something used to work and you need to pinpoint the commit that broke it and find related regressions in recent changes."
+  default_prompt: "Use rigor:regression-hunt for this task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,101 @@
+#!/usr/bin/env node
+// Zero-dependency MCP (stdio) server wrapping lib-docs.mjs — the in-house, local-first
+// "current docs" capability as an always-on, Context7-shaped tool. Newline-delimited
+// JSON-RPC 2.0 over stdio. Tools: resolve-library, get-docs.
+
+import { getDocs, resolveInstalled } from './lib-docs.mjs';
+
+const SERVER = { name: 'code-ops-docs', version: '1.0.0' };
+const TOOLS = [
+  {
+    name: 'resolve-library',
+    description: 'Resolve a library to the version INSTALLED in this project (from node_modules). Returns name@version or that it is not installed.',
+    inputSchema: {
+      type: 'object',
+      properties: { library: { type: 'string', description: 'package name, e.g. "zod" or "@scope/pkg"' }, root: { type: 'string', description: 'project root (default: cwd)' } },
+      required: ['library'],
+    },
+  },
+  {
+    name: 'get-docs',
+    description: 'Get current, version-accurate docs for a library from its INSTALLED version (README + exported type signatures), local-only by default. Use before coding against an unfamiliar API instead of relying on memory.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        library: { type: 'string' },
+        topic: { type: 'string', description: 'optional focus, e.g. "streaming" or "auth"' },
+        root: { type: 'string', description: 'project root (default: cwd)' },
+        noFetch: { type: 'boolean', description: 'disable the network fallback (default true — local only; pass false to opt in to the library-source fallback)' },
+      },
+      required: ['library'],
+    },
+  },
+];
+
+const send = (msg) => process.stdout.write(JSON.stringify(msg) + '\n');
+const ok = (id, result) => send({ jsonrpc: '2.0', id, result });
+const fail = (id, code, message) => send({ jsonrpc: '2.0', id, error: { code, message } });
+
+async function callTool(name, args = {}) {
+  const root = args.root || process.cwd();
+  if (name === 'resolve-library' || name === 'get-docs') {
+    // BUG-005: enforce the declared required:['library'] contract with a clear error
+    // rather than letting an internal path error surface from deeper in the engine.
+    if (typeof args.library !== 'string' || !args.library.trim()) throw new Error('missing or invalid required argument: library (non-empty string)');
+  }
+  if (name === 'resolve-library') {
+    const pkg = resolveInstalled(args.library, root);
+    return pkg ? `${pkg.name}@${pkg.version}${pkg.homepage ? ` — ${pkg.homepage}` : ''}` : `${args.library}: not installed under ${root}/node_modules`;
+  }
+  if (name === 'get-docs') {
+    // PRIV-001: local-only unless the caller explicitly opts in with noFetch:false.
+    const res = await getDocs({ library: args.library, topic: args.topic || '', root, noFetch: args.noFetch !== false });
+    return res.text;
+  }
+  throw new Error(`unknown tool: ${name}`);
+}
+
+async function handle(msg) {
+  const { id, method, params } = msg;
+  if (method === 'initialize') return ok(id, { protocolVersion: (params && params.protocolVersion) || '2024-11-05', capabilities: { tools: {} }, serverInfo: SERVER });
+  if (method === 'ping') return ok(id, {});
+  if (method === 'tools/list') return ok(id, { tools: TOOLS });
+  if (method === 'tools/call') {
+    try {
+      const text = await callTool(params && params.name, (params && params.arguments) || {});
+      return ok(id, { content: [{ type: 'text', text }] });
+    } catch (e) {
+      return ok(id, { content: [{ type: 'text', text: `error: ${e.message}` }], isError: true });
+    }
+  }
+  if (typeof method === 'string' && method.startsWith('notifications/')) return; // fire-and-forget
+  if (id !== undefined) {
+    // SCR-020: a missing/non-string method is an Invalid Request (-32600), not Method-not-found (-32601).
+    if (typeof method !== 'string') return fail(id, -32600, 'Invalid Request: "method" must be a string');
+    fail(id, -32601, `method not found: ${method}`);
+  }
+}
+
+let buf = '';
+const pending = new Set();
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => {
+  buf += chunk;
+  let nl;
+  while ((nl = buf.indexOf('\n')) >= 0) {
+    const line = buf.slice(0, nl).trim();
+    buf = buf.slice(nl + 1);
+    if (!line) continue;
+    let msg;
+    try { msg = JSON.parse(line); } catch { continue; }
+    // SCR-006: track the in-flight handler so a tools/call still awaiting (e.g. the network
+    // fallback) is not silently dropped when the read side closes.
+    const p = Promise.resolve(handle(msg)).catch((e) => process.stderr.write(`handler error: ${e.message}\n`)).finally(() => pending.delete(p));
+    pending.add(p);
+  }
+});
+// SCR-006: drain in-flight handlers before exiting (bounded so a hung handler cannot wedge exit).
+process.stdin.on('end', async () => {
+  await Promise.race([Promise.allSettled([...pending]), new Promise((r) => setTimeout(r, 10000))]);
+  process.exit(0);
+});

@@ -1,0 +1,47 @@
+{
+  "name": "privacy-opsec-suite",
+  "version": "1.12.1",
+  "description": "Adaptive, multi-agent workflows for building, auditing, and operating privacy-respecting, anonymity-preserving software. Covers the anonymity threat model, anonymous sessions, Tor/proxy egress and leak prevention, metadata minimization, fingerprinting and traffic-analysis resistance, supply-chain trust, opsec hardening, privacy feature design, leak incident response, doc alignment, and an opsec PR gate. Anonymous-by-default, fail-closed, developer-in-the-loop.",
+  "author": {
+    "name": "Skylar",
+    "url": "https://github.com/skylarsabo"
+  },
+  "homepage": "https://github.com/skylarsabo/code-ops",
+  "repository": "https://github.com/skylarsabo/code-ops",
+  "license": "MIT",
+  "keywords": [
+    "privacy",
+    "opsec",
+    "anonymity",
+    "tor",
+    "onion",
+    "metadata",
+    "fingerprinting",
+    "traffic-analysis",
+    "leak-prevention",
+    "security",
+    "audit",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Privacy OpSec Suite",
+    "shortDescription": "Privacy, anonymity, egress, metadata, and OpSec workflows.",
+    "longDescription": "Adaptive, multi-agent workflows for building, auditing, and operating privacy-respecting, anonymity-preserving software. Covers the anonymity threat model, anonymous sessions, Tor/proxy egress and leak prevention, metadata minimization, fingerprinting and traffic-analysis resistance, supply-chain trust, opsec hardening, privacy feature design, leak incident response, doc alignment, and an opsec PR gate. Anonymous-by-default, fail-closed, developer-in-the-loop.",
+    "developerName": "Skylar",
+    "category": "Security",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Review",
+      "Workflow"
+    ],
+    "websiteURL": "https://github.com/skylarsabo/code-ops",
+    "defaultPrompt": [
+      "Run privacy-opsec-suite:anonymity-threat-model.",
+      "Use privacy-opsec-suite:tor-egress-audit.",
+      "Use privacy-opsec-suite:opsec-pr-gate on this diff."
+    ],
+    "brandColor": "#047857"
+  }
+}

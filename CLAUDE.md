@@ -37,19 +37,22 @@ acceptance.
 
 ## Before declaring any change done
 
-Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs` — the first two
-steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the
-regression evals under `evals/`, so mirror the step covering what you touched. If you
-touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
+Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check` — the first structural steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
 --check`; `register-staleness` has no answer key — run `node evals/register-staleness/run.mjs`.
 
 ## After editing anything under `plugins/<name>/`
 
 Bump `version` in `plugins/<name>/.claude-plugin/plugin.json`, update the matching
 `.claude-plugin/marketplace.json` entry (lint enforces parity), and add a
-`plugins/<name>/CHANGELOG.md` entry. Scripts under `plugins/*/scripts/` are vendored
+`plugins/<name>/CHANGELOG.md` entry. Then regenerate `codex-marketplace/` with
+`node scripts/build-codex-marketplace.mjs`; its files and `.agents/plugins/marketplace.json`
+are derived artifacts, never hand-edited. Scripts under `plugins/*/scripts/` are vendored
 byte-identical copies of `scripts/` — edit the canonical root file and re-copy; lint
 enforces parity.
+
+Install `node scripts/install-git-hooks.mjs` once per checkout. Its tracked pre-commit hook
+regenerates and stages only the derived Codex marketplace paths, while refusing unstaged or
+untracked renderer inputs; CI still rejects drift when hooks are absent or bypassed.
 
 Adding or removing a skill also requires updating the plugin README's skill list and
 `(N skills)` count, the matching count in root `README.md`, and handbook entries in both

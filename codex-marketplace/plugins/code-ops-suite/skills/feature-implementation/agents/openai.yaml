@@ -1,0 +1,6 @@
+interface:
+  display_name: "Feature Implementation"
+  short_description: "Use when feature specs already exist and you want them built incrementally. Requires specs as input."
+  default_prompt: "Use code-ops-suite:feature-implementation for this task."
+policy:
+  allow_implicit_invocation: false

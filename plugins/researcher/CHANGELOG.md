@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.6.1
+- **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, with the same research workflows and explicit per-skill manual-invocation policy.
+
 ## 0.6.0
 - **Skill bodies compressed 22%** (60.5KB → 47.1KB) — narrative framing and restated schema fields cut; every gate clause (egress manifest recording/validation, checkpoint definitions, tier rules, Done-when criteria, script invocations) kept near-verbatim and token-drop-scanned. The residual ~4KB/file is irreducible gate machinery the other plugins don't carry per-file.
 - **Read-once CONVENTIONS clause + pre-filter-first register reads** (pinned in SHARED_PASSAGES).

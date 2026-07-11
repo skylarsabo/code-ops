@@ -1,0 +1,6 @@
+interface:
+  display_name: "Architecture"
+  short_description: "Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code."
+  default_prompt: "Use code-ops-suite:architecture for this task."
+policy:
+  allow_implicit_invocation: false

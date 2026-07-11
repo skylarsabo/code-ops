@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codebase Audit"
+  short_description: "Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes."
+  default_prompt: "Use code-ops-suite:codebase-audit for this task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Quality Scan"
+  short_description: "Use when you want high-signal, defect-causing quality issues with evidence and tiers — not cosmetic nits."
+  default_prompt: "Use rigor:quality-scan for this task."
+policy:
+  allow_implicit_invocation: false

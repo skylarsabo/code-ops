@@ -1,12 +1,12 @@
 # code-ops-suite
 
-Adaptive, multi-agent engineering workflows for **any codebase**, packaged as a Claude Code plugin. Each workflow is a namespaced skill you invoke as `/code-ops-suite:<name>`; they run a dynamic, conflict-aware multi-agent loop and check in with you at the decisions that matter. Shared rules live once in `CONVENTIONS.md`, which every skill reads first.
+Adaptive, multi-agent engineering workflows for **any codebase**, authored here as the canonical Claude Code package and rendered into a native Codex package. In Claude Code invoke a workflow as `/code-ops-suite:<name>`; in Codex name `code-ops-suite:<name>` in your request. They run a dynamic, conflict-aware multi-agent loop and check in with you at the decisions that matter. Shared rules live once in `CONVENTIONS.md`, which every skill reads first.
 
 New to the suite? See the handbook at `docs/handbook/` (from the repo root) to learn to use it.
 
 ## Skills
 
-Invoke with `/code-ops-suite:<name>`. All are manual-invoke (they won't auto-fire) since they're deliberate operations.
+Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` in Codex. All are manual-invoke (they won't auto-fire) since they're deliberate operations.
 
 **Assess**
 - `codebase-audit` — broad multi-lens review of the whole codebase; applies safe fixes, writes a ranked findings backlog (`FINDINGS_REGISTER.md`).

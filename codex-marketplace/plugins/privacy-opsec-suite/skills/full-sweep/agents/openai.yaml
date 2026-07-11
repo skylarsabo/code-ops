@@ -1,0 +1,6 @@
+interface:
+  display_name: "Full Sweep"
+  short_description: "Use when you want the whole privacy-opsec-suite run end-to-end as a guided, checkpointed pipeline. Intra-plugin orchestrator."
+  default_prompt: "Use privacy-opsec-suite:full-sweep for this task."
+policy:
+  allow_implicit_invocation: false

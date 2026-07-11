@@ -13,6 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const scanner = resolve(here, '..', '..', 'scripts', 'scan-ai-tells.mjs');
 const dirty = join(here, 'dirty.md');
 const clean = join(here, 'clean.md');
+const codex = join(here, 'codex.md');
 const run = (args) => spawnSync('node', [scanner, ...args], { encoding: 'utf8' });
 
 const fails = [];
@@ -25,6 +26,13 @@ for (const cat of ['TRAILER', 'TOOL', 'EMOJI', 'EMDASH', 'PHRASE', 'BOILERPLATE'
   expect(out.includes(cat), `dirty.md should flag ${cat}, did not`);
 }
 expect(run([dirty]).status === 1, 'dirty.md should exit 1 (fail closed)');
+
+// Codex/OpenAI must be treated as tooling trace too; this is the dual-host regression.
+const cx = run([codex, '--report-only']);
+const codexOut = (cx.stdout || '') + (cx.stderr || '');
+expect(codexOut.includes('TRAILER'), 'codex.md should flag a Codex/OpenAI trailer');
+expect(codexOut.includes('TOOL'), 'codex.md should flag a Codex tool marker');
+expect(run([codex]).status === 1, 'codex.md should exit 1 (fail closed)');
 
 // Clean (with decoys): no hits, exit 0.
 const c = run([clean]);

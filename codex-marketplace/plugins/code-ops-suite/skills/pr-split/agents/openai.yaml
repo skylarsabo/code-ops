@@ -1,0 +1,6 @@
+interface:
+  display_name: "Pr Split"
+  short_description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless."
+  default_prompt: "Use code-ops-suite:pr-split for this task."
+policy:
+  allow_implicit_invocation: false

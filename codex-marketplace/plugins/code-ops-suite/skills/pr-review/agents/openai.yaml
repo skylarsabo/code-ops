@@ -1,0 +1,6 @@
+interface:
+  display_name: "Pr Review"
+  short_description: "Use when you want a rigorous pre-merge review of one PR/diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review; for an anonymity gate, privacy-opsec-suite:opsec-pr-gate."
+  default_prompt: "Use code-ops-suite:pr-review for this task."
+policy:
+  allow_implicit_invocation: false

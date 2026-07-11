@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.12.1
+- **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, preserving manual invocation through per-skill policy and using the same bundled runtime scripts.
+- **Traceless scanner recognizes Codex/OpenAI attribution.** The bundled `scan-ai-tells.mjs` now rejects Codex/OpenAI trailers, generation claims, and `Codex CLI` tool markers before publication.
+
 ## 1.12.0
 - **Token economy.** Read-once CONVENTIONS clause and pre-filter-first register reads (pinned in SHARED_PASSAGES). Descriptions trimmed with every trigger/disambiguator kept verbatim.
 

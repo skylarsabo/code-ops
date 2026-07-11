@@ -1,0 +1,46 @@
+{
+  "name": "rigor",
+  "version": "2.9.1",
+  "description": "Verification-first workflows for finding real bugs, closing inconsistencies, and making measured improvements. Prove-it-or-don't-report-it: every finding carries an evidence tier and a proof artifact, fixes ship a failing-then-passing regression test fixed at root cause, and inconsistencies are closed with a mechanical enforcement. v2 adds test-suite validation (flaky + mutation testing), characterization safety nets, root-cause sibling sweeps, regression bisection, and a regression guard.",
+  "author": {
+    "name": "Skylar",
+    "url": "https://github.com/skylarsabo"
+  },
+  "homepage": "https://github.com/skylarsabo/code-ops",
+  "repository": "https://github.com/skylarsabo/code-ops",
+  "license": "MIT",
+  "keywords": [
+    "bugs",
+    "quality",
+    "verification",
+    "reproduction",
+    "mutation-testing",
+    "regression",
+    "consistency",
+    "refactoring",
+    "testing",
+    "code-review",
+    "rigor"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Rigor",
+    "shortDescription": "Verification-first bug hunting, proof, and regression enforcement.",
+    "longDescription": "Verification-first workflows for finding real bugs, closing inconsistencies, and making measured improvements. Prove-it-or-don't-report-it: every finding carries an evidence tier and a proof artifact, fixes ship a failing-then-passing regression test fixed at root cause, and inconsistencies are closed with a mechanical enforcement. v2 adds test-suite validation (flaky + mutation testing), characterization safety nets, root-cause sibling sweeps, regression bisection, and a regression guard.",
+    "developerName": "Skylar",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Review",
+      "Workflow"
+    ],
+    "websiteURL": "https://github.com/skylarsabo/code-ops",
+    "defaultPrompt": [
+      "Run rigor:ground-truth, then rigor:bug-hunt.",
+      "Use rigor:deep-review on my current branch.",
+      "Use rigor:fix-verified for confirmed bugs."
+    ],
+    "brandColor": "#7C3AED"
+  }
+}

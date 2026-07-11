@@ -1,0 +1,6 @@
+interface:
+  display_name: "Performance"
+  short_description: "Use when something is measurably slow or you want hot paths optimized with proof; profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured."
+  default_prompt: "Use code-ops-suite:performance for this task."
+policy:
+  allow_implicit_invocation: false

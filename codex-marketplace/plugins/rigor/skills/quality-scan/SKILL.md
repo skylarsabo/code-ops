@@ -1,0 +1,23 @@
+---
+name: quality-scan
+description: "Use when you want high-signal, defect-causing quality issues with evidence and tiers — not cosmetic nits."
+---
+
+# QUALITY SCAN — Real Issues, High Signal
+
+**Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
+
+**Invoke in Codex by naming `rigor:quality-scan`.** First read the bundled `<plugin-root>/CONVENTIONS.md` — it defines the **verification-first methodology** — evidence tiers, the disconfirmation pass, ground-truth-first, root-cause-over-symptom, and the regression guard — plus the operating model, interaction protocol, and safety rails this skill follows.
+**Mode:** AUDIT (reads + light execution) · **Produces:** tiered findings → `FINDINGS_REGISTER.md`; summary. Targets issues that *cause defects or real maintenance pain* — cosmetic style is the formatter's job and is out of scope.
+
+## Phase 0 — Scope  *(checkpoint)*
+Pick the area; read `GROUND_TRUTH.md` so you skip what the linter/type-checker already enforces. If it's absent, run `rigor:ground-truth` first (recommended), or harvest the `§C` toolchain baseline for the area yourself before scanning; never reason ahead of the toolchain.
+
+## Phase 1 — Find defect-causing quality issues
+Hunt the maintainability/`§7` lenses that actually bite: **complexity hotspots** (with a concrete metric, not a vibe); **error-handling gaps** (swallowed/re-thrown errors, missing cleanup/rollback, partial-failure paths); **resource leaks** (unclosed handles/connections/subscriptions, leaked timers/listeners); **type-safety holes** (unsafe casts, escape hatches, unchecked nullability at boundaries); **fragile coupling** (hidden temporal coupling, shared mutable state); **dead/duplicated code that hides intent**. For each: `file:line`, reachability/impact (`§D`), a tier (`§A`), and the **disconfirmation pass** (`§B`). Suppress low-confidence noise or mark it SPECULATIVE — do not pad the report.
+
+## Deliverables
+`FINDINGS_REGISTER.md` entries ranked by **demonstrated impact**; a summary separating CONFIRMED from PROBABLE/SPECULATIVE. Each item names how it could be enforced once fixed.
+
+## Done when
+Real, defect-causing quality issues are surfaced with evidence, tier, and impact; cosmetic noise excluded; disconfirmation done; nothing inflated. The finished FINDINGS_REGISTER.md passes `node <plugin-root>/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .` with exit 0 — a non-FRESH citation is re-located against the real tree or dropped before the run is done (`§E`).

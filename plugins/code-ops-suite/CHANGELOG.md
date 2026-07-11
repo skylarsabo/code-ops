@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.17.1
+- **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, with a `.codex-plugin` manifest, marketplace metadata, named skills, explicit manual-invocation policy, bundled MCP server, and the traceless-publishing hook subject to Codex hook trust. `node scripts/build-codex-marketplace.mjs --check` fails on render drift.
+- **Traceless scanner recognizes Codex/OpenAI attribution.** The bundled `scan-ai-tells.mjs` now rejects Codex/OpenAI trailers, generation claims, and `Codex CLI` tool markers in the same fail-closed gate used for Claude and other assistants.
+
 ## 1.17.0
 - **New `PreToolUse` hook `enforce-traceless`.** Blocks a `git commit` / `gh pr create|merge` Bash call at the tool layer when the command text carries an AI/tool tell, running the bundled `scan-ai-tells.mjs` against the full command string before the call proceeds; a hit exits 2 with the scanner's report, otherwise exits 0. Fails open on scanner infra errors (missing/unspawnable scanner) so the hook never blocks a commit for its own reasons; CI (`scan-ai-tells.mjs --git <range>`) remains the fail-closed backstop.
 

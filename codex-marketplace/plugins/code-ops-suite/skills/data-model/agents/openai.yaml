@@ -1,0 +1,6 @@
+interface:
+  display_name: "Data Model"
+  short_description: "Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations."
+  default_prompt: "Use code-ops-suite:data-model for this task."
+policy:
+  allow_implicit_invocation: false

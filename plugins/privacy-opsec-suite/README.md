@@ -1,6 +1,6 @@
 # privacy-opsec-suite
 
-Adaptive, multi-agent workflows for building, auditing, and operating **privacy-respecting, anonymity-preserving** software — packaged as a Claude Code plugin. Each workflow is a namespaced skill (`/privacy-opsec-suite:<name>`) that runs a dynamic, conflict-aware multi-agent loop and checks in with you on the high-stakes calls. Every skill treats the **anonymity & OpSec model** as the central, non-negotiable constraint (see `CONVENTIONS.md`, §A).
+Adaptive, multi-agent workflows for building, auditing, and operating **privacy-respecting, anonymity-preserving** software — authored here as the canonical Claude Code package and rendered into a native Codex package. Invoke `/privacy-opsec-suite:<name>` in Claude Code or name `privacy-opsec-suite:<name>` in Codex. Every skill treats the **anonymity & OpSec model** as the central, non-negotiable constraint (see `CONVENTIONS.md`, §A).
 
 **Stance:** defensive privacy engineering — protect your system's *own users'* anonymity and find/fix leaks in *your own* code. Anonymous-by-default, fail-closed.
 
@@ -8,7 +8,7 @@ New to the suite? See the handbook at `docs/handbook/` (from the repo root) to l
 
 ## Skills
 
-Invoke with `/privacy-opsec-suite:<name>`. All are manual-invoke (deliberate operations).
+Invoke with `/privacy-opsec-suite:<name>` in Claude Code or `privacy-opsec-suite:<name>` in Codex. All are manual-invoke (deliberate operations).
 
 **Model & audits**
 - `anonymity-threat-model` — map how a user could be deanonymized: adversaries, assets, deanonymization paths, residual risk (keystone artifact).

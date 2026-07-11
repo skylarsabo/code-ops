@@ -1,0 +1,6 @@
+interface:
+  display_name: "Bug Hunt"
+  short_description: "Use when you want REAL bugs found and proven, not a list of guesses — each candidate proven with a failing test. The flagship."
+  default_prompt: "Use rigor:bug-hunt for this task."
+policy:
+  allow_implicit_invocation: false

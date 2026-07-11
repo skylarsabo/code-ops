@@ -1,0 +1,56 @@
+{
+  "name": "code-ops",
+  "interface": {
+    "displayName": "Code Ops"
+  },
+  "plugins": [
+    {
+      "name": "code-ops-suite",
+      "source": {
+        "source": "local",
+        "path": "./codex-marketplace/plugins/code-ops-suite"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "privacy-opsec-suite",
+      "source": {
+        "source": "local",
+        "path": "./codex-marketplace/plugins/privacy-opsec-suite"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Security"
+    },
+    {
+      "name": "rigor",
+      "source": {
+        "source": "local",
+        "path": "./codex-marketplace/plugins/rigor"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "researcher",
+      "source": {
+        "source": "local",
+        "path": "./codex-marketplace/plugins/researcher"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

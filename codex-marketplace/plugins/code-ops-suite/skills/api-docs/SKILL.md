@@ -1,0 +1,26 @@
+---
+name: api-docs
+description: "Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory."
+---
+
+# API-DOCS — The Interface Reference
+
+**Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
+
+**Invoke in Codex by naming `code-ops-suite:api-docs`.** First read the `<plugin-root>/CONVENTIONS.md` — especially the **documentation quality standard (`§13`)** this doc obeys. For this DOCUMENT-mode skill the binding sections are §2 (tools/in-house docs lookup), §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those five; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
+**Mode:** DOCUMENT. **Produces:** `API.md` (or per-service) in the repo's docs location.
+
+## Phase 0 — Detect the surface  *(checkpoint)*
+Find the public surface: HTTP routes, a GraphQL schema, RPC/gRPC services, or a library's exported API. If there is no real external surface, say so and stop. Confirm which surface(s) + the docs location.
+
+## Phase 1 — Reference per operation
+For each endpoint/operation/export, generated from the handlers + types/schema (not memory): signature, parameters, request and response **shapes** (link the type/schema `file:line`), auth/permissions, error responses + status codes, side effects, and rate limits. Group logically; use tables for the matrix.
+
+## Phase 2 — Make it usable
+A short "how to call it" orientation (base URL/auth, versioning), one **real** example per common operation (drawn from tests or call-sites, never invented), and a Mermaid sequence diagram for any non-trivial multi-call flow.
+
+## Assemble (per `§13`)
+Exec summary (what the API does, the auth model, the entry points), then the reference. Cite `file:line`; mark inferred behavior `UNVERIFIED`; stamp the SHA.
+
+## Done when
+Every documented operation maps to a real handler/export (cited) with accurate shapes from the types/schema; auth + errors are covered; examples are real; an integrating engineer could call the API correctly from this doc alone.

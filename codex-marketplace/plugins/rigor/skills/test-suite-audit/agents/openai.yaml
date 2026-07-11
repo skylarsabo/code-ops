@@ -1,0 +1,6 @@
+interface:
+  display_name: "Test Suite Audit"
+  short_description: "Use when you need to know whether a green suite actually catches faults. Validates the tests other proofs rest on."
+  default_prompt: "Use rigor:test-suite-audit for this task."
+policy:
+  allow_implicit_invocation: false

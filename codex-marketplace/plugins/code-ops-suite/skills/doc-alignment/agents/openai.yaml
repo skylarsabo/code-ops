@@ -1,0 +1,6 @@
+interface:
+  display_name: "Doc Alignment"
+  short_description: "Use when docs have drifted from code and you want them reconciled into a clean single source of truth."
+  default_prompt: "Use code-ops-suite:doc-alignment for this task."
+policy:
+  allow_implicit_invocation: false

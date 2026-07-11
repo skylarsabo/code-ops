@@ -1,6 +1,6 @@
 # The code-ops Handbook
 
-The **code-ops** marketplace is four Claude Code plugins that share one backbone. Each workflow is a namespaced skill you invoke as `/<plugin>:<name>`; they run a dynamic, conflict-aware multi-agent loop, ground every finding at `file:line`, and check in with you at the decisions that matter. This handbook is the hub: it tells you which of the four plugins owns the job in front of you, routes the most common tasks to a specific command, and links every chapter that goes deeper. Read the four bullets below, scan the router, then follow the map.
+The **code-ops** marketplace is four Claude Code and Codex plugins that share one backbone. Claude Code invokes a workflow as `/<plugin>:<name>`; in Codex, name the same workflow as `<plugin>:<name>` in your request. They run a dynamic, conflict-aware multi-agent loop, ground every finding at `file:line`, and check in with you at the decisions that matter. This handbook is the hub: it tells you which of the four plugins owns the job in front of you, routes the most common tasks to a specific command, and links every chapter that goes deeper. Read the four bullets below, scan the router, then follow the map.
 
 ## The 4-plugin mental model
 

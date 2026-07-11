@@ -1,0 +1,6 @@
+interface:
+  display_name: "Everything"
+  short_description: "Use when you want the most exhaustive end-to-end pass across all three plugins; token-expensive and checkpointed. Cross-plugin superset — requires code-ops-suite, rigor, and privacy-opsec-suite installed."
+  default_prompt: "Use code-ops-suite:everything for this task."
+policy:
+  allow_implicit_invocation: false

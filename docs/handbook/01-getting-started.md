@@ -1,8 +1,8 @@
 # Getting Started
 
-This page takes you from "nothing installed" to running your first code-ops workflow and reading the result. Start at the top; the first sections need no prior Claude Code fluency. The closing [For fluent users](#for-fluent-users-set-the-automation-level-once) section adds depth for engineers already comfortable with the harness.
+This page takes you from "nothing installed" to running your first code-ops workflow and reading the result. Start at the top; the first sections need no prior Claude Code or Codex fluency. The closing [For fluent users](#for-fluent-users-set-the-automation-level-once) section adds depth for engineers already comfortable with the harness.
 
-> **One-page orientation.** Code-ops is a marketplace of four installable plugins. Add the marketplace once, install `code-ops-suite` for general engineering breadth, then add `rigor`, `privacy-opsec-suite`, or `researcher` only when a project needs them. You run a workflow by typing a namespaced slash command like `/code-ops-suite:codebase-audit`. Each workflow opens with a short scoping **checkpoint** — it asks you a question with numbered options, a recommendation, and a default — then runs and checks back in at the decisions that matter. Output artifacts (registers, summaries, generated docs) land in a dated run folder under `docs/`. You stay in the loop the whole way; nothing in a high-risk category changes without your explicit approval.
+> **One-page orientation.** Code-ops is a marketplace of four installable plugins. Add the marketplace once, install `code-ops-suite` for general engineering breadth, then add `rigor`, `privacy-opsec-suite`, or `researcher` only when a project needs them. In Claude Code, run a namespaced slash command such as `/code-ops-suite:codebase-audit`; in Codex, name `code-ops-suite:codebase-audit` in your request. Each workflow opens with a short scoping **checkpoint** — it asks you a question with numbered options, a recommendation, and a default — then runs and checks back in at the decisions that matter. Output artifacts (registers, summaries, generated docs) land in a dated run folder under `docs/`. You stay in the loop the whole way; nothing in a high-risk category changes without your explicit approval.
 
 ---
 
@@ -21,6 +21,8 @@ Rule of thumb (from the top-level [`README.md`](../../README.md)): **`code-ops-s
 
 ## 2 · Install the marketplace
 
+### Claude Code
+
 You need a recent build of Claude Code, since plugins and skills are current features. Check and update first:
 
 ```bash
@@ -30,36 +32,48 @@ claude update
 
 Then pick one install path. (The first three are mirrored from the top-level [`README.md`](../../README.md); use whichever fits.)
 
-**A) Local — fastest, try it now.** Unzip the marketplace folder somewhere, then inside Claude Code (run from any repo):
+**A) Local — fastest, try it now.** Clone or unzip this repository somewhere, then inside Claude Code (run from any repo):
 
 ```text
-/plugin marketplace add /absolute/path/to/code-ops-plugins
+/plugin marketplace add /absolute/path/to/code-ops
 /plugin install code-ops-suite@code-ops
 /plugin install rigor@code-ops                    # verification-first bug/quality suite
 /plugin install privacy-opsec-suite@code-ops      # optional — anonymity/opsec projects
 /plugin install researcher@code-ops               # optional — code-grounded research
 ```
 
-On Windows a path like `C:\Users\you\code-ops-plugins` works too. The equivalent non-interactive terminal form is `claude plugin marketplace add …` and `claude plugin install …@code-ops`.
+On Windows a path like `C:\Users\you\code-ops` works too. The equivalent non-interactive terminal form is `claude plugin marketplace add …` and `claude plugin install …@code-ops`.
 
-**B) GitHub — shareable with your team.** Push the `code-ops-plugins` folder to a repo, then:
+**B) GitHub — shareable with your team.** Push this repository to GitHub, then:
 
 ```text
-/plugin marketplace add your-org/code-ops-plugins
+/plugin marketplace add your-org/code-ops
 /plugin install code-ops-suite@code-ops
 ```
 
-Any git host works: `/plugin marketplace add https://gitlab.com/your-org/code-ops-plugins.git`.
+Any git host works: `/plugin marketplace add https://gitlab.com/your-org/code-ops.git`.
 
 **C) Auto-require for a repo / team.** Add to the project's `.claude/settings.json` so teammates are prompted to install when they trust the folder. See the top-level [`README.md`](../../README.md) for the exact `extraKnownMarketplaces` + `enabledPlugins` block.
 
 Install only `code-ops-suite` to begin. Add the other three as a project's needs emerge — they're independent installs.
 
+### Codex
+
+Use the repository-root Codex marketplace, which points at the generated native packages:
+
+```bash
+codex plugin marketplace add .
+codex plugin list --marketplace code-ops --available --json
+codex plugin add code-ops-suite@code-ops
+```
+
+Install `rigor`, `privacy-opsec-suite`, and `researcher` with the same `codex plugin add <name>@code-ops` form as needed. For GitHub, use `codex plugin marketplace add skylarsabo/code-ops --ref main`. The renderer preserves the manual-only workflow policy, so name the workflow explicitly rather than expecting it to run automatically.
+
 > **A note on the cross-plugin orchestrators.** A few `code-ops-suite` skills require the others to be installed: `everything` needs `rigor` *and* `privacy-opsec-suite`; `ship` and `debug` need `rigor`. The skill states its requirement when you invoke it. If you only installed `code-ops-suite`, the single-plugin workflows (`codebase-audit`, `pr-review`, the doc generators, `full-sweep`, …) all work on their own.
 
-## 3 · Invoke a command
+## 3 · Invoke a workflow
 
-Every workflow is a **skill** you invoke as a namespaced slash command:
+Every workflow is a **skill**. In Claude Code, invoke it as a namespaced slash command:
 
 ```text
 /code-ops-suite:<skill>
@@ -74,9 +88,9 @@ For example:
 /privacy-opsec-suite:anonymity-threat-model
 ```
 
-You can append natural-language scope after the command (`… for the current branch`, `… focus on the auth module`). Run `/plugin` to browse installed plugins and their skills.
+You can append natural-language scope after the command (`… for the current branch`, `… focus on the auth module`). Run `/plugin` to browse installed Claude Code plugins and their skills.
 
-All skills are **manual-invoke**: they run only when you type the command, never automatically. They're deliberate operations — an audit or a threat model shouldn't fire on its own.
+In Codex, name the same workflow in the request instead: `Use rigor:bug-hunt on the auth module.` All skills are **manual-invoke** on both hosts: they run only when you explicitly name the workflow, never automatically. They're deliberate operations — an audit or a threat model shouldn't fire on its own.
 
 ## 4 · Recommended order (composing the plugins)
 
@@ -129,7 +143,7 @@ A register isn't a one-shot report — it's a live backlog with stable IDs (`PER
 
 ## For fluent users: set the automation level once
 
-If you already live in Claude Code, two things are worth internalizing up front.
+If you already live in Claude Code or Codex, two things are worth internalizing up front.
 
 **Set the automation level at the start of a run.** Every code-changing step is governed by an automation level you set once, defaulting to `gated` (`code-ops-suite/CONVENTIONS.md` §4). The ladder:
 

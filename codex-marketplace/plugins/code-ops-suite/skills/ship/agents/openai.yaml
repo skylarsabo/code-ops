@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ship"
+  short_description: "Use when you want to implement one change — a feature or a one-off — end to end at high quality, shipped as a clean traceless PR."
+  default_prompt: "Use code-ops-suite:ship for this task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Improve Measured"
+  short_description: "Use when you want measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization specifically, see code-ops-suite:performance."
+  default_prompt: "Use rigor:improve-measured for this task."
+policy:
+  allow_implicit_invocation: false

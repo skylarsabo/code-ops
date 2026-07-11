@@ -22,6 +22,9 @@ jobs:
       - name: Structural lint (the gate)
         run: node scripts/lint-plugins.mjs
 
+      - name: Codex marketplace render + drift check
+        run: node scripts/build-codex-marketplace.mjs --check
+
       - name: Zero-dependency guard
         run: node scripts/check-no-deps.mjs
 
@@ -36,6 +39,9 @@ jobs:
 
       - name: MCP server smoke test
         run: node evals/lib-docs/mcp-smoke.mjs
+
+      - name: Codex marketplace regression eval
+        run: node evals/codex-marketplace/run.mjs
 
       - name: Researcher egress-manifest eval
         run: node evals/research-manifest/run.mjs

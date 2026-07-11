@@ -1,0 +1,6 @@
+interface:
+  display_name: "Leak Incident Response"
+  short_description: "Use when an anonymity/privacy leak is suspected and you need to triage, contain, scope blast radius, and plan remediation without making it worse."
+  default_prompt: "Use privacy-opsec-suite:leak-incident-response for this task."
+policy:
+  allow_implicit_invocation: false

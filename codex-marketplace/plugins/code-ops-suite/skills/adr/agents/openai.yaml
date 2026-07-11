@@ -1,0 +1,6 @@
+interface:
+  display_name: "ADR"
+  short_description: "Use when you need to capture the WHY behind a codebase's architecture as decision records — backfilling load-bearing past decisions or authoring an ADR for a current one."
+  default_prompt: "Use code-ops-suite:adr for this task."
+policy:
+  allow_implicit_invocation: false

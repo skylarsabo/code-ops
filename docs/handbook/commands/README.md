@@ -1,8 +1,8 @@
 # Command Reference — Index & Task Router
 
 The code-ops marketplace ships **56 commands** across four plugins. Every command is a
-manual-invoke Claude Code skill you call as `/<plugin>:<skill>` — they never auto-fire,
-because each is a deliberate operation. This page is the front door: it tells you how to
+manual-invoke workflow: call it as `/<plugin>:<skill>` in Claude Code, or name
+`<plugin>:<skill>` in a Codex request. They never auto-fire, because each is a deliberate operation. This page is the front door: it tells you how to
 read a command entry, maps the goal you actually have to the command(s) that serve it in
 the right order, and points you at the per-plugin reference for full detail.
 
@@ -25,7 +25,7 @@ any one of them the same way:
 
 | Field | What it tells you |
 | --- | --- |
-| **Invoke** | The exact slash command, e.g. `/code-ops-suite:codebase-audit`. |
+| **Invoke** | The exact workflow name; Claude Code uses `/code-ops-suite:codebase-audit`, Codex uses `code-ops-suite:codebase-audit`. |
 | **One-liner** | The single sentence from the plugin's own `README.md` Skills list. |
 | **Mode** | The operating mode the skill declares (AUDIT, IMPLEMENT/writes code, DISCOVERY, REVIEW, DOCUMENT). DISCOVERY/REVIEW/DOCUMENT never edit source. |
 | **Produces** | The real artifacts it writes — registers (`FINDINGS_REGISTER.md`, `LEAK_REGISTER.md`, `RESEARCH_FINDINGS.md`, `IDEAS_REGISTER.md`), threat models, design briefs, logs, or a verdict. |
@@ -33,9 +33,7 @@ any one of them the same way:
 | **Composes / hands off to** | Which other commands it calls or feeds, so chains are explicit. |
 | **Conventions** | The `CONVENTIONS.md` section(s) it reads first (each plugin bundles its own at the plugin root). |
 
-This shape mirrors the SKILL.md header each command actually carries: a `description`,
-`disable-model-invocation: true` (the manual-invoke flag), and a `Mode · Produces` line.
-What you read in the reference is what the skill declares about itself — not a paraphrase.
+This shape mirrors the generated host-specific `SKILL.md` header each command carries: a `description`, a manual-invocation policy, and a `Mode · Produces` line. Claude Code's source uses `disable-model-invocation: true`; Codex renders `name` plus `agents/openai.yaml` with `allow_implicit_invocation: false`. What you read in the reference is what the skill declares about itself — not a paraphrase.
 
 A few conventions hold for **every** command in every plugin (the shared backbone — see
 [the mental model](../02-mental-model.md)):

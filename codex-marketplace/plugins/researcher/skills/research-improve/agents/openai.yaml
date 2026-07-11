@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research Improve"
+  short_description: "Use when you want grounded, external-best-practice improvements proposed for our existing code (not a generic checklist). Writes no code — proposes and hands off."
+  default_prompt: "Use researcher:research-improve for this task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ops Docs"
+  short_description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate or be on-call for it."
+  default_prompt: "Use code-ops-suite:ops-docs for this task."
+policy:
+  allow_implicit_invocation: false

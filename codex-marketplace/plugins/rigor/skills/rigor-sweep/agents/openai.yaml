@@ -1,0 +1,6 @@
+interface:
+  display_name: "Rigor Sweep"
+  short_description: "Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline; start assess-only. Intra-plugin orchestrator."
+  default_prompt: "Use rigor:rigor-sweep for this task."
+policy:
+  allow_implicit_invocation: false

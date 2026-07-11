@@ -1,0 +1,48 @@
+{
+  "name": "code-ops-suite",
+  "version": "1.17.1",
+  "description": "Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.",
+  "author": {
+    "name": "Skylar",
+    "url": "https://github.com/skylarsabo"
+  },
+  "homepage": "https://github.com/skylarsabo/code-ops",
+  "repository": "https://github.com/skylarsabo/code-ops",
+  "license": "MIT",
+  "keywords": [
+    "audit",
+    "code-review",
+    "security",
+    "privacy",
+    "refactor",
+    "testing",
+    "performance",
+    "dependencies",
+    "documentation",
+    "workflow",
+    "agents",
+    "orchestration"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Code Ops Suite",
+    "shortDescription": "Broad engineering audits, implementation, tests, docs, and reviews.",
+    "longDescription": "Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.",
+    "developerName": "Skylar",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Review",
+      "Workflow"
+    ],
+    "websiteURL": "https://github.com/skylarsabo/code-ops",
+    "defaultPrompt": [
+      "Run code-ops-suite:codebase-audit on this repo.",
+      "Use code-ops-suite:ship for this change.",
+      "Use code-ops-suite:debug for this symptom."
+    ],
+    "brandColor": "#2563EB"
+  },
+  "mcpServers": "./.mcp.json"
+}

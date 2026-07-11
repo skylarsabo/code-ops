@@ -1,0 +1,6 @@
+interface:
+  display_name: "Library Eval"
+  short_description: "Use when you must decide whether to adopt a library or approach (A-vs-B-vs-build) and want a code-grounded fit assessment, migration cost, and a tiered recommendation; writes no code."
+  default_prompt: "Use researcher:library-eval for this task."
+policy:
+  allow_implicit_invocation: false

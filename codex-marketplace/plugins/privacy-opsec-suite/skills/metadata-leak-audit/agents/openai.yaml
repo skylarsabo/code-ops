@@ -1,0 +1,6 @@
+interface:
+  display_name: "Metadata Leak Audit"
+  short_description: "Use when you need to find PII/identifiers leaking in logs, telemetry, errors, response headers, or embedded file metadata. Owns at-rest/in-band metadata — NOT timing/size side channels (see traffic-analysis-resistance)."
+  default_prompt: "Use privacy-opsec-suite:metadata-leak-audit for this task."
+policy:
+  allow_implicit_invocation: false

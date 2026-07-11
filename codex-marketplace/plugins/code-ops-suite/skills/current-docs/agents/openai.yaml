@@ -1,0 +1,6 @@
+interface:
+  display_name: "Current Docs"
+  short_description: "Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory."
+  default_prompt: "Use code-ops-suite:current-docs for this task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Authorship Hygiene"
+  short_description: "Use when a commit, PR, or branch must carry no AI/tooling trace before publishing."
+  default_prompt: "Use privacy-opsec-suite:authorship-hygiene for this task."
+policy:
+  allow_implicit_invocation: false

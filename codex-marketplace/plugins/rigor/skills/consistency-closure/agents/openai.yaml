@@ -1,0 +1,6 @@
+interface:
+  display_name: "Consistency Closure"
+  short_description: "Use when the same concept is implemented divergently and you want it closed for good — one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize."
+  default_prompt: "Use rigor:consistency-closure for this task."
+policy:
+  allow_implicit_invocation: false

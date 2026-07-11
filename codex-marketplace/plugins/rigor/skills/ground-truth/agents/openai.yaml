@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ground Truth"
+  short_description: "Use when you want the factual baseline before any analysis — run the real toolchain and capture ground truth + a coverage/blind-spot map. Run first."
+  default_prompt: "Use rigor:ground-truth for this task."
+policy:
+  allow_implicit_invocation: false

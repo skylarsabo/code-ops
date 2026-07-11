@@ -10,7 +10,7 @@
       "name": "code-ops-suite",
       "source": "./plugins/code-ops-suite",
       "description": "General engineering: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization.",
-      "version": "1.17.0",
+      "version": "1.17.1",
       "category": "engineering",
       "keywords": [
         "audit",
@@ -27,7 +27,7 @@
       "name": "privacy-opsec-suite",
       "source": "./plugins/privacy-opsec-suite",
       "description": "Privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, and an opsec PR gate.",
-      "version": "1.12.0",
+      "version": "1.12.1",
       "category": "security",
       "keywords": ["privacy", "opsec", "anonymity", "tor", "leak-prevention", "audit", "workflow"]
     },
@@ -35,7 +35,7 @@
       "name": "rigor",
       "source": "./plugins/rigor",
       "description": "Verification-first: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, and ship measured improvements. Evidence tiers, disconfirmation pass, prove-it-or-don't.",
-      "version": "2.9.0",
+      "version": "2.9.1",
       "category": "engineering",
       "keywords": [
         "bugs",
@@ -52,7 +52,7 @@
       "name": "researcher",
       "source": "./plugins/researcher",
       "description": "Code-grounded research: ground in the codebase (or given materials), gather external knowledge, and propose improvements, design briefs, library evaluations, and new ideas. Every claim cited and tiered; local-first with disclosed, fail-closed egress. Proposes and hands implementation to the other suites.",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "category": "engineering",
       "keywords": [
         "research",
