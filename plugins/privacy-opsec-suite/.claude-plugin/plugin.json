@@ -1,7 +1,7 @@
 {
   "name": "privacy-opsec-suite",
   "description": "Adaptive, multi-agent workflows for building, auditing, and operating privacy-respecting, anonymity-preserving software. Covers the anonymity threat model, anonymous sessions, Tor/proxy egress and leak prevention, metadata minimization, fingerprinting and traffic-analysis resistance, supply-chain trust, opsec hardening, privacy feature design, leak incident response, doc alignment, and an opsec PR gate. Anonymous-by-default, fail-closed, developer-in-the-loop.",
-  "version": "1.12.1",
+  "version": "1.12.2",
   "license": "MIT",
   "author": {
     "name": "Skylar"

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Adopt Standards"
+  short_description: "Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality."
+  default_prompt: "Use code-ops-suite:adopt-standards for this task."
+policy:
+  allow_implicit_invocation: false

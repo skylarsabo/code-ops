@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.6.2
+- **Agent doctrine hardening.** `claim-checker` and `gatherer` gain a general escalation rule — any ambiguous claim/brief or missing capability goes back to the orchestrator instead of being guessed around — and both now cite `CONVENTIONS.md §A` as the source of their CONFIRMED/PROBABLE/SPECULATIVE tiers instead of restating them. `claim-checker` also gains an explicit report-density line.
+
 ## 0.6.1
 - **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, with the same research workflows and explicit per-skill manual-invocation policy.
 

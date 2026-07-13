@@ -2,7 +2,7 @@
 
 One repository, four installable plugins of adaptive, multi-agent engineering workflows. Claude Code uses the canonical source packages; Codex uses a tracked native render generated from that same source. Add the marketplace once on your host, then install whichever plugin a project needs.
 
-- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, code normalization, PR-splitting, ship, debug, current-docs, plus architecture & API/data-model/ADR/ops doc generation, and run handoff/resume. (24 skills)
+- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, standards-contract adoption, onboarding, code normalization, PR-splitting, ship, debug, current-docs, plus architecture & API/data-model/ADR/ops doc generation, and run handoff/resume. (25 skills)
 - **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate, authorship hygiene. (14 skills)
 - **`rigor`** — verification-first quality: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, ship measured improvements. Prove-it-or-don't-report-it. (11 skills)
 - **`researcher`** — code-grounded research: ground in the codebase (or given materials), gather external knowledge, and propose improvements, design briefs (spikes), library evaluations, ideas, and an ecosystem watch. Every claim cited and tiered; local-first with disclosed, fail-closed egress; it proposes and hands implementation to the other suites. (7 skills)
@@ -178,7 +178,7 @@ code-ops/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
     │   ├── CONVENTIONS.md                # shared backbone
-    │   ├── skills/                       # 24 workflows (incl. architecture/API/data-model/ADR/ops doc generators + current-docs + handoff + orchestrators)
+    │   ├── skills/                       # 25 workflows (incl. architecture/API/data-model/ADR/ops doc generators + current-docs + handoff + adopt-standards + orchestrators)
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # Claude GitHub Actions workflow
     │   └── README.md

@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.12.2 — 2026-07-13
+- **Agent doctrine hardening (`explorer`, `privacy-reviewer`).** Both now escalate an ambiguous or out-of-scope brief back to the orchestrator instead of guessing; evidence citation is pinned to `CONVENTIONS.md` §8. `privacy-reviewer` adds an explicit never-fabricate sentence (previously only marked unconfirmed items `UNVERIFIED`) and returns findings dense and evidence-cited, no raw dumps.
+
 ## 1.12.1
 - **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, preserving manual invocation through per-skill policy and using the same bundled runtime scripts.
 - **Traceless scanner recognizes Codex/OpenAI attribution.** The bundled `scan-ai-tells.mjs` now rejects Codex/OpenAI trailers, generation claims, and `Codex CLI` tool markers before publication.
