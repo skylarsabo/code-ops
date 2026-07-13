@@ -12,7 +12,7 @@ Code-ops is one marketplace (`code-ops`) that publishes four plugins. You instal
 
 | Plugin | What it is | Install it when |
 | --- | --- | --- |
-| `code-ops-suite` | The spine: general engineering for any repo — audit, remediation, feature discovery/build, performance, tests, dependencies, PR review, normalization, doc generators, and the orchestrators. (24 skills) | Always. This is the baseline for any project. |
+| `code-ops-suite` | The spine: general engineering for any repo — audit, remediation, feature discovery/build, performance, tests, dependencies, PR review, normalization, doc generators, and the orchestrators. (25 skills) | Always. This is the baseline for any project. |
 | `rigor` | The verification layer: prove-it-or-don't. Find real bugs (with runnable repros), validate the test suite, lock behavior with safety nets, fix at root cause with a regression guard. (11 skills) | When you want **proven** defects and enforced consistency rather than a long list — the highest-signal option. |
 | `privacy-opsec-suite` | The anonymity track: anonymity threat model, Tor/proxy egress and leak audits, metadata minimization, fingerprinting resistance, opsec hardening, authorship hygiene. (14 skills) | Only on projects with anonymity/opsec requirements (anonymous sessions, Tor/onion routing, strong metadata minimization). |
 | `researcher` | The proposal layer: code-grounded research, local-first with disclosed, fail-closed egress. It proposes (registers + design briefs) and hands implementation to the other three. It never edits code. (7 skills) | When you want grounded improvement proposals, design spikes, or library evaluations before building. |

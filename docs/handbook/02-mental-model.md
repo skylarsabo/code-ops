@@ -30,7 +30,7 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
 
 ### The spine: `code-ops-suite`
 
-`code-ops-suite` ([README](../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **24 skills**, grouped by intent:
+`code-ops-suite` ([README](../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **25 skills**, grouped by intent:
 
 - **Assess** — `codebase-audit` (broad multi-lens review → `FINDINGS_REGISTER.md`), `security-privacy-audit` (STRIDE + LINDDUN threat assessment → `THREAT_MODEL.md`).
 - **Build** — `remediation` (implements the findings backlog), `feature-discovery` (finds and specs grounded features), `feature-implementation` (builds the smallest valuable slice behind flags).

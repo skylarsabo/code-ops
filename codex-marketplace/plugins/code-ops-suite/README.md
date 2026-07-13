@@ -10,6 +10,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 
 ## Skills
 
+- `adopt-standards` — Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality.
 - `adr` — Use when you need to capture the WHY behind a codebase's architecture as decision records — backfilling load-bearing past decisions or authoring an ADR for a current one.
 - `api-docs` — Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory.
 - `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.

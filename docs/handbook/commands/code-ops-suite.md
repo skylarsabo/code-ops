@@ -1,6 +1,6 @@
 # code-ops-suite — Command Reference
 
-The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 24 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. All skills are manual-invoke (`disable-model-invocation: true`) because they are deliberate operations. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
+The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 25 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. All skills are manual-invoke (`disable-model-invocation: true`) because they are deliberate operations. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
 
 A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate code-grounded reference docs and run-continuity state. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
 
@@ -24,6 +24,7 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 - [`pr-review`](#code-ops-suitepr-review) — rigorous pre-merge review against all lenses
 
 **Document (DOCUMENT)**
+- [`adopt-standards`](#code-ops-suiteadopt-standards) — bootstrap or maintain a repo's `CLAUDE.md` standards contract
 - [`doc-alignment`](#code-ops-suitedoc-alignment) — reconcile doc drift; establish the SSOT
 - [`onboarding`](#code-ops-suiteonboarding) — verified orientation guide with a diagram
 - [`current-docs`](#code-ops-suitecurrent-docs) — version-accurate library docs, in-house
@@ -186,6 +187,17 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 ---
 
 ## Document
+
+### `/code-ops-suite:adopt-standards`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) detects mode: **BOOTSTRAP** when no `CLAUDE.md` exists (or an existing one fails a quick audit), **MAINTAIN** when a sound one already exists. In BOOTSTRAP mode it audits the repo — real build/test/lint/gate commands (run read-only or cited to the CI workflow `file:line`, never invented), architecture worth 3–5 lines, non-obvious gotchas, and doc-lifecycle rules — then writes `CLAUDE.md` in the house style. In MAINTAIN mode it re-verifies every claim against reality: commands still run, the gate chain still mirrors CI step-for-step, enforcement claims are truthful, `line N` citations are swept mechanically (not eyeballed) against the current tree, and cited paths still exist — fixing drift and reporting what was stale. The house style is fixed: `## Never (no gate will save you)` first (only real, repo-specific, backstop-free rules), `## Before declaring any change done` (the verified command chain mirroring CI, noting any unenforced convention), post-edit chores if the repo has them, `## Invariants the gates will catch`, and a local-only/gitignored docs note if applicable — never duplicating the user's global `~/.claude/CLAUDE.md` doctrine.
+
+**Why it's useful.** It keeps a repo's standards contract mechanically true instead of aspirational — the commands it lists actually run, the gates it claims actually gate, and the citations it makes actually resolve — so the next operator (human or agent) can trust it cold.
+
+**When to use it.** When a repo has no `CLAUDE.md` and needs one bootstrapped from verified reality, or when an existing one is suspected stale (commands that no longer run, citations that have drifted, a gate chain that no longer matches CI). Do **not** use it to write general engineering advice — every line must be project-specific and verified, not generic.
+
+**Prerequisites & hand-offs.** No prerequisites; uses CI workflow files and VCS history as evidence sources. Complements `doc-alignment` (which reconciles the rest of the docs) — `adopt-standards` owns the standards contract specifically.
 
 ### `/code-ops-suite:doc-alignment`
 **Mode:** DOCUMENT

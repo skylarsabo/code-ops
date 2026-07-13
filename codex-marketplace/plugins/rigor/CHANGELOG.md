@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.9.2
+- **Agent doctrine hardening.** `tracer` now tiers its findings CONFIRMED/PROBABLE/SPECULATIVE (`§A`), cites the verbatim-Anchor evidence format (`§E`) alongside its `file:line` rule, and cross-references its refutation mode to the disconfirmation pass (`§B`). Both `tracer` and `verifier` escalate ambiguity or out-of-scope work to the orchestrator instead of guessing; `verifier` reports stay dense and evidence-cited, no raw output dumps beyond the receipt.
+
 ## 2.9.1
 - **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, with the same workflow content and an explicit per-skill manual-invocation policy.
 

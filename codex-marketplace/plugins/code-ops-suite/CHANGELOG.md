@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.18.0
+- **New skill `adopt-standards`** (Mode: DOCUMENT) — bootstraps or maintains a repo's `AGENTS.md` standards contract so it stays mechanically kept, not aspirational. **BOOTSTRAP** mode (no `AGENTS.md`, or one failing a quick audit) audits real build/test/lint/gate commands (run read-only or CI-cited), architecture, gotchas, and doc-lifecycle rules, then writes the contract in house style. **MAINTAIN** mode re-verifies every claim — commands still run, the gate chain still mirrors CI, enforcement claims are truthful, `line N` citations are swept mechanically (not eyeballed), cited paths still exist — fixing drift and reporting what was stale. House style: `## Never (no gate will save you)` first, `## Before declaring any change done` (verified command chain), post-edit chores, `## Invariants the gates will catch`, and a local-only-docs note, with no duplication of the user's global `~/.claude/AGENTS.md` doctrine.
+
+## 1.17.2
+- **Agent doctrine hardening.** `explorer` and `reviewer` now state explicitly that an ambiguous brief, or work outside their scope (edits, execution, a judgment call only the orchestrator can make), goes back to the orchestrator as an open question instead of being guessed at. `explorer`'s evidence-citation rule now points at the plugin's `CONVENTIONS.md` (§9, Evidence standard) for the anchor format; `reviewer`'s report rule states reports return dense and evidence-cited, never raw file dumps.
+
 ## 1.17.1
 - **Codex distribution.** The repository now renders a tracked native Codex package from this canonical source, with a `.codex-plugin` manifest, marketplace metadata, named skills, explicit manual-invocation policy, bundled MCP server, and the traceless-publishing hook subject to Codex hook trust. `node scripts/build-codex-marketplace.mjs --check` fails on render drift.
 - **Traceless scanner recognizes Codex/OpenAI attribution.** The bundled `scan-ai-tells.mjs` now rejects Codex/OpenAI trailers, generation claims, and `Codex CLI` tool markers in the same fail-closed gate used for Claude and other assistants.
