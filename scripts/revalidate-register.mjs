@@ -412,15 +412,20 @@ for (const file of files) {
 if (ledgerPath) {
   const ledgerAbs = isAbsolute(ledgerPath) ? ledgerPath : resolve(ledgerPath);
   if (!existsSync(ledgerAbs)) {
-    console.log(`\n  advisory: ${ledgerPath}: dispatch ledger not found — nothing to check`);
+    console.log(`\n  advisory: ${ledgerAbs}: dispatch ledger not found — nothing to check`);
   } else {
-    const rows = readFileSync(ledgerAbs, 'utf8').split('\n')
-      .map((l) => /^\|\s*(D-\d+)\s*\|.*\|\s*(dispatched|reported|failed|redispatched)\s*\|\s*$/.exec(l))
-      .filter(Boolean);
-    const dangling = rows.filter((m) => m[2] === 'dispatched');
-    if (rows.length === 0) console.log(`\n  advisory: ${ledgerPath}: no parseable ledger rows`);
-    for (const m of dangling)
-      console.log(`  advisory: ${ledgerPath}: ${m[1]} still 'dispatched' — operative may have died or hung; re-dispatch or mark failed before resuming`);
+    let ledgerText = null;
+    try { ledgerText = readFileSync(ledgerAbs, 'utf8'); }
+    catch (e) { console.log(`\n  advisory: ${ledgerAbs}: dispatch ledger unreadable: ${e.message}`); }
+    if (ledgerText != null) {
+      const rows = ledgerText.split('\n')
+        .map((l) => /^\|\s*(D-\d+)\s*\|.*\|\s*(dispatched|reported|failed|redispatched)\s*\|\s*$/.exec(l))
+        .filter(Boolean);
+      const dangling = rows.filter((m) => m[2] === 'dispatched');
+      if (rows.length === 0) console.log(`\n  advisory: ${ledgerAbs}: no parseable ledger rows`);
+      for (const m of dangling)
+        console.log(`  advisory: ${ledgerAbs}: ${m[1]} still 'dispatched' — operative may have died or hung; re-dispatch or mark failed before resuming`);
+    }
   }
 }
 
