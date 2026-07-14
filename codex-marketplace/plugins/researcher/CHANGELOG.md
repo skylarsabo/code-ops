@@ -5,7 +5,7 @@ the source plugin manifest and matching marketplace entries.
 
 ## 0.7.0
 - **Operative-failure ladder** added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned; same rationale as code-ops-suite 1.19.0): a dispatched `gatherer`/`claim-checker` that cannot complete its brief escalates through an ordered ladder instead of guessing.
-- **`DISPATCH_LEDGER.md` convention** — `revalidate-register.mjs` (vendored) gains the advisory `--dispatch-ledger` cross-check.
+- **`revalidate-register.mjs` (vendored)** gains the advisory `--dispatch-ledger` cross-check flag.
 
 ## 0.6.2
 - **Agent doctrine hardening.** `claim-checker` and `gatherer` gain a general escalation rule — any ambiguous claim/brief or missing capability goes back to the orchestrator instead of being guessed around — and both now cite `CONVENTIONS.md §A` as the source of their CONFIRMED/PROBABLE/SPECULATIVE tiers instead of restating them. `claim-checker` also gains an explicit report-density line.
