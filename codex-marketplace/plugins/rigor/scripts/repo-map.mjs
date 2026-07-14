@@ -21,7 +21,10 @@ for (let i = 0; i < argv.length; i++) {
   };
   if (argv[i] === '--root') root = need('--root');
   else if (argv[i] === '--out') out = need('--out');
-  else if (argv[i] === '--max-file-kb') maxKb = Number(need('--max-file-kb')) || 512;
+  else if (argv[i] === '--max-file-kb') {
+    maxKb = Number(need('--max-file-kb'));
+    if (!Number.isFinite(maxKb) || maxKb < 0) { console.error('  x --max-file-kb needs a non-negative number'); process.exit(1); }
+  }
   else { console.error(`  x unknown flag: ${argv[i]}`); process.exit(1); }
 }
 root = resolve(root);
@@ -51,15 +54,15 @@ const RULES = {
 
 let files;
 try {
-  files = execFileSync('git', ['ls-files'], { cwd: root, timeout: 10000, maxBuffer: 64 * 1024 * 1024 })
-    .toString().split('\n').filter(Boolean);
+  files = execFileSync('git', ['ls-files', '-z'], { cwd: root, timeout: 10000, maxBuffer: 64 * 1024 * 1024 })
+    .toString().split('\0').filter(Boolean);
 } catch {
   console.error('  x not a git work tree (repo-map requires git ls-files)');
   process.exit(1);
 }
 
 const lines = [];
-let scanned = 0, skippedBig = 0, skippedBin = 0;
+let scanned = 0, skippedBig = 0, skippedBin = 0, unreadable = 0;
 try {
   const sha = execFileSync('git', ['log', '-1', '--format=%H'], { cwd: root, timeout: 10000 }).toString().trim();
   lines.push(`# REPO_MAP — generated at ${sha}`, '');
@@ -68,10 +71,11 @@ try {
 }
 for (const f of files.sort()) {
   let buf;
-  try { buf = readFileSync(join(root, f)); } catch { continue; }
+  try { buf = readFileSync(join(root, f)); } catch { lines.push(`${f} (unreadable)`); unreadable++; continue; }
   if (buf.length > maxKb * 1024) { lines.push(`${f} (skipped: >${maxKb} KB)`); skippedBig++; continue; }
   if (buf.subarray(0, 8000).includes(0)) { lines.push(`${f} (binary)`); skippedBin++; continue; }
-  const text = buf.toString('utf8');
+  let text = buf.toString('utf8');
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const fileLines = text.split('\n');
   const rules = RULES[extname(f).toLowerCase()];
   lines.push(`${f} (${fileLines.length} lines)`);
@@ -87,7 +91,7 @@ for (const f of files.sort()) {
   lines.push(...defs.slice(0, MAX_DEFS_PER_FILE));
   if (defs.length > MAX_DEFS_PER_FILE) lines.push(`  (+${defs.length - MAX_DEFS_PER_FILE} more truncated)`);
 }
-lines.push('', `— ${files.length} files: ${scanned} scanned, ${skippedBig} skipped (size), ${skippedBin} binary.`);
+lines.push('', `— ${files.length} files: ${scanned} scanned, ${skippedBig} skipped (size), ${skippedBin} binary, ${unreadable} unreadable.`);
 try { writeFileSync(out, lines.join('\n') + '\n'); } catch (e) {
   console.error(`  x cannot write ${out}: ${e.message}`);
   process.exit(1);
