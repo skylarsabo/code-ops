@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.20.0
+- **New `scripts/repo-map.mjs` generator** — produces a per-repo inventory (`git ls-files -z`) with per-language top-level definition extraction at exact line numbers, announced truncation/binary/unreadable-file handling, and a HEAD-sha freshness stamp; vendored byte-identically into this plugin's `scripts/`.
+- **`Map once, search to deepen`** doctrine bullet added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned, id `map-once`) — Phase 0 generates `REPO_MAP.md` once per run and every operative brief gets its path, consulting it before search.
+- **`universal-ctags` optional-tool mention** added to `CONVENTIONS.md` §2 — an optional accelerant for symbol-to-location lookups, used if installed, never required.
+- **Phase-0 repo-map wiring** — `ship`, `debug`, and `full-sweep` run `repo-map.mjs` after `preflight.mjs` passes and hand the resulting `REPO_MAP.md` path to every operative brief; a failed generation is a noted advisory, not a blocker.
+
 ## 1.19.0
 - **Operative-failure ladder** added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned): a dispatched operative that cannot complete its brief escalates through an ordered ladder (retry with a narrower brief, hand back a specific open question, or take the piece over) instead of guessing or silently dropping the task.
 - **`DISPATCH_LEDGER.md` convention** — dispatched work is logged so a stalled or dropped operative is visible instead of silently vanishing; `revalidate-register.mjs` gains an advisory `--dispatch-ledger` flag that cross-checks the ledger against the register.

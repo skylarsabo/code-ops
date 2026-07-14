@@ -10,7 +10,7 @@
       "name": "code-ops-suite",
       "source": "./plugins/code-ops-suite",
       "description": "General engineering: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, standards-contract adoption, onboarding, and code normalization.",
-      "version": "1.19.0",
+      "version": "1.20.0",
       "category": "engineering",
       "keywords": [
         "audit",
@@ -35,7 +35,7 @@
       "name": "rigor",
       "source": "./plugins/rigor",
       "description": "Verification-first: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, and ship measured improvements. Evidence tiers, disconfirmation pass, prove-it-or-don't.",
-      "version": "2.10.0",
+      "version": "2.11.0",
       "category": "engineering",
       "keywords": [
         "bugs",
