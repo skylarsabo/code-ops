@@ -47,6 +47,12 @@
 //     Terminal-state gate for consuming skills: every ID present before the run must still
 //     exist after it, and a closure claim must use one of the pinned terminal forms —
 //     `closed-with-proof <ref>`, `deferred-with-reason <reason>`, `OBSOLETE-AT <sha>`.
+//   --dispatch-ledger <DISPATCH_LEDGER.md>
+//     Advisory-only check (never affects the exit code): flags rows still `dispatched` — a
+//     dangling row means the operative may have died or hung and the unit should be
+//     re-dispatched or marked failed before resuming. Row grammar (CONVENTIONS §12/§10/§11):
+//     `| D-NNN | role | brief | expected artifact | status |`, status one of
+//     `dispatched | reported | failed | redispatched`.
 // An Anchor of `<REDACTED-LINE>` skips the DRIFTED comparison (line-existence only, advisory)
 // so the anchor rule never forces a secret substring into the register.
 
@@ -61,6 +67,7 @@ let root = '.';
 let profile = null;
 let refutationLogPath = null;
 let consumedPath = null;
+let ledgerPath = null;
 const files = [];
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--root') {
@@ -75,11 +82,14 @@ for (let i = 0; i < argv.length; i++) {
   } else if (argv[i] === '--consumed') {
     consumedPath = argv[++i];
     if (!consumedPath || consumedPath.startsWith('--')) { console.error('x --consumed needs a path'); process.exit(2); }
+  } else if (argv[i] === '--dispatch-ledger') {
+    ledgerPath = argv[++i];
+    if (!ledgerPath || ledgerPath.startsWith('--')) { console.error('x --dispatch-ledger needs a path'); process.exit(2); }
   } else if (argv[i] === '--report-only' || argv[i] === '--strict') continue;
   else files.push(argv[i]);
 }
-if (files.length === 0) {
-  console.error('usage: revalidate-register.mjs <register.md> [...] [--root <repo>] [--report-only] [--strict --profile <type>] [--refutation-log <log>] [--consumed <pre-run register>]');
+if (files.length === 0 && !ledgerPath) {
+  console.error('usage: revalidate-register.mjs <register.md> [...] [--root <repo>] [--report-only] [--strict --profile <type>] [--refutation-log <log>] [--consumed <pre-run register>] [--dispatch-ledger <DISPATCH_LEDGER.md>]');
   process.exit(2);
 }
 if (strict && !profile) { console.error('x --strict needs --profile <finding|finding-rigor|leak|research|idea>'); process.exit(2); }
@@ -395,6 +405,22 @@ for (const file of files) {
         }
       }
     }
+  }
+}
+
+// ---- --dispatch-ledger: dangling-dispatch advisory (never gates the exit code) --------
+if (ledgerPath) {
+  const ledgerAbs = isAbsolute(ledgerPath) ? ledgerPath : resolve(ledgerPath);
+  if (!existsSync(ledgerAbs)) {
+    console.log(`\n  advisory: ${ledgerPath}: dispatch ledger not found — nothing to check`);
+  } else {
+    const rows = readFileSync(ledgerAbs, 'utf8').split('\n')
+      .map((l) => /^\|\s*(D-\d+)\s*\|.*\|\s*(dispatched|reported|failed|redispatched)\s*\|\s*$/.exec(l))
+      .filter(Boolean);
+    const dangling = rows.filter((m) => m[2] === 'dispatched');
+    if (rows.length === 0) console.log(`\n  advisory: ${ledgerPath}: no parseable ledger rows`);
+    for (const m of dangling)
+      console.log(`  advisory: ${ledgerPath}: ${m[1]} still 'dispatched' — operative may have died or hung; re-dispatch or mark failed before resuming`);
   }
 }
 
