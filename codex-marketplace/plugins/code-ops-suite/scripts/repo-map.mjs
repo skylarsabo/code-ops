@@ -6,7 +6,7 @@
 // deeper than the map, not to re-orient. Truncation is always announced, never
 // silent. Generation failure is advisory to a run, never blocking.
 //   node scripts/repo-map.mjs [--root <dir>] [--out <file>] [--max-file-kb <N>]
-// Exit 0 = map written; 1 = bad invocation or unwritable --out.
+// Exit 0 = map written; 1 = bad invocation, unwritable --out, or not a git work tree.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, extname } from 'node:path';
