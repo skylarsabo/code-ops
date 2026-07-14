@@ -11,7 +11,7 @@ disable-model-invocation: true
 Scale every phase to the change: a one-off is a light pass; a feature gets the full treatment.
 
 ## Phase 0 — Scope & design-check  *(checkpoint)*
-Detect the stack; run `/rigor:ground-truth` for the baseline; learn the repo's conventions. Size the change (one-off vs feature). For a feature, confirm the approach (options + a recommendation) before building; a true one-off proceeds. Set the **automation level** (`§4`). Confirm plugin availability (preflight; note anything missing).
+Detect the stack; run `/rigor:ground-truth` for the baseline; learn the repo's conventions. Size the change (one-off vs feature). For a feature, confirm the approach (options + a recommendation) before building; a true one-off proceeds. Set the **automation level** (`§4`). Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` (add `--need gh` if the run will publish) — a FAIL stops the run before any fan-out; advisories are noted in the register. Confirm plugin availability; note anything missing.
 
 ## Phase 1 — Safety net (risky / low-coverage areas)
 If the change touches code with thin coverage, run `/rigor:safety-net` to characterize current behavior first, so the change is provably behavior-preserving where it should be.
