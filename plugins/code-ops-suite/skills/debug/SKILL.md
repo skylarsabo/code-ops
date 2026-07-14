@@ -20,6 +20,8 @@ Identify the real cause at the correct layer (not the nearest symptom), cited `f
 ## Phase 3 — Fix with proof
 Run the `rigor:fix-verified` loop: the repro now passes, the suite is green, the regression guard holds, sweep for **siblings** (other sites of the same cause), and add an enforcement so the class can't recur. If the fix keeps cascading into new findings, the **cascade circuit-breaker** (`CONVENTIONS §11`) stops the loop and escalates as NEEDS-DESIGN.
 
+Gate the tracer's and verifier's reports on shape before acting on them — a null, empty, or malformed report is a failed dispatch (`§1`), marked `failed` in `DISPATCH_LEDGER.md` (`§12`) and redispatched or deferred, never patched over with an assumed root cause.
+
 ## Phase 4 — Privacy gate  *(if applicable)*
 If the fix touches egress, logging, identifiers, or a default — and `privacy-opsec-suite` is installed — run its leak gate; fail-closed preserved.
 
