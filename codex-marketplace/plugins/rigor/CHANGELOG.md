@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.10.0
+- **Operative-failure ladder** added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned; same rationale as code-ops-suite 1.19.0): a dispatched `tracer`/`verifier` that cannot complete its brief escalates through an ordered ladder instead of guessing.
+- **`DISPATCH_LEDGER.md` convention** — `revalidate-register.mjs` (vendored) gains the advisory `--dispatch-ledger` cross-check.
+- **Report-ingestion gates** added to `rigor-sweep`.
+- **`scripts/preflight.mjs`** (vendored from code-ops-suite) wired into `rigor-sweep` as a Phase-0 gate.
+
 ## 2.9.2
 - **Agent doctrine hardening.** `tracer` now tiers its findings CONFIRMED/PROBABLE/SPECULATIVE (`§A`), cites the verbatim-Anchor evidence format (`§E`) alongside its `file:line` rule, and cross-references its refutation mode to the disconfirmation pass (`§B`). Both `tracer` and `verifier` escalate ambiguity or out-of-scope work to the orchestrator instead of guessing; `verifier` reports stay dense and evidence-cited, no raw output dumps beyond the receipt.
 

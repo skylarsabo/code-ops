@@ -8,7 +8,7 @@ disable-model-invocation: true
 **Invoked as `/code-ops-suite:full-sweep`.** First read the bundled `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — operating model, interaction protocol, safety rails incl. the **automation-level ladder** (`§4`), schemas + evidence tiers (`§7`), quality lenses (`§10`), the register-freshness rule (`§12`), and the **documentation quality standard** (`§13`). This skill **orchestrates the other skills in sequence** as one developer-in-the-loop pipeline — it doesn't replace them. It runs them in a sensible order, carries the shared registers forward, maintains a master plan, and checks in with you at every phase boundary.
 
 ## Phase 0 — Scope the run  *(checkpoint)*
-Detect the stack and the size of the repo, then confirm with me:
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` (add `--need gh` if the run will publish) — a FAIL stops the run before any fan-out; advisories are noted in the register. Detect the stack and the size of the repo, then confirm with me:
 - **Track:** `assess-only` (read + document, no code changes) · `full` (assess → safety net → fix → polish → document) · or a custom subset of phases below.
 - Scope (areas to include/skip), risk tolerance, PR preference, and the **automation level** (`§4`: `gated` *(default)* / `auto-safe` / `auto-all`) governing every code-changing phase.
 Open a master todo and a running `EXECUTIVE_SUMMARY.md` that spans phases. **Carry the registers forward fresh** — before any phase consumes a finding, re-validate it against current HEAD (`§12`); a finding fixed earlier in the run is marked `OBSOLETE-AT <sha>`, never re-shown. **Surface any critical finding to me immediately, in any phase.**

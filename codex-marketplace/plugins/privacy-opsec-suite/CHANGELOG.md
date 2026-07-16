@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.13.0
+- **Operative-failure ladder** added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned; same rationale as code-ops-suite 1.19.0): a dispatched `explorer`/`privacy-reviewer` that cannot complete its brief escalates through an ordered ladder instead of guessing.
+- **`DISPATCH_LEDGER.md` convention** — `revalidate-register.mjs` (vendored) gains the advisory `--dispatch-ledger` cross-check.
+
 ## 1.12.2 — 2026-07-13
 - **Agent doctrine hardening (`explorer`, `privacy-reviewer`).** Both now escalate an ambiguous or out-of-scope brief back to the orchestrator instead of guessing; evidence citation is pinned to `CONVENTIONS.md` §8. `privacy-reviewer` adds an explicit never-fabricate sentence (previously only marked unconfirmed items `UNVERIFIED`) and returns findings dense and evidence-cited, no raw dumps.
 

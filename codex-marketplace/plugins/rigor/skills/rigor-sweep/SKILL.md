@@ -11,7 +11,7 @@ description: "Use when you want the whole rigor suite run end-to-end as a checkp
 This skill **orchestrates the other skills in sequence** as one developer-in-the-loop pipeline — it doesn't replace them. It carries the registers and a growing **proof set** forward, keeps a master plan and a **coverage map**, and checks in at every phase boundary.
 
 ## Phase 0 — Scope the run  *(checkpoint)*
-Detect the stack/size; confirm **track** (`assess-only` = facts + proven findings, no code changes · `full` = also fix/close/improve · or a custom subset) and scope. Open a master todo, a running `EXECUTIVE_SUMMARY.md`, and a coverage map. **Surface any CONFIRMED critical finding immediately.**
+Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>` — a FAIL stops the run before any fan-out; advisories are noted in the register. Detect the stack/size; confirm **track** (`assess-only` = facts + proven findings, no code changes · `full` = also fix/close/improve · or a custom subset) and scope. Open a master todo, a running `EXECUTIVE_SUMMARY.md`, and a coverage map. **Surface any CONFIRMED critical finding immediately.**
 
 ## Phase 1 — Ground truth
 Run **ground-truth**: the deterministic toolchain becomes the factual baseline + coverage/blind-spot map.
