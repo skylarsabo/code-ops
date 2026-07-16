@@ -40,12 +40,17 @@
 //      (the producer-side anchor gate cannot silently regress out of the wiring).
 //  14. SHARED_PASSAGES: the deliberately-duplicated doctrine cores are pinned byte-identically
 //      across every file that carries them — a partial doctrine rollout fails CI.
+//  15. Each docs/handbook/commands/README.md "Per-plugin command references" bullet's bolded
+//      "**N commands**" count matches the plugin's actual skill count.
+//  16. ADVISORY ONLY (never gates): every root scripts/*.mjs with no reference anywhere under
+//      evals/ is flagged as a candidate for a regression eval.
 //
 // It does NOT judge prose quality — that's the human's job.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { RUNTIME_SCRIPTS } from './vendored-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
@@ -237,18 +242,8 @@ if (existsSync(rootReadmePath)) {
 // ---- 6. bundled runtime scripts must match the canonical (copy-on-build) ----
 // Skills invoke these via ${CLAUDE_PLUGIN_ROOT}/scripts/, so each must ship inside
 // every plugin that references it and stay byte-identical to the repo-root source.
-const RUNTIME_SCRIPTS = [
-  { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
-  { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite', 'code-ops-suite'] },
-  { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
-  { name: 'lib-docs-mcp.mjs', plugins: ['code-ops-suite'] },
-  { name: 'research-manifest.mjs', plugins: ['researcher'] },
-  { name: 'check-autofix-scope.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite'] },
-  { name: 'run-proof.mjs', plugins: ['code-ops-suite', 'rigor'] },
-  { name: 'check-proof-integrity.mjs', plugins: ['rigor'] },
-  { name: 'scan-redaction.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite'] },
-  { name: 'scan-injection-tells.mjs', plugins: ['privacy-opsec-suite', 'researcher'] },
-];
+// RUNTIME_SCRIPTS itself lives in ./vendored-manifest.mjs (imported above) — the same
+// table scripts/sync-vendored.mjs uses to actually copy the files.
 // RUNTIME_SCRIPTS plugin names must be real (a typo silently disables the missing-script check).
 for (const rs of RUNTIME_SCRIPTS) for (const pn of rs.plugins) if (!pluginByName.has(pn)) fail(`RUNTIME_SCRIPTS lists unknown plugin "${pn}" for ${rs.name}`);
 for (const rs of RUNTIME_SCRIPTS) {
@@ -316,10 +311,12 @@ if (existsSync(handbookDir)) {
   // next `##` heading so the per-plugin reference list below it does not count as "in the router".
   const routerReadmePath = join(handbookDir, 'README.md');
   let routerText = null;
+  let routerReadmeFull = null;
   if (!existsSync(routerReadmePath)) {
     fail(`handbook: missing ${rel(routerReadmePath)} (the command router index)`);
   } else {
     const rr = readText(routerReadmePath);
+    routerReadmeFull = rr;
     const start = rr.search(/^##\s+The task .* command router\s*$/m);
     if (start === -1) {
       fail(`handbook: ${rel(routerReadmePath)} has no "## The task → command router" section`);
@@ -356,6 +353,29 @@ if (existsSync(handbookDir)) {
         if (!mentions(routerText, `/${p.name}:${slug}`))
           fail(`handbook: README router table does not reference "/${p.name}:${slug}"`);
       }
+    }
+  }
+
+  // ---- 15. "Per-plugin command references" bullet count parity -----------
+  // Each bullet in that section reads `[<plugin>.md](<plugin>.md) — **N commands**: ...`;
+  // N must match the plugin's actual skill count, the same drift class as the root
+  // README "(N skills)" count (check 4) but for the handbook's own front door.
+  if (routerReadmeFull !== null) {
+    for (const p of plugins) {
+      const lineRe = new RegExp(`\\[${escapeRe(p.name)}\\.md\\][^\\n]*`, 'm');
+      const lineMatch = routerReadmeFull.match(lineRe);
+      if (!lineMatch) {
+        fail(`handbook: ${rel(routerReadmePath)} has no per-plugin bullet line for "${p.name}.md" in "Per-plugin command references"`);
+        continue;
+      }
+      const countMatch = lineMatch[0].match(/\*\*(\d+)\s+commands\*\*/);
+      if (!countMatch) {
+        fail(`handbook: ${rel(routerReadmePath)} bullet for "${p.name}.md" has no "**N commands**" count`);
+        continue;
+      }
+      const declared = Number(countMatch[1]);
+      if (declared !== p.skills.length)
+        fail(`handbook: ${rel(routerReadmePath)} says "${p.name}.md" has **${declared} commands** but ${p.name} actually has ${p.skills.length} skill(s) — update the count`);
     }
   }
 }
@@ -555,8 +575,34 @@ for (const p of SHARED_PASSAGES) {
   }
 }
 
+// ---- 16. advisory: root scripts with no reference under evals/ (never gates) ----
+// Mirrors revalidate-register.mjs's --dispatch-ledger block: this is informational only
+// and must never affect the exit code. A script with zero evals/ hits is a candidate for
+// a regression eval, not a structural problem.
+function walkFiles(dir, out = []) {
+  if (!existsSync(dir)) return out;
+  for (const d of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, d.name);
+    if (d.isDirectory()) walkFiles(p, out);
+    else out.push(p);
+  }
+  return out;
+}
+{
+  const evalsDir = join(ROOT, 'evals');
+  const evalsContent = walkFiles(evalsDir).filter((f) => f.endsWith('.mjs')).map((f) => readFileSync(f, 'utf8')).join('\n');
+  const scriptsDir = join(ROOT, 'scripts');
+  if (existsSync(scriptsDir)) {
+    for (const f of readdirSync(scriptsDir)) {
+      if (!f.endsWith('.mjs')) continue;
+      if (!evalsContent.includes(f))
+        warn(`scripts/${f} has no reference under evals/ — consider a regression eval`);
+    }
+  }
+}
+
 // ---- report ----------------------------------------------------------------
-for (const w of warnings) console.log(`  warning: ${w}`);
+for (const w of warnings) console.log(`  advisory: ${w}`);
 if (errors.length) {
   console.error(`\nFAIL — ${errors.length} structural problem(s):`);
   for (const e of errors) console.error(`  x ${e}`);

@@ -45,7 +45,7 @@ function usage() {
 }
 
 function headSha(cwd) {
-  try { return execFileSync('git', ['rev-parse', 'HEAD'], { cwd, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); }
+  try { return execFileSync('git', ['rev-parse', 'HEAD'], { cwd, stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 }).toString().trim(); }
   catch { return 'unknown'; } // outside a repo the receipt still records the run, just unpinned
 }
 
@@ -94,7 +94,7 @@ function cmdRecord(args) {
     if (args[i] === '--') { i++; break; }
     if (args[i] === '--receipts') {
       receipts = args[++i];
-      if (receipts === undefined || receipts.startsWith('--')) { console.error('x --receipts needs a path'); process.exit(2); }
+      if (receipts === undefined || receipts.trim() === '' || receipts.startsWith('--')) { console.error('x --receipts needs a path'); process.exit(2); }
     } else { console.error(`x unknown argument before '--': ${args[i]}`); usage(); }
   }
   const cmd = args.slice(i);
@@ -106,6 +106,9 @@ function cmdRecord(args) {
   const receiptsPath = resolve(receipts);
   const chunks = [];
   const [exe, ...rest] = cmd;
+  // No-hang invariant exception, deliberate: this IS the proof command (arbitrary, caller-chosen —
+  // a test suite or build can legitimately run minutes). Bounding it here would fabricate a false
+  // failure receipt for a run that was still in progress, which is worse than a slow one.
   const child = spawn(exe, rest, { stdio: ['inherit', 'pipe', 'pipe'] });
   child.on('error', (e) => {
     // The command never ran — writing a receipt for it would itself be a fabricated run.
@@ -182,10 +185,10 @@ function cmdVerify(args) {
     if (a === '--report-only') reportOnly = true;
     else if (a === '--only') {
       only = args[++i];
-      if (only === undefined || only.startsWith('--')) { console.error('x --only needs a receipt id (RCPT-NNN)'); process.exit(2); }
+      if (only === undefined || only.trim() === '' || only.startsWith('--')) { console.error('x --only needs a receipt id (RCPT-NNN)'); process.exit(2); }
     } else if (a === '--root') {
       root = args[++i];
-      if (root === undefined || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
+      if (root === undefined || root.trim() === '' || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
     } else if (file === null) file = a;
     else { console.error(`x unexpected argument: ${a}`); usage(); }
   }
@@ -222,6 +225,9 @@ function cmdVerify(args) {
       continue;
     }
     console.log(`  > ${r.id}  $ ${r.cmdText}`); // print BEFORE running — a hang is attributable
+    // No-hang invariant exception, deliberate (same as record's spawn above): this replays the
+    // same arbitrary, caller-chosen proof command, which can legitimately run long. Screening
+    // (screenTokens, above) is the guard against a hostile replay, not a timeout.
     const res = spawnSync(r.tokens[0], r.tokens.slice(1), { cwd: root });
     if (res.error || res.status === null) {
       bad++;

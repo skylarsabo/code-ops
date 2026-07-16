@@ -51,19 +51,25 @@ plugin boundaries, with one place to cross-link techniques. Per-plugin
 handbooks would fragment those journeys, duplicate shared content, and drift
 independently. A single hub beats N partial handbooks.
 
-### Freshness is CI-gated
+### Freshness is enforced at different levels
 
-Keeping a tracked, suite-wide handbook honest is enforced in CI rather than by
-convention:
+Keeping a tracked, suite-wide handbook honest relies on a mix of mechanical
+gates and convention, not one uniform CI check:
 
-- `scripts/lint-plugins.mjs` checks plugin/handbook parity.
+- `scripts/lint-plugins.mjs` checks plugin/handbook parity as a **per-push CI
+  gate** (`validate.yml`) — it fails the build on drift.
+- `scripts/check-doc-citations.mjs` checks that `path:line` citations across
+  `docs/handbook/`, `docs/techniques/`, `docs/guides/`, and `docs/adr/` still
+  resolve against the current tree — a **mechanical script, run on demand**,
+  not yet wired into a per-push gate.
 - `Verified-at:` stamps tie documents to the commit they were last verified
-  against.
+  against — a **convention**, checked by eye at review time, with no
+  mechanical enforcement of its own.
 - doc-alignment checks catch drift between docs and the code/plugins they
-  describe.
+  describe, run as a **scheduled/manual sweep**, not per push.
 
-These gates make a single tracked hub maintainable; freshness does not rely on
-manual discipline.
+The per-push gates make some classes of drift fail loudly; `Verified-at:` and
+the doc-alignment sweep still depend on review discipline to catch the rest.
 
 ## Decision
 
@@ -81,9 +87,11 @@ retain a path back to the full documentation.
 
 - A single source of truth: cross-plugin journeys are documented once, in one
   hub, with shared techniques cross-linked rather than duplicated.
-- The handbook is versioned, reviewable, and diffable, and its freshness is
-  CI-gated via `lint-plugins.mjs` parity, `Verified-at:` stamps, and
-  doc-alignment checks.
+- The handbook is versioned, reviewable, and diffable. Freshness enforcement
+  is mixed, not uniformly CI-gated: `lint-plugins.mjs` parity is a per-push
+  gate and `check-doc-citations.mjs` line-citations are a mechanical script
+  run on demand, while `Verified-at:` stamps are convention only (no
+  mechanical check) and doc-alignment checks run as a scheduled/manual sweep.
 - **Tradeoff:** single-plugin marketplace installers do **not** receive the
   handbook on install — they get only `plugins/<name>/` and rely on the
   plugin `README` pointer back to the repo. The handbook primarily serves repo

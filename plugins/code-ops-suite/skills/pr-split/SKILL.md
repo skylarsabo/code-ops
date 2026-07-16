@@ -22,6 +22,7 @@ Run `privacy-opsec-suite:authorship-hygiene` over the whole stack — L1 metadat
 
 ## Phase 4 — Publish
 Push the stack and open each PR via `gh`, targeting its parent branch (a true stack), with the voice-matched descriptions. **Never auto-merge**; never force-push over an existing remote branch without confirmation. Per the automation level: `gated` pauses before push; `auto-safe`/full-auto proceed after one abortable dry-run summary.
+Merging the stack once it's up is a developer action, not this skill's — see `docs/handbook/10-recovery-and-troubleshooting.md` §6 (from the repo root) for the retarget-before-delete order and the CONFLICTING-tip reconciliation once a parent PR merges.
 
 ## Safety rails (full-auto floor)
 `scan-ai-tells` passes before push (fail-closed) · each PR green before the next is carved · never auto-merge · one abortable dry-run before the outward-facing push · L3 behavior-preserving.

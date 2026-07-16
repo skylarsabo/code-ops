@@ -2,6 +2,16 @@
 // Zero-dependency MCP (stdio) server wrapping lib-docs.mjs — the in-house, local-first
 // "current docs" capability as an always-on, Context7-shaped tool. Newline-delimited
 // JSON-RPC 2.0 over stdio. Tools: resolve-library, get-docs.
+//
+// WHY: an MCP tool call is cheaper for an agent to reach for than remembering to run a
+// script by hand — wrapping lib-docs.mjs as a server makes the local-first docs lookup
+// the path of least resistance instead of the one that gets skipped under time pressure.
+//
+//   node scripts/lib-docs-mcp.mjs   (invoked by an MCP client over stdio; not run standalone)
+//
+// Exit: 0 on a clean stdin close (in-flight tool calls are drained first, bounded to 10s).
+// Malformed requests and tool errors are returned as JSON-RPC error responses over stdout,
+// never a process exit — one bad request must not kill a long-lived server.
 
 import { getDocs, resolveInstalled } from './lib-docs.mjs';
 

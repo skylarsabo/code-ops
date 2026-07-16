@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.8.0
+- **`revalidate-register.mjs` hardened** — its git call now runs under a child-process timeout, blank/whitespace flag values are rejected, and unknown flags exit 2 instead of being silently treated as filenames.
+- **`scan-injection-tells.mjs` hardened** — missing-file/config errors now exit 2 even when hits are also present (previously masked to exit 1), its git call runs under a timeout, and unknown flags are rejected.
+- **`research-manifest.mjs` and `lib-docs.mjs` reject blank/whitespace flag values** and document their exit contract in a header comment.
+
 ## 0.7.0
 - **Operative-failure ladder** added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned; same rationale as code-ops-suite 1.19.0): a dispatched `gatherer`/`claim-checker` that cannot complete its brief escalates through an ordered ladder instead of guessing.
 - **`revalidate-register.mjs` (vendored)** gains the advisory `--dispatch-ledger` cross-check flag.

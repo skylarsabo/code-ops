@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Deterministic AI/tooling-trace scanner — the mechanical floor under authorship-hygiene.
 //
+// WHY: a commit/PR that carries an AI attribution trailer or assistant-voice prose is a
+// traceless-publishing violation the moment it's pushed; catching it mechanically at the
+// gate is cheaper than relying on a human proofreading every message by eye.
+//
 //   node scripts/scan-ai-tells.mjs <file> [...more] [--git <range>] [--report-only] [--emdash-max N]
 //
 // Scans commit-message / PR-body TEXT (not code idioms — that's the skill's judgment job)
@@ -12,27 +16,39 @@
 //   PHRASE     assistant-prose tells (Notably, / Importantly, / Here's what / In summary,)
 //   BOILERPLATE the Claude PR template heading "## Test plan"
 //
-// Exit non-zero on any hit (so it can gate a push fail-closed), unless --report-only.
+// Exit: a single tallied verdict, fail-closed wins over hits. 2 = a missing target file, a
+// failed `git log`, or a usage/config error (no target, unknown flag, bad --emdash-max) —
+// reported even when hits were also found, never silently downgraded to 1. Otherwise 1 =
+// any AI-trace hit found (unless --report-only), 0 = clean.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 const argv = process.argv.slice(2);
-const reportOnly = argv.includes('--report-only');
-const emIdx = argv.indexOf('--emdash-max');
+let reportOnly = false;
+let sawEmdashMax = false, emdashMaxRaw;
+let gitRange = null;
+const files = [];
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i];
+  if (a === '--report-only') reportOnly = true;
+  else if (a === '--emdash-max') { sawEmdashMax = true; emdashMaxRaw = argv[++i]; }
+  else if (a === '--git') gitRange = argv[++i]; // option-like values are rejected below, before git runs
+  // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
+  // otherwise silently scan nothing relevant and report clean.
+  else if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
+  else files.push(a);
+}
 const EMDASH_MAX = (() => {
-  if (emIdx < 0) return 3;
-  const n = Number(argv[emIdx + 1]);
+  if (!sawEmdashMax) return 3;
+  const n = Number(emdashMaxRaw);
   if (!Number.isFinite(n) || n < 1) {
-    console.error(`x --emdash-max needs a positive number (got: ${argv[emIdx + 1] ?? '<missing>'})`);
+    console.error(`x --emdash-max needs a positive number (got: ${emdashMaxRaw ?? '<missing>'})`);
     process.exit(2); // fail closed on a malformed gate config rather than silently disabling the check
   }
   return n;
 })();
-const gitIdx = argv.indexOf('--git');
-const gitRange = gitIdx >= 0 ? argv[gitIdx + 1] : null;
-const files = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--git' && argv[i - 1] !== '--emdash-max');
 
 // Includes regional-indicator flags (1F1E6-1F1FF) and the low band from 231A (watch/hourglass/alarm) up.
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{1F000}-\u{1F0FF}\u{231A}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
@@ -59,9 +75,13 @@ function scanText(label, text) {
   return { label, hits };
 }
 
+// A missing target file or a failed git log is a config/usage error, not a scan result — tracked
+// separately from hit counts so it can win at the end even when hits were also found (fail-closed
+// wins; a masked 2-vs-1 exit would let a broken invocation quietly report as merely "dirty").
+let hadError = false;
 const targets = [];
 for (const f of files) {
-  if (!existsSync(f)) { console.error(`x not found: ${f}`); process.exitCode = 2; continue; }
+  if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
 }
 if (gitRange) {
@@ -70,10 +90,10 @@ if (gitRange) {
   // (e.g. --output=<path>); a real rev-range never starts with '-'. A trailing '--' marks end-of-options.
   const rangeTokens = gitRange.split(/\s+/).filter(Boolean);
   if (rangeTokens.some((t) => t.startsWith('-'))) { console.error(`x --git range must not contain option-like tokens: ${gitRange}`); process.exit(2); }
-  try { targets.push({ label: `git ${gitRange}`, text: execFileSync('git', ['log', '--format=%B', ...rangeTokens, '--'], { encoding: 'utf8' }) }); }
-  catch (e) { console.error(`x git log ${gitRange} failed: ${e.message}`); process.exitCode = 2; }
+  try { targets.push({ label: `git ${gitRange}`, text: execFileSync('git', ['log', '--format=%B', ...rangeTokens, '--'], { encoding: 'utf8', timeout: 10000 }) }); }
+  catch (e) { console.error(`x git log ${gitRange} failed: ${e.message}`); hadError = true; }
 }
-if (targets.length === 0) { console.error('usage: scan-ai-tells.mjs <file> [...] [--git <range>] [--report-only]'); process.exit(2); }
+if (targets.length === 0 && !hadError) { console.error('usage: scan-ai-tells.mjs <file> [...] [--git <range>] [--report-only]'); process.exit(2); }
 
 let total = 0;
 for (const t of targets) {
@@ -83,6 +103,7 @@ for (const t of targets) {
   for (const h of hits) console.log(`  !! ${h.cat.padEnd(11)} ${h.line ? 'L' + h.line : '  '}  ${h.snippet}`);
 }
 console.log(`\n${total} AI-trace hit(s) across ${targets.length} target(s).`);
+if (hadError) process.exit(2); // fail-closed wins even when hits were also found above
 if (total > 0 && !reportOnly) {
   console.error('AI/tooling trace found — clean it before publishing (fail-closed).');
   process.exit(1);

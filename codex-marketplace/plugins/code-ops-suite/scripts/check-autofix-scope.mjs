@@ -53,7 +53,7 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--root') {
     root = argv[++i];
-    if (root === undefined || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
+    if (root === undefined || root.trim() === '' || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
   } else if (a === '--diff') {
     diffFile = argv[++i];
     if (diffFile === undefined || diffFile.startsWith('--')) { console.error('x --diff needs a file'); process.exit(2); }
@@ -108,7 +108,7 @@ if (diffFile !== null) {
   const refTokens = gitRef.split(/\s+/).filter(Boolean);
   if (refTokens.length === 0) { console.error('x --git needs a ref'); process.exit(2); }
   if (refTokens.some((t) => t.startsWith('-'))) { console.error(`x --git ref must not contain option-like tokens: ${gitRef}`); process.exit(2); }
-  try { diffText = execFileSync('git', ['diff', ...refTokens, '--'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }); }
+  try { diffText = execFileSync('git', ['diff', ...refTokens, '--'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 10000 }); }
   catch (e) { console.error(`x git diff ${gitRef} failed: ${e.message}`); process.exit(2); }
   label = `git ${gitRef}`;
 }

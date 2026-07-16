@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.21.0
+- **`revalidate-register.mjs` hardened** — its git call now runs under a child-process timeout, blank/whitespace flag values are rejected, and unknown flags exit 2 instead of being silently treated as filenames.
+- **`preflight.mjs` rejects unknown flags** (exit 1) instead of ignoring them.
+- **`scan-ai-tells.mjs` and `scan-redaction.mjs` hardened** — missing-file/config errors now exit 2 even when hits are also present (previously masked to exit 1), their git calls run under a timeout, and unknown flags are rejected.
+- **`run-proof.mjs` and `check-autofix-scope.mjs` reject blank/whitespace flag values** and document their exit contract in a header comment; `run-proof`'s proof-command execution stays deliberately unbounded.
+- **`lib-docs.mjs` documents its exit contract** in a header comment and rejects blank/whitespace flag values.
+- **`pr-split` now points to the stacked-PR merge procedure** in `docs/handbook/10-recovery-and-troubleshooting.md` §6.
+
 ## 1.20.0
 - **New `scripts/repo-map.mjs` generator** — produces a per-repo inventory (`git ls-files -z`) with per-language top-level definition extraction at exact line numbers, announced truncation/binary/unreadable-file handling, and a HEAD-sha freshness stamp; vendored byte-identically into this plugin's `scripts/`.
 - **`Map once, search to deepen`** doctrine bullet added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned, id `map-once`) — Phase 0 generates `REPO_MAP.md` once per run and every operative brief gets its path, consulting it before search.

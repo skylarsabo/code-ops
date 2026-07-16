@@ -2,6 +2,10 @@
 // Egress manifest recorder + validator for the researcher plugin — the mechanical floor
 // under its "local-first, disclosed egress" model (CONVENTIONS §A). Zero-dependency Node ESM.
 //
+// WHY: an undisclosed web fetch inside a research artifact is invisible to a reviewer unless
+// every citation is cross-checked against what was actually disclosed; this makes that
+// cross-check mechanical instead of relying on the agent's own say-so.
+//
 //   node research-manifest.mjs record --tool <t> --url <u> --why <w> [--host <h>] [--manifest <path>]
 //   node research-manifest.mjs validate <artifact.md> [...more] [--manifest <path>] [--report-only]
 //
@@ -10,6 +14,10 @@
 //           cited in an artifact must have a matching host in the manifest; otherwise the egress
 //           was undisclosed → fail closed (exit 1, unless --report-only). An artifact that cites no
 //           web source (local-only research) passes trivially — that is the default, private path.
+//
+// Exit: record → 0 on success, 2 on a missing/blank --url or an unresolvable host. validate → 0
+// clean, 1 undisclosed citation(s) or an unreadable artifact (unless --report-only), 2 on a usage
+// error (no files given, or an unrecognized --flag).
 
 import { readFileSync, existsSync, appendFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -46,9 +54,11 @@ function recordedHosts() {
 
 if (cmd === 'record') {
   const tool = flag('--tool') || 'unknown';
-  const url = stripTrailing(flag('--url') || '');
+  const urlRaw = flag('--url');
+  const url = stripTrailing(urlRaw && urlRaw.trim() !== '' ? urlRaw : '');
   const why = flag('--why') || '';
-  const host = flag('--host') || hostOf(url); // explicit override allowed; otherwise derived from the url
+  const hostRaw = flag('--host');
+  const host = (hostRaw && hostRaw.trim() !== '' ? hostRaw : null) || hostOf(url); // explicit override allowed (blank/whitespace-only ignored); otherwise derived from the url
   if (!url || !host) { console.error('x record needs --url (http/https); --host optional'); process.exit(2); }
   if (!existsSync(manifestPath)) writeFileSync(manifestPath, HEADER);
   const ts = new Date().toISOString();
@@ -65,7 +75,9 @@ if (cmd === 'validate') {
     const a = argv[i];
     if (a === '--manifest') { i++; continue; }
     if (a === '--report-only') continue;
-    if (a.startsWith('--')) continue;
+    // An unrecognized --flag must not be silently swallowed — it would otherwise vanish with
+    // no trace instead of surfacing the typo (a missing/misspelled --report-only, say).
+    if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
     files.push(a);
   }
   if (files.length === 0) { console.error('usage: research-manifest.mjs validate <artifact.md> [...] [--manifest <path>] [--report-only]'); process.exit(2); }

@@ -5,9 +5,18 @@
 // fallback (llms.txt / GitHub README) is OPT-IN: pass --fetch (CLI) or noFetch:false (API).
 // No third-party indexer, no query egress — you verify APIs against the version you run.
 //
+// WHY: an agent that trusts training-data memory for a library's API silently drifts from
+// whatever version is actually installed; resolving docs from node_modules keeps every
+// answer pinned to the code that will actually run, with no query leaving the machine
+// unless the caller explicitly opts in to the fallback.
+//
 //   node lib-docs.mjs <library> [topic] [--root <repo>] [--fetch] [--json]
 //
 // Exposes getDocs()/resolveInstalled() for the MCP server (lib-docs-mcp.mjs) to reuse.
+//
+// Exit: 0 = docs printed (an explicit "not installed"/"no substantial README" message is
+// still exit 0, not a failure); 2 = usage error (no library name given, or a missing/blank/
+// option-like --root value).
 
 import { readFileSync, existsSync, readdirSync, openSync, readSync, closeSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
@@ -186,7 +195,7 @@ async function main() {
   let root = '.';
   if (rootI >= 0) {
     root = argv[rootI + 1];
-    if (root === undefined || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
+    if (root === undefined || root.trim() === '' || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
   }
   const positional = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--root');
   const library = positional[0];
