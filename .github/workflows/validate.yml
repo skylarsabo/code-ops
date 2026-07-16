@@ -75,6 +75,15 @@ jobs:
             node evals/score.mjs "$k" --check
           done
 
+      - name: Preflight regression eval
+        run: node evals/preflight/run.mjs
+
+      - name: Repo-map regression eval
+        run: node evals/repo-map/run.mjs
+
+      - name: Doc line-citation gate
+        run: node scripts/check-doc-citations.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then
@@ -112,6 +121,12 @@ jobs:
 
       - name: Codex marketplace render + drift check
         run: node scripts/build-codex-marketplace.mjs --check
+
+      - name: Preflight regression eval
+        run: node evals/preflight/run.mjs
+
+      - name: Repo-map regression eval
+        run: node evals/repo-map/run.mjs
 
       - name: Script-guard regression eval (2026-06-23 audit fixes)
         run: node evals/script-guards/run.mjs
