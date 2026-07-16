@@ -81,7 +81,7 @@ function cmdVerify(args) {
     if (a === '--report-only') reportOnly = true;
     else if (a === '--root') {
       root = args[++i];
-      if (root === undefined || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
+      if (root === undefined || root.trim() === '' || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
     } else if (manifest === null) manifest = a;
     else { console.error(`x unexpected argument: ${a}`); usage(); }
   }

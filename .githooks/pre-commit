@@ -1,10 +1,41 @@
 #!/bin/sh
-# Keep the tracked Codex render in lockstep with the canonical Claude source.
-# This hook stages only derived marketplace artifacts; it never stages authored source files.
+# Keep the tracked Codex render in lockstep with the canonical Claude source, and keep
+# vendored plugins/*/scripts/ copies in lockstep with their canonical scripts/ source.
+# This hook stages only derived/vendored artifacts; it never stages authored source files.
 set -eu
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
+
+# ---- 0. sync vendored plugin copies of canonical scripts/ files -----------------
+# scripts/vendored-manifest.mjs lists which canonical scripts/<file> must be byte-identical
+# inside which plugins/<plugin>/scripts/<file>. A staged change to one of those canonical
+# files must propagate to its vendored copies BEFORE the renderer-input check below, since
+# the sync can itself stage new content under plugins/ that the codex regeneration step
+# must then pick up. Skip this section entirely (no node required) when nothing under
+# scripts/ is staged, so unrelated commits keep working without node installed.
+if ! git diff --cached --quiet -- scripts; then
+  command -v node >/dev/null 2>&1 || {
+    echo "node is required to sync vendored scripts." >&2
+    exit 1
+  }
+  manifest_root_scripts="$(node --input-type=module -e "
+import { RUNTIME_SCRIPTS } from './scripts/vendored-manifest.mjs';
+console.log(RUNTIME_SCRIPTS.map((e) => 'scripts/' + e.name).join('\n'));
+")"
+  if [ -n "$manifest_root_scripts" ] && ! git diff --cached --quiet -- $manifest_root_scripts; then
+    node scripts/sync-vendored.mjs
+    vendored_targets="$(node --input-type=module -e "
+import { RUNTIME_SCRIPTS } from './scripts/vendored-manifest.mjs';
+const out = [];
+for (const e of RUNTIME_SCRIPTS) for (const p of e.plugins) out.push('plugins/' + p + '/scripts/' + e.name);
+console.log(out.join('\n'));
+")"
+    echo "$vendored_targets" | while IFS= read -r f; do
+      [ -n "$f" ] && git add -- "$f"
+    done
+  fi
+fi
 
 renderer_inputs="plugins .claude-plugin/marketplace.json scripts/build-codex-marketplace.mjs"
 renderer_paths="$renderer_inputs .agents/plugins/marketplace.json codex-marketplace"
@@ -17,6 +48,11 @@ fi
 # Rendering reads the working tree while a commit records the index. Refuse to mix
 # staged source with a different unstaged/untracked renderer input; otherwise the
 # hook could stage output for source that is absent from the commit.
+#
+# The vendored-sync step above only ever stages files it itself just wrote (the
+# plugins/*/scripts/ copies named in the manifest) — those are staged==working-tree by
+# the time we get here, so they cannot trip this refusal. Any remaining unstaged/untracked
+# renderer input under plugins/ is unrelated pre-existing local state and must still refuse.
 if ! git diff --quiet -- $renderer_inputs || test -n "$(git ls-files --others --exclude-standard -- $renderer_inputs)"; then
   echo "Stage or stash all Codex-renderer inputs before committing." >&2
   exit 1

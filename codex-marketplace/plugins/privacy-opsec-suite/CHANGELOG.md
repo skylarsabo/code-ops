@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.14.0
+- **`revalidate-register.mjs` hardened** — its git call now runs under a child-process timeout, blank/whitespace flag values are rejected, and unknown flags exit 2 instead of being silently treated as filenames.
+- **`scan-ai-tells.mjs`, `scan-injection-tells.mjs`, and `scan-redaction.mjs` hardened** — missing-file/config errors now exit 2 even when hits are also present (previously masked to exit 1), their git calls run under a timeout, and unknown flags are rejected.
+- **`check-autofix-scope.mjs` and `lib-docs.mjs` reject blank/whitespace flag values** and document their exit contract in a header comment.
+
 ## 1.13.0
 - **Operative-failure ladder** added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned; same rationale as code-ops-suite 1.19.0): a dispatched `explorer`/`privacy-reviewer` that cannot complete its brief escalates through an ordered ladder instead of guessing.
 - **`DISPATCH_LEDGER.md` convention** — `revalidate-register.mjs` (vendored) gains the advisory `--dispatch-ledger` cross-check.

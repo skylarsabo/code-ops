@@ -3,7 +3,14 @@
 // every import must be a node: builtin or a local relative path. A third-party bare import
 // would introduce an npm dependency-confusion / transitive-CVE surface — fail CI if one appears.
 //
-//   node scripts/check-no-deps.mjs   (exit 0 = clean)
+// WHY: a single accidental npm-style import reintroduces the whole supply-chain surface
+// (dependency confusion, transitive CVEs) the suite exists to avoid; this is the mechanical
+// backstop CI runs on every push, not a one-time audit.
+//
+//   node scripts/check-no-deps.mjs
+//
+// Exit: 0 = clean (only node: builtins and relative imports found), 1 = a third-party
+// import was found.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';

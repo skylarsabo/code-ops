@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Deterministic secrets/PII scanner — the mechanical floor under redaction hygiene.
 //
+// WHY: an audit deliverable (a register, a handoff, a report) that quotes the evidence it
+// found can itself become the leak; scanning the suite's own output artifacts before they're
+// shared catches that mechanically instead of relying on the author noticing on re-read.
+//
 //   node scripts/scan-redaction.mjs <file> [...more] [--report-only]
 //
 // Scans the suite's own OUTPUT artifacts (registers, reports, handoffs) so an audit
@@ -24,15 +28,24 @@
 // example.com/.org/.net emails; hex on a line carrying `Verified-at` or `sha`; and this
 // script's own literal category examples above (so a doc quoting them stays quiet).
 //
-// Exit non-zero on any FAIL-CLOSED hit (so it can gate a handoff fail-closed), unless
-// --report-only. WARN-ONLY hits are reported but never change the exit code.
+// Exit: a single tallied verdict, fail-closed wins over hits. 2 = a missing target file or a
+// usage error (no target, unknown flag) — reported even when secret hits were also found,
+// never silently downgraded to 1. Otherwise 1 = any FAIL-CLOSED secret shape found (unless
+// --report-only), 0 = clean. WARN-ONLY hits are always reported but never change the exit code.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
 
 const argv = process.argv.slice(2);
-const reportOnly = argv.includes('--report-only');
-const files = argv.filter((a) => !a.startsWith('--'));
+let reportOnly = false;
+const files = [];
+for (const a of argv) {
+  if (a === '--report-only') { reportOnly = true; continue; }
+  // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
+  // otherwise silently scan nothing relevant and report clean.
+  if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
+  files.push(a);
+}
 
 // The exact example literals embedded in this file's own header. A scanned artifact that
 // reproduces one verbatim (a guide documenting this scanner) is quoting, not leaking.
@@ -125,12 +138,16 @@ function scanText(text) {
   return hits;
 }
 
+// A missing target file is a config/usage error, not a scan result — tracked separately from
+// hit counts so it can win at the end even when secret hits were also found (fail-closed wins;
+// a masked 2-vs-1 exit would let a broken invocation quietly report as merely "dirty").
+let hadError = false;
 const targets = [];
 for (const f of files) {
-  if (!existsSync(f)) { console.error(`x not found: ${f}`); process.exitCode = 2; continue; }
+  if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
 }
-if (targets.length === 0) { console.error('usage: scan-redaction.mjs <file> [...] [--report-only]'); process.exit(2); }
+if (targets.length === 0 && !hadError) { console.error('usage: scan-redaction.mjs <file> [...] [--report-only]'); process.exit(2); }
 
 let secretTotal = 0, warnTotal = 0;
 for (const t of targets) {
@@ -144,6 +161,7 @@ for (const t of targets) {
   }
 }
 console.log(`\n${secretTotal} secret/PII hit(s) + ${warnTotal} warning(s) across ${targets.length} target(s).`);
+if (hadError) process.exit(2); // fail-closed wins even when secret hits were also found above
 if (secretTotal > 0 && !reportOnly) {
   console.error('Secret/PII shape found in an output artifact — redact it before publishing (fail-closed).');
   process.exit(1);

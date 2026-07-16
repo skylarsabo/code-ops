@@ -3,9 +3,17 @@
 // the Codex marketplace artifacts. CI remains the fail-closed backstop for clones
 // where hooks have not been installed or were bypassed.
 //
+// WHY: a derived-artifact drift gate only holds if the regeneration actually ran before
+// the commit; this makes "install the hook" a single idempotent command instead of a
+// manual `git config` step every clone has to remember.
+//
 //   node scripts/install-git-hooks.mjs
 //   node scripts/install-git-hooks.mjs --check
 //   node scripts/install-git-hooks.mjs --force
+//
+// Exit: 0 = installed (or --check confirms installed), 1 = --check reports hooks not
+// installed, 2 = usage/config error (bad flags, wrong checkout, missing tracked hook,
+// or a conflicting core.hooksPath without --force).
 
 import { chmodSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -25,7 +33,7 @@ if (args.some((arg) => arg !== '--check' && arg !== '--force') || (check && forc
 }
 
 function git(args, options = {}) {
-  return execFileSync('git', args, { encoding: 'utf8', ...options }).trim();
+  return execFileSync('git', args, { encoding: 'utf8', timeout: 10000, ...options }).trim();
 }
 
 const worktreeRoot = resolve(git(['rev-parse', '--show-toplevel']));

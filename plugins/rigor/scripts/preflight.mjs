@@ -4,7 +4,8 @@
 // mid-wave. Hard-fails only on requirements no run can proceed without; everything
 // OS-specific is an advisory. Never invoked mid-run (must not become a hang source).
 //   node scripts/preflight.mjs [--need gh] [--artifact-dir <dir>]
-// Exit 0 = go (advisories allowed), 1 = hard requirement missing.
+// Exit 0 = go (advisories allowed), 1 = hard requirement missing or bad invocation (unknown
+// flag, or a missing/blank value for --need / --artifact-dir).
 
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, rmSync, mkdirSync } from 'node:fs';
@@ -21,6 +22,11 @@ for (let i = 0; i < argv.length; i++) {
   } else if (argv[i] === '--artifact-dir') {
     artifactDir = argv[++i];
     if (artifactDir === undefined || artifactDir.trim() === '' || artifactDir.startsWith('--')) { console.error('x --artifact-dir needs a value'); process.exit(1); }
+  } else {
+    // An unrecognized flag (or stray positional — this script takes none) must not be silently
+    // ignored: a typo'd gate flag would otherwise pass preflight while meaning something else.
+    console.error(`x unknown argument: ${argv[i]}`);
+    process.exit(1);
   }
 }
 

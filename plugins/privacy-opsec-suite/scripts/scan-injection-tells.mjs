@@ -3,7 +3,16 @@
 // of third-party content an agent ingests (dependency READMEs, vendored skills, MCP tool
 // descriptions). It is triage input, never a filter: it surfaces tells cheaply for a reviewer.
 //
+// WHY: an agent that reads third-party content raw (a README, a vendored skill, an MCP tool
+// description) is reading untrusted input that may carry directives aimed at the agent, not
+// the human; surfacing the cheap syntactic tells before that content is read raw gives a
+// reviewer (human or agent) a head start on what to distrust.
+//
 //   node scripts/scan-injection-tells.mjs <file> [...more] [--fail-on=<categories>]
+//
+// Deliberate syntax exception: --fail-on=<categories> uses inline `=` (unlike every other flag
+// in this suite, which is space-separated `--flag <value>`) because an external caller this
+// script does not own (evals/redaction-scan/run.mjs) already depends on the `=` form.
 //
 // Categories (all reported; see --fail-on for gating):
 //   ZEROWIDTH  zero-width chars (U+200B-200D, U+FEFF) + bidi controls (U+202A-202E, U+2066-2069).
@@ -19,9 +28,11 @@
 //   TOOLCALL   tool-call-shaped markup smuggled into content (antml:/function_calls/tool_use tags,
 //              or a JSON "tool_calls" key).
 //
-// Default exit is 0 even with hits — the scan feeds triage, it does not block. Opt in to gating
-// with --fail-on=CAT1,CAT2: exit 1 only if one of those categories hit. A misconfigured category
-// name fails closed (exit 2) rather than silently gating nothing.
+// Exit: a single tallied verdict, fail-closed wins over hits. 2 = a missing target file or a
+// usage/config error (no target, unknown flag, unrecognized --fail-on category) — reported even
+// when hits were also found, never silently downgraded to 1. Otherwise 1 = a hit in a gated
+// category (only when --fail-on is set), 0 = clean or hits outside the gated set (report-only
+// by default — the scan feeds triage, it does not block on its own).
 
 import { readFileSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -42,7 +53,14 @@ if (failOnArg) {
     failOn.add(cat);
   }
 }
-const files = argv.filter((a) => !a.startsWith('--'));
+const files = [];
+for (const a of argv) {
+  if (a.startsWith('--fail-on=')) continue; // handled above (only the first occurrence is honored)
+  // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
+  // otherwise silently scan nothing relevant and report clean.
+  if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
+  files.push(a);
+}
 
 // --- ZEROWIDTH: character-level, with the emoji-ZWJ carve-out ---
 const isEmojiCp = (cp) =>
@@ -117,12 +135,16 @@ function scanText(text) {
   return hits;
 }
 
+// A missing target file is a config/usage error, not a scan result — tracked separately from
+// gated hits so it can win at the end even when a gated hit was also found (fail-closed wins;
+// a masked 2-vs-1 exit would let a broken invocation quietly report as merely "gated hit").
+let hadError = false;
 const targets = [];
 for (const f of files) {
-  if (!existsSync(f)) { console.error(`x not found: ${f}`); process.exitCode = 2; continue; }
+  if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
 }
-if (targets.length === 0) { console.error('usage: scan-injection-tells.mjs <file> [...] [--fail-on=<categories>]'); process.exit(2); }
+if (targets.length === 0 && !hadError) { console.error('usage: scan-injection-tells.mjs <file> [...] [--fail-on=<categories>]'); process.exit(2); }
 
 let total = 0;
 const gatedHit = [];
@@ -139,6 +161,7 @@ for (const t of targets) {
   if (hits.length) console.log(`  . ${ALL_CATS.filter((c) => counts[c]).map((c) => `${c}=${counts[c]}`).join('  ')}`);
 }
 console.log(`\n${total} injection tell(s) across ${targets.length} target(s)${failOn.size ? ` — gating on ${[...failOn].join(',')}` : ' (report-only)'}.`);
+if (hadError) process.exit(2); // fail-closed wins even when a gated hit was also found above
 if (gatedHit.length > 0) {
   console.error(`Gated injection tell(s) found: ${gatedHit.join(', ')} (fail-closed via --fail-on).`);
   process.exit(1);

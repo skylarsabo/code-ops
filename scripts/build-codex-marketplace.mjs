@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 // Render and verify the tracked Codex distribution from the canonical Claude source.
 //
+// WHY: Claude and Codex need incompatible skill headers and path conventions from the
+// same source of truth; hand-editing codex-marketplace/ would let the two hosts drift
+// apart silently. Rendering it deterministically lets `--check` catch that drift in CI.
+//
 //   node scripts/build-codex-marketplace.mjs
 //   node scripts/build-codex-marketplace.mjs --check
 //
 // The hosts require incompatible skill headers: Claude's source stays manual-invoke
 // while this renderer gives Codex each skill a `name` plus an explicit no-implicit-
 // invocation policy. Never hand-edit codex-marketplace/; use this script instead.
+//
+// Exit: 0 = written (default mode) or already up to date (--check); 1 = --check found
+// drift (stale/missing/unexpected generated file); 2 = usage error (unknown flag). A
+// source-validation failure (e.g. a plugin manifest missing a required field) throws and
+// exits the process non-zero before either mode writes or compares anything.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';

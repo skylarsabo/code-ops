@@ -22,7 +22,9 @@
 // Plus advisories (non-gating): an item's `Verified-at:` sha != the repo's current HEAD, and an
 // item whose `Anchor:` value is not backtick/quote-delimited (unparseable, so its DRIFTED check is skipped).
 //
-// Exit: non-zero if any item is MOVED/DRIFTED/GONE/AMBIGUOUS/NO-REF (needs re-triage), unless --report-only.
+// Exit: non-zero if any item is MOVED/DRIFTED/GONE/AMBIGUOUS/NO-REF (needs re-triage), unless
+// --report-only. Exit 2 on a usage error: no register given, a bad/blank flag value, or an
+// unrecognized --flag (rejected before it could be misread as a filename).
 //
 // STRICT MODE (opt-in; default behavior above is unchanged without these flags):
 //   --strict --profile <finding|finding-rigor|leak|research|idea>
@@ -72,20 +74,23 @@ const files = [];
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--root') {
     root = argv[++i];
-    if (root === undefined || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
+    if (root === undefined || root.trim() === '' || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
   } else if (argv[i] === '--profile') {
     profile = argv[++i];
     if (!['finding', 'finding-rigor', 'leak', 'research', 'idea'].includes(profile ?? '')) { console.error('x --profile needs one of: finding, finding-rigor, leak, research, idea'); process.exit(2); }
   } else if (argv[i] === '--refutation-log') {
     refutationLogPath = argv[++i];
-    if (!refutationLogPath || refutationLogPath.startsWith('--')) { console.error('x --refutation-log needs a path'); process.exit(2); }
+    if (refutationLogPath === undefined || refutationLogPath.trim() === '' || refutationLogPath.startsWith('--')) { console.error('x --refutation-log needs a path'); process.exit(2); }
   } else if (argv[i] === '--consumed') {
     consumedPath = argv[++i];
-    if (!consumedPath || consumedPath.startsWith('--')) { console.error('x --consumed needs a path'); process.exit(2); }
+    if (consumedPath === undefined || consumedPath.trim() === '' || consumedPath.startsWith('--')) { console.error('x --consumed needs a path'); process.exit(2); }
   } else if (argv[i] === '--dispatch-ledger') {
     ledgerPath = argv[++i];
-    if (!ledgerPath || ledgerPath.startsWith('--')) { console.error('x --dispatch-ledger needs a path'); process.exit(2); }
+    if (ledgerPath === undefined || ledgerPath.trim() === '' || ledgerPath.startsWith('--')) { console.error('x --dispatch-ledger needs a path'); process.exit(2); }
   } else if (argv[i] === '--report-only' || argv[i] === '--strict') continue;
+  // SCR-021: an unrecognized --flag must not silently fall through to "treat it as a filename" —
+  // a typo'd flag (e.g. --roto) would otherwise be read as a register path and misreport NOT FOUND.
+  else if (argv[i].startsWith('--')) { console.error(`x unknown argument: ${argv[i]}`); process.exit(2); }
   else files.push(argv[i]);
 }
 if (files.length === 0 && !ledgerPath) {
@@ -108,7 +113,7 @@ const SCHEMA_LABEL_RE = /^\s*[-|*·]*\s*\**(Tier|Location|Leak-class|Anchor|Trac
 const hasField = (block, field) => new RegExp(`\\b${field}\\s*:\\s*\\S`, 'i').test(block);
 
 let headSha = null;
-try { headSha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* not a git repo */ }
+try { headSha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 }).toString().trim(); } catch { /* not a git repo */ }
 
 // Item IDs like BUG-007, PERF-003. Skip common standards/identifiers (RFC-2616, CVE-2021-44228,
 // ISO-8601, UTF-8, SHA-256) that legitimately appear in a finding's prose.

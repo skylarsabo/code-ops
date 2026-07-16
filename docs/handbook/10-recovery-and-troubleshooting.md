@@ -205,6 +205,43 @@ For the full carry-forward discipline — the re-validate-then-carry-what-surviv
 
 ---
 
+## 6 · Stacked-PR merge procedure
+
+This repo squash-merges, so a stacked series of PRs merges **bottom-up**, one PR at a time, and each merge changes what the next PR in the stack is based on.
+
+### Retarget before you delete
+
+After a parent PR in the stack merges, retarget its child onto the new trunk — `gh pr edit <n> --base main` — **before** deleting the parent's branch. GitHub does not retarget a PR when its base branch disappears: deleting a PR's base branch **closes** the PR, and a closed PR can neither be reopened nor re-based while its base branch is missing.
+
+If the parent branch is already gone and the child PR closed, recover in order:
+
+1. Restore the branch at its old head — `git push origin <sha>:refs/heads/<name>`.
+2. Reopen the PR.
+3. Retarget it — `gh pr edit <n> --base main`.
+4. Only then delete the branch.
+
+### A CONFLICTING tip PR is often a false alarm
+
+Squash commits are never ancestors of the branches they were squashed from, so a tip PR can show **CONFLICTING** against `main` purely because a lower PR in the stack already squash-merged edits to the same files (version bumps, changelogs, vendored script copies) — not because the tip's own edits actually conflict with anything. Before treating it as a real conflict, check both:
+
+- `git diff origin/main <mid-stack-head>` is empty (the mid-stack branch's tree already matches `main`), and
+- `git merge-base --is-ancestor <mid-stack-head> <tip>` holds (the tip branch already contains that history).
+
+When both hold, the tip branch's own tree is already the correct merge result. Reconcile without rewriting history:
+
+```sh
+git commit-tree '<tip>^{tree}' -p <tip> -p origin/main -m "Merge branch 'main' into <branch>"
+git push origin <sha>:refs/heads/<branch>   # <sha> is the commit-tree output above
+```
+
+This pushes a synthetic merge commit as a plain fast-forward — not a rebase, not a force-push — so the tip branch's own history is preserved and GitHub re-evaluates the conflict check against the new head.
+
+### Retargeting re-triggers CI
+
+`gh pr edit --base` re-runs the PR's CI on the **same head SHA** — expect the checks to restart, and wait for them before merging.
+
+---
+
 ## Coming next
 
 Related material lives in adjacent chapters: the register schemas, tracks, and the full `revalidate-register.mjs` reference in [04-registers-and-freshness](04-registers-and-freshness.md); the orchestrators' phase structure and checkpoints in [03-orchestrators](03-orchestrators.md); evidence tiers and the disconfirmation pass behind re-reading a survivor in [05-evidence-and-tiers](05-evidence-and-tiers.md). The dedicated carry-forward technique linked above is [techniques/register-carry-forward](../techniques/register-carry-forward.md).

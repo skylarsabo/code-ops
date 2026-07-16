@@ -14,7 +14,7 @@ A `FINDINGS_REGISTER.md` is the authoritative backlog an audit or review produce
 
 ## The schema, field by field
 
-The canonical finding schema (`plugins/code-ops-suite/CONVENTIONS.md:67-73`) is:
+The canonical finding schema (`plugins/code-ops-suite/CONVENTIONS.md:68-75`) is:
 
 ```
 ID · Title · Lens · Scope · Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
