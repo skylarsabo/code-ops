@@ -16,11 +16,11 @@ let artifactDir = null;
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--need') {
     const v = argv[++i];
-    if (v === undefined || v.startsWith('--')) { console.error('x --need needs a value'); process.exit(1); }
+    if (v === undefined || v.trim() === '' || v.startsWith('--')) { console.error('x --need needs a value'); process.exit(1); }
     needs.push(v);
   } else if (argv[i] === '--artifact-dir') {
     artifactDir = argv[++i];
-    if (artifactDir === undefined || artifactDir.startsWith('--')) { console.error('x --artifact-dir needs a value'); process.exit(1); }
+    if (artifactDir === undefined || artifactDir.trim() === '' || artifactDir.startsWith('--')) { console.error('x --artifact-dir needs a value'); process.exit(1); }
   }
 }
 
@@ -30,7 +30,13 @@ const advise = (m) => console.log(`  advisory: ${m}`);
 // like a nonzero exit instead of hanging the gate (the no-hang invariant, enforced).
 const has = (cmd, args = ['--version']) => {
   try { execFileSync(cmd, args, { stdio: 'ignore', timeout: 5000 }); return true; }
-  catch { return false; }
+  catch {
+    // Node refuses .cmd/.bat shims without a shell (CVE-2024-27980 hardening), so npm-style
+    // tools throw EINVAL here; a where.exe PATH probe resolves them with no shell involved.
+    if (process.platform !== 'win32') return false;
+    try { execFileSync('where', [cmd], { stdio: 'ignore', timeout: 5000 }); return true; }
+    catch { return false; }
+  }
 };
 
 if (!has('git')) errors.push('git not resolvable on PATH');

@@ -16,7 +16,7 @@ let root = '.', out = null, maxKb = 512;
 for (let i = 0; i < argv.length; i++) {
   const need = (f) => {
     const v = argv[++i];
-    if (v === undefined || v.startsWith('--')) { console.error(`  x ${f} needs a value`); process.exit(1); }
+    if (v === undefined || v.trim() === '' || v.startsWith('--')) { console.error(`  x ${f} needs a value`); process.exit(1); }
     return v;
   };
   if (argv[i] === '--root') root = need('--root');

@@ -8,6 +8,9 @@ the source plugin manifest and matching marketplace entries.
 - **`Map once, search to deepen`** doctrine bullet added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned, id `map-once`) — Phase 0 generates `REPO_MAP.md` once per run and every operative brief gets its path, consulting it before search.
 - **`universal-ctags` optional-tool mention** added to `CONVENTIONS.md` §2 — an optional accelerant for symbol-to-location lookups, used if installed, never required.
 - **Phase-0 repo-map wiring** — `ship`, `debug`, and `full-sweep` run `repo-map.mjs` after `preflight.mjs` passes and hand the resulting `REPO_MAP.md` path to every operative brief; a failed generation is a noted advisory, not a blocker.
+- **`repo-map.mjs` and `preflight.mjs` reject empty or whitespace-only flag values at parse** — previously `--max-file-kb ""` produced an all-skipped map with exit 0, and `--artifact-dir ""` silently skipped the writability probe.
+- **`preflight.mjs`'s tool probe falls back to a `where` PATH lookup on Windows** so `.cmd`/`.bat` shims (npm-style tools) resolve without a shell.
+- **`REPO_MAP.md` added to the Standard filenames artifact list.**
 
 ## 1.19.0
 - **Operative-failure ladder** added to `CONVENTIONS.md` (SHARED_PASSAGES-pinned): a dispatched operative that cannot complete its brief escalates through an ordered ladder (retry with a narrower brief, hand back a specific open question, or take the piece over) instead of guessing or silently dropping the task.
