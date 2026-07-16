@@ -537,6 +537,8 @@ const SHARED_PASSAGES = [
     text: 'Pre-filter first, read narrow: at a phase boundary run the checker BEFORE any wholesale register read, then read only the non-FRESH/DRIFTED entries in full' },
   { id: 'repanel-skip', files: CONVS('code-ops-suite', 'rigor'),
     text: 'is NOT re-paneled — the receipts are the verdict; any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline — never the full register' },
+  { id: 'map-once', files: CONVS('code-ops-suite', 'rigor'),
+    text: 'hand its path to every operative brief; operatives consult the map first and use search only to go deeper than the map reaches, never to re-derive layout or find definitions the map already lists' },
   { id: 'always-gated-core', files: ['plugins/code-ops-suite/CONVENTIONS.md', 'plugins/code-ops-suite/skills/everything/SKILL.md'],
     text: '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge' },
   { id: 'operative-failure', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
