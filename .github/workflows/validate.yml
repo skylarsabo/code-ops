@@ -8,13 +8,23 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ref supersedes the running validation — cancel it instead of paying
+# for a structural lint + eval pass for a commit that can no longer merge/land.
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   structural-lint:
     runs-on: ubuntu-latest
     steps:
       # Pinned to commit SHAs (per the suite's own supply-chain-trust skill) so a moved tag
       # cannot inject code into CI. Bump deliberately; the trailing comment tracks the version.
+      # fetch-depth: 0 (full history) so the PR-only plugin-bump check below can diff against
+      # origin/<base_ref> — a shallow clone would not have the base branch's history available.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
@@ -76,3 +86,35 @@ jobs:
           else
             echo "claude CLI not on runner; structural-lint is the gate."
           fi
+
+      - name: Plugin version-bump gate (PR only)
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-plugin-bump.mjs --base "origin/${{ github.base_ref }}"
+
+  structural-lint-windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      # Same pinned actions as structural-lint above — see that job's comment for the SHA-pin
+      # rationale. This job mirrors the ubuntu structural-lint checks on Windows so a
+      # platform-specific regression (path handling, shell quoting, line endings) is caught
+      # before merge instead of surfacing only for a Windows contributor.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Structural lint (the gate)
+        run: node scripts/lint-plugins.mjs
+
+      - name: Zero-dependency guard
+        run: node scripts/check-no-deps.mjs
+
+      - name: Codex marketplace render + drift check
+        run: node scripts/build-codex-marketplace.mjs --check
+
+      - name: Script-guard regression eval (2026-06-23 audit fixes)
+        run: node evals/script-guards/run.mjs
+
+      - name: Register-staleness regression eval
+        run: node evals/register-staleness/run.mjs

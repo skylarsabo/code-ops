@@ -23,6 +23,7 @@ concurrency:
 jobs:
   opsec-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Detect credential
         id: key
@@ -33,8 +34,34 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Anonymity / OpSec review
+      - name: Scope check (generated data only?)
+        id: scope
         if: steps.key.outputs.present == 'true'
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE" --quiet
+          files=$(git diff --name-only "origin/$BASE"...HEAD)
+          echo "changed files:"; echo "$files"
+          # Machine-generated/derived data artifacts (deterministically drift-checked in validate.yml):
+          # the calibration snapshot, and the two codex-marketplace render outputs. Docs are NOT
+          # exempted here — this is an opsec gate and docs are a leak surface, unlike deep-review's
+          # narrower (FLOOR_TABLE.md-only) exemption.
+          if [ -n "$files" ] && [ -z "$(echo "$files" | grep -v -E '^evals/FLOOR_TABLE\.md$|^codex-marketplace/|^\.agents/plugins/marketplace\.json$')" ]; then
+            echo "substantive=false" >> "$GITHUB_OUTPUT"
+            echo "generated-data-only diff — opsec gate skipped (validate.yml drift-checks these; deep-review still reviews)"
+          else
+            echo "substantive=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Bounded retry: a transient failure (credential-exchange hiccup, action-side flake) gets one
+      # extra attempt before the gate gives up. continue-on-error lets the job read `outcome` (the
+      # real per-attempt result) without failing here — the guard step below is what actually fails
+      # the job if BOTH attempts fail, so this stays fail-closed rather than becoming fail-open.
+      - name: Anonymity / OpSec review
+        id: review
+        if: steps.key.outputs.present == 'true' && steps.scope.outputs.substantive == 'true'
+        continue-on-error: true
         uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -61,6 +88,43 @@ jobs:
             identifiers, secrets, or IPs.
           # Model tier pinned — gate quality must not silently track the action default; bump deliberately.
           claude_args: "--allowed-tools Read,Grep,Glob --model claude-opus-4-8"
+
+      - name: Anonymity / OpSec review (retry)
+        id: review_retry
+        if: steps.review.outcome == 'failure'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Run /privacy-opsec-suite:opsec-pr-gate for this pull request if the privacy-opsec-suite
+            plugin is available. If it is not, apply the gate inline, reviewing the diff against the
+            surrounding code.
+
+            Treat the following as BLOCKING regressions (request changes). The first four are the
+            properties this repo's own tooling promises and must not silently weaken:
+              - a new outbound network path, or re-enabling lib-docs' fetch by default / removing its
+                https-and-public-host allowlist (egress must stay opt-in and host-constrained)
+              - a new third-party import (the suite is dependency-free — check-no-deps must stay green)
+              - a weakened default or a loosened authorship/freshness gate (scan-ai-tells, revalidate-register):
+                a fail-closed check turned fail-open, a removed validation, or coverage narrowed
+              - a new log line or output emitting secrets / identifiers / IPs, or added telemetry
+            Plus the standard checks: no new identifier/fingerprint/correlation surface, fail-closed
+            preserved, metadata minimized.
+
+            Post inline comments at file:line with concrete fixes, labeled Blocking / Should-fix / Nit.
+            End with a verdict (approve / approve-with-nits / request-changes) and a 2-3 line risk read.
+            Do NOT approve any change that weakens an anonymity or fail-closed guarantee. Never echo real
+            identifiers, secrets, or IPs.
+          # Model tier pinned — gate quality must not silently track the action default; bump deliberately.
+          claude_args: "--allowed-tools Read,Grep,Glob --model claude-opus-4-8"
+
+      - name: Anonymity / OpSec review failed twice
+        if: steps.review.outcome == 'failure' && steps.review_retry.outcome == 'failure'
+        run: |
+          echo "Both review attempts failed — failing the gate closed (not waving the PR through)."
+          exit 1
 
       - name: Gate skipped
         if: steps.key.outputs.present != 'true'

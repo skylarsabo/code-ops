@@ -24,6 +24,7 @@ concurrency:
 jobs:
   deep-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Detect credential
         id: key
@@ -55,8 +56,14 @@ jobs:
         with:
           node-version: '20'
 
+      # Bounded retry: a transient failure (credential-exchange hiccup, action-side flake) gets one
+      # extra attempt before the gate gives up. continue-on-error lets the job read `outcome` (the
+      # real per-attempt result) without failing here — the guard step below is what actually fails
+      # the job if BOTH attempts fail, so this stays fail-closed rather than becoming fail-open.
       - name: Verification-first review
+        id: review
         if: steps.key.outputs.present == 'true' && steps.scope.outputs.substantive == 'true'
+        continue-on-error: true
         uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -84,6 +91,44 @@ jobs:
             Do NOT inflate tiers: never block on a SPECULATIVE, never wave through a CONFIRMED defect.
           # Model tier pinned — gate quality must not silently track the action default; bump deliberately.
           claude_args: "--allowed-tools Read,Grep,Glob,Bash --model claude-opus-4-8"
+
+      - name: Verification-first review (retry)
+        id: review_retry
+        if: steps.review.outcome == 'failure'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Run /rigor:deep-review for this pull request if the rigor plugin is available.
+            If it is not, apply the verification-first bar inline:
+
+            Ground truth first — run `node scripts/lint-plugins.mjs`, `node scripts/check-no-deps.mjs`,
+            and the harnesses under `evals/` so the review starts from facts, then review the diff
+            against the surrounding code.
+
+            Assign each concern an evidence tier: CONFIRMED (reproduced — a failing test or trace on
+            this code) / PROBABLE (strong static evidence, not executed) / SPECULATIVE (a low-confidence
+            lead). Before reporting anything, run a disconfirmation pass: is it reachable, already handled,
+            intentional, or already tested? Drop what does not survive.
+
+            Post inline comments at file:line, each with its tier and a concrete fix, grouped Blocking
+            (CONFIRMED defect or regression) / Should-fix / Nit. Flag any new inconsistency or a regressed
+            lint/eval enforcement. For this repo specifically, treat as Blocking: a bundled plugin copy
+            that drifts from its canonical scripts/ source, and any change that makes lint-plugins or an
+            eval pass while the behavior it guards is broken.
+
+            End with a verdict (approve / approve-with-nits / request-changes) and a short risk read.
+            Do NOT inflate tiers: never block on a SPECULATIVE, never wave through a CONFIRMED defect.
+          # Model tier pinned — gate quality must not silently track the action default; bump deliberately.
+          claude_args: "--allowed-tools Read,Grep,Glob,Bash --model claude-opus-4-8"
+
+      - name: Verification-first review failed twice
+        if: steps.review.outcome == 'failure' && steps.review_retry.outcome == 'failure'
+        run: |
+          echo "Both review attempts failed — failing the gate closed (not waving the PR through)."
+          exit 1
 
       - name: Gate skipped
         if: steps.key.outputs.present != 'true'
