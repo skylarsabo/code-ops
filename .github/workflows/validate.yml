@@ -84,6 +84,15 @@ jobs:
       - name: Doc line-citation gate
         run: node scripts/check-doc-citations.mjs
 
+      - name: Lint-gate fixture eval
+        run: node evals/lint-plugins/run.mjs
+
+      - name: Release-tooling eval
+        run: node evals/release-tooling/run.mjs
+
+      - name: Doc-citation checker eval
+        run: node evals/doc-citations/run.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then
@@ -127,6 +136,15 @@ jobs:
 
       - name: Repo-map regression eval
         run: node evals/repo-map/run.mjs
+
+      - name: Lint-gate fixture eval
+        run: node evals/lint-plugins/run.mjs
+
+      - name: Release-tooling eval
+        run: node evals/release-tooling/run.mjs
+
+      - name: Doc-citation checker eval
+        run: node evals/doc-citations/run.mjs
 
       - name: Script-guard regression eval (2026-06-23 audit fixes)
         run: node evals/script-guards/run.mjs
