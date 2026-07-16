@@ -20,6 +20,8 @@ Run **test-suite-audit**: flaky/assertion/mutation check so you know where "gree
 ## Phase 3 — Find (read-only, with proofs)
 Run **bug-hunt** (deep, per subsystem; root cause + sibling sweep) and **quality-scan**, both proving and disconfirming, into `FINDINGS_REGISTER.md`. (Use **regression-hunt** to bisect any confirmed regression.) → *Checkpoint:* review the **CONFIRMED-led** register; decide what to fix.
 
+Before folding a dispatched tracer's or verifier's output into the register, gate it on shape — a tracer owes an evidence-cited trace/invariant map, a verifier owes a verdict plus its proof receipt; null, empty, or short of that shape counts as a failed dispatch (`§1`), marked accordingly in `DISPATCH_LEDGER.md` (`§10`) and redispatched or deferred, never synthesized around.
+
 ## Phase 4 — Safety net
 Run **safety-net** on the blind spots and anything queued for change, so the next phase's fixes/refactors are provably behavior-preserving.
 

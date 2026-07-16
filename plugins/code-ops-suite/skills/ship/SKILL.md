@@ -22,6 +22,8 @@ Run the implementation loop (`§11`): the smallest correct change, matching exis
 ## Phase 3 — Prove
 Add tests that fail before and pass after; keep the full suite green; run the regression guard (`rigor §H`) so nothing prior breaks. A change without a test that demonstrates it is not done.
 
+Before trusting any composed skill's or dispatched operative's report at this or a later phase, check it has the shape its role promises (e.g. a proof artifact from `rigor`'s verifier, a leak verdict from the privacy gate) — anything null, empty, or short of that shape is a failed dispatch (`§1`), logged `failed` in `DISPATCH_LEDGER.md` (`§12`) and redispatched or deferred, never treated as a pass.
+
 ## Phase 4 — Privacy gate  *(if applicable)*
 If the change touches egress, logging, identifiers, or a default — and `privacy-opsec-suite` is installed — run its gate: no new leak/egress/identifier/fingerprint, fail-closed preserved. Surface any anonymity regression as blocking.
 

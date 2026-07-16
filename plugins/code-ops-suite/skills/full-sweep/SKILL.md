@@ -19,6 +19,8 @@ Run **doc-alignment** so later phases work from an accurate map (skip if docs ar
 ## Phase 2 — Assess (read-only)
 Run **codebase-audit** (broad lenses), then **security-privacy-audit** (adversarial). Findings carry an **evidence tier** (CONFIRMED/PROBABLE/SPECULATIVE) + a disconfirmation pass (`§7`) and apply the **multi-boundary control-coverage** lens (`§10`) — a control verified at one entry point but not at every reachable one is itself a finding. Merge into `FINDINGS_REGISTER.md`, each entry stamped `Verified-at <sha>`. → *Checkpoint:* review the ranked, CONFIRMED-led findings + biggest risks; decide what to fix.
 
+Before merging, gate each explorer or reviewer subagent's report on shape: an explorer owes an evidence-cited map, a reviewer owes tiered findings with `file:line` — anything null, empty, or short of that shape counts as a failed dispatch (`§1`), marked accordingly in `DISPATCH_LEDGER.md` (`§12`) and redispatched or deferred, never merged as if it were silence.
+
 ## Phase 3 — Safety net
 Run **test-hardening** on the critical/risky paths the audits flagged, and write characterization tests for anything queued for change — so the next phase is provably behavior-preserving. → *Checkpoint:* coverage on target areas, go/no-go.
 

@@ -74,9 +74,22 @@ Every orchestrator is **checkpointed and developer-in-the-loop** ([03-orchestrat
 
 ### How to resume
 
+0. **Check for a dispatch ledger first.** If the run folder has a `DISPATCH_LEDGER.md`, read it before touching phase boundaries — see "Per-unit resume via the dispatch ledger" below. A dangling row means a specific sub-agent dispatch died or hung; that unit can often be resumed on its own, without re-entering the whole phase.
 1. **Re-enter the orchestrator at Phase 0** with the same scope and track. Point it at the existing run folder so it re-opens the master plan and the running `EXECUTIVE_SUMMARY.md` rather than starting a fresh folder. Phase 0 is a checkpoint by design — it re-scopes and re-confirms the automation level before any phase consumes anything.
 2. **Let it (or you) revalidate first.** The orchestrator carries the registers forward *fresh* — every register it inherits is run through `revalidate-register.mjs` and the non-`FRESH` items are re-triaged before any phase acts on them. If you are driving the recovery by hand, run §3's revalidate command yourself before resuming a phase.
 3. **Resume from the last clean phase boundary** named in the executive summary. Because phases consume registers and not in-memory state, a phase that was mid-batch when cancelled is safe to re-run from its start — `remediation` and `fix-verified` both re-validate the register and drop anything already fixed, so a half-applied fix batch is not double-applied ([full-sweep Phase 4](../../plugins/code-ops-suite/skills/full-sweep/SKILL.md) for `remediation`; the separate rigor [fix-verified Phase 0](../../plugins/rigor/skills/fix-verified/SKILL.md) for `fix-verified`).
+
+### Per-unit resume via the dispatch ledger
+
+An orchestrated run keeps `DISPATCH_LEDGER.md` beside the register, one row per sub-agent dispatch, written **at dispatch time** rather than when the report lands — so a hung or dead operative shows up as a dangling `dispatched` row instead of silently vanishing ([code-ops §12](../../plugins/code-ops-suite/CONVENTIONS.md), verbatim in [rigor §10](../../plugins/rigor/CONVENTIONS.md) and [privacy §11](../../plugins/privacy-opsec-suite/CONVENTIONS.md)). Before falling back to whole-phase re-entry, run:
+
+```sh
+node scripts/revalidate-register.mjs --dispatch-ledger DISPATCH_LEDGER.md --report-only
+```
+
+This prints an `advisory:` line for every row still `dispatched` (never `reported`, `failed`, or `redispatched`) and never affects the exit code — it is a pointer, not a gate. For each dangling row, re-dispatch that one unit with a tightened brief or mark it `failed` and hand it to the next checkpoint, per the operative-failure ladder; there is no need to re-run the whole phase just because one dispatch never reported back.
+
+
 
 ### Resume vs. re-run
 
@@ -182,7 +195,7 @@ For the full carry-forward discipline — the re-validate-then-carry-what-surviv
 
 | Symptom | First move | Then |
 | --- | --- | --- |
-| Run cancelled at a checkpoint | Read the run folder's `EXECUTIVE_SUMMARY.md` | Revalidate, then re-enter at Phase 0 (§2) |
+| Run cancelled at a checkpoint | Check `DISPATCH_LEDGER.md` for dangling `dispatched` rows | Re-dispatch that unit, or revalidate and re-enter at Phase 0 if none (§2) |
 | Half-finished `docs/<area>/<date>/` from a past run | Identify which registers have live items | Revalidate vs `HEAD`; OBSOLETE-AT what is fixed (§4) |
 | Register re-lists something already fixed | This is *the* failure mode | Stamp `OBSOLETE-AT <sha>`; confirm the resume ran revalidation (§4) |
 | `revalidate-register.mjs` exits non-zero | Read which IDs are non-`FRESH` | Re-triage each (§4); do not resume until clean or knowingly waived |

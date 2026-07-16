@@ -539,6 +539,10 @@ const SHARED_PASSAGES = [
     text: 'is NOT re-paneled — the receipts are the verdict; any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline — never the full register' },
   { id: 'always-gated-core', files: ['plugins/code-ops-suite/CONVENTIONS.md', 'plugins/code-ops-suite/skills/everything/SKILL.md'],
     text: '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge' },
+  { id: 'operative-failure', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: "failed dispatch, not a weak signal — never synthesize around a missing report or fill its gap from the orchestrator's own assumptions" },
+  { id: 'failure-ladder', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: 'redispatch once with a tightened, smaller brief; then escalate at the next checkpoint' },
 ];
 for (const p of SHARED_PASSAGES) {
   for (const f of p.files) {
