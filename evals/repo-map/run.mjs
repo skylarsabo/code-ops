@@ -92,10 +92,13 @@ try {
   check('a. normal run exits 0', a.status === 0);
   let mapText = '';
   try { mapText = readFileSync(outA, 'utf8'); } catch { /* leave empty; checks below fail loudly */ }
-  check('a. map contains function alpha', /\balpha\b/.test(mapText));
-  check('a. map contains class Beta', /\bBeta\b/.test(mapText));
-  check('a. map contains const GAMMA', /\bGAMMA\b/.test(mapText));
-  check('a. map contains bomfn (BOM handled)', /\bbomfn\b/.test(mapText));
+  // Match the extracted-definition line form ("  N: <kind> <name>"), not just the bare name —
+  // a bare-name match is satisfied by the "alpha.mjs (7 lines)" file header even when
+  // definition extraction is broken.
+  check('a. map extracts fn alpha', /: fn alpha\b/.test(mapText));
+  check('a. map extracts class Beta', /: class Beta\b/.test(mapText));
+  check('a. map extracts const GAMMA', /: const GAMMA\b/.test(mapText));
+  check('a. map extracts def bomfn (BOM handled)', /: def bomfn\b/.test(mapText));
   check('a. map marks binary.dat as (binary)', /binary\.dat \(binary\)/.test(mapText));
   const expectedFooter = '— 5 files: 4 scanned, 0 skipped (size), 1 binary, 0 unreadable.';
   check('a. footer matches fixture counts', mapText.includes(expectedFooter));
