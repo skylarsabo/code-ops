@@ -11,7 +11,7 @@ disable-model-invocation: true
 A thorough, in-depth review across every relevant quality lens (`CONVENTIONS §10`), over every service/module. Apply only **NOW-SAFE** fixes (with the developer's OK on each batch); document everything else as findings for the remediation prompt.
 
 ## Phase 0 — Discovery & scoping  *(checkpoint)*
-Detect the stack and tooling; build the real **service/module inventory** (purpose, entrypoints, public surface, dependencies, data touched); capture the build/test/lint **baseline** (and pre-existing failures); open a **coverage ledger** (every area × every applicable lens). Draft the orchestration plan (concern × scope matrix).
+Dispatch an `explorer` operative to detect the stack and tooling and build the real **service/module inventory** (purpose, entrypoints, public surface, dependencies, data touched), handing its summary onward; capture the build/test/lint **baseline** (and pre-existing failures); open a **coverage ledger** (every area × every applicable lens). Draft the orchestration plan (concern × scope matrix).
 > **CHECKPOINT:** present the inventory, baseline, and plan; confirm scope (areas to include/skip/prioritize, any off-limits paths). Then proceed.
 
 ## Phase 1 — Adaptive review

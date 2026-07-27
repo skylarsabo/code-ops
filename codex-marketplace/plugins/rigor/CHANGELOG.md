@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.13.1
+- **`bug-hunt` Phase 1/2 name the `tracer`** for invariant extraction and the control/data-flow trace, matching the executor-naming already used in the orchestrators' Phase 0.
+- **TODO** — describe the change.
+
 ## 2.13.0
 - **`tracer` and `verifier` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.
 - **Phase-0 detection named to an operative.** `rigor-sweep` now dispatches a `tracer` to detect the stack/size, whose summary plus `REPO_MAP.md` feed the next phase — matching the bundled-subagent voice already used elsewhere in these conventions (`§1`).

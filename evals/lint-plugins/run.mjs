@@ -254,6 +254,22 @@ function buildBaseline(root) {
     'Fixture entry.',
     '',
   ].join('\n'));
+
+  // -- fixture eval + workflow wiring (check 18: eval-wired-to-CI) --
+  put(root, 'evals/fixture-check/run.mjs', "// Fixture eval used only to be referenced by check 18 (evals-wired-to-CI) in scripts/lint-plugins.mjs.\nconsole.log('OK — fixture eval, always passes.');\n");
+  put(root, '.github/workflows/validate.yml', [
+    'name: validate (fixture)',
+    'on: [push]',
+    'jobs:',
+    '  structural-lint:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - name: Structural lint',
+    '        run: node scripts/lint-plugins.mjs',
+    '      - name: Fixture eval',
+    '        run: node evals/fixture-check/run.mjs',
+    '',
+  ].join('\n'));
 }
 
 const work = mkdtempSync(join(tmpdir(), 'coh-lintp-'));
@@ -347,6 +363,20 @@ No completion heading here on purpose (case 3 mutation).
   const r8 = runLint(d8);
   check('8. bogus composition edge exits 1', r8.status === 1);
   check('8. message mentions the unresolved edge', r8.all.includes('unknown plugin "no-such-plugin"'));
+
+  // 9. EVAL-WIRED-TO-CI (check 18) — a new evals/<name>/run.mjs never referenced in validate.yml.
+  const d9 = clone('case9-unwired-eval');
+  put(d9, 'evals/orphan-eval/run.mjs', "// Deliberately NOT referenced in validate.yml (case 9 mutation).\nconsole.log('never wired');\n");
+  const r9 = runLint(d9);
+  check('9. unwired eval exits 1', r9.status === 1);
+  check('9. message names the unwired eval', r9.all.includes('evals/orphan-eval/run.mjs') && r9.all.includes('not invoked'));
+
+  // 10. AUTO-MERGE DENYLIST (check 19) — a script wiring `gh pr merge --auto`.
+  const d10 = clone('case10-auto-merge');
+  put(d10, 'scripts/auto-merger.mjs', "// Fixture script (case 10 mutation): wires PR auto-merge, which is denylisted.\nconst cmd = 'gh pr merge --auto';\n");
+  const r10 = runLint(d10);
+  check('10. gh pr merge --auto exits 1', r10.status === 1);
+  check('10. message flags the auto-merge denylist', r10.all.includes('auto-merge denylist'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

@@ -93,6 +93,15 @@ jobs:
       - name: Doc-citation checker eval
         run: node evals/doc-citations/run.mjs
 
+      - name: Import-graph regression eval
+        run: node evals/import-graph/run.mjs
+
+      - name: Dispatch-ledger regression eval
+        run: node evals/dispatch-ledger/run.mjs
+
+      - name: Run-artifact narration scanner eval
+        run: node evals/scan-narration/run.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then
@@ -108,6 +117,10 @@ jobs:
       - name: Plugin version-bump gate (PR only)
         if: github.event_name == 'pull_request'
         run: node scripts/check-plugin-bump.mjs --base "origin/${{ github.base_ref }}"
+
+      - name: Gate-workflow-edit advisory (PR only)
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-gate-workflow-edit.mjs --base "origin/${{ github.base_ref }}"
 
   structural-lint-windows:
     runs-on: windows-latest
@@ -151,3 +164,6 @@ jobs:
 
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs
+
+      - name: Import-graph regression eval
+        run: node evals/import-graph/run.mjs

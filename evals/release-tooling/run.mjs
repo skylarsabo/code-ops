@@ -287,6 +287,49 @@ try {
     check('check-plugin-bump: codex-marketplace-only change exits 0', rF.status === 0);
     check('check-plugin-bump: codex-marketplace-only change reports nothing to check', rF.stdout.includes('nothing to check'));
   }
+
+  // ================================================================================
+  // 1e. check-plugin-bump.mjs — changelog CONTENT gate (must add a non-blank line)
+  // ================================================================================
+  {
+    const mkContentFixture = (caseName) => {
+      const caseDir = join(work, caseName);
+      const scriptPath = copyScript('check-plugin-bump.mjs', join(caseDir, 'scripts'));
+      git(['init', '--quiet', '-b', 'main'], caseDir);
+      const pluginDir = join(caseDir, 'plugins', 'demo-plugin');
+      mkdirSync(join(pluginDir, '.claude-plugin'), { recursive: true });
+      writeFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), '{\n  "name": "demo-plugin",\n  "version": "1.0.0"\n}\n');
+      writeFileSync(join(pluginDir, 'CHANGELOG.md'), '# demo-plugin changelog\n\n## 1.0.0\n- initial.\n');
+      git(['add', '-A'], caseDir);
+      gitCommit(caseDir, 'base');
+      const baseSha = git(['rev-parse', 'HEAD'], caseDir).trim();
+      return { caseDir, scriptPath, pluginDir, baseSha };
+    };
+
+    // G. version bumped, but the CHANGELOG.md diff adds only a blank line — no real entry.
+    {
+      const { caseDir, scriptPath, pluginDir, baseSha } = mkContentFixture('check-plugin-bump-changelog-noop');
+      writeFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), '{\n  "name": "demo-plugin",\n  "version": "1.1.0"\n}\n');
+      writeFileSync(join(pluginDir, 'CHANGELOG.md'), '# demo-plugin changelog\n\n## 1.0.0\n- initial.\n\n');
+      git(['add', '-A'], caseDir);
+      gitCommit(caseDir, 'bump version, changelog gets only a trailing blank line');
+      const rG = run(scriptPath, ['--base', baseSha], { cwd: caseDir });
+      check('check-plugin-bump: changelog touched with only a blank-line addition exits 1', rG.status === 1);
+      check('check-plugin-bump: blank-line-only edit names "adds no non-blank line"', rG.stderr.includes('adds no non-blank line'));
+    }
+
+    // H. version bumped, and CHANGELOG.md gains a real added bullet -> exit 0.
+    {
+      const { caseDir, scriptPath, pluginDir, baseSha } = mkContentFixture('check-plugin-bump-changelog-real');
+      writeFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), '{\n  "name": "demo-plugin",\n  "version": "1.1.0"\n}\n');
+      writeFileSync(join(pluginDir, 'CHANGELOG.md'), '# demo-plugin changelog\n\n## 1.1.0\n- Added a real changelog bullet describing the change.\n\n## 1.0.0\n- initial.\n');
+      git(['add', '-A'], caseDir);
+      gitCommit(caseDir, 'bump version and add a real changelog bullet');
+      const rH = run(scriptPath, ['--base', baseSha], { cwd: caseDir });
+      check('check-plugin-bump: version bump + real changelog bullet exits 0', rH.status === 0);
+      check('check-plugin-bump: real changelog bullet reports OK', rH.stdout.includes('OK'));
+    }
+  }
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
