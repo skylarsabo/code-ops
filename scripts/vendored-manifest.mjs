@@ -21,6 +21,7 @@ export const RUNTIME_SCRIPTS = [
   { name: 'check-proof-integrity.mjs', plugins: ['rigor'] },
   { name: 'scan-redaction.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite'] },
   { name: 'scan-injection-tells.mjs', plugins: ['privacy-opsec-suite', 'researcher'] },
-  { name: 'preflight.mjs', plugins: ['code-ops-suite', 'rigor'] },
-  { name: 'repo-map.mjs', plugins: ['code-ops-suite', 'rigor'] },
+  { name: 'preflight.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
+  { name: 'repo-map.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
+  { name: 'import-graph.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
 ];

@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.13.0
+- **`tracer` and `verifier` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.
+- **Phase-0 detection named to an operative.** `rigor-sweep` now dispatches a `tracer` to detect the stack/size, whose summary plus `REPO_MAP.md` feed the next phase — matching the bundled-subagent voice already used elsewhere in these conventions (`§1`).
+- **`EXECUTIVE_SUMMARY.md` length bound added to `§10`.** The run summary caps at roughly one page — top findings and coverage only; detail lives in `FINDINGS_REGISTER.md`.
+- **New `import-graph.mjs` vendored in** (`scripts/vendored-manifest.mjs`), alongside `preflight.mjs` and `repo-map.mjs`.
+
 ## 2.12.0
 - **`revalidate-register.mjs` hardened** — its git call now runs under a child-process timeout, blank/whitespace flag values are rejected, and unknown flags exit 2 instead of being silently treated as filenames.
 - **`preflight.mjs` rejects unknown flags** (exit 1) instead of ignoring them.

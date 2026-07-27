@@ -44,6 +44,9 @@
 //      "**N commands**" count matches the plugin's actual skill count.
 //  16. ADVISORY ONLY (never gates): every root scripts/*.mjs with no reference anywhere under
 //      evals/ is flagged as a candidate for a regression eval.
+//  17. Every "From skill" / "Invokes" edge in docs/techniques/skill-composition.md's table
+//      resolves to a real plugins/<plugin>/skills/<skill>/ directory — a renamed or removed
+//      skill silently orphans the composition map otherwise.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -566,7 +569,32 @@ const SHARED_PASSAGES = [
   { id: 'failure-ladder', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
     text: 'redispatch once with a tightened, smaller brief; then escalate at the next checkpoint' },
 ];
-for (const p of SHARED_PASSAGES) {
+
+// Same drift gate as SHARED_PASSAGES, but for the operative agent definitions
+// (plugins/*/agents/*.md) rather than CONVENTIONS.md — these carry their own
+// near-identical doctrine clauses (escalate-don't-guess, redact-secrets,
+// dense/evidence-cited-report) with no other mechanical backstop.
+const AGENTS = (...paths) => paths;
+const AGENT_SHARED_PASSAGES = [
+  { id: 'agent-escalate-dont-guess', files: AGENTS(
+      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md',
+      'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+      'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
+      'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
+    text: 'return the open question to the orchestrator instead of guessing' },
+  { id: 'agent-redact-secrets-full', files: AGENTS(
+      'plugins/code-ops-suite/agents/explorer.md', 'plugins/researcher/agents/claim-checker.md',
+      'plugins/researcher/agents/gatherer.md', 'plugins/rigor/agents/tracer.md'),
+    text: 'Redact any secrets/PII to `<REDACTED:reason>`; never reproduce a secret value.' },
+  { id: 'agent-redact-secrets-short', files: AGENTS(
+      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/rigor/agents/verifier.md'),
+    text: 'Redact secrets/PII.' },
+  { id: 'agent-dense-evidence-cited', files: AGENTS(
+      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+      'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md'),
+    text: 'dense and evidence-cited' },
+];
+for (const p of [...SHARED_PASSAGES, ...AGENT_SHARED_PASSAGES]) {
   for (const f of p.files) {
     const abs = join(ROOT, ...f.split('/'));
     if (!existsSync(abs)) { fail(`SHARED_PASSAGES ${p.id}: listed file missing: ${f}`); continue; }
@@ -597,6 +625,36 @@ function walkFiles(dir, out = []) {
       if (!f.endsWith('.mjs')) continue;
       if (!evalsContent.includes(f))
         warn(`scripts/${f} has no reference under evals/ — consider a regression eval`);
+    }
+  }
+}
+
+// ---- 17. skill-composition.md edge resolution -------------------------------
+// The composition map's table rows ("From skill" / "Invokes" columns) name
+// `<plugin>:<skill>` edges in backticks. Each side must resolve to a real
+// plugins/<plugin>/skills/<skill>/ directory — the same drift class as the
+// qualified-reference check (5) above, but for the standalone doc instead of a
+// SKILL.md body, since nothing else re-derives this map from the skill tree.
+{
+  const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
+  if (existsSync(compPath)) {
+    const lines = readText(compPath).split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim().startsWith('|')) continue;
+      if (/^\|[\s:-]+\|/.test(line)) continue; // header separator row (---|---)
+      const cells = line.split('|');
+      // "From skill" is cells[1], "Invokes" is cells[2] (cells[0] is the empty prefix before the first pipe).
+      for (const cell of [cells[1], cells[2]]) {
+        if (!cell) continue;
+        for (const m of cell.matchAll(/`([a-z0-9-]+):([a-z0-9-]+)`/g)) {
+          const [, pn, sn] = m;
+          const target = pluginByName.get(pn);
+          if (!target) fail(`${rel(compPath)}:${i + 1}: edge references unknown plugin "${pn}" in "${pn}:${sn}"`);
+          else if (!target.skills.includes(sn))
+            fail(`${rel(compPath)}:${i + 1}: edge references unresolvable skill "${pn}:${sn}" — no plugins/${pn}/skills/${sn}/ directory`);
+        }
+      }
     }
   }
 }

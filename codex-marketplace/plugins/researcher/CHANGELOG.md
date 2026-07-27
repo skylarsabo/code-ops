@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 0.9.0
+- **`claim-checker` and `gatherer` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.
+- **`preflight.mjs`, `repo-map.mjs`, and `import-graph.mjs` vendored in** (`scripts/vendored-manifest.mjs`) — `research-sweep` Phase 0 now runs the preflight gate, generates `REPO_MAP.md`, and dispatches a `gatherer` to detect stack/size before confirming scope and egress, matching the other suite orchestrators.
+
 ## 0.8.0
 - **`revalidate-register.mjs` hardened** — its git call now runs under a child-process timeout, blank/whitespace flag values are rejected, and unknown flags exit 2 instead of being silently treated as filenames.
 - **`scan-injection-tells.mjs` hardened** — missing-file/config errors now exit 2 even when hits are also present (previously masked to exit 1), its git call runs under a timeout, and unknown flags are rejected.

@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.22.0
+- **`CONVENTIONS.md` §1 gains a reasoning-effort routing rule** — effort follows ambiguity the same way tier does (low for mechanical/breadth, medium for execution/scoped implementation and flow tracing, high for review and the lead, xhigh reserved for disputed verdicts and critical CONFIRMED calls), cross-referencing `docs/techniques/subagent-trade-offs.md` for the full table instead of duplicating it.
+- **Privacy leak gate made an explicit invocation** in `ship` and `debug` Phase 4 — names `privacy-opsec-suite:metadata-leak-audit` scoped to the change's/fix's diff and routes its findings into `FINDINGS_REGISTER.md`, replacing the prior prose-only mention.
+- **`researcher` wired into `ship`** — Phase 2 routes new-dependency and library-choice decisions through `researcher:library-eval` and pre-commitment claim verification through `researcher:research-verify`.
+- **`explorer` and `reviewer` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.
+- **Phase-0 explorer dispatch named explicitly** in `ship`, `debug`, and `full-sweep` — the stack/conventions detection step now names the operative that runs it (an explorer, handing its summary plus `REPO_MAP.md` forward) instead of leaving the lead to do it inline.
+- **`everything` gains its own Phase-0 preflight/repo-map wiring** — it does not delegate to `full-sweep`, so it now runs `preflight.mjs` and `repo-map.mjs` directly, matching the other orchestrators.
+- **`debug` gains a scale-down line** matching `ship`'s, plus permission to fold the Phase-2 root-cause checkpoint into the Phase-3 fix report for a trivially-scoped, one-file, obvious-root-cause fix; anything broader still stops for the checkpoint.
+- **`CONVENTIONS.md` §7 gains a triage cap** — a phase surfacing more than 5 critical/high findings eligible for a panel checkpoints with the developer on scope before paneling all of them.
+- **`CONVENTIONS.md` §12 generalizes the length discipline** — `EXECUTIVE_SUMMARY.md` and other run summaries cap at roughly one page of top findings, with full detail left to the register.
+- **New `import-graph.mjs` vendored in** (`scripts/vendored-manifest.mjs`), alongside `preflight.mjs` and `repo-map.mjs`.
+- **New `SessionStart` hook (`hooks/routing-card.mjs`)** — prints a hard-capped, 10-line routing card at session start pointing task types at the right skill/orchestrator and naming the standard-operating-mode docs, so the lead defaults into delegating instead of working inline.
+
 ## 1.21.0
 - **`revalidate-register.mjs` hardened** — its git call now runs under a child-process timeout, blank/whitespace flag values are rejected, and unknown flags exit 2 instead of being silently treated as filenames.
 - **`preflight.mjs` rejects unknown flags** (exit 1) instead of ignoring them.

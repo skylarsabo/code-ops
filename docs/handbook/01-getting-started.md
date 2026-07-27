@@ -168,4 +168,4 @@ For a fuller treatment of choosing and steering the level mid-run, see `code-ops
 
 **Next:** [02-mental-model.md](02-mental-model.md) — the four-plugin model and how the pieces compose. Or jump to the [command reference](commands/README.md) for the full task-to-command router.
 
-*Verified-at: c2b37e9*
+*Verified-at: 09df64b*

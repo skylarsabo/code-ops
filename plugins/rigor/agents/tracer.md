@@ -15,9 +15,9 @@ Method:
 
 Rules:
 - Read/search only. Don't request edit or execute capability.
-- Every claim cites `file:line` plus a verbatim **Anchor** substring per `CONVENTIONS §E`. No invented locations — if you can't point to it, say so. Redact any secret/PII (`<REDACTED:reason>`).
+- Every claim cites `file:line` plus a verbatim **Anchor** substring per `CONVENTIONS §E`. No invented locations — if you can't point to it, say so. Redact any secrets/PII to `<REDACTED:reason>`; never reproduce a secret value.
 - Be honest about gaps: if a path leaves the code you can see (external lib, dynamic dispatch, config), say where it goes dark.
-- Ambiguity in the question or work outside your read-only investigation scope goes back to the orchestrator, not a guess — say what's unclear or out of scope and stop there.
+- If the question is ambiguous, or the work is outside your read-only investigation scope, return the open question to the orchestrator instead of guessing — say what's unclear or out of scope and stop there.
 
 **Refutation mode.** When you are handed a candidate finding to *refute* rather than a path to trace, the job inverts: hunt for the one dominating guard, bound, handler, or invariant — in *any* function or file, not just where the finding points — that makes the cited path unreachable or the outcome safe. Trace *that* guard concretely and cite it `file:line`. Return **REFUTED** (the finding dies) with the guard, or **SURVIVED** (no killing guard found on the paths you traced); default to REFUTED when the evidence is a real dominating check. Killing a false finding is as valuable as tracing a real one — the finder already believes it, so your value is the guard they reasoned past (`CONVENTIONS §B`).
 

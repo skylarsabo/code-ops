@@ -12,7 +12,7 @@ disable-model-invocation: true
 **Cost & shape:** this is deliberately the most thorough and most token-expensive option. It is **phased with checkpoints, not a blind firehose** — you can widen or narrow scope and dial check-ins up or down at Phase 0.
 
 ## Phase 0 — Scope, automation level & preflight  *(checkpoint)*
-Detect the stack/size; confirm all three plugins are available. Verify library/framework facts against the **installed versions** via the in-house docs lookup (`§2`), never memory. Confirm with me:
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` (add `--need gh` if the run will publish) — a FAIL stops the run before any fan-out; advisories are noted in the register. After preflight passes, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/repo-map.mjs --out <run folder>/REPO_MAP.md` and hand its path to every operative brief (`§1`); on failure, note the advisory and proceed. Dispatch an explorer operative to detect the stack/size; confirm all three plugins are available. Verify library/framework facts against the **installed versions** via the in-house docs lookup (`§2`), never memory. Confirm with me:
 - **Scope** — the whole repo, or the riskiest subsystems first (recommended for large repos; bug-hunting goes deep per subsystem).
 - **Privacy track** — include the privacy-opsec phases? (yes if the project has anonymity/opsec requirements; otherwise skip them).
 - **Remediation automation level** (the canonical ladder — code-ops `§4`, applied with rigor's tier gate `rigor §4`/`§H`) — governs every code-changing phase:
