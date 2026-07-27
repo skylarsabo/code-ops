@@ -9,7 +9,7 @@ disable-model-invocation: true
 **Mode:** DOCUMENT (writes docs only; log any code issue as a finding, don't fix it here). **Produces:** `ARCHITECTURE.md` in the repo's docs location — diagram-rich and code-grounded.
 
 ## Phase 0 — Inventory  *(checkpoint)*
-Detect the stack; build the real inventory — deployable units, modules, entrypoints, public surfaces, external systems, datastores, deployment topology. Pick the **3–5 runtime flows** that matter most to document. Confirm scope + the docs location.
+Dispatch an `explorer` operative to detect the stack and build the real inventory — deployable units, modules, entrypoints, public surfaces, external systems, datastores, deployment topology — and hand its summary onward. Pick the **3–5 runtime flows** that matter most to document. Confirm scope + the docs location.
 
 ## Phase 1 — C4 ascent
 Write three layers, each a Mermaid diagram + narrative explaining responsibilities, boundaries, and **why it's split this way**:

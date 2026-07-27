@@ -40,6 +40,11 @@ The lead's reports are compact syntheses — outcome first, evidence pointers, n
 restatement of operative transcripts. Run artifacts (`EXECUTIVE_SUMMARY.md` etc.)
 cap at roughly one page, with detail living in the registers.
 
+These live-session behavioral rules — the lead reviewing diffs and gates itself,
+operative self-reports not being acceptance — are intentionally outside the mechanical
+gate layer: the routing card, dispatch ledger, and narration scan are advisories that
+surface drift, not gates that prevent it.
+
 ## Before declaring any change done
 
 Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check` — the first structural steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>

@@ -47,6 +47,16 @@
 //  17. Every "From skill" / "Invokes" edge in docs/techniques/skill-composition.md's table
 //      resolves to a real plugins/<plugin>/skills/<skill>/ directory — a renamed or removed
 //      skill silently orphans the composition map otherwise.
+//  18. Every evals/<name>/ directory that contains a run.mjs is invoked as the literal string
+//      `node evals/<name>/run.mjs` somewhere in .github/workflows/validate.yml — an eval nobody
+//      wired into CI provides no real backstop against the regression it guards.
+//  19. No executable/config surface (plugins/**/*.mjs, scripts/*.mjs, .github/workflows/*.yml,
+//      plugins/**/hooks/*.json) wires PR auto-merge: the gh CLI merge subcommand combined with
+//      its auto flag on the same line, an auto-merge config key set true-ish, or the GitHub
+//      GraphQL auto-merge-enabling mutation by name. .md doctrine prose is deliberately
+//      excluded — it legitimately talks ABOUT never auto-merging. (This item's own prose
+//      avoids spelling out the literal tokens so it doesn't trip check 19 on itself; see the
+//      check's own comment block for the exact denylist.)
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -655,6 +665,76 @@ function walkFiles(dir, out = []) {
             fail(`${rel(compPath)}:${i + 1}: edge references unresolvable skill "${pn}:${sn}" — no plugins/${pn}/skills/${sn}/ directory`);
         }
       }
+    }
+  }
+}
+
+// ---- 18. eval-wired-to-CI gate ----------------------------------------------
+// A regression eval that isn't invoked in CI provides no real backstop — it can silently
+// rot with nobody noticing it stopped running. For every evals/<name>/ directory that
+// contains a run.mjs, the literal string `node evals/<name>/run.mjs` must appear somewhere
+// in .github/workflows/validate.yml. Judgment-eval dirs without a run.mjs (e.g. ones that
+// are only ever driven by evals/score.mjs against an ANSWER_KEY) are naturally out of scope
+// — the glob keys on run.mjs existing, not on the directory existing.
+{
+  const evalsRootDir = join(ROOT, 'evals');
+  const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
+  if (!existsSync(workflowPath)) {
+    fail(`missing ${rel(workflowPath)} — cannot verify evals are wired into CI`);
+  } else {
+    const workflowText = readText(workflowPath);
+    for (const name of listDirs(evalsRootDir)) {
+      const runPath = join(evalsRootDir, name, 'run.mjs');
+      if (!existsSync(runPath)) continue; // no run.mjs -> not an eval this check tracks
+      const needle = `node evals/${name}/run.mjs`;
+      if (!workflowText.includes(needle))
+        fail(`evals/${name}/run.mjs exists but is not invoked in ${rel(workflowPath)} (expected the literal string "${needle}")`);
+    }
+  }
+}
+
+// ---- 19. auto-merge denylist ------------------------------------------------
+// SHARED_PASSAGES 'always-gated-core' pins "**Never auto-merge" as doctrine; this backs it
+// with a mechanical scan of the surfaces that could actually WIRE auto-merge into a
+// workflow, script, or hook: plugins/**/*.mjs, scripts/*.mjs, .github/workflows/*.yml,
+// plugins/**/hooks/*.json. .md files are deliberately excluded — doctrine prose legitimately
+// talks ABOUT never auto-merging.
+//
+// The denylist tokens below are built via concatenation — never written as a single
+// contiguous literal anywhere in this file, including in the fail messages (which reference
+// the token variables via interpolation rather than retyping them) — so this check's own
+// source in scripts/lint-plugins.mjs can never trip its own denylist when scripts/*.mjs is
+// scanned. Same self-exclusion problem scan-ai-tells.mjs sidesteps by simply never
+// containing the tells it looks for; here the tells ARE representable in code, so they're
+// split instead.
+{
+  const TOK_GH_MERGE = 'gh' + ' pr ' + 'merge';
+  const TOK_AUTO_FLAG = '--' + 'auto';
+  const TOK_AUTO_MERGE_KEY = 'auto' + '_merge';
+  const TOK_ENABLE_AUTOMERGE = 'enablePullRequestAuto' + 'Merge';
+  const autoFlagRe = new RegExp(escapeRe(TOK_AUTO_FLAG) + '(?![a-zA-Z0-9-])');
+  const autoMergeKeyRe = new RegExp(escapeRe(TOK_AUTO_MERGE_KEY) + '\\s*[:=]\\s*(true|"true"|\'true\'|1|yes)\\b', 'i');
+
+  const autoMergeTargets = [];
+  for (const f of walkFiles(join(ROOT, 'plugins'))) {
+    const r = f.replaceAll('\\', '/');
+    if (r.endsWith('.mjs') || (r.endsWith('.json') && /\/hooks\/[^/]+\.json$/.test(r))) autoMergeTargets.push(f);
+  }
+  const amScriptsDir = join(ROOT, 'scripts');
+  if (existsSync(amScriptsDir)) for (const f of readdirSync(amScriptsDir)) if (f.endsWith('.mjs')) autoMergeTargets.push(join(amScriptsDir, f));
+  const amWorkflowsDir = join(ROOT, '.github', 'workflows');
+  if (existsSync(amWorkflowsDir)) for (const f of readdirSync(amWorkflowsDir)) if (f.endsWith('.yml')) autoMergeTargets.push(join(amWorkflowsDir, f));
+
+  for (const f of autoMergeTargets) {
+    const lines = readText(f).split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes(TOK_GH_MERGE) && autoFlagRe.test(line))
+        fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_GH_MERGE}" combined with "${TOK_AUTO_FLAG}" on the same line (never auto-merge)`);
+      if (autoMergeKeyRe.test(line))
+        fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_AUTO_MERGE_KEY}" set to a true-ish value (never auto-merge)`);
+      if (line.includes(TOK_ENABLE_AUTOMERGE))
+        fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_ENABLE_AUTOMERGE}" referenced (never auto-merge)`);
     }
   }
 }

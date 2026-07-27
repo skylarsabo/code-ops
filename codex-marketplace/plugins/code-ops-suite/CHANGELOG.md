@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.22.1
+- **`architecture` and `codebase-audit` Phase 0 name an `explorer` dispatch** for stack detection/inventory, handing its summary onward — matching the executor-naming already used in the orchestrators' Phase 0.
+- **TODO** — describe the change.
+
 ## 1.22.0
 - **`CONVENTIONS.md` §1 gains a reasoning-effort routing rule** — effort follows ambiguity the same way tier does (low for mechanical/breadth, medium for execution/scoped implementation and flow tracing, high for review and the lead, xhigh reserved for disputed verdicts and critical CONFIRMED calls), cross-referencing `docs/techniques/subagent-trade-offs.md` for the full table instead of duplicating it.
 - **Privacy leak gate made an explicit invocation** in `ship` and `debug` Phase 4 — names `privacy-opsec-suite:metadata-leak-audit` scoped to the change's/fix's diff and routes its findings into `FINDINGS_REGISTER.md`, replacing the prior prose-only mention.
