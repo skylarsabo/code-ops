@@ -108,6 +108,32 @@ ${extra}
 The fixture task is complete${doneRevalidate ? ' and revalidate-register.mjs has been re-run clean' : ''}.
 `;
 
+// ---- fixture agents (AGENT_SHARED_PASSAGES, check 14's agents/*.md sibling in
+// scripts/lint-plugins.mjs) — each bundled agent must exist with a frontmatter `model:`
+// tier at or above its AGENT_MODEL_FLOORS entry, and carry whichever pinned doctrine
+// clauses that agent's file path is listed under. Sentences below are transcribed
+// verbatim from AGENT_SHARED_PASSAGES; if that array's `text` values ever change, this
+// eval's baseline starts failing loudly — update these to match, same contract as
+// PINNED_TEXTS/ALWAYS_GATED_TEXT above.
+const AGENT_ESCALATE = 'If the question is ambiguous, return the open question to the orchestrator instead of guessing.';
+const AGENT_REDACT_FULL = 'Redact any secrets/PII to `<REDACTED:reason>`; never reproduce a secret value.';
+const AGENT_REDACT_SHORT = 'Redact secrets/PII.';
+const AGENT_DENSE_EVIDENCE = 'Reports must stay dense and evidence-cited — no raw dumps.';
+
+const agentBody = (name, model, texts) => `---
+name: ${name}
+description: "Fixture agent for the lint-plugins regression eval (evals/lint-plugins/run.mjs)."
+tools: Read, Grep, Glob
+model: ${model}
+---
+
+# ${name} (FIXTURE)
+
+Fixture agent; not a real agent. Read-only investigation for the fixture task.
+
+${texts.join('\n\n')}
+`;
+
 // Builds a MINIMAL tree that scripts/lint-plugins.mjs (copied in, unmodified) passes.
 // Two plugins, named/shaped exactly as PRODUCER_SELFCHECK and SHARED_PASSAGES require
 // (see the file header note) — 5 skills total, one vendored script, one handbook page
@@ -153,6 +179,8 @@ function buildBaseline(root) {
     doneRevalidate: false,
     extra: `\n${ALWAYS_GATED_TEXT}** without explicit developer approval at a checkpoint.\n`,
   }));
+  put(root, 'plugins/code-ops-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
+  put(root, 'plugins/code-ops-suite/agents/reviewer.md', agentBody('reviewer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
 
   // -- rigor: bug-hunt, quality-scan, consistency-closure (all PRODUCER_SELFCHECK) --
   put(root, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify({ name: 'rigor', version: '0.1.0', description: 'fixture rigor plugin' }, null, 2));
@@ -161,6 +189,8 @@ function buildBaseline(root) {
   put(root, 'plugins/rigor/skills/bug-hunt/SKILL.md', skillBody('BUG HUNT'));
   put(root, 'plugins/rigor/skills/quality-scan/SKILL.md', skillBody('QUALITY SCAN'));
   put(root, 'plugins/rigor/skills/consistency-closure/SKILL.md', skillBody('CONSISTENCY CLOSURE'));
+  put(root, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
+  put(root, 'plugins/rigor/agents/verifier.md', agentBody('verifier', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
 
   // -- privacy-opsec-suite / researcher: bare SHARED_PASSAGES filler, 0 skills each --
   for (const filler of ['privacy-opsec-suite', 'researcher']) {
@@ -168,6 +198,11 @@ function buildBaseline(root) {
     put(root, `plugins/${filler}/CONVENTIONS.md`, `# Conventions (fixture)\n\n${DOCTRINE_BLOB}\n`);
     put(root, `plugins/${filler}/README.md`, `# ${filler} (fixture)\n\nNo skills — SHARED_PASSAGES filler only.\n`);
   }
+  // -- privacy-opsec-suite / researcher agents (AGENT_SHARED_PASSAGES filler) --
+  put(root, 'plugins/privacy-opsec-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_ESCALATE]));
+  put(root, 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md', agentBody('privacy-reviewer', 'opus', [AGENT_ESCALATE, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/researcher/agents/claim-checker.md', agentBody('claim-checker', 'sonnet', [AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/researcher/agents/gatherer.md', agentBody('gatherer', 'haiku', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
 
   // -- handbook (router index + one page per plugin) --
   put(root, 'docs/handbook/commands/README.md', [
@@ -285,6 +320,33 @@ No completion heading here on purpose (case 3 mutation).
   const r6 = runLint(d6);
   check('6. orphan script stays advisory-only, exit 0', r6.status === 0);
   check('6. output flags it as advisory', r6.all.includes('advisory:') && r6.all.includes('orphan-tool.mjs'));
+
+  // 7. AGENT PASSAGE DRIFT — an agents/*.md pinned doctrine clause (AGENT_SHARED_PASSAGES)
+  // diverges from its canonical text; must fail closed same as the CONVENTIONS.md-level
+  // SHARED_PASSAGES check.
+  const d7 = clone('case7-agent-passage-drift');
+  put(d7, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [
+    'If the question is ambiguous, return the open question to the orchestrator instead of gu3ssing (case 7 mutation).',
+    AGENT_REDACT_FULL,
+  ]));
+  const r7 = runLint(d7);
+  check('7. agent passage drift exits 1', r7.status === 1);
+  check('7. message mentions the drifted agent passage', r7.all.includes('agent-escalate-dont-guess') && r7.all.includes('plugins/rigor/agents/tracer.md'));
+
+  // 8. BOGUS COMPOSITION EDGE — docs/techniques/skill-composition.md table cell names a
+  // plugin:skill edge that does not resolve to a real plugins/<plugin>/skills/<skill>/ dir.
+  const d8 = clone('case8-bogus-composition-edge');
+  put(d8, 'docs/techniques/skill-composition.md', [
+    '# Skill composition (fixture)',
+    '',
+    '| From skill | Invokes | Notes |',
+    '| --- | --- | --- |',
+    '| `rigor:bug-hunt` | `no-such-plugin:no-such-skill` | fixture invalid edge (case 8 mutation) |',
+    '',
+  ].join('\n'));
+  const r8 = runLint(d8);
+  check('8. bogus composition edge exits 1', r8.status === 1);
+  check('8. message mentions the unresolved edge', r8.all.includes('unknown plugin "no-such-plugin"'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

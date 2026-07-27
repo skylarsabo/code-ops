@@ -10,7 +10,7 @@ description: "Use when you want the whole privacy-opsec-suite run end-to-end as 
 **Invoke in Codex by naming `privacy-opsec-suite:full-sweep`.** First read the bundled `<plugin-root>/CONVENTIONS.md` — especially §A, the central **anonymity & OpSec model** every phase enforces. This skill **orchestrates the other skills in sequence** as one developer-in-the-loop pipeline: it runs them in order, carries `LEAK_REGISTER.md` forward, keeps a master plan, and checks in with you at every phase boundary. Stance is defensive — protect the system's own users and find/fix leaks in your own code.
 
 ## Phase 0 — Scope the run  *(checkpoint)*
-Detect the stack and the size of the repo, then confirm with me:
+Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>` — a FAIL stops the run before any fan-out; advisories are noted in the register. After preflight passes, run `node <plugin-root>/scripts/repo-map.mjs --out <run folder>/REPO_MAP.md`; on failure, note the advisory and proceed. Dispatch the explorer subagent to detect the stack and the size of the repo, handing its summary plus `REPO_MAP.md` to the next phase, then confirm with me:
 - **Track:** `audit-only` (read + document, no code changes) · `full` (audit → harden → docs/gate) · or a custom subset.
 - Scope, the adversaries to emphasize (`CONVENTIONS §A`), PR preference, and whether code-changing phases are pre-approved or gated each time.
 Open a master todo and a running `EXECUTIVE_SUMMARY.md` across phases. **Surface any suspected deanonymization/leak to me immediately, in any phase.**

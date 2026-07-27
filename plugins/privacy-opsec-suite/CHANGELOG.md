@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.15.0
+- **`explorer` and `privacy-reviewer` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.
+- **`preflight.mjs`, `repo-map.mjs`, and `import-graph.mjs` vendored in** (`scripts/vendored-manifest.mjs`) — `full-sweep` Phase 0 now runs the preflight gate, generates `REPO_MAP.md`, and dispatches the `explorer` subagent to detect stack/size before confirming scope, matching the other suite orchestrators.
+
 ## 1.14.0
 - **`revalidate-register.mjs` hardened** — its git call now runs under a child-process timeout, blank/whitespace flag values are rejected, and unknown flags exit 2 instead of being silently treated as filenames.
 - **`scan-ai-tells.mjs`, `scan-injection-tells.mjs`, and `scan-redaction.mjs` hardened** — missing-file/config errors now exit 2 even when hits are also present (previously masked to exit 1), their git calls run under a timeout, and unknown flags are rejected.

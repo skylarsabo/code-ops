@@ -13,7 +13,22 @@ A subagent is a worker the orchestrator spawns with a precise question and a min
 
 The single rule that governs all of them lives in code-ops-suite [`CONVENTIONS.md` §1](../../plugins/code-ops-suite/CONVENTIONS.md): **read-only analysis parallelizes freely; anything that edits code runs in parallel only on disjoint file sets, and work touching shared files or dependency edges is serialized.** Every subagent grounds its report in `file:line` evidence ([§9](../../plugins/code-ops-suite/CONVENTIONS.md)) and the orchestrator keeps developer-in-the-loop control — the subagents report, the orchestrator decides.
 
-If you read nothing else: the suite uses *several* read-only agents in parallel over disjoint areas to move fast, and reserves the one writing/executing agent for careful, isolated use. The cost it pays for that parallelism is covered in [09 · Cost and scoping](../handbook/09-cost-and-scoping.md).
+**How ambiguity routes to a tier:** routing is relative to the lead's own tier, not
+a fixed model name — an operative runs one tier below whichever model is leading,
+floored at the mid tier, provider-agnostic (frontier > strong > mid). Worked example
+with this suite's Claude models (frontier Opus lead → strong Sonnet operatives; a
+Sonnet lead still dispatches Sonnet, the floor):
+
+| Task shape | Route to | Effort | Why |
+| --- | --- | --- | --- |
+| Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`, `mech`) — below the one-tier-down default, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis) | No judgment call to get wrong; cheapest tier that can do the read. |
+| Moderate judgment (single-claim research, one candidate finding, execution-only work) | `sonnet`-floor agents (`claim-checker`, `verifier`, implementer) — one tier below an Opus lead, the mid-tier floor | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test; `verifier` executes only, judgment stays with the lead. |
+| High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | `opus`-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | `reviewer`/`privacy-reviewer` high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
+| Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The lead, at the highest tier present in the session | high; xhigh only for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop and is never down-tiered for this. |
+
+Anti-patterns: no xhigh/max on breadth sweeps — parallelism beats effort for coverage; no low on review. Effort and tier partially substitute: a stronger model at medium approximates a mid model at high (tier-relative, provider-agnostic).
+
+The suite uses *several* read-only agents in parallel over disjoint areas to move fast, and reserves the writing/executing agent for careful, isolated use. The cost it pays for that parallelism is covered in [09 · Cost and scoping](../handbook/09-cost-and-scoping.md).
 
 ---
 
@@ -67,12 +82,14 @@ Because none of these write, the orchestrator can run, say, four code-ops `explo
 
 One agent in the suite can write files and run arbitrary commands: **rigor `verifier`** (model: `opus`, tools `Read, Grep, Glob, Bash, Write`). It exists so that **CONFIRMED** means something — given one candidate finding, it writes the smallest repro/test that would fail if the bug is real, runs it, observes the actual output, and assigns the tier accordingly (covered in [the disconfirmation pass](disconfirmation-pass.md)).
 
+The `opus` floor here is a deliberate decision, not a token-saving candidate: a wrong CONFIRMED poisons every downstream consumer of the register (`AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs`) — nothing depends on this agent being cheap.
+
 Its extra power is fenced by hard rules in the agent definition:
 
 - **It never edits the source under evaluation.** Repro and scratch files go to a temp or test location, kept clearly separate. `Bash` and `Write` are *for repros, tests, and benchmarks only*, and it does not commit.
 - **It reports only what it actually ran** — the real command and real output, never a claimed result. A candidate it could not reproduce is reported as PROBABLE/SPECULATIVE, not quietly upgraded.
 
-So even the one writing agent is, in practice, write-isolated from the code being judged. When a skill needs *multiple* verifiers, the fan-out rule from [§1](../../plugins/code-ops-suite/CONVENTIONS.md) applies in full: give each one a **disjoint** repro target so their artifacts cannot collide, and serialize anything that would touch a shared file. This is the same conflict-aware discipline the suite applies to any code-editing fan-out — read-only work parallelizes freely; writing/executing work is parallel only across disjoint files, serial otherwise.
+So even the one writing agent is, in practice, write-isolated from the code being judged. When a skill needs *multiple* verifiers, the fan-out rule from [§1](../../plugins/code-ops-suite/CONVENTIONS.md) applies in full: give each one a **disjoint** repro target so their artifacts cannot collide, and serialize anything that would touch a shared file.
 
 ---
 

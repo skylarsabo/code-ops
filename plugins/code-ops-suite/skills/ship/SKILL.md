@@ -11,13 +11,13 @@ disable-model-invocation: true
 Scale every phase to the change: a one-off is a light pass; a feature gets the full treatment.
 
 ## Phase 0 — Scope & design-check  *(checkpoint)*
-Detect the stack; run `/rigor:ground-truth` for the baseline; learn the repo's conventions. Size the change (one-off vs feature). For a feature, confirm the approach (options + a recommendation) before building; a true one-off proceeds. Set the **automation level** (`§4`). Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` (add `--need gh` if the run will publish) — a FAIL stops the run before any fan-out; advisories are noted in the register. Confirm plugin availability; note anything missing. After preflight passes, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/repo-map.mjs --out <run folder>/REPO_MAP.md` and hand its path to every operative brief (`§1`); on failure, note the advisory and proceed.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` (add `--need gh` if the run will publish) — a FAIL stops the run before any fan-out; advisories are noted in the register. Confirm plugin availability; note anything missing. After preflight passes, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/repo-map.mjs --out <run folder>/REPO_MAP.md` and hand its path to every operative brief (`§1`); on failure, note the advisory and proceed. Dispatch an explorer operative to detect the stack and learn the repo's conventions, handing its summary plus `REPO_MAP.md` to the next phase; run `/rigor:ground-truth` for the baseline. Size the change (one-off vs feature). For a feature, confirm the approach (options + a recommendation) before building; a true one-off proceeds. Set the **automation level** (`§4`).
 
 ## Phase 1 — Safety net (risky / low-coverage areas)
 If the change touches code with thin coverage, run `/rigor:safety-net` to characterize current behavior first, so the change is provably behavior-preserving where it should be.
 
 ## Phase 2 — Implement
-Run the implementation loop (`§11`): the smallest correct change, matching existing conventions, upholding the quality lenses (`§10`). A feature ships its smallest valuable slice first (behind a flag if it isn't yet complete). Don't trade one issue for another.
+Run the implementation loop (`§11`): the smallest correct change, matching existing conventions, upholding the quality lenses (`§10`). A feature ships its smallest valuable slice first (behind a flag if it isn't yet complete). Don't trade one issue for another. A new-dependency or library-choice decision routes through `/researcher:library-eval`; a claim or assumption needing verification before a design commitment uses `/researcher:research-verify`.
 
 ## Phase 3 — Prove
 Add tests that fail before and pass after; keep the full suite green; run the regression guard (`rigor §H`) so nothing prior breaks. A change without a test that demonstrates it is not done.
@@ -25,7 +25,7 @@ Add tests that fail before and pass after; keep the full suite green; run the re
 Before trusting any composed skill's or dispatched operative's report at this or a later phase, check it has the shape its role promises (e.g. a proof artifact from `rigor`'s verifier, a leak verdict from the privacy gate) — anything null, empty, or short of that shape is a failed dispatch (`§1`), logged `failed` in `DISPATCH_LEDGER.md` (`§12`) and redispatched or deferred, never treated as a pass.
 
 ## Phase 4 — Privacy gate  *(if applicable)*
-If the change touches egress, logging, identifiers, or a default — and `privacy-opsec-suite` is installed — run its gate: no new leak/egress/identifier/fingerprint, fail-closed preserved. Surface any anonymity regression as blocking.
+If the change touches egress, logging, identifiers, or a default — and `privacy-opsec-suite` is installed — run `/privacy-opsec-suite:metadata-leak-audit` scoped to the change's diff: no new leak/egress/identifier/fingerprint, fail-closed preserved. Its findings enter `FINDINGS_REGISTER.md`; surface any anonymity regression as blocking.
 
 ## Phase 5 — Finish traceless
 Ship the work as a clean PR: `code-ops-suite:pr-split` if it warrants a stack, otherwise a single PR scrubbed by `privacy-opsec-suite:authorship-hygiene`. `scan-ai-tells` passes fail-closed before push — if `privacy-opsec-suite` is not installed, run the bundled `${CLAUDE_PLUGIN_ROOT}/scripts/scan-ai-tells.mjs` over the commit/PR text directly as the gate. **Never auto-merge**.

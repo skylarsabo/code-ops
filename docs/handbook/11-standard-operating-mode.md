@@ -1,0 +1,40 @@
+# Standard Operating Mode
+
+This page is the SSOT for what to reach for by default: which route handles a given
+task, and the tier/effort rule that governs how work is delegated once a route is
+chosen.
+
+## Task type → route
+
+| Task type | Route |
+| --- | --- |
+| Debug a bug | `/code-ops-suite:debug` |
+| Ship a feature/change | `/code-ops-suite:ship` |
+| Audit/quality sweep | `/code-ops-suite:full-sweep` or `/rigor:rigor-sweep` |
+| Privacy/leak concern | `/privacy-opsec-suite` skills |
+| Library/dependency decision | `/researcher:library-eval` |
+| Claim verification | `/researcher:research-verify` |
+| Everything (broad, multi-domain) | `/code-ops-suite:everything` |
+
+## Tier and effort rule
+
+Operatives run one tier below the lead, floored at mid (sonnet) — never below the
+lint-enforced `AGENT_MODEL_FLOORS`. Effort is set by ambiguity, not importance:
+mechanical/low-ambiguity work runs low effort, single-claim or execution-only work
+runs medium, hard-to-reverse tracing/review runs high. Verdicts
+(CONFIRMED/PROBABLE/SPECULATIVE) and acceptance of a subagent's report stay with the
+lead, at the highest tier present in the session. See
+[subagent-trade-offs.md](../techniques/subagent-trade-offs.md) for the full table
+backing this rule.
+
+## Related techniques
+
+- [dispatch-brief-template.md](../techniques/dispatch-brief-template.md) — how to write an operative brief.
+- [skill-composition.md](../techniques/skill-composition.md) — how skills invoke each other.
+
+## The declared exception
+
+Ad-hoc pipelines (hand-assembled tool sequences instead of an existing skill) are the
+declared exception, used only when no existing skill fits the task.
+
+*Verified-at: 09df64b*

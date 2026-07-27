@@ -13,7 +13,7 @@ A shared backbone runs through all four: developer-in-the-loop, evidence at `fil
 
 ## Task → command router (condensed)
 
-The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 56 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
+The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 57 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
 
 | I want to… | Command |
 | --- | --- |
@@ -45,10 +45,11 @@ The first slice, all under `docs/` and tracked in the repo.
 - [08-ci-and-automation.md](08-ci-and-automation.md) — wiring the per-PR gates and recurring skills: what each gate blocks, and the one credential and permission they need.
 - [09-cost-and-scoping.md](09-cost-and-scoping.md) — cost as a control you hold: choosing the orchestrator, scope, track, and check-in cadence to fit a budget.
 - [10-recovery-and-troubleshooting.md](10-recovery-and-troubleshooting.md) — what to do when a run stalls or a register goes stale: re-ground against current code, then continue.
+- [11-standard-operating-mode.md](11-standard-operating-mode.md) — the SSOT for default routing: the task-type → command table and the tier/effort delegation rule.
 
 **Command reference**
-- [commands/README.md](commands/README.md) — the command-reference index and the full task → command router covering all 56 commands.
-- [commands/code-ops-suite.md](commands/code-ops-suite.md) — the 24 code-ops-suite commands.
+- [commands/README.md](commands/README.md) — the command-reference index and the full task → command router covering all 57 commands.
+- [commands/code-ops-suite.md](commands/code-ops-suite.md) — the 25 code-ops-suite commands.
 - [commands/rigor.md](commands/rigor.md) — the 11 rigor commands.
 - [commands/privacy-opsec-suite.md](commands/privacy-opsec-suite.md) — the 14 privacy-opsec-suite commands.
 - [commands/researcher.md](commands/researcher.md) — the 7 researcher commands.
@@ -71,9 +72,11 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../techniques/subagent-trade-offs.md](../techniques/subagent-trade-offs.md) — which subagents exist, when a skill fans out to them, and the context-isolation trade-offs you buy when it does.
 - [../techniques/applying-quality-lenses.md](../techniques/applying-quality-lenses.md) — treating the ten quality lenses as a decision aid: choosing which apply to your stack and how to weight them.
 - [../techniques/redaction-discipline.md](../techniques/redaction-discipline.md) — the mechanical rule for secrets and PII: redact to `<REDACTED:reason>` everywhere, never reproduce a live secret or real identifier.
+- [../techniques/dispatch-brief-template.md](../techniques/dispatch-brief-template.md) — the six-section fill-in skeleton for briefing a subagent, plus per-agent-kind notes and a worked example.
+- [../techniques/skill-composition.md](../techniques/skill-composition.md) — the cross-skill invocation map: every skill that invokes another skill mid-run, when, and what artifact it passes.
 
 ## The handbook is complete
 
-This is the full handbook: ten chapters, the command reference, eight guides, and seven techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
+This is the full handbook: eleven chapters, the command reference, eight guides, and nine techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
-*Verified-at: c2b37e9*
+*Verified-at: 09df64b*
