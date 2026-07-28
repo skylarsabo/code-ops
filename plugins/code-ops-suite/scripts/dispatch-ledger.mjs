@@ -3,7 +3,7 @@
 // convention (CONVENTIONS.md §12: "Standard filenames"; row grammar pinned in
 // scripts/revalidate-register.mjs's --dispatch-ledger comment).
 //
-//   node scripts/dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a>
+//   node scripts/dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m>
 //   node scripts/dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s>
 //   node scripts/dispatch-ledger.mjs check --ledger <path> [--strict]
 //
@@ -16,13 +16,24 @@
 // mirroring revalidate-register.mjs's --dispatch-ledger philosophy, because a
 // legitimate resume-in-progress dispatch must not be blocked by its own tooling.
 //
-// Row grammar: | D-NNN | role | brief (<=10 words) | expected artifact | status |
+// Row grammar: | D-NNN | role@model | brief (<=10 words) | expected artifact | status |
 // status one of: dispatched | reported | failed | redispatched
 //
+// WHY role@model: a real-scale calibration run found a lead silently substituting one
+// model tier down mid-run with no artifact recording which model actually executed a
+// dispatch — the tier-mix metric becomes unreconstructable and an unattended run can
+// finish verdicts a tier low, invisibly. `add` now REQUIRES --model <resolved-model-id>
+// and stamps it into the role cell as `role@model`, keeping the 5-cell grammar and every
+// parser that treats the cell as opaque text unchanged. A role cell with no `@model`
+// (a pre-stamp row, or a resolver that failed to report its model) is an unstamped
+// dispatch: `check` flags it as an advisory (tier mix not reconstructable for that row),
+// promoted to a failure under --strict. Legacy ledgers without the stamp still PARSE.
+//
 // Exit: add/update -> 0 on success, 1 on a validation rejection (bad brief length,
-// unknown id, invalid transition), 2 on a usage error. check -> 0 (schema clean; any
-// dangling rows are printed as advisories), 1 on a schema violation, or (with
-// --strict) on a dangling `dispatched` row too. 2 on a usage error.
+// missing/unresolvable --model, unknown id, invalid transition), 2 on a usage error.
+// check -> 0 (schema clean; any dangling/unstamped rows are printed as advisories), 1 on
+// a schema violation, or (with --strict) on a dangling `dispatched` row or an unstamped
+// row too. 2 on a usage error.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -33,7 +44,7 @@ const STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
 const ROW_RE = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
 
 function usage() {
-  console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a>');
+  console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m>');
   console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s>');
   console.error('       dispatch-ledger.mjs check --ledger <path> [--strict]');
   process.exit(2);
@@ -96,9 +107,13 @@ function wordCount(s) {
 // ---------------------------------------------------------------- add
 
 function cmdAdd(args) {
-  const f = parseFlags(args, new Set(['--ledger', '--role', '--brief', '--artifact']));
+  const f = parseFlags(args, new Set(['--ledger', '--role', '--brief', '--artifact', '--model']));
   for (const req of ['--ledger', '--role', '--brief', '--artifact'])
     if (!(req in f)) { console.error(`x add needs ${req}`); usage(); }
+  if (!('--model' in f)) {
+    console.error('x add needs --model <resolved-model-id> — without it, the tier a dispatch actually ran on cannot be reconstructed after the fact (calibration finding: silent tier substitution goes invisible)');
+    process.exit(1);
+  }
   if (wordCount(f['--brief']) > 10) {
     console.error(`x brief exceeds 10 words (${wordCount(f['--brief'])}): ${JSON.stringify(f['--brief'])}`);
     process.exit(1);
@@ -114,7 +129,8 @@ function cmdAdd(args) {
   }
   const { rows } = text === null ? { rows: [] } : parseRows(text);
   const id = nextId(rows);
-  const row = `| ${id} | ${f['--role']} | ${f['--brief']} | ${f['--artifact']} | dispatched |\n`;
+  const role = `${f['--role']}@${f['--model']}`;
+  const row = `| ${id} | ${role} | ${f['--brief']} | ${f['--artifact']} | dispatched |\n`;
   const body = (text === null ? HEADER : (text.endsWith('\n') ? text : text + '\n')) + row;
   writeFileSync(path, body);
   console.log(`(dispatch-ledger) ${id} dispatched -> ${f['--ledger']}`);
@@ -196,9 +212,19 @@ function cmdCheck(args) {
   for (const r of dangling)
     console.log(`  advisory: ${r.id} still 'dispatched' — operative may have died or hung; re-dispatch or mark failed before resuming`);
 
-  console.log(`\n${rows.length} row(s), 0 schema violation(s), ${dangling.length} dangling dispatch(es).`);
+  // A role cell with no `@model` is a pre-stamp row or a resolver that failed to report its
+  // model: the tier that actually ran the dispatch cannot be reconstructed from this row.
+  const unstamped = rows.filter((r) => !r.role.includes('@'));
+  for (const r of unstamped)
+    console.log(`  advisory: ${r.id} unstamped dispatch (pre-stamp row or resolver failure) — tier mix not reconstructable`);
+
+  console.log(`\n${rows.length} row(s), 0 schema violation(s), ${dangling.length} dangling dispatch(es), ${unstamped.length} unstamped dispatch(es).`);
   if (dangling.length && strict) {
     console.error('--strict: dangling dispatched row(s) present — treat as failed.');
+    process.exit(1);
+  }
+  if (unstamped.length && strict) {
+    console.error('--strict: unstamped dispatch row(s) present — tier mix not reconstructable.');
     process.exit(1);
   }
 }

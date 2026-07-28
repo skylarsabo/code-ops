@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.25.0
+- **Dispatch-ledger rows are stamped `role@model`.** `dispatch-ledger.mjs add` now requires `--model <resolved-model-id>` and writes it into the role cell, so a run's actual tier mix is reconstructable after the fact and a silent mid-run tier substitution is visible instead of invisible; `check` flags an unstamped row as an advisory (a hard failure under `--strict`). Legacy unstamped rows still parse.
+- **Register per-entry length budget.** `scan-narration.mjs` now checks a `FINDINGS_REGISTER.md`-shaped artifact per-entry (advisory 10 / hard 20 non-blank lines, preamble 15/30) instead of against the flat file-level cap — real-scale calibration evidence showed the flat cap wrongly penalized a legitimate many-entry register whose individual entries were tight.
+- **`scan-redaction.mjs` gains directory support.**
+- **`calibration-metrics.mjs`** warns when a present, non-empty artifact parses to zero items (naming the artifact and pointing at the new `docs/techniques/artifact-grammars.md`), and adds a tier-mix line to the dispatch-ledger summary parsed from the `role@model` stamp (unstamped rows counted separately).
+- **New `docs/techniques/artifact-grammars.md`** — the SSOT for the three parse grammars (`DISPATCH_LEDGER.md`, `FINDINGS_REGISTER.md`, `REFUTATION_LOG.md`) consumed by `calibration-metrics.mjs` and `revalidate-register.mjs`; handbook technique count 10 → 11. `calibration-protocol.md` now notes CONFIRMED-ratio comparisons are within-track only and links the grammars doc.
+- `CONVENTIONS.md` §12's dispatch-ledger example updated to the stamped row form; a sentence on the register per-entry budget added alongside it.
+
 ## 1.24.0
 - **Skills are model-invocable.** Removed `disable-model-invocation: true` from all skill frontmatter; the harness routes slash input through the Skill tool, and the flag made every skill uninvocable there and blocked scheduled-task invocation. Routing discipline now lives in each skill's "Use when" description, the session routing card, and each skill's own checkpoints — no auto-merge, ever.
 

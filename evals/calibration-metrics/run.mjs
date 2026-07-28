@@ -53,6 +53,9 @@ try {
   check('a. failed rate is 1/6', /failed rate: 16\.7% \(1\/6\)/.test(a.stdout), a.stdout);
   check('a. redispatched rate is 1/6', /redispatched rate: 16\.7% \(1\/6\)/.test(a.stdout), a.stdout);
 
+  // Tier mix: 4 stamped claude-sonnet-5, 1 stamped claude-opus-5, 1 legacy unstamped row.
+  check('a. tier mix reports stamped models and the unstamped count', /tier mix: .*claude-sonnet-5 4.*claude-opus-5 1.*unstamped 1/.test(a.stdout), a.stdout);
+
   // Findings register: 3 CONFIRMED / 2 PROBABLE / 1 SPECULATIVE.
   check('a. register total is 6, unparseable 0', /\b6 finding\(s\), unparseable: 0\b/.test(a.stdout), a.stdout);
   check('a. tier breakdown matches', /CONFIRMED 3 \(50\.0%\).*PROBABLE 2 \(33\.3%\).*SPECULATIVE 1 \(16\.7%\)/.test(a.stdout), a.stdout);
@@ -92,6 +95,13 @@ try {
   const c = run(['--artifacts', malformedDir]);
   check('c. malformed ledger still exits 0 (mode 1 never gates)', c.status === 0, c.stdout + c.stderr);
   check('c. malformed row counted as unparseable: 1', /1 dispatch\(es\), unparseable: 1/.test(c.stdout), c.stdout);
+
+  // ---- k. non-empty, zero-parseable-row ledger -> WARNING naming it -----------
+  const zeroParseDir = join(HERE, 'zero-parse-ledger');
+  const k = run(['--artifacts', zeroParseDir]);
+  check('k. zero-parse ledger still exits 0 (mode 1 never gates)', k.status === 0, k.stdout + k.stderr);
+  check('k. zero-parse ledger reports 0 dispatches, unparseable 0', /\b0 dispatch\(es\), unparseable: 0\b/.test(k.stdout), k.stdout);
+  check('k. zero-parse ledger emits a WARNING naming the artifact and the grammars doc', /!! WARNING: DISPATCH_LEDGER\.md is present and non-empty but yielded 0 parsed items.*artifact-grammars\.md/.test(k.stdout), k.stdout);
 
   // ---- MODE 2: note validation -------------------------------------------------
   const notesDir = join(HERE, 'notes');

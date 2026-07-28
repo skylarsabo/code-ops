@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.16.1
+- **`scan-redaction.mjs` gains directory support** (vendored copy re-synced from the canonical `scripts/scan-redaction.mjs`).
+
 ## 1.16.0
 - **Skills are model-invocable.** Removed `disable-model-invocation: true` from all skill frontmatter; the harness routes slash input through the Skill tool, and the flag made every skill uninvocable there and blocked scheduled-task invocation. Routing discipline now lives in each skill's "Use when" description, the session routing card, and each skill's own checkpoints — anonymity-affecting phases stay gated at every automation level.
 

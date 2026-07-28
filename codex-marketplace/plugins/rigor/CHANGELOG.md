@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.14.1
+- `CONVENTIONS.md` §10 notes that a `FINDINGS_REGISTER.md`-shaped artifact is checked against its own per-entry length budget rather than the flat `EXECUTIVE_SUMMARY.md`-style cap, cross-referencing the new `docs/techniques/artifact-grammars.md`.
+
 ## 2.14.0
 - **Skills are model-invocable.** Removed `disable-model-invocation: true` from all skill frontmatter; the harness routes slash input through the Skill tool, and the flag made every skill uninvocable there and blocked scheduled-task invocation. Routing discipline now lives in each skill's "Use when" description, the session routing card, and each skill's own checkpoints — no auto-merge, ever.
 

@@ -12,7 +12,9 @@
 //
 // Scans run-artifact TEXT for:
 //   LENGTH             non-blank line count over the "roughly one page" bound (advisory at
-//                      ADVISORY_LINES, hard at HARD_LINES)
+//                      ADVISORY_LINES, hard at HARD_LINES). Register-shaped files (basename
+//                      matches /register/i) are exempt from this flat file-level cap and are
+//                      instead checked per-entry — see REGISTER_ENTRY_* below.
 //   PROCESS-NARRATION  first-person / play-by-play run narration ("I then", "let me", ...)
 //   RESTATEMENT        an EXECUTIVE_SUMMARY-shaped file inlining 5+ consecutive register
 //                      table rows instead of linking to the register
@@ -45,6 +47,58 @@ for (const a of argv) {
 const ADVISORY_LINES = 60;
 const HARD_LINES = 120;
 
+// A register file (basename matches /register/i, mirroring how RESTATEMENT below gates on
+// /summary/i) is exempt from the flat file-level LENGTH cap above. Calibration evidence from
+// two independent real-scale runs (evals/CALIBRATION_TABLE.md, both 2026-07-28 rows) showed the
+// flat cap is right for run summaries but wrong for registers: a legitimate 49-finding
+// FINDINGS_REGISTER.md blew the 120-line hard cap ~2.5x in both runs while every individual
+// entry was tight. The cap's intent (CONVENTIONS §12: registers are live backlogs/SSOT — the
+// doctrine is prose discipline, not finding-count suppression) is better served by a per-entry
+// budget: a register with 200 tight entries should pass; one 30-line rambling entry should fail.
+const isRegisterArtifact = (label) => /register/i.test(label);
+
+// Entry-boundary detection for registers, reused verbatim (ID_RE / ID_IGNORE / isItemId) from
+// scripts/revalidate-register.mjs so the two tools agree on where one entry ends and the next
+// begins — an item ID like `BUG-007` or `PERF-003` starts a new entry. ID_IGNORE skips common
+// standards/identifiers (RFC-2616, CVE-2021-44228, ISO-8601, UTF-8, SHA-256) that legitimately
+// appear in a finding's prose without being an item boundary.
+const ID_RE = /\b([A-Z][A-Z0-9]{1,}-\d{1,6})\b/g;
+const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', 'SHA', 'MD', 'AES', 'RGB', 'HTTP', 'HTTPS', 'IEEE', 'ANSI', 'FIPS', 'NIST', 'PEP', 'ECMA', 'UTC', 'GMT', 'IPV']);
+function isItemId(id, after, afterNext) {
+  if (ID_IGNORE.has(id.split('-')[0].toUpperCase())) return false;
+  // Only a digit after the trailing '-' marks a longer numeric token (CVE-2021-44228); a slug
+  // suffix (BUG-042-auth-bypass) is still a real item ID.
+  if (after === '-' && /\d/.test(afterNext || '')) return false;
+  return true;
+}
+
+// Per-entry budget (named constants, not the flat file cap): advisory at 10 non-blank lines,
+// hard at 20. Calibrated so a normal Tier/Location/Anchor/... labeled block (CONVENTIONS §12
+// schema, ~5-8 lines) passes cleanly while a block that has grown prose padding is flagged.
+const REGISTER_ENTRY_ADVISORY_LINES = 10;
+const REGISTER_ENTRY_HARD_LINES = 20;
+// Preamble (title/intro before the first entry) keeps its own small fixed budget so headers
+// stay tight without capping how many entries the register may hold.
+const REGISTER_PREAMBLE_ADVISORY_LINES = 15;
+const REGISTER_PREAMBLE_HARD_LINES = 30;
+
+const countNonBlank = (lines) => lines.filter((l) => l.replace(/\r$/, '').trim() !== '').length;
+
+// Locates each entry's start line (0-based) in a register-shaped text. Returns null when the
+// text carries no parseable item IDs — despite the /register/i filename, it isn't actually
+// register-shaped content, so the caller falls back to the flat file-level cap instead of
+// silently exempting a free-form doc that merely has "register" in its name.
+function findRegisterEntries(text) {
+  const ids = [...text.matchAll(ID_RE)].filter((m) => isItemId(m[1], text[m.index + m[0].length], text[m.index + m[0].length + 1]));
+  if (ids.length === 0) return null;
+  const lineOf = (idx) => text.slice(0, idx).split('\n').length - 1;
+  return ids.map((m, i) => ({
+    id: m[1],
+    startLine: lineOf(m.index),
+    endLine: i + 1 < ids.length ? lineOf(ids[i + 1].index) : undefined, // undefined = runs to EOF
+  }));
+}
+
 // Multi-word phrases only (never a bare \bi\b) so acronyms/compounds like "I/O" or "I-node"
 // can never trip this — word-boundary phrase matching, not single-letter matching.
 const PROCESS_NARRATION_CHECKS = [
@@ -76,12 +130,31 @@ const isSummaryArtifact = (label) => /summary/i.test(label);
 
 function scanText(label, text) {
   const lines = text.split('\n');
-  const nonBlank = lines.filter((l) => l.replace(/\r$/, '').trim() !== '').length;
+  const nonBlank = countNonBlank(lines);
 
   const hits = { hard: [], advisory: [] };
 
-  if (nonBlank > HARD_LINES) hits.hard.push({ cat: 'LENGTH', line: 0, snippet: `${nonBlank} non-blank lines (hard bound ${HARD_LINES})` });
-  else if (nonBlank > ADVISORY_LINES) hits.advisory.push({ cat: 'LENGTH', line: 0, snippet: `${nonBlank} non-blank lines (advisory bound ${ADVISORY_LINES})` });
+  // Register-shaped files with parseable entries get the per-entry budget instead of the flat
+  // file cap; everything else (including a /register/i file with zero parseable IDs) keeps the
+  // flat-cap behavior exactly as before.
+  const registerEntries = isRegisterArtifact(label) ? findRegisterEntries(text) : null;
+
+  if (registerEntries) {
+    const preambleLines = lines.slice(0, registerEntries[0].startLine);
+    const preambleNonBlank = countNonBlank(preambleLines);
+    if (preambleNonBlank > REGISTER_PREAMBLE_HARD_LINES) hits.hard.push({ cat: 'LENGTH', line: 1, snippet: `preamble: ${preambleNonBlank} non-blank lines (hard bound ${REGISTER_PREAMBLE_HARD_LINES})` });
+    else if (preambleNonBlank > REGISTER_PREAMBLE_ADVISORY_LINES) hits.advisory.push({ cat: 'LENGTH', line: 1, snippet: `preamble: ${preambleNonBlank} non-blank lines (advisory bound ${REGISTER_PREAMBLE_ADVISORY_LINES})` });
+
+    for (const e of registerEntries) {
+      const entryLines = lines.slice(e.startLine, e.endLine ?? lines.length);
+      const entryNonBlank = countNonBlank(entryLines);
+      if (entryNonBlank > REGISTER_ENTRY_HARD_LINES) hits.hard.push({ cat: 'LENGTH', line: e.startLine + 1, snippet: `${e.id}: ${entryNonBlank} non-blank lines (hard per-entry bound ${REGISTER_ENTRY_HARD_LINES})` });
+      else if (entryNonBlank > REGISTER_ENTRY_ADVISORY_LINES) hits.advisory.push({ cat: 'LENGTH', line: e.startLine + 1, snippet: `${e.id}: ${entryNonBlank} non-blank lines (advisory per-entry bound ${REGISTER_ENTRY_ADVISORY_LINES})` });
+    }
+  } else {
+    if (nonBlank > HARD_LINES) hits.hard.push({ cat: 'LENGTH', line: 0, snippet: `${nonBlank} non-blank lines (hard bound ${HARD_LINES})` });
+    else if (nonBlank > ADVISORY_LINES) hits.advisory.push({ cat: 'LENGTH', line: 0, snippet: `${nonBlank} non-blank lines (advisory bound ${ADVISORY_LINES})` });
+  }
 
   lines.forEach((raw, i) => {
     const line = raw.replace(/\r$/, '');

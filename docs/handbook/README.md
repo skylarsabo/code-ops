@@ -75,9 +75,10 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../techniques/dispatch-brief-template.md](../techniques/dispatch-brief-template.md) — the six-section fill-in skeleton for briefing a subagent, plus per-agent-kind notes and a worked example.
 - [../techniques/skill-composition.md](../techniques/skill-composition.md) — the cross-skill invocation map: every skill that invokes another skill mid-run, when, and what artifact it passes.
 - [../techniques/calibration-protocol.md](../techniques/calibration-protocol.md) — the one-way channel rule, run design, metric table, and sanitized-note template `calibration-run` follows.
+- [../techniques/artifact-grammars.md](../techniques/artifact-grammars.md) — the SSOT for the three parse grammars (`DISPATCH_LEDGER.md`, `FINDINGS_REGISTER.md`, `REFUTATION_LOG.md`) that `calibration-metrics.mjs` and `revalidate-register.mjs` consume; a zero-parse on a non-empty file means shape drift, not absence.
 
 ## The handbook is complete
 
-This is the full handbook: eleven chapters, the command reference, eight guides, and ten techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
+This is the full handbook: eleven chapters, the command reference, eight guides, and eleven techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
 *Verified-at: 09df64b*
