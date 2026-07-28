@@ -1,0 +1,82 @@
+# Artifact grammars
+
+Three run artifacts are both written by skills and read back by mechanical tools.
+Real-scale calibration runs found the metrics extractor parsing **zero items** from
+non-empty artifacts in two straight runs — not because the artifacts were empty, but
+because their shape had drifted from what the parser expects. This page is the SSOT
+for the three grammars: get the shape exactly right and every consumer below reads it
+correctly; drift the shape and a consumer silently reports zero, which reads as
+"nothing here" instead of "wrong shape."
+
+## (a) DISPATCH_LEDGER.md row
+
+Five pipe-delimited cells, written by `scripts/dispatch-ledger.mjs` (the generator —
+skills should call `add`/`update`/`check`, never hand-author rows):
+
+```
+| id | role | brief | expected artifact | status |
+| --- | --- | --- | --- | --- |
+| D-001 | explorer@claude-sonnet-5 | map the auth module | AUTH_MAP.md | dispatched |
+```
+
+- `id` — `D-NNN`, strictly increasing within the ledger.
+- `role` — stamped `role@model` at dispatch time (e.g. `explorer@claude-sonnet-5`), the
+  resolved model that actually ran the dispatch. A cell with no `@model` is a legacy
+  unstamped row — it still parses, but the tier-mix metric can't reconstruct that row.
+- `brief` — ≤10 words.
+- `expected artifact` — the filename or `diff` the dispatch is expected to produce.
+- `status` — one of `dispatched | reported | failed | redispatched`.
+
+## (b) FINDINGS_REGISTER.md entry
+
+An entry begins wherever an item ID matches `revalidate-register.mjs`'s `ID_RE`:
+`/\b([A-Z][A-Z0-9]{1,}-\d{1,6})\b/g` — one or more leading capital letters/digits, a
+hyphen, then digits (e.g. `BUG-007`, `PERF-003`, `FEAT-012`). Two guards keep this from
+over-matching (`isItemId`, mirrored in `scan-narration.mjs` and `calibration-metrics.mjs`):
+
+- the prefix is dropped if it's a known standards token (`RFC`, `ISO`, `CVE`, `CWE`,
+  `CAPEC`, `GHSA`, `UTF`, `SHA`, `MD`, `AES`, `RGB`, `HTTP`, `HTTPS`, `IEEE`, `ANSI`,
+  `FIPS`, `NIST`, `PEP`, `ECMA`, `UTC`, `GMT`, `IPV`) — so `RFC-2616` and `CVE-2021-44228`
+  never register as items;
+- a trailing hyphen followed by another digit marks a longer numeric token rather than
+  a new item boundary, so `CVE-2021-44228` isn't split mid-string, while a slug suffix
+  like `BUG-042-auth-bypass` still counts as one item.
+
+Every entry carries the `Finding` schema fields (CONVENTIONS `§7`): `Tier`
+(`CONFIRMED|PROBABLE|SPECULATIVE`), `Location`, `Anchor`, `Verified-at`, `Evidence`,
+`Disconfirmation`, `Refutation`, `Impact`, `Recommendation`, `Track`
+(`NOW-SAFE|NEEDS-REVIEW|NEEDS-DESIGN`, CONVENTIONS `§6`), `Effort`, `Risk-if-fixed`,
+plus `Severity`/`Confidence`/`Lens`/`Scope`. An item with no `Tier:` field, or a value
+outside the known three, is unparseable to `calibration-metrics.mjs` — counted, never
+silently dropped.
+
+Per-entry length budget (`scan-narration.mjs`, register-shaped files only): advisory
+at 10 non-blank lines per entry, hard at 20; the preamble before the first entry gets
+its own budget, advisory 15 / hard 30. A normal `Tier/Location/Anchor/...` block runs
+~5-8 lines and passes cleanly — these budgets flag prose padding, not finding count.
+
+## (c) REFUTATION_LOG.md receipt line
+
+One receipt per line, keyed by the finding's own ID, middot-delimited (CONVENTIONS `§7`):
+
+```
+SEC-003 · r1 · SURVIVED · reviewer · searched: caller chain + middleware
+BUG-007 · r2 · REFUTED · reviewer · src/api/limits.ts:88 · Anchor: `clamp(size, MAX)`
+```
+
+Fields: item ID · panel round · verdict (`SURVIVED|REFUTED`) · panelist role · evidence
+(the search trail for `SURVIVED`; a re-greppable `file:line` + backtick/quote-delimited
+`Anchor` for `REFUTED`, so `revalidate-register.mjs --refutation-log` can confirm the
+killing guard still exists). A line that names an item ID but carries neither verdict
+token is unparseable, not silently skipped; a line with no item ID at all is prose, not
+a receipt.
+
+## Producer/consumer contract
+
+Skills and `scripts/dispatch-ledger.mjs` **produce** these three shapes.
+`scripts/calibration-metrics.mjs` and `scripts/revalidate-register.mjs` **consume**
+them. If either consumer parses zero items from a file that is present and non-empty,
+that is a **shape-drift signal, not an absence signal** — check the artifact against
+the grammars above before concluding "nothing to report."
+
+*Verified-at: 16ae415*

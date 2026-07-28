@@ -15,8 +15,12 @@
 // clearly a transcript). Each of the three named artifacts is OPTIONAL — its absence is
 // reported as "not present", never an error — and a malformed row/item/line is counted and
 // reported as "unparseable: N", never silently skipped (the same skip-noting convention the
-// referenced scripts use). This mode always exits 0: it reports a run's shape, it does not
-// gate it.
+// referenced scripts use). A present, non-empty artifact that yields zero parsed items gets a
+// WARNING line naming it and pointing at docs/techniques/artifact-grammars.md — zero-parse on
+// non-empty text means shape drift, not absence (the finding that motivated this warning). The
+// ledger's role@model stamp (scripts/dispatch-ledger.mjs) is also parsed into a tier-mix line
+// (dispatch count per model; an unstamped role cell counts as "unstamped"). This mode always
+// exits 0: it reports a run's shape, it does not gate it.
 //
 // MODE 2 (--validate-note): a structural scrub gate for a sanitized calibration note before it
 // crosses the one-way channel back into this repo. Fails CLOSED (exit 1) on any hit of: an
@@ -71,12 +75,19 @@ function summarizeLedger(text) {
   const total = rows.length;
   const byRole = {};
   const byStatus = { dispatched: 0, reported: 0, failed: 0, redispatched: 0 };
+  // role@model stamp (dispatch-ledger.mjs): split each row's role cell on its LAST '@' so a
+  // role name that itself contains '@' (unlikely, but not impossible) can't misparse the model.
+  // An unstamped cell (no '@') is counted as "unstamped" rather than dropped or guessed at.
+  const byModel = {};
   for (const r of rows) {
     byRole[r.role] = (byRole[r.role] ?? 0) + 1;
     byStatus[r.status]++;
+    const at = r.role.lastIndexOf('@');
+    const model = at === -1 ? 'unstamped' : r.role.slice(at + 1).trim() || 'unstamped';
+    byModel[model] = (byModel[model] ?? 0) + 1;
   }
   const pct = (n) => (total ? ((n / total) * 100).toFixed(1) : '0.0');
-  return { total, malformed, byRole, byStatus, pct };
+  return { total, malformed, byRole, byStatus, byModel, pct };
 }
 
 // Findings-register item IDs per revalidate-register.mjs's grammar (e.g. BUG-007, PERF-003),
@@ -169,6 +180,16 @@ function runMetrics(dir, outPath) {
     catch (e) { console.error(`x cannot read ${full}: ${e.message}`); return null; }
   };
 
+  // A present, non-empty artifact that yields zero parsed items is a shape-drift signal, not
+  // an absence signal (real-scale calibration runs found the extractor parsing zero items from
+  // two straight non-empty artifacts because their shape had drifted) — say so instead of
+  // reporting a silent "0" that reads as "nothing here". Never gates: this mode always exits 0.
+  const warnZeroParse = (name, text) => {
+    if (text.trim() === '') return; // genuinely empty is not shape drift
+    p(`  !! WARNING: ${name} is present and non-empty but yielded 0 parsed items — check its`
+      + ' shape against docs/techniques/artifact-grammars.md before assuming there is nothing to report.');
+  };
+
   p(`# calibration-metrics — ${dir}`);
 
   // ---- dispatches --------------------------------------------------------------
@@ -179,6 +200,7 @@ function runMetrics(dir, outPath) {
   } else {
     const s = summarizeLedger(ledgerText);
     p(`  ${s.total} dispatch(es), unparseable: ${s.malformed}`);
+    if (s.total === 0) warnZeroParse('DISPATCH_LEDGER.md', ledgerText);
     const roleList = Object.entries(s.byRole).map(([r, n]) => `${r} ${n}`).join(', ') || '(none)';
     p(`  by role: ${roleList}`);
     const statusList = LEDGER_STATUSES.map((st) => `${st} ${s.byStatus[st]} (${s.pct(s.byStatus[st])}%)`).join(', ');
@@ -186,6 +208,8 @@ function runMetrics(dir, outPath) {
     p(`  dangling rate: ${s.pct(s.byStatus.dispatched)}% (${s.byStatus.dispatched}/${s.total})`);
     p(`  failed rate: ${s.pct(s.byStatus.failed)}% (${s.byStatus.failed}/${s.total})`);
     p(`  redispatched rate: ${s.pct(s.byStatus.redispatched)}% (${s.byStatus.redispatched}/${s.total})`);
+    const modelList = Object.entries(s.byModel).map(([m, n]) => `${m} ${n}`).join(', ') || '(none)';
+    p(`  tier mix: ${modelList}`);
   }
 
   // ---- findings -----------------------------------------------------------------
@@ -196,6 +220,7 @@ function runMetrics(dir, outPath) {
   } else {
     const s = summarizeRegister(registerText);
     p(`  ${s.total} finding(s), unparseable: ${s.malformed}`);
+    if (s.total === 0) warnZeroParse('FINDINGS_REGISTER.md', registerText);
     const tierList = KNOWN_TIERS.map((t) => `${t} ${s.byTier[t]} (${s.pct(s.byTier[t])}%)`).join(', ');
     p(`  by tier: ${tierList}`);
     p(`  CONFIRMED ratio: ${s.pct(s.byTier.CONFIRMED)}%`);
@@ -211,6 +236,7 @@ function runMetrics(dir, outPath) {
   } else {
     const s = summarizeRefutation(refutationText);
     p(`  ${s.total} receipt(s), unparseable: ${s.malformed}`);
+    if (s.total === 0) warnZeroParse('REFUTATION_LOG.md', refutationText);
     p(`  SURVIVED ${s.survived} (${s.pct(s.survived)}%), REFUTED ${s.refuted} (${s.pct(s.refuted)}%)`);
     p(`  survival rate: ${s.pct(s.survived)}%`);
   }

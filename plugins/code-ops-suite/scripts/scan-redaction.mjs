@@ -5,7 +5,14 @@
 // found can itself become the leak; scanning the suite's own output artifacts before they're
 // shared catches that mechanically instead of relying on the author noticing on re-read.
 //
-//   node scripts/scan-redaction.mjs <file> [...more] [--report-only]
+//   node scripts/scan-redaction.mjs <file|dir> [...more] [--report-only]
+//
+// A directory argument is scanned recursively for its .md/.txt files (the register/report/
+// handoff formats this suite actually emits) — an unreadable entry, an unwalkable directory,
+// or any other unexpected filesystem error is caught and reported, never an uncaught throw,
+// and always exits fail-closed (nonzero) rather than silently exiting 0. An empty directory
+// (or one with no matching files) is not an error — it scans 0 files and exits 0 if otherwise
+// clean, same as any other target that turns up nothing to flag.
 //
 // Scans the suite's own OUTPUT artifacts (registers, reports, handoffs) so an audit
 // deliverable can't itself become the leak. Two tiers, by confidence:
@@ -28,13 +35,14 @@
 // example.com/.org/.net emails; hex on a line carrying `Verified-at` or `sha`; and this
 // script's own literal category examples above (so a doc quoting them stays quiet).
 //
-// Exit: a single tallied verdict, fail-closed wins over hits. 2 = a missing target file or a
-// usage error (no target, unknown flag) — reported even when secret hits were also found,
-// never silently downgraded to 1. Otherwise 1 = any FAIL-CLOSED secret shape found (unless
-// --report-only), 0 = clean. WARN-ONLY hits are always reported but never change the exit code.
+// Exit: a single tallied verdict, fail-closed wins over hits. 2 = a missing target path, an
+// unreadable/unwalkable file or directory, or a usage error (no target, unknown flag) —
+// reported even when secret hits were also found, never silently downgraded to 1. Otherwise
+// 1 = any FAIL-CLOSED secret shape found (unless --report-only), 0 = clean. WARN-ONLY hits are
+// always reported but never change the exit code.
 
-import { readFileSync, existsSync } from 'node:fs';
-import { basename } from 'node:path';
+import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { basename, extname, join, relative } from 'node:path';
 
 const argv = process.argv.slice(2);
 let reportOnly = false;
@@ -138,16 +146,70 @@ function scanText(text) {
   return hits;
 }
 
-// A missing target file is a config/usage error, not a scan result — tracked separately from
-// hit counts so it can win at the end even when secret hits were also found (fail-closed wins;
-// a masked 2-vs-1 exit would let a broken invocation quietly report as merely "dirty").
+// A directory target is scanned recursively for the text formats this suite's own artifacts
+// actually use — registers/reports/handoffs are always .md, so .md/.txt is the whole set.
+const SCAN_EXTENSIONS = new Set(['.md', '.txt']);
+
+// Recursively lists scannable files under `dir`, sorted for deterministic output. Any
+// readdirSync failure (permissions, a broken symlink, etc.) propagates to the caller so it can
+// be caught and reported as a fail-closed error rather than an uncaught throw.
+function collectFiles(dir) {
+  const out = [];
+  const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...collectFiles(full));
+    else if (entry.isFile() && SCAN_EXTENSIONS.has(extname(entry.name).toLowerCase())) out.push(full);
+  }
+  return out;
+}
+
+// A missing target path, an unreadable file, or an unwalkable directory is a config/usage
+// error, not a scan result — tracked separately from hit counts so it can win at the end even
+// when secret hits were also found (fail-closed wins; a masked 2-vs-1 exit would let a broken
+// invocation quietly report as merely "dirty"). Every filesystem call below is guarded — this
+// scanner must never crash out with an uncaught throw and a non-fail-closed exit code.
 let hadError = false;
 const targets = [];
 for (const f of files) {
   if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
-  targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
+  let st;
+  try {
+    st = statSync(f);
+  } catch (err) {
+    console.error(`x cannot stat ${f}: ${err.message}`);
+    hadError = true;
+    continue;
+  }
+  if (st.isDirectory()) {
+    let paths;
+    try {
+      paths = collectFiles(f);
+    } catch (err) {
+      console.error(`x cannot read directory ${f}: ${err.message}`);
+      hadError = true;
+      continue;
+    }
+    for (const p of paths) {
+      try {
+        targets.push({ label: relative(f, p).split('\\').join('/'), text: readFileSync(p, 'utf8') });
+      } catch (err) {
+        console.error(`x cannot read ${p}: ${err.message}`);
+        hadError = true;
+      }
+    }
+  } else {
+    try {
+      targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
+    } catch (err) {
+      console.error(`x cannot read ${f}: ${err.message}`);
+      hadError = true;
+    }
+  }
 }
-if (targets.length === 0 && !hadError) { console.error('usage: scan-redaction.mjs <file> [...] [--report-only]'); process.exit(2); }
+// A usage error is "no target given at all" — a directory that resolves to zero matching files
+// is a valid, merely-empty target (0 files scanned, clean), not a usage mistake.
+if (files.length === 0) { console.error('usage: scan-redaction.mjs <file|dir> [...] [--report-only]'); process.exit(2); }
 
 let secretTotal = 0, warnTotal = 0;
 for (const t of targets) {

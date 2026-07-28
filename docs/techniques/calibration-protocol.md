@@ -26,6 +26,23 @@ under this rule — it fails closed on a path, code fence, URL, or email in the 
   note reports deltas against the prior `evals/CALIBRATION_TABLE.md` row for the
   same or a comparable target class, not a bare snapshot.
 
+## Comparing CONFIRMED ratios
+
+Compare a run's CONFIRMED ratio **within its own track only** (assess-only vs.
+assess-only, the same target class against itself over time). An assess-only
+calibration run structurally cannot execute a repro — no code changes on the target —
+so it cannot promote a finding past PROBABLE the way an IMPLEMENT-mode run can.
+Comparing an assess-only CONFIRMED ratio against a full-rigor or IMPLEMENT-mode run's
+ratio measures the track's ceiling, not the suite's quality, and misleads.
+
+## Artifact shapes
+
+The three run artifacts this protocol measures — `DISPATCH_LEDGER.md`,
+`FINDINGS_REGISTER.md`, `REFUTATION_LOG.md` — must conform to the grammars in
+[artifact-grammars.md](artifact-grammars.md). `calibration-metrics.mjs` warns when a
+present, non-empty artifact parses to zero items; check the shape before assuming
+there's nothing to report.
+
 ## What gets measured
 
 | Axis | Metrics |

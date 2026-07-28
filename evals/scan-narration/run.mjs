@@ -19,6 +19,9 @@ const ioThroughput = join(here, 'io-throughput.md');
 const tableRestatement = join(here, 'EXECUTIVE_SUMMARY_TABLE.md');
 const advisory61 = join(here, 'advisory-61.md');
 const hard121 = join(here, 'hard-121.md');
+const register49Tight = join(here, 'register-49-tight.md');
+const registerLongEntry = join(here, 'register-long-entry.md');
+const registerLongPreamble = join(here, 'register-long-preamble.md');
 const run = (args) => spawnSync('node', [scanner, ...args], { encoding: 'utf8' });
 
 const fails = [];
@@ -60,6 +63,24 @@ expect(io.status === 0, `io-throughput.md should exit 0, got ${io.status}`);
 expect(!/PROCESS-NARRATION/.test(io.stdout || ''), 'io-throughput.md must not flag PROCESS-NARRATION (I/O false-positive guard)');
 expect(/clean/.test(io.stdout || ''), 'io-throughput.md should report clean');
 
+// Calibration regression case: a register with 49 tight entries must pass even though its
+// total non-blank line count (~199) would have failed the old flat 120-line hard cap.
+const r49 = run([register49Tight]);
+expect(r49.status === 0, `register-49-tight.md should exit 0 (per-entry budget, not flat cap), got ${r49.status}`);
+expect(/clean/.test(r49.stdout || ''), 'register-49-tight.md should report clean under the per-entry budget');
+
+// A register with one entry that balloons past the per-entry hard bound (20 non-blank lines)
+// must fail, naming that entry's line.
+const rle = run([registerLongEntry]);
+expect(rle.status === 1, `register-long-entry.md should exit 1 (per-entry hard bound), got ${rle.status}`);
+expect(/LENGTH/.test(rle.stdout || '') && /FIND-004/.test(rle.stdout || ''), 'register-long-entry.md should flag LENGTH naming FIND-004');
+expect(/L20\b/.test(rle.stdout || ''), 'register-long-entry.md should cite FIND-004\'s start line (L20)');
+
+// A register whose preamble (before the first entry) exceeds its own hard bound must fail too.
+const rlp = run([registerLongPreamble]);
+expect(rlp.status === 1, `register-long-preamble.md should exit 1 (preamble hard bound), got ${rlp.status}`);
+expect(/LENGTH/.test(rlp.stdout || '') && /preamble/.test(rlp.stdout || ''), 'register-long-preamble.md should flag LENGTH naming the preamble');
+
 // Usage/config errors still fail closed at exit 2.
 const missing = run([join(here, 'does-not-exist.md')]);
 expect(missing.status === 2, `missing file should exit 2, got ${missing.status}`);
@@ -71,6 +92,9 @@ if (fails.length) {
   for (const fmsg of fails) console.error('  x ' + fmsg);
   console.error('\n--- process-narration output ---\n' + ((pn.stdout || '') + (pn.stderr || '')));
   console.error('\n--- clean output ---\n' + ((c.stdout || '') + (c.stderr || '')));
+  console.error('\n--- register-49-tight output ---\n' + ((r49.stdout || '') + (r49.stderr || '')));
+  console.error('\n--- register-long-entry output ---\n' + ((rle.stdout || '') + (rle.stderr || '')));
+  console.error('\n--- register-long-preamble output ---\n' + ((rlp.stdout || '') + (rlp.stderr || '')));
   process.exit(1);
 }
-console.log('PASS — scan-narration eval: length bounds, narration/filler/restatement categories, exit discipline, and the I/O false-positive guard all hold.');
+console.log('PASS — scan-narration eval: length bounds (flat and per-entry register), narration/filler/restatement categories, exit discipline, and the I/O false-positive guard all hold.');

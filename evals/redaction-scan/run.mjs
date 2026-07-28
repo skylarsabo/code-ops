@@ -11,7 +11,7 @@
 //   node evals/redaction-scan/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -106,6 +106,41 @@ try {
   check('injection: clean exits 0', iClean.status === 0);
   check('injection: clean has zero ZEROWIDTH hits (emoji ZWJ exempt)', !/ZEROWIDTH/.test(icOut));
   check('injection: clean has zero BLOB hits (integrity/Verified-at exempt)', !/BLOB/.test(icOut));
+
+  // === scan-redaction: directory arguments (real-scale calibration finding — a run FOLDER is
+  // the invocation the skills' own docs imply, and it used to crash with an uncaught EISDIR) ===
+  const dirClean = join(work, 'dir-clean');
+  mkdirSync(join(dirClean, 'sub'), { recursive: true });
+  writeFileSync(join(dirClean, 'a.md'), cleanLines.join('\n'));
+  writeFileSync(join(dirClean, 'sub', 'b.md'), cleanLines.join('\n'));
+
+  const dirDirty = join(work, 'dir-dirty');
+  mkdirSync(join(dirDirty, 'nested'), { recursive: true });
+  writeFileSync(join(dirDirty, 'clean.md'), cleanLines.join('\n'));
+  writeFileSync(join(dirDirty, 'nested', 'leak.md'), dirtyLines.join('\n'));
+
+  const dirEmpty = join(work, 'dir-empty');
+  mkdirSync(dirEmpty, { recursive: true });
+
+  const rDirClean = run(redaction, [dirClean]);
+  check('redaction: dir-with-clean-files exits 0', rDirClean.status === 0);
+  check('redaction: dir-with-clean-files stays silent (no fail-closed hits)', !/!!/.test(outOf(rDirClean)));
+
+  const rDirDirty = run(redaction, [dirDirty]);
+  const rDirDirtyOut = outOf(rDirDirty);
+  check('redaction: dir-with-a-leak exits 1 fail-closed', rDirDirty.status === 1);
+  check('redaction: dir-with-a-leak names the file (nested/leak.md)', rDirDirtyOut.includes('nested/leak.md') || rDirDirtyOut.includes('nested\\leak.md'));
+  check('redaction: dir-with-a-leak cites a line number (L1)', /L\d+/.test(rDirDirtyOut));
+
+  const rDirEmpty = run(redaction, [dirEmpty]);
+  check('redaction: empty dir exits 0 (0 files scanned, not an error)', rDirEmpty.status === 0);
+  check('redaction: empty dir reports 0 target(s)', /across 0 target\(s\)/.test(outOf(rDirEmpty)));
+
+  const missing = join(work, 'does-not-exist');
+  const rMissing = run(redaction, [missing]);
+  check('redaction: nonexistent path exits nonzero', rMissing.status !== 0 && rMissing.status !== null);
+  const rMissingOut = outOf(rMissing);
+  check('redaction: nonexistent path reports a clear message, not a stack trace', rMissingOut.includes('not found') && !/at\s+\S+\s+\(/.test(rMissingOut));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
