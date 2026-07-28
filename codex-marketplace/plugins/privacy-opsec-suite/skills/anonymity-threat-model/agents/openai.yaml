@@ -3,4 +3,4 @@ interface:
   short_description: "Use when you need the keystone anonymity threat model that the other privacy audits build on."
   default_prompt: "Use privacy-opsec-suite:anonymity-threat-model for this task."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

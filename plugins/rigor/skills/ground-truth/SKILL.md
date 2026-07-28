@@ -1,6 +1,5 @@
 ---
 description: "Use when you want the factual baseline before any analysis — run the real toolchain and capture ground truth + a coverage/blind-spot map. Run first."
-disable-model-invocation: true
 ---
 
 # GROUND TRUTH — Establish the Factual Baseline

@@ -3,4 +3,4 @@ interface:
   short_description: "Use when you need to verify sessions are truly unlinkable. Owns linkability/session identity — not network egress or file metadata."
   default_prompt: "Use privacy-opsec-suite:anon-session-audit for this task."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

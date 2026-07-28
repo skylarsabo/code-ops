@@ -1,6 +1,5 @@
 ---
 description: "Use when you want high-signal, defect-causing quality issues with evidence and tiers — not cosmetic nits."
-disable-model-invocation: true
 ---
 
 # QUALITY SCAN — Real Issues, High Signal

@@ -8,7 +8,7 @@ New to the suite? See the handbook at `docs/handbook/` (from the repo root) to l
 
 ## Skills
 
-Invoke with `/privacy-opsec-suite:<name>` in Claude Code or `privacy-opsec-suite:<name>` in Codex. All are manual-invoke (deliberate operations).
+Invoke with `/privacy-opsec-suite:<name>` in Claude Code or `privacy-opsec-suite:<name>` in Codex, or let the model route to a skill per the standard-operating-mode routing card. Anonymity-affecting phases stay gated at every automation level.
 
 **Model & audits**
 - `anonymity-threat-model` — map how a user could be deanonymized: adversaries, assets, deanonymization paths, residual risk (keystone artifact).

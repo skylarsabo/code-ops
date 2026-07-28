@@ -1,6 +1,5 @@
 ---
 description: "Use when you want to audit a completed orchestrated run's cost discipline — dispatch counts, artifact sizes, tier/effort mix — against the suite's own bounded-wave and routing doctrine. Consumes a finished run's artifact folder, not a live one."
-disable-model-invocation: true
 ---
 
 # RUN COST AUDIT — Cost Discipline Over a Completed Run

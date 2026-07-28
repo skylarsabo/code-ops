@@ -30,7 +30,7 @@ Five rules carry the whole journey:
 4. **Pin behavior before changing it.** `safety-net` makes "behavior-preserving" provable in low-coverage code ([`safety-net/SKILL.md`](../../plugins/rigor/skills/safety-net/SKILL.md)).
 5. **A fix without a failing-then-passing test is not done.** And it must not break any prior proof ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §8, §H).
 
-All commands here are **manual-invoke** (`disable-model-invocation: true`) — you call them; the model will not auto-trigger them. The orchestrator `/rigor:rigor-sweep` runs this same sequence end-to-end if you would rather drive it as one pass; this guide does it step by step so you can see and approve each checkpoint.
+You can call any command here directly, or the model can route to it per the standard-operating-mode routing card; either way every checkpoint below still applies. The orchestrator `/rigor:rigor-sweep` runs this same sequence end-to-end if you would rather drive it as one pass; this guide does it step by step so you can see and approve each checkpoint.
 
 ```mermaid
 sequenceDiagram

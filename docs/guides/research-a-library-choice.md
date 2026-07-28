@@ -21,7 +21,7 @@ Four rules carry the whole journey:
 3. **Grounded in *your* code.** Every requirement, constraint, and fit judgment is cited at `file:line` against the repo — not the generic case. An ungrounded criterion is SPECULATIVE ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) Phase 1).
 4. **Fail-closed before publishing.** `research-manifest.mjs validate LIBRARY_EVAL.md` enforces that no published artifact cites a web source absent from the manifest. An undisclosed egress fails the check (§A).
 
-All three commands are **manual-invoke** (`disable-model-invocation: true`) — you call them; the model will not auto-fire them.
+All three commands can be called directly, or the model can route to them per the standard-operating-mode routing card; egress checkpoints below still gate every run.
 
 ```mermaid
 flowchart LR

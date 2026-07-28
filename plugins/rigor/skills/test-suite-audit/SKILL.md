@@ -1,6 +1,5 @@
 ---
 description: "Use when you need to know whether a green suite actually catches faults. Validates the tests other proofs rest on."
-disable-model-invocation: true
 ---
 
 # TEST-SUITE AUDIT — Trust the Tests Only as Far as They're Proven

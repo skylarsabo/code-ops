@@ -1,6 +1,5 @@
 ---
 description: "Use when a LEAK_REGISTER.md exists and you want its leaks fixed safely, each pinned with a regression test. Requires a register as input."
-disable-model-invocation: true
 ---
 
 # OPSEC HARDENING — Implement the Fixes Safely

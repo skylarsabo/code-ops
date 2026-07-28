@@ -8,9 +8,11 @@
 //   node scripts/build-codex-marketplace.mjs
 //   node scripts/build-codex-marketplace.mjs --check
 //
-// The hosts require incompatible skill headers: Claude's source stays manual-invoke
-// while this renderer gives Codex each skill a `name` plus an explicit no-implicit-
-// invocation policy. Never hand-edit codex-marketplace/; use this script instead.
+// The hosts require incompatible skill headers: Claude skills are model-invocable (the
+// harness routes slash input through the Skill tool, so there is no separate manual-only
+// mode to preserve), and this renderer gives Codex each skill a `name` plus an explicit
+// `allow_implicit_invocation: true` policy that mirrors that. Never hand-edit
+// codex-marketplace/; use this script instead.
 //
 // Exit: 0 = written (default mode) or already up to date (--check); 1 = --check found
 // drift (stale/missing/unexpected generated file); 2 = usage error (unknown flag). A
@@ -209,7 +211,7 @@ function skillAgentYaml(pluginName, slug, description) {
     `  short_description: ${JSON.stringify(description)}`,
     `  default_prompt: ${JSON.stringify(`Use ${pluginName}:${slug} for this task.`)}`,
     'policy:',
-    '  allow_implicit_invocation: false',
+    '  allow_implicit_invocation: true',
     '',
   ].join('\n');
 }
@@ -224,7 +226,7 @@ function generatedReadme(spec, manifest, skills) {
     '',
     '## Use',
     '',
-    `Name a workflow in Codex as \`${spec.name}:<skill>\`. Every generated skill sets \`policy.allow_implicit_invocation: false\`, preserving the source package's manual-invocation policy.`,
+    `Name a workflow in Codex as \`${spec.name}:<skill>\`. Every generated skill sets \`policy.allow_implicit_invocation: true\`, matching the Claude-side model-invocable policy.`,
     '',
     '## Skills',
     '',
@@ -252,7 +254,7 @@ function compatibilityNotes(spec) {
     '',
     '## Deliberate host transforms',
     '',
-    '- Claude skill headers use `disable-model-invocation: true`; Codex requires a skill `name`. This render removes the Claude-only field and writes `skills/<skill>/agents/openai.yaml` with `policy.allow_implicit_invocation: false` to keep manual invocation.',
+    '- Claude skills are model-invocable (the harness routes slash input through the Skill tool, so there is no manual-only mode); Codex requires a skill `name`. This render strips any legacy `disable-model-invocation` field the source may still carry and writes `skills/<skill>/agents/openai.yaml` with `policy.allow_implicit_invocation: true` to mirror that policy.',
     '- `${CLAUDE_PLUGIN_ROOT}` becomes `<plugin-root>` in instructional prose. Codex resolves bundled runtime paths from the installed plugin root.',
     '- Claude slash-command spelling becomes the Codex named-workflow spelling, for example `code-ops-suite:codebase-audit`.',
     '- Claude agent `tools` and `model` frontmatter is removed. The root `agents/` files remain role-briefing templates for collaboration subagents.',
@@ -449,7 +451,7 @@ function validateExpectedFiles(expected) {
       expect(contents.includes('<plugin-root>'), `${skillPath} did not translate the plugin root token`);
       const policyPath = `${skillPrefix}${slug}/agents/openai.yaml`;
       expect(expected.has(policyPath), `${policyPath} is missing`);
-      expect(expected.get(policyPath).includes('allow_implicit_invocation: false'), `${policyPath} does not preserve manual invocation`);
+      expect(expected.get(policyPath).includes('allow_implicit_invocation: true'), `${policyPath} does not state the model-invocable policy`);
     }
     if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
       const hookPath = `${base}/hooks/hooks.json`;

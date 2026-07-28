@@ -3,4 +3,4 @@ interface:
   short_description: "Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW/NEEDS-DESIGN items implemented safely with tests. Requires a register as input."
   default_prompt: "Use code-ops-suite:remediation for this task."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

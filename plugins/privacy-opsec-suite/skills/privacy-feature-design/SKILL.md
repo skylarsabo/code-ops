@@ -1,6 +1,5 @@
 ---
 description: "Use when you want high-value privacy/trust features found and specified, each gated against the anonymity model. Discovery/spec only."
-disable-model-invocation: true
 ---
 
 # PRIVACY FEATURE DESIGN — High-Value, Trust-Building Features

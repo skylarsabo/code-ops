@@ -1,6 +1,5 @@
 ---
 description: "Use when you need the keystone anonymity threat model that the other privacy audits build on."
-disable-model-invocation: true
 ---
 
 # ANONYMITY THREAT MODEL — Map How a User Could Be Deanonymized

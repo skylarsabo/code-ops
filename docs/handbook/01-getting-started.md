@@ -90,7 +90,7 @@ For example:
 
 You can append natural-language scope after the command (`… for the current branch`, `… focus on the auth module`). Run `/plugin` to browse installed Claude Code plugins and their skills.
 
-In Codex, name the same workflow in the request instead: `Use rigor:bug-hunt on the auth module.` All skills are **manual-invoke** on both hosts: they run only when you explicitly name the workflow, never automatically. They're deliberate operations — an audit or a threat model shouldn't fire on its own.
+In Codex, name the same workflow in the request instead: `Use rigor:bug-hunt on the auth module.` On both hosts, skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card and each skill's own "Use when" description; side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing ever auto-merges.
 
 ## 4 · Recommended order (composing the plugins)
 

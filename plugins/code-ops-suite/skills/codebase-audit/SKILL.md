@@ -1,6 +1,5 @@
 ---
 description: "Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes."
-disable-model-invocation: true
 ---
 
 # CODEBASE AUDIT — Broad Multi-Lens Review

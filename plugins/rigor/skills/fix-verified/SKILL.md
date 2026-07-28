@@ -1,6 +1,5 @@
 ---
 description: "Use when CONFIRMED bugs exist and you want them fixed at root cause with proof. Requires CONFIRMED findings as input."
-disable-model-invocation: true
 ---
 
 # FIX (VERIFIED) — Fix the Cause, Prove It, Guard the Class

@@ -1,6 +1,5 @@
 ---
 description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. Intra-plugin orchestrator; for the cross-plugin superset use everything."
-disable-model-invocation: true
 ---
 
 # FULL SWEEP — Run the Whole Suite End-to-End

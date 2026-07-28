@@ -1,6 +1,5 @@
 ---
 description: "Use when you need to verify sessions are truly unlinkable. Owns linkability/session identity — not network egress or file metadata."
-disable-model-invocation: true
 ---
 
 # ANON SESSION AUDIT — Are Sessions Truly Unlinkable

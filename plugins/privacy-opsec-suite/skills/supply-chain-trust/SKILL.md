@@ -1,6 +1,5 @@
 ---
 description: "Use when you need to vet dependencies for telemetry/phone-home/egress, CVEs, and build/lockfile integrity under an anonymity-hostile model."
-disable-model-invocation: true
 ---
 
 # SUPPLY-CHAIN TRUST — Dependencies That Don't Betray Anonymity

@@ -6,7 +6,7 @@ Verification-first workflows for finding real bugs, closing inconsistencies, and
 
 ## Use
 
-Name a workflow in Codex as `rigor:<skill>`. Every generated skill sets `policy.allow_implicit_invocation: false`, preserving the source package's manual-invocation policy.
+Name a workflow in Codex as `rigor:<skill>`. Every generated skill sets `policy.allow_implicit_invocation: true`, matching the Claude-side model-invocable policy.
 
 ## Skills
 

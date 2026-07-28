@@ -1,6 +1,5 @@
 ---
 description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless."
-disable-model-invocation: true
 ---
 
 # PR-SPLIT — Carve a Big Branch into a Clean, Traceless Stack

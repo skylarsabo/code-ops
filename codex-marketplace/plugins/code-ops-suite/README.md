@@ -6,7 +6,7 @@ Adaptive, multi-agent engineering workflows for any codebase: audit, security/pr
 
 ## Use
 
-Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets `policy.allow_implicit_invocation: false`, preserving the source package's manual-invocation policy.
+Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets `policy.allow_implicit_invocation: true`, matching the Claude-side model-invocable policy.
 
 ## Skills
 

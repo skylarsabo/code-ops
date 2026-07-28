@@ -1,6 +1,5 @@
 ---
 description: "Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory."
-disable-model-invocation: true
 ---
 
 # CURRENT-DOCS — Version-Accurate Library Docs, In-House

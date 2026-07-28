@@ -1,6 +1,5 @@
 ---
 description: "Use when you want the whole privacy-opsec-suite run end-to-end as a guided, checkpointed pipeline. Intra-plugin orchestrator."
-disable-model-invocation: true
 ---
 
 # FULL SWEEP — Run the Whole Privacy/OpSec Suite End-to-End

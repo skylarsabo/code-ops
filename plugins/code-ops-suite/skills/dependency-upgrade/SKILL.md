@@ -1,6 +1,5 @@
 ---
 description: "Use when dependencies are outdated or have known CVEs and you want safe, staged upgrades verified at each step; never bulk-bumps."
-disable-model-invocation: true
 ---
 
 # DEPENDENCY UPGRADE — Safe Supply-Chain Maintenance
