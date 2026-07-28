@@ -1,7 +1,13 @@
 name: validate
 
 on:
+  # push is restricted to main: for a same-repo PR branch, an unrestricted push trigger fires
+  # alongside pull_request for the identical commit (different refs — refs/heads/<branch> vs
+  # refs/pull/N/merge — so the concurrency group below does not dedupe them), doubling every
+  # structural-lint run. Restricting push to main keeps exactly one run per PR head commit
+  # (via pull_request) plus one run per push to main (via push) — the standard pattern.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
