@@ -1,6 +1,5 @@
 ---
 description: "Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code."
-disable-model-invocation: true
 ---
 
 # ARCHITECTURE — The System, Explained for a Senior Engineer

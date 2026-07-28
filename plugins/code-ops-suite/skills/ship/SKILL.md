@@ -1,6 +1,5 @@
 ---
 description: "Use when you want to implement one change — a feature or a one-off — end to end at high quality, shipped as a clean traceless PR."
-disable-model-invocation: true
 ---
 
 # SHIP — Implement One Change End-to-End, at Full Rigor

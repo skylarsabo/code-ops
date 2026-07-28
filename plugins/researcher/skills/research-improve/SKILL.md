@@ -1,6 +1,5 @@
 ---
 description: "Use when you want grounded, external-best-practice improvements proposed for our existing code (not a generic checklist). Writes no code — proposes and hands off."
-disable-model-invocation: true
 ---
 
 # RESEARCH IMPROVE — Ground Our Code, Gather the Outside, Propose Verified Improvements

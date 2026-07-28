@@ -1,6 +1,5 @@
 ---
 description: "Use when you need an adversarial security + privacy threat assessment of attack surface and deanonymization paths — deeper than the audit's security lens. For anonymity-specific egress/metadata/fingerprint work, use the privacy-opsec-suite."
-disable-model-invocation: true
 ---
 
 # SECURITY & PRIVACY AUDIT — Adversarial Threat Assessment

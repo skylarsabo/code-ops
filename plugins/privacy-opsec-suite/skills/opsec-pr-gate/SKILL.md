@@ -1,6 +1,5 @@
 ---
 description: "Use when you want a pre-merge gate that blocks any change adding egress, logging, identifiers, fingerprint surface, correlation, or weakened anonymity defaults. The anonymity counterpart to code-ops-suite:pr-review and rigor:deep-review."
-disable-model-invocation: true
 ---
 
 # OPSEC PR GATE — Block Anonymity Regressions Before Merge

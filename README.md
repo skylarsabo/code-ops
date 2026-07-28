@@ -9,7 +9,7 @@ One repository, four installable plugins of adaptive, multi-agent engineering wo
 
 **Which to use:** install `code-ops-suite` on any project for breadth. Add `privacy-opsec-suite` when the project has anonymity/opsec requirements (anonymous sessions, Tor/onion routing, strong metadata minimization). Reach for `rigor` when you want **proven** bugs and enforced consistency rather than a long list — it's the highest-signal, highest-rigor option. They compose: a broad `code-ops-suite:codebase-audit` for the map, then `rigor:bug-hunt` to prove the real defects, then `privacy-opsec-suite:tor-egress-audit` for the anonymity-specific pass.
 
-Each plugin reads its bundled `CONVENTIONS.md` first (shared operating model, developer-in-the-loop interaction protocol, safety rails, schemas, quality lenses). Skills are **manual-invoke** on both hosts: Claude Code uses its manual-invocation flag; the generated Codex skills set `policy.allow_implicit_invocation: false`.
+Each plugin reads its bundled `CONVENTIONS.md` first (shared operating model, developer-in-the-loop interaction protocol, safety rails, schemas, quality lenses). Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card on both hosts; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges.
 
 **New here?** Start with the handbook in [`docs/handbook/`](docs/handbook/) — the guide to learning and using the suite.
 

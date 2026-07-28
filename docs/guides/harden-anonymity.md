@@ -31,7 +31,7 @@ Five rules carry the whole journey:
 4. **Every fix is pinned by a regression test that fails if the leak returns.** A hardening change without that test is not done ([`opsec-hardening/SKILL.md`](../../plugins/privacy-opsec-suite/skills/opsec-hardening/SKILL.md)).
 5. **Anonymity-affecting changes are always gated.** Anything touching egress, logging, identifiers, fingerprint surface, or a default pauses for your approval at every automation level ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §4).
 
-`full-sweep` is **manual-invoke** (`disable-model-invocation: true`) — you call it; the model will not auto-trigger it. It is the **intra-plugin** orchestrator: it sequences only this suite's skills. (The cross-plugin orchestrator that spans the breadth spine, the rigor verification layer, and this anonymity track is the code-ops-suite `everything` orchestrator — three plugins (`code-ops-suite`, `rigor`, `privacy-opsec-suite`), reach for it only when the work crosses plugin boundaries.) This guide runs `full-sweep` step by step so you can see and approve each checkpoint.
+You can call `full-sweep` directly, or the model can route to it per the standard-operating-mode routing card; the checkpoints below apply either way. It is the **intra-plugin** orchestrator: it sequences only this suite's skills. (The cross-plugin orchestrator that spans the breadth spine, the rigor verification layer, and this anonymity track is the code-ops-suite `everything` orchestrator — three plugins (`code-ops-suite`, `rigor`, `privacy-opsec-suite`), reach for it only when the work crosses plugin boundaries.) This guide runs `full-sweep` step by step so you can see and approve each checkpoint.
 
 ```mermaid
 sequenceDiagram

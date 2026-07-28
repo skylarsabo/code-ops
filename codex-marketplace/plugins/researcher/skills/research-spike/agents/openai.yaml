@@ -3,4 +3,4 @@ interface:
   short_description: "Use when a task, feature, or plan needs a code-grounded design brief before anyone builds it. Writes no code."
   default_prompt: "Use researcher:research-spike for this task."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

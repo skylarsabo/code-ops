@@ -1,6 +1,5 @@
 ---
 description: "Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality."
-disable-model-invocation: true
 ---
 
 # ADOPT STANDARDS — Bootstrap or Maintain the Repo's Standards Contract

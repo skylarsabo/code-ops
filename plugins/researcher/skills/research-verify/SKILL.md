@@ -1,6 +1,5 @@
 ---
 description: "Use when a claim, recommendation, or draft research artifact needs adversarial fact-checking against sources and our code before anyone acts on it. Review only — writes no code."
-disable-model-invocation: true
 ---
 
 # RESEARCH VERIFY — Prove-It-or-Don't Claim-Check

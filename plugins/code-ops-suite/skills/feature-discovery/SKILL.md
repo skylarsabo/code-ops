@@ -1,6 +1,5 @@
 ---
 description: "Use when you want grounded, high-value feature ideas mined from the codebase (not a generic wishlist). Discovery only — writes no code."
-disable-model-invocation: true
 ---
 
 # FEATURE DISCOVERY — Find & Specify High-Value Improvements

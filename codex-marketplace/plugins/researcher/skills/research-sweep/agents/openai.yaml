@@ -3,4 +3,4 @@ interface:
   short_description: "Use when you want code-grounded research run end-to-end as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Intra-plugin orchestrator; researches and proposes only — writes no code."
   default_prompt: "Use researcher:research-sweep for this task."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

@@ -1,6 +1,5 @@
 ---
 description: "Use when you must decide whether to adopt a library or approach (A-vs-B-vs-build) and want a code-grounded fit assessment, migration cost, and a tiered recommendation; writes no code."
-disable-model-invocation: true
 ---
 
 # LIBRARY EVAL — Should We Adopt X? A-vs-B-vs-Build, Grounded

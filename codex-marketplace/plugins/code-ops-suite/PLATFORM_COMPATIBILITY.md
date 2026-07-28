@@ -4,7 +4,7 @@ This Codex package is generated from the repository’s canonical Claude package
 
 ## Deliberate host transforms
 
-- Claude skill headers use `disable-model-invocation: true`; Codex requires a skill `name`. This render removes the Claude-only field and writes `skills/<skill>/agents/openai.yaml` with `policy.allow_implicit_invocation: false` to keep manual invocation.
+- Claude skills are model-invocable (the harness routes slash input through the Skill tool, so there is no manual-only mode); Codex requires a skill `name`. This render strips any legacy `disable-model-invocation` field the source may still carry and writes `skills/<skill>/agents/openai.yaml` with `policy.allow_implicit_invocation: true` to mirror that policy.
 - `${CLAUDE_PLUGIN_ROOT}` becomes `<plugin-root>` in instructional prose. Codex resolves bundled runtime paths from the installed plugin root.
 - Claude slash-command spelling becomes the Codex named-workflow spelling, for example `code-ops-suite:codebase-audit`.
 - Claude agent `tools` and `model` frontmatter is removed. The root `agents/` files remain role-briefing templates for collaboration subagents.

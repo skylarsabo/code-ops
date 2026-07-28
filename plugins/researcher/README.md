@@ -10,7 +10,7 @@ New to the suite? See the handbook at `docs/handbook/` (from the repo root) to l
 
 ## Skills
 
-Invoke with `/researcher:<name>` in Claude Code or `researcher:<name>` in Codex. All are manual-invoke (deliberate operations — they won't auto-fire).
+Invoke with `/researcher:<name>` in Claude Code or `researcher:<name>` in Codex, or let the model route to a skill per the standard-operating-mode routing card. Egress checkpoints still gate every run.
 
 **Discover & propose** (Mode: DISCOVERY — produces registers and briefs, never code)
 - `research-spike` — given a task or plan, gather prior art and approach options with trade-offs into a cited **design brief** + recommendation. Feeds `code-ops-suite:feature-implementation` / `code-ops-suite:ship` / `code-ops-suite:adr`.

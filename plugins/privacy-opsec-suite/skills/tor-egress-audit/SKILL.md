@@ -1,6 +1,5 @@
 ---
 description: "Use when you need to prove no traffic escapes the proxy/Tor. Owns network egress + routing."
-disable-model-invocation: true
 ---
 
 # TOR / EGRESS AUDIT — No Traffic Leaks the User

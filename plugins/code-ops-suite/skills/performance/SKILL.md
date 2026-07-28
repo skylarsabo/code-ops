@@ -1,6 +1,5 @@
 ---
 description: "Use when something is measurably slow or you want hot paths optimized with proof; profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured."
-disable-model-invocation: true
 ---
 
 # PERFORMANCE OPTIMIZATION — Measure, Optimize, Verify

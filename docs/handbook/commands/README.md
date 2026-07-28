@@ -1,8 +1,10 @@
 # Command Reference — Index & Task Router
 
-The code-ops marketplace ships **60 commands** across four plugins. Every command is a
-manual-invoke workflow: call it as `/<plugin>:<skill>` in Claude Code, or name
-`<plugin>:<skill>` in a Codex request. They never auto-fire, because each is a deliberate operation. This page is the front door: it tells you how to
+The code-ops marketplace ships **60 commands** across four plugins. Call any command as
+`/<plugin>:<skill>` in Claude Code, or name `<plugin>:<skill>` in a Codex request; the
+model can also route to a command per the standard-operating-mode routing card. Either
+way, side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing
+ever auto-merges. This page is the front door: it tells you how to
 read a command entry, maps the goal you actually have to the command(s) that serve it in
 the right order, and points you at the per-plugin reference for full detail.
 
@@ -33,7 +35,7 @@ any one of them the same way:
 | **Composes / hands off to** | Which other commands it calls or feeds, so chains are explicit. |
 | **Conventions** | The `CONVENTIONS.md` section(s) it reads first (each plugin bundles its own at the plugin root). |
 
-This shape mirrors the generated host-specific `SKILL.md` header each command carries: a `description`, a manual-invocation policy, and a `Mode · Produces` line. Claude Code's source uses `disable-model-invocation: true`; Codex renders `name` plus `agents/openai.yaml` with `allow_implicit_invocation: false`. What you read in the reference is what the skill declares about itself — not a paraphrase.
+This shape mirrors the generated host-specific `SKILL.md` header each command carries: a `description` and a `Mode · Produces` line. The description's "Use when…" clause is what the model reads to decide whether to route to the skill; the routing discipline itself lives in that description, the session routing card, and each skill's own checkpoints. What you read in the reference is what the skill declares about itself — not a paraphrase.
 
 A few conventions hold for **every** command in every plugin (the shared backbone — see
 [the mental model](../02-mental-model.md)):

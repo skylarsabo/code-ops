@@ -6,7 +6,7 @@ New to the suite? See the handbook at `docs/handbook/` (from the repo root) to l
 
 ## Skills
 
-Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` in Codex. All are manual-invoke (they won't auto-fire) since they're deliberate operations.
+Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` in Codex, or let the model route to a skill per the standard-operating-mode routing card. Side-effect-bearing phases keep their checkpoints and nothing ever auto-merges.
 
 **Assess**
 - `codebase-audit` — broad multi-lens review of the whole codebase; applies safe fixes, writes a ranked findings backlog (`FINDINGS_REGISTER.md`).

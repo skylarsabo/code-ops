@@ -1,6 +1,5 @@
 ---
 description: "Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory."
-disable-model-invocation: true
 ---
 
 # API-DOCS — The Interface Reference

@@ -1,6 +1,5 @@
 ---
 description: "Use when you need a verified, code-grounded orientation guide (with an architecture diagram) for a new contributor."
-disable-model-invocation: true
 ---
 
 # CODEBASE ONBOARDING — Generate the Orientation Guide

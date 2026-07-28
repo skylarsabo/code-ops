@@ -24,7 +24,7 @@ New to the suite? See the handbook at `docs/handbook/` (from the repo root) to l
 
 ## Skills
 
-Invoke with `/rigor:<name>` in Claude Code or `rigor:<name>` in Codex (all manual-invoke).
+Invoke with `/rigor:<name>` in Claude Code or `rigor:<name>` in Codex, or let the model route to a skill per the standard-operating-mode routing card.
 
 - `ground-truth` — run the toolchain; capture the factual baseline + coverage/blind-spot map. **Run first.**
 - `test-suite-audit` — validate the tests the proofs rest on (flaky, assertion strength, mutation kill-rate); harden the gaps.

@@ -1,6 +1,5 @@
 ---
 description: "Use when you need to capture the WHY behind a codebase's architecture as decision records — backfilling load-bearing past decisions or authoring an ADR for a current one."
-disable-model-invocation: true
 ---
 
 # ADR — Architecture Decision Records

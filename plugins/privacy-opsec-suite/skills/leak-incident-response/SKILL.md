@@ -1,6 +1,5 @@
 ---
 description: "Use when an anonymity/privacy leak is suspected and you need to triage, contain, scope blast radius, and plan remediation without making it worse."
-disable-model-invocation: true
 ---
 
 # LEAK INCIDENT RESPONSE — Contain a Suspected Leak

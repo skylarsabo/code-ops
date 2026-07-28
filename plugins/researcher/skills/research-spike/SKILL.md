@@ -1,6 +1,5 @@
 ---
 description: "Use when a task, feature, or plan needs a code-grounded design brief before anyone builds it. Writes no code."
-disable-model-invocation: true
 ---
 
 # RESEARCH SPIKE — Code-Grounded Design Brief for a Task or Plan

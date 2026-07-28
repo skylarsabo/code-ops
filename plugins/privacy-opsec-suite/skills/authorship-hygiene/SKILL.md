@@ -1,6 +1,5 @@
 ---
 description: "Use when a commit, PR, or branch must carry no AI/tooling trace before publishing."
-disable-model-invocation: true
 ---
 
 # AUTHORSHIP HYGIENE — Make the Work Read as Yours, Not Your Tools'

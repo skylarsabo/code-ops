@@ -1,6 +1,5 @@
 ---
 description: "Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline; start assess-only. Intra-plugin orchestrator."
-disable-model-invocation: true
 ---
 
 # RIGOR SWEEP — The Whole Suite, End-to-End

@@ -1,6 +1,5 @@
 ---
 description: "Use when feature specs already exist and you want them built incrementally. Requires specs as input."
-disable-model-invocation: true
 ---
 
 # FEATURE IMPLEMENTATION — Build the Specified Features

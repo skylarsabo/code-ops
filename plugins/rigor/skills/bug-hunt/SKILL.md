@@ -1,6 +1,5 @@
 ---
 description: "Use when you want REAL bugs found and proven, not a list of guesses — each candidate proven with a failing test. The flagship."
-disable-model-invocation: true
 ---
 
 # BUG HUNT — Prove the Bug, Then Find Its Whole Class

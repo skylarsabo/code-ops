@@ -1,6 +1,5 @@
 ---
 description: "Use before refactoring or fixing low-coverage code — writes characterization tests that lock current observable behavior."
-disable-model-invocation: true
 ---
 
 # SAFETY NET — Pin Behavior Before You Touch It

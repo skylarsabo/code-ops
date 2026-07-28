@@ -1,6 +1,5 @@
 ---
 description: "Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor."
-disable-model-invocation: true
 ---
 
 # DEBUG — Symptom to Root-Cause Fix, Proven

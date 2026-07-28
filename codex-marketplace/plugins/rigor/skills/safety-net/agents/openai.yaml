@@ -3,4 +3,4 @@ interface:
   short_description: "Use before refactoring or fixing low-coverage code — writes characterization tests that lock current observable behavior."
   default_prompt: "Use rigor:safety-net for this task."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

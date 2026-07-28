@@ -40,7 +40,7 @@ Five rules carry the whole journey:
 4. **Contain small, fix durable.** Phase 1 proposes the *smallest* change that stops the bleeding; the durable fix and its regression test ship later through `opsec-hardening` with your go-ahead ([`SKILL.md`](../../plugins/privacy-opsec-suite/skills/leak-incident-response/SKILL.md) "Done when").
 5. **A leak is not closed until a regression test locks it shut.** The fix is incomplete without a test that fails if the leak returns ([`opsec-hardening/SKILL.md`](../../plugins/privacy-opsec-suite/skills/opsec-hardening/SKILL.md) Phase 1).
 
-Both commands are **manual-invoke** (`disable-model-invocation: true`) — you call them; the model will not auto-trigger them. `leak-incident-response` runs in **REVIEW** mode (it analyzes and proposes; it makes no destructive change). `opsec-hardening` runs in **IMPLEMENT** mode and is the only step here that ships code — and because it changes the anonymity/opsec posture, it is **always gated** at every automation level ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §4).
+Both commands can be called directly, or the model can route to them per the standard-operating-mode routing card. `leak-incident-response` runs in **REVIEW** mode (it analyzes and proposes; it makes no destructive change). `opsec-hardening` runs in **IMPLEMENT** mode and is the only step here that ships code — and because it changes the anonymity/opsec posture, it is **always gated** at every automation level ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §4).
 
 ```mermaid
 sequenceDiagram

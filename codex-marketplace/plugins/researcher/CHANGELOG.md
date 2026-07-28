@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 0.10.0
+- **Skills are model-invocable.** Removed `disable-model-invocation: true` from all skill frontmatter; the harness routes slash input through the Skill tool, and the flag made every skill uninvocable there and blocked scheduled-task invocation. Routing discipline now lives in each skill's "Use when" description, the session routing card, and each skill's own checkpoints — egress checkpoints still gate every run.
+
 ## 0.9.1
 - **Named-executor discipline extended to the leaf skills.** `ecosystem-watch`, `library-eval`, `research-ideate`, `research-improve`, `research-spike`, and `research-verify` now name a `gatherer` dispatch (parallel, disjoint sub-questions) for their local grounding/gathering phases and a `claim-checker` dispatch (one per load-bearing claim, parallel) for their verification/disconfirmation phases, matching the pattern `research-sweep` Phase 0 already used.
 

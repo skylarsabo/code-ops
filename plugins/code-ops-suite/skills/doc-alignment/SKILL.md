@@ -1,6 +1,5 @@
 ---
 description: "Use when docs have drifted from code and you want them reconciled into a clean single source of truth."
-disable-model-invocation: true
 ---
 
 # DOCUMENTATION ALIGNMENT — Reconcile Drift & Establish Single Source of Truth

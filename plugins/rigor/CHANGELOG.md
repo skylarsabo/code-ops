@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.14.0
+- **Skills are model-invocable.** Removed `disable-model-invocation: true` from all skill frontmatter; the harness routes slash input through the Skill tool, and the flag made every skill uninvocable there and blocked scheduled-task invocation. Routing discipline now lives in each skill's "Use when" description, the session routing card, and each skill's own checkpoints — no auto-merge, ever.
+
 ## 2.13.2
 - **Named executors extended to the remaining leaf skills.** `safety-net`, `regression-hunt`, `quality-scan`, `test-suite-audit`, `improve-measured`, `consistency-closure`, and `fix-verified` now name `tracer`/`verifier` for their investigation, repro, and measurement phases, matching the pattern already applied to `rigor-sweep`/`bug-hunt`; `ground-truth` (bounded toolchain runs) and `deep-review` (already named) are unchanged.
 

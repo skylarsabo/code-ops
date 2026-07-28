@@ -1,6 +1,5 @@
 ---
 description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the SSOT."
-disable-model-invocation: true
 ---
 
 # PRIVACY DOC ALIGNMENT — Promises That Match Reality

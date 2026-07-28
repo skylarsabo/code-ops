@@ -1,6 +1,5 @@
 ---
 description: "Use when you want net-new, honestly-novel feature or direction ideas grounded in our code plus its domain and opt-in external trends; writes no code. For ideas mined from the codebase alone, use code-ops-suite:feature-discovery."
-disable-model-invocation: true
 ---
 
 # RESEARCH IDEATE — Net-New Directions, Grounded & Feasibility-Checked

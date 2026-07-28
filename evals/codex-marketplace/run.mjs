@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Codex marketplace regression eval — validates the generated native package's
-// discovery surface, manual-only policy, MCP declaration, and hook payload behavior.
+// discovery surface, model-invocable policy, MCP declaration, and hook payload behavior.
 //
 //   node evals/codex-marketplace/run.mjs   (exit 0 = pass)
 
@@ -32,7 +32,8 @@ for (const plugin of pluginNames) {
     const policy = read(join(skillRoot, 'agents', 'openai.yaml'));
     expect(skillText.startsWith(`---\nname: ${skill}\n`), `${plugin}/${skill}: missing Codex skill name`);
     expect(!skillText.includes('disable-model-invocation') && !skillText.includes('${CLAUDE_PLUGIN_ROOT}'), `${plugin}/${skill}: Claude-only skill syntax leaked`);
-    expect(policy.includes('allow_implicit_invocation: false'), `${plugin}/${skill}: manual-only policy is missing`);
+    expect(policy.includes('allow_implicit_invocation: true'), `${plugin}/${skill}: invocation policy missing or stale`);
+    expect(!policy.includes('allow_implicit_invocation: false'), `${plugin}/${skill}: stale manual-only policy leaked into openai.yaml`);
   }
 }
 
@@ -60,4 +61,4 @@ if (fails.length) {
   for (const failure of fails) console.error('  x ' + failure);
   process.exit(1);
 }
-console.log('PASS — Codex marketplace: skill parity, manual-only policies, MCP declaration, and Codex-shaped hook payload all hold.');
+console.log('PASS — Codex marketplace: skill parity, model-invocable policies, MCP declaration, and Codex-shaped hook payload all hold.');

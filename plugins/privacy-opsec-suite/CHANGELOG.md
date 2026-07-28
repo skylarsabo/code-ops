@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.16.0
+- **Skills are model-invocable.** Removed `disable-model-invocation: true` from all skill frontmatter; the harness routes slash input through the Skill tool, and the flag made every skill uninvocable there and blocked scheduled-task invocation. Routing discipline now lives in each skill's "Use when" description, the session routing card, and each skill's own checkpoints — anonymity-affecting phases stay gated at every automation level.
+
 ## 1.15.1
 - **Named-executor discipline extended to the leaf skills** — the investigation/hunt/inventory phases of `anon-session-audit`, `anonymity-threat-model`, `fingerprint-resistance`, `leak-incident-response`, `metadata-leak-audit`, `opsec-hardening`, `privacy-doc-alignment`, `privacy-feature-design`, `supply-chain-trust`, `tor-egress-audit`, and `traffic-analysis-resistance` now explicitly dispatch the `explorer` subagent, matching the pattern already used by `full-sweep` and `opsec-pr-gate`. `authorship-hygiene` stays inline (bounded, diff-scoped mechanical work); `opsec-pr-gate` already named `privacy-reviewer`.
 
