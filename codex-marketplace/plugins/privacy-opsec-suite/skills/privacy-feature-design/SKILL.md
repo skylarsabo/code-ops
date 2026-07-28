@@ -11,7 +11,7 @@ description: "Use when you want high-value privacy/trust features found and spec
 **Mode:** DISCOVERY · **Produces:** `PRIVACY_FEATURE_OPPORTUNITIES.md` (ranked), mini-specs, roadmap, summary. Discovery and specification only — no implementation.
 
 ## Phase 0 — Understand the product & its anonymity model  *(checkpoint)*
-Map the current feature set, the anonymity/opsec model, latent capabilities, and intent signals (TODOs, stubs, disabled flags).
+Dispatch the explorer subagent to map the current feature set, the anonymity/opsec model, latent capabilities, and intent signals (TODOs, stubs, disabled flags).
 > **CHECKPOINT:** confirm direction, target users, in/out-of-scope, and appetite.
 
 ## Phase 1 — Find features that deepen trust & control

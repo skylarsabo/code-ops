@@ -11,7 +11,7 @@ description: "Use when you need an accurate API/interface reference for a codeba
 **Mode:** DOCUMENT. **Produces:** `API.md` (or per-service) in the repo's docs location.
 
 ## Phase 0 — Detect the surface  *(checkpoint)*
-Find the public surface: HTTP routes, a GraphQL schema, RPC/gRPC services, or a library's exported API. If there is no real external surface, say so and stop. Confirm which surface(s) + the docs location.
+Dispatch an `explorer` operative to find the public surface: HTTP routes, a GraphQL schema, RPC/gRPC services, or a library's exported API. If there is no real external surface, say so and stop. Confirm which surface(s) + the docs location.
 
 ## Phase 1 — Reference per operation
 For each endpoint/operation/export, generated from the handlers + types/schema (not memory): signature, parameters, request and response **shapes** (link the type/schema `file:line`), auth/permissions, error responses + status codes, side effects, and rate limits. Group logically; use tables for the matrix.

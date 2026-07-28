@@ -14,7 +14,7 @@ description: "Use before refactoring or fixing low-coverage code — writes char
 Choose what to pin: the **blind spots** from `GROUND_TRUTH.md`, code queued for a fix/refactor/improvement, and high-risk modules. Confirm scope.
 
 ## Phase 1 — Characterize current behavior
-Write **characterization tests** that capture *current observable behavior* of the targets — including current quirks (these pin behavior, not correctness) — and run them **green against current code**. Exercise real edge/error inputs so the net is tight, not just the happy path. If you find behavior that looks wrong, **do not fix it here** — record it in `FINDINGS_REGISTER.md` as a candidate finding for `bug-hunt`/`fix-verified`.
+Dispatch a `tracer` to trace each target's current observable behavior across its call sites — including current quirks (these pin behavior, not correctness). Write **characterization tests** from that trace and run them **green against current code**. Exercise real edge/error inputs so the net is tight, not just the happy path. If you find behavior that looks wrong, **do not fix it here** — record it in `FINDINGS_REGISTER.md` as a candidate finding for `bug-hunt`/`fix-verified`.
 
 ## Deliverables
 The characterization tests, committed and tagged so the regression guard can find them; a list of suspicious behaviors observed → `FINDINGS_REGISTER.md`. A note of which targets are now safe to change.

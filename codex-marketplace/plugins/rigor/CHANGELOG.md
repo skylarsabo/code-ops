@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.13.2
+- **Named executors extended to the remaining leaf skills.** `safety-net`, `regression-hunt`, `quality-scan`, `test-suite-audit`, `improve-measured`, `consistency-closure`, and `fix-verified` now name `tracer`/`verifier` for their investigation, repro, and measurement phases, matching the pattern already applied to `rigor-sweep`/`bug-hunt`; `ground-truth` (bounded toolchain runs) and `deep-review` (already named) are unchanged.
+
 ## 2.13.1
 - **`bug-hunt` Phase 1/2 name the `tracer`** for invariant extraction and the control/data-flow trace, matching the executor-naming already used in the orchestrators' Phase 0.
 - **TODO** — describe the change.

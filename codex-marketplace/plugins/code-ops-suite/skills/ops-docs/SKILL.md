@@ -11,7 +11,7 @@ description: "Use when you need an operational runbook for a codebase, written f
 **Mode:** DOCUMENT. **Produces:** `RUNBOOK.md` (and/or ops docs) in the repo's docs location.
 
 ## Phase 0 — Detect the operational surface  *(checkpoint)*
-Find how the system is built, deployed, configured, and observed: Dockerfiles/compose, CI/CD workflows, infra, deploy scripts, config/env, health checks, dashboards/alerts. Confirm scope + docs location.
+Dispatch an `explorer` operative to find how the system is built, deployed, configured, and observed: Dockerfiles/compose, CI/CD workflows, infra, deploy scripts, config/env, health checks, dashboards/alerts. Confirm scope + docs location.
 
 ## Phase 1 — Deploy & rollback
 The real deploy path (cited from the CI/scripts), how to roll back, and the preconditions/gotchas. A Mermaid flow of the pipeline where it helps.

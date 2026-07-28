@@ -12,14 +12,14 @@ disable-model-invocation: true
 Pick the concept space (e.g. error handling, data access, validation, naming of one idea, API response shape).
 
 ## Phase 1 — Inventory the variants
-Find **divergent implementations of the same concept**: multiple ways of doing one thing, drifted duplication, inconsistent return/error/null conventions, contract drift across call sites, inconsistent naming for a single idea. Group by concept; show each variant with `file:line`.
+Dispatch a `tracer` to find **divergent implementations of the same concept**: multiple ways of doing one thing, drifted duplication, inconsistent return/error/null conventions, contract drift across call sites, inconsistent naming for a single idea. Group by concept; show each variant with `file:line`.
 
 ## Phase 2 — Choose the canonical form  *(checkpoint — a real decision)*
 For each group, propose **one canonical form** with rationale (correctness, safety, ergonomics, prevalence).
 > **CHECKPOINT:** the developer approves the canonical choice per group before any migration.
 
 ## Phase 3 — Close and enforce
-Migrate every other site to the canonical form — behavior-preserving, conflict-aware, each migration tested and committed — then **add a mechanical enforcement** (lint rule, codemod/CI check, shared type, or test) so the divergence **cannot recur unnoticed**. Verify nothing else regressed (regression guard `§H`).
+Migrate every other site to the canonical form — behavior-preserving, conflict-aware, each migration tested and committed — then **add a mechanical enforcement** (lint rule, codemod/CI check, shared type, or test) so the divergence **cannot recur unnoticed**. Have a `verifier` confirm nothing else regressed (regression guard `§H`).
 
 ## Deliverables
 `CONSISTENCY_REGISTER.md` (concept → canonical form → sites migrated → enforcement added), the diffs, and the enforcement config/rule; a summary of what's now canonical and guarded.

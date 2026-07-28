@@ -11,7 +11,7 @@ description: "Use when you need to vet dependencies for telemetry/phone-home/egr
 **Mode:** AUDIT (+ safe fixes with confirmation) · **Produces:** findings → `LEAK_REGISTER.md`; report.
 
 ## Phase 0 — Inventory dependencies & their behavior  *(checkpoint)*
-Catalogue direct and transitive dependencies, their network behavior, known CVEs (by severity), and build/lockfile integrity.
+Dispatch the explorer subagent to catalogue direct and transitive dependencies, their network behavior, known CVEs (by severity), and build/lockfile integrity.
 > **CHECKPOINT:** present the inventory with telemetry/egress and CVE flags highlighted; confirm scope.
 
 ## Phase 1 — Assess trust under the model

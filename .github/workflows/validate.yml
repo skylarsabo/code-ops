@@ -102,6 +102,12 @@ jobs:
       - name: Run-artifact narration scanner eval
         run: node evals/scan-narration/run.mjs
 
+      - name: Gate-workflow-edit regression eval
+        run: node evals/gate-workflow-edit/run.mjs
+
+      - name: Calibration-metrics regression eval
+        run: node evals/calibration-metrics/run.mjs
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then

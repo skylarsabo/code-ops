@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 0.9.1
+- **Named-executor discipline extended to the leaf skills.** `ecosystem-watch`, `library-eval`, `research-ideate`, `research-improve`, `research-spike`, and `research-verify` now name a `gatherer` dispatch (parallel, disjoint sub-questions) for their local grounding/gathering phases and a `claim-checker` dispatch (one per load-bearing claim, parallel) for their verification/disconfirmation phases, matching the pattern `research-sweep` Phase 0 already used.
+
 ## 0.9.0
 - **`claim-checker` and `gatherer` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.
 - **`preflight.mjs`, `repo-map.mjs`, and `import-graph.mjs` vendored in** (`scripts/vendored-manifest.mjs`) — `research-sweep` Phase 0 now runs the preflight gate, generates `REPO_MAP.md`, and dispatches a `gatherer` to detect stack/size before confirming scope and egress, matching the other suite orchestrators.

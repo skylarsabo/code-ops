@@ -1,6 +1,6 @@
 # Command Reference — Index & Task Router
 
-The code-ops marketplace ships **57 commands** across four plugins. Every command is a
+The code-ops marketplace ships **60 commands** across four plugins. Every command is a
 manual-invoke workflow: call it as `/<plugin>:<skill>` in Claude Code, or name
 `<plugin>:<skill>` in a Codex request. They never auto-fire, because each is a deliberate operation. This page is the front door: it tells you how to
 read a command entry, maps the goal you actually have to the command(s) that serve it in
@@ -101,6 +101,9 @@ marks a single command that strings the others together for you.
 | **Run the full intra-suite engineering pass** | `/code-ops-suite:full-sweep` (orchestrator) | code-ops-suite | scope → ground truth → assess → safety-net → fix → deep-dives → consistency → document → ship. |
 | **Run the most thorough cross-plugin pass** | `/code-ops-suite:everything` (orchestrator) | all three (code-ops-suite, rigor, privacy) | map → ground-truth → prove → leak-audit → safety-net → review → remediate → close → improve → normalize-and-document → verify-and-ship. Requires `rigor` and `privacy-opsec-suite`. See [the-everything-pass](../../guides/the-everything-pass.md). |
 | **Run the rigor pipeline end-to-end** | `/rigor:rigor-sweep` (orchestrator) | rigor | Start with `assess-only` to get proven findings before changing anything. |
+| **Calibrate the suite against a real repo** | `/code-ops-suite:calibration-run` | code-ops-suite | Isolated, assess-only; only a sanitized note crosses back into `evals/CALIBRATION_TABLE.md`. |
+| **Audit a completed run's cost discipline** | `/code-ops-suite:run-cost-audit` | code-ops-suite | Dispatch counts, artifact sizes, tier/effort mix vs. the suite's own routing doctrine → `COST_AUDIT.md`. |
+| **Audit the suite's prose for provider-specific assumptions** | `/code-ops-suite:provider-parity-audit` | code-ops-suite | Prose only — the mechanical Codex render is already covered by `build-codex-marketplace.mjs --check`. |
 | **Wire a breadth PR gate into CI** | `/code-ops-suite:pr-review` in CI | code-ops-suite | Via `anthropics/claude-code-action@v1`; canonical setup is `/install-github-app`, then paste the review criteria. See `plugins/code-ops-suite/examples/github-pr-review.yml`. |
 | **Wire a verification PR gate into CI** | `/rigor:deep-review` in CI | rigor | Same action; see `plugins/rigor/examples/github-deep-review.yml`. |
 | **Wire an anonymity PR gate into CI** | `/privacy-opsec-suite:opsec-pr-gate` in CI | privacy-opsec-suite | Blocks any change adding egress/logging/identifiers/fingerprint/correlation/weakened defaults. See `plugins/privacy-opsec-suite/examples/github-opsec-gate.yml`. Also guards the researcher's egress posture. |
@@ -118,7 +121,7 @@ marks a single command that strings the others together for you.
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) — **25 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
+- [code-ops-suite.md](code-ops-suite.md) — **28 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
 - [rigor.md](rigor.md) — **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) — **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) — **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).

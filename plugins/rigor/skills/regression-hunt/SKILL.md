@@ -12,9 +12,9 @@ disable-model-invocation: true
 Define the target: a known behavior change/bug to bisect to its origin, or "regressions introduced in the last N commits / since release X". Confirm the time range and what "correct" looked like before.
 
 ## Phase 1 — Locate and confirm
-- **Bisect a known bug:** write a test that detects it, then walk VCS history (bisect) to the commit that introduced it; report the commit, the change, and *why* it caused the regression.
-- **Sweep recent changes:** derive what recent commits altered; run the accumulated proof set / characterization tests across them; look for behavior **and performance** regressions; check changed areas against the lenses (`§7`).
-- **Related areas:** identify other code the offending change touched or shares a root cause with, which may carry the same regression (`§G`).
+- **Bisect a known bug:** have a `verifier` write a test that detects it and execute the VCS bisect to the commit that introduced it; report the commit, the change, and *why* it caused the regression.
+- **Sweep recent changes:** derive what recent commits altered; have the `verifier` run the accumulated proof set / characterization tests across them; look for behavior **and performance** regressions; check changed areas against the lenses (`§7`).
+- **Related areas:** dispatch a `tracer` to identify other code the offending change touched or shares a root cause with, which may carry the same regression (`§G`).
 
 ## Deliverables
 `REGRESSION_REPORT.md` — offending commit(s), the repro, blast radius, and related areas to check; CONFIRMED findings (the bisect + repro are the proof) → `FINDINGS_REGISTER.md`. If recent changes are clean, say so with the evidence.

@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.15.1
+- **Named-executor discipline extended to the leaf skills** — the investigation/hunt/inventory phases of `anon-session-audit`, `anonymity-threat-model`, `fingerprint-resistance`, `leak-incident-response`, `metadata-leak-audit`, `opsec-hardening`, `privacy-doc-alignment`, `privacy-feature-design`, `supply-chain-trust`, `tor-egress-audit`, and `traffic-analysis-resistance` now explicitly dispatch the `explorer` subagent, matching the pattern already used by `full-sweep` and `opsec-pr-gate`. `authorship-hygiene` stays inline (bounded, diff-scoped mechanical work); `opsec-pr-gate` already named `privacy-reviewer`.
+
 ## 1.15.0
 - **`explorer` and `privacy-reviewer` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.
 - **`preflight.mjs`, `repo-map.mjs`, and `import-graph.mjs` vendored in** (`scripts/vendored-manifest.mjs`) — `full-sweep` Phase 0 now runs the preflight gate, generates `REPO_MAP.md`, and dispatches the `explorer` subagent to detect stack/size before confirming scope, matching the other suite orchestrators.

@@ -13,7 +13,7 @@ description: "Use when docs have drifted from code and you want them reconciled 
 Find **all** documentation drift, reconcile docs against **code reality**, and leave a clean **single source of truth** future operators can trust. **Code is ground truth; docs serve the next operator.** Edits documentation only — if a doc reveals a likely *code* bug, log it as a finding, don't touch code.
 
 ## Phase 0 — Inventory, map reality & SSOT intent  *(checkpoint)*
-Inventory all docs (READMEs, reference docs, ADRs, runbooks, guides, doc-comments, any SSOT folder) with each one's purpose. Map **code reality** (enough to verify claims). Map **intended SSOT** — for each topic, which doc is *supposed* to be authoritative; flag topics with **no owner** and **multiple competing authorities**. If VCS history is available, use it to **date the drift** (where code moved without docs following).
+Dispatch an `explorer` operative to inventory all docs (READMEs, reference docs, ADRs, runbooks, guides, doc-comments, any SSOT folder) with each one's purpose, and to map **code reality** (enough to verify claims). Map **intended SSOT** — for each topic, which doc is *supposed* to be authoritative; flag topics with **no owner** and **multiple competing authorities**. If VCS history is available, use it to **date the drift** (where code moved without docs following).
 > **CHECKPOINT:** present the inventory, the topic→authoritative-doc map (no-owner and duplicate-authority flagged), and the biggest hot-spots; confirm which folders are authoritative vs. aspirational, and anything off-limits.
 
 ## Phase 1 — Detect drift, then reconcile

@@ -11,7 +11,7 @@ description: "Use when you need to verify sessions are truly unlinkable. Owns li
 **Mode:** AUDIT · **Produces:** findings → `LEAK_REGISTER.md`; summary.
 
 ## Phase 0 — Map identity & sessions  *(checkpoint)*
-Trace how identity and sessions work: session identifiers, cookies/tokens, the account model (account-less? guest? ephemeral?), lifecycle (create/resume/expire/logout), and where session state is stored client- and server-side.
+Dispatch the explorer subagent to trace how identity and sessions work: session identifiers, cookies/tokens, the account model (account-less? guest? ephemeral?), lifecycle (create/resume/expire/logout), and where session state is stored client- and server-side.
 > **CHECKPOINT:** present the session/identity map; confirm scope.
 
 ## Phase 1 — Hunt linkability

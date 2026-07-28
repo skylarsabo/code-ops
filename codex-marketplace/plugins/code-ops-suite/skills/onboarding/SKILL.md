@@ -13,7 +13,7 @@ description: "Use when you need a verified, code-grounded orientation guide (wit
 Produce a high-quality, **code-grounded** orientation guide so a new engineer — or a fresh agent — becomes productive fast. **Code is ground truth** — verify everything; don't just paraphrase existing (possibly drifted) docs, and **run the setup steps** to confirm they work. Flag uncertainties as open questions rather than inventing.
 
 ## Phase 0 — Map the system  *(checkpoint)*
-Stack and runtimes; services/modules and how they fit; data models; main user-facing flows; entry points; build/test/run commands; conventions/patterns; and (if the system handles sensitive data) its data-handling/privacy model. Ingest the reconciled SSOT docs and service map if present (noting any drift for the doc-alignment prompt).
+Dispatch an `explorer` operative to map: stack and runtimes; services/modules and how they fit; data models; main user-facing flows; entry points; build/test/run commands; conventions/patterns; and (if the system handles sensitive data) its data-handling/privacy model. Ingest the reconciled SSOT docs and service map if present (noting any drift for the doc-alignment prompt).
 > **CHECKPOINT:** confirm the audience (new engineer / external contributor / future agent) and emphasis; share the system map and proposed outline; then write it.
 
 ## Phase 1 — Write the guide

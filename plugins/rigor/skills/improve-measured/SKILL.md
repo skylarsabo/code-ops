@@ -12,10 +12,10 @@ disable-model-invocation: true
 Agree what improvement means here: runtime/latency, allocations/queries, complexity, bundle/footprint, removable code/deps, or API ergonomics. Read `GROUND_TRUTH.md`. Confirm a `safety-net` exists for the target (or run it first) so "behavior-preserving" is provable.
 
 ## Phase 1 — Baseline the candidates
-For each candidate, capture a **concrete baseline measurement** first: a benchmark number, a complexity score, an allocation/query/IO count, a bundle size, or the exact dead code/dependency to remove. Reject speculative "feels cleaner" changes lacking a measurable basis.
+For each candidate, have a `verifier` capture a **concrete baseline measurement** first: a benchmark number, a complexity score, an allocation/query/IO count, a bundle size, or the exact dead code/dependency to remove. Reject speculative "feels cleaner" changes lacking a measurable basis.
 
 ## Phase 2 — Implement and re-measure
-Apply the change **behavior-preservingly** (`§8`): keep the full suite + proof set green, then **re-measure** and record before → after → delta. Roll back any change whose measured delta doesn't justify it.
+Apply the change **behavior-preservingly** (`§8`): keep the full suite + proof set green, then have the `verifier` **re-measure** and record before → after → delta. Roll back any change whose measured delta doesn't justify it.
 > Checkpoint per change if behavior-adjacent or touching a public contract.
 
 ## Deliverables

@@ -9,7 +9,7 @@ disable-model-invocation: true
 **Mode:** DOCUMENT · **Produces:** reconciled docs, `DRIFT_REPORT.md`, `SSOT_MAP.md`, `OPEN_QUESTIONS.md`. Edits documentation only — log any code issue as a finding, don't change code.
 
 ## Phase 0 — Inventory & map  *(checkpoint)*
-Inventory the privacy/opsec docs (privacy policy, threat model, opsec runbooks, contributor rules) with each one's purpose; map **code reality**; map intended **SSOT** (which doc is authoritative per topic; flag no-owner and duplicate authorities).
+Inventory the privacy/opsec docs (privacy policy, threat model, opsec runbooks, contributor rules) with each one's purpose; dispatch the explorer subagent to map **code reality** against them; map intended **SSOT** (which doc is authoritative per topic; flag no-owner and duplicate authorities).
 > **CHECKPOINT:** present the inventory, the topic→authority map, and the biggest gaps; confirm which docs are authoritative vs. aspirational.
 
 ## Phase 1 — Verify, reconcile, establish SSOT

@@ -16,7 +16,7 @@ A **measurement-driven** pass. **Prime directive: measure first.** Never optimiz
 Identify the perf-critical paths (user-facing latency, throughput hot loops, memory, bundle size, cold start, build/CI time). Set up repeatable **profiling + benchmarks** and capture **baseline numbers**. Profile under realistic load/data and rank hot spots by actual cost. Ingest any audit perf findings as leads.
 > **CHECKPOINT:** present baseline numbers, profiled hot spots ranked by cost, and a proposed order; confirm priorities and any acceptable-complexity limits.
 
-## Phase 1 — Optimize (fan out per hot path)
+## Phase 1 — Optimize (dispatch an ephemeral implementation operative per hot path, conflict-aware fan-out, `CONVENTIONS §1`)
 Where profiling points: reduce **algorithmic** complexity; fix **data access** (N+1, indexes [with OK], batching, pagination, caching with correct invalidation and bounds — never cache sensitive data in a way that creates a leak); **concurrency** (parallelize, remove blocking); **memory/allocation**; **payload/serialization** size; **frontend** (code-split, trim heavy deps, fix render thrash, optimize assets — measure with the UI tool); **build/CI**. Method per optimization: confirm hot → smallest change → benchmark before/after → tests green → commit with the delta. If a change doesn't move the number, revert it.
 
 ## Guardrails

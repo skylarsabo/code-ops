@@ -11,7 +11,7 @@ description: "Use when you need to capture the WHY behind a codebase's architect
 **Mode:** DOCUMENT. **Produces:** numbered ADRs in `docs/adr/` (match an existing ADR convention if one is present).
 
 ## Two modes — confirm which at the start
-- **Backfill** — mine the code, VCS history, and existing docs for the **load-bearing decisions already made** (the "why is it this way?" choices a newcomer hits). Write an ADR for each that clears the admission gate below, grounded in evidence.
+- **Backfill** — dispatch an `explorer` operative to mine the code, VCS history, and existing docs for the **load-bearing decisions already made** (the "why is it this way?" choices a newcomer hits). Write an ADR for each that clears the admission gate below, grounded in evidence.
 - **New** — author an ADR for a decision being made now, with options and a recommendation.
 
 **Admission gate (both modes).** A decision earns an ADR only when all three hold: (1) **hard to reverse** — changing it later carries real cost; (2) **surprising without context** — a future reader would ask "why is it this way?"; (3) **a real trade-off** — genuine alternatives existed and one was chosen for specific reasons. A candidate failing any prong is not an ADR — record it where it belongs and name the destination: a code comment at the decision point, the repo's existing docs surface (match its structure, `§12`), or a CHANGELOG line. In Backfill mode this gate filters which mined decisions get written up at all.

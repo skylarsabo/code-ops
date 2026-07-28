@@ -34,6 +34,11 @@ Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` i
 - `current-docs` — current, version-accurate docs for a library from the version installed in this project (local-first, no third-party) — the in-house Context7 alternative. Also shipped as the `code-ops-docs` MCP server (`resolve-library` / `get-docs`) and wired as the `CONVENTIONS §2` documentation-lookup default suite-wide.
 - `handoff` — capture a long run's true state (decisions, dead ends, in-flight boundaries, anchored pointers, register paths) as a verifiable `HANDOFF.md` before a context limit or session end — or resume from one, re-verifying every claim against the tree first.
 
+**Meta / suite self-audit**
+- `calibration-run` — standardized real-scale calibration of the suite against a target repo, isolated and assess-only, ending in a validated sanitized note appended to `evals/CALIBRATION_TABLE.md`. One-way channel: target internals never cross back.
+- `run-cost-audit` — audits a completed run's cost discipline (dispatch counts, artifact sizes, tier/effort mix) against the suite's own bounded-wave and routing doctrine (`COST_AUDIT.md`).
+- `provider-parity-audit` — audits the marketplace's own prose for provider-specific assumptions the mechanical Codex render can't catch; classifies and registers each hit.
+
 **Documentation generation** (Mode: DOCUMENT — beautiful, code-grounded, Mermaid-diagram docs per `CONVENTIONS §13`)
 - `architecture` — deep architecture reference: C4 structure (context → container → component), critical-path sequence flows, cross-cutting concerns, and key decisions.
 - `api-docs` — accurate API/interface reference (HTTP/GraphQL/RPC endpoints or a library's exports): signatures, request/response shapes, auth, errors, real examples — from the code/types.

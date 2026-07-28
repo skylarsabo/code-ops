@@ -15,7 +15,7 @@ Enumerate the **assets that identify or link a user**: real IP/location, account
 > **CHECKPOINT:** present the assets, adversaries, trust boundaries, and stated goals; confirm scope and which adversaries to emphasize.
 
 ## Phase 1 — Map deanonymization paths
-For each adversary × asset, work out how the adversary could **observe, link, or deanonymize** — at the network, session, application, metadata, dependency, and operator/legal layers. Trace data and traffic flows; mark where anonymity *depends* on a control (proxy routing, isolation, minimization, fail-closed) and what happens if that control fails. Rate residual risk per path, and cross-check every stated promise against whether the system actually keeps it.
+For each adversary × asset, dispatch the explorer subagent to trace data and traffic flows and work out how the adversary could **observe, link, or deanonymize** — at the network, session, application, metadata, dependency, and operator/legal layers; mark where anonymity *depends* on a control (proxy routing, isolation, minimization, fail-closed) and what happens if that control fails. Rate residual risk per path, and cross-check every stated promise against whether the system actually keeps it.
 
 ## Deliverables
 `ANONYMITY_THREAT_MODEL.md` — assets, adversaries, trust boundaries, the catalogue of deanonymization paths with the control each relies on, and residual-risk notes. Route concrete, fixable issues into `LEAK_REGISTER.md` (schema `§6`). Summarize the worst paths.
