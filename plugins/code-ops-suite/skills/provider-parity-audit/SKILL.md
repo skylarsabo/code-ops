@@ -11,7 +11,7 @@ disable-model-invocation: true
 The Codex render is already reconciled mechanically (`node scripts/build-codex-marketplace.mjs --check`) — this skill hunts what that check cannot see: **prose** written as if only one host exists.
 
 ## Phase 0 — Inventory
-Dispatch an `explorer` operative to sweep `plugins/*/skills/*/SKILL.md`, every plugin's `CONVENTIONS.md`, and `docs/` for provider-coupled language: named harness mechanics (hook types, `PreToolUse`/`SessionStart` names), tool names (`Read`/`Grep`/`Glob`/`Bash` as literal tool identifiers vs. generic capabilities), and host-specific invocation phrasing (`disable-model-invocation` vs. Codex's `allow_implicit_invocation`). Return every hit as a `file:line` list, not a rewritten file.
+Dispatch an `explorer` operative to sweep `plugins/*/skills/*/SKILL.md`, every plugin's `CONVENTIONS.md`, and `docs/` for provider-coupled language: named harness mechanics (hook types, `PreToolUse`/`SessionStart` names), tool names (`Read`/`Grep`/`Glob`/`Bash` as literal tool identifiers vs. generic capabilities), and host-specific invocation phrasing (each host's manual-only frontmatter flag, which differs by name between the Claude and Codex renders). Return every hit as a `file:line` list, not a rewritten file.
 
 ## Phase 1 — Classify
 For each hit, classify one of three ways:
