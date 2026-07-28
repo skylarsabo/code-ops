@@ -72,8 +72,7 @@ jobs:
           capped=$(echo "$files" | head -n 200)
           if [ "$total" -gt 200 ]; then
             extra=$((total - 200))
-            capped="$capped
-+$extra more"
+            capped="$capped"$'\n'"+$extra more"
           fi
           {
             echo "list<<CHANGED_FILES_EOF"
