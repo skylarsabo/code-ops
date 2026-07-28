@@ -14,9 +14,9 @@ description: "Use when you need to know whether a green suite actually catches f
 Target the whole suite, or focus on the modules you rely on as proofs / intend to change. Read `GROUND_TRUTH.md` for the coverage map.
 
 ## Phase 1 — Establish what "green" is worth
-- **Flaky / nondeterministic:** run the suite (or target tests) several times; flag tests with unstable results → quarantine list (a flaky green is not a green).
-- **Assertion strength:** find tests that execute code but assert little, happy-path-only tests, and missing edge/error assertions — coverage without verification.
-- **Mutation testing:** on relied-upon / to-be-changed code, inject representative faults (or run a mutation tool if available) and confirm the suite **kills** them. Surviving mutants mark exactly where passing tests guard nothing. Cross-reference coverage: **high coverage + low kill rate = the danger zone.**
+- **Flaky / nondeterministic:** have a `verifier` run the suite (or target tests) several times; flag tests with unstable results → quarantine list (a flaky green is not a green).
+- **Assertion strength:** dispatch a `tracer` to find tests that execute code but assert little, happy-path-only tests, and missing edge/error assertions — coverage without verification.
+- **Mutation testing:** on relied-upon / to-be-changed code, have a `verifier` inject representative faults (or run a mutation tool if available) and confirm the suite **kills** them. Surviving mutants mark exactly where passing tests guard nothing. Cross-reference coverage: **high coverage + low kill rate = the danger zone.**
 
 ## Phase 2 — Harden the gaps
 Propose (and, for NOW-SAFE additions, write) targeted tests that kill the surviving mutants and add the missing edge/error assertions. Re-run to confirm the kill rate improves.

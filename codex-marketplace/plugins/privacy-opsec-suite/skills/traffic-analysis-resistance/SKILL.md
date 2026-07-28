@@ -11,7 +11,7 @@ description: "Use when you need to reduce observable timing/size/volume side cha
 **Mode:** AUDIT · **Produces:** findings → `LEAK_REGISTER.md`; summary. Set expectations honestly — full protection against a global passive adversary is generally out of scope; this reduces, not eliminates, correlatability.
 
 ## Phase 0 — Characterize observable traffic  *(checkpoint)*
-Describe what an on-path or endpoint observer can see: request/response sizes, timing, volume, and cadence.
+Dispatch the explorer subagent to describe what an on-path or endpoint observer can see: request/response sizes, timing, volume, and cadence.
 > **CHECKPOINT:** present the observable-traffic profile; confirm scope and the threat (on-path observer vs. endpoint).
 
 ## Phase 1 — Find correlatable signatures

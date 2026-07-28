@@ -13,7 +13,7 @@ A shared backbone runs through all four: developer-in-the-loop, evidence at `fil
 
 ## Task → command router (condensed)
 
-The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 57 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
+The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 60 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
 
 | I want to… | Command |
 | --- | --- |
@@ -48,7 +48,7 @@ The first slice, all under `docs/` and tracked in the repo.
 - [11-standard-operating-mode.md](11-standard-operating-mode.md) — the SSOT for default routing: the task-type → command table and the tier/effort delegation rule.
 
 **Command reference**
-- [commands/README.md](commands/README.md) — the command-reference index and the full task → command router covering all 57 commands.
+- [commands/README.md](commands/README.md) — the command-reference index and the full task → command router covering all 60 commands.
 - [commands/code-ops-suite.md](commands/code-ops-suite.md) — the 25 code-ops-suite commands.
 - [commands/rigor.md](commands/rigor.md) — the 11 rigor commands.
 - [commands/privacy-opsec-suite.md](commands/privacy-opsec-suite.md) — the 14 privacy-opsec-suite commands.
@@ -74,9 +74,10 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../techniques/redaction-discipline.md](../techniques/redaction-discipline.md) — the mechanical rule for secrets and PII: redact to `<REDACTED:reason>` everywhere, never reproduce a live secret or real identifier.
 - [../techniques/dispatch-brief-template.md](../techniques/dispatch-brief-template.md) — the six-section fill-in skeleton for briefing a subagent, plus per-agent-kind notes and a worked example.
 - [../techniques/skill-composition.md](../techniques/skill-composition.md) — the cross-skill invocation map: every skill that invokes another skill mid-run, when, and what artifact it passes.
+- [../techniques/calibration-protocol.md](../techniques/calibration-protocol.md) — the one-way channel rule, run design, metric table, and sanitized-note template `calibration-run` follows.
 
 ## The handbook is complete
 
-This is the full handbook: eleven chapters, the command reference, eight guides, and nine techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
+This is the full handbook: eleven chapters, the command reference, eight guides, and ten techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
 *Verified-at: 09df64b*

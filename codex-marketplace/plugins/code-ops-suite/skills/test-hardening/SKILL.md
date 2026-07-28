@@ -14,10 +14,10 @@ Raise **meaningful** coverage where it matters — not a coverage number. Tests 
 **Hard rule:** never change product code to make a test pass; if a test exposes a bug, write a failing/skipped test documenting it and log a finding — fixing it belongs to the remediation prompt.
 
 ## Phase 0 — Map the test landscape  *(checkpoint)*
-Detect the frameworks/runners/fixtures and how to run the suite + get coverage. Baseline pass/fail, coverage (overall + per critical area), and run time; identify **flaky** tests (run the suite a few times). Rank **targets** by risk × importance: critical paths, complex/branchy logic, security/privacy-sensitive code, recently-changed code, code with known bugs, and anything the audit flagged as under-tested.
+Dispatch an `explorer` operative to detect the frameworks/runners/fixtures and how to run the suite + get coverage. Baseline pass/fail, coverage (overall + per critical area), and run time; identify **flaky** tests (run the suite a few times). Rank **targets** by risk × importance: critical paths, complex/branchy logic, security/privacy-sensitive code, recently-changed code, code with known bugs, and anything the audit flagged as under-tested.
 > **CHECKPOINT:** present the landscape, baseline, flaky list, and prioritized targets with a proposed coverage focus; confirm scope.
 
-## Phase 1 — Write tests (fan out per area)
+## Phase 1 — Write tests (dispatch an ephemeral implementation operative per area, conflict-aware fan-out, `CONVENTIONS §1`)
 Tests must be **behavior-focused** (not implementation-coupled), **complete on what matters** (happy + edge + boundary + error/unhappy paths), **deterministic** (control clocks/randomness/external calls; isolated state), **readable & conventional**, and **meaningful** (no assertion-free/tautological/coverage-only tests). Special passes: **characterization tests** to pin current behavior before refactors (flag, don't encode, behavior that looks wrong); **regression tests** for known/discovered bugs; **security/privacy-path tests** (authz boundaries hold, sensitive data isn't logged/leaked, defaults stay private). **Fix flaky tests at the root** (diagnose the nondeterminism — don't retry-wrap).
 
 ## Verify

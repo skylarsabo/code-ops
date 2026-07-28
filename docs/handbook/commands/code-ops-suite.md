@@ -1,6 +1,6 @@
 # code-ops-suite — Command Reference
 
-The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 25 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. All skills are manual-invoke (`disable-model-invocation: true`) because they are deliberate operations. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
+The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 28 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. All skills are manual-invoke (`disable-model-invocation: true`) because they are deliberate operations. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
 
 A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate code-grounded reference docs and run-continuity state. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
 
@@ -34,6 +34,11 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 - [`adr`](#code-ops-suiteadr) — architecture decision records
 - [`ops-docs`](#code-ops-suiteops-docs) — the operator's runbook
 - [`handoff`](#code-ops-suitehandoff) — capture or resume a run's verifiable session state
+
+**Meta / suite self-audit**
+- [`calibration-run`](#code-ops-suitecalibration-run) — standardized real-scale calibration, one-way sanitized channel
+- [`run-cost-audit`](#code-ops-suiterun-cost-audit) — audit a completed run's cost discipline
+- [`provider-parity-audit`](#code-ops-suiteprovider-parity-audit) — audit the suite's own prose for provider-specific assumptions
 
 **Orchestrators**
 - [`full-sweep`](#code-ops-suitefull-sweep) — the whole suite end-to-end (intra-plugin)
@@ -297,6 +302,43 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 **When to use it.** Before a long run (`everything`, `full-sweep`, a big audit) hits a context limit or a session ends mid-run; on the other side, to resume from a `HANDOFF.md` someone else (or an earlier session) wrote. Do **not** use it as a findings store — findings belong in the registers it points to.
 
 **Prerequisites & hand-offs.** No prerequisites to write; Resume expects the `HANDOFF.md` plus whatever registers it names. Composes with every orchestrator; the registers it points at are kept fresh by `revalidate-register.mjs` (`§12`).
+
+---
+
+## Meta / suite self-audit
+
+### `/code-ops-suite:calibration-run`
+**Mode:** ASSESS
+
+**How it works.** Phase 0 (checkpoint) confirms the target repo, that the session is a fresh isolated context, that the run is `assess-only`, and the one-way channel rule (only a sanitized note returns — `docs/techniques/calibration-protocol.md`); runs `preflight.mjs`. Phase 1 dispatches `full-sweep` (or `rigor:rigor-sweep`) in the `assess-only` track against the target, letting it run its own phases and checkpoints. Phase 2 extracts quality/token/orchestration/standardization metrics with `calibration-metrics.mjs --artifacts`. Phase 3 fills the sanitized-note template from the extracted metrics (counts, deltas vs. the prior table row, lessons — zero paths/code/URLs) and validates it fail-closed with `calibration-metrics.mjs --validate-note`. Phase 4 appends a row to `evals/CALIBRATION_TABLE.md`.
+
+**Why it's useful.** It standardizes what would otherwise be an ad-hoc calibration run, and enforces the one-way channel mechanically instead of relying on the operator to remember not to quote the target's internals back.
+
+**When to use it.** When you want a real-scale (non-toy) calibration of the suite against an actual codebase. Do **not** use it for the small in-repo eval fixtures — those score with `evals/score.mjs` directly.
+
+**Prerequisites & hand-offs.** Requires a target repo and an isolated session. Feeds a validated row into `evals/CALIBRATION_TABLE.md`.
+
+### `/code-ops-suite:run-cost-audit`
+**Mode:** ASSESS
+
+**How it works.** Phase 0 collects raw counts from `calibration-metrics.mjs --artifacts` and dispatch/failure/redispatch rates from `dispatch-ledger.mjs check`. Phase 1 assesses the run against doctrine: bounded-wave discipline (`§1`) from the ledger's per-wave dispatch counts, artifact-size bounds (`§12`) via `scan-narration.mjs` over the run's summaries, and tier/effort mix against the routing table in `docs/techniques/subagent-trade-offs.md`. Phase 2 writes `COST_AUDIT.md` (≤1 page): the top 3 cost drivers, each with a concrete routing/bounding recommendation cited to a ledger row or artifact.
+
+**Why it's useful.** It turns "this run felt expensive" into a cited, ranked list of what actually drove the cost and a concrete fix, instead of a vague impression.
+
+**When to use it.** After a large orchestrated run, to check whether its dispatch/tier/effort choices matched the suite's own doctrine. Do **not** use it on a live/in-progress run — it consumes a completed artifact folder.
+
+**Prerequisites & hand-offs.** Requires a completed run's artifact folder (registers, `DISPATCH_LEDGER.md`, `EXECUTIVE_SUMMARY.md`). Produces `COST_AUDIT.md` standalone.
+
+### `/code-ops-suite:provider-parity-audit`
+**Mode:** ASSESS
+
+**How it works.** Phase 0 dispatches an `explorer` operative to inventory provider-coupled prose across `plugins/*/skills/*/SKILL.md`, every plugin's `CONVENTIONS.md`, and `docs/` — named harness mechanics, literal tool names, host-specific invocation phrasing — returned as `file:line` hits, not rewritten files. Phase 1 classifies each hit: reconciled in the derived Codex render (no finding), needs generic rewording, or intentionally provider-specific (documented why). Phase 2 writes needs-rewording hits into `FINDINGS_REGISTER.md` in the finding schema (`§7`), tracked `NOW-SAFE` or `NEEDS-REVIEW`, with intentionally-provider-specific hits recorded as accepted-as-is so a later pass doesn't re-flag them.
+
+**Why it's useful.** `build-codex-marketplace.mjs --check` already guarantees the mechanical render is correct; this is the check for prose that quietly assumes only one host exists, which the render check cannot see.
+
+**When to use it.** Periodically, or after a batch of skill/doc edits, to keep the marketplace's prose honestly cross-host. Do **not** expect it to touch the derived Codex render — that's the build script's job.
+
+**Prerequisites & hand-offs.** No prerequisites. Feeds `FINDINGS_REGISTER.md` → `remediation` for the needs-rewording items.
 
 ---
 

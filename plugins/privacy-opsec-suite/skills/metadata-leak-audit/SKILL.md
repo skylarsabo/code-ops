@@ -13,6 +13,7 @@ Find everywhere metadata is produced, stored, served, or logged: logging, teleme
 > **CHECKPOINT:** present the inventory; confirm scope.
 
 ## Phase 1 — Hunt and minimize
+Dispatch the explorer subagent to hunt across these sources:
 - **Logs/telemetry/errors:** PII, IPs, identifiers, tokens, or precise timestamps in logs, analytics, or crash/error reports; verbose stack traces shipped off-box.
 - **Embedded file metadata:** EXIF in images, author/timestamps in documents, build metadata, source maps, debug symbols, file paths, and usernames baked into served or generated artifacts.
 - **Headers:** `Server`, `X-Powered-By`, `Date` drift, `ETag`, `Set-Cookie`, framework banners.

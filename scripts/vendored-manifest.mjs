@@ -24,4 +24,7 @@ export const RUNTIME_SCRIPTS = [
   { name: 'preflight.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
   { name: 'repo-map.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
   { name: 'import-graph.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
+  { name: 'calibration-metrics.mjs', plugins: ['code-ops-suite'] },
+  { name: 'dispatch-ledger.mjs', plugins: ['code-ops-suite'] },
+  { name: 'scan-narration.mjs', plugins: ['code-ops-suite'] },
 ];

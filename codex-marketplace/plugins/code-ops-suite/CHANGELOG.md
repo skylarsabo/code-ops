@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.23.0
+- **Three new suite self-audit skills.** `calibration-run` (Mode: ASSESS) standardizes a real-scale calibration run against a target repo — isolated preflight, an `assess-only` baseline sweep dispatched per `full-sweep`/`rigor:rigor-sweep`'s own phases, metric extraction, and a fail-closed sanitized-note validation before a row is appended to the new `evals/CALIBRATION_TABLE.md` — enforcing the one-way channel rule from `evals/README.md` mechanically instead of by convention. `run-cost-audit` (Mode: ASSESS) audits a completed run's dispatch counts, artifact sizes, and tier/effort mix against the bounded-wave (`§1`) and length-discipline (`§12`) doctrine, producing an evidence-cited `COST_AUDIT.md`. `provider-parity-audit` (Mode: ASSESS) inventories provider-coupled prose across every plugin's skills/CONVENTIONS/docs and classifies each hit (reconciled-in-render / needs-rewording / intentionally provider-specific) into `FINDINGS_REGISTER.md` — the prose counterpart to `build-codex-marketplace.mjs --check`'s mechanical render parity. New `docs/techniques/calibration-protocol.md` documents the channel rule, run design, metric table, and sanitized-note template.
+- **Phase-0 executor naming extended to the remaining DOCUMENT/AUDIT/IMPLEMENT skills** — `adopt-standards`, `adr`, `api-docs`, `data-model`, `dependency-upgrade`, `doc-alignment`, `feature-discovery`, `feature-implementation`, `normalize`, `onboarding`, `ops-docs`, `performance`, `remediation`, `security-privacy-audit`, and `test-hardening` now name the `explorer` (mapping phases) or an ephemeral implementation operative (fix/build phases) dispatch explicitly, completing the pattern started in 1.22.1 for `architecture` and `codebase-audit`.
+- Skill count 25 → 28; handbook, root README, and plugin README counts updated to match.
+
 ## 1.22.1
 - **`architecture` and `codebase-audit` Phase 0 name an `explorer` dispatch** for stack detection/inventory, handing its summary onward — matching the executor-naming already used in the orchestrators' Phase 0.
 - **TODO** — describe the change.

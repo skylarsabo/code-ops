@@ -15,6 +15,7 @@ Determine what could distinguish or re-link one anonymous session from another, 
 > **CHECKPOINT:** present the candidate fingerprint surface; confirm scope.
 
 ## Phase 1 — Enumerate and homogenize
+Dispatch the explorer subagent to enumerate the surface across these layers:
 - **Network/transport:** header set, ordering, and uniqueness; TLS/JA3 fingerprint; SNI; protocol quirks.
 - **Client (if a web/app client):** canvas/WebGL/audio fingerprints, fonts, screen/devicePixelRatio, timezone, language, plugins, and other browser-surface signals; per-user feature flags or config that leak.
 - **Behavioral:** timing, interaction cadence, request ordering, and other patterns that correlate sessions.

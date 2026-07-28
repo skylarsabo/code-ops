@@ -13,7 +13,7 @@ description: "Use when you want grounded, high-value feature ideas mined from th
 Mine the codebase for **high-value, grounded** feature opportunities and specify the best ones — no generic wishlist. Discovery and specification only; no implementation.
 
 ## Phase 0 — Understand the product & set direction  *(checkpoint)*
-Detect the stack and **latent capabilities** (data already present, services/libs that could do more cheaply). Map the **current feature set and main user flows**. Infer product intent and target users from docs and architecture. Harvest **intent signals** — TODOs, disabled flags, stubbed/commented-out endpoints, dead routes, and (if VCS history is available) recurring issue/PR demand.
+Dispatch an `explorer` operative to detect the stack and **latent capabilities** (data already present, services/libs that could do more cheaply). Map the **current feature set and main user flows**. Infer product intent and target users from docs and architecture. Harvest **intent signals** — TODOs, disabled flags, stubbed/commented-out endpoints, dead routes, and (if VCS history is available) recurring issue/PR demand.
 > **CHECKPOINT:** present your read of *what the product is, who it's for, where it's headed*, and the richest opportunity areas. Confirm direction, target users, in/out-of-scope, and appetite (quick wins vs. big bets). Proceed within that.
 
 ## Phase 1 — Adaptive discovery

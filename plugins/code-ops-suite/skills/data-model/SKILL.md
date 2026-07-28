@@ -9,7 +9,7 @@ disable-model-invocation: true
 **Mode:** DOCUMENT. **Produces:** `DATA-MODEL.md` in the repo's docs location.
 
 ## Phase 0 — Detect the schema  *(checkpoint)*
-Find the source of truth for data: SQL migrations, ORM models, a schema file, or NoSQL document shapes. If there's no persistent data model, say so and stop. Confirm scope + docs location.
+Dispatch an `explorer` operative to find the source of truth for data: SQL migrations, ORM models, a schema file, or NoSQL document shapes. If there's no persistent data model, say so and stop. Confirm scope + docs location.
 
 ## Phase 1 — The map
 A Mermaid **erDiagram** of the entities and their relationships (cardinality, FK direction). Keep it legible — split into domain clusters if large.

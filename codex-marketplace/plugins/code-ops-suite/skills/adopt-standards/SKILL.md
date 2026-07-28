@@ -16,7 +16,7 @@ Keep a repo's standards contract (`AGENTS.md`) **mechanically kept, not aspirati
 Check for an existing `AGENTS.md`. **BOOTSTRAP** if absent, or if present but failing a quick audit (commands that don't run, no real gate chain, citations that don't resolve). **MAINTAIN** if present and broadly sound. Confirm the mode with the developer before proceeding; state which and why.
 
 ## Phase 1 — BOOTSTRAP (no AGENTS.md, or one failing the audit)
-Audit the repo first, verifying everything rather than inferring it from filenames:
+Dispatch an `explorer` operative to audit the repo first, verifying everything rather than inferring it from filenames:
 - **Real build/test/lint/gate commands** — run them read-only where safe, or cite the CI workflow `file:line` that defines them; never invent a command that "should" exist.
 - **Architecture worth 3–5 lines** — the shape a senior engineer needs before touching the repo, not a restated file tree.
 - **Non-obvious gotchas** — the things that bite a newcomer (a lint trap, a derived-artifact directory, an ordering requirement) — verified, not guessed.

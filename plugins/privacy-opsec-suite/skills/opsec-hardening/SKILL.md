@@ -9,7 +9,7 @@ disable-model-invocation: true
 **Mode:** IMPLEMENT · **Consumes:** `LEAK_REGISTER.md`. · **Produces:** fixes (branches/PRs), `IMPLEMENTATION_LOG.md`, updated register + opsec docs.
 
 ## Phase 0 — Plan from the leak backlog  *(checkpoint)*
-Read `LEAK_REGISTER.md`. **Re-validate first (`CONVENTIONS §11`):** run `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs LEAK_REGISTER.md --root .` and triage its report, then confirm each surviving leak still reproduces (drop/`OBSOLETE-AT <sha>` anything fixed). Build a dependency/conflict graph; sequence by severity (deanonymization/secret leaks first).
+Read `LEAK_REGISTER.md`. **Re-validate first (`CONVENTIONS §11`):** run `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs LEAK_REGISTER.md --root .` and triage its report, then dispatch the explorer subagent to confirm each surviving leak still reproduces (drop/`OBSOLETE-AT <sha>` anything fixed). Build a dependency/conflict graph; sequence by severity (deanonymization/secret leaks first).
 > **CHECKPOINT:** present re-validation results, the order/batching, and your PR preference. For **NEEDS-DESIGN** items, present options and get a direction first.
 
 ## Phase 1 — Implement (via `CONVENTIONS §10`)

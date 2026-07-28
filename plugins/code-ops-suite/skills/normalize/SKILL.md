@@ -30,7 +30,7 @@ Detect tooling (Prettier/ESLint, Black/Ruff, gofmt, rustfmt, clang-format, etc.)
 - **Commented-out code & "example usage" blocks** (delete; history holds the past).
 - **Inconsistent terminology** — same concept called different names across files.
 
-## Phase 1 — Normalize (fan out, conflict-aware)
+## Phase 1 — Normalize (dispatch ephemeral implementation operatives per area, conflict-aware fan-out, `CONVENTIONS §1`)
 - **A. Style/formatting uniformity** via the single config (quoting, terminators, indentation, trailing commas, line length, import ordering, layout).
 - **B. Naming standardization** (consistent casing per kind; meaningful names; one canonical term per concept).
 - **C. Comment & doc hygiene** (strip the tells; keep terse *why*-comments; standardize doc-comment usage to one rule).

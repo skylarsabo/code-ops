@@ -14,6 +14,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `adr` — Use when you need to capture the WHY behind a codebase's architecture as decision records — backfilling load-bearing past decisions or authoring an ADR for a current one.
 - `api-docs` — Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory.
 - `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.
+- `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. Never quotes the target's internals back into this repo — see docs/techniques/calibration-protocol.md.
 - `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes.
 - `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory.
 - `data-model` — Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations.
@@ -31,7 +32,9 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `performance` — Use when something is measurably slow or you want hot paths optimized with proof; profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured.
 - `pr-review` — Use when you want a rigorous pre-merge review of one PR/diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review; for an anonymity gate, privacy-opsec-suite:opsec-pr-gate.
 - `pr-split` — Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless.
+- `provider-parity-audit` — Use when you want to audit the marketplace's own prose for provider-specific assumptions (harness mechanics, tool names, hook semantics) that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check; this skill covers prose only.
 - `remediation` — Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW/NEEDS-DESIGN items implemented safely with tests. Requires a register as input.
+- `run-cost-audit` — Use when you want to audit a completed orchestrated run's cost discipline — dispatch counts, artifact sizes, tier/effort mix — against the suite's own bounded-wave and routing doctrine. Consumes a finished run's artifact folder, not a live one.
 - `security-privacy-audit` — Use when you need an adversarial security + privacy threat assessment of attack surface and deanonymization paths — deeper than the audit's security lens. For anonymity-specific egress/metadata/fingerprint work, use the privacy-opsec-suite.
 - `ship` — Use when you want to implement one change — a feature or a one-off — end to end at high quality, shipped as a clean traceless PR.
 - `test-hardening` — Use when critical paths lack meaningful coverage or tests are flaky; builds characterization + regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit.

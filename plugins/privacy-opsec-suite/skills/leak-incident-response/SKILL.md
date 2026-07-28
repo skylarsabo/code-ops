@@ -13,7 +13,7 @@ Capture the suspected leak, the affected area, and the timeline — **without ma
 > **CHECKPOINT:** present what's suspected and the investigation plan; confirm scope. Surface anything clearly critical immediately.
 
 ## Phase 1 — Triage → contain → scope → plan
-- **Triage:** is it a real leak? Confirm with redacted, `file:line` evidence; rule out false positives.
+- **Triage:** dispatch the explorer subagent to confirm with redacted, `file:line` evidence whether it's a real leak; rule out false positives.
 - **Contain:** the smallest immediate change that stops it (fail-closed, disable the leaking path, block the egress) — proposed for the developer to apply.
 - **Blast radius:** what was exposed, **who could be deanonymized or linked**, over what time window, and observable by which adversary.
 - **Root cause:** the underlying defect (a fallback that bypassed the proxy, an unredacted log, a metadata field, a correlation vector).

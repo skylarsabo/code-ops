@@ -11,7 +11,7 @@ description: "Use when you need to prove no traffic escapes the proxy/Tor. Owns 
 **Mode:** AUDIT · **Produces:** an egress map + findings → `LEAK_REGISTER.md`; summary. Surface any clearnet/DNS leak as **critical**.
 
 ## Phase 0 — Enumerate every egress path  *(checkpoint)*
-List **all** outbound network behavior: HTTP clients, raw sockets, DNS, telemetry/analytics, third-party SDKs/CDNs/fonts, webhooks, update/connectivity checks. For each, record the **intended** routing — which must go over Tor/SOCKS/proxy and which is intentionally direct.
+Dispatch the explorer subagent to list **all** outbound network behavior: HTTP clients, raw sockets, DNS, telemetry/analytics, third-party SDKs/CDNs/fonts, webhooks, update/connectivity checks. For each, record the **intended** routing — which must go over Tor/SOCKS/proxy and which is intentionally direct.
 > **CHECKPOINT:** present the egress map and intended routing; confirm scope and the routing policy.
 
 ## Phase 1 — Verify the routing actually holds
