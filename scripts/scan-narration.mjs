@@ -62,7 +62,9 @@ const isRegisterArtifact = (label) => /register/i.test(label);
 // begins — an item ID like `BUG-007` or `PERF-003` starts a new entry. ID_IGNORE skips common
 // standards/identifiers (RFC-2616, CVE-2021-44228, ISO-8601, UTF-8, SHA-256) that legitimately
 // appear in a finding's prose without being an item boundary.
-const ID_RE = /\b([A-Z][A-Z0-9]{1,}-\d{1,6})\b/g;
+// The optional letter before the serial admits a reviewer-round-lettered ID (FND-A12) that the
+// digits-only form made invisible; the prefix stays at 2+ chars so a single letter can't start one.
+const ID_RE = /\b([A-Z][A-Z0-9]{1,}-[A-Z]?\d{1,6})\b/g;
 const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', 'SHA', 'MD', 'AES', 'RGB', 'HTTP', 'HTTPS', 'IEEE', 'ANSI', 'FIPS', 'NIST', 'PEP', 'ECMA', 'UTC', 'GMT', 'IPV']);
 function isItemId(id, after, afterNext) {
   if (ID_IGNORE.has(id.split('-')[0].toUpperCase())) return false;
@@ -84,18 +86,29 @@ const REGISTER_PREAMBLE_HARD_LINES = 30;
 
 const countNonBlank = (lines) => lines.filter((l) => l.replace(/\r$/, '').trim() !== '').length;
 
+// An entry begins only at an ENTRY-HEADING POSITION: the start of a line, optionally behind
+// markdown heading markers or a table row's leading pipe (the entry forms in
+// docs/techniques/artifact-grammars.md §(b)). An ID cited mid-line in evidence prose
+// ("duplicate of BUG-003") is a reference, not a boundary, and must not split an entry in two.
+// Composed from ID_RE's own source so the ID shape cannot drift between the two scans.
+const ENTRY_ID_RE = new RegExp('^[ \\t]*(?:#{1,6}[ \\t]+|\\|[ \\t]*)?' + ID_RE.source);
+
 // Locates each entry's start line (0-based) in a register-shaped text. Returns null when the
-// text carries no parseable item IDs — despite the /register/i filename, it isn't actually
-// register-shaped content, so the caller falls back to the flat file-level cap instead of
-// silently exempting a free-form doc that merely has "register" in its name.
+// text carries no parseable item IDs at an entry position — despite the /register/i filename, it
+// isn't actually register-shaped content, so the caller falls back to the flat file-level cap
+// instead of silently exempting a free-form doc that merely has "register" in its name.
 function findRegisterEntries(text) {
-  const ids = [...text.matchAll(ID_RE)].filter((m) => isItemId(m[1], text[m.index + m[0].length], text[m.index + m[0].length + 1]));
+  const ids = [];
+  text.split('\n').forEach((raw, lineNo) => {
+    const line = raw.replace(/\r$/, '');
+    const m = ENTRY_ID_RE.exec(line);
+    if (m && isItemId(m[1], line[m[0].length], line[m[0].length + 1])) ids.push({ id: m[1], startLine: lineNo });
+  });
   if (ids.length === 0) return null;
-  const lineOf = (idx) => text.slice(0, idx).split('\n').length - 1;
-  return ids.map((m, i) => ({
-    id: m[1],
-    startLine: lineOf(m.index),
-    endLine: i + 1 < ids.length ? lineOf(ids[i + 1].index) : undefined, // undefined = runs to EOF
+  return ids.map((e, i) => ({
+    id: e.id,
+    startLine: e.startLine,
+    endLine: i + 1 < ids.length ? ids[i + 1].startLine : undefined, // undefined = runs to EOF
   }));
 }
 

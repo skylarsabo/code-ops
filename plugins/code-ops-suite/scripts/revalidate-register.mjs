@@ -115,9 +115,11 @@ const hasField = (block, field) => new RegExp(`\\b${field}\\s*:\\s*\\S`, 'i').te
 let headSha = null;
 try { headSha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 }).toString().trim(); } catch { /* not a git repo */ }
 
-// Item IDs like BUG-007, PERF-003. Skip common standards/identifiers (RFC-2616, CVE-2021-44228,
-// ISO-8601, UTF-8, SHA-256) that legitimately appear in a finding's prose.
-const ID_RE = /\b([A-Z][A-Z0-9]{1,}-\d{1,6})\b/g;
+// Item IDs like BUG-007, PERF-003, FND-A12 (the optional letter before the serial admits a
+// reviewer-round-lettered ID that the digits-only form made invisible; the prefix stays at 2+
+// chars so a single letter can't start one). Skip common standards/identifiers (RFC-2616,
+// CVE-2021-44228, ISO-8601, UTF-8, SHA-256) that legitimately appear in a finding's prose.
+const ID_RE = /\b([A-Z][A-Z0-9]{1,}-[A-Z]?\d{1,6})\b/g;
 const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', 'SHA', 'MD', 'AES', 'RGB', 'HTTP', 'HTTPS', 'IEEE', 'ANSI', 'FIPS', 'NIST', 'PEP', 'ECMA', 'UTC', 'GMT', 'IPV']);
 // file:line where the filename ends in a known code/doc extension — prevents matching version
 // strings (v1.2.3:4), host:port (h.io:8080) and IP:port (1.1.1.1:53) as references. The
@@ -137,6 +139,29 @@ function isItemId(id, after, afterNext) {
   // a slug suffix (BUG-042-auth-bypass) is still a real item ID.
   if (after === '-' && /\d/.test(afterNext || '')) return false;
   return true;
+}
+
+// An item block begins only at an ENTRY-HEADING POSITION: the start of a line, optionally behind
+// markdown heading markers or a table row's leading pipe (the entry forms in
+// docs/techniques/artifact-grammars.md §(b)). An ID cited mid-line in a finding's own prose
+// ("duplicate of BUG-003") is a reference, not a new item — the unanchored scan split blocks on
+// every such mention and invented items out of body-text domain tags. Composed from ID_RE's own
+// source so the ID shape cannot drift between the anchored and the mid-line (receipt) scans.
+const ENTRY_ID_RE = new RegExp('^[ \\t]*(?:#{1,6}[ \\t]+|\\|[ \\t]*)?' + ID_RE.source);
+
+// Entry heads of a register, in order: [{ 1: id, index }] — shaped like a RegExp match so the
+// existing block-slicing (text.slice(ids[i].index, ids[i+1].index)) reads unchanged.
+function findEntryIds(text) {
+  const out = [];
+  let offset = 0;
+  for (const raw of text.split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    const m = ENTRY_ID_RE.exec(line);
+    if (m && isItemId(m[1], line[m[0].length], line[m[0].length + 1]))
+      out.push({ 1: m[1], index: offset + m[0].length - m[1].length });
+    offset += raw.length + 1;
+  }
+  return out;
 }
 
 function lineCount(absPath) {
@@ -236,7 +261,7 @@ for (const file of files) {
   const regPath = isAbsolute(file) ? file : resolve(file);
   if (!existsSync(regPath)) { console.error(`x register not found: ${file}`); totalStale++; continue; }
   const text = readFileSync(regPath, 'utf8');
-  const ids = [...text.matchAll(ID_RE)].filter((m) => isItemId(m[1], text[m.index + m[0].length], text[m.index + m[0].length + 1]));
+  const ids = findEntryIds(text);
   console.log(`\n# ${file}${headSha ? `  (HEAD ${headSha})` : ''}`);
   if (ids.length === 0) {
     // Under strict, a file carrying schema labels but no parseable IDs is a mangled register —
@@ -395,7 +420,7 @@ for (const file of files) {
     if (!existsSync(prePath)) { console.error(`x pre-run register not found: ${consumedPath}`); totalStale++; }
     else {
       const preText = readFileSync(prePath, 'utf8');
-      const preIds = new Set([...preText.matchAll(ID_RE)].filter((m) => isItemId(m[1], preText[m.index + m[0].length], preText[m.index + m[0].length + 1])).map((m) => m[1]));
+      const preIds = new Set(findEntryIds(preText).map((m) => m[1]));
       const TERMINAL_RE = /closed-with-proof\s+\S|deferred-with-reason\s+\S|OBSOLETE-AT\s+[0-9a-f]{7,40}/i;
       // A closure CLAIM is a status-position token (start of a line/cell, optionally behind a
       // Status/Resolution/Track/State label or the item heading dash) — free prose like

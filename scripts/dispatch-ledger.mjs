@@ -5,6 +5,7 @@
 //
 //   node scripts/dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m>
 //   node scripts/dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s>
+//   node scripts/dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>
 //   node scripts/dispatch-ledger.mjs check --ledger <path> [--strict]
 //
 // WHY: a dispatch ledger is the record that an operative was sent out at all — the
@@ -18,6 +19,11 @@
 //
 // Row grammar: | D-NNN | role@model | brief (<=10 words) | expected artifact | status |
 // status one of: dispatched | reported | failed | redispatched
+// Phase marker (optional, written by `phase`): `> phase: <title> · lead@<model>` on its own
+// line, positional — the rows after it belong to that phase. It records which model LED each
+// stretch, the one thing the per-row stamp can't show; `check` accepts it and fails closed on a
+// line that starts `> phase:` without matching the grammar. Parsers that read only pipe rows
+// ignore it, so ledgers stay readable by every existing consumer.
 //
 // WHY role@model: a real-scale calibration run found a lead silently substituting one
 // model tier down mid-run with no artifact recording which model actually executed a
@@ -29,8 +35,9 @@
 // dispatch: `check` flags it as an advisory (tier mix not reconstructable for that row),
 // promoted to a failure under --strict. Legacy ledgers without the stamp still PARSE.
 //
-// Exit: add/update -> 0 on success, 1 on a validation rejection (bad brief length,
-// missing/unresolvable --model, unknown id, invalid transition), 2 on a usage error.
+// Exit: add/update/phase -> 0 on success, 1 on a validation rejection (bad brief length,
+// missing/unresolvable --model, unknown id, invalid transition, a phase title carrying the
+// marker's own delimiters), 2 on a usage error.
 // check -> 0 (schema clean; any dangling/unstamped rows are printed as advisories), 1 on
 // a schema violation, or (with --strict) on a dangling `dispatched` row or an unstamped
 // row too. 2 on a usage error.
@@ -42,10 +49,16 @@ const HEADER = '| id | role | brief | expected artifact | status |\n'
   + '| --- | --- | --- | --- | --- |\n';
 const STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
 const ROW_RE = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
+// Phase marker: `> phase: <title> · lead@<model>`, a blockquote line so every parser that reads
+// only pipe rows (this file's parseRows, revalidate-register.mjs's --dispatch-ledger scan)
+// ignores it unchanged. Positional: the rows after it belong to that phase.
+const PHASE_RE = /^> phase: (.+) · lead@(\S+)$/;
+const PHASE_PREFIX = '> phase:';
 
 function usage() {
   console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m>');
   console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s>');
+  console.error('       dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>');
   console.error('       dispatch-ledger.mjs check --ledger <path> [--strict]');
   process.exit(2);
 }
@@ -75,10 +88,19 @@ function readLedger(path) {
 // human-readable descriptions of any row that failed to parse or had a bad shape.
 function parseRows(text) {
   const rows = [];
+  const phases = [];
   const malformed = [];
   const lines = text.split('\n');
   lines.forEach((raw, idx) => {
     const line = raw.replace(/\r$/, '').trim();
+    // A line that announces itself as a phase marker but doesn't match the grammar is a schema
+    // violation, not prose to skip — a mistyped marker would otherwise silently drop the phase.
+    if (line.startsWith(PHASE_PREFIX)) {
+      const pm = PHASE_RE.exec(line);
+      if (!pm) { malformed.push(`L${idx + 1}: malformed phase marker (expected \`> phase: <title> · lead@<model>\`): ${line.slice(0, 100)}`); return; }
+      phases.push({ title: pm[1], lead: pm[2], line: idx + 1 });
+      return;
+    }
     if (!line.startsWith('|')) return;
     if (/^\|\s*id\s*\|/.test(line)) return; // header
     if (/^\|(\s*:?-+:?\s*\|)+$/.test(line)) return; // rule row
@@ -88,7 +110,7 @@ function parseRows(text) {
     if (!STATUSES.includes(status)) { malformed.push(`L${idx + 1}: ${id}: invalid status '${status}'`); return; }
     rows.push({ id, role, brief, artifact, status, line: idx + 1 });
   });
-  return { rows, malformed };
+  return { rows, phases, malformed };
 }
 
 function nextId(rows) {
@@ -134,6 +156,44 @@ function cmdAdd(args) {
   const body = (text === null ? HEADER : (text.endsWith('\n') ? text : text + '\n')) + row;
   writeFileSync(path, body);
   console.log(`(dispatch-ledger) ${id} dispatched -> ${f['--ledger']}`);
+}
+
+// ---------------------------------------------------------------- phase
+
+// A phase marker records WHO led each stretch of a run. The proven field failure the row stamp
+// doesn't cover: the lead itself changes tier mid-run (a fresh session picks a lower model),
+// so every dispatch stays correctly stamped while the judgment above them silently drops a
+// tier. The marker makes that reconstructable — calibration-metrics.mjs reports lead model by
+// phase and flags a mid-run change.
+function cmdPhase(args) {
+  const f = parseFlags(args, new Set(['--ledger', '--title', '--lead-model']));
+  for (const req of ['--ledger', '--title', '--lead-model'])
+    if (!(req in f)) { console.error(`x phase needs ${req}`); usage(); }
+  const title = f['--title'].trim();
+  const lead = f['--lead-model'].trim();
+  // The marker's own delimiters may not appear inside the title, and a model id carrying
+  // whitespace would break the `lead@<model>` token — both would make the line unparseable.
+  if (title === '' || /[|·]/.test(title)) {
+    console.error("x --title must be non-empty and free of '|' and '·' (the marker's own delimiters)");
+    process.exit(1);
+  }
+  if (/\s/.test(lead)) {
+    console.error('x --lead-model must be a single whitespace-free resolved model id');
+    process.exit(1);
+  }
+  const path = resolve(f['--ledger']);
+  const text = readLedger(path);
+  if (text !== null) {
+    const { malformed } = parseRows(text);
+    if (malformed.length) {
+      console.error(`x refusing to append to a malformed ledger — fix these rows first:\n  ${malformed.join('\n  ')}`);
+      process.exit(1);
+    }
+  }
+  const marker = `> phase: ${title} · lead@${lead}\n`;
+  const body = (text === null ? HEADER : (text.endsWith('\n') ? text : text + '\n')) + marker;
+  writeFileSync(path, body);
+  console.log(`(dispatch-ledger) phase '${title}' lead@${lead} -> ${f['--ledger']}`);
 }
 
 // ---------------------------------------------------------------- update
@@ -189,8 +249,9 @@ function cmdCheck(args) {
   const text = readLedger(path);
   if (text === null) { console.error(`x ledger not found: ${f['--ledger']}`); process.exit(1); }
 
-  const { rows, malformed } = parseRows(text);
+  const { rows, phases, malformed } = parseRows(text);
   for (const m of malformed) console.log(`  !! MALFORMED  ${m}`);
+  for (const ph of phases) console.log(`  phase: ${ph.title} · lead@${ph.lead} (line ${ph.line})`);
 
   // Monotonically increasing ids: each id's numeric part must exceed the previous row's.
   let prev = 0;
@@ -233,6 +294,7 @@ function cmdCheck(args) {
 
 const argv = process.argv.slice(2);
 if (argv[0] === 'add') cmdAdd(argv.slice(1));
+else if (argv[0] === 'phase') cmdPhase(argv.slice(1));
 else if (argv[0] === 'update') cmdUpdate(argv.slice(1));
 else if (argv[0] === 'check') cmdCheck(argv.slice(1));
 else usage();

@@ -578,6 +578,8 @@ const SHARED_PASSAGES = [
     text: "failed dispatch, not a weak signal — never synthesize around a missing report or fill its gap from the orchestrator's own assumptions" },
   { id: 'failure-ladder', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
     text: 'redispatch once with a tightened, smaller brief; then escalate at the next checkpoint' },
+  { id: 'ledger-atomicity', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: 'The row is written **at dispatch time**, atomically with the dispatch call itself — never a turn earlier or later — because a row written before its dispatch is a phantom indistinguishable from a hung operative' },
 ];
 
 // Same drift gate as SHARED_PASSAGES, but for the operative agent definitions

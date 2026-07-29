@@ -6,7 +6,12 @@
 //   receipts, 3 SURVIVED), and an oversize artifact (125 non-blank lines, over the
 //   scan-narration hard bound of 120) all resolve to the exact counts/rates/flags asserted
 //   below; an empty directory reports every named artifact "not present" and still exits 0;
-//   a malformed ledger row is counted as "unparseable: 1", never silently dropped.
+//   a malformed ledger row is counted as "unparseable: 1", never silently dropped. Entry
+//   detection is anchored and lettered-ID-aware (BUG-A12 heads an entry; a BUG-003 cited in
+//   evidence prose does not), register-shaped files get the per-entry length budget instead of
+//   the flat cap, a themed sibling report carrying entries warns they are uncounted, a
+//   NO-FINDINGS-only register reports covered negatives instead of the zero-parse warning, and
+//   `> phase:` markers resolve to a lead-model-per-phase line plus a mid-run-change advisory.
 //
 //   MODE 2 (--validate-note <file>): a clean note passes; a note leaking a unix-style file
 //   path fails, naming the line and PATH-UNIX category; a note leaking a fenced code block
@@ -102,6 +107,50 @@ try {
   check('k. zero-parse ledger still exits 0 (mode 1 never gates)', k.status === 0, k.stdout + k.stderr);
   check('k. zero-parse ledger reports 0 dispatches, unparseable 0', /\b0 dispatch\(es\), unparseable: 0\b/.test(k.stdout), k.stdout);
   check('k. zero-parse ledger emits a WARNING naming the artifact and the grammars doc', /!! WARNING: DISPATCH_LEDGER\.md is present and non-empty but yielded 0 parsed items.*artifact-grammars\.md/.test(k.stdout), k.stdout);
+
+  // ---- l. lettered IDs parse; IDs cited in prose do NOT open an entry ----------
+  // Fixture: two entries headed BUG-A12 / BUG-A13 whose bodies cite BUG-003 and INC-2024/5.
+  // The digits-only pattern saw neither head and counted 4 prose/domain tags instead.
+  const l = run(['--artifacts', join(HERE, 'lettered-and-prose')]);
+  check('l. lettered-ID register exits 0', l.status === 0, l.stdout + l.stderr);
+  check('l. exactly 2 findings — prose IDs and domain tags open no entry', /\b2 finding\(s\), unparseable: 0\b/.test(l.stdout), l.stdout);
+  check('l. both lettered entries are tiered', /CONFIRMED 1 \(50\.0%\), PROBABLE 1 \(50\.0%\)/.test(l.stdout), l.stdout);
+  check('l. per-entry sweep sees 2 entries', /FINDINGS_REGISTER\.md: \d+ non-blank line\(s\) across 2 entry\(ies\)/.test(l.stdout), l.stdout);
+
+  // ---- m/n. per-entry length budget replaces the flat cap for registers -------
+  const m = run(['--artifacts', join(HERE, 'tight-register')]);
+  check('m. 40-entry tight register exits 0', m.status === 0, m.stdout + m.stderr);
+  check('m. all 40 entries counted', /\b40 finding\(s\), unparseable: 0\b/.test(m.stdout), m.stdout);
+  check('m. 161 non-blank lines across 40 entries, no HARD flag (flat cap would have fired)',
+    /FINDINGS_REGISTER\.md: 161 non-blank line\(s\) across 40 entry\(ies\)/.test(m.stdout) && !/!! HARD/.test(m.stdout), m.stdout);
+
+  const n = run(['--artifacts', join(HERE, 'bloated-entry')]);
+  check('n. bloated-entry register still exits 0 (mode 1 never gates)', n.status === 0, n.stdout + n.stderr);
+  check('n. the one bloated entry is named HARD', /FIND-004: 26 non-blank line\(s\)\s+!! HARD/.test(n.stdout), n.stdout);
+  check('n. its tight siblings are not flagged', (n.stdout.match(/!! HARD/g) || []).length === 1, n.stdout);
+
+  // ---- o. themed sibling report: entries written outside the register ---------
+  const o = run(['--artifacts', join(HERE, 'sibling-report')]);
+  check('o. sibling-report dir exits 0', o.status === 0, o.stdout + o.stderr);
+  check('o. sibling report warns its entries are not counted, pointing at the register + grammars',
+    /!! WARNING: SECURITY_REPORT\.md carries 2 register-shaped entry\(ies\) that are NOT counted[\s\S]*FINDINGS_REGISTER\.md[\s\S]*artifact-grammars\.md/.test(o.stdout), o.stdout);
+  check('o. the three metric artifacts never trip the sibling warning', !/!! WARNING/.test(a.stdout), a.stdout);
+
+  // ---- p. covered negatives: a clean slice is not shape drift -----------------
+  const pcn = run(['--artifacts', join(HERE, 'covered-negative')]);
+  check('p. covered-negative register exits 0', pcn.status === 0, pcn.stdout + pcn.stderr);
+  check('p. covered negatives are counted', /covered negatives: 3/.test(pcn.stdout), pcn.stdout);
+  check('p. a NO-FINDINGS-only register reports covered negatives, not the zero-parse warning',
+    /covered-negative register: 3 slice\(s\) declared clear/.test(pcn.stdout) && !/!! WARNING/.test(pcn.stdout), pcn.stdout);
+  check('p. a register with real findings reports zero covered negatives', /covered negatives: 0/.test(a.stdout), a.stdout);
+
+  // ---- q. phase markers: which model LED each stretch of the run --------------
+  const q = run(['--artifacts', join(HERE, 'phase-ledger')]);
+  check('q. phase-marked ledger exits 0', q.status === 0, q.stdout + q.stderr);
+  check('q. lead model reported per phase', /lead model by phase: Scan=claude-fable-5, Fix=claude-opus-5/.test(q.stdout), q.stdout);
+  check('q. rows attributed to the phase they follow', /dispatches by phase: Scan 2, Fix 1/.test(q.stdout), q.stdout);
+  check('q. a mid-run lead change is advised (report-only)', /advisory: lead model changed mid-run \(claude-fable-5 -> claude-opus-5\)/.test(q.stdout), q.stdout);
+  check('q. a ledger with no phase markers reports nothing new', !/lead model by phase/.test(a.stdout), a.stdout);
 
   // ---- MODE 2: note validation -------------------------------------------------
   const notesDir = join(HERE, 'notes');

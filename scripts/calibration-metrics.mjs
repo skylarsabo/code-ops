@@ -19,8 +19,13 @@
 // WARNING line naming it and pointing at docs/techniques/artifact-grammars.md — zero-parse on
 // non-empty text means shape drift, not absence (the finding that motivated this warning). The
 // ledger's role@model stamp (scripts/dispatch-ledger.mjs) is also parsed into a tier-mix line
-// (dispatch count per model; an unstamped role cell counts as "unstamped"). This mode always
-// exits 0: it reports a run's shape, it does not gate it.
+// (dispatch count per model; an unstamped role cell counts as "unstamped"), and its positional
+// `> phase:` markers into a lead-model-per-phase line plus an advisory when the lead changed
+// mid-run. Register entries are detected only at an entry-heading position, so an ID cited in
+// evidence prose no longer inflates the finding count; a register that parses to zero entries
+// but declares `NO-FINDINGS:` slices reports covered negatives instead of the zero-parse
+// warning; and any OTHER .md carrying register-shaped entries gets a warning that its findings
+// are not counted here. This mode always exits 0: it reports a run's shape, it does not gate it.
 //
 // MODE 2 (--validate-note): a structural scrub gate for a sanitized calibration note before it
 // crosses the one-way channel back into this repo. Fails CLOSED (exit 1) on any hit of: an
@@ -54,15 +59,23 @@ function escapeRe(s) {
 
 const LEDGER_ROW_RE = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
 const LEDGER_STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
+// Phase marker per scripts/dispatch-ledger.mjs `phase`: `> phase: <title> · lead@<model>`.
+// Markers are POSITIONAL — every row after one belongs to that phase — so the lead model that
+// presided over each stretch of dispatches stays reconstructable after the run.
+const PHASE_LINE_RE = /^>\s*phase:\s*(.+?)\s*·\s*lead@(\S+)\s*$/;
 
 // Row grammar per scripts/dispatch-ledger.mjs: | D-NNN | role | brief | expected artifact | status |.
 // A row whose shape doesn't match, or whose status isn't one of the four known values, is
 // unparseable — counted, never dropped silently.
 function summarizeLedger(text) {
   const rows = [];
+  const phases = [];
+  let phase = null;
   let malformed = 0;
   for (const raw of text.split('\n')) {
     const line = raw.replace(/\r$/, '').trim();
+    const pm = PHASE_LINE_RE.exec(line);
+    if (pm) { phase = { title: pm[1], lead: pm[2], rows: 0 }; phases.push(phase); continue; }
     if (!line.startsWith('|')) continue;
     if (/^\|\s*id\s*\|/i.test(line)) continue; // header
     if (/^\|(\s*:?-+:?\s*\|)+$/.test(line)) continue; // rule row
@@ -71,6 +84,7 @@ function summarizeLedger(text) {
     const [, id, role, brief, artifact, status] = m;
     if (!LEDGER_STATUSES.includes(status)) { malformed++; continue; }
     rows.push({ id, role, brief, artifact, status });
+    if (phase) phase.rows++;
   }
   const total = rows.length;
   const byRole = {};
@@ -87,12 +101,13 @@ function summarizeLedger(text) {
     byModel[model] = (byModel[model] ?? 0) + 1;
   }
   const pct = (n) => (total ? ((n / total) * 100).toFixed(1) : '0.0');
-  return { total, malformed, byRole, byStatus, byModel, pct };
+  return { total, malformed, byRole, byStatus, byModel, phases, pct };
 }
 
-// Findings-register item IDs per revalidate-register.mjs's grammar (e.g. BUG-007, PERF-003),
-// ignoring common standards identifiers that legitimately appear in prose.
-const ID_RE = /\b([A-Z][A-Z0-9]{1,}-\d{1,6})\b/g;
+// Findings-register item IDs per revalidate-register.mjs's grammar (e.g. BUG-007, PERF-003,
+// and a reviewer-round-lettered FND-A12), ignoring common standards identifiers that
+// legitimately appear in prose.
+const ID_RE = /\b([A-Z][A-Z0-9]{1,}-[A-Z]?\d{1,6})\b/g;
 const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', 'SHA', 'MD', 'AES', 'RGB', 'HTTP', 'HTTPS', 'IEEE', 'ANSI', 'FIPS', 'NIST', 'PEP', 'ECMA', 'UTC', 'GMT', 'IPV']);
 const TIER_RE = /\bTier\s*:\s*([A-Za-z]+)/i;
 const SEVERITY_RE = /\bSeverity\s*:\s*([A-Za-z]+)/i;
@@ -104,11 +119,42 @@ function isItemId(id, after, afterNext) {
   return true;
 }
 
+// An entry begins only at an ENTRY-HEADING POSITION: the start of a line, optionally behind
+// markdown heading markers or a table row's leading pipe (the two entry forms in
+// docs/techniques/artifact-grammars.md §(b)). An ID inside evidence prose ("duplicate of
+// BUG-003") or a domain tag in body text (INC-2024) is a reference, not a boundary — the
+// unanchored scan counted 13 of a real target's historical incident tags as findings. Composed
+// from ID_RE's own source so the ID shape cannot drift between the anchored and mid-line scans.
+const ENTRY_ID_RE = new RegExp('^[ \\t]*(?:#{1,6}[ \\t]+|\\|[ \\t]*)?' + ID_RE.source);
+
+// Returns [{ id, index, line }] — absolute character offset and 0-based line of each entry head.
+function findEntryIds(text) {
+  const out = [];
+  let offset = 0;
+  text.split('\n').forEach((raw, lineNo) => {
+    const line = raw.replace(/\r$/, '');
+    const m = ENTRY_ID_RE.exec(line);
+    if (m) {
+      const index = offset + m[0].length - m[1].length;
+      if (isItemId(m[1], text[index + m[1].length], text[index + m[1].length + 1])) out.push({ id: m[1], index, line: lineNo });
+    }
+    offset += raw.length + 1;
+  });
+  return out;
+}
+
+// A covered negative: a slice a run genuinely swept and cleared, declared at line start as
+// `NO-FINDINGS: <slice label> — <why/evidence>`. Zero entries plus >=1 of these is a
+// well-formed zero-finding result, not the shape drift the zero-parse warning exists for.
+const NO_FINDINGS_RE = /^[ \t]*NO-FINDINGS:\s*\S/;
+
+const countCoveredNegatives = (text) => text.split('\n').filter((l) => NO_FINDINGS_RE.test(l.replace(/\r$/, ''))).length;
+
 // Per-item Tier (CONFIRMED/PROBABLE/SPECULATIVE) and Severity fields, per revalidate-register's
 // schema (CONVENTIONS §7). An item with no Tier field, or a Tier value outside the known set,
 // is unparseable — counted, never dropped silently.
 function summarizeRegister(text) {
-  const ids = [...text.matchAll(ID_RE)].filter((m) => isItemId(m[1], text[m.index + m[0].length], text[m.index + m[0].length + 1]));
+  const ids = findEntryIds(text);
   let malformed = 0;
   const byTier = { CONFIRMED: 0, PROBABLE: 0, SPECULATIVE: 0 };
   const bySeverity = {};
@@ -126,7 +172,7 @@ function summarizeRegister(text) {
   }
   const total = ids.length - malformed;
   const pct = (n) => (total ? ((n / total) * 100).toFixed(1) : '0.0');
-  return { totalItems: ids.length, malformed, byTier, bySeverity, total, pct };
+  return { totalItems: ids.length, malformed, byTier, bySeverity, total, coveredNegatives: countCoveredNegatives(text), pct };
 }
 
 // Refutation-log receipt lines per revalidate-register.mjs's comment grammar: one verdict per
@@ -156,9 +202,23 @@ function summarizeRefutation(text) {
 // synthesis.
 const ADVISORY_LINES = 60;
 const HARD_LINES = 120;
+// Register-shaped artifacts (basename matches /register/i) are checked PER ENTRY instead, on
+// scan-narration.mjs's four bounds: the flat cap is right for run summaries but wrong for a
+// register, where a 49-finding backlog is legitimate and one 30-line rambling entry is not.
+const REGISTER_ENTRY_ADVISORY_LINES = 10;
+const REGISTER_ENTRY_HARD_LINES = 20;
+const REGISTER_PREAMBLE_ADVISORY_LINES = 15;
+const REGISTER_PREAMBLE_HARD_LINES = 30;
+const isRegisterArtifact = (label) => /register/i.test(label);
+
+// The three artifacts this mode parses metrics from; any OTHER .md carrying register-shaped
+// entries is a themed sibling report whose findings never reach the metrics (see the sweep).
+const METRIC_ARTIFACTS = new Set(['DISPATCH_LEDGER.MD', 'FINDINGS_REGISTER.MD', 'REFUTATION_LOG.MD']);
+
+const countNonBlank = (lines) => lines.filter((l) => l.replace(/\r$/, '').trim() !== '').length;
 
 function nonBlankCount(text) {
-  return text.split('\n').filter((l) => l.replace(/\r$/, '').trim() !== '').length;
+  return countNonBlank(text.split('\n'));
 }
 
 function headShaFor(cwd) {
@@ -210,6 +270,15 @@ function runMetrics(dir, outPath) {
     p(`  redispatched rate: ${s.pct(s.byStatus.redispatched)}% (${s.byStatus.redispatched}/${s.total})`);
     const modelList = Object.entries(s.byModel).map(([m, n]) => `${m} ${n}`).join(', ') || '(none)';
     p(`  tier mix: ${modelList}`);
+    // Phase markers are optional: a ledger without them reports nothing extra here.
+    if (s.phases.length) {
+      p(`  lead model by phase: ${s.phases.map((ph) => `${ph.title}=${ph.lead}`).join(', ')}`);
+      p(`  dispatches by phase: ${s.phases.map((ph) => `${ph.title} ${ph.rows}`).join(', ')}`);
+      const leads = [...new Set(s.phases.map((ph) => ph.lead))];
+      if (leads.length > 1)
+        p(`  .. advisory: lead model changed mid-run (${leads.join(' -> ')}) — dispatches before and`
+          + ' after the change were presided over by different tiers; check the later phases were not led a tier low.');
+    }
   }
 
   // ---- findings -----------------------------------------------------------------
@@ -220,7 +289,13 @@ function runMetrics(dir, outPath) {
   } else {
     const s = summarizeRegister(registerText);
     p(`  ${s.total} finding(s), unparseable: ${s.malformed}`);
-    if (s.total === 0) warnZeroParse('FINDINGS_REGISTER.md', registerText);
+    p(`  covered negatives: ${s.coveredNegatives}`);
+    // A register that parses to zero entries but declares covered negatives is a swept-and-clear
+    // slice, not shape drift — say which it is instead of firing the zero-parse warning.
+    if (s.total === 0 && s.coveredNegatives > 0)
+      p(`  covered-negative register: ${s.coveredNegatives} slice(s) declared clear with zero findings —`
+        + ' a well-formed zero-finding result, not shape drift.');
+    else if (s.total === 0) warnZeroParse('FINDINGS_REGISTER.md', registerText);
     const tierList = KNOWN_TIERS.map((t) => `${t} ${s.byTier[t]} (${s.pct(s.byTier[t])}%)`).join(', ');
     p(`  by tier: ${tierList}`);
     p(`  CONFIRMED ratio: ${s.pct(s.byTier.CONFIRMED)}%`);
@@ -242,7 +317,8 @@ function runMetrics(dir, outPath) {
   }
 
   // ---- per-artifact line counts (CONVENTIONS §12 length discipline) ------------
-  p(`\n## Artifact line counts (advisory ${ADVISORY_LINES} / hard ${HARD_LINES} non-blank lines, CONVENTIONS §12)`);
+  p(`\n## Artifact line counts (advisory ${ADVISORY_LINES} / hard ${HARD_LINES} non-blank lines, CONVENTIONS §12;`
+    + ` register-shaped files: per-entry ${REGISTER_ENTRY_ADVISORY_LINES}/${REGISTER_ENTRY_HARD_LINES}, preamble ${REGISTER_PREAMBLE_ADVISORY_LINES}/${REGISTER_PREAMBLE_HARD_LINES})`);
   let mdFiles = [];
   if (existsSync(dir)) {
     try { mdFiles = readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.md') && statSync(join(dir, f)).isFile()).sort(); }
@@ -255,9 +331,31 @@ function runMetrics(dir, outPath) {
       let text;
       try { text = readFileSync(join(dir, f), 'utf8'); }
       catch (e) { p(`  ${f}: unreadable (${e.message})`); continue; }
-      const n = nonBlankCount(text);
-      const flag = n > HARD_LINES ? '  !! HARD' : n > ADVISORY_LINES ? '  .. advisory' : '';
-      p(`  ${f}: ${n} non-blank line(s)${flag}`);
+      const fileLines = text.split('\n');
+      const entries = findEntryIds(text);
+      if (isRegisterArtifact(f) && entries.length) {
+        // Per-entry budget: a register with many tight entries passes; one bloated entry is
+        // named. A /register/i file with zero parsed entries falls through to the flat cap.
+        p(`  ${f}: ${countNonBlank(fileLines)} non-blank line(s) across ${entries.length} entry(ies)`
+          + ` (per-entry advisory ${REGISTER_ENTRY_ADVISORY_LINES} / hard ${REGISTER_ENTRY_HARD_LINES})`);
+        const preamble = countNonBlank(fileLines.slice(0, entries[0].line));
+        if (preamble > REGISTER_PREAMBLE_HARD_LINES) p(`    preamble: ${preamble} non-blank line(s)  !! HARD`);
+        else if (preamble > REGISTER_PREAMBLE_ADVISORY_LINES) p(`    preamble: ${preamble} non-blank line(s)  .. advisory`);
+        for (let i = 0; i < entries.length; i++) {
+          const n = countNonBlank(fileLines.slice(entries[i].line, entries[i + 1]?.line ?? fileLines.length));
+          if (n > REGISTER_ENTRY_HARD_LINES) p(`    ${entries[i].id}: ${n} non-blank line(s)  !! HARD`);
+          else if (n > REGISTER_ENTRY_ADVISORY_LINES) p(`    ${entries[i].id}: ${n} non-blank line(s)  .. advisory`);
+        }
+      } else {
+        const n = countNonBlank(fileLines);
+        const flag = n > HARD_LINES ? '  !! HARD' : n > ADVISORY_LINES ? '  .. advisory' : '';
+        p(`  ${f}: ${n} non-blank line(s)${flag}`);
+      }
+      // A themed sibling report (SECURITY_REPORT.md, PERF_NOTES.md, ...) that carries entries of
+      // its own is findings written outside the register: every metric above misses them.
+      if (!METRIC_ARTIFACTS.has(f.toUpperCase()) && entries.length)
+        p(`  !! WARNING: ${f} carries ${entries.length} register-shaped entry(ies) that are NOT counted in`
+          + ' the metrics above — findings must live in FINDINGS_REGISTER.md (docs/techniques/artifact-grammars.md).');
     }
   }
 

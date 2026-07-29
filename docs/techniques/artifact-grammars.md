@@ -27,12 +27,43 @@ skills should call `add`/`update`/`check`, never hand-author rows):
 - `expected artifact` — the filename or `diff` the dispatch is expected to produce.
 - `status` — one of `dispatched | reported | failed | redispatched`.
 
+Rows are written **at dispatch time**, atomically with the dispatch call itself — see
+the `Dispatch ledger` passage in each plugin's `CONVENTIONS.md` for why.
+
+### Phase markers
+
+A ledger may be segmented by phase-marker lines, written by
+`scripts/dispatch-ledger.mjs phase --ledger <file> --title <title> --lead-model <id>`
+(the generator — never hand-author the line):
+
+```
+> phase: Phase 2 — bug hunt · lead@claude-opus-5
+```
+
+The form is `> phase: <title> · lead@<model>`. Every row **following** a marker belongs
+to that phase, until the next marker. The addition is non-breaking: existing parsers
+skip non-pipe lines, so a ledger with markers still parses row-for-row exactly as
+before. `dispatch-ledger.mjs check` fails closed on a malformed `> phase:` line (a
+missing title, missing ` · lead@`, or an empty model) rather than skipping it as prose.
+`calibration-metrics.mjs` reports the lead model **per phase** and raises an advisory
+when the lead model changes mid-run — a lead swap between phases is a legitimate but
+noteworthy event, not a silent one.
+
 ## (b) FINDINGS_REGISTER.md entry
 
-An entry begins wherever an item ID matches `revalidate-register.mjs`'s `ID_RE`:
-`/\b([A-Z][A-Z0-9]{1,}-\d{1,6})\b/g` — one or more leading capital letters/digits, a
-hyphen, then digits (e.g. `BUG-007`, `PERF-003`, `FEAT-012`). Two guards keep this from
-over-matching (`isItemId`, mirrored in `scan-narration.mjs` and `calibration-metrics.mjs`):
+An entry begins where an item ID matching `revalidate-register.mjs`'s `ID_RE` appears
+**at entry-heading position**. The ID grammar is:
+
+`/\b([A-Z][A-Z0-9]{1,}-[A-Z]?\d{1,6})\b/g`
+
+— a prefix of **two or more** uppercase alphanumerics that **starts with a letter**, a
+hyphen, an **optional single uppercase round-letter**, then 1–6 digits (e.g. `BUG-007`,
+`PERF-003`, `FEAT-012`, `FND-A12`). The optional round-letter exists because real runs
+number findings per review round (`FND-A12`, `FND-B03`); before it was added, a whole
+run's lettered IDs matched nothing and were counted as zero findings.
+
+Two guards keep this from over-matching (`isItemId`, mirrored in `scan-narration.mjs`
+and `calibration-metrics.mjs`):
 
 - the prefix is dropped if it's a known standards token (`RFC`, `ISO`, `CVE`, `CWE`,
   `CAPEC`, `GHSA`, `UTF`, `SHA`, `MD`, `AES`, `RGB`, `HTTP`, `HTTPS`, `IEEE`, `ANSI`,
@@ -42,6 +73,54 @@ over-matching (`isItemId`, mirrored in `scan-narration.mjs` and `calibration-met
   a new item boundary, so `CVE-2021-44228` isn't split mid-string, while a slug suffix
   like `BUG-042-auth-bypass` still counts as one item.
 
+### Entry-heading position
+
+Matching the ID grammar is necessary but not sufficient: an ID **creates an entry only
+at entry-heading position** — at the start of a line, optionally preceded by up to six
+`#` heading markers (`### BUG-007 — auth bypass`) or by a table row's leading pipe
+(`| BUG-007 | … |`, for table-form registers). An ID-shaped token sitting mid-line
+inside evidence prose no longer opens an entry, so a paragraph that mentions three
+sibling findings does not inflate the count to four. (The refutation-log grammar in (c)
+is unchanged — receipt lines still match their ID mid-line.)
+
+### Conforming vs. non-conforming IDs
+
+| Example | Counts? | Why |
+| --- | --- | --- |
+| `BUG-003` at line start | yes | 3-char letter prefix, hyphen, 3 digits, entry-heading position |
+| `### FND-A12` | yes | optional single uppercase round-letter `A` before the serial |
+| `F-001` | no | single-letter prefix — the grammar needs two or more prefix characters |
+| `BUG-b3` | no | lowercase round letter — the round-letter slot is uppercase only |
+| `BUG-12A` | no | letter *after* the serial; the ID must end at the digits |
+| `…as noted in BUG-003 above…` | no | right shape, wrong position — mid-sentence in evidence prose, not an entry heading |
+
+The last two rows are the pair that bit a real calibration run from opposite sides: the
+lettered IDs the run actually used went silently invisible, while ID-shaped tags in
+prose were counted as entries.
+
+### Covered negatives
+
+A slice that was examined and found clean is recorded with a covered-negative line, at
+the start of a line in `FINDINGS_REGISTER.md`:
+
+```
+NO-FINDINGS: token refresh path — traced all 3 call sites, every branch re-checks expiry
+```
+
+Form: `NO-FINDINGS: <slice label> — <one-line why/evidence>`. `calibration-metrics.mjs`
+reports these as `covered negatives: N`. This line is what answers the question a bare
+empty register cannot: **was this slice examined and clean, or did the dispatch fail?**
+A register with zero entries but one or more `NO-FINDINGS:` lines is a **covered
+negative**, not shape drift — the zero-items warning is suppressed for it.
+
+### Findings live in FINDINGS_REGISTER.md
+
+Register-shaped entries written into a themed sibling report (`SECURITY_FINDINGS.md`,
+`PERF_NOTES.md`, any other `.md`) draw a **not-counted warning** from the extractor:
+those entries exist but are invisible to every register consumer. Findings belong in
+`FINDINGS_REGISTER.md`; a sibling report links to entries there rather than restating
+them in entry shape.
+
 Every entry carries the `Finding` schema fields (CONVENTIONS `§7`): `Tier`
 (`CONFIRMED|PROBABLE|SPECULATIVE`), `Location`, `Anchor`, `Verified-at`, `Evidence`,
 `Disconfirmation`, `Refutation`, `Impact`, `Recommendation`, `Track`
@@ -50,10 +129,14 @@ plus `Severity`/`Confidence`/`Lens`/`Scope`. An item with no `Tier:` field, or a
 outside the known three, is unparseable to `calibration-metrics.mjs` — counted, never
 silently dropped.
 
-Per-entry length budget (`scan-narration.mjs`, register-shaped files only): advisory
-at 10 non-blank lines per entry, hard at 20; the preamble before the first entry gets
-its own budget, advisory 15 / hard 30. A normal `Tier/Location/Anchor/...` block runs
-~5-8 lines and passes cleanly — these budgets flag prose padding, not finding count.
+Per-entry length budget, applied by **both** `scan-narration.mjs` and
+`calibration-metrics.mjs` to register-shaped files with parseable entries: advisory at
+10 non-blank lines per entry, hard at 20; the preamble before the first entry gets its
+own budget, advisory 15 / hard 30. A normal `Tier/Location/Anchor/...` block runs ~5-8
+lines and passes cleanly — these budgets flag prose padding, not finding count. The
+flat file-level cap (60 advisory / 120 hard) is the **fallback only**, for a
+register-shaped file whose entries do not parse; a register with many legitimate
+findings is no longer penalized for its length by either tool.
 
 ## (c) REFUTATION_LOG.md receipt line
 
@@ -77,6 +160,8 @@ Skills and `scripts/dispatch-ledger.mjs` **produce** these three shapes.
 `scripts/calibration-metrics.mjs` and `scripts/revalidate-register.mjs` **consume**
 them. If either consumer parses zero items from a file that is present and non-empty,
 that is a **shape-drift signal, not an absence signal** — check the artifact against
-the grammars above before concluding "nothing to report."
+the grammars above before concluding "nothing to report." The one exception is the
+covered-negative register in (b): zero entries plus at least one `NO-FINDINGS:` line is
+a deliberate, examined-and-clean result, not drift.
 
 *Verified-at: 16ae415*
