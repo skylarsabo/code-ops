@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+      "verifiedAt": "c8ca574eb76570f0f542f09349003f6517ac0c12"
     },
     {
       "slug": "gate-scripts",
@@ -17,7 +17,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1e2e4b72e857463274062de7db56c9797f1e51d8"
+      "verifiedAt": "c8ca574eb76570f0f542f09349003f6517ac0c12"
     },
     {
       "slug": "evals-and-calibration",
@@ -25,7 +25,7 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+      "verifiedAt": "c8ca574eb76570f0f542f09349003f6517ac0c12"
     },
     {
       "slug": "codex-render",
@@ -34,7 +34,7 @@
         "codex-marketplace",
         ".agents"
       ],
-      "verifiedAt": "1e2e4b72e857463274062de7db56c9797f1e51d8"
+      "verifiedAt": "c8ca574eb76570f0f542f09349003f6517ac0c12"
     },
     {
       "slug": "ci-workflows",
@@ -50,7 +50,7 @@
       "scope": [
         "docs"
       ],
-      "verifiedAt": "1e2e4b72e857463274062de7db56c9797f1e51d8"
+      "verifiedAt": "c8ca574eb76570f0f542f09349003f6517ac0c12"
     },
     {
       "slug": "root-contracts",
