@@ -311,6 +311,24 @@ try {
     uv.status === 0 && /!!\s+STALE\s+one\b/.test(uv.out) && !/MALFORMED/.test(uv.out), uv.out);
   const uv2 = run(['check', '--atlas', atlasC, '--gate']);
   check("o. --gate fails on an 'unverified' section", uv2.status === 1, uv2.out);
+
+  // The placeholder must never reach rev resolution: a ref NAMED 'unverified' would otherwise
+  // resolve and hand every never-stamped section a moving FRESH pin.
+  g(C, ['branch', 'unverified']);
+  const uv3 = run(['check', '--atlas', atlasC]);
+  check("o. a ref named 'unverified' does not make the placeholder resolve",
+    uv3.status === 0 && /!!\s+STALE\s+one\s+— never stamped/.test(uv3.out) && !/FRESH\s+one\b/.test(uv3.out), uv3.out);
+  const uvStamp = run(['stamp', '--atlas', atlasC, '--section', 'one', '--at', 'unverified']);
+  check("o. stamp --at 'unverified' is refused as a category error",
+    uvStamp.status === 1 && /never-stamped placeholder, not a rev/.test(uvStamp.err + uvStamp.out), uvStamp.err + uvStamp.out);
+  g(C, ['branch', '-D', 'unverified']);
+
+  // A scope living inside the atlas dir is dead by exclusion, and the report must name that
+  // cause rather than suggest a typo.
+  writeManifest(C, { version: 1, sections: [{ ...good, scope: ['docs/atlas/**'] }] });
+  const ia = run(['check', '--atlas', atlasC]);
+  check('o. a scope inside the atlas dir names the exclusion as the cause',
+    ia.status === 0 && /scope lies inside the atlas directory/.test(ia.out) && !/a typo or a moved tree/.test(ia.out), ia.out);
   writeManifest(C, { version: 1, sections: [good] });
 
   // ============================================================ E. add + working tree

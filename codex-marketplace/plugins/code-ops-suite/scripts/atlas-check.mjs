@@ -344,6 +344,13 @@ function cmdCheck(args) {
     // a manifest whose pin lies, not a stamp that has aged out. The shape rule and this
     // resolution rule are separate and both load-bearing — `main` is caught by shape,
     // `deadbeef` only here.
+    // The placeholder never touches resolution: a ref that happens to be NAMED 'unverified'
+    // would otherwise resolve and hand every never-stamped section a moving FRESH pin.
+    if (s.verifiedAt === UNVERIFIED) {
+      stale++;
+      console.log(`  !!  STALE  ${s.slug}  — never stamped ('${UNVERIFIED}'): write the prose, verify it, then stamp`);
+      continue;
+    }
     const { sha: pinned, movingRef } = resolvePin(root, s.verifiedAt);
     if (movingRef) {
       console.log(`  !!  MALFORMED  sections[${idx}].verifiedAt ${MOVING_PIN_REASON(s.verifiedAt)}`);
@@ -362,7 +369,15 @@ function cmdCheck(args) {
     const alive = git(['ls-files', '--', ...s.scope, ...excludeAtlas], root);
     if (alive.ok && lines(alive.out).length === 0) {
       stale++;
-      console.log(`  !!  STALE  ${s.slug}  — scope matches no tracked file (dead scope: a typo or a moved tree; re-scope and re-stamp)`);
+      // Name the real cause when the scope sits inside the excluded atlas tree: that is not a
+      // typo but a section trying to describe the atlas itself, which freshness tracking
+      // deliberately does not cover.
+      const insideAtlas = excludeAtlas.length > 0
+        && s.scope.every((g) => g === atlasRel || g.startsWith(`${atlasRel}/`));
+      if (insideAtlas)
+        console.log(`  !!  STALE  ${s.slug}  — scope lies inside the atlas directory ('${atlasRel}'), which is excluded from freshness tracking: the atlas does not describe itself; re-scope it at the code`);
+      else
+        console.log(`  !!  STALE  ${s.slug}  — scope matches no tracked file (dead scope: a typo or a moved tree; re-scope and re-stamp)`);
       continue;
     }
     // `<pinned> --` (no `..HEAD`) diffs the pin against the WORKING TREE, so an uncommitted edit
@@ -440,6 +455,9 @@ function cmdStamp(args) {
     process.exit(1);
   }
   const rev = f['--at'] ?? 'HEAD';
+  // The placeholder is not a rev: even if a ref named 'unverified' exists, stamping "at" it is
+  // a category error — refuse rather than resolve.
+  if (rev === UNVERIFIED) { console.error(`x '--at ${UNVERIFIED}' is the never-stamped placeholder, not a rev — stamp at HEAD or a sha`); process.exit(1); }
   // Same guard as check, same reason: an `--at` that LOOKS like an object name but resolves as a
   // ref would write a pin that moves. The default `HEAD` (and any other symbolic rev) is
   // legitimately a ref and resolves normally — only sha-shaped values are held to this.
