@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.28.0
+- **New `atlas` skill.** Maintains a per-repo knowledge cache of judgment-only sections, each carrying scope globs and a verified-at stamp recorded in a machine-readable manifest rather than in prose.
+- **New vendored `atlas-check.mjs`** with `init`, `add`, `check`, `stamp`, and `inbox` modes. `add` registers a section (repeatable `--scope`) with a stub file and an `unverified` pin, so a new section is `STALE` until someone stamps it. Staleness is computed by git pathspec diff since each section's stamp, against the working tree — an uncommitted edit to a scoped tracked file counts. A stamp must be an immutable object name (lowercase hex, 7-40 chars, or the `unverified` placeholder): a moving ref such as `HEAD` or a branch name is a fail-closed schema violation, since it would re-resolve on every run and never go stale. That shape rule is backed by a resolution-time rule, since a branch or tag *named* like a sha would otherwise pass it and still move: a value claimed to be a pin must resolve to a full sha that extends it, in `check` and in `stamp --at` alike. An unresolvable stamp reports fail-safe `STALE`; a malformed manifest is fail-closed; the coverage sweep flags unmapped top-level paths as advisories.
+- **`ship`'s closing phase refreshes the sections the change made stale**, while the diff rationale is still in-session.
+- **`CONVENTIONS.md` gains the stamp-trust rule** — a FRESH section is consumed without re-verification, a STALE one is treated as a lead.
+
 ## 1.27.0
 - **Calibration runs are recorded as a knowledge graph.** The calibration store under `evals/calibration/` holds one document per run, lesson nodes carrying stable IDs, and edges linking each lesson to the fixes, enforcements, and verifying runs that answer it — so a lesson's fate is queryable instead of buried in prose.
 - **`evals/CALIBRATION_TABLE.md` is now a derived view.** The new root-level `scripts/calibration-graph.mjs` renders the table from the store and drift-checks it (`render --check`) alongside `validate` for store integrity.

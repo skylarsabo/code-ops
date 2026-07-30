@@ -32,5 +32,7 @@ If the change touches egress, logging, identifiers, or a default — and `privac
 ## Phase 5 — Finish traceless
 Ship the work as a clean PR: `code-ops-suite:pr-split` if it warrants a stack, otherwise a single PR scrubbed by `privacy-opsec-suite:authorship-hygiene`. `scan-ai-tells` passes fail-closed before push — if `privacy-opsec-suite` is not installed, run the bundled `<plugin-root>/scripts/scan-ai-tells.mjs` over the commit/PR text directly as the gate. **Never auto-merge**.
 
+If the repo carries an atlas (`docs/atlas/MANIFEST.json`, or `atlas/MANIFEST.json`), close the loop on it here: run `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>`, and for any section this change turned STALE, refresh and stamp it **in this session** — the rationale behind the diff is hot now and unrecoverable later, which is why the update belongs to the change that caused it rather than to a future reader. When a full section rewrite is out of scope for this change, append the observation with the `inbox` subcommand and leave the section STALE instead.
+
 ## Done when
 The change is implemented at the smallest correct scope, proven (failing→passing tests, suite + regression guard green), behavior-preserving where intended, privacy posture intact (if applicable), docs updated, and shipped as a clean, trace-free PR/stack with nothing auto-merged. Present a summary, the PR link(s), and anything left for your decision.

@@ -117,6 +117,9 @@ jobs:
       - name: Calibration-graph regression eval
         run: node evals/calibration-graph/run.mjs
 
+      - name: Atlas-check regression eval
+        run: node evals/atlas-check/run.mjs
+
       # The eval above runs against fixtures; these two run against the REAL store, so a
       # hand-edited CALIBRATION_TABLE.md or a lesson whose enforcing eval was deleted fails CI.
       - name: Calibration-graph store validate + derived-table drift check
@@ -189,3 +192,6 @@ jobs:
 
       - name: Import-graph regression eval
         run: node evals/import-graph/run.mjs
+
+      - name: Atlas-check regression eval
+        run: node evals/atlas-check/run.mjs

@@ -14,6 +14,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `adr` — Use when you need to capture the WHY behind a codebase's architecture as decision records — backfilling load-bearing past decisions or authoring an ADR for a current one.
 - `api-docs` — Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory.
 - `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.
+- `atlas` — Use when a repo's atlas — its durable, per-repo cache of judgment about the codebase — needs to be created, refreshed after the code moved, or consolidated from inbox observations. Freshness is decided mechanically by atlas-check.mjs; see docs/techniques/atlas.md.
 - `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. Never quotes the target's internals back into this repo — see docs/techniques/calibration-protocol.md.
 - `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes.
 - `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory.
