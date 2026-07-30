@@ -17,7 +17,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+      "verifiedAt": "1e2e4b72e857463274062de7db56c9797f1e51d8"
     },
     {
       "slug": "evals-and-calibration",
@@ -34,7 +34,7 @@
         "codex-marketplace",
         ".agents"
       ],
-      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+      "verifiedAt": "1e2e4b72e857463274062de7db56c9797f1e51d8"
     },
     {
       "slug": "ci-workflows",
@@ -50,7 +50,7 @@
       "scope": [
         "docs"
       ],
-      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+      "verifiedAt": "1e2e4b72e857463274062de7db56c9797f1e51d8"
     },
     {
       "slug": "root-contracts",
@@ -63,7 +63,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+      "verifiedAt": "1e2e4b72e857463274062de7db56c9797f1e51d8"
     }
   ]
 }
