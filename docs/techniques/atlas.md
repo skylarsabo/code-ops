@@ -31,7 +31,7 @@ stamped against cannot be invalidated by that tree's commits.
   "version": 1,
   "sections": [
     { "slug": "<kebab>", "file": "sections/<slug>.md", "scope": ["<glob>"],
-      "verifiedAt": "<full or 7+ char git sha>" }
+      "verifiedAt": "<7-40 char lowercase git sha, or \"unverified\">" }
   ]
 }
 ```
@@ -41,9 +41,14 @@ stamped against cannot be invalidated by that tree's commits.
 - `scope` — non-empty; git-pathspec-style globs relative to the **repo root**, not the
   atlas directory. Scope is what the section claims to be about, and therefore what can
   invalidate it.
-- `verifiedAt` — a commit that `rev-parse` resolves in this repo. An unknown or
-  unparseable sha makes the section **STALE**, never an error that hides it: a stamp
-  nobody can resolve is exactly the case where trusting the section is most dangerous.
+- `verifiedAt` — an **immutable object name**: lowercase hex, 7-40 characters. The single
+  exception is the placeholder `"unverified"`, which `add` writes for a section nobody has
+  stamped yet. Anything else — `HEAD`, `@`, a branch name, a tag — is a schema violation
+  and fails the manifest **closed**, because a moving ref re-resolves on every run: a
+  section pinned to one is diffed against the present and can therefore never be reported
+  stale. A sha that is well-formed but does not resolve in this repo is a different case
+  and stays **STALE**, never an error that hides the section — a stamp nobody can resolve
+  is exactly where trusting the section is most dangerous, and so is `"unverified"`.
 
 The manifest is the only place a stamp or a scope lives. Sections carry no metadata of
 their own, so there is no second copy to drift.
@@ -52,12 +57,13 @@ their own, so there is no second copy to drift.
 
 `scripts/atlas-check.mjs` (vendored into `plugins/code-ops-suite/scripts/`, since it runs
 inside target repos via `${CLAUDE_PLUGIN_ROOT}`; `node:` builtins only). Exit contract
-across all four: `0` clean, `1` violation-or-gated, `2` usage.
+across all five: `0` clean, `1` violation-or-gated, `2` usage.
 
 | Mode | Behavior and exit contract |
 | --- | --- |
 | `init --atlas <dir>` | scaffolds an empty `MANIFEST.json`, `INBOX.md`, and `sections/`; **refuses to overwrite** an existing manifest |
-| `check --atlas <dir> [--root <repo>] [--gate]` | per section, intersects `git diff --name-only <verifiedAt>..HEAD` with `scope` → FRESH (nothing hit) or STALE (up to 10 triggering paths plus the count); unknown sha → STALE with a reason. Exit 0 report-only; `--gate` exits 1 if any section is STALE. A malformed manifest — bad JSON, schema violation, missing section file — exits 1 **always**, gated or not |
+| `add --atlas <dir> --section <slug> --scope <pathspec> [--scope ...]` | registers a new section: appends a manifest entry pinned to `"unverified"` and writes a `sections/<slug>.md` stub with its title and a charter placeholder. `--scope` is repeatable. Refuses a duplicate slug, a non-kebab slug, a scope using pathspec magic, or an existing prose file. The section is **STALE until stamped** — that is the point: `add` registers the intent, `stamp` asserts the verification |
+| `check --atlas <dir> [--root <repo>] [--gate]` | per section, intersects `git diff --name-only <verifiedAt>` with `scope` → FRESH (nothing hit) or STALE (up to 10 triggering paths plus the count); unknown sha → STALE with a reason. Exit 0 report-only; `--gate` exits 1 if any section is STALE. A malformed manifest — bad JSON, schema violation, missing section file, a moving-ref stamp — exits 1 **always**, gated or not |
 | `stamp --atlas <dir> --section <slug> [--at <sha>]` | sets `verifiedAt` to `--at` or HEAD; refuses an unknown slug or an unparseable sha. The **only** sanctioned writer of stamps |
 | `inbox --atlas <dir> --note <text>` | appends `- <YYYY-MM-DD> <short-sha>: <text>` to `INBOX.md`; one line, refuses empty |
 
@@ -67,9 +73,11 @@ stays advisory even under `--gate` — an unmapped directory is a scoping todo, 
 false claim of freshness, and gating on it would train people to write junk scopes that
 match everything.
 
-The manifest is machine-written on purpose. Hand-editing a stamp is the one edit that
-turns the artifact from a cache into a liability: the section reads as verified against a
-commit nobody verified it against, and no check downstream can tell.
+The manifest is machine-written on purpose, and `add` plus `stamp` between them cover
+every edit it needs — registering a section and asserting a verification — so there is no
+remaining reason to open it by hand. Hand-editing a stamp is the one edit that turns the
+artifact from a cache into a liability: the section reads as verified against a commit
+nobody verified it against, and no check downstream can tell.
 
 ## Trust doctrine
 
@@ -84,8 +92,15 @@ commit nobody verified it against, and no check downstream can tell.
   freshness state is unusable at either extreme: trusted when it should not be, or
   re-derived when it need not be.
 - Freshness is fail-safe in one direction only. Every ambiguous case — unresolvable sha,
-  scope that cannot be evaluated — resolves to STALE. The cost of a wrong STALE is one
-  re-derivation; the cost of a wrong FRESH is a decision made on a false premise.
+  the `unverified` placeholder, a scope that cannot be evaluated — resolves to STALE. The
+  cost of a wrong STALE is one re-derivation; the cost of a wrong FRESH is a decision made
+  on a false premise.
+- Freshness is measured over **tracked content**, working tree included. The diff is taken
+  from the stamp to the working tree, not to `HEAD`, so an uncommitted edit to a scoped
+  tracked file already reads STALE — the state a reader is actually looking at is the one
+  being judged. The boundary: an **untracked** file is outside any git diff, so a section
+  cannot be invalidated by a new file until it is `git add`ed. Adding the file is the act
+  that puts it in scope.
 
 ## Update in the hot session
 

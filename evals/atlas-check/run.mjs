@@ -8,11 +8,14 @@
 // reports STALE with a reason instead of erroring; an unmapped top-level path is an advisory
 // that still exits 0; --gate exits 1 on STALE but NOT on unmapped-only; a malformed manifest
 // exits 1 in every shape (bad JSON, wrong version, dup slug, missing section file, empty
-// scope, pathspec magic) even without --gate; stamp moves verifiedAt to HEAD (and to an
-// explicit --at) and turns the section FRESH; stamp refuses an unknown slug and an
-// unresolvable sha; inbox appends the dated short-sha line and refuses empty/multi-line
+// scope, pathspec magic, a moving-ref verifiedAt) even without --gate; stamp moves verifiedAt
+// to HEAD (and to an explicit --at) and turns the section FRESH; stamp refuses an unknown slug
+// and an unresolvable sha; inbox appends the dated short-sha line and refuses empty/multi-line
 // notes; usage errors exit 2. Plus the coverage RULE itself: a scope that matches no tracked
-// file may not launder its top-level segment as mapped.
+// file may not launder its top-level segment as mapped; the pin SHAPE rule (lowercase hex 7-40
+// or the 'unverified' placeholder, which is fail-safe STALE and not MALFORMED); `add`
+// registering a STALE-until-stamped section; and working-tree staleness — an uncommitted edit
+// to a scoped tracked file is STALE, and reverting it is FRESH again.
 //
 //   node evals/atlas-check/run.mjs   (exit 0 = pass)
 
@@ -100,13 +103,17 @@ try {
   check('b. it says it refuses to overwrite', /refusing to overwrite an existing atlas/.test(b.out), b.out);
 
   // Seed two sections by hand (the eval is the fixture author; stamp is exercised below).
+  // `documentation` is scoped to the guide rather than all of `docs/**` on purpose: staleness is
+  // measured against the WORKING TREE, so a scope covering the atlas's own directory would go
+  // stale on every manifest write this fixture makes. Working-tree staleness gets its own
+  // scenario in E below.
   put(A, 'docs/atlas/sections/core.md', '# Core\n\nCharter: the src tree.\n');
   put(A, 'docs/atlas/sections/documentation.md', '# Documentation\n\nCharter: the docs tree.\n');
   writeManifest(A, {
     version: 1,
     sections: [
       { slug: 'core', file: 'sections/core.md', scope: ['src/**'], verifiedAt: '0'.repeat(40) },
-      { slug: 'documentation', file: 'sections/documentation.md', scope: ['docs/**'], verifiedAt: '0'.repeat(40) },
+      { slug: 'documentation', file: 'sections/documentation.md', scope: ['docs/guide.md'], verifiedAt: '0'.repeat(40) },
     ],
   });
   const c1 = commit(A, 'add atlas');
@@ -250,6 +257,13 @@ try {
     ['empty scope', { version: 1, sections: [{ ...good, scope: [] }] }],
     ['pathspec magic in scope', { version: 1, sections: [{ ...good, scope: [':(exclude)src'] }] }],
     ['non-string verifiedAt', { version: 1, sections: [{ ...good, verifiedAt: 12345 }] }],
+    // Moving refs are fail-CLOSED, not fail-safe STALE: a pin that re-resolves on every run can
+    // never report stale, so the manifest lies rather than ages.
+    ['moving-ref verifiedAt (HEAD)', { version: 1, sections: [{ ...good, verifiedAt: 'HEAD' }] }],
+    ['moving-ref verifiedAt (@)', { version: 1, sections: [{ ...good, verifiedAt: '@' }] }],
+    ['moving-ref verifiedAt (branch)', { version: 1, sections: [{ ...good, verifiedAt: 'main' }] }],
+    ['uppercase-hex verifiedAt', { version: 1, sections: [{ ...good, verifiedAt: 'DEADBEEF' }] }],
+    ['too-short verifiedAt', { version: 1, sections: [{ ...good, verifiedAt: good.verifiedAt.slice(0, 6) }] }],
   ];
   for (const [label, body] of bad) {
     writeManifest(C, body);
@@ -267,6 +281,95 @@ try {
   const missing = run(['check', '--atlas', join(C, 'docs', 'no-atlas-here')]);
   check('m. a missing manifest exits 1 naming init', missing.status === 1 && /no MANIFEST\.json/.test(missing.out) && /init/.test(missing.out), missing.out);
 
+  // The moving-ref refusal must NAME the rule, not just fail — an author who wrote `HEAD` has to
+  // learn why it is not a pin.
+  writeManifest(C, { version: 1, sections: [{ ...good, verifiedAt: 'HEAD' }] });
+  const mv = run(['check', '--atlas', atlasC]);
+  check('o. the moving-ref refusal names the shape rule and the placeholder',
+    mv.status === 1 && /lowercase hex, 7-40 chars/.test(mv.out) && /'unverified'/.test(mv.out), mv.out);
+  check('o. the moving-ref refusal explains the hazard (a moving ref never goes stale)',
+    /moving ref/.test(mv.out) && /never be reported stale/.test(mv.out), mv.out);
+
+  // The one designated placeholder is fail-SAFE, not a schema violation: an unstamped section is
+  // an honest STALE, not a broken manifest.
+  writeManifest(C, { version: 1, sections: [{ ...good, verifiedAt: 'unverified' }] });
+  const uv = run(['check', '--atlas', atlasC]);
+  check("o. verifiedAt 'unverified' exits 0 and is STALE, not MALFORMED",
+    uv.status === 0 && /!!\s+STALE\s+one\b/.test(uv.out) && !/MALFORMED/.test(uv.out), uv.out);
+  const uv2 = run(['check', '--atlas', atlasC, '--gate']);
+  check("o. --gate fails on an 'unverified' section", uv2.status === 1, uv2.out);
+  writeManifest(C, { version: 1, sections: [good] });
+
+  // ============================================================ E. add + working tree
+  const E = newRepo('add');
+  put(E, 'src/a.js', 'a\n');
+  put(E, 'lib/b.js', 'b\n');
+  commit(E, 'init');
+  const atlasE = join(E, 'docs', 'atlas');
+  run(['init', '--atlas', atlasE]);
+
+  const p1 = run(['add', '--atlas', atlasE, '--section', 'core', '--scope', 'src/**']);
+  check('p. add exits 0', p1.status === 0, p1.out);
+  const eSec = readManifest(E).sections.find((s) => s.slug === 'core');
+  check('p. add appends a schema-valid entry pinned to the placeholder',
+    eSec && eSec.file === 'sections/core.md' && JSON.stringify(eSec.scope) === '["src/**"]' && eSec.verifiedAt === 'unverified',
+    JSON.stringify(eSec));
+  const stub = existsSync(join(atlasE, 'sections', 'core.md')) ? readFileSync(join(atlasE, 'sections', 'core.md'), 'utf8') : '';
+  check('p. add writes the section file with a title and a charter placeholder',
+    /^# core$/m.test(stub) && /Charter:/.test(stub) && /deliberately leaves out/.test(stub), stub);
+
+  const p2 = run(['check', '--atlas', atlasE]);
+  check('p. a freshly added section is STALE until stamped', /!!\s+STALE\s+core\b/.test(p2.out) && p2.status === 0, p2.out);
+  check('p. --gate fails on it', run(['check', '--atlas', atlasE, '--gate']).status === 1);
+
+  // Repeatable --scope collects; other flags stay single-valued.
+  const p3 = run(['add', '--atlas', atlasE, '--section', 'libs', '--scope', 'lib/**', '--scope', 'src/shared/**']);
+  check('p. --scope is repeatable', p3.status === 0
+    && JSON.stringify(readManifest(E).sections.find((s) => s.slug === 'libs').scope) === '["lib/**","src/shared/**"]', p3.out);
+
+  const p4 = run(['add', '--atlas', atlasE, '--section', 'core', '--scope', 'src/**']);
+  check('p. add refuses a duplicate slug (exit 1)', p4.status === 1 && /already exists/.test(p4.out), p4.out);
+  check('p. the refused duplicate did not touch the manifest', readManifest(E).sections.length === 2, readFileSync(manifestPath(E), 'utf8'));
+
+  const p5 = run(['add', '--atlas', atlasE, '--section', 'sneaky', '--scope', ':(exclude)src']);
+  check('p. add refuses pathspec magic in --scope (exit 1)', p5.status === 1 && /pathspec magic/.test(p5.out), p5.out);
+  check('p. the refused scope created no section file and no entry',
+    readManifest(E).sections.length === 2 && !existsSync(join(atlasE, 'sections', 'sneaky.md')), readFileSync(manifestPath(E), 'utf8'));
+
+  // stamp alone is mechanically enough to turn an added section FRESH.
+  run(['stamp', '--atlas', atlasE, '--section', 'core']);
+  run(['stamp', '--atlas', atlasE, '--section', 'libs']);
+  const p6 = run(['check', '--atlas', atlasE]);
+  check('p. stamping an added section turns it FRESH', /ok\s+FRESH\s+core\b/.test(p6.out) && p6.status === 0, p6.out);
+
+  // ---- q. working-tree staleness (uncommitted edits count) ------------------
+  writeFileSync(join(E, 'src', 'a.js'), 'a2\n');
+  const q1 = run(['check', '--atlas', atlasE]);
+  check('q. an UNCOMMITTED edit to a scoped tracked file flips FRESH -> STALE',
+    /!!\s+STALE\s+core\s+— 1 scoped path\(s\) changed since [0-9a-f]{7}: src\/a\.js/.test(q1.out), q1.out);
+  check('q. the message says changed-since, not committed-since', !/committed/.test(q1.out), q1.out);
+  writeFileSync(join(E, 'src', 'a.js'), 'a\n');
+  const q2 = run(['check', '--atlas', atlasE]);
+  check('q. reverting the edit flips it back to FRESH', /ok\s+FRESH\s+core\b/.test(q2.out) && q2.status === 0, q2.out);
+
+  // An UNTRACKED file is outside git's diff by construction — the documented boundary.
+  put(E, 'src/untracked.js', 'new\n');
+  const q3 = run(['check', '--atlas', atlasE]);
+  check('q. an untracked file in scope does not make the section stale', /ok\s+FRESH\s+core\b/.test(q3.out), q3.out);
+  rmSync(join(E, 'src', 'untracked.js'), { force: true });
+
+  // ---- r. a free-text note may begin with a flag-shaped token ---------------
+  const r1 = run(['inbox', '--atlas', atlasE, '--note', '--gate is load-bearing in the closing phase']);
+  check('r. a note starting with a flag-shaped token is accepted', r1.status === 0, r1.out);
+  check('r. it is appended verbatim',
+    /^- \d{4}-\d{2}-\d{2} [0-9a-f]{7}: --gate is load-bearing in the closing phase$/m.test(readFileSync(join(atlasE, 'INBOX.md'), 'utf8')),
+    readFileSync(join(atlasE, 'INBOX.md'), 'utf8'));
+  // The exemption is scoped to --note: a flag-shaped value for a path/slug flag is still refused.
+  const r2 = run(['check', '--atlas', '--gate']);
+  check('r. the exemption does not leak to other flags (--atlas --gate exits 2)', r2.status === 2, r2.out);
+  const r3 = run(['inbox', '--atlas', atlasE, '--note', 'a\nb']);
+  check('r. a flag-shaped exemption does not bypass the single-line rule', r3.status === 1 && /single line/.test(r3.out), r3.out);
+
   // ============================================================ D. usage errors
   check('n. no subcommand exits 2', run([]).status === 2);
   check('n. an unknown subcommand exits 2', run(['frobnicate', '--atlas', atlasC]).status === 2);
@@ -275,6 +378,8 @@ try {
   check('n. check without --atlas exits 2', run(['check']).status === 2);
   check('n. stamp without --section exits 2', run(['stamp', '--atlas', atlasC]).status === 2);
   check('n. inbox without --note exits 2', run(['inbox', '--atlas', atlasC]).status === 2);
+  check('n. add without --scope exits 2', run(['add', '--atlas', atlasC, '--section', 'two']).status === 2);
+  check('n. add without --section exits 2', run(['add', '--atlas', atlasC, '--scope', 'src/**']).status === 2);
 } finally {
   for (const d of cleanupDirs) {
     try { rmSync(d, { recursive: true, force: true, maxRetries: 3 }); } catch { /* windows file locks — scratch dir, harmless */ }

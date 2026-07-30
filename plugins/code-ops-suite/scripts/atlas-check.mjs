@@ -3,6 +3,7 @@
 // staleness (docs/techniques/atlas.md). Runs INSIDE a target repo, never against this one.
 //
 //   node scripts/atlas-check.mjs init  --atlas <dir>
+//   node scripts/atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]
 //   node scripts/atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate]
 //   node scripts/atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]
 //   node scripts/atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]
@@ -16,15 +17,22 @@
 // manifest schema is fail-CLOSED (a malformed manifest exits 1 even without --gate — a
 // manifest that cannot be parsed vacates every freshness claim in it).
 //
-// MANIFEST.json (the ONLY place stamps and scopes live; hands never edit it — `stamp` does):
+// MANIFEST.json (the ONLY place stamps and scopes live; hands never edit it — `add` and
+// `stamp` do):
 //   { "version": 1,
 //     "sections": [ { "slug": "<kebab>", "file": "sections/<slug>.md",
 //                     "scope": ["<git pathspec>", ...], "verifiedAt": "<sha>" } ] }
 //
+// `verifiedAt` is lowercase hex, 7-40 chars, or the single placeholder 'unverified' that `add`
+// writes for a section nobody has stamped yet. Anything else — HEAD, @, a branch, a tag — is a
+// schema violation, because a moving ref re-points the pin at whatever it names later and the
+// section can then never go stale: the diff is always taken against the present.
+//
 // Scope matching is git's own pathspec semantics, not a reimplemented globber: staleness is
-// `git diff --name-only <verifiedAt>..HEAD -- <scope...>` and coverage is `git ls-files --
-// <scope...>`. The same strings therefore mean the same thing to the checker and to a human
-// running git by hand.
+// `git diff --name-only <verifiedAt> -- <scope...>` (no `..HEAD`, so the working tree counts
+// too — an uncommitted edit to a scoped tracked file is already a reason to distrust the
+// section) and coverage is `git ls-files -- <scope...>`. The same strings therefore mean the
+// same thing to the checker and to a human running git by hand.
 //
 // Coverage sweep: every first path segment of `git ls-files` that no section's scope actually
 // MATCHES A TRACKED FILE UNDER is reported "unmapped" — advisory only, even under --gate,
@@ -40,29 +48,42 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, appendFil
 import { resolve, join, sep } from 'node:path';
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// A stamp is an immutable object name, never a ref. See the moving-ref note in the header.
+const SHA_RE = /^[0-9a-f]{7,40}$/;
+const UNVERIFIED = 'unverified';
 const MAX_LISTED_PATHS = 10;
 const INBOX_HEADER = '# Atlas inbox\n\n'
   + 'Append-only dated observations. Fold them into their sections, then clear the folded lines.\n\n';
 
 function usage() {
   console.error('usage: atlas-check.mjs init  --atlas <dir>');
+  console.error('       atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]');
   console.error('       atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate]');
   console.error('       atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]');
   console.error('       atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]');
   process.exit(2);
 }
 
+// Flags whose value is free text an author chose, not a path or a slug, and may therefore
+// legitimately begin with a flag-shaped token ("--gate is load-bearing here"). The blank and
+// missing-value checks still apply, as do the subcommand's own content rules.
+const FREE_TEXT_FLAGS = new Set(['--note']);
+
 // Shared flag parser (dispatch-ledger.mjs house form): --flag value pairs, rejecting a
 // missing/blank value or one that looks like another flag, so a typo'd flag cannot swallow
-// the next one and be misread as a path.
-function parseFlags(args, known) {
+// the next one and be misread as a path. Flags named in `repeatable` collect into an array
+// instead; every other flag stays single-valued, last-wins.
+function parseFlags(args, known, repeatable = new Set()) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (!known.has(a)) { console.error(`x unknown argument: ${a}`); usage(); }
     const v = args[++i];
-    if (v === undefined || v.trim() === '' || v.startsWith('--')) { console.error(`x ${a} needs a value`); process.exit(2); }
-    out[a] = v;
+    if (v === undefined || v.trim() === '' || (v.startsWith('--') && !FREE_TEXT_FLAGS.has(a))) {
+      console.error(`x ${a} needs a value`); process.exit(2);
+    }
+    if (repeatable.has(a)) (out[a] ??= []).push(v);
+    else out[a] = v;
   }
   return out;
 }
@@ -154,7 +175,13 @@ function loadManifest(atlasDir) {
       else if (g.startsWith(':')) violations.push(`${at}.scope[${j}] '${g}' uses git pathspec magic (leading ':') — not allowed`);
     });
 
+    // A stamp must be an immutable object name (lowercase hex, 7-40) or the one sanctioned
+    // placeholder. A moving ref — HEAD, @, a branch, a tag — would re-point the pin at whatever
+    // it names at read time, so the section could never go stale: fail CLOSED, not STALE, because
+    // this is a manifest that lies rather than a stamp that has aged out.
     if (typeof s.verifiedAt !== 'string' || s.verifiedAt.trim() === '') violations.push(`${at}.verifiedAt must be a non-empty sha string`);
+    else if (s.verifiedAt !== UNVERIFIED && !SHA_RE.test(s.verifiedAt))
+      violations.push(`${at}.verifiedAt ${JSON.stringify(s.verifiedAt)} is not a commit sha — it must be lowercase hex, 7-40 chars, or the placeholder '${UNVERIFIED}'. A moving ref (HEAD, @, a branch, a tag) resolves afresh on every run, so a section pinned to one can never be reported stale`);
   });
   return { path, manifest, violations };
 }
@@ -189,6 +216,48 @@ function cmdInit(args) {
   console.log(`(atlas) scaffolded ${manifestPath} (0 sections), INBOX.md, sections/`);
 }
 
+// ---------------------------------------------------------------- add
+
+// Registers a new section: manifest entry plus a stub prose file. The stamp is deliberately
+// the `unverified` placeholder, so the section reports STALE from the moment it exists and
+// only a `stamp` — after someone actually wrote and checked the prose — can make it FRESH.
+function cmdAdd(args) {
+  const f = parseFlags(args, new Set(['--atlas', '--section', '--scope']), new Set(['--scope']));
+  for (const req of ['--atlas', '--section', '--scope'])
+    if (!(req in f)) { console.error(`x add needs ${req}`); usage(); }
+  const atlasDir = atlasDirOf(f);
+  const slug = f['--section'];
+  const scope = f['--scope'];
+
+  if (!SLUG_RE.test(slug)) { console.error(`x --section '${slug}' must be kebab-case (a-z, 0-9, single hyphens)`); process.exit(1); }
+  // Same rule the schema enforces, applied at the door: a scope carrying git pathspec magic
+  // would make "what does this section cover" unauditable.
+  for (const g of scope)
+    if (g.startsWith(':')) { console.error(`x --scope '${g}' uses git pathspec magic (leading ':') — not allowed`); process.exit(1); }
+
+  const { path, manifest, violations } = loadManifest(atlasDir);
+  if (violations.length) reportViolations(violations);
+  if (manifest.sections.some((s) => s.slug === slug)) {
+    console.error(`x section '${slug}' already exists — pick another slug, or edit its prose and re-stamp it`);
+    process.exit(1);
+  }
+
+  const rel = `sections/${slug}.md`;
+  const abs = join(atlasDir, 'sections', `${slug}.md`);
+  if (existsSync(abs)) { console.error(`x refusing to overwrite existing prose at ${abs}`); process.exit(1); }
+  const stub = `# ${slug}\n\nCharter: replace this line with one sentence naming what this section covers and what it deliberately leaves out.\n`;
+  try {
+    mkdirSync(join(atlasDir, 'sections'), { recursive: true });
+    writeFileSync(abs, stub);
+    manifest.sections.push({ slug, file: rel, scope: [...scope], verifiedAt: UNVERIFIED });
+    writeFileSync(path, JSON.stringify(manifest, null, 2) + '\n');
+  } catch (e) {
+    console.error(`x cannot add section '${slug}': ${e.message}`);
+    process.exit(1);
+  }
+  console.log(`(atlas) added ${slug} -> ${rel} (scope: ${scope.join(', ')}; verifiedAt '${UNVERIFIED}' — STALE until you write the prose and stamp it)`);
+}
+
 // ---------------------------------------------------------------- check
 
 function cmdCheck(args) {
@@ -219,10 +288,13 @@ function cmdCheck(args) {
       console.log(`  !!  STALE  ${s.slug}  — verifiedAt '${s.verifiedAt}' does not resolve to a commit in this repo (re-verify and re-stamp)`);
       continue;
     }
-    const d = git(['diff', '--name-only', `${pinned}..HEAD`, '--', ...s.scope], root);
+    // `<pinned> --` (no `..HEAD`) diffs the pin against the WORKING TREE, so an uncommitted edit
+    // to a scoped tracked file reads STALE too — the fail-safe direction. Untracked files are
+    // outside any diff and stay invisible until they are added.
+    const d = git(['diff', '--name-only', pinned, '--', ...s.scope], root);
     if (!d.ok) {
       stale++;
-      console.log(`  !!  STALE  ${s.slug}  — cannot diff ${pinned.slice(0, 7)}..HEAD: ${d.err.trim().split('\n')[0]}`);
+      console.log(`  !!  STALE  ${s.slug}  — cannot diff since ${pinned.slice(0, 7)}: ${d.err.trim().split('\n')[0]}`);
       continue;
     }
     const hits = lines(d.out);
@@ -340,6 +412,7 @@ function cmdInbox(args) {
 
 const argv = process.argv.slice(2);
 if (argv[0] === 'init') cmdInit(argv.slice(1));
+else if (argv[0] === 'add') cmdAdd(argv.slice(1));
 else if (argv[0] === 'check') cmdCheck(argv.slice(1));
 else if (argv[0] === 'stamp') cmdStamp(argv.slice(1));
 else if (argv[0] === 'inbox') cmdInbox(argv.slice(1));
