@@ -456,8 +456,11 @@ const MACHINE_LINE_SHAPES = [
   { shape: 'track: assess-only|implement', re: /^track: (?:assess-only|implement)$/ },
   // findings: N; confirmed: N
   { shape: 'findings: N; confirmed: N', re: /^findings: \d+; confirmed: \d+$/ },
-  // paneled: N of M eligible; survived: N; repro-exempt: N
-  { shape: 'paneled: N of M eligible; survived: N; repro-exempt: N', re: /^paneled: \d+ of \d+ eligible; survived: \d+; repro-exempt: \d+$/ },
+  // paneled: N of M eligible; survived: N; repro-exempt: N   (or: paneled: N of unknown eligible;
+  // ... — a run that never counted its eligible panel says so; the `unknown` literal is the only
+  // non-numeric value, so a fail-closed gate has an honest escape without accepting arbitrary
+  // prose, and the ingest side maps it to panelEligible null rather than a measured zero)
+  { shape: 'paneled: N of M eligible; survived: N; repro-exempt: N (or: paneled: N of unknown eligible; ...)', re: /^paneled: \d+ of (?:\d+|unknown) eligible; survived: \d+; repro-exempt: \d+$/ },
   // severity: c/h/m/l/n as N/N/N/N/N (or: unknown)
   { shape: 'severity: c/h/m/l/n as N/N/N/N/N (or: severity: unknown)', re: /^severity: (?:c\/h\/m\/l\/n as \d+\/\d+\/\d+\/\d+\/\d+|unknown)$/ },
   // tokens: N operative; dispatches: N   (or: tokens: unknown operative; dispatches: N — a run

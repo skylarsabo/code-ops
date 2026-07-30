@@ -6,7 +6,7 @@ All notable changes to this plugin are documented here. Versions track
 ## 1.27.0
 - **Calibration runs are recorded as a knowledge graph.** The calibration store under `evals/calibration/` holds one document per run, lesson nodes carrying stable IDs, and edges linking each lesson to the fixes, enforcements, and verifying runs that answer it — so a lesson's fate is queryable instead of buried in prose.
 - **`evals/CALIBRATION_TABLE.md` is now a derived view.** The new root-level `scripts/calibration-graph.mjs` renders the table from the store and drift-checks it (`render --check`) alongside `validate` for store integrity.
-- **`calibration-metrics.mjs` gains a `--json` emit mode** and fails closed when a sanitized note is missing or malforms its Machine block.
+- **`calibration-metrics.mjs` gains a `--json` emit mode** and fails closed when a sanitized note is missing or malforms its Machine block. Its `paneled:` shape accepts `of unknown eligible`, matching the ingest side that maps an unmeasured denominator to null.
 - **`calibration-run`'s closing phase switches from hand-appending a table row** to validate, ingest, render, and graph-validate.
 
 ## 1.26.0

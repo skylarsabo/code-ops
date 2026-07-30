@@ -254,6 +254,23 @@ try {
   check('u. tokens: many operative still fails closed (exit 1)', u2.status === 1, u2.stdout + u2.stderr);
   check('u. the hit names that line', /!! MACHINE-LINE\s+L\d+\s+tokens: many operative; dispatches: 9/.test(u2.stdout), u2.stdout);
 
+  // ---- v. `unknown` is the paneled line's only non-numeric denominator ---------
+  // The ingest side (scripts/calibration-graph.mjs) accepts an unknown eligible-panel
+  // denominator and maps it to panelEligible null, so the note gate must accept the same line —
+  // the two hand-written grammars drifting apart is what this pins.
+  const cleanNote = readFileSync(join(notesDir, 'clean.md'), 'utf8');
+  const PANELED_LINE = 'paneled: 6 of 6 eligible; survived: 4; repro-exempt: 0';
+  const unknownPanelNote = join(jsonDir, 'paneled-unknown.md');
+  writeFileSync(unknownPanelNote, cleanNote.replace(PANELED_LINE, 'paneled: 2 of unknown eligible; survived: 2; repro-exempt: 0'));
+  const v1 = run(['--validate-note', unknownPanelNote]);
+  check('v. an unknown eligible denominator passes (exit 0)', v1.status === 0, v1.stdout + v1.stderr);
+  check('v. it reports 0 machine-block hits', /0 machine-block hit\(s\)/.test(v1.stdout), v1.stdout);
+  const badPanelNote = join(jsonDir, 'paneled-some.md');
+  writeFileSync(badPanelNote, cleanNote.replace(PANELED_LINE, 'paneled: 2 of some eligible; survived: 2; repro-exempt: 0'));
+  const v2 = run(['--validate-note', badPanelNote]);
+  check('v. an arbitrary word in the denominator still fails closed (exit 1)', v2.status === 1, v2.stdout + v2.stderr);
+  check('v. the hit names that line', /!! MACHINE-LINE\s+L\d+\s+paneled: 2 of some eligible/.test(v2.stdout), v2.stdout);
+
   // The two leak fixtures now carry conforming blocks, so each still fails for exactly its
   // original reason rather than for a missing block.
   check('e. path note fails only on the path, not the Machine block', /0 machine-block hit\(s\)/.test(e.stdout), e.stdout);

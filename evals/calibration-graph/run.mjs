@@ -28,6 +28,13 @@
 //   document, refuses a malformed Machine-block line, and refuses a note with no Machine
 //   block at all.
 //
+//   GRAMMAR CROSS-CHECK: every fixture note is also run through the note gate
+//   (scripts/calibration-metrics.mjs --validate-note) with the same verdict, so the two
+//   hand-written Machine-block grammars cannot drift apart silently. Coverage is bounded on
+//   both sides: a negative stored slice count fails validate, and a note sweeping more slices
+//   than exist is refused at ingest. A parseable-but-invalid store (`[null]` lessons.json)
+//   fails validate and answers every query without a stack trace.
+//
 //   node evals/calibration-graph/run.mjs   (exit 0 = pass)
 
 import { execFileSync } from 'node:child_process';
@@ -354,6 +361,71 @@ try {
   check('i. ingest with no --note exits 2', u6.status === 2, u6.stdout + u6.stderr);
   const u7 = run(['ingest', '--note', join(NOTES, 'nope.md'), '--store', REAL_STORE]);
   check('i. ingest with a missing note file exits 2', u7.status === 2, u7.stdout + u7.stderr);
+
+  // ---- k. the two Machine-block grammars agree ---------------------------------
+  // The note gate (scripts/calibration-metrics.mjs --validate-note) and this script's ingest
+  // parser are two hand-written grammars for the same block. A line one accepts and the other
+  // rejects is exactly the drift that let an unknown paneling denominator ingest while failing
+  // the gate, so every fixture note here is run through the gate too, with the same verdict.
+  {
+    const METRICS = join(REPO, 'scripts', 'calibration-metrics.mjs');
+    const gate = (note) => {
+      try {
+        return { status: 0, out: execFileSync(process.execPath, [METRICS, '--validate-note', join(NOTES, note)], { encoding: 'utf8', timeout: 20000 }) };
+      } catch (e) {
+        return { status: e.status ?? 1, out: (e.stdout || '') + (e.stderr || '') };
+      }
+    };
+    for (const note of ['sample-note.md', 'unknown-fields-note.md']) {
+      const gr = gate(note);
+      check(`k. ${note} passes --validate-note (exit 0)`, gr.status === 0, gr.out);
+      check(`k. ${note} reports 0 structural and 0 machine-block hits`,
+        /0 structural hit\(s\)/.test(gr.out) && /0 machine-block hit\(s\)/.test(gr.out), gr.out);
+    }
+    const gMal = gate('malformed-note.md');
+    check('k. malformed-note.md fails --validate-note (exit 1)', gMal.status === 1, gMal.out);
+    check('k. the gate names the same malformed lines ingest refuses',
+      /MACHINE-LINE[\s\S]*track: assess-and-fix/.test(gMal.out) && /MACHINE-LINE[\s\S]*findings: 31, confirmed: 20/.test(gMal.out), gMal.out);
+    const gNone = gate('no-block-note.md');
+    check('k. no-block-note.md fails --validate-note (exit 1)', gNone.status === 1, gNone.out);
+    check('k. the gate names the missing section', /MACHINE-BLOCK[\s\S]*no "## Machine block" section/.test(gNone.out), gNone.out);
+  }
+
+  // ---- l. coverage bounds: negative stored, and swept > total at ingest --------
+  failureClass('l1. a negative stored slice count',
+    (s) => { const p = join(s, 'runs', 'R-002.json'); const d = readJson(p); d.coverage.slicesSwept = -1; writeJson(p, d); },
+    /schema: runs\/R-002\.json: coverage\.slicesSwept must be a non-negative integer or null/);
+
+  {
+    const { store } = scratchStore();
+    const noteDir = mkdtempSync(join(tmpdir(), 'coh-calgraph-cov-'));
+    cleanupDirs.push(noteDir);
+    const overSwept = join(noteDir, 'over-swept.md');
+    writeFileSync(overSwept, readFileSync(join(NOTES, 'sample-note.md'), 'utf8')
+      .replace('slices swept 6 of 8', 'slices swept 9 of 8'));
+    const cov = run(['ingest', '--note', overSwept, '--store', store]);
+    check('l2. a coverage line sweeping more slices than exist is refused (exit 1)', cov.status === 1, cov.stdout + cov.stderr);
+    check('l2. the refusal names the numbers and the negative remainder it would derive',
+      /slices swept 9 of 8[\s\S]*negative unswept remainder/.test(cov.stderr), cov.stderr);
+    check('l2. nothing was written', !readdirSync(join(store, 'runs')).includes('R-004.json'), readdirSync(join(store, 'runs')).join(','));
+  }
+
+  // ---- m. a parseable-but-invalid store refuses cleanly, never throws ----------
+  // `[null]` parses as an array of lesson nodes, so loadStore has nothing to refuse — validate is
+  // the gate that rejects it. A query reading lesson ids off the raw array crashed here with a
+  // TypeError instead of answering; it must read the defended graph view.
+  {
+    const { store } = scratchStore();
+    writeFileSync(join(store, 'lessons.json'), '[null]\n');
+    const v = run(['validate', '--store', store]);
+    check('m. validate is the gate for a [null] lessons.json (exit 1)', v.status === 1, v.stdout + v.stderr);
+    check('m. validate names the malformed node', /schema: lessons\.json\[0\]: lesson must be a JSON object/.test(v.stdout), v.stdout);
+    for (const sub of ['open', 'deferred', 'unenforced', 'recurrent', 'trend']) {
+      const q = run(['query', sub, '--store', store]);
+      check(`m. query ${sub} does not throw on a [null] lessons.json`,
+        !/TypeError/.test(q.stderr) && !/^\s+at /m.test(q.stderr), q.stderr);
+    }
+  }
 
   // ---- j. the real store was never written to by this eval --------------------
   check('j. the real table is byte-identical to what render --check accepted', readFileSync(REAL_TABLE, 'utf8') === table, 'real table changed during the eval');

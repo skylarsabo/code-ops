@@ -148,15 +148,18 @@ it is either a typo or an opinion, and neither belongs in the trend record.
 | Question | Command |
 | --- | --- |
 | What is still open? | `query open` |
-| What did we consciously not fix? | `query open` (the deferred list it prints alongside) |
+| What did we consciously not fix? | `query deferred` |
 | What was fixed but can recur? | `query unenforced` |
 | What has already come back? | `query recurrent` |
 | How is a target class trending? | `query trend` |
 | Everything about one lesson | `query lesson L-NNN` |
 
-- **`open`** — lessons with neither a `fixed-in` nor a `deferred` edge. A `deferred`
-  edge counts as closed, so deferred lessons are reported as their own list rather than
-  padding the open one; read both.
+- **`open`** — lessons with no `fixed-in`, no `deferred` edge, and no successor lesson. A
+  `deferred` edge counts as closed-with-a-reason, so `open` prints only genuinely
+  unaddressed work; the deferred items are a separate query, not a second list inside
+  this one. Read both.
+- **`deferred`** — lessons parked with a `deferred` edge, each printed with the note
+  saying why there is no mechanical home yet. Not RED: a deferral is a decision.
 - **`unenforced`** — lessons with `fixed-in` but no `enforced-by`. This is the backlog
   that predicts the next recurrence.
 - **`recurrent`** — lessons with `recurrence >= 2`, **RED** when the lesson is also
@@ -168,6 +171,9 @@ it is either a typo or an opinion, and neither belongs in the trend record.
   denominator.
 - **`lesson L-NNN`** — the full dossier: statement, the runs that listed it, every
   edge, and its derived status.
+
+CI runs `validate` and `render --check`; no query runs under `--gate` in CI, so a RED
+line is a signal to read, and only the two fail-closed modes break the build.
 
 ## The derived-table rule
 

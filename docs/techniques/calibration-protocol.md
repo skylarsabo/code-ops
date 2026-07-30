@@ -102,7 +102,7 @@ suite: <plugin>@<semver> [, more]
 target-class: <kebab-slug>; control: yes|no
 track: assess-only|implement
 findings: N; confirmed: N
-paneled: N of M eligible; survived: N; repro-exempt: N
+paneled: N of M eligible; survived: N; repro-exempt: N (or: N of unknown eligible)
 severity: c/h/m/l/n as N/N/N/N/N (or: unknown)
 tokens: N operative; dispatches: N (or: unknown operative)
 orchestration: dangling N; failed N; redispatched N

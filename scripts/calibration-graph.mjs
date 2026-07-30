@@ -4,9 +4,9 @@
 // script now RENDERS; see `render`). Root-only: never vendored into plugins/.
 //
 //   node scripts/calibration-graph.mjs validate [--store <dir>] [--root <dir>]
-//   node scripts/calibration-graph.mjs render [--check] [--store <dir>] [--table <file>]
-//   node scripts/calibration-graph.mjs query <open|deferred|unenforced|recurrent|trend> [--gate] [--store <dir>]
-//   node scripts/calibration-graph.mjs query lesson L-NNN [--store <dir>]
+//   node scripts/calibration-graph.mjs render [--check] [--store <dir>] [--table <file>] [--root <dir>]
+//   node scripts/calibration-graph.mjs query <open|deferred|unenforced|recurrent|trend> [--gate] [--store <dir>] [--root <dir>]
+//   node scripts/calibration-graph.mjs query lesson L-NNN [--store <dir>] [--root <dir>]
 //   node scripts/calibration-graph.mjs ingest --note <file> [--id R-NNN] [--label <text>] [--store <dir>]
 //
 // WHY: the calibration channel used to end in one appended table row, so a lesson's life
@@ -40,9 +40,9 @@ const ROOT_DEFAULT = resolve(HERE, '..');
 
 function usage() {
   console.error('usage: calibration-graph.mjs validate [--store <dir>] [--root <dir>]');
-  console.error('       calibration-graph.mjs render [--check] [--store <dir>] [--table <file>]');
-  console.error('       calibration-graph.mjs query <open|deferred|unenforced|recurrent|trend> [--gate] [--store <dir>]');
-  console.error('       calibration-graph.mjs query lesson L-NNN [--store <dir>]');
+  console.error('       calibration-graph.mjs render [--check] [--store <dir>] [--table <file>] [--root <dir>]');
+  console.error('       calibration-graph.mjs query <open|deferred|unenforced|recurrent|trend> [--gate] [--store <dir>] [--root <dir>]');
+  console.error('       calibration-graph.mjs query lesson L-NNN [--store <dir>] [--root <dir>]');
   console.error('       calibration-graph.mjs ingest --note <file> [--id R-NNN] [--label <text>] [--store <dir>]');
   process.exit(2);
 }
@@ -218,7 +218,11 @@ function validateRunDoc(entry, problems) {
 
   const c = doc.coverage;
   if (typeof c !== 'object' || c === null) bad('coverage must be an object');
-  else for (const k of ['coveredNegatives', 'slicesSwept', 'slicesUnswept']) if (!isNullableInt(c[k])) bad(`coverage.${k} must be an integer or null`);
+  // Bounded non-negative like every sibling count group: `null` means not measured, but a
+  // negative slice count is arithmetic that went wrong upstream, not a measurement.
+  else for (const k of ['coveredNegatives', 'slicesSwept', 'slicesUnswept']) {
+    if (!isNullableInt(c[k]) || (c[k] !== null && c[k] < 0)) bad(`coverage.${k} must be a non-negative integer or null`);
+  }
 
   if (!Array.isArray(doc.lessons)) bad('lessons must be an array of lesson ids');
   else for (const l of doc.lessons) if (typeof l !== 'string' || !LESSON_ID_RE.test(l)) bad(`lessons entry ${JSON.stringify(l)} is not an L-NNN id`);
@@ -512,7 +516,10 @@ function cmdQuery(args) {
     process.exit(1);
   }
   const g = buildGraph(store);
-  const ids = store.lessons.map((n) => n.id);
+  // Read the ids off the already-defended graph view, not off the raw array: a store that parses
+  // but holds a malformed lesson entry must get a clean answer (or validate's refusal), never a
+  // TypeError from a null node. `validate` stays the gate; `query` just must not throw.
+  const ids = [...g.lessonIds];
   let red = 0;
 
   if (sub === 'open') {
@@ -609,7 +616,7 @@ function cmdQuery(args) {
 // Machine block grammar (docs/techniques/calibration-protocol.md's note template). Line-based
 // on purpose: no fences, no paths, only counts, kebab slugs and enum words, so the block adds
 // no leak surface to the one-way channel while still being machine-readable.
-const MACHINE_HEADING_RE = /^##\s+Machine block\s*$/;
+const MACHINE_HEADING_RE = /^##\s+Machine block\s*$/i;
 const NEXT_HEADING_RE = /^#{1,6}\s+/;
 
 const SHAPES = [
@@ -749,6 +756,15 @@ function cmdIngest(args) {
   const or = fields.get('orchestration');
   const sd = fields.get('standardization');
   const cv = fields.get('coverage');
+  // `slices swept N of M` with N > M derives a negative unswept remainder. Refuse it here, at
+  // parse time, with a named reason: the note itself is wrong, and a run doc built from it would
+  // only fail the schema check below with a less useful message.
+  if (cv[1] !== undefined && Number(cv[2]) > Number(cv[3])) {
+    console.error(`x Machine block rejected — coverage line says "slices swept ${cv[2]} of ${cv[3]}": swept exceeds`
+      + ' the total slice inventory, which would derive a negative unswept remainder.');
+    console.error('Fail-closed: an ingest that guesses at a malformed metric line writes a wrong row forever.');
+    process.exit(1);
+  }
   const num = (v) => (v === undefined || v === 'unknown' ? null : Number(v));
 
   const label = f['--label'] ?? `TODO: sanitized prose label for ${tc[1]}`;

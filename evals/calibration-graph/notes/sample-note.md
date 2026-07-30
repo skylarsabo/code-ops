@@ -1,6 +1,6 @@
 # Calibration note — fixture (sanitized)
 
-Fixture note for `evals/calibration-graph/run.mjs`. It exists to exercise
+Fixture note for the calibration-graph regression eval. It exists to exercise
 `calibration-graph.mjs ingest`, so only its `## Machine block` and `## Lessons`
 sections are load-bearing. No target repo is named or described here.
 
