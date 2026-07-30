@@ -224,6 +224,21 @@ function validateRunDoc(entry, problems) {
     if (!isNullableInt(c[k]) || (c[k] !== null && c[k] < 0)) bad(`coverage.${k} must be a non-negative integer or null`);
   }
 
+  // `atlas` is OPTIONAL: runs recorded before the atlas leg existed have no such field, and a
+  // doc without it validates unchanged. Present, it is bounded like every sibling count group —
+  // a run cannot consume more sections than the atlas holds, nor falsify more than exist.
+  if (doc.atlas !== undefined) {
+    const al = doc.atlas;
+    if (typeof al !== 'object' || al === null || Array.isArray(al)) bad('atlas, when present, must be an object');
+    else {
+      for (const k of ['sections', 'fresh', 'refreshed', 'falsified']) if (!isInt(al[k]) || al[k] < 0) bad(`atlas.${k} must be a non-negative integer`);
+      if (isInt(al.sections) && isInt(al.fresh) && isInt(al.refreshed) && al.fresh + al.refreshed > al.sections) {
+        bad(`atlas.fresh + atlas.refreshed (${al.fresh + al.refreshed}) exceeds atlas.sections (${al.sections})`);
+      }
+      if (isInt(al.sections) && isInt(al.falsified) && al.falsified > al.sections) bad(`atlas.falsified (${al.falsified}) exceeds atlas.sections (${al.sections})`);
+    }
+  }
+
   if (!Array.isArray(doc.lessons)) bad('lessons must be an array of lesson ids');
   else for (const l of doc.lessons) if (typeof l !== 'string' || !LESSON_ID_RE.test(l)) bad(`lessons entry ${JSON.stringify(l)} is not an L-NNN id`);
 
@@ -576,8 +591,11 @@ function cmdQuery(args) {
       for (const r of rs) {
         const q = r.quality;
         const per100k = r.tokens.operative ? (q.confirmed / (r.tokens.operative / 100000)).toFixed(2) : 'n/a';
+        // The atlas tail prints only for a run that measured one — a run with no atlas leg says
+        // nothing here rather than showing zeros that would read as "an atlas nobody used".
+        const atlas = r.atlas ? `  atlas ${r.atlas.fresh} fresh, ${r.atlas.refreshed} refreshed, ${r.atlas.falsified} falsified of ${r.atlas.sections}` : '';
         console.log(`  ${r.id}  ${r.date}  findings ${q.findings}  confirmed ${q.confirmed} (${ratio2(q.confirmed, q.findings) ?? 'n/a'})`
-          + `  confirmed/100k ${per100k}  survival ${survivalCell(q.refutation)}  dispatches ${r.tokens.dispatches}`);
+          + `  confirmed/100k ${per100k}  survival ${survivalCell(q.refutation)}  dispatches ${r.tokens.dispatches}${atlas}`);
       }
     }
     console.log(`\n${g.runs.length} run(s) across ${groups.size} class/track group(s).`);
@@ -631,6 +649,9 @@ const SHAPES = [
   ['orchestration', /^orchestration:\s*dangling (\d+);\s*failed (\d+);\s*redispatched (\d+)$/],
   ['standardization', /^standardization:\s*enforcements (\d+);\s*traceless (clean|dirty)$/],
   ['coverage', /^coverage:\s*(?:covered-negatives (\d+);\s*slices swept (\d+) of (\d+)|unknown)$/],
+  // OPTIONAL — absent from REQUIRED_KEYS on purpose: R-001..R-003 predate the atlas leg, and a
+  // target with no atlas at all still produces a valid note.
+  ['atlas', /^atlas:\s*sections (\d+);\s*fresh (\d+);\s*refreshed (\d+);\s*falsified (\d+)$/],
   ['lesson-recur', /^lesson:\s*recur (L-\d{3})$/],
   ['lesson-new', /^lesson:\s*new (instrument|suite|protocol) — (\S.*)$/],
 ];
@@ -765,6 +786,16 @@ function cmdIngest(args) {
     console.error('Fail-closed: an ingest that guesses at a malformed metric line writes a wrong row forever.');
     process.exit(1);
   }
+  // Same class of arithmetic refusal as the coverage line above, for the same reason: an atlas
+  // line that consumes or falsifies more sections than it declares is a wrong note, and a run
+  // doc built from it would only fail the schema check below with a less useful message.
+  const al = fields.get('atlas');
+  if (al && (Number(al[2]) + Number(al[3]) > Number(al[1]) || Number(al[4]) > Number(al[1]))) {
+    console.error(`x Machine block rejected — atlas line declares ${al[1]} section(s) but reports ${al[2]} fresh,`
+      + ` ${al[3]} refreshed and ${al[4]} falsified: a run cannot consume or falsify more sections than the atlas holds.`);
+    console.error('Fail-closed: an ingest that guesses at a malformed metric line writes a wrong row forever.');
+    process.exit(1);
+  }
   const num = (v) => (v === undefined || v === 'unknown' ? null : Number(v));
 
   const label = f['--label'] ?? `TODO: sanitized prose label for ${tc[1]}`;
@@ -788,6 +819,9 @@ function cmdIngest(args) {
     coverage: cv[1] === undefined
       ? { coveredNegatives: null, slicesSwept: null, slicesUnswept: null }
       : { coveredNegatives: Number(cv[1]), slicesSwept: Number(cv[2]), slicesUnswept: Number(cv[3]) - Number(cv[2]) },
+    // Omitted entirely when the note carries no atlas line — an absent field reads as "this run
+    // had no atlas leg", which a zeroed object would not.
+    ...(al ? { atlas: { sections: Number(al[1]), fresh: Number(al[2]), refreshed: Number(al[3]), falsified: Number(al[4]) } } : {}),
     lessons: [...lessonsRecur, ...minted.map((m) => m.id)],
     notes,
   };

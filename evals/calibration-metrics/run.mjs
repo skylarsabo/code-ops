@@ -22,7 +22,8 @@
 //   Machine block gates too: a note MISSING the `## Machine block` section fails closed naming
 //   the template requirement, and a block line that matches no template shape fails closed
 //   naming that line — while a fully conforming block (both the counted and the `unknown`
-//   variants of the optional lines) stays clean.
+//   variants of the optional lines) stays clean. The `atlas:` line is optional in the other
+//   sense: a note with no such line stays clean, and a present one must carry all four counts.
 //
 //   node evals/calibration-metrics/run.mjs   (exit 0 = pass)
 
@@ -270,6 +271,31 @@ try {
   const v2 = run(['--validate-note', badPanelNote]);
   check('v. an arbitrary word in the denominator still fails closed (exit 1)', v2.status === 1, v2.stdout + v2.stderr);
   check('v. the hit names that line', /!! MACHINE-LINE\s+L\d+\s+paneled: 2 of some eligible/.test(v2.stdout), v2.stdout);
+
+  // ---- w. the atlas line is optional, and fail-closed when present -------------
+  // Runs recorded before the atlas leg existed carry no such line, so its absence must stay
+  // clean; a present line must be four counts, or the gate names it like any other shape miss.
+  const COVERAGE_LINE = 'coverage: covered-negatives 2; slices swept 5 of 6';
+  const withAtlas = (line) => cleanNote.replace(COVERAGE_LINE, `${COVERAGE_LINE}\n${line}`);
+  const atlasNote = join(jsonDir, 'atlas-ok.md');
+  writeFileSync(atlasNote, withAtlas('atlas: sections 9; fresh 5; refreshed 3; falsified 1'));
+  const w1 = run(['--validate-note', atlasNote]);
+  check('w. a well-formed atlas line passes (exit 0)', w1.status === 0, w1.stdout + w1.stderr);
+  check('w. it reports 0 structural and 0 machine-block hits',
+    /0 structural hit\(s\)/.test(w1.stdout) && /0 machine-block hit\(s\)/.test(w1.stdout), w1.stdout);
+  const badAtlasNote = join(jsonDir, 'atlas-bad.md');
+  writeFileSync(badAtlasNote, withAtlas('atlas: sections 9; fresh some; refreshed 3; falsified 1'));
+  const w2 = run(['--validate-note', badAtlasNote]);
+  check('w. a non-numeric atlas count fails closed (exit 1)', w2.status === 1, w2.stdout + w2.stderr);
+  check('w. the hit names that line and the atlas shape',
+    /!! MACHINE-LINE\s+L\d+\s+atlas: sections 9; fresh some/.test(w2.stdout)
+    && /atlas: sections N; fresh N; refreshed N; falsified N/.test(w2.stdout), w2.stdout);
+  const partialAtlasNote = join(jsonDir, 'atlas-partial.md');
+  writeFileSync(partialAtlasNote, withAtlas('atlas: sections 9; fresh 5'));
+  const w3 = run(['--validate-note', partialAtlasNote]);
+  check('w. a partial atlas line fails closed — all four counts or none (exit 1)', w3.status === 1, w3.stdout + w3.stderr);
+  check('w. a legacy note carrying no atlas line at all is still clean — the line is optional',
+    d.status === 0 && /0 machine-block hit\(s\)/.test(d.stdout) && !/atlas:/.test(cleanNote), d.stdout);
 
   // The two leak fixtures now carry conforming blocks, so each still fails for exactly its
   // original reason rather than for a missing block.

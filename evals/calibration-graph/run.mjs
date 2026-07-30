@@ -32,7 +32,9 @@
 //   (scripts/calibration-metrics.mjs --validate-note) with the same verdict, so the two
 //   hand-written Machine-block grammars cannot drift apart silently. Coverage is bounded on
 //   both sides: a negative stored slice count fails validate, and a note sweeping more slices
-//   than exist is refused at ingest. A parseable-but-invalid store (`[null]` lessons.json)
+//   than exist is refused at ingest. The optional `atlas:` line is bounded the same way — a note
+//   without it ingests to a doc with no atlas field, a well-formed one lands its four counts and
+//   shows an atlas tail in `trend`, and an impossible count is refused at ingest or by validate. A parseable-but-invalid store (`[null]` lessons.json)
 //   fails validate and answers every query without a stack trace.
 //
 //   node evals/calibration-graph/run.mjs   (exit 0 = pass)
@@ -275,6 +277,7 @@ try {
       doc.coverage.coveredNegatives === 2 && doc.coverage.slicesSwept === 6 && doc.coverage.slicesUnswept === 2, JSON.stringify(doc.coverage));
     check('f. skeleton lists recurred lessons plus the minted one', JSON.stringify(doc.lessons) === '["L-001","L-014","L-015"]', JSON.stringify(doc.lessons));
     check('f. notes comes from the note\'s Lessons prose', /Two prior lessons recurred/.test(doc.notes), doc.notes);
+    check('f. a note with no atlas line produces a doc with no atlas field at all', !('atlas' in doc), JSON.stringify(doc.atlas));
 
     const lessons = readJson(join(store, 'lessons.json'));
     const minted = lessons.find((l) => l.id === 'L-015');
@@ -426,6 +429,87 @@ try {
         !/TypeError/.test(q.stderr) && !/^\s+at /m.test(q.stderr), q.stderr);
     }
   }
+
+  // ---- n. the optional atlas leg ----------------------------------------------
+  // A note carrying the atlas line ingests its four counts and shows them in the trend; a
+  // shape-miss or an impossible count is refused; the note gate agrees on every verdict.
+  {
+    const { store } = scratchStore();
+    const noteDir = mkdtempSync(join(tmpdir(), 'coh-calgraph-atlas-'));
+    cleanupDirs.push(noteDir);
+    const base = readFileSync(join(NOTES, 'sample-note.md'), 'utf8');
+    const COVERAGE_LINE = 'coverage: covered-negatives 2; slices swept 6 of 8';
+    const noteWith = (name, line) => {
+      const p = join(noteDir, name);
+      writeFileSync(p, base.replace(COVERAGE_LINE, `${COVERAGE_LINE}\n${line}`));
+      return p;
+    };
+    const METRICS = join(REPO, 'scripts', 'calibration-metrics.mjs');
+    const gate = (notePath) => {
+      try { return { status: 0, out: execFileSync(process.execPath, [METRICS, '--validate-note', notePath], { encoding: 'utf8', timeout: 20000 }) }; }
+      catch (e) { return { status: e.status ?? 1, out: (e.stdout || '') + (e.stderr || '') }; }
+    };
+
+    const okNote = noteWith('atlas-ok.md', 'atlas: sections 9; fresh 5; refreshed 3; falsified 1');
+    const n1 = run(['ingest', '--note', okNote, '--store', store, '--label', 'fixture Go event pipeline']);
+    check('n. a note carrying an atlas line ingests (exit 0)', n1.status === 0, n1.stdout + n1.stderr);
+    const nDoc = readJson(join(store, 'runs', 'R-004.json'));
+    check('n. the four atlas counts land in the run doc', nDoc.atlas && nDoc.atlas.sections === 9
+      && nDoc.atlas.fresh === 5 && nDoc.atlas.refreshed === 3 && nDoc.atlas.falsified === 1, JSON.stringify(nDoc.atlas));
+    const nv = run(['validate', '--store', store]);
+    check('n. the store still validates with an atlas field present', nv.status === 0, nv.stdout + nv.stderr);
+    const ntr = run(['query', 'trend', '--store', store]);
+    check('n. trend prints the atlas tail for the run that measured one',
+      /R-004[^\n]*atlas 5 fresh, 3 refreshed, 1 falsified of 9/.test(ntr.stdout), ntr.stdout);
+    check('n. trend prints no atlas tail for the runs that predate the leg',
+      !/R-00[123][^\n]*atlas /.test(ntr.stdout), ntr.stdout);
+    const gOk = gate(okNote);
+    check('n. the note gate agrees the atlas line is well-formed (exit 0)',
+      gOk.status === 0 && /0 machine-block hit\(s\)/.test(gOk.out), gOk.out);
+
+    // Fail-closed classes, each on its own scratch store so nothing partial is left behind.
+    const badShape = noteWith('atlas-bad-shape.md', 'atlas: sections 9; fresh some; refreshed 3; falsified 1');
+    const s1 = scratchStore().store;
+    const r1 = run(['ingest', '--note', badShape, '--store', s1]);
+    check('n. a non-numeric atlas count is refused at ingest (exit 1)', r1.status === 1, r1.stdout + r1.stderr);
+    check('n. the refusal names the offending line',
+      /L\d+: line matches no Machine-block shape: atlas: sections 9; fresh some/.test(r1.stderr), r1.stderr);
+    check('n. nothing was written', !readdirSync(join(s1, 'runs')).includes('R-004.json'), readdirSync(join(s1, 'runs')).join(','));
+    const gBad = gate(badShape);
+    check('n. the note gate refuses the same line (exit 1)',
+      gBad.status === 1 && /MACHINE-LINE[\s\S]*atlas: sections 9; fresh some/.test(gBad.out), gBad.out);
+
+    const overConsumed = noteWith('atlas-over-consumed.md', 'atlas: sections 4; fresh 3; refreshed 2; falsified 0');
+    const s2 = scratchStore().store;
+    const r2 = run(['ingest', '--note', overConsumed, '--store', s2]);
+    check('n. consuming more sections than the atlas holds is refused (exit 1)', r2.status === 1, r2.stdout + r2.stderr);
+    check('n. the refusal names the counts and why they are impossible',
+      /4 section\(s\) but reports 3 fresh, 2 refreshed and 0 falsified[\s\S]*cannot consume or falsify more sections/.test(r2.stderr), r2.stderr);
+    check('n. the shape gate alone would have passed it — the bound is the ingest side',
+      gate(overConsumed).status === 0, gate(overConsumed).out);
+
+    const overFalsified = noteWith('atlas-over-falsified.md', 'atlas: sections 4; fresh 1; refreshed 1; falsified 9');
+    const s3 = scratchStore().store;
+    const r3 = run(['ingest', '--note', overFalsified, '--store', s3]);
+    check('n. falsifying more sections than exist is refused (exit 1)', r3.status === 1, r3.stdout + r3.stderr);
+    check('n. nothing was written for the over-falsified note', !readdirSync(join(s3, 'runs')).includes('R-004.json'), readdirSync(join(s3, 'runs')).join(','));
+  }
+
+  failureClass('n1. a negative stored atlas count',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.atlas = { sections: 5, fresh: -1, refreshed: 0, falsified: 0 }; writeJson(p, d); },
+    /schema: runs\/R-001\.json: atlas\.fresh must be a non-negative integer/);
+
+  failureClass('n2. a stored atlas consuming more sections than it holds',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.atlas = { sections: 4, fresh: 3, refreshed: 2, falsified: 0 }; writeJson(p, d); },
+    /schema:[^\n]*atlas\.fresh \+ atlas\.refreshed \(5\) exceeds atlas\.sections \(4\)/);
+
+  failureClass('n3. a stored atlas falsifying more sections than it holds',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.atlas = { sections: 4, fresh: 1, refreshed: 1, falsified: 9 }; writeJson(p, d); },
+    /schema:[^\n]*atlas\.falsified \(9\) exceeds atlas\.sections \(4\)/);
+
+  failureClass('n4. a stored atlas that is not an object',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.atlas = 9; writeJson(p, d); },
+    /schema: runs\/R-001\.json: atlas, when present, must be an object/);
 
   // ---- j. the real store was never written to by this eval --------------------
   check('j. the real table is byte-identical to what render --check accepted', readFileSync(REAL_TABLE, 'utf8') === table, 'real table changed during the eval');

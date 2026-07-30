@@ -22,6 +22,17 @@ under this rule — it fails closed on a path, code fence, URL, or email in the 
 - **Assess-only first.** The baseline sweep runs `assess-only` — read + document, no
   code changes on the target — so a calibration run never mutates someone else's
   repo as a side effect of measuring the suite.
+- **The atlas leg.** If the target keeps an atlas ([atlas.md](atlas.md)), run
+  `atlas-check.mjs check` at run start and hand each section's FRESH/STALE state into the
+  sweep briefs alongside the repo-map pointer — a FRESH section is consumed as truth, a
+  STALE one is a lead. Refresh the STALE sections during the run, in the session that has
+  the context, rather than deferring them. If the target keeps no atlas, `init` one as part
+  of the run: the sweep has just derived the understanding the atlas exists to bank.
+- **Falsified sections are findings about the instrument.** A section is *falsified* when
+  the sweep disproves one of its claims — not merely when the code moved under it, which is
+  ordinary staleness. A falsified section means a run was handed a false premise, so it
+  feeds a `lesson:` line under the existing classes: `instrument` when the atlas workflow
+  produced the false claim, `protocol` when the doctrine around consuming it did.
 - **Comparative, not absolute.** A single run's numbers mean little alone; every
   note reports deltas against the prior row for the same or a comparable target class,
   not a bare snapshot — read them from the rendered `evals/CALIBRATION_TABLE.md` or from
@@ -66,6 +77,7 @@ there's nothing to report.
 | Orchestration | dangling-dispatch rate, failed-dispatch rate, redispatch rate (from `DISPATCH_LEDGER.md`) |
 | Standardization | enforcements added (new lint/gate checks the run's findings drove), traceless-scan clean rate |
 | Coverage | **slice coverage** — slices swept, of those the covered-negative count, and slices left unswept |
+| Atlas | sections in the target's atlas, of those the count consumed FRESH, the count refreshed during the run, and the count the run falsified |
 
 The three additions each close a hole a real run fell into:
 
@@ -108,6 +120,7 @@ tokens: N operative; dispatches: N (or: unknown operative)
 orchestration: dangling N; failed N; redispatched N
 standardization: enforcements N; traceless clean|dirty
 coverage: covered-negatives N; slices swept N of M (or: unknown)
+atlas: sections N; fresh N; refreshed N; falsified N (optional)
 lesson: recur L-NNN
 lesson: new <instrument|suite|protocol> — <statement>
 ```
@@ -124,6 +137,13 @@ validates), and on any present line that does not match its shape grammar above.
 lessons get their `L-NNN` id assigned at ingest, so the note writes the statement, not
 the id; a recurrence cites the existing id. The block adds no leak surface — counts,
 kebab slugs, and enum words only — and still passes through every existing scrub.
+
+The `atlas:` line is the one **optional** metric line: a note without it validates and
+ingests exactly as before (the runs recorded before the atlas leg existed have none), and
+a note carrying it must carry all four counts. Both sides refuse `fresh + refreshed`
+exceeding `sections`, or `falsified` exceeding it — those are arithmetic that went wrong
+upstream, not a measurement. Section *counts* cross the channel; section names, scopes,
+and prose never do.
 
 ## Recording a run
 

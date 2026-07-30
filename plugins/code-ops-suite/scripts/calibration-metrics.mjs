@@ -473,6 +473,10 @@ const MACHINE_LINE_SHAPES = [
   { shape: 'standardization: enforcements N; traceless clean|dirty', re: /^standardization: enforcements \d+; traceless (?:clean|dirty)$/ },
   // coverage: covered-negatives N; slices swept N of M (or: unknown)
   { shape: 'coverage: covered-negatives N; slices swept N of M (or: coverage: unknown)', re: /^coverage: (?:covered-negatives \d+; slices swept \d+ of \d+|unknown)$/ },
+  // atlas: sections N; fresh N; refreshed N; falsified N — the target's atlas as the run
+  // consumed it. OPTIONAL by design: runs recorded before the atlas leg existed carry no such
+  // line, so its ABSENCE is never a hit; a line that is present must be four counts.
+  { shape: 'atlas: sections N; fresh N; refreshed N; falsified N', re: /^atlas: sections \d+; fresh \d+; refreshed \d+; falsified \d+$/ },
   // lesson: recur L-NNN
   { shape: 'lesson: recur L-NNN', re: /^lesson: recur L-\d{3}$/ },
   // lesson: new <instrument|suite|protocol> — <statement>   (id assigned at ingest)

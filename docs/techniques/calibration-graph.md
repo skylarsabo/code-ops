@@ -56,6 +56,7 @@ All fields required unless marked optional.
   "orchestration": { "dangling": 0, "failed": 0, "redispatched": 0 },
   "standardization": { "enforcementsAdded": 0, "tracelessClean": true },
   "coverage": { "coveredNegatives": null, "slicesSwept": null, "slicesUnswept": null },
+  "atlas": { "sections": 0, "fresh": 0, "refreshed": 0, "falsified": 0 },
   "lessons": ["L-001"],
   "notes": "<verbatim notes prose>"
 }
@@ -66,6 +67,12 @@ All fields required unless marked optional.
   did not record a mix.
 - `panelEligible`, `tokens.operative`, and the three `coverage` fields are `int|null` —
   `null` means *not measured by that run*, which is not the same as zero.
+- `atlas` is **optional** — the target's atlas as this run consumed it: how many sections
+  it held, how many were consumed FRESH, how many the run refreshed, and how many it
+  falsified. A run with no atlas leg omits the field entirely rather than storing zeros,
+  since "no atlas was involved" and "an atlas nobody used" are different runs. Present, all
+  four counts are non-negative, `fresh + refreshed` may not exceed `sections`, and neither
+  may `falsified`. `query trend` prints an atlas tail only for the runs that carry it.
 - `lessons` lists the lessons this run **surfaced or re-surfaced**.
 - `notes` is the row's prose verbatim; for a new run it is the note's Lessons prose.
 
