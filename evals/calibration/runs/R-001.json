@@ -1,0 +1,49 @@
+{
+  "id": "R-001",
+  "date": "2026-07-28",
+  "suite": {
+    "code-ops-suite": "1.24.0"
+  },
+  "target": {
+    "label": "mid-size Python data-measurement service",
+    "class": "python-service",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 28,
+    "confirmed": 19,
+    "refutation": {
+      "paneled": 3,
+      "survived": 1,
+      "reproExempt": 2,
+      "panelEligible": null
+    },
+    "severity": null
+  },
+  "tokens": {
+    "operative": null,
+    "dispatches": 9
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": null,
+    "slicesSwept": null,
+    "slicesUnswept": null
+  },
+  "lessons": [
+    "L-001",
+    "L-002",
+    "L-003",
+    "L-004"
+  ],
+  "notes": "first row; 0 dangling, 0 failed, 0 redispatched; panels killed 2 overstated highs (one proposed fix would have been harmful); accepted-by-design checks must read dated decision records; register exceeded 120-line hard cap; extractor could not parse prose-style register — emit parseable row schema next run"
+}

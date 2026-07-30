@@ -1,0 +1,30 @@
+{"from":"L-001","rel":"fixed-in","to":"PR-44"}
+{"from":"L-001","rel":"fixed-in","to":"PR-45"}
+{"from":"L-001","rel":"enforced-by","to":"EVAL:evals/scan-narration/run.mjs","note":"per-entry register budget"}
+{"from":"L-001","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs","note":"per-entry budget replaces the flat cap"}
+{"from":"L-002","rel":"fixed-in","to":"PR-44"}
+{"from":"L-002","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs","note":"zero-parse warning"}
+{"from":"L-002","rel":"verified-in","to":"R-003","note":"the warning fired and caught this run's parse failure"}
+{"from":"L-003","rel":"deferred","to":"deferred","note":"doctrine candidate, no mechanical home yet"}
+{"from":"L-004","rel":"deferred","to":"deferred","note":"standing practice, candidate for a paneling-coverage metric"}
+{"from":"L-005","rel":"fixed-in","to":"PR-44"}
+{"from":"L-005","rel":"fixed-in","to":"PR-45"}
+{"from":"L-005","rel":"enforced-by","to":"EVAL:evals/dispatch-ledger/run.mjs","note":"role@model stamp and phase marker"}
+{"from":"L-012","rel":"supersedes","to":"L-006","note":"L-006 disproven by executed proof under assess-only"}
+{"from":"L-007","rel":"fixed-in","to":"PR-44"}
+{"from":"L-007","rel":"verified-in","to":"R-003"}
+{"from":"L-007","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
+{"from":"L-008","rel":"fixed-in","to":"PR-44"}
+{"from":"L-008","rel":"verified-in","to":"R-003","note":"gate no longer crashes on a run folder"}
+{"from":"L-008","rel":"enforced-by","to":"EVAL:evals/redaction-scan/run.mjs"}
+{"from":"L-009","rel":"fixed-in","to":"PR-45"}
+{"from":"L-009","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
+{"from":"L-010","rel":"fixed-in","to":"PR-45"}
+{"from":"L-010","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
+{"from":"L-011","rel":"fixed-in","to":"PR-45"}
+{"from":"L-011","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
+{"from":"L-012","rel":"fixed-in","to":"PR-45","note":"protocol rewrite"}
+{"from":"L-013","rel":"fixed-in","to":"PR-45","note":"doctrine + SHARED_PASSAGES pin"}
+{"from":"L-013","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#ledger-atomicity"}
+{"from":"L-014","rel":"fixed-in","to":"PR-45"}
+{"from":"L-014","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}

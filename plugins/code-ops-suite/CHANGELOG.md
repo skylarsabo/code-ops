@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.27.0
+- **Calibration runs are recorded as a knowledge graph.** The calibration store under `evals/calibration/` holds one document per run, lesson nodes carrying stable IDs, and edges linking each lesson to the fixes, enforcements, and verifying runs that answer it — so a lesson's fate is queryable instead of buried in prose.
+- **`evals/CALIBRATION_TABLE.md` is now a derived view.** The new root-level `scripts/calibration-graph.mjs` renders the table from the store and drift-checks it (`render --check`) alongside `validate` for store integrity.
+- **`calibration-metrics.mjs` gains a `--json` emit mode** and fails closed when a sanitized note is missing or malforms its Machine block.
+- **`calibration-run`'s closing phase switches from hand-appending a table row** to validate, ingest, render, and graph-validate.
+
 ## 1.26.0
 - **Item-ID grammar widened and anchored.** An item ID may now carry an optional uppercase round letter between the hyphen and the serial, and is matched only at entry-heading position — line start, after optional heading markers or a table-row pipe — so IDs mentioned inside prose no longer open spurious entries.
 - **Per-entry register budget in `calibration-metrics.mjs`.** A `FINDINGS_REGISTER.md`-shaped artifact is measured per entry (advisory 10 / hard 20 non-blank lines, preamble 15/30) with the flat 60/120 file cap as fallback.

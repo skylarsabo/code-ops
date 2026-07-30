@@ -76,9 +76,10 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../techniques/skill-composition.md](../techniques/skill-composition.md) — the cross-skill invocation map: every skill that invokes another skill mid-run, when, and what artifact it passes.
 - [../techniques/calibration-protocol.md](../techniques/calibration-protocol.md) — the one-way channel rule, run design, metric table, and sanitized-note template `calibration-run` follows.
 - [../techniques/artifact-grammars.md](../techniques/artifact-grammars.md) — the SSOT for the three parse grammars (`DISPATCH_LEDGER.md`, `FINDINGS_REGISTER.md`, `REFUTATION_LOG.md`) that `calibration-metrics.mjs` and `revalidate-register.mjs` consume; a zero-parse on a non-empty file means shape drift, not absence.
+- [../techniques/calibration-graph.md](../techniques/calibration-graph.md) — the SSOT for the calibration store's shape: runs and lessons as nodes, the fixes/enforcements/verifying runs that close a lesson as edges, and `evals/CALIBRATION_TABLE.md` demoted to a rendered view of it.
 
 ## The handbook is complete
 
-This is the full handbook: eleven chapters, the command reference, eight guides, and eleven techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
+This is the full handbook: eleven chapters, the command reference, eight guides, and twelve techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
 *Verified-at: 09df64b*

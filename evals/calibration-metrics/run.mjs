@@ -12,16 +12,22 @@
 //   the flat cap, a themed sibling report carrying entries warns they are uncounted, a
 //   NO-FINDINGS-only register reports covered negatives instead of the zero-parse warning, and
 //   `> phase:` markers resolve to a lead-model-per-phase line plus a mid-run-change advisory.
+//   `--json <file>` emits those same numbers as one JSON object (ledger/findings/refutations/
+//   lineBudget, absent artifacts null) without disturbing the prose report or the exit contract.
 //
 //   MODE 2 (--validate-note <file>): a clean note passes; a note leaking a unix-style file
 //   path fails, naming the line and PATH-UNIX category; a note leaking a fenced code block
 //   fails, naming CODE-FENCE; a note that only mentions allowlisted standard artifact
-//   filenames and a backticked `plugin:skill` slug passes (the false-positive guard).
+//   filenames and a backticked `plugin:skill` slug passes (the false-positive guard). The
+//   Machine block gates too: a note MISSING the `## Machine block` section fails closed naming
+//   the template requirement, and a block line that matches no template shape fails closed
+//   naming that line — while a fully conforming block (both the counted and the `unknown`
+//   variants of the optional lines) stays clean.
 //
 //   node evals/calibration-metrics/run.mjs   (exit 0 = pass)
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -152,12 +158,62 @@ try {
   check('q. a mid-run lead change is advised (report-only)', /advisory: lead model changed mid-run \(claude-fable-5 -> claude-opus-5\)/.test(q.stdout), q.stdout);
   check('q. a ledger with no phase markers reports nothing new', !/lead model by phase/.test(a.stdout), a.stdout);
 
+  // ---- r. --json emits the prose numbers machine-readably ---------------------
+  const jsonDir = mkdtempSync(join(tmpdir(), 'coh-calmetrics-json-'));
+  cleanupDirs.push(jsonDir);
+  const jsonFile = join(jsonDir, 'metrics.json');
+  const r = run(['--artifacts', artifactsDir, '--json', jsonFile]);
+  check('r. --json exits 0', r.status === 0, r.stdout + r.stderr);
+  check('r. --json leaves the prose report intact', /6 dispatch\(es\)/.test(r.stdout) && /survival rate: 75\.0%/.test(r.stdout), r.stdout);
+  let mj = null;
+  try { mj = JSON.parse(readFileSync(jsonFile, 'utf8')); } catch (e) { mj = { parseError: String(e.message) }; }
+  check('r. --json output parses', mj && !mj.parseError, JSON.stringify(mj));
+  check('r. ledger.total matches the prose total (6)', mj?.ledger?.total === 6, JSON.stringify(mj?.ledger));
+  check('r. ledger.malformed is 0', mj?.ledger?.malformed === 0, JSON.stringify(mj?.ledger));
+  check('r. ledger.byStatus matches the prose rates (1 dangling, 1 failed, 1 redispatched)',
+    mj?.ledger?.byStatus?.dispatched === 1 && mj?.ledger?.byStatus?.failed === 1 && mj?.ledger?.byStatus?.redispatched === 1, JSON.stringify(mj?.ledger?.byStatus));
+  check('r. ledger.byModel carries the stamped models and the unstamped count',
+    mj?.ledger?.byModel?.['claude-sonnet-5'] === 4 && mj?.ledger?.byModel?.['claude-opus-5'] === 1 && mj?.ledger?.byModel?.unstamped === 1, JSON.stringify(mj?.ledger?.byModel));
+  check('r. findings.total matches the prose total (6)', mj?.findings?.total === 6, JSON.stringify(mj?.findings));
+  check('r. findings.byTier matches the prose breakdown', mj?.findings?.byTier?.CONFIRMED === 3 && mj?.findings?.byTier?.PROBABLE === 2 && mj?.findings?.byTier?.SPECULATIVE === 1, JSON.stringify(mj?.findings?.byTier));
+  check('r. findings.coveredNegatives is 0 for a register with real findings', mj?.findings?.coveredNegatives === 0, JSON.stringify(mj?.findings));
+  check('r. refutations.survived matches the prose survival count (3 of 4)',
+    mj?.refutations?.total === 4 && mj?.refutations?.survived === 3 && mj?.refutations?.refuted === 1, JSON.stringify(mj?.refutations));
+  const oversize = (mj?.lineBudget || []).find((x) => x.file === 'OVERSIZE_ARTIFACT.md');
+  check('r. lineBudget carries the oversize artifact with its HARD flag',
+    oversize?.nonBlank === 125 && oversize?.entries === null && oversize?.flags?.includes('HARD'), JSON.stringify(oversize));
+  const regBudget = (mj?.lineBudget || []).find((x) => x.file === 'FINDINGS_REGISTER.md');
+  check('r. a register-shaped file reports its entry count instead of the flat cap', regBudget?.entries === 6, JSON.stringify(regBudget));
+
+  // Covered negatives and phases come from their own fixtures.
+  const cnJson = join(jsonDir, 'covered.json');
+  const rcn = run(['--artifacts', join(HERE, 'covered-negative'), '--json', cnJson]);
+  check('r. --json on the covered-negative fixture exits 0', rcn.status === 0, rcn.stdout + rcn.stderr);
+  let cn = null;
+  try { cn = JSON.parse(readFileSync(cnJson, 'utf8')); } catch (e) { cn = { parseError: String(e.message) }; }
+  check('r. findings.coveredNegatives matches the prose count (3)', cn?.findings?.coveredNegatives === 3, JSON.stringify(cn?.findings));
+  check('r. an absent artifact is null, never a measured zero', cn?.ledger === null && cn?.refutations === null, JSON.stringify({ ledger: cn?.ledger, refutations: cn?.refutations }));
+
+  const phJson = join(jsonDir, 'phases.json');
+  const rph = run(['--artifacts', join(HERE, 'phase-ledger'), '--json', phJson]);
+  check('r. --json on the phase-ledger fixture exits 0', rph.status === 0, rph.stdout + rph.stderr);
+  let ph = null;
+  try { ph = JSON.parse(readFileSync(phJson, 'utf8')); } catch (e) { ph = { parseError: String(e.message) }; }
+  check('r. ledger.phases matches the prose phase lines (Scan=claude-fable-5, 2 rows)',
+    ph?.ledger?.phases?.[0]?.title === 'Scan' && ph?.ledger?.phases?.[0]?.lead === 'claude-fable-5' && ph?.ledger?.phases?.[0]?.rows === 2, JSON.stringify(ph?.ledger?.phases));
+
+  const rBoth = run(['--artifacts', artifactsDir, '--json', join(jsonDir, 'both.json'), '--out', join(jsonDir, 'both.txt')]);
+  check('r. --json and --out combine', rBoth.status === 0 && /6 dispatch\(es\)/.test(readFileSync(join(jsonDir, 'both.txt'), 'utf8')), rBoth.stdout + rBoth.stderr);
+  const rNoVal = run(['--artifacts', artifactsDir, '--json']);
+  check('r. --json without a path exits 2', rNoVal.status === 2, rNoVal.stdout + rNoVal.stderr);
+
   // ---- MODE 2: note validation -------------------------------------------------
   const notesDir = join(HERE, 'notes');
 
   const d = run(['--validate-note', join(notesDir, 'clean.md')]);
   check('d. clean note passes (exit 0)', d.status === 0, d.stdout + d.stderr);
   check('d. clean note reports 0 hits', /0 structural hit\(s\)/.test(d.stdout), d.stdout);
+  check('d. its conforming Machine block reports 0 machine-block hits', /0 machine-block hit\(s\)/.test(d.stdout), d.stdout);
 
   const e = run(['--validate-note', join(notesDir, 'path-note.md')]);
   check('e. path-leaking note fails (exit 1)', e.status === 1, e.stdout + e.stderr);
@@ -170,6 +226,38 @@ try {
   const g = run(['--validate-note', join(notesDir, 'allowlist-note.md')]);
   check('g. allowlisted-mentions note passes (false-positive guard)', g.status === 0, g.stdout + g.stderr);
   check('g. allowlisted note reports 0 hits', /0 structural hit\(s\)/.test(g.stdout), g.stdout);
+  check('g. the `unknown` severity/coverage variants and both lesson shapes are conforming', /0 machine-block hit\(s\)/.test(g.stdout), g.stdout);
+
+  // ---- s/t. Machine block gates (fail-closed) ---------------------------------
+  const s = run(['--validate-note', join(notesDir, 'no-machine-block.md')]);
+  check('s. a note with no Machine block fails (exit 1)', s.status === 1, s.stdout + s.stderr);
+  check('s. the reason names the missing section and the template requirement',
+    /!! MACHINE-BLOCK\s+L\d+\s+no "## Machine block" section — the sanitized-note template requires one/.test(s.stdout), s.stdout);
+  check('s. it is otherwise structurally clean (the block is the only reason)', /0 structural hit\(s\)/.test(s.stdout), s.stdout);
+
+  const t = run(['--validate-note', join(notesDir, 'bad-machine-line.md')]);
+  check('t. a malformed Machine-block line fails (exit 1)', t.status === 1, t.stdout + t.stderr);
+  check('t. the hit names the offending line and the expected shapes',
+    /!! MACHINE-LINE\s+L\d+\s+findings: many\s+<- matches no Machine-block shape; expected one of: .*findings: N; confirmed: N/.test(t.stdout), t.stdout);
+  check('t. its conforming siblings do not fire', (t.stdout.match(/!! MACHINE-LINE/g) || []).length === 1, t.stdout);
+
+  // ---- u. `unknown` is the tokens line's only non-numeric value ----------------
+  // A run with no operative token count must be able to say so (R-001 has none) without the
+  // escape widening into arbitrary prose. Same fixture, one word swapped, opposite verdict.
+  const tokensNote = join(notesDir, 'tokens-unknown.md');
+  const u = run(['--validate-note', tokensNote]);
+  check('u. tokens: unknown operative passes (exit 0)', u.status === 0, u.stdout + u.stderr);
+  check('u. it reports 0 machine-block hits', /0 machine-block hit\(s\)/.test(u.stdout), u.stdout);
+  const badTokensNote = join(jsonDir, 'tokens-many.md');
+  writeFileSync(badTokensNote, readFileSync(tokensNote, 'utf8').replace('tokens: unknown operative', 'tokens: many operative'));
+  const u2 = run(['--validate-note', badTokensNote]);
+  check('u. tokens: many operative still fails closed (exit 1)', u2.status === 1, u2.stdout + u2.stderr);
+  check('u. the hit names that line', /!! MACHINE-LINE\s+L\d+\s+tokens: many operative; dispatches: 9/.test(u2.stdout), u2.stdout);
+
+  // The two leak fixtures now carry conforming blocks, so each still fails for exactly its
+  // original reason rather than for a missing block.
+  check('e. path note fails only on the path, not the Machine block', /0 machine-block hit\(s\)/.test(e.stdout), e.stdout);
+  check('f. fence note fails only on the fence, not the Machine block', /0 machine-block hit\(s\)/.test(f.stdout), f.stdout);
 
   // ---- usage/config errors fail closed at exit 2 -------------------------------
   const h = run([]);

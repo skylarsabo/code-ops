@@ -4,7 +4,7 @@
 // private mirror repo ... that channel is one-way — only a sanitized calibration note ...
 // crosses back into this repo").
 //
-//   node scripts/calibration-metrics.mjs --artifacts <dir> [--out <file>]
+//   node scripts/calibration-metrics.mjs --artifacts <dir> [--out <file>] [--json <file>]
 //   node scripts/calibration-metrics.mjs --validate-note <file>
 //
 // MODE 1 (--artifacts): reads a run's artifact directory and emits a compact metrics block —
@@ -26,6 +26,10 @@
 // but declares `NO-FINDINGS:` slices reports covered negatives instead of the zero-parse
 // warning; and any OTHER .md carrying register-shaped entries gets a warning that its findings
 // are not counted here. This mode always exits 0: it reports a run's shape, it does not gate it.
+// `--json <file>` additionally writes the same numbers the prose lines print as one JSON object
+// (see MACHINE_SHAPE below) for the calibration graph's ingest side; the prose report is
+// byte-identical with and without it, and a failed JSON write is reported on stderr without
+// changing the exit code — a report mode must not gate.
 //
 // MODE 2 (--validate-note): a structural scrub gate for a sanitized calibration note before it
 // crosses the one-way channel back into this repo. Fails CLOSED (exit 1) on any hit of: an
@@ -33,7 +37,12 @@
 // segments), a fenced code block, a URL, or an email-like token — each reported with its line
 // number and category. The suite's own standard artifact filenames and backticked
 // `plugin:skill` slug references are allowlisted first (they are public vocabulary, not a
-// leak) so a clean note that legitimately names them never trips the gate.
+// leak) so a clean note that legitimately names them never trips the gate. It also fails CLOSED
+// on the note's `## Machine block`: a note MISSING that section is rejected (the template now
+// requires it — docs/techniques/calibration-protocol.md), and every non-blank line inside it
+// must match one of MACHINE_LINE_SHAPES, with a non-matching line reported by line number
+// alongside the shapes it could have taken. The scrubs above still run over the whole note,
+// the machine block included.
 //
 // Exit: mode 1 -> always 0 (advisory report). Mode 2 -> 0 clean, 1 on any structural hit
 // (fail-closed) unless --report-only, 2 on a usage error (no mode flag, unknown flag, a
@@ -44,7 +53,7 @@ import { execFileSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 
 function usage() {
-  console.error('usage: calibration-metrics.mjs --artifacts <dir> [--out <file>]');
+  console.error('usage: calibration-metrics.mjs --artifacts <dir> [--out <file>] [--json <file>]');
   console.error('       calibration-metrics.mjs --validate-note <file> [--report-only]');
   process.exit(2);
 }
@@ -229,9 +238,19 @@ function headShaFor(cwd) {
   }
 }
 
-function runMetrics(dir, outPath) {
+// MACHINE_SHAPE (--json): the prose report's own numbers, nothing derived and nothing new.
+//   { ledger:      { total, malformed, byRole, byStatus, byModel, phases: [{title, lead, rows}] } | null,
+//     findings:    { totalItems, malformed, total, byTier, bySeverity, coveredNegatives }        | null,
+//     refutations: { total, survived, refuted, malformed }                                       | null,
+//     lineBudget:  [{ file, nonBlank, entries: N|null, flags: [...] }] }
+// An artifact that is absent (or unreadable) is null — the same "not present" the prose reports,
+// never a zero that would read as a measured value. `entries` is null for a file scored on the
+// flat cap and the entry count for one scored per entry; `flags` carries the length flags the
+// prose emits for that file ('HARD'/'advisory', or '<id> HARD'/'preamble advisory' per entry).
+function runMetrics(dir, outPath, jsonPath) {
   const lines = [];
   const p = (s = '') => lines.push(s);
+  const machine = { ledger: null, findings: null, refutations: null, lineBudget: [] };
 
   const readIfPresent = (name) => {
     const full = join(dir, name);
@@ -259,6 +278,10 @@ function runMetrics(dir, outPath) {
     p('  not present');
   } else {
     const s = summarizeLedger(ledgerText);
+    machine.ledger = {
+      total: s.total, malformed: s.malformed, byRole: s.byRole, byStatus: s.byStatus, byModel: s.byModel,
+      phases: s.phases.map((ph) => ({ title: ph.title, lead: ph.lead, rows: ph.rows })),
+    };
     p(`  ${s.total} dispatch(es), unparseable: ${s.malformed}`);
     if (s.total === 0) warnZeroParse('DISPATCH_LEDGER.md', ledgerText);
     const roleList = Object.entries(s.byRole).map(([r, n]) => `${r} ${n}`).join(', ') || '(none)';
@@ -288,6 +311,10 @@ function runMetrics(dir, outPath) {
     p('  not present');
   } else {
     const s = summarizeRegister(registerText);
+    machine.findings = {
+      totalItems: s.totalItems, malformed: s.malformed, total: s.total,
+      byTier: s.byTier, bySeverity: s.bySeverity, coveredNegatives: s.coveredNegatives,
+    };
     p(`  ${s.total} finding(s), unparseable: ${s.malformed}`);
     p(`  covered negatives: ${s.coveredNegatives}`);
     // A register that parses to zero entries but declares covered negatives is a swept-and-clear
@@ -310,6 +337,7 @@ function runMetrics(dir, outPath) {
     p('  not present');
   } else {
     const s = summarizeRefutation(refutationText);
+    machine.refutations = { total: s.total, survived: s.survived, refuted: s.refuted, malformed: s.malformed };
     p(`  ${s.total} receipt(s), unparseable: ${s.malformed}`);
     if (s.total === 0) warnZeroParse('REFUTATION_LOG.md', refutationText);
     p(`  SURVIVED ${s.survived} (${s.pct(s.survived)}%), REFUTED ${s.refuted} (${s.pct(s.refuted)}%)`);
@@ -330,25 +358,29 @@ function runMetrics(dir, outPath) {
     for (const f of mdFiles) {
       let text;
       try { text = readFileSync(join(dir, f), 'utf8'); }
-      catch (e) { p(`  ${f}: unreadable (${e.message})`); continue; }
+      catch (e) { p(`  ${f}: unreadable (${e.message})`); machine.lineBudget.push({ file: f, nonBlank: null, entries: null, flags: ['unreadable'] }); continue; }
       const fileLines = text.split('\n');
       const entries = findEntryIds(text);
+      const budget = { file: f, nonBlank: countNonBlank(fileLines), entries: null, flags: [] };
+      machine.lineBudget.push(budget);
       if (isRegisterArtifact(f) && entries.length) {
+        budget.entries = entries.length;
         // Per-entry budget: a register with many tight entries passes; one bloated entry is
         // named. A /register/i file with zero parsed entries falls through to the flat cap.
         p(`  ${f}: ${countNonBlank(fileLines)} non-blank line(s) across ${entries.length} entry(ies)`
           + ` (per-entry advisory ${REGISTER_ENTRY_ADVISORY_LINES} / hard ${REGISTER_ENTRY_HARD_LINES})`);
         const preamble = countNonBlank(fileLines.slice(0, entries[0].line));
-        if (preamble > REGISTER_PREAMBLE_HARD_LINES) p(`    preamble: ${preamble} non-blank line(s)  !! HARD`);
-        else if (preamble > REGISTER_PREAMBLE_ADVISORY_LINES) p(`    preamble: ${preamble} non-blank line(s)  .. advisory`);
+        if (preamble > REGISTER_PREAMBLE_HARD_LINES) { p(`    preamble: ${preamble} non-blank line(s)  !! HARD`); budget.flags.push('preamble HARD'); }
+        else if (preamble > REGISTER_PREAMBLE_ADVISORY_LINES) { p(`    preamble: ${preamble} non-blank line(s)  .. advisory`); budget.flags.push('preamble advisory'); }
         for (let i = 0; i < entries.length; i++) {
           const n = countNonBlank(fileLines.slice(entries[i].line, entries[i + 1]?.line ?? fileLines.length));
-          if (n > REGISTER_ENTRY_HARD_LINES) p(`    ${entries[i].id}: ${n} non-blank line(s)  !! HARD`);
-          else if (n > REGISTER_ENTRY_ADVISORY_LINES) p(`    ${entries[i].id}: ${n} non-blank line(s)  .. advisory`);
+          if (n > REGISTER_ENTRY_HARD_LINES) { p(`    ${entries[i].id}: ${n} non-blank line(s)  !! HARD`); budget.flags.push(`${entries[i].id} HARD`); }
+          else if (n > REGISTER_ENTRY_ADVISORY_LINES) { p(`    ${entries[i].id}: ${n} non-blank line(s)  .. advisory`); budget.flags.push(`${entries[i].id} advisory`); }
         }
       } else {
         const n = countNonBlank(fileLines);
         const flag = n > HARD_LINES ? '  !! HARD' : n > ADVISORY_LINES ? '  .. advisory' : '';
+        if (flag) budget.flags.push(n > HARD_LINES ? 'HARD' : 'advisory');
         p(`  ${f}: ${n} non-blank line(s)${flag}`);
       }
       // A themed sibling report (SECURITY_REPORT.md, PERF_NOTES.md, ...) that carries entries of
@@ -367,6 +399,12 @@ function runMetrics(dir, outPath) {
   if (outPath) {
     try { writeFileSync(outPath, report); }
     catch (e) { console.error(`x cannot write --out ${outPath}: ${e.message}`); }
+  }
+  // A failed --json write is reported and survived, exactly like a failed --out write: this
+  // mode reports a run's shape and must never gate it.
+  if (jsonPath) {
+    try { writeFileSync(jsonPath, JSON.stringify(machine, null, 2) + '\n'); }
+    catch (e) { console.error(`x cannot write --json ${jsonPath}: ${e.message}`); }
   }
   process.exit(0); // this mode always reports; it never gates
 }
@@ -393,7 +431,80 @@ function stripAllowlisted(line) {
   }
   // A backticked `plugin:skill` slug (lowercase, hyphenated) is public vocabulary too.
   out = out.replace(/`[a-z][a-z0-9-]*:[a-z][a-z0-9-]*`/gi, ' ');
+  // The Machine block's severity-mix token is a fixed literal plus five counts. It carries no
+  // leak surface, but its slashes read as a unix-style path to the detector below, so it is
+  // pre-filtered like the other public vocabulary. Anchored to the literal `c/h/m/l/n as` head
+  // and digits only — nothing else in a note can hide behind it.
+  out = out.replace(/\bc\/h\/m\/l\/n as \d+\/\d+\/\d+\/\d+\/\d+\b/g, ' ');
   return out;
+}
+
+// ---- Machine block (docs/techniques/calibration-protocol.md note template) -----------
+// The block is the machine-readable half of a sanitized note: counts, kebab slugs and enum
+// words only, line-based, no fences and no paths. One regex per template line, in template
+// order, each paired with the shape text a violation is reported against.
+const MACHINE_HEADING_RE = /^##\s+Machine block\s*$/i;
+const ANY_HEADING_RE = /^#{1,6}\s+/;
+const MACHINE_LINE_SHAPES = [
+  // run-date: YYYY-MM-DD
+  { shape: 'run-date: YYYY-MM-DD', re: /^run-date: \d{4}-\d{2}-\d{2}$/ },
+  // suite: <plugin>@<semver> [, more]
+  { shape: 'suite: <plugin>@<semver>[, <plugin>@<semver> ...]', re: /^suite: [a-z][a-z0-9-]*@\d+\.\d+\.\d+(?:, [a-z][a-z0-9-]*@\d+\.\d+\.\d+)*$/ },
+  // target-class: <kebab-slug>; control: yes|no
+  { shape: 'target-class: <kebab-slug>; control: yes|no', re: /^target-class: [a-z0-9]+(?:-[a-z0-9]+)*; control: (?:yes|no)$/ },
+  // track: assess-only|implement
+  { shape: 'track: assess-only|implement', re: /^track: (?:assess-only|implement)$/ },
+  // findings: N; confirmed: N
+  { shape: 'findings: N; confirmed: N', re: /^findings: \d+; confirmed: \d+$/ },
+  // paneled: N of M eligible; survived: N; repro-exempt: N
+  { shape: 'paneled: N of M eligible; survived: N; repro-exempt: N', re: /^paneled: \d+ of \d+ eligible; survived: \d+; repro-exempt: \d+$/ },
+  // severity: c/h/m/l/n as N/N/N/N/N (or: unknown)
+  { shape: 'severity: c/h/m/l/n as N/N/N/N/N (or: severity: unknown)', re: /^severity: (?:c\/h\/m\/l\/n as \d+\/\d+\/\d+\/\d+\/\d+|unknown)$/ },
+  // tokens: N operative; dispatches: N   (or: tokens: unknown operative; dispatches: N — a run
+  // with no operative token count says so; the `unknown` literal is the only non-numeric value,
+  // so a fail-closed gate has an honest escape without accepting arbitrary prose)
+  { shape: 'tokens: N operative; dispatches: N (or: tokens: unknown operative; dispatches: N)', re: /^tokens: (?:\d+|unknown) operative; dispatches: \d+$/ },
+  // orchestration: dangling N; failed N; redispatched N
+  { shape: 'orchestration: dangling N; failed N; redispatched N', re: /^orchestration: dangling \d+; failed \d+; redispatched \d+$/ },
+  // standardization: enforcements N; traceless clean|dirty
+  { shape: 'standardization: enforcements N; traceless clean|dirty', re: /^standardization: enforcements \d+; traceless (?:clean|dirty)$/ },
+  // coverage: covered-negatives N; slices swept N of M (or: unknown)
+  { shape: 'coverage: covered-negatives N; slices swept N of M (or: coverage: unknown)', re: /^coverage: (?:covered-negatives \d+; slices swept \d+ of \d+|unknown)$/ },
+  // lesson: recur L-NNN
+  { shape: 'lesson: recur L-NNN', re: /^lesson: recur L-\d{3}$/ },
+  // lesson: new <instrument|suite|protocol> — <statement>   (id assigned at ingest)
+  { shape: 'lesson: new instrument|suite|protocol — <statement>', re: /^lesson: new (?:instrument|suite|protocol) — \S.*$/ },
+];
+const MACHINE_SHAPE_LIST = MACHINE_LINE_SHAPES.map((s) => s.shape).join(' | ');
+
+// Fails CLOSED on a note with no Machine block at all — the template requires it, so its
+// absence means the note predates the current template (or dropped the block), and ingesting
+// it would silently produce a run doc with no numbers. Returns the same {line, cat, snippet}
+// hits the structural scrubs produce, so both classes print and gate identically.
+function validateMachineBlock(text) {
+  const hits = [];
+  const lines = text.split('\n').map((l) => l.replace(/\r$/, ''));
+  const start = lines.findIndex((l) => MACHINE_HEADING_RE.test(l.trim()));
+  if (start === -1) {
+    hits.push({
+      line: 1, cat: 'MACHINE-BLOCK',
+      snippet: 'no "## Machine block" section — the sanitized-note template requires one'
+        + ' (docs/techniques/calibration-protocol.md); a note without it cannot be ingested.',
+    });
+    return hits;
+  }
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (ANY_HEADING_RE.test(line)) break; // block ends at the next heading
+    const trimmed = line.trim();
+    if (trimmed === '') continue;
+    if (MACHINE_LINE_SHAPES.some((s) => s.re.test(trimmed))) continue;
+    hits.push({
+      line: i + 1, cat: 'MACHINE-LINE',
+      snippet: `${trimmed.slice(0, 90)}  <- matches no Machine-block shape; expected one of: ${MACHINE_SHAPE_LIST}`,
+    });
+  }
+  return hits;
 }
 
 const URL_RE_G = /https?:\/\/[^\s`'")]+/gi;
@@ -433,11 +544,14 @@ function runValidateNote(filePath, reportOnly) {
   catch (e) { console.error(`x cannot read ${filePath}: ${e.message}`); process.exit(2); }
 
   const hits = validateNote(text);
-  console.log(`# calibration-note validation — ${filePath}${hits.length ? '' : '  — clean'}`);
-  for (const h of hits) console.log(`  !! ${h.cat.padEnd(13)} L${h.line}  ${h.snippet}`);
+  const machineHits = validateMachineBlock(text);
+  const clean = hits.length === 0 && machineHits.length === 0;
+  console.log(`# calibration-note validation — ${filePath}${clean ? '  — clean' : ''}`);
+  for (const h of [...hits, ...machineHits]) console.log(`  !! ${h.cat.padEnd(13)} L${h.line}  ${h.snippet}`);
   console.log(`\n${hits.length} structural hit(s).`);
-  if (hits.length > 0 && !reportOnly) {
-    console.error('Sanitized-note structural scrub failed (fail-closed) — remove paths/fences/URLs/emails before this note crosses the one-way calibration channel.');
+  console.log(`${machineHits.length} machine-block hit(s).`);
+  if (!clean && !reportOnly) {
+    console.error('Sanitized-note validation failed (fail-closed) — remove paths/fences/URLs/emails and fix the Machine block before this note crosses the one-way calibration channel.');
     process.exit(1);
   }
 }
@@ -453,15 +567,18 @@ const rest = argv.filter((a) => a !== '--report-only');
 if (rest[0] === '--artifacts') {
   const dirArg = rest[1];
   if (dirArg === undefined || dirArg.trim() === '' || dirArg.startsWith('--')) { console.error('x --artifacts needs a directory'); usage(); }
+  // Optional emit flags, each a <flag> <path> pair, in either order — same shape as the
+  // original single `--out <file>` tail, so an unknown or value-less flag still exits 2.
   let outPath = null;
-  if (rest[2] === '--out') {
-    outPath = rest[3];
-    if (outPath === undefined || outPath.trim() === '' || outPath.startsWith('--')) { console.error('x --out needs a path'); usage(); }
-  } else if (rest.length > 2) {
-    console.error(`x unknown argument: ${rest[2]}`);
-    usage();
+  let jsonPath = null;
+  for (let i = 2; i < rest.length; i += 2) {
+    const flag = rest[i];
+    if (flag !== '--out' && flag !== '--json') { console.error(`x unknown argument: ${flag}`); usage(); }
+    const val = rest[i + 1];
+    if (val === undefined || val.trim() === '' || val.startsWith('--')) { console.error(`x ${flag} needs a path`); usage(); }
+    if (flag === '--out') outPath = val; else jsonPath = val;
   }
-  runMetrics(resolve(dirArg), outPath ? resolve(outPath) : null);
+  runMetrics(resolve(dirArg), outPath ? resolve(outPath) : null, jsonPath ? resolve(jsonPath) : null);
 } else if (rest[0] === '--validate-note') {
   const fileArg = rest[1];
   if (fileArg === undefined || fileArg.trim() === '' || fileArg.startsWith('--')) { console.error('x --validate-note needs a file'); usage(); }

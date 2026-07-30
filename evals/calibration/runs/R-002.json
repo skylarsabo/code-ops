@@ -1,0 +1,51 @@
+{
+  "id": "R-002",
+  "date": "2026-07-28",
+  "suite": {
+    "code-ops-suite": "1.24.0"
+  },
+  "target": {
+    "label": "mid-size TypeScript SaaS web app (payments, background jobs, public scoring surface)",
+    "class": "ts-saas",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 49,
+    "confirmed": 35,
+    "refutation": {
+      "paneled": 6,
+      "survived": 5,
+      "reproExempt": 0,
+      "panelEligible": null
+    },
+    "severity": null
+  },
+  "tokens": {
+    "operative": 1530000,
+    "dispatches": 16
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": null,
+    "slicesSwept": null,
+    "slicesUnswept": null
+  },
+  "lessons": [
+    "L-001",
+    "L-002",
+    "L-005",
+    "L-006",
+    "L-007",
+    "L-008"
+  ],
+  "notes": "0 dangling, 0 failed, 0 redispatched across ~1.53M operative tokens; assess-only, 0 enforcements added, redaction clean. **Lead model auto-substituted one tier down twice mid-run, both times on security-lens synthesis, never on other lenses; one tool call failed mid-intervention** — an unattended run would finish its security phase and all downstream verdicts a tier low, and model identity appears nowhere in artifacts, so the tier-mix metric is not reconstructable: stamp resolved lead model into the ledger per phase. Panels changed 4 of 6 findings (1 downgrade, 1 re-scope onto a broader path, 1 tier upgrade via executed check, 1 kill) — the kill was the run's headline finding, defeated by 4 mechanisms none of which were in the files it cited; keep panels mandatory at high severity. Assess-only under-tiers itself: operatives cannot execute, so only a panelist's executed check reached CONFIRMED by reproduction — compare CONFIRMED ratios within-track only. **Prior row's two lessons recurred verbatim**: register again over the 120-line hard cap (49 findings → ~2.5x; cap likely wrong for real scale) and extractor again parsed 0 of everything until IDs, tier/severity fields and ledger columns were reshaped — publish the three grammars with a conforming example and warn on zero-items-in-non-empty-file. Redaction gate crashes (uncaught, non-fail-closed exit code) when given a run folder, which is the invocation its own docs imply"
+}
