@@ -63,12 +63,13 @@ across all five: `0` clean, `1` violation-or-gated, `2` usage.
 | --- | --- |
 | `init --atlas <dir>` | scaffolds an empty `MANIFEST.json`, `INBOX.md`, and `sections/`; **refuses to overwrite** an existing manifest |
 | `add --atlas <dir> --section <slug> --scope <pathspec> [--scope ...]` | registers a new section: appends a manifest entry pinned to `"unverified"` and writes a `sections/<slug>.md` stub with its title and a charter placeholder. `--scope` is repeatable. Refuses a duplicate slug, a non-kebab slug, a scope using pathspec magic, or an existing prose file. The section is **STALE until stamped** — that is the point: `add` registers the intent, `stamp` asserts the verification |
-| `check --atlas <dir> [--root <repo>] [--gate]` | per section, intersects `git diff --name-only <verifiedAt>` with `scope` → FRESH (nothing hit) or STALE (up to 10 triggering paths plus the count); unknown sha → STALE with a reason. Exit 0 report-only; `--gate` exits 1 if any section is STALE. A malformed manifest — bad JSON, schema violation, missing section file, a moving-ref stamp — exits 1 **always**, gated or not |
-| `stamp --atlas <dir> --section <slug> [--at <sha>]` | sets `verifiedAt` to `--at` or HEAD; refuses an unknown slug or an unparseable sha. The **only** sanctioned writer of stamps |
-| `inbox --atlas <dir> --note <text>` | appends `- <YYYY-MM-DD> <short-sha>: <text>` to `INBOX.md`; one line, refuses empty |
+| `check --atlas <dir> [--root <repo>] [--gate]` | per section, intersects `git diff --name-only <verifiedAt>` with `scope` → FRESH (nothing hit) or STALE (up to 10 triggering paths plus the count); unknown sha → STALE with a reason; a scope matching no tracked file → STALE as a dead scope, since nothing can ever change inside it. The atlas dir itself is excluded from the diff and the sweep, or every stamp — which rewrites `MANIFEST.json` — would re-stale any section scoped over it. Exit 0 report-only; `--gate` exits 1 if any section is STALE. A malformed manifest — bad JSON, schema violation, missing section file, a moving-ref stamp — exits 1 **always**, gated or not |
+| `stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]` | sets `verifiedAt` to `--at` or HEAD; refuses an unknown slug or an unparseable sha. The **only** sanctioned writer of stamps |
+| `inbox --atlas <dir> --note <text> [--root <dir>]` | appends `- <YYYY-MM-DD> <short-sha>: <text>` to `INBOX.md`; one line, refuses empty |
 
 `check` also runs a **coverage sweep**: every tracked top-level path (first path segment
-of `git ls-files`) matched by no section's scope prints as an `unmapped` advisory. It
+of `git ls-files`, the atlas's own tree excluded from both sides — it neither needs
+coverage nor grants it) matched by no section's scope prints as an `unmapped` advisory. It
 stays advisory even under `--gate` — an unmapped directory is a scoping todo, not a
 false claim of freshness, and gating on it would train people to write junk scopes that
 match everything.

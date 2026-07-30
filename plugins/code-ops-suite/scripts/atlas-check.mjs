@@ -32,9 +32,17 @@
 // `git diff --name-only <verifiedAt> -- <scope...>` (no `..HEAD`, so the working tree counts
 // too — an uncommitted edit to a scoped tracked file is already a reason to distrust the
 // section) and coverage is `git ls-files -- <scope...>`. The same strings therefore mean the
-// same thing to the checker and to a human running git by hand.
+// same thing to the checker and to a human running git by hand. `check` adds one internal
+// pathspec of its own — `:(exclude)<atlas dir>` — so the atlas cannot invalidate itself; see
+// the note on it in cmdCheck.
 //
-// Coverage sweep: every first path segment of `git ls-files` that no section's scope actually
+// A scope that matches no tracked file at all is a DEAD scope (a typo, or a tree that moved),
+// reported STALE: it silently reports FRESH forever otherwise, since nothing can ever change
+// inside a scope that covers nothing. It is a per-section trust failure, not a malformed
+// manifest, so it is fail-safe STALE rather than fail-closed.
+//
+// Coverage sweep (the atlas's own tree excluded from both sides): every first path segment of
+// `git ls-files` that no section's scope actually
 // MATCHES A TRACKED FILE UNDER is reported "unmapped" — advisory only, even under --gate,
 // because an unmapped path is a scoping todo, not a trust violation.
 //
@@ -45,7 +53,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, appendFileSync } from 'node:fs';
-import { resolve, join, sep } from 'node:path';
+import { resolve, join, sep, relative, isAbsolute } from 'node:path';
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // A stamp is an immutable object name, never a ref. See the moving-ref note in the header.
@@ -268,6 +276,19 @@ function cmdCheck(args) {
   const atlasDir = atlasDirOf(f);
   const root = repoRootOf(atlasDir, f['--root']);
 
+  // The atlas dir is excluded from its own staleness diff and coverage sweep. WHY: `stamp`
+  // rewrites MANIFEST.json inside the atlas dir, so a section whose scope covers that dir (the
+  // ordinary case — atlas at docs/atlas, a section scoped `docs/**`) is made stale by the very
+  // write meant to freshen it, and can never converge to FRESH. `:(exclude)` is git's own
+  // pathspec magic; the manifest's ban on a leading ':' governs manifest CONTENT (what a human
+  // wrote as a scope, which must stay auditable), not the checker's internal pathspecs.
+  // Edge: if the atlas dir is outside the repo root, or IS the root, no relative path usable as
+  // an exclusion exists — outside the root nothing in the repo is being rewritten so none is
+  // needed, and at the root an exclusion would blank every scope. Skip it in both cases.
+  const atlasRel = relative(root, atlasDir).split(sep).join('/');
+  const excludeAtlas = (atlasRel === '' || atlasRel.startsWith('../') || isAbsolute(atlasRel))
+    ? [] : [`:(exclude)${atlasRel}`];
+
   const { manifest, violations } = loadManifest(atlasDir);
   const head = resolveCommit(root, 'HEAD');
   console.log(`# atlas ${atlasDir}${head ? `  (HEAD ${head.slice(0, 7)})` : '  (HEAD unresolved)'}`);
@@ -288,10 +309,20 @@ function cmdCheck(args) {
       console.log(`  !!  STALE  ${s.slug}  — verifiedAt '${s.verifiedAt}' does not resolve to a commit in this repo (re-verify and re-stamp)`);
       continue;
     }
+    // A scope matching zero tracked files can never produce a diff hit, so it would report FRESH
+    // forever on a claim nobody can invalidate. Catch it before the diff verdict and call it what
+    // it is: a section whose scope no longer points at the code. Per-section trust failure, so
+    // STALE — not a manifest schema violation, since the store itself is well-formed.
+    const alive = git(['ls-files', '--', ...s.scope, ...excludeAtlas], root);
+    if (alive.ok && lines(alive.out).length === 0) {
+      stale++;
+      console.log(`  !!  STALE  ${s.slug}  — scope matches no tracked file (dead scope: a typo or a moved tree; re-scope and re-stamp)`);
+      continue;
+    }
     // `<pinned> --` (no `..HEAD`) diffs the pin against the WORKING TREE, so an uncommitted edit
     // to a scoped tracked file reads STALE too — the fail-safe direction. Untracked files are
     // outside any diff and stay invisible until they are added.
-    const d = git(['diff', '--name-only', pinned, '--', ...s.scope], root);
+    const d = git(['diff', '--name-only', pinned, '--', ...s.scope, ...excludeAtlas], root);
     if (!d.ok) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — cannot diff since ${pinned.slice(0, 7)}: ${d.err.trim().split('\n')[0]}`);
@@ -309,7 +340,9 @@ function cmdCheck(args) {
   }
 
   // ---- coverage sweep (advisory, even under --gate) --------------------------
-  const tracked = git(['ls-files'], root);
+  // Same exclusion on both sides of the sweep: the atlas's own tree neither needs coverage nor
+  // grants it, so it is neither reported unmapped nor able to mark a segment mapped.
+  const tracked = git(['ls-files', '--', ...excludeAtlas], root);
   const unmapped = [];
   if (!tracked.ok) {
     console.log(`  advisory: coverage sweep skipped — git ls-files failed in ${root}: ${tracked.err.trim().split('\n')[0]}`);
@@ -322,7 +355,7 @@ function cmdCheck(args) {
     // scope pointing at nothing may not launder a whole top-level tree as mapped.
     const covered = new Set();
     if (allScopes.length) {
-      const m = git(['ls-files', '--', ...allScopes], root);
+      const m = git(['ls-files', '--', ...allScopes, ...excludeAtlas], root);
       if (!m.ok) {
         console.log(`  !!  MALFORMED  a scope pathspec was rejected by git: ${m.err.trim().split('\n')[0]}`);
         console.log('\n1 manifest schema violation(s) — fix the manifest before trusting any section.');

@@ -15,7 +15,11 @@
 // file may not launder its top-level segment as mapped; the pin SHAPE rule (lowercase hex 7-40
 // or the 'unverified' placeholder, which is fail-safe STALE and not MALFORMED); `add`
 // registering a STALE-until-stamped section; and working-tree staleness — an uncommitted edit
-// to a scoped tracked file is STALE, and reverting it is FRESH again.
+// to a scoped tracked file is STALE, and reverting it is FRESH again. Plus the two rules that
+// keep a verdict honest: the atlas dir is excluded from its own diff and coverage sweep, so a
+// section scoped over the atlas (docs/** with the atlas at docs/atlas) can actually converge to
+// FRESH while a real edit in scope still flips it; and a scope matching no tracked file is a
+// DEAD scope reported STALE rather than a permanent false FRESH.
 //
 //   node evals/atlas-check/run.mjs   (exit 0 = pass)
 
@@ -103,10 +107,9 @@ try {
   check('b. it says it refuses to overwrite', /refusing to overwrite an existing atlas/.test(b.out), b.out);
 
   // Seed two sections by hand (the eval is the fixture author; stamp is exercised below).
-  // `documentation` is scoped to the guide rather than all of `docs/**` on purpose: staleness is
-  // measured against the WORKING TREE, so a scope covering the atlas's own directory would go
-  // stale on every manifest write this fixture makes. Working-tree staleness gets its own
-  // scenario in E below.
+  // `documentation` is scoped narrowly to the guide so this fixture's assertions stay about one
+  // file; the wide `docs/**` scope that also covers the atlas dir is exercised in F below, where
+  // the self-invalidation rule is the point. Working-tree staleness gets scenario E.
   put(A, 'docs/atlas/sections/core.md', '# Core\n\nCharter: the src tree.\n');
   put(A, 'docs/atlas/sections/documentation.md', '# Documentation\n\nCharter: the docs tree.\n');
   writeManifest(A, {
@@ -226,10 +229,14 @@ try {
   check('l. a scope matching no tracked file leaves its top segment unmapped',
     /unmapped top-level path 'src'/.test(bcov.out), bcov.out);
   check('l. sibling top-level paths are unmapped too', /unmapped top-level path 'tools'/.test(bcov.out), bcov.out);
-  check('l. the atlas own tree IS mapped only if a scope hits it (docs is unmapped here)',
-    /unmapped top-level path 'docs'/.test(bcov.out), bcov.out);
-  check('l. the empty-scope section is FRESH (nothing in scope can have moved)', /ok\s+FRESH\s+auth\b/.test(bcov.out), bcov.out);
-  check('l. unmapped count is 3, exit 0', /1 section\(s\), 0 stale, 3 unmapped\./.test(bcov.out) && bcov.status === 0, bcov.out);
+  // The atlas's own tree is out of the sweep on both sides: `docs` holds nothing but the atlas
+  // here, so it is neither mapped nor advised as unmapped.
+  check("l. the atlas's own tree is not swept at all (no 'docs' advisory)",
+    !/unmapped top-level path 'docs'/.test(bcov.out), bcov.out);
+  check('l. a scope matching nothing is a DEAD scope, reported STALE',
+    /!!\s+STALE\s+auth\s+— scope matches no tracked file \(dead scope/.test(bcov.out), bcov.out);
+  check('l. unmapped count is 2, exit 0 without --gate', /1 section\(s\), 1 stale, 2 unmapped\./.test(bcov.out) && bcov.status === 0, bcov.out);
+  check('l. --gate fails on a dead scope', run(['check', '--atlas', join(B, 'docs', 'atlas'), '--gate']).status === 1);
 
   // Now create the file the scope pointed at: the segment becomes mapped.
   put(B, 'src/auth/token.js', 'token\n');
@@ -365,10 +372,63 @@ try {
     /^- \d{4}-\d{2}-\d{2} [0-9a-f]{7}: --gate is load-bearing in the closing phase$/m.test(readFileSync(join(atlasE, 'INBOX.md'), 'utf8')),
     readFileSync(join(atlasE, 'INBOX.md'), 'utf8'));
   // The exemption is scoped to --note: a flag-shaped value for a path/slug flag is still refused.
-  const r2 = run(['check', '--atlas', '--gate']);
-  check('r. the exemption does not leak to other flags (--atlas --gate exits 2)', r2.status === 2, r2.out);
+  // This must exercise the `v.startsWith('--') && !FREE_TEXT_FLAGS.has(a)` branch, not the
+  // missing-value one — so the flag-shaped value has to be a token cmdCheck does NOT strip
+  // (`--gate` is filtered out positionally before parseFlags ever sees it, which would make this
+  // a plain missing-value rejection and prove nothing about the exemption).
+  const r2 = run(['check', '--atlas', '--root', 'x']);
+  check('r. a flag-shaped value for a non-free-text flag is refused (exit 2)',
+    r2.status === 2 && /--atlas needs a value/.test(r2.out), r2.out);
   const r3 = run(['inbox', '--atlas', atlasE, '--note', 'a\nb']);
   check('r. a flag-shaped exemption does not bypass the single-line rule', r3.status === 1 && /single line/.test(r3.out), r3.out);
+
+  // ============================================================ F. self-invalidation
+  // The atlas lives INSIDE a scope (atlas at docs/atlas, section scoped `docs/**`). Every stamp
+  // rewrites MANIFEST.json under docs/atlas, so without excluding the atlas dir from the diff the
+  // section is made stale by the very write meant to freshen it and can never read FRESH.
+  const F = newRepo('selfinv');
+  put(F, 'docs/guide.md', '# guide\n');
+  put(F, 'src/a.js', 'a\n');
+  const atlasF = join(F, 'docs', 'atlas');
+  run(['init', '--atlas', atlasF]);
+  run(['add', '--atlas', atlasF, '--section', 'documentation', '--scope', 'docs/**']);
+  run(['add', '--atlas', atlasF, '--section', 'core', '--scope', 'src/**']);
+  commit(F, 'init with atlas');
+  run(['stamp', '--atlas', atlasF, '--section', 'documentation']);
+  const s1 = run(['check', '--atlas', atlasF]);
+  check('s. a section whose scope covers the atlas dir reaches FRESH after a stamp',
+    /ok\s+FRESH\s+documentation\b/.test(s1.out), s1.out);
+  // Stamping a SIBLING section rewrites the same MANIFEST.json — still inside `docs/**`.
+  run(['stamp', '--atlas', atlasF, '--section', 'core']);
+  const s2 = run(['check', '--atlas', atlasF, '--gate']);
+  check('s. it stays FRESH after a sibling stamp rewrites the manifest under its scope',
+    s2.status === 0 && /ok\s+FRESH\s+documentation\b/.test(s2.out), s2.out);
+  // The exclusion is surgical: a real file in the scope still flips it.
+  writeFileSync(join(F, 'docs', 'guide.md'), '# guide v2\n');
+  const s3 = run(['check', '--atlas', atlasF]);
+  check('s. a real edit inside the scope still flips it STALE',
+    /!!\s+STALE\s+documentation\s+— 1 scoped path\(s\) changed since [0-9a-f]{7}: docs\/guide\.md/.test(s3.out), s3.out);
+  check('s. and the manifest path is NOT among the triggering paths', !/MANIFEST\.json/.test(s3.out), s3.out);
+
+  // ============================================================ G. dead scope repair
+  const G = newRepo('deadscope');
+  put(G, 'src/auth/token.js', 'token\n');
+  put(G, 'docs/atlas/sections/auth.md', '# Auth\n');
+  writeManifest(G, { version: 1, sections: [{ slug: 'auth', file: 'sections/auth.md', scope: ['srcc/auth/**'], verifiedAt: '0'.repeat(40) }] });
+  const gSha = commit(G, 'init');
+  const atlasG = join(G, 'docs', 'atlas');
+  writeManifest(G, { version: 1, sections: [{ slug: 'auth', file: 'sections/auth.md', scope: ['srcc/auth/**'], verifiedAt: gSha }] });
+  const t1 = run(['check', '--atlas', atlasG]);
+  check('t. a typo\'d scope reads STALE naming the dead scope, not FRESH',
+    /!!\s+STALE\s+auth\s+— scope matches no tracked file \(dead scope: a typo or a moved tree; re-scope and re-stamp\)/.test(t1.out), t1.out);
+  check('t. --gate fires on it', run(['check', '--atlas', atlasG, '--gate']).status === 1);
+  check('t. it is a per-section trust failure, not a manifest schema violation',
+    t1.status === 0 && !/MALFORMED/.test(t1.out), t1.out);
+  // Repair: fix the scope and re-stamp -> FRESH.
+  writeManifest(G, { version: 1, sections: [{ slug: 'auth', file: 'sections/auth.md', scope: ['src/auth/**'], verifiedAt: gSha }] });
+  run(['stamp', '--atlas', atlasG, '--section', 'auth']);
+  const t2 = run(['check', '--atlas', atlasG, '--gate']);
+  check('t. re-scoping and re-stamping turns it FRESH', t2.status === 0 && /ok\s+FRESH\s+auth\b/.test(t2.out), t2.out);
 
   // ============================================================ D. usage errors
   check('n. no subcommand exits 2', run([]).status === 2);
