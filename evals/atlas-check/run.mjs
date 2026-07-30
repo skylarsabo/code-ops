@@ -19,7 +19,10 @@
 // keep a verdict honest: the atlas dir is excluded from its own diff and coverage sweep, so a
 // section scoped over the atlas (docs/** with the atlas at docs/atlas) can actually converge to
 // FRESH while a real edit in scope still flips it; and a scope matching no tracked file is a
-// DEAD scope reported STALE rather than a permanent false FRESH.
+// DEAD scope reported STALE rather than a permanent false FRESH. Plus the moving-pin hazard that
+// the shape rule alone does NOT catch: a branch NAMED like a sha ('deadbeef') is refused at
+// resolution time in both check and stamp, while stamp's default HEAD still resolves; and the
+// exclusion-path edge where the atlas dir is the repo root's own parent.
 //
 //   node evals/atlas-check/run.mjs   (exit 0 = pass)
 
@@ -268,6 +271,9 @@ try {
     // never report stale, so the manifest lies rather than ages.
     ['moving-ref verifiedAt (HEAD)', { version: 1, sections: [{ ...good, verifiedAt: 'HEAD' }] }],
     ['moving-ref verifiedAt (@)', { version: 1, sections: [{ ...good, verifiedAt: '@' }] }],
+    // `main` is caught by the SHAPE rule (not hex). The hex-NAMED ref ('deadbeef') passes shape
+    // and is caught by the RESOLUTION rule instead — scenario H below. Two separate rules, both
+    // pinned, because either one alone leaves a moving pin reachable.
     ['moving-ref verifiedAt (branch)', { version: 1, sections: [{ ...good, verifiedAt: 'main' }] }],
     ['uppercase-hex verifiedAt', { version: 1, sections: [{ ...good, verifiedAt: 'DEADBEEF' }] }],
     ['too-short verifiedAt', { version: 1, sections: [{ ...good, verifiedAt: good.verifiedAt.slice(0, 6) }] }],
@@ -429,6 +435,77 @@ try {
   run(['stamp', '--atlas', atlasG, '--section', 'auth']);
   const t2 = run(['check', '--atlas', atlasG, '--gate']);
   check('t. re-scoping and re-stamping turns it FRESH', t2.status === 0 && /ok\s+FRESH\s+auth\b/.test(t2.out), t2.out);
+
+  // ============================================================ H. hex-named ref pin
+  // The shape rule only proves a value LOOKS like an object name. `git branch deadbeef` makes a
+  // REF whose name passes it, and rev-parse prefers refs over abbreviated object names — so the
+  // pin would follow the branch and the section would read FRESH forever. Caught at RESOLUTION
+  // (the full sha must extend the given value), fail-closed like any other moving pin.
+  const H = newRepo('hexref');
+  put(H, 'src/a.js', 'a\n');
+  put(H, 'docs/atlas/sections/one.md', '# One\n');
+  writeManifest(H, { version: 1, sections: [] });
+  const hSha = commit(H, 'init');
+  const atlasH = join(H, 'docs', 'atlas');
+  const hGood = { slug: 'one', file: 'sections/one.md', scope: ['src/**'], verifiedAt: hSha };
+  g(H, ['branch', 'deadbeef']);
+
+  writeManifest(H, { version: 1, sections: [{ ...hGood, verifiedAt: 'deadbeef' }] });
+  const u1 = run(['check', '--atlas', atlasH]);
+  check('u. a hex-NAMED branch as verifiedAt exits 1 (fail-closed, not FRESH)', u1.status === 1, u1.out);
+  check('u. it is reported MALFORMED, naming the ref/moving-pin hazard',
+    /!!\s+MALFORMED\s+sections\[0\]\.verifiedAt "deadbeef" looks like an object name but resolves to a REF/.test(u1.out)
+    && /could never be reported stale/.test(u1.out), u1.out);
+  check('u. it is not silently FRESH', !/FRESH/.test(u1.out), u1.out);
+  // The corresponding write path refuses too, so the hazard cannot be stamped in.
+  const u2 = run(['stamp', '--atlas', atlasH, '--section', 'one', '--at', 'deadbeef']);
+  check('u. stamp --at on a hex-named branch is refused (exit 1)', u2.status === 1, u2.out);
+  check('u. the refusal names the same rule', /refusing to stamp: --at "deadbeef" looks like an object name but resolves to a REF/.test(u2.out), u2.out);
+  check('u. the refused stamp left verifiedAt untouched', readManifest(H).sections[0].verifiedAt === 'deadbeef', readFileSync(manifestPath(H), 'utf8'));
+
+  // The guard is scoped to sha-CLAIMED values: stamp's default HEAD is legitimately symbolic and
+  // still resolves normally.
+  const u3 = run(['stamp', '--atlas', atlasH, '--section', 'one']);
+  check('u. the default HEAD stamp is unaffected by the guard', u3.status === 0 && readManifest(H).sections[0].verifiedAt === hSha, u3.out);
+
+  // With the ref gone, 'deadbeef' is no longer resolvable at all in this repo, so the value falls
+  // through to the ordinary fail-SAFE path: STALE with a reason, exit 0 without --gate. (It would
+  // only be a true abbreviated object name if a commit's sha happened to start with those 8 hex
+  // digits, which no fixture commit does.)
+  g(H, ['branch', '-D', 'deadbeef']);
+  writeManifest(H, { version: 1, sections: [{ ...hGood, verifiedAt: 'deadbeef' }] });
+  const u4 = run(['check', '--atlas', atlasH]);
+  check('u. once the ref is deleted the same value is STALE-unresolvable, not MALFORMED',
+    u4.status === 0 && /!!\s+STALE\s+one\s+— verifiedAt 'deadbeef' does not resolve to a commit/.test(u4.out) && !/MALFORMED/.test(u4.out), u4.out);
+
+  // ============================================================ I. atlas as the root's parent
+  // relative() returns exactly '..' (no trailing slash) when the atlas dir IS the repo root's
+  // parent. That is outside the repo, so no self-exclusion is needed or possible; handing git
+  // `:(exclude)..` instead makes it bail out with a fatal.
+  const P = mkdtempSync(join(tmpdir(), 'atlas-parent-'));
+  cleanupDirs.push(P);
+  const PR = join(P, 'repo');
+  mkdirSync(PR, { recursive: true });
+  g(PR, ['-c', 'init.defaultBranch=main', 'init', '-q']);
+  g(PR, ['config', 'user.name', 'Atlas Eval']);
+  g(PR, ['config', 'user.email', 'atlas-eval@example.invalid']);
+  g(PR, ['config', 'commit.gpgsign', 'false']);
+  writeFileSync(join(PR, 'a.js'), 'a\n');
+  mkdirSync(join(PR, 'src'), { recursive: true });
+  writeFileSync(join(PR, 'src', 'b.js'), 'b\n');
+  g(PR, ['add', '-A']);
+  g(PR, ['commit', '-q', '-m', 'init']);
+  const pSha = g(PR, ['rev-parse', 'HEAD']).trim();
+  mkdirSync(join(P, 'sections'), { recursive: true });
+  writeFileSync(join(P, 'sections', 'one.md'), '# One\n');
+  writeFileSync(join(P, 'MANIFEST.json'),
+    JSON.stringify({ version: 1, sections: [{ slug: 'one', file: 'sections/one.md', scope: ['src/**'], verifiedAt: pSha }] }, null, 2) + '\n');
+  const v1 = run(['check', '--atlas', P, '--root', PR]);
+  check('v. an atlas dir at the repo root\'s parent runs without a git fatal', !/fatal:/.test(v1.out), v1.out);
+  check('v. the exclusion is skipped and the section still gets a real verdict',
+    v1.status === 0 && /ok\s+FRESH\s+one\b/.test(v1.out), v1.out);
+  check('v. the coverage sweep still runs (the root\'s own files are swept)',
+    /unmapped top-level path 'a\.js'/.test(v1.out), v1.out);
 
   // ============================================================ D. usage errors
   check('n. no subcommand exits 2', run([]).status === 2);

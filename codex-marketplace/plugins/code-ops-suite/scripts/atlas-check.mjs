@@ -26,7 +26,11 @@
 // `verifiedAt` is lowercase hex, 7-40 chars, or the single placeholder 'unverified' that `add`
 // writes for a section nobody has stamped yet. Anything else — HEAD, @, a branch, a tag — is a
 // schema violation, because a moving ref re-points the pin at whatever it names later and the
-// section can then never go stale: the diff is always taken against the present.
+// section can then never go stale: the diff is always taken against the present. Shape is not
+// sufficient, though: a branch or tag NAMED like a sha ('deadbeef') passes it, and rev-parse
+// prefers refs over abbreviated object names, so the pin would still move. Every value claimed
+// to be a pin is therefore also checked at RESOLUTION time — the full sha must extend the given
+// value (see resolvePin) — and a hex-named ref fails closed the same way HEAD does.
 //
 // Scope matching is git's own pathspec semantics, not a reimplemented globber: staleness is
 // `git diff --name-only <verifiedAt> -- <scope...>` (no `..HEAD`, so the working tree counts
@@ -119,6 +123,32 @@ function resolveCommit(root, rev) {
   const sha = r.ok ? r.out.trim() : '';
   return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
 }
+
+// Resolve a value that CLAIMS to be a sha pin — a manifest `verifiedAt`, or `stamp --at <sha>`.
+// Returns { sha, movingRef }.
+//
+// WHY this is not just resolveCommit: the shape rule (SHA_RE) only proves a value LOOKS like an
+// object name. `git branch deadbeef` creates a ref whose NAME passes that rule, and rev-parse
+// prefers refs over abbreviated object names, so it resolves as the branch — a moving pin
+// wearing hex, and the section reads FRESH forever. The distinguishing fact is cheap: the full
+// sha an abbreviation resolves to always EXTENDS it, while a ref's tip does not (and if it
+// coincidentally does, the value was a genuine object match anyway). The guard is deliberately
+// scoped to values claimed to be pins: HEAD in check's header and stamp's default HEAD are
+// legitimately symbolic, and `unverified` is not SHA_RE-shaped, so all three pass through
+// untouched.
+function resolvePin(root, value) {
+  const full = resolveCommit(root, value);
+  if (full && SHA_RE.test(value) && !full.startsWith(value.toLowerCase()))
+    return { sha: null, movingRef: true };
+  return { sha: full, movingRef: false };
+}
+
+// The one sentence both the check and the stamp path use for a hex-named ref, so an author who
+// hits it in either place learns the same rule.
+const MOVING_PIN_REASON = (value) =>
+  `${JSON.stringify(value)} looks like an object name but resolves to a REF (a branch or tag NAMED like a sha) — `
+  + 'git rev-parse prefers refs over abbreviated object names, so the pin would move with the ref and the '
+  + 'section could never be reported stale. Rename or delete that ref, or pin the full object name.';
 
 function atlasDirOf(flags) {
   const dir = resolve(flags['--atlas']);
@@ -291,7 +321,9 @@ function cmdCheck(args) {
   // exclusion exists to prevent.
   const canon = (p) => { try { return realpathSync.native(p); } catch { return p; } };
   const atlasRel = relative(canon(root), canon(atlasDir)).split(sep).join('/');
-  const excludeAtlas = (atlasRel === '' || atlasRel.startsWith('../') || isAbsolute(atlasRel))
+  // `'..'` is the exact-parent case and carries no trailing slash, so a startsWith('../') test
+  // alone misses it and hands git `:(exclude)..`, which git rejects outright.
+  const excludeAtlas = (atlasRel === '' || atlasRel === '..' || atlasRel.startsWith('../') || isAbsolute(atlasRel))
     ? [] : [`:(exclude)${atlasRel}`];
 
   const { manifest, violations } = loadManifest(atlasDir);
@@ -307,8 +339,17 @@ function cmdCheck(args) {
   }
 
   let stale = 0;
-  for (const s of manifest.sections) {
-    const pinned = resolveCommit(root, s.verifiedAt);
+  for (const [idx, s] of manifest.sections.entries()) {
+    // Fail CLOSED on a hex-named ref, for the same reason the shape rule rejects `HEAD`: this is
+    // a manifest whose pin lies, not a stamp that has aged out. The shape rule and this
+    // resolution rule are separate and both load-bearing — `main` is caught by shape,
+    // `deadbeef` only here.
+    const { sha: pinned, movingRef } = resolvePin(root, s.verifiedAt);
+    if (movingRef) {
+      console.log(`  !!  MALFORMED  sections[${idx}].verifiedAt ${MOVING_PIN_REASON(s.verifiedAt)}`);
+      console.log('\n1 manifest schema violation(s) — fix the manifest before trusting any section.');
+      process.exit(1);
+    }
     if (!pinned) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — verifiedAt '${s.verifiedAt}' does not resolve to a commit in this repo (re-verify and re-stamp)`);
@@ -399,7 +440,11 @@ function cmdStamp(args) {
     process.exit(1);
   }
   const rev = f['--at'] ?? 'HEAD';
-  const sha = resolveCommit(root, rev);
+  // Same guard as check, same reason: an `--at` that LOOKS like an object name but resolves as a
+  // ref would write a pin that moves. The default `HEAD` (and any other symbolic rev) is
+  // legitimately a ref and resolves normally — only sha-shaped values are held to this.
+  const { sha, movingRef } = resolvePin(root, rev);
+  if (movingRef) { console.error(`x refusing to stamp: --at ${MOVING_PIN_REASON(rev)}`); process.exit(1); }
   if (!sha) { console.error(`x '${rev}' does not resolve to a commit in ${root}`); process.exit(1); }
 
   const before = target.verifiedAt;
