@@ -205,7 +205,8 @@ one-off:
 A second graph, the **movement graph**, is design-noted here and is *not* part of this
 store. It indexes how agent work moves across projects: **per-repo context manifests**
 (durable artifacts with a `kind`, a `verified-at` SHA, and a freshness state —
-generalizing the `revalidate-register.mjs` pattern), **per-run manifests** (artifacts
+generalizing the `revalidate-register.mjs` pattern), now built as the **atlas**
+([atlas.md](atlas.md)), **per-run manifests** (artifacts
 produced and consumed, the PR, the outcome, per-dispatch token stamps), and a
 **user-level index** of repos, runs, and sessions. Reserved edge vocabulary: `produced`,
 `consumed`, `superseded-by`, `resumed-from`.

@@ -1,6 +1,6 @@
 # code-ops-suite — Command Reference
 
-The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 28 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
+The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 29 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
 
 A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate code-grounded reference docs and run-continuity state. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
 
@@ -34,6 +34,7 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 - [`adr`](#code-ops-suiteadr) — architecture decision records
 - [`ops-docs`](#code-ops-suiteops-docs) — the operator's runbook
 - [`handoff`](#code-ops-suitehandoff) — capture or resume a run's verifiable session state
+- [`atlas`](#code-ops-suiteatlas) — the repo's durable cache of judgment, with mechanical freshness
 
 **Meta / suite self-audit**
 - [`calibration-run`](#code-ops-suitecalibration-run) — standardized real-scale calibration, one-way sanitized channel
@@ -302,6 +303,17 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 **When to use it.** Before a long run (`everything`, `full-sweep`, a big audit) hits a context limit or a session ends mid-run; on the other side, to resume from a `HANDOFF.md` someone else (or an earlier session) wrote. Do **not** use it as a findings store — findings belong in the registers it points to.
 
 **Prerequisites & hand-offs.** No prerequisites to write; Resume expects the `HANDOFF.md` plus whatever registers it names. Composes with every orchestrator; the registers it points at are kept fresh by `revalidate-register.mjs` (`§12`).
+
+### `/code-ops-suite:atlas`
+**Mode:** DOCUMENT
+
+**How it works.** The atlas is a durable, per-repo cache of judgment — `docs/atlas/` (fallback `atlas/`) holding `MANIFEST.json`, `INBOX.md`, and one prose section per area of the codebase. Phase 0 locates the atlas and runs `atlas-check.mjs check`, which for each section intersects the diff since that section's `verifiedAt` commit with the section's scope globs: nothing hit is FRESH, anything hit is STALE with the triggering paths, and an unresolvable stamp is STALE by design. Three idempotent phases follow. **INIT** scaffolds the atlas (refusing to overwrite an existing manifest) and the model designs the sectioning — 4-10 sections whose scopes cover every top-level path, verified by the checker's unmapped sweep — then stamps each at HEAD. **REFRESH**, the default, rewrites only the STALE sections, reading their triggering diff paths first, and re-stamps them; FRESH sections are never reopened. **CONSOLIDATE** folds inbox observations into the sections that own them, clears the folded entries, and stamps what it touched. Stamps are written only by `atlas-check.mjs stamp`, never by hand.
+
+**Why it's useful.** Every run on a repo re-derives the same understanding of it and then throws that understanding away. The atlas banks it — and, unlike a README, says mechanically whether each part is still true, so a FRESH section can be consumed without re-verification while a STALE one is treated as a lead, not a fact. See [the atlas technique](../../techniques/atlas.md).
+
+**When to use it.** On a repo the suite will work in repeatedly: once to INIT, then whenever `check` reports STALE sections or the inbox has unfolded entries. Do **not** use it as a file/API inventory — those facts are re-derivable in seconds and rot fast, and they are explicitly out of a section's remit.
+
+**Prerequisites & hand-offs.** Requires a git repo (freshness is computed from commits). `code-ops-suite:ship` closes the loop on it: its final phase refreshes any section the shipped change turned STALE, in the same session, while the diff rationale is still recoverable.
 
 ---
 

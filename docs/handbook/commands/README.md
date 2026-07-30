@@ -1,6 +1,6 @@
 # Command Reference — Index & Task Router
 
-The code-ops marketplace ships **60 commands** across four plugins. Call any command as
+The code-ops marketplace ships **61 commands** across four plugins. Call any command as
 `/<plugin>:<skill>` in Claude Code, or name `<plugin>:<skill>` in a Codex request; the
 model can also route to a command per the standard-operating-mode routing card. Either
 way, side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing
@@ -75,6 +75,7 @@ marks a single command that strings the others together for you.
 | **Review a PR at the verification bar** (depth) | `/rigor:deep-review` | rigor | Blocks only on `CONFIRMED` defects/regressions. The high-signal counterpart to `pr-review`. |
 | **Normalize a repo to one consistent style** | `/code-ops-suite:normalize` | code-ops-suite | Behavior-preserving; removes the artifacts of hasty/generated code. |
 | **Split a big branch into clean small PRs** | `/code-ops-suite:pr-split` | code-ops-suite (+ privacy) | Composes `privacy-opsec-suite:authorship-hygiene` (fail-closed); never auto-merges. |
+| **Bank what a run learned about a repo** | `/code-ops-suite:atlas` | code-ops-suite | Builds/refreshes `docs/atlas/`: judgment prose per section, each stamped and mechanically checked FRESH or STALE. |
 | **Hand a long run to a fresh session** | `/code-ops-suite:handoff` | code-ops-suite | Write verifiable state (decisions, dead ends, anchored pointers) before a context limit; Resume re-verifies every claim before continuing. |
 | **Close an inconsistency so it cannot return** | `/rigor:consistency-closure` | rigor | Pick a canonical form, migrate every site, add a lint/test enforcement. |
 | **Model how a user could be deanonymized** | `/privacy-opsec-suite:anonymity-threat-model` | privacy-opsec-suite | The keystone artifact every leak audit frames against. |
@@ -123,7 +124,7 @@ marks a single command that strings the others together for you.
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) — **28 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
+- [code-ops-suite.md](code-ops-suite.md) — **29 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
 - [rigor.md](rigor.md) — **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) — **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) — **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).

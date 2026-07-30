@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.28.0
+- **New `atlas` skill.** Maintains a per-repo knowledge cache of judgment-only sections, each carrying scope globs and a verified-at stamp recorded in a machine-readable manifest rather than in prose.
+- **New vendored `atlas-check.mjs`** with `init`, `check`, `stamp`, and `inbox` modes. Staleness is computed by git pathspec diff since each section's stamp; an unresolvable stamp reports fail-safe `STALE`; a malformed manifest is fail-closed; the coverage sweep flags unmapped top-level paths as advisories.
+- **`ship`'s closing phase refreshes the sections the change made stale**, while the diff rationale is still in-session.
+- **`CONVENTIONS.md` gains the stamp-trust rule** — a FRESH section is consumed without re-verification, a STALE one is treated as a lead.
+
 ## 1.27.0
 - **Calibration runs are recorded as a knowledge graph.** The calibration store under `evals/calibration/` holds one document per run, lesson nodes carrying stable IDs, and edges linking each lesson to the fixes, enforcements, and verifying runs that answer it — so a lesson's fate is queryable instead of buried in prose.
 - **`evals/CALIBRATION_TABLE.md` is now a derived view.** The new root-level `scripts/calibration-graph.mjs` renders the table from the store and drift-checks it (`render --check`) alongside `validate` for store integrity.
