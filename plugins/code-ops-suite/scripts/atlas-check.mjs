@@ -52,7 +52,7 @@
 //       2 usage error (unknown subcommand, unknown flag, missing/blank flag value).
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, appendFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, appendFileSync, realpathSync } from 'node:fs';
 import { resolve, join, sep, relative, isAbsolute } from 'node:path';
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -285,7 +285,12 @@ function cmdCheck(args) {
   // Edge: if the atlas dir is outside the repo root, or IS the root, no relative path usable as
   // an exclusion exists — outside the root nothing in the repo is being rewritten so none is
   // needed, and at the root an exclusion would blank every scope. Skip it in both cases.
-  const atlasRel = relative(root, atlasDir).split(sep).join('/');
+  // Canonicalize both sides first: on Windows one side may arrive as an 8.3 short name
+  // (RUNNER~1) while git reports the long form, and relative() across the two aliases yields a
+  // ../-prefixed path that silently disables the exclusion — the exact self-invalidation the
+  // exclusion exists to prevent.
+  const canon = (p) => { try { return realpathSync.native(p); } catch { return p; } };
+  const atlasRel = relative(canon(root), canon(atlasDir)).split(sep).join('/');
   const excludeAtlas = (atlasRel === '' || atlasRel.startsWith('../') || isAbsolute(atlasRel))
     ? [] : [`:(exclude)${atlasRel}`];
 
