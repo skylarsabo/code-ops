@@ -27,4 +27,5 @@ export const RUNTIME_SCRIPTS = [
   { name: 'calibration-metrics.mjs', plugins: ['code-ops-suite'] },
   { name: 'dispatch-ledger.mjs', plugins: ['code-ops-suite'] },
   { name: 'scan-narration.mjs', plugins: ['code-ops-suite'] },
+  { name: 'atlas-check.mjs', plugins: ['code-ops-suite'] },
 ];
