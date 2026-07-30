@@ -8,7 +8,10 @@
 // or a change out of the terminal `reported` state. `check` validates row shape/id
 // ordering/status values (fail-closed), reports dangling `dispatched` rows and
 // unstamped (no `@model`) rows as advisories (exit 0) unless --strict promotes them
-// to a failure, and still PARSES a legacy pre-stamp ledger (backward compat).
+// to a failure, and still PARSES a legacy pre-stamp ledger (backward compat). `phase` appends
+// a positional `> phase: <title> · lead@<model>` marker (recording which model LED each stretch
+// of the run); `check` accepts markers, counts them as neither rows nor prose, and fails closed
+// on a line starting `> phase:` that breaks the grammar.
 //
 //   node evals/dispatch-ledger/run.mjs   (exit 0 = pass)
 
@@ -143,6 +146,45 @@ try {
   const m = run(['check', '--ledger', legacy, '--strict']);
   check('m. --strict on an unstamped ledger exits 1', m.status === 1, m.stdout + m.stderr);
   check('m. rejection mentions tier mix', /tier mix/i.test(m.stderr), m.stderr);
+
+  // n. `phase` writes a positional lead-model marker, creating the ledger (header first) when
+  // absent — the record of which model LED each stretch, which the per-row stamp can't show.
+  const phased = join(dir, 'PHASED_LEDGER.md');
+  const n1 = run(['phase', '--ledger', phased, '--title', 'Scan', '--lead-model', 'claude-fable-5']);
+  check('n. phase on a new ledger exits 0', n1.status === 0, n1.stderr);
+  const textN1 = readFileSync(phased, 'utf8');
+  check('n. phase created the header', textN1.includes('| id | role | brief | expected artifact | status |'), textN1);
+  check('n. marker line has the pinned grammar', /^> phase: Scan · lead@claude-fable-5$/m.test(textN1), textN1);
+  const n2 = run(['add', '--ledger', phased, '--role', 'explorer', '--brief', 'map the auth module', '--artifact', 'AUTH_MAP.md', '--model', 'claude-sonnet-5']);
+  check('n. add after a marker still exits 0 (markers are not rows)', n2.status === 0, n2.stderr);
+  const n3 = run(['phase', '--ledger', phased, '--title', 'Fix wave', '--lead-model', 'claude-opus-5']);
+  check('n. second phase marker exits 0', n3.status === 0, n3.stderr);
+  const nCheck = run(['check', '--ledger', phased]);
+  check('n. check accepts phase markers', nCheck.status === 0, nCheck.stdout + nCheck.stderr);
+  check('n. check reports both markers', /phase: Scan · lead@claude-fable-5/.test(nCheck.stdout) && /phase: Fix wave · lead@claude-opus-5/.test(nCheck.stdout), nCheck.stdout);
+  check('n. markers do not become rows', /\n1 row\(s\), 0 schema violation\(s\)/.test(nCheck.stdout), nCheck.stdout);
+
+  // o. a line that announces itself as a marker but breaks the grammar fails CLOSED — a
+  // mistyped marker must not be silently skipped as prose.
+  const badPhase = join(dir, 'BAD_PHASE_LEDGER.md');
+  writeFileSync(badPhase, [
+    '| id | role | brief | expected artifact | status |',
+    '| --- | --- | --- | --- | --- |',
+    '> phase: broken marker',
+    '| D-001 | explorer@claude-sonnet-5 | map the auth module | AUTH_MAP.md | reported |',
+  ].join('\n') + '\n');
+  const o = run(['check', '--ledger', badPhase]);
+  check('o. malformed phase marker exits 1', o.status === 1, o.stdout + o.stderr);
+  check('o. malformed marker is named', /MALFORMED\s+L3: malformed phase marker/.test(o.stdout), o.stdout);
+
+  // p. marker validation: the title may not carry the marker's own delimiters, the model id may
+  // not carry whitespace, and a missing flag is a usage error.
+  const p1 = run(['phase', '--ledger', phased, '--title', 'a · b', '--lead-model', 'claude-opus-5']);
+  check('p. title carrying the middot delimiter exits 1', p1.status === 1, p1.stderr);
+  const p2 = run(['phase', '--ledger', phased, '--title', 'a | b', '--lead-model', 'claude-opus-5']);
+  check('p. title carrying a pipe exits 1', p2.status === 1, p2.stderr);
+  const p3 = run(['phase', '--ledger', phased, '--title', 'Review']);
+  check('p. missing --lead-model exits 2 (usage)', p3.status === 2, p3.stderr);
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }

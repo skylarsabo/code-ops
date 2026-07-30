@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.26.0
+- **Item-ID grammar widened and anchored.** An item ID may now carry an optional uppercase round letter between the hyphen and the serial, and is matched only at entry-heading position — line start, after optional heading markers or a table-row pipe — so IDs mentioned inside prose no longer open spurious entries.
+- **Per-entry register budget in `calibration-metrics.mjs`.** A `FINDINGS_REGISTER.md`-shaped artifact is measured per entry (advisory 10 / hard 20 non-blank lines, preamble 15/30) with the flat 60/120 file cap as fallback.
+- **Sibling-report warning.** `calibration-metrics.mjs` warns when register-shaped entries sit in a non-artifact sibling file, naming the file.
+- **Covered negatives replace the zero-parse warning.** A present artifact whose `NO-FINDINGS` lines account for its content is reported as covered negatives rather than warned about as an unparsed artifact.
+- **`dispatch-ledger.mjs phase` subcommand.** Writes `> phase: <title> · lead@<model>` markers so the lead model per phase is reconstructable; `check` is fail-closed on a malformed marker.
+- `docs/techniques/calibration-protocol.md` restates the CONFIRMED-ratio rule: an assess-only run caps remediation, not reproduction.
+- **`CONVENTIONS.md` dispatch-ledger passage synced** to the stamped `role@model` row form and extended with the write-at-dispatch atomicity clause; the passage is now pinned byte-identically across plugins by `SHARED_PASSAGES` in `scripts/lint-plugins.mjs`.
+- **Vendored `revalidate-register.mjs` re-synced** from the canonical `scripts/revalidate-register.mjs` for the widened, heading-anchored item-ID grammar.
+
 ## 1.25.0
 - **Dispatch-ledger rows are stamped `role@model`.** `dispatch-ledger.mjs add` now requires `--model <resolved-model-id>` and writes it into the role cell, so a run's actual tier mix is reconstructable after the fact and a silent mid-run tier substitution is visible instead of invisible; `check` flags an unstamped row as an advisory (a hard failure under `--strict`). Legacy unstamped rows still parse.
 - **Register per-entry length budget.** `scan-narration.mjs` now checks a `FINDINGS_REGISTER.md`-shaped artifact per-entry (advisory 10 / hard 20 non-blank lines, preamble 15/30) instead of against the flat file-level cap — real-scale calibration evidence showed the flat cap wrongly penalized a legitimate many-entry register whose individual entries were tight.

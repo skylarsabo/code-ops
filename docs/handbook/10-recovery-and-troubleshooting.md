@@ -81,7 +81,7 @@ Every orchestrator is **checkpointed and developer-in-the-loop** ([03-orchestrat
 
 ### Per-unit resume via the dispatch ledger
 
-An orchestrated run keeps `DISPATCH_LEDGER.md` beside the register, one row per sub-agent dispatch, written **at dispatch time** rather than when the report lands — so a hung or dead operative shows up as a dangling `dispatched` row instead of silently vanishing ([code-ops §12](../../plugins/code-ops-suite/CONVENTIONS.md), verbatim in [rigor §10](../../plugins/rigor/CONVENTIONS.md) and [privacy §11](../../plugins/privacy-opsec-suite/CONVENTIONS.md)). Before falling back to whole-phase re-entry, run:
+An orchestrated run keeps `DISPATCH_LEDGER.md` beside the register, one row per sub-agent dispatch, written **at dispatch time** — atomically with the dispatch call itself, never a turn earlier or later — so a hung or dead operative shows up as a dangling `dispatched` row instead of silently vanishing, and a row that exists without a dispatch behind it (a phantom) can't be mistaken for one ([code-ops §12](../../plugins/code-ops-suite/CONVENTIONS.md), verbatim in [rigor §10](../../plugins/rigor/CONVENTIONS.md) and [privacy §11](../../plugins/privacy-opsec-suite/CONVENTIONS.md)). Before falling back to whole-phase re-entry, run:
 
 ```sh
 node scripts/revalidate-register.mjs --dispatch-ledger DISPATCH_LEDGER.md --report-only

@@ -91,6 +91,23 @@ const rd = spawnSync('node', [checker, join(sdir, 'redacted.md'), '--root', sdir
 const rline = ((rd.stdout || '') + rd.stderr).split('\n').find((l) => l.includes('RBUG-001')) || '';
 expect(/FRESH/.test(rline) && rline.includes('redacted anchor'), `redacted anchor should be FRESH + advisory, got: ${rline}`);
 
+// ---- entry-boundary discipline: lettered IDs, prose citations, covered negatives ----
+// A reviewer-round-lettered ID heads an item; an ID cited mid-line in another item's evidence
+// is a reference (unanchored, it split the block and invented items out of domain tags); a
+// `NO-FINDINGS:` covered negative is body text, never an item or a malformed one.
+writeFileSync(join(sdir, 'boundaries.md'), [
+  '# boundary fixture', '',
+  'ABUG-A12 · lettered id', 'Location: code.mjs:2', 'Evidence: duplicate of ABUG-003, tracked as INC-2024 at the time.', '',
+  'NO-FINDINGS: config slice — swept clean, nothing to report.', '',
+  'ABUG-A13 · lettered id two', 'Location: code.mjs:2', '',
+].join('\n'));
+const bd = spawnSync('node', [checker, join(sdir, 'boundaries.md'), '--root', sdir], { encoding: 'utf8' });
+const bout = (bd.stdout || '') + (bd.stderr || '');
+expect(bd.status === 0, `boundary fixture should exit 0 (both items FRESH), got ${bd.status}: ${bout}`);
+expect(/\b2 item\(s\)/.test(bout), `boundary fixture should report exactly 2 items, got: ${bout}`);
+expect(/FRESH\s+ABUG-A12\b/.test(bout) && /FRESH\s+ABUG-A13\b/.test(bout), `both lettered IDs should be items, got: ${bout}`);
+expect(!/ABUG-003|INC-2024|NO-FINDINGS/.test(bout), `prose citations and covered negatives must not become items, got: ${bout}`);
+
 if (fails.length) {
   console.error('FAIL — register-staleness eval:');
   for (const f of fails) console.error('  x ' + f);

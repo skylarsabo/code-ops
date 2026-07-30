@@ -2,7 +2,9 @@
 // Run-artifact narration scanner regression eval — asserts scan-narration.mjs stays quiet on
 // a compact summary, flags an over-length report at both the advisory and hard bounds, fails
 // closed on process-narration, reports table-restatement and filler as advisories only, and
-// never trips PROCESS-NARRATION on the "I/O throughput" false-positive guard case.
+// never trips PROCESS-NARRATION on the "I/O throughput" false-positive guard case. Also pins
+// register entry detection: lettered IDs open entries, mid-line ID citations do not, and
+// NO-FINDINGS covered negatives are body text rather than items.
 //
 //   node evals/scan-narration/run.mjs   (exit 0 = pass)
 
@@ -22,6 +24,9 @@ const hard121 = join(here, 'hard-121.md');
 const register49Tight = join(here, 'register-49-tight.md');
 const registerLongEntry = join(here, 'register-long-entry.md');
 const registerLongPreamble = join(here, 'register-long-preamble.md');
+const registerLetteredIds = join(here, 'register-lettered-ids.md');
+const registerProseIds = join(here, 'register-prose-ids.md');
+const registerCoveredNegative = join(here, 'register-covered-negative.md');
 const run = (args) => spawnSync('node', [scanner, ...args], { encoding: 'utf8' });
 
 const fails = [];
@@ -81,6 +86,25 @@ const rlp = run([registerLongPreamble]);
 expect(rlp.status === 1, `register-long-preamble.md should exit 1 (preamble hard bound), got ${rlp.status}`);
 expect(/LENGTH/.test(rlp.stdout || '') && /preamble/.test(rlp.stdout || ''), 'register-long-preamble.md should flag LENGTH naming the preamble');
 
+// Reviewer-round-lettered entry IDs (FND-A01) must open entries too: 40 tight lettered entries
+// (161 non-blank lines) pass on the per-entry budget. Under the digits-only ID pattern not one
+// head parsed, so the whole register fell back to the flat cap and failed.
+const rlid = run([registerLetteredIds]);
+expect(rlid.status === 0, `register-lettered-ids.md should exit 0 (lettered IDs open entries), got ${rlid.status}`);
+expect(/clean/.test(rlid.stdout || ''), 'register-lettered-ids.md should report clean under the per-entry budget');
+
+// Entry boundaries are anchored: an item ID cited MID-LINE in a bloated entry's body is a
+// reference, not a new entry. Unanchored, those citations split the entry and hid the bloat.
+const rpid = run([registerProseIds]);
+expect(rpid.status === 1, `register-prose-ids.md should exit 1 (bloated entry, prose IDs don't split it), got ${rpid.status}`);
+expect(/FIND-003: 24 non-blank lines/.test(rpid.stdout || ''), 'register-prose-ids.md should charge the whole bloated block to FIND-003');
+
+// Covered negatives (`NO-FINDINGS: <slice> — <why>`) are preamble/body, never entries or
+// malformed items: a register carrying them alongside a tight entry stays clean.
+const rcn = run([registerCoveredNegative]);
+expect(rcn.status === 0, `register-covered-negative.md should exit 0, got ${rcn.status}`);
+expect(/clean/.test(rcn.stdout || ''), 'register-covered-negative.md should report clean (NO-FINDINGS lines are not items)');
+
 // Usage/config errors still fail closed at exit 2.
 const missing = run([join(here, 'does-not-exist.md')]);
 expect(missing.status === 2, `missing file should exit 2, got ${missing.status}`);
@@ -95,6 +119,9 @@ if (fails.length) {
   console.error('\n--- register-49-tight output ---\n' + ((r49.stdout || '') + (r49.stderr || '')));
   console.error('\n--- register-long-entry output ---\n' + ((rle.stdout || '') + (rle.stderr || '')));
   console.error('\n--- register-long-preamble output ---\n' + ((rlp.stdout || '') + (rlp.stderr || '')));
+  console.error('\n--- register-lettered-ids output ---\n' + ((rlid.stdout || '') + (rlid.stderr || '')));
+  console.error('\n--- register-prose-ids output ---\n' + ((rpid.stdout || '') + (rpid.stderr || '')));
+  console.error('\n--- register-covered-negative output ---\n' + ((rcn.stdout || '') + (rcn.stderr || '')));
   process.exit(1);
 }
 console.log('PASS — scan-narration eval: length bounds (flat and per-entry register), narration/filler/restatement categories, exit discipline, and the I/O false-positive guard all hold.');

@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.14.2
+- **`CONVENTIONS.md` dispatch-ledger passage synced** to the stamped `role@model` row form and extended with the write-at-dispatch atomicity clause; the passage is now pinned byte-identically across plugins by `SHARED_PASSAGES` in `scripts/lint-plugins.mjs`.
+- **Vendored `revalidate-register.mjs` re-synced** from the canonical `scripts/revalidate-register.mjs` for the widened, heading-anchored item-ID grammar.
+
 ## 2.14.1
 - `CONVENTIONS.md` §10 notes that a `FINDINGS_REGISTER.md`-shaped artifact is checked against its own per-entry length budget rather than the flat `EXECUTIVE_SUMMARY.md`-style cap, cross-referencing the new `docs/techniques/artifact-grammars.md`.
 

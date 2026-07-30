@@ -29,11 +29,24 @@ under this rule — it fails closed on a path, code fence, URL, or email in the 
 ## Comparing CONFIRMED ratios
 
 Compare a run's CONFIRMED ratio **within its own track only** (assess-only vs.
-assess-only, the same target class against itself over time). An assess-only
-calibration run structurally cannot execute a repro — no code changes on the target —
-so it cannot promote a finding past PROBABLE the way an IMPLEMENT-mode run can.
-Comparing an assess-only CONFIRMED ratio against a full-rigor or IMPLEMENT-mode run's
-ratio measures the track's ceiling, not the suite's quality, and misleads.
+assess-only, the same target class against itself over time).
+
+**Assess-only caps remediation, not reproduction.** An earlier version of this page
+claimed an assess-only run structurally cannot execute a repro and therefore cannot
+promote a finding past PROBABLE. The 2026-07-29 calibration run disproved that: four
+findings reached CONFIRMED under assess-only, via repro scripts written **outside** the
+target tree and a **failing read-only gate run** against the target. The rule the track
+actually imposes is *no code changes on the target* — operatives may execute against
+the target read-only, and may build and run reproductions anywhere outside it. Do not
+tier a finding down to PROBABLE merely because the track is assess-only; tier it on the
+evidence that exists.
+
+The within-track-only comparison rule stays, on the honest rationale: tracks differ in
+**remediation affordances** (an IMPLEMENT-mode run can patch, re-run, and bisect in
+place) and in **typical reproduction depth** (an assess-only run reaches for the
+out-of-tree repro only where it is cheap). So a cross-track ratio comparison still
+measures the track rather than the suite, and still misleads — just for reasons of
+affordance and habit, not structural impossibility.
 
 ## Artifact shapes
 
