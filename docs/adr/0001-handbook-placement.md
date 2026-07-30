@@ -60,8 +60,8 @@ gates and convention, not one uniform CI check:
   gate** (`validate.yml`) — it fails the build on drift.
 - `scripts/check-doc-citations.mjs` checks that `path:line` citations across
   `docs/handbook/`, `docs/techniques/`, `docs/guides/`, and `docs/adr/` still
-  resolve against the current tree — a **mechanical script, run on demand**,
-  not yet wired into a per-push gate.
+  resolve against the current tree — also a **per-push CI gate**
+  (`validate.yml`).
 - `Verified-at:` stamps tie documents to the commit they were last verified
   against — a **convention**, checked by eye at review time, with no
   mechanical enforcement of its own.
@@ -88,10 +88,10 @@ retain a path back to the full documentation.
 - A single source of truth: cross-plugin journeys are documented once, in one
   hub, with shared techniques cross-linked rather than duplicated.
 - The handbook is versioned, reviewable, and diffable. Freshness enforcement
-  is mixed, not uniformly CI-gated: `lint-plugins.mjs` parity is a per-push
-  gate and `check-doc-citations.mjs` line-citations are a mechanical script
-  run on demand, while `Verified-at:` stamps are convention only (no
-  mechanical check) and doc-alignment checks run as a scheduled/manual sweep.
+  is mixed, not uniformly CI-gated: `lint-plugins.mjs` parity and
+  `check-doc-citations.mjs` line-citations are per-push gates, while
+  `Verified-at:` stamps are convention only (no mechanical check) and
+  doc-alignment checks run as a scheduled/manual sweep.
 - **Tradeoff:** single-plugin marketplace installers do **not** receive the
   handbook on install — they get only `plugins/<name>/` and rely on the
   plugin `README` pointer back to the repo. The handbook primarily serves repo

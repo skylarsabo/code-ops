@@ -67,7 +67,7 @@ codex plugin list --marketplace code-ops --available --json
 codex plugin add code-ops-suite@code-ops
 ```
 
-Install `rigor`, `privacy-opsec-suite`, and `researcher` with the same `codex plugin add <name>@code-ops` form as needed. For GitHub, use `codex plugin marketplace add skylarsabo/code-ops --ref main`. The renderer preserves the manual-only workflow policy, so name the workflow explicitly rather than expecting it to run automatically.
+Install `rigor`, `privacy-opsec-suite`, and `researcher` with the same `codex plugin add <name>@code-ops` form as needed. For GitHub, use `codex plugin marketplace add skylarsabo/code-ops --ref main`. The renderer emits `allow_implicit_invocation: true` for each skill, mirroring Claude's model-invocable skills, so Codex may invoke a workflow implicitly; naming it explicitly remains the most reliable route.
 
 > **A note on the cross-plugin orchestrators.** A few `code-ops-suite` skills require the others to be installed: `everything` needs `rigor` *and* `privacy-opsec-suite`; `ship` and `debug` need `rigor`. The skill states its requirement when you invoke it. If you only installed `code-ops-suite`, the single-plugin workflows (`codebase-audit`, `pr-review`, the doc generators, `full-sweep`, …) all work on their own.
 

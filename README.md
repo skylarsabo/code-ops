@@ -102,7 +102,7 @@ In Claude Code, invoke a workflow as a namespaced slash command:
 /privacy-opsec-suite:tor-egress-audit
 ```
 
-In Codex, name the same workflow in your request — for example, `Use code-ops-suite:codebase-audit on this repo.` The generated policy keeps these workflows deliberate rather than implicitly invoked. Most workflows open with a short scoping checkpoint, then run an adaptive multi-agent loop and check in with you on the decisions that matter.
+In Codex, name the same workflow in your request — for example, `Use code-ops-suite:codebase-audit on this repo.` The generated policy sets `allow_implicit_invocation: true` for each skill, mirroring how Claude skills are model-invocable, so Codex may also route matching requests to them implicitly. Most workflows open with a short scoping checkpoint, then run an adaptive multi-agent loop and check in with you on the decisions that matter.
 
 ## Verify & maintain
 ```bash
@@ -178,7 +178,7 @@ code-ops/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
     │   ├── CONVENTIONS.md                # shared backbone
-    │   ├── skills/                       # 28 workflows (incl. architecture/API/data-model/ADR/ops doc generators + current-docs + handoff + adopt-standards + orchestrators + calibration-run/run-cost-audit/provider-parity-audit)
+    │   ├── skills/                       # 29 workflows (incl. architecture/API/data-model/ADR/ops doc generators + current-docs + handoff + adopt-standards + orchestrators + calibration-run/run-cost-audit/provider-parity-audit)
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # Claude GitHub Actions workflow
     │   └── README.md
