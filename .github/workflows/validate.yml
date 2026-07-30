@@ -114,6 +114,16 @@ jobs:
       - name: Calibration-metrics regression eval
         run: node evals/calibration-metrics/run.mjs
 
+      - name: Calibration-graph regression eval
+        run: node evals/calibration-graph/run.mjs
+
+      # The eval above runs against fixtures; these two run against the REAL store, so a
+      # hand-edited CALIBRATION_TABLE.md or a lesson whose enforcing eval was deleted fails CI.
+      - name: Calibration-graph store validate + derived-table drift check
+        run: |
+          node scripts/calibration-graph.mjs validate
+          node scripts/calibration-graph.mjs render --check
+
       - name: claude plugin validate (best-effort)
         run: |
           if command -v claude >/dev/null 2>&1; then

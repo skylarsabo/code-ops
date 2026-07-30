@@ -1,0 +1,53 @@
+{
+  "id": "R-003",
+  "date": "2026-07-29",
+  "suite": {
+    "code-ops-suite": "1.25.0"
+  },
+  "target": {
+    "label": "large TypeScript monorepo — real-time telephony platform with a payment lane, chat-bot operator surface, and infrastructure-as-code",
+    "class": "ts-monorepo-telephony",
+    "control": true
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 28,
+    "confirmed": 16,
+    "refutation": {
+      "paneled": 1,
+      "survived": 1,
+      "reproExempt": 4,
+      "panelEligible": null
+    },
+    "severity": null
+  },
+  "tokens": {
+    "operative": 1100000,
+    "dispatches": 9
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": null,
+    "slicesSwept": null,
+    "slicesUnswept": null
+  },
+  "lessons": [
+    "L-001",
+    "L-005",
+    "L-009",
+    "L-010",
+    "L-011",
+    "L-012",
+    "L-013",
+    "L-014"
+  ],
+  "notes": "0 dangling, 0 failed, 0 redispatched (third consecutive perfect run) across ~1.1M operative tokens; assess-only, 0 enforcements added, redaction clean. **Two prior-row lessons verifiably landed**: the zero-items-in-non-empty-file warning fired and is what caught this run's parse failure (without it the run would have reported a plausible but wholly wrong metric set), and the redaction gate no longer crashes on a run folder. **New, load-bearing: the item-ID pattern silently rejects a letter between the hyphen and the serial** — findings tagged with a reviewer-round letter went invisible to both consumers while unrelated tags in evidence prose were counted instead, so the tool reported a confident number drawn entirely from noise; publish conforming/non-conforming examples side by side and consider widening the pattern. Related: the ID pattern over-matches domain tags inside evidence prose (13 of this target's own historical incident tags registered as unparseable findings) — match item IDs at entry-heading position only. **Register over the 120-line hard cap for the third consecutive run, cause now diagnosed**: the grammar doc budgets register-shaped files per entry while the extractor applies a flat file cap, so the cap measures finding count, not prose padding — reconcile or exempt. **Assess-only does NOT structurally cap tier at PROBABLE, contradicting the prior row** — 4 findings reached CONFIRMED by executed proof (3 repro scripts written outside the target, 1 failing read-only gate run); assess-only forbids changing the target, not executing against it, so restate the comparison rule as capping remediation, not reproduction. Findings routed to a themed sibling report are invisible to the extractor (undercounted this run by 13). A ledger row written a turn before its dispatch call is a phantom row indistinguishable from a hung operative — write-at-dispatch-time must mean atomically with the call. Lead model changed 3x mid-run (operator-initiated); identity still absent from artifacts and hand-stamped, reinforcing the prior row's unresolved request. One slice returned a well-formed zero-finding result with 5 leads each traced to a dominating guard — the metrics vocabulary cannot distinguish a covered negative from a failed dispatch"
+}

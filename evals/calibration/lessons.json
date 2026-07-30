@@ -1,0 +1,100 @@
+[
+  {
+    "id": "L-001",
+    "class": "instrument",
+    "title": "register flat cap wrong at real scale",
+    "statement": "The findings-register length budget applied a flat per-file line cap, so a legitimately large real-scale backlog tripped the hard bound every run. The cap measures finding count rather than prose padding; register-shaped artifacts need a per-entry budget instead.",
+    "firstSeen": "R-001"
+  },
+  {
+    "id": "L-002",
+    "class": "instrument",
+    "title": "extractor cannot parse prose-shaped artifacts; publish grammars, warn on zero-parse",
+    "statement": "The metrics extractor parsed zero items from present, non-empty prose-shaped artifacts and reported a silent zero that read as \"nothing here\". Publish the artifact grammars with conforming examples and warn when a non-empty artifact yields zero parsed items.",
+    "firstSeen": "R-001"
+  },
+  {
+    "id": "L-003",
+    "class": "suite",
+    "title": "accepted-by-design checks must read dated decision records",
+    "statement": "Reviewers repeatedly re-raised deliberate design choices as findings because the accepted-by-design check had no dated decision record to consult. An accepted-by-design verdict must cite a dated ADR or equivalent rather than reviewer memory.",
+    "firstSeen": "R-001"
+  },
+  {
+    "id": "L-004",
+    "class": "suite",
+    "title": "refutation panels mandatory at high severity (they killed overstated/harmful fixes)",
+    "statement": "Refutation panels killed two overstated high-severity findings, one of whose proposed fixes would have been actively harmful. Paneling stays mandatory at high severity; a paneling-coverage metric is the candidate mechanical backstop.",
+    "firstSeen": "R-001"
+  },
+  {
+    "id": "L-005",
+    "class": "instrument",
+    "title": "executed model identity absent from artifacts; tier substitution invisible",
+    "statement": "No run artifact recorded which model actually executed a dispatch or led a phase, so a silent tier substitution mid-run left no trace and the tier-mix metric was unreconstructable. Resolved model identity must be stamped into the dispatch ledger per row and per phase.",
+    "firstSeen": "R-002"
+  },
+  {
+    "id": "L-006",
+    "class": "protocol",
+    "title": "assess-only structurally caps CONFIRMED (DISPROVEN — superseded by L-012)",
+    "statement": "Recorded as a protocol rule that assess-only runs cannot reach CONFIRMED because operatives cannot execute, so ratios were only comparable within-track. A later run disproved it by reaching CONFIRMED four times through executed proof; superseded by L-012.",
+    "firstSeen": "R-002"
+  },
+  {
+    "id": "L-007",
+    "class": "instrument",
+    "title": "artifact grammars must be published with conforming examples + zero-parse warning",
+    "statement": "Extraction only started working after item IDs, tier/severity fields and ledger columns were reshaped by hand, because the expected grammars were never published. Ship the grammars with conforming examples and pair them with a zero-items-in-non-empty-file warning.",
+    "firstSeen": "R-002"
+  },
+  {
+    "id": "L-008",
+    "class": "instrument",
+    "title": "redaction gate crashes uncaught on a run folder",
+    "statement": "The redaction gate threw an uncaught error with a non-fail-closed exit code when handed a run folder, which is the invocation its own docs imply. A gate that crashes instead of failing closed silently stops gating.",
+    "firstSeen": "R-002"
+  },
+  {
+    "id": "L-009",
+    "class": "instrument",
+    "title": "item-ID pattern rejects round letter between hyphen and serial",
+    "statement": "Findings tagged with a reviewer-round letter between the hyphen and the serial were invisible to both consumers, while unrelated tags in evidence prose were counted instead, so the tool reported a confident number drawn entirely from noise. Widen the pattern and publish conforming and non-conforming examples side by side.",
+    "firstSeen": "R-003"
+  },
+  {
+    "id": "L-010",
+    "class": "instrument",
+    "title": "item-ID pattern over-matches domain tags in evidence prose",
+    "statement": "An unanchored item-ID scan counted domain tags appearing inside evidence prose as findings. Item IDs must be matched at entry-heading position only.",
+    "firstSeen": "R-003"
+  },
+  {
+    "id": "L-011",
+    "class": "instrument",
+    "title": "findings in themed sibling reports invisible to extractor",
+    "statement": "Findings routed into a themed sibling report never reached any metric, undercounting one run substantially. A sibling artifact carrying register-shaped entries must warn that its findings are not counted.",
+    "firstSeen": "R-003"
+  },
+  {
+    "id": "L-012",
+    "class": "protocol",
+    "title": "assess-only caps remediation, not reproduction",
+    "statement": "Assess-only forbids changing the target, not executing against it: findings reached CONFIRMED via repro scripts written outside the target and a failing read-only gate run. The comparison rule is restated as capping remediation rather than reproduction.",
+    "firstSeen": "R-003"
+  },
+  {
+    "id": "L-013",
+    "class": "protocol",
+    "title": "ledger row must be written atomically with the dispatch call (phantom-row hazard)",
+    "statement": "A ledger row written a turn before its dispatch call is a phantom row indistinguishable from a hung operative. Write-at-dispatch-time must mean atomically with the call itself.",
+    "firstSeen": "R-003"
+  },
+  {
+    "id": "L-014",
+    "class": "instrument",
+    "title": "metrics vocabulary cannot distinguish covered negative from failed dispatch",
+    "statement": "A slice returned a well-formed zero-finding result with every lead traced to a dominating guard, and the metrics reported it identically to a dispatch that failed. The vocabulary needs an explicit covered-negative declaration.",
+    "firstSeen": "R-003"
+  }
+]
