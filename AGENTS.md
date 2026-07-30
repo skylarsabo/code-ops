@@ -26,30 +26,47 @@ break silently.
 
 ## Model roles
 
-Whichever model leads the session (the highest tier present — Fable 5, Opus, etc.)
-plans, delegates, and reviews; it does not do the work inline. Dispatch Sonnet 5
-operatives (Agent tool, `model: "sonnet"`) for exploration, implementation, and
-verification, each with a precise self-contained brief. Operatives escalate questions
-or work they cannot do back to the lead instead of guessing; the lead answers,
-re-plans, or takes the piece over itself as last resort. The lead reviews finished
-work itself (diff + gates) before reporting done — operative self-reports are not
-acceptance.
+The global Model-roles doctrine applies: the lead plans, delegates, and reviews;
+operatives run one tier below the lead (floored at the mid tier — Fable→Opus,
+Opus→Sonnet, Sonnet→Sonnet — provider-agnostic, never below an agent's
+lint-enforced floor) and implement; operatives escalate rather than guess. Repo-specific
+deltas: the lead reviews diff + gates itself before reporting done — operative
+self-reports are not acceptance — and rigor/verification judgments (verdicts,
+CONFIRMED labels, acceptance) are issued by the highest-tier model present, never
+down-tiered. `mech` and `mech-review` are user-level agents defined outside this
+repo.
+
+The lead's reports are compact syntheses — outcome first, evidence pointers, no
+restatement of operative transcripts. Run artifacts (`EXECUTIVE_SUMMARY.md` etc.)
+cap at roughly one page, with detail living in the registers.
+
+These live-session behavioral rules — the lead reviewing diffs and gates itself,
+operative self-reports not being acceptance — are intentionally outside the mechanical
+gate layer: the routing card, dispatch ledger, and narration scan are advisories that
+surface drift, not gates that prevent it.
 
 ## Before declaring any change done
 
-Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs` — the first two
-steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the
-regression evals under `evals/`, so mirror the step covering what you touched. If you
-touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
+Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check` — the first structural steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
 --check`; `register-staleness` has no answer key — run `node evals/register-staleness/run.mjs`.
+
+The gate chain is run by a verifier/mech operative that returns only the verdict plus
+the failing excerpt; the lead reads the result and re-runs a gate itself only to settle
+a disputed outcome.
 
 ## After editing anything under `plugins/<name>/`
 
-Bump `version` in `plugins/<name>/.Codex-plugin/plugin.json`, update the matching
-`.Codex-plugin/marketplace.json` entry (lint enforces parity), and add a
-`plugins/<name>/CHANGELOG.md` entry. Scripts under `plugins/*/scripts/` are vendored
+Bump `version` in `plugins/<name>/.claude-plugin/plugin.json`, update the matching
+`.claude-plugin/marketplace.json` entry (lint enforces parity), and add a
+`plugins/<name>/CHANGELOG.md` entry. Then regenerate `codex-marketplace/` with
+`node scripts/build-codex-marketplace.mjs`; its files and `.agents/plugins/marketplace.json`
+are derived artifacts, never hand-edited. Scripts under `plugins/*/scripts/` are vendored
 byte-identical copies of `scripts/` — edit the canonical root file and re-copy; lint
 enforces parity.
+
+Install `node scripts/install-git-hooks.mjs` once per checkout. Its tracked pre-commit hook
+regenerates and stages only the derived Codex marketplace paths, while refusing unstaged or
+untracked renderer inputs; CI still rejects drift when hooks are absent or bypassed.
 
 Adding or removing a skill also requires updating the plugin README's skill list and
 `(N skills)` count, the matching count in root `README.md`, and handbook entries in both
