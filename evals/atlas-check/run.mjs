@@ -323,12 +323,17 @@ try {
     uvStamp.status === 1 && /never-stamped placeholder, not a rev/.test(uvStamp.err + uvStamp.out), uvStamp.err + uvStamp.out);
   g(C, ['branch', '-D', 'unverified']);
 
-  // A scope living inside the atlas dir is dead by exclusion, and the report must name that
-  // cause rather than suggest a typo.
+  // A scope dead only because of the atlas exclusion must name that cause rather than suggest
+  // a typo — both for a scope inside the atlas dir and for one a level up whose only tracked
+  // content is the atlas.
   writeManifest(C, { version: 1, sections: [{ ...good, scope: ['docs/atlas/**'] }] });
   const ia = run(['check', '--atlas', atlasC]);
   check('o. a scope inside the atlas dir names the exclusion as the cause',
-    ia.status === 0 && /scope lies inside the atlas directory/.test(ia.out) && !/a typo or a moved tree/.test(ia.out), ia.out);
+    ia.status === 0 && /scope matches only the atlas directory/.test(ia.out) && !/a typo or a moved tree/.test(ia.out), ia.out);
+  writeManifest(C, { version: 1, sections: [{ ...good, scope: ['docs/**'] }] });
+  const ia2 = run(['check', '--atlas', atlasC]);
+  check('o. a scope one level up whose only tracked content is the atlas also names the exclusion',
+    ia2.status === 0 && /scope matches only the atlas directory/.test(ia2.out) && !/a typo or a moved tree/.test(ia2.out), ia2.out);
   writeManifest(C, { version: 1, sections: [good] });
 
   // ============================================================ E. add + working tree

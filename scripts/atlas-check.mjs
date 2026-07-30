@@ -369,13 +369,13 @@ function cmdCheck(args) {
     const alive = git(['ls-files', '--', ...s.scope, ...excludeAtlas], root);
     if (alive.ok && lines(alive.out).length === 0) {
       stale++;
-      // Name the real cause when the scope sits inside the excluded atlas tree: that is not a
-      // typo but a section trying to describe the atlas itself, which freshness tracking
-      // deliberately does not cover.
-      const insideAtlas = excludeAtlas.length > 0
-        && s.scope.every((g) => g === atlasRel || g.startsWith(`${atlasRel}/`));
-      if (insideAtlas)
-        console.log(`  !!  STALE  ${s.slug}  — scope lies inside the atlas directory ('${atlasRel}'), which is excluded from freshness tracking: the atlas does not describe itself; re-scope it at the code`);
+      // Diagnose causally: if the same scope DOES match tracked files once the atlas exclusion
+      // is lifted, the exclusion is the cause — the scope only covers the atlas's own tree,
+      // which freshness tracking deliberately does not cover — not a typo. This catches both a
+      // scope inside the atlas dir and one a level up whose only tracked content is the atlas.
+      const woExclude = excludeAtlas.length > 0 ? git(['ls-files', '--', ...s.scope], root) : null;
+      if (woExclude?.ok && lines(woExclude.out).length > 0)
+        console.log(`  !!  STALE  ${s.slug}  — scope matches only the atlas directory ('${atlasRel}'), which is excluded from freshness tracking: the atlas does not describe itself; re-scope it at the code`);
       else
         console.log(`  !!  STALE  ${s.slug}  — scope matches no tracked file (dead scope: a typo or a moved tree; re-scope and re-stamp)`);
       continue;
@@ -405,7 +405,9 @@ function cmdCheck(args) {
   // grants it, so it is neither reported unmapped nor able to mark a segment mapped.
   const tracked = git(['ls-files', '--', ...excludeAtlas], root);
   const unmapped = [];
+  let sweepRan = true;
   if (!tracked.ok) {
+    sweepRan = false;
     console.log(`  advisory: coverage sweep skipped — git ls-files failed in ${root}: ${tracked.err.trim().split('\n')[0]}`);
   } else {
     const topOf = (p) => p.split('/')[0]; // git always reports forward slashes, on every platform
@@ -429,7 +431,9 @@ function cmdCheck(args) {
       console.log(`  advisory: unmapped top-level path '${t}' — no section scope matches a tracked file under it (scoping todo, not a trust violation)`);
   }
 
-  console.log(`\n${manifest.sections.length} section(s), ${stale} stale, ${unmapped.length} unmapped.`);
+  // The summary must not claim coverage a skipped sweep never established.
+  const unmappedCell = sweepRan ? `${unmapped.length} unmapped` : 'unmapped unknown (sweep skipped)';
+  console.log(`\n${manifest.sections.length} section(s), ${stale} stale, ${unmappedCell}.`);
   if (stale && gate) {
     console.error('--gate: stale section(s) present — re-derive and re-stamp them, or treat their claims as leads, not facts.');
     process.exit(1);
