@@ -231,4 +231,4 @@ channel. The movement graph touches private repos and session data, so it lives 
 share conventions and are **never merged**: fusing them would either leak private-repo
 detail into this repo or force the calibration store out of it.
 
-*Verified-at: 76f5718*
+*Verified-at: 0ae0160*
