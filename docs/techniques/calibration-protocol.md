@@ -181,4 +181,4 @@ planted-bug approach at real scale — and fold recall into the quality axis abo
 Seeding is optional because it requires write access to the target and is itself a
 behavior-changing act; skip it for a pure cost/orchestration calibration.
 
-*Verified-at: 09df64b*
+*Verified-at: 2df53bf*
