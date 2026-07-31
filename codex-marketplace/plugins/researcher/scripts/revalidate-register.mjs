@@ -146,7 +146,7 @@ function isItemId(id, after, afterNext) {
 // docs/techniques/artifact-grammars.md §(b)). An ID cited mid-line in a finding's own prose
 // ("duplicate of BUG-003") is a reference, not a new item — the unanchored scan split blocks on
 // every such mention and invented items out of body-text domain tags. Composed from ID_RE's own
-// source so the ID shape cannot drift between the anchored and the mid-line (receipt) scans.
+// source so the ID shape cannot drift between its two anchored uses (entry heads and receipts).
 const ENTRY_ID_RE = new RegExp('^[ \\t]*(?:#{1,6}[ \\t]+|\\|[ \\t]*)?' + ID_RE.source);
 
 // Entry heads of a register, in order: [{ 1: id, index }] — shaped like a RegExp match so the
@@ -236,16 +236,22 @@ function proofResolves(value) {
   return false;
 }
 
-// Refutation log: one verdict per line, keyed by the finding's own ID (e.g.
-// "BUG-007 · r2 · REFUTED · reviewer · src/api/limits.ts:88 · Anchor: `clamp(size, MAX)`").
+// Refutation log: one verdict per line, keyed by the finding's own ID at the START of the line
+// (e.g. "BUG-007 · r2 · REFUTED · reviewer · src/api/limits.ts:88 · Anchor: `clamp(size, MAX)`").
+// Receipt position mirrors the entry-heading position above (artifact-grammars §(b)/§(c)): a
+// round note citing findings mid-sentence is prose, not a receipt. Keyed mid-line, such a note
+// attached itself to the finding it cited as an extra verdict — a REFUTED word in explanatory
+// prose then failed a strict item whose actual panel line said SURVIVED.
 let refutationLog = null;
 if (refutationLogPath) {
   const p = isAbsolute(refutationLogPath) ? refutationLogPath : resolve(refutationLogPath);
   if (!existsSync(p)) { console.error(`x refutation log not found: ${refutationLogPath}`); process.exit(2); }
   refutationLog = new Map();
-  for (const line of readFileSync(p, 'utf8').split('\n')) {
-    const m = [...line.matchAll(ID_RE)].filter((x) => isItemId(x[1], line[x.index + x[0].length], line[x.index + x[0].length + 1]))[0];
-    if (!m || !/\b(REFUTED|SURVIVED)\b/.test(line)) continue;
+  for (const raw of readFileSync(p, 'utf8').split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    const m = ENTRY_ID_RE.exec(line);
+    if (!m || !isItemId(m[1], line[m[0].length], line[m[0].length + 1])) continue;
+    if (!/\b(REFUTED|SURVIVED)\b/.test(line)) continue;
     if (!refutationLog.has(m[1])) refutationLog.set(m[1], []);
     refutationLog.get(m[1]).push(line);
   }

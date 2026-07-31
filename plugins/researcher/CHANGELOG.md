@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.10.2
+- **Refutation receipts are keyed at line start** (vendored `revalidate-register.mjs`): an ID cited mid-sentence in a round note is prose, not a receipt. Keyed mid-line, such a note attached itself to the finding it cited as an extra verdict, and a `REFUTED` word in explanatory prose could fail a strict item whose actual panel line said SURVIVED.
+
 ## 0.10.1
 - **`CONVENTIONS.md` dispatch-ledger passage synced** to the stamped `role@model` row form and extended with the write-at-dispatch atomicity clause; the passage is now pinned byte-identically across plugins by `SHARED_PASSAGES` in `scripts/lint-plugins.mjs`.
 - **Vendored `revalidate-register.mjs` re-synced** from the canonical `scripts/revalidate-register.mjs` for the widened, heading-anchored item-ID grammar.

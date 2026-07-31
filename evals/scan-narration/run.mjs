@@ -105,6 +105,14 @@ const rcn = run([registerCoveredNegative]);
 expect(rcn.status === 0, `register-covered-negative.md should exit 0, got ${rcn.status}`);
 expect(/clean/.test(rcn.stdout || ''), 'register-covered-negative.md should report clean (NO-FINDINGS lines are not items)');
 
+// An entry ends where it stops being an entry: a trailing covered-negative block, and a
+// non-entry `## Method notes` section, terminate the entry above them instead of being charged
+// to it. Unterminated, this register's two tight entries both blew the per-entry hard bound.
+const registerTrailingNegatives = join(here, 'register-trailing-negatives.md');
+const rtn = run([registerTrailingNegatives]);
+expect(rtn.status === 0, `register-trailing-negatives.md should exit 0 (trailing blocks terminate the entry), got ${rtn.status}: ${(rtn.stdout || '') + (rtn.stderr || '')}`);
+expect(/clean/.test(rtn.stdout || ''), 'register-trailing-negatives.md should report clean — neither entry is bloated');
+
 // Usage/config errors still fail closed at exit 2.
 const missing = run([join(here, 'does-not-exist.md')]);
 expect(missing.status === 2, `missing file should exit 2, got ${missing.status}`);

@@ -11,7 +11,11 @@
 //   evidence prose does not), register-shaped files get the per-entry length budget instead of
 //   the flat cap, a themed sibling report carrying entries warns they are uncounted, a
 //   NO-FINDINGS-only register reports covered negatives instead of the zero-parse warning, and
-//   `> phase:` markers resolve to a lead-model-per-phase line plus a mid-run-change advisory.
+//   `> phase:` markers resolve to a lead-model-per-phase line plus a mid-run-change advisory. Four
+//   further boundary rules hold: a per-entry budget terminates its entry at a trailing non-entry
+//   block, refutation receipts are keyed at line start so prose citing a finding is not a verdict,
+//   the sibling-report warning reaches into subdirectories (bounded), and the tool's own report is
+//   never read back as one of those siblings.
 //   `--json <file>` emits those same numbers as one JSON object (ledger/findings/refutations/
 //   lineBudget, absent artifacts null) without disturbing the prose report or the exit contract.
 //
@@ -20,7 +24,9 @@
 //   fails, naming CODE-FENCE; a note that only mentions allowlisted standard artifact
 //   filenames and a backticked `plugin:skill` slug passes (the false-positive guard). The
 //   Machine block gates too: a note MISSING the `## Machine block` section fails closed naming
-//   the template requirement, and a block line that matches no template shape fails closed
+//   the template requirement, a note filled straight from the doc's own template validates
+//   clean (the doc and the gate are pinned against each other), and a block line that matches
+//   no template shape fails closed
 //   naming that line — while a fully conforming block (both the counted and the `unknown`
 //   variants of the optional lines) stays clean. The `atlas:` line is optional in the other
 //   sense: a note with no such line stays clean, and a present one must carry all four counts.
@@ -28,7 +34,7 @@
 //   node evals/calibration-metrics/run.mjs   (exit 0 = pass)
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -208,6 +214,54 @@ try {
   const rNoVal = run(['--artifacts', artifactsDir, '--json']);
   check('r. --json without a path exits 2', rNoVal.status === 2, rNoVal.stdout + rNoVal.stderr);
 
+  // ---- x. an entry ends where it stops being an entry --------------------------
+  // A register's trailing covered-negative block (and a mid-file `## Method notes` section) are
+  // not part of the entry above them: without a terminator they were attributed to that entry
+  // and reliably tripped its hard cap on registers that were themselves perfectly tight.
+  const x = run(['--artifacts', join(HERE, 'trailing-covered-negative')]);
+  check('x. trailing-block register exits 0', x.status === 0, x.stdout + x.stderr);
+  check('x. both entries parse', /\b2 finding\(s\), unparseable: 0\b/.test(x.stdout), x.stdout);
+  check('x. its 25 covered negatives are counted', /covered negatives: 25/.test(x.stdout), x.stdout);
+  check('x. neither entry is flagged — a non-entry trailing block terminates the entry above it',
+    !/!! HARD/.test(x.stdout) && !/\.\. advisory/.test(x.stdout), x.stdout);
+
+  // ---- y. refutation receipts are keyed at line start, not mid-line ------------
+  // Explanatory prose that cites a finding ("read BUG-001 as a duplicate of BUG-003") is not a
+  // receipt: unanchored, one such line became "unparseable" and another — because it happened to
+  // contain the word REFUTED — was counted as a second verdict for a finding already receipted.
+  const y = run(['--artifacts', join(HERE, 'prose-refutation')]);
+  check('y. prose-refutation dir exits 0', y.status === 0, y.stdout + y.stderr);
+  check('y. exactly 2 receipts, prose lines neither counted nor unparseable',
+    /\b2 receipt\(s\), unparseable: 0\b/.test(y.stdout), y.stdout);
+  check('y. the two real verdicts are read straight', /SURVIVED 1 \(50\.0%\), REFUTED 1 \(50\.0%\)/.test(y.stdout), y.stdout);
+
+  // ---- z. the sibling-report warning reaches into subdirectories ---------------
+  const z = run(['--artifacts', join(HERE, 'nested-sibling')]);
+  check('z. nested-sibling dir exits 0', z.status === 0, z.stdout + z.stderr);
+  check('z. a per-slice report in a subdirectory warns, named by its relative path',
+    /!! WARNING: slices\/SECURITY_REPORT\.md carries 2 register-shaped entry\(ies\) that are NOT counted/.test(z.stdout), z.stdout);
+  check('z. the top-level register itself never trips the warning',
+    !/WARNING: FINDINGS_REGISTER\.md carries/.test(z.stdout), z.stdout);
+  check('z. the walk is bounded — a dot-directory is not an artifact directory',
+    !/HIDDEN_REPORT\.md/.test(z.stdout), z.stdout);
+
+  // ---- aa. the tool's own report is not a themed sibling report ----------------
+  // The per-entry length lines it emits ("    FIND-004: 26 non-blank line(s)") sit at entry
+  // position, so a report written into the artifacts dir was read back as a register on the next
+  // run and warned about as findings written outside the register.
+  const selfDir = mkdtempSync(join(tmpdir(), 'coh-calmetrics-self-'));
+  cleanupDirs.push(selfDir);
+  cpSync(join(HERE, 'bloated-entry'), selfDir, { recursive: true });
+  const selfOut = join(selfDir, 'CALIBRATION_METRICS.md');
+  const aa1 = run(['--artifacts', selfDir, '--out', selfOut]);
+  check('aa. first --out run exits 0 and flags the bloated entry', aa1.status === 0 && /FIND-004: 26 non-blank line\(s\)\s+!! HARD/.test(aa1.stdout), aa1.stdout + aa1.stderr);
+  const aa2 = run(['--artifacts', selfDir, '--out', selfOut]);
+  check('aa. a second run over its own --out target does not warn about it',
+    aa2.status === 0 && !/WARNING: CALIBRATION_METRICS\.md/.test(aa2.stdout), aa2.stdout + aa2.stderr);
+  const aa3 = run(['--artifacts', selfDir]);
+  check('aa. and a run with no --out still recognizes the report it left behind',
+    aa3.status === 0 && !/WARNING: CALIBRATION_METRICS\.md/.test(aa3.stdout), aa3.stdout + aa3.stderr);
+
   // ---- MODE 2: note validation -------------------------------------------------
   const notesDir = join(HERE, 'notes');
 
@@ -296,6 +350,40 @@ try {
   check('w. a partial atlas line fails closed — all four counts or none (exit 1)', w3.status === 1, w3.stdout + w3.stderr);
   check('w. a legacy note carrying no atlas line at all is still clean — the line is optional',
     d.status === 0 && /0 machine-block hit\(s\)/.test(d.stdout) && !/atlas:/.test(cleanNote), d.stdout);
+
+  // ---- ab. a note written exactly to the template validates -------------------
+  // The template in docs/techniques/calibration-protocol.md is the shape an author fills in, so a
+  // template shape the validator rejects makes a correctly-written note fail closed. Filling it
+  // here — counts where the template asks for counts — pins the doc against the gate, so the two
+  // hand-written halves cannot drift apart again.
+  const protocolDoc = readFileSync(join(REPO, 'docs', 'techniques', 'calibration-protocol.md'), 'utf8');
+  const templateFence = protocolDoc.match(/```\r?\n(## Calibration note[\s\S]*?)```/);
+  check('ab. the sanitized-note template is extractable from the protocol doc', !!templateFence, protocolDoc.slice(0, 200));
+  if (templateFence) {
+    const filled = templateFence[1]
+      // A severity-mix placeholder is filled with the five counts, in either template shape.
+      .replace(/<c\/h\/m\/l\/n>/g, '0/6/22/9/10')
+      .replace(/<?\bN\/N\/N\/N\/N\b>?/g, '0/6/22/9/10')
+      .replace(/<YYYY-MM-DD>|\bYYYY-MM-DD\b/g, '2026-07-30')
+      .replace(/<suite>@<version>|<plugin>@<semver>/g, 'code-ops-suite@1.29.1')
+      .replace(/\s*\[, more\]/g, '')
+      .replace(/\s*\((?:or:|optional)[^)]*\)/g, '')
+      .replace(/<kebab-slug>/g, 'ts-monorepo-telephony')
+      .replace(/<instrument\|suite\|protocol>/g, 'instrument')
+      .replace(/\bassess-only\|implement\b/g, 'assess-only')
+      .replace(/\byes\|no\b/g, 'yes')
+      .replace(/\bclean\|dirty\b/g, 'clean')
+      .replace(/\bL-NNN\b/g, 'L-013')
+      .replace(/\bN\b/g, '4').replace(/\bM\b/g, '6')
+      // Everything still in angle brackets is prose the author writes in their own words.
+      .replace(/<[^>]*>/g, 'unchanged from the prior row');
+    const templateNote = join(jsonDir, 'from-template.md');
+    writeFileSync(templateNote, filled);
+    const ab = run(['--validate-note', templateNote]);
+    check('ab. a note filled straight from the template passes (exit 0)', ab.status === 0, filled + '\n---\n' + ab.stdout + ab.stderr);
+    check('ab. it reports 0 structural and 0 machine-block hits',
+      /0 structural hit\(s\)/.test(ab.stdout) && /0 machine-block hit\(s\)/.test(ab.stdout), ab.stdout);
+  }
 
   // The two leak fixtures now carry conforming blocks, so each still fails for exactly its
   // original reason rather than for a missing block.

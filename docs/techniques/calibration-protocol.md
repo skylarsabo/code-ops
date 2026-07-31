@@ -99,7 +99,7 @@ The three additions each close a hole a real run fell into:
 
 Target: <generic label, e.g. "mid-size backend service", never the repo name>
 
-Quality: CONFIRMED ratio <x>, refutation survival <x>, severity mix <c/h/m/l/n>
+Quality: CONFIRMED ratio <x>, refutation survival <x>, severity mix c/h/m/l/n as <N/N/N/N/N>
 Tokens: <n> dispatches (<tier mix>), artifact sizes <summary>
 Orchestration: dangling <x>, failed <x>, redispatched <x>
 Standardization: enforcements added <n>, traceless clean rate <x>
@@ -129,6 +129,12 @@ No paths, code fences, or URLs anywhere in a filled note — those are exactly w
 `calibration-metrics.mjs --validate-note` scrubs for and fails closed on. That applies
 to the Machine block too: it is **line-based prose, not a code block** — no fences
 around it, and no paths inside it.
+
+Write the severity mix **only** in the `c/h/m/l/n as N/N/N/N/N` form, in the prose half as
+well as the Machine block. A bare `0/6/22/9/10` is five slash-separated segments and the
+path detector reads it as a unix path, so an earlier template shape made a note written
+exactly to template fail closed. The fixed `c/h/m/l/n as` head is the pre-filtered public
+vocabulary the scrub already allows; the scrub itself is unchanged and no less strict.
 
 The Machine block is what `calibration-graph.mjs ingest` parses into a run document, so
 its shapes are load-bearing. `--validate-note` fails closed on a note **missing** the

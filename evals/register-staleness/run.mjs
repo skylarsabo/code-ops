@@ -108,10 +108,35 @@ expect(/\b2 item\(s\)/.test(bout), `boundary fixture should report exactly 2 ite
 expect(/FRESH\s+ABUG-A12\b/.test(bout) && /FRESH\s+ABUG-A13\b/.test(bout), `both lettered IDs should be items, got: ${bout}`);
 expect(!/ABUG-003|INC-2024|NO-FINDINGS/.test(bout), `prose citations and covered negatives must not become items, got: ${bout}`);
 
+// ---- refutation receipts are keyed at line start, never in mid-line prose ----------
+// A receipt is an ID at the start of its line (artifact-grammars §(c)); a round note that cites
+// findings mid-sentence is prose. Matched mid-line, the note below attached itself to RBUG-101 as
+// a second, REFUTED verdict with no re-greppable killing guard — failing a high item whose real
+// panel line says SURVIVED.
+writeFileSync(join(sdir, 'rreg.md'), [
+  '# refutation fixture', '',
+  'RBUG-101 · high item, paneled', 'Tier: PROBABLE', 'Severity: high', 'Location: code.mjs:2', 'Anchor: `auth token`',
+  'Verified-at: HEAD', 'Disconfirmation: callers checked', 'Refutation: independent — survived', 'Track: NEEDS-REVIEW', 'Proof: `node code.mjs`', '',
+].join('\n'));
+writeFileSync(join(sdir, 'rlog.md'), [
+  '# Refutation log', '',
+  'RBUG-101 · r1 · SURVIVED · reviewerA · searched: caller chain + middleware', '',
+  'Round note: the panel read RBUG-101 as REFUTED in an earlier round, before the guard landed.', '',
+].join('\n'));
+const rf = spawnSync('node', [checker, join(sdir, 'rreg.md'), '--root', sdir, '--strict', '--profile', 'finding-rigor', '--refutation-log', join(sdir, 'rlog.md')], { encoding: 'utf8' });
+const rfout = (rf.stdout || '') + (rf.stderr || '');
+expect(rf.status === 0, `a mid-line prose citation must not become a receipt (exit ${rf.status}): ${rfout.split('\n').find((l) => l.includes('RBUG-101')) || rfout}`);
+// Ignoring prose is not ignoring the panel: a log carrying ONLY such prose leaves the high item
+// with no receipt at all, and strict mode still fails closed on it.
+writeFileSync(join(sdir, 'prose-only-log.md'), '# Refutation log\n\nRound note: RBUG-101 was discussed but never paneled.\n');
+const rfProse = spawnSync('node', [checker, join(sdir, 'rreg.md'), '--root', sdir, '--strict', '--profile', 'finding-rigor', '--refutation-log', join(sdir, 'prose-only-log.md')], { encoding: 'utf8' });
+expect(rfProse.status === 1 && ((rfProse.stdout || '') + rfProse.stderr).includes('no refutation-log line'),
+  `a prose-only log leaves the high item unreceipted and must fail closed, got ${rfProse.status}`);
+
 if (fails.length) {
   console.error('FAIL — register-staleness eval:');
   for (const f of fails) console.error('  x ' + f);
   console.error('\n--- checker output ---\n' + out);
   process.exit(1);
 }
-console.log('PASS — register-staleness eval: FRESH/MOVED/DRIFTED/GONE/NO-REF classified correctly (incl. the verbatim-anchor gate + the unparseable-anchor advisory); stale register fails closed; strict schema/proof/Panel-exempt gate, consumed-mode terminal states, and the redacted-anchor carve-out all hold.');
+console.log('PASS — register-staleness eval: FRESH/MOVED/DRIFTED/GONE/NO-REF classified correctly (incl. the verbatim-anchor gate + the unparseable-anchor advisory); stale register fails closed; strict schema/proof/Panel-exempt gate, consumed-mode terminal states, and the redacted-anchor carve-out all hold; refutation receipts are keyed at line start, so prose citing a finding is never a verdict.');

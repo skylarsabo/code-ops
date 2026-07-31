@@ -80,8 +80,24 @@ at entry-heading position** — at the start of a line, optionally preceded by u
 `#` heading markers (`### BUG-007 — auth bypass`) or by a table row's leading pipe
 (`| BUG-007 | … |`, for table-form registers). An ID-shaped token sitting mid-line
 inside evidence prose no longer opens an entry, so a paragraph that mentions three
-sibling findings does not inflate the count to four. (The refutation-log grammar in (c)
-is unchanged — receipt lines still match their ID mid-line.)
+sibling findings does not inflate the count to four. The refutation-log grammar in (c)
+now matches its receipts at the same position, for the same reason.
+
+### Where an entry ends
+
+An entry runs to the last line that **belongs** to it. It is terminated by whichever comes
+first:
+
+- the next entry head;
+- a covered-negative `NO-FINDINGS:` line (see below);
+- a **non-entry markdown heading** (`## Covered negatives`, `## Method notes`) — a section
+  boundary, not part of the entry above it;
+- end of file.
+
+Both consumers of the per-entry budget apply this. Without a terminator, a register's
+trailing covered-negative block was attributed to the final entry and reliably tripped
+that entry's hard cap on a register whose entries were every one of them tight — a real
+calibration run's 47-finding register failed on its last entry for lines it did not own.
 
 ### Conforming vs. non-conforming IDs
 
@@ -121,6 +137,15 @@ those entries exist but are invisible to every register consumer. Findings belon
 `FINDINGS_REGISTER.md`; a sibling report links to entries there rather than restating
 them in entry shape.
 
+The sweep that raises this warning walks the artifact folder **recursively** (bounded by a
+depth cap, skipping dot-directories and `node_modules`), so a per-slice report written into
+a subdirectory is seen rather than silently exempt — top-level-only, an entire run's
+per-slice reports stayed invisible. `calibration-metrics.mjs`'s own report is not a run
+artifact and is excluded from the sweep — by its `--out`/`--json` path and by the
+`# calibration-metrics — ` header it always opens with — because the per-entry length lines
+it emits (`    FIND-004: 26 non-blank line(s)`) sit at entry position and otherwise read
+back as a register.
+
 Every entry carries the `Finding` schema fields (CONVENTIONS `§7`): `Tier`
 (`CONFIRMED|PROBABLE|SPECULATIVE`), `Location`, `Anchor`, `Verified-at`, `Evidence`,
 `Disconfirmation`, `Refutation`, `Impact`, `Recommendation`, `Track`
@@ -140,7 +165,8 @@ findings is no longer penalized for its length by either tool.
 
 ## (c) REFUTATION_LOG.md receipt line
 
-One receipt per line, keyed by the finding's own ID, middot-delimited (CONVENTIONS `§7`):
+One receipt per line, keyed by the finding's own ID **at the start of that line**,
+middot-delimited (CONVENTIONS `§7`):
 
 ```
 SEC-003 · r1 · SURVIVED · reviewer · searched: caller chain + middleware
@@ -150,9 +176,14 @@ BUG-007 · r2 · REFUTED · reviewer · src/api/limits.ts:88 · Anchor: `clamp(s
 Fields: item ID · panel round · verdict (`SURVIVED|REFUTED`) · panelist role · evidence
 (the search trail for `SURVIVED`; a re-greppable `file:line` + backtick/quote-delimited
 `Anchor` for `REFUTED`, so `revalidate-register.mjs --refutation-log` can confirm the
-killing guard still exists). A line that names an item ID but carries neither verdict
-token is unparseable, not silently skipped; a line with no item ID at all is prose, not
-a receipt.
+killing guard still exists). A line that opens with an item ID but carries neither verdict
+token is unparseable, not silently skipped.
+
+**Receipt position** mirrors the entry-heading position of (b): the ID must sit at the start
+of the line. A line that cites findings mid-sentence ("the panel read BUG-001 as a duplicate
+of BUG-003") is prose, not a receipt — matched mid-line, such a round note was counted as an
+unparseable receipt, and a note that happened to contain the word `REFUTED` attached itself
+to the finding it cited as a second, unanchored verdict.
 
 ## Producer/consumer contract
 

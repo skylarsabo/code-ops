@@ -93,22 +93,44 @@ const countNonBlank = (lines) => lines.filter((l) => l.replace(/\r$/, '').trim()
 // Composed from ID_RE's own source so the ID shape cannot drift between the two scans.
 const ENTRY_ID_RE = new RegExp('^[ \\t]*(?:#{1,6}[ \\t]+|\\|[ \\t]*)?' + ID_RE.source);
 
+function isEntryHead(line) {
+  const m = ENTRY_ID_RE.exec(line);
+  return !!m && isItemId(m[1], line[m[0].length], line[m[0].length + 1]);
+}
+
+// An entry runs to the last line that BELONGS to it — it is terminated by the next entry head,
+// by a covered-negative `NO-FINDINGS:` line, or by a non-entry markdown heading that opens a new
+// section (docs/techniques/artifact-grammars.md §(b) "Where an entry ends"). Without a
+// terminator, a register's trailing covered-negative block was charged to its final entry and
+// reliably blew that entry's hard bound on a register whose entries were all tight — the same
+// budget in calibration-metrics.mjs terminates entries identically.
+const NO_FINDINGS_RE = /^[ \t]*NO-FINDINGS:\s*\S/;
+const SECTION_HEADING_RE = /^[ \t]*#{1,6}[ \t]+/;
+const isEntryTerminator = (line) => NO_FINDINGS_RE.test(line) || (SECTION_HEADING_RE.test(line) && !isEntryHead(line));
+
+function entryEndLine(lines, startLine, nextEntryLine) {
+  const limit = nextEntryLine ?? lines.length;
+  for (let i = startLine + 1; i < limit; i++) {
+    if (isEntryTerminator(lines[i])) return i;
+  }
+  return nextEntryLine; // undefined = runs to EOF, exactly as before
+}
+
 // Locates each entry's start line (0-based) in a register-shaped text. Returns null when the
 // text carries no parseable item IDs at an entry position — despite the /register/i filename, it
 // isn't actually register-shaped content, so the caller falls back to the flat file-level cap
 // instead of silently exempting a free-form doc that merely has "register" in its name.
 function findRegisterEntries(text) {
+  const lines = text.split('\n').map((raw) => raw.replace(/\r$/, ''));
   const ids = [];
-  text.split('\n').forEach((raw, lineNo) => {
-    const line = raw.replace(/\r$/, '');
-    const m = ENTRY_ID_RE.exec(line);
-    if (m && isItemId(m[1], line[m[0].length], line[m[0].length + 1])) ids.push({ id: m[1], startLine: lineNo });
+  lines.forEach((line, lineNo) => {
+    if (isEntryHead(line)) ids.push({ id: ENTRY_ID_RE.exec(line)[1], startLine: lineNo });
   });
   if (ids.length === 0) return null;
   return ids.map((e, i) => ({
     id: e.id,
     startLine: e.startLine,
-    endLine: i + 1 < ids.length ? ids[i + 1].startLine : undefined, // undefined = runs to EOF
+    endLine: entryEndLine(lines, e.startLine, i + 1 < ids.length ? ids[i + 1].startLine : undefined),
   }));
 }
 

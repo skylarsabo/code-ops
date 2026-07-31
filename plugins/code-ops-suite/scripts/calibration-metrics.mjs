@@ -24,8 +24,13 @@
 // mid-run. Register entries are detected only at an entry-heading position, so an ID cited in
 // evidence prose no longer inflates the finding count; a register that parses to zero entries
 // but declares `NO-FINDINGS:` slices reports covered negatives instead of the zero-parse
-// warning; and any OTHER .md carrying register-shaped entries gets a warning that its findings
-// are not counted here. This mode always exits 0: it reports a run's shape, it does not gate it.
+// warning; and any OTHER .md carrying register-shaped entries — anywhere in the artifact folder,
+// which is walked recursively but bounded, so per-slice reports in subdirectories are seen — gets
+// a warning that its findings are not counted here (this tool's own report, recognized by its
+// --out/--json path or its header line, is not a run artifact and is skipped). Per-entry length
+// budgets terminate an entry at the next entry head, a `NO-FINDINGS:` line, or a non-entry
+// heading, so a trailing block is not charged to the entry above it.
+// This mode always exits 0: it reports a run's shape, it does not gate it.
 // `--json <file>` additionally writes the same numbers the prose lines print as one JSON object
 // (see MACHINE_SHAPE below) for the calibration graph's ingest side; the prose report is
 // byte-identical with and without it, and a failed JSON write is reported on stderr without
@@ -136,17 +141,22 @@ function isItemId(id, after, afterNext) {
 // from ID_RE's own source so the ID shape cannot drift between the anchored and mid-line scans.
 const ENTRY_ID_RE = new RegExp('^[ \\t]*(?:#{1,6}[ \\t]+|\\|[ \\t]*)?' + ID_RE.source);
 
+// The item ID this line opens an entry (or a refutation receipt) with, or null when the line
+// carries none at that position. One truth for "does an ID sit at entry-heading position".
+function entryIdAt(line) {
+  const m = ENTRY_ID_RE.exec(line);
+  if (!m) return null;
+  return isItemId(m[1], line[m[0].length], line[m[0].length + 1]) ? { id: m[1], prefixLength: m[0].length - m[1].length } : null;
+}
+
 // Returns [{ id, index, line }] — absolute character offset and 0-based line of each entry head.
 function findEntryIds(text) {
   const out = [];
   let offset = 0;
   text.split('\n').forEach((raw, lineNo) => {
     const line = raw.replace(/\r$/, '');
-    const m = ENTRY_ID_RE.exec(line);
-    if (m) {
-      const index = offset + m[0].length - m[1].length;
-      if (isItemId(m[1], text[index + m[1].length], text[index + m[1].length + 1])) out.push({ id: m[1], index, line: lineNo });
-    }
+    const hit = entryIdAt(line);
+    if (hit) out.push({ id: hit.id, index: offset + hit.prefixLength, line: lineNo });
     offset += raw.length + 1;
   });
   return out;
@@ -158,6 +168,22 @@ function findEntryIds(text) {
 const NO_FINDINGS_RE = /^[ \t]*NO-FINDINGS:\s*\S/;
 
 const countCoveredNegatives = (text) => text.split('\n').filter((l) => NO_FINDINGS_RE.test(l.replace(/\r$/, ''))).length;
+
+// An entry runs to the last line that BELONGS to it — it is terminated by the next entry
+// heading, by a covered-negative `NO-FINDINGS:` line, or by a non-entry markdown heading that
+// opens a new section (docs/techniques/artifact-grammars.md §(b) "Where an entry ends"). Without
+// a terminator, a register's trailing covered-negative block was attributed to its final entry
+// and reliably tripped that entry's hard cap on a register whose entries were all tight.
+const SECTION_HEADING_RE = /^[ \t]*#{1,6}[ \t]+/;
+const isEntryTerminator = (line) => NO_FINDINGS_RE.test(line) || (SECTION_HEADING_RE.test(line) && !entryIdAt(line));
+
+function entryEndLine(fileLines, startLine, nextEntryLine) {
+  const limit = nextEntryLine ?? fileLines.length;
+  for (let i = startLine + 1; i < limit; i++) {
+    if (isEntryTerminator(fileLines[i].replace(/\r$/, ''))) return i;
+  }
+  return limit;
+}
 
 // Per-item Tier (CONFIRMED/PROBABLE/SPECULATIVE) and Severity fields, per revalidate-register's
 // schema (CONVENTIONS §7). An item with no Tier field, or a Tier value outside the known set,
@@ -185,9 +211,13 @@ function summarizeRegister(text) {
 }
 
 // Refutation-log receipt lines per revalidate-register.mjs's comment grammar: one verdict per
-// line, keyed by the finding's own ID, carrying a SURVIVED|REFUTED token. A line that carries an
-// item ID (so it reads as a receipt) but no recognized verdict token is unparseable — counted,
-// never dropped silently. A line with no item ID at all (prose, headers) is not a receipt row.
+// line, keyed by the finding's own ID, carrying a SURVIVED|REFUTED token. A receipt is keyed by
+// an ID at RECEIPT POSITION — the start of the line — mirroring the entry-heading position
+// registers use (docs/techniques/artifact-grammars.md §(b)/§(c)). An ID cited mid-line in
+// explanatory prose ("read BUG-001 as a duplicate of BUG-003") is a citation, not a receipt:
+// matched mid-line, such a line was counted unparseable, or — when the prose happened to carry a
+// verdict word — as a second verdict for a finding already receipted. A line whose leading ID
+// carries no recognized verdict token is still unparseable: counted, never dropped silently.
 const VERDICT_RE = /\b(SURVIVED|REFUTED)\b/;
 
 function summarizeRefutation(text) {
@@ -195,8 +225,7 @@ function summarizeRefutation(text) {
   for (const raw of text.split('\n')) {
     const line = raw.replace(/\r$/, '');
     if (!line.trim()) continue;
-    const ids = [...line.matchAll(ID_RE)].filter((m) => isItemId(m[1], line[m.index + m[0].length], line[m.index + m[0].length + 1]));
-    if (ids.length === 0) continue; // not a receipt row
+    if (!entryIdAt(line)) continue; // not a receipt row
     const vm = line.match(VERDICT_RE);
     if (!vm) { malformed++; continue; }
     total++;
@@ -223,6 +252,43 @@ const isRegisterArtifact = (label) => /register/i.test(label);
 // The three artifacts this mode parses metrics from; any OTHER .md carrying register-shaped
 // entries is a themed sibling report whose findings never reach the metrics (see the sweep).
 const METRIC_ARTIFACTS = new Set(['DISPATCH_LEDGER.MD', 'FINDINGS_REGISTER.MD', 'REFUTATION_LOG.MD']);
+
+// The artifact folder is walked RECURSIVELY: a run that writes per-slice reports into
+// subdirectories was previously scanned top-level only, so those reports' entry-shaped findings
+// stayed invisible to the sibling-report warning and to every register consumer. The walk is
+// bounded — a depth cap plus the usual non-artifact directories — so it stays proportional to a
+// run's artifact folder even if one is nested inside a working tree.
+const WALK_MAX_DEPTH = 4;
+const SKIPPED_DIRS = new Set(['node_modules', '.git']);
+const isSkippedDir = (name) => name.startsWith('.') || SKIPPED_DIRS.has(name);
+
+// Returns forward-slash relative paths, sorted, so a report reads the same on every platform.
+function listMarkdown(dir, prefix = '', depth = 0) {
+  let names = [];
+  try { names = readdirSync(dir).sort(); }
+  catch { return []; }
+  const out = [];
+  for (const name of names) {
+    const full = join(dir, name);
+    const rel = prefix ? `${prefix}/${name}` : name;
+    let st;
+    try { st = statSync(full); } catch { continue; }
+    if (st.isDirectory()) {
+      if (depth >= WALK_MAX_DEPTH || isSkippedDir(name)) continue;
+      out.push(...listMarkdown(full, rel, depth + 1));
+    } else if (st.isFile() && name.toLowerCase().endsWith('.md')) {
+      out.push(rel);
+    }
+  }
+  return out;
+}
+
+// This tool's own report is not a run artifact: the per-entry length lines it emits
+// ("    FIND-004: 26 non-blank line(s)") sit at entry position, so a report left in the artifact
+// folder was read back as a register and warned about as findings written outside one. It is
+// recognized by its `--out`/`--json` path and, for a report left by an earlier run under any
+// name, by the header line it always opens with.
+const SELF_REPORT_HEAD_RE = /^# calibration-metrics — /;
 
 const countNonBlank = (lines) => lines.filter((l) => l.replace(/\r$/, '').trim() !== '').length;
 
@@ -347,11 +413,8 @@ function runMetrics(dir, outPath, jsonPath) {
   // ---- per-artifact line counts (CONVENTIONS §12 length discipline) ------------
   p(`\n## Artifact line counts (advisory ${ADVISORY_LINES} / hard ${HARD_LINES} non-blank lines, CONVENTIONS §12;`
     + ` register-shaped files: per-entry ${REGISTER_ENTRY_ADVISORY_LINES}/${REGISTER_ENTRY_HARD_LINES}, preamble ${REGISTER_PREAMBLE_ADVISORY_LINES}/${REGISTER_PREAMBLE_HARD_LINES})`);
-  let mdFiles = [];
-  if (existsSync(dir)) {
-    try { mdFiles = readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.md') && statSync(join(dir, f)).isFile()).sort(); }
-    catch { mdFiles = []; }
-  }
+  const selfReportPaths = new Set([outPath, jsonPath].filter(Boolean).map((pth) => resolve(pth)));
+  const mdFiles = existsSync(dir) ? listMarkdown(dir) : [];
   if (mdFiles.length === 0) {
     p('  (no .md artifacts found)');
   } else {
@@ -359,6 +422,10 @@ function runMetrics(dir, outPath, jsonPath) {
       let text;
       try { text = readFileSync(join(dir, f), 'utf8'); }
       catch (e) { p(`  ${f}: unreadable (${e.message})`); machine.lineBudget.push({ file: f, nonBlank: null, entries: null, flags: ['unreadable'] }); continue; }
+      if (selfReportPaths.has(resolve(join(dir, f))) || SELF_REPORT_HEAD_RE.test(text.split('\n')[0] ?? '')) {
+        p(`  ${f}: skipped — this tool's own report, not a run artifact`);
+        continue;
+      }
       const fileLines = text.split('\n');
       const entries = findEntryIds(text);
       const budget = { file: f, nonBlank: countNonBlank(fileLines), entries: null, flags: [] };
@@ -373,7 +440,7 @@ function runMetrics(dir, outPath, jsonPath) {
         if (preamble > REGISTER_PREAMBLE_HARD_LINES) { p(`    preamble: ${preamble} non-blank line(s)  !! HARD`); budget.flags.push('preamble HARD'); }
         else if (preamble > REGISTER_PREAMBLE_ADVISORY_LINES) { p(`    preamble: ${preamble} non-blank line(s)  .. advisory`); budget.flags.push('preamble advisory'); }
         for (let i = 0; i < entries.length; i++) {
-          const n = countNonBlank(fileLines.slice(entries[i].line, entries[i + 1]?.line ?? fileLines.length));
+          const n = countNonBlank(fileLines.slice(entries[i].line, entryEndLine(fileLines, entries[i].line, entries[i + 1]?.line)));
           if (n > REGISTER_ENTRY_HARD_LINES) { p(`    ${entries[i].id}: ${n} non-blank line(s)  !! HARD`); budget.flags.push(`${entries[i].id} HARD`); }
           else if (n > REGISTER_ENTRY_ADVISORY_LINES) { p(`    ${entries[i].id}: ${n} non-blank line(s)  .. advisory`); budget.flags.push(`${entries[i].id} advisory`); }
         }
