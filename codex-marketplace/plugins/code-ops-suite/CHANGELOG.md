@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.31.0
+- **Failed rate and redispatch rate are no longer mutually exclusive per unit.** A ledger row carries one status cell, so a unit that failed and was then retried read as `redispatched` alone and the pair understated recovery. `calibration-metrics.mjs` now derives both rates from the ledger's write journal when one sits beside it: a unit counts toward the failed rate if it EVER entered `failed` and toward the redispatch rate if it was EVER redispatched, independently. The row grammar is unchanged.
+- **The basis is always stated, and a degraded rate is never silent.** The report carries a `rate basis:` line — `journal-derived`, or `snapshot-only` for a pre-journal artifact folder. A journal that is present but carries an unreadable or malformed line is rejected WHOLE (never partly used), its violations printed as `!! JOURNAL`, with the fallback named on the basis line. The dangling rate and the `by status` breakdown still report final status, by definition.
+- `--json` gains `ledger.journal { present, derived, violations }` plus `ledger.everFailed` / `ledger.everRedispatched` — the numbers the two rate lines print.
+
 ## 1.30.1
 - **Four register/refutation grammar fixes, each pinned by a regression case.** A per-entry length budget now terminates its entry at the next entry head, a covered-negative `NO-FINDINGS:` line, or a non-entry heading, so a trailing block is no longer charged to the entry above it; refutation receipts are keyed by an ID at the START of the line, so prose citing a finding is neither an unparseable receipt nor a second verdict; the themed-sibling-report warning walks the artifact folder recursively (bounded by depth, skipping dot-directories and `node_modules`) so per-slice reports in subdirectories are seen; and `calibration-metrics.mjs` no longer reads its own report back as a sibling register.
 - **The sanitized-note template prescribes a severity mix the note gate accepts.** The prose half now reads `severity mix c/h/m/l/n as <N/N/N/N/N>` — a bare `0/6/22/9/10` is five slash-separated segments and the path scrub read it as a unix path, so a note written exactly to template failed closed. The scrub itself is unchanged and no less strict.

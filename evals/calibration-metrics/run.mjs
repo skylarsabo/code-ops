@@ -16,6 +16,10 @@
 //   block, refutation receipts are keyed at line start so prose citing a finding is not a verdict,
 //   the sibling-report warning reaches into subdirectories (bounded), and the tool's own report is
 //   never read back as one of those siblings.
+//   Failed/redispatch rates are derived from the ledger's write journal when one sits beside it,
+//   so a unit that failed AND was retried counts toward both rates instead of only its final
+//   status; a ledger with no journal keeps the snapshot counting, and a corrupt journal is named
+//   and falls back loudly rather than silently.
 //   `--json <file>` emits those same numbers as one JSON object (ledger/findings/refutations/
 //   lineBudget, absent artifacts null) without disturbing the prose report or the exit contract.
 //
@@ -261,6 +265,50 @@ try {
   const aa3 = run(['--artifacts', selfDir]);
   check('aa. and a run with no --out still recognizes the report it left behind',
     aa3.status === 0 && !/WARNING: CALIBRATION_METRICS\.md/.test(aa3.stdout), aa3.stdout + aa3.stderr);
+
+  // ---- ac. journal-derived failed/redispatch rates ----------------------------
+  // A row's single status cell holds only the FINAL status, so a unit that failed and was then
+  // redispatched counted toward exactly one of the two rates — the pair understated recovery.
+  // The write journal beside the ledger records every transition, so both hold independently.
+  const ac = run(['--artifacts', join(HERE, 'journal-ledger')]);
+  check('ac. journal-backed ledger exits 0', ac.status === 0, ac.stdout + ac.stderr);
+  check('ac. both rows parse', /\b2 dispatch\(es\), unparseable: 0\b/.test(ac.stdout), ac.stdout);
+  check('ac. the failed-then-redispatched unit counts toward the failed rate (snapshot says 0/2)',
+    /failed rate: 50\.0% \(1\/2\)/.test(ac.stdout), ac.stdout);
+  check('ac. and toward the redispatched rate, independently',
+    /redispatched rate: 50\.0% \(1\/2\)/.test(ac.stdout), ac.stdout);
+  check('ac. the report says the rates are journal-derived', /rate basis: journal-derived/.test(ac.stdout), ac.stdout);
+  check('ac. dangling stays a final-status question', /dangling rate: 0\.0% \(0\/2\)/.test(ac.stdout), ac.stdout);
+  check('ac. by status still reports the snapshot (final) statuses',
+    /by status: dispatched 0 \(0\.0%\), reported 1 \(50\.0%\), failed 0 \(0\.0%\), redispatched 1 \(50\.0%\)/.test(ac.stdout), ac.stdout);
+
+  const acJson = join(jsonDir, 'journal.json');
+  const acj = run(['--artifacts', join(HERE, 'journal-ledger'), '--json', acJson]);
+  check('ac. --json on the journal fixture exits 0', acj.status === 0, acj.stdout + acj.stderr);
+  let aj = null;
+  try { aj = JSON.parse(readFileSync(acJson, 'utf8')); } catch (e) { aj = { parseError: String(e.message) }; }
+  check('ac. the machine shape carries the journal-derived ever-counts',
+    aj?.ledger?.journal?.derived === true && aj?.ledger?.everFailed === 1 && aj?.ledger?.everRedispatched === 1,
+    JSON.stringify(aj?.ledger));
+
+  // A pre-journal artifact folder keeps the snapshot-only counting exactly as before.
+  check('ac. a ledger with no journal falls back to snapshot counting, and says so',
+    /rate basis: snapshot-only/.test(a.stdout) && /failed rate: 16\.7% \(1\/6\)/.test(a.stdout), a.stdout);
+
+  // ---- ad. a corrupt journal never degrades silently ---------------------------
+  const ad = run(['--artifacts', join(HERE, 'corrupt-journal')]);
+  check('ad. corrupt-journal dir still exits 0 (mode 1 never gates)', ad.status === 0, ad.stdout + ad.stderr);
+  check('ad. the unreadable journal line is named, not swallowed',
+    /!! JOURNAL .*J2: unparseable journal line/.test(ad.stdout), ad.stdout);
+  check('ad. the fallback to snapshot counting is announced, never silent',
+    /rate basis: snapshot-only \(journal present but rejected/.test(ad.stdout), ad.stdout);
+  const adJson = join(jsonDir, 'corrupt.json');
+  const adj = run(['--artifacts', join(HERE, 'corrupt-journal'), '--json', adJson]);
+  let dj = null;
+  try { dj = JSON.parse(readFileSync(adJson, 'utf8')); } catch (e) { dj = { parseError: String(e.message) }; }
+  check('ad. the machine shape reports the journal as present, rejected, with its violation count',
+    adj.status === 0 && dj?.ledger?.journal?.present === true && dj?.ledger?.journal?.derived === false
+    && dj?.ledger?.journal?.violations === 1, JSON.stringify(dj?.ledger?.journal));
 
   // ---- MODE 2: note validation -------------------------------------------------
   const notesDir = join(HERE, 'notes');

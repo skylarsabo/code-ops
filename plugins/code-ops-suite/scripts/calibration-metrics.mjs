@@ -18,6 +18,14 @@
 // referenced scripts use). A present, non-empty artifact that yields zero parsed items gets a
 // WARNING line naming it and pointing at docs/techniques/artifact-grammars.md — zero-parse on
 // non-empty text means shape drift, not absence (the finding that motivated this warning). The
+// The failed and redispatch rates are JOURNAL-FIRST: when the ledger's write journal
+// (`DISPATCH_LEDGER.md.journal.jsonl`, scripts/dispatch-ledger.mjs) sits beside it, per-unit history
+// is replayed from it, so a unit that entered `failed` AND was later `redispatched` counts toward
+// both rates independently — a row's single status cell holds only the final status, which made the
+// two rates mutually exclusive per unit and understated recovery. A pre-journal artifact folder
+// falls back to the snapshot statuses, and a journal that is present but has any unreadable or
+// malformed line is REJECTED whole (never partly used) with its violations printed; either way the
+// report names which basis it used, so a fallback is never silent. The
 // ledger's role@model stamp (scripts/dispatch-ledger.mjs) is also parsed into a tier-mix line
 // (dispatch count per model; an unstamped role cell counts as "unstamped"), and its positional
 // `> phase:` markers into a lead-model-per-phase line plus an advisory when the lead changed
@@ -78,10 +86,57 @@ const LEDGER_STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
 // presided over each stretch of dispatches stays reconstructable after the run.
 const PHASE_LINE_RE = /^>\s*phase:\s*(.+?)\s*·\s*lead@(\S+)\s*$/;
 
+// The ledger's write journal (`<ledger>.journal.jsonl`, written by scripts/dispatch-ledger.mjs)
+// replayed into the SET of statuses each id ever held — not just the final one the row shows.
+// WHY: a row carries one status cell, so a unit that failed and was then retried reads only as
+// `redispatched`; failed-rate and redispatch-rate were therefore mutually exclusive per unit and
+// the pair understated recovery (a real-scale calibration run's lesson). The journal records every
+// transition, so both facts about one unit stay reconstructable from a finished artifact folder.
+// Violations mirror dispatch-ledger.mjs's `check`: a line that cannot be read is a journal that
+// cannot be trusted to prove anything, so the whole journal is rejected rather than partly used.
+function replayJournalHistory(text) {
+  const history = new Map();
+  const violations = [];
+  text.split('\n').forEach((raw, idx) => {
+    const line = raw.replace(/\r$/, '').trim();
+    if (line === '') return;
+    const at = `J${idx + 1}`;
+    let e;
+    try { e = JSON.parse(line); }
+    catch { violations.push(`${at}: unparseable journal line: ${line.slice(0, 100)}`); return; }
+    if (!e || typeof e !== 'object' || Array.isArray(e)) { violations.push(`${at}: journal entry is not an object: ${line.slice(0, 100)}`); return; }
+    if (e.op === 'phase') {
+      if (typeof e.title !== 'string' || e.title === '') violations.push(`${at}: phase entry needs a non-empty title: ${line.slice(0, 100)}`);
+      return;
+    }
+    if (e.op === 'add') {
+      if (typeof e.id !== 'string' || !/^D-\d+$/.test(e.id) || e.status !== 'dispatched') { violations.push(`${at}: malformed add entry: ${line.slice(0, 100)}`); return; }
+      if (history.has(e.id)) { violations.push(`${at}: duplicate add for ${e.id}`); return; }
+      history.set(e.id, new Set([e.status]));
+      return;
+    }
+    if (e.op === 'update') {
+      if (typeof e.id !== 'string' || !/^D-\d+$/.test(e.id) || !LEDGER_STATUSES.includes(e.to)) { violations.push(`${at}: malformed update entry: ${line.slice(0, 100)}`); return; }
+      if (!history.has(e.id)) { violations.push(`${at}: update for ${e.id}, which was never added`); return; }
+      history.get(e.id).add(e.to);
+      return;
+    }
+    violations.push(`${at}: unknown journal op: ${line.slice(0, 100)}`);
+  });
+  return { history, violations };
+}
+
 // Row grammar per scripts/dispatch-ledger.mjs: | D-NNN | role | brief | expected artifact | status |.
 // A row whose shape doesn't match, or whose status isn't one of the four known values, is
 // unparseable — counted, never dropped silently.
-function summarizeLedger(text) {
+//
+// `journalText` is the ledger's write journal when one sits beside it, and null for a pre-journal
+// artifact folder. Journal-first: with a clean journal, a unit counts toward failed-rate if it EVER
+// entered `failed` and toward redispatch-rate if it was EVER redispatched, independently. Without
+// one — or with one that has any violation — counting falls back to the snapshot statuses exactly
+// as before, and the caller says which basis it used. Dangling stays a final-status question by
+// definition: a row is dangling only if it is STILL `dispatched`.
+function summarizeLedger(text, journalText = null) {
   const rows = [];
   const phases = [];
   let phase = null;
@@ -115,7 +170,23 @@ function summarizeLedger(text) {
     byModel[model] = (byModel[model] ?? 0) + 1;
   }
   const pct = (n) => (total ? ((n / total) * 100).toFixed(1) : '0.0');
-  return { total, malformed, byRole, byStatus, byModel, phases, pct };
+
+  const journal = { present: journalText !== null, derived: false, violations: [] };
+  let everFailed = byStatus.failed;
+  let everRedispatched = byStatus.redispatched;
+  if (journalText !== null) {
+    const { history, violations } = replayJournalHistory(journalText);
+    journal.violations = violations;
+    if (!violations.length) {
+      journal.derived = true;
+      // A row with no journaled history (a phantom row, per dispatch-ledger.mjs) still contributes
+      // its own final status: the union can only ever ADD facts the snapshot already carried.
+      const everHeld = (r) => new Set([...(history.get(r.id) ?? []), r.status]);
+      everFailed = rows.filter((r) => everHeld(r).has('failed')).length;
+      everRedispatched = rows.filter((r) => everHeld(r).has('redispatched')).length;
+    }
+  }
+  return { total, malformed, byRole, byStatus, byModel, phases, pct, journal, everFailed, everRedispatched };
 }
 
 // Findings-register item IDs per revalidate-register.mjs's grammar (e.g. BUG-007, PERF-003,
@@ -305,12 +376,15 @@ function headShaFor(cwd) {
 }
 
 // MACHINE_SHAPE (--json): the prose report's own numbers, nothing derived and nothing new.
-//   { ledger:      { total, malformed, byRole, byStatus, byModel, phases: [{title, lead, rows}] } | null,
+//   { ledger:      { total, malformed, byRole, byStatus, byModel, phases: [{title, lead, rows}],
+//                    journal: { present, derived, violations }, everFailed, everRedispatched }     | null,
 //     findings:    { totalItems, malformed, total, byTier, bySeverity, coveredNegatives }        | null,
 //     refutations: { total, survived, refuted, malformed }                                       | null,
 //     lineBudget:  [{ file, nonBlank, entries: N|null, flags: [...] }] }
 // An artifact that is absent (or unreadable) is null — the same "not present" the prose reports,
-// never a zero that would read as a measured value. `entries` is null for a file scored on the
+// never a zero that would read as a measured value. `everFailed`/`everRedispatched` are the numbers
+// the failed/redispatch rate lines print, and `journal.derived` says whether they came from the
+// journal or fell back to the snapshot statuses. `entries` is null for a file scored on the
 // flat cap and the entry count for one scored per entry; `flags` carries the length flags the
 // prose emits for that file ('HARD'/'advisory', or '<id> HARD'/'preamble advisory' per entry).
 function runMetrics(dir, outPath, jsonPath) {
@@ -343,10 +417,12 @@ function runMetrics(dir, outPath, jsonPath) {
   if (ledgerText === null) {
     p('  not present');
   } else {
-    const s = summarizeLedger(ledgerText);
+    const s = summarizeLedger(ledgerText, readIfPresent('DISPATCH_LEDGER.md.journal.jsonl'));
     machine.ledger = {
       total: s.total, malformed: s.malformed, byRole: s.byRole, byStatus: s.byStatus, byModel: s.byModel,
       phases: s.phases.map((ph) => ({ title: ph.title, lead: ph.lead, rows: ph.rows })),
+      journal: { present: s.journal.present, derived: s.journal.derived, violations: s.journal.violations.length },
+      everFailed: s.everFailed, everRedispatched: s.everRedispatched,
     };
     p(`  ${s.total} dispatch(es), unparseable: ${s.malformed}`);
     if (s.total === 0) warnZeroParse('DISPATCH_LEDGER.md', ledgerText);
@@ -354,9 +430,17 @@ function runMetrics(dir, outPath, jsonPath) {
     p(`  by role: ${roleList}`);
     const statusList = LEDGER_STATUSES.map((st) => `${st} ${s.byStatus[st]} (${s.pct(s.byStatus[st])}%)`).join(', ');
     p(`  by status: ${statusList}`);
+    // A rejected journal is never a silent fallback: its violations are printed like any other
+    // unreadable input, and the basis line says the rates below came from the snapshot instead.
+    for (const v of s.journal.violations) p(`  !! JOURNAL  ${v}`);
     p(`  dangling rate: ${s.pct(s.byStatus.dispatched)}% (${s.byStatus.dispatched}/${s.total})`);
-    p(`  failed rate: ${s.pct(s.byStatus.failed)}% (${s.byStatus.failed}/${s.total})`);
-    p(`  redispatched rate: ${s.pct(s.byStatus.redispatched)}% (${s.byStatus.redispatched}/${s.total})`);
+    p(`  failed rate: ${s.pct(s.everFailed)}% (${s.everFailed}/${s.total})`);
+    p(`  redispatched rate: ${s.pct(s.everRedispatched)}% (${s.everRedispatched}/${s.total})`);
+    p(`  rate basis: ${s.journal.derived
+      ? 'journal-derived — a unit counts toward failed and redispatched independently, from every status it ever held'
+      : s.journal.present
+        ? `snapshot-only (journal present but rejected: ${s.journal.violations.length} violation(s) above) — a unit that failed and was then retried counts only as redispatched`
+        : 'snapshot-only (no write journal beside the ledger) — a unit that failed and was then retried counts only as redispatched'}`);
     const modelList = Object.entries(s.byModel).map(([m, n]) => `${m} ${n}`).join(', ') || '(none)';
     p(`  tier mix: ${modelList}`);
     // Phase markers are optional: a ledger without them reports nothing extra here.

@@ -49,6 +49,30 @@ missing title, missing ` · lead@`, or an empty model) rather than skipping it a
 when the lead model changes mid-run — a lead swap between phases is a legitimate but
 noteworthy event, not a silent one.
 
+### Orchestration rates are journal-first
+
+`dispatch-ledger.mjs` also maintains a write journal beside the ledger,
+`DISPATCH_LEDGER.md.journal.jsonl` — one JSONL entry per `add`/`update`/`phase`, appended
+at write time. `check` replays it to catch phantom rows; `calibration-metrics.mjs` replays
+it for a second reason: a row's `status` cell holds only the **final** status, so a unit
+that failed and was then retried reads as `redispatched` alone. Failed-rate and
+redispatch-rate were therefore mutually exclusive for one unit, and the pair understated
+recovery.
+
+So the two rates are derived **journal-first**:
+
+- **Journal present and clean** — per-unit history is replayed from it. A unit counts
+  toward the failed rate if it **ever** entered `failed`, and toward the redispatch rate if
+  it was **ever** redispatched, independently. The report says `rate basis: journal-derived`.
+- **No journal** (a pre-journal artifact folder) — the snapshot statuses are counted exactly
+  as before, and the report says `rate basis: snapshot-only`.
+- **Journal present but malformed** — an unreadable line means the journal cannot be trusted
+  to prove anything, so it is rejected **whole**, never partly used. Each violation prints as
+  `!! JOURNAL`, and the basis line names the fallback: a degraded rate is never silent.
+
+The dangling rate is untouched by this: still-`dispatched` is a question about the final
+status by definition. `by status` likewise keeps reporting the snapshot.
+
 ## (b) FINDINGS_REGISTER.md entry
 
 An entry begins where an item ID matching `revalidate-register.mjs`'s `ID_RE` appears

@@ -1,0 +1,5 @@
+{"op":"add","id":"D-001","status":"dispatched"}
+{"op":"update","id":"D-001","to":"failed"}
+{"op":"update","id":"D-001","to":"redispatched"}
+{"op":"add","id":"D-002","status":"dispatched"}
+{"op":"update","id":"D-002","to":"reported"}
