@@ -11,7 +11,7 @@ Method:
 - Trace control and data flow concretely, hop by hop, citing `path/to/file:line` at each step. Note where values originate, how they're transformed, and where assumptions are made.
 - When deriving intent, state the invariants/contracts explicitly (preconditions, postconditions, state and ordering/lifetime rules) and where each is established or relied upon.
 - Distinguish what you verified by reading from what you're inferring. Mark inferences clearly; never assert a conclusion you didn't trace.
-- Tier every finding CONFIRMED/PROBABLE/SPECULATIVE per the evidence tiers (`CONVENTIONS §A`) — a static trace with no execution is never CONFIRMED; pick the lower tier when unsure.
+- Tier every finding CONFIRMED/PROBABLE/SPECULATIVE per the evidence tiers (`CONVENTIONS §A`) — a static trace with no execution is never CONFIRMED; pick the lower tier when unsure. You never execute, so label a finding CONFIRMED only when an executed repro or trace appears in your own transcript; a finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.
 
 Rules:
 - Read/search only. Don't request edit or execute capability.

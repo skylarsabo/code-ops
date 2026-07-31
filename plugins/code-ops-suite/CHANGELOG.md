@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.32.0
+- **Tier discipline is enforced at the operative boundary** (`CONVENTIONS.md` §7, `agents/reviewer.md`): an operative may label a finding CONFIRMED only when an executed repro or trace sits in its own transcript; a statically-argued finding caps at PROBABLE and only the lead promotes it. Calibration run R-004 saw six findings arrive labelled CONFIRMED on static reasoning alone, which made the confirmed ratio measure labelling discipline rather than evidence depth.
+- **Operative reports are persisted in the turn they land** (`CONVENTIONS.md` §1): the report goes to the run's artifact folder before any other work, because a report that lives only in the conversation is one blocked turn from being lost.
+- **Report shape is gated before a unit counts as covered** (`CONVENTIONS.md` §1): a brief that never reached its operative looks exactly like a completed dispatch in the dispatch record until someone reads the report.
+- **Refutation panels are staffed by distinct lenses** (`CONVENTIONS.md` §7): an odd panel of identical skeptics can repeat one reader's misread and confirm the wrong answer by majority; correctness, configuration-reading, and reachability are separate seats.
+
 ## 1.31.0
 - **Failed rate and redispatch rate are no longer mutually exclusive per unit.** A ledger row carries one status cell, so a unit that failed and was then retried read as `redispatched` alone and the pair understated recovery. `calibration-metrics.mjs` now derives both rates from the ledger's write journal when one sits beside it: a unit counts toward the failed rate if it EVER entered `failed` and toward the redispatch rate if it was EVER redispatched, independently. The row grammar is unchanged.
 - **The basis is always stated, and a degraded rate is never silent.** The report carries a `rate basis:` line — `journal-derived`, or `snapshot-only` for a pre-journal artifact folder. A journal that is present but carries an unreadable or malformed line is rejected WHOLE (never partly used), its violations printed as `!! JOURNAL`, with the fallback named on the basis line. The dangling rate and the `by status` breakdown still report final status, by definition.

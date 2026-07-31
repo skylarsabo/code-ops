@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 0.10.3
+- **Operative reports are persisted in the turn they land, and gated on shape before their unit counts as covered** (`CONVENTIONS.md` §1): a report that lives only in the conversation is one blocked turn from being lost, and a brief that never reached its operative is indistinguishable from a completed dispatch until the report is read.
+
 ## 0.10.2
 - **Refutation receipts are keyed at line start** (vendored `revalidate-register.mjs`): an ID cited mid-sentence in a round note is prose, not a receipt. Keyed mid-line, such a note attached itself to the finding it cited as an extra verdict, and a `REFUTED` word in explanatory prose could fail a strict item whose actual panel line said SURVIVED.
 

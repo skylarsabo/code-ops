@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.16.4
+- **Tier discipline is enforced at the operative boundary** (`agents/privacy-reviewer.md`): a finding is labelled CONFIRMED only on executed evidence in the reviewer's own transcript; static reading caps at PROBABLE.
+- **Operative reports are persisted in the turn they land, and gated on shape before their unit counts as covered** (`CONVENTIONS.md` §1).
+
 ## 1.16.3
 - **Refutation receipts are keyed at line start** (vendored `revalidate-register.mjs`): an ID cited mid-sentence in a round note is prose, not a receipt. Keyed mid-line, such a note attached itself to the finding it cited as an extra verdict, and a `REFUTED` word in explanatory prose could fail a strict item whose actual panel line said SURVIVED.
 

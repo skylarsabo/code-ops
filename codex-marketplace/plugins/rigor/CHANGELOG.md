@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.14.4
+- **Tier discipline is enforced at the operative boundary** (`CONVENTIONS.md` §A, `agents/tracer.md`, `agents/verifier.md`): CONFIRMED requires an executed repro or trace in the operative's own transcript; a statically-argued finding caps at PROBABLE and promotion is the orchestrator's call.
+- **Refutation panels are staffed by distinct lenses** (`CONVENTIONS.md` §I): identical skeptics repeat one another's misreads, so panel seats are assigned by lens — correctness, configuration-reading, reachability — rather than duplicated.
+- **Operative reports are persisted in the turn they land, and gated on shape before their unit counts as covered** (`CONVENTIONS.md` §1).
+
 ## 2.14.3
 - **Refutation receipts are keyed at line start** (vendored `revalidate-register.mjs`): an ID cited mid-sentence in a round note is prose, not a receipt. Keyed mid-line, such a note attached itself to the finding it cited as an extra verdict, and a `REFUTED` word in explanatory prose could fail a strict item whose actual panel line said SURVIVED.
 

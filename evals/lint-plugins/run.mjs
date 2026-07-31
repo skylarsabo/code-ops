@@ -18,7 +18,7 @@
 //   - SHARED_PASSAGES (its check 14) requires — unconditionally, for every entry's `files`
 //     list, regardless of whether that plugin is registered — CONVENTIONS.md to exist and
 //     carry a pinned sentence verbatim at FOUR hardcoded plugin paths: code-ops-suite,
-//     rigor, privacy-opsec-suite, researcher (~17 sentences shared across most of them),
+//     rigor, privacy-opsec-suite, researcher (~22 sentences shared across most of them),
 //     plus 'always-gated-core' which ALSO requires
 //     plugins/code-ops-suite/skills/everything/SKILL.md to exist and carry its sentence.
 // Contrast: the agent-related checks (9/10/12, AGENT_MODEL_FLOORS included) and the
@@ -86,6 +86,10 @@ const PINNED_TEXTS = [
   "failed dispatch, not a weak signal — never synthesize around a missing report or fill its gap from the orchestrator's own assumptions",
   'redispatch once with a tightened, smaller brief; then escalate at the next checkpoint',
   'The row is written **at dispatch time**, atomically with the dispatch call itself — never a turn earlier or later — because a row written before its dispatch is a phantom indistinguishable from a hung operative',
+  "Every operative report is written to the run's artifact folder in the turn it arrives, before any other work — a report that exists only in the conversation is one blocked turn away from being lost.",
+  'A brief that never reached its operative is indistinguishable in the dispatch record from a completed dispatch until the report is read, so gate every report on shape — expected sections present, non-empty, evidence attached — before its unit counts as covered.',
+  "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript; a finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence",
+  "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics — identical readers repeat one another's misreads, and diversity catches what redundancy cannot.",
 ];
 const ALWAYS_GATED_TEXT = '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge';
 const DOCTRINE_BLOB = [...PINNED_TEXTS, ALWAYS_GATED_TEXT].join('\n\n');
@@ -120,6 +124,7 @@ const AGENT_ESCALATE = 'If the question is ambiguous, return the open question t
 const AGENT_REDACT_FULL = 'Redact any secrets/PII to `<REDACTED:reason>`; never reproduce a secret value.';
 const AGENT_REDACT_SHORT = 'Redact secrets/PII.';
 const AGENT_DENSE_EVIDENCE = 'Reports must stay dense and evidence-cited — no raw dumps.';
+const AGENT_TIER_BOUNDARY = "Tier at the evidence you have: label a finding CONFIRMED only when an executed repro or trace appears in your own transcript; a finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.";
 
 const agentBody = (name, model, texts) => `---
 name: ${name}
@@ -181,7 +186,7 @@ function buildBaseline(root) {
     extra: `\n${ALWAYS_GATED_TEXT}** without explicit developer approval at a checkpoint.\n`,
   }));
   put(root, 'plugins/code-ops-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
-  put(root, 'plugins/code-ops-suite/agents/reviewer.md', agentBody('reviewer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/code-ops-suite/agents/reviewer.md', agentBody('reviewer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
 
   // -- rigor: bug-hunt, quality-scan, consistency-closure (all PRODUCER_SELFCHECK) --
   put(root, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify({ name: 'rigor', version: '0.1.0', description: 'fixture rigor plugin' }, null, 2));
@@ -190,8 +195,8 @@ function buildBaseline(root) {
   put(root, 'plugins/rigor/skills/bug-hunt/SKILL.md', skillBody('BUG HUNT'));
   put(root, 'plugins/rigor/skills/quality-scan/SKILL.md', skillBody('QUALITY SCAN'));
   put(root, 'plugins/rigor/skills/consistency-closure/SKILL.md', skillBody('CONSISTENCY CLOSURE'));
-  put(root, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
-  put(root, 'plugins/rigor/agents/verifier.md', agentBody('verifier', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_TIER_BOUNDARY]));
+  put(root, 'plugins/rigor/agents/verifier.md', agentBody('verifier', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
 
   // -- privacy-opsec-suite / researcher: bare SHARED_PASSAGES filler, 0 skills each --
   for (const filler of ['privacy-opsec-suite', 'researcher']) {
@@ -201,7 +206,7 @@ function buildBaseline(root) {
   }
   // -- privacy-opsec-suite / researcher agents (AGENT_SHARED_PASSAGES filler) --
   put(root, 'plugins/privacy-opsec-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_ESCALATE]));
-  put(root, 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md', agentBody('privacy-reviewer', 'opus', [AGENT_ESCALATE, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md', agentBody('privacy-reviewer', 'opus', [AGENT_ESCALATE, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
   put(root, 'plugins/researcher/agents/claim-checker.md', agentBody('claim-checker', 'sonnet', [AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE]));
   put(root, 'plugins/researcher/agents/gatherer.md', agentBody('gatherer', 'haiku', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
 
@@ -345,6 +350,7 @@ No completion heading here on purpose (case 3 mutation).
   put(d7, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [
     'If the question is ambiguous, return the open question to the orchestrator instead of gu3ssing (case 7 mutation).',
     AGENT_REDACT_FULL,
+    AGENT_TIER_BOUNDARY,
   ]));
   const r7 = runLint(d7);
   check('7. agent passage drift exits 1', r7.status === 1);

@@ -580,6 +580,14 @@ const SHARED_PASSAGES = [
     text: 'redispatch once with a tightened, smaller brief; then escalate at the next checkpoint' },
   { id: 'ledger-atomicity', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
     text: 'The row is written **at dispatch time**, atomically with the dispatch call itself — never a turn earlier or later — because a row written before its dispatch is a phantom indistinguishable from a hung operative' },
+  { id: 'report-persistence', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: "Every operative report is written to the run's artifact folder in the turn it arrives, before any other work — a report that exists only in the conversation is one blocked turn away from being lost." },
+  { id: 'report-shape-gate', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: 'A brief that never reached its operative is indistinguishable in the dispatch record from a completed dispatch until the report is read, so gate every report on shape — expected sections present, non-empty, evidence attached — before its unit counts as covered.' },
+  { id: 'tier-boundary', files: CONVS('code-ops-suite', 'rigor'),
+    text: "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript; a finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence" },
+  { id: 'panel-lens-diversity', files: CONVS('code-ops-suite', 'rigor'),
+    text: "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics — identical readers repeat one another's misreads, and diversity catches what redundancy cannot." },
 ];
 
 // Same drift gate as SHARED_PASSAGES, but for the operative agent definitions
@@ -605,6 +613,10 @@ const AGENT_SHARED_PASSAGES = [
       'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md'),
     text: 'dense and evidence-cited' },
+  { id: 'agent-tier-boundary', files: AGENTS(
+      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+      'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
+    text: "label a finding CONFIRMED only when an executed repro or trace appears in your own transcript; a finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call" },
 ];
 for (const p of [...SHARED_PASSAGES, ...AGENT_SHARED_PASSAGES]) {
   for (const f of p.files) {
