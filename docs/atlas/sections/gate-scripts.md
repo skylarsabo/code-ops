@@ -12,6 +12,14 @@ Advisory-vs-gate is decided by whether the risk is mechanical or human-process: 
 
 Every gate's rationale lives in its `// WHY:` header — that convention is the durable rationale store; read it before changing a gate's behavior.
 
+## The dispatch-ledger write journal (added after prose failed twice)
+
+`dispatch-ledger.mjs` maintains `<ledger>.journal.jsonl` beside every ledger it creates: `add`/`update`/`phase` append a provenance entry BEFORE writing the row. The ordering is the design: a crash between the two writes leaves a journaled entry with no row (MISSING-ROW — an honest crash signal), never a row with no journal entry (PHANTOM — the fabrication signal a batch artifact edit produces); a crash must never be able to counterfeit fabrication. Phantom rows fail `check` closed even without `--strict`. Backward compatibility is conservative: journals are created only when the ledger is created, so pre-journal ledgers stay unjournaled (advisory) rather than reading as all-phantom. The journal also carries per-unit status history, which the metrics extractor consumes journal-first: a unit that EVER failed and was EVER redispatched counts toward both rates (snapshot statuses made them mutually exclusive); fallback to snapshot counting is always announced via a `rate basis:` line, and a corrupt journal is rejected whole — but note `calibration-metrics.mjs --artifacts` is contractually a reporter (always exit 0, eval-pinned), so its "fail closed" is loud rejection + announced fallback, while `dispatch-ledger.mjs check` is the actual exit-1 gate for the same corruption.
+
+## Register/receipt grammar hardening (R-004 family: fix a grammar in one place AND its mirror)
+
+Four same-family fixes landed together, each eval-pinned: register entries now END at the next entry head, a `NO-FINDINGS:` line, or a non-entry heading (trailing covered-negative lines no longer inflate the last entry) — applied in BOTH `calibration-metrics.mjs` and `scan-narration.mjs`, because the per-entry budget lives in both; refutation-log receipts key off ids at line start only (prose citing a finding is not a verdict) — in both `calibration-metrics.mjs` and `revalidate-register.mjs`; the sibling-report sweep recurses (depth-capped, dot-dirs skipped); and the metrics tool excludes its own report by resolved path AND by header line. When touching any artifact grammar, find its mirror first — the R-004 lesson class was precisely "fixed in one place, not its mirror".
+
 ## Couplings a gate edit must respect
 
 - **Doctrine text is a 4-way edit**: SHARED_PASSAGES/AGENT_SHARED_PASSAGES in `lint-plugins.mjs` pin byte-identical spans across CONVENTIONS/agent files, and `evals/lint-plugins/run.mjs` transcribes the same spans verbatim as PINNED_TEXTS/ALWAYS_GATED_TEXT. Changing a pinned sentence means editing every doctrine copy + the linter array + the eval constants in one commit; forgetting the eval is a CI-only failure (recorded lesson).
