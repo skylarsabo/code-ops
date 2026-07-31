@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 2.15.0
+- **Model routing is quality-first** (`CONVENTIONS.md` §1): invariant reasoning, bug hunting, root-cause analysis, review, and every other judgment-bearing dispatch run on the stronger model; the faster model is reserved for mechanical breadth sweeps and transcription-style migration. A weak trace or a redispatched report costs more than the stronger model does.
+
 ## 2.14.4
 - **Tier discipline is enforced at the operative boundary** (`CONVENTIONS.md` §A, `agents/tracer.md`, `agents/verifier.md`): CONFIRMED requires an executed repro or trace in the operative's own transcript; a statically-argued finding caps at PROBABLE and promotion is the orchestrator's call.
 - **Refutation panels are staffed by distinct lenses** (`CONVENTIONS.md` §I): identical skeptics repeat one another's misreads, so panel seats are assigned by lens — correctness, configuration-reading, reachability — rather than duplicated.

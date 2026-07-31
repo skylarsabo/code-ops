@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.33.0
+- **Model routing is quality-first** (`CONVENTIONS.md` §1, `hooks/routing-card.mjs`): every judgment-bearing sub-agent dispatch runs on the stronger model whatever tier the orchestrator itself is on; only mechanical breadth sweeps and transcription-style work drop a tier. A shallow or failed report costs a redispatch plus the orchestrator's attention, which outweighs the stronger model's price premium.
+- **`run-cost-audit` prices under-tiering as a cost, not a saving**: a judgment-bearing dispatch routed below the strong tier is now a finding, reported with the redispatches and discarded reports it caused.
+
 ## 1.32.0
 - **Tier discipline is enforced at the operative boundary** (`CONVENTIONS.md` §7, `agents/reviewer.md`): an operative may label a finding CONFIRMED only when an executed repro or trace sits in its own transcript; a statically-argued finding caps at PROBABLE and only the lead promotes it. Calibration run R-004 saw six findings arrive labelled CONFIRMED on static reasoning alone, which made the confirmed ratio measure labelling discipline rather than evidence depth.
 - **Operative reports are persisted in the turn they land** (`CONVENTIONS.md` §1): the report goes to the run's artifact folder before any other work, because a report that lives only in the conversation is one blocked turn from being lost.

@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 0.11.0
+- **Model routing is quality-first** (`CONVENTIONS.md` §1): synthesis, verification, and every judgment-bearing dispatch run on the stronger model; the faster model covers mechanical breadth gathering only. A shallow or failed report costs a redispatch plus the orchestrator's attention.
+
 ## 0.10.3
 - **Operative reports are persisted in the turn they land, and gated on shape before their unit counts as covered** (`CONVENTIONS.md` §1): a report that lives only in the conversation is one blocked turn from being lost, and a brief that never reached its operative is indistinguishable from a completed dispatch until the report is read.
 

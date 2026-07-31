@@ -15,7 +15,7 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/calibration-metrics.mjs --artifacts <run
 ## Phase 1 — Assess against doctrine
 - **Bounded-wave discipline (`§1`).** Compare the ledger's per-wave dispatch counts against the "handful of agents at a time" rule; flag any wave that fans out unbounded.
 - **Artifact-size bounds (`§12`).** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-narration.mjs <run folder>/EXECUTIVE_SUMMARY.md <other run summaries>` — a HARD hit is an over-length or narrated artifact, an advisory is a borderline one.
-- **Tier/effort mix.** Compare each dispatch's model tier and reasoning effort (from the ledger's brief text or the operative transcripts, where recorded) against the routing table in `docs/techniques/subagent-trade-offs.md` — flag mechanical work routed to a higher tier than its floor requires, and judgment work routed below its floor.
+- **Tier/effort mix.** Compare each dispatch's model tier and reasoning effort (from the ledger's brief text or the operative transcripts, where recorded) against the routing table in `docs/techniques/subagent-trade-offs.md` — flag mechanical work routed above the tier its floor requires, and any judgment-bearing dispatch routed below the strong tier. Under-tiered judgment work is a cost finding, not a saving: price the redispatches and the discarded reports it caused.
 
 ## Phase 2 — Report
 Write `COST_AUDIT.md` (≤1 page, `§12` length discipline): the **top 3 cost drivers**, each with a concrete routing or bounding recommendation, each recommendation cited to the `DISPATCH_LEDGER.md` row(s) or artifact evidence that supports it — never a general impression.

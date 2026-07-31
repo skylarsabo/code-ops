@@ -18,8 +18,15 @@ chosen.
 
 ## Tier and effort rule
 
-Operatives run one tier below the lead, floored at mid (sonnet) — never below the
-lint-enforced `AGENT_MODEL_FLOORS`. Effort is set by ambiguity, not importance:
+Tier is set by quality, not by price. Judgment-bearing operative work — tracing,
+review, verification, implementation with any open question in it — runs at the
+strong tier (opus) regardless of which tier the lead is on: a shallow or failed
+operative report costs a redispatch round-trip plus the lead's attention, which is
+dearer than the strong tier's price premium. Only mechanical, low-ambiguity work
+(transcription-style edits, structural mapping, breadth scans) drops a tier, and
+nothing ever runs below the lint-enforced `AGENT_MODEL_FLOORS`.
+
+Effort is set by ambiguity, not importance:
 mechanical/low-ambiguity work runs low effort, single-claim or execution-only work
 runs medium, hard-to-reverse tracing/review runs high. Verdicts
 (CONFIRMED/PROBABLE/SPECULATIVE) and acceptance of a subagent's report stay with the

@@ -18,7 +18,7 @@ function main() {
     'library/dependency decision -> /researcher:library-eval',
     'claim verification -> /researcher:research-verify',
     'everything (broad/multi-domain) -> /code-ops-suite:everything',
-    'operatives one tier below the lead; effort by ambiguity; verdicts stay with the lead',
+    'operatives at the strong tier for judgment work; effort by ambiguity; verdicts stay with the lead',
     'see: docs/handbook/11-standard-operating-mode.md and docs/techniques/dispatch-brief-template.md',
   ];
   console.log(lines.join('\n'));

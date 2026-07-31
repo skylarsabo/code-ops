@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.17.0
+- **Model routing is quality-first** (`CONVENTIONS.md` §1): threat reasoning, synthesis, review, and any dispatch carrying a judgment call run on the stronger model; the faster model covers mechanical breadth sweeps and transcription-style work only. A missed leak or a redispatched report costs more than the stronger model does.
+
 ## 1.16.4
 - **Tier discipline is enforced at the operative boundary** (`agents/privacy-reviewer.md`): a finding is labelled CONFIRMED only on executed evidence in the reviewer's own transcript; static reading caps at PROBABLE.
 - **Operative reports are persisted in the turn they land, and gated on shape before their unit counts as covered** (`CONVENTIONS.md` §1).

@@ -13,20 +13,24 @@ A subagent is a worker the orchestrator spawns with a precise question and a min
 
 The single rule that governs all of them lives in code-ops-suite [`CONVENTIONS.md` §1](../../plugins/code-ops-suite/CONVENTIONS.md): **read-only analysis parallelizes freely; anything that edits code runs in parallel only on disjoint file sets, and work touching shared files or dependency edges is serialized.** Every subagent grounds its report in `file:line` evidence ([§9](../../plugins/code-ops-suite/CONVENTIONS.md)) and the orchestrator keeps developer-in-the-loop control — the subagents report, the orchestrator decides.
 
-**How ambiguity routes to a tier:** routing is relative to the lead's own tier, not
-a fixed model name — an operative runs one tier below whichever model is leading,
-floored at the mid tier, provider-agnostic (frontier > strong > mid). Worked example
-with this suite's Claude models (frontier Opus lead → strong Sonnet operatives; a
-Sonnet lead still dispatches Sonnet, the floor):
+**How ambiguity routes to a tier:** routing is quality-first and independent of the
+lead's own tier — judgment-bearing operative work runs at the **strong** tier
+(provider-agnostic: frontier > strong > mid; `opus` in this suite's Claude models),
+whether the lead is frontier or strong. The economics drive it: a shallow or failed
+report costs a redispatch round-trip plus the lead's attention, which is dearer than
+the strong tier's price premium, so the routing optimizes first-pass quality rather
+than per-dispatch price. A tier below strong is for mechanical, execution-only work
+whose brief leaves no ambiguity — never for anything whose output a verdict rests on,
+and never below an agent's lint-enforced floor:
 
 | Task shape | Route to | Effort | Why |
 | --- | --- | --- | --- |
-| Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`, `mech`) — below the one-tier-down default, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis) | No judgment call to get wrong; cheapest tier that can do the read. |
-| Moderate judgment (single-claim research, one candidate finding, execution-only work) | `sonnet`-floor agents (`claim-checker`, `verifier`, implementer) — one tier below an Opus lead, the mid-tier floor | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test; `verifier` executes only, judgment stays with the lead. |
+| Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`, `mech`) — the one place the strong-tier default gives way, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis) | No judgment call to get wrong; cheapest tier that can do the read. |
+| Moderate judgment (single-claim research, one candidate finding, execution-only work) | `sonnet`-floor agents (`claim-checker`, `verifier`, implementer) — the mid tier is the floor here, not the target: run them strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test; `verifier` executes only, judgment stays with the lead. |
 | High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | `opus`-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | `reviewer`/`privacy-reviewer` high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
 | Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The lead, at the highest tier present in the session | high; xhigh only for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop and is never down-tiered for this. |
 
-Anti-patterns: no xhigh/max on breadth sweeps — parallelism beats effort for coverage; no low on review. Effort and tier partially substitute: a stronger model at medium approximates a mid model at high (tier-relative, provider-agnostic).
+Anti-patterns: no xhigh/max on breadth sweeps — parallelism beats effort for coverage; no low on review; no judgment-bearing dispatch below the strong tier on the argument that it is cheaper. Effort and tier partially substitute (a stronger model at medium approximates a mid model at high, provider-agnostic), but the substitution buys speed, not a licence to down-tier work whose output a verdict rests on.
 
 The suite uses *several* read-only agents in parallel over disjoint areas to move fast, and reserves the writing/executing agent for careful, isolated use. The cost it pays for that parallelism is covered in [09 · Cost and scoping](../handbook/09-cost-and-scoping.md).
 

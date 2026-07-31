@@ -27,10 +27,14 @@ break silently.
 ## Model roles
 
 The global Model-roles doctrine applies: the lead plans, delegates, and reviews;
-operatives run one tier below the lead (floored at the mid tier — Fable→Opus,
-Opus→Sonnet, Sonnet→Sonnet — provider-agnostic, never below an agent's
-lint-enforced floor) and implement; operatives escalate rather than guess. Repo-specific
-deltas: the lead reviews diff + gates itself before reporting done — operative
+operatives implement and escalate rather than guess. Routing is quality-first, not
+price-first: every judgment-bearing dispatch runs at the strong tier (Opus-class)
+whatever tier the lead is on, because a shallow or failed operative report costs a
+redispatch round-trip plus the lead's attention, and that exceeds the strong tier's
+price premium. Only mechanical, low-ambiguity work — mech-class transcription,
+breadth scans — drops a tier, and never below an agent's lint-enforced floor. Effort
+is unchanged: it routes by ambiguity, never low on review, never xhigh on breadth.
+Repo-specific deltas: the lead reviews diff + gates itself before reporting done — operative
 self-reports are not acceptance — and rigor/verification judgments (verdicts,
 CONFIRMED labels, acceptance) are issued by the highest-tier model present, never
 down-tiered. `mech` and `mech-review` are user-level agents defined outside this
