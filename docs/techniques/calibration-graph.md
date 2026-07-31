@@ -32,6 +32,7 @@ sanitized note.
 | `R-NNN` | a calibration run |
 | `L-NNN` | a lesson |
 | `PR-NN` | a pull request **in this repo** |
+| `COMMIT:<sha>` | a direct commit **in this repo** — 7-40 lowercase hex |
 | `EVAL:<repo-relative path>` | an eval that enforces a lesson |
 | `GATE:<script>#<check-slug>` | a single named check inside a lint/gate script |
 | `VER:<plugin>@<semver>` | a released plugin version |
@@ -102,11 +103,17 @@ are no run→run or PR→eval edges.
 
 | `rel` | `to` | Means |
 | --- | --- | --- |
-| `fixed-in` | `PR-NN` | the change that addressed the lesson |
+| `fixed-in` | `PR-NN` / `COMMIT:<sha>` | the change that addressed the lesson |
 | `enforced-by` | `EVAL:` / `GATE:` | the mechanical check that stops it recurring |
 | `verified-in` | `R-NNN` | a later run's evidence the fix actually landed |
 | `deferred` | the literal string `"deferred"` | consciously not fixed; `note` **required** |
 | `supersedes` | `L-NNN` | `from` corrects or replaces `to` |
+
+Use `COMMIT:<sha>` for a fix that landed as a **direct commit with no PR behind it**;
+`PR-NN` stays the form whenever a pull request exists. Both are validated by **shape
+only** — never resolved against GitHub or the object database — because both are
+historical records, and a resolution check would fail falsely in a shallow clone that no
+longer holds the object.
 
 `fixed-in` without `enforced-by` is the dangerous state: fixed once, free to recur.
 `deferred` is a decision, not a gap — that is why the note is mandatory and why a
@@ -138,7 +145,7 @@ only) has four modes:
 
 | Mode | Exit contract |
 | --- | --- |
-| `validate` | **fail-closed** — exit 1 on any schema violation, bad ID format, duplicate ID, non-monotonic `R`/`L` numbering, an edge endpoint that does not resolve (unknown lesson or run, an `EVAL:` path absent from disk, a non-numeric `PR-NN`), a run listing an unknown lesson, or a lesson no run lists |
+| `validate` | **fail-closed** — exit 1 on any schema violation, bad ID format, duplicate ID, non-monotonic `R`/`L` numbering, an edge endpoint that does not resolve (unknown lesson or run, an `EVAL:` path absent from disk, a `fixed-in` target that is neither a numeric `PR-NN` nor a well-formed `COMMIT:<sha>`), a run listing an unknown lesson, or a lesson no run lists |
 | `render` | rewrites `evals/CALIBRATION_TABLE.md` from the run documents; `--check` exits 1 on drift, with byte-diff semantics matching `build-codex-marketplace.mjs --check` |
 | `query <sub>` | read-only, exit 0; `--gate` promotes RED lines to exit 1 |
 | `ingest --note <file>` | parses a sanitized note's Machine block into a new `runs/R-NNN.json` skeleton and appends any `lesson: new …` entries to `lessons.json`; exits 1 if the note fails the line shapes; **never overwrites an existing run document** |

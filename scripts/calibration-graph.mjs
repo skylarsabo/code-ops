@@ -68,6 +68,11 @@ function parseFlags(args, known, bare = new Set()) {
 const RUN_ID_RE = /^R-\d{3}$/;
 const LESSON_ID_RE = /^L-\d{3}$/;
 const PR_ID_RE = /^PR-\d+$/;
+// A fix that landed as a direct commit with no PR behind it. Shape-only, exactly like PR-NN:
+// neither form is resolved against GitHub or the object database, because both are historical
+// records and a resolution check would fail falsely in a shallow clone that no longer holds
+// the object. Additive vocabulary — PR-NN keeps its meaning untouched.
+const COMMIT_ID_RE = /^COMMIT:[0-9a-f]{7,40}$/;
 const GATE_ID_RE = /^GATE:([^#\s]+)#([a-z0-9][a-z0-9-]*)$/;
 const EVAL_ID_RE = /^EVAL:(\S+)$/;
 const VER_ID_RE = /^VER:[a-z0-9][a-z0-9-]*@\d+\.\d+\.\d+$/;
@@ -284,7 +289,9 @@ function validateEdge(edge, ctx, problems) {
   const to = edge.to;
   switch (edge.rel) {
     case 'fixed-in':
-      if (!PR_ID_RE.test(to)) bad('schema', `fixed-in target must be PR-NN with a numeric serial: ${JSON.stringify(to)}`);
+      if (!PR_ID_RE.test(to) && !COMMIT_ID_RE.test(to)) {
+        bad('schema', `fixed-in target must be PR-NN with a numeric serial, or COMMIT:<7-40 lowercase hex>: ${JSON.stringify(to)}`);
+      }
       break;
     case 'verified-in':
       // A verifying run need NOT re-surface the lesson: "the fix landed" is precisely the run

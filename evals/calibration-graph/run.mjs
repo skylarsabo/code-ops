@@ -4,8 +4,8 @@
 //
 //   GREEN PATHS on the REAL store: `validate` exits 0; `render --check` exits 0 (so a
 //   hand-edited or stale table is caught in CI); the five queries return the current
-//   graph's expected answers — open is the ten lessons R-004 landed with no edges yet
-//   (every older lesson is closed with a reason), deferred is exactly L-003/L-004, L-012
+//   graph's expected answers — open is empty (every lesson is fixed, deferred or
+//   superseded), deferred is exactly L-003/L-004, L-012
 //   is the one lesson fixed with nothing mechanical holding it, the four recurrent
 //   lessons are L-001 (3 runs), L-002 (2), L-005 (2) and L-013 (2) with none RED, and
 //   `trend` prints one line per run grouped by target class and track.
@@ -14,8 +14,10 @@
 //   thing is wrong at a time: a dangling edge target (verified-in naming an unknown run),
 //   an enforced-by EVAL: path that does not exist on disk, a run listing a lesson nobody
 //   defined, a duplicate lesson id, a lesson no run lists, a deferred edge with no note, a
-//   non-numeric PR target, and a bad id format. Each exits 1 with its own named reason
-//   class, never a generic "invalid".
+//   non-numeric PR target, a malformed COMMIT: target, and a bad id format. Each exits 1
+//   with its own named reason class, never a generic "invalid". A well-formed COMMIT:<sha>
+//   fixed-in target — the form for a fix that landed without a PR — is accepted on the same
+//   scratch store, so the additive vocabulary is proven in both directions.
 //
 //   RENDER DRIFT: a single hand-mutated byte in a scratch copy of the table makes
 //   `render --check` exit 1 and name the first differing line. The real table is never
@@ -98,7 +100,7 @@ try {
   // ---- a. REAL store: validate + render --check are green ----------------------
   const a = run(['validate']);
   check('a. validate exits 0 on the real store', a.status === 0, a.stdout + a.stderr);
-  check('a. validate reports 4 runs / 24 lessons / 32 edges', /4 run\(s\), 24 lesson\(s\), 32 edge\(s\)/.test(a.stdout), a.stdout);
+  check('a. validate reports 4 runs / 24 lessons / 54 edges', /4 run\(s\), 24 lesson\(s\), 54 edge\(s\)/.test(a.stdout), a.stdout);
   check('a. validate reports 0 violations', /\n0 violation\(s\)\./.test(a.stdout), a.stdout);
 
   const b = run(['render', '--check']);
@@ -121,10 +123,24 @@ try {
   // ---- c. queries match the backfilled graph ----------------------------------
   const qOpen = run(['query', 'open']);
   check('c. open exits 0', qOpen.status === 0, qOpen.stdout + qOpen.stderr);
-  check('c. open is exactly the ten lessons R-004 landed with no edges yet',
-    /RED\s+L-015[^\n]*register per-entry length budget/.test(qOpen.stdout)
-    && /RED\s+L-024[^\n]*Lens diversity/.test(qOpen.stdout)
-    && /\n10 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+  check('c. open is empty — every lesson is fixed, deferred or superseded',
+    /\(none\)/.test(qOpen.stdout) && !/RED/.test(qOpen.stdout)
+    && /\n0 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+  const qOpenGate = run(['query', 'open', '--gate']);
+  check('c. open --gate exits 0 while nothing is unaddressed', qOpenGate.status === 0, qOpenGate.stdout + qOpenGate.stderr);
+  // The lessons R-004 landed are closed by COMMIT: fixes, not PRs — the status the additive
+  // vocabulary exists to make reachable.
+  const qL15 = run(['query', 'lesson', 'L-015']);
+  check('c. L-015 is ENFORCED via a COMMIT: fix and its two evals',
+    qL15.status === 0 && /fixed-in\s+COMMIT:2df53bf/.test(qL15.stdout)
+    && /enforced-by\s+EVAL:evals\/calibration-metrics\/run\.mjs/.test(qL15.stdout)
+    && /enforced-by\s+EVAL:evals\/scan-narration\/run\.mjs/.test(qL15.stdout)
+    && /derived status: ENFORCED/.test(qL15.stdout), qL15.stdout + qL15.stderr);
+  const qL24 = run(['query', 'lesson', 'L-024']);
+  check('c. L-024 is ENFORCED via a COMMIT: fix and a GATE: check',
+    qL24.status === 0 && /fixed-in\s+COMMIT:314cc77/.test(qL24.stdout)
+    && /enforced-by\s+GATE:scripts\/lint-plugins\.mjs#panel-lens-diversity/.test(qL24.stdout)
+    && /derived status: ENFORCED/.test(qL24.stdout), qL24.stdout + qL24.stderr);
 
   const qDef = run(['query', 'deferred']);
   check('c. deferred exits 0', qDef.status === 0, qDef.stdout + qDef.stderr);
@@ -210,6 +226,23 @@ try {
   failureClass('d8. non-numeric PR target',
     (s) => appendEdge(s, { from: 'L-003', rel: 'fixed-in', to: 'PR-next' }),
     /schema:[^\n]*fixed-in target must be PR-NN with a numeric serial/);
+
+  // COMMIT:<sha> is the fixed-in form for a fix that landed as a direct commit with no PR.
+  // Shape-only, exactly like PR-NN: a resolution check would fail falsely in a shallow clone.
+  {
+    const { store } = scratchStore();
+    appendEdge(store, { from: 'L-003', rel: 'fixed-in', to: 'COMMIT:0123456789abcdef0123456789abcdef01234567' });
+    const okCommit = run(['validate', '--store', store]);
+    check('d8b. a well-formed COMMIT: fixed-in target validates', okCommit.status === 0, okCommit.stdout + okCommit.stderr);
+  }
+
+  failureClass('d8c. uppercase hex in a COMMIT: target',
+    (s) => appendEdge(s, { from: 'L-003', rel: 'fixed-in', to: 'COMMIT:2DF53BF' }),
+    /schema:[^\n]*fixed-in target must be PR-NN with a numeric serial, or COMMIT:<7-40 lowercase hex>: "COMMIT:2DF53BF"/);
+
+  failureClass('d8d. a COMMIT: target with no sha',
+    (s) => appendEdge(s, { from: 'L-003', rel: 'fixed-in', to: 'COMMIT:' }),
+    /schema:[^\n]*fixed-in target must be PR-NN with a numeric serial, or COMMIT:<7-40 lowercase hex>: "COMMIT:"/);
 
   failureClass('d9. bad run id format',
     (s) => { const p = join(s, 'runs', 'R-002.json'); const d = readJson(p); d.id = 'R-2'; writeJson(p, d); },
