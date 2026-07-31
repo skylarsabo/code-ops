@@ -96,5 +96,75 @@
     "title": "metrics vocabulary cannot distinguish covered negative from failed dispatch",
     "statement": "A slice returned a well-formed zero-finding result with every lead traced to a dominating guard, and the metrics reported it identically to a dispatch that failed. The vocabulary needs an explicit covered-negative declaration.",
     "firstSeen": "R-003"
+  },
+  {
+    "id": "L-015",
+    "class": "instrument",
+    "title": "The register per-entry length budget has no entry terminator, so trailing covered-negative lines are attributed to the final entry and reliably trip its hard cap",
+    "statement": "The register per-entry length budget has no entry terminator, so trailing covered-negative lines are attributed to the final entry and reliably trip its hard cap.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-016",
+    "class": "instrument",
+    "title": "The refutation log still matches item identifiers mid-line, so explanatory prose citing a finding becomes an unparseable receipt",
+    "statement": "The refutation log still matches item identifiers mid-line, so explanatory prose citing a finding becomes an unparseable receipt; the entry-heading-position fix applied to registers was never mirrored to refutation logs.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-017",
+    "class": "instrument",
+    "title": "The themed-sibling-report warning does not recurse into subdirectories, so per-slice reports carrying entry-shaped findings remain invisible to every register consumer",
+    "statement": "The themed-sibling-report warning does not recurse into subdirectories, so per-slice reports carrying entry-shaped findings remain invisible to every register consumer.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-018",
+    "class": "instrument",
+    "title": "The metrics tool's own output file trips its own sibling-report warning, because the per-entry length lines it emits parse as register entries at line start",
+    "statement": "The metrics tool's own output file trips its own sibling-report warning, because the per-entry length lines it emits parse as register entries at line start.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-019",
+    "class": "instrument",
+    "title": "A ledger row cannot express both that a unit failed and that it was retried, so failed rate and redispatch rate are mutually exclusive for one unit and the pair understates recovery",
+    "statement": "A ledger row cannot express both that a unit failed and that it was retried, so failed rate and redispatch rate are mutually exclusive for one unit and the pair understates recovery.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-020",
+    "class": "instrument",
+    "title": "Operatives label static reasoning as CONFIRMED, so the confirmed ratio measures labelling discipline as much as evidence depth",
+    "statement": "Operatives label static reasoning as CONFIRMED, so the confirmed ratio measures labelling discipline as much as evidence depth; enforce the tier definition at the operative boundary or add an explicit executed-evidence flag.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-021",
+    "class": "protocol",
+    "title": "Persist every operative report to disk in the turn it lands, before any other work",
+    "statement": "Persist every operative report to disk in the turn it lands, before any other work; four blocked lead turns nearly discarded two high-severity reports that existed only in conversation.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-022",
+    "class": "protocol",
+    "title": "A brief that never reaches its operative is indistinguishable at the ledger from a completed dispatch until the report is read, so gate every report on shape before counting the unit covered",
+    "statement": "A brief that never reaches its operative is indistinguishable at the ledger from a completed dispatch until the report is read, so gate every report on shape before counting the unit covered.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-023",
+    "class": "instrument",
+    "title": "The note template prescribes a prose severity-mix shape its own validator rejects as a Unix path, so a note written exactly to template fails closed",
+    "statement": "The note template prescribes a prose severity-mix shape its own validator rejects as a Unix path, so a note written exactly to template fails closed; reconcile the documented shape with the enforced one.",
+    "firstSeen": "R-004"
+  },
+  {
+    "id": "L-024",
+    "class": "suite",
+    "title": "Lens diversity rather than redundancy is what kills a wrong finding: two of three independent readers repeated the same misread of a configuration declaration, and only a differently-lensed panelist caught it",
+    "statement": "Lens diversity rather than redundancy is what kills a wrong finding: two of three independent readers repeated the same misread of a configuration declaration, and only a differently-lensed panelist caught it.",
+    "firstSeen": "R-004"
   }
 ]

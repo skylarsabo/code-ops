@@ -1,0 +1,68 @@
+{
+  "id": "R-004",
+  "date": "2026-07-30",
+  "suite": {
+    "code-ops-suite": "1.29.0"
+  },
+  "target": {
+    "label": "large TypeScript monorepo — real-time telephony platform with a payment lane, chat-bot operator surface, and infrastructure-as-code",
+    "class": "ts-monorepo-telephony",
+    "control": true
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 47,
+    "confirmed": 9,
+    "refutation": {
+      "paneled": 6,
+      "survived": 5,
+      "reproExempt": 3,
+      "panelEligible": 6
+    },
+    "severity": {
+      "critical": 0,
+      "high": 6,
+      "medium": 22,
+      "low": 9,
+      "nit": 10
+    }
+  },
+  "tokens": {
+    "operative": 1682324,
+    "dispatches": 20
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 3,
+    "redispatched": 3
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 68,
+    "slicesSwept": 9,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 9,
+    "fresh": 0,
+    "refreshed": 9,
+    "falsified": 0
+  },
+  "lessons": [
+    "L-013",
+    "L-015",
+    "L-016",
+    "L-017",
+    "L-018",
+    "L-019",
+    "L-020",
+    "L-021",
+    "L-022",
+    "L-023",
+    "L-024"
+  ],
+  "notes": "Second run against the control target, so deltas are like-for-like. **Six prior lessons verifiably landed** — the strongest signal in the row: the per-entry register budget replaced the flat file cap (a 47-finding register was no longer penalized for length), ledger phase markers carrying the lead model worked AND the extractor raised its own advisory when the lead changed mid-run (closing a request open across two rows), round-letter item ids parsed where an identical shape previously counted zero, entry-heading-position matching held so ids in evidence prose did not inflate the count, the themed-sibling-report warning fired and caught a real duplication in this run's own artifacts, and covered negatives are now counted (68 this run) so examined-and-clean is finally distinguishable from a failed dispatch. **One recurrence, twice in one run: the phantom ledger row (L-013)** — rows written by a batch artifact edit with no accompanying dispatch call, indistinguishable from a hung operative, and this time also asserted to the operator as work in flight; restating the write-atomically rule in prose has now failed twice and wants a mechanical check. **The CONFIRMED ratio is not comparable across runs as currently defined**: it fell 0.57 to 0.19 mostly because six findings arrived labelled CONFIRMED on purely static reasoning and were re-tiered down by the lead — the metric measures labelling discipline as much as evidence depth, so enforce the tier definition at the operative boundary or add an executed-evidence flag. **Lens diversity, not redundancy, killed the headline finding**: a critical rested on a misread config declaration and two of three independent readers (the original finder plus one panelist) repeated the same misread; only a differently-lensed panelist caught it, and that panelist independently found the sharper real defect the original missed — an odd panel of identical skeptics would have confirmed the wrong answer 2-1. Paneled coverage went 1-of-1 to 6-of-6 eligible, and two further findings were reduced rather than killed (an 'unbounded' timeout was really bounded near 340s by three third-party defaults; a firewall finding lost its misleading-diagnosis claim). **Four blocked lead turns are a real artifact-loss risk**: the two operative reports that landed during them carried high-severity findings existing nowhere but the conversation — writing each report to disk in the turn it lands is what saved the rest. Four smaller instrument gaps share one family, a grammar fix applied in one place and not its mirror: the per-entry budget has no entry terminator (trailing covered-negative lines are attributed to the final entry and reliably trip its hard cap), the refutation log still matches ids mid-line so explanatory prose becomes an unparseable receipt, the sibling-report warning does not recurse into subdirectories so per-slice reports stay invisible, and the metrics tool's own output trips its own sibling warning. Also: the note template prescribes a prose severity-mix shape its own validator rejects as a Unix path, so a note written exactly to template fails closed; and a ledger row cannot express both failed and retried, so failed-rate and redispatch-rate are mutually exclusive for one unit. Verified NOT a defect: the note gate is genuinely fail-closed (exit 1 on a dirty note) — an apparent exit-0 was an artifact of piping through tail."
+}

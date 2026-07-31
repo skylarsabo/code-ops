@@ -3,12 +3,12 @@
 // under evals/calibration/ and the DERIVED evals/CALIBRATION_TABLE.md it renders.
 //
 //   GREEN PATHS on the REAL store: `validate` exits 0; `render --check` exits 0 (so a
-//   hand-edited or stale table is caught in CI); the five queries return the backfilled
-//   graph's expected answers — open is empty (deferred and superseded lessons are closed
-//   with a reason, not open), deferred is exactly L-003/L-004, L-012 is the one lesson
-//   fixed with nothing mechanical holding it, the three recurrent lessons are L-001 (3
-//   runs), L-002 (2) and L-005 (2) with none RED, and `trend` prints one line per run
-//   grouped by target class and track.
+//   hand-edited or stale table is caught in CI); the five queries return the current
+//   graph's expected answers — open is the ten lessons R-004 landed with no edges yet
+//   (every older lesson is closed with a reason), deferred is exactly L-003/L-004, L-012
+//   is the one lesson fixed with nothing mechanical holding it, the four recurrent
+//   lessons are L-001 (3 runs), L-002 (2), L-005 (2) and L-013 (2) with none RED, and
+//   `trend` prints one line per run grouped by target class and track.
 //
 //   FAIL-CLOSED CLASSES, each proven on a scratch copy of the real store so exactly one
 //   thing is wrong at a time: a dangling edge target (verified-in naming an unknown run),
@@ -21,9 +21,9 @@
 //   `render --check` exit 1 and name the first differing line. The real table is never
 //   mutated by this eval.
 //
-//   INGEST: a sanitized note's Machine block round-trips into a well-formed R-004 skeleton
+//   INGEST: a sanitized note's Machine block round-trips into a well-formed R-005 skeleton
 //   (recurred lessons carried over, a new lesson minted and appended to lessons.json, the
-//   resulting store still validating and rendering four rows); the `unknown` alternatives
+//   resulting store still validating and rendering five rows); the `unknown` alternatives
 //   ingest as explicit null rather than zero; ingest refuses to overwrite an existing run
 //   document, refuses a malformed Machine-block line, and refuses a note with no Machine
 //   block at all.
@@ -98,12 +98,12 @@ try {
   // ---- a. REAL store: validate + render --check are green ----------------------
   const a = run(['validate']);
   check('a. validate exits 0 on the real store', a.status === 0, a.stdout + a.stderr);
-  check('a. validate reports 3 runs / 14 lessons / 30 edges', /3 run\(s\), 14 lesson\(s\), 30 edge\(s\)/.test(a.stdout), a.stdout);
+  check('a. validate reports 4 runs / 24 lessons / 30 edges', /4 run\(s\), 24 lesson\(s\), 30 edge\(s\)/.test(a.stdout), a.stdout);
   check('a. validate reports 0 violations', /\n0 violation\(s\)\./.test(a.stdout), a.stdout);
 
   const b = run(['render', '--check']);
   check('b. render --check exits 0 (the committed table matches the store)', b.status === 0, b.stdout + b.stderr);
-  check('b. render --check names the run count', /3 run\(s\) — CALIBRATION_TABLE\.md is up to date/.test(b.stdout), b.stdout);
+  check('b. render --check names the run count', /4 run\(s\) — CALIBRATION_TABLE\.md is up to date/.test(b.stdout), b.stdout);
 
   // The rendered table is a DERIVED file: its preamble must say so and must keep the one-way
   // channel rule it inherited from the hand-maintained table it replaced.
@@ -121,8 +121,10 @@ try {
   // ---- c. queries match the backfilled graph ----------------------------------
   const qOpen = run(['query', 'open']);
   check('c. open exits 0', qOpen.status === 0, qOpen.stdout + qOpen.stderr);
-  check('c. open is empty — deferred and superseded lessons are closed, not open',
-    /\(none\)/.test(qOpen.stdout) && /\n0 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+  check('c. open is exactly the ten lessons R-004 landed with no edges yet',
+    /RED\s+L-015[^\n]*register per-entry length budget/.test(qOpen.stdout)
+    && /RED\s+L-024[^\n]*Lens diversity/.test(qOpen.stdout)
+    && /\n10 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
 
   const qDef = run(['query', 'deferred']);
   check('c. deferred exits 0', qDef.status === 0, qDef.stdout + qDef.stderr);
@@ -142,7 +144,8 @@ try {
   check('c. L-001 recurred across all three runs', /L-001\s+3 runs \(R-001, R-002, R-003\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
   check('c. L-002 recurred twice', /L-002\s+2 runs \(R-001, R-002\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
   check('c. L-005 recurred twice', /L-005\s+2 runs \(R-002, R-003\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
-  check('c. exactly 3 recurrent lessons, none RED', /\n3 recurrent lesson\(s\), 0 RED\./.test(qRec.stdout), qRec.stdout);
+  check('c. L-013 recurred twice', /L-013\s+2 runs \(R-003, R-004\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
+  check('c. exactly 4 recurrent lessons, none RED', /\n4 recurrent lesson\(s\), 0 RED\./.test(qRec.stdout), qRec.stdout);
   const qRecGate = run(['query', 'recurrent', '--gate']);
   check('c. recurrent --gate exits 0 while every recurrence is enforced or superseded', qRecGate.status === 0, qRecGate.stdout + qRecGate.stderr);
 
@@ -153,8 +156,9 @@ try {
   check('c. trend prints one line per run with the derived ratios',
     /R-001\s+2026-07-28\s+findings 28\s+confirmed 19 \(0\.68\)\s+confirmed\/100k n\/a\s+survival 0\.33 \(1 of 3 paneled; 2 repro-exempt\)/.test(qTr.stdout)
     && /R-002[^\n]*confirmed 35 \(0\.71\)\s+confirmed\/100k 2\.29\s+survival 0\.83 \(5 of 6 paneled\)/.test(qTr.stdout)
-    && /R-003[^\n]*confirmed 16 \(0\.57\)\s+confirmed\/100k 1\.45\s+survival 1\.00 \(1 of 1 paneled; 4 repro-exempt\)/.test(qTr.stdout), qTr.stdout);
-  check('c. trend counts every run and group', /\n3 run\(s\) across 3 class\/track group\(s\)\./.test(qTr.stdout), qTr.stdout);
+    && /R-003[^\n]*confirmed 16 \(0\.57\)\s+confirmed\/100k 1\.45\s+survival 1\.00 \(1 of 1 paneled; 4 repro-exempt\)/.test(qTr.stdout)
+    && /R-004[^\n]*confirmed 9 \(0\.19\)\s+confirmed\/100k 0\.53\s+survival 0\.83 \(5 of 6 paneled; 3 repro-exempt\)/.test(qTr.stdout), qTr.stdout);
+  check('c. trend counts every run and group', /\n4 run\(s\) across 3 class\/track group\(s\)\./.test(qTr.stdout), qTr.stdout);
 
   const qL1 = run(['query', 'lesson', 'L-001']);
   check('c. lesson L-001 exits 0', qL1.status === 0, qL1.stdout + qL1.stderr);
@@ -192,8 +196,8 @@ try {
     /duplicate-id: lesson L-005 appears more than once/);
 
   failureClass('d5. lesson no run lists',
-    (s) => { const p = join(s, 'lessons.json'); const l = readJson(p); l.push({ id: 'L-015', class: 'suite', title: 't', statement: 's', firstSeen: 'R-003' }); writeJson(p, l); },
-    /orphan-lesson: L-015 is listed by no run/);
+    (s) => { const p = join(s, 'lessons.json'); const l = readJson(p); l.push({ id: 'L-025', class: 'suite', title: 't', statement: 's', firstSeen: 'R-004' }); writeJson(p, l); },
+    /orphan-lesson: L-025 is listed by no run/);
 
   failureClass('d6. duplicate run id across two files',
     (s) => { const d = readJson(join(s, 'runs', 'R-003.json')); writeJson(join(s, 'runs', 'R-004.json'), d); },
@@ -253,11 +257,11 @@ try {
     const { store } = scratchStore();
     const f1 = run(['ingest', '--note', join(NOTES, 'sample-note.md'), '--store', store, '--label', 'fixture Go event pipeline']);
     check('f. ingest exits 0 on a well-formed note', f1.status === 0, f1.stdout + f1.stderr);
-    check('f. ingest names the run it created', /ingested R-004 -> runs\/R-004\.json/.test(f1.stdout), f1.stdout);
+    check('f. ingest names the run it created', /ingested R-005 -> runs\/R-005\.json/.test(f1.stdout), f1.stdout);
     check('f. ingest reports the recurred lessons', /recurred: L-001, L-014/.test(f1.stdout), f1.stdout);
-    check('f. ingest mints the new lesson with its class', /new lessons: L-015 \(instrument\)/.test(f1.stdout), f1.stdout);
+    check('f. ingest mints the new lesson with its class', /new lessons: L-025 \(instrument\)/.test(f1.stdout), f1.stdout);
 
-    const doc = readJson(join(store, 'runs', 'R-004.json'));
+    const doc = readJson(join(store, 'runs', 'R-005.json'));
     check('f. skeleton carries the parsed date and track', doc.date === '2026-07-30' && doc.track === 'assess-only', JSON.stringify(doc).slice(0, 300));
     check('f. skeleton parses a multi-plugin suite line',
       doc.suite['code-ops-suite'] === '1.26.0' && doc.suite.rigor === '1.9.0', JSON.stringify(doc.suite));
@@ -275,14 +279,14 @@ try {
     check('f. skeleton carries standardization', doc.standardization.enforcementsAdded === 2 && doc.standardization.tracelessClean === true, JSON.stringify(doc.standardization));
     check('f. "swept N of M" derives the unswept remainder',
       doc.coverage.coveredNegatives === 2 && doc.coverage.slicesSwept === 6 && doc.coverage.slicesUnswept === 2, JSON.stringify(doc.coverage));
-    check('f. skeleton lists recurred lessons plus the minted one', JSON.stringify(doc.lessons) === '["L-001","L-014","L-015"]', JSON.stringify(doc.lessons));
+    check('f. skeleton lists recurred lessons plus the minted one', JSON.stringify(doc.lessons) === '["L-001","L-014","L-025"]', JSON.stringify(doc.lessons));
     check('f. notes comes from the note\'s Lessons prose', /Two prior lessons recurred/.test(doc.notes), doc.notes);
     check('f. a note with no atlas line produces a doc with no atlas field at all', !('atlas' in doc), JSON.stringify(doc.atlas));
 
     const lessons = readJson(join(store, 'lessons.json'));
-    const minted = lessons.find((l) => l.id === 'L-015');
+    const minted = lessons.find((l) => l.id === 'L-025');
     check('f. the minted lesson was appended to lessons.json', !!minted, JSON.stringify(lessons.slice(-1)));
-    check('f. the minted lesson records the ingesting run as firstSeen', minted && minted.firstSeen === 'R-004', JSON.stringify(minted));
+    check('f. the minted lesson records the ingesting run as firstSeen', minted && minted.firstSeen === 'R-005', JSON.stringify(minted));
     check('f. the minted lesson keeps the full statement and a leading-clause title',
       minted && /require one keyed line per finding$/.test(minted.statement)
       && minted.title === 'Refutation receipts written as prose bullets are invisible to the verdict parser', JSON.stringify(minted));
@@ -290,16 +294,16 @@ try {
     // The whole point of a skeleton: the store it lands in must still validate and render.
     const v = run(['validate', '--store', store]);
     check('f. the store still validates after ingest', v.status === 0, v.stdout + v.stderr);
-    check('f. validate now sees 4 runs and 15 lessons', /4 run\(s\), 15 lesson\(s\)/.test(v.stdout), v.stdout);
+    check('f. validate now sees 5 runs and 25 lessons', /5 run\(s\), 25 lesson\(s\)/.test(v.stdout), v.stdout);
     const tbl2 = join(dirname(store), 'TABLE2.md');
     const r2 = run(['render', '--store', store, '--table', tbl2]);
-    check('f. the ingested run renders as a fourth row', r2.status === 0 && /4 run\(s\)/.test(r2.stdout), r2.stdout + r2.stderr);
+    check('f. the ingested run renders as a fifth row', r2.status === 0 && /5 run\(s\)/.test(r2.stdout), r2.stdout + r2.stderr);
     check('f. the new row carries the derived ratios', /\| 2026-07-30 \| code-ops-suite@1\.26\.0, rigor@1\.9\.0 \| fixture Go event pipeline \| 11 \| 0\.65 \(20 of 31\) \| 0\.75 \(3 of 4 paneled; 1 repro-exempt\) \|/.test(readFileSync(tbl2, 'utf8')), readFileSync(tbl2, 'utf8').slice(-600));
 
     // Refuses to overwrite: a calibration run is append-only history.
-    const dup = run(['ingest', '--note', join(NOTES, 'sample-note.md'), '--store', store, '--id', 'R-004']);
+    const dup = run(['ingest', '--note', join(NOTES, 'sample-note.md'), '--store', store, '--id', 'R-005']);
     check('f. ingest refuses to overwrite an existing run doc (exit 1)', dup.status === 1, dup.stdout + dup.stderr);
-    check('f. the refusal names the file and says why', /refusing to overwrite an existing run document: runs\/R-004\.json/.test(dup.stderr) && /append-only/.test(dup.stderr), dup.stderr);
+    check('f. the refusal names the file and says why', /refusing to overwrite an existing run document: runs\/R-005\.json/.test(dup.stderr) && /append-only/.test(dup.stderr), dup.stderr);
   }
 
   // ---- g. the `unknown` alternatives ingest as explicit null, never zero ------
@@ -307,7 +311,7 @@ try {
     const { store } = scratchStore();
     const g1 = run(['ingest', '--note', join(NOTES, 'unknown-fields-note.md'), '--store', store, '--label', 'fixture Rust CLI']);
     check('g. a note using every `unknown` alternative ingests (exit 0)', g1.status === 0, g1.stdout + g1.stderr);
-    const doc = readJson(join(store, 'runs', 'R-004.json'));
+    const doc = readJson(join(store, 'runs', 'R-005.json'));
     check('g. `tokens: unknown operative` becomes null, and dispatches still parses',
       doc.tokens.operative === null && doc.tokens.dispatches === 3, JSON.stringify(doc.tokens));
     check('g. `severity: unknown` becomes null', doc.quality.severity === null, JSON.stringify(doc.quality));
@@ -332,7 +336,7 @@ try {
       /L\d+: line matches no Machine-block shape: findings: 31, confirmed: 20/.test(bad.stderr), bad.stderr);
     check('h. an out-of-enum track is also named', /L\d+: line matches no Machine-block shape: track: assess-and-fix/.test(bad.stderr), bad.stderr);
     check('h. the refusal says why guessing is worse than failing', /Fail-closed/.test(bad.stderr), bad.stderr);
-    check('h. nothing was written', !readdirSync(join(store, 'runs')).includes('R-004.json'), readdirSync(join(store, 'runs')).join(','));
+    check('h. nothing was written', !readdirSync(join(store, 'runs')).includes('R-005.json'), readdirSync(join(store, 'runs')).join(','));
 
     const none = run(['ingest', '--note', join(NOTES, 'no-block-note.md'), '--store', store]);
     check('h. a note with no Machine block is refused (exit 1)', none.status === 1, none.stdout + none.stderr);
@@ -410,7 +414,7 @@ try {
     check('l2. a coverage line sweeping more slices than exist is refused (exit 1)', cov.status === 1, cov.stdout + cov.stderr);
     check('l2. the refusal names the numbers and the negative remainder it would derive',
       /slices swept 9 of 8[\s\S]*negative unswept remainder/.test(cov.stderr), cov.stderr);
-    check('l2. nothing was written', !readdirSync(join(store, 'runs')).includes('R-004.json'), readdirSync(join(store, 'runs')).join(','));
+    check('l2. nothing was written', !readdirSync(join(store, 'runs')).includes('R-005.json'), readdirSync(join(store, 'runs')).join(','));
   }
 
   // ---- m. a parseable-but-invalid store refuses cleanly, never throws ----------
@@ -453,14 +457,14 @@ try {
     const okNote = noteWith('atlas-ok.md', 'atlas: sections 9; fresh 5; refreshed 3; falsified 1');
     const n1 = run(['ingest', '--note', okNote, '--store', store, '--label', 'fixture Go event pipeline']);
     check('n. a note carrying an atlas line ingests (exit 0)', n1.status === 0, n1.stdout + n1.stderr);
-    const nDoc = readJson(join(store, 'runs', 'R-004.json'));
+    const nDoc = readJson(join(store, 'runs', 'R-005.json'));
     check('n. the four atlas counts land in the run doc', nDoc.atlas && nDoc.atlas.sections === 9
       && nDoc.atlas.fresh === 5 && nDoc.atlas.refreshed === 3 && nDoc.atlas.falsified === 1, JSON.stringify(nDoc.atlas));
     const nv = run(['validate', '--store', store]);
     check('n. the store still validates with an atlas field present', nv.status === 0, nv.stdout + nv.stderr);
     const ntr = run(['query', 'trend', '--store', store]);
     check('n. trend prints the atlas tail for the run that measured one',
-      /R-004[^\n]*atlas 5 fresh, 3 refreshed, 1 falsified of 9/.test(ntr.stdout), ntr.stdout);
+      /R-005[^\n]*atlas 5 fresh, 3 refreshed, 1 falsified of 9/.test(ntr.stdout), ntr.stdout);
     check('n. trend prints no atlas tail for the runs that predate the leg',
       !/R-00[123][^\n]*atlas /.test(ntr.stdout), ntr.stdout);
     const gOk = gate(okNote);
@@ -474,7 +478,7 @@ try {
     check('n. a non-numeric atlas count is refused at ingest (exit 1)', r1.status === 1, r1.stdout + r1.stderr);
     check('n. the refusal names the offending line',
       /L\d+: line matches no Machine-block shape: atlas: sections 9; fresh some/.test(r1.stderr), r1.stderr);
-    check('n. nothing was written', !readdirSync(join(s1, 'runs')).includes('R-004.json'), readdirSync(join(s1, 'runs')).join(','));
+    check('n. nothing was written', !readdirSync(join(s1, 'runs')).includes('R-005.json'), readdirSync(join(s1, 'runs')).join(','));
     const gBad = gate(badShape);
     check('n. the note gate refuses the same line (exit 1)',
       gBad.status === 1 && /MACHINE-LINE[\s\S]*atlas: sections 9; fresh some/.test(gBad.out), gBad.out);
@@ -492,7 +496,7 @@ try {
     const s3 = scratchStore().store;
     const r3 = run(['ingest', '--note', overFalsified, '--store', s3]);
     check('n. falsifying more sections than exist is refused (exit 1)', r3.status === 1, r3.stdout + r3.stderr);
-    check('n. nothing was written for the over-falsified note', !readdirSync(join(s3, 'runs')).includes('R-004.json'), readdirSync(join(s3, 'runs')).join(','));
+    check('n. nothing was written for the over-falsified note', !readdirSync(join(s3, 'runs')).includes('R-005.json'), readdirSync(join(s3, 'runs')).join(','));
   }
 
   failureClass('n1. a negative stored atlas count',
@@ -513,8 +517,8 @@ try {
 
   // ---- j. the real store was never written to by this eval --------------------
   check('j. the real table is byte-identical to what render --check accepted', readFileSync(REAL_TABLE, 'utf8') === table, 'real table changed during the eval');
-  check('j. the real store still has exactly its three run docs',
-    readdirSync(join(REAL_STORE, 'runs')).sort().join(',') === 'R-001.json,R-002.json,R-003.json', readdirSync(join(REAL_STORE, 'runs')).join(','));
+  check('j. the real store still has exactly its four run docs',
+    readdirSync(join(REAL_STORE, 'runs')).sort().join(',') === 'R-001.json,R-002.json,R-003.json,R-004.json', readdirSync(join(REAL_STORE, 'runs')).join(','));
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }
