@@ -166,5 +166,47 @@
     "title": "Lens diversity rather than redundancy is what kills a wrong finding: two of three independent readers repeated the same misread of a configuration declaration, and only a differently-lensed panelist caught it",
     "statement": "Lens diversity rather than redundancy is what kills a wrong finding: two of three independent readers repeated the same misread of a configuration declaration, and only a differently-lensed panelist caught it.",
     "firstSeen": "R-004"
+  },
+  {
+    "id": "L-025",
+    "class": "instrument",
+    "title": "The configuration line records a single lead model class and cannot express a lead that changed mid-run, which is precisely the event the pre-registered orchestration experiment exists to detect",
+    "statement": "The configuration line records a single lead model class and cannot express a lead that changed mid-run, which is precisely the event the pre-registered orchestration experiment exists to detect; this run had a split lead after the first lead was blocked by its own safeguards, so the field was omitted rather than guessed and the run cannot serve as an experiment arm.",
+    "firstSeen": "R-005"
+  },
+  {
+    "id": "L-026",
+    "class": "protocol",
+    "title": "Two standing rules cannot both be satisfied: one requires persisting every operative report verbatim in the turn it lands, the other requires findings to live only in the register",
+    "statement": "Two standing rules cannot both be satisfied: one requires persisting every operative report verbatim in the turn it lands, the other requires findings to live only in the register. A faithfully executed sweep therefore always trips the not-counted sibling warning on its own reports folder, ten times here. Exempt the reports folder or drop the verbatim-persist rule.",
+    "firstSeen": "R-005"
+  },
+  {
+    "id": "L-027",
+    "class": "instrument",
+    "title": "The register anchor checker resolves bare filenames appearing anywhere in an entry, so evidence prose naming common basenames produced ambiguous verdicts for eleven of thirty-six entries and buried the four genuinely drifted anchors",
+    "statement": "The register anchor checker resolves bare filenames appearing anywhere in an entry, so evidence prose naming common basenames produced ambiguous verdicts for eleven of thirty-six entries and buried the four genuinely drifted anchors; framework-style bracketed dynamic route segments additionally report as escaping the repository root.",
+    "firstSeen": "R-005"
+  },
+  {
+    "id": "L-028",
+    "class": "instrument",
+    "title": "A generated repository map trips the flat hard line cap applied to run summaries, the same false positive already recorded for the metrics tool's own output",
+    "statement": "A generated repository map trips the flat hard line cap applied to run summaries, the same false positive already recorded for the metrics tool's own output; generated artifacts need the same exemption.",
+    "firstSeen": "R-005"
+  },
+  {
+    "id": "L-029",
+    "class": "suite",
+    "title": "The panel triage cap of five was exceeded by seven eligible high-severity findings, and paneling all seven changed three of them materially, so the cap fired on a run where paneling everything was the correct call",
+    "statement": "The panel triage cap of five was exceeded by seven eligible high-severity findings, and paneling all seven changed three of them materially, so the cap fired on a run where paneling everything was the correct call; make the cap a scoping checkpoint rather than a signal to sample.",
+    "firstSeen": "R-005"
+  },
+  {
+    "id": "L-030",
+    "class": "suite",
+    "title": "Two independent operatives with different lenses over the same surface converged on the same defect and one of them located the containing guard unaided, reaching the panel's eventual verdict without a refutation dispatch",
+    "statement": "Two independent operatives with different lenses over the same surface converged on the same defect and one of them located the containing guard unaided, reaching the panel's eventual verdict without a refutation dispatch; deliberate lens overlap may substitute for paneling where briefs can both reach a surface.",
+    "firstSeen": "R-005"
   }
 ]

@@ -1,0 +1,66 @@
+{
+  "id": "R-005",
+  "date": "2026-07-31",
+  "suite": {
+    "code-ops-suite": "1.34.0"
+  },
+  "target": {
+    "label": "mid-size TypeScript SaaS web application (payments, background jobs, third-party data acquisition, public scoring surface)",
+    "class": "mid-size-typescript-saas-web-app",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 78,
+    "confirmed": 4,
+    "refutation": {
+      "paneled": 7,
+      "survived": 6,
+      "reproExempt": 0,
+      "panelEligible": 7
+    },
+    "severity": {
+      "critical": 0,
+      "high": 6,
+      "medium": 33,
+      "low": 24,
+      "nit": 15
+    }
+  },
+  "tokens": {
+    "operative": 1990000,
+    "dispatches": 23
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 4,
+    "redispatched": 4
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 56,
+    "slicesSwept": 10,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 8,
+    "fresh": 1,
+    "refreshed": 4,
+    "falsified": 3
+  },
+  "lessons": [
+    "L-019",
+    "L-013",
+    "L-021",
+    "L-025",
+    "L-026",
+    "L-027",
+    "L-028",
+    "L-029",
+    "L-030"
+  ],
+  "notes": "Second run against this target class (prior: 2026-07-28, assess-only), so deltas are like-for-like: dispatches 16 to 23, findings 49 to 78, survival 0.83 to 0.857, paneled coverage 5 of 6 eligible to 7 of 7, operative tokens roughly 1.53M to 1.99M. **The CONFIRMED ratio fell 0.71 to 0.051 and this is not a quality regression.** The prior row earned its ratio partly by operatives labelling static reasoning CONFIRMED; this run inlined the operative-boundary tier rule into every dispatch brief and every CONFIRMED label carried an executed repro in the operative's own transcript, with zero labels re-tiered by the lead. L-020 verifiably landed, and the two ratios are not comparable across that change. **Paneling changed three of seven eligible highs** - the best per-panel yield recorded: one killed outright on reachability (a feature flag defaulting off dominating the write), one had its impact mechanism partly disproved, one had its mechanism corrected in the finder's favour while the refuter independently surfaced an aggravating fact the finder missed (consent copy promising users something the code does not enforce). The strongest verification came from a refuter settling a vendor-API question against the installed package's own types and request encoder rather than memory, and flagging the one memory-sourced fact as such. **The most instructive result was not a panel**: the finding the panel killed had already been found twice independently, and the adversarial reviewer located the containing guard unaided while the slice reviewer missed it - lens overlap reached the panel's verdict before any refutation dispatch ran (L-030). Covered-negative reporting was the highest-value change: 56 covered negatives against 78 findings made examined-and-clean legible and made the genuinely unswept set visible as its own category. **Three recurrences.** L-019: four units failed and all four were redispatched, but the snapshot-only basis reports a 0 percent redispatch rate - compounded by L-013, the ledger being hand-authored rather than generated so no write journal exists at all. L-021 recurred as a near-miss rather than a loss: a blocked lead turn killed the originating session mid-run, leaving four dangling dispatches whose reports were never written; they were marked failed and redispatched under the failure ladder. **Four new instrument gaps.** The config line cannot express a split lead (L-025) - this run had one, after the lead was blocked by its own safeguards, so it cannot serve as an orchestration-experiment arm. Two standing rules directly conflict (L-026): persist every operative report verbatim, versus findings live only in the register - a faithful sweep trips the sibling warning on its own reports folder every time, ten times here. The anchor checker resolves bare filenames anywhere in an entry, so 11 of 36 entries came back ambiguous and buried the 4 genuinely drifted anchors (L-027). A generated repository map trips the flat hard line cap, the same false positive already fixed for the metrics tool's own output (L-028). Also: the panel triage cap of five fired on a run where paneling all seven was correct (L-029). Atlas leg: 8 sections, 1 consumed FRESH, 4 refreshed and re-stamped, 3 falsified - the falsified claims were load-bearing (a billed-attempt cap stated as 3 when code allows 5, an unqualified control-flow rule that no longer holds, an unconditional match rule that now requires corroboration, and an UNVERIFIED note disproved by twelve invalidation sites). Three sections were deliberately left STALE with an inbox note rather than stamped, because the sweep did not cover their scope deeply enough to earn the stamp."
+}
