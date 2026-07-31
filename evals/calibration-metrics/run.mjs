@@ -32,8 +32,9 @@
 //   clean (the doc and the gate are pinned against each other), and a block line that matches
 //   no template shape fails closed
 //   naming that line — while a fully conforming block (both the counted and the `unknown`
-//   variants of the optional lines) stays clean. The `atlas:` line is optional in the other
-//   sense: a note with no such line stays clean, and a present one must carry all four counts.
+//   variants of the optional lines) stays clean. The `atlas:` and `config:` lines are optional in
+//   the other sense: a note with no such line stays clean, while a present `atlas:` must carry all
+//   four counts and a present `config:` must carry two kebab model-class slugs.
 //
 //   node evals/calibration-metrics/run.mjs   (exit 0 = pass)
 
@@ -399,6 +400,35 @@ try {
   check('w. a legacy note carrying no atlas line at all is still clean — the line is optional',
     d.status === 0 && /0 machine-block hit\(s\)/.test(d.stdout) && !/atlas:/.test(cleanNote), d.stdout);
 
+  // ---- x. the config line is optional, and fail-closed when present ------------
+  // Same optionality as the atlas line: the runs recorded before the tier experiment carry none,
+  // so absence stays clean; a present line must be two kebab model-class slugs and nothing else.
+  const withConfig = (line) => cleanNote.replace(COVERAGE_LINE, `${COVERAGE_LINE}\n${line}`);
+  const configNote = join(jsonDir, 'config-ok.md');
+  writeFileSync(configNote, withConfig('config: lead fable-5; operatives opus-5'));
+  const x1 = run(['--validate-note', configNote]);
+  check('x. a well-formed config line passes (exit 0)', x1.status === 0, x1.stdout + x1.stderr);
+  check('x. it reports 0 structural and 0 machine-block hits',
+    /0 structural hit\(s\)/.test(x1.stdout) && /0 machine-block hit\(s\)/.test(x1.stdout), x1.stdout);
+  const badConfigNote = join(jsonDir, 'config-bad.md');
+  writeFileSync(badConfigNote, withConfig('config: lead Fable 5; operatives opus-5'));
+  const x2 = run(['--validate-note', badConfigNote]);
+  check('x. a non-slug model class fails closed (exit 1)', x2.status === 1, x2.stdout + x2.stderr);
+  check('x. the hit names that line and the config shape',
+    /!! MACHINE-LINE\s+L\d+\s+config: lead Fable 5/.test(x2.stdout)
+    && /config: lead <model-class>; operatives <model-class>/.test(x2.stdout), x2.stdout);
+  const partialConfigNote = join(jsonDir, 'config-partial.md');
+  writeFileSync(partialConfigNote, withConfig('config: lead opus-5'));
+  const x3 = run(['--validate-note', partialConfigNote]);
+  check('x. a config line missing the operatives half fails closed (exit 1)', x3.status === 1, x3.stdout + x3.stderr);
+  const trailingHyphenNote = join(jsonDir, 'config-trailing-hyphen.md');
+  writeFileSync(trailingHyphenNote, withConfig('config: lead opus-; operatives opus-5'));
+  const x4 = run(['--validate-note', trailingHyphenNote]);
+  check('x. a malformed kebab slug fails closed rather than passing as a class name (exit 1)',
+    x4.status === 1, x4.stdout + x4.stderr);
+  check('x. a legacy note carrying no config line at all is still clean — the line is optional',
+    d.status === 0 && /0 machine-block hit\(s\)/.test(d.stdout) && !/config:/.test(cleanNote), d.stdout);
+
   // ---- ab. a note written exactly to the template validates -------------------
   // The template in docs/techniques/calibration-protocol.md is the shape an author fills in, so a
   // template shape the validator rejects makes a correctly-written note fail closed. Filling it
@@ -417,6 +447,9 @@ try {
       .replace(/\s*\[, more\]/g, '')
       .replace(/\s*\((?:or:|optional)[^)]*\)/g, '')
       .replace(/<kebab-slug>/g, 'ts-monorepo-telephony')
+      // The config line's two slots are model classes, filled like any other kebab slug — without
+      // this the catch-all below would fill them with prose and the doc-pin would fail on itself.
+      .replace(/<model-class>/g, 'opus-5')
       .replace(/<instrument\|suite\|protocol>/g, 'instrument')
       .replace(/\bassess-only\|implement\b/g, 'assess-only')
       .replace(/\byes\|no\b/g, 'yes')

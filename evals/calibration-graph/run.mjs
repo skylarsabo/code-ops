@@ -36,7 +36,10 @@
 //   both sides: a negative stored slice count fails validate, and a note sweeping more slices
 //   than exist is refused at ingest. The optional `atlas:` line is bounded the same way — a note
 //   without it ingests to a doc with no atlas field, a well-formed one lands its four counts and
-//   shows an atlas tail in `trend`, and an impossible count is refused at ingest or by validate. A parseable-but-invalid store (`[null]` lessons.json)
+//   shows an atlas tail in `trend`, and an impossible count is refused at ingest or by validate.
+//   The optional `config:` line is covered the same way — a note without it ingests to a doc with
+//   no config field, a well-formed one lands both model classes and shows a config tail in
+//   `trend`, and a non-slug class is refused by both grammars. A parseable-but-invalid store (`[null]` lessons.json)
 //   fails validate and answers every query without a stack trace.
 //
 //   node evals/calibration-graph/run.mjs   (exit 0 = pass)
@@ -547,6 +550,84 @@ try {
   failureClass('n4. a stored atlas that is not an object',
     (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.atlas = 9; writeJson(p, d); },
     /schema: runs\/R-001\.json: atlas, when present, must be an object/);
+
+  // ---- o. the optional config line ---------------------------------------------
+  // The orchestration a run was driven under: a note carrying it ingests two slugs and shows a
+  // config tail in the trend, a note without it produces a doc with no config field at all, and a
+  // non-slug class is refused by both grammars — the arms of a configuration comparison are told
+  // apart by what they recorded, so a mis-parsed slug would silently mis-group a run forever.
+  {
+    const { store } = scratchStore();
+    const noteDir = mkdtempSync(join(tmpdir(), 'coh-calgraph-config-'));
+    cleanupDirs.push(noteDir);
+    const base = readFileSync(join(NOTES, 'sample-note.md'), 'utf8');
+    const COVERAGE_LINE = 'coverage: covered-negatives 2; slices swept 6 of 8';
+    const noteWith = (name, line) => {
+      const p = join(noteDir, name);
+      writeFileSync(p, base.replace(COVERAGE_LINE, `${COVERAGE_LINE}\n${line}`));
+      return p;
+    };
+    const METRICS = join(REPO, 'scripts', 'calibration-metrics.mjs');
+    const gate = (notePath) => {
+      try { return { status: 0, out: execFileSync(process.execPath, [METRICS, '--validate-note', notePath], { encoding: 'utf8', timeout: 20000 }) }; }
+      catch (e) { return { status: e.status ?? 1, out: (e.stdout || '') + (e.stderr || '') }; }
+    };
+
+    const okNote = noteWith('config-ok.md', 'config: lead fable-5; operatives opus-5');
+    const o1 = run(['ingest', '--note', okNote, '--store', store, '--label', 'fixture Go event pipeline']);
+    check('o. a note carrying a config line ingests (exit 0)', o1.status === 0, o1.stdout + o1.stderr);
+    const oDoc = readJson(join(store, 'runs', 'R-005.json'));
+    check('o. both model classes land in the run doc',
+      oDoc.config && oDoc.config.lead === 'fable-5' && oDoc.config.operatives === 'opus-5', JSON.stringify(oDoc.config));
+    const ov = run(['validate', '--store', store]);
+    check('o. the store still validates with a config field present', ov.status === 0, ov.stdout + ov.stderr);
+    const otr = run(['query', 'trend', '--store', store]);
+    check('o. trend prints the config tail for the run that recorded one',
+      /R-005[^\n]*config fable-5->opus-5/.test(otr.stdout), otr.stdout);
+    check('o. trend prints no config tail for the runs that predate the experiment',
+      !/R-00[1234][^\n]*config /.test(otr.stdout), otr.stdout);
+    const gOk = gate(okNote);
+    check('o. the note gate agrees the config line is well-formed (exit 0)',
+      gOk.status === 0 && /0 machine-block hit\(s\)/.test(gOk.out), gOk.out);
+
+    // A legacy note — no config line at all — must still ingest to a doc with no config field,
+    // since "not recorded" and "recorded as some default" are different runs.
+    const legacy = scratchStore().store;
+    const o2 = run(['ingest', '--note', join(NOTES, 'sample-note.md'), '--store', legacy, '--label', 'fixture Go event pipeline']);
+    check('o. a note with no config line ingests (exit 0)', o2.status === 0, o2.stdout + o2.stderr);
+    const legacyDoc = readJson(join(legacy, 'runs', 'R-005.json'));
+    check('o. it produces a doc with no config field at all', !('config' in legacyDoc), JSON.stringify(legacyDoc.config));
+
+    // Fail-closed classes, each on its own scratch store so nothing partial is left behind.
+    const badShape = noteWith('config-bad-shape.md', 'config: lead Fable 5; operatives opus-5');
+    const s1 = scratchStore().store;
+    const r1 = run(['ingest', '--note', badShape, '--store', s1]);
+    check('o. a non-slug model class is refused at ingest (exit 1)', r1.status === 1, r1.stdout + r1.stderr);
+    check('o. the refusal names the offending line',
+      /L\d+: line matches no Machine-block shape: config: lead Fable 5/.test(r1.stderr), r1.stderr);
+    check('o. nothing was written', !readdirSync(join(s1, 'runs')).includes('R-005.json'), readdirSync(join(s1, 'runs')).join(','));
+    const gBad = gate(badShape);
+    check('o. the note gate refuses the same line (exit 1)',
+      gBad.status === 1 && /MACHINE-LINE[\s\S]*config: lead Fable 5/.test(gBad.out), gBad.out);
+
+    const halfLine = noteWith('config-half.md', 'config: lead opus-5');
+    const s2 = scratchStore().store;
+    const r2 = run(['ingest', '--note', halfLine, '--store', s2]);
+    check('o. a config line missing the operatives half is refused (exit 1)', r2.status === 1, r2.stdout + r2.stderr);
+    check('o. the note gate refuses the half line too (exit 1)', gate(halfLine).status === 1, gate(halfLine).out);
+  }
+
+  failureClass('o1. a stored config that is not an object',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = 'opus-5'; writeJson(p, d); },
+    /schema: runs\/R-001\.json: config, when present, must be an object/);
+
+  failureClass('o2. a stored config missing its operatives half',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: 'opus-5' }; writeJson(p, d); },
+    /schema: runs\/R-001\.json: config\.operatives must be a kebab model-class slug/);
+
+  failureClass('o3. a stored config whose lead is not a kebab slug',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: 'Fable 5', operatives: 'opus-5' }; writeJson(p, d); },
+    /schema: runs\/R-001\.json: config\.lead must be a kebab model-class slug/);
 
   // ---- j. the real store was never written to by this eval --------------------
   check('j. the real table is byte-identical to what render --check accepted', readFileSync(REAL_TABLE, 'utf8') === table, 'real table changed during the eval');

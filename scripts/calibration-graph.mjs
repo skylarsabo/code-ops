@@ -244,6 +244,17 @@ function validateRunDoc(entry, problems) {
     }
   }
 
+  // `config` is OPTIONAL for the same reason as `atlas`: a run recorded before the tier
+  // experiment did not record what it was driven under, and an absent field says exactly that —
+  // never a default, since guessing a lead class would silently mis-group the comparison.
+  if (doc.config !== undefined) {
+    const cfg = doc.config;
+    if (typeof cfg !== 'object' || cfg === null || Array.isArray(cfg)) bad('config, when present, must be an object');
+    else for (const k of ['lead', 'operatives']) {
+      if (typeof cfg[k] !== 'string' || !SLUG_RE.test(cfg[k])) bad(`config.${k} must be a kebab model-class slug`);
+    }
+  }
+
   if (!Array.isArray(doc.lessons)) bad('lessons must be an array of lesson ids');
   else for (const l of doc.lessons) if (typeof l !== 'string' || !LESSON_ID_RE.test(l)) bad(`lessons entry ${JSON.stringify(l)} is not an L-NNN id`);
 
@@ -601,8 +612,11 @@ function cmdQuery(args) {
         // The atlas tail prints only for a run that measured one — a run with no atlas leg says
         // nothing here rather than showing zeros that would read as "an atlas nobody used".
         const atlas = r.atlas ? `  atlas ${r.atlas.fresh} fresh, ${r.atlas.refreshed} refreshed, ${r.atlas.falsified} falsified of ${r.atlas.sections}` : '';
+        // Same rule as the atlas tail: only a run that recorded its orchestration says anything
+        // here, so the tier experiment's arms are told apart by what they recorded, not inferred.
+        const config = r.config ? `  config ${r.config.lead}->${r.config.operatives}` : '';
         console.log(`  ${r.id}  ${r.date}  findings ${q.findings}  confirmed ${q.confirmed} (${ratio2(q.confirmed, q.findings) ?? 'n/a'})`
-          + `  confirmed/100k ${per100k}  survival ${survivalCell(q.refutation)}  dispatches ${r.tokens.dispatches}${atlas}`);
+          + `  confirmed/100k ${per100k}  survival ${survivalCell(q.refutation)}  dispatches ${r.tokens.dispatches}${atlas}${config}`);
       }
     }
     console.log(`\n${g.runs.length} run(s) across ${groups.size} class/track group(s).`);
@@ -659,6 +673,9 @@ const SHAPES = [
   // OPTIONAL — absent from REQUIRED_KEYS on purpose: R-001..R-003 predate the atlas leg, and a
   // target with no atlas at all still produces a valid note.
   ['atlas', /^atlas:\s*sections (\d+);\s*fresh (\d+);\s*refreshed (\d+);\s*falsified (\d+)$/],
+  // OPTIONAL for the same reason as the atlas line, and likewise absent from REQUIRED_KEYS:
+  // R-001..R-004 predate the tier experiment, so a note without it ingests unchanged.
+  ['config', /^config:\s*lead ([a-z0-9]+(?:-[a-z0-9]+)*);\s*operatives ([a-z0-9]+(?:-[a-z0-9]+)*)$/],
   ['lesson-recur', /^lesson:\s*recur (L-\d{3})$/],
   ['lesson-new', /^lesson:\s*new (instrument|suite|protocol) — (\S.*)$/],
 ];
@@ -803,6 +820,9 @@ function cmdIngest(args) {
     console.error('Fail-closed: an ingest that guesses at a malformed metric line writes a wrong row forever.');
     process.exit(1);
   }
+  // No arithmetic bound to check on the config line — it carries slugs, not counts, and the shape
+  // above is the whole contract. Bound here only so the doc assembly below reads like its siblings.
+  const cf = fields.get('config');
   const num = (v) => (v === undefined || v === 'unknown' ? null : Number(v));
 
   const label = f['--label'] ?? `TODO: sanitized prose label for ${tc[1]}`;
@@ -829,6 +849,9 @@ function cmdIngest(args) {
     // Omitted entirely when the note carries no atlas line — an absent field reads as "this run
     // had no atlas leg", which a zeroed object would not.
     ...(al ? { atlas: { sections: Number(al[1]), fresh: Number(al[2]), refreshed: Number(al[3]), falsified: Number(al[4]) } } : {}),
+    // Omitted entirely when the note carries no config line, for the same reason as atlas above:
+    // "nobody recorded the orchestration" must not be storable as some default configuration.
+    ...(cf ? { config: { lead: cf[1], operatives: cf[2] } } : {}),
     lessons: [...lessonsRecur, ...minted.map((m) => m.id)],
     notes,
   };

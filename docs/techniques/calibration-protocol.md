@@ -78,6 +78,7 @@ there's nothing to report.
 | Standardization | enforcements added (new lint/gate checks the run's findings drove), traceless-scan clean rate |
 | Coverage | **slice coverage** — slices swept, of those the covered-negative count, and slices left unswept |
 | Atlas | sections in the target's atlas, of those the count consumed FRESH, the count refreshed during the run, and the count the run falsified |
+| Configuration | the orchestration the run was driven under — the lead's model class and the class its operatives ran at |
 
 The three additions each close a hole a real run fell into:
 
@@ -121,6 +122,7 @@ orchestration: dangling N; failed N; redispatched N
 standardization: enforcements N; traceless clean|dirty
 coverage: covered-negatives N; slices swept N of M (or: unknown)
 atlas: sections N; fresh N; refreshed N; falsified N (optional)
+config: lead <model-class>; operatives <model-class> (optional)
 lesson: recur L-NNN
 lesson: new <instrument|suite|protocol> — <statement>
 ```
@@ -144,12 +146,20 @@ lessons get their `L-NNN` id assigned at ingest, so the note writes the statemen
 the id; a recurrence cites the existing id. The block adds no leak surface — counts,
 kebab slugs, and enum words only — and still passes through every existing scrub.
 
-The `atlas:` line is the one **optional** metric line: a note without it validates and
-ingests exactly as before (the runs recorded before the atlas leg existed have none), and
-a note carrying it must carry all four counts. Both sides refuse `fresh + refreshed`
-exceeding `sections`, or `falsified` exceeding it — those are arithmetic that went wrong
-upstream, not a measurement. Section *counts* cross the channel; section names, scopes,
-and prose never do.
+The `atlas:` and `config:` lines are the **optional** metric lines: a note without either
+validates and ingests exactly as before (the runs recorded before those legs existed have
+none). A note carrying `atlas:` must carry all four counts, and both sides refuse
+`fresh + refreshed` exceeding `sections`, or `falsified` exceeding it — those are
+arithmetic that went wrong upstream, not a measurement. Section *counts* cross the
+channel; section names, scopes, and prose never do.
+
+The `config:` line records the run's orchestration as two kebab model-class slugs — the
+lead that planned and judged, and the tier its operatives ran at (`config: lead fable-5;
+operatives opus-5`). It is what makes one run's numbers comparable to another's rather
+than merely sequential, so a run comparing configurations must carry it. Absence means
+*not recorded*: a run doc omits the field rather than defaulting one, since a guessed lead
+class would silently mis-group a comparison. Model classes are public vocabulary, so the
+line adds no leak surface — no version string, endpoint, or session id crosses on it.
 
 ## Recording a run
 
@@ -172,6 +182,37 @@ closed by the PR, eval, or gate that answers it. The store lives on this side of
 one-way channel and holds only data that already crossed it as a sanitized note; the
 channel rule above is unchanged by any of this. Schemas, edge vocabulary, derived
 metrics, and the query cookbook: [calibration-graph.md](calibration-graph.md).
+
+## Pre-registered: the orchestration-configuration experiment
+
+Three runs against the **control target**, identical in every respect but the `config:`
+line, declared here before any of the three executes — the same pre-registration
+discipline as `evals/FLOOR_TABLE.md`, and for the same reason: a comparison whose axes
+are chosen after the numbers are in measures the chooser, not the configuration.
+
+- **R-NNN(a) — lead `fable-5`, operatives `opus-5`. The quality baseline.** The
+  configuration used for the highest-stakes engineering work; its row *defines the bar*
+  the other two are read against, not a third data point.
+- **R-NNN(b) — lead `opus-5`, operatives `opus-5`. The candidate.** The primary outcome
+  of the experiment is (b)'s **gap to baseline** on each axis below. Where a gap appears,
+  the question to answer is which lead-level behavior accounts for it — verdict and
+  tier-assignment quality, escalation handling, or brief precision — so that doctrine,
+  brief skeletons, or mechanical gates can be hardened until the candidate performs at
+  baseline level for less.
+- **R-NNN(c) — lead `opus-5`, operatives `sonnet-5`. The cost-floor reference.** Read
+  against (b), it says what the operative-tier premium buys independently of the lead
+  tier; it is context for the gap, not a candidate for adoption.
+
+Axes, fixed in advance: CONFIRMED per 100k operative tokens; refutation survival rate;
+failed-dispatch and redispatch rates (from the run's `DISPATCH_LEDGER.md`); atlas
+falsified count; CONFIRMED labels re-tiered on review; and total operative tokens. The
+operator sets the lead by choosing the session's model and pins the operative tier in
+**every** dispatch brief of the run — an unpinned brief silently re-tiers the arm and
+voids it.
+
+Gaps found in (b) are recorded as `lesson:` lines under the existing classes
+(`instrument`, `suite`, `protocol`) and enter the remediation loop like any other lesson;
+the candidate configuration is adopted for high-stakes work only once they are closed.
 
 ## Optional: defect seeding
 

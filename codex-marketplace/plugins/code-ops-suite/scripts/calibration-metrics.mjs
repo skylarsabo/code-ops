@@ -628,6 +628,11 @@ const MACHINE_LINE_SHAPES = [
   // consumed it. OPTIONAL by design: runs recorded before the atlas leg existed carry no such
   // line, so its ABSENCE is never a hit; a line that is present must be four counts.
   { shape: 'atlas: sections N; fresh N; refreshed N; falsified N', re: /^atlas: sections \d+; fresh \d+; refreshed \d+; falsified \d+$/ },
+  // config: lead <model-class>; operatives <model-class> — the orchestration the run was driven
+  // under. OPTIONAL like the atlas line: the runs recorded before the tier experiment carry none,
+  // so its ABSENCE is never a hit. Two kebab model-class slugs, nothing else: a class name is not
+  // a target internal, and no version, vendor endpoint or session id crosses on this line.
+  { shape: 'config: lead <model-class>; operatives <model-class>', re: /^config: lead [a-z0-9]+(?:-[a-z0-9]+)*; operatives [a-z0-9]+(?:-[a-z0-9]+)*$/ },
   // lesson: recur L-NNN
   { shape: 'lesson: recur L-NNN', re: /^lesson: recur L-\d{3}$/ },
   // lesson: new <instrument|suite|protocol> — <statement>   (id assigned at ingest)

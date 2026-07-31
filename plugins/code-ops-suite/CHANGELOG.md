@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.34.0
+- **New optional `config:` Machine-block line** — `config: lead <model-class>; operatives <model-class>`, parsed identically by `calibration-metrics.mjs --validate-note` and `calibration-graph.mjs ingest`. It records the orchestration a calibration run was driven under, which is what makes one run's numbers comparable to another's rather than merely sequential. Optional like `atlas:`: a note without it validates and ingests exactly as before, so the runs recorded before the tier experiment stay valid.
+- **The run-document schema gains an optional `config` object** (`{lead, operatives}`, both kebab model-class slugs), fail-closed on a malformed shape. A run that did not record its orchestration omits the field entirely rather than defaulting one — a guessed lead class would silently mis-group a comparison. `query trend` prints a config tail only for the runs that carry one; the rendered table is unchanged.
+- **`calibration-run` confirms the orchestration configuration at the Phase 0 checkpoint** and pins the operative tier in every dispatch brief, since a run that re-tiers mid-flight is not comparable to any other.
+- **A three-run orchestration-configuration experiment is pre-registered** in the calibration protocol as a baseline gap analysis: a quality baseline, a candidate read against it on fixed axes, and a cost-floor reference. Gaps feed the existing `instrument`/`suite`/`protocol` lesson classes and the remediation loop.
+
 ## 1.33.0
 - **Model routing is quality-first** (`CONVENTIONS.md` §1, `hooks/routing-card.mjs`): every judgment-bearing sub-agent dispatch runs on the stronger model whatever tier the orchestrator itself is on; only mechanical breadth sweeps and transcription-style work drop a tier. A shallow or failed report costs a redispatch plus the orchestrator's attention, which outweighs the stronger model's price premium.
 - **`run-cost-audit` prices under-tiering as a cost, not a saving**: a judgment-bearing dispatch routed below the strong tier is now a finding, reported with the redispatches and discarded reports it caused.

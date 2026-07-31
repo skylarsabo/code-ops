@@ -58,6 +58,7 @@ All fields required unless marked optional.
   "standardization": { "enforcementsAdded": 0, "tracelessClean": true },
   "coverage": { "coveredNegatives": null, "slicesSwept": null, "slicesUnswept": null },
   "atlas": { "sections": 0, "fresh": 0, "refreshed": 0, "falsified": 0 },
+  "config": { "lead": "<kebab-slug>", "operatives": "<kebab-slug>" },
   "lessons": ["L-001"],
   "notes": "<verbatim notes prose>"
 }
@@ -74,6 +75,11 @@ All fields required unless marked optional.
   since "no atlas was involved" and "an atlas nobody used" are different runs. Present, all
   four counts are non-negative, `fresh + refreshed` may not exceed `sections`, and neither
   may `falsified`. `query trend` prints an atlas tail only for the runs that carry it.
+- `config` is **optional** — the orchestration the run was driven under, as two kebab
+  model-class slugs: the `lead` that planned and judged, and the tier the `operatives` ran
+  at. A run that did not record it omits the field entirely; absence means *not recorded*
+  and never a default, since a guessed lead class would silently mis-group a comparison
+  between configurations. `query trend` prints a config tail only for the runs that carry it.
 - `lessons` lists the lessons this run **surfaced or re-surfaced**.
 - `notes` is the row's prose verbatim; for a new run it is the note's Lessons prose.
 
