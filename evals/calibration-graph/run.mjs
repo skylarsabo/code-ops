@@ -98,7 +98,7 @@ try {
   // ---- a. REAL store: validate + render --check are green ----------------------
   const a = run(['validate']);
   check('a. validate exits 0 on the real store', a.status === 0, a.stdout + a.stderr);
-  check('a. validate reports 4 runs / 24 lessons / 30 edges', /4 run\(s\), 24 lesson\(s\), 30 edge\(s\)/.test(a.stdout), a.stdout);
+  check('a. validate reports 4 runs / 24 lessons / 32 edges', /4 run\(s\), 24 lesson\(s\), 32 edge\(s\)/.test(a.stdout), a.stdout);
   check('a. validate reports 0 violations', /\n0 violation\(s\)\./.test(a.stdout), a.stdout);
 
   const b = run(['render', '--check']);

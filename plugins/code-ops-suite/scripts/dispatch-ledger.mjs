@@ -35,14 +35,30 @@
 // dispatch: `check` flags it as an advisory (tier mix not reconstructable for that row),
 // promoted to a failure under --strict. Legacy ledgers without the stamp still PARSE.
 //
+// WHY the write journal (check name: `phantom-row`): the prior enforcement was prose-only —
+// "write the row atomically with the dispatch call" — and a snapshot of the finished artifact
+// cannot tell a real dispatch from a row minted by a direct or batch edit of the file (often
+// straight at `reported`). Both look identical. So provenance is recorded at WRITE time:
+// `add`/`update`/`phase` append a line to `<ledger>.journal.jsonl` (JSONL, deterministic, no
+// timestamps), and `check` replays it against the rows. A row with no journaled `add` is a
+// PHANTOM — it was never dispatched by this tool — and fails closed even without --strict,
+// because unlike a dangling row it has no legitimate explanation.
+//
+// Journal creation is deliberately conservative for backward compatibility: `add`/`phase`
+// create the journal only when they create the LEDGER; an existing ledger with no journal is a
+// pre-journal artifact and stays unjournaled (minting one now would make every pre-existing row
+// a false phantom), and `update` never creates one. `check` on an unjournaled ledger with rows
+// is an ADVISORY (phantom rows simply undetectable there), promoted by --strict.
+//
 // Exit: add/update/phase -> 0 on success, 1 on a validation rejection (bad brief length,
 // missing/unresolvable --model, unknown id, invalid transition, a phase title carrying the
 // marker's own delimiters), 2 on a usage error.
-// check -> 0 (schema clean; any dangling/unstamped rows are printed as advisories), 1 on
-// a schema violation, or (with --strict) on a dangling `dispatched` row or an unstamped
-// row too. 2 on a usage error.
+// check -> 0 (schema clean; any dangling/unstamped rows and an absent journal are printed as
+// advisories), 1 on a schema violation, on a journal violation (phantom row, out-of-band status
+// edit, journaled row missing from the ledger, unreadable journal line), or (with --strict) on a
+// dangling `dispatched` row, an unstamped row, or an unjournaled ledger too. 2 on a usage error.
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const HEADER = '| id | role | brief | expected artifact | status |\n'
@@ -126,6 +142,64 @@ function wordCount(s) {
   return s.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// ---------------------------------------------------------------- write journal
+
+// The journal lives beside the ledger it describes, so a run artifact folder carries its own
+// provenance and neither file can be moved away from the other by accident.
+function journalPathFor(ledgerPath) {
+  return `${ledgerPath}.journal.jsonl`;
+}
+
+// Appends one provenance entry. `mayCreate` is true only when this same command is creating the
+// ledger itself: an existing ledger with no journal is a pre-journal artifact, and writing a
+// journal for it would make every row already in the file a false phantom.
+//
+// ORDER MATTERS: every caller appends here BEFORE writing the ledger. A crash between the two
+// writes then leaves a journaled entry with no row — reported as MISSING-ROW, an honest crash
+// signal. The reverse order would leave a row with no journal entry, i.e. a PHANTOM, which is
+// the fabrication signal; a crash must never be able to counterfeit fabrication.
+function journalAppend(ledgerPath, entry, mayCreate) {
+  const jp = journalPathFor(ledgerPath);
+  if (!existsSync(jp) && !mayCreate) return;
+  try { appendFileSync(jp, JSON.stringify(entry) + '\n'); }
+  catch (e) { console.error(`x cannot write dispatch journal ${jp}: ${e.message}`); process.exit(2); }
+}
+
+// Replays the journal into the final status each id should carry. Returns
+// { expected: Map<id, status>, violations: string[] } — violations are fail-closed: a line that
+// cannot be read is a journal that cannot be trusted to prove anything.
+function replayJournal(text) {
+  const expected = new Map();
+  const violations = [];
+  text.split('\n').forEach((raw, idx) => {
+    const line = raw.replace(/\r$/, '').trim();
+    if (line === '') return;
+    const at = `J${idx + 1}`;
+    let e;
+    try { e = JSON.parse(line); }
+    catch { violations.push(`${at}: unparseable journal line: ${line.slice(0, 100)}`); return; }
+    if (!e || typeof e !== 'object' || Array.isArray(e)) { violations.push(`${at}: journal entry is not an object: ${line.slice(0, 100)}`); return; }
+    if (e.op === 'phase') {
+      if (typeof e.title !== 'string' || e.title === '') violations.push(`${at}: phase entry needs a non-empty title: ${line.slice(0, 100)}`);
+      return;
+    }
+    if (e.op === 'add') {
+      if (typeof e.id !== 'string' || !/^D-\d+$/.test(e.id) || e.status !== 'dispatched') { violations.push(`${at}: malformed add entry: ${line.slice(0, 100)}`); return; }
+      if (expected.has(e.id)) { violations.push(`${at}: duplicate add for ${e.id}`); return; }
+      expected.set(e.id, e.status);
+      return;
+    }
+    if (e.op === 'update') {
+      if (typeof e.id !== 'string' || !/^D-\d+$/.test(e.id) || !STATUSES.includes(e.to)) { violations.push(`${at}: malformed update entry: ${line.slice(0, 100)}`); return; }
+      if (!expected.has(e.id)) { violations.push(`${at}: update for ${e.id}, which was never added`); return; }
+      expected.set(e.id, e.to);
+      return;
+    }
+    violations.push(`${at}: unknown journal op: ${line.slice(0, 100)}`);
+  });
+  return { expected, violations };
+}
+
 // ---------------------------------------------------------------- add
 
 function cmdAdd(args) {
@@ -154,6 +228,7 @@ function cmdAdd(args) {
   const role = `${f['--role']}@${f['--model']}`;
   const row = `| ${id} | ${role} | ${f['--brief']} | ${f['--artifact']} | dispatched |\n`;
   const body = (text === null ? HEADER : (text.endsWith('\n') ? text : text + '\n')) + row;
+  journalAppend(path, { op: 'add', id, status: 'dispatched' }, text === null);
   writeFileSync(path, body);
   console.log(`(dispatch-ledger) ${id} dispatched -> ${f['--ledger']}`);
 }
@@ -192,6 +267,7 @@ function cmdPhase(args) {
   }
   const marker = `> phase: ${title} · lead@${lead}\n`;
   const body = (text === null ? HEADER : (text.endsWith('\n') ? text : text + '\n')) + marker;
+  journalAppend(path, { op: 'phase', title }, text === null);
   writeFileSync(path, body);
   console.log(`(dispatch-ledger) phase '${title}' lead@${lead} -> ${f['--ledger']}`);
 }
@@ -234,6 +310,8 @@ function cmdUpdate(args) {
   const original = lines[target.line - 1];
   const updated = original.replace(/\|\s*[^|]*\s*\|$/, `| ${f['--status']} |`);
   lines[target.line - 1] = updated;
+  // `update` never creates a journal — only the command that creates the ledger may.
+  journalAppend(path, { op: 'update', id: f['--id'], to: f['--status'] }, false);
   writeFileSync(path, lines.join('\n'));
   console.log(`(dispatch-ledger) ${f['--id']} ${target.status} -> ${f['--status']}`);
 }
@@ -279,13 +357,56 @@ function cmdCheck(args) {
   for (const r of unstamped)
     console.log(`  advisory: ${r.id} unstamped dispatch (pre-stamp row or resolver failure) — tier mix not reconstructable`);
 
-  console.log(`\n${rows.length} row(s), 0 schema violation(s), ${dangling.length} dangling dispatch(es), ${unstamped.length} unstamped dispatch(es).`);
+  // ---- phantom-row cross-reference: the ledger against its own write journal ----------
+  const jp = journalPathFor(path);
+  const journalled = existsSync(jp);
+  let journalNote = 'absent';
+  const journalViolations = [];
+  if (!journalled) {
+    if (rows.length)
+      console.log('  advisory: unjournaled ledger (pre-journal artifact, or rows written without dispatch-ledger.mjs) — phantom rows are undetectable here');
+  } else {
+    const jtext = readLedger(jp) ?? '';
+    const { expected, violations } = replayJournal(jtext);
+    journalViolations.push(...violations);
+    for (const v of violations) console.log(`  !! JOURNAL  ${v}`);
+    if (!violations.length) {
+      for (const r of rows) {
+        if (!expected.has(r.id)) {
+          journalViolations.push(`${r.id}: phantom row`);
+          console.log(`  !! PHANTOM  ${r.id} (line ${r.line}): row has no recorded dispatch call — minted by a direct artifact edit, not dispatch-ledger.mjs add`);
+        } else if (expected.get(r.id) !== r.status) {
+          journalViolations.push(`${r.id}: out-of-band status`);
+          console.log(`  !! OUT-OF-BAND  ${r.id} (line ${r.line}): status '${r.status}' was not written by dispatch-ledger.mjs update — the journal replays to '${expected.get(r.id)}'`);
+        }
+      }
+      const present = new Set(rows.map((r) => r.id));
+      for (const id of expected.keys()) {
+        if (present.has(id)) continue;
+        journalViolations.push(`${id}: journaled row missing`);
+        console.log(`  !! MISSING-ROW  ${id}: journaled as dispatched but no row in the ledger — the row was deleted, or a write died between the journal and the ledger`);
+      }
+    }
+    journalNote = journalViolations.length ? `${journalViolations.length} violation(s)` : 'verified';
+  }
+
+  console.log(`\n${rows.length} row(s), 0 schema violation(s), ${dangling.length} dangling dispatch(es), ${unstamped.length} unstamped dispatch(es), journal: ${journalNote}.`);
+  // A phantom (or an out-of-band edit, or a vanished journaled row) has no legitimate
+  // explanation the way a dangling row does, so it fails closed without --strict.
+  if (journalViolations.length) {
+    console.error(`x journal cross-reference failed: ${journalViolations.length} violation(s) — the ledger does not match the writes dispatch-ledger.mjs actually made.`);
+    process.exit(1);
+  }
   if (dangling.length && strict) {
     console.error('--strict: dangling dispatched row(s) present — treat as failed.');
     process.exit(1);
   }
   if (unstamped.length && strict) {
     console.error('--strict: unstamped dispatch row(s) present — tier mix not reconstructable.');
+    process.exit(1);
+  }
+  if (!journalled && rows.length && strict) {
+    console.error('--strict: unjournaled ledger — phantom rows cannot be ruled out.');
     process.exit(1);
   }
 }

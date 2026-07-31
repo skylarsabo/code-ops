@@ -13,10 +13,18 @@
 // of the run); `check` accepts markers, counts them as neither rows nor prose, and fails closed
 // on a line starting `> phase:` that breaks the grammar.
 //
+// Journal leg (sections q-w): every write goes to an append-only `<ledger>.journal.jsonl`
+// alongside the ledger, and `check` replays it against the rows — a row with no journaled `add`
+// is a PHANTOM (the L-013 hazard: a schema-perfect row minted by a direct artifact edit, often
+// straight at `reported`, is otherwise snapshot-indistinguishable from a real dispatch) and
+// fails closed without --strict, as do an out-of-band status edit, a journaled row deleted from
+// the ledger, and an unreadable journal line. A ledger with no journal is a pre-journal artifact:
+// advisory only (exit 0), promoted by --strict, and `update` never mints a journal for one.
+//
 //   node evals/dispatch-ledger/run.mjs   (exit 0 = pass)
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -185,6 +193,81 @@ try {
   check('p. title carrying a pipe exits 1', p2.status === 1, p2.stderr);
   const p3 = run(['phase', '--ledger', phased, '--title', 'Review']);
   check('p. missing --lead-model exits 2 (usage)', p3.status === 2, p3.stderr);
+
+  // Seeds a fresh journaled ledger (two adds, one of them carried to `reported`) for the
+  // phantom/out-of-band/missing-row cases, which each corrupt their own copy.
+  const seedJournaled = (name) => {
+    const led = join(dir, name);
+    run(['add', '--ledger', led, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5']);
+    run(['add', '--ledger', led, '--role', 'reviewer', '--brief', 'review the payment diff', '--artifact', 'REVIEW.md', '--model', 'claude-opus-5']);
+    run(['update', '--ledger', led, '--id', 'D-001', '--status', 'reported']);
+    return led;
+  };
+
+  // q. `add` on a fresh ledger journals its own write; check replays it clean.
+  const journaled = seedJournaled('JOURNALED_LEDGER.md');
+  check('q. add created the write journal', existsSync(journaled + '.journal.jsonl'), journaled);
+  const qJournal = readFileSync(journaled + '.journal.jsonl', 'utf8');
+  check('q. journal records the add entries', /\{"op":"add","id":"D-001","status":"dispatched"\}/.test(qJournal) && /\{"op":"add","id":"D-002","status":"dispatched"\}/.test(qJournal), qJournal);
+  check('q. journal records the update entry', /\{"op":"update","id":"D-001","to":"reported"\}/.test(qJournal), qJournal);
+  const q = run(['check', '--ledger', journaled]);
+  check('q. check exits 0 on a journaled ledger', q.status === 0, q.stdout + q.stderr);
+  check('q. check reports the journal as verified', /journal: verified\./.test(q.stdout), q.stdout);
+
+  // r. THE L-013 REGRESSION CASE: a schema-perfect row minted straight at `reported` by a direct
+  // artifact edit — no dispatch call behind it. Snapshot-indistinguishable from a real dispatch;
+  // only the journal can tell them apart, and it must fail closed WITHOUT --strict.
+  const phantomLedger = seedJournaled('PHANTOM_LEDGER.md');
+  writeFileSync(phantomLedger, readFileSync(phantomLedger, 'utf8')
+    + '| D-003 | reviewer@claude-opus-5 | audit the payment lane | AUDIT.md | reported |\n');
+  const r = run(['check', '--ledger', phantomLedger]);
+  check('r. phantom row exits 1 without --strict', r.status === 1, r.stdout + r.stderr);
+  check('r. phantom row is named as PHANTOM', /!! PHANTOM\s+D-003/.test(r.stdout), r.stdout);
+  check('r. phantom message says no recorded dispatch call', /no recorded dispatch call/.test(r.stdout), r.stdout);
+
+  // s. an out-of-band status edit: the row's status cell is hand-rewritten dispatched ->
+  // reported without an `update` call, so the journal replays to a different status.
+  const oobLedger = seedJournaled('OOB_LEDGER.md');
+  writeFileSync(oobLedger, readFileSync(oobLedger, 'utf8')
+    .replace('| D-002 | reviewer@claude-opus-5 | review the payment diff | REVIEW.md | dispatched |',
+      '| D-002 | reviewer@claude-opus-5 | review the payment diff | REVIEW.md | reported |'));
+  const s = run(['check', '--ledger', oobLedger]);
+  check('s. out-of-band status edit exits 1', s.status === 1, s.stdout + s.stderr);
+  check('s. out-of-band row is named', /!! OUT-OF-BAND\s+D-002/.test(s.stdout), s.stdout);
+
+  // t. a journaled row deleted from the ledger — the write happened, the record is gone.
+  const missingLedger = seedJournaled('MISSING_LEDGER.md');
+  writeFileSync(missingLedger, readFileSync(missingLedger, 'utf8')
+    .split('\n').filter((ln) => !ln.startsWith('| D-002 ')).join('\n'));
+  const t = run(['check', '--ledger', missingLedger]);
+  check('t. deleted journaled row exits 1', t.status === 1, t.stdout + t.stderr);
+  check('t. missing row is named', /!! MISSING-ROW\s+D-002/.test(t.stdout), t.stdout);
+
+  // u. backward compat: a hand-written pre-journal ledger has no journal at all. That is an
+  // ADVISORY (exit 0) — phantom rows are simply undetectable there — promoted by --strict.
+  const u = run(['check', '--ledger', legacy]);
+  check('u. unjournaled legacy ledger still exits 0', u.status === 0, u.stdout + u.stderr);
+  check('u. unjournaled ledger is reported as an advisory', /advisory: unjournaled ledger/.test(u.stdout), u.stdout);
+  check('u. summary reports the journal as absent', /journal: absent\./.test(u.stdout), u.stdout);
+  const u2 = run(['check', '--ledger', legacy, '--strict']);
+  check('u. --strict on an unjournaled ledger exits 1', u2.status === 1, u2.stdout + u2.stderr);
+
+  // v. `update` must never MINT a journal for a pre-journal ledger: doing so would make every
+  // row already in that file a false phantom on the next check.
+  const v1 = run(['update', '--ledger', legacy, '--id', 'D-002', '--status', 'redispatched']);
+  check('v. update on an unjournaled legacy ledger exits 0', v1.status === 0, v1.stderr);
+  check('v. update did not create a journal', !existsSync(legacy + '.journal.jsonl'), legacy);
+  const v2 = run(['check', '--ledger', legacy]);
+  check('v. check stays advisory-only after the update (exit 0)', v2.status === 0, v2.stdout + v2.stderr);
+
+  // w. an unreadable journal line fails CLOSED — a journal that cannot be replayed cannot prove
+  // anything about the rows it is supposed to vouch for.
+  const badJournal = seedJournaled('BAD_JOURNAL_LEDGER.md');
+  writeFileSync(badJournal + '.journal.jsonl',
+    readFileSync(badJournal + '.journal.jsonl', 'utf8') + 'not json\n');
+  const w = run(['check', '--ledger', badJournal]);
+  check('w. malformed journal line exits 1', w.status === 1, w.stdout + w.stderr);
+  check('w. malformed journal line is named with its line number', /!! JOURNAL\s+J4: unparseable journal line/.test(w.stdout), w.stdout);
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }

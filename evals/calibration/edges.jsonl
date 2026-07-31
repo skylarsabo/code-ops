@@ -28,3 +28,5 @@
 {"from":"L-013","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#ledger-atomicity"}
 {"from":"L-014","rel":"fixed-in","to":"PR-45"}
 {"from":"L-014","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
+{"from":"L-013","rel":"enforced-by","to":"GATE:scripts/dispatch-ledger.mjs#phantom-row"}
+{"from":"L-013","rel":"enforced-by","to":"EVAL:evals/dispatch-ledger/run.mjs"}

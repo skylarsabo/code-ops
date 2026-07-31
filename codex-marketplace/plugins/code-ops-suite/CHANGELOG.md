@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.30.0
+- **`dispatch-ledger.mjs` now journals its own writes**, so a phantom row is mechanically detectable. `add`, `update`, and `phase` append a JSONL entry to `<ledger>.journal.jsonl` before writing the ledger, and `check` replays that journal against the rows: a row with no journaled `add` is reported as `!! PHANTOM` and fails closed without `--strict` — a row minted by a direct or batch artifact edit (often straight at `reported`) was previously indistinguishable from a real dispatch in a finished artifact. A hand-edited status cell (`!! OUT-OF-BAND`), a journaled row deleted from the ledger (`!! MISSING-ROW`), and an unreadable journal line all fail closed too.
+- **Pre-journal ledgers keep working.** A journal is created only by the command that creates the ledger; `update` never mints one. An existing ledger with no journal stays unjournaled and `check` reports it as an advisory (exit 0), promoted to a failure under `--strict`. The journal entry is written before the ledger so a crash between the two surfaces as a missing row, never as a phantom.
+- The `check` summary keeps its existing sentence and gains a `journal: verified|absent|N violation(s)` tail.
+
 ## 1.29.0
 - **A calibration run now measures the target's atlas.** `calibration-run`'s baseline sweep opens with an `atlas-check.mjs check` (or an `init` when the target keeps none), hands each section's FRESH/STALE state into the sweep briefs, and refreshes the stale sections in the session that has the context. Four counts come back: sections held, consumed FRESH, refreshed, and falsified.
 - **New optional `atlas:` Machine-block line** — `atlas: sections N; fresh N; refreshed N; falsified N`, parsed identically by `calibration-metrics.mjs --validate-note` and `calibration-graph.mjs ingest`. A note without the line validates and ingests exactly as before, so the runs recorded before the atlas leg stay valid; a present line must carry all four counts.
