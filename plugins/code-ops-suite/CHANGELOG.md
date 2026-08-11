@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.36.0
+- **Recording a calibration run is now five steps, not four** — the new final step syncs `evals/calibration-graph/run.mjs`. That eval runs against the real store and hardcodes its answers, so every ingest changes two files. Two consecutive ingests missed the step, which passes every local gate and fails only in CI. Both the protocol doc and the `calibration-run` skill now name the step, and the skill's `Done when` requires the eval to pass.
+
 ## 1.35.0
 - **New `CONVENTIONS.md` §14, Writing standard** — every skill writes to one house standard. The section pins one term per concept, active voice, and one instruction per sentence. It caps instructions at 20 words and explanation at 25. Clarity outranks conformance, so a writer who breaks a rule states why. Full rules live in `docs/techniques/writing-standard.md`.
 

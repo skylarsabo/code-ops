@@ -163,7 +163,7 @@ line adds no leak surface — no version string, endpoint, or session id crosses
 
 ## Recording a run
 
-A validated note is not the record — the run document is. Four steps, in order:
+A validated note is not the record — the run document is. Five steps, in order:
 
 1. **Validate the note** — `calibration-metrics.mjs --validate-note <note>`; fail-closed
    on a leak or a malformed Machine block. Nothing downstream runs on an unvalidated note.
@@ -175,6 +175,11 @@ A validated note is not the record — the run document is. Four steps, in order
    fails the build on drift.
 4. **Validate the graph** — `calibration-graph.mjs validate` fails closed on a broken
    schema, id, or edge endpoint before the store is committed.
+5. **Sync the eval** — `evals/calibration-graph/run.mjs` runs against the real store and
+   hardcodes its answers: store counts, the open and recurrent lesson sets, per-run trend
+   lines, and the run id a scratch ingest mints. Update those expectations by hand, then
+   run `node evals/calibration-graph/run.mjs` until it exits 0. No expectation generator
+   exists. Skipping this step passes every other gate and fails only in CI.
 
 Edges (`fixed-in`, `enforced-by`, `verified-in`, `deferred`, `supersedes`) are written
 when the follow-up work lands, not at ingest — a lesson enters the store open and is
