@@ -208,5 +208,47 @@
     "title": "Two independent operatives with different lenses over the same surface converged on the same defect and one of them located the containing guard unaided, reaching the panel's eventual verdict without a refutation dispatch",
     "statement": "Two independent operatives with different lenses over the same surface converged on the same defect and one of them located the containing guard unaided, reaching the panel's eventual verdict without a refutation dispatch; deliberate lens overlap may substitute for paneling where briefs can both reach a surface.",
     "firstSeen": "R-005"
+  },
+  {
+    "id": "L-031",
+    "class": "instrument",
+    "title": "a refutation receipt whose key is not a valid item id is dropped silently, counted as neither a receipt nor an unparseable one, so pre-finding kills are invisible to the survival rate",
+    "statement": "a refutation receipt whose key is not a valid item id is dropped silently, counted as neither a receipt nor an unparseable one, so pre-finding kills are invisible to the survival rate",
+    "firstSeen": "R-006"
+  },
+  {
+    "id": "L-032",
+    "class": "protocol",
+    "title": "a refutation can be conditional on another finding being fixed, and the receipt grammar cannot express a conditional verdict, so the store reads a conditional kill as a clean one",
+    "statement": "a refutation can be conditional on another finding being fixed, and the receipt grammar cannot express a conditional verdict, so the store reads a conditional kill as a clean one",
+    "firstSeen": "R-006"
+  },
+  {
+    "id": "L-033",
+    "class": "protocol",
+    "title": "the lead converts inventory facts into causal claims when synthesising one operative report into another operative brief",
+    "statement": "the lead converts inventory facts into causal claims when synthesising one operative report into another operative brief; put the challenge-the-premise instruction in the standing brief skeleton and carry provenance inline",
+    "firstSeen": "R-006"
+  },
+  {
+    "id": "L-034",
+    "class": "suite",
+    "title": "refutation panels promote tiers as well as killing findings, and a panel practice measured only by kill rate under-uses them",
+    "statement": "refutation panels promote tiers as well as killing findings, and a panel practice measured only by kill rate under-uses them",
+    "firstSeen": "R-006"
+  },
+  {
+    "id": "L-035",
+    "class": "instrument",
+    "title": "the phase-zero scoping explorer should be required to return a disjoint slice decomposition and an explicit unsliced list rather than leaving it to the lead to request",
+    "statement": "the phase-zero scoping explorer should be required to return a disjoint slice decomposition and an explicit unsliced list rather than leaving it to the lead to request",
+    "firstSeen": "R-006"
+  },
+  {
+    "id": "L-036",
+    "class": "protocol",
+    "title": "the sweep skill does not tell the lead to drive the dispatch ledger through its generator, which is the only thing that produces the write journal the orchestration rates need",
+    "statement": "the sweep skill does not tell the lead to drive the dispatch ledger through its generator, which is the only thing that produces the write journal the orchestration rates need",
+    "firstSeen": "R-006"
   }
 ]

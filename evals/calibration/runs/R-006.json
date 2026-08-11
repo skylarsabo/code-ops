@@ -1,0 +1,70 @@
+{
+  "id": "R-006",
+  "date": "2026-08-09",
+  "suite": {
+    "code-ops-suite": "1.34.0"
+  },
+  "target": {
+    "label": "mid-size TypeScript SaaS web application (payments, background jobs, third-party data acquisition, public scoring surface)",
+    "class": "mid-size-typescript-saas-web-app",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 126,
+    "confirmed": 49,
+    "refutation": {
+      "paneled": 18,
+      "survived": 16,
+      "reproExempt": 9,
+      "panelEligible": 18
+    },
+    "severity": {
+      "critical": 0,
+      "high": 24,
+      "medium": 57,
+      "low": 27,
+      "nit": 18
+    }
+  },
+  "tokens": {
+    "operative": 2978000,
+    "dispatches": 22
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 176,
+    "slicesSwept": 12,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 8,
+    "fresh": 0,
+    "refreshed": 2,
+    "falsified": 2
+  },
+  "config": {
+    "lead": "opus-5",
+    "operatives": "opus-5"
+  },
+  "lessons": [
+    "L-027",
+    "L-028",
+    "L-029",
+    "L-031",
+    "L-032",
+    "L-033",
+    "L-034",
+    "L-035",
+    "L-036"
+  ],
+  "notes": "Third run against this target class and the first run in the series to carry a config line, so it is the baseline for orchestration-configuration comparison rather than a member of the pre-registered control-target experiment. Deltas are like-for-like against 2026-07-31 (same class, same suite version, same track): dispatches 23 to 22, findings 78 to 126, CONFIRMED 4 to 49, covered negatives 56 to 176, paneled 7 of 7 eligible to 18 of 18, survival 0.857 to 0.889, operative tokens roughly 1.99M to 2.98M, slices 10 to 12, highs 6 to 24. **CONFIRMED per 100k operative tokens moved 0.20 to 1.65, an eight-fold improvement in cost per proven finding, and the ratio rise 0.05 to 0.39 is not looser labelling** - the operative-boundary tier rule was inlined identically to the prior run and every one of the 49 carries an executed repro in the finder own transcript. What changed is what operatives chose to execute: component-function probes, real document renders, executed greps proving a symbol has zero callers, rebuilt policy objects run against platform APIs, and a minimal protocol server stood up over a real socket to prove a client library resolves rather than rejects. The tier rule was already sufficient; the prior run simply lacked operatives reaching for execution on questions that looked static. **Panels are a tier-promotion mechanism, not only a kill mechanism (L-034)** - of 18 paneled, 2 killed and 16 survived, but four survivals were promoted from argued-statically to executed-confirmed by the refuter doing the proof the finder had not, and six had characterization materially corrected in both directions. **A kill can be conditional on another finding and receipts cannot say so (L-032)**: one finding was refuted by a guard that a concurrent panel proved does not work, with the refuting operative predicting the crack and marking it unverified while the other confirmed it by execution. **The lead is a false-premise generator (L-033)**: six premises the lead wrote into briefs were measured false, four lead-authored, all caught only because briefs from wave two onward carried an explicit invitation to reject a bad premise; the mechanism is that inventory facts from one operative report become causal claims when synthesised into another operative brief. **Three recurrences.** L-027 recurred and worsened - every register entry came back needing re-triage and not one verdict concerned an entry actual location-and-anchor pair, all being bare filenames in evidence prose; hand-checking the real pairs returned all fresh, so the masking rate rises with evidence quality and the check degrades exactly as finding discipline improves. L-028 recurred verbatim on the generated repository map. L-029 fired on a run where paneling everything was correct. **Two prior lessons verifiably landed**: orchestration rates are journal-derived for the first time in the series, because the run drove the ledger exclusively through its generator - the tool fix had shipped rounds earlier and what was missing was skill text telling the lead to use it (L-036); and the standing report-versus-register conflict was resolved with no tool change by splitting each report at persist time, findings into the register at entry position and everything else into a context file, after which the sibling warning never fired. Also new: a refutation receipt whose key is not a valid item id is dropped silently, counted as neither a receipt nor unparseable (L-031), and the phase-zero scoping explorer should be required to return a disjoint slice decomposition and an explicit unsliced list rather than leaving it to the lead to request (L-035) - run that way it produced the entire slice plan, the risk inventory every later brief quoted, and the highest-value unchecked item in the run. Atlas leg: 8 sections, 0 consumed fresh (nothing entered the run as truth), 2 refreshed and re-stamped, 2 falsified; both falsified claims were count-and-identity claims about configured structure rather than behavioural claims, the class an atlas is most likely to get wrong because nothing breaks when they rot. The six stale-only sections were verified as substantively holding and deliberately left stale with an inbox note."
+}
