@@ -1,6 +1,6 @@
 # Command Reference — Index & Task Router
 
-The code-ops marketplace ships **61 commands** across four plugins. Call any command as
+The code-ops marketplace ships **62 commands** across four plugins. Call any command as
 `/<plugin>:<skill>` in Claude Code, or name `<plugin>:<skill>` in a Codex request; the
 model can also route to a command per the standard-operating-mode routing card. Either
 way, side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing
@@ -99,6 +99,7 @@ marks a single command that strings the others together for you.
 | **Onboard onto a codebase** | `/code-ops-suite:onboarding` | code-ops-suite | Verified, code-grounded orientation guide with an architecture diagram. |
 | **Reconcile docs against the code** | `/code-ops-suite:doc-alignment` | code-ops-suite | Establish a clean single source of truth; fixes doc drift. (`/privacy-opsec-suite:privacy-doc-alignment` reconciles privacy/anonymity promises.) |
 | **Bootstrap or verify a repo's CLAUDE.md standards contract** | `/code-ops-suite:adopt-standards` | code-ops-suite | Writes or re-verifies `CLAUDE.md` against reality — commands run, gate chain matches CI, citations resolve. |
+| **Re-verify the global `~/.claude/CLAUDE.md` against the suite's doctrine** | `/code-ops-suite:adopt-global-standards` | code-ops-suite | Diffs the global contract against the SSOT pages; classifies contradicts / stale / missing / repo-local, rewrites under checkpoint. |
 | **Get version-accurate docs for a dependency** | `/code-ops-suite:current-docs` | code-ops-suite | Local-first, no third-party — the in-house Context7 alternative (also the `code-ops-docs` MCP). |
 | **Threat-model the attack surface** | `/code-ops-suite:security-privacy-audit` | code-ops-suite | Adversarial STRIDE + LINDDUN; writes `THREAT_MODEL.md` + findings. |
 | **Run the full intra-suite engineering pass** | `/code-ops-suite:full-sweep` (orchestrator) | code-ops-suite | scope → ground truth → assess → safety-net → fix → deep-dives → consistency → document → ship. |
@@ -124,7 +125,7 @@ marks a single command that strings the others together for you.
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) — **29 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
+- [code-ops-suite.md](code-ops-suite.md) — **30 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
 - [rigor.md](rigor.md) — **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) — **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) — **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).

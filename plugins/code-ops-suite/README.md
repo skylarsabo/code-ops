@@ -29,6 +29,7 @@ Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` i
 
 **Docs / knowledge**
 - `adopt-standards` — bootstrap or maintain a repo's `CLAUDE.md` standards contract so it's mechanically kept, not aspirational.
+- `adopt-global-standards` — the cross-repo counterpart: re-verify the user's global `~/.claude/CLAUDE.md` against the marketplace's SSOT pages, classify every divergence (contradicts / stale / missing / repo-local), and rewrite it under checkpoint.
 - `doc-alignment` — reconcile doc drift against code; establish a clean single source of truth.
 - `onboarding` — generate a verified, code-grounded orientation guide with an architecture diagram.
 - `current-docs` — current, version-accurate docs for a library from the version installed in this project (local-first, no third-party) — the in-house Context7 alternative. Also shipped as the `code-ops-docs` MCP server (`resolve-library` / `get-docs`) and wired as the `CONVENTIONS §2` documentation-lookup default suite-wide.

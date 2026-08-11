@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.37.0
+- **New `adopt-global-standards` skill** — the cross-repo counterpart to `adopt-standards`. The global `~/.claude/AGENTS.md` is a cache of this marketplace's doctrine, and nothing re-verified it: when the SSOT pages moved, the cache kept routing every session in every repo by the superseded rule. The skill reads the SSOT pages themselves, anchors each baseline claim to `file:line`, and classifies every divergence as CONTRADICTS, STALE, MISSING, or REPO-LOCAL. A contradicted rule ranks above a missing one because sessions follow it. A fifth bucket, LOCAL-DOCTRINE, covers cross-repo rules the global file already carries that no SSOT page states: the write is additive by default, so those survive untouched and are listed as candidates to promote into the marketplace instead of being pruned to fit the template. Every removal is named with its bucket at the checkpoint. Writes only after that checkpoint, never touches settings or hooks, and stamps the marketplace commit it verified against so the next run computes drift from the log.
+
 ## 1.36.0
 - **Recording a calibration run is now five steps, not four** — the new final step syncs `evals/calibration-graph/run.mjs`. That eval runs against the real store and hardcodes its answers, so every ingest changes two files. Two consecutive ingests missed the step, which passes every local gate and fails only in CI. Both the protocol doc and the `calibration-run` skill now name the step, and the skill's `Done when` requires the eval to pass.
 
