@@ -161,3 +161,10 @@ The **DOCUMENT-mode generators** (`architecture`, `api-docs`, `data-model`, `adr
 - **House style.** Consistent headings + a short glossary for domain terms; present tense, active voice; define each acronym once; reference matter in tables; call out invariants/gotchas/"why" explicitly. American spelling, no emoji.
 - **Self-scoping.** Each generator detects whether it applies (e.g. `api-docs` only with a real API surface) and states what it covered and what it did not.
 - **Freshness stamp.** Each generated doc records the commit SHA it was generated against, so drift is detectable and `doc-alignment` can reconcile it.
+
+## 14 · Writing standard
+Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.
+
+Clarity outranks conformance. When a rule would obscure meaning, break it and say why.
+
+Full reference: `docs/techniques/writing-standard.md`.

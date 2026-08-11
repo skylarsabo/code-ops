@@ -76,3 +76,10 @@ Registers are **live backlogs / SSOT** with **stable IDs** (`RSCH-007`, `IDEA-01
 
 ## 13 · Documentation quality standard (for briefs)
 A design brief is written for a senior engineer who will implement it: lead with a ≤1-paragraph summary (the recommendation + why), then the options with trade-offs, the grounded fit to our code, the smallest slice, and open questions. Diagrams (Mermaid) where they clarify. Every claim cited (`§7`); American spelling, present tense, no emoji. Freshness-stamped with the commit SHA it was researched against.
+
+## 14 · Writing standard
+Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.
+
+Clarity outranks conformance. When a rule would obscure meaning, break it and say why.
+
+Full reference: `docs/techniques/writing-standard.md`.

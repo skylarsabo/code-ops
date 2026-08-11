@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 0.12.0
+- **New `CONVENTIONS.md` §14, Writing standard** — briefs and research notes follow one house standard. The section pins one term per concept, active voice, and one instruction per sentence. It caps instructions at 20 words and explanation at 25. Clarity outranks conformance, so a writer who breaks a rule states why. Full rules live in `docs/techniques/writing-standard.md`.
+
 ## 0.11.0
 - **Model routing is quality-first** (`CONVENTIONS.md` §1): synthesis, verification, and every judgment-bearing dispatch run on the stronger model; the faster model covers mechanical breadth gathering only. A shallow or failed report costs a redispatch plus the orchestrator's attention.
 
