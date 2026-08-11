@@ -46,6 +46,8 @@ expect(preCommit.includes('node scripts/build-codex-marketplace.mjs'), 'pre-comm
 expect(preCommit.includes('git add -A -- .agents/plugins/marketplace.json codex-marketplace/'), 'pre-commit hook stages the wrong paths');
 expect(preCommit.includes('git diff --cached --quiet -- $renderer_paths'), 'pre-commit hook does not skip unrelated commits');
 expect(preCommit.includes('git ls-files --others --exclude-standard -- $renderer_inputs'), 'pre-commit hook does not reject untracked renderer inputs');
+expect(preCommit.includes('retry_on_index_lock git add -A -- .agents/plugins/marketplace.json codex-marketplace/'), 'pre-commit hook does not wait out a busy index lock while staging');
+expect(preCommit.includes('case "$lock_error" in') && preCommit.includes('*index.lock*)'), 'pre-commit hook retries staging failures other than index-lock contention');
 
 const hookInstaller = read(join(root, 'scripts', 'install-git-hooks.mjs'));
 expect(hookInstaller.includes("git(['config', '--get', 'core.hooksPath'])"), 'hook installer does not protect an effective inherited hooks path');

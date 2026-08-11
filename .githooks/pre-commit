@@ -7,7 +7,35 @@ set -eu
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-# ---- 0. sync vendored plugin copies of canonical scripts/ files -----------------
+# ---- 0. survive a transiently busy index lock -----------------------------------
+# `git add` takes the index lock and dies at once when it is already held. It never
+# waits. The renderer below deletes and rewrites its whole output tree, and that burst
+# of file changes wakes any background git client watching the checkout — an editor or
+# app integration that answers with `git diff`, which refreshes the index and holds the
+# lock for a few hundred milliseconds. That window lands on the staging step often
+# enough that a first commit attempt fails while an identical retry succeeds.
+#
+# So wait for the holder to finish. Index-lock contention is the only retried failure:
+# any other error still aborts the commit, and so does a lock that never clears.
+retry_on_index_lock() {
+  lock_error=''
+  for lock_delay in 0 1 1 1 2 3; do
+    [ "$lock_delay" -eq 0 ] || sleep "$lock_delay"
+    if lock_error="$("$@" 2>&1 >/dev/null)"; then
+      [ -z "$lock_error" ] || printf '%s\n' "$lock_error" >&2
+      return 0
+    fi
+    case "$lock_error" in
+      *index.lock*) echo "The git index lock is busy. Waiting for the holder to finish." >&2 ;;
+      *) printf '%s\n' "$lock_error" >&2; return 1 ;;
+    esac
+  done
+  printf '%s\n' "$lock_error" >&2
+  echo "The git index lock stayed busy. Another git process is holding it." >&2
+  return 1
+}
+
+# ---- 1. sync vendored plugin copies of canonical scripts/ files -----------------
 # scripts/vendored-manifest.mjs lists which canonical scripts/<file> must be byte-identical
 # inside which plugins/<plugin>/scripts/<file>. A staged change to one of those canonical
 # files must propagate to its vendored copies BEFORE the renderer-input check below, since
@@ -32,7 +60,7 @@ for (const e of RUNTIME_SCRIPTS) for (const p of e.plugins) out.push('plugins/' 
 console.log(out.join('\n'));
 ")"
     echo "$vendored_targets" | while IFS= read -r f; do
-      [ -n "$f" ] && git add -- "$f"
+      [ -n "$f" ] && retry_on_index_lock git add -- "$f"
     done
   fi
 fi
@@ -64,4 +92,4 @@ command -v node >/dev/null 2>&1 || {
 }
 
 node scripts/build-codex-marketplace.mjs
-git add -A -- .agents/plugins/marketplace.json codex-marketplace/
+retry_on_index_lock git add -A -- .agents/plugins/marketplace.json codex-marketplace/
