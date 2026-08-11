@@ -1,0 +1,65 @@
+{
+  "id": "R-007",
+  "date": "2026-08-10",
+  "suite": {
+    "code-ops-suite": "1.34.0"
+  },
+  "target": {
+    "label": "large TypeScript monorepo, real-time telephony platform with a payment lane, chat-bot operator surface, and infrastructure-as-code",
+    "class": "ts-monorepo-telephony",
+    "control": true
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 18,
+    "confirmed": 5,
+    "refutation": {
+      "paneled": 4,
+      "survived": 4,
+      "reproExempt": 3,
+      "panelEligible": 4
+    },
+    "severity": {
+      "critical": 0,
+      "high": 7,
+      "medium": 9,
+      "low": 2,
+      "nit": 0
+    }
+  },
+  "tokens": {
+    "operative": null,
+    "dispatches": 6
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 1,
+    "redispatched": 1
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 9,
+    "slicesSwept": 9,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 9,
+    "fresh": 7,
+    "refreshed": 0,
+    "falsified": 1
+  },
+  "config": {
+    "lead": "gpt-5-6-sol-xhigh",
+    "operatives": "gpt-5-6-terra-xhigh"
+  },
+  "lessons": [
+    "L-022",
+    "L-026",
+    "L-028",
+    "L-037"
+  ],
+  "notes": "A brief rejected at the concurrency boundary again required explicit failed-dispatch handling and shape-gated retry. Persisted operative reports again conflicted with register-only counting and produced six sibling-report warnings. The generated repository map again exceeded the generic artifact cap. One stale atlas section carried a disproven tooling claim; leaving it stale and recording an inbox observation prevented a false refresh."
+}
