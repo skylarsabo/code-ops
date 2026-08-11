@@ -164,5 +164,6 @@ Two rules hold at every level: the **always-gated categories** (security/auth, s
 - [03 · Orchestrators](03-orchestrators.md) — the skills the gates and schedules invoke.
 - [04 · Registers and freshness](04-registers-and-freshness.md) — the `Verified-at` SHA and `revalidate-register.mjs` that make scheduled diffs trustworthy.
 - [The evals directory](../../evals/README.md) — the harnesses the `validate` gate runs.
+- [Shell discipline](../techniques/shell-discipline.md) — why a hook-gated `git commit` or `gh pr create` runs standalone, never chained into a compound command.
 
 *Verified-at: b22d0da*
