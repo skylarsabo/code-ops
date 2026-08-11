@@ -250,5 +250,12 @@
     "title": "the sweep skill does not tell the lead to drive the dispatch ledger through its generator, which is the only thing that produces the write journal the orchestration rates need",
     "statement": "the sweep skill does not tell the lead to drive the dispatch ledger through its generator, which is the only thing that produces the write journal the orchestration rates need",
     "firstSeen": "R-006"
+  },
+  {
+    "id": "L-037",
+    "class": "instrument",
+    "title": "A stale atlas section carried a disproven tooling claim, so stale sections must remain leads until claim-level review earns refresh",
+    "statement": "A stale atlas section carried a disproven tooling claim, so stale sections must remain leads until claim-level review earns refresh",
+    "firstSeen": "R-007"
   }
 ]
