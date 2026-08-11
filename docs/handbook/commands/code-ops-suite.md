@@ -205,6 +205,17 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 
 **Prerequisites & hand-offs.** No prerequisites; uses CI workflow files and VCS history as evidence sources. Complements `doc-alignment` (which reconciles the rest of the docs) — `adopt-standards` owns the standards contract specifically.
 
+### `/code-ops-suite:adopt-global-standards`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) resolves both sides — the global `~/.claude/CLAUDE.md` and the marketplace checkout it caches — and detects **BOOTSTRAP** (no global file, or one carrying no suite doctrine) versus **MAINTAIN**, stating both paths and the marketplace commit being verified against. Phase 1 builds the current-doctrine baseline by reading the SSOT pages themselves — `docs/handbook/11-standard-operating-mode.md` for the routing table, tier/effort rule and declared exception, `docs/techniques/subagent-trade-offs.md` plus `AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs` for the enforced floors, `docs/techniques/writing-standard.md` and the `CONVENTIONS.md` §7/§9 schemas for the reporting standard — anchoring each claim to `file:line`. Phase 2 classifies every divergence as **CONTRADICTS** (the global file states a rule the SSOT now states differently — worse than silence, because sessions follow it), **STALE**, **MISSING**, or **REPO-LOCAL** (repo facts that leaked upward, handed back to `adopt-standards`), sweeping `line N` citations mechanically. Phase 3 checkpoints with the classified drift and the exact proposed edit before any write, and refuses to touch settings, hooks, permissions, or keybindings. Phase 4 writes the four global sections and stamps the marketplace commit verified against, so the next run computes drift from the log.
+
+**Why it's useful.** The global contract is a cache of the marketplace's doctrine, and a stale cache mis-routes every session in every repo silently — an inverted tier rule down-tiers work the SSOT routes to the strong tier, and nothing in a normal session surfaces that. This is the only command that re-verifies the cache against its source.
+
+**When to use it.** After the suite's SSOT pages move (a routing-table change, a tier/effort revision, a new enforcement mechanism), when the global file has no commit stamp so its age is unknowable, or when a session's routing seems to contradict the handbook. Do **not** use it to configure the harness — `settings.json`, hooks, and permissions are out of scope.
+
+**Prerequisites & hand-offs.** Needs a local checkout of this marketplace as its ground truth. The repo-side counterpart is `adopt-standards`: between the two, each fact lives in exactly one place, and `adopt-global-standards` hands any repo-local content it finds back to it.
+
 ### `/code-ops-suite:doc-alignment`
 **Mode:** DOCUMENT
 
