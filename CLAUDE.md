@@ -49,6 +49,20 @@ operative self-reports not being acceptance — are intentionally outside the me
 gate layer: the routing card, dispatch ledger, and narration scan are advisories that
 surface drift, not gates that prevent it.
 
+## Writing standard
+
+Every artifact this repo produces follows the house writing standard in
+`docs/techniques/writing-standard.md`, which is the single source of truth for it: the
+sentence and paragraph caps, one term per concept, active voice, and the code carve-outs
+for identifiers and quoted output. It binds calibration notes, findings registers, commit
+messages, PR bodies, and skill prose alike. It stops at code blocks, quoted tool output,
+and generated tables.
+
+The core clause is pinned byte-identically across all four `CONVENTIONS.md` files via
+`SHARED_PASSAGES` in `scripts/lint-plugins.mjs`, mirrored in `PINNED_TEXTS` in
+`evals/lint-plugins/run.mjs`. Edit every copy in one commit, or lint fails closed on the
+drifted file and the eval fails at its baseline case rather than where you would look.
+
 ## Before declaring any change done
 
 Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check` — the first structural steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>

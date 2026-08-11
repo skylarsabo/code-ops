@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.35.0
+- **New `CONVENTIONS.md` §14, Writing standard** — every skill writes to one house standard. The section pins one term per concept, active voice, and one instruction per sentence. It caps instructions at 20 words and explanation at 25. Clarity outranks conformance, so a writer who breaks a rule states why. Full rules live in `docs/techniques/writing-standard.md`.
+
 ## 1.34.0
 - **New optional `config:` Machine-block line** — `config: lead <model-class>; operatives <model-class>`, parsed identically by `calibration-metrics.mjs --validate-note` and `calibration-graph.mjs ingest`. It records the orchestration a calibration run was driven under, which is what makes one run's numbers comparable to another's rather than merely sequential. Optional like `atlas:`: a note without it validates and ingests exactly as before, so the runs recorded before the tier experiment stay valid.
 - **The run-document schema gains an optional `config` object** (`{lead, operatives}`, both kebab model-class slugs), fail-closed on a malformed shape. A run that did not record its orchestration omits the field entirely rather than defaulting one — a guessed lead class would silently mis-group a comparison. `query trend` prints a config tail only for the runs that carry one; the rendered table is unchanged.

@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.18.0
+- **New `CONVENTIONS.md` §12, Writing standard** — threat models, leak registers, and runbooks follow one house standard. The section pins one term per concept, active voice, and one instruction per sentence. It caps instructions at 20 words and explanation at 25. Clarity outranks conformance, so a writer who breaks a rule states why. Full rules live in `docs/techniques/writing-standard.md`.
+
 ## 1.17.0
 - **Model routing is quality-first** (`CONVENTIONS.md` §1): threat reasoning, synthesis, review, and any dispatch carrying a judgment call run on the stronger model; the faster model covers mechanical breadth sweeps and transcription-style work only. A missed leak or a redispatched report costs more than the stronger model does.
 
