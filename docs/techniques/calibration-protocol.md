@@ -122,7 +122,7 @@ orchestration: dangling N; failed N; redispatched N
 standardization: enforcements N; traceless clean|dirty
 coverage: covered-negatives N; slices swept N of M (or: unknown)
 atlas: sections N; fresh N; refreshed N; falsified N (optional)
-config: lead <model-class>; operatives <model-class> (optional)
+config: lead <model-class>; operatives <model-class> (optional; a mid-run handover plus-separates the lead classes in order)
 host: <kebab-slug> (optional; the harness — claude-code, codex, grok-build, opencode)
 lesson: recur L-NNN
 lesson: new <instrument|suite|protocol> — <statement>
