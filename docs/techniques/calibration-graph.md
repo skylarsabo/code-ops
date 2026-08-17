@@ -84,9 +84,10 @@ All fields required unless marked optional.
   every lead rather than dropping the field. It stays one ordered string; an array `lead`
   is refused. Only the lead splits: `operatives` is a single class. A split-lead run stays
   queryable but cannot serve as an arm of an orchestration-configuration experiment — an
-  exclusion the operator applies when selecting arms; no gate reads `config` beyond
-  validation and the trend tail.
-  `query trend` prints a config tail only for the runs that carry it.
+  exclusion the operator applies when selecting arms; no gate fails closed on `config`
+  beyond schema validation. `query trend` renders it as stored, only for the runs that
+  carry it, and `query cross-model` splits the lead, attributing the run to every
+  provider that held the session.
 - `lessons` lists the lessons this run **surfaced or re-surfaced**.
 - `notes` is the row's prose verbatim; for a new run it is the note's Lessons prose.
 

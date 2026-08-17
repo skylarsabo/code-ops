@@ -673,8 +673,11 @@ function cmdQuery(args) {
     const providersOfRun = new Map();
     for (const r of g.runs) {
       const set = new Set();
-      // A split lead names every class that held the session, so each one attributes.
-      for (const slug of [...(r.config?.lead?.split('+') ?? []), r.config?.operatives]) {
+      // A split lead names every class that held the session, so each one attributes. Guard the
+      // split on the string type, not just presence: a schema-invalid store (array lead) reaches
+      // this reader, and it must stay non-throwing exactly as providerOfConfigSlug is.
+      const leadSlugs = typeof r.config?.lead === 'string' ? r.config.lead.split('+') : [];
+      for (const slug of [...leadSlugs, r.config?.operatives]) {
         const provider = providerOfConfigSlug(slug);
         if (provider) set.add(provider);
       }

@@ -765,6 +765,20 @@ try {
     (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: ['fable-5', 'opus-5'], operatives: 'opus-5' }; writeJson(p, d); },
     /schema: runs\/R-001\.json: config\.lead must be one or more plus-separated kebab model-class slugs/);
 
+  // The same array-lead store must not crash the readers: validate is the gate, but a query
+  // against a schema-invalid store still answers rather than throwing (the lead attributes to
+  // no provider, exactly like providerOfConfigSlug's own non-string guard).
+  {
+    const { store } = scratchStore();
+    const p = join(store, 'runs', 'R-001.json');
+    const d = readJson(p);
+    d.config = { lead: ['fable-5', 'opus-5'], operatives: 'opus-5' };
+    writeJson(p, d);
+    const q = run(['query', 'cross-model', '--store', store]);
+    check('o5. query cross-model still answers on that store instead of throwing',
+      q.status === 0 && !/TypeError/.test(q.stdout + q.stderr), q.stdout + q.stderr);
+  }
+
   // ---- j. the real store was never written to by this eval --------------------
   check('j. the real table is byte-identical to what render --check accepted', readFileSync(REAL_TABLE, 'utf8') === table, 'real table changed during the eval');
   check('j. the real store still has exactly its eight run docs',
