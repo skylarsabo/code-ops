@@ -5,7 +5,7 @@
 //
 //   node scripts/calibration-graph.mjs validate [--store <dir>] [--root <dir>]
 //   node scripts/calibration-graph.mjs render [--check] [--store <dir>] [--table <file>] [--root <dir>]
-//   node scripts/calibration-graph.mjs query <open|deferred|unenforced|recurrent|trend> [--gate] [--store <dir>] [--root <dir>]
+//   node scripts/calibration-graph.mjs query <open|deferred|unenforced|unverified|recurrent|trend|cross-model> [--gate] [--store <dir>] [--root <dir>]
 //   node scripts/calibration-graph.mjs query lesson L-NNN [--store <dir>] [--root <dir>]
 //   node scripts/calibration-graph.mjs ingest --note <file> [--id R-NNN] [--label <text>] [--store <dir>]
 //
@@ -34,6 +34,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { providerOfConfigSlug } from './model-tiers.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT_DEFAULT = resolve(HERE, '..');
@@ -41,7 +42,7 @@ const ROOT_DEFAULT = resolve(HERE, '..');
 function usage() {
   console.error('usage: calibration-graph.mjs validate [--store <dir>] [--root <dir>]');
   console.error('       calibration-graph.mjs render [--check] [--store <dir>] [--table <file>] [--root <dir>]');
-  console.error('       calibration-graph.mjs query <open|deferred|unenforced|recurrent|trend> [--gate] [--store <dir>] [--root <dir>]');
+  console.error('       calibration-graph.mjs query <open|deferred|unenforced|unverified|recurrent|trend|cross-model> [--gate] [--store <dir>] [--root <dir>]');
   console.error('       calibration-graph.mjs query lesson L-NNN [--store <dir>] [--root <dir>]');
   console.error('       calibration-graph.mjs ingest --note <file> [--id R-NNN] [--label <text>] [--store <dir>]');
   process.exit(2);
@@ -253,6 +254,15 @@ function validateRunDoc(entry, problems) {
     else for (const k of ['lead', 'operatives']) {
       if (typeof cfg[k] !== 'string' || !SLUG_RE.test(cfg[k])) bad(`config.${k} must be a kebab model-class slug`);
     }
+  }
+
+  // `host` is OPTIONAL for the same reason as `config`, and answers the sibling question:
+  // `config` records WHICH MODEL drove the run, `host` records WHICH HARNESS. A lesson can
+  // be a model's habit or a harness's mechanics, and without this field the two are
+  // indistinguishable. Deliberately an open slug rather than a closed enum — a new host must
+  // be recordable the day it ships, not after this file is edited.
+  if (doc.host !== undefined) {
+    if (typeof doc.host !== 'string' || !SLUG_RE.test(doc.host)) bad('host, when present, must be a kebab harness slug (for example claude-code, codex, grok-build, opencode)');
   }
 
   if (!Array.isArray(doc.lessons)) bad('lessons must be an array of lesson ids');
@@ -581,6 +591,30 @@ function cmdQuery(args) {
     }
     if (!hits.length) console.log('  (none)');
     console.log(`\n${hits.length} unenforced lesson(s).`);
+  } else if (sub === 'unverified') {
+    // The store's weakest link, by its own numbers: `fixed-in` says a change shipped and
+    // `enforced-by` says a gate holds it, but only `verified-in` says a LATER RUN observed
+    // the fix actually holding in the field. Shipping is not landing. Without this list a
+    // run has no worklist of prior fixes to confirm, so the loop measures its own output
+    // instead of its own effect — which is how 23 fixes accumulated behind 3 verifications.
+    const hits = ids.filter((id) => {
+      const st = statusOf(g, id);
+      if (st.superseded || !st.fixedIn.length) return false;
+      return relsOf(g, id, 'verified-in').length === 0;
+    });
+    console.log('# unverified fixes (shipped, but no later run has confirmed the fix held)');
+    for (const id of hits) {
+      const st = statusOf(g, id);
+      const where = st.fixedIn.map((e) => e.to).join(', ');
+      // RED only when nothing mechanical holds it either: an enforced fix has a gate
+      // standing in for field evidence, an unenforced one has nothing at all.
+      const isRed = !st.enforcedBy.length;
+      if (isRed) red++;
+      console.log(`  ${isRed ? 'RED ' : 'ok  '} ${id}  ${st.status}  (fixed-in ${where}${st.enforcedBy.length ? `, ${st.enforcedBy.length} gate(s)` : ', nothing mechanical'})  ${titleOf(g, id)}`);
+    }
+    if (!hits.length) console.log('  (none — every shipped fix has been confirmed by a later run)');
+    const verified = ids.filter((id) => relsOf(g, id, 'verified-in').length > 0).length;
+    console.log(`\n${hits.length} unverified fix(es); ${verified} lesson(s) confirmed by a later run.`);
   } else if (sub === 'recurrent') {
     // Recurrence is the load-bearing signal: a lesson a second run had to relearn. RED only when
     // it ALSO has nothing mechanical holding it — that pairing is why it came back.
@@ -615,11 +649,107 @@ function cmdQuery(args) {
         // Same rule as the atlas tail: only a run that recorded its orchestration says anything
         // here, so the tier experiment's arms are told apart by what they recorded, not inferred.
         const config = r.config ? `  config ${r.config.lead}->${r.config.operatives}` : '';
+        // Same silence rule as atlas and config: a run that recorded no harness says nothing
+        // here rather than being shown as some default one.
+        const host = r.host ? `  host ${r.host}` : '';
         console.log(`  ${r.id}  ${r.date}  findings ${q.findings}  confirmed ${q.confirmed} (${ratio2(q.confirmed, q.findings) ?? 'n/a'})`
-          + `  confirmed/100k ${per100k}  survival ${survivalCell(q.refutation)}  dispatches ${r.tokens.dispatches}${atlas}${config}`);
+          + `  confirmed/100k ${per100k}  survival ${survivalCell(q.refutation)}  dispatches ${r.tokens.dispatches}${atlas}${config}${host}`);
       }
     }
     console.log(`\n${g.runs.length} run(s) across ${groups.size} class/track group(s).`);
+  } else if (sub === 'cross-model') {
+    // The question this answers: which lessons are the SUITE's problem, and which are one
+    // model's? A lesson two providers independently relearned cannot be explained by one
+    // model's habits, so it belongs in the skill text or the conventions. A lesson only one
+    // provider ever hit is a host adaptation until a second provider corroborates it —
+    // fixing the suite for it risks over-fitting the doctrine to a single model.
+    //
+    // Attribution comes from each run's own recorded config line. A run that recorded none
+    // contributes to no provider, exactly as the atlas and config tails elsewhere stay
+    // silent rather than defaulting: "nobody recorded it" must not read as a provider.
+    const providersOfRun = new Map();
+    for (const r of g.runs) {
+      const set = new Set();
+      for (const slug of [r.config?.lead, r.config?.operatives]) {
+        const provider = providerOfConfigSlug(slug);
+        if (provider) set.add(provider);
+      }
+      providersOfRun.set(r.id, set);
+    }
+
+    console.log('# cross-model corroboration (provider spread per lesson, derived from run config lines)');
+    console.log('\n## runs by provider');
+    const runsByProvider = new Map();
+    const unattributedRuns = [];
+    for (const r of g.runs) {
+      const set = providersOfRun.get(r.id);
+      if (!set.size) { unattributedRuns.push(r.id); continue; }
+      for (const provider of set) {
+        if (!runsByProvider.has(provider)) runsByProvider.set(provider, []);
+        runsByProvider.get(provider).push(r.id);
+      }
+    }
+    for (const provider of [...runsByProvider.keys()].sort()) {
+      const rs = runsByProvider.get(provider);
+      console.log(`  ${provider.padEnd(12)} ${rs.length} run(s) (${rs.join(', ')})`);
+    }
+    if (unattributedRuns.length) console.log(`  ${'(none)'.padEnd(12)} ${unattributedRuns.length} run(s) with no config line (${unattributedRuns.join(', ')})`);
+    if (!runsByProvider.size) console.log('  (no run records a config line yet)');
+
+    // The second axis. `config` says which MODEL drove the run; `host` says which HARNESS.
+    // A lesson can be a model's habit or a harness's mechanics, and only these two together
+    // separate "the suite is wrong" from "this particular setup is wrong".
+    console.log('\n## runs by host');
+    const runsByHost = new Map();
+    const hostlessRuns = [];
+    for (const r of g.runs) {
+      if (!r.host) { hostlessRuns.push(r.id); continue; }
+      if (!runsByHost.has(r.host)) runsByHost.set(r.host, []);
+      runsByHost.get(r.host).push(r.id);
+    }
+    for (const host of [...runsByHost.keys()].sort()) {
+      console.log(`  ${host.padEnd(12)} ${runsByHost.get(host).length} run(s) (${runsByHost.get(host).join(', ')})`);
+    }
+    if (hostlessRuns.length) console.log(`  ${'(none)'.padEnd(12)} ${hostlessRuns.length} run(s) with no host line (${hostlessRuns.join(', ')})`);
+    if (!runsByHost.size) console.log('  (no run records a host line yet — the suite cannot yet tell a harness quirk from a suite defect)');
+
+    console.log('\n## lessons');
+    let crossModel = 0;
+    let singleProvider = 0;
+    let unattributed = 0;
+    for (const id of ids) {
+      const runs = g.runsByLesson.get(id) ?? [];
+      const providers = new Set();
+      const hosts = new Set();
+      for (const runId of runs) {
+        for (const provider of providersOfRun.get(runId) ?? []) providers.add(provider);
+        const host = g.runs.find((r) => r.id === runId)?.host;
+        if (host) hosts.add(host);
+      }
+      const st = statusOf(g, id);
+      const unheld = st.status === 'OPEN' || st.status === 'UNENFORCED';
+      // Either axis crossing is enough to call it the suite's problem: a lesson two models
+      // relearned is not one model's habit, and one two harnesses relearned is not one
+      // harness's mechanics.
+      const spread = [
+        providers.size ? `providers: ${[...providers].sort().join(', ')}` : null,
+        hosts.size ? `hosts: ${[...hosts].sort().join(', ')}` : null,
+      ].filter(Boolean).join(' | ');
+      if (providers.size >= 2 || hosts.size >= 2) {
+        crossModel++;
+        // A cross-cutting lesson with nothing mechanical holding it is the highest-value
+        // repair in the store: every provider and host keeps paying for it, every run.
+        if (unheld) red++;
+        console.log(`  ${unheld ? 'RED ' : 'ok  '} CROSS-MODEL  ${id}  ${runs.length} run(s)  ${st.status}  [${spread}]  ${titleOf(g, id)}`);
+      } else if (providers.size === 1) {
+        singleProvider++;
+      } else {
+        unattributed++;
+      }
+    }
+    if (!crossModel) console.log('  (no lesson has yet recurred under two providers)');
+
+    console.log(`\n${crossModel} cross-model lesson(s) — fix these in the suite; ${singleProvider} single-provider (host adaptation until corroborated); ${unattributed} unattributed (cited only by runs with no config line).`);
   } else if (sub === 'lesson') {
     const id = f._[1];
     if (!id) { console.error('x query lesson needs an L-NNN id'); usage(); }
@@ -676,6 +806,9 @@ const SHAPES = [
   // OPTIONAL for the same reason as the atlas line, and likewise absent from REQUIRED_KEYS:
   // R-001..R-004 predate the tier experiment, so a note without it ingests unchanged.
   ['config', /^config:\s*lead ([a-z0-9]+(?:-[a-z0-9]+)*);\s*operatives ([a-z0-9]+(?:-[a-z0-9]+)*)$/],
+  // OPTIONAL, and absent from REQUIRED_KEYS like atlas and config: runs before the suite went
+  // multi-host recorded no harness, and that must stay ingestable unchanged.
+  ['host', /^host:\s*([a-z0-9]+(?:-[a-z0-9]+)*)$/],
   ['lesson-recur', /^lesson:\s*recur (L-\d{3})$/],
   ['lesson-new', /^lesson:\s*new (instrument|suite|protocol) — (\S.*)$/],
 ];
@@ -823,6 +956,7 @@ function cmdIngest(args) {
   // No arithmetic bound to check on the config line — it carries slugs, not counts, and the shape
   // above is the whole contract. Bound here only so the doc assembly below reads like its siblings.
   const cf = fields.get('config');
+  const ht = fields.get('host');
   const num = (v) => (v === undefined || v === 'unknown' ? null : Number(v));
 
   const label = f['--label'] ?? `TODO: sanitized prose label for ${tc[1]}`;
@@ -852,6 +986,9 @@ function cmdIngest(args) {
     // Omitted entirely when the note carries no config line, for the same reason as atlas above:
     // "nobody recorded the orchestration" must not be storable as some default configuration.
     ...(cf ? { config: { lead: cf[1], operatives: cf[2] } } : {}),
+    // Omitted when the note carries no host line, same rule again: an unrecorded harness must
+    // not become a default one, or every pre-existing run would read as Claude Code.
+    ...(ht ? { host: ht[1] } : {}),
     lessons: [...lessonsRecur, ...minted.map((m) => m.id)],
     notes,
   };

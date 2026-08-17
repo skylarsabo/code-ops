@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "deepseek/deepseek-v4-pro",
+  "agent": {
+    "code-ops-suite-explorer": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "code-ops-suite-reviewer": {
+      "model": "deepseek/deepseek-v4-pro"
+    },
+    "privacy-opsec-suite-explorer": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "privacy-opsec-suite-privacy-reviewer": {
+      "model": "deepseek/deepseek-v4-pro"
+    },
+    "rigor-tracer": {
+      "model": "deepseek/deepseek-v4-pro"
+    },
+    "rigor-verifier": {
+      "model": "deepseek/deepseek-v4-pro"
+    },
+    "researcher-claim-checker": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "researcher-gatherer": {
+      "model": "deepseek/deepseek-v4-flash"
+    }
+  },
+  "permission": {
+    "bash": {
+      "git push *": "ask",
+      "gh pr *": "ask"
+    }
+  }
+}

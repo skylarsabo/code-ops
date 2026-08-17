@@ -57,6 +57,9 @@
 //      excluded — it legitimately talks ABOUT never auto-merging. (This item's own prose
 //      avoids spelling out the literal tokens so it doesn't trip check 19 on itself; see the
 //      check's own comment block for the exact denylist.)
+//  20. CLAUDE.md and AGENTS.md are byte-identical: they are one standards contract under the
+//      two names different hosts read, and a divergence is invisible to whichever host reads
+//      the other copy.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -64,6 +67,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RUNTIME_SCRIPTS } from './vendored-manifest.mjs';
+import { CLAUDE_ALIAS_TIER, TIER_RANK } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
@@ -468,7 +472,15 @@ for (const p of plugins) {
 // table makes a downgrade a VISIBLE diff (the floor must be edited in the same change)
 // instead of a silent frontmatter tweak. Also keeps the handbook's "(model: `X`)"
 // annotations in docs/techniques/subagent-trade-offs.md in sync with the frontmatter.
-const MODEL_TIER = { haiku: 0, sonnet: 1, opus: 2 };
+//
+// The ordering comes from scripts/model-tiers.mjs so the gate and the provider-agnostic
+// doctrine (frontier > strong > mid) cannot describe different ladders. Frontmatter still
+// declares Anthropic aliases, because Claude Code reads that field directly; the canonical
+// rung is what the other host renderers translate.
+const MODEL_TIER = Object.fromEntries(
+  Object.entries(CLAUDE_ALIAS_TIER).map(([alias, tier]) => [alias, TIER_RANK[tier]]),
+);
+const MODEL_ALIASES = Object.keys(MODEL_TIER).join('|');
 const AGENT_MODEL_FLOORS = {
   'rigor/verifier': 'opus',
   'rigor/tracer': 'opus',
@@ -493,7 +505,7 @@ for (const p of plugins) {
     agentModelByName.set(agentKey, md[1]);
     const floor = AGENT_MODEL_FLOORS[agentKey];
     if (floor === undefined) { fail(`${agentKey}: not in AGENT_MODEL_FLOORS — add it with a deliberate tier floor`); continue; }
-    if (!(md[1] in MODEL_TIER)) { fail(`${agentKey}: model "${md[1]}" is not a known tier alias (haiku|sonnet|opus)`); continue; }
+    if (!(md[1] in MODEL_TIER)) { fail(`${agentKey}: model "${md[1]}" is not a known tier alias (${MODEL_ALIASES})`); continue; }
     if (MODEL_TIER[md[1]] < MODEL_TIER[floor])
       fail(`${agentKey}: model "${md[1]}" is below its declared floor "${floor}" — downgrading the verification core requires editing AGENT_MODEL_FLOORS in the same change`);
   }
@@ -752,6 +764,24 @@ function walkFiles(dir, out = []) {
       if (line.includes(TOK_ENABLE_AUTOMERGE))
         fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_ENABLE_AUTOMERGE}" referenced (never auto-merge)`);
     }
+  }
+}
+
+// ---- 20. host-neutral standards contract parity ------------------------------
+// The repo's standards contract ships under two names because hosts read different files:
+// Claude Code reads CLAUDE.md; Codex reads AGENTS.md; opencode reads AGENTS.md and only
+// falls back to CLAUDE.md when AGENTS.md is ABSENT; Grok Build reads both. Shipping both
+// files therefore means a divergence is invisible on exactly the hosts that read the other
+// copy — which is how the writing-standard section lived in CLAUDE.md alone, unseen by
+// Codex and opencode. They are one document under two names, so this pins them
+// byte-identically rather than trusting anyone to remember the second edit.
+{
+  const claudeMd = join(ROOT, 'CLAUDE.md');
+  const agentsMd = join(ROOT, 'AGENTS.md');
+  if (!existsSync(claudeMd)) fail('CLAUDE.md is missing — it is the repo standards contract Claude Code reads');
+  else if (!existsSync(agentsMd)) fail('AGENTS.md is missing — Codex and opencode read it instead of CLAUDE.md');
+  else if (readText(claudeMd) !== readText(agentsMd)) {
+    fail('CLAUDE.md and AGENTS.md have diverged — they are one contract under two names, and hosts that read AGENTS.md (Codex, opencode) silently lose whatever only CLAUDE.md carries. Copy CLAUDE.md over AGENTS.md in the same commit.');
   }
 }
 

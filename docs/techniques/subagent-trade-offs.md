@@ -32,6 +32,35 @@ and never below an agent's lint-enforced floor:
 
 Anti-patterns: no xhigh/max on breadth sweeps — parallelism beats effort for coverage; no low on review; no judgment-bearing dispatch below the strong tier on the argument that it is cheaper. Effort and tier partially substitute (a stronger model at medium approximates a mid model at high, provider-agnostic), but the substitution buys speed, not a licence to down-tier work whose output a verdict rests on.
 
+### Which model satisfies a tier
+
+The rungs above are provider-agnostic, so a host running a non-Anthropic model still needs to know which of its models clears a floor. `scripts/model-tiers.mjs` is the single source of truth for that binding; both the lint gate and the opencode renderer read it, so the doctrine and the gate cannot describe different ladders. `light` names the rung this table always had but never named — the mechanical tier below `mid`.
+
+| Provider | `light` | `mid` | `strong` | `frontier` |
+| --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `haiku` | `sonnet` | `opus` | `fable` |
+| xAI (Grok) | `grok-4.6` | `grok-4.6` | `grok-4.6` | `grok-4.6` |
+| OpenAI (GPT) | `gpt-5.6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-5.6-sol` |
+| Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
+| Z.AI (GLM) | `glm-5` | `glm-5.1` | `glm-5.2` | `glm-5.2` |
+| Moonshot AI (Kimi) | `kimi-k2.5` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` |
+| DeepSeek | `deepseek-v4-flash` | `deepseek-v4-flash` | `deepseek-v4-pro` | `deepseek-v4-pro` |
+| Mistral | `magistral-small` | `mistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` |
+
+This table is what makes the rest of the doctrine portable. The briefs, the fan-out rules, the disconfirmation pass, and the verification bar are identical on every provider; only the bindings change. Adding a provider is one entry in `scripts/model-tiers.mjs`.
+
+Where a provider repeats a model across rungs, its lineup has no distinct model for the lower one — recorded rather than papered over with an invented tier. The xAI row is the exception: it is flat by choice, since `grok-4.6` never routes work below its floor and removes tier as a variable. The OpenAI split follows this repo's own calibration evidence rather than price — runs R-007 and R-008 recorded `gpt-5-6-sol` leading `gpt-5-6-terra` operatives.
+
+Effort stays the live dial everywhere, because the major providers expose the same low/medium/high/xhigh scale.
+
+Model ids are pinned, not fetched, so the renderer and the gate stay offline and deterministic. Re-verify them against the models.dev registry that opencode itself resolves through:
+
+```bash
+node scripts/check-model-registry.mjs --fetch
+```
+
+Agent frontmatter keeps declaring Anthropic aliases, because Claude Code reads that field directly. The canonical rung is what travels: the opencode renderer converts each agent's alias into a stated capability tier plus a per-provider binding table, since opencode resolves models per provider and a hardcoded alias would not bind.
+
 The suite uses *several* read-only agents in parallel over disjoint areas to move fast, and reserves the writing/executing agent for careful, isolated use. The cost it pays for that parallelism is covered in [09 · Cost and scoping](../handbook/09-cost-and-scoping.md).
 
 ---

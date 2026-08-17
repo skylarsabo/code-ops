@@ -41,6 +41,14 @@ jobs:
       - name: Codex marketplace render + drift check
         run: node scripts/build-codex-marketplace.mjs --check
 
+      - name: opencode distribution render + drift check
+        run: node scripts/build-opencode-dist.mjs --check
+
+      # Shape only — no --fetch. The pinned-id resolution check is opt-in and stays out of
+      # CI so a models.dev outage can never fail this repository's build.
+      - name: Model-tier registry shape check
+        run: node scripts/check-model-registry.mjs
+
       - name: Zero-dependency guard
         run: node scripts/check-no-deps.mjs
 
@@ -58,6 +66,14 @@ jobs:
 
       - name: Codex marketplace regression eval
         run: node evals/codex-marketplace/run.mjs
+
+      - name: opencode distribution regression eval
+        run: node evals/opencode-dist/run.mjs
+
+      # No renderer for Grok Build: it reads the Claude plugin format natively, so the
+      # canonical packages ARE its packages. This guards that contract from drifting.
+      - name: Grok Build compatibility eval
+        run: node evals/grok-build-compat/run.mjs
 
       - name: Researcher egress-manifest eval
         run: node evals/research-manifest/run.mjs
@@ -168,6 +184,17 @@ jobs:
 
       - name: Codex marketplace render + drift check
         run: node scripts/build-codex-marketplace.mjs --check
+
+      - name: opencode distribution render + drift check
+        run: node scripts/build-opencode-dist.mjs --check
+
+      # Shape only — no --fetch. The pinned-id resolution check is opt-in and stays out of
+      # CI so a models.dev outage can never fail this repository's build.
+      - name: Model-tier registry shape check
+        run: node scripts/check-model-registry.mjs
+
+      - name: opencode distribution regression eval
+        run: node evals/opencode-dist/run.mjs
 
       - name: Preflight regression eval
         run: node evals/preflight/run.mjs

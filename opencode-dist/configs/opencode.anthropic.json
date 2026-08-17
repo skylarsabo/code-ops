@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-fable-5",
+  "agent": {
+    "code-ops-suite-explorer": {
+      "model": "anthropic/claude-haiku-4-5-20251001"
+    },
+    "code-ops-suite-reviewer": {
+      "model": "anthropic/claude-opus-5"
+    },
+    "privacy-opsec-suite-explorer": {
+      "model": "anthropic/claude-haiku-4-5-20251001"
+    },
+    "privacy-opsec-suite-privacy-reviewer": {
+      "model": "anthropic/claude-opus-5"
+    },
+    "rigor-tracer": {
+      "model": "anthropic/claude-opus-5"
+    },
+    "rigor-verifier": {
+      "model": "anthropic/claude-opus-5"
+    },
+    "researcher-claim-checker": {
+      "model": "anthropic/claude-sonnet-5"
+    },
+    "researcher-gatherer": {
+      "model": "anthropic/claude-haiku-4-5-20251001"
+    }
+  },
+  "permission": {
+    "bash": {
+      "git push *": "ask",
+      "gh pr *": "ask"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "google/gemini-3.1-pro-preview",
+  "agent": {
+    "code-ops-suite-explorer": {
+      "model": "google/gemini-3.1-flash-lite"
+    },
+    "code-ops-suite-reviewer": {
+      "model": "google/gemini-3.1-pro-preview"
+    },
+    "privacy-opsec-suite-explorer": {
+      "model": "google/gemini-3.1-flash-lite"
+    },
+    "privacy-opsec-suite-privacy-reviewer": {
+      "model": "google/gemini-3.1-pro-preview"
+    },
+    "rigor-tracer": {
+      "model": "google/gemini-3.1-pro-preview"
+    },
+    "rigor-verifier": {
+      "model": "google/gemini-3.1-pro-preview"
+    },
+    "researcher-claim-checker": {
+      "model": "google/gemini-3.6-flash"
+    },
+    "researcher-gatherer": {
+      "model": "google/gemini-3.1-flash-lite"
+    }
+  },
+  "permission": {
+    "bash": {
+      "git push *": "ask",
+      "gh pr *": "ask"
+    }
+  }
+}

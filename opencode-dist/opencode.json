@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "xai/grok-4.6",
+  "agent": {
+    "code-ops-suite-explorer": {
+      "model": "xai/grok-4.6"
+    },
+    "code-ops-suite-reviewer": {
+      "model": "xai/grok-4.6"
+    },
+    "privacy-opsec-suite-explorer": {
+      "model": "xai/grok-4.6"
+    },
+    "privacy-opsec-suite-privacy-reviewer": {
+      "model": "xai/grok-4.6"
+    },
+    "rigor-tracer": {
+      "model": "xai/grok-4.6"
+    },
+    "rigor-verifier": {
+      "model": "xai/grok-4.6"
+    },
+    "researcher-claim-checker": {
+      "model": "xai/grok-4.6"
+    },
+    "researcher-gatherer": {
+      "model": "xai/grok-4.6"
+    }
+  },
+  "permission": {
+    "bash": {
+      "git push *": "ask",
+      "gh pr *": "ask"
+    }
+  }
+}

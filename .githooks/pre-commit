@@ -65,8 +65,11 @@ console.log(out.join('\n'));
   fi
 fi
 
-renderer_inputs="plugins .claude-plugin/marketplace.json scripts/build-codex-marketplace.mjs"
-renderer_paths="$renderer_inputs .agents/plugins/marketplace.json codex-marketplace"
+# Both host renderers read the same canonical source, so they share one input set and one
+# staleness gate. scripts/model-tiers.mjs is an input because the opencode renderer bakes
+# the tier bindings into its generated MODEL_TIERS.md and opencode.json.
+renderer_inputs="plugins .claude-plugin/marketplace.json scripts/build-codex-marketplace.mjs scripts/build-opencode-dist.mjs scripts/model-tiers.mjs"
+renderer_paths="$renderer_inputs .agents/plugins/marketplace.json codex-marketplace opencode-dist"
 
 # Do no work for commits unrelated to either source or generated marketplace artifacts.
 if git diff --cached --quiet -- $renderer_paths; then
@@ -82,14 +85,17 @@ fi
 # the time we get here, so they cannot trip this refusal. Any remaining unstaged/untracked
 # renderer input under plugins/ is unrelated pre-existing local state and must still refuse.
 if ! git diff --quiet -- $renderer_inputs || test -n "$(git ls-files --others --exclude-standard -- $renderer_inputs)"; then
-  echo "Stage or stash all Codex-renderer inputs before committing." >&2
+  echo "Stage or stash all host-renderer inputs before committing." >&2
   exit 1
 fi
 
 command -v node >/dev/null 2>&1 || {
-  echo "node is required to render the Codex marketplace." >&2
+  echo "node is required to render the host distributions." >&2
   exit 1
 }
 
 node scripts/build-codex-marketplace.mjs
 retry_on_index_lock git add -A -- .agents/plugins/marketplace.json codex-marketplace/
+
+node scripts/build-opencode-dist.mjs
+retry_on_index_lock git add -A -- opencode-dist/

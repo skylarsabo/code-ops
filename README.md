@@ -1,6 +1,6 @@
-# Code-Ops — Claude Code + Codex plugin marketplace
+# Code-Ops — Claude Code, Codex, Grok Build, and opencode plugin marketplace
 
-One repository, four installable plugins of adaptive, multi-agent engineering workflows. Claude Code uses the canonical source packages; Codex uses a tracked native render generated from that same source. Add the marketplace once on your host, then install whichever plugin a project needs.
+One repository, four installable plugins of adaptive, multi-agent engineering workflows. Claude Code and Grok Build both read the canonical source packages directly; Codex and opencode each use a tracked native render generated from that same source. Add the marketplace once on your host, then install whichever plugin a project needs.
 
 - **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, standards-contract adoption, onboarding, code normalization, PR-splitting, ship, debug, current-docs, plus architecture & API/data-model/ADR/ops doc generation, run handoff/resume and the per-repo atlas, plus calibration/cost/provider-parity self-audits. (29 skills)
 - **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate, authorship hygiene. (14 skills)
@@ -92,6 +92,42 @@ For a shared GitHub install, replace `.` with `skylarsabo/code-ops --ref main`. 
 
 `code-ops-suite` also bundles its traceless-publishing hook. Codex requires an explicit hook review/trust step before plugin hooks run; inspect it with `/hooks`. The repository CI gate remains the fail-closed backstop.
 
+### Grok Build
+
+Grok Build reads the Claude plugin format natively, so **no separate render is needed** — the canonical packages under `plugins/` are its packages. Its manifest resolver accepts `.claude-plugin/plugin.json`, its plugin discovery walks `~/.claude/plugins/`, its agent discovery walks `.claude/agents/`, and its hook adapter exports `CLAUDE_PLUGIN_ROOT` alongside `GROK_PLUGIN_ROOT`.
+
+If the marketplace is already added for Claude Code, Grok Build picks it up with no extra step. Otherwise:
+
+```bash
+grok plugin marketplace add skylarsabo/code-ops
+grok plugin install code-ops-suite
+```
+
+Verify what it discovered — plugins, skills, agents, hooks, and the MCP server all appear:
+
+```bash
+grok inspect
+```
+
+Grok Build namespaces plugin agents as `<plugin>:<agent>`, so the two `explorer` agents coexist without the flattening opencode needs. Set the model in `~/.grok/config.toml` (`%USERPROFILE%.grokconfig.toml` on Windows) under `[models] default`; recent builds already default to `grok-4.6`.
+
+One gap to know: Grok Build does not parse an agent's `model:` frontmatter, so agents inherit the session model and the lint-enforced tier floors have no carrier on this host. Pick a session model that meets the strongest floor any agent you dispatch declares — see `docs/techniques/subagent-trade-offs.md`.
+
+### opencode
+
+opencode discovers skills, agents, and commands from flat directories under its config root, so the distribution is copied in rather than added as a marketplace:
+
+```bash
+node scripts/build-opencode-dist.mjs
+cp -R opencode-dist/. ~/.config/opencode/        # or .opencode/ for one project
+```
+
+Names are plugin-prefixed because opencode has one flat namespace and no colon in its name grammar: `/code-ops-suite:ship` becomes `/code-ops-suite-ship`. Each skill is also model-invocable through opencode's `skill` tool under the same name.
+
+`opencode-dist/opencode.json` binds every agent to a model meeting its capability tier, rendered against `xai/grok-4.6`. A ready-made config for each supported provider ships under `opencode-dist/configs/` — Anthropic, xAI, OpenAI, Google, Z.AI, Moonshot, DeepSeek, and Mistral — so moving the suite between providers is a config swap, not a rewrite. Merge one into your own config rather than overwriting it, and see `opencode-dist/MODEL_TIERS.md` for the full tier table.
+
+The traceless-publishing gate ships as `opencode-dist/plugins/code-ops-traceless.js`, ported from the Claude hook to opencode's `tool.execute.before` hook. It resolves its scanner through the distribution layout, so keep the directories together. The repository CI gate remains the fail-closed backstop.
+
 ## Use
 In Claude Code, invoke a workflow as a namespaced slash command:
 
@@ -111,16 +147,18 @@ claude plugin validate ./plugins/code-ops-suite            # a plugin + its skil
 claude plugin validate ./plugins/privacy-opsec-suite
 claude plugin validate ./plugins/rigor
 ```
-For Codex, also run:
+For the generated host distributions, also run:
 
 ```bash
 node scripts/build-codex-marketplace.mjs
 node scripts/build-codex-marketplace.mjs --check
+node scripts/build-opencode-dist.mjs
+node scripts/build-opencode-dist.mjs --check
 codex plugin marketplace add .
 codex plugin list --marketplace code-ops --available --json
 ```
 
-After editing a source plugin, **bump its `version`** in `plugins/<name>/.claude-plugin/plugin.json`, update the matching entry in `.claude-plugin/marketplace.json` (the two must agree — `scripts/lint-plugins.mjs` enforces it), and add a `CHANGELOG.md` entry. Then regenerate `codex-marketplace/`; never hand-edit its output. Claude users refresh with `/plugin marketplace update`.
+After editing a source plugin, **bump its `version`** in `plugins/<name>/.claude-plugin/plugin.json`, update the matching entry in `.claude-plugin/marketplace.json` (the two must agree — `scripts/lint-plugins.mjs` enforces it), and add a `CHANGELOG.md` entry. Then regenerate `codex-marketplace/` and `opencode-dist/`; never hand-edit either output. Claude users refresh with `/plugin marketplace update`.
 
 ### Automatic commit-time sync
 
@@ -130,13 +168,16 @@ Install the repository hook once per checkout:
 node scripts/install-git-hooks.mjs
 ```
 
-Before each relevant commit it regenerates the Codex marketplace and stages only `.agents/plugins/marketplace.json` plus `codex-marketplace/`; authored Claude source is never auto-staged. It refuses to proceed if a renderer input is unstaged or untracked, preventing output for source that is absent from the commit. The CI drift gate remains mandatory, so a clone where hooks are not installed (or a commit made with `--no-verify`) cannot merge stale derived artifacts.
+Before each relevant commit it regenerates both host distributions and stages only `.agents/plugins/marketplace.json`, `codex-marketplace/`, and `opencode-dist/`; authored Claude source is never auto-staged. It refuses to proceed if a renderer input is unstaged or untracked, preventing output for source that is absent from the commit. The CI drift gate remains mandatory, so a clone where hooks are not installed (or a commit made with `--no-verify`) cannot merge stale derived artifacts.
 
 **Bundled scripts:**
 - `scripts/lint-plugins.mjs` — structural linter (the CI gate in `.github/workflows/validate.yml`): manifest field presence + marketplace/version parity + no duplicate or unregistered plugins, README skill-count and word-boundary mention parity, required `SKILL.md` fields, frontmatter YAML-safety (incl. BOM), orchestrator skill-reference resolution (intra-plugin scoped + qualified `plugin:skill` + single-word, derived from skill bodies), runtime-script parity, a verbatim-CONVENTIONS duplication guard, `§<id>` section-reference integrity against each plugin's CONVENTIONS headings, subagent-name integrity ("the X subagent" prose must name a bundled agent), a frontmatter angle-bracket injection guard (frontmatter is injected verbatim into the system prompt at discovery), agent model-tier floors (downgrading the verification core requires a visible floor-table edit), producer register self-check wiring, and the SHARED_PASSAGES doctrine-core drift gate (intentional duplication is pinned byte-identically). Run `node scripts/lint-plugins.mjs`.
 - `scripts/check-no-deps.mjs` — CI guard that fails if any third-party import appears, locking the dependency-free invariant.
 - `scripts/build-codex-marketplace.mjs` — deterministic renderer + self-validation for the Codex marketplace. It derives `.agents/plugins/marketplace.json` and the tracked `codex-marketplace/` payload from the Claude source; `--check` fails on drift.
-- `scripts/install-git-hooks.mjs` — opt-in installer for the tracked pre-commit hook; it synchronizes and stages only Codex-derived artifacts before a commit.
+- `scripts/build-opencode-dist.mjs` — deterministic renderer + self-validation for the opencode distribution under `opencode-dist/`. opencode discovers skills, agents, and commands from flat directories and its names cannot contain a colon, so every name is plugin-prefixed; `--check` fails on drift.
+- `scripts/model-tiers.mjs` — the provider-agnostic model-tier ladder (`frontier > strong > mid > light`) and its per-provider bindings for Anthropic, xAI, OpenAI, Google, Z.AI, Moonshot, DeepSeek, and Mistral. Read by both the lint gate and the opencode renderer, so the doctrine and the gate cannot disagree. Adding a provider is one entry.
+- `scripts/check-model-registry.mjs` — re-verifies every pinned model id against the models.dev registry. Network access is opt-in (`--fetch`) and deliberately outside CI, so a registry outage cannot fail the build; CI runs the offline shape check only.
+- `scripts/install-git-hooks.mjs` — opt-in installer for the tracked pre-commit hook; it synchronizes and stages only host-derived artifacts before a commit.
 - `evals/` — the eval harness. Ten automated regression evals run in `.github/workflows/validate.yml` (register-staleness, ai-tells, lib-docs engine, MCP smoke, Codex marketplace, researcher egress-manifest, script-guards, proof-receipts, autofix-scope, redaction-scan) plus a zero-dependency guard and a fixture-drift guard; see `evals/README.md` for these and the judgment-eval approach.
 - `scripts/revalidate-register.mjs` — register freshness checker, also copied into each plugin so skills invoke it via `${CLAUDE_PLUGIN_ROOT}/scripts/`. Re-greps each register item's `file:line` against the current tree (FRESH / MOVED / DRIFTED / GONE / AMBIGUOUS / NO-REF — `DRIFTED` when the line no longer carries the item's verbatim `Anchor`) so stale findings are re-triaged before they're acted on: `node scripts/revalidate-register.mjs <register.md> --root <repo>`.
 - `scripts/check-autofix-scope.mjs` — auto-apply diff gate: denies always-gated paths, oversize diffs, and export-touching lines before an agent may auto-apply a fix; fail-closed with no flags. `scripts/run-proof.mjs` — execution-receipt ledger (record/replay) so a claimed test result is replayable, not narrated. `scripts/check-proof-integrity.mjs` — add-only pins for proof tests (a weakened proof is a loud PROOF-AMENDED, never silent). `scripts/scan-redaction.mjs` — fail-closed secret shapes over the suite's own output artifacts. `scripts/scan-injection-tells.mjs` — prompt-injection tells in agent-ingested content (report-only floor, opt-in fail-on).
@@ -172,6 +213,7 @@ code-ops/
 ├── .claude-plugin/
 │   └── marketplace.json                  # Claude Code catalog → four plugins
 ├── codex-marketplace/                    # generated native Codex packages
+├── opencode-dist/                        # generated opencode distribution (skills/agents/commands)
 │   └── plugins/<name>/.codex-plugin/
 │       └── plugin.json
 └── plugins/

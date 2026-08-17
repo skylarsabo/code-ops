@@ -123,6 +123,7 @@ standardization: enforcements N; traceless clean|dirty
 coverage: covered-negatives N; slices swept N of M (or: unknown)
 atlas: sections N; fresh N; refreshed N; falsified N (optional)
 config: lead <model-class>; operatives <model-class> (optional)
+host: <kebab-slug> (optional; the harness — claude-code, codex, grok-build, opencode)
 lesson: recur L-NNN
 lesson: new <instrument|suite|protocol> — <statement>
 ```
@@ -187,6 +188,68 @@ closed by the PR, eval, or gate that answers it. The store lives on this side of
 one-way channel and holds only data that already crossed it as a sanitized note; the
 channel rule above is unchanged by any of this. Schemas, edge vocabulary, derived
 metrics, and the query cookbook: [calibration-graph.md](calibration-graph.md).
+
+## Confirming prior fixes held
+
+A `fixed-in` edge records that a change shipped. A `verified-in` edge records that a later
+run watched it hold. Only the second is evidence, and the store has far more of the first:
+
+```bash
+node scripts/calibration-graph.mjs query unverified
+```
+
+Every run opens by reading that list and closes by adding a `verified-in` edge for each
+lesson it was in a position to observe. Skipping the step is how the loop ends up measuring
+its own output instead of its own effect — shipping a fix and gating it both feel like
+progress, and neither shows whether the next run stopped paying for the problem.
+
+Two rules keep the edge honest:
+
+- Add `verified-in` only for a lesson this run could actually have hit. A run that never
+  touched the code path proves nothing about it, and a speculative edge is worse than none
+  because it retires the lesson from the worklist.
+- A lesson that recurs instead gets its recurrence recorded in the run's `lessons` array,
+  never a `verified-in` edge. Recurrence and verification are opposite findings and the
+  store must not carry both.
+
+A fix with a gate behind it is not RED here, because the gate stands in for field evidence
+until a run supplies it. A fix with neither a gate nor a verification is RED and fails
+`--gate`: nothing at all is holding it.
+
+## Reading lessons across providers
+
+The `config:` line already records which model class ran a calibration, so the store can
+answer the question that decides where a fix belongs:
+
+```bash
+node scripts/calibration-graph.mjs query cross-model
+```
+
+It reads two independent axes. The `config:` line says which **model** drove the run; the
+`host:` line says which **harness** ran it. Both matter, and they fail differently: a
+lesson can be one model's habit or one harness's mechanics, and only the two together
+separate "the suite is wrong" from "this particular setup is wrong". Record both, or a
+lesson stays unclassifiable.
+
+Every lesson is then partitioned by how far it has spread. Crossing **either** axis is
+enough to call it the suite's problem:
+
+- **CROSS-MODEL** (two or more providers, **or** two or more hosts) — a suite defect. No
+  single model's habits or harness's mechanics explain it, so the repair belongs in the
+  skill text, the conventions, or a gate. These are the highest-value repairs in the
+  store: every provider and host keeps paying for them on every run. One with nothing
+  mechanical holding it is RED, and `--gate` exits non-zero on it.
+- **single-provider** — an adaptation until a second provider or host corroborates it.
+  Fix the routing or the prose for that setup, and watch whether it reappears elsewhere.
+  Rewriting shared doctrine off one setup's evidence over-fits the suite to it.
+- **unattributed** — cited only by runs that recorded neither line. Not a weaker signal,
+  just an unclassifiable one; a run predating these fields cannot be back-filled without
+  guessing.
+
+Attribution never guesses. A slug matching no known provider pattern stays unattributed,
+because a wrong attribution would merge two providers' evidence and invent corroboration
+that does not exist. The patterns live in `scripts/model-tiers.mjs` alongside the tier
+ladder, so adding a provider is one edit.
 
 ## Pre-registered: the orchestration-configuration experiment
 

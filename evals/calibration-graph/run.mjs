@@ -184,6 +184,44 @@ try {
   const qUnGate = run(['query', 'unenforced', '--gate']);
   check('c. --gate promotes a RED line to exit 1', qUnGate.status === 1, qUnGate.stdout + qUnGate.stderr);
 
+  // CROSS-MODEL: the store's provider attribution comes from each run's own config line, so
+  // the load-bearing property is that a lesson only counts as cross-model when two DIFFERENT
+  // providers relearned it. L-028 is the only one in the real store: R-005/R-006 ran
+  // Anthropic-class, R-007/R-008 OpenAI-class. A regression that mis-attributed slugs would
+  // either invent corroboration here or lose it.
+  const qXm = run(['query', 'cross-model']);
+  check('c. cross-model exits 0', qXm.status === 0, qXm.stdout + qXm.stderr);
+  check('c. cross-model attributes runs to their providers',
+    /anthropic\s+1 run\(s\) \(R-006\)/.test(qXm.stdout)
+    && /openai\s+2 run\(s\) \(R-007, R-008\)/.test(qXm.stdout), qXm.stdout);
+  check('c. runs with no config line stay unattributed rather than defaulting',
+    /5 run\(s\) with no config line \(R-001, R-002, R-003, R-004, R-005\)/.test(qXm.stdout), qXm.stdout);
+  check('c. L-028 is the cross-model lesson, still unheld',
+    /RED\s+CROSS-MODEL\s+L-028\s+4 run\(s\)\s+OPEN\s+\[providers: anthropic, openai\]/.test(qXm.stdout), qXm.stdout);
+  // The host axis is the sibling of the provider axis: `config` says which model drove a
+  // run, `host` which harness. No run records one yet, and the query must say so plainly
+  // rather than defaulting every historical run to some assumed harness.
+  check('c. the host axis reports honestly when nothing records it',
+    /## runs by host/.test(qXm.stdout)
+    && /8 run\(s\) with no host line/.test(qXm.stdout)
+    && /no run records a host line yet/.test(qXm.stdout), qXm.stdout);
+  check('c. cross-model partitions every lesson exactly once',
+    /\n1 cross-model lesson\(s\)[^\n]*14 single-provider[^\n]*24 unattributed/.test(qXm.stdout), qXm.stdout);
+  const qXmGate = run(['query', 'cross-model', '--gate']);
+  check('c. an unheld cross-model lesson fails --gate', qXmGate.status === 1, qXmGate.stdout + qXmGate.stderr);
+
+  // UNVERIFIED: `fixed-in` means a change shipped; `verified-in` means a later run saw it
+  // hold. Only the second is evidence. This query is the worklist that keeps the gap from
+  // growing silently — L-012 is the sharp case, shipped with nothing mechanical behind it.
+  const qUnv = run(['query', 'unverified']);
+  check('c. unverified exits 0', qUnv.status === 0, qUnv.stdout + qUnv.stderr);
+  check('c. a shipped-but-unconfirmed fix is listed', /L-001\s+ENFORCED\s+\(fixed-in PR-44, PR-45, 2 gate\(s\)\)/.test(qUnv.stdout), qUnv.stdout);
+  check('c. a fix with no gate AND no verification is RED', /RED\s+L-012\s+UNENFORCED\s+\(fixed-in PR-45, nothing mechanical\)/.test(qUnv.stdout), qUnv.stdout);
+  check('c. verified lessons are excluded from the worklist',
+    !/\bL-002\b/.test(qUnv.stdout) && !/\bL-007\b/.test(qUnv.stdout) && !/\bL-008\b/.test(qUnv.stdout), qUnv.stdout);
+  check('c. unverified reports both halves of the ratio', /\n18 unverified fix\(es\); 3 lesson\(s\) confirmed by a later run\./.test(qUnv.stdout), qUnv.stdout);
+  check('c. an unverified, unenforced fix fails --gate', run(['query', 'unverified', '--gate']).status === 1);
+
   const qRec = run(['query', 'recurrent']);
   check('c. recurrent exits 0', qRec.status === 0, qRec.stdout + qRec.stderr);
   check('c. L-001 recurred across all three runs', /L-001\s+3 runs \(R-001, R-002, R-003\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
