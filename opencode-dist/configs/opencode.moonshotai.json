@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "moonshotai/kimi-k3",
+  "agent": {
+    "code-ops-suite-explorer": {
+      "model": "moonshotai/kimi-k2.5"
+    },
+    "code-ops-suite-reviewer": {
+      "model": "moonshotai/kimi-k3"
+    },
+    "privacy-opsec-suite-explorer": {
+      "model": "moonshotai/kimi-k2.5"
+    },
+    "privacy-opsec-suite-privacy-reviewer": {
+      "model": "moonshotai/kimi-k3"
+    },
+    "rigor-tracer": {
+      "model": "moonshotai/kimi-k3"
+    },
+    "rigor-verifier": {
+      "model": "moonshotai/kimi-k3"
+    },
+    "researcher-claim-checker": {
+      "model": "moonshotai/kimi-k2.7-code"
+    },
+    "researcher-gatherer": {
+      "model": "moonshotai/kimi-k2.5"
+    }
+  },
+  "permission": {
+    "bash": {
+      "git push *": "ask",
+      "gh pr *": "ask"
+    }
+  }
+}

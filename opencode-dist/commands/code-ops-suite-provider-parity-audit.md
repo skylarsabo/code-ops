@@ -1,0 +1,9 @@
+---
+description: "Use when you want to audit the marketplace's own prose for provider-specific assumptions (harness mechanics, tool names, hook semantics) that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check; this skill covers prose only."
+---
+
+Use the `code-ops-suite-provider-parity-audit` skill for this task, following it end to end.
+
+Additional context or scope from the caller (may be empty):
+
+$ARGUMENTS

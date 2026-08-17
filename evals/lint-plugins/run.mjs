@@ -51,6 +51,10 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const REAL_LINT = join(REPO, 'scripts', 'lint-plugins.mjs');
+// The gate imports its model-tier ladder from this sibling. Copy the REAL file rather than
+// a synthetic stand-in (unlike vendored-manifest.mjs below, whose contents the fixture must
+// control): the agent-model-floor cases only mean something against the actual ladder.
+const REAL_MODEL_TIERS = join(REPO, 'scripts', 'model-tiers.mjs');
 
 const fails = [];
 const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
@@ -148,6 +152,12 @@ ${texts.join('\n\n')}
 function buildBaseline(root) {
   mkdirSync(join(root, 'scripts'), { recursive: true });
   copyFileSync(REAL_LINT, join(root, 'scripts', 'lint-plugins.mjs'));
+  copyFileSync(REAL_MODEL_TIERS, join(root, 'scripts', 'model-tiers.mjs'));
+  // The standards contract ships under both names (check 20). Identical in the baseline;
+  // case 11 drifts one copy and case 11b deletes it.
+  const contract = '# Fixture standards contract\n\nStands in for the repo contract that CLAUDE.md and AGENTS.md both carry.\n';
+  put(root, 'CLAUDE.md', contract);
+  put(root, 'AGENTS.md', contract);
   put(root, 'scripts/vendored-manifest.mjs', "export const RUNTIME_SCRIPTS = [\n  { name: 'fixture-tool.mjs', plugins: ['rigor'] },\n];\n");
   const fixtureTool = '// Fixture runtime script for evals/lint-plugins/run.mjs (vendored-script parity check).\nexport const FIXTURE_TOOL = true;\n';
   put(root, 'scripts/fixture-tool.mjs', fixtureTool);
@@ -385,6 +395,23 @@ No completion heading here on purpose (case 3 mutation).
   const r10 = runLint(d10);
   check('10. gh pr merge --auto exits 1', r10.status === 1);
   check('10. message flags the auto-merge denylist', r10.all.includes('auto-merge denylist'));
+
+  // 11. STANDARDS-CONTRACT PARITY (check 20) — AGENTS.md drifting from CLAUDE.md. This is
+  // the regression that actually happened: the writing-standard section lived in CLAUDE.md
+  // alone, so Codex and opencode (which read AGENTS.md) never saw it and nothing complained.
+  const d11 = clone('case11-contract-drift');
+  put(d11, 'AGENTS.md', '# Fixture standards contract\n\nDrifted on purpose (case 11 mutation).\n');
+  const r11 = runLint(d11);
+  check('11. a divergent AGENTS.md exits 1', r11.status === 1);
+  check('11. message names both files and the fix', r11.all.includes('CLAUDE.md and AGENTS.md have diverged'));
+
+  // 11b. The other half of the contract: a MISSING copy is as bad as a drifted one, since
+  // the host reading that name falls back to nothing.
+  const d11b = clone('case11b-contract-missing');
+  rmSync(join(d11b, 'AGENTS.md'), { force: true });
+  const r11b = runLint(d11b);
+  check('11b. a missing AGENTS.md exits 1', r11b.status === 1);
+  check('11b. message says which hosts lose it', r11b.all.includes('Codex and opencode read it'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

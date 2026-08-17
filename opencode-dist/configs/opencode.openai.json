@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-5.6-sol",
+  "agent": {
+    "code-ops-suite-explorer": {
+      "model": "openai/gpt-5.6-luna"
+    },
+    "code-ops-suite-reviewer": {
+      "model": "openai/gpt-5.6-terra"
+    },
+    "privacy-opsec-suite-explorer": {
+      "model": "openai/gpt-5.6-luna"
+    },
+    "privacy-opsec-suite-privacy-reviewer": {
+      "model": "openai/gpt-5.6-terra"
+    },
+    "rigor-tracer": {
+      "model": "openai/gpt-5.6-terra"
+    },
+    "rigor-verifier": {
+      "model": "openai/gpt-5.6-terra"
+    },
+    "researcher-claim-checker": {
+      "model": "openai/gpt-5.1"
+    },
+    "researcher-gatherer": {
+      "model": "openai/gpt-5.6-luna"
+    }
+  },
+  "permission": {
+    "bash": {
+      "git push *": "ask",
+      "gh pr *": "ask"
+    }
+  }
+}

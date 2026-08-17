@@ -633,6 +633,11 @@ const MACHINE_LINE_SHAPES = [
   // so its ABSENCE is never a hit. Two kebab model-class slugs, nothing else: a class name is not
   // a target internal, and no version, vendor endpoint or session id crosses on this line.
   { shape: 'config: lead <model-class>; operatives <model-class>', re: /^config: lead [a-z0-9]+(?:-[a-z0-9]+)*; operatives [a-z0-9]+(?:-[a-z0-9]+)*$/ },
+  // host: <harness> — which harness ran the sweep, the sibling of the config line: config says
+  // which MODEL drove the run, host says which HARNESS. OPTIONAL for the same reason as both
+  // lines above, and equally safe on the one-way channel: one kebab slug naming a public tool
+  // (claude-code, codex, grok-build, opencode), never a path, version, or session id.
+  { shape: 'host: <harness>', re: /^host: [a-z0-9]+(?:-[a-z0-9]+)*$/ },
   // lesson: recur L-NNN
   { shape: 'lesson: recur L-NNN', re: /^lesson: recur L-\d{3}$/ },
   // lesson: new <instrument|suite|protocol> — <statement>   (id assigned at ingest)

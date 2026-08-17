@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "mistral/magistral-medium-latest",
+  "agent": {
+    "code-ops-suite-explorer": {
+      "model": "mistral/magistral-small"
+    },
+    "code-ops-suite-reviewer": {
+      "model": "mistral/magistral-medium-latest"
+    },
+    "privacy-opsec-suite-explorer": {
+      "model": "mistral/magistral-small"
+    },
+    "privacy-opsec-suite-privacy-reviewer": {
+      "model": "mistral/magistral-medium-latest"
+    },
+    "rigor-tracer": {
+      "model": "mistral/magistral-medium-latest"
+    },
+    "rigor-verifier": {
+      "model": "mistral/magistral-medium-latest"
+    },
+    "researcher-claim-checker": {
+      "model": "mistral/mistral-medium-latest"
+    },
+    "researcher-gatherer": {
+      "model": "mistral/magistral-small"
+    }
+  },
+  "permission": {
+    "bash": {
+      "git push *": "ask",
+      "gh pr *": "ask"
+    }
+  }
+}

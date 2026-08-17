@@ -49,6 +49,17 @@ operative self-reports not being acceptance — are intentionally outside the me
 gate layer: the routing card, dispatch ledger, and narration scan are advisories that
 surface drift, not gates that prevent it.
 
+## One contract, two filenames
+
+`CLAUDE.md` and `AGENTS.md` are the same document. Hosts read different names: Claude Code
+reads `CLAUDE.md`, Codex reads `AGENTS.md`, opencode reads `AGENTS.md` and falls back to
+`CLAUDE.md` only when `AGENTS.md` is absent, and Grok Build reads both. Because this repo
+ships both files, opencode never reads `CLAUDE.md` here — so anything living in only one
+copy is invisible to whichever hosts read the other.
+
+Edit `CLAUDE.md`, then copy it over `AGENTS.md` in the same commit. Lint pins them
+byte-identically and fails closed on a divergence.
+
 ## Writing standard
 
 Every artifact this repo produces follows the house writing standard in
@@ -65,7 +76,7 @@ drifted file and the eval fails at its baseline case rather than where you would
 
 ## Before declaring any change done
 
-Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check` — the first structural steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
+Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check && node scripts/build-opencode-dist.mjs --check` — the first structural steps of the CI gate in `.github/workflows/validate.yml`; that workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
 --check`; `register-staleness` has no answer key — run `node evals/register-staleness/run.mjs`.
 
 The gate chain is run by a verifier/mech operative that returns only the verdict plus
@@ -76,14 +87,15 @@ a disputed outcome.
 
 Bump `version` in `plugins/<name>/.claude-plugin/plugin.json`, update the matching
 `.claude-plugin/marketplace.json` entry (lint enforces parity), and add a
-`plugins/<name>/CHANGELOG.md` entry. Then regenerate `codex-marketplace/` with
-`node scripts/build-codex-marketplace.mjs`; its files and `.agents/plugins/marketplace.json`
-are derived artifacts, never hand-edited. Scripts under `plugins/*/scripts/` are vendored
+`plugins/<name>/CHANGELOG.md` entry. Then regenerate the host distributions with
+`node scripts/build-codex-marketplace.mjs` and `node scripts/build-opencode-dist.mjs`; their
+files, `.agents/plugins/marketplace.json`, and `opencode-dist/` are derived artifacts, never
+hand-edited. Scripts under `plugins/*/scripts/` are vendored
 byte-identical copies of `scripts/` — edit the canonical root file and re-copy; lint
 enforces parity.
 
 Install `node scripts/install-git-hooks.mjs` once per checkout. Its tracked pre-commit hook
-regenerates and stages only the derived Codex marketplace paths, while refusing unstaged or
+regenerates and stages only the derived Codex and opencode paths, while refusing unstaged or
 untracked renderer inputs; CI still rejects drift when hooks are absent or bypassed.
 
 Adding or removing a skill also requires updating the plugin README's skill list and
