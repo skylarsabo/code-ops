@@ -122,7 +122,7 @@ orchestration: dangling N; failed N; redispatched N
 standardization: enforcements N; traceless clean|dirty
 coverage: covered-negatives N; slices swept N of M (or: unknown)
 atlas: sections N; fresh N; refreshed N; falsified N (optional)
-config: lead <model-class>; operatives <model-class> (optional)
+config: lead <model-class>; operatives <model-class> (optional; a mid-run handover plus-separates the lead classes in order)
 host: <kebab-slug> (optional; the harness — claude-code, codex, grok-build, opencode)
 lesson: recur L-NNN
 lesson: new <instrument|suite|protocol> — <statement>
@@ -154,13 +154,22 @@ none). A note carrying `atlas:` must carry all four counts, and both sides refus
 arithmetic that went wrong upstream, not a measurement. Section *counts* cross the
 channel; section names, scopes, and prose never do.
 
-The `config:` line records the run's orchestration as two kebab model-class slugs — the
+The `config:` line records the run's orchestration in kebab model-class slugs — the
 lead that planned and judged, and the tier its operatives ran at (`config: lead fable-5;
 operatives opus-5`). It is what makes one run's numbers comparable to another's rather
 than merely sequential, so a run comparing configurations must carry it. Absence means
 *not recorded*: a run doc omits the field rather than defaulting one, since a guessed lead
 class would silently mis-group a comparison. Model classes are public vocabulary, so the
 line adds no leak surface — no version string, endpoint, or session id crosses on it.
+
+A lead that changed mid-run — a handover, say after a safety-classifier interruption left
+the session to be recovered under another class — records **every** lead class in order,
+plus-separated (`config: lead fable-5+opus-5; operatives opus-5`), rather than omitting the
+field. The order is the order they held the session, first class first, and the run doc
+stores it as that one string. Only the lead may split; `operatives` stays a single class,
+since the tier is pinned per dispatch for the whole run. The single-lead form is the
+canonical one — the split exists so an honest handover is expressible, not as an
+alternative way to write an ordinary run.
 
 ## Recording a run
 
@@ -276,7 +285,9 @@ failed-dispatch and redispatch rates (from the run's `DISPATCH_LEDGER.md`); atla
 falsified count; CONFIRMED labels re-tiered on review; and total operative tokens. The
 operator sets the lead by choosing the session's model and pins the operative tier in
 **every** dispatch brief of the run — an unpinned brief silently re-tiers the arm and
-voids it.
+voids it. An arm requires a **single-lead** config: a run whose lead changed hands is
+recorded honestly with its plus-separated lead, but it is excluded from the three arms,
+because its numbers cannot be attributed to one lead class.
 
 Gaps found in (b) are recorded as `lesson:` lines under the existing classes
 (`instrument`, `suite`, `protocol`) and enter the remediation loop like any other lesson;

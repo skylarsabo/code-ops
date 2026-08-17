@@ -58,7 +58,7 @@ All fields required unless marked optional.
   "standardization": { "enforcementsAdded": 0, "tracelessClean": true },
   "coverage": { "coveredNegatives": null, "slicesSwept": null, "slicesUnswept": null },
   "atlas": { "sections": 0, "fresh": 0, "refreshed": 0, "falsified": 0 },
-  "config": { "lead": "<kebab-slug>", "operatives": "<kebab-slug>" },
+  "config": { "lead": "<kebab-slug[+kebab-slug...]>", "operatives": "<kebab-slug>" },
   "lessons": ["L-001"],
   "notes": "<verbatim notes prose>"
 }
@@ -75,11 +75,19 @@ All fields required unless marked optional.
   since "no atlas was involved" and "an atlas nobody used" are different runs. Present, all
   four counts are non-negative, `fresh + refreshed` may not exceed `sections`, and neither
   may `falsified`. `query trend` prints an atlas tail only for the runs that carry it.
-- `config` is **optional** — the orchestration the run was driven under, as two kebab
+- `config` is **optional** — the orchestration the run was driven under, in kebab
   model-class slugs: the `lead` that planned and judged, and the tier the `operatives` ran
   at. A run that did not record it omits the field entirely; absence means *not recorded*
   and never a default, since a guessed lead class would silently mis-group a comparison
-  between configurations. `query trend` prints a config tail only for the runs that carry it.
+  between configurations. `lead` is one or more plus-separated model classes in the order
+  they held the session (`"fable-5+opus-5"`) — a lead that changed hands mid-run records
+  every lead rather than dropping the field. It stays one ordered string; an array `lead`
+  is refused. Only the lead splits: `operatives` is a single class. A split-lead run stays
+  queryable but cannot serve as an arm of an orchestration-configuration experiment — an
+  exclusion the operator applies when selecting arms; no gate fails closed on `config`
+  beyond schema validation. `query trend` renders it as stored, only for the runs that
+  carry it, and `query cross-model` splits the lead, attributing the run to every
+  provider that held the session.
 - `lessons` lists the lessons this run **surfaced or re-surfaced**.
 - `notes` is the row's prose verbatim; for a new run it is the note's Lessons prose.
 
@@ -188,7 +196,8 @@ it is either a typo or an opinion, and neither belongs in the trend record.
   `--gate` it fails the run; treat it as a build break, not a note.
 - **`trend`** — per target class and track, one line per run: findings, confirmed
   ratio, confirmed per 100k tokens, and refutation survival with its paneled
-  denominator.
+  denominator. Runs that recorded a `config` get a tail rendering it as stored, split
+  lead included (`config fable-5+opus-5->opus-5`).
 - **`lesson L-NNN`** — the full dossier: statement, the runs that listed it, every
   edge, and its derived status.
 

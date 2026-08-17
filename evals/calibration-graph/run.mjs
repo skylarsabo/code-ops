@@ -694,6 +694,45 @@ try {
     const r2 = run(['ingest', '--note', halfLine, '--store', s2]);
     check('o. a config line missing the operatives half is refused (exit 1)', r2.status === 1, r2.stdout + r2.stderr);
     check('o. the note gate refuses the half line too (exit 1)', gate(halfLine).status === 1, gate(halfLine).out);
+
+    // A lead that changed hands mid-run records every lead class in order, plus-separated. It
+    // ingests as one ordered string — the trend tail shows the handover instead of the field
+    // being dropped, and the note gate must agree line-for-line or the two grammars have drifted.
+    const splitStore = scratchStore().store;
+    const splitNote = noteWith('config-split-lead.md', 'config: lead fable-5+opus-5; operatives opus-5');
+    const p1 = run(['ingest', '--note', splitNote, '--store', splitStore, '--label', 'fixture Go event pipeline']);
+    check('o. a note recording a mid-run lead handover ingests (exit 0)', p1.status === 0, p1.stdout + p1.stderr);
+    const splitDoc = readJson(join(splitStore, 'runs', 'R-009.json'));
+    check('o. the split lead is stored plus-joined in order, operatives unchanged',
+      splitDoc.config && splitDoc.config.lead === 'fable-5+opus-5' && splitDoc.config.operatives === 'opus-5',
+      JSON.stringify(splitDoc.config));
+    const pv = run(['validate', '--store', splitStore]);
+    check('o. the store validates with a split lead present', pv.status === 0, pv.stdout + pv.stderr);
+    const ptr = run(['query', 'trend', '--store', splitStore]);
+    check('o. trend renders the split lead as recorded',
+      /R-009[^\n]*config fable-5\+opus-5->opus-5/.test(ptr.stdout), ptr.stdout);
+    const pxm = run(['query', 'cross-model', '--store', splitStore]);
+    check('o. cross-model still answers with a split lead in the store', pxm.status === 0, pxm.stdout + pxm.stderr);
+    const gSplit = gate(splitNote);
+    check('o. the note gate agrees the split lead is well-formed (exit 0)',
+      gSplit.status === 0 && /0 machine-block hit\(s\)/.test(gSplit.out), gSplit.out);
+
+    const trailingPlus = noteWith('config-trailing-plus.md', 'config: lead fable-5+; operatives opus-5');
+    const s4 = scratchStore().store;
+    const r4 = run(['ingest', '--note', trailingPlus, '--store', s4]);
+    check('o. a trailing plus on the lead is refused at ingest (exit 1)', r4.status === 1, r4.stdout + r4.stderr);
+    check('o. that refusal names the offending line',
+      /L\d+: line matches no Machine-block shape: config: lead fable-5\+;/.test(r4.stderr), r4.stderr);
+    check('o. nothing was written for the trailing-plus note',
+      !readdirSync(join(s4, 'runs')).includes('R-009.json'), readdirSync(join(s4, 'runs')).join(','));
+
+    const splitOps = noteWith('config-split-operatives.md', 'config: lead fable-5; operatives opus-5+sonnet-5');
+    const s5 = scratchStore().store;
+    const r5 = run(['ingest', '--note', splitOps, '--store', s5]);
+    check('o. only the lead may split — plus-separated operatives are refused at ingest (exit 1)', r5.status === 1, r5.stdout + r5.stderr);
+    check('o. nothing was written for the split-operatives note',
+      !readdirSync(join(s5, 'runs')).includes('R-009.json'), readdirSync(join(s5, 'runs')).join(','));
+    check('o. the note gate refuses the split-operatives line too (exit 1)', gate(splitOps).status === 1, gate(splitOps).out);
   }
 
   failureClass('o1. a stored config that is not an object',
@@ -706,7 +745,39 @@ try {
 
   failureClass('o3. a stored config whose lead is not a kebab slug',
     (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: 'Fable 5', operatives: 'opus-5' }; writeJson(p, d); },
-    /schema: runs\/R-001\.json: config\.lead must be a kebab model-class slug/);
+    /schema: runs\/R-001\.json: config\.lead must be one or more plus-separated kebab model-class slugs/);
+
+  failureClass('o4. a stored split lead with a trailing plus',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: 'fable-5+', operatives: 'opus-5' }; writeJson(p, d); },
+    /schema: runs\/R-001\.json: config\.lead must be one or more plus-separated kebab model-class slugs/);
+
+  failureClass('o4b. a stored lead with a leading plus',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: '+opus-5', operatives: 'opus-5' }; writeJson(p, d); },
+    /schema: runs\/R-001\.json: config\.lead must be one or more plus-separated kebab model-class slugs/);
+
+  failureClass('o4c. a stored lead with an empty middle segment',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: 'fable-5++opus-5', operatives: 'opus-5' }; writeJson(p, d); },
+    /schema: runs\/R-001\.json: config\.lead must be one or more plus-separated kebab model-class slugs/);
+
+  // A split lead is stored plus-joined, never as an array: one field, one ordered string, so the
+  // trend tail and every consumer read it the same way.
+  failureClass('o5. a stored lead written as an array instead of a plus-joined string',
+    (s) => { const p = join(s, 'runs', 'R-001.json'); const d = readJson(p); d.config = { lead: ['fable-5', 'opus-5'], operatives: 'opus-5' }; writeJson(p, d); },
+    /schema: runs\/R-001\.json: config\.lead must be one or more plus-separated kebab model-class slugs/);
+
+  // The same array-lead store must not crash the readers: validate is the gate, but a query
+  // against a schema-invalid store still answers rather than throwing (the lead attributes to
+  // no provider, exactly like providerOfConfigSlug's own non-string guard).
+  {
+    const { store } = scratchStore();
+    const p = join(store, 'runs', 'R-001.json');
+    const d = readJson(p);
+    d.config = { lead: ['fable-5', 'opus-5'], operatives: 'opus-5' };
+    writeJson(p, d);
+    const q = run(['query', 'cross-model', '--store', store]);
+    check('o5. query cross-model still answers on that store instead of throwing',
+      q.status === 0 && !/TypeError/.test(q.stdout + q.stderr), q.stdout + q.stderr);
+  }
 
   // ---- j. the real store was never written to by this eval --------------------
   check('j. the real table is byte-identical to what render --check accepted', readFileSync(REAL_TABLE, 'utf8') === table, 'real table changed during the eval');

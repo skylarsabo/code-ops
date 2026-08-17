@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.39.0
+- **The calibration config line can record a split lead** — a lead that changes hands mid-run records every lead class in order, plus-separated (`config: lead fable-5+opus-5; operatives opus-5`), instead of omitting the field (lesson L-025, surfaced by R-005). Both grammars extend in lockstep: the note gate's shapes and the graph's ingest grammar plus the run-doc validator, where `config.lead` stays one ordered string checked against its own pattern and an array lead is refused. Only the lead may split; `operatives` stays a single class, and an orchestration-experiment arm still requires a single-lead config. Cross-model attribution splits the lead, so every class that held the session attributes to its provider. `calibration-run` records the handover at Phase 0 and carries it into the Phase 3 note.
+
 ## 1.38.0
 - **A calibration run now records its harness, not only its model** — the note carries a `host:` line beside `config:`. A lesson can be one model's habit or one harness's mechanics, and the two fail differently; recording only the model left them indistinguishable. `query cross-model` reads both axes and treats either one crossing as a suite defect.
 - **Prior fixes are now confirmed, not assumed** — Phase 1 opens the `query unverified` worklist and Phase 4 closes it with a `verified-in` edge for every lesson the run was in a position to observe. Only that edge shows a fix held in the field; the store had 23 shipped fixes behind 3 confirmations, so the loop was measuring its own output rather than its effect.
