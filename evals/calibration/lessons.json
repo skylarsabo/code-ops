@@ -257,5 +257,19 @@
     "title": "A stale atlas section carried a disproven tooling claim, so stale sections must remain leads until claim-level review earns refresh",
     "statement": "A stale atlas section carried a disproven tooling claim, so stale sections must remain leads until claim-level review earns refresh",
     "firstSeen": "R-007"
+  },
+  {
+    "id": "L-038",
+    "class": "instrument",
+    "title": "an accepted recursive atlas scope can become dead when the checker adds its internal exclusion, and no sanctioned scope repair is available",
+    "statement": "an accepted recursive atlas scope can become dead when the checker adds its internal exclusion, and no sanctioned scope repair is available",
+    "firstSeen": "R-008"
+  },
+  {
+    "id": "L-039",
+    "class": "suite",
+    "title": "repositories with an explicit unknown-not-zero contract need a dedicated sweep of aggregate and empty-state projections",
+    "statement": "repositories with an explicit unknown-not-zero contract need a dedicated sweep of aggregate and empty-state projections",
+    "firstSeen": "R-008"
   }
 ]

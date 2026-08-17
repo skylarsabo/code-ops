@@ -1,0 +1,65 @@
+{
+  "id": "R-008",
+  "date": "2026-08-11",
+  "suite": {
+    "code-ops-suite": "1.34.0"
+  },
+  "target": {
+    "label": "Mid-size polyglot research operations platform",
+    "class": "polyglot-research-operations",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 14,
+    "confirmed": 8,
+    "refutation": {
+      "paneled": 1,
+      "survived": 1,
+      "reproExempt": 8,
+      "panelEligible": 1
+    },
+    "severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 13,
+      "low": 1,
+      "nit": 0
+    }
+  },
+  "tokens": {
+    "operative": null,
+    "dispatches": 7
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 12,
+    "slicesSwept": 9,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 9,
+    "fresh": 0,
+    "refreshed": 8,
+    "falsified": 0
+  },
+  "config": {
+    "lead": "gpt-5-6-sol-xhigh",
+    "operatives": "gpt-5-6-terra-xhigh"
+  },
+  "lessons": [
+    "L-020",
+    "L-028",
+    "L-038",
+    "L-039"
+  ],
+  "notes": "Exact-configuration assess-only calibration. All operative units reported without retry. Operatives again labelled static reasoning as CONFIRMED, so the 0.57 confirmed ratio measures labelling discipline as much as evidence depth. The generated repository map tripped the flat summary line cap again. Initial atlas population refreshed eight of nine sections; one remained stale with an inbox note after an accepted scope became uncheckable under the internal exclusion. The target's unknown-not-zero contract showed the need for a dedicated sweep of aggregate and empty-state projections. No target code changed."
+}
