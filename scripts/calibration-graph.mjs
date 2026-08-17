@@ -80,6 +80,8 @@ const VER_ID_RE = /^VER:[a-z0-9][a-z0-9-]*@\d+\.\d+\.\d+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// Ordered plus-separated model classes; a mid-run lead handover records every lead class in order.
+const CONFIG_LEAD_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\+[a-z0-9]+(?:-[a-z0-9]+)*)*$/;
 
 const LESSON_CLASSES = ['instrument', 'suite', 'protocol'];
 const TRACKS = ['assess-only', 'implement'];
@@ -251,8 +253,9 @@ function validateRunDoc(entry, problems) {
   if (doc.config !== undefined) {
     const cfg = doc.config;
     if (typeof cfg !== 'object' || cfg === null || Array.isArray(cfg)) bad('config, when present, must be an object');
-    else for (const k of ['lead', 'operatives']) {
-      if (typeof cfg[k] !== 'string' || !SLUG_RE.test(cfg[k])) bad(`config.${k} must be a kebab model-class slug`);
+    else {
+      if (typeof cfg.lead !== 'string' || !CONFIG_LEAD_RE.test(cfg.lead)) bad('config.lead must be one or more plus-separated kebab model-class slugs');
+      if (typeof cfg.operatives !== 'string' || !SLUG_RE.test(cfg.operatives)) bad('config.operatives must be a kebab model-class slug');
     }
   }
 
@@ -670,7 +673,8 @@ function cmdQuery(args) {
     const providersOfRun = new Map();
     for (const r of g.runs) {
       const set = new Set();
-      for (const slug of [r.config?.lead, r.config?.operatives]) {
+      // A split lead names every class that held the session, so each one attributes.
+      for (const slug of [...(r.config?.lead?.split('+') ?? []), r.config?.operatives]) {
         const provider = providerOfConfigSlug(slug);
         if (provider) set.add(provider);
       }
@@ -805,7 +809,7 @@ const SHAPES = [
   ['atlas', /^atlas:\s*sections (\d+);\s*fresh (\d+);\s*refreshed (\d+);\s*falsified (\d+)$/],
   // OPTIONAL for the same reason as the atlas line, and likewise absent from REQUIRED_KEYS:
   // R-001..R-004 predate the tier experiment, so a note without it ingests unchanged.
-  ['config', /^config:\s*lead ([a-z0-9]+(?:-[a-z0-9]+)*);\s*operatives ([a-z0-9]+(?:-[a-z0-9]+)*)$/],
+  ['config', /^config:\s*lead ([a-z0-9]+(?:-[a-z0-9]+)*(?:\+[a-z0-9]+(?:-[a-z0-9]+)*)*);\s*operatives ([a-z0-9]+(?:-[a-z0-9]+)*)$/],
   // OPTIONAL, and absent from REQUIRED_KEYS like atlas and config: runs before the suite went
   // multi-host recorded no harness, and that must stay ingestable unchanged.
   ['host', /^host:\s*([a-z0-9]+(?:-[a-z0-9]+)*)$/],

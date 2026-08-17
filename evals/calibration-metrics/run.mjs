@@ -402,7 +402,9 @@ try {
 
   // ---- x. the config line is optional, and fail-closed when present ------------
   // Same optionality as the atlas line: the runs recorded before the tier experiment carry none,
-  // so absence stays clean; a present line must be two kebab model-class slugs and nothing else.
+  // so absence stays clean; a present line must be kebab model-class slugs and nothing else. The
+  // lead half may be several classes plus-separated (a mid-run handover); the operatives half
+  // may not.
   const withConfig = (line) => cleanNote.replace(COVERAGE_LINE, `${COVERAGE_LINE}\n${line}`);
   const configNote = join(jsonDir, 'config-ok.md');
   writeFileSync(configNote, withConfig('config: lead fable-5; operatives opus-5'));
@@ -416,7 +418,7 @@ try {
   check('x. a non-slug model class fails closed (exit 1)', x2.status === 1, x2.stdout + x2.stderr);
   check('x. the hit names that line and the config shape',
     /!! MACHINE-LINE\s+L\d+\s+config: lead Fable 5/.test(x2.stdout)
-    && /config: lead <model-class>; operatives <model-class>/.test(x2.stdout), x2.stdout);
+    && /config: lead <model-class>\[\+<model-class>\.\.\.\]; operatives <model-class>/.test(x2.stdout), x2.stdout);
   const partialConfigNote = join(jsonDir, 'config-partial.md');
   writeFileSync(partialConfigNote, withConfig('config: lead opus-5'));
   const x3 = run(['--validate-note', partialConfigNote]);
@@ -426,6 +428,25 @@ try {
   const x4 = run(['--validate-note', trailingHyphenNote]);
   check('x. a malformed kebab slug fails closed rather than passing as a class name (exit 1)',
     x4.status === 1, x4.stdout + x4.stderr);
+  const splitLeadNote = join(jsonDir, 'config-split-lead.md');
+  writeFileSync(splitLeadNote, withConfig('config: lead fable-5+opus-5; operatives opus-5'));
+  const x5 = run(['--validate-note', splitLeadNote]);
+  check('x. a plus-separated lead — a mid-run handover — passes (exit 0)', x5.status === 0, x5.stdout + x5.stderr);
+  check('x. the split lead adds no structural or machine-block hit',
+    /0 structural hit\(s\)/.test(x5.stdout) && /0 machine-block hit\(s\)/.test(x5.stdout), x5.stdout);
+  const trailingPlusNote = join(jsonDir, 'config-trailing-plus.md');
+  writeFileSync(trailingPlusNote, withConfig('config: lead fable-5+; operatives opus-5'));
+  const x6 = run(['--validate-note', trailingPlusNote]);
+  check('x. a trailing plus on the lead fails closed (exit 1)', x6.status === 1, x6.stdout + x6.stderr);
+  check('x. that hit names the offending line',
+    /!! MACHINE-LINE\s+L\d+\s+config: lead fable-5\+;/.test(x6.stdout), x6.stdout);
+  const splitOpsNote = join(jsonDir, 'config-split-operatives.md');
+  writeFileSync(splitOpsNote, withConfig('config: lead fable-5; operatives opus-5+sonnet-5'));
+  const x7 = run(['--validate-note', splitOpsNote]);
+  check('x. only the lead may split — a plus-separated operatives half fails closed (exit 1)',
+    x7.status === 1, x7.stdout + x7.stderr);
+  check('x. that hit names the offending line',
+    /!! MACHINE-LINE\s+L\d+\s+config: lead fable-5; operatives opus-5\+sonnet-5/.test(x7.stdout), x7.stdout);
   check('x. a legacy note carrying no config line at all is still clean — the line is optional',
     d.status === 0 && /0 machine-block hit\(s\)/.test(d.stdout) && !/config:/.test(cleanNote), d.stdout);
 

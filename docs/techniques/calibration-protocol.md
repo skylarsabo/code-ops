@@ -162,6 +162,15 @@ than merely sequential, so a run comparing configurations must carry it. Absence
 class would silently mis-group a comparison. Model classes are public vocabulary, so the
 line adds no leak surface — no version string, endpoint, or session id crosses on it.
 
+A lead that changed mid-run — a handover, say after a safety-classifier interruption left
+the session to be recovered under another class — records **every** lead class in order,
+plus-separated (`config: lead fable-5+opus-5; operatives opus-5`), rather than omitting the
+field. The order is the order they held the session, first class first, and the run doc
+stores it as that one string. Only the lead may split; `operatives` stays a single class,
+since the tier is pinned per dispatch for the whole run. The single-lead form is the
+canonical one — the split exists so an honest handover is expressible, not as an
+alternative way to write an ordinary run.
+
 ## Recording a run
 
 A validated note is not the record — the run document is. Five steps, in order:
@@ -276,7 +285,9 @@ failed-dispatch and redispatch rates (from the run's `DISPATCH_LEDGER.md`); atla
 falsified count; CONFIRMED labels re-tiered on review; and total operative tokens. The
 operator sets the lead by choosing the session's model and pins the operative tier in
 **every** dispatch brief of the run — an unpinned brief silently re-tiers the arm and
-voids it.
+voids it. An arm requires a **single-lead** config: a run whose lead changed hands is
+recorded honestly with its plus-separated lead, but it is excluded from the three arms,
+because its numbers cannot be attributed to one lead class.
 
 Gaps found in (b) are recorded as `lesson:` lines under the existing classes
 (`instrument`, `suite`, `protocol`) and enter the remediation loop like any other lesson;

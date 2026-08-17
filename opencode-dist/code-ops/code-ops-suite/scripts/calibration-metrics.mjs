@@ -628,11 +628,14 @@ const MACHINE_LINE_SHAPES = [
   // consumed it. OPTIONAL by design: runs recorded before the atlas leg existed carry no such
   // line, so its ABSENCE is never a hit; a line that is present must be four counts.
   { shape: 'atlas: sections N; fresh N; refreshed N; falsified N', re: /^atlas: sections \d+; fresh \d+; refreshed \d+; falsified \d+$/ },
-  // config: lead <model-class>; operatives <model-class> — the orchestration the run was driven
-  // under. OPTIONAL like the atlas line: the runs recorded before the tier experiment carry none,
-  // so its ABSENCE is never a hit. Two kebab model-class slugs, nothing else: a class name is not
-  // a target internal, and no version, vendor endpoint or session id crosses on this line.
-  { shape: 'config: lead <model-class>; operatives <model-class>', re: /^config: lead [a-z0-9]+(?:-[a-z0-9]+)*; operatives [a-z0-9]+(?:-[a-z0-9]+)*$/ },
+  // config: lead <model-class>[+<model-class>...]; operatives <model-class> — the orchestration
+  // the run was driven under. OPTIONAL like the atlas line: the runs recorded before the tier
+  // experiment carry none, so its ABSENCE is never a hit. Kebab model-class slugs, nothing else:
+  // a class name is not a target internal, and no version, vendor endpoint or session id crosses
+  // on this line. A lead that changed hands mid-run records every lead class in order,
+  // plus-separated, so a handover is expressible instead of forcing the field's omission
+  // (lesson L-025); only the lead may split, since operatives run as one class per run.
+  { shape: 'config: lead <model-class>[+<model-class>...]; operatives <model-class>', re: /^config: lead [a-z0-9]+(?:-[a-z0-9]+)*(?:\+[a-z0-9]+(?:-[a-z0-9]+)*)*; operatives [a-z0-9]+(?:-[a-z0-9]+)*$/ },
   // host: <harness> — which harness ran the sweep, the sibling of the config line: config says
   // which MODEL drove the run, host says which HARNESS. OPTIONAL for the same reason as both
   // lines above, and equally safe on the one-way channel: one kebab slug naming a public tool
