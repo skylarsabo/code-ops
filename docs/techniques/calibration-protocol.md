@@ -154,7 +154,7 @@ none). A note carrying `atlas:` must carry all four counts, and both sides refus
 arithmetic that went wrong upstream, not a measurement. Section *counts* cross the
 channel; section names, scopes, and prose never do.
 
-The `config:` line records the run's orchestration as two kebab model-class slugs — the
+The `config:` line records the run's orchestration in kebab model-class slugs — the
 lead that planned and judged, and the tier its operatives ran at (`config: lead fable-5;
 operatives opus-5`). It is what makes one run's numbers comparable to another's rather
 than merely sequential, so a run comparing configurations must carry it. Absence means
