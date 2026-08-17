@@ -6,10 +6,10 @@
 //   hand-edited or stale table is caught in CI); the five queries return the current
 //   graph's expected answers — open is the fifteen lessons R-005 through R-008 landed with
 //   nothing mechanical on them yet (so `open --gate` exits 1), deferred is exactly L-003/L-004, L-012
-//   is the one lesson fixed with nothing mechanical holding it, the twelve recurrent
-//   lessons are L-001 (3 runs), L-002 (2), L-005 (2), L-013 (3), L-019 (2), L-021 (2),
-//   L-020 (2), L-022 (2), L-026 (2), L-027 (2), L-028 (4) and L-029 (2) — the last four still OPEN, so
-//   four are RED and `recurrent --gate` exits 1 — and `trend` prints one line per run grouped by target class and track.
+//   and L-020 are the two lessons fixed with nothing mechanical holding them, the twelve recurrent
+//   lessons are L-001 (3 runs), L-002 (2), L-005 (2), L-013 (3), L-019 (2), L-020 (2),
+//   L-021 (2), L-022 (2), L-026 (2), L-027 (2), L-028 (4) and L-029 (2) — the last four still OPEN
+//   and L-020 UNENFORCED, so five are RED and `recurrent --gate` exits 1 — and `trend` prints one line per run grouped by target class and track.
 //
 //   FAIL-CLOSED CLASSES, each proven on a scratch copy of the real store so exactly one
 //   thing is wrong at a time: a dangling edge target (verified-in naming an unknown run),
@@ -178,8 +178,9 @@ try {
 
   const qUn = run(['query', 'unenforced']);
   check('c. unenforced exits 0 without --gate', qUn.status === 0, qUn.stdout + qUn.stderr);
-  check('c. L-012 is the one fixed lesson with nothing mechanical holding it',
-    /RED\s+L-012[^\n]*fixed-in PR-45/.test(qUn.stdout) && /\n1 unenforced lesson\(s\)\./.test(qUn.stdout), qUn.stdout);
+  check('c. L-012 and L-020 are the two fixed lessons with nothing mechanical holding them',
+    /RED\s+L-012[^\n]*fixed-in PR-45/.test(qUn.stdout) && /RED\s+L-020[^\n]*fixed-in COMMIT:314cc77/.test(qUn.stdout)
+    && /\n2 unenforced lesson\(s\)\./.test(qUn.stdout), qUn.stdout);
   const qUnGate = run(['query', 'unenforced', '--gate']);
   check('c. --gate promotes a RED line to exit 1', qUnGate.status === 1, qUnGate.stdout + qUnGate.stderr);
 
@@ -190,16 +191,16 @@ try {
   check('c. L-005 recurred twice', /L-005\s+2 runs \(R-002, R-003\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
   check('c. L-013 recurred across three runs', /L-013\s+3 runs \(R-003, R-004, R-005\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
   check('c. L-019 recurred twice', /L-019\s+2 runs \(R-004, R-005\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
-  check('c. L-020 recurred twice and is enforced', /L-020\s+2 runs \(R-004, R-008\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
+  check('c. L-020 recurred twice and its recurrence shows RED', /RED\s+L-020\s+2 runs \(R-004, R-008\)\s+UNENFORCED/.test(qRec.stdout), qRec.stdout);
   check('c. L-021 recurred twice', /L-021\s+2 runs \(R-004, R-005\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
   check('c. L-022 recurred twice and is enforced', /L-022\s+2 runs \(R-004, R-007\)\s+ENFORCED/.test(qRec.stdout), qRec.stdout);
   check('c. L-026 recurred twice and is still OPEN', /RED\s+L-026\s+2 runs \(R-005, R-007\)\s+OPEN/.test(qRec.stdout), qRec.stdout);
   check('c. L-027 recurred twice and is still OPEN', /RED\s+L-027\s+2 runs \(R-005, R-006\)\s+OPEN/.test(qRec.stdout), qRec.stdout);
   check('c. L-028 recurred across four runs and is still OPEN', /RED\s+L-028\s+4 runs \(R-005, R-006, R-007, R-008\)\s+OPEN/.test(qRec.stdout), qRec.stdout);
   check('c. L-029 recurred twice and is still OPEN', /RED\s+L-029\s+2 runs \(R-005, R-006\)\s+OPEN/.test(qRec.stdout), qRec.stdout);
-  check('c. exactly 12 recurrent lessons, 4 of them RED', /\n12 recurrent lesson\(s\), 4 RED\./.test(qRec.stdout), qRec.stdout);
+  check('c. exactly 12 recurrent lessons, 5 of them RED', /\n12 recurrent lesson\(s\), 5 RED\./.test(qRec.stdout), qRec.stdout);
   const qRecGate = run(['query', 'recurrent', '--gate']);
-  check('c. recurrent --gate exits 1 while four recurrences are unenforced', qRecGate.status === 1, qRecGate.stdout + qRecGate.stderr);
+  check('c. recurrent --gate exits 1 while five recurrences are unenforced', qRecGate.status === 1, qRecGate.stdout + qRecGate.stderr);
 
   const qTr = run(['query', 'trend']);
   check('c. trend exits 0', qTr.status === 0, qTr.stdout + qTr.stderr);

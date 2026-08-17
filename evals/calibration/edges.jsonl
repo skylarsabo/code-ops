@@ -43,7 +43,7 @@
 {"from":"L-019","rel":"fixed-in","to":"COMMIT:8b3e85f"}
 {"from":"L-019","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
 {"from":"L-020","rel":"fixed-in","to":"COMMIT:314cc77"}
-{"from":"L-020","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#tier-boundary"}
+{"from":"L-020","rel":"deferred","to":"deferred","note":"no mechanical check can hold an operative-behaviour lesson; the tier-boundary text pin verifies the doctrine text, not operative conduct on a run against another repository (R-008 recurrence)"}
 {"from":"L-021","rel":"fixed-in","to":"COMMIT:314cc77"}
 {"from":"L-021","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#report-persistence"}
 {"from":"L-022","rel":"fixed-in","to":"COMMIT:314cc77"}
