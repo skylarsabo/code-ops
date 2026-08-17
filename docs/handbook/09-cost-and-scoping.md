@@ -144,7 +144,7 @@ But isolation is **not free**: spinning up a subagent re-establishes its working
 - **Isolation pays off** when the units of work are genuinely independent and each is large enough that keeping them separate avoids context thrash — e.g. `bug-hunt` going deep per subsystem, or the six privacy leak audits running in parallel.
 - **Isolation costs more than it saves** when the work is small, tightly coupled, or could be one focused pass. Spawning many tiny agents multiplies setup cost for little independence gained.
 
-So narrowing scope (Lever 2) is doubly economical: fewer subsystems means fewer subagents *and* less code per subagent. For the full decision framework on when context isolation is worth the cost, see [techniques/subagent-trade-offs.md](../techniques/subagent-trade-offs.md) *(planned)*.
+So narrowing scope (Lever 2) is doubly economical: fewer subsystems means fewer subagents *and* less code per subagent. For the full decision framework on when context isolation is worth the cost, see [techniques/subagent-trade-offs.md](../techniques/subagent-trade-offs.md). For keeping the spend linear across a long run — durable state on disk, deliberate compaction, and the subagent prompt cache — see [techniques/context-hygiene.md](../techniques/context-hygiene.md).
 
 ---
 
