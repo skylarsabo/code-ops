@@ -8,12 +8,13 @@ specialist audit gated on what the diff actually touches. A larger set names ano
 skill without calling it: a hand-off target for work that leaves the current skill's
 mandate, or a routing pointer telling the reader which neighbor fits better.
 
-This page is the ground truth for both. It carries one row for every qualified
-`<plugin>:<skill>` reference (with or without the leading slash) found in
-`plugins/*/skills/*/SKILL.md`, excluding each skill's own self-declaring "Invoked as"
-line and its own name. The **When** column says which kind of edge each row is.
-`scripts/lint-plugins.mjs` derives the same set and fails closed when a reference has
-no row, or a row has no reference.
+This page is the ground truth for both. The table under **The edges** carries one row
+for every qualified `<plugin>:<skill>` reference (with or without the leading slash)
+found in `plugins/*/skills/*/SKILL.md`, excluding each skill's own name. A skill's
+self-declaring "Invoked as" line needs no rule of its own, because the only reference it
+carries is that same self name. The **When** column says which kind of edge each row is.
+`scripts/lint-plugins.mjs` derives the same set from the rows under that heading and
+fails closed when a reference has no row, or a row has no reference.
 
 ## The edges
 

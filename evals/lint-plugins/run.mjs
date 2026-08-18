@@ -412,6 +412,75 @@ No completion heading here on purpose (case 3 mutation).
   const r11b = runLint(d11b);
   check('11b. a missing AGENTS.md exits 1', r11b.status === 1);
   check('11b. message says which hosts lose it', r11b.all.includes('Codex and opencode read it'));
+
+  // 12. COMPOSITION MAP COMPLETENESS (check 22) — the map must match the skill tree in
+  // BOTH directions. Case 8 above only exercises check 17 (does a named edge resolve),
+  // so every assertion here reads check 22's OWN message text: check 17 can never satisfy
+  // it. The fixture plants one real cross-skill reference and the matching edge row, then
+  // each mutation breaks one direction.
+  const COMP_PATH = 'docs/techniques/skill-composition.md';
+  const COMP_EDGE_ROW = '| `rigor:quality-scan` | `rigor:bug-hunt` | fixture edge (case 12) |';
+  const compPage = (rows) => [
+    '# Skill composition (fixture)',
+    '',
+    'Fixture composition map for evals/lint-plugins/run.mjs.',
+    '',
+    '## The edges',
+    '',
+    '| From skill | Invokes | When |',
+    '| --- | --- | --- |',
+    ...rows,
+    '',
+  ].join('\n');
+  // The referring skill: quality-scan names bug-hunt in its body, so the tree carries the
+  // edge `rigor:quality-scan` -> `rigor:bug-hunt`.
+  const REFERRING_SKILL = 'plugins/rigor/skills/quality-scan/SKILL.md';
+  const referringBody = skillBody('QUALITY SCAN', {
+    extra: '\nWhen a finding needs proof, hand it to `rigor:bug-hunt` (case 12 fixture reference).\n',
+  });
+
+  // 12. WELL-FORMED MAP — reference and row both present: check 22 stays quiet. This pins
+  // the fixture itself, so 12a/12b/12c prove their mutation and not a broken baseline.
+  const d12 = clone('case12-composition-map-ok');
+  put(d12, REFERRING_SKILL, referringBody);
+  put(d12, COMP_PATH, compPage([COMP_EDGE_ROW]));
+  const r12 = runLint(d12);
+  check('12. a map matching the skill tree exits 0', r12.status === 0);
+
+  // 12a. TREE -> TABLE — the reference exists, its edge row is deleted from the map.
+  const d12a = clone('case12a-composition-missing-row');
+  put(d12a, REFERRING_SKILL, referringBody);
+  put(d12a, COMP_PATH, compPage([]));
+  const r12a = runLint(d12a);
+  check('12a. a reference with no edge row exits 1', r12a.status === 1);
+  check('12a. message is check 22\'s own "has no edge row"', r12a.all.includes('qualified reference "rigor:bug-hunt" from "rigor:quality-scan" has no edge row'));
+
+  // 12b. TABLE -> TREE — an edge row naming two REAL skills (so check 17 resolves it
+  // cleanly and cannot be what fires) with no matching reference anywhere in the tree.
+  const d12b = clone('case12b-composition-extra-row');
+  put(d12b, REFERRING_SKILL, referringBody);
+  put(d12b, COMP_PATH, compPage([
+    COMP_EDGE_ROW,
+    '| `rigor:consistency-closure` | `code-ops-suite:everything` | fixture phantom row (case 12b mutation) |',
+  ]));
+  const r12b = runLint(d12b);
+  check('12b. an edge row with no reference exits 1', r12b.status === 1);
+  check('12b. message is check 22\'s own "matches no qualified reference"', r12b.all.includes('edge row "rigor:consistency-closure" -> "code-ops-suite:everything" matches no qualified reference'));
+  check('12b. check 17 is not what fired (both names resolve)', !r12b.all.includes('unknown plugin') && !r12b.all.includes('unresolvable skill'));
+
+  // 12c. SECTION SCOPING — a second table elsewhere on the page is not the edge map, so
+  // its rows are neither required to have references nor counted as edges.
+  const d12c = clone('case12c-composition-second-table');
+  put(d12c, REFERRING_SKILL, referringBody);
+  put(d12c, COMP_PATH, `${compPage([COMP_EDGE_ROW])}
+## Other notes
+
+| Skill | Neighbour | Note |
+| --- | --- | --- |
+| \`rigor:bug-hunt\` | \`rigor:quality-scan\` | not an edge row — outside "## The edges" (case 12c) |
+`);
+  const r12c = runLint(d12c);
+  check('12c. a table outside "## The edges" is not read as edges, exit 0', r12c.status === 0);
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
