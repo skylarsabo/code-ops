@@ -29,6 +29,9 @@ Then set up the run:
 - **Surface any CONFIRMED critical finding immediately.**
 - Always work on a branch; **never auto-merge** — even fully-auto fixes land as commits/PRs for review.
 
+## Phase 0.5 — Standardization preflight  *(code-ops-suite `conform`)*
+Run `conform` in its assess-only mode: it reports whether the standards contract, the docs vault, and the atlas are conformant, and where this run's artifacts therefore belong. Assess-only is the default here — the repairs it proposes are offered once, at the Phase 0 checkpoint, and are never applied without approval. A run that declines them proceeds on the assessment alone.
+
 ## Phase 1 — Map  *(code-ops-suite)*
 `doc-alignment` → `codebase-audit` → `security-privacy-audit`. An accurate map + a broad first-pass register, findings **tiered + disconfirmed** (`§7`) and run through the **multi-boundary control-coverage** lens (`§10`).
 

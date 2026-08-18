@@ -14,6 +14,7 @@ chosen.
 | Privacy/leak concern | `/privacy-opsec-suite` skills |
 | Library/dependency decision | `/researcher:library-eval` |
 | Claim verification | `/researcher:research-verify` |
+| Standardization check or repair | `/code-ops-suite:conform` |
 | Everything (broad, multi-domain) | `/code-ops-suite:everything` |
 
 ## Tier and effort rule

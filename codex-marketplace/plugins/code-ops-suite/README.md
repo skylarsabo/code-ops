@@ -18,6 +18,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `atlas` — Use when a repo's atlas — its durable, per-repo cache of judgment about the codebase — needs to be created, refreshed after the code moved, or consolidated from inbox observations. Freshness is decided mechanically by atlas-check.mjs; see docs/techniques/atlas.md.
 - `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. Never quotes the target's internals back into this repo — see docs/techniques/calibration-protocol.md.
 - `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes.
+- `conform` — Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back — the standards contract, the docs vault, the atlas, and doc drift, assessed in one pass and repaired under checkpoint.
 - `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory.
 - `data-model` — Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations.
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.
