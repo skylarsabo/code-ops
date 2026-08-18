@@ -337,7 +337,7 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 
 **When to use it.** On a repo the suite is about to work in for the first time, or one that has not been checked since the standard moved. Assess-only is a complete run — stopping with the report in hand is a legitimate outcome. Do **not** expect it to implement any repair itself: every fix is delegated, so a surface it cannot delegate is reported, not improvised.
 
-**Prerequisites & hand-offs.** None beyond the repo. Composes `adopt-standards`, `vault`, `atlas`, `doc-alignment`, and (opt-in) `adopt-global-standards`; `code-ops-suite:everything` runs it assess-only as its phase-0.5 preflight. See [the skill-composition map](../../techniques/skill-composition.md).
+**Prerequisites & hand-offs.** None beyond the repo. Composes `adopt-standards`, `vault`, `atlas`, `doc-alignment`, and (opt-in) `adopt-global-standards`; `code-ops-suite:everything` runs it assess-only inside phase 0, as its standardization preflight. See [the skill-composition map](../../techniques/skill-composition.md).
 
 ---
 

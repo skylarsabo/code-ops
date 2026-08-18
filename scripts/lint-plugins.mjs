@@ -63,6 +63,11 @@
 //  21. (when docs/handbook/README.md and docs/techniques/ both exist) every technique page has
 //      a link entry in the handbook README's techniques list, every listed entry resolves to a
 //      real page, and the written-out "N techniques" count matches the page count.
+//  22. (when docs/techniques/skill-composition.md exists) the composition map matches the skill
+//      tree in both directions: every qualified `<plugin>:<skill>` reference in a SKILL.md body
+//      (self-name and "Invoked as" lines excluded) has an edge row, and every edge row has such
+//      a reference. Check 17 only proves the named edges resolve, so the map could drift from
+//      the tree without either side failing.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -766,6 +771,74 @@ function walkFiles(dir, out = []) {
           else if (!target.skills.includes(sn))
             fail(`${rel(compPath)}:${i + 1}: edge references unresolvable skill "${pn}:${sn}" — no plugins/${pn}/skills/${sn}/ directory`);
         }
+      }
+    }
+  }
+}
+
+// ---- 22. skill-composition.md edge completeness ------------------------------
+// Check 17 proves each named edge RESOLVES; it never proves the map matches the tree.
+// This one closes that gap in both directions, using the page's own derivation rule:
+// every qualified `<plugin>:<skill>` reference (leading slash optional) in a
+// plugins/*/skills/*/SKILL.md, excluding the skill's own name and its self-declaring
+// "Invoked as" line, must have a table row, and every table row must have such a
+// reference. Guarded on the page existing so a checkout without it still lints.
+{
+  const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
+  if (existsSync(compPath)) {
+    const known = new Set();
+    for (const p of plugins) for (const s of p.skills) known.add(`${p.name}:${s}`);
+
+    // Edges present in the skill tree.
+    const inTree = new Map(); // "from>to" -> "path:line"
+    for (const p of plugins) {
+      for (const s of p.skills) {
+        const skPath = join(p.dir, 'skills', s, 'SKILL.md');
+        if (!existsSync(skPath)) continue;
+        const self = `${p.name}:${s}`;
+        const lines = readText(skPath).split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes('Invoked as')) continue;
+          for (const m of lines[i].matchAll(/\/?([a-z0-9-]+):([a-z0-9-]+)/g)) {
+            const target = `${m[1]}:${m[2]}`;
+            if (!known.has(target) || target === self) continue;
+            const key = `${self}>${target}`;
+            if (!inTree.has(key)) inTree.set(key, `${rel(skPath)}:${i + 1}`);
+          }
+        }
+      }
+    }
+
+    // Edges claimed by the table.
+    const inTable = new Map(); // "from>to" -> line number
+    const compLines = readText(compPath).split('\n');
+    for (let i = 0; i < compLines.length; i++) {
+      const line = compLines[i];
+      if (!line.trim().startsWith('|')) continue;
+      if (/^\|[\s:-]+\|/.test(line)) continue;
+      const cells = line.split('|');
+      const pick = (cell) => {
+        const m = cell ? cell.match(/`([a-z0-9-]+):([a-z0-9-]+)`/) : null;
+        return m ? `${m[1]}:${m[2]}` : null;
+      };
+      const from = pick(cells[1]);
+      const to = pick(cells[2]);
+      if (!from || !to) continue;
+      const key = `${from}>${to}`;
+      if (inTable.has(key)) fail(`${rel(compPath)}:${i + 1}: duplicate edge row "${from}" -> "${to}"`);
+      inTable.set(key, i + 1);
+    }
+
+    for (const [key, where] of inTree) {
+      if (!inTable.has(key)) {
+        const [from, to] = key.split('>');
+        fail(`${where}: qualified reference "${to}" from "${from}" has no edge row in ${rel(compPath)}`);
+      }
+    }
+    for (const [key, ln] of inTable) {
+      if (!inTree.has(key)) {
+        const [from, to] = key.split('>');
+        fail(`${rel(compPath)}:${ln}: edge row "${from}" -> "${to}" matches no qualified reference in any SKILL.md`);
       }
     }
   }
