@@ -876,8 +876,10 @@ function walkFiles(dir, out = []) {
 // and every table row must have such a reference. A skill's self-declaring "Invoked as"
 // line needs no special case: the only reference it carries is the skill's own name,
 // which the self-exclusion already drops. Guarded on the page existing so a checkout
-// without it still lints. The table scan is scoped to the rows under the page's
-// "## The edges" heading, so a second table elsewhere on the page is not read as edges.
+// without it still lints. The table scan derives edges only from the rows under the
+// page's "## The edges" heading (subheadings nested below it stay inside the section),
+// and an edge-shaped row anywhere else on the page fails outright, so the scoping is
+// not an escape hatch.
 {
   const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
   if (existsSync(compPath)) {
@@ -911,11 +913,20 @@ function walkFiles(dir, out = []) {
     const inTable = new Map(); // "from>to" -> line number
     const compLines = readText(compPath).split('\n');
     let inEdges = false;
+    let edgesLevel = 0;
     for (let i = 0; i < compLines.length; i++) {
       const line = compLines[i];
       const heading = line.match(/^(#{1,6})\s+(.*)$/);
       if (heading) {
-        inEdges = heading[2].trim().toLowerCase() === 'the edges';
+        // A subheading nested under "## The edges" stays inside the section; only a
+        // heading at the same or a higher level closes it.
+        const level = heading[1].length;
+        if (heading[2].trim().toLowerCase() === 'the edges') {
+          inEdges = true;
+          edgesLevel = level;
+        } else if (inEdges && level <= edgesLevel) {
+          inEdges = false;
+        }
         continue;
       }
       if (!line.trim().startsWith('|')) continue;
