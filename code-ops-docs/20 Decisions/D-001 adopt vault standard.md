@@ -35,7 +35,7 @@ Agents route new work through the table in [[Standard]] instead of inventing a s
 
 `20 Decisions/` records working decisions that do not warrant a published ADR. When one does warrant an ADR, promote it to `docs/adr/` and archive the vault note with `superseded-by`.
 
-Conformance is enforced by convention today. A lint pin and a scaffolding skill are proposed follow-ups, not shipped.
+Conformance is machine-checked. `scripts/check-vault-standard.mjs` and the `/code-ops-suite:vault` scaffolding skill landed with this decision (PR 58, commit 14b6e94). A `SHARED_PASSAGES`-style byte pin over each vault's `Standard.md` copy is the one follow-up still open.
 
 ## Related
 

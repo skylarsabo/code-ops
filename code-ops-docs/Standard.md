@@ -27,7 +27,7 @@ Structural folders carry a two-digit numeric prefix. The prefix fixes the sideba
 | `00 Inbox/` | Unsorted notes. File or delete within a day. | Finished design |
 | `10 Design/` | Architecture, specs, API contracts, PR plans | Daily scratch |
 | `20 Decisions/` | One accepted choice per note (ADR) | Open debate |
-| `30 Ops/` | How to start, pair, package, and operate | Product design |
+| `30 Ops/` | How to start, pair, package, and operate — waived in this profile | Product design |
 | `80 Runs/` | Dated research, ship, review, and spike artifacts | Living specs |
 | `90 Templates/` | New-note templates only | Content |
 | `95 Attachments/` | Images and exports linked from notes | Source code |
@@ -46,7 +46,7 @@ Set `type` in YAML on every note.
 | `standard` | vault root | `Standard` |
 | `design` | `10 Design/` | Short title, Title Case |
 | `decision` | `20 Decisions/` | `D-NNN short-slug` |
-| `ops` | `30 Ops/` | Verb or surface (`Start Studio`) |
+| `ops` | `30 Ops/` — waived in this profile | Verb or surface (`Start Studio`) |
 | `run` | `80 Runs/YYYY-MM-DD short-slug/` | One folder per run |
 | `inbox` | `00 Inbox/` | Free |
 | `system` | `98 System/` | UPPER_SNAKE for tool outputs |
@@ -84,7 +84,6 @@ Optional: `supersedes`, `superseded-by`, `related` as wikilink lists. Profiles m
 | Architecture or spec | `10 Design/` from [[Design]] |
 | A locked choice | `20 Decisions/` from [[Decision]] |
 | A spike, ship, or review | `80 Runs/YYYY-MM-DD slug/` from [[Run]] |
-| Operator how-to | `30 Ops/` from [[Note]] |
 | Doc-alignment output (`SSOT_MAP`, `DRIFT_REPORT`, `OPEN_QUESTIONS`) | `98 System/` |
 | Unsure | `00 Inbox/`, then file the same day |
 

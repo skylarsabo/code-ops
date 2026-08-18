@@ -52,6 +52,12 @@ jobs:
       - name: Zero-dependency guard
         run: node scripts/check-no-deps.mjs
 
+      - name: Vault conformance (this repo's own vault)
+        run: node scripts/check-vault-standard.mjs code-ops-docs
+
+      - name: Vault-standard regression eval
+        run: node evals/vault-standard/run.mjs
+
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs
 
@@ -192,6 +198,12 @@ jobs:
       # CI so a models.dev outage can never fail this repository's build.
       - name: Model-tier registry shape check
         run: node scripts/check-model-registry.mjs
+
+      - name: Vault conformance (this repo's own vault)
+        run: node scripts/check-vault-standard.mjs code-ops-docs
+
+      - name: Vault-standard regression eval
+        run: node evals/vault-standard/run.mjs
 
       - name: opencode distribution regression eval
         run: node evals/opencode-dist/run.mjs

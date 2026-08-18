@@ -411,17 +411,39 @@ if (existsSync(handbookDir)) {
   const hbReadmePath = join(ROOT, 'docs', 'handbook', 'README.md');
   const techDir = join(ROOT, 'docs', 'techniques');
   if (existsSync(hbReadmePath) && existsSync(techDir)) {
-    const NUMBER_WORDS = {
-      one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-      eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
-      eighteen: 18, nineteen: 19, twenty: 20, 'twenty-one': 21, 'twenty-two': 22, 'twenty-three': 23,
-      'twenty-four': 24, 'twenty-five': 25, 'twenty-six': 26, 'twenty-seven': 27,
-      'twenty-eight': 28, 'twenty-nine': 29, thirty: 30,
-    };
+    // Built, not listed: a hand-written table silently stops recognizing the correct count once
+    // docs/techniques/ outgrows it, and the operator is then told to add a count that is already
+    // there. Units and tens generate every value through ninety-nine.
+    const UNITS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    const TEENS = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+      'seventeen', 'eighteen', 'nineteen'];
+    const TENS = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+    const NUMBER_WORDS = {};
+    UNITS.forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
+    TEENS.forEach((w, i) => { NUMBER_WORDS[w] = i + 10; });
+    TENS.forEach((tw, ti) => {
+      const base = (ti + 2) * 10;
+      NUMBER_WORDS[tw] = base;
+      UNITS.forEach((uw, ui) => { NUMBER_WORDS[`${tw}-${uw}`] = base + ui + 1; });
+    });
     const files = readdirSync(techDir).filter((f) => f.endsWith('.md')).sort();
     const text = readText(hbReadmePath);
+    // Scope the link scan to the techniques list block itself — from its bold heading to the next
+    // blank-line-delimited section. A cross-reference elsewhere in the page must not satisfy the
+    // index requirement, because the list is what the handbook's front door actually presents.
+    const listStart = text.indexOf('**Techniques');
+    let listBlock = '';
+    if (listStart !== -1) {
+      const after = text.slice(listStart);
+      const nl = after.indexOf('\n');
+      const body = nl === -1 ? '' : after.slice(nl + 1);
+      const end = body.search(/\n\s*\n/);
+      listBlock = end === -1 ? body : body.slice(0, end);
+    }
     const listed = new Set();
-    for (const m of text.matchAll(/\.\.\/techniques\/([A-Za-z0-9._-]+\.md)/g)) listed.add(m[1]);
+    for (const m of listBlock.matchAll(/\.\.\/techniques\/([A-Za-z0-9._-]+\.md)/g)) listed.add(m[1]);
+    if (listStart === -1)
+      fail(`handbook: ${rel(hbReadmePath)} has no "**Techniques" list block — the index of docs/techniques/ is missing`);
 
     for (const f of files)
       if (!listed.has(f))
@@ -430,10 +452,18 @@ if (existsSync(handbookDir)) {
       if (!existsSync(join(techDir, f)))
         fail(`handbook: ${rel(hbReadmePath)} links ../techniques/${f}, which does not exist — remove or repoint the entry`);
 
-    const claims = [...text.matchAll(/\b([a-z]+(?:-[a-z]+)?)\s+techniques\b/gi)]
-      .map((m) => m[1].toLowerCase())
-      .filter((w) => w in NUMBER_WORDS);
-    if (claims.length === 0)
+    // Two failure modes, reported apart: no count word at all, versus a count word the vocabulary
+    // does not recognize. The second should be unreachable below 100 now that the words are
+    // generated, so seeing it means the claim itself is malformed, not that the table is short.
+    const words = [...text.matchAll(/\b([a-z]+(?:-[a-z]+)?)\s+techniques\b/gi)].map((m) => m[1].toLowerCase());
+    const claims = words.filter((w) => w in NUMBER_WORDS);
+    // Number-shaped: either half of a hyphenated word is a known number word (`thirty-eleven`),
+    // or the word names a magnitude the vocabulary stops short of (`hundred`, `thousand`).
+    const numberShaped = words.filter((w) => !(w in NUMBER_WORDS)
+      && (w.split('-').some((part) => part in NUMBER_WORDS) || /^(hundred|thousand|million)$/.test(w)));
+    if (claims.length === 0 && numberShaped.length > 0)
+      fail(`handbook: ${rel(hbReadmePath)} states a "${numberShaped[0]} techniques" count, which is not a recognized written-out number (expected "${files.length}" spelled out)`);
+    else if (claims.length === 0)
       fail(`handbook: ${rel(hbReadmePath)} states no written-out "N techniques" count (expected "${files.length}" spelled out)`);
     else for (const w of claims)
       if (NUMBER_WORDS[w] !== files.length)
