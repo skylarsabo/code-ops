@@ -1,0 +1,44 @@
+---
+type: decision
+status: accepted
+updated: 2026-08-18
+tags:
+  - meta
+  - standard
+---
+
+# D-001 adopt vault standard
+
+## Decision
+
+This repo adopts vault standard version 2 and keeps its notes in `code-ops-docs/`. [[Standard]] is the conformance copy. The source of truth is `docs/techniques/vault-standard.md`. When the two disagree, the repo copy wins.
+
+The repo takes the code-ops profile. The profile waives `30 Ops/`, because this repo operates no service. `code-ops-docs/80 Runs/` is gitignored, which matches the ADR 0001 treatment of `docs/code-ops-run/`.
+
+## Context
+
+Three vaults had grown three layouts, and the suite's doc skills wrote dated artifacts to a fourth convention. One standard removes the per-repo relearning cost and makes agent behavior repeatable across repos and hosts.
+
+## Options considered
+
+The standard settles five questions. Each is recorded with the option it rejected.
+
+1. **Numeric folder prefixes.** A two-digit prefix fixes the sidebar order, and wikilinks bind to note names rather than paths, so a folder rename stays cheap. Rejected: flat lowercase folders, because alphabetical order buries `inbox/` in the middle of the list.
+2. **Runs live in the vault.** One dated-run convention replaces three earlier ones. Rejected: keeping runs outside the vault, because that splits design-time judgment across two trees.
+3. **Vault decisions are the decision log for personal repos.** Rejected: a parallel `docs/adr/` tree in every repo, because two decision logs drift apart.
+4. **The vault does not absorb tracked reference docs or the atlas.** Machine-checked artifacts need repo paths, the CI citation gate, and git-host rendering. Rejected: the vault as the only docs tree, because that breaks `atlas-check.mjs` and host rendering.
+5. **Each `Standard.md` stays self-contained.** Agents in a target repo hold no code-ops checkout. Rejected: a thin pointer file, because it is unreadable offline.
+
+## Consequences
+
+Agents route new work through the table in [[Standard]] instead of inventing a second docs tree. The canonical trees keep their roles: `docs/handbook/`, `docs/techniques/`, `docs/adr/`, and `docs/atlas/`. A vault note that matures into doctrine moves into the owning tree and leaves a link behind.
+
+`20 Decisions/` records working decisions that do not warrant a published ADR. When one does warrant an ADR, promote it to `docs/adr/` and archive the vault note with `superseded-by`.
+
+Conformance is enforced by convention today. A lint pin and a scaffolding skill are proposed follow-ups, not shipped.
+
+## Related
+
+- [[Standard]]
+- [[00 Home]]
+- `docs/techniques/vault-standard.md`

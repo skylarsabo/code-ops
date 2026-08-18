@@ -28,4 +28,5 @@ export const RUNTIME_SCRIPTS = [
   { name: 'dispatch-ledger.mjs', plugins: ['code-ops-suite'] },
   { name: 'scan-narration.mjs', plugins: ['code-ops-suite'] },
   { name: 'atlas-check.mjs', plugins: ['code-ops-suite'] },
+  { name: 'check-vault-standard.mjs', plugins: ['code-ops-suite'] },
 ];

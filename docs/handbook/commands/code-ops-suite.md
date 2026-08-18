@@ -328,6 +328,19 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 
 ---
 
+### `/code-ops-suite:vault`
+**Mode:** DOCUMENT
+
+**How it works.** The vault is the repo's Obsidian notebook for design-time judgment — `<repo>-docs/` at the repo root, with numbered folders whose two-digit prefix fixes the sidebar order: `00` captures, `10`–`79` holds domain content, `80`–`99` is machinery. Phase 0 picks the mode. **SCAFFOLD** creates the folders, a self-contained versioned `Standard.md`, `00 Home.md`, `README.md`, and the templates. **MIGRATE** classifies every file in an existing docs tree into one of three destinations — stays in the code repo, moves into a numbered folder, or is archived with a `superseded-by` pointer — then moves rather than copies, adds the missing frontmatter, and rewrites intra-vault links as wikilinks. **CHECK** runs `node scripts/check-vault-standard.mjs <vault dir>`, which exits 1 on a missing machinery folder, a domain folder numbered into the reserved 80-99 band, a `Standard.md` with no `standard-version`, or a note missing `type` / `status` / `updated`. A profile adds a status value by declaring it in the vault's own `Standard.md`, so the checker follows the profile instead of pinning one vocabulary for every repo.
+
+**Why it's useful.** One layout across every repo means an agent that has never opened this vault can still predict where a note goes and what its frontmatter says, so vault behavior stops being a per-repo thing each run relearns. See [the vault standard](../../techniques/vault-standard.md).
+
+**When to use it.** When a repo's design notes have no home, or have one that no longer matches the standard. Do **not** use it to absorb tracked reference docs, published ADRs, or `docs/atlas/` — those are canonical where they are, and the atlas's freshness check needs repo-root scopes and git history.
+
+**Prerequisites & hand-offs.** None beyond the repo itself. `code-ops-suite:adopt-standards` owns the `CLAUDE.md` / `AGENTS.md` contract that routes agents to the vault's `Standard.md`; run it after a SCAFFOLD or MIGRATE rather than editing the contract from the vault skill.
+
+---
+
 ## Meta / suite self-audit
 
 ### `/code-ops-suite:calibration-run`

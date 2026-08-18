@@ -36,11 +36,13 @@ Write/update `CLAUDE.md` in this exact section order:
 3. **Post-edit chores** (derived-artifact regeneration, version bumps, parity updates) if the repo has them.
 4. **`## Invariants the gates will catch`** — what lint/CI mechanically enforces, so the reader knows what they can't get wrong without a tool catching it.
 5. **Local-only/gitignored docs note**, if the repo has scratch or non-tracked doc locations that doc-alignment/staleness sweeps should skip.
+6. **Documentation section**, when the repo carries (or adopts in this run) a `<repo>-docs/` Obsidian vault — route the reader to that vault's `Standard.md` routing table for where new design notes, decisions, and run artifacts go, instead of restating the layout here. The vault standard is `docs/techniques/vault-standard.md`; `/code-ops-suite:vault` scaffolds, migrates, and checks one.
 
 **Cross-cutting rules (apply throughout):**
 - **Every command written must be verified** — run it, or cite the CI/script `file:line` that defines it. Never invent one; if the repo has no build/test/lint infra for a category, state that honestly rather than filling the gap.
 - **Enforcement claims are truthful** — gate-enforced claims name the gate; anything else is plainly marked aspirational.
 - **No duplication of the user's global `~/.claude/CLAUDE.md` doctrine** — model roles, truthful reporting, token economy, context hygiene, and other cross-repo doctrine live there, not re-stated per repo.
+- **`CLAUDE.md` / `AGENTS.md` parity has two accepted modes** — a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one and keep it; a pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
 - **Relative dates become absolute** ("verify by 2026-08-01", never "next month").
 - **Terse imperative prose, copy-paste-ready commands, project-specific facts only** — no filler, no generic engineering advice a competent agent already knows.
 

@@ -81,9 +81,10 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../techniques/writing-standard.md](../techniques/writing-standard.md) — the house writing standard every artifact is written to: one term per concept, active voice, one instruction per sentence, and the word caps, with clarity outranking conformance.
 - [../techniques/context-hygiene.md](../techniques/context-hygiene.md) — keeping a run's spend linear and letting it survive compaction: durable state on disk, deliberate compaction at phase boundaries, the subagent prompt cache, and rebuilding from artifacts instead of summaries.
 - [../techniques/shell-discipline.md](../techniques/shell-discipline.md) — the two quiet shell failures: a hook-gated command chained into a compound call loses every operation in it, and a broad `git add` stages local state the repo was never meant to carry.
+- [../techniques/vault-standard.md](../techniques/vault-standard.md) — the SSOT for the per-repo Obsidian vault: the numbered folder layout, the product and research profiles, where suite artifacts land, and the promotion rule that keeps the vault and the tracked repo docs from drifting into copies.
 
 ## The handbook is complete
 
-This is the full handbook: eleven chapters, the command reference, eight guides, and fourteen techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
+This is the full handbook: eleven chapters, the command reference, eight guides, and seventeen techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
-*Verified-at: 09df64b*
+*Verified-at: 7c104c2*
