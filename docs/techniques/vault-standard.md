@@ -47,6 +47,10 @@ A profile declares a status with a fixed phrase: the words "profile status" imme
 
 The atlas stays out of the vault because `atlas-check.mjs` resolves scope globs against the repo root and decides freshness from git diffs. The vault's `00 Home` links to it.
 
+## Why these artifacts exist
+
+The vault, the atlas, and the tracked reference docs are caches of judgment. Their purpose is cheaper and better output: an agent reads them first and spends its context on the delta, not on re-deriving what a previous session already verified. The consumption rule follows from that purpose. Trust what is mechanically current — a FRESH atlas section, a `current` or `accepted` vault note, a reference doc whose stamp holds — and treat it as truth without re-verification, because the token win exists only if the reader does not re-check. Treat what is stale as a lead, never as fact. Re-deriving from code what a fresh artifact already states is wasted spend; trusting a stale artifact is a decision on a false premise. Both directions are failures.
+
 ## The canonical boundary
 
 Three layers, one rule. Code is canonical for behavior. Tracked repo docs are canonical for shipped behavior and machine-checked judgment. The vault is canonical for design-time judgment. When vault content ships or becomes a public claim, promote it to the owning repo doc in the same change and replace the vault detail with a link. Never maintain synchronized copies.
