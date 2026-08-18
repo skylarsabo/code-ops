@@ -119,3 +119,12 @@ floors (`AGENT_MODEL_FLOORS`, kept in sync with `docs/techniques/subagent-trade-
 
 `docs/specs/`, `docs/superpowers/`, and `docs/code-ops-run/` are gitignored scratch
 (ADR 0001) — exclude them from doc-alignment and staleness sweeps.
+
+## The vault
+
+`code-ops-docs/` is the Obsidian vault for working design notes and decisions about the
+marketplace itself. Follow the routing table in `code-ops-docs/Standard.md` ("Where new
+work goes"); the layout SSOT is `docs/techniques/vault-standard.md`. The handbook,
+techniques, ADRs, and atlas stay canonical where they are — a vault note that matures
+into doctrine is promoted into them and replaced with a link. `code-ops-docs/80 Runs/`
+is gitignored run scratch (ADR 0001 treatment).

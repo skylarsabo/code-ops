@@ -16,5 +16,8 @@ docs/superpowers
 # local audit-run artifacts (findings registers, summaries) — never tracked
 docs/code-ops-run/
 
+# local run artifacts in the vault — never tracked (ADR 0001)
+code-ops-docs/80 Runs/
+
 # third-party specifications kept locally for reference — licensed, never redistributed
 docs/*.pdf
