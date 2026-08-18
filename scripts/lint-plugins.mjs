@@ -60,6 +60,9 @@
 //  20. CLAUDE.md and AGENTS.md are byte-identical: they are one standards contract under the
 //      two names different hosts read, and a divergence is invisible to whichever host reads
 //      the other copy.
+//  21. (when docs/handbook/README.md and docs/techniques/ both exist) every technique page has
+//      a link entry in the handbook README's techniques list, every listed entry resolves to a
+//      real page, and the written-out "N techniques" count matches the page count.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -394,6 +397,47 @@ if (existsSync(handbookDir)) {
       if (declared !== p.skills.length)
         fail(`handbook: ${rel(routerReadmePath)} says "${p.name}.md" has **${declared} commands** but ${p.name} actually has ${p.skills.length} skill(s) — update the count`);
     }
+  }
+}
+
+// ---- 21. handbook techniques index parity -------------------------------------
+// docs/handbook/README.md's techniques list is the only index of docs/techniques/. A page
+// added without a list entry is written and unread; an entry left behind by a deleted or
+// renamed page is a dead link in the handbook's front door; and the written-out count in the
+// "N techniques" claim is a third copy of the same fact that drifts independently of both.
+// Guarded on both paths existing, so the plugin-fixture evals (which ship no docs/ tree) are
+// unaffected.
+{
+  const hbReadmePath = join(ROOT, 'docs', 'handbook', 'README.md');
+  const techDir = join(ROOT, 'docs', 'techniques');
+  if (existsSync(hbReadmePath) && existsSync(techDir)) {
+    const NUMBER_WORDS = {
+      one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+      eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+      eighteen: 18, nineteen: 19, twenty: 20, 'twenty-one': 21, 'twenty-two': 22, 'twenty-three': 23,
+      'twenty-four': 24, 'twenty-five': 25, 'twenty-six': 26, 'twenty-seven': 27,
+      'twenty-eight': 28, 'twenty-nine': 29, thirty: 30,
+    };
+    const files = readdirSync(techDir).filter((f) => f.endsWith('.md')).sort();
+    const text = readText(hbReadmePath);
+    const listed = new Set();
+    for (const m of text.matchAll(/\.\.\/techniques\/([A-Za-z0-9._-]+\.md)/g)) listed.add(m[1]);
+
+    for (const f of files)
+      if (!listed.has(f))
+        fail(`handbook: docs/techniques/${f} has no entry in the techniques list of ${rel(hbReadmePath)} — an unindexed technique page is written and unread`);
+    for (const f of [...listed].sort())
+      if (!existsSync(join(techDir, f)))
+        fail(`handbook: ${rel(hbReadmePath)} links ../techniques/${f}, which does not exist — remove or repoint the entry`);
+
+    const claims = [...text.matchAll(/\b([a-z]+(?:-[a-z]+)?)\s+techniques\b/gi)]
+      .map((m) => m[1].toLowerCase())
+      .filter((w) => w in NUMBER_WORDS);
+    if (claims.length === 0)
+      fail(`handbook: ${rel(hbReadmePath)} states no written-out "N techniques" count (expected "${files.length}" spelled out)`);
+    else for (const w of claims)
+      if (NUMBER_WORDS[w] !== files.length)
+        fail(`handbook: ${rel(hbReadmePath)} claims "${w} techniques" but docs/techniques/ holds ${files.length} page(s) — update the count`);
   }
 }
 

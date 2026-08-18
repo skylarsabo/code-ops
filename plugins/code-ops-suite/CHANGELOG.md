@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.40.0
+- **New `vault` skill and a fail-closed vault checker** — the Obsidian vault standard (`docs/techniques/vault-standard.md`) was enforced by convention alone, so a vault could drift from it and nothing said so. `check-vault-standard.mjs` now decides conformance mechanically: `Standard.md` present and carrying `standard-version`, the machinery folders present, no domain folder numbered into the reserved 80-99 band, at least one domain folder, and `type` / `status` / `updated` on every note. A profile status is honored when the vault's own `Standard.md` declares it in prose, so a profile extends the checker without editing it. The `vault` skill scaffolds, migrates, and checks against that standard, and carries the boundary rule that keeps the atlas and tracked reference docs out of the vault.
+- **Run artifacts route to the vault when a repo has one** — `CONVENTIONS §12` now names `80 Runs/YYYY-MM-DD slug/` as the destination in a repo carrying a `<repo>-docs/` vault, filenames unchanged, instead of a second dated tree under `docs/<area>/<date>/`.
+- **`adopt-standards` knows about vaults and pointer contracts** — the generated contract gains a documentation section routing to the vault's `Standard.md`, and the skill now states the two accepted `CLAUDE.md` / `AGENTS.md` conformance modes: a byte-identical pair, or a pointer pair naming the contract as required reading.
+
 ## 1.39.0
 - **The calibration config line can record a split lead** — a lead that changes hands mid-run records every lead class in order, plus-separated (`config: lead fable-5+opus-5; operatives opus-5`), instead of omitting the field (lesson L-025, surfaced by R-005). Both grammars extend in lockstep: the note gate's shapes and the graph's ingest grammar plus the run-doc validator, where `config.lead` stays one ordered string checked against its own pattern and an array lead is refused. Only the lead may split; `operatives` stays a single class, and an orchestration-experiment arm still requires a single-lead config. Cross-model attribution splits the lead, so every class that held the session attributes to its provider. `calibration-run` records the handover at Phase 0 and carries it into the Phase 3 note.
 

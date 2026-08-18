@@ -40,6 +40,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `security-privacy-audit` — Use when you need an adversarial security + privacy threat assessment of attack surface and deanonymization paths — deeper than the audit's security lens. For anonymity-specific egress/metadata/fingerprint work, use the privacy-opsec-suite.
 - `ship` — Use when you want to implement one change — a feature or a one-off — end to end at high quality, shipped as a clean traceless PR.
 - `test-hardening` — Use when critical paths lack meaningful coverage or tests are flaky; builds characterization + regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit.
+- `vault` — Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance.
 
 ## Packaging notes
 

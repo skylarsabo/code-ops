@@ -127,7 +127,7 @@ The principle behind it: the skill **asks** when intent is ambiguous, a choice h
 
 Workflows write their output as files so the results outlive the session and diff in version control. Per `code-ops-suite/CONVENTIONS.md` §12:
 
-- **Run artifacts** go in a **dated folder under the repo's docs location** — `docs/<area>/<date>/` — or the repo root if the project has no docs convention. The skill detects and matches your repo's existing docs structure rather than imposing a new one.
+- **Run artifacts** go in a **dated folder under the repo's docs location** — `docs/<area>/<date>/` — or the repo root if the project has no docs convention. In a repo that carries a `<repo>-docs/` Obsidian vault ([vault standard](../techniques/vault-standard.md)), they go to the vault's `80 Runs/YYYY-MM-DD slug/` instead, keeping the same filenames. The skill detects and matches your repo's existing docs structure rather than imposing a new one.
 - **Authoritative reference docs** (architecture, API, data-model docs, ADRs) live in the repo's existing docs/SSOT location and are reconciled in place.
 
 The standard filenames a workflow produces are named in the skill itself. For example, `codebase-audit` writes, under its dated audit folder:
