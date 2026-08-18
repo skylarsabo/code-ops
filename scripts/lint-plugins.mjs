@@ -752,6 +752,10 @@ function walkFiles(dir, out = []) {
 // plugins/<plugin>/skills/<skill>/ directory — the same drift class as the
 // qualified-reference check (5) above, but for the standalone doc instead of a
 // SKILL.md body, since nothing else re-derives this map from the skill tree.
+// Scope note: this check deliberately validates rows PAGE-WIDE — any table row
+// anywhere on the page must name resolvable skills. Check 22 below is narrower on
+// purpose: it derives the edge set only from the rows under "## The edges", and
+// separately refuses edge-shaped rows parked outside that section.
 {
   const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
   if (existsSync(compPath)) {
@@ -900,7 +904,10 @@ function walkFiles(dir, out = []) {
     }
 
     // Edges claimed by the table under "## The edges" — the section the page declares as
-    // the map. Rows outside it (a future second table) are not edges and are skipped.
+    // the map. Rows outside it (a future second table) are not edges. To keep that scoping
+    // from becoming an escape hatch, an edge-SHAPED row (backticked qualified skill names
+    // in both of the first two cells) found outside the section fails outright instead of
+    // going quiet: it is either a relocated edge or a row that should reword its cells.
     const inTable = new Map(); // "from>to" -> line number
     const compLines = readText(compPath).split('\n');
     let inEdges = false;
@@ -911,7 +918,6 @@ function walkFiles(dir, out = []) {
         inEdges = heading[2].trim().toLowerCase() === 'the edges';
         continue;
       }
-      if (!inEdges) continue;
       if (!line.trim().startsWith('|')) continue;
       if (/^\|[\s:-]+\|/.test(line)) continue;
       const cells = line.split('|');
@@ -922,6 +928,10 @@ function walkFiles(dir, out = []) {
       const from = pick(cells[1]);
       const to = pick(cells[2]);
       if (!from || !to) continue;
+      if (!inEdges) {
+        fail(`${rel(compPath)}:${i + 1}: edge-shaped row outside the edges section — "${from}" -> "${to}" sits outside "## The edges", where the map is derived; move it in or reword the cells`);
+        continue;
+      }
       const key = `${from}>${to}`;
       if (inTable.has(key)) fail(`${rel(compPath)}:${i + 1}: duplicate edge row "${from}" -> "${to}"`);
       inTable.set(key, i + 1);

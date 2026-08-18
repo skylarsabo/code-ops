@@ -469,18 +469,49 @@ No completion heading here on purpose (case 3 mutation).
   check('12b. check 17 is not what fired (both names resolve)', !r12b.all.includes('unknown plugin') && !r12b.all.includes('unresolvable skill'));
 
   // 12c. SECTION SCOPING — a second table elsewhere on the page is not the edge map, so
-  // its rows are neither required to have references nor counted as edges.
+  // its rows are neither required to have references nor counted as edges. The table is
+  // deliberately NOT edge-shaped (one qualified name per row, prose in the second cell),
+  // which is what a real "other notes" table looks like; 12e covers the edge-shaped case.
   const d12c = clone('case12c-composition-second-table');
   put(d12c, REFERRING_SKILL, referringBody);
   put(d12c, COMP_PATH, `${compPage([COMP_EDGE_ROW])}
 ## Other notes
 
-| Skill | Neighbour | Note |
-| --- | --- | --- |
-| \`rigor:bug-hunt\` | \`rigor:quality-scan\` | not an edge row — outside "## The edges" (case 12c) |
+| Skill | Note |
+| --- | --- |
+| \`rigor:bug-hunt\` | not an edge row — outside "## The edges" (case 12c) |
 `);
   const r12c = runLint(d12c);
   check('12c. a table outside "## The edges" is not read as edges, exit 0', r12c.status === 0);
+
+  // 12d. "Invoked as" LINES ARE SCANNED — the cross-reference sits on the skill's own
+  // "Invoked as" line, which check 22 does not skip. Only the skill's own name is
+  // excluded, so this edge still needs a row. Restoring the old line-skip fails this case.
+  const d12d = clone('case12d-composition-invoked-as-line');
+  put(d12d, REFERRING_SKILL, skillBody('QUALITY SCAN', {
+    extra: '\n**Invoked as `/rigor:quality-scan`.** Hand proof work to `rigor:bug-hunt` (case 12d fixture reference).\n',
+  }));
+  put(d12d, COMP_PATH, compPage([]));
+  const r12d = runLint(d12d);
+  check('12d. a reference on an "Invoked as" line still needs an edge row', r12d.status === 1);
+  check('12d. message is check 22\'s own "has no edge row"', r12d.all.includes('qualified reference "rigor:bug-hunt" from "rigor:quality-scan" has no edge row'));
+
+  // 12e. THE SCOPING IS NOT AN ESCAPE HATCH — an edge-shaped phantom row (two real
+  // qualified skill names in the first two cells) parked under another heading must fail
+  // rather than go quiet. Check 17 cannot catch it: both names resolve.
+  const d12e = clone('case12e-composition-phantom-outside');
+  put(d12e, REFERRING_SKILL, referringBody);
+  put(d12e, COMP_PATH, `${compPage([COMP_EDGE_ROW])}
+## Standalone skills
+
+| Skill | Neighbour | Note |
+| --- | --- | --- |
+| \`rigor:consistency-closure\` | \`code-ops-suite:everything\` | phantom row parked outside the edges section (case 12e mutation) |
+`);
+  const r12e = runLint(d12e);
+  check('12e. an edge-shaped row outside "## The edges" exits 1', r12e.status === 1);
+  check('12e. message is the out-of-section guard', r12e.all.includes('edge-shaped row outside the edges section'));
+  check('12e. check 17 is not what fired (both names resolve)', !r12e.all.includes('unknown plugin') && !r12e.all.includes('unresolvable skill'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
