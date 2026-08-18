@@ -38,10 +38,11 @@
 //     filenames and their format unchanged inside a run folder; adding frontmatter to one would
 //     break the reader it was written for.
 //
-// A profile status is declared by writing the phrase `profile status` on a line of Standard.md
-// with the value in backticks, e.g. "`lab-entry` notes use the profile status `recorded`". The
-// declaration therefore lives in the same prose a human reads, rather than in a second list that
-// drifts from it.
+// A profile status is declared by writing the phrase `profile status` immediately followed by the
+// value in backticks, e.g. "`lab-entry` notes use the profile status `recorded`". Only that one
+// token counts, so a sentence that also names note types in backticks declares no extra statuses.
+// The declaration therefore lives in the same prose a human reads, rather than in a second list
+// that drifts from it.
 //
 // Exit: 0 conformant (one-line OK); 1 at least one violation; 2 usage error.
 
@@ -53,7 +54,9 @@ const MACHINERY = ['00 Inbox', '80 Runs', '90 Templates', '95 Attachments', '98 
 const OPTIONAL_MACHINERY = new Set(['80 Runs']);
 const BASE_STATUSES = ['draft', 'current', 'accepted', 'superseded'];
 const NUMBERED_DIR = /^(\d{2}) (.+)$/;
-const UPPER_SNAKE = /^[A-Z0-9]+(?:_[A-Z0-9]+)*$/;
+// At least one underscore is required: a bare all-caps stem (`README`, `TODO`, `NOTES`) is an
+// ordinary note, and exempting it would let a per-folder README skip every frontmatter rule.
+const UPPER_SNAKE = /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SKIP_DIRS = new Set(['.obsidian', '.trash', '.git', '90 Templates']);
 
@@ -87,17 +90,15 @@ function frontmatter(text) {
   return out;
 }
 
-// Profile statuses are declared in prose: a line naming `profile status` with the value in
-// backticks. Every backticked token on such a line is taken as a declared status, because the
-// sentence that introduces one names it and nothing else in backticks worth confusing it with.
+// Profile statuses are declared in prose: the phrase `profile status` immediately followed by the
+// value in backticks. Only the token in that position counts — scavenging every backticked token
+// on the line would admit note types named in the same sentence, which is fail-open exactly for
+// the vaults that extend the vocabulary.
 function profileStatuses(standardText) {
   const found = new Set();
-  for (const line of standardText.split('\n')) {
-    if (!/profile status/i.test(line)) continue;
-    for (const m of line.matchAll(/`([^`]+)`/g)) {
-      const v = m[1].trim();
-      if (/^[a-z][a-z0-9-]*$/.test(v)) found.add(v);
-    }
+  for (const m of standardText.matchAll(/profile status\s+`([^`]+)`/gi)) {
+    const v = m[1].trim();
+    if (/^[a-z][a-z0-9-]*$/.test(v)) found.add(v);
   }
   return found;
 }
@@ -159,6 +160,8 @@ for (const name of topDirs) {
   const band = Number(m[1]);
   if (band >= 80 && !machinerySet.has(name))
     fail(`folder '${name}/' sits in the reserved machinery band (80-99) but is not a machinery folder — renumber it into the 10-79 domain band`);
+  if (band < 10 && !machinerySet.has(name))
+    fail(`folder '${name}/' is numbered below 10, where '00 Inbox/' is the only folder the standard defines — renumber it into the 10-79 domain band`);
   if (band >= 10 && band <= 79) domains.push(name);
 }
 if (domains.length === 0)

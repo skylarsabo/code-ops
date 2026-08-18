@@ -8,7 +8,7 @@ Three vaults grew three layouts: ripper-docs and proofreports-docs shared a flat
 
 ## The base layout
 
-Structural folders carry a two-digit numeric prefix, which fixes the Obsidian sidebar order. Bands: `00` is capture, `10`–`79` is domain content, `80`–`99` is machinery.
+Structural folders carry a two-digit numeric prefix, which fixes the Obsidian sidebar order. Bands: `00` is capture, `10`–`79` is domain content, `80`–`99` is machinery. `00 Inbox/` is machinery despite its number — it is required in every vault, holds no domain content, and is the only folder the standard defines below `10`. A numbered folder anywhere else below `10` is a violation.
 
 | Folder | Holds |
 | --- | --- |
@@ -31,7 +31,7 @@ A profile is a short section at the end of a vault's `Standard.md`. It may add d
 - **Product profile** (ripper, proofreports): the base layout as-is.
 - **Research profile** (research): adds `40 Foundations/`, `45 Projects/`, `50 Topics/`, `60 Literature/`, `70 Lab Notebook/` and the note types `project`, `topic`, `literature`, `lab-entry`. Waives `10 Design/`, `20 Decisions/`, and `30 Ops/`: decisions, protocols, results, and claims are canonical only in the repo-root registers, and the vault is a working notebook that promotes into them. Its home note is `Home`, and `lab-entry` notes use the profile status `recorded`, because a dated record is never a draft and never superseded.
 
-A profile may add a status value for a profile-added type. It never adds a status value to the four base types.
+A profile declares a status with a fixed phrase: the words "profile status" immediately followed by the value in backticks, as in "`lab-entry` notes use the profile status `recorded`". The checker reads only the token in that position, so backticked note types elsewhere in the sentence declare nothing. A profile may add a status value for a profile-added type. It never adds a status value to the four base types.
 - **Code-ops profile** (this repo): the vault holds working design notes and decisions about the marketplace itself. Waives `30 Ops/` (no operated service). The handbook, techniques, ADRs, and atlas stay canonical where they are. `code-ops-docs/80 Runs/` is gitignored, matching the ADR 0001 treatment of `docs/code-ops-run/`.
 
 ## Where suite artifacts land in a vault-bearing repo
@@ -65,6 +65,8 @@ Each vault-bearing repo carries `CLAUDE.md` and `AGENTS.md` in one of two confor
 
 ## Migration and conformance
 
-To adopt the standard in a repo: rename folders to the numbered scheme, add the machinery folders, copy the current `Standard.md` body, append the profile section, and bump `standard-version`. Verify links with Obsidian's broken-link check before committing. The conformance copies are enforced by convention only. A lint pin (`SHARED_PASSAGES`-style) and a scaffolding skill are proposed follow-ups, not shipped.
+To adopt the standard in a repo: rename folders to the numbered scheme, add the machinery folders, copy the current `Standard.md` body, append the profile section, and bump `standard-version`. Verify links with Obsidian's broken-link check before committing.
 
-*Verified-at: 7c104c2 (2026-08-18)*
+Conformance is machine-checked. `node scripts/check-vault-standard.mjs <vault-dir>` is fail-closed and enforces five rules: a versioned `Standard.md` at the vault root, the machinery folders, the reserved 80-99 band, at least one domain folder in the 10-79 band, and `type` / `status` / `updated` frontmatter on every note. `90 Templates/` and the vault-root `README.md` are exempt. `/code-ops-suite:vault` scaffolds, migrates, and checks a vault against the same rules. One follow-up remains: a `SHARED_PASSAGES`-style byte pin that would hold every vault's `Standard.md` copy to the body on this page.
+
+*Verified-at: 14b6e94 (2026-08-18)*
