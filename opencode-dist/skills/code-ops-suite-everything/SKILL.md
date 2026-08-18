@@ -14,7 +14,11 @@ description: "Use when you want the most exhaustive end-to-end pass across all t
 **Cost & shape:** this is deliberately the most thorough and most token-expensive option. It is **phased with checkpoints, not a blind firehose** — you can widen or narrow scope and dial check-ins up or down at Phase 0.
 
 ## Phase 0 — Scope, automation level & preflight  *(checkpoint)*
-Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>` (add `--need gh` if the run will publish) — a FAIL stops the run before any fan-out; advisories are noted in the register. After preflight passes, run `node <plugin-root>/scripts/repo-map.mjs --out <run folder>/REPO_MAP.md` and hand its path to every operative brief (`§1`); on failure, note the advisory and proceed. Dispatch an explorer operative to detect the stack/size; confirm all three plugins are available. Verify library/framework facts against the **installed versions** via the in-house docs lookup (`§2`), never memory. Confirm with me:
+Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>` (add `--need gh` if the run will publish) — a FAIL stops the run before any fan-out; advisories are noted in the register. After preflight passes, run `node <plugin-root>/scripts/repo-map.mjs --out <run folder>/REPO_MAP.md` and hand its path to every operative brief (`§1`); on failure, note the advisory and proceed. Dispatch an explorer operative to detect the stack/size; confirm all three plugins are available. Verify library/framework facts against the **installed versions** via the in-house docs lookup (`§2`), never memory.
+
+**Standardization preflight.** Then run `/code-ops-suite-conform` in its assess-only mode, before any register is opened: it reports whether the standards contract, the docs vault, and the atlas are conformant, and where this run's artifacts therefore belong. Assess-only is the default here — the repairs it proposes are offered once, at this phase's checkpoint below, and are never applied without approval. A run that declines them proceeds on the assessment alone.
+
+Confirm with me:
 - **Scope** — the whole repo, or the riskiest subsystems first (recommended for large repos; bug-hunting goes deep per subsystem).
 - **Privacy track** — include the privacy-opsec phases? (yes if the project has anonymity/opsec requirements; otherwise skip them).
 - **Remediation automation level** (the canonical ladder — code-ops `§4`, applied with rigor's tier gate `rigor §4`/`§H`) — governs every code-changing phase:
@@ -28,9 +32,6 @@ Then set up the run:
 - **Keep every register fresh across phases** — re-validate items against current HEAD before any phase consumes them (`§12`); a finding fixed earlier in the run is marked `OBSOLETE-AT <sha>`, never re-ranked or re-shown.
 - **Surface any CONFIRMED critical finding immediately.**
 - Always work on a branch; **never auto-merge** — even fully-auto fixes land as commits/PRs for review.
-
-## Phase 0.5 — Standardization preflight  *(code-ops-suite `conform`)*
-Run `conform` in its assess-only mode: it reports whether the standards contract, the docs vault, and the atlas are conformant, and where this run's artifacts therefore belong. Assess-only is the default here — the repairs it proposes are offered once, at the Phase 0 checkpoint, and are never applied without approval. A run that declines them proceeds on the assessment alone.
 
 ## Phase 1 — Map  *(code-ops-suite)*
 `doc-alignment` → `codebase-audit` → `security-privacy-audit`. An accurate map + a broad first-pass register, findings **tiered + disconfirmed** (`§7`) and run through the **multi-boundary control-coverage** lens (`§10`).
