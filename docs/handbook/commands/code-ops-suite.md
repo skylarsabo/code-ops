@@ -328,6 +328,19 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 
 ---
 
+### `/code-ops-suite:conform`
+**Mode:** ASSESS then DOCUMENT
+
+**How it works.** Phase A assesses five standardization surfaces read-only, in dependency order, and records each as CONFORMANT, DRIFTED, ABSENT, or UNKNOWN with the checker output that decided it: the repo's standards contract (the pair exists, matches an accepted parity mode, and carries the routing section); the docs vault (`<repo>-docs/` exists and `check-vault-standard.mjs` exits 0); the atlas (`docs/atlas/` exists, its manifest parses, and `atlas-check.mjs check` reports each section FRESH or STALE); doc alignment, assessed only when the first three surfaced a drift signal; and the user's global contract, off by default and never touched without asking. The verdicts go to `CONFORMANCE_REPORT.md`, written to the vault's `80 Runs/` folder when the repo has a vault and to its dated-docs convention when it does not. Phase B repairs the approved surfaces one at a time, delegating each to the skill that owns it and checkpointing between them, because repairing one surface changes what the next one reads. Phase C re-runs every mechanical check and records the closing output beside the opening verdict.
+
+**Why it's useful.** Each standardization surface already had a skill and a checker, but nothing asked whether a repo carried any of them. A repo could pass one surface and fail three, and that only surfaced later, when a run needed the artifact that was missing. This answers the whole question in one command, and answers it mechanically rather than by reading.
+
+**When to use it.** On a repo the suite is about to work in for the first time, or one that has not been checked since the standard moved. Assess-only is a complete run — stopping with the report in hand is a legitimate outcome. Do **not** expect it to implement any repair itself: every fix is delegated, so a surface it cannot delegate is reported, not improvised.
+
+**Prerequisites & hand-offs.** None beyond the repo. Composes `adopt-standards`, `vault`, `atlas`, `doc-alignment`, and (opt-in) `adopt-global-standards`; `code-ops-suite:everything` runs it assess-only as its phase-0.5 preflight. See [the skill-composition map](../../techniques/skill-composition.md).
+
+---
+
 ### `/code-ops-suite:vault`
 **Mode:** DOCUMENT
 

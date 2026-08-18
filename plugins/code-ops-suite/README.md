@@ -53,6 +53,7 @@ Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` i
 - `full-sweep` — run the whole suite end-to-end as one developer-in-the-loop pipeline (ground truth → assess → safety-net → fix → deep-dives → consistency → capture), pausing at each phase boundary. Intra-plugin.
 - `everything` — the cross-plugin superset: orchestrates every phase across all three plugins (map → prove → leak-audit → safety-net → remediate → close → improve → normalize). Requires `rigor` and `privacy-opsec-suite` installed; the most thorough and most token-expensive option.
 - `ship` — implement one change (feature or one-off) end-to-end at full rigor: design-check → safety-net → implement → prove → privacy-gate → traceless PR. Requires `rigor`; privacy phase if applicable.
+- `conform` — assess every standardization surface of a repo in one read-only pass (standards contract, `<repo>-docs/` vault, `docs/atlas/`, doc drift, and opt-in the global contract), write `CONFORMANCE_REPORT.md`, then repair surface by surface under checkpoint by delegating to the skill that owns each one.
 - `debug` — drive a bug from symptom to a proven root-cause fix: reproduce → isolate → confirm cause → `rigor:fix-verified` → traceless PR. Requires `rigor`.
 
 ## Subagents
