@@ -63,6 +63,7 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../guides/respond-to-a-suspected-leak.md](../guides/respond-to-a-suspected-leak.md) — the incident journey: `leak-incident-response` then `opsec-hardening`, confirming from redacted evidence and locking the leak shut.
 - [../guides/research-a-library-choice.md](../guides/research-a-library-choice.md) — an A-vs-B-vs-build decision via `researcher:library-eval` → `research-verify` → `code-ops-suite:adr`, proven before anyone writes code.
 - [../guides/wire-ci-gates.md](../guides/wire-ci-gates.md) — the hands-on companion to chapter 08: standing up the three per-PR review gates and recurring researcher runs on a repo.
+- [../guides/ci-portability.md](../guides/ci-portability.md) — running the gates off GitHub: the mechanical validate chain translated to GitLab CI and CircleCI, with the agent-review gates marked as host-specific extension points.
 
 **Techniques (focused how-tos)**
 - [../techniques/reading-a-findings-register.md](../techniques/reading-a-findings-register.md) — how to read and act on a findings register.
@@ -85,6 +86,6 @@ The first slice, all under `docs/` and tracked in the repo.
 
 ## The handbook is complete
 
-This is the full handbook: eleven chapters, the command reference, eight guides, and seventeen techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
+This is the full handbook: eleven chapters, the command reference, nine guides, and seventeen techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
 *Verified-at: 7c104c2*

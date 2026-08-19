@@ -35,6 +35,21 @@ lead, at the highest tier present in the session. See
 [subagent-trade-offs.md](../techniques/subagent-trade-offs.md) for the full table
 backing this rule.
 
+## We do not close early
+
+A line of inquiry closes on one of two things: evidence that it is exhausted, or a
+recorded decision to stop. It never closes on convenience, and never on the first
+plausible stopping point. The first plausible answer is a candidate, not a conclusion.
+
+This binds hardest on research fronts, where nothing external tells you the question is
+answered. It also binds on review loops: converged means the reviewer finds nothing on a
+fresh pass, not that the operator tired of the loop. A loop that stops while findings are
+still arriving has been abandoned, not closed.
+
+Deferring is legitimate. Record it as a deferral, with the reason and the route back —
+the artifact to resume from, and the condition that reopens it. A deferral with neither
+is an abandonment wearing a better name.
+
 ## Related techniques
 
 - [dispatch-brief-template.md](../techniques/dispatch-brief-template.md) — how to write an operative brief.

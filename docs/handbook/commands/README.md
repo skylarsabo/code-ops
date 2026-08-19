@@ -57,6 +57,18 @@ Find the row that matches what you want. The **Run** column lists real command n
 the order to run them; `→` means "then", `+` means "in parallel / both", and `(orchestrator)`
 marks a single command that strings the others together for you.
 
+The four plugins install independently, so a row can name a command from a plugin you did
+not install. The **Notes** column marks every such row:
+
+- **Requires `<plugin>`** — the route does not run without it. The skill declares the
+  prerequisite and stops.
+- **Optional: `<plugin>`** — the route runs without it, and the cross-plugin step is
+  skipped or replaced by a fallback the skill names.
+
+A row with neither marking stays inside the plugin its **Plugin(s)** column names. For
+which routes each plugin set supports, see
+[partial installs](../01-getting-started.md#partial-installs).
+
 | I want to… | Run (in order) | Plugin(s) | Notes |
 | --- | --- | --- | --- |
 | **Audit an unfamiliar or drifting codebase** (breadth) | `/code-ops-suite:codebase-audit` → `/code-ops-suite:remediation` → `/code-ops-suite:pr-review` | code-ops-suite | Broad multi-lens review → fix the backlog → gate the diff. Writes `FINDINGS_REGISTER.md`. |
@@ -64,17 +76,17 @@ marks a single command that strings the others together for you.
 | **Prove a bug is real (not just asserted)** | `/rigor:ground-truth` → `/rigor:bug-hunt` | rigor | Only `CONFIRMED` (reproduced) findings drive fixes. Read [evidence and tiers](../05-evidence-and-tiers.md). |
 | **Find when a bug was introduced** | `/rigor:regression-hunt` | rigor | VCS-bisects a confirmed bug to its origin commit and sweeps recent changes. |
 | **Fix a confirmed bug at root cause** | `/rigor:fix-verified` | rigor | Failing→passing regression test, regression guard, sibling sweep, enforcement. |
-| **Drive a bug from symptom to proven fix** | `/code-ops-suite:debug` (orchestrator) | code-ops-suite (+ rigor) | reproduce → isolate → confirm cause → `rigor:fix-verified` → traceless PR. Requires `rigor`. |
-| **Ship one change end-to-end at full rigor** | `/code-ops-suite:ship` (orchestrator) | code-ops-suite (+ rigor, privacy) | design-check → safety-net → implement → prove → privacy-gate → traceless PR. See [ship-a-verified-fix](../../guides/ship-a-verified-fix.md). |
+| **Drive a bug from symptom to proven fix** | `/code-ops-suite:debug` (orchestrator) | code-ops-suite (+ rigor) | reproduce → isolate → confirm cause → `rigor:fix-verified` → traceless PR. **Requires `rigor`**; **Optional:** `privacy-opsec-suite` — without it the leak check is skipped and the bundled `scan-ai-tells.mjs` runs as the traceless gate. |
+| **Ship one change end-to-end at full rigor** | `/code-ops-suite:ship` (orchestrator) | code-ops-suite (+ rigor, privacy) | design-check → safety-net → implement → prove → privacy-gate → traceless PR. **Requires `rigor`**; **Optional:** `privacy-opsec-suite` — without it the privacy phase is skipped and the bundled `scan-ai-tells.mjs` runs as the traceless gate. See [ship-a-verified-fix](../../guides/ship-a-verified-fix.md). |
 | **Build a feature from scratch** | `/code-ops-suite:feature-discovery` → `/code-ops-suite:feature-implementation` → `/code-ops-suite:pr-review` | code-ops-suite | Discover + spec grounded features → build smallest slice behind flags → gate. |
-| **Make something measurably faster** | `/rigor:ground-truth` → `/code-ops-suite:performance` | code-ops-suite (+ rigor) | Optimize only what is proven hot; prove it with before/after numbers. `/rigor:improve-measured` for measured deltas. |
-| **Add meaningful test coverage** | `/rigor:ground-truth` → `/rigor:test-suite-audit` → `/code-ops-suite:test-hardening` | code-ops-suite (+ rigor) | Validate the suite (mutation/flaky) first, then harden critical paths. |
+| **Make something measurably faster** | `/rigor:ground-truth` → `/code-ops-suite:performance` | code-ops-suite (+ rigor) | **Requires `rigor`** for the ground-truth baseline. Optimize only what is proven hot; prove it with before/after numbers. `/rigor:improve-measured` for measured deltas. |
+| **Add meaningful test coverage** | `/rigor:ground-truth` → `/rigor:test-suite-audit` → `/code-ops-suite:test-hardening` | code-ops-suite (+ rigor) | **Requires `rigor`** for the first two steps; `/code-ops-suite:test-hardening` runs alone without it. Validate the suite (mutation/flaky) first, then harden critical paths. |
 | **Pin behavior before a refactor** | `/rigor:safety-net` | rigor | Characterization tests lock observable behavior on blind spots first. |
 | **Upgrade dependencies / clear CVEs safely** | `/code-ops-suite:dependency-upgrade` | code-ops-suite | Staged upgrades, never bulk-bumps. Pair with `researcher:ecosystem-watch`. |
 | **Review a PR before merge** (breadth) | `/code-ops-suite:pr-review` | code-ops-suite | Rigorous pre-merge review across all lenses; prioritized comments + verdict. |
 | **Review a PR at the verification bar** (depth) | `/rigor:deep-review` | rigor | Blocks only on `CONFIRMED` defects/regressions. The high-signal counterpart to `pr-review`. |
 | **Normalize a repo to one consistent style** | `/code-ops-suite:normalize` | code-ops-suite | Behavior-preserving; removes the artifacts of hasty/generated code. |
-| **Split a big branch into clean small PRs** | `/code-ops-suite:pr-split` | code-ops-suite (+ privacy) | Composes `privacy-opsec-suite:authorship-hygiene` (fail-closed); never auto-merges. |
+| **Split a big branch into clean small PRs** | `/code-ops-suite:pr-split` | code-ops-suite (+ privacy) | **Optional:** `privacy-opsec-suite` — composes `authorship-hygiene` (fail-closed) when installed, else the bundled `scan-ai-tells.mjs` is the mechanical floor. Never auto-merges. |
 | **Bank what a run learned about a repo** | `/code-ops-suite:atlas` | code-ops-suite | Builds/refreshes `docs/atlas/`: judgment prose per section, each stamped and mechanically checked FRESH or STALE. |
 | **Check whether a repo is on the standard at all** | `/code-ops-suite:conform` | code-ops-suite | Assesses the standards contract, the vault, the atlas, and doc drift in one read-only pass, then repairs surface by surface under checkpoint. |
 | **Give design notes and decisions a standard home** | `/code-ops-suite:vault` | code-ops-suite | Scaffolds, migrates, or checks `<repo>-docs/`: the numbered Obsidian layout, a versioned `Standard.md`, and note frontmatter, checked fail-closed. |
@@ -84,15 +96,15 @@ marks a single command that strings the others together for you.
 | **Find anonymity leaks across the surface** | `/privacy-opsec-suite:anonymity-threat-model` → `/privacy-opsec-suite:tor-egress-audit` + `/privacy-opsec-suite:metadata-leak-audit` + `/privacy-opsec-suite:anon-session-audit` + `/privacy-opsec-suite:fingerprint-resistance` + `/privacy-opsec-suite:traffic-analysis-resistance` + `/privacy-opsec-suite:supply-chain-trust` | privacy-opsec-suite | The six parallel leak audits → `LEAK_REGISTER.md`. |
 | **Harden the leaks I found** | `/privacy-opsec-suite:opsec-hardening` | privacy-opsec-suite | Implements the leak backlog; each leak gets a regression test, fail-closed. |
 | **Respond to a suspected leak** | `/privacy-opsec-suite:leak-incident-response` → `/privacy-opsec-suite:opsec-hardening` | privacy-opsec-suite | Triage, contain, scope blast radius, plan remediation — without making it worse. |
-| **Design a privacy/trust feature** | `/privacy-opsec-suite:privacy-feature-design` → `/code-ops-suite:feature-implementation` | privacy-opsec-suite (+ code-ops-suite) | Each feature gated against the anonymity model. |
+| **Design a privacy/trust feature** | `/privacy-opsec-suite:privacy-feature-design` → `/code-ops-suite:feature-implementation` | privacy-opsec-suite (+ code-ops-suite) | **Optional:** `code-ops-suite` — the design pass stands alone; without it the build hand-off has no route. Each feature gated against the anonymity model. |
 | **Run the whole anonymity track** | `/privacy-opsec-suite:full-sweep` (orchestrator) | privacy-opsec-suite | model → audits → harden → docs/gate, pausing at each phase boundary. |
-| **Choose a library / decide "adopt X?"** | `/researcher:library-eval` → `/code-ops-suite:adr` | researcher (+ code-ops-suite) | A-vs-B-vs-build grounded in your code and sources; record the decision as an ADR. |
-| **Research an approach before building** | `/researcher:research-spike` → `/code-ops-suite:feature-implementation` | researcher (+ code-ops-suite) | Cited design brief + recommendation; hands off to implementation or `ship`. |
-| **Gather grounded improvement ideas** | `/researcher:research-improve` → `/code-ops-suite:remediation` | researcher (+ code-ops-suite) | External best practices grounded in your code → `RESEARCH_FINDINGS.md`. |
-| **Generate net-new feature ideas** | `/researcher:research-ideate` → `/code-ops-suite:feature-discovery` | researcher (+ code-ops-suite) | Code + domain + (opt-in) trends → `IDEAS_REGISTER.md` with a smallest valuable slice. |
+| **Choose a library / decide "adopt X?"** | `/researcher:library-eval` → `/code-ops-suite:adr` | researcher (+ code-ops-suite) | **Optional:** `code-ops-suite` — the evaluation stands alone; without it the ADR hand-off has no route. A-vs-B-vs-build grounded in your code and sources. |
+| **Research an approach before building** | `/researcher:research-spike` → `/code-ops-suite:feature-implementation` | researcher (+ code-ops-suite) | **Optional:** `code-ops-suite` — the brief stands alone; without it the build hand-off has no route. Cited design brief + recommendation. |
+| **Gather grounded improvement ideas** | `/researcher:research-improve` → `/code-ops-suite:remediation` | researcher (+ code-ops-suite) | **Optional:** `code-ops-suite`, `rigor` — the research stands alone; without them the implementation hand-offs have no route. External best practices grounded in your code → `RESEARCH_FINDINGS.md`. |
+| **Generate net-new feature ideas** | `/researcher:research-ideate` → `/code-ops-suite:feature-discovery` | researcher (+ code-ops-suite) | **Optional:** `code-ops-suite` — ideation stands alone; without it the discovery and build hand-offs have no route. Code + domain + (opt-in) trends → `IDEAS_REGISTER.md` with a smallest valuable slice. |
 | **Fact-check a claim or proposed approach** | `/researcher:research-verify` | researcher | Adversarial claim-check against sources and your code; tiers the verdict. Gates other research output. |
-| **Watch the ecosystem for what changed** | `/researcher:ecosystem-watch` → `/code-ops-suite:dependency-upgrade` | researcher (+ code-ops-suite, privacy) | Updates, CVEs, deprecations, new capabilities; schedulable. Also composes `privacy-opsec-suite:supply-chain-trust`. |
-| **Run the whole research pipeline** | `/researcher:research-sweep` (orchestrator) | researcher | ground → gather → verify → propose, surfacing the egress manifest at every checkpoint. |
+| **Watch the ecosystem for what changed** | `/researcher:ecosystem-watch` → `/code-ops-suite:dependency-upgrade` | researcher (+ code-ops-suite, privacy) | **Optional:** `code-ops-suite`, `privacy-opsec-suite` — the watch stands alone; without them the upgrade and supply-chain hand-offs have no route. Updates, CVEs, deprecations, new capabilities; schedulable. |
+| **Run the whole research pipeline** | `/researcher:research-sweep` (orchestrator) | researcher | **Optional:** `code-ops-suite`, `rigor`, `privacy-opsec-suite` — the sweep requires nothing beyond `researcher` and composes the others only when installed, for hand-off. ground → gather → verify → propose, surfacing the egress manifest at every checkpoint. |
 | **Generate an architecture reference** | `/code-ops-suite:architecture` | code-ops-suite | C4 structure + critical-path sequence flows + key decisions, code-grounded. |
 | **Generate an API/interface reference** | `/code-ops-suite:api-docs` | code-ops-suite | Endpoints/exports, signatures, request/response shapes, auth, errors, examples. |
 | **Generate a data-model reference** | `/code-ops-suite:data-model` | code-ops-suite | ER diagram + per-entity fields, relationships, constraints, invariants. |
@@ -105,9 +117,9 @@ marks a single command that strings the others together for you.
 | **Get version-accurate docs for a dependency** | `/code-ops-suite:current-docs` | code-ops-suite | Local-first, no third-party — the in-house Context7 alternative (also the `code-ops-docs` MCP). |
 | **Threat-model the attack surface** | `/code-ops-suite:security-privacy-audit` | code-ops-suite | Adversarial STRIDE + LINDDUN; writes `THREAT_MODEL.md` + findings. |
 | **Run the full intra-suite engineering pass** | `/code-ops-suite:full-sweep` (orchestrator) | code-ops-suite | scope → ground truth → assess → safety-net → fix → deep-dives → consistency → document → ship. |
-| **Run the most thorough cross-plugin pass** | `/code-ops-suite:everything` (orchestrator) | all three (code-ops-suite, rigor, privacy) | map → ground-truth → prove → leak-audit → safety-net → review → remediate → close → improve → normalize-and-document → verify-and-ship. Requires `rigor` and `privacy-opsec-suite`. See [the-everything-pass](../../guides/the-everything-pass.md). |
+| **Run the most thorough cross-plugin pass** | `/code-ops-suite:everything` (orchestrator) | all three (code-ops-suite, rigor, privacy) | map → ground-truth → prove → leak-audit → safety-net → review → remediate → close → improve → normalize-and-document → verify-and-ship. **Requires `rigor` and `privacy-opsec-suite`** — the skill declares all three as prerequisites and confirms availability in phase 0. See [the-everything-pass](../../guides/the-everything-pass.md). |
 | **Run the rigor pipeline end-to-end** | `/rigor:rigor-sweep` (orchestrator) | rigor | Start with `assess-only` to get proven findings before changing anything. |
-| **Calibrate the suite against a real repo** | `/code-ops-suite:calibration-run` | code-ops-suite | Isolated, assess-only; only a sanitized note crosses back into `evals/CALIBRATION_TABLE.md`. |
+| **Calibrate the suite against a real repo** | `/code-ops-suite:calibration-run` | code-ops-suite | **Optional:** `rigor` — needed only when `rigor:rigor-sweep` is the mechanism under calibration. Isolated, assess-only; only a sanitized note crosses back into `evals/CALIBRATION_TABLE.md`. |
 | **Audit a completed run's cost discipline** | `/code-ops-suite:run-cost-audit` | code-ops-suite | Dispatch counts, artifact sizes, tier/effort mix vs. the suite's own routing doctrine → `COST_AUDIT.md`. |
 | **Audit the suite's prose for provider-specific assumptions** | `/code-ops-suite:provider-parity-audit` | code-ops-suite | Prose only — the mechanical Codex render is already covered by `build-codex-marketplace.mjs --check`. |
 | **Wire a breadth PR gate into CI** | `/code-ops-suite:pr-review` in CI | code-ops-suite | Via `anthropics/claude-code-action@v1`; canonical setup is `/install-github-app`, then paste the review criteria. See `plugins/code-ops-suite/examples/github-pr-review.yml`. |
