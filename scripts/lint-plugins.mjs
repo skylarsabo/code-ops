@@ -406,6 +406,7 @@ if (existsSync(handbookDir)) {
 }
 
 // ---- 21. handbook techniques index parity -------------------------------------
+// (check name: `handbook-techniques-index`)
 // docs/handbook/README.md's techniques list is the only index of docs/techniques/. A page
 // added without a list entry is written and unread; an entry left behind by a deleted or
 // renamed page is a dead link in the handbook's front door; and the written-out count in the
@@ -755,13 +756,20 @@ function walkFiles(dir, out = []) {
 // Scope note: this check deliberately validates rows PAGE-WIDE — any table row
 // anywhere on the page must name resolvable skills. Check 22 below is narrower on
 // purpose: it derives the edge set only from the rows under "## The edges", and
-// separately refuses edge-shaped rows parked outside that section.
+// separately refuses edge-shaped rows parked outside that section. Both loops skip
+// fenced code blocks, so a markdown example on the page is not read as page structure.
 {
   const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
   if (existsSync(compPath)) {
     const lines = readText(compPath).split('\n');
+    // A fenced example is illustration, not page structure, so its rows are skipped —
+    // the same treatment check-doc-citations.mjs gives fences in its own line loop. The
+    // page-wide scope outside fences is unchanged.
+    let inFence = false;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (/^\s{0,3}```/.test(line)) { inFence = !inFence; continue; }
+      if (inFence) continue;
       if (!line.trim().startsWith('|')) continue;
       if (/^\|[\s:-]+\|/.test(line)) continue; // header separator row (---|---)
       const cells = line.split('|');
@@ -781,6 +789,7 @@ function walkFiles(dir, out = []) {
 }
 
 // ---- 18. eval-wired-to-CI gate ----------------------------------------------
+// (check name: `eval-wired-to-ci`)
 // A regression eval that isn't invoked in CI provides no real backstop — it can silently
 // rot with nobody noticing it stopped running. For every evals/<name>/ directory that
 // contains a run.mjs, the literal string `node evals/<name>/run.mjs` must appear somewhere
@@ -869,6 +878,7 @@ function walkFiles(dir, out = []) {
 }
 
 // ---- 22. skill-composition.md edge completeness ------------------------------
+// (check name: `composition-map-parity`)
 // Check 17 proves each named edge RESOLVES; it never proves the map matches the tree.
 // This one closes that gap in both directions, using the page's own derivation rule:
 // every qualified `<plugin>:<skill>` reference (leading slash optional) in a
@@ -879,7 +889,7 @@ function walkFiles(dir, out = []) {
 // without it still lints. The table scan derives edges only from the rows under the
 // page's "## The edges" heading (subheadings nested below it stay inside the section),
 // and an edge-shaped row anywhere else on the page fails outright, so the scoping is
-// not an escape hatch.
+// not an escape hatch. Fenced code blocks are skipped: an example is not structure.
 {
   const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
   if (existsSync(compPath)) {
@@ -914,16 +924,23 @@ function walkFiles(dir, out = []) {
     const compLines = readText(compPath).split('\n');
     let inEdges = false;
     let edgesLevel = 0;
+    // Fenced blocks are examples, not structure: a heading or an edge-shaped row inside
+    // one must not open, close, or populate the edges section.
+    let inFence = false;
     for (let i = 0; i < compLines.length; i++) {
       const line = compLines[i];
+      if (/^\s{0,3}```/.test(line)) { inFence = !inFence; continue; }
+      if (inFence) continue;
       const heading = line.match(/^(#{1,6})\s+(.*)$/);
       if (heading) {
         // A subheading nested under "## The edges" stays inside the section; only a
         // heading at the same or a higher level closes it.
         const level = heading[1].length;
+        // A degenerate second "The edges" nested inside the first must not deepen the
+        // level, or a later sibling subheading would close the section early.
         if (heading[2].trim().toLowerCase() === 'the edges') {
+          if (!inEdges) edgesLevel = level;
           inEdges = true;
-          edgesLevel = level;
         } else if (inEdges && level <= edgesLevel) {
           inEdges = false;
         }
