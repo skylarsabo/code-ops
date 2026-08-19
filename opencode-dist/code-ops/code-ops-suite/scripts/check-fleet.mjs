@@ -190,6 +190,11 @@ function readContract(dir) {
 // contract that discusses the fleet rule in prose — this repo's own does — must not thereby
 // enroll itself. The section runs from its heading to the next heading of the same level or
 // higher, so a phrase in a later section does not count either.
+//
+// The heading test trims a closed-ATX heading's trailing hashes (`## Fleet ##`). That form
+// fails in the safe direction — the section is never entered, so the repo is skipped rather
+// than operated on — but it makes a genuinely enrolled repo invisible, and the operator's
+// only signal is a row that reads like a deliberate decline.
 function consentSection(text) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   let inside = false;
@@ -199,16 +204,30 @@ function consentSection(text) {
     if (h) {
       const level = h[1].length;
       if (inside && level <= 2) break;
-      if (!inside && level === 2 && h[2].trim().toLowerCase() === 'fleet') { inside = true; continue; }
+      if (!inside && level === 2 && h[2].trim().replace(/\s*#+$/, '').toLowerCase() === 'fleet') { inside = true; continue; }
     }
     if (inside) body.push(line);
   }
   return inside ? body.join('\n') : null;
 }
 
+// Consent is the phrase on a LINE OF ITS OWN, not the phrase anywhere in the section. A
+// substring match over the section body inverts the load-bearing rule: a contract that
+// documents the rule, or declines it in writing while quoting the phrase it declines, would
+// enroll itself. Both are ordinary ways to write a refusal, and consent is what authorizes
+// fleet mode to WRITE to a member — so a false positive here authorizes edits to a repo that
+// said no in writing. Section-scoping alone does not cover discussion INSIDE the section.
+//
+// Leading blockquote, list-bullet, and indent markers are allowed before the phrase: they are
+// ordinary markdown decoration on a line that is still the repo's own assertion. A fenced
+// block is stripped first, because a fence is how a contract SHOWS the phrase without saying
+// it. Matching is case-insensitive, which the `beta` fixture pins.
+const CONSENT_LINE = /^[ \t>*-]*fleet member:[ \t]*yes[ \t]*$/im;
+const stripFences = (s) => s.replace(/^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[^\n]*$|$)/gm, '');
+
 const hasConsent = (text) => {
   const section = consentSection(text);
-  return section !== null && section.toLowerCase().includes(CONSENT_PHRASE);
+  return section !== null && CONSENT_LINE.test(stripFences(section));
 };
 
 // Parity mode, per docs/techniques/vault-standard.md "Host parity": byte-identical copies, or a
@@ -222,7 +241,17 @@ function parityMode(found) {
   const shortName = a.split('\n').length <= b.split('\n').length ? CONTRACT_FILES[0] : CONTRACT_FILES[1];
   const otherName = shortName === CONTRACT_FILES[0] ? CONTRACT_FILES[1] : CONTRACT_FILES[0];
   const short = found[shortName];
-  if (short.split('\n').length <= POINTER_MAX_LINES && short.includes(otherName) && REQUIRED_READING.test(short))
+  const other = found[otherName];
+  const isPointer = (t, names) =>
+    t.split('\n').length <= POINTER_MAX_LINES && t.includes(names) && REQUIRED_READING.test(t);
+  // The degenerate case: BOTH files are pointers naming each other, so neither is the
+  // substantive contract and every host reads a stub. That is strictly worse than the drift
+  // this branch exists to catch, and it is the one state the pointer test alone let through.
+  // Rejecting it here rather than by lowering POINTER_MAX_LINES, which would wrongly reject a
+  // legitimately short substantive contract.
+  if (isPointer(short, otherName) && isPointer(other, shortName))
+    return { verdict: 'DRIFTED', why: 'both contract files are pointers naming each other — neither is the substantive contract, so every host reads a stub' };
+  if (isPointer(short, otherName))
     return { verdict: 'CONFORMANT', why: `parity mode: pointer pair, ${shortName} points at ${otherName}` };
   return { verdict: 'DRIFTED', why: 'the two contract files differ and the shorter one is not a pointer naming the other as required reading' };
 }

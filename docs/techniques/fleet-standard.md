@@ -30,7 +30,15 @@ A member entry carrying an unknown key is a manifest-shape error. A silently-ign
 
 ## Consent
 
-Membership is two-sided. The manifest names a repo, and the repo consents. Consent lives in the repo's own standards contract — the pair of files hosts read, in either parity mode described under "Host parity" in `vault-standard.md`. The contract carries a `## Fleet` section containing the literal phrase `fleet member: yes`, matched case-insensitively.
+Membership is two-sided. The manifest names a repo, and the repo consents. Consent lives in the repo's own standards contract — the pair of files hosts read, in either parity mode described under "Host parity" in `vault-standard.md`. The contract carries a `## Fleet` section, and inside it the literal phrase `fleet member: yes` on a line of its own, matched case-insensitively.
+
+The phrase must be the whole line, because a contract that discusses the rule must not thereby enroll itself. A list bullet, blockquote marker, or indent before the phrase is still a line of its own and still counts. These do not count, and each is an ordinary way to write a refusal:
+
+- The phrase inside a fenced code block, which is how a contract shows the phrase without asserting it.
+- The phrase quoted inline in a sentence, as in an explicit written decline.
+- The phrase anywhere outside the `## Fleet` section.
+
+The heading may be written closed-ATX (`## Fleet ##`); the trailing hashes are trimmed before the match.
 
 ```markdown
 ## Fleet
@@ -66,7 +74,7 @@ The surface cell is the member's slug joined to the surface name, as in `ripper-
 | Surface | What decides it |
 | --- | --- |
 | `<slug>-consent` | CONFORMANT when the contract carries the phrase in a `## Fleet` section, ABSENT otherwise |
-| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading |
+| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading. Two pointers naming each other are DRIFTED, because neither file is the substantive contract and every host reads a stub |
 | `<slug>-vault` | `<repo>-docs/` exists and `check-vault-standard.mjs` exits 0 against it |
 
 A member with no vault reports `ABSENT` and does not fail the run. Vault adoption stays voluntary, exactly as it does per-repo.

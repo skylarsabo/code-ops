@@ -22,6 +22,15 @@ per the measurement protocol in [`README.md`](README.md). Each row aggregates 3 
    (known toy-fixture ceiling; they serve as regression guards). The DISCRIMINATING axis at
    the floor is tier honesty, which is not saturated: see the baseline spread below.
 
+## Model-pin history
+
+Every snapshot below records the model ids it ran under, because a model bump is a snapshot
+boundary rather than another point in one series. The workflow defaults moved to the Claude 5
+family when `scripts/model-tiers.mjs` repinned the ladder: the strong arm from
+`claude-opus-4-8` to `claude-opus-5`, the weak arm unchanged at `claude-haiku-4-5-20251001`,
+which is still the `light` rung. Do not compare a snapshot taken after that bump against the
+three below without re-running the baseline arm.
+
 ## Baseline — pre-hardening skill text
 
 Run: `28813316068` (dispatched on main at the pre-gate snapshot, models pinned:

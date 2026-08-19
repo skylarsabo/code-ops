@@ -11,8 +11,11 @@
 // Covered: the pass case exits 0; a named, not consenting member leaves one row and does NOT
 // fail the run, and gets no further rows; a consenting member with a broken vault exits 1; every
 // malformed-manifest shape exits 1 before any member is checked; an unresolvable member path is
-// UNKNOWN rather than skipped; the consent phrase counts only inside a `## Fleet` section and is
-// matched case-insensitively; a missing vault is ABSENT and not a failure; a slug collision is a
+// UNKNOWN rather than skipped; the consent phrase counts only inside a `## Fleet` section, only
+// on a line of its own (so a fenced example and an inline quotation in a written refusal both
+// fail to enroll), tolerating bullet/blockquote/indent decoration, matched case-insensitively,
+// under a closed-ATX heading as well as an open one; two pointers naming each other are DRIFTED
+// rather than a parity mode; a missing vault is ABSENT and not a failure; a slug collision is a
 // manifest error; and every emitted row parses under grammar (d).
 //
 //   node evals/fleet-standard/run.mjs   (exit 0 = pass)
@@ -126,6 +129,68 @@ const member = (path, extra = {}) => ({ path, profile: 'product', roles: [], ...
   expect(r.status === 0, `a repo that never consented should not fail the run, got ${r.status}:\n${r.out}`);
 }
 
+// ---- 3b. the phrase INSIDE a `## Fleet` section but inside a code fence ---------------
+// Documenting the rule is not consenting to it. Case 3 above only exercises the
+// out-of-section path; this one and 3c exercise the in-section path, which is where a
+// substring match over the whole section fails open.
+{
+  const body = contract('## Fleet\n\nNot a member. Joining would mean adding:\n\n```\nfleet member: yes\n```\n');
+  const ws = workspace({ 'fenced/CLAUDE.md': body, 'fenced/AGENTS.md': body },
+    { version: 1, members: [member('fenced')] });
+  const r = run(ws.mpath);
+  expect(surfaces('phrase-in-fence', r.out).get('fenced-consent') === 'ABSENT',
+    `a fenced example of the phrase must not enroll the repo, got:\n${r.out}`);
+  expect(r.status === 0, `a repo that never consented should not fail the run, got ${r.status}:\n${r.out}`);
+}
+
+// ---- 3c. an explicit refusal that quotes the phrase inline ---------------------------
+{
+  const body = contract('## Fleet\n\nWe are not a member. That would require `fleet member: yes` here.\n');
+  const ws = workspace({ 'refuse/CLAUDE.md': body, 'refuse/AGENTS.md': body },
+    { version: 1, members: [member('refuse')] });
+  const r = run(ws.mpath);
+  expect(surfaces('explicit-refusal', r.out).get('refuse-consent') === 'ABSENT',
+    `an explicit refusal quoting the phrase must not enroll the repo, got:\n${r.out}`);
+  expect(r.status === 0, `a repo that never consented should not fail the run, got ${r.status}:\n${r.out}`);
+}
+
+// ---- 3d. the consent line survives ordinary markdown decoration -----------------------
+// The fix requires the phrase on its own line; a list bullet or blockquote marker in front
+// of it is still its own line, and rejecting those would break a legitimate consent.
+for (const [label, prefix] of [['bullet', '- '], ['blockquote', '> '], ['indented', '  ']]) {
+  const body = contract(`## Fleet\n\n${prefix}fleet member: yes\n`);
+  const ws = workspace({ [`${label}/CLAUDE.md`]: body, [`${label}/AGENTS.md`]: body },
+    { version: 1, members: [member(label)] });
+  const r = run(ws.mpath);
+  expect(surfaces(`decorated-consent-${label}`, r.out).get(`${label}-consent`) === 'CONFORMANT',
+    `the ${label}-decorated consent line must still enroll the repo, got:\n${r.out}`);
+}
+
+// ---- 3f. fence stripping must not swallow a real consent line after the fence ----------
+// The mirror of 3b, and the direction that would fail silently: a section that shows a fenced
+// counter-example and THEN consents is still consenting. An over-broad stripper reads this as
+// a decline, which no operator would think to check.
+{
+  const body = contract('## Fleet\n\nAn example of what not to write:\n\n```\nfleet member: no\n```\n\nfleet member: yes\n');
+  const ws = workspace({ 'after/CLAUDE.md': body, 'after/AGENTS.md': body },
+    { version: 1, members: [member('after')] });
+  const r = run(ws.mpath);
+  expect(surfaces('consent-after-fence', r.out).get('after-consent') === 'CONFORMANT',
+    `a consent line after a closed fence must still enroll the repo, got:\n${r.out}`);
+}
+
+// ---- 3e. a closed-ATX `## Fleet ##` heading still opens the section --------------------
+// This fails in the safe direction, but it makes a genuinely enrolled repo invisible and the
+// only operator signal is a row that reads like a deliberate decline.
+{
+  const body = contract('## Fleet ##\n\nfleet member: yes\n');
+  const ws = workspace({ 'closed/CLAUDE.md': body, 'closed/AGENTS.md': body },
+    { version: 1, members: [member('closed')] });
+  const r = run(ws.mpath);
+  expect(surfaces('closed-atx-heading', r.out).get('closed-consent') === 'CONFORMANT',
+    `a closed-ATX '## Fleet ##' heading must open the consent section, got:\n${r.out}`);
+}
+
 // ---- 4. a consenting member with a broken vault --------------------------------------
 {
   const ws = workspace({
@@ -154,6 +219,21 @@ const member = (path, extra = {}) => ({ path, profile: 'product', roles: [], ...
   expect(r.status === 1, `a drifted contract pair on a consenting member must exit 1, got ${r.status}:\n${r.out}`);
   expect(surfaces('drifted-contract', r.out).get('delta-contract') === 'DRIFTED',
     `the drifted pair should be DRIFTED, got:\n${r.out}`);
+}
+
+// ---- 5b. a circular pointer pair is DRIFTED, not a parity mode -----------------------
+// The degenerate case of the pointer mode: both files are pointers naming each other, so
+// EVERY host reads a stub and no file is the substantive contract. Strictly worse than the
+// drift case 5 catches, and it is the only state the pointer branch let through.
+{
+  const ws = workspace({
+    'circ/CLAUDE.md': contract('## Fleet\n\nfleet member: yes\n\nSee AGENTS.md — it is the canonical contract and required reading.\n'),
+    'circ/AGENTS.md': contract('See CLAUDE.md — it is the canonical contract and required reading.\n'),
+  }, { version: 1, members: [member('circ')] });
+  const r = run(ws.mpath);
+  expect(r.status === 1, `a circular pointer pair on a consenting member must exit 1, got ${r.status}:\n${r.out}`);
+  expect(surfaces('circular-pointers', r.out).get('circ-contract') === 'DRIFTED',
+    `two pointers naming each other leave no substantive contract, so the pair is DRIFTED, got:\n${r.out}`);
 }
 
 // ---- 6. an incomplete contract pair on a consenting member ---------------------------
