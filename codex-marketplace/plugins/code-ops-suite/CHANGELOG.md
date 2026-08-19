@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.42.1
+- **Table parsers reject duplicates and lowercase `n/a` coherently** — in the two conformance grammars a repeated key silently disagreed with the verdict counts (last write won the map, every row fed the totals), and `n/a` in lowercase was the one enum value the row regex refused while `pass` and `fail` sailed through. A duplicate key now counts as unparseable and the first row wins, so the per-key map and the counts always agree, and the result cell is case-insensitive for all three values.
+
 ## 1.42.0
 - **Conformance is measured, not read** — `conform` recorded its per-surface verdicts as prose, so a repo's standardization drift was a one-off reading that no later run could compare against. Phase A's `CONFORMANCE_REPORT.md` now follows a published table grammar — surface, verdict, checker command, evidence pointer — and `calibration-metrics.mjs` parses it into per-surface verdict counts and a drift rate, under the same zero-parse-is-shape-drift rule the older grammars carry. An `UNKNOWN` surface is reported as unmeasured rather than folded into the drift rate silently.
 - **`run-cost-audit` scores orchestration discipline** — the audit priced a run's dispatches but never said whether the run followed the routing doctrine it was priced against. A new phase writes `RUN_CONFORMANCE.md` in its own table grammar, scoring five mechanically checkable rules: every dispatched agent has a ledger row, no row is left dangling, tier routing matches the doctrine and the lint-enforced floors, effort routing avoids low on review and xhigh on breadth, and dated artifacts land in the vault's runs folder when the repo carries a vault. `N/A` is a distinct result from `PASS`, because a rule the run could not violate is not a rule it obeyed. The file gates nothing; it makes discipline a trend.
