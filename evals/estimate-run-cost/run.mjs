@@ -212,6 +212,10 @@ try {
     nj?.usableRuns === 2 && nj?.emptyLedgerRuns === 1 && nj?.comparableRuns === 3, JSON.stringify(nj));
   check('o. and the estimate rests on the usable ones',
     nj?.estimate?.min === 2 && nj?.estimate?.median === 3, JSON.stringify(nj?.estimate));
+  check('o. the machine caveat states the observation, not a single diagnosis',
+    Array.isArray(nj?.caveats)
+    && nj.caveats.some((c) => /run\(s\) carry no parseable dispatch rows — excluded from the range/.test(c))
+    && !nj.caveats.some((c) => /recorded no dispatches/.test(c)), JSON.stringify(nj?.caveats));
 
   // Every comparable ledger empty: no estimate at all, rather than a range of zeroes.
   const allEmpty = join(work, 'all-empty');
