@@ -49,7 +49,7 @@ The atlas stays out of the vault because `atlas-check.mjs` resolves scope globs 
 
 ## Why these artifacts exist
 
-The vault, the atlas, and the tracked reference docs are caches of judgment. Their purpose is cheaper and better output: an agent reads them first and spends its context on the delta, not on re-deriving what a previous session already verified. The consumption rule follows from that purpose. Trust what is mechanically current — a FRESH atlas section, a `current` or `accepted` vault note, a reference doc whose stamp holds — and treat it as truth without re-verification, because the token win exists only if the reader does not re-check. Treat what is stale as a lead, never as fact. Re-deriving from code what a fresh artifact already states is wasted spend; trusting a stale artifact is a decision on a false premise. Both directions are failures.
+The vault, the atlas, and the tracked reference docs are caches of judgment. Their purpose is cheaper and better output: an agent reads them first and spends its context on the delta, not on re-deriving what a previous session already verified. The trust doctrine is the atlas one, extended to every artifact in this standard (`docs/techniques/atlas.md`, "Trust doctrine"). Trust what is mechanically current — a FRESH atlas section, a `current` or `accepted` vault note, a reference doc whose stamp holds — without re-verification, because the token win exists only if the reader does not re-check. Treat what is stale as a lead, never as fact. Re-deriving a fresh artifact wastes spend, and trusting a stale one decides on a false premise.
 
 ## The canonical boundary
 

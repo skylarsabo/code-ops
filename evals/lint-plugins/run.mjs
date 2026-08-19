@@ -468,10 +468,11 @@ No completion heading here on purpose (case 3 mutation).
   check('12b. message is check 22\'s own "matches no qualified reference"', r12b.all.includes('edge row "rigor:consistency-closure" -> "code-ops-suite:everything" matches no qualified reference'));
   check('12b. check 17 is not what fired (both names resolve)', !r12b.all.includes('unknown plugin') && !r12b.all.includes('unresolvable skill'));
 
-  // 12c. SECTION SCOPING — a second table elsewhere on the page is not the edge map, so
-  // its rows are neither required to have references nor counted as edges. The table is
-  // deliberately NOT edge-shaped (one qualified name per row, prose in the second cell),
-  // which is what a real "other notes" table looks like; 12e covers the edge-shaped case.
+  // 12c. SECTION SCOPING, no-false-positive floor — a non-edge-shaped table elsewhere on
+  // the page (one qualified name per row, prose in the second cell, the shape of a real
+  // "other notes" table) stays quiet. This case only pins that floor; the discrimination
+  // that out-of-section rows are not edges lives in 12e (edge-shaped rows fail outright)
+  // and 12f (rows under a nested subheading stay inside the section).
   const d12c = clone('case12c-composition-second-table');
   put(d12c, REFERRING_SKILL, referringBody);
   put(d12c, COMP_PATH, `${compPage([COMP_EDGE_ROW])}
@@ -512,6 +513,28 @@ No completion heading here on purpose (case 3 mutation).
   check('12e. an edge-shaped row outside "## The edges" exits 1', r12e.status === 1);
   check('12e. message is the out-of-section guard', r12e.all.includes('edge-shaped row outside the edges section'));
   check('12e. check 17 is not what fired (both names resolve)', !r12e.all.includes('unknown plugin') && !r12e.all.includes('unresolvable skill'));
+
+  // 12f. NESTED SUBHEADINGS STAY INSIDE THE SECTION — only a heading at or above the
+  // edges heading's own level closes it. An edge row under a "### " subheading of
+  // "## The edges" is still an edge, so it satisfies the tree reference and does not
+  // trip the out-of-section guard.
+  const d12f = clone('case12f-composition-nested-subheading');
+  put(d12f, REFERRING_SKILL, referringBody);
+  put(d12f, COMP_PATH, [
+    '# Skill composition (fixture)',
+    '',
+    '## The edges',
+    '',
+    '### A grouping subheading',
+    '',
+    '| From skill | Invokes | When |',
+    '| --- | --- | --- |',
+    COMP_EDGE_ROW,
+    '',
+  ].join('\n'));
+  const r12f = runLint(d12f);
+  check('12f. an edge row under a nested subheading still counts, exit 0', r12f.status === 0);
+  check('12f. no out-of-section guard fired', !r12f.all.includes('edge-shaped row outside the edges section'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
