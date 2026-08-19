@@ -2,7 +2,7 @@
 type: standard
 status: current
 updated: 2026-08-18
-standard-version: 1
+standard-version: 2
 ---
 
 # Standard (fixture conformance copy)

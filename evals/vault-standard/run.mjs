@@ -5,6 +5,9 @@
 // found in review: a status borrowed from a note type named in the same profile sentence, and a
 // bare-stem `README.md` sitting in a folder other than the vault root.
 //
+// Cases that need a vault differing from the conformant fixture in exactly one way are
+// synthesized in a temp dir at the bottom of this file, rather than committed as a tree apiece.
+//
 //   node evals/vault-standard/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
@@ -41,18 +44,22 @@ expect(bad.status === 1, `violating fixture should exit 1, got ${bad.status}:\n$
 const has = (re, label) => expect(re.test(bad.out), `violating fixture should report ${label}, got:\n${bad.out}`);
 
 has(/standard-version/, 'rule 1 — Standard.md without `standard-version`');
-has(/machinery folder '99 Archive\/' is missing/, 'rule 2 — a missing machinery folder');
-has(/'85 Bogus\/' sits in the reserved machinery band/, 'rule 3 — a domain folder in the 80-99 band');
-has(/no domain folder in the 10-79 band/, 'rule 4 — no domain folder');
-has(/Missing fields\.md: frontmatter has no `status`/, 'rule 5 — a note missing `status`');
-has(/Missing fields\.md: updated 'yesterday' is not a YYYY-MM-DD date/, 'rule 5 — a malformed `updated`');
-has(/'05 Scratch\/' is numbered below 10/, 'the 00-09 band gap — a numbered folder that is not `00 Inbox`');
+has(/'00 Home\.md' is missing from the vault root/, 'rule 2 — a vault with no content map');
+has(/'README\.md' is missing from the vault root/, 'rule 2 — a vault with no git-host entry point');
+has(/machinery folder '99 Archive\/' is missing/, 'rule 3 — a missing machinery folder');
+has(/folder 'Design\/' has no two-digit numeric prefix/,
+  'rule 4 — an un-numbered top-level folder, the signature of a half-finished migration');
+has(/'85 Bogus\/' sits in the reserved machinery band/, 'rule 5 — a domain folder in the 80-99 band');
+has(/'05 Scratch\/' is numbered below 10/, 'rule 6 — a numbered folder below 10 that is not `00 Inbox`');
+has(/no domain folder in the 10-79 band/, 'rule 7 — no domain folder');
+has(/Missing fields\.md: frontmatter has no `status`/, 'rule 8 — a note missing `status`');
+has(/Borrowed status\.md: status 'literature' is not one of/, 'rule 9 — a status outside the vocabulary');
+has(/Missing fields\.md: updated 'yesterday' is not a YYYY-MM-DD date/, 'rule 10 — a malformed `updated`');
 
-// The two review reproductions, pinned so neither can regress to fail-open.
-has(/Borrowed status\.md: status 'literature' is not one of/,
-  "a status borrowed from a note type named in the profile sentence (only the token after 'profile status' declares one)");
+// The two review reproductions, pinned so neither can regress to fail-open. The borrowed status
+// doubles as the rule 9 assertion above: only the token after 'profile status' declares one.
 has(/00 Inbox\/README\.md: no YAML frontmatter block/,
-  'a bare-stem README outside the vault root (the UPPER_SNAKE exemption requires an underscore)');
+  'a bare-stem README outside the vault root (neither exemption arm admits an unlisted bare stem)');
 
 // ---- fail-closed on an unreadable vault --------------------------------------------
 const empty = mkdtempSync(join(tmpdir(), 'vault-eval-'));
@@ -67,9 +74,64 @@ expect(nofm.status === 1 && /Standard\.md has no YAML frontmatter block/.test(no
 const usage = spawnSync('node', [checker], { encoding: 'utf8' });
 expect(usage.status === 2, `no argument should exit 2 (usage), got ${usage.status}`);
 
+// ---- synthesized single-variable vaults ---------------------------------------------
+// Each case is a conformant vault with exactly one thing changed, so a failure names its cause.
+let seq = 0;
+const scaffold = (files = {}) => {
+  const dir = mkdtempSync(join(tmpdir(), `vault-case-${seq++}-`));
+  for (const f of ['00 Inbox', '10 Design', '90 Templates', '95 Attachments', '98 System', '99 Archive'])
+    mkdirSync(join(dir, f), { recursive: true });
+  const tree = {
+    'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 2\n---\n\n# Standard (synthesized fixture)\n',
+    '00 Home.md': '---\ntype: home\nstatus: current\nupdated: 2026-08-18\n---\n\n# Home\n',
+    'README.md': '# Readme — the git host entry point, deliberately without frontmatter\n',
+    '10 Design/A note.md': '---\ntype: design\nstatus: draft\nupdated: 2026-08-18\n---\n\n# A note\n',
+    ...files,
+  };
+  for (const [p, body] of Object.entries(tree)) {
+    mkdirSync(dirname(join(dir, p)), { recursive: true });
+    writeFileSync(join(dir, p), body);
+  }
+  return dir;
+};
+
+// Baseline: the synthesized vault is itself conformant, so any case below that fails does so
+// for the one variable it changed and not for a defect in this helper.
+const base = run(scaffold());
+expect(base.status === 0, `the synthesized baseline vault should exit 0, got ${base.status}:\n${base.out}`);
+
+// Canonical run artifacts carry no frontmatter by design. All nine of the artifact table in
+// docs/techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem
+// has no underscore, so the shape rule alone rejected it and broke every orchestrated handoff.
+const CANONICAL = ['FINDINGS_REGISTER.md', 'LEAK_REGISTER.md', 'EXECUTIVE_SUMMARY.md',
+  'DISPATCH_LEDGER.md', 'REPO_MAP.md', 'REFUTATION_LOG.md', 'RUN_RECEIPTS.md', 'HANDOFF.md',
+  'EGRESS_MANIFEST.md'];
+const artifacts = Object.fromEntries(
+  CANONICAL.map((n) => [`80 Runs/2026-08-18 a run/${n}`, `# ${n}\n\nNo frontmatter, by design.\n`]));
+const canon = run(scaffold(artifacts));
+expect(canon.status === 0,
+  `every canonical run artifact must be exempt from the note rules, got ${canon.status}:\n${canon.out}`);
+expect(!/HANDOFF/.test(canon.out), `HANDOFF.md must not be reported, got:\n${canon.out}`);
+
+// A `standard-version` below the pinned floor is a stale conformance copy. Presence alone proved
+// nothing, so the number is compared.
+const stale = run(scaffold({
+  'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 1\n---\n\n# Standard (stale)\n',
+}));
+expect(stale.status === 1 && /below the current standard-version 2/.test(stale.out),
+  `a standard-version below the floor must fail, got ${stale.status}:\n${stale.out}`);
+
+// YAML writes the same scalar bare, single-quoted, or double-quoted. Rejecting two of the three
+// spellings is a false violation, and a fail-closed gate that cries wolf gets bypassed.
+const quoted = run(scaffold({
+  '10 Design/A note.md': '---\ntype: "design"\nstatus: \'draft\'\nupdated: "2026-08-18"\n---\n\n# A note\n',
+}));
+expect(quoted.status === 0,
+  `quoted YAML scalars must validate like bare ones, got ${quoted.status}:\n${quoted.out}`);
+
 if (fails.length) {
   console.error('FAIL — vault-standard eval:');
   for (const f of fails) console.error('  x ' + f);
   process.exit(1);
 }
-console.log('PASS — vault-standard eval: the conformant fixture exits 0 with only the expected `80 Runs` warning and every exemption intact; the violating fixture reports all five rules plus the 00-09 band gap; and the two fail-open reproductions (a borrowed profile status, a non-root bare-stem README) now fail closed.');
+console.log('PASS — vault-standard eval: the conformant fixture exits 0 with only the expected `80 Runs` warning and every exemption intact; the violating fixture reports all ten rules; the two earlier fail-open reproductions (a borrowed profile status, a non-root bare-stem README) still fail closed; and the synthesized cases pin the nine canonical run artifacts as exempt, a below-floor `standard-version` as a failure, and quoted YAML scalars as valid.');
