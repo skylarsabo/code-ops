@@ -19,12 +19,15 @@ name: Model-Floor Calibration (dispatch only)
 on:
   workflow_dispatch:
     inputs:
+      # Defaults track the rungs pinned in scripts/model-tiers.mjs: `strong` for the control
+      # arm, `light` for the arm under test. A bump here is a snapshot boundary — the arms are
+      # pre-registered, so results either side of a model change are not one series.
       strong_model:
-        description: 'Strong-arm model id'
+        description: 'Strong-arm model id (the `strong` rung of scripts/model-tiers.mjs)'
         required: false
-        default: 'claude-opus-4-8'
+        default: 'claude-opus-5'
       weak_model:
-        description: 'Weak-arm model id'
+        description: 'Weak-arm model id (the `light` rung of scripts/model-tiers.mjs)'
         required: false
         default: 'claude-haiku-4-5-20251001'
 

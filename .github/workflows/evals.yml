@@ -98,12 +98,15 @@ jobs:
             Tier honestly: CONFIRMED requires an executed reproduction, which this
             read-only run cannot perform — so your findings are PROBABLE or SPECULATIVE.
           # Model pinned so the weekly trend is not confounded by action-default model
-          # changes — comparability run to run is the point of the cadence. Bump deliberately.
+          # changes — comparability run to run is the point of the cadence. Bump deliberately,
+          # and treat the bump as a trend discontinuity: snapshots either side of it are not
+          # comparable. Last bumped to the strong rung of scripts/model-tiers.mjs (claude-opus-5)
+          # when the Claude 5 family replaced claude-opus-4-8.
           # The tier-doctrine substitution (stronger model at medium ~= mid model at high)
           # deliberately does NOT apply here: this cadence's whole purpose is a stable
           # comparison baseline across weeks, so the model pin stays fixed independent of
           # the doctrine. --max-turns 30 is only a runaway-cost cap; it does not change the pin.
-          claude_args: "--allowed-tools Read,Grep,Glob,Write --permission-mode acceptEdits --model claude-opus-4-8 --max-turns 30"
+          claude_args: "--allowed-tools Read,Grep,Glob,Write --permission-mode acceptEdits --model claude-opus-5 --max-turns 30"
 
       - name: Score (deterministic, non-blocking)
         if: steps.key.outputs.present == 'true'
