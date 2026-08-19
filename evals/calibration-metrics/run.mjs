@@ -407,9 +407,10 @@ try {
 
   // ---- ai. the regex-miss branch, pinned in isolation ---------------------------------
   // The main fixture's aggregate `unparseable: 2` cannot tell the regex-miss path from the
-  // enum path. This fixture holds ONLY the shape-broken row, so it parses zero surfaces and
-  // must raise the zero-parse shape-drift warning: the assertion fails the moment the row
-  // stops missing the row regex, whatever the enum branch then does.
+  // enum path. This fixture holds one row whose verdict IS in the closed set and whose
+  // surface cell is not a kebab slug, so the shape check is the only reason it can be
+  // unparseable: widen the surface capture and the row parses, `total` becomes 1, the
+  // warning disappears, and both assertions below fail.
   const ai = run(['--artifacts', join(HERE, 'conformance-shape-miss')]);
   check('ai. shape-miss-only fixture exits 0', ai.status === 0, ai.stdout + ai.stderr);
   check('ai. the regex-miss row is counted with zero parsed surfaces',
