@@ -224,7 +224,8 @@ re-written with the closing output in Phase C. Four pipe-delimited cells:
 - `surface` — a kebab slug naming the surface. The five the skill walks are `contract`,
   `vault`, `atlas`, `doc-alignment`, and `global-contract`; the slot stays open so a
   profile can add one without editing the parser.
-- `verdict` — one of `CONFORMANT | DRIFTED | ABSENT | UNKNOWN`, uppercase. `UNKNOWN` is
+- `verdict` — one of `CONFORMANT | DRIFTED | ABSENT | UNKNOWN`. Uppercase is the written
+  convention; the parser reads the cell case-insensitively. `UNKNOWN` is
   the verdict for a checker that could not run: a check that did not execute proves
   nothing, and recording it as `CONFORMANT` is the failure this enum exists to prevent.
 - `checker` — the command whose exit code decided the verdict, or `none` for a surface
@@ -232,8 +233,10 @@ re-written with the closing output in Phase C. Four pipe-delimited cells:
 - `evidence` — a pointer to the output that decided it: the failing line, the count, or
   the exit code. Never a general impression.
 
-A row whose shape does not match, or whose verdict is outside the four, is
-**unparseable** — counted and reported, never skipped. `calibration-metrics.mjs`
+A row whose shape does not match, whose verdict is outside the four, or whose `surface`
+repeats an earlier row's is **unparseable** — counted and reported, never skipped. On a
+repeated surface the first row wins; the file carries one row per surface, so a
+duplicate is a producer defect, not a second opinion. `calibration-metrics.mjs`
 reports the per-surface verdict counts, so drift becomes a trended series rather than a
 one-off reading.
 
@@ -259,13 +262,15 @@ pipe-delimited cells:
   (no low effort on a review dispatch, no xhigh on a breadth sweep), and
   `artifact-placement` (dated artifacts under the vault's `80 Runs/` when the repo
   carries a vault). The slot stays open for the same reason as (d)'s.
-- `result` — one of `PASS | FAIL | N/A`, uppercase. `N/A` is for a rule the run could
+- `result` — one of `PASS | FAIL | N/A`. Uppercase is the written convention; the
+  parser reads the cell case-insensitively. `N/A` is for a rule the run could
   not violate — no vault to place artifacts in, no review dispatch to mis-effort — and
   is never a quiet pass.
 - `evidence` — the ledger row, count, or path that decided the result.
 
-A row whose shape does not match, or whose result is outside the three, is
-**unparseable** — counted and reported, never skipped. Neither this grammar nor (d)
+A row whose shape does not match, whose result is outside the three, or whose `check`
+repeats an earlier row's is **unparseable** — counted and reported, never skipped. On a
+repeated check the first row wins, as in (d). Neither this grammar nor (d)
 introduces a gate: both are measured and trended, and the run-level judgment stays with
 the lead.
 

@@ -352,6 +352,25 @@ try {
   check('af. and raises the zero-parse shape-drift warning naming the grammars doc',
     /!! WARNING: RUN_CONFORMANCE\.md is present and non-empty but yielded 0 parsed items.*artifact-grammars\.md/.test(afDrift.stdout), afDrift.stdout);
 
+  // ---- ag. duplicate keys and lowercase results (grammar (e), parser invariants) ------
+  // Pins the two rules a totals-only check would miss: a repeated key is unparseable and
+  // the FIRST row wins (byCheck, counts, and total must agree), and the result cell is
+  // case-insensitive for all three values, N/A included.
+  const agJson = join(jsonDir, 'run-conformance-dup.json');
+  const ag = run(['--artifacts', join(HERE, 'run-conformance-dup'), '--json', agJson]);
+  let gj = null;
+  try { gj = JSON.parse(readFileSync(agJson, 'utf8')); } catch (e) { gj = { parseError: String(e.message) }; }
+  check('ag. duplicate-key fixture exits 0', ag.status === 0, ag.stdout + ag.stderr);
+  check('ag. the duplicate row is unparseable, not recounted',
+    /\b4 check\(s\), unparseable: 1\b/.test(ag.stdout), ag.stdout);
+  check('ag. the first row wins the per-check map',
+    gj?.runConformance?.byCheck?.['ledger-coverage'] === 'PASS', JSON.stringify(gj));
+  check('ag. the map and the totals agree',
+    gj?.runConformance?.total === Object.keys(gj?.runConformance?.byCheck ?? {}).length, JSON.stringify(gj));
+  check('ag. lowercase and mixed-case results parse, N/A included',
+    gj?.runConformance?.byResult?.PASS === 2 && gj?.runConformance?.byResult?.['N/A'] === 2
+    && gj?.runConformance?.byResult?.FAIL === 0, JSON.stringify(gj));
+
   // Both snapshots reach the machine shape, and stay null when absent.
   const confJson = join(jsonDir, 'conformance.json');
   const aeJ = run(['--artifacts', join(HERE, 'conformance'), '--json', confJson]);

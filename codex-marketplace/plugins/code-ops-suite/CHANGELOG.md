@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.42.2
+- **Phase C re-writes the conformance report in place** — the skill said to record closing output "beside the opening verdict", which a producer could read as a second row per surface. Under the grammar's first-row-wins rule that shape would pin the drift rate to the pre-repair verdicts. Phase C now states the single-row rewrite: one row per surface, updated in place, the opening verdict noted in the evidence cell.
+
 ## 1.42.1
 - **Table parsers reject duplicates and lowercase `n/a` coherently** — in the two conformance grammars a repeated key silently disagreed with the verdict counts (last write won the map, every row fed the totals), and `n/a` in lowercase was the one enum value the row regex refused while `pass` and `fail` sailed through. A duplicate key now counts as unparseable and the first row wins, so the per-key map and the counts always agree, and the result cell is case-insensitive for all three values.
 
