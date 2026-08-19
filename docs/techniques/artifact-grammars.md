@@ -231,7 +231,8 @@ re-written with the closing output in Phase C. Four pipe-delimited cells:
 - `checker` — the command whose exit code decided the verdict, or `none` for a surface
   with no mechanical check. A prose reading is not a checker.
 - `evidence` — a pointer to the output that decided it: the failing line, the count, or
-  the exit code. Never a general impression.
+  the exit code, optionally preceded by the opening verdict when Phase C re-writes the
+  row. Never a general impression.
 
 A row whose shape does not match, whose verdict is outside the four, or whose `surface`
 repeats an earlier row's is **unparseable** — counted and reported, never skipped. On a

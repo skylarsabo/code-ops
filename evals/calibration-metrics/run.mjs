@@ -323,11 +323,11 @@ try {
   // report that yields no rows is shape drift, not an absence of drift.
   const ae = run(['--artifacts', join(HERE, 'conformance')]);
   check('ae. conformance fixture exits 0', ae.status === 0, ae.stdout + ae.stderr);
-  check('ae. four surfaces parse, the out-of-enum verdict counted unparseable',
-    /\b4 surface\(s\), unparseable: 1\b/.test(ae.stdout), ae.stdout);
+  check('ae. five surfaces parse; the out-of-enum verdict and the duplicate counted unparseable',
+    /\b5 surface\(s\), unparseable: 2\b/.test(ae.stdout), ae.stdout);
   check('ae. per-surface verdict counts are emitted',
-    /by verdict: CONFORMANT 1 \(25\.0%\), DRIFTED 1 \(25\.0%\), ABSENT 1 \(25\.0%\), UNKNOWN 1 \(25\.0%\)/.test(ae.stdout), ae.stdout);
-  check('ae. drift rate is the non-CONFORMANT share', /drift rate: 75\.0% \(3\/4 not CONFORMANT\)/.test(ae.stdout), ae.stdout);
+    /by verdict: CONFORMANT 2 \(40\.0%\), DRIFTED 1 \(20\.0%\), ABSENT 1 \(20\.0%\), UNKNOWN 1 \(20\.0%\)/.test(ae.stdout), ae.stdout);
+  check('ae. drift rate is the non-CONFORMANT share', /drift rate: 60\.0% \(3\/5 not CONFORMANT\)/.test(ae.stdout), ae.stdout);
   check('ae. an UNKNOWN surface is called unmeasured, not conformant',
     /advisory: 1 surface\(s\) UNKNOWN — a checker that could not run proves nothing/.test(ae.stdout), ae.stdout);
 
@@ -377,8 +377,13 @@ try {
   let cj = null;
   try { cj = JSON.parse(readFileSync(confJson, 'utf8')); } catch (e) { cj = { parseError: String(e.message) }; }
   check('ae. the machine shape carries the verdict counts and the per-surface map',
-    aeJ.status === 0 && cj?.conformance?.total === 4 && cj?.conformance?.malformed === 1
+    aeJ.status === 0 && cj?.conformance?.total === 5 && cj?.conformance?.malformed === 2
     && cj?.conformance?.byVerdict?.DRIFTED === 1 && cj?.conformance?.bySurface?.vault === 'DRIFTED',
+    JSON.stringify(cj?.conformance));
+  check('ae. grammar (d) shares the parser invariants: first row wins, map and totals agree',
+    cj?.conformance?.bySurface?.contract === 'CONFORMANT'
+    && cj?.conformance?.bySurface?.['runs-folder'] === 'CONFORMANT'
+    && cj?.conformance?.total === Object.keys(cj?.conformance?.bySurface ?? {}).length,
     JSON.stringify(cj?.conformance));
   check('ae. an absent run-conformance snapshot is null, never a measured zero',
     cj?.runConformance === null, JSON.stringify(cj?.runConformance));
