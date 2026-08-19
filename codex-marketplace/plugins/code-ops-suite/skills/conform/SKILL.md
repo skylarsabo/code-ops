@@ -59,7 +59,7 @@ Re-run every mechanical check in the table, including the ones that already pass
 
 This mode turns on when the run is handed a `FLEET.json`, or when one sits at the invocation root. The layout, the manifest schema, and the consent rule are defined in `docs/techniques/fleet-standard.md`. Everything above still holds; a fleet run is the per-repo run performed member by member, under one report.
 
-**Consent decides who is in.** The manifest names a repo and the repo consents, by carrying the phrase `fleet member: yes` on a line of its own, in a `## Fleet` section of its own standards contract. A repo that only discusses the phrase — fenced as an example, or quoted inline in a written refusal — has not consented. Three rules follow, and none of them bends:
+**Consent decides who is in.** The manifest names a repo and the repo consents, by carrying the phrase `fleet member: yes` on a line of its own, in a `## Fleet` section of its own standards contract. A repo that only discusses the phrase — fenced as an example, or quoted inline in a written refusal — has not consented. The parsing rules in `docs/techniques/fleet-standard.md` are the specification of that format, so where a markdown renderer displays a contract differently, the spec governs enrollment and the divergence is a documentation issue rather than a checker bug. Three rules follow, and none of them bends:
 
 - A named repo that has not consented is reported as `named, not consenting` and is never operated on. That row is the evidence for skipping it — announce the skip and move on.
 - A consenting repo the manifest does not name is invisible to this run. A consent phrase is an offer, not an enrollment.
