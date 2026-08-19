@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.43.0
+- **`conform` gains a fleet mode, and membership is two-sided** — every skill in the suite operated on one repo, so standardizing several meant visiting each and holding the comparison in your head. A `FLEET.json` manifest now names the members, and each named repo consents by carrying `fleet member: yes` in a `## Fleet` section of its own standards contract. A named repo that has not consented is reported and never touched, a consenting repo the manifest does not name is invisible, and a fleet run never edits a member's consent — a run that could write the phrase it then reads would have a formality rather than a rule. Doctrine propagation is the mode's canonical use: when a source of truth moves here, the fleet run carries it to the repos that agreed to receive it.
+- **`check-fleet.mjs` reports the fleet in one table** — it validates the manifest, resolves each member, reads consent, and runs the per-repo checks that exist locally, emitting one `CONFORMANCE_REPORT.md` grammar-(d) row per member per surface, so `calibration-metrics.mjs` ingests a fleet run unchanged. Fail-closed throughout: an unresolvable member, an unreadable contract, or a vault check that could not run reports UNKNOWN and fails the run for a consenting member. A missing vault stays ABSENT and does not fail, because vault adoption is voluntary. The new standard is `docs/techniques/fleet-standard.md`, pinned by `evals/fleet-standard/`.
+
 ## 1.42.8
 - **The JSON caveat is eval-pinned and the 1.42.7 entry says what its diff did** — the machine-caveat correction had no coverage (only the prose clause was pinned), and the prior entry claimed a full cause set the compact machine string deliberately does not carry.
 

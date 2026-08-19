@@ -58,6 +58,9 @@ jobs:
       - name: Vault-standard regression eval
         run: node evals/vault-standard/run.mjs
 
+      - name: Fleet-standard regression eval
+        run: node evals/fleet-standard/run.mjs
+
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs
 
@@ -207,6 +210,9 @@ jobs:
 
       - name: Vault-standard regression eval
         run: node evals/vault-standard/run.mjs
+
+      - name: Fleet-standard regression eval
+        run: node evals/fleet-standard/run.mjs
 
       - name: opencode distribution regression eval
         run: node evals/opencode-dist/run.mjs

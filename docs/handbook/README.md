@@ -83,9 +83,10 @@ The first slice, all under `docs/` and tracked in the repo.
 - [../techniques/context-hygiene.md](../techniques/context-hygiene.md) — keeping a run's spend linear and letting it survive compaction: durable state on disk, deliberate compaction at phase boundaries, the subagent prompt cache, and rebuilding from artifacts instead of summaries.
 - [../techniques/shell-discipline.md](../techniques/shell-discipline.md) — the two quiet shell failures: a hook-gated command chained into a compound call loses every operation in it, and a broad `git add` stages local state the repo was never meant to carry.
 - [../techniques/vault-standard.md](../techniques/vault-standard.md) — the SSOT for the per-repo Obsidian vault: the numbered folder layout, the product and research profiles, where suite artifacts land, and the promotion rule that keeps the vault and the tracked repo docs from drifting into copies.
+- [../techniques/fleet-standard.md](../techniques/fleet-standard.md) — the SSOT for standardizing several repos together: the `FLEET.json` manifest, the two-sided consent rule that lets a named repo decline, and the `check-fleet.mjs` report that lands one conformance row per member per surface.
 
 ## The handbook is complete
 
-This is the full handbook: eleven chapters, the command reference, nine guides, and seventeen techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
+This is the full handbook: eleven chapters, the command reference, nine guides, and eighteen techniques — all under `docs/` and tracked in the repo. Every link above resolves to a written page; nothing is deferred.
 
 *Verified-at: 7c104c2*

@@ -36,4 +36,7 @@ export const RUNTIME_SCRIPTS = [
   { name: 'scan-narration.mjs', plugins: ['code-ops-suite'] },
   { name: 'atlas-check.mjs', plugins: ['code-ops-suite'] },
   { name: 'check-vault-standard.mjs', plugins: ['code-ops-suite'] },
+  // check-fleet.mjs spawns check-vault-standard.mjs as a SIBLING, so the two must ship into
+  // the same plugin scripts/ dir or the fleet run's vault surface is UNKNOWN everywhere.
+  { name: 'check-fleet.mjs', plugins: ['code-ops-suite'] },
 ];
