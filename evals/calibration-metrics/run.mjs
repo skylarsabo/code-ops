@@ -20,8 +20,14 @@
 //   so a unit that failed AND was retried counts toward both rates instead of only its final
 //   status; a ledger with no journal keeps the snapshot counting, and a corrupt journal is named
 //   and falls back loudly rather than silently.
+//   The two conformance snapshots parse under the same rules: CONFORMANCE_REPORT.md's per-surface
+//   verdicts and RUN_CONFORMANCE.md's per-check results resolve to their counts, drift rate and
+//   discipline rate, an out-of-enum cell is counted unparseable rather than skipped, and a
+//   prose-shaped snapshot raises the zero-parse shape-drift warning instead of reporting a clean
+//   zero.
 //   `--json <file>` emits those same numbers as one JSON object (ledger/findings/refutations/
-//   lineBudget, absent artifacts null) without disturbing the prose report or the exit contract.
+//   conformance/runConformance/lineBudget, absent artifacts null) without disturbing the prose
+//   report or the exit contract.
 //
 //   MODE 2 (--validate-note <file>): a clean note passes; a note leaking a unix-style file
 //   path fails, naming the line and PATH-UNIX category; a note leaking a fenced code block
@@ -310,6 +316,69 @@ try {
   check('ad. the machine shape reports the journal as present, rejected, with its violation count',
     adj.status === 0 && dj?.ledger?.journal?.present === true && dj?.ledger?.journal?.derived === false
     && dj?.ledger?.journal?.violations === 1, JSON.stringify(dj?.ledger?.journal));
+
+  // ---- ae. conformance snapshot (grammar (d)) ---------------------------------
+  // Standardization drift as a trended series. Same semantics the three older grammars get:
+  // a verdict outside the four is unparseable rather than skipped, and a present, non-empty
+  // report that yields no rows is shape drift, not an absence of drift.
+  const ae = run(['--artifacts', join(HERE, 'conformance')]);
+  check('ae. conformance fixture exits 0', ae.status === 0, ae.stdout + ae.stderr);
+  check('ae. four surfaces parse, the out-of-enum verdict counted unparseable',
+    /\b4 surface\(s\), unparseable: 1\b/.test(ae.stdout), ae.stdout);
+  check('ae. per-surface verdict counts are emitted',
+    /by verdict: CONFORMANT 1 \(25\.0%\), DRIFTED 1 \(25\.0%\), ABSENT 1 \(25\.0%\), UNKNOWN 1 \(25\.0%\)/.test(ae.stdout), ae.stdout);
+  check('ae. drift rate is the non-CONFORMANT share', /drift rate: 75\.0% \(3\/4 not CONFORMANT\)/.test(ae.stdout), ae.stdout);
+  check('ae. an UNKNOWN surface is called unmeasured, not conformant',
+    /advisory: 1 surface\(s\) UNKNOWN — a checker that could not run proves nothing/.test(ae.stdout), ae.stdout);
+
+  const aeDrift = run(['--artifacts', join(HERE, 'conformance-drift')]);
+  check('ae. a prose-shaped conformance report still exits 0', aeDrift.status === 0, aeDrift.stdout + aeDrift.stderr);
+  check('ae. and raises the zero-parse shape-drift warning naming the grammars doc',
+    /!! WARNING: CONFORMANCE_REPORT\.md is present and non-empty but yielded 0 parsed items.*artifact-grammars\.md/.test(aeDrift.stdout), aeDrift.stdout);
+
+  // ---- af. orchestration conformance (grammar (e)) -----------------------------
+  const af = run(['--artifacts', join(HERE, 'run-conformance')]);
+  check('af. run-conformance fixture exits 0', af.status === 0, af.stdout + af.stderr);
+  check('af. five checks parse, the out-of-enum result counted unparseable',
+    /\b5 check\(s\), unparseable: 1\b/.test(af.stdout), af.stdout);
+  check('af. per-result counts are emitted',
+    /by result: PASS 3 \(60\.0%\), FAIL 1 \(20\.0%\), N\/A 1 \(20\.0%\)/.test(af.stdout), af.stdout);
+  check('af. the discipline rate scores only applicable checks — N/A is not a quiet pass',
+    /discipline rate: 75\.0% \(3\/4 applicable check\(s\) PASS\)/.test(af.stdout), af.stdout);
+  check('af. the failing check is named', /failing checks: tier-routing/.test(af.stdout), af.stdout);
+
+  const afDrift = run(['--artifacts', join(HERE, 'run-conformance-drift')]);
+  check('af. a prose-shaped run-conformance file still exits 0', afDrift.status === 0, afDrift.stdout + afDrift.stderr);
+  check('af. and raises the zero-parse shape-drift warning naming the grammars doc',
+    /!! WARNING: RUN_CONFORMANCE\.md is present and non-empty but yielded 0 parsed items.*artifact-grammars\.md/.test(afDrift.stdout), afDrift.stdout);
+
+  // Both snapshots reach the machine shape, and stay null when absent.
+  const confJson = join(jsonDir, 'conformance.json');
+  const aeJ = run(['--artifacts', join(HERE, 'conformance'), '--json', confJson]);
+  let cj = null;
+  try { cj = JSON.parse(readFileSync(confJson, 'utf8')); } catch (e) { cj = { parseError: String(e.message) }; }
+  check('ae. the machine shape carries the verdict counts and the per-surface map',
+    aeJ.status === 0 && cj?.conformance?.total === 4 && cj?.conformance?.malformed === 1
+    && cj?.conformance?.byVerdict?.DRIFTED === 1 && cj?.conformance?.bySurface?.vault === 'DRIFTED',
+    JSON.stringify(cj?.conformance));
+  check('ae. an absent run-conformance snapshot is null, never a measured zero',
+    cj?.runConformance === null, JSON.stringify(cj?.runConformance));
+
+  const rcJson = join(jsonDir, 'run-conformance.json');
+  const afJ = run(['--artifacts', join(HERE, 'run-conformance'), '--json', rcJson]);
+  let rj = null;
+  try { rj = JSON.parse(readFileSync(rcJson, 'utf8')); } catch (e) { rj = { parseError: String(e.message) }; }
+  check('af. the machine shape carries the result counts and the per-check map',
+    afJ.status === 0 && rj?.runConformance?.total === 5 && rj?.runConformance?.malformed === 1
+    && rj?.runConformance?.byResult?.['N/A'] === 1 && rj?.runConformance?.byCheck?.['tier-routing'] === 'FAIL',
+    JSON.stringify(rj?.runConformance));
+  check('af. an absent conformance snapshot is null, never a measured zero',
+    rj?.conformance === null, JSON.stringify(rj?.conformance));
+
+  // A run folder carrying neither snapshot reports both "not present" and is otherwise unchanged.
+  check('ae/af. both snapshots report "not present" on the original fixture dir',
+    /## Conformance \(CONFORMANCE_REPORT\.md\)\n\s*not present/.test(a.stdout)
+    && /## Orchestration conformance \(RUN_CONFORMANCE\.md\)\n\s*not present/.test(a.stdout), a.stdout);
 
   // ---- MODE 2: note validation -------------------------------------------------
   const notesDir = join(HERE, 'notes');

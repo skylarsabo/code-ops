@@ -271,5 +271,26 @@
     "title": "repositories with an explicit unknown-not-zero contract need a dedicated sweep of aggregate and empty-state projections",
     "statement": "repositories with an explicit unknown-not-zero contract need a dedicated sweep of aggregate and empty-state projections",
     "firstSeen": "R-008"
+  },
+  {
+    "id": "L-040",
+    "class": "suite",
+    "title": "a fail-closed conformance checker shipped with no CI step and no fixture pair, so the standard it guards could drift silently in the repository that authored it",
+    "statement": "a fail-closed conformance checker shipped with no CI step and no fixture pair, so the standard it guards could drift silently in the repository that authored it",
+    "firstSeen": "R-009"
+  },
+  {
+    "id": "L-041",
+    "class": "instrument",
+    "title": "a new lint check landed with no regression eval case, and the advisory that flags an unreferenced script does not gate, so nothing stopped a later refactor from dropping the check",
+    "statement": "a new lint check landed with no regression eval case, and the advisory that flags an unreferenced script does not gate, so nothing stopped a later refactor from dropping the check",
+    "firstSeen": "R-009"
+  },
+  {
+    "id": "L-042",
+    "class": "protocol",
+    "title": "one commit that widens a scan in one direction and narrows it in another opens a silent bypass, so each direction needs its own eval case in the same commit",
+    "statement": "one commit that widens a scan in one direction and narrows it in another opens a silent bypass, so each direction needs its own eval case in the same commit",
+    "firstSeen": "R-009"
   }
 ]
