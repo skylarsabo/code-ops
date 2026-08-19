@@ -45,8 +45,8 @@ Code is code wherever the phrase sits inside it. The checker walks the contract 
 
 - A uniform blockquote prefix is stripped before the leaf-block tests, so a blockquoted fence opens a block exactly as a bare one does. A fence closes only at the same quote depth that opened it, so a quote marker inside an open block is content rather than a closer.
 - Three or more backticks or tildes open a fenced block, and only a fence of the same character and at least the same length, with nothing after it, closes one. A fence left unterminated suppresses everything to the end of the file, which fails in the safe direction.
-- Four or more spaces of indent, or a tab, open an indented code block where one can begin: after a blank line, at the start of the file, or under another indented line, and never inside a list, where the same indent is list content. An open indented block wins over a fence marker inside it.
-- Three spaces of indent are decoration, not code. That boundary is the same one the consent line is matched against outside a list, so the two cannot disagree there. Inside an open list the boundary lifts on both sides at once: no indent starts a code block, and a consent line counts at any indent. An open list changes what counts as code, and never suppresses a consent.
+- Four or more spaces of indent, or a tab, open an indented code block where one can begin: after a blank line, at the start of the file, or under another indented line, and never inside a list, where the same indent is list content. An open indented block wins over a fence marker inside it. A list opens at a bullet or ordered marker and closes at the next non-blank line indented less than four spaces that is not itself a marker — a fence opener at the left margin is such a line, so a fenced block closes the list before it.
+- Three spaces of indent are decoration, not code. That boundary is the same one the consent line is matched against, everywhere and without exception. An open list changes what counts as code and nothing else: inside a list, indentation beyond the item's own boundary is presentation or code, never enrollment. Consent is therefore one rule in every context, which is what keeps a contract that shows the phrase as an indented example inside a list from enrolling the repo that wrote it.
 
 Because the same reader decides what a heading is, a `## Fleet` written inside an example block does not close the real section, and a repo that quotes the heading it must write is still enrolled by the consent line below the quotation.
 
@@ -75,6 +75,14 @@ Two author-facing rules make every edge case irrelevant, and a contract that fol
 - Show the phrase in an example only inside a flush fenced block, opened and closed at the left margin.
 
 An edge case the rules above do not cover is closed by amending this page and the checker together, on purpose. It is never closed by silently matching whatever a renderer happens to do, because a spec that tracks a renderer is not a spec.
+
+#### Amended 2026-08-19
+
+Version 1.43.4 lifted the consent line's three-space indent cap inside an open list. The amendment removes the lift. Consent is one rule in every context: up to three spaces of indent, and at most one bullet or blockquote marker.
+
+Two reasons. First, the lift reopened the hole 1.43.3 had closed. A four-space example under a bullet enrolled a repo that declined in writing, and enrollment is what authorizes fleet mode to write to that repo. A false decline costs a row an operator can read; a false consent costs edits to a repo that said no. Second, a rule that changes with its container contradicts this page's own simplicity rule. The two author-facing rules above make the case moot: write consent flush, and show examples in a flush fenced block.
+
+The same amendment fixes the list's close condition in the checker. A fence opener at less than four spaces of indent closes an open list, as the rule set already stated, so list context never survives the block that ends it.
 
 ### The consent doctrine
 

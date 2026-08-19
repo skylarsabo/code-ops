@@ -17,8 +17,10 @@
 // heading as well as an open one; a phrase in code never enrolls whatever its shape — fenced,
 // blockquote-fenced, or indented — while a fenced heading-lookalike does not close the section, an
 // indented block wins over a fence marker inside it, a quote marker inside an open bare fence is
-// content rather than a closer, an open list suppresses no consent at any indent, and a real
-// consent after any of those blocks still counts; two pointers naming each other are DRIFTED rather than a parity mode, a short substantive
+// content rather than a closer, and a real
+// consent after any of those blocks still counts, an open list widens nothing so a deep-indented
+// phrase inside one never enrolls, and a fence opener closes an open list so an indented
+// heading-lookalike after it stays code; two pointers naming each other are DRIFTED rather than a parity mode, a short substantive
 // contract naming its twin is not a pointer, a pointer carrying a subheading is not one either,
 // and a pointer naming its twin later in its first paragraph still is; a missing vault is ABSENT and not a
 // failure; a slug collision is a manifest error; and every emitted row parses under grammar (d).
@@ -297,27 +299,47 @@ for (const [label, prefix] of [
     `a consent line after a closed blockquoted fence must still enroll the repo, got:\n${r.out}`);
 }
 
-// ---- 3g. an open list never suppresses a consent line ------------------------------------
-// Inside an open list the stream begins no indented block, because the same indent is list
-// content — CommonMark renders these as a paragraph in the item, an assertion and not code.
-// Holding the matcher's three-space cap there refused a line the stream had already called
-// markup, and the operator's only signal was a row that reads like a written refusal.
+// ---- 3g. an open list widens nothing: a deep indent inside one never enrolls -------------
+// Consent is one rule everywhere (standard amended 2026-08-19). 1.43.4 lifted the matcher's
+// three-space cap inside an open list and thereby reopened the indent hole 1.43.3 closed: a
+// bullet above a four-space example enrolled a repo that had declined in writing. Enrolment
+// authorizes fleet mode to WRITE, so the mirror costs more than the false decline it fixed.
+// The last case is the review's own reproduction of that mirror.
 for (const [label, block] of [
   ['list-four-spaces', '- a list item\n\n    fleet member: yes'],
+  // A `1. ` marker gives content indent 3, so eight spaces is 3 + 4 — a block CommonMark
+  // renders verbatim. Code by either reading, and pinned as a decline under both.
   ['list-eight-spaces', '1. a list item\n\n        fleet member: yes'],
   ['list-tab', '- a list item\n\n\tfleet member: yes'],
+  ['list-example', 'Not a member. To join, a repo would add:\n\n- add this to the section:\n\n      fleet member: yes\n\nWe have chosen not to.'],
 ]) {
   const body = contract(`## Fleet\n\n${block}\n`);
   const ws = workspace({ [`${label}/CLAUDE.md`]: body, [`${label}/AGENTS.md`]: body },
     { version: 1, members: [member(label)] });
   const r = run(ws.mpath);
-  expect(surfaces(`list-consent-${label}`, r.out).get(`${label}-consent`) === 'CONFORMANT',
-    `an open list must not suppress the consent line (${label}), got:\n${r.out}`);
+  expect(surfaces(`list-consent-${label}`, r.out).get(`${label}-consent`) === 'ABSENT',
+    `a deep indent inside a list must not enroll the repo (${label}), got:\n${r.out}`);
+  expect(r.status === 0, `a repo that never consented should not fail the run, got ${r.status}:\n${r.out}`);
 }
 
-// ---- 3g-i. the lifted cap belongs to list context and nowhere else -----------------------
-// The mutation partner of 3g. With no list open, a four-space indent is still code or still
-// refused, so lifting the cap inside a list must not lift it everywhere.
+// ---- 3g-ii. a fence opener closes an open list -------------------------------------------
+// List context survives no further than the rule set says it does. Here a fence opener is the
+// line that closes the list, so the indented fence marker further down is code — the 3d-iii
+// precedence — and the consent below it counts. Leave the list open past the fence and that
+// marker instead OPENS a block that never closes, suppressing the rest of the file: a
+// consenting repo reports as a deliberate decline, fail-closed and invisible to the operator.
+{
+  const body = contract('## Fleet\n\n- an unrelated bullet\n\n```\nan unrelated fenced example\n```\n\n    ```\n    fleet member: yes\n\nfleet member: yes\n');
+  const ws = workspace({ 'fenceclosed/CLAUDE.md': body, 'fenceclosed/AGENTS.md': body },
+    { version: 1, members: [member('fenceclosed')] });
+  const r = run(ws.mpath);
+  expect(surfaces('fence-closes-list', r.out).get('fenceclosed-consent') === 'CONFORMANT',
+    `a fence opener must close the open list, so the consent below still counts, got:\n${r.out}`);
+}
+
+// ---- 3g-i. a deep indent outside a list does not enroll either ---------------------------
+// The no-list half of 3g, kept as its own case: the rule is the same on both sides of a list
+// boundary, so a regression that reintroduces a context-dependent cap fails here as well.
 {
   const body = contract('## Fleet\n\nNot a member. Joining would mean adding:\n\n        fleet member: yes\n');
   const ws = workspace({ 'nolist/CLAUDE.md': body, 'nolist/AGENTS.md': body },

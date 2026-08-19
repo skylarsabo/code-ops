@@ -234,10 +234,11 @@ function readContract(dir) {
 //     content. A list opens at a bullet or ordered marker and closes at the next non-blank
 //     line indented less than four spaces that is not itself a marker.
 //   - Two or three spaces of indent are decoration, not code. That is the boundary the
-//     consent matcher's tolerated prefix is cut to OUTSIDE a list, so the two agree by
-//     construction there. Inside an open list no indent is code, so the matcher drops its
-//     indent cap for those lines rather than refusing a line the stream already called markup.
-//     An open list therefore changes indented-code classification and never suppresses consent.
+//     consent matcher's tolerated prefix is cut to, everywhere and without exception. An open
+//     list changes indented-code classification ONLY: it never widens what counts as consent,
+//     because a deep-indented phrase inside a list item is presentation, not an assertion.
+//     A fence opener at less than four spaces of indent closes an open list, exactly as the
+//     close condition above states, so list context never survives the block that ends it.
 //
 // Deliberately not implemented: a backtick opener's ban on backticks in its info string, which
 // would only ever suppress MORE text, and the checker's safe direction is to suppress.
@@ -283,6 +284,12 @@ function* markdownLines(text) {
       char = m[1][0];
       len = m[1].length;
       openDepth = depth;
+      // A fence opener at less than four spaces is a non-blank line indented less than four
+      // spaces that is not a marker, which is exactly the list's close condition above. Without
+      // this the flag survives the block and keeps changing classification past the point the
+      // rule set says the list ended. The closer branch needs nothing: content inside the block
+      // is code, and the opener has already cleared the flag.
+      if (!indented) listOpen = false;
       yield { line: raw, code: true };
       prevBlank = false;
       prevCode = false;
@@ -291,9 +298,7 @@ function* markdownLines(text) {
     // Everything reaching here is blank, or markup: the indented-code branch above already
     // took every line that starts or continues an indented block.
     if (!blank && !indented) listOpen = LIST_MARKER.test(line);
-    // `list` travels with the line so the consent matcher can drop its indent cap exactly where
-    // the stream has already ruled the indent is list content rather than code.
-    yield { line: raw, code: false, list: listOpen };
+    yield { line: raw, code: false };
     // A blank line neither starts nor ends an indented block, so `prevCode` survives it.
     if (!blank) prevCode = false;
     prevBlank = blank;
@@ -344,19 +349,17 @@ function consentSection(text) {
 // because a code block is how a contract SHOWS the phrase without saying it. Matching is
 // case-insensitive, which the `beta` fixture pins.
 //
-// INSIDE AN OPEN LIST the cap lifts, because there the stream begins no indented block — the
-// same indent is list content, which CommonMark renders as a paragraph in the item. Holding the
-// three-space cap there refused a line the stream had already called markup, so a consenting
-// repo reported as a deliberate decline: fail-closed, and invisible to the operator. An open
-// list therefore only changes indented-code classification; it never suppresses a consent.
+// This is ONE rule everywhere, list context included (amended 2026-08-19). 1.43.4 lifted the
+// cap inside an open list, which reopened the indent hole 1.43.3 had closed: a bullet above a
+// four-space example enrolled a repo that declined in writing. Consent is what authorizes fleet
+// mode to WRITE, so the mirror cost more than the false decline it fixed. The author rule in
+// docs/techniques/fleet-standard.md — write consent flush and undecorated — carries the case a
+// deep indent inside a list would otherwise raise.
 const CONSENT_LINE = /^ {0,3}(?:[>*-][ \t]*)?fleet member:[ \t]*yes[ \t]*$/i;
-const CONSENT_LINE_IN_LIST = /^[ \t]*(?:[>*-][ \t]*)?fleet member:[ \t]*yes[ \t]*$/i;
-
-const consentLine = (e) => (e.list ? CONSENT_LINE_IN_LIST : CONSENT_LINE).test(e.line);
 
 const hasConsent = (text) => {
   const section = consentSection(text);
-  return section !== null && section.some((e) => !e.code && consentLine(e));
+  return section !== null && section.some((e) => !e.code && CONSENT_LINE.test(e.line));
 };
 
 // Parity mode, per docs/techniques/vault-standard.md "Host parity": byte-identical copies, or a
@@ -401,7 +404,7 @@ function parityMode(found) {
         if (lead.length) leadClosed = true;
         continue;
       }
-      if (consentLine(entry)) continue;
+      if (CONSENT_LINE.test(line)) continue;
       if (!leadClosed) lead.push(line);
     }
     if (!lead.join('\n').includes(names)) return false;
