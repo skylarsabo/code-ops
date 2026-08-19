@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "members": [
+    { "path": "alpha", "profile": "product", "roles": ["shipped"] },
+    { "path": "beta", "profile": "product", "roles": ["library", "internal"] }
+  ]
+}
