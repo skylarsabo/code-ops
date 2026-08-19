@@ -12,7 +12,10 @@
 // fields (scripts/revalidate-register.mjs's schema), refutation-log receipt verdicts, and a
 // per-artifact non-blank line count flagged against scan-narration.mjs's length-discipline
 // thresholds (CONVENTIONS §12: advisory once a run summary drifts past a page, hard once it's
-// clearly a transcript). Each of the three named artifacts is OPTIONAL — its absence is
+// clearly a transcript). It also reads the two conformance snapshots — CONFORMANCE_REPORT.md's
+// per-surface verdicts and RUN_CONFORMANCE.md's per-check results (docs/techniques/
+// artifact-grammars.md §(d)/§(e)) — so standardization drift and orchestration discipline become
+// trended series rather than one-off readings. Each of the five named artifacts is OPTIONAL — its absence is
 // reported as "not present", never an error — and a malformed row/item/line is counted and
 // reported as "unparseable: N", never silently skipped (the same skip-noting convention the
 // referenced scripts use). A present, non-empty artifact that yields zero parsed items gets a
@@ -306,6 +309,55 @@ function summarizeRefutation(text) {
   return { total, survived, refuted, malformed, pct };
 }
 
+// ---- conformance snapshots (docs/techniques/artifact-grammars.md §(d)/§(e)) ----------
+// Two table-row grammars that make standardization drift and orchestration discipline
+// measurable instead of a one-off reading. Both are parsed with the SAME semantics the three
+// older grammars get: a row that does not match, or whose enum cell is outside its set, is
+// counted as unparseable rather than skipped, and a present, non-empty artifact that yields
+// zero parsed rows raises the shape-drift warning instead of reporting a silent zero.
+//
+// (d) CONFORMANCE_REPORT.md: | surface | verdict | checker | evidence |  — written by
+// /code-ops-suite:conform Phase A. `surface` is an open kebab slug so a profile can add a
+// surface without editing this parser; `verdict` is the closed four-value set, because UNKNOWN
+// (a checker that could not run) must never be recorded as CONFORMANT.
+const CONFORMANCE_ROW_RE = /^\|\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*([A-Za-z]+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
+const CONFORMANCE_VERDICTS = ['CONFORMANT', 'DRIFTED', 'ABSENT', 'UNKNOWN'];
+
+// (e) RUN_CONFORMANCE.md: | check | result | evidence |  — written by
+// /code-ops-suite:run-cost-audit over a completed run. `N/A` is a distinct result from PASS: a
+// rule the run could not violate is not a rule it obeyed.
+const RUN_CONFORMANCE_ROW_RE = /^\|\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*(N\/A|[A-Za-z]+)\s*\|\s*([^|]*?)\s*\|$/;
+const RUN_CONFORMANCE_RESULTS = ['PASS', 'FAIL', 'N/A'];
+
+// Shared row walker for the two table grammars above. `headKey` is the first header cell that
+// marks the table's own header row, skipped along with the markdown rule row exactly as
+// summarizeLedger does.
+function summarizeTable(text, rowRe, headKey, enumIndex, enumValues) {
+  const counts = {};
+  for (const v of enumValues) counts[v] = 0;
+  const byKey = {};
+  let malformed = 0;
+  let total = 0;
+  for (const raw of text.split('\n')) {
+    const line = raw.replace(/\r$/, '').trim();
+    if (!line.startsWith('|')) continue;
+    if (new RegExp(`^\\|\\s*${headKey}\\s*\\|`, 'i').test(line)) continue; // header
+    if (/^\|(\s*:?-+:?\s*\|)+$/.test(line)) continue; // rule row
+    const m = rowRe.exec(line);
+    if (!m) { malformed++; continue; }
+    const value = m[enumIndex].toUpperCase();
+    if (!enumValues.includes(value)) { malformed++; continue; }
+    counts[value]++;
+    byKey[m[1]] = value;
+    total++;
+  }
+  const pct = (n) => (total ? ((n / total) * 100).toFixed(1) : '0.0');
+  return { total, malformed, counts, byKey, pct };
+}
+
+const summarizeConformance = (text) => summarizeTable(text, CONFORMANCE_ROW_RE, 'surface', 2, CONFORMANCE_VERDICTS);
+const summarizeRunConformance = (text) => summarizeTable(text, RUN_CONFORMANCE_ROW_RE, 'check', 2, RUN_CONFORMANCE_RESULTS);
+
 // scan-narration.mjs's length-discipline bounds (CONVENTIONS §12): advisory once a run
 // artifact drifts past roughly a page, hard once it reads as a transcript rather than a
 // synthesis.
@@ -322,7 +374,8 @@ const isRegisterArtifact = (label) => /register/i.test(label);
 
 // The three artifacts this mode parses metrics from; any OTHER .md carrying register-shaped
 // entries is a themed sibling report whose findings never reach the metrics (see the sweep).
-const METRIC_ARTIFACTS = new Set(['DISPATCH_LEDGER.MD', 'FINDINGS_REGISTER.MD', 'REFUTATION_LOG.MD']);
+const METRIC_ARTIFACTS = new Set(['DISPATCH_LEDGER.MD', 'FINDINGS_REGISTER.MD', 'REFUTATION_LOG.MD',
+  'CONFORMANCE_REPORT.MD', 'RUN_CONFORMANCE.MD']);
 
 // The artifact folder is walked RECURSIVELY: a run that writes per-slice reports into
 // subdirectories was previously scanned top-level only, so those reports' entry-shaped findings
@@ -380,6 +433,8 @@ function headShaFor(cwd) {
 //                    journal: { present, derived, violations }, everFailed, everRedispatched }     | null,
 //     findings:    { totalItems, malformed, total, byTier, bySeverity, coveredNegatives }        | null,
 //     refutations: { total, survived, refuted, malformed }                                       | null,
+//     conformance:    { total, malformed, byVerdict, bySurface }                                  | null,
+//     runConformance: { total, malformed, byResult, byCheck }                                     | null,
 //     lineBudget:  [{ file, nonBlank, entries: N|null, flags: [...] }] }
 // An artifact that is absent (or unreadable) is null — the same "not present" the prose reports,
 // never a zero that would read as a measured value. `everFailed`/`everRedispatched` are the numbers
@@ -390,7 +445,7 @@ function headShaFor(cwd) {
 function runMetrics(dir, outPath, jsonPath) {
   const lines = [];
   const p = (s = '') => lines.push(s);
-  const machine = { ledger: null, findings: null, refutations: null, lineBudget: [] };
+  const machine = { ledger: null, findings: null, refutations: null, conformance: null, runConformance: null, lineBudget: [] };
 
   const readIfPresent = (name) => {
     const full = join(dir, name);
@@ -492,6 +547,48 @@ function runMetrics(dir, outPath, jsonPath) {
     if (s.total === 0) warnZeroParse('REFUTATION_LOG.md', refutationText);
     p(`  SURVIVED ${s.survived} (${s.pct(s.survived)}%), REFUTED ${s.refuted} (${s.pct(s.refuted)}%)`);
     p(`  survival rate: ${s.pct(s.survived)}%`);
+  }
+
+  // ---- conformance snapshot (CONFORMANCE_REPORT.md, grammar (d)) -----------------
+  // Standardization drift as a trended series: the per-surface verdict counts a conform run
+  // measured. Optional like every other artifact — absence is "not present", never a zero.
+  p('\n## Conformance (CONFORMANCE_REPORT.md)');
+  const conformanceText = readIfPresent('CONFORMANCE_REPORT.md');
+  if (conformanceText === null) {
+    p('  not present');
+  } else {
+    const s = summarizeConformance(conformanceText);
+    machine.conformance = { total: s.total, malformed: s.malformed, byVerdict: s.counts, bySurface: s.byKey };
+    p(`  ${s.total} surface(s), unparseable: ${s.malformed}`);
+    if (s.total === 0) warnZeroParse('CONFORMANCE_REPORT.md', conformanceText);
+    p(`  by verdict: ${CONFORMANCE_VERDICTS.map((v) => `${v} ${s.counts[v]} (${s.pct(s.counts[v])}%)`).join(', ')}`);
+    // The drift rate is the complement of the conformant rate — the number a trend reads.
+    const drifted = s.total - s.counts.CONFORMANT;
+    p(`  drift rate: ${s.pct(drifted)}% (${drifted}/${s.total} not CONFORMANT)`);
+    // An UNKNOWN is a check that did not execute, so it proves nothing and must stay visible
+    // rather than blending into the drift rate it is counted in.
+    if (s.counts.UNKNOWN > 0)
+      p(`  .. advisory: ${s.counts.UNKNOWN} surface(s) UNKNOWN — a checker that could not run proves`
+        + ' nothing; those surfaces are unmeasured, not conformant.');
+  }
+
+  // ---- orchestration conformance (RUN_CONFORMANCE.md, grammar (e)) ---------------
+  p('\n## Orchestration conformance (RUN_CONFORMANCE.md)');
+  const runConformanceText = readIfPresent('RUN_CONFORMANCE.md');
+  if (runConformanceText === null) {
+    p('  not present');
+  } else {
+    const s = summarizeRunConformance(runConformanceText);
+    machine.runConformance = { total: s.total, malformed: s.malformed, byResult: s.counts, byCheck: s.byKey };
+    p(`  ${s.total} check(s), unparseable: ${s.malformed}`);
+    if (s.total === 0) warnZeroParse('RUN_CONFORMANCE.md', runConformanceText);
+    p(`  by result: ${RUN_CONFORMANCE_RESULTS.map((v) => `${v} ${s.counts[v]} (${s.pct(s.counts[v])}%)`).join(', ')}`);
+    // Scored against the checks that could apply: an N/A rule the run could not violate is
+    // neither a pass nor a failure, and folding it into either inflates one of them.
+    const scored = s.counts.PASS + s.counts.FAIL;
+    p(`  discipline rate: ${scored ? ((s.counts.PASS / scored) * 100).toFixed(1) : '0.0'}% (${s.counts.PASS}/${scored} applicable check(s) PASS)`);
+    const failed = Object.entries(s.byKey).filter(([, v]) => v === 'FAIL').map(([k]) => k);
+    if (failed.length) p(`  failing checks: ${failed.join(', ')}`);
   }
 
   // ---- per-artifact line counts (CONVENTIONS §12 length discipline) ------------

@@ -1,10 +1,10 @@
 # Artifact grammars
 
-Three run artifacts are both written by skills and read back by mechanical tools.
+Five run artifacts are both written by skills and read back by mechanical tools.
 Real-scale calibration runs found the metrics extractor parsing **zero items** from
 non-empty artifacts in two straight runs — not because the artifacts were empty, but
 because their shape had drifted from what the parser expects. This page is the SSOT
-for the three grammars: get the shape exactly right and every consumer below reads it
+for the five grammars: get the shape exactly right and every consumer below reads it
 correctly; drift the shape and a consumer silently reports zero, which reads as
 "nothing here" instead of "wrong shape."
 
@@ -209,9 +209,69 @@ of BUG-003") is prose, not a receipt — matched mid-line, such a round note was
 unparseable receipt, and a note that happened to contain the word `REFUTED` attached itself
 to the finding it cited as a second, unanchored verdict.
 
+## (d) CONFORMANCE_REPORT.md surface row
+
+One row per standardization surface, written by `/code-ops-suite:conform` Phase A and
+re-written with the closing output in Phase C. Four pipe-delimited cells:
+
+```
+| surface | verdict | checker | evidence |
+| --- | --- | --- | --- |
+| vault | DRIFTED | check-vault-standard.mjs | 3 notes carry no `type` frontmatter |
+| atlas | UNKNOWN | atlas-check.mjs check | manifest did not parse |
+```
+
+- `surface` — a kebab slug naming the surface. The five the skill walks are `contract`,
+  `vault`, `atlas`, `doc-alignment`, and `global-contract`; the slot stays open so a
+  profile can add one without editing the parser.
+- `verdict` — one of `CONFORMANT | DRIFTED | ABSENT | UNKNOWN`, uppercase. `UNKNOWN` is
+  the verdict for a checker that could not run: a check that did not execute proves
+  nothing, and recording it as `CONFORMANT` is the failure this enum exists to prevent.
+- `checker` — the command whose exit code decided the verdict, or `none` for a surface
+  with no mechanical check. A prose reading is not a checker.
+- `evidence` — a pointer to the output that decided it: the failing line, the count, or
+  the exit code. Never a general impression.
+
+A row whose shape does not match, or whose verdict is outside the four, is
+**unparseable** — counted and reported, never skipped. `calibration-metrics.mjs`
+reports the per-surface verdict counts, so drift becomes a trended series rather than a
+one-off reading.
+
+## (e) RUN_CONFORMANCE.md check row
+
+One row per mechanically checkable discipline rule, written by
+`/code-ops-suite:run-cost-audit` over a **completed** run's artifact folder. Three
+pipe-delimited cells:
+
+```
+| check | result | evidence |
+| --- | --- | --- |
+| ledger-coverage | PASS | 7 dispatches, 7 ledger rows |
+| tier-routing | FAIL | D-004 reviewer routed below the strong tier |
+| artifact-placement | N/A | target repo carries no vault |
+```
+
+- `check` — a kebab slug naming the rule. The five the audit scores are
+  `ledger-coverage` (every dispatched agent has a ledger row, cross-checked against the
+  `DISPATCH_LEDGER` grammar in (a)), `no-dangling` (no row left `dispatched` with no
+  reported, failed, or redispatched successor), `tier-routing` (judgment roles at the
+  strong tier, mech-class work at or above its lint-enforced floor), `effort-routing`
+  (no low effort on a review dispatch, no xhigh on a breadth sweep), and
+  `artifact-placement` (dated artifacts under the vault's `80 Runs/` when the repo
+  carries a vault). The slot stays open for the same reason as (d)'s.
+- `result` — one of `PASS | FAIL | N/A`, uppercase. `N/A` is for a rule the run could
+  not violate — no vault to place artifacts in, no review dispatch to mis-effort — and
+  is never a quiet pass.
+- `evidence` — the ledger row, count, or path that decided the result.
+
+A row whose shape does not match, or whose result is outside the three, is
+**unparseable** — counted and reported, never skipped. Neither this grammar nor (d)
+introduces a gate: both are measured and trended, and the run-level judgment stays with
+the lead.
+
 ## Producer/consumer contract
 
-Skills and `scripts/dispatch-ledger.mjs` **produce** these three shapes.
+Skills and `scripts/dispatch-ledger.mjs` **produce** these five shapes.
 `scripts/calibration-metrics.mjs` and `scripts/revalidate-register.mjs` **consume**
 them. If either consumer parses zero items from a file that is present and non-empty,
 that is a **shape-drift signal, not an absence signal** — check the artifact against
@@ -219,4 +279,4 @@ the grammars above before concluding "nothing to report." The one exception is t
 covered-negative register in (b): zero entries plus at least one `NO-FINDINGS:` line is
 a deliberate, examined-and-clean result, not drift.
 
-*Verified-at: 8b3e85f*
+*Verified-at: 6eaf3f3*

@@ -1,0 +1,55 @@
+{
+  "id": "R-009",
+  "date": "2026-08-18",
+  "suite": {
+    "code-ops-suite": "1.42.0"
+  },
+  "target": {
+    "label": "The code-ops marketplace itself, plus the three sibling repositories whose documentation vaults it standardized",
+    "class": "own-marketplace-and-sibling-doc-vaults",
+    "control": false
+  },
+  "track": "implement",
+  "quality": {
+    "findings": 29,
+    "confirmed": 21,
+    "refutation": {
+      "paneled": 0,
+      "survived": 0,
+      "reproExempt": 0,
+      "panelEligible": null
+    },
+    "severity": {
+      "critical": 0,
+      "high": 2,
+      "medium": 16,
+      "low": 0,
+      "nit": 11
+    }
+  },
+  "tokens": {
+    "operative": null,
+    "dispatches": 15
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 3,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": null,
+    "slicesSwept": null,
+    "slicesUnswept": null
+  },
+  "host": "claude-code",
+  "lessons": [
+    "L-040",
+    "L-041",
+    "L-042"
+  ],
+  "notes": "First self-directed run recorded in this store: the target is this repository and the three sibling repositories that adopted the vault standard, so no sanitization applies and the one-way channel rule is not engaged. Scope: the vault standard v2 rollout, the conform orchestrator, and the conformance-calibration integration. **The quality numbers are derived, not measured by a metrics run.** Every finding count is read off the deep-review record of the six pull requests this session shipped through review: 58, 60, 61, 62, 63, and 64. The derivation rule is mechanical. One finding is counted for each distinct inline review comment, plus one for each distinct finding stated in a review body but not filed inline. Comments that request no action are excluded, which removed exactly one comment, the case 12c confirmation on PR 62. A finding counts toward `confirmed` only when its own text carries the literal label CONFIRMED. Per pull request, findings and CONFIRMED: 58 gives 10 and 7, 60 gives 5 and 5, 61 gives 4 and 2, 62 gives 3 and 2, 63 gives 5 and 4, 64 gives 2 and 1. Severity is the reviewers own Blocking, Should-fix, and Nit grouping, mapped to high, medium, and nit. **No refutation panel ran.** The store records that as zero panels with `panelEligible` null, the shape R-001 through R-003 already use for a phase that was not measured. It is not a survival rate of zero. Dispatch accounting comes from the run ledger in the vault: 15 dispatches, D-001 through D-015, none dangling, none failed, none redispatched. One continuation reused a live operative in its own context rather than opening a new dispatch, which is a reuse and not a failure. The `config` field is deliberately absent. The ledger records operative roles and tiers, not model classes, and the schema treats an absent config as unrecorded rather than defaulted. Three mechanical enforcements landed and are counted: the fail-closed `check-vault-standard.mjs` with its `evals/vault-standard/` fixture pair and CI step, lint check 21 over the handbook technique index, and lint check 22 over the skill-composition map. A fourth, the conformance grammar in `calibration-metrics.mjs`, is still on an unmerged branch and is not counted. The shape of the review record is itself the finding. The CONFIRMED ratio of 0.72 is high because the reviews ran against this repository, where a reviewer can reproduce anything at will. Two blocking defects both came from the first pull request of the arc, and four later pull requests were successive rounds closing the previous round findings on one lint check, which is the pattern L-042 names."
+}

@@ -30,6 +30,8 @@ Take no write action in this phase. Walk the surfaces in the order of the table 
 
 Record each surface as CONFORMANT, DRIFTED, or ABSENT, with the checker output that decided it. A surface whose checker could not run is UNKNOWN, never CONFORMANT — a check that did not execute proves nothing (`§7`).
 
+Write those verdicts as the per-surface table row of the `CONFORMANCE_REPORT.md` grammar in `docs/techniques/artifact-grammars.md` — surface, verdict, checker command, evidence pointer. `calibration-metrics.mjs` reads that shape back, so a report written in prose instead makes this run's drift invisible to the trend rather than merely awkward to read.
+
 Surface 4 is off unless the assessment produced a drift signal. Doc alignment is expensive, and running it on a repo with no drift spends a full pass to learn what the first three checks already reported.
 
 Surface 5 is off by default and is never assessed without asking. The global file is user-scope, so it governs every other repo on the machine, and a repo-scoped run has no mandate over it.

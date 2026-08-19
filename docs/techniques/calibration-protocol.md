@@ -62,11 +62,46 @@ affordance and habit, not structural impossibility.
 
 ## Artifact shapes
 
-The three run artifacts this protocol measures — `DISPATCH_LEDGER.md`,
-`FINDINGS_REGISTER.md`, `REFUTATION_LOG.md` — must conform to the grammars in
+The five run artifacts this protocol measures — `DISPATCH_LEDGER.md`,
+`FINDINGS_REGISTER.md`, `REFUTATION_LOG.md`, `CONFORMANCE_REPORT.md`, and
+`RUN_CONFORMANCE.md` — must conform to the grammars in
 [artifact-grammars.md](artifact-grammars.md). `calibration-metrics.mjs` warns when a
 present, non-empty artifact parses to zero items; check the shape before assuming
 there's nothing to report.
+
+## Conformance snapshots
+
+Standardization used to be measured only as `enforcements added` — a count of what a run
+built, never a measure of what had drifted. Two conformance snapshots close that gap, and
+both are part of every run's ingest rather than a separate exercise:
+
+- **`CONFORMANCE_REPORT.md`** — the target's standardization surfaces, per
+  [artifact-grammars.md](artifact-grammars.md) `(d)`, produced by
+  `/code-ops-suite:conform` in assess-only mode.
+- **`RUN_CONFORMANCE.md`** — the run's own orchestration discipline, per that page's
+  `(e)`, produced by `/code-ops-suite:run-cost-audit` over the finished artifact folder.
+
+`calibration-metrics.mjs` parses both, so three drift metrics become a time series:
+
+| Metric | Definition |
+| --- | --- |
+| drift rate | surfaces not CONFORMANT, of surfaces assessed |
+| repair latency | runs between a surface first reading DRIFTED and its first CONFORMANT |
+| post-enforcement recurrence | a surface drifting again after an `enforced-by` edge closed its lesson |
+
+Read the third one as a defect in the gate, not in the repo. An enforcement that a later
+run drifts past has a hole in it, so the repair belongs in the check rather than in
+another round of manual repair.
+
+**Re-derivation waste belongs to `run-cost-audit`, not here.** The cost of a run
+rebuilding understanding that a conformant artifact already held is an orchestration cost,
+and splitting it across two skills would produce two numbers for one fact.
+
+Between sessions, the detection cadence is a **scheduled assess-only `conform` run**
+against each repo on the standard. Assess-only because a scheduled run has no developer at
+its checkpoint, and a repair nobody approved is exactly the change a schedule must not
+make. Its output crosses the one-way channel under the unchanged rule above: counts and
+enum verdicts return, target internals never do.
 
 ## What gets measured
 
@@ -75,7 +110,7 @@ there's nothing to report.
 | Quality | CONFIRMED ratio (CONFIRMED ÷ total findings), refutation survival rate, **paneled coverage** (paneled of panel-eligible), severity mix (critical/high/medium/low/nit counts) |
 | Tokens | dispatch count × model tier × reasoning effort, **CONFIRMED per 100k operative tokens**, artifact sizes (lines per register/report) |
 | Orchestration | dangling-dispatch rate, failed-dispatch rate, redispatch rate (from `DISPATCH_LEDGER.md`) |
-| Standardization | enforcements added (new lint/gate checks the run's findings drove), traceless-scan clean rate |
+| Standardization | enforcements added (new lint/gate checks the run's findings drove), traceless-scan clean rate, **drift rate** from the conformance snapshot |
 | Coverage | **slice coverage** — slices swept, of those the covered-negative count, and slices left unswept |
 | Atlas | sections in the target's atlas, of those the count consumed FRESH, the count refreshed during the run, and the count the run falsified |
 | Configuration | the orchestration the run was driven under — the lead's model class and the class its operatives ran at |
@@ -301,4 +336,4 @@ planted-bug approach at real scale — and fold recall into the quality axis abo
 Seeding is optional because it requires write access to the target and is itself a
 behavior-changing act; skip it for a pure cost/orchestration calibration.
 
-*Verified-at: 2df53bf*
+*Verified-at: 6eaf3f3*
