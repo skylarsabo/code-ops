@@ -1,5 +1,5 @@
-# Conformance report (fixture: regex-miss branch only)
+# Conformance report (fixture: a shape-only miss, enum branch unreachable)
 
 | surface | verdict | checker | evidence |
 | --- | --- | --- | --- |
-| shape-broken | NOT A VERDICT | none | malformed row: shape does not match the grammar |
+| Shape-Broken | CONFORMANT | none | shape-only miss: the surface cell is not a kebab slug |
