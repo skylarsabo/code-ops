@@ -405,6 +405,18 @@ try {
     hj?.conformance?.byVerdict?.CONFORMANT === 2 && hj?.conformance?.byVerdict?.DRIFTED === 0,
     JSON.stringify(hj?.conformance));
 
+  // ---- ai. the regex-miss branch, pinned in isolation ---------------------------------
+  // The main fixture's aggregate `unparseable: 2` cannot tell the regex-miss path from the
+  // enum path. This fixture holds ONLY the shape-broken row, so it parses zero surfaces and
+  // must raise the zero-parse shape-drift warning: the assertion fails the moment the row
+  // stops missing the row regex, whatever the enum branch then does.
+  const ai = run(['--artifacts', join(HERE, 'conformance-shape-miss')]);
+  check('ai. shape-miss-only fixture exits 0', ai.status === 0, ai.stdout + ai.stderr);
+  check('ai. the regex-miss row is counted with zero parsed surfaces',
+    /\b0 surface\(s\), unparseable: 1\b/.test(ai.stdout), ai.stdout);
+  check('ai. zero parsed rows on a non-empty report raises the shape-drift warning',
+    /!! WARNING: CONFORMANCE_REPORT\.md is present and non-empty but yielded 0 parsed items/.test(ai.stdout), ai.stdout);
+
   const rcJson = join(jsonDir, 'run-conformance.json');
   const afJ = run(['--artifacts', join(HERE, 'run-conformance'), '--json', rcJson]);
   let rj = null;
