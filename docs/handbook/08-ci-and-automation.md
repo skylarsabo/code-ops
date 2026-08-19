@@ -160,6 +160,7 @@ Two rules hold at every level: the **always-gated categories** (security/auth, s
 ## Related
 
 - [Wire the CI gates](../guides/wire-ci-gates.md) — the step-by-step end-to-end setup guide.
+- [CI portability](../guides/ci-portability.md) — the same gates on GitLab CI and CircleCI: the mechanical chain ports unchanged, the agent gates are host-specific.
 - [Choosing an automation level](../techniques/choosing-an-automation-level.md) — `gated` vs `auto-safe` vs `auto-all` and the always-gated floor.
 - [03 · Orchestrators](03-orchestrators.md) — the skills the gates and schedules invoke.
 - [04 · Registers and freshness](04-registers-and-freshness.md) — the `Verified-at` SHA and `revalidate-register.mjs` that make scheduled diffs trustworthy.

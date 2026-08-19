@@ -12,7 +12,7 @@ Code-ops is one marketplace (`code-ops`) that publishes four plugins. You instal
 
 | Plugin | What it is | Install it when |
 | --- | --- | --- |
-| `code-ops-suite` | The spine: general engineering for any repo — audit, remediation, feature discovery/build, performance, tests, dependencies, PR review, normalization, doc generators, the orchestrators, and suite self-audit. (28 skills) | Always. This is the baseline for any project. |
+| `code-ops-suite` | The spine: general engineering for any repo — audit, remediation, feature discovery/build, performance, tests, dependencies, PR review, normalization, doc generators, the orchestrators, and suite self-audit. (32 skills) | Always. This is the baseline for any project. |
 | `rigor` | The verification layer: prove-it-or-don't. Find real bugs (with runnable repros), validate the test suite, lock behavior with safety nets, fix at root cause with a regression guard. (11 skills) | When you want **proven** defects and enforced consistency rather than a long list — the highest-signal option. |
 | `privacy-opsec-suite` | The anonymity track: anonymity threat model, Tor/proxy egress and leak audits, metadata minimization, fingerprinting resistance, opsec hardening, authorship hygiene. (14 skills) | Only on projects with anonymity/opsec requirements (anonymous sessions, Tor/onion routing, strong metadata minimization). |
 | `researcher` | The proposal layer: code-grounded research, local-first with disclosed, fail-closed egress. It proposes (registers + design briefs) and hands implementation to the other three. It never edits code. (7 skills) | When you want grounded improvement proposals, design spikes, or library evaluations before building. |
@@ -70,6 +70,26 @@ codex plugin add code-ops-suite@code-ops
 Install `rigor`, `privacy-opsec-suite`, and `researcher` with the same `codex plugin add <name>@code-ops` form as needed. For GitHub, use `codex plugin marketplace add skylarsabo/code-ops --ref main`. The renderer emits `allow_implicit_invocation: true` for each skill, mirroring Claude's model-invocable skills, so Codex may invoke a workflow implicitly; naming it explicitly remains the most reliable route.
 
 > **A note on the cross-plugin orchestrators.** A few `code-ops-suite` skills require the others to be installed: `everything` needs `rigor` *and* `privacy-opsec-suite`; `ship` and `debug` need `rigor`. The skill states its requirement when you invoke it. If you only installed `code-ops-suite`, the single-plugin workflows (`codebase-audit`, `pr-review`, the doc generators, `full-sweep`, …) all work on their own.
+
+### Partial installs
+
+The four plugins install independently, so most people run a subset. This section says which routes each subset supports. The [command router](commands/README.md#the-task--command-router) marks the same fact per row: **Requires `<plugin>`** for a route that does not run without it, **Optional: `<plugin>`** for a route that runs and skips the cross-plugin step.
+
+| Installed | What you get | What you do not get |
+| --- | --- | --- |
+| `code-ops-suite` alone | Every breadth route: `codebase-audit`, `remediation`, `pr-review`, `feature-discovery`, `feature-implementation`, `normalize`, `pr-split`, `dependency-upgrade`, `conform`, `atlas`, `vault`, the doc generators, and `full-sweep`. | `ship`, `debug`, and `everything`. `performance` and `test-hardening` lose their ground-truth baseline step. |
+| `code-ops-suite` + `rigor` | The above plus `ship`, `debug`, the whole verification layer, and `rigor-sweep`. `ship` and `debug` fall back to the bundled `scan-ai-tells.mjs` for the traceless gate. | `everything`, and every anonymity route. |
+| `code-ops-suite` + `rigor` + `privacy-opsec-suite` | `everything`, the anonymity track, and the anonymity PR gate. | The research routes. |
+| `rigor` alone | The proof journey end to end: `ground-truth`, `test-suite-audit`, `bug-hunt`, `quality-scan`, `safety-net`, `fix-verified`, `deep-review`, `rigor-sweep`. | The build and doc routes it hands off to. |
+| `privacy-opsec-suite` alone | The whole anonymity track: the threat model, the six leak audits, `opsec-hardening`, `opsec-pr-gate`, `authorship-hygiene`, and its own `full-sweep`. | The build hand-offs (`feature-implementation`, `normalize`). |
+| `researcher` alone | Every research route: `research-spike`, `research-improve`, `research-ideate`, `library-eval`, `research-verify`, `ecosystem-watch`, `research-sweep`. It requires nothing beyond itself. | The implementation hand-offs — the proposals are written, and nothing picks them up. |
+
+Two behaviors govern a missing plugin, and neither is silent:
+
+- **A hard prerequisite stops the run.** `everything`, `ship`, and `debug` declare their prerequisite in the skill itself and confirm availability before any fan-out.
+- **A conditional step names its fallback.** `ship`, `debug`, and `pr-split` run `privacy-opsec-suite:authorship-hygiene` when it is installed, and run the bundled `scan-ai-tells.mjs` directly when it is not, so the traceless gate never disappears. `remediation` routes to `codebase-audit` or `rigor:bug-hunt` for a missing register, whichever is installed.
+
+A hand-off is different from an invocation. Most cross-plugin edges are hand-offs: the skill finishes its own work, writes its register, and names the command to run next. If that command's plugin is absent, the artifact is still complete — the route simply ends there, and you install the plugin or carry the work forward yourself. The full edge list is in [skill-composition.md](../techniques/skill-composition.md).
 
 ## 3 · Invoke a workflow
 
