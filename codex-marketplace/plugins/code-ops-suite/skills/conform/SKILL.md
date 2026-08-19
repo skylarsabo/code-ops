@@ -53,7 +53,7 @@ Escalate rather than improvise. When a delegated skill stops at its own checkpoi
 
 ## Phase C — Prove it
 
-Re-run every mechanical check in the table, including the ones that already passed in Phase A, and record the fresh output in `CONFORMANCE_REPORT.md` beside the opening verdict. A repair that reports success but leaves its checker failing is a failed repair, and only the re-run distinguishes the two. Anything still DRIFTED or ABSENT is listed with the reason it was deferred.
+Re-run every mechanical check in the table, including the ones that already passed in Phase A, and re-write `CONFORMANCE_REPORT.md` with the closing verdicts: the file keeps one row per surface, updated in place, with the Phase A verdict noted in that row's evidence cell — never a second row per surface, which the grammar counts as unparseable. A repair that reports success but leaves its checker failing is a failed repair, and only the re-run distinguishes the two. Anything still DRIFTED or ABSENT is listed with the reason it was deferred.
 
 ## Done when
 
