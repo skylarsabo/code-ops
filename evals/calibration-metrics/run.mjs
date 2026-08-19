@@ -380,6 +380,8 @@ try {
     aeJ.status === 0 && cj?.conformance?.total === 4 && cj?.conformance?.malformed === 1
     && cj?.conformance?.byVerdict?.DRIFTED === 1 && cj?.conformance?.bySurface?.vault === 'DRIFTED',
     JSON.stringify(cj?.conformance));
+  check('ae. an absent run-conformance snapshot is null, never a measured zero',
+    cj?.runConformance === null, JSON.stringify(cj?.runConformance));
 
   // ---- ah. duplicate keys and lowercase verdicts (grammar (d), parser invariants) -----
   // Mirrors ag.: the shared walker's invariants are pinned on BOTH grammars, so a future
@@ -397,8 +399,11 @@ try {
     hj?.conformance?.total === Object.keys(hj?.conformance?.bySurface ?? {}).length, JSON.stringify(hj));
   check('ah. a lowercase verdict parses',
     hj?.conformance?.bySurface?.['runs-folder'] === 'CONFORMANT', JSON.stringify(hj));
-  check('ae. an absent run-conformance snapshot is null, never a measured zero',
-    cj?.runConformance === null, JSON.stringify(cj?.runConformance));
+  // The map alone cannot prove the duplicate was skipped: first-row-wins holds whether or not
+  // `counts` was incremented before the guard. The verdict tally is the half that discriminates.
+  check('ah. the duplicate row is not tallied into the verdict counts',
+    hj?.conformance?.byVerdict?.CONFORMANT === 2 && hj?.conformance?.byVerdict?.DRIFTED === 0,
+    JSON.stringify(hj?.conformance));
 
   const rcJson = join(jsonDir, 'run-conformance.json');
   const afJ = run(['--artifacts', join(HERE, 'run-conformance'), '--json', rcJson]);

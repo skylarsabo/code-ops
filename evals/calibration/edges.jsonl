@@ -54,7 +54,10 @@
 {"from":"L-024","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#panel-lens-diversity"}
 {"from":"L-040","rel":"fixed-in","to":"PR-59"}
 {"from":"L-040","rel":"enforced-by","to":"EVAL:evals/vault-standard/run.mjs"}
+{"from":"L-040","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#eval-wired-to-ci"}
 {"from":"L-041","rel":"fixed-in","to":"PR-62"}
 {"from":"L-041","rel":"enforced-by","to":"EVAL:evals/lint-plugins/run.mjs"}
+{"from":"L-041","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#composition-map-parity"}
 {"from":"L-042","rel":"fixed-in","to":"PR-64"}
 {"from":"L-042","rel":"enforced-by","to":"EVAL:evals/lint-plugins/run.mjs"}
+{"from":"L-042","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#composition-map-parity"}

@@ -535,6 +535,62 @@ No completion heading here on purpose (case 3 mutation).
   const r12f = runLint(d12f);
   check('12f. an edge row under a nested subheading still counts, exit 0', r12f.status === 0);
   check('12f. no out-of-section guard fired', !r12f.all.includes('edge-shaped row outside the edges section'));
+
+  // 12g. FENCED EXAMPLES ARE NOT PAGE STRUCTURE — a fenced markdown sample carrying both a
+  // heading and an edge-shaped row must not close the section, open a second one, or be
+  // read as an edge. The real edge sits after the fence, so it only stays satisfied if the
+  // fence left `inEdges` alone. Both scan loops (checks 17 and 22) skip fences.
+  const d12g = clone('case12g-composition-fenced-example');
+  put(d12g, REFERRING_SKILL, referringBody);
+  put(d12g, COMP_PATH, [
+    '# Skill composition (fixture)',
+    '',
+    '## The edges',
+    '',
+    'An example of the row shape:',
+    '',
+    '```markdown',
+    '## Standalone skills',
+    '',
+    '| `rigor:consistency-closure` | `code-ops-suite:everything` | example row inside a fence |',
+    '```',
+    '',
+    '| From skill | Invokes | When |',
+    '| --- | --- | --- |',
+    COMP_EDGE_ROW,
+    '',
+  ].join('\n'));
+  const r12g = runLint(d12g);
+  check('12g. a fenced markdown example does not disturb the edges section, exit 0', r12g.status === 0);
+  check('12g. the fenced edge-shaped row is not read as an out-of-section row',
+    !r12g.all.includes('edge-shaped row outside the edges section'));
+  check('12g. the fenced row is not read as an edge needing a reference',
+    !r12g.all.includes('matches no qualified reference'));
+
+  // 12h. A DEGENERATE REPEATED "The edges" HEADING DOES NOT DEEPEN THE SECTION LEVEL — the
+  // level is set on the heading that OPENS the section, so a nested duplicate cannot make a
+  // later sibling subheading close it early and strand a real edge row outside.
+  const d12h = clone('case12h-composition-repeated-edges-heading');
+  put(d12h, REFERRING_SKILL, referringBody);
+  put(d12h, COMP_PATH, [
+    '# Skill composition (fixture)',
+    '',
+    '## The edges',
+    '',
+    '### The edges',
+    '',
+    '### Another grouping subheading',
+    '',
+    '| From skill | Invokes | When |',
+    '| --- | --- | --- |',
+    COMP_EDGE_ROW,
+    '',
+  ].join('\n'));
+  const r12h = runLint(d12h);
+  check('12h. a repeated nested "The edges" heading does not close the section early, exit 0',
+    r12h.status === 0);
+  check('12h. no out-of-section guard fired',
+    !r12h.all.includes('edge-shaped row outside the edges section'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

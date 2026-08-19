@@ -16,7 +16,8 @@ carries is that same self name. The **When** column says which kind of edge each
 `scripts/lint-plugins.mjs` derives the same set from the rows under that heading and
 fails closed when a reference has no row, or a row has no reference. An edge-shaped row
 anywhere else on the page also fails closed, so parking a row outside the heading cannot
-bypass the derivation.
+bypass the derivation. Fenced code blocks are skipped on both sides: a markdown example
+on this page is illustration, not page structure.
 
 ## The edges
 
