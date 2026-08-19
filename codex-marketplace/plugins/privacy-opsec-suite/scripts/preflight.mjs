@@ -3,13 +3,21 @@
 // WHY: env/permission failures should stop a run BEFORE the fan-out, not strand it
 // mid-wave. Hard-fails only on requirements no run can proceed without; everything
 // OS-specific is an advisory. Never invoked mid-run (must not become a hang source).
+//
+// It also prints the bundled agents' tier floors. WHY: some hosts do not parse an agent's
+// `model:` frontmatter, so the lint-enforced floors have no mechanical carrier there and the
+// agents silently inherit the session model. A script cannot introspect which model a host
+// session runs, so the carrier is split: this step surfaces what the floors ARE on every
+// host, and the orchestrator doctrine makes the lead route dispatches at or above them.
+// The step never fails the preflight — a missing agents dir is normal off-plugin.
 //   node scripts/preflight.mjs [--need gh] [--artifact-dir <dir>]
 // Exit 0 = go (advisories allowed), 1 = hard requirement missing or bad invocation (unknown
 // flag, or a missing/blank value for --need / --artifact-dir).
 
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, rmSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { writeFileSync, rmSync, mkdirSync, readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { join, dirname, basename, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const argv = process.argv.slice(2);
 const needs = [];
@@ -80,6 +88,59 @@ if (process.platform === 'win32') {
     const crlf = execFileSync('git', ['config', '--get', 'core.autocrlf'], { timeout: 5000 }).toString().trim();
     if (crlf === 'true') advise('core.autocrlf=true: diffs may show phantom CRLF churn');
   } catch { /* unset is fine */ }
+}
+
+// ---- tier-floor manifest ------------------------------------------------------------
+// Agent floors are declared in each agent's own frontmatter, so the files beside this
+// script are the source of truth wherever it runs — vendored into a plugin
+// (<plugin>/scripts/preflight.mjs, agents at ../agents) or canonical in this repo
+// (scripts/preflight.mjs, agents under ../plugins/*/agents).
+const SELF_DIR = dirname(fileURLToPath(import.meta.url));
+
+const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return false; } };
+
+function agentDirs() {
+  const vendored = resolve(SELF_DIR, '..', 'agents');
+  if (isDir(vendored)) return [[basename(resolve(SELF_DIR, '..')), vendored]];
+  const pluginsRoot = resolve(SELF_DIR, '..', 'plugins');
+  if (!isDir(pluginsRoot)) return [];
+  const out = [];
+  for (const name of readdirSync(pluginsRoot).sort()) {
+    const dir = join(pluginsRoot, name, 'agents');
+    if (isDir(dir)) out.push([name, dir]);
+  }
+  return out;
+}
+
+function tierFloors() {
+  const rows = [];
+  for (const [plugin, dir] of agentDirs()) {
+    for (const file of readdirSync(dir).sort()) {
+      if (!file.endsWith('.md')) continue;
+      let text;
+      try { text = readFileSync(join(dir, file), 'utf8').replace(/^﻿/, ''); } catch { continue; }
+      const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      if (!fm) continue;
+      const name = fm[1].match(/^name:[ \t]*(\S+)/m);
+      const model = fm[1].match(/^model:[ \t]*(\S+)/m);
+      rows.push({
+        agent: `${plugin}/${name ? name[1] : file.slice(0, -3)}`,
+        floor: model ? model[1] : '(undeclared)',
+      });
+    }
+  }
+  return rows.sort((a, b) => (a.agent < b.agent ? -1 : a.agent > b.agent ? 1 : 0));
+}
+
+const floors = tierFloors();
+console.log('tier floors (agent frontmatter — route every dispatch at or above its floor):');
+if (floors.length === 0) {
+  console.log('  (no bundled agent definitions beside this script — floors unknown here)');
+} else {
+  const width = Math.max(...floors.map((r) => r.agent.length));
+  for (const r of floors) console.log(`  ${r.agent.padEnd(width)}  ${r.floor}`);
+  console.log('  On a host that ignores agent model: frontmatter, the lead routes these by hand;');
+  console.log("  a below-floor dispatch FAILs run-cost-audit's tier-routing check.");
 }
 
 if (errors.length) {

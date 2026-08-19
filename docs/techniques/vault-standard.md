@@ -73,7 +73,7 @@ To adopt the standard in a repo: rename folders to the numbered scheme, add the 
 
 The current standard-version is **2**. A vault's `Standard.md` states the version it claims, and the checker fails any vault below the current one.
 
-Conformance is checkable by machine, and machine-*enforced* only in a repo whose CI runs the checker. Today that is code-ops itself: `.github/workflows/validate.yml` runs `node scripts/check-vault-standard.mjs code-ops-docs` and `node evals/vault-standard/run.mjs` on every push. In any other vault-bearing repo the checker is a command an agent or an operator runs, and adding it to that repo's CI is what makes the claim true there.
+Conformance is checkable by machine, and machine-*enforced* only in a repo whose CI runs the checker. Today that is code-ops itself: `.github/workflows/validate.yml` runs `node scripts/check-vault-standard.mjs code-ops-docs` and `node evals/vault-standard/run.mjs` on every push. In any other vault-bearing repo the checker is a command an agent or an operator runs, and adding it to that repo's CI is what makes the claim true there. Adoption itself stays voluntary and is never lint-gated: a repo with no vault is legitimate, `conform` reports its vault surface as `ABSENT`, the conformance snapshot trends that value, and a repo escalates to enforcement by wiring the checker into its own CI — the decision note `D-002 vault adoption stays voluntary` in the code-ops vault records why.
 
 `node scripts/check-vault-standard.mjs <vault-dir>` is fail-closed and enforces ten rules:
 

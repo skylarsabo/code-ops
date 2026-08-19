@@ -4,7 +4,10 @@
 // tool fails with an explicit 'not resolvable' message, a normal run inside a git work
 // tree passes with 'preflight OK', an --artifact-dir that collides with an existing
 // file fails with 'not writable', and (win32 only) a .cmd shim on PATH still resolves
-// via the where.exe fallback.
+// via the where.exe fallback. It also pins the tier-floor manifest — the carrier for hosts
+// that ignore agent `model:` frontmatter: the canonical copy prints every bundled agent's
+// declared floor, a vendored copy prints only its own plugin's, and the step neither fails
+// a good run nor masks a hard failure.
 //
 //   node evals/preflight/run.mjs   (exit 0 = pass)
 
@@ -64,6 +67,31 @@ try {
   const f = run(['--artifact-dir', join(fileX, 'sub')]);
   check('f. artifact-dir nested under a file exits 1', f.status === 1);
   check("f. stderr mentions 'not writable'", f.stderr.includes('not writable'));
+
+  // h. tier-floor manifest — the carrier for hosts that ignore agent `model:` frontmatter.
+  // Run from the canonical scripts/ dir, the script scans ../plugins/*/agents and prints one
+  // `<plugin>/<agent>  <floor>` row per bundled agent, plus the routing rule the lead follows.
+  const h = run([]);
+  check('h. prints the tier-floor header', h.stdout.includes('tier floors (agent frontmatter — route every dispatch at or above its floor):'));
+  check('h. rows are `<plugin>/<agent>  <floor>`', /^ {2}rigor\/verifier {2,}opus$/m.test(h.stdout));
+  check('h. lists every bundled agent', ['code-ops-suite/explorer', 'code-ops-suite/reviewer', 'privacy-opsec-suite/explorer', 'privacy-opsec-suite/privacy-reviewer', 'researcher/claim-checker', 'researcher/gatherer', 'rigor/tracer', 'rigor/verifier'].every((a) => h.stdout.includes(a)));
+  check('h. names the measurement backstop', h.stdout.includes("run-cost-audit's tier-routing check"));
+
+  // i. A vendored copy (plugins/<name>/scripts/preflight.mjs) resolves ../agents instead, so it
+  // prints only its own plugin's floors — the shape a real run sees via ${CLAUDE_PLUGIN_ROOT}.
+  const vendored = join(REPO, 'plugins', 'rigor', 'scripts', 'preflight.mjs');
+  const i = (() => {
+    try { return { status: 0, stdout: execFileSync(process.execPath, [vendored], { encoding: 'utf8', timeout: 10000, cwd: REPO }) }; }
+    catch (e) { return { status: e.status ?? 1, stdout: e.stdout || '' }; }
+  })();
+  check('i. vendored copy exits 0', i.status === 0);
+  check('i. vendored copy prints its own plugin floors', /^ {2}rigor\/verifier {2,}opus$/m.test(i.stdout));
+  check('i. vendored copy omits other plugins', !i.stdout.includes('code-ops-suite/reviewer'));
+
+  // j. The floor step never fails the preflight and never blocks a hard failure from
+  // reporting: a run that fails on a missing --need tool still exits 1.
+  const j = run(['--need', 'definitely-not-a-real-tool-9x7']);
+  check('j. floor step does not mask a hard failure', j.status === 1 && j.stdout.includes('tier floors'));
 
   // g. WIN32-ONLY — a .cmd shim on PATH must still resolve via the where.exe fallback
   // (node refuses to spawn .cmd/.bat shims directly without a shell; see preflight.mjs `has()`).

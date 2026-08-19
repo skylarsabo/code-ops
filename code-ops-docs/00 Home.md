@@ -46,3 +46,4 @@ These trees stay canonical. The vault links to them and never copies them. When 
 Add a link here when you write a current design, an accepted decision, or a run index.
 
 - [[D-001 adopt vault standard]]
+- [[D-002 vault adoption stays voluntary]]

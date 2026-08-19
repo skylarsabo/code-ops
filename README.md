@@ -111,7 +111,7 @@ grok inspect
 
 Grok Build namespaces plugin agents as `<plugin>:<agent>`, so the two `explorer` agents coexist without the flattening opencode needs. Set the model in `~/.grok/config.toml` (`%USERPROFILE%.grokconfig.toml` on Windows) under `[models] default`; recent builds already default to `grok-4.6`.
 
-One gap to know: Grok Build does not parse an agent's `model:` frontmatter, so agents inherit the session model and the lint-enforced tier floors have no carrier on this host. Pick a session model that meets the strongest floor any agent you dispatch declares — see `docs/techniques/subagent-trade-offs.md`.
+One gap to know: Grok Build does not parse an agent's `model:` frontmatter, so agents inherit the session model rather than their declared tier. The floors still travel, in three parts. Phase 0's `scripts/preflight.mjs` prints the bundled agents' declared floors, so every run surfaces them on any host. The lead then routes each dispatch at or above its floor by hand, per the "Tier floors travel with the run" convention. And `run-cost-audit` measures the result: a below-floor dispatch lands as a `tier-routing` FAIL in `RUN_CONFORMANCE.md`. Picking a session model that meets the strongest floor you will dispatch satisfies all three at once — see `docs/techniques/subagent-trade-offs.md`.
 
 ### opencode
 
