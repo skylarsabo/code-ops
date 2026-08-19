@@ -12,11 +12,13 @@
 // fail the run, and gets no further rows; a consenting member with a broken vault exits 1; every
 // malformed-manifest shape exits 1 before any member is checked; an unresolvable member path is
 // UNKNOWN rather than skipped; the consent phrase counts only inside a `## Fleet` section, only
-// on a line of its own (so a fenced example and an inline quotation in a written refusal both
-// fail to enroll), tolerating bullet/blockquote/indent decoration, matched case-insensitively,
-// under a closed-ATX heading as well as an open one; two pointers naming each other are DRIFTED
-// rather than a parity mode; a missing vault is ABSENT and not a failure; a slug collision is a
-// manifest error; and every emitted row parses under grammar (d).
+// on a line of its own (so an inline quotation in a written refusal fails to enroll), tolerating
+// bullet/blockquote/indent decoration, matched case-insensitively, under a closed-ATX heading as
+// well as an open one; a fenced phrase never enrolls whatever its shape or position in the block,
+// while a fenced heading-lookalike does not close the section and a real consent after a closed
+// fence still counts; two pointers naming each other are DRIFTED rather than a parity mode, and a
+// short substantive contract naming its twin is not a pointer; a missing vault is ABSENT and not a
+// failure; a slug collision is a manifest error; and every emitted row parses under grammar (d).
 //
 //   node evals/fleet-standard/run.mjs   (exit 0 = pass)
 
@@ -133,14 +135,43 @@ const member = (path, extra = {}) => ({ path, profile: 'product', roles: [], ...
 // Documenting the rule is not consenting to it. Case 3 above only exercises the
 // out-of-section path; this one and 3c exercise the in-section path, which is where a
 // substring match over the whole section fails open.
-{
-  const body = contract('## Fleet\n\nNot a member. Joining would mean adding:\n\n```\nfleet member: yes\n```\n');
-  const ws = workspace({ 'fenced/CLAUDE.md': body, 'fenced/AGENTS.md': body },
-    { version: 1, members: [member('fenced')] });
+//
+// The shapes are enumerated rather than represented by one example on purpose. An earlier
+// version of this eval carried only the first of them — phrase on the first content line of a
+// ``` fence — which was the single shape the then-broken stripper handled, so the case passed
+// for the wrong reason and a fence whose phrase sat one line lower enrolled the repo.
+for (const [label, block] of [
+  ['first-line', '```\nfleet member: yes\n```'],
+  ['second-line', '```\ncontext line\nfleet member: yes\n```'],
+  ['blank-first-line', '```\n\nfleet member: yes\n```'],
+  ['tilde-fence', '~~~\ncontext line\nfleet member: yes\n~~~'],
+  ['info-string', '```markdown\ncontext line\nfleet member: yes\n```'],
+  // No closing marker: the fence suppresses to the end of the input, which is the safe
+  // direction. Reading past an unclosed fence would let example text enroll the repo.
+  ['unterminated', '```\ncontext line\nfleet member: yes'],
+  // A shorter run inside a longer fence does not close it, per CommonMark.
+  ['longer-fence', '````\n```\nfleet member: yes\n````'],
+]) {
+  const body = contract(`## Fleet\n\nNot a member. Joining would mean adding:\n\n${block}\n`);
+  const ws = workspace({ [`fenced-${label}/CLAUDE.md`]: body, [`fenced-${label}/AGENTS.md`]: body },
+    { version: 1, members: [member(`fenced-${label}`)] });
   const r = run(ws.mpath);
-  expect(surfaces('phrase-in-fence', r.out).get('fenced-consent') === 'ABSENT',
-    `a fenced example of the phrase must not enroll the repo, got:\n${r.out}`);
+  expect(surfaces(`phrase-in-fence-${label}`, r.out).get(`fenced-${label}-consent`) === 'ABSENT',
+    `a fenced example of the phrase (${label}) must not enroll the repo, got:\n${r.out}`);
   expect(r.status === 0, `a repo that never consented should not fail the run, got ${r.status}:\n${r.out}`);
+}
+
+// ---- 3b-i. a heading-lookalike inside a fence does not end the section -----------------
+// The mirror of 3b on the section scanner. A contract quoting the heading it must write is
+// still consenting below that quotation, and a fence-blind scanner closes the section at the
+// fenced `## Fleet` and reports a genuinely enrolled repo as a deliberate decline.
+{
+  const body = contract('## Fleet\n\nThe heading above must be written exactly like this:\n\n```\n## Fleet\n# Anything\n```\n\nfleet member: yes\n');
+  const ws = workspace({ 'quoted/CLAUDE.md': body, 'quoted/AGENTS.md': body },
+    { version: 1, members: [member('quoted')] });
+  const r = run(ws.mpath);
+  expect(surfaces('fenced-heading', r.out).get('quoted-consent') === 'CONFORMANT',
+    `a heading-lookalike inside a fence must not close the section, got:\n${r.out}`);
 }
 
 // ---- 3c. an explicit refusal that quotes the phrase inline ---------------------------
@@ -234,6 +265,24 @@ for (const [label, prefix] of [['bullet', '- '], ['blockquote', '> '], ['indente
   expect(r.status === 1, `a circular pointer pair on a consenting member must exit 1, got ${r.status}:\n${r.out}`);
   expect(surfaces('circular-pointers', r.out).get('circ-contract') === 'DRIFTED',
     `two pointers naming each other leave no substantive contract, so the pair is DRIFTED, got:\n${r.out}`);
+}
+
+// ---- 5c. a short SUBSTANTIVE contract that names its twin is not a pointer ------------
+// The pointer test is three tests, not a length cap. A file that carries sections of its own,
+// or that mentions the other name only in passing far down the page, is a contract that
+// happens to be short — reporting it as a stub would be a false DRIFTED. The `beta` fixture
+// pins the other direction: a real pointer still reads CONFORMANT.
+for (const [label, other] of [
+  ['sectioned', contract('`CLAUDE.md` is a generated copy of this file, and it is required reading.\n\n## Doctrine\n\nSubstantive rules live here.\n')],
+  ['buried', contract(`${'Substantive contract prose.\n'.repeat(10)}\nIt is required reading. A copy lives in \`CLAUDE.md\`.\n`)],
+]) {
+  const long = contract(`${CONSENT}\n${'Substantive contract prose.\n'.repeat(30)}`);
+  const ws = workspace({ [`${label}/CLAUDE.md`]: long, [`${label}/AGENTS.md`]: other },
+    { version: 1, members: [member(label)] });
+  const r = run(ws.mpath);
+  expect(surfaces(`not-a-pointer-${label}`, r.out).get(`${label}-contract`) === 'DRIFTED',
+    `a ${label} short contract is not a pointer, so the pair has drifted, got:\n${r.out}`);
+  expect(r.status === 1, `a drifted pair on a consenting member must exit 1, got ${r.status}:\n${r.out}`);
 }
 
 // ---- 6. an incomplete contract pair on a consenting member ---------------------------
