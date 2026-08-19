@@ -37,6 +37,8 @@ Specification amendments are deliberate and paired. The page and the checker cha
 
 The finding class is closed. A future review that finds an undocumented nesting is proposing a specification amendment, which is a design question rather than a defect.
 
+Amended 2026-08-19: the first amendment under this procedure removed the list-context consent-cap lift, because it reopened the indent hole 1.43.3 closed — see "Amended 2026-08-19" in `docs/techniques/fleet-standard.md`.
+
 ## Related
 
 - [[Standard]]
