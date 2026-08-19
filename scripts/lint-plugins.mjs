@@ -406,7 +406,6 @@ if (existsSync(handbookDir)) {
 }
 
 // ---- 21. handbook techniques index parity -------------------------------------
-// (check name: `handbook-techniques-index`)
 // docs/handbook/README.md's techniques list is the only index of docs/techniques/. A page
 // added without a list entry is written and unread; an entry left behind by a deleted or
 // renamed page is a dead link in the handbook's front door; and the written-out count in the
