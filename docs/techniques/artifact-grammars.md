@@ -31,6 +31,11 @@ skills should call `add`/`update`/`check`, never hand-author rows):
 Rows are written **at dispatch time**, atomically with the dispatch call itself — see
 the `Dispatch ledger` passage in each plugin's `CONVENTIONS.md` for why.
 
+The row pattern and its status set live in `scripts/ledger-grammar.mjs`, which the writer
+and both readers import. Each reader counts a non-matching row as malformed rather than
+failing, so three separate copies of this grammar would have drifted into quietly
+undercounted dispatches; one module removes that path.
+
 ### The model half is parsed, not just carried
 
 The role cell is one cell, but it holds two facts. Both consumers split it on its **last**

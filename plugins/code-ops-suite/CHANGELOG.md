@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.42.5
+- **An aborted run no longer rewrites the estimate** — `estimate-run-cost.mjs` counted a run folder whose `DISPATCH_LEDGER.md` has no parseable rows as a comparable run that cost 0 dispatches. `dispatch-ledger.mjs phase` writes exactly that ledger for a run that opens a phase and dies, so one aborted run pulled the range's minimum to 0, dragged the median down, and — the serious part — satisfied the `n >= 3` guard with a run that proved nothing, suppressing the guess caveat at a true n of 2. Zero-row runs are now excluded from the range and named in a caveat of their own, and the guess caveat fires on the count of runs that yielded rows.
+- **The walk says what it dropped** — a `DISPATCH_LEDGER.md` deeper than the bounded walk's three levels was skipped in silence, under a message asserting none existed under the tree. The unsearched directories are now listed, and the not-found line is qualified by the depth it searched.
+- **Grammar (a) has one source** — the `DISPATCH_LEDGER.md` row shape had three character-identical copies, and an edit to one would have left the others quietly undercounting dispatches rather than failing. A data-only `scripts/ledger-grammar.mjs` now holds the row pattern, the status set, and the table header; the writer and both readers import it.
+- **`--repo-size Infinity` is rejected** — the validator accepted it and echoed it back as a recorded size.
+
 ## 1.42.4
 - **Cost machinery turns predictive** — the ledger's `role@model` stamp is now machine-parsed on both halves: `dispatch-ledger.mjs check` and `calibration-metrics.mjs` each report a per-model mix and a per-model-*class* mix, resolving stamped ids to canonical rungs through the ladder SSOT so a mix stays comparable after a provider moves its lineup. An id serving several rungs reads `ambiguous` and an id in no pinned ladder reads `unclassified`, rather than being placed by the shape of its name; a bare pre-stamp cell still parses and reads `unstamped`. On top of that parse, a new `scripts/estimate-run-cost.mjs` reads *prior* runs' ledgers **before** a run and prints a dispatch-count range plus its class mix, so Phase 0 scoping has a number instead of only a judgment. It does no token-price math (prices drift), calls an estimate from fewer than three comparable runs a guess in a caveat block, and never fails a run — no history exits 0 with "no prior runs, no estimate".
 

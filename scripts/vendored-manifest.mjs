@@ -30,6 +30,9 @@ export const RUNTIME_SCRIPTS = [
   // Imported by the three above for the model-class resolver; it ships as their dependency,
   // not because a skill invokes it directly.
   { name: 'model-tiers.mjs', plugins: ['code-ops-suite'] },
+  // Imported by the same three for grammar (a) — the DISPATCH_LEDGER.md row shape — so the
+  // writer and the two readers cannot drift apart. A dependency, not a skill entry point.
+  { name: 'ledger-grammar.mjs', plugins: ['code-ops-suite'] },
   { name: 'scan-narration.mjs', plugins: ['code-ops-suite'] },
   { name: 'atlas-check.mjs', plugins: ['code-ops-suite'] },
   { name: 'check-vault-standard.mjs', plugins: ['code-ops-suite'] },

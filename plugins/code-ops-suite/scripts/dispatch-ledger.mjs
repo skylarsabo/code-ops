@@ -68,11 +68,13 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
+import { LEDGER_HEADER, LEDGER_ROW_RE, LEDGER_STATUSES } from './ledger-grammar.mjs';
 
-const HEADER = '| id | role | brief | expected artifact | status |\n'
-  + '| --- | --- | --- | --- | --- |\n';
-const STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
-const ROW_RE = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
+// Grammar (a) comes from scripts/ledger-grammar.mjs so this writer and the two readers
+// (calibration-metrics.mjs, estimate-run-cost.mjs) cannot drift apart.
+const HEADER = LEDGER_HEADER;
+const STATUSES = LEDGER_STATUSES;
+const ROW_RE = LEDGER_ROW_RE;
 // Phase marker: `> phase: <title> · lead@<model>`, a blockquote line so every parser that reads
 // only pipe rows (this file's parseRows, revalidate-register.mjs's --dispatch-ledger scan)
 // ignores it unchanged. Positional: the rows after it belong to that phase.
