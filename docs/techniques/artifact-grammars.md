@@ -23,12 +23,44 @@ skills should call `add`/`update`/`check`, never hand-author rows):
 - `role` — stamped `role@model` at dispatch time (e.g. `explorer@claude-sonnet-5`), the
   resolved model that actually ran the dispatch. A cell with no `@model` is a legacy
   unstamped row — it still parses, but the tier-mix metric can't reconstruct that row.
+  See [The model half is parsed, not just carried](#the-model-half-is-parsed-not-just-carried).
 - `brief` — ≤10 words.
 - `expected artifact` — the filename or `diff` the dispatch is expected to produce.
 - `status` — one of `dispatched | reported | failed | redispatched`.
 
 Rows are written **at dispatch time**, atomically with the dispatch call itself — see
 the `Dispatch ledger` passage in each plugin's `CONVENTIONS.md` for why.
+
+### The model half is parsed, not just carried
+
+The role cell is one cell, but it holds two facts. Both consumers split it on its **last**
+`@` — a role name that itself carried `@` would otherwise misparse the model — and read the
+right half back as counts:
+
+- **Per model.** `dispatch-ledger.mjs check` prints `model mix:` and
+  `calibration-metrics.mjs` prints `tier mix:`, each a dispatch count per resolved model id.
+- **Per model class.** Both also print `model-class mix:`, resolving each stamped id to a
+  canonical rung through `scripts/model-tiers.mjs`, the ladder SSOT. Raw ids change whenever
+  a provider moves its lineup; the rungs do not, so the class mix is what stays comparable
+  across runs, across months, and across providers.
+
+Three answers are possible, and the last two are refusals rather than guesses:
+
+| Class | When | Why not a rung |
+| --- | --- | --- |
+| `light` · `mid` · `strong` · `frontier` | the id serves exactly one rung in `PROVIDER_TIERS` | — |
+| `ambiguous` | the id serves several rungs (`grok-4.6` serves all four; `gemini-3.1-pro-preview` serves two) | a single-model ladder carries no tier signal, and naming one rung would invent a distinction the provider does not make |
+| `unclassified` | the id is real but sits in no pinned ladder | a model this repo has not pinned cannot be placed by the shape of its name, and a wrong placement reads as a routing verdict |
+
+A row with no stamp, or one whose model half is empty (`explorer@`), is `unstamped` in both
+lines — its own bucket, never folded into a class, because a hole in the record is not a
+tier that was observed. The addition is backward compatible in both directions: a bare
+`role` cell stays valid and still parses, and absence is reported as `unstamped`, never as
+an error.
+
+The forward-looking consumer of the same grammar is `scripts/estimate-run-cost.mjs`, which
+reads prior runs' ledgers **before** a run to estimate its dispatch count and class mix —
+see [handbook 09 § Pre-run estimation](../handbook/09-cost-and-scoping.md).
 
 ### Phase markers
 

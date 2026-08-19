@@ -104,6 +104,50 @@ For `research-sweep`, the equivalent lever is **egress**. It is local-first by d
 
 ---
 
+## 2b · Pre-run estimation: set the levers against a number
+
+The four levers above are judgment calls, and until now the only mechanical reading of a
+run's cost arrived **after** it — `calibration-metrics.mjs` and
+[`/code-ops-suite:run-cost-audit`](../../plugins/code-ops-suite/skills/run-cost-audit/SKILL.md)
+both measure a finished run. `scripts/estimate-run-cost.mjs` reads the same evidence
+forward. Run it at Phase 0, before you set the levers:
+
+```
+node scripts/estimate-run-cost.mjs --runs <vault>/80\ Runs --skill ship [--repo-size 40]
+```
+
+It walks prior run folders, parses their `DISPATCH_LEDGER.md` files with grammar (a) from
+[techniques/artifact-grammars.md](../techniques/artifact-grammars.md), and prints two things:
+
+- a **dispatch-count range** — min, median, and max over the comparable prior runs;
+- a **model-class mix** — how those dispatches split across the `light`/`mid`/`strong`/
+  `frontier` rungs, plus `unstamped` and `unclassified` where the record does not say.
+
+Read the range as the shape of the run you are about to start, then choose scope with it:
+if the median already sits above the effort you meant to spend, narrow the scope (Lever 2)
+or drop to the read-only track (Lever 1) *before* Phase 1, not at the checkpoint after the
+spend. If the mix is heavy on `strong` for work you expected to be mechanical, the routing
+is the lever, not the scope.
+
+Three limits, each stated by the tool itself rather than left to the reader:
+
+1. **It counts dispatches, not money.** Per-token prices drift between providers and
+   between months, so a dollar figure printed here would age into a confident wrong number.
+   Multiply the range by your own current prices if you want one.
+2. **Fewer than three comparable runs is a guess, and it says so.** A range drawn from one
+   or two observations is a sample, not a distribution; the tool prints a caveat block
+   rather than a quiet number.
+3. **It never fails a run.** An absent or empty runs directory prints "no prior runs, no
+   estimate" and exits 0. The estimator is advisory by construction, so adopting it costs
+   nothing.
+
+The audit is the data producer and the estimator is the consumer: every run that writes a
+stamped ledger makes the next run's estimate better. That is the whole loop —
+`run-cost-audit` scores the run that finished, and `estimate-run-cost` prices the one about
+to start.
+
+---
+
 ## 3 · Let the consolidated checkpoint decide what to fix
 
 The cheapest fix run is the one you scope *after* you have seen the findings — not before. Every orchestrator separates **finding** (read-only, cheap-ish) from **fixing** (code-changing, expensive) with a checkpoint in between.

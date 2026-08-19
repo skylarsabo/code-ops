@@ -127,6 +127,9 @@ jobs:
       - name: Dispatch-ledger regression eval
         run: node evals/dispatch-ledger/run.mjs
 
+      - name: Pre-run cost estimator eval
+        run: node evals/estimate-run-cost/run.mjs
+
       - name: Run-artifact narration scanner eval
         run: node evals/scan-narration/run.mjs
 

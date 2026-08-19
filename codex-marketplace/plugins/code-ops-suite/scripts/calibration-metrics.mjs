@@ -31,7 +31,10 @@
 // malformed line is REJECTED whole (never partly used) with its violations printed; either way the
 // report names which basis it used, so a fallback is never silent. The
 // ledger's role@model stamp (scripts/dispatch-ledger.mjs) is also parsed into a tier-mix line
-// (dispatch count per model; an unstamped role cell counts as "unstamped"), and its positional
+// (dispatch count per model; an unstamped role cell counts as "unstamped") and a model-class-mix
+// line that resolves each stamped id to a canonical rung through scripts/model-tiers.mjs, so a
+// mix stays comparable across runs and providers after a lineup moves; a real id in no pinned
+// ladder counts as "unclassified" rather than being placed on the ladder by shape. Its positional
 // `> phase:` markers into a lead-model-per-phase line plus an advisory when the lead changed
 // mid-run. Register entries are detected only at an entry-heading position, so an ID cited in
 // evidence prose no longer inflates the finding count; a register that parses to zero entries
@@ -68,6 +71,7 @@
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
+import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
 
 function usage() {
   console.error('usage: calibration-metrics.mjs --artifacts <dir> [--out <file>] [--json <file>]');
@@ -165,13 +169,22 @@ function summarizeLedger(text, journalText = null) {
   // role@model stamp (dispatch-ledger.mjs): split each row's role cell on its LAST '@' so a
   // role name that itself contains '@' (unlikely, but not impossible) can't misparse the model.
   // An unstamped cell (no '@') is counted as "unstamped" rather than dropped or guessed at.
+  // The model half is also resolved to a canonical model CLASS through scripts/model-tiers.mjs,
+  // so a mix is comparable across runs and providers: raw ids differ every time a lineup moves,
+  // while the rungs do not. `unstamped` (no model recorded) and `unclassified` (a real id in no
+  // pinned ladder) stay distinct buckets — one is a hole in the record, the other a model this
+  // repo has not placed, and collapsing either into a rung would report a tier never observed.
   const byModel = {};
+  const byModelClass = {};
   for (const r of rows) {
     byRole[r.role] = (byRole[r.role] ?? 0) + 1;
     byStatus[r.status]++;
     const at = r.role.lastIndexOf('@');
-    const model = at === -1 ? 'unstamped' : r.role.slice(at + 1).trim() || 'unstamped';
+    const stamped = at === -1 ? '' : r.role.slice(at + 1).trim();
+    const model = stamped || 'unstamped';
     byModel[model] = (byModel[model] ?? 0) + 1;
+    const cls = stamped ? modelClassOf(stamped) : 'unstamped';
+    byModelClass[cls] = (byModelClass[cls] ?? 0) + 1;
   }
   const pct = (n) => (total ? ((n / total) * 100).toFixed(1) : '0.0');
 
@@ -190,7 +203,7 @@ function summarizeLedger(text, journalText = null) {
       everRedispatched = rows.filter((r) => everHeld(r).has('redispatched')).length;
     }
   }
-  return { total, malformed, byRole, byStatus, byModel, phases, pct, journal, everFailed, everRedispatched };
+  return { total, malformed, byRole, byStatus, byModel, byModelClass, phases, pct, journal, everFailed, everRedispatched };
 }
 
 // Findings-register item IDs per revalidate-register.mjs's grammar (e.g. BUG-007, PERF-003,
@@ -433,7 +446,8 @@ function headShaFor(cwd) {
 }
 
 // MACHINE_SHAPE (--json): the prose report's own numbers, nothing derived and nothing new.
-//   { ledger:      { total, malformed, byRole, byStatus, byModel, phases: [{title, lead, rows}],
+//   { ledger:      { total, malformed, byRole, byStatus, byModel, byModelClass,
+//                    phases: [{title, lead, rows}],
 //                    journal: { present, derived, violations }, everFailed, everRedispatched }     | null,
 //     findings:    { totalItems, malformed, total, byTier, bySeverity, coveredNegatives }        | null,
 //     refutations: { total, survived, refuted, malformed }                                       | null,
@@ -478,7 +492,8 @@ function runMetrics(dir, outPath, jsonPath) {
   } else {
     const s = summarizeLedger(ledgerText, readIfPresent('DISPATCH_LEDGER.md.journal.jsonl'));
     machine.ledger = {
-      total: s.total, malformed: s.malformed, byRole: s.byRole, byStatus: s.byStatus, byModel: s.byModel,
+      total: s.total, malformed: s.malformed, byRole: s.byRole, byStatus: s.byStatus,
+      byModel: s.byModel, byModelClass: s.byModelClass,
       phases: s.phases.map((ph) => ({ title: ph.title, lead: ph.lead, rows: ph.rows })),
       journal: { present: s.journal.present, derived: s.journal.derived, violations: s.journal.violations.length },
       everFailed: s.everFailed, everRedispatched: s.everRedispatched,
@@ -502,6 +517,8 @@ function runMetrics(dir, outPath, jsonPath) {
         : 'snapshot-only (no write journal beside the ledger) — a unit that failed and was then retried counts only as redispatched'}`);
     const modelList = Object.entries(s.byModel).map(([m, n]) => `${m} ${n}`).join(', ') || '(none)';
     p(`  tier mix: ${modelList}`);
+    const classOrder = [...MODEL_CLASS_ORDER, 'unstamped'].filter((k) => k in s.byModelClass);
+    p(`  model-class mix: ${classOrder.map((k) => `${k} ${s.byModelClass[k]}`).join(', ') || '(none)'}`);
     // Phase markers are optional: a ledger without them reports nothing extra here.
     if (s.phases.length) {
       p(`  lead model by phase: ${s.phases.map((ph) => `${ph.title}=${ph.lead}`).join(', ')}`);

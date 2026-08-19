@@ -12,6 +12,8 @@ description: "Use when you want to audit a completed orchestrated run's cost dis
 
 Audits how a finished run spent its budget, not whether its findings were correct.
 
+This audit is the **data producer** for the forward-looking half of the same loop: every stamped ledger it reads back is what `node <plugin-root>/scripts/estimate-run-cost.mjs --runs <runs dir> --skill <name>` uses at the NEXT run's Phase 0 to estimate a dispatch-count range and model-class mix before the budget is spent (see `docs/handbook/09-cost-and-scoping.md`).
+
 ## Phase 0 — Collect
 Run `node <plugin-root>/scripts/calibration-metrics.mjs --artifacts <run folder>` for the raw counts (dispatches, tier/effort mix if recorded, artifact line counts), and `node <plugin-root>/scripts/dispatch-ledger.mjs check --ledger <run folder>/DISPATCH_LEDGER.md` for dispatch/redispatch/failure rates and any dangling rows.
 

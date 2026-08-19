@@ -35,6 +35,13 @@
 // dispatch: `check` flags it as an advisory (tier mix not reconstructable for that row),
 // promoted to a failure under --strict. Legacy ledgers without the stamp still PARSE.
 //
+// The model half is MACHINE-PARSED, not just carried: `check` splits each role cell on its last
+// '@' and reports the per-model and per-model-class dispatch counts, resolving each stamped id
+// through scripts/model-tiers.mjs (the ladder SSOT). A row with no stamp counts as `unstamped`
+// and a stamped id outside the pinned ladders counts as `unclassified` — both are reported,
+// never dropped and never guessed at, so the mix line is a reading of the ledger rather than an
+// inference about it.
+//
 // WHY the write journal (check name: `phantom-row`): the prior enforcement was prose-only —
 // "write the row atomically with the dispatch call" — and a snapshot of the finished artifact
 // cannot tell a real dispatch from a row minted by a direct or batch edit of the file (often
@@ -60,6 +67,7 @@
 
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
 
 const HEADER = '| id | role | brief | expected artifact | status |\n'
   + '| --- | --- | --- | --- | --- |\n';
@@ -140,6 +148,39 @@ function nextId(rows) {
 
 function wordCount(s) {
   return s.trim().split(/\s+/).filter(Boolean).length;
+}
+
+// Splits a `role@model` cell on its LAST '@', so a role name that itself carries '@'
+// (unlikely, but not impossible) cannot misparse the model. A cell with no '@', or one whose
+// model half is blank, is an unstamped dispatch: `{ role, model: null }`, never a guess.
+function splitRoleCell(cell) {
+  const at = cell.lastIndexOf('@');
+  if (at === -1) return { role: cell.trim(), model: null };
+  const model = cell.slice(at + 1).trim();
+  return { role: cell.slice(0, at).trim(), model: model === '' ? null : model };
+}
+
+// Per-model and per-model-class dispatch counts over parsed rows. `unstamped` is its own
+// bucket in both: a row that never recorded its model is a hole in the record, and folding it
+// into a class would report a tier that was never observed.
+function summarizeModelMix(rows) {
+  const byModel = new Map();
+  const byClass = new Map();
+  for (const r of rows) {
+    const { model } = splitRoleCell(r.role);
+    const key = model ?? 'unstamped';
+    const cls = model === null ? 'unstamped' : modelClassOf(model);
+    byModel.set(key, (byModel.get(key) ?? 0) + 1);
+    byClass.set(cls, (byClass.get(cls) ?? 0) + 1);
+  }
+  // Model ids sort alphabetically (no meaningful order among them); classes follow the
+  // ladder's own order so two runs' mix lines line up column for column.
+  const order = [...MODEL_CLASS_ORDER, 'unstamped'];
+  const fmt = (map, keys) => keys.map((k) => `${k} ${map.get(k)}`).join(', ') || '(none)';
+  return {
+    models: fmt(byModel, [...byModel.keys()].sort()),
+    classes: fmt(byClass, order.filter((k) => byClass.has(k))),
+  };
 }
 
 // ---------------------------------------------------------------- write journal
@@ -353,9 +394,17 @@ function cmdCheck(args) {
 
   // A role cell with no `@model` is a pre-stamp row or a resolver that failed to report its
   // model: the tier that actually ran the dispatch cannot be reconstructed from this row.
-  const unstamped = rows.filter((r) => !r.role.includes('@'));
+  const unstamped = rows.filter((r) => splitRoleCell(r.role).model === null);
   for (const r of unstamped)
     console.log(`  advisory: ${r.id} unstamped dispatch (pre-stamp row or resolver failure) — tier mix not reconstructable`);
+
+  // The model half, read back as counts. Reported for any ledger with rows — including an
+  // all-legacy one, where the honest reading is `unstamped N`.
+  if (rows.length) {
+    const mix = summarizeModelMix(rows);
+    console.log(`  model mix: ${mix.models}`);
+    console.log(`  model-class mix: ${mix.classes}`);
+  }
 
   // ---- phantom-row cross-reference: the ledger against its own write journal ----------
   const jp = journalPathFor(path);

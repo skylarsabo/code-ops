@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.42.4
+- **Cost machinery turns predictive** — the ledger's `role@model` stamp is now machine-parsed on both halves: `dispatch-ledger.mjs check` and `calibration-metrics.mjs` each report a per-model mix and a per-model-*class* mix, resolving stamped ids to canonical rungs through the ladder SSOT so a mix stays comparable after a provider moves its lineup. An id serving several rungs reads `ambiguous` and an id in no pinned ladder reads `unclassified`, rather than being placed by the shape of its name; a bare pre-stamp cell still parses and reads `unstamped`. On top of that parse, a new `scripts/estimate-run-cost.mjs` reads *prior* runs' ledgers **before** a run and prints a dispatch-count range plus its class mix, so Phase 0 scoping has a number instead of only a judgment. It does no token-price math (prices drift), calls an estimate from fewer than three comparable runs a guess in a caveat block, and never fails a run — no history exits 0 with "no prior runs, no estimate".
+
 ## 1.42.3
 - **Tier-floor carrier for hosts that ignore agent frontmatter** — `scripts/preflight.mjs` now prints every bundled agent’s declared tier floor at Phase 0, so the floors are visible on any host. A new `CONVENTIONS.md` bullet makes the lead route each dispatch at or above its floor by hand where the host ignores `model:` frontmatter, and `run-cost-audit` records a below-floor dispatch as a `tier-routing` FAIL.
 

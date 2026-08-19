@@ -11,7 +11,11 @@
 //   evidence prose does not), register-shaped files get the per-entry length budget instead of
 //   the flat cap, a themed sibling report carrying entries warns they are uncounted, a
 //   NO-FINDINGS-only register reports covered negatives instead of the zero-parse warning, and
-//   `> phase:` markers resolve to a lead-model-per-phase line plus a mid-run-change advisory. Four
+//   `> phase:` markers resolve to a lead-model-per-phase line plus a mid-run-change advisory. The
+//   role cell's model half is machine-parsed twice over — a raw per-model tier mix and a per-model-
+//   CLASS mix resolved through scripts/model-tiers.mjs, where an id serving several rungs reads
+//   `ambiguous`, an id in no pinned ladder reads `unclassified`, and a bare pre-stamp ledger still
+//   parses and reads `unstamped`. Four
 //   further boundary rules hold: a per-entry budget terminates its entry at a trailing non-entry
 //   block, refutation receipts are keyed at line start so prose citing a finding is not a verdict,
 //   the sibling-report warning reaches into subdirectories (bounded), and the tool's own report is
@@ -84,6 +88,7 @@ try {
 
   // Tier mix: 4 stamped claude-sonnet-5, 1 stamped claude-opus-5, 1 legacy unstamped row.
   check('a. tier mix reports stamped models and the unstamped count', /tier mix: .*claude-sonnet-5 4.*claude-opus-5 1.*unstamped 1/.test(a.stdout), a.stdout);
+  check('a. model-class mix resolves the same rows to rungs', /model-class mix: mid 4, strong 1, unstamped 1/.test(a.stdout), a.stdout);
 
   // Findings register: 3 CONFIRMED / 2 PROBABLE / 1 SPECULATIVE.
   check('a. register total is 6, unparseable 0', /\b6 finding\(s\), unparseable: 0\b/.test(a.stdout), a.stdout);
@@ -192,6 +197,8 @@ try {
     mj?.ledger?.byStatus?.dispatched === 1 && mj?.ledger?.byStatus?.failed === 1 && mj?.ledger?.byStatus?.redispatched === 1, JSON.stringify(mj?.ledger?.byStatus));
   check('r. ledger.byModel carries the stamped models and the unstamped count',
     mj?.ledger?.byModel?.['claude-sonnet-5'] === 4 && mj?.ledger?.byModel?.['claude-opus-5'] === 1 && mj?.ledger?.byModel?.unstamped === 1, JSON.stringify(mj?.ledger?.byModel));
+  check('r. ledger.byModelClass carries the resolved rungs and the unstamped count',
+    mj?.ledger?.byModelClass?.mid === 4 && mj?.ledger?.byModelClass?.strong === 1 && mj?.ledger?.byModelClass?.unstamped === 1, JSON.stringify(mj?.ledger?.byModelClass));
   check('r. findings.total matches the prose total (6)', mj?.findings?.total === 6, JSON.stringify(mj?.findings));
   check('r. findings.byTier matches the prose breakdown', mj?.findings?.byTier?.CONFIRMED === 3 && mj?.findings?.byTier?.PROBABLE === 2 && mj?.findings?.byTier?.SPECULATIVE === 1, JSON.stringify(mj?.findings?.byTier));
   check('r. findings.coveredNegatives is 0 for a register with real findings', mj?.findings?.coveredNegatives === 0, JSON.stringify(mj?.findings));
@@ -614,6 +621,24 @@ try {
   // original reason rather than for a missing block.
   check('e. path note fails only on the path, not the Machine block', /0 machine-block hit\(s\)/.test(e.stdout), e.stdout);
   check('f. fence note fails only on the fence, not the Machine block', /0 machine-block hit\(s\)/.test(f.stdout), f.stdout);
+
+  // ---- mcm/bare. model-class mix: the attributed/bare fixture pair -------------
+  // mcm covers every class the resolver can return — the four canonical rungs, `ambiguous`
+  // (grok-4.6 serves all four rungs, so naming one would invent a distinction xAI does not
+  // make), and `unclassified` (a real id in no pinned ladder). bare is the backward-compat
+  // half: a bare pre-stamp ledger still parses, and reads honestly as `unstamped`.
+  const mcm = run(['--artifacts', join(HERE, 'model-class-mix')]);
+  check('mcm. fully attributed ledger exits 0', mcm.status === 0, mcm.stdout + mcm.stderr);
+  check('mcm. 7 dispatches parse, none unparseable', /\b7 dispatch\(es\), unparseable: 0\b/.test(mcm.stdout), mcm.stdout);
+  check('mcm. model-class mix names every class in ladder order',
+    /model-class mix: light 1, mid 1, strong 2, frontier 1, ambiguous 1, unclassified 1/.test(mcm.stdout), mcm.stdout);
+  check('mcm. an id serving several rungs is `ambiguous`, never one of them', /grok-4\.6 1/.test(mcm.stdout), mcm.stdout);
+
+  const bare = run(['--artifacts', join(HERE, 'bare-ledger')]);
+  check('bare. bare pre-stamp ledger still exits 0', bare.status === 0, bare.stdout + bare.stderr);
+  check('bare. both bare rows parse as dispatches', /\b2 dispatch\(es\), unparseable: 0\b/.test(bare.stdout), bare.stdout);
+  check('bare. bare rows are unstamped in both mix lines, never guessed a class',
+    /tier mix: unstamped 2/.test(bare.stdout) && /model-class mix: unstamped 2/.test(bare.stdout), bare.stdout);
 
   // ---- usage/config errors fail closed at exit 2 -------------------------------
   const h = run([]);
