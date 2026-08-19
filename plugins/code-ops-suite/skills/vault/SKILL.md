@@ -9,7 +9,20 @@ description: "Use when a repo needs its Obsidian docs vault created, an existing
 
 A vault is where a repo's design-time judgment lives: designs, decisions, run notes, operator notes. One standard layout across every repo is the whole point — an agent that has never opened this vault can still predict where a note goes and what its frontmatter says. So the layout is not a per-repo preference, and this skill never invents a variant of it.
 
-**The checker decides conformance, not a reading.** `node ${CLAUDE_PLUGIN_ROOT}/scripts/check-vault-standard.mjs <vault dir>` is fail-closed: it exits 1 on a missing machinery folder, a domain folder numbered into the reserved 80-99 band, a `Standard.md` with no `standard-version`, or a note missing `type` / `status` / `updated`. Run it before declaring any mode done.
+**The checker decides conformance, not a reading.** `node ${CLAUDE_PLUGIN_ROOT}/scripts/check-vault-standard.mjs <vault dir>` is fail-closed and enforces ten rules. It exits 1 on any of these:
+
+- A `Standard.md` missing from the vault root, or one whose `standard-version` is absent or below the current standard-version (2 today).
+- A missing `00 Home.md` or `README.md` at the vault root.
+- A missing machinery folder, except `80 Runs/`, which only warns.
+- A top-level folder with no two-digit numeric prefix.
+- A domain folder numbered into the reserved 80-99 band.
+- A folder numbered below 10 that is not `00 Inbox/`.
+- No domain folder at all in the 10-79 band.
+- A note missing `type`, `status`, or `updated`.
+- A `status` outside the base vocabulary and the vault's declared profile statuses.
+- An `updated` value that is not a YYYY-MM-DD date.
+
+`90 Templates/`, the vault-root `README.md`, and the canonical suite artifacts (`HANDOFF.md`, `FINDINGS_REGISTER.md`, and the rest of the artifact table) are exempt from the note rules. Run the checker before declaring any mode done.
 
 ## The boundary rule — what does NOT move into the vault
 Code is canonical for behavior. Tracked repo docs are canonical for shipped behavior and machine-checked judgment: reference trees, published ADRs, runbooks for shipped systems, and `docs/atlas/` (its freshness check needs repo-root scopes and git history, so it never moves). The vault is canonical for design-time judgment only. When vault content ships or becomes a public claim, promote it to the owning repo doc in the same change and leave a link behind. Never maintain two synchronized copies — that is the failure the boundary exists to prevent.

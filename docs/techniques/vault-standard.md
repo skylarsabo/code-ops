@@ -71,6 +71,23 @@ Each vault-bearing repo carries `CLAUDE.md` and `AGENTS.md` in one of two confor
 
 To adopt the standard in a repo: rename folders to the numbered scheme, add the machinery folders, copy the current `Standard.md` body, append the profile section, and bump `standard-version`. Verify links with Obsidian's broken-link check before committing.
 
-Conformance is machine-checked. `node scripts/check-vault-standard.mjs <vault-dir>` is fail-closed and enforces five rules: a versioned `Standard.md` at the vault root, the machinery folders, the reserved 80-99 band, at least one domain folder in the 10-79 band, and `type` / `status` / `updated` frontmatter on every note. `90 Templates/` and the vault-root `README.md` are exempt. `/code-ops-suite:vault` scaffolds, migrates, and checks a vault against the same rules. One follow-up remains: a `SHARED_PASSAGES`-style byte pin that would hold every vault's `Standard.md` copy to the body on this page.
+The current standard-version is **2**. A vault's `Standard.md` states the version it claims, and the checker fails any vault below the current one.
+
+Conformance is checkable by machine, and machine-*enforced* only in a repo whose CI runs the checker. Today that is code-ops itself: `.github/workflows/validate.yml` runs `node scripts/check-vault-standard.mjs code-ops-docs` and `node evals/vault-standard/run.mjs` on every push. In any other vault-bearing repo the checker is a command an agent or an operator runs, and adding it to that repo's CI is what makes the claim true there.
+
+`node scripts/check-vault-standard.mjs <vault-dir>` is fail-closed and enforces ten rules:
+
+- `Standard.md` at the vault root, with a `standard-version` of at least the current one.
+- `00 Home.md` and `README.md` at the vault root.
+- The machinery folders, `80 Runs/` warning-only when absent.
+- A two-digit numeric prefix on every top-level folder.
+- Only machinery folders in the reserved 80-99 band.
+- Nothing numbered below 10 except `00 Inbox/`.
+- At least one domain folder in the 10-79 band.
+- `type`, `status`, and `updated` frontmatter on every note.
+- A `status` from the base vocabulary or a profile status the vault declares.
+- An `updated` value in YYYY-MM-DD form.
+
+`90 Templates/`, the vault-root `README.md`, and the canonical suite artifacts are exempt from the note rules. `/code-ops-suite:vault` scaffolds, migrates, and checks a vault against the same rules. One follow-up remains: a `SHARED_PASSAGES`-style byte pin that would hold every vault's `Standard.md` copy to the body on this page.
 
 *Verified-at: 14b6e94 (2026-08-18)*
