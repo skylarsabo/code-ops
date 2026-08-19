@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.42.6
+- **Estimator caveats say only what the walk knows** — the depth-cap caveat asserted a ledger exists in a directory the walk never entered, and the empty-ledger caveat diagnosed every zero-row ledger as an aborted run when unreadable rows produce the same zero. Both now state the possibility and the full cause set.
+
 ## 1.42.5
 - **An aborted run no longer rewrites the estimate** — `estimate-run-cost.mjs` counted a run folder whose `DISPATCH_LEDGER.md` has no parseable rows as a comparable run that cost 0 dispatches. `dispatch-ledger.mjs phase` writes exactly that ledger for a run that opens a phase and dies, so one aborted run pulled the range's minimum to 0, dragged the median down, and — the serious part — satisfied the `n >= 3` guard with a run that proved nothing, suppressing the guess caveat at a true n of 2. Zero-row runs are now excluded from the range and named in a caveat of their own, and the guess caveat fires on the count of runs that yielded rows.
 - **The walk says what it dropped** — a `DISPATCH_LEDGER.md` deeper than the bounded walk's three levels was skipped in silence, under a message asserting none existed under the tree. The unsearched directories are now listed, and the not-found line is qualified by the depth it searched.

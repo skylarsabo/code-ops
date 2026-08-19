@@ -243,8 +243,9 @@ if (comparable.length) {
   if (emptyLedgers.length) {
     machine.caveats.push(`${emptyLedgers.length} run(s) recorded no dispatches — excluded from the range`);
     p();
-    p(`  !! CAVEAT — ${emptyLedgers.length} run folder(s) carry a ledger with no dispatch rows (an aborted`);
-    p('     or not-yet-started run). They are excluded from the range rather than counted as 0:');
+    p(`  !! CAVEAT — ${emptyLedgers.length} run folder(s) carry a ledger with no parseable dispatch rows (an`);
+    p('     aborted or not-yet-started run, or rows the grammar cannot read). Excluded from the');
+    p('     range rather than counted as 0:');
     for (const r of emptyLedgers) p(`       ${r.label}${r.malformed ? ` (${r.malformed} unparseable row(s))` : ''}`);
   }
   if (fellBack) {
@@ -270,7 +271,7 @@ if (cappedAt.length) {
   p();
   const one = cappedAt.length === 1;
   p(`  !! CAVEAT — the walk stops at ${MAX_DEPTH} levels below --runs, so ${cappedAt.length} ${one ? 'directory was' : 'directories were'}`);
-  p(`     not searched. A ${LEDGER_NAME} under ${one ? 'it' : 'one of them'} is absent from this estimate:`);
+  p(`     not searched. Any ${LEDGER_NAME} below ${one ? 'it' : 'them'} would be absent from this estimate:`);
   for (const d of cappedAt.slice(0, 5)) p(`       ${d}`);
   if (cappedAt.length > 5) p(`       ... and ${cappedAt.length - 5} more`);
 }

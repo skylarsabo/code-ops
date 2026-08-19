@@ -201,7 +201,7 @@ try {
   check('n. the zero-row run is not listed as a 0-dispatch comparable run',
     !/2026-08-07 ship aborted: 0 dispatch\(es\)/.test(n.stdout), n.stdout);
   check('n. it is named in its own caveat instead',
-    /CAVEAT — 1 run folder\(s\) carry a ledger with no dispatch rows/.test(n.stdout)
+    /CAVEAT — 1 run folder\(s\) carry a ledger with no parseable dispatch rows/.test(n.stdout)
     && /2026-08-07 ship aborted/.test(n.stdout), n.stdout);
   check('o. the n<3 guess caveat fires on the honest count of 2, not the 3 folders',
     /CAVEAT — THIS IS A GUESS, NOT AN ESTIMATE/.test(n.stdout)
