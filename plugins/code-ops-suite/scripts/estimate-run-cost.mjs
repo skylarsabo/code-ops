@@ -241,7 +241,7 @@ if (comparable.length) {
     p('     rather than on this line.');
   }
   if (emptyLedgers.length) {
-    machine.caveats.push(`${emptyLedgers.length} run(s) recorded no dispatches — excluded from the range`);
+    machine.caveats.push(`${emptyLedgers.length} run(s) carry no parseable dispatch rows — excluded from the range`);
     p();
     p(`  !! CAVEAT — ${emptyLedgers.length} run folder(s) carry a ledger with no parseable dispatch rows (an`);
     p('     aborted or not-yet-started run, or rows the grammar cannot read). Excluded from the');
