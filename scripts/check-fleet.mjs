@@ -62,6 +62,9 @@ const CONTRACT_FILES = ['CLAUDE.md', 'AGENTS.md'];
 // reading and stops. The cap is generous enough for a real pointer and far below any
 // substantive contract, so a pair that has genuinely DRIFTED cannot pass as a pointer pair.
 const POINTER_MAX_LINES = 40;
+// A pointer names the file it defers to UP FRONT. A file that mentions the other name halfway
+// down is discussing it, not pointing at it.
+const POINTER_LEAD_LINES = 3;
 // A pointer must SAY that the file it names is binding. Accepting any short file that merely
 // mentions the other name would pass a stub that says nothing, which is the fail-open case.
 const REQUIRED_READING = /required reading|canonical contract|read (?:it|this|that) first/i;
@@ -186,29 +189,67 @@ function readContract(dir) {
   return found;
 }
 
+// ---- one fence state machine, three consumers -------------------------------------
+// Everything that reads a contract as markdown reads it through here, so heading detection,
+// consent matching, and the pointer test cannot disagree about what a fence is. They did
+// disagree before: the consent matcher stripped fences and the section scanner did not, so a
+// `## Fleet` written INSIDE an example fence closed the real section and hid a genuine consent.
+//
+// The rules, per CommonMark 4.5, and no more of it than this checker needs:
+//   - A line whose first non-whitespace run is three or more backticks or three or more
+//     tildes OPENS a fenced block.
+//   - The block CLOSES at a later line whose fence uses the SAME character, is at least as
+//     long as the opener, and carries nothing but whitespace after it.
+//   - An UNTERMINATED fence suppresses to the end of the input. Reading the rest of a file as
+//     markup after an opened fence is the fail-open direction: it would let unclosed example
+//     text enroll the repo.
+//   - The opening and closing fence lines are themselves inside the block. Neither is markup.
+// Deliberately not implemented: indented (four-space) code blocks, and a backtick opener's
+// ban on backticks in its info string. Both would only ever suppress MORE text, and the
+// checker's safe direction is to suppress.
+function* markdownLines(text) {
+  const FENCE = /^[ \t]*(`{3,}|~{3,})(.*)$/;
+  let char = null;
+  let len = 0;
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    const m = FENCE.exec(line);
+    if (char === null) {
+      if (m) { char = m[1][0]; len = m[1].length; yield { line, fenced: true }; continue; }
+      yield { line, fenced: false };
+      continue;
+    }
+    if (m && m[1][0] === char && m[1].length >= len && m[2].trim() === '') char = null;
+    yield { line, fenced: true };
+  }
+}
+
 // Consent is the phrase inside a `## Fleet` section, not the phrase anywhere in the file. A
 // contract that discusses the fleet rule in prose — this repo's own does — must not thereby
-// enroll itself. The section runs from its heading to the next heading of the same level or
-// higher, so a phrase in a later section does not count either.
+// enroll itself. The section runs from its heading to the next UNFENCED heading of the same
+// level or higher, so a phrase in a later section does not count either.
 //
 // The heading test trims a closed-ATX heading's trailing hashes (`## Fleet ##`). That form
 // fails in the safe direction — the section is never entered, so the repo is skipped rather
 // than operated on — but it makes a genuinely enrolled repo invisible, and the operator's
 // only signal is a row that reads like a deliberate decline.
+//
+// Returns the section's lines with their fence state, not a joined string: the consent test
+// needs to know which of them are code.
 function consentSection(text) {
-  const lines = text.replace(/\r\n/g, '\n').split('\n');
   let inside = false;
   const body = [];
-  for (const line of lines) {
-    const h = /^(#{1,6})\s+(.*)$/.exec(line);
-    if (h) {
-      const level = h[1].length;
-      if (inside && level <= 2) break;
-      if (!inside && level === 2 && h[2].trim().replace(/\s*#+$/, '').toLowerCase() === 'fleet') { inside = true; continue; }
+  for (const entry of markdownLines(text)) {
+    if (!entry.fenced) {
+      const h = /^(#{1,6})\s+(.*)$/.exec(entry.line);
+      if (h) {
+        const level = h[1].length;
+        if (inside && level <= 2) break;
+        if (!inside && level === 2 && h[2].trim().replace(/\s*#+$/, '').toLowerCase() === 'fleet') { inside = true; continue; }
+      }
     }
-    if (inside) body.push(line);
+    if (inside) body.push(entry);
   }
-  return inside ? body.join('\n') : null;
+  return inside ? body : null;
 }
 
 // Consent is the phrase on a LINE OF ITS OWN, not the phrase anywhere in the section. A
@@ -219,15 +260,14 @@ function consentSection(text) {
 // said no in writing. Section-scoping alone does not cover discussion INSIDE the section.
 //
 // Leading blockquote, list-bullet, and indent markers are allowed before the phrase: they are
-// ordinary markdown decoration on a line that is still the repo's own assertion. A fenced
-// block is stripped first, because a fence is how a contract SHOWS the phrase without saying
-// it. Matching is case-insensitive, which the `beta` fixture pins.
-const CONSENT_LINE = /^[ \t>*-]*fleet member:[ \t]*yes[ \t]*$/im;
-const stripFences = (s) => s.replace(/^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[^\n]*$|$)/gm, '');
+// ordinary markdown decoration on a line that is still the repo's own assertion. A FENCED line
+// never counts, wherever it sits in the block, because a fence is how a contract SHOWS the
+// phrase without saying it. Matching is case-insensitive, which the `beta` fixture pins.
+const CONSENT_LINE = /^[ \t>*-]*fleet member:[ \t]*yes[ \t]*$/i;
 
 const hasConsent = (text) => {
   const section = consentSection(text);
-  return section !== null && CONSENT_LINE.test(stripFences(section));
+  return section !== null && section.some((e) => !e.fenced && CONSENT_LINE.test(e.line));
 };
 
 // Parity mode, per docs/techniques/vault-standard.md "Host parity": byte-identical copies, or a
@@ -242,8 +282,33 @@ function parityMode(found) {
   const otherName = shortName === CONTRACT_FILES[0] ? CONTRACT_FILES[1] : CONTRACT_FILES[0];
   const short = found[shortName];
   const other = found[otherName];
-  const isPointer = (t, names) =>
-    t.split('\n').length <= POINTER_MAX_LINES && t.includes(names) && REQUIRED_READING.test(t);
+  // A pointer is a file that is SUBSTANTIALLY nothing but the pointer, which takes three
+  // tests, not one length cap. Length alone would call any short file a pointer, and a
+  // substantive contract that happens to be short and to open by naming its twin — "`CLAUDE.md`
+  // is a generated copy of this file; this is required reading" — would be read as a stub and
+  // reported DRIFTED. So: short, saying the named file is binding, naming it up front rather
+  // than in passing, and carrying no sections of its own. A `## Fleet` section is the one
+  // exception, because consent must be readable from either half of the pair.
+  const isPointer = (t, names) => {
+    if (t.split('\n').length > POINTER_MAX_LINES) return false;
+    if (!t.includes(names) || !REQUIRED_READING.test(t)) return false;
+    const lead = [];
+    const headings = [];
+    for (const { line, fenced } of markdownLines(t)) {
+      if (fenced) continue;
+      const h = /^(#{1,6})\s+(.*)$/.exec(line);
+      if (h) {
+        if (h[1].length >= 2) headings.push(h[2].trim().replace(/\s*#+$/, '').toLowerCase());
+        continue;
+      }
+      // Blank lines, headings, and the consent line are markup and enrollment, not contract
+      // body. A pointer's body IS the pointer, so the named file has to be at the top of it.
+      if (line.trim() === '' || CONSENT_LINE.test(line)) continue;
+      if (lead.length < POINTER_LEAD_LINES) lead.push(line);
+    }
+    if (!lead.join('\n').includes(names)) return false;
+    return headings.every((h) => h === 'fleet');
+  };
   // The degenerate case: BOTH files are pointers naming each other, so neither is the
   // substantive contract and every host reads a stub. That is strictly worse than the drift
   // this branch exists to catch, and it is the one state the pointer test alone let through.

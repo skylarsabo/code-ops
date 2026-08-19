@@ -40,6 +40,8 @@ The phrase must be the whole line, because a contract that discusses the rule mu
 
 The heading may be written closed-ATX (`## Fleet ##`); the trailing hashes are trimmed before the match.
 
+A fence is a fence wherever the phrase sits inside it. The checker walks the contract line by line and tracks fence state: three or more backticks or tildes open a block, and only a fence of the same character and at least the same length, with nothing after it, closes one. A fence left unterminated suppresses everything to the end of the file, which fails in the safe direction. The same state decides what a heading is, so a `## Fleet` written inside an example block does not close the real section, and a repo that quotes the heading it must write is still enrolled by the consent line below the quotation.
+
 ```markdown
 ## Fleet
 
@@ -74,7 +76,7 @@ The surface cell is the member's slug joined to the surface name, as in `ripper-
 | Surface | What decides it |
 | --- | --- |
 | `<slug>-consent` | CONFORMANT when the contract carries the phrase in a `## Fleet` section, ABSENT otherwise |
-| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading. Two pointers naming each other are DRIFTED, because neither file is the substantive contract and every host reads a stub |
+| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading. A pointer is short, says the file it names is binding, names it in its first lines rather than in passing, and carries no sections of its own beyond `## Fleet` — a short substantive contract that happens to mention its twin is not a pointer. Two pointers naming each other are DRIFTED, because neither file is the substantive contract and every host reads a stub |
 | `<slug>-vault` | `<repo>-docs/` exists and `check-vault-standard.mjs` exits 0 against it |
 
 A member with no vault reports `ABSENT` and does not fail the run. Vault adoption stays voluntary, exactly as it does per-repo.
