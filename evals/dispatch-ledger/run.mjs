@@ -110,6 +110,12 @@ try {
   check('h. check exits 0 on a clean ledger', h.status === 0, h.stdout + h.stderr);
   check('h. check reports zero dangling dispatches', /0 dangling dispatch\(es\)/.test(h.stdout), h.stdout);
   check('h. check reports zero unstamped dispatches (both rows carry @model)', /0 unstamped dispatch\(es\)/.test(h.stdout), h.stdout);
+  // The model half is machine-parsed, not just carried: check reads it back as counts, and
+  // resolves each id to a canonical rung through scripts/model-tiers.mjs.
+  // `claude-haiku-5` is deliberately NOT a pinned id in scripts/model-tiers.mjs: a real model
+  // this repo has not placed on the ladder reads back as `unclassified`, never guessed onto a rung.
+  check('h. check reports the per-model mix', /model mix: claude-haiku-5 1, claude-sonnet-5 1/.test(h.stdout), h.stdout);
+  check('h. check reports the per-model-class mix in ladder order', /model-class mix: mid 1, unclassified 1/.test(h.stdout), h.stdout);
 
   // i. check flags a dangling `dispatched` row as an advisory (exit 0, not blocking).
   const ledgerDangling = join(dir, 'DANGLING_LEDGER.md');
@@ -148,6 +154,21 @@ try {
   check('l. legacy pre-stamp ledger still parses (exit 0)', l.status === 0, l.stdout + l.stderr);
   check('l. legacy rows are flagged unstamped (advisory)', /advisory: D-001 unstamped dispatch/.test(l.stdout) && /advisory: D-002 unstamped dispatch/.test(l.stdout), l.stdout);
   check('l. check reports 2 unstamped dispatches', /2 unstamped dispatch\(es\)/.test(l.stdout), l.stdout);
+  check('l. a legacy ledger reads back as unstamped in both mix lines',
+    /model mix: unstamped 2/.test(l.stdout) && /model-class mix: unstamped 2/.test(l.stdout), l.stdout);
+
+  // l2. a row whose model half is EMPTY (`explorer@`) is unstamped too — the stamp is the
+  // recorded model, not the '@' character, and a blank half proves nothing about the tier.
+  const blankStamp = join(dir, 'BLANK_STAMP_LEDGER.md');
+  writeFileSync(blankStamp, [
+    '| id | role | brief | expected artifact | status |',
+    '| --- | --- | --- | --- | --- |',
+    '| D-001 | explorer@ | map the auth module | AUTH_MAP.md | reported |',
+  ].join('\n') + '\n');
+  const l2 = run(['check', '--ledger', blankStamp]);
+  check('l2. a blank model half parses (exit 0)', l2.status === 0, l2.stdout + l2.stderr);
+  check('l2. a blank model half counts as unstamped', /1 unstamped dispatch\(es\)/.test(l2.stdout), l2.stdout);
+  check('l2. a blank model half is unstamped in the mix lines', /model-class mix: unstamped 1/.test(l2.stdout), l2.stdout);
 
   // m. --strict promotes an unstamped row to a failure (exit 1) — tier mix must be
   // reconstructable under strict enforcement.
