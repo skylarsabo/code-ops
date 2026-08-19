@@ -32,15 +32,23 @@ A member entry carrying an unknown key is a manifest-shape error. A silently-ign
 
 Membership is two-sided. The manifest names a repo, and the repo consents. Consent lives in the repo's own standards contract — the pair of files hosts read, in either parity mode described under "Host parity" in `vault-standard.md`. The contract carries a `## Fleet` section, and inside it the literal phrase `fleet member: yes` on a line of its own, matched case-insensitively.
 
-The phrase must be the whole line, because a contract that discusses the rule must not thereby enroll itself. A list bullet, blockquote marker, or indent before the phrase is still a line of its own and still counts. These do not count, and each is an ordinary way to write a refusal:
+The phrase must be the whole line, because a contract that discusses the rule must not thereby enroll itself. One list bullet or blockquote marker, and up to three spaces of indent, are decoration on a line that still counts. These do not count, and each is an ordinary way to write a refusal:
 
 - The phrase inside a fenced code block, which is how a contract shows the phrase without asserting it.
+- The phrase inside an indented code block, which is the same act written the other way.
 - The phrase quoted inline in a sentence, as in an explicit written decline.
 - The phrase anywhere outside the `## Fleet` section.
 
 The heading may be written closed-ATX (`## Fleet ##`); the trailing hashes are trimmed before the match.
 
-A fence is a fence wherever the phrase sits inside it. The checker walks the contract line by line and tracks fence state: three or more backticks or tildes open a block, and only a fence of the same character and at least the same length, with nothing after it, closes one. A fence left unterminated suppresses everything to the end of the file, which fails in the safe direction. The same state decides what a heading is, so a `## Fleet` written inside an example block does not close the real section, and a repo that quotes the heading it must write is still enrolled by the consent line below the quotation.
+Code is code wherever the phrase sits inside it. The checker walks the contract line by line through one CommonMark-shaped reader, and every part of the check — what a heading is, what consent is, what a pointer's body is — sees the same answer. The reader is `markdownLines` in `scripts/check-fleet.mjs`, which states this rule set in full. In short:
+
+- A uniform blockquote prefix is stripped before any other test, so a blockquoted fence opens a block exactly as a bare one does.
+- Three or more backticks or tildes open a fenced block, and only a fence of the same character and at least the same length, with nothing after it, closes one. A fence left unterminated suppresses everything to the end of the file, which fails in the safe direction.
+- Four or more spaces of indent, or a tab, open an indented code block where one can begin: after a blank line, at the start of the file, or under another indented line, and never inside a list, where the same indent is list content. An open indented block wins over a fence marker inside it.
+- Three spaces of indent are decoration, not code. That boundary is the same one the consent line is matched against, so the two cannot disagree.
+
+Because the same reader decides what a heading is, a `## Fleet` written inside an example block does not close the real section, and a repo that quotes the heading it must write is still enrolled by the consent line below the quotation.
 
 ```markdown
 ## Fleet
@@ -76,7 +84,7 @@ The surface cell is the member's slug joined to the surface name, as in `ripper-
 | Surface | What decides it |
 | --- | --- |
 | `<slug>-consent` | CONFORMANT when the contract carries the phrase in a `## Fleet` section, ABSENT otherwise |
-| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading. A pointer is short, says the file it names is binding, names it in its first lines rather than in passing, and carries no sections of its own beyond `## Fleet` — a short substantive contract that happens to mention its twin is not a pointer. Two pointers naming each other are DRIFTED, because neither file is the substantive contract and every host reads a stub |
+| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading. A pointer is at most 40 lines, says the file it names is binding, names it somewhere in its first paragraph rather than in passing further down, and carries no heading of its own at any depth other than `## Fleet` — a `###` under that heading is a section of its own, and a short substantive contract that happens to mention its twin is not a pointer. Two pointers naming each other are DRIFTED, because neither file is the substantive contract and every host reads a stub |
 | `<slug>-vault` | `<repo>-docs/` exists and `check-vault-standard.mjs` exits 0 against it |
 
 A member with no vault reports `ABSENT` and does not fail the run. Vault adoption stays voluntary, exactly as it does per-repo.

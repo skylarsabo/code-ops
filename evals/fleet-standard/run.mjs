@@ -13,11 +13,13 @@
 // malformed-manifest shape exits 1 before any member is checked; an unresolvable member path is
 // UNKNOWN rather than skipped; the consent phrase counts only inside a `## Fleet` section, only
 // on a line of its own (so an inline quotation in a written refusal fails to enroll), tolerating
-// bullet/blockquote/indent decoration, matched case-insensitively, under a closed-ATX heading as
-// well as an open one; a fenced phrase never enrolls whatever its shape or position in the block,
-// while a fenced heading-lookalike does not close the section and a real consent after a closed
-// fence still counts; two pointers naming each other are DRIFTED rather than a parity mode, and a
-// short substantive contract naming its twin is not a pointer; a missing vault is ABSENT and not a
+// bullet/blockquote/three-space-indent decoration, matched case-insensitively, under a closed-ATX
+// heading as well as an open one; a phrase in code never enrolls whatever its shape — fenced,
+// blockquote-fenced, or indented — while a fenced heading-lookalike does not close the section, an
+// indented block wins over a fence marker inside it, and a real consent after either block still
+// counts; two pointers naming each other are DRIFTED rather than a parity mode, a short substantive
+// contract naming its twin is not a pointer, a pointer carrying a subheading is not one either,
+// and a pointer naming its twin later in its first paragraph still is; a missing vault is ABSENT and not a
 // failure; a slug collision is a manifest error; and every emitted row parses under grammar (d).
 //
 //   node evals/fleet-standard/run.mjs   (exit 0 = pass)
@@ -151,6 +153,18 @@ for (const [label, block] of [
   ['unterminated', '```\ncontext line\nfleet member: yes'],
   // A shorter run inside a longer fence does not close it, per CommonMark.
   ['longer-fence', '````\n```\nfleet member: yes\n````'],
+  // A blockquoted fence opens a block like a bare one: the container prefix is stripped
+  // before the leaf test. Before that, `>` never opened a fence while the consent matcher
+  // tolerated `>`, so the two disagreed in the fail-open direction.
+  ['blockquoted-fence', '> ```\n> fleet member: yes\n> ```'],
+  ['blockquoted-tilde-fence', '> ~~~\n> fleet member: yes\n> ~~~'],
+  ['blockquoted-fence-second-line', '> ```\n> context line\n> fleet member: yes\n> ```'],
+  // An indented code block is code too. Four spaces, and a tab, each suppress.
+  ['indented-four-spaces', '    fleet member: yes'],
+  ['indented-tab', '\tfleet member: yes'],
+  ['indented-six-spaces', '      fleet member: yes'],
+  // A blank line inside an indented block does not end it.
+  ['indented-across-blank', '    context line\n\n    fleet member: yes'],
 ]) {
   const body = contract(`## Fleet\n\nNot a member. Joining would mean adding:\n\n${block}\n`);
   const ws = workspace({ [`fenced-${label}/CLAUDE.md`]: body, [`fenced-${label}/AGENTS.md`]: body },
@@ -188,13 +202,64 @@ for (const [label, block] of [
 // ---- 3d. the consent line survives ordinary markdown decoration -----------------------
 // The fix requires the phrase on its own line; a list bullet or blockquote marker in front
 // of it is still its own line, and rejecting those would break a legitimate consent.
-for (const [label, prefix] of [['bullet', '- '], ['blockquote', '> '], ['indented', '  ']]) {
+// The mutation partner of the indented-code and blockquoted-fence cases above: suppression is
+// cut exactly at the CommonMark boundary, so every decoration BELOW that boundary still
+// enrolls. Three spaces is the last indent that is presentation rather than code.
+for (const [label, prefix] of [
+  ['bullet', '- '],
+  ['star-bullet', '* '],
+  ['blockquote', '> '],
+  ['blockquote-tight', '>'],
+  ['indented', '  '],
+  ['indented-three', '   '],
+  ['blockquote-indented', '  > '],
+]) {
   const body = contract(`## Fleet\n\n${prefix}fleet member: yes\n`);
   const ws = workspace({ [`${label}/CLAUDE.md`]: body, [`${label}/AGENTS.md`]: body },
     { version: 1, members: [member(label)] });
   const r = run(ws.mpath);
   expect(surfaces(`decorated-consent-${label}`, r.out).get(`${label}-consent`) === 'CONFORMANT',
     `the ${label}-decorated consent line must still enroll the repo, got:\n${r.out}`);
+}
+
+// ---- 3d-i. a four-space indent is code even where no code block can begin ---------------
+// Four spaces directly under a line of prose is a lazy paragraph continuation, not an
+// indented code block, so the line stream leaves it as markup. The consent matcher's own
+// indent cap is what refuses it, and the two layers agreeing here is the point: the phrase
+// does not enroll the repo by either route.
+{
+  const body = contract('## Fleet\n\nJoining means:\n    fleet member: yes\n');
+  const ws = workspace({ 'lazy/CLAUDE.md': body, 'lazy/AGENTS.md': body },
+    { version: 1, members: [member('lazy')] });
+  const r = run(ws.mpath);
+  expect(surfaces('lazy-continuation', r.out).get('lazy-consent') === 'ABSENT',
+    `a four-space indent must not enroll the repo, wherever it sits, got:\n${r.out}`);
+  expect(r.status === 0, `a repo that never consented should not fail the run, got ${r.status}:\n${r.out}`);
+}
+
+// ---- 3d-ii. an indented block does not swallow the consent line that follows it ----------
+// The mirror direction, and the one that would fail silently: a section that shows an
+// indented counter-example and THEN consents is still consenting.
+{
+  const body = contract('## Fleet\n\nAn example of what not to write:\n\n    fleet member: no\n\nfleet member: yes\n');
+  const ws = workspace({ 'after-indent/CLAUDE.md': body, 'after-indent/AGENTS.md': body },
+    { version: 1, members: [member('after-indent')] });
+  const r = run(ws.mpath);
+  expect(surfaces('consent-after-indent', r.out).get('after-indent-consent') === 'CONFORMANT',
+    `a consent line after an indented block must still enroll the repo, got:\n${r.out}`);
+}
+
+// ---- 3d-iii. a fence marker inside an indented block is content, not an opener -----------
+// The precedence direction that fails silently: if the indented block did not win, the
+// stray ``` would open a fence that never closes, suppress the rest of the file, and report a
+// genuinely enrolled repo as a deliberate decline.
+{
+  const body = contract('## Fleet\n\nHow the phrase looks in a fenced example:\n\n    ```\n    fleet member: yes\n\nfleet member: yes\n');
+  const ws = workspace({ 'nested/CLAUDE.md': body, 'nested/AGENTS.md': body },
+    { version: 1, members: [member('nested')] });
+  const r = run(ws.mpath);
+  expect(surfaces('fence-inside-indent', r.out).get('nested-consent') === 'CONFORMANT',
+    `an indented fence marker is content, so the consent below it still counts, got:\n${r.out}`);
 }
 
 // ---- 3f. fence stripping must not swallow a real consent line after the fence ----------
@@ -282,6 +347,35 @@ for (const [label, other] of [
   const r = run(ws.mpath);
   expect(surfaces(`not-a-pointer-${label}`, r.out).get(`${label}-contract`) === 'DRIFTED',
     `a ${label} short contract is not a pointer, so the pair has drifted, got:\n${r.out}`);
+  expect(r.status === 1, `a drifted pair on a consenting member must exit 1, got ${r.status}:\n${r.out}`);
+}
+
+// ---- 5d. a pointer whose naming sentence sits later in the same paragraph --------------
+// The lead window is the FIRST PARAGRAPH, not a line count. A pointer that opens with a
+// sentence or two of preamble before it names its twin is still a pointer, and a three-line
+// window reported it DRIFTED — a false failure whose message described nothing that changed.
+{
+  const long = contract(`${CONSENT}\n${'Substantive contract prose.\n'.repeat(30)}`);
+  const pointer = contract('This repo keeps one contract.\nIt lives in a single file.\nThat file is required reading.\nSee `CLAUDE.md`.\n');
+  const ws = workspace({ 'preamble/CLAUDE.md': long, 'preamble/AGENTS.md': pointer },
+    { version: 1, members: [member('preamble')] });
+  const r = run(ws.mpath);
+  expect(surfaces('pointer-preamble', r.out).get('preamble-contract') === 'CONFORMANT',
+    `a pointer naming its twin later in its first paragraph is still a pointer, got:\n${r.out}`);
+  expect(r.status === 0, `a conformant pointer pair must not fail the run, got ${r.status}:\n${r.out}`);
+}
+
+// ---- 5e. a pointer carrying a subheading of its own is not a pointer -------------------
+// `## Fleet` is the one heading a pointer may carry, at that depth and no other. A `###`
+// under it is a section of the pointer's own, which is what makes the file substantive.
+{
+  const long = contract(`${CONSENT}\n${'Substantive contract prose.\n'.repeat(30)}`);
+  const sub = contract('See `CLAUDE.md` — it is required reading.\n\n## Fleet\n\nfleet member: yes\n\n### Scope\n\nA section of its own.\n');
+  const ws = workspace({ 'subhead/CLAUDE.md': long, 'subhead/AGENTS.md': sub },
+    { version: 1, members: [member('subhead')] });
+  const r = run(ws.mpath);
+  expect(surfaces('pointer-subheading', r.out).get('subhead-contract') === 'DRIFTED',
+    `a file carrying a subheading under '## Fleet' is not a pointer, got:\n${r.out}`);
   expect(r.status === 1, `a drifted pair on a consenting member must exit 1, got ${r.status}:\n${r.out}`);
 }
 

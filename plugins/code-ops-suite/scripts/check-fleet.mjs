@@ -62,9 +62,11 @@ const CONTRACT_FILES = ['CLAUDE.md', 'AGENTS.md'];
 // reading and stops. The cap is generous enough for a real pointer and far below any
 // substantive contract, so a pair that has genuinely DRIFTED cannot pass as a pointer pair.
 const POINTER_MAX_LINES = 40;
-// A pointer names the file it defers to UP FRONT. A file that mentions the other name halfway
-// down is discussing it, not pointing at it.
-const POINTER_LEAD_LINES = 3;
+// A pointer names the file it defers to in its FIRST PARAGRAPH — the opening run of non-blank
+// body lines. A file that mentions the other name below that is discussing it, not pointing at
+// it. A paragraph rather than a fixed line count: a real pointer may open with a sentence or two
+// of preamble before the pointing sentence, and a three-line window reported that legitimate
+// pointer DRIFTED.
 // A pointer must SAY that the file it names is binding. Accepting any short file that merely
 // mentions the other name would pass a stub that says nothing, which is the fail-open case.
 const REQUIRED_READING = /required reading|canonical contract|read (?:it|this|that) first/i;
@@ -195,7 +197,17 @@ function readContract(dir) {
 // disagree before: the consent matcher stripped fences and the section scanner did not, so a
 // `## Fleet` written INSIDE an example fence closed the real section and hid a genuine consent.
 //
-// The rules, per CommonMark 4.5, and no more of it than this checker needs:
+// THE RULE SET, stated once here and mirrored in docs/techniques/fleet-standard.md. Every
+// markdown shape this checker recognizes is decided in this function and nowhere else, which
+// is what stops the consent matcher and the section scanner from disagreeing again. A yielded
+// line is `code` when markdown would render it verbatim; a `code` line is never markup, never a
+// heading, and never consent.
+//
+// Containers first, leaf blocks second, which is CommonMark's own order:
+//   - A uniform blockquote prefix (`>` markers, each with an optional space) is stripped before
+//     any leaf test. A blockquoted fence therefore opens a block exactly as a bare one does.
+//
+// Fenced blocks (CommonMark 4.5):
 //   - A line whose first non-whitespace run is three or more backticks or three or more
 //     tildes OPENS a fenced block.
 //   - The block CLOSES at a later line whose fence uses the SAME character, is at least as
@@ -204,22 +216,68 @@ function readContract(dir) {
 //     markup after an opened fence is the fail-open direction: it would let unclosed example
 //     text enroll the repo.
 //   - The opening and closing fence lines are themselves inside the block. Neither is markup.
-// Deliberately not implemented: indented (four-space) code blocks, and a backtick opener's
-// ban on backticks in its info string. Both would only ever suppress MORE text, and the
-// checker's safe direction is to suppress.
+//
+// Indented code blocks (CommonMark 4.4):
+//   - A line indented four or more spaces, or by a tab, is code WHERE such a block can begin:
+//     after a blank line, at the start of the input, or after another indented-code line.
+//     Four spaces after a line of prose is a lazy paragraph continuation, not code.
+//   - No indented block begins while a list is open, because there the same indent is list
+//     content. A list opens at a bullet or ordered marker and closes at the next non-blank
+//     line indented less than four spaces that is not itself a marker.
+//   - Two or three spaces of indent are decoration, not code. That is the boundary the
+//     consent matcher's tolerated prefix is cut to, so the two agree by construction.
+//
+// Deliberately not implemented: a backtick opener's ban on backticks in its info string, which
+// would only ever suppress MORE text, and the checker's safe direction is to suppress.
+// One or more `>`, never zero: a `*` here would also match the empty prefix and strip the
+// leading whitespace off every ordinary line, which would hide every indented code block.
+const QUOTE_PREFIX = /^ {0,3}(?:>[ \t]?)+/;
+const FENCE = /^[ \t]*(`{3,}|~{3,})(.*)$/;
+const INDENTED_CODE = /^(?: {4,}|\t)/;
+const LIST_MARKER = /^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
+
 function* markdownLines(text) {
-  const FENCE = /^[ \t]*(`{3,}|~{3,})(.*)$/;
   let char = null;
   let len = 0;
-  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
-    const m = FENCE.exec(line);
-    if (char === null) {
-      if (m) { char = m[1][0]; len = m[1].length; yield { line, fenced: true }; continue; }
-      yield { line, fenced: false };
+  let prevBlank = true;
+  let prevCode = false;
+  let listOpen = false;
+  for (const raw of text.replace(/\r\n/g, '\n').split('\n')) {
+    const line = raw.replace(QUOTE_PREFIX, '');
+    const blank = line.trim() === '';
+    const indented = INDENTED_CODE.test(line);
+    // An open indented block wins over a fence opener, per CommonMark: a fence marker inside
+    // indented code is content. Testing the fence first would open a block that never closes
+    // and suppress the real consent line below it — a silent false decline.
+    if (char === null && !blank && indented && !listOpen && (prevBlank || prevCode)) {
+      yield { line: raw, code: true };
+      prevCode = true;
+      prevBlank = false;
       continue;
     }
-    if (m && m[1][0] === char && m[1].length >= len && m[2].trim() === '') char = null;
-    yield { line, fenced: true };
+    const m = FENCE.exec(line);
+    if (char !== null) {
+      if (m && m[1][0] === char && m[1].length >= len && m[2].trim() === '') char = null;
+      yield { line: raw, code: true };
+      prevBlank = false;
+      prevCode = false;
+      continue;
+    }
+    if (m) {
+      char = m[1][0];
+      len = m[1].length;
+      yield { line: raw, code: true };
+      prevBlank = false;
+      prevCode = false;
+      continue;
+    }
+    // Everything reaching here is blank, or markup: the indented-code branch above already
+    // took every line that starts or continues an indented block.
+    if (!blank && !indented) listOpen = LIST_MARKER.test(line);
+    yield { line: raw, code: false };
+    // A blank line neither starts nor ends an indented block, so `prevCode` survives it.
+    if (!blank) prevCode = false;
+    prevBlank = blank;
   }
 }
 
@@ -233,13 +291,13 @@ function* markdownLines(text) {
 // than operated on — but it makes a genuinely enrolled repo invisible, and the operator's
 // only signal is a row that reads like a deliberate decline.
 //
-// Returns the section's lines with their fence state, not a joined string: the consent test
+// Returns the section's lines with their code state, not a joined string: the consent test
 // needs to know which of them are code.
 function consentSection(text) {
   let inside = false;
   const body = [];
   for (const entry of markdownLines(text)) {
-    if (!entry.fenced) {
+    if (!entry.code) {
       const h = /^(#{1,6})\s+(.*)$/.exec(entry.line);
       if (h) {
         const level = h[1].length;
@@ -259,15 +317,18 @@ function consentSection(text) {
 // fleet mode to WRITE to a member — so a false positive here authorizes edits to a repo that
 // said no in writing. Section-scoping alone does not cover discussion INSIDE the section.
 //
-// Leading blockquote, list-bullet, and indent markers are allowed before the phrase: they are
-// ordinary markdown decoration on a line that is still the repo's own assertion. A FENCED line
-// never counts, wherever it sits in the block, because a fence is how a contract SHOWS the
-// phrase without saying it. Matching is case-insensitive, which the `beta` fixture pins.
-const CONSENT_LINE = /^[ \t>*-]*fleet member:[ \t]*yes[ \t]*$/i;
+// One blockquote or list-bullet marker, and up to three spaces of indent, are allowed before
+// the phrase: they are ordinary markdown decoration on a line that is still the repo's own
+// assertion. The three-space cap is not arbitrary — it is the indented-code boundary the line
+// stream enforces above, so a four-space indent is presentation the stream has already called
+// code, and this pattern cannot disagree with it. A CODE line never counts, wherever it sits,
+// because a code block is how a contract SHOWS the phrase without saying it. Matching is
+// case-insensitive, which the `beta` fixture pins.
+const CONSENT_LINE = /^ {0,3}(?:[>*-][ \t]*)?fleet member:[ \t]*yes[ \t]*$/i;
 
 const hasConsent = (text) => {
   const section = consentSection(text);
-  return section !== null && section.some((e) => !e.fenced && CONSENT_LINE.test(e.line));
+  return section !== null && section.some((e) => !e.code && CONSENT_LINE.test(e.line));
 };
 
 // Parity mode, per docs/techniques/vault-standard.md "Host parity": byte-identical copies, or a
@@ -286,25 +347,33 @@ function parityMode(found) {
   // tests, not one length cap. Length alone would call any short file a pointer, and a
   // substantive contract that happens to be short and to open by naming its twin — "`CLAUDE.md`
   // is a generated copy of this file; this is required reading" — would be read as a stub and
-  // reported DRIFTED. So: short, saying the named file is binding, naming it up front rather
-  // than in passing, and carrying no sections of its own. A `## Fleet` section is the one
-  // exception, because consent must be readable from either half of the pair.
+  // reported DRIFTED. So: short, saying the named file is binding, naming it in its first
+  // paragraph rather than in passing, and carrying no heading of its own AT ANY DEPTH. A
+  // `## Fleet` heading is the one exception, because consent must be readable from either half
+  // of the pair — and a `###` subheading under it is a section of the pointer's own, so it is
+  // refused like any other.
   const isPointer = (t, names) => {
     if (t.split('\n').length > POINTER_MAX_LINES) return false;
     if (!t.includes(names) || !REQUIRED_READING.test(t)) return false;
     const lead = [];
+    let leadClosed = false;
     const headings = [];
-    for (const { line, fenced } of markdownLines(t)) {
-      if (fenced) continue;
+    for (const { line, code } of markdownLines(t)) {
+      if (code) continue;
       const h = /^(#{1,6})\s+(.*)$/.exec(line);
       if (h) {
         if (h[1].length >= 2) headings.push(h[2].trim().replace(/\s*#+$/, '').toLowerCase());
         continue;
       }
       // Blank lines, headings, and the consent line are markup and enrollment, not contract
-      // body. A pointer's body IS the pointer, so the named file has to be at the top of it.
-      if (line.trim() === '' || CONSENT_LINE.test(line)) continue;
-      if (lead.length < POINTER_LEAD_LINES) lead.push(line);
+      // body. A pointer's body IS the pointer, so the named file has to be in its first
+      // paragraph — the opening run of body lines, which the first blank line below them ends.
+      if (line.trim() === '') {
+        if (lead.length) leadClosed = true;
+        continue;
+      }
+      if (CONSENT_LINE.test(line)) continue;
+      if (!leadClosed) lead.push(line);
     }
     if (!lead.join('\n').includes(names)) return false;
     return headings.every((h) => h === 'fleet');
