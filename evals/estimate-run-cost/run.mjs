@@ -14,6 +14,13 @@
 //        explicitly not applied, because a ledger records no repo size to regress against.
 //   k-l. No token-price math appears anywhere in the output, and a usage error exits 2 while
 //        every readable request exits 0.
+//   n-p. A run folder whose ledger has no dispatch rows — what `dispatch-ledger.mjs phase`
+//        leaves behind when a run opens a phase and dies — is EXCLUDED from the range and
+//        named, never counted as a run that cost 0; the n<3 guess caveat fires on the count of
+//        runs that yielded rows, not on the count of folders; and a ledger below the walk's
+//        depth cap is disclosed rather than dropped behind "no ledger found under this tree".
+//   q.   Grammar (a) — the ledger row shape — is declared once in scripts/ledger-grammar.mjs
+//        and imported by the writer and both readers, never re-declared.
 //
 // Fixtures are built in a throwaway tmp tree rather than committed, following
 // evals/dispatch-ledger/run.mjs: one of the cases IS an empty directory, which git cannot track.
@@ -167,10 +174,91 @@ try {
     mj?.comparableRuns === 3 && mj?.priorRuns === 4 && mj?.modelClassMix?.strong === 4, JSON.stringify(mj));
   check('l. a clean n>=3 estimate carries no caveats', Array.isArray(mj?.caveats) && mj.caveats.length === 0, JSON.stringify(mj?.caveats));
 
+  // ---- a zero-row ledger is excluded from the basis, not counted as a 0-cost run ----
+  // The fixture is exactly what `dispatch-ledger.mjs phase` writes for a run that opened a
+  // phase and died before its first dispatch: header, rule, phase marker, no rows.
+  const aborted = join(work, 'aborted-tree');
+  mkdirSync(aborted, { recursive: true });
+  seedRun(aborted, '2026-08-01 ship auth', [
+    'D-001 | explorer@claude-sonnet-5 | map auth | AUTH_MAP.md | reported',
+    'D-002 | reviewer@claude-opus-5 | review the diff | REVIEW.md | reported',
+  ]);
+  seedRun(aborted, '2026-08-05 ship cache', [
+    'D-001 | explorer@claude-sonnet-5 | map the cache layer | MAP.md | reported',
+    'D-002 | mech@claude-haiku-4-5-20251001 | rename the config field | diff | reported',
+    'D-003 | reviewer@claude-opus-5 | review the diff | REVIEW.md | reported',
+    'D-004 | verifier@claude-opus-5 | run the gate chain | RECEIPTS.md | reported',
+  ]);
+  mkdirSync(join(aborted, '2026-08-07 ship aborted'), { recursive: true });
+  writeFileSync(join(aborted, '2026-08-07 ship aborted', 'DISPATCH_LEDGER.md'),
+    HEADER + '> phase: recon · lead@claude-opus-5\n');
+
+  const abortedJson = join(work, 'aborted.json');
+  const n = run(['--runs', aborted, '--json', abortedJson]);
+  check('n. a tree carrying an aborted run exits 0', n.status === 0, n.stdout + n.stderr);
+  check('n. the zero-row ledger does not pull the range to min 0',
+    /dispatch-count range: min 2, median 3, max 4/.test(n.stdout), n.stdout);
+  check('n. the zero-row run is not listed as a 0-dispatch comparable run',
+    !/2026-08-07 ship aborted: 0 dispatch\(es\)/.test(n.stdout), n.stdout);
+  check('n. it is named in its own caveat instead',
+    /CAVEAT — 1 run folder\(s\) carry a ledger with no dispatch rows/.test(n.stdout)
+    && /2026-08-07 ship aborted/.test(n.stdout), n.stdout);
+  check('o. the n<3 guess caveat fires on the honest count of 2, not the 3 folders',
+    /CAVEAT — THIS IS A GUESS, NOT AN ESTIMATE/.test(n.stdout)
+    && /Drawn from 2 comparable run\(s\)/.test(n.stdout), n.stdout);
+  let nj = null;
+  try { nj = JSON.parse(readFileSync(abortedJson, 'utf8')); } catch (e) { nj = { parseError: String(e.message) }; }
+  check('o. the machine shape separates usable runs from run folders',
+    nj?.usableRuns === 2 && nj?.emptyLedgerRuns === 1 && nj?.comparableRuns === 3, JSON.stringify(nj));
+  check('o. and the estimate rests on the usable ones',
+    nj?.estimate?.min === 2 && nj?.estimate?.median === 3, JSON.stringify(nj?.estimate));
+
+  // Every comparable ledger empty: no estimate at all, rather than a range of zeroes.
+  const allEmpty = join(work, 'all-empty');
+  mkdirSync(join(allEmpty, '2026-08-07 ship aborted'), { recursive: true });
+  writeFileSync(join(allEmpty, '2026-08-07 ship aborted', 'DISPATCH_LEDGER.md'),
+    HEADER + '> phase: recon · lead@claude-opus-5\n');
+  const nn = run(['--runs', allEmpty]);
+  check('n. a tree of only zero-row ledgers prints no range', !/dispatch-count range/.test(nn.stdout), nn.stdout);
+  check('n. and says why', /every comparable ledger parsed to zero dispatch rows/.test(nn.stdout), nn.stdout);
+
+  // ---- the depth cap is disclosed, never silent -------------------------------
+  const deep = join(work, 'deep');
+  mkdirSync(join(deep, 'a', 'b', 'c', 'd', 'e'), { recursive: true });
+  writeFileSync(join(deep, 'a', 'b', 'c', 'd', 'e', 'DISPATCH_LEDGER.md'),
+    HEADER + '| D-001 | explorer@claude-sonnet-5 | map it | MAP.md | reported |\n');
+  const pcap = run(['--runs', deep]);
+  check('p. a tree whose only ledger sits below the cap exits 0', pcap.status === 0, pcap.stdout + pcap.stderr);
+  check('p. the not-found message is qualified by the cap, not stated as absolute',
+    /no DISPATCH_LEDGER\.md found within 3 levels of this tree/.test(pcap.stdout)
+    && !/found under this tree/.test(pcap.stdout), pcap.stdout);
+  check('p. and the unsearched directory is named',
+    /CAVEAT — the walk stops at 3 levels below --runs/.test(pcap.stdout), pcap.stdout);
+  check('p. an unbounded-enough tree still says "under this tree" with no cap caveat',
+    /no DISPATCH_LEDGER\.md found under this tree/.test(f.stdout) && !/the walk stops at/.test(f.stdout), f.stdout);
+
+  // ---- grammar (a) has one source, not three copies ---------------------------
+  // The row shape was duplicated across the writer and both readers. Each treats a
+  // non-matching row as `malformed`, so a drifted copy would undercount dispatches quietly
+  // instead of failing. This pins the structural fix: nobody re-declares the pattern.
+  const grammarSrc = readFileSync(join(REPO, 'scripts', 'ledger-grammar.mjs'), 'utf8');
+  check('q. the shared grammar exports the row pattern and its status set',
+    /export const LEDGER_ROW_RE\b/.test(grammarSrc) && /export const LEDGER_STATUSES\b/.test(grammarSrc), grammarSrc.slice(0, 200));
+  check('q. and imports nothing, so the argv-dispatching writer can read from it too',
+    !/^\s*import\s/m.test(grammarSrc), grammarSrc.slice(0, 200));
+  for (const consumer of ['estimate-run-cost.mjs', 'calibration-metrics.mjs', 'dispatch-ledger.mjs']) {
+    const src = readFileSync(join(REPO, 'scripts', consumer), 'utf8');
+    check(`q. ${consumer} imports the row grammar instead of re-declaring it`,
+      /from '\.\/ledger-grammar\.mjs'/.test(src)
+      && !/^const\s+(LEDGER_ROW_RE|ROW_RE)\s*=\s*\//m.test(src)
+      && !/^const\s+(LEDGER_STATUSES|STATUSES)\s*=\s*\[/m.test(src), consumer);
+  }
+
   // ---- usage errors fail closed at exit 2 -------------------------------------
   check('m. no --runs exits 2', run([]).status === 2);
   check('m. an unknown flag exits 2', run(['--runs', runs, '--bogus', 'x']).status === 2);
   check('m. a non-numeric --repo-size exits 2', run(['--runs', runs, '--repo-size', 'big']).status === 2);
+  check('m. a non-finite --repo-size exits 2 too', run(['--runs', runs, '--repo-size', 'Infinity']).status === 2);
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }

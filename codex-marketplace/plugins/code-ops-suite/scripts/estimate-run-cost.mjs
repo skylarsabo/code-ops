@@ -28,11 +28,10 @@
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
+import { LEDGER_ROW_RE, LEDGER_STATUSES } from './ledger-grammar.mjs';
 
-// Row grammar per scripts/dispatch-ledger.mjs, duplicated rather than imported because that
-// script dispatches on argv at module load; calibration-metrics.mjs carries the same copy.
-const LEDGER_ROW_RE = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
-const LEDGER_STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
+// Grammar (a) comes from scripts/ledger-grammar.mjs, shared with the writer
+// (dispatch-ledger.mjs) and the post-run scorer (calibration-metrics.mjs).
 const LEDGER_NAME = 'DISPATCH_LEDGER.md';
 const MAX_DEPTH = 3;
 const MIN_COMPARABLE = 3;
@@ -56,13 +55,23 @@ const flags = {};
   }
 }
 if (!('--runs' in flags)) usage('--runs <dir> is required');
-if ('--repo-size' in flags && !(Number(flags['--repo-size']) >= 0)) usage('--repo-size must be a non-negative number of megabytes');
+// Number.isFinite, not just `>= 0`: `Number('Infinity') >= 0` is true, and an accepted
+// `Infinity` would be echoed back in the recorded-not-applied note as if it were a size.
+{
+  const n = Number(flags['--repo-size']);
+  if ('--repo-size' in flags && !(Number.isFinite(n) && n >= 0)) usage('--repo-size must be a non-negative number of megabytes');
+}
 
 // ---------------------------------------------------------------- collect prior runs
 
 // Walks the runs tree for DISPATCH_LEDGER.md files, bounded by MAX_DEPTH and skipping dot
 // directories and node_modules — the same bounded-walk shape calibration-metrics.mjs uses, so a
 // vault's `80 Runs/YYYY-MM-DD slug/` and a flat dated-docs tree both resolve without a flag.
+//
+// The cap is reported, never silent: `cappedAt` collects every directory the walk refused to
+// descend into. Without it, a ledger deeper than MAX_DEPTH produced the confident wrong
+// sentence "no DISPATCH_LEDGER.md found under this tree" about a tree that has one.
+const cappedAt = [];
 function findLedgers(dir, depth = 0) {
   const found = [];
   let entries;
@@ -73,6 +82,7 @@ function findLedgers(dir, depth = 0) {
     const full = join(dir, e.name);
     if (e.isDirectory()) {
       if (depth < MAX_DEPTH) found.push(...findLedgers(full, depth + 1));
+      else cappedAt.push(full);
     } else if (e.isFile() && e.name === LEDGER_NAME) {
       found.push(full);
     }
@@ -130,7 +140,9 @@ p();
 if (!dirPresent) {
   p(`  no prior runs, no estimate — ${runsDir} does not exist or is not a directory.`);
 } else if (allRuns.length === 0) {
-  p('  no prior runs, no estimate — no DISPATCH_LEDGER.md found under this tree.');
+  p(cappedAt.length
+    ? `  no prior runs, no estimate — no ${LEDGER_NAME} found within ${MAX_DEPTH} levels of this tree.`
+    : `  no prior runs, no estimate — no ${LEDGER_NAME} found under this tree.`);
 }
 
 // ---------------------------------------------------------------- select the comparable set
@@ -162,19 +174,40 @@ const machine = {
   repoSizeMb: '--repo-size' in flags ? Number(flags['--repo-size']) : null,
   priorRuns: allRuns.length,
   comparableRuns: comparable.length,
+  // The count the estimate actually rests on: run folders whose ledger yielded at least one
+  // parseable row. `comparableRuns` counts folders, which is not the same number.
+  usableRuns: 0,
+  emptyLedgerRuns: 0,
+  depthCappedDirs: cappedAt.length,
   skillFilterFellBack: fellBack,
   estimate: null,
   modelClassMix: null,
   caveats: [],
 };
 
-if (comparable.length) {
-  const st = stats(comparable.map((r) => r.dispatches));
+// A run folder whose ledger yielded no parseable row contributed no evidence. Counting it as a
+// run that cost 0 dispatches pulls the min to 0, drags the median down, AND satisfies
+// MIN_COMPARABLE with a run that proves nothing — suppressing the guess caveat exactly when it
+// is most needed. `dispatch-ledger.mjs phase` produces such a ledger for any run that opened a
+// phase and died before its first dispatch, so this is an ordinary artifact, not a corner case.
+// Zero-row runs are excluded from the basis and reported by name instead.
+const usable = comparable.filter((r) => r.dispatches > 0);
+const emptyLedgers = comparable.filter((r) => r.dispatches === 0);
+machine.usableRuns = usable.length;
+machine.emptyLedgerRuns = emptyLedgers.length;
+
+if (comparable.length && !usable.length) {
+  p(`  basis: ${basis}`);
+  p('  no estimate — every comparable ledger parsed to zero dispatch rows.');
+}
+
+if (usable.length) {
+  const st = stats(usable.map((r) => r.dispatches));
   machine.estimate = st;
 
   const mix = new Map();
   let mixTotal = 0;
-  for (const r of comparable) {
+  for (const r of usable) {
     for (const [cls, n] of r.byClass) { mix.set(cls, (mix.get(cls) ?? 0) + n); mixTotal += n; }
   }
   const order = [...MODEL_CLASS_ORDER, 'unstamped'].filter((k) => mix.has(k));
@@ -187,23 +220,32 @@ if (comparable.length) {
     const share = mixTotal ? ((mix.get(k) / mixTotal) * 100).toFixed(1) : '0.0';
     p(`    ${k}: ${mix.get(k)} (${share}%)`);
   }
-  if (!order.length) p('    (none — the comparable ledgers parsed to zero rows)');
   p();
   p('  comparable runs:');
-  for (const r of comparable) {
+  for (const r of usable) {
     p(`    ${r.label}: ${r.dispatches} dispatch(es)${r.malformed ? `, ${r.malformed} unparseable row(s)` : ''}`);
   }
+}
 
+if (comparable.length) {
   // ---- caveats: every reason this number is weaker than it looks, stated where it is read.
-  if (comparable.length < MIN_COMPARABLE) {
-    machine.caveats.push(`n=${comparable.length} — fewer than ${MIN_COMPARABLE} comparable runs`);
+  // The n<3 guard counts runs that yielded rows, not run folders.
+  if (usable.length && usable.length < MIN_COMPARABLE) {
+    machine.caveats.push(`n=${usable.length} — fewer than ${MIN_COMPARABLE} comparable runs with dispatch rows`);
     p();
     p('  !! CAVEAT — THIS IS A GUESS, NOT AN ESTIMATE');
-    p(`     Drawn from ${comparable.length} comparable run(s). A range needs at least ${MIN_COMPARABLE}`);
+    p(`     Drawn from ${usable.length} comparable run(s). A range needs at least ${MIN_COMPARABLE}`);
     p('     to be a distribution rather than a sample; below that the min and the max are');
     p('     two observations, and the median is one of them. Read it as an order of');
     p('     magnitude, and scope the run on the levers in docs/handbook/09-cost-and-scoping.md');
     p('     rather than on this line.');
+  }
+  if (emptyLedgers.length) {
+    machine.caveats.push(`${emptyLedgers.length} run(s) recorded no dispatches — excluded from the range`);
+    p();
+    p(`  !! CAVEAT — ${emptyLedgers.length} run folder(s) carry a ledger with no dispatch rows (an aborted`);
+    p('     or not-yet-started run). They are excluded from the range rather than counted as 0:');
+    for (const r of emptyLedgers) p(`       ${r.label}${r.malformed ? ` (${r.malformed} unparseable row(s))` : ''}`);
   }
   if (fellBack) {
     machine.caveats.push(`no run folder matched "${flags['--skill']}" — the estimate covers every prior run`);
@@ -219,6 +261,18 @@ if (comparable.length) {
     p('     dispatch counts are floors, not counts. Check them against grammar (a) in');
     p('     docs/techniques/artifact-grammars.md.');
   }
+}
+
+// A bounded sweep says what it dropped. Reported outside the comparable block, because the
+// case that misleads hardest is the one where the walk found nothing at all.
+if (cappedAt.length) {
+  machine.caveats.push(`${cappedAt.length} directory(ies) below ${MAX_DEPTH} levels were not searched`);
+  p();
+  const one = cappedAt.length === 1;
+  p(`  !! CAVEAT — the walk stops at ${MAX_DEPTH} levels below --runs, so ${cappedAt.length} ${one ? 'directory was' : 'directories were'}`);
+  p(`     not searched. A ${LEDGER_NAME} under ${one ? 'it' : 'one of them'} is absent from this estimate:`);
+  for (const d of cappedAt.slice(0, 5)) p(`       ${d}`);
+  if (cappedAt.length > 5) p(`       ... and ${cappedAt.length - 5} more`);
 }
 
 if ('--repo-size' in flags) {

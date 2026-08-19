@@ -72,6 +72,7 @@ import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from '
 import { execFileSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
+import { LEDGER_ROW_RE, LEDGER_STATUSES } from './ledger-grammar.mjs';
 
 function usage() {
   console.error('usage: calibration-metrics.mjs --artifacts <dir> [--out <file>] [--json <file>]');
@@ -87,8 +88,8 @@ function escapeRe(s) {
 // MODE 1: metrics
 // -------------------------------------------------------------------------------------
 
-const LEDGER_ROW_RE = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
-const LEDGER_STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
+// Grammar (a) — the row shape and its status set — comes from scripts/ledger-grammar.mjs,
+// shared with the writer (dispatch-ledger.mjs) and the estimator (estimate-run-cost.mjs).
 // Phase marker per scripts/dispatch-ledger.mjs `phase`: `> phase: <title> · lead@<model>`.
 // Markers are POSITIONAL — every row after one belongs to that phase — so the lead model that
 // presided over each stretch of dispatches stays reconstructable after the run.

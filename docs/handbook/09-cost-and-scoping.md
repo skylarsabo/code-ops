@@ -121,7 +121,8 @@ It walks prior run folders, parses their `DISPATCH_LEDGER.md` files with grammar
 
 - a **dispatch-count range** — min, median, and max over the comparable prior runs;
 - a **model-class mix** — how those dispatches split across the `light`/`mid`/`strong`/
-  `frontier` rungs, plus `unstamped` and `unclassified` where the record does not say.
+  `frontier` rungs, plus `ambiguous`, `unstamped`, and `unclassified` where the record does
+  not say.
 
 Read the range as the shape of the run you are about to start, then choose scope with it:
 if the median already sits above the effort you meant to spend, narrow the scope (Lever 2)
@@ -136,7 +137,9 @@ Three limits, each stated by the tool itself rather than left to the reader:
    Multiply the range by your own current prices if you want one.
 2. **Fewer than three comparable runs is a guess, and it says so.** A range drawn from one
    or two observations is a sample, not a distribution; the tool prints a caveat block
-   rather than a quiet number.
+   rather than a quiet number. The count is runs that yielded dispatch rows: a run folder
+   whose ledger has no rows — an aborted run — is excluded from the range and named, never
+   counted as a run that cost zero.
 3. **It never fails a run.** An absent or empty runs directory prints "no prior runs, no
    estimate" and exits 0. The estimator is advisory by construction, so adopting it costs
    nothing.
