@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.42.7
+- **The machine caveat matches the prose** — the JSON caveat still said "recorded no dispatches", the diagnosis the prose correction removed. Both now name the full cause set, and the eval regex pins the corrected clause instead of stopping before it.
+
 ## 1.42.6
 - **Estimator caveats say only what the walk knows** — the depth-cap caveat asserted a ledger exists in a directory the walk never entered, and the empty-ledger caveat diagnosed every zero-row ledger as an aborted run when unreadable rows produce the same zero. Both now state the possibility and the full cause set.
 
