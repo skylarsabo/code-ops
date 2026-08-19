@@ -203,9 +203,18 @@ function readContract(dir) {
 // line is `code` when markdown would render it verbatim; a `code` line is never markup, never a
 // heading, and never consent.
 //
+// These rules are NORMATIVE, not an approximation: docs/techniques/fleet-standard.md, under
+// "The parsing rules are the specification", states that this rule set IS the consent contract
+// format, and that where a markdown renderer displays a contract differently, the rule set
+// governs enrollment. An edge case outside these rules is closed by amending the spec on
+// purpose, never by silently matching a renderer.
+//
 // Containers first, leaf blocks second, which is CommonMark's own order:
 //   - A uniform blockquote prefix (`>` markers, each with an optional space) is stripped before
-//     any leaf test. A blockquoted fence therefore opens a block exactly as a bare one does.
+//     the LEAF tests. A blockquoted fence therefore opens a block exactly as a bare one does.
+//   - A fence closes only at the quote depth that opened it. Stripping the prefix before the
+//     closer test as well would make `> ```` inside an open bare fence end the block, read the
+//     decline below it as consent, and fail open in the mirror direction.
 //
 // Fenced blocks (CommonMark 4.5):
 //   - A line whose first non-whitespace run is three or more backticks or three or more
@@ -225,7 +234,10 @@ function readContract(dir) {
 //     content. A list opens at a bullet or ordered marker and closes at the next non-blank
 //     line indented less than four spaces that is not itself a marker.
 //   - Two or three spaces of indent are decoration, not code. That is the boundary the
-//     consent matcher's tolerated prefix is cut to, so the two agree by construction.
+//     consent matcher's tolerated prefix is cut to OUTSIDE a list, so the two agree by
+//     construction there. Inside an open list no indent is code, so the matcher drops its
+//     indent cap for those lines rather than refusing a line the stream already called markup.
+//     An open list therefore changes indented-code classification and never suppresses consent.
 //
 // Deliberately not implemented: a backtick opener's ban on backticks in its info string, which
 // would only ever suppress MORE text, and the checker's safe direction is to suppress.
@@ -239,11 +251,15 @@ const LIST_MARKER = /^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 function* markdownLines(text) {
   let char = null;
   let len = 0;
+  // The quote depth the open fence was opened at. A closer must sit at the same depth.
+  let openDepth = 0;
   let prevBlank = true;
   let prevCode = false;
   let listOpen = false;
   for (const raw of text.replace(/\r\n/g, '\n').split('\n')) {
-    const line = raw.replace(QUOTE_PREFIX, '');
+    const q = QUOTE_PREFIX.exec(raw);
+    const depth = q ? (q[0].match(/>/g) || []).length : 0;
+    const line = q ? raw.slice(q[0].length) : raw;
     const blank = line.trim() === '';
     const indented = INDENTED_CODE.test(line);
     // An open indented block wins over a fence opener, per CommonMark: a fence marker inside
@@ -257,7 +273,7 @@ function* markdownLines(text) {
     }
     const m = FENCE.exec(line);
     if (char !== null) {
-      if (m && m[1][0] === char && m[1].length >= len && m[2].trim() === '') char = null;
+      if (depth === openDepth && m && m[1][0] === char && m[1].length >= len && m[2].trim() === '') char = null;
       yield { line: raw, code: true };
       prevBlank = false;
       prevCode = false;
@@ -266,6 +282,7 @@ function* markdownLines(text) {
     if (m) {
       char = m[1][0];
       len = m[1].length;
+      openDepth = depth;
       yield { line: raw, code: true };
       prevBlank = false;
       prevCode = false;
@@ -274,7 +291,9 @@ function* markdownLines(text) {
     // Everything reaching here is blank, or markup: the indented-code branch above already
     // took every line that starts or continues an indented block.
     if (!blank && !indented) listOpen = LIST_MARKER.test(line);
-    yield { line: raw, code: false };
+    // `list` travels with the line so the consent matcher can drop its indent cap exactly where
+    // the stream has already ruled the indent is list content rather than code.
+    yield { line: raw, code: false, list: listOpen };
     // A blank line neither starts nor ends an indented block, so `prevCode` survives it.
     if (!blank) prevCode = false;
     prevBlank = blank;
@@ -324,11 +343,20 @@ function consentSection(text) {
 // code, and this pattern cannot disagree with it. A CODE line never counts, wherever it sits,
 // because a code block is how a contract SHOWS the phrase without saying it. Matching is
 // case-insensitive, which the `beta` fixture pins.
+//
+// INSIDE AN OPEN LIST the cap lifts, because there the stream begins no indented block — the
+// same indent is list content, which CommonMark renders as a paragraph in the item. Holding the
+// three-space cap there refused a line the stream had already called markup, so a consenting
+// repo reported as a deliberate decline: fail-closed, and invisible to the operator. An open
+// list therefore only changes indented-code classification; it never suppresses a consent.
 const CONSENT_LINE = /^ {0,3}(?:[>*-][ \t]*)?fleet member:[ \t]*yes[ \t]*$/i;
+const CONSENT_LINE_IN_LIST = /^[ \t]*(?:[>*-][ \t]*)?fleet member:[ \t]*yes[ \t]*$/i;
+
+const consentLine = (e) => (e.list ? CONSENT_LINE_IN_LIST : CONSENT_LINE).test(e.line);
 
 const hasConsent = (text) => {
   const section = consentSection(text);
-  return section !== null && section.some((e) => !e.code && CONSENT_LINE.test(e.line));
+  return section !== null && section.some((e) => !e.code && consentLine(e));
 };
 
 // Parity mode, per docs/techniques/vault-standard.md "Host parity": byte-identical copies, or a
@@ -358,7 +386,8 @@ function parityMode(found) {
     const lead = [];
     let leadClosed = false;
     const headings = [];
-    for (const { line, code } of markdownLines(t)) {
+    for (const entry of markdownLines(t)) {
+      const { line, code } = entry;
       if (code) continue;
       const h = /^(#{1,6})\s+(.*)$/.exec(line);
       if (h) {
@@ -372,7 +401,7 @@ function parityMode(found) {
         if (lead.length) leadClosed = true;
         continue;
       }
-      if (CONSENT_LINE.test(line)) continue;
+      if (consentLine(entry)) continue;
       if (!leadClosed) lead.push(line);
     }
     if (!lead.join('\n').includes(names)) return false;

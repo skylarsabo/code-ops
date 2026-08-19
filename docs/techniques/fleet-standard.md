@@ -43,10 +43,10 @@ The heading may be written closed-ATX (`## Fleet ##`); the trailing hashes are t
 
 Code is code wherever the phrase sits inside it. The checker walks the contract line by line through one CommonMark-shaped reader, and every part of the check — what a heading is, what consent is, what a pointer's body is — sees the same answer. The reader is `markdownLines` in `scripts/check-fleet.mjs`, which states this rule set in full. In short:
 
-- A uniform blockquote prefix is stripped before any other test, so a blockquoted fence opens a block exactly as a bare one does.
+- A uniform blockquote prefix is stripped before the leaf-block tests, so a blockquoted fence opens a block exactly as a bare one does. A fence closes only at the same quote depth that opened it, so a quote marker inside an open block is content rather than a closer.
 - Three or more backticks or tildes open a fenced block, and only a fence of the same character and at least the same length, with nothing after it, closes one. A fence left unterminated suppresses everything to the end of the file, which fails in the safe direction.
 - Four or more spaces of indent, or a tab, open an indented code block where one can begin: after a blank line, at the start of the file, or under another indented line, and never inside a list, where the same indent is list content. An open indented block wins over a fence marker inside it.
-- Three spaces of indent are decoration, not code. That boundary is the same one the consent line is matched against, so the two cannot disagree.
+- Three spaces of indent are decoration, not code. That boundary is the same one the consent line is matched against outside a list, so the two cannot disagree there. Inside an open list the boundary lifts on both sides at once: no indent starts a code block, and a consent line counts at any indent. An open list changes what counts as code, and never suppresses a consent.
 
 Because the same reader decides what a heading is, a `## Fleet` written inside an example block does not close the real section, and a repo that quotes the heading it must write is still enrolled by the consent line below the quotation.
 
@@ -64,6 +64,17 @@ Three states follow, and the checker names each:
 - **Named and consenting** — the manifest lists the repo and the contract carries the phrase. Fleet operations run against it.
 - **Named, not consenting** — the manifest lists the repo and the contract does not carry the phrase. The checker reports the row and never operates on the repo. This state is not a failure. A repo declines by doing nothing.
 - **Consenting, not named** — the contract carries the phrase and no manifest lists the repo. The repo is invisible to fleet operations. A consent phrase is an offer, not an enrollment.
+
+### The parsing rules are the specification
+
+The rules above are normative. They are the specification of the consent contract format, not an approximation of CommonMark that a renderer could correct. The checker implements the spec, and where any markdown renderer displays a contract differently, the spec governs enrollment. A renderer that disagrees is a documentation problem to describe, never a checker bug to chase.
+
+Two author-facing rules make every edge case irrelevant, and a contract that follows them never meets one:
+
+- Write consent as a flush, undecorated line: `fleet member: yes`, at the left margin, inside the `## Fleet` section.
+- Show the phrase in an example only inside a flush fenced block, opened and closed at the left margin.
+
+An edge case the rules above do not cover is closed by amending this page and the checker together, on purpose. It is never closed by silently matching whatever a renderer happens to do, because a spec that tracks a renderer is not a spec.
 
 ### The consent doctrine
 

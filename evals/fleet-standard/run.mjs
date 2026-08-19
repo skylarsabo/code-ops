@@ -16,8 +16,9 @@
 // bullet/blockquote/three-space-indent decoration, matched case-insensitively, under a closed-ATX
 // heading as well as an open one; a phrase in code never enrolls whatever its shape — fenced,
 // blockquote-fenced, or indented — while a fenced heading-lookalike does not close the section, an
-// indented block wins over a fence marker inside it, and a real consent after either block still
-// counts; two pointers naming each other are DRIFTED rather than a parity mode, a short substantive
+// indented block wins over a fence marker inside it, a quote marker inside an open bare fence is
+// content rather than a closer, an open list suppresses no consent at any indent, and a real
+// consent after any of those blocks still counts; two pointers naming each other are DRIFTED rather than a parity mode, a short substantive
 // contract naming its twin is not a pointer, a pointer carrying a subheading is not one either,
 // and a pointer naming its twin later in its first paragraph still is; a missing vault is ABSENT and not a
 // failure; a slug collision is a manifest error; and every emitted row parses under grammar (d).
@@ -159,6 +160,15 @@ for (const [label, block] of [
   ['blockquoted-fence', '> ```\n> fleet member: yes\n> ```'],
   ['blockquoted-tilde-fence', '> ~~~\n> fleet member: yes\n> ~~~'],
   ['blockquoted-fence-second-line', '> ```\n> context line\n> fleet member: yes\n> ```'],
+  // The MIRROR nesting of the three cases above, and the direction the strip reopened: a quote
+  // marker inside an OPEN bare fence is literal content, not a closer. Stripping the container
+  // prefix before the closer test ends the block early and reads the line below it as consent.
+  // Every case here fails without the fence's opening quote depth being recorded.
+  ['gt-fence-inside-fence', '```\n> ```\nfleet member: yes'],
+  ['gt-tilde-inside-fence', '~~~\n> ~~~\nfleet member: yes'],
+  ['gt-fence-inside-fenced-example', '```\ncontext line\n> ```\nfleet member: yes\n```'],
+  ['nested-gt-fence-inside-fence', '```\n>> ```\nfleet member: yes'],
+  ['indented-gt-fence-inside-fence', '```\n  > ```\nfleet member: yes'],
   // An indented code block is code too. Four spaces, and a tab, each suppress.
   ['indented-four-spaces', '    fleet member: yes'],
   ['indented-tab', '\tfleet member: yes'],
@@ -273,6 +283,48 @@ for (const [label, prefix] of [
   const r = run(ws.mpath);
   expect(surfaces('consent-after-fence', r.out).get('after-consent') === 'CONFORMANT',
     `a consent line after a closed fence must still enroll the repo, got:\n${r.out}`);
+}
+
+// ---- 3f-i. a consent line after a CLOSED blockquoted fence still counts ------------------
+// The depth gate must not hold a blockquoted fence open past its own closer. This is the case
+// the gate could break in the fail-closed direction, so it is pinned beside the mirror cases.
+{
+  const body = contract('## Fleet\n\nAn example of what not to write:\n\n> ```\n> fleet member: no\n> ```\n\nfleet member: yes\n');
+  const ws = workspace({ 'after-quoted/CLAUDE.md': body, 'after-quoted/AGENTS.md': body },
+    { version: 1, members: [member('after-quoted')] });
+  const r = run(ws.mpath);
+  expect(surfaces('consent-after-quoted-fence', r.out).get('after-quoted-consent') === 'CONFORMANT',
+    `a consent line after a closed blockquoted fence must still enroll the repo, got:\n${r.out}`);
+}
+
+// ---- 3g. an open list never suppresses a consent line ------------------------------------
+// Inside an open list the stream begins no indented block, because the same indent is list
+// content — CommonMark renders these as a paragraph in the item, an assertion and not code.
+// Holding the matcher's three-space cap there refused a line the stream had already called
+// markup, and the operator's only signal was a row that reads like a written refusal.
+for (const [label, block] of [
+  ['list-four-spaces', '- a list item\n\n    fleet member: yes'],
+  ['list-eight-spaces', '1. a list item\n\n        fleet member: yes'],
+  ['list-tab', '- a list item\n\n\tfleet member: yes'],
+]) {
+  const body = contract(`## Fleet\n\n${block}\n`);
+  const ws = workspace({ [`${label}/CLAUDE.md`]: body, [`${label}/AGENTS.md`]: body },
+    { version: 1, members: [member(label)] });
+  const r = run(ws.mpath);
+  expect(surfaces(`list-consent-${label}`, r.out).get(`${label}-consent`) === 'CONFORMANT',
+    `an open list must not suppress the consent line (${label}), got:\n${r.out}`);
+}
+
+// ---- 3g-i. the lifted cap belongs to list context and nowhere else -----------------------
+// The mutation partner of 3g. With no list open, a four-space indent is still code or still
+// refused, so lifting the cap inside a list must not lift it everywhere.
+{
+  const body = contract('## Fleet\n\nNot a member. Joining would mean adding:\n\n        fleet member: yes\n');
+  const ws = workspace({ 'nolist/CLAUDE.md': body, 'nolist/AGENTS.md': body },
+    { version: 1, members: [member('nolist')] });
+  const r = run(ws.mpath);
+  expect(surfaces('no-list-deep-indent', r.out).get('nolist-consent') === 'ABSENT',
+    `a deep indent outside a list must not enroll the repo, got:\n${r.out}`);
 }
 
 // ---- 3e. a closed-ATX `## Fleet ##` heading still opens the section --------------------
