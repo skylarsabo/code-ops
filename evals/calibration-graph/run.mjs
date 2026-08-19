@@ -201,7 +201,7 @@ try {
   // The host axis is the sibling of the provider axis: `config` says which model drove a
   // run, `host` which harness. No run records one yet, and the query must say so plainly
   // rather than defaulting every historical run to some assumed harness.
-  check('c. the host axis reports honestly when nothing records it',
+  check('c. the host axis attributes the run that records one and counts the rest as unrecorded',
     /## runs by host/.test(qXm.stdout)
     && /claude-code\s+1 run\(s\) \(R-009\)/.test(qXm.stdout)
     && /8 run\(s\) with no host line/.test(qXm.stdout), qXm.stdout);

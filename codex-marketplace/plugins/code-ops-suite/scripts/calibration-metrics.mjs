@@ -15,7 +15,8 @@
 // clearly a transcript). It also reads the two conformance snapshots — CONFORMANCE_REPORT.md's
 // per-surface verdicts and RUN_CONFORMANCE.md's per-check results (docs/techniques/
 // artifact-grammars.md §(d)/§(e)) — so standardization drift and orchestration discipline become
-// trended series rather than one-off readings. Each of the five named artifacts is OPTIONAL — its absence is
+// trended series rather than one-off readings.
+// Each of the five named artifacts is OPTIONAL — its absence is
 // reported as "not present", never an error — and a malformed row/item/line is counted and
 // reported as "unparseable: N", never silently skipped (the same skip-noting convention the
 // referenced scripts use). A present, non-empty artifact that yields zero parsed items gets a
@@ -326,7 +327,7 @@ const CONFORMANCE_VERDICTS = ['CONFORMANT', 'DRIFTED', 'ABSENT', 'UNKNOWN'];
 // (e) RUN_CONFORMANCE.md: | check | result | evidence |  — written by
 // /code-ops-suite:run-cost-audit over a completed run. `N/A` is a distinct result from PASS: a
 // rule the run could not violate is not a rule it obeyed.
-const RUN_CONFORMANCE_ROW_RE = /^\|\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*(N\/A|[A-Za-z]+)\s*\|\s*([^|]*?)\s*\|$/;
+const RUN_CONFORMANCE_ROW_RE = /^\|\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*([A-Za-z]+(?:\/[A-Za-z]+)?)\s*\|\s*([^|]*?)\s*\|$/;
 const RUN_CONFORMANCE_RESULTS = ['PASS', 'FAIL', 'N/A'];
 
 // Shared row walker for the two table grammars above. `headKey` is the first header cell that
@@ -347,6 +348,9 @@ function summarizeTable(text, rowRe, headKey, enumIndex, enumValues) {
     if (!m) { malformed++; continue; }
     const value = m[enumIndex].toUpperCase();
     if (!enumValues.includes(value)) { malformed++; continue; }
+    // A repeated key is counted as unparseable and skipped, so `byKey`, `counts`, and
+    // `total` always agree: the first row for a key wins, a duplicate never recounts.
+    if (Object.prototype.hasOwnProperty.call(byKey, m[1])) { malformed++; continue; }
     counts[value]++;
     byKey[m[1]] = value;
     total++;
