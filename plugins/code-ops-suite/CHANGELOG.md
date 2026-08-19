@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.42.3
+- **Tier-floor carrier for hosts that ignore agent frontmatter** — `scripts/preflight.mjs` now prints every bundled agent’s declared tier floor at Phase 0, so the floors are visible on any host. A new `CONVENTIONS.md` bullet makes the lead route each dispatch at or above its floor by hand where the host ignores `model:` frontmatter, and `run-cost-audit` records a below-floor dispatch as a `tier-routing` FAIL.
+
 ## 1.42.2
 - **Phase C re-writes the conformance report in place** — the skill said to record closing output "beside the opening verdict", which a producer could read as a second row per surface. Under the grammar's first-row-wins rule that shape would pin the drift rate to the pre-repair verdicts. Phase C now states the single-row rewrite: one row per surface, updated in place, the opening verdict noted in the evidence cell.
 

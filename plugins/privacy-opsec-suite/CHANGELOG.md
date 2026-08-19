@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.18.1
+- **Tier-floor carrier for hosts that ignore agent frontmatter** — `scripts/preflight.mjs` now prints every bundled agent’s declared tier floor at Phase 0, so the floors are visible on any host. A new `CONVENTIONS.md` bullet makes the lead route each dispatch at or above its floor by hand where the host ignores `model:` frontmatter, and `run-cost-audit` records a below-floor dispatch as a `tier-routing` FAIL.
+
 ## 1.18.0
 - **New `CONVENTIONS.md` §12, Writing standard** — threat models, leak registers, and runbooks follow one house standard. The section pins one term per concept, active voice, and one instruction per sentence. It caps instructions at 20 words and explanation at 25. Clarity outranks conformance, so a writer who breaks a rule states why. Full rules live in `docs/techniques/writing-standard.md`.
 
