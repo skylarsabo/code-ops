@@ -85,6 +85,20 @@ try {
   const v5 = run([runProof, 'verify', badLedger, '--root', dirA, '--report-only']);
   check('--report-only downgrades refusals to skip+warn (exit 0)', v5.status === 0 && /REFUSED/.test(v5.stdout || ''), `status ${v5.status}`);
 
+  // (d2) win32 only: a .cmd shim (npm-style) must record AND replay — regression pin for the
+  // spawn EINVAL/not-found failure on Node's shim hardening. Elsewhere the branch is a no-op.
+  if (process.platform === 'win32') {
+    const shimLedger = join(dirA, 'SHIM_RECEIPTS.md');
+    writeFileSync(join(dirA, 'shim.cmd'), '@echo shim-ran %~1\r\n@exit /b 0\r\n');
+    writeFileSync(join(dirA, 'shimfail.cmd'), '@exit /b 3\r\n');
+    const w1 = run([runProof, 'record', '--receipts', shimLedger, '--', 'shim.cmd', 'hello'], dirA);
+    check('win32: record spawns a .cmd shim and tees its output', w1.status === 0 && /shim-ran hello/.test(w1.stdout || ''), `status ${w1.status}: ${(w1.stdout || '') + (w1.stderr || '')}`);
+    const w2 = run([runProof, 'record', '--receipts', shimLedger, '--', 'shimfail.cmd'], dirA);
+    check('win32: record passes a .cmd shim exit code through', w2.status === 3, `status ${w2.status}: ${w2.stderr}`);
+    const wv = run([runProof, 'verify', shimLedger, '--root', dirA]);
+    check('win32: verify replays .cmd shim receipts', wv.status === 0, (wv.stdout || '') + (wv.stderr || ''));
+  }
+
   // ---------------------------------------------------------------- check-proof-integrity
   writeFileSync(join(dirB, 'a.txt'), 'alpha\n');
   writeFileSync(join(dirB, 'b.txt'), 'beta\n');
