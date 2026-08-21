@@ -235,6 +235,11 @@ jobs:
       - name: Script-guard regression eval (2026-06-23 audit fixes)
         run: node evals/script-guards/run.mjs
 
+      # The win32-only .cmd-shim checks in this eval execute ONLY here — the ubuntu run
+      # of the same eval no-ops that section.
+      - name: Proof-receipts regression eval
+        run: node evals/proof-receipts/run.mjs
+
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs
 

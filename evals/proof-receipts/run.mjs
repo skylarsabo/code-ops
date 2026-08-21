@@ -8,7 +8,7 @@
 //   node evals/proof-receipts/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, appendFileSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, appendFileSync, unlinkSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const runProof = resolve(here, '..', '..', 'scripts', 'run-proof.mjs');
 const proofIntegrity = resolve(here, '..', '..', 'scripts', 'check-proof-integrity.mjs');
-const run = (args, cwd) => spawnSync('node', args, { cwd, encoding: 'utf8' });
+const run = (args, cwd, env) => spawnSync('node', args, { cwd, encoding: 'utf8', env: env ? { ...process.env, ...env } : undefined });
 
 const fails = [];
 let count = 0;
@@ -84,6 +84,51 @@ try {
   check('both hostile rows are reported REFUSED, not executed', ((v4.stdout || '').match(/REFUSED/g) || []).length === 2 && !/\$ node/.test(v4.stdout || ''), v4.stdout);
   const v5 = run([runProof, 'verify', badLedger, '--root', dirA, '--report-only']);
   check('--report-only downgrades refusals to skip+warn (exit 0)', v5.status === 0 && /REFUSED/.test(v5.stdout || ''), `status ${v5.status}`);
+
+  // (d2) win32 only: a .cmd shim (npm-style) must record AND replay — regression pin for the
+  // spawn EINVAL/not-found failure on Node's shim hardening. Elsewhere the branch is a no-op.
+  if (process.platform === 'win32') {
+    const shimLedger = join(dirA, 'SHIM_RECEIPTS.md');
+    writeFileSync(join(dirA, 'shim.cmd'), '@echo shim-ran %~1\r\n@exit /b 0\r\n');
+    writeFileSync(join(dirA, 'shimfail.cmd'), '@exit /b 3\r\n');
+    const w1 = run([runProof, 'record', '--receipts', shimLedger, '--', 'shim.cmd', 'hello'], dirA);
+    check('win32: record spawns a .cmd shim and tees its output', w1.status === 0 && /shim-ran hello/.test(w1.stdout || ''), `status ${w1.status}: ${(w1.stdout || '') + (w1.stderr || '')}`);
+    const w2 = run([runProof, 'record', '--receipts', shimLedger, '--', 'shimfail.cmd'], dirA);
+    check('win32: record passes a .cmd shim exit code through', w2.status === 3, `status ${w2.status}: ${w2.stderr}`);
+    const wv = run([runProof, 'verify', shimLedger, '--root', dirA]);
+    check('win32: verify replays .cmd shim receipts', wv.status === 0, (wv.stdout || '') + (wv.stderr || ''));
+    const ghost = join(dirA, 'GHOST_RECEIPTS.md');
+    const w3 = run([runProof, 'record', '--receipts', ghost, '--', join('sub', 'missing.cmd')], dirA);
+    check('win32: a path-qualified missing .cmd exits 127 with no receipt', w3.status === 127 && !existsSync(ghost), `status ${w3.status}: ${w3.stderr}`);
+    const w4 = run([runProof, 'record', '--receipts', ghost, '--', 'nope.cmd'], dirA);
+    check('win32: a bare missing .cmd exits 127 with no receipt', w4.status === 127 && !existsSync(ghost), `status ${w4.status}: ${w4.stderr}`);
+
+    // Argument fidelity through an npm-style %* re-invocation shim: spaces, an embedded
+    // quote, and a % must all survive escapeCmdArg -> cmd -> %* -> node argv intact.
+    writeFileSync(join(dirA, 'argv.js'), 'console.log(JSON.stringify(process.argv.slice(2)))');
+    writeFileSync(join(dirA, 'binstyle.cmd'), '@node "%~dp0argv.js" %*\r\n@exit /b %errorlevel%\r\n');
+    const escLedger = join(dirA, 'ESC_RECEIPTS.md');
+    const tricky = ['plain', 'has space', 'quo"te', '50%off'];
+    const w5 = run([runProof, 'record', '--receipts', escLedger, '--', 'binstyle.cmd', ...tricky], dirA);
+    check('win32: metacharacter args survive the shim rewrite verbatim',
+      w5.status === 0 && (w5.stdout || '').includes(JSON.stringify(tricky)),
+      `status ${w5.status}: ${(w5.stdout || '') + (w5.stderr || '')}`);
+    const w6 = run([runProof, 'verify', escLedger, '--root', dirA]);
+    check('win32: verify replays the metacharacter-arg receipt', w6.status === 0, (w6.stdout || '') + (w6.stderr || ''));
+
+    // The bare-name `where` resolution path: a shim visible only via PATH must resolve,
+    // rewrite, and replay — this is the npm case itself, pinned without needing npm.
+    const binDir = join(dirA, 'fakebin');
+    mkdirSync(binDir);
+    writeFileSync(join(binDir, 'proofshim.cmd'), '@echo proofshim-ran\r\n@exit /b 0\r\n');
+    const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'Path';
+    const pathEnv = { [pathKey]: `${binDir};${process.env[pathKey] ?? ''}` };
+    const whereLedger = join(dirA, 'WHERE_RECEIPTS.md');
+    const w7 = run([runProof, 'record', '--receipts', whereLedger, '--', 'proofshim'], dirA, pathEnv);
+    check('win32: a bare name resolves to a PATH shim via where', w7.status === 0 && /proofshim-ran/.test(w7.stdout || ''), `status ${w7.status}: ${(w7.stdout || '') + (w7.stderr || '')}`);
+    const w8 = run([runProof, 'verify', whereLedger, '--root', dirA], undefined, pathEnv);
+    check('win32: verify replays the where-resolved receipt and prints the rewrite', w8.status === 0 && /shim rewrite:/.test(w8.stdout || ''), (w8.stdout || '') + (w8.stderr || ''));
+  }
 
   // ---------------------------------------------------------------- check-proof-integrity
   writeFileSync(join(dirB, 'a.txt'), 'alpha\n');
