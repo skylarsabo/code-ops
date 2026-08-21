@@ -25,7 +25,7 @@
 // record or replay. On Windows a .cmd/.bat shim (npm, npx, tsx, ...) cannot be spawned
 // directly — bare `npm` is not found and `npm.cmd` throws EINVAL under Node's shim hardening —
 // so BOTH record and replay resolve the executable and, when it is a .cmd/.bat shim, rewrite
-// the spawn to `cmd.exe /d /s /c "<escaped line>"` with cross-spawn-style argument escaping
+// the spawn to `cmd.exe /d /s /c "<escaped line>"` with quoted, single-caret-escaped arguments
 // and windowsVerbatimArguments. The receipt records the ORIGINAL tokens; the token screening
 // above still applies to them, and the rewrite never widens what a row can express.
 //
@@ -94,8 +94,9 @@ function parseCommandCell(cell) {
 // Node refuses to spawn a .cmd/.bat file without a shell (EINVAL, CVE-2024-27980 hardening),
 // and a bare shim name like `npm` does not resolve at all. Handing the whole command to a
 // shell would break the no-shell contract, so instead: resolve the executable, and only when
-// it is a .cmd/.bat shim, rewrite the spawn to `cmd.exe /d /s /c "<line>"` with the same
-// escaping cross-spawn uses (quote for CommandLineToArgvW, then double caret-escape for cmd).
+// it is a .cmd/.bat shim, rewrite the spawn to `cmd.exe /d /s /c "<line>"` with quote-for-argv
+// plus a SINGLE caret pass (a deliberate deviation from cross-spawn's double pass — see
+// escapeCmdArg below).
 
 const CMD_META_RE = /([()\][%!^"`<>&|;, *?])/g;
 
@@ -114,40 +115,53 @@ function escapeCmdArg(s) {
   return a.replace(CMD_META_RE, '^$1');
 }
 
+// PATH-only lookup: the `$path:` pattern prefix stops `where` searching the working
+// directory, so a repo under audit cannot plant a shim that hijacks a bare-name row, and
+// record and replay resolve identically wherever they run from.
+function wherePath(exe) {
+  try {
+    return execFileSync('where', [`$path:${exe}`], { stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 })
+      .toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  } catch { return []; }
+}
+
 // Returns {file, args, options} for spawn/spawnSync. On win32, a token that names (or
-// resolves via `where` to) a .cmd/.bat shim is rewritten through cmd.exe; anything that
+// resolves to) an EXISTING .cmd/.bat shim is rewritten through cmd.exe; anything that
 // resolves to a real executable — or does not resolve at all — spawns unchanged, so the
-// normal "could not execute" path still fires for a missing command. A relative shim path
-// is made absolute against cwd, because NoDefaultCurrentDirectoryInExePath (set by common
-// shells) stops cmd.exe from searching the working directory.
+// normal "could not execute" path still fires (exit 127, no receipt) for a missing command;
+// cmd.exe must never be handed a name it cannot find, because cmd itself exits 1 and that
+// would fabricate a failure receipt for a run that never happened. A relative shim path is
+// made absolute against cwd, because NoDefaultCurrentDirectoryInExePath (set by common
+// shells) stops cmd.exe from searching the working directory. A token carrying a wildcard
+// is never probed — `where` accepts patterns, and a pattern is not a command name.
 function spawnSpec(exe, args, cwd = process.cwd()) {
-  if (process.platform === 'win32' && !/[\\/]/.test(exe) && !/\.[a-z0-9]+$/i.test(exe)) {
-    try {
-      const hits = execFileSync('where', [exe], { cwd, stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 })
-        .toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-      for (const hit of hits) {
-        if (/\.(exe|com)$/i.test(hit)) break; // a real executable wins — spawn it directly
-        if (/\.(cmd|bat)$/i.test(hit)) { exe = hit; break; }
-      }
-    } catch { /* not on PATH — fall through, spawn reports its own error */ }
-  }
-  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(exe)) {
-    if (!isAbsolute(exe)) {
-      const local = resolve(cwd, exe);
-      if (/[\\/]/.test(exe) || existsSync(local)) exe = local; // bare PATH names stay bare
+  const plain = { file: exe, args, options: {} };
+  if (process.platform !== 'win32' || /[*?]/.test(exe)) return plain;
+  let shim = null;
+  if (!/[\\/]/.test(exe) && !/\.[a-z0-9]+$/i.test(exe)) {
+    for (const hit of wherePath(exe)) {
+      if (/\.(exe|com)$/i.test(hit)) return plain; // a real executable wins — spawn directly
+      if (/\.(cmd|bat)$/i.test(hit)) { shim = hit; break; }
     }
-    // A path-qualified shim that does not exist must NOT be rewritten: cmd.exe would run and
-    // exit 1 ("not recognized"), which record would receipt as a real failing run. Spawning
-    // it directly ENOENTs instead — exit 127, no receipt, same as any missing command.
-    if (/[\\/]/.test(exe) && !existsSync(exe)) return { file: exe, args, options: {} };
-    const line = [escapeCmdShim(exe), ...args.map(escapeCmdArg)].join(' ');
-    return {
-      file: process.env.ComSpec || 'cmd.exe',
-      args: ['/d', '/s', '/c', `"${line}"`],
-      options: { windowsVerbatimArguments: true },
-    };
-  }
-  return { file: exe, args, options: {} };
+    if (!shim) return plain;
+  } else if (/\.(cmd|bat)$/i.test(exe)) {
+    if (/[\\/]/.test(exe)) {
+      const abs = resolve(cwd, exe);
+      if (!existsSync(abs)) return plain;
+      shim = abs;
+    } else {
+      const local = resolve(cwd, exe);
+      if (existsSync(local)) shim = local;
+      else shim = wherePath(exe).find((h) => /\.(cmd|bat)$/i.test(h)) ?? null;
+      if (!shim) return plain;
+    }
+  } else return plain;
+  const line = [escapeCmdShim(shim), ...args.map(escapeCmdArg)].join(' ');
+  return {
+    file: process.env.ComSpec || 'cmd.exe',
+    args: ['/d', '/s', '/c', `"${line}"`],
+    options: { windowsVerbatimArguments: true },
+  };
 }
 
 // ---------------------------------------------------------------- record
@@ -300,6 +314,9 @@ function cmdVerify(args) {
     // same arbitrary, caller-chosen proof command, which can legitimately run long. Screening
     // (screenTokens, above) is the guard against a hostile replay, not a timeout.
     const spec = spawnSpec(r.tokens[0], r.tokens.slice(1), root); // same win32 shim rewrite as record
+    // The printed row is what the ledger says; when the rewrite changes what actually runs,
+    // print that too, so a hung replay is attributable to the real spawn target.
+    if (spec.file !== r.tokens[0]) console.log(`    (shim rewrite: ${spec.file} ${spec.args.join(' ')})`);
     const res = spawnSync(spec.file, spec.args, { cwd: root, ...spec.options });
     if (res.error || res.status === null) {
       bad++;
