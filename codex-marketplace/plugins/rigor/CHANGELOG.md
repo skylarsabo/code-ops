@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 2.16.2
+- **`run-proof.mjs` spawns npm-style `.cmd`/`.bat` shims on Windows** — same fix as code-ops-suite 1.43.6 (the script is vendored into both plugins): `record`/`verify` now rewrite a resolved `.cmd`/`.bat` shim to `cmd.exe /d /s /c` with escaped arguments, so a verifier's `npm run ...` gate chain writes its receipt on win32 instead of failing with 127/EINVAL. Original tokens are recorded, replay screening is unchanged, and a missing command still exits 127 with no receipt.
+
 ## 2.16.1
 - **Tier-floor carrier for hosts that ignore agent frontmatter** — `scripts/preflight.mjs` now prints every bundled agent’s declared tier floor at Phase 0, so the floors are visible on any host. A new `CONVENTIONS.md` bullet makes the lead route each dispatch at or above its floor by hand where the host ignores `model:` frontmatter, and `run-cost-audit` records a below-floor dispatch as a `tier-routing` FAIL.
 

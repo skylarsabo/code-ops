@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.43.6
+- **`run-proof.mjs` spawns npm-style `.cmd`/`.bat` shims on Windows** — `record` and `verify` could not run `npm` on win32: a bare name did not resolve and `npm.cmd` throws EINVAL under Node's shim hardening, so a passing gate chain left no receipt. Both paths now resolve the executable (via `where` from the run's cwd) and, when it is a shim, rewrite the spawn to `cmd.exe /d /s /c` with quoted, caret-escaped arguments and `windowsVerbatimArguments`. Receipts still record the original tokens, replay screening is unchanged, a relative shim path is made absolute (so `NoDefaultCurrentDirectoryInExePath` cannot break it), and a path-qualified missing shim still exits 127 with no receipt. The proof-receipts eval gains win32 shim checks and now runs in the Windows CI job.
+
 ## 1.43.5
 - **Consent is one rule in every context — the list-context indent-cap lift is removed** — 1.43.4 lifted the consent line's three-space cap inside an open list, which reopened the hole 1.43.3 had closed: a four-space example under a bullet enrolled a repo that had declined in writing. Enrollment authorizes fleet mode to write to a member, so a false consent costs more than the false decline the lift fixed. The cap is now three spaces everywhere. Inside a list, indentation beyond the item's boundary is presentation or code, never enrollment, and the author rule — write consent flush and undecorated — carries the case. Recorded as an amendment on `docs/techniques/fleet-standard.md` and on decision D-003.
 - **A fence opener closes an open list** — the list flag was never cleared by a fence line, so list context survived past the point the rule set's own close condition ended it, and an indented fence marker below the block opened a fence that never closed. A consenting repo below it reported as a deliberate decline.

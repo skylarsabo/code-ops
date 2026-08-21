@@ -8,7 +8,7 @@
 //   node evals/proof-receipts/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, appendFileSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, appendFileSync, unlinkSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
@@ -97,6 +97,9 @@ try {
     check('win32: record passes a .cmd shim exit code through', w2.status === 3, `status ${w2.status}: ${w2.stderr}`);
     const wv = run([runProof, 'verify', shimLedger, '--root', dirA]);
     check('win32: verify replays .cmd shim receipts', wv.status === 0, (wv.stdout || '') + (wv.stderr || ''));
+    const ghost = join(dirA, 'GHOST_RECEIPTS.md');
+    const w3 = run([runProof, 'record', '--receipts', ghost, '--', join('sub', 'missing.cmd')], dirA);
+    check('win32: a path-qualified missing .cmd exits 127 with no receipt', w3.status === 127 && !existsSync(ghost), `status ${w3.status}: ${w3.stderr}`);
   }
 
   // ---------------------------------------------------------------- check-proof-integrity

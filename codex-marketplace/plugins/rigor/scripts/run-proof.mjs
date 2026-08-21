@@ -104,7 +104,10 @@ const escapeCmdShim = (s) => s.replace(CMD_META_RE, '^$1');
 
 // An argument: backslash-escape quotes for the target's argv parser, wrap in quotes, then
 // caret-escape the cmd metacharacters once — cmd parses the /c line exactly once before
-// invoking the shim, consuming one layer of carets.
+// invoking the shim, consuming one layer of carets. Single-escaping is verified against both
+// shim styles: through an npm-style `%*` re-invocation shim it yields the same argv as
+// cross-spawn's double-escape, and through a plain `%1` batch file the double-escape leaves
+// literal `^"` in the argument while single does not.
 function escapeCmdArg(s) {
   let a = String(s).replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, '$1$1');
   a = `"${a}"`;
@@ -118,9 +121,9 @@ function escapeCmdArg(s) {
 // is made absolute against cwd, because NoDefaultCurrentDirectoryInExePath (set by common
 // shells) stops cmd.exe from searching the working directory.
 function spawnSpec(exe, args, cwd = process.cwd()) {
-  if (process.platform === 'win32' && !/[\\/]/.test(exe) && !/\.(cmd|bat)$/i.test(exe) && !/\.[a-z0-9]+$/i.test(exe)) {
+  if (process.platform === 'win32' && !/[\\/]/.test(exe) && !/\.[a-z0-9]+$/i.test(exe)) {
     try {
-      const hits = execFileSync('where', [exe], { stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 })
+      const hits = execFileSync('where', [exe], { cwd, stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 })
         .toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
       for (const hit of hits) {
         if (/\.(exe|com)$/i.test(hit)) break; // a real executable wins — spawn it directly
@@ -133,6 +136,10 @@ function spawnSpec(exe, args, cwd = process.cwd()) {
       const local = resolve(cwd, exe);
       if (/[\\/]/.test(exe) || existsSync(local)) exe = local; // bare PATH names stay bare
     }
+    // A path-qualified shim that does not exist must NOT be rewritten: cmd.exe would run and
+    // exit 1 ("not recognized"), which record would receipt as a real failing run. Spawning
+    // it directly ENOENTs instead — exit 127, no receipt, same as any missing command.
+    if (/[\\/]/.test(exe) && !existsSync(exe)) return { file: exe, args, options: {} };
     const line = [escapeCmdShim(exe), ...args.map(escapeCmdArg)].join(' ');
     return {
       file: process.env.ComSpec || 'cmd.exe',
@@ -168,7 +175,12 @@ function cmdRecord(args) {
   // a test suite or build can legitimately run minutes). Bounding it here would fabricate a false
   // failure receipt for a run that was still in progress, which is worse than a slow one.
   const spec = spawnSpec(exe, rest); // win32 .cmd/.bat shim rewrite; a no-op elsewhere
-  const child = spawn(spec.file, spec.args, { stdio: ['inherit', 'pipe', 'pipe'], ...spec.options });
+  let child;
+  // Node throws EINVAL synchronously (not via the 'error' event) for a direct .cmd/.bat
+  // spawn — e.g. a path-qualified shim that does not exist and so was not rewritten. Same
+  // outcome as the async path: the command never ran, so no receipt.
+  try { child = spawn(spec.file, spec.args, { stdio: ['inherit', 'pipe', 'pipe'], ...spec.options }); }
+  catch (e) { console.error(`x could not execute ${exe}: ${e.message}`); process.exit(127); }
   child.on('error', (e) => {
     // The command never ran — writing a receipt for it would itself be a fabricated run.
     console.error(`x could not execute ${exe}: ${e.message}`);
