@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
     },
     {
       "slug": "gate-scripts",
@@ -17,7 +17,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
     },
     {
       "slug": "evals-and-calibration",
@@ -25,7 +25,7 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
     },
     {
       "slug": "codex-render",
@@ -35,7 +35,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
     },
     {
       "slug": "ci-workflows",
@@ -66,7 +66,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
     },
     {
       "slug": "root-contracts",
@@ -80,7 +80,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
     }
   ]
 }
