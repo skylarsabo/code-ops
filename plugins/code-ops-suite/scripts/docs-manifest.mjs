@@ -63,8 +63,13 @@ function inspect(root, manifest, hub) {
     paths.add(domain.path.toLowerCase());
     if (!['current', 'not-applicable'].includes(domain.status)) errors.push(`${domain.id} has invalid status`);
     if (domain.status === 'not-applicable' && (!domain.evidence || domain.evidence.length < 40)) errors.push(`${domain.id} needs concrete not-applicable evidence`);
-    if (!Array.isArray(domain.sources) || !domain.sources.length || domain.sources.some((pattern) => typeof pattern !== 'string' || !pattern)) errors.push(`${domain.id} needs source patterns`);
-    const sources = files.filter((file) => domain.sources?.some((pattern) => pathMatchesGlob(pattern, file)) && !file.startsWith(`${hub}/`));
+    const validSources = Array.isArray(domain.sources) && domain.sources.length > 0
+      && domain.sources.every((pattern) => typeof pattern === 'string' && pattern);
+    if (!validSources) errors.push(`${domain.id} needs source patterns`);
+    const sources = validSources
+      ? files.filter((file) => domain.sources.some((pattern) => pathMatchesGlob(pattern, file)) && !file.startsWith(`${hub}/`))
+      : [];
+    if (validSources && !sources.length) errors.push(`${domain.id} source patterns match no repository files`);
     const contents = contentPaths(root, hub, domain.path);
     if (!contents.length) errors.push(`${domain.id} target is missing or empty: ${domain.path}`);
     const expectedSource = hashPaths(root, sources); const expectedContent = hashPaths(root, contents);

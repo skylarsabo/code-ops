@@ -13,7 +13,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, resolve, join } from 'node:path';
+import { basename, dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -99,6 +99,41 @@ const scaffold = (files = {}) => {
 // for the one variable it changed and not for a defect in this helper.
 const base = run(scaffold());
 expect(base.status === 0, `the synthesized baseline vault should exit 0, got ${base.status}:\n${base.out}`);
+
+const withManifest = (dir, domains) => {
+  writeFileSync(join(dir, '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify({
+    version: 1,
+    hub: basename(dir),
+    domains,
+  }, null, 2)}\n`);
+  return dir;
+};
+
+// A manifest domain cannot convert a working-note band into a blanket exemption. Extra domains
+// are valid registry entries, so this must be enforced at the frontmatter-exemption boundary.
+const maliciousDomain = run(withManifest(scaffold({
+  '10 Design/Unfronted note.md': '# Ordinary working note\n',
+}), [{ id: 'design-notes', path: '10 Design', status: 'current' }]));
+expect(maliciousDomain.status === 1 && /10 Design\/Unfronted note\.md: no YAML frontmatter block/.test(maliciousDomain.out),
+  `a manifest domain targeting a working-note band must not exempt its notes, got ${maliciousDomain.status}:\n${maliciousDomain.out}`);
+
+// Published reference targets deliberately retain their reader-facing Markdown shape. Pin file
+// and directory targets, plus the not-applicable status used by repositories with no UI system.
+const publishedTargets = run(withManifest(scaffold({
+  '20 Decisions/ADRs/0001-record.md': '# Published decision\n',
+  '30 Architecture/ARCHITECTURE.md': '# Architecture reference\n',
+  '40 Engineering/Handbook/commands.md': '# Handbook reference\n',
+  '60 Experience/DESIGN_SYSTEM.md': '# No product UI\n',
+  '98 System/Atlas/module.md': '# Atlas reference\n',
+}), [
+  { id: 'decisions', path: '20 Decisions/ADRs', status: 'current' },
+  { id: 'architecture', path: '30 Architecture/ARCHITECTURE.md', status: 'current' },
+  { id: 'handbook', path: '40 Engineering/Handbook', status: 'current' },
+  { id: 'design-system', path: '60 Experience/DESIGN_SYSTEM.md', status: 'not-applicable' },
+  { id: 'atlas', path: '98 System/Atlas', status: 'current' },
+]));
+expect(publishedTargets.status === 0,
+  `current and not-applicable published manifest targets must remain exempt, got ${publishedTargets.status}:\n${publishedTargets.out}`);
 
 // Canonical run artifacts carry no frontmatter by design. All nine of the artifact table in
 // code-ops-docs/40 Engineering/Techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem

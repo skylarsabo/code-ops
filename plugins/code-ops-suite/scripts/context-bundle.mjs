@@ -181,11 +181,15 @@ if (command === 'build') {
       },
     };
     bundle.bundleId = digestJson(normalizeBundle(bundle));
-    let rendered = `${JSON.stringify(bundle, null, 2)}\n`;
-    bundle.actualBytes = Buffer.byteLength(rendered);
+    let rendered = '';
+    for (let attempt = 0; attempt < 16; attempt++) {
+      rendered = `${JSON.stringify(bundle, null, 2)}\n`;
+      const actualBytes = Buffer.byteLength(rendered);
+      if (bundle.actualBytes === actualBytes) break;
+      bundle.actualBytes = actualBytes;
+    }
     rendered = `${JSON.stringify(bundle, null, 2)}\n`;
-    bundle.actualBytes = Buffer.byteLength(rendered);
-    rendered = `${JSON.stringify(bundle, null, 2)}\n`;
+    if (bundle.actualBytes !== Buffer.byteLength(rendered)) throw new Error('context bundle byte count did not converge');
     if (Buffer.byteLength(rendered) > contract.context.maxBundleBytes) {
       writeFailure(out, 'BUDGET_EXCEEDED', { version: 1, unitId: unit.id, actualBytes: Buffer.byteLength(rendered), maxBundleBytes: contract.context.maxBundleBytes });
       die(`context bundle exceeds maxBundleBytes for ${unit.id}`);

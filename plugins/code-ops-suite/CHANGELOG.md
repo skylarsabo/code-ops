@@ -9,6 +9,7 @@ All notable changes to this plugin are documented here. Versions track
 - `repo-docs` plans extraction from the changed-source intersection, so unchanged documentation domains receive no dispatch. New regression gates run on Linux and Windows.
 - Repository-local Markdown links now fail CI when their exact-case target is absent, keeping the consolidated hub portable across Linux and Windows.
 - Review hardening closes fail-open dependency, citation, manifest-plan, empty-scope, and version-2 cost-history cases. Reverse vendored-script parity now rejects undeclared plugin copies and missing helpers referenced from every plugin-owned runtime surface.
+- Context receipts preserve Unicode rename/copy paths, canonicalize aliased symlink roots, parse live Atlas freshness output, and report exact serialized bytes. Documentation gates reject vacuous source globs, prevent working-note exemption by manifest extension, and validate Obsidian wikilinks alongside Markdown links.
 
 ## 1.44.0
 - **Run contracts join intent, execution, and acceptance.** The new `run-contract.mjs` validates a versioned objective, quality vector, budgeted work graph, routing, dependencies, and disjoint writes before fan-out. It reconciles planned units with the dispatch ledger, records owner-qualified acceptance attempts, and writes a successful result only after every blocking criterion and planned dispatch passes.

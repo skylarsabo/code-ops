@@ -88,12 +88,19 @@ export function readJson(path) {
 }
 
 function parseNameStatus(root, args) {
-  const text = git(root, args).toString('utf8').trim();
-  if (!text) return [];
-  return text.split(/\r?\n/).map((line) => {
-    const cells = line.split('\t');
-    return { status: cells[0], path: toPosix(cells.at(-1)) };
-  });
+  const fields = git(root, [...args, '-z']).toString('utf8').split('\0');
+  const records = [];
+  for (let index = 0; index < fields.length - 1;) {
+    const status = fields[index++];
+    if (!status) continue;
+    const code = status.slice(0, 1);
+    if (!fields[index]) throw new Error('malformed git name-status output');
+    const first = fields[index++];
+    const path = code === 'R' || code === 'C' ? fields[index++] : first;
+    if (!path) throw new Error('malformed git rename/copy output');
+    records.push({ status, path: toPosix(path) });
+  }
+  return records;
 }
 
 function untrackedState(root, policy, allowlist) {
@@ -106,7 +113,10 @@ function untrackedState(root, policy, allowlist) {
       const target = readlinkSync(absolute);
       const resolvedTarget = resolve(dirname(absolute), target);
       const rootReal = realpathSync.native(root);
-      if (resolvedTarget !== rootReal && !resolvedTarget.startsWith(`${rootReal}${sep}`)) {
+      const lexical = relative(resolve(root), resolvedTarget);
+      const canonicalTarget = lexical === '' ? rootReal : existsSync(resolvedTarget)
+        ? realpathSync.native(resolvedTarget) : resolve(rootReal, lexical);
+      if (lexical === '..' || lexical.startsWith(`..${sep}`) || (canonicalTarget !== rootReal && !canonicalTarget.startsWith(`${rootReal}${sep}`))) {
         throw new Error(`symlink escapes root: ${path}`);
       }
       all.push({ path, type: 'symlink', sha256: sha256(target) });
@@ -302,8 +312,8 @@ export function parseImportGraph(text, trackedPaths) {
 export function parseAtlasReport(text) {
   const sections = new Map();
   for (const raw of text.split(/\r?\n/)) {
-    const match = /^\s*(?:ok|!!)\s+(FRESH|STALE)\s+([a-z0-9-]+)\s+—\s*(.*)$/.exec(raw);
-    if (match) sections.set(match[2], { verdict: match[1], detail: match[3] });
+    const match = /^\s*(?:ok|!!)\s+(FRESH|STALE)\s+([a-z0-9-]+)\s*(.*)$/.exec(raw);
+    if (match) sections.set(match[2], { verdict: match[1], detail: match[3].replace(/^—\s*/, '') });
   }
   return sections;
 }

@@ -88,6 +88,7 @@ const CANONICAL_ARTIFACTS = new Set([
 const UPPER_SNAKE = /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SKIP_DIRS = new Set(['.obsidian', '.trash', '.git', '.local-legacy', '90 Templates']);
+const MANIFEST_STATUSES = new Set(['current', 'not-applicable']);
 
 const violations = [];
 const warnings = [];
@@ -157,6 +158,21 @@ function walkNotes(dir, vault, acc) {
   return acc;
 }
 
+// The manifest owns published reference targets, not arbitrary note folders. The shared vault
+// layout publishes references in the 30-79 domain bands, ADRs under 20 Decisions/ADRs, and the
+// Atlas under 98 System/Atlas. Keeping this boundary here prevents an extra manifest domain from
+// turning a working-note band such as 10 Design into a blanket frontmatter exemption.
+function isPublishedManifestTarget(domain) {
+  if (!domain || typeof domain.path !== 'string' || !MANIFEST_STATUSES.has(domain.status)) return false;
+  const path = domain.path.replaceAll('\\', '/').replace(/\/$/, '');
+  if (path === '20 Decisions/ADRs' || path.startsWith('20 Decisions/ADRs/')) return true;
+  if (path === '98 System/Atlas' || path.startsWith('98 System/Atlas/')) return true;
+  const match = /^(\d{2}) [^/]+(?:\/|$)/.exec(path);
+  if (!match) return false;
+  const band = Number(match[1]);
+  return band >= 30 && band <= 79;
+}
+
 const argv = process.argv.slice(2);
 if (argv.length !== 1 || argv[0].startsWith('-')) usage();
 const vault = resolve(argv[0]);
@@ -172,7 +188,9 @@ if (existsSync(docsManifestPath)) {
     const docsManifest = JSON.parse(readFileSync(docsManifestPath, 'utf8'));
     if (docsManifest.version !== 1 || docsManifest.hub !== basename(vault) || !Array.isArray(docsManifest.domains)) {
       fail('98 System/DOCS_MANIFEST.json does not declare this vault as its version 1 hub');
-    } else for (const domain of docsManifest.domains) if (typeof domain.path === 'string') manifestOwned.add(domain.path.replaceAll('\\', '/'));
+    } else for (const domain of docsManifest.domains) {
+      if (isPublishedManifestTarget(domain)) manifestOwned.add(domain.path.replaceAll('\\', '/').replace(/\/$/, ''));
+    }
   } catch (error) { fail(`98 System/DOCS_MANIFEST.json cannot be parsed: ${error.message}`); }
 }
 
