@@ -155,6 +155,8 @@ try {
 
   const ambiguousRepo = join(work, 'ambiguous-history'); mkdirSync(ambiguousRepo, { recursive: true });
   git(['init', '--quiet', '-b', 'main'], ambiguousRepo);
+  git(['config', 'user.email', 'eval@example.com'], ambiguousRepo);
+  git(['config', 'user.name', 'Eval'], ambiguousRepo);
   write(ambiguousRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
   write(ambiguousRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
   commit(ambiguousRepo, 'base without target');
