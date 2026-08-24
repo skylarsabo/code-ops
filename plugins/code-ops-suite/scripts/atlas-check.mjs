@@ -9,11 +9,11 @@
 //   node scripts/atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]
 //
 // WHY: a written-down understanding of a repo is only worth reading if you can tell,
-// mechanically, whether it still describes the code. The atlas pins each section to the
-// commit it was verified at; `check` asks git whether anything inside that section's scope
-// has moved since. FRESH sections are consumed as truth without re-verification; STALE ones
-// are leads, not facts. The staleness signal is deliberately fail-SAFE (an unknown or
-// unparseable `verifiedAt` reports STALE, never an error that hides the section), while the
+// mechanically, whether it still describes the code. A default stamp binds each section to
+// both a diagnostic commit and a versioned digest of its exact scopes, staged index, and
+// index-to-worktree state. The digest survives squash merges because it describes content,
+// not branch topology. FRESH sections are consumed as truth without re-verification; STALE
+// ones are leads, not facts. The staleness signal is deliberately fail-SAFE, while the
 // manifest schema is fail-CLOSED (a malformed manifest exits 1 even without --gate — a
 // manifest that cannot be parsed vacates every freshness claim in it).
 //
@@ -21,7 +21,8 @@
 // `stamp` do):
 //   { "version": 1,
 //     "sections": [ { "slug": "<kebab>", "file": "sections/<slug>.md",
-//                     "scope": ["<git pathspec>", ...], "verifiedAt": "<sha>" } ] }
+//                     "scope": ["<git pathspec>", ...], "verifiedAt": "<sha>",
+//                     "verifiedDigest": "<optional sha256>" } ] }
 //
 // `verifiedAt` is lowercase hex, 7-40 chars, or the single placeholder 'unverified' that `add`
 // writes for a section nobody has stamped yet. Anything else — HEAD, @, a branch, a tag — is a
@@ -32,11 +33,11 @@
 // to be a pin is therefore also checked at RESOLUTION time — the full sha must extend the given
 // value (see resolvePin) — and a hex-named ref fails closed the same way HEAD does.
 //
-// Scope matching is git's own pathspec semantics, not a reimplemented globber: staleness is
-// `git diff --name-only <verifiedAt> -- <scope...>` (no `..HEAD`, so the working tree counts
-// too — an uncommitted edit to a scoped tracked file is already a reason to distrust the
-// section) and coverage is `git ls-files -- <scope...>`. The same strings therefore mean the
-// same thing to the checker and to a human running git by hand. `check` adds one internal
+// Scope matching is git's own pathspec semantics, not a reimplemented globber. Digest-backed
+// sections are FRESH only when the framed raw index and worktree state matches exactly; a
+// default stamp therefore requires scoped work to be staged. Legacy sections without a digest
+// use `git diff --name-only <verifiedAt> -- <scope...>`. Coverage uses `git ls-files`.
+// `check` adds one internal
 // pathspec of its own — `:(exclude)<atlas dir>` — so the atlas cannot invalidate itself; see
 // the note on it in cmdCheck.
 //
@@ -56,6 +57,7 @@
 //       2 usage error (unknown subcommand, unknown flag, missing/blank flag value).
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, appendFileSync, realpathSync } from 'node:fs';
 import { resolve, join, sep, relative, isAbsolute } from 'node:path';
 
@@ -113,6 +115,10 @@ function git(args, cwd) {
     return { ok: false, out: e.stdout ? String(e.stdout) : '', err: (e.stderr ? String(e.stderr) : '') || e.message };
   }
 }
+function gitBuffer(args, cwd) {
+  try { return { ok: true, out: execFileSync('git', args, { cwd, encoding: 'buffer', timeout: 20000, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }) }; }
+  catch { return { ok: false, out: null }; }
+}
 
 const lines = (s) => s.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l !== '');
 
@@ -122,6 +128,17 @@ function resolveCommit(root, rev) {
   const r = git(['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], root);
   const sha = r.ok ? r.out.trim() : '';
   return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+}
+function scopeDigest(root, scope, excludeAtlas) {
+  const index = gitBuffer(['ls-files', '-s', '-z', '--', ...scope, ...excludeAtlas], root);
+  const dirty = gitBuffer(['diff', '--ignore-submodules=none', '--binary', '--full-index', '--no-ext-diff', '--no-textconv', '--no-renames', '--', ...scope, ...excludeAtlas], root);
+  const unmerged = gitBuffer(['ls-files', '-u', '-z', '--', ...scope, ...excludeAtlas], root);
+  const flags = gitBuffer(['ls-files', '-v', '-z', '--', ...scope, ...excludeAtlas], root);
+  if (!index.ok || !dirty.ok || !unmerged.ok || !flags.ok || unmerged.out.length) return null;
+  for (const entry of flags.out.toString('utf8').split('\0')) if (entry && (/^[a-z]/.test(entry) || /^[SM]/.test(entry))) return null;
+  const frame = (value) => Buffer.concat([Buffer.from(String(value.length)), Buffer.from([0]), value]);
+  const scopeBytes = Buffer.from(scope.join('\0'));
+  return createHash('sha256').update(Buffer.from('atlas-scope-digest-v2\0')).update(frame(scopeBytes)).update(frame(index.out)).update(frame(dirty.out)).digest('hex');
 }
 
 // Resolve a value that CLAIMS to be a sha pin — a manifest `verifiedAt`, or `stamp --at <sha>`.
@@ -164,6 +181,11 @@ function repoRootOf(atlasDir, explicit) {
     if (r.ok && r.out.trim()) return resolve(r.out.trim());
   }
   return resolve('.');
+}
+function atlasExclusion(root, atlasDir) {
+  const canon = (path) => { try { return realpathSync.native(path); } catch { return path; } };
+  const atlasRel = relative(canon(root), canon(atlasDir)).split(sep).join('/');
+  return { atlasRel, exclude: (atlasRel === '' || atlasRel === '..' || atlasRel.startsWith('../') || isAbsolute(atlasRel)) ? [] : [`:(exclude)${atlasRel}`] };
 }
 
 // ---------------------------------------------------------------- manifest
@@ -220,6 +242,7 @@ function loadManifest(atlasDir) {
     if (typeof s.verifiedAt !== 'string' || s.verifiedAt.trim() === '') violations.push(`${at}.verifiedAt must be a non-empty sha string`);
     else if (s.verifiedAt !== UNVERIFIED && !SHA_RE.test(s.verifiedAt))
       violations.push(`${at}.verifiedAt ${JSON.stringify(s.verifiedAt)} is not a commit sha — it must be lowercase hex, 7-40 chars, or the placeholder '${UNVERIFIED}'. A moving ref (HEAD, @, a branch, a tag) resolves afresh on every run, so a section pinned to one can never be reported stale`);
+    if ('verifiedDigest' in s && (typeof s.verifiedDigest !== 'string' || !/^[0-9a-f]{64}$/.test(s.verifiedDigest))) violations.push(`${at}.verifiedDigest must be a lowercase SHA-256 digest`);
   });
   return { path, manifest, violations };
 }
@@ -319,12 +342,9 @@ function cmdCheck(args) {
   // (RUNNER~1) while git reports the long form, and relative() across the two aliases yields a
   // ../-prefixed path that silently disables the exclusion — the exact self-invalidation the
   // exclusion exists to prevent.
-  const canon = (p) => { try { return realpathSync.native(p); } catch { return p; } };
-  const atlasRel = relative(canon(root), canon(atlasDir)).split(sep).join('/');
+  const { atlasRel, exclude: excludeAtlas } = atlasExclusion(root, atlasDir);
   // `'..'` is the exact-parent case and carries no trailing slash, so a startsWith('../') test
   // alone misses it and hands git `:(exclude)..`, which git rejects outright.
-  const excludeAtlas = (atlasRel === '' || atlasRel === '..' || atlasRel.startsWith('../') || isAbsolute(atlasRel))
-    ? [] : [`:(exclude)${atlasRel}`];
 
   const { manifest, violations } = loadManifest(atlasDir);
   const head = resolveCommit(root, 'HEAD');
@@ -357,7 +377,9 @@ function cmdCheck(args) {
       console.log('\n1 manifest schema violation(s) — fix the manifest before trusting any section.');
       process.exit(1);
     }
-    if (!pinned) {
+    const digest = s.verifiedDigest ? scopeDigest(root, s.scope, excludeAtlas) : null;
+    const digestMatches = digest !== null && digest === s.verifiedDigest;
+    if (!pinned && !digestMatches) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — verifiedAt '${s.verifiedAt}' does not resolve to a commit in this repo (re-verify and re-stamp)`);
       continue;
@@ -383,21 +405,41 @@ function cmdCheck(args) {
     // `<pinned> --` (no `..HEAD`) diffs the pin against the WORKING TREE, so an uncommitted edit
     // to a scoped tracked file reads STALE too — the fail-safe direction. Untracked files are
     // outside any diff and stay invisible until they are added.
-    const d = git(['diff', '--name-only', pinned, '--', ...s.scope, ...excludeAtlas], root);
+    if (digestMatches) {
+      console.log(`  ok  FRESH  ${s.slug}  (verified digest ${s.verifiedDigest.slice(0, 7)}; scope: ${s.scope.join(', ')})`);
+      continue;
+    }
+    if (s.verifiedDigest) {
+      stale++;
+      if (pinned) {
+        const diagnostic = git(['diff', '--ignore-submodules=none', '--name-only', pinned, '--', ...s.scope, ...excludeAtlas], root);
+        const hits = diagnostic.ok ? lines(diagnostic.out) : [];
+        const shown = hits.slice(0, MAX_LISTED_PATHS).join(', '); const more = hits.length > MAX_LISTED_PATHS ? `, +${hits.length - MAX_LISTED_PATHS} more` : '';
+        console.log(`  !!  STALE  ${s.slug}  — ${hits.length} scoped path(s) changed since ${pinned.slice(0, 7)}: ${shown}${more}`);
+      } else console.log(`  !!  STALE  ${s.slug}  — scoped tracked-state digest changed and verifiedAt '${s.verifiedAt}' does not resolve`);
+      continue;
+    }
+    if (!pinned) {
+      stale++;
+      console.log(`  !!  STALE  ${s.slug}  — scoped tracked-state digest changed and verifiedAt '${s.verifiedAt}' does not resolve (re-verify and re-stamp)`);
+      continue;
+    }
+    const baseline = pinned;
+    const d = git(['diff', '--ignore-submodules=none', '--name-only', baseline, '--', ...s.scope, ...excludeAtlas], root);
     if (!d.ok) {
       stale++;
-      console.log(`  !!  STALE  ${s.slug}  — cannot diff since ${pinned.slice(0, 7)}: ${d.err.trim().split('\n')[0]}`);
+      console.log(`  !!  STALE  ${s.slug}  — cannot diff since ${baseline.slice(0, 7)}: ${d.err.trim().split('\n')[0]}`);
       continue;
     }
     const hits = lines(d.out);
     if (hits.length === 0) {
-      console.log(`  ok  FRESH  ${s.slug}  (verified at ${pinned.slice(0, 7)}; scope: ${s.scope.join(', ')})`);
+      console.log(`  ok  FRESH  ${s.slug}  (verified at ${baseline.slice(0, 7)}; scope: ${s.scope.join(', ')})`);
       continue;
     }
     stale++;
     const shown = hits.slice(0, MAX_LISTED_PATHS);
     const more = hits.length > shown.length ? `, +${hits.length - shown.length} more` : '';
-    console.log(`  !!  STALE  ${s.slug}  — ${hits.length} scoped path(s) changed since ${pinned.slice(0, 7)}: ${shown.join(', ')}${more}`);
+    console.log(`  !!  STALE  ${s.slug}  — ${hits.length} scoped path(s) changed since ${baseline.slice(0, 7)}: ${shown.join(', ')}${more}`);
   }
 
   // ---- coverage sweep (advisory, even under --gate) --------------------------
@@ -470,7 +512,17 @@ function cmdStamp(args) {
   if (!sha) { console.error(`x '${rev}' does not resolve to a commit in ${root}`); process.exit(1); }
 
   const before = target.verifiedAt;
+  if (!('--at' in f)) {
+    const exclusion = atlasExclusion(root, atlasDir).exclude;
+    const unstaged = gitBuffer(['diff', '--ignore-submodules=none', '--binary', '--full-index', '--no-ext-diff', '--no-textconv', '--no-renames', '--', ...target.scope, ...exclusion], root);
+    if (!unstaged.ok || unstaged.out.length) { console.error('x refusing to stamp with scoped unstaged changes'); process.exit(1); }
+  }
   target.verifiedAt = sha;
+  if (!('--at' in f)) {
+    const digest = scopeDigest(root, target.scope, atlasExclusion(root, atlasDir).exclude);
+    if (!digest) { console.error('x cannot calculate scoped tracked-state digest; refusing to stamp'); process.exit(1); }
+    target.verifiedDigest = digest;
+  } else delete target.verifiedDigest;
   try { writeFileSync(path, JSON.stringify(manifest, null, 2) + '\n'); }
   catch (e) { console.error(`x cannot write ${path}: ${e.message}`); process.exit(1); }
   console.log(`(atlas) stamped ${target.slug}: ${String(before).slice(0, 7)} -> ${sha.slice(0, 7)}`);

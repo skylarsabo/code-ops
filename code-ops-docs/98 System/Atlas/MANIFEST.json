@@ -8,7 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
+      "verifiedDigest": "549319a306c031cf95da4e395c7ab9e7c4b978a10a68f7fe60c8086dbf78c779"
     },
     {
       "slug": "gate-scripts",
@@ -17,7 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
+      "verifiedDigest": "612798c6d7ea666db7105b9968af393f6a9c98d5886ff70e5c4a3306d8bb4cda"
     },
     {
       "slug": "evals-and-calibration",
@@ -25,7 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
+      "verifiedDigest": "df989add4737eb37ecf3be51511ad53337fc3be463243aba22bd2d4a0b6d622a"
     },
     {
       "slug": "codex-render",
@@ -35,7 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
+      "verifiedDigest": "dc8490cbfb194d99abdc564552040afc8978d1198cdf16eaae2f8def098f8644"
     },
     {
       "slug": "ci-workflows",
@@ -43,7 +47,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
+      "verifiedDigest": "a9f38404f779b40aff2151eaf643f4b604f28c4beaea0154f0b211d8b58c627a"
     },
     {
       "slug": "docs-doctrine",
@@ -66,7 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
+      "verifiedDigest": "4aa1265f5a37545b3451202768b744fb183047a1f83d80b4b72cbe2550047168"
     },
     {
       "slug": "root-contracts",
@@ -80,7 +86,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
+      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
+      "verifiedDigest": "d014ffaf03405c44f148709eeb081d216d15f969c4639e8c0ca6d8763389133d"
     }
   ]
 }

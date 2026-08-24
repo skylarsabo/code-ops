@@ -10,4 +10,6 @@ Vendoring is closed in both directions. Every declared runtime copy must match i
 
 Context receipts preserve NUL-delimited Git rename and copy destinations, including non-ASCII paths. Root aliases are canonicalized before symlink containment is judged. Atlas freshness output is parsed as a contract for bounded excerpts, and bundle byte counts describe the final serialized payload rather than a pre-update estimate.
 
+Atlas default stamps are content-addressed independently of branch topology. The optional digest frames its algorithm version, exact scope declarations, raw staged index, and raw tracked worktree delta. This preserves reusable judgment after squash while refusing ambiguous index flags and any digest mismatch.
+
 Plugin changes have three coupled outputs: the canonical package, host projections, and marketplace metadata. A new runtime script must enter the vendored manifest when skills reference it. A new skill also changes the plugin README, root count, handbook command reference, and router. Do not patch a generated host copy to solve a canonical-package defect.

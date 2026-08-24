@@ -31,7 +31,8 @@ stamped against cannot be invalidated by that tree's commits.
   "version": 1,
   "sections": [
     { "slug": "<kebab>", "file": "sections/<slug>.md", "scope": ["<glob>"],
-      "verifiedAt": "<7-40 char lowercase git sha, or \"unverified\">" }
+      "verifiedAt": "<7-40 char lowercase git sha, or \"unverified\">",
+      "verifiedDigest": "<sha256, optional>" }
   ]
 }
 ```
@@ -50,10 +51,13 @@ stamped against cannot be invalidated by that tree's commits.
   it, and `git rev-parse` prefers refs over abbreviated object names, so that pin would move
   too. Every value claimed to be a pin is therefore also checked at **resolution** time — the
   full sha it resolves to must extend the value given — and a hex-named ref fails closed the
-  same way `HEAD` does, in `check` and in `stamp --at` alike. A sha that is well-formed but
-  does not resolve in this repo is a different case
-  and stays **STALE**, never an error that hides the section — a stamp nobody can resolve
-  is exactly where trusting the section is most dangerous, and so is `"unverified"`.
+  same way `HEAD` does, in `check` and in `stamp --at` alike. A well-formed legacy sha that
+  does not resolve stays **STALE**, never an error that hides the section. A digest-backed
+  section can remain FRESH when its diagnostic commit no longer resolves.
+- `verifiedDigest` — optional SHA-256 for a default stamp. It hashes the versioned, exact scope
+  declarations plus separately framed raw staged-index and raw index-to-worktree tracked state. The
+  atlas tree and untracked files are excluded. The digest preserves a trustworthy freshness result
+  when a squash or branch deletion makes `verifiedAt` unreachable.
 
 The manifest is the only place a stamp or a scope lives. Sections carry no metadata of
 their own, so there is no second copy to drift.
@@ -68,8 +72,8 @@ across all five: `0` clean, `1` violation-or-gated, `2` usage.
 | --- | --- |
 | `init --atlas <dir>` | scaffolds an empty `MANIFEST.json`, `INBOX.md`, and `sections/`; **refuses to overwrite** an existing manifest |
 | `add --atlas <dir> --section <slug> --scope <pathspec> [--scope ...]` | registers a new section: appends a manifest entry pinned to `"unverified"` and writes a `sections/<slug>.md` stub with its title and a charter placeholder. `--scope` is repeatable. Refuses a duplicate slug, a non-kebab slug, a scope using pathspec magic, or an existing prose file. The section is **STALE until stamped** — that is the point: `add` registers the intent, `stamp` asserts the verification |
-| `check --atlas <dir> [--root <repo>] [--gate]` | per section, intersects `git diff --name-only <verifiedAt>` with `scope` → FRESH (nothing hit) or STALE (up to 10 triggering paths plus the count); unknown sha → STALE with a reason; a scope matching no tracked file → STALE as a dead scope, since nothing can ever change inside it. The atlas dir itself is excluded from the diff and the sweep, or every stamp — which rewrites `MANIFEST.json` — would re-stale any section scoped over it. Exit 0 report-only; `--gate` exits 1 if any section is STALE. A malformed manifest — bad JSON, schema violation, missing section file, a moving-ref stamp (by shape or by resolution) — exits 1 **always**, gated or not |
-| `stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]` | sets `verifiedAt` to `--at` or HEAD; refuses an unknown slug, an unparseable sha, or an `--at` that resolves as a hex-named ref. The **only** sanctioned writer of stamps |
+| `check --atlas <dir> [--root <repo>] [--gate]` | A matching `verifiedDigest` is FRESH, even when a squash or branch deletion makes `verifiedAt` unreachable. A mismatched or unavailable digest is always STALE. The checker uses `verifiedAt` only for changed-path diagnostics. Legacy sections without a digest retain commit-diff freshness. A dead scope is STALE. The atlas tree stays outside the diff and sweep. Exit 0 is report-only. `--gate` exits 1 on STALE. Malformed manifest data always exits 1. |
+| `stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]` | The default writes `verifiedAt` and `verifiedDigest`. It requires no scoped unstaged changes. It rejects unmerged, assume-unchanged, skip-worktree, and submodule checkout ambiguity. Scoped diffs override `diff.ignoreSubmodules`. `--at` is historical mode. It writes `verifiedAt` and clears `verifiedDigest`. The tool is the only stamp writer. |
 | `inbox --atlas <dir> --note <text> [--root <dir>]` | appends `- <YYYY-MM-DD> <short-sha>: <text>` to `INBOX.md`; one line, refuses empty |
 
 `check` also runs a **coverage sweep**: every tracked top-level path (first path segment
@@ -97,16 +101,14 @@ nobody verified it against, and no check downstream can tell.
   the operative knows which half it is holding. A section handed over without its
   freshness state is unusable at either extreme: trusted when it should not be, or
   re-derived when it need not be.
-- Freshness is fail-safe in one direction only. Every ambiguous case — unresolvable sha,
-  the `unverified` placeholder, a scope that cannot be evaluated — resolves to STALE. The
+- Freshness is fail-safe in one direction only. For a digest-backed section, a mismatch or
+  unavailable digest resolves to STALE. Legacy no-digest sections use the commit diff. Every other ambiguous case — an unresolvable
+  legacy sha, the `unverified` placeholder, or a scope that cannot be evaluated — resolves to STALE. The
   cost of a wrong STALE is one re-derivation; the cost of a wrong FRESH is a decision made
   on a false premise.
-- Freshness is measured over **tracked content**, working tree included. The diff is taken
-  from the stamp to the working tree, not to `HEAD`, so an uncommitted edit to a scoped
-  tracked file already reads STALE — the state a reader is actually looking at is the one
-  being judged. The boundary: an **untracked** file is outside any git diff, so a section
-  cannot be invalidated by a new file until it is `git add`ed. Adding the file is the act
-  that puts it in scope.
+- A default stamp hashes only the exact scoped tracked state. It frames staged-index and
+  index-to-worktree state separately. It excludes the atlas and untracked files. Stage scoped work
+  before stamping. The tool rejects ambiguous Git index flags instead of guessing.
 
 ## Update in the hot session
 
@@ -116,9 +118,9 @@ rationale behind a diff is available for about as long as the session that produ
 a week later the same author is reconstructing it from the diff like anyone else. Deferring
 the atlas update to "a docs pass" converts free knowledge into expensive knowledge.
 
-When a full section rewrite is genuinely out of scope, the move is an `inbox` note plus a
-section left STALE — not a stamp. Stamping to clear a report is the failure mode this
-whole design exists to prevent.
+When a full section rewrite is genuinely out of scope, append an `inbox` note and leave the
+section STALE. Stage scoped work before a default stamp. Use `--at` only when recording history.
+Historical mode clears the digest. Stamping to clear a report is the failure mode this design prevents.
 
 ## Judgment, not facts
 
