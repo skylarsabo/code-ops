@@ -11,7 +11,7 @@ The suite is built for a developer in the loop, but two kinds of work run unatte
 - **Make the gates count:** mark them as required status checks in branch protection so a `request-changes` verdict actually blocks the merge.
 - **Recurring work runs on `/schedule`:** put `researcher:ecosystem-watch`, `code-ops-suite:dependency-upgrade`, and `code-ops-suite:security-privacy-audit` on a cadence.
 
-Two practical guides go deeper: [wiring the gates step by step](../../70 Guides/Guides/wire-ci-gates.md) and [choosing an automation level](../Techniques/choosing-an-automation-level.md).
+Two practical guides go deeper: [wiring the gates step by step](../../70 Guides/wire-ci-gates.md) and [choosing an automation level](../Techniques/choosing-an-automation-level.md).
 
 ---
 
@@ -159,8 +159,8 @@ Two rules hold at every level: the **always-gated categories** (security/auth, s
 
 ## Related
 
-- [Wire the CI gates](../../70 Guides/Guides/wire-ci-gates.md) — the step-by-step end-to-end setup guide.
-- [CI portability](../../70 Guides/Guides/ci-portability.md) — the same gates on GitLab CI and CircleCI: the mechanical chain ports unchanged, the agent gates are host-specific.
+- [Wire the CI gates](../../70 Guides/wire-ci-gates.md) — the step-by-step end-to-end setup guide.
+- [CI portability](../../70 Guides/ci-portability.md) — the same gates on GitLab CI and CircleCI: the mechanical chain ports unchanged, the agent gates are host-specific.
 - [Choosing an automation level](../Techniques/choosing-an-automation-level.md) — `gated` vs `auto-safe` vs `auto-all` and the always-gated floor.
 - [03 · Orchestrators](03-orchestrators.md) — the skills the gates and schedules invoke.
 - [04 · Registers and freshness](04-registers-and-freshness.md) — the `Verified-at` SHA and `revalidate-register.mjs` that make scheduled diffs trustworthy.

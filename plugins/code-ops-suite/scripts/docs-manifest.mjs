@@ -82,15 +82,17 @@ const command = process.argv[2];
 if (!['check', 'sync', 'plan'].includes(command)) usage();
 const f = flags(process.argv.slice(3)); const root = resolve(f['--root'] || process.cwd());
 const { path, manifest, hub } = findManifest(root); const errors = inspect(root, manifest, hub);
+const digestDrift = /^[a-z0-9]+(?:-[a-z0-9]+)* (?:source|content) digest is stale$/;
+const structuralErrors = errors.filter((error) => !digestDrift.test(error));
 if (command === 'sync') {
-  const structural = errors.filter((error) => !error.includes('digest is stale'));
-  if (structural.length) die(`documentation manifest invalid:\n${structural.map((error) => `  - ${error}`).join('\n')}`);
+  if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
   for (const domain of manifest.domains) { domain.sourceDigest = domain._computed.sourceDigest; domain.contentDigest = domain._computed.contentDigest; delete domain._computed; }
   atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`); console.log(`ok documentation manifest synced (${manifest.domains.length} domains)`);
 } else if (command === 'check') {
   if (errors.length) die(`documentation manifest invalid:\n${errors.map((error) => `  - ${error}`).join('\n')}`);
   console.log(`ok documentation manifest (${manifest.domains.length} domains)`);
 } else {
+  if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
   const changed = new Set([...gitPaths(root, ['diff', '--name-only', '-z', 'HEAD', '--']), ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '-z'])]);
   const plan = { version: 1, hub, manifestSha256: sha256(readFileSync(path)), changed: [...changed].sort(), domains: manifest.domains.map((domain) => ({ id: domain.id, path: `${hub}/${domain.path}`, affectedSources: [...changed].filter((file) => domain.sources.some((pattern) => pathMatchesGlob(pattern, file))).sort(), status: domain.status })).filter((domain) => domain.affectedSources.length) };
   for (const domain of manifest.domains) delete domain._computed;

@@ -11,6 +11,7 @@ history.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
-| [0001](0001-handbook-placement.md) | Handbook placement: suite-wide, tracked, repo-root `docs/` | Accepted | 2026-06-23 |
+| [0002](0002-repository-documentation-hub.md) | Repository documentation hub and manifest | Accepted | 2026-08-24 |
+| [0001](0001-handbook-placement.md) | Handbook placement: suite-wide, tracked, repo-root `docs/` | Superseded | 2026-06-23 |
 
 *Verified-at: c2b37e9*

@@ -1,6 +1,6 @@
 # Wire CI Gates
 
-> A narrative walkthrough for a team standing up **continuous gates** on a repository: three per-PR review gates that hold every pull request to the suite's bars — engineering ([`code-ops-suite:pr-review`](../../40 Engineering/Handbook/commands/code-ops-suite.md)), verification ([`rigor:deep-review`](../../40 Engineering/Handbook/commands/rigor.md)), and anonymity ([`privacy-opsec-suite:opsec-pr-gate`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md)) — plus recurring researcher runs on a schedule. This is the hands-on companion to the reference page [08-ci-and-automation.md](../../40 Engineering/Handbook/08-ci-and-automation.md); read that for the full inventory, read this to actually wire it.
+> A narrative walkthrough for a team standing up **continuous gates** on a repository: three per-PR review gates that hold every pull request to the suite's bars — engineering ([`code-ops-suite:pr-review`](../40 Engineering/Handbook/commands/code-ops-suite.md)), verification ([`rigor:deep-review`](../40 Engineering/Handbook/commands/rigor.md)), and anonymity ([`privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md)) — plus recurring researcher runs on a schedule. This is the hands-on companion to the reference page [08-ci-and-automation.md](../40 Engineering/Handbook/08-ci-and-automation.md); read that for the full inventory, read this to actually wire it.
 
 ## Exec summary (stop here if you just want the shape)
 
@@ -8,17 +8,17 @@ You want every PR reviewed by the same bar your team would apply by hand, automa
 
 | Gate | Workflow file (this repo) | What it enforces | Skill it runs |
 |------|---------------------------|------------------|---------------|
-| Engineering review | — (start from the example below) | Senior engineering bar: correctness, design, perf, security, privacy, tests, docs | [`code-ops-suite:pr-review`](../../40 Engineering/Handbook/commands/code-ops-suite.md) |
-| Deep review | [`.github/workflows/deep-review.yml`](../../../.github/workflows/deep-review.yml) | Verification-first bar: evidence tiers + disconfirmation pass | [`rigor:deep-review`](../../40 Engineering/Handbook/commands/rigor.md) |
-| OpSec gate | [`.github/workflows/opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml) | Anonymity bar: no new egress/leak/identifier; fail-closed preserved | [`privacy-opsec-suite:opsec-pr-gate`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md) |
-| Structural lint | [`.github/workflows/validate.yml`](../../../.github/workflows/validate.yml) | Deterministic checks (lint, zero-dep, evals) — no credential needed | `scripts/` + `evals/` |
+| Engineering review | — (start from the example below) | Senior engineering bar: correctness, design, perf, security, privacy, tests, docs | [`code-ops-suite:pr-review`](../40 Engineering/Handbook/commands/code-ops-suite.md) |
+| Deep review | [`.github/workflows/deep-review.yml`](../../.github/workflows/deep-review.yml) | Verification-first bar: evidence tiers + disconfirmation pass | [`rigor:deep-review`](../40 Engineering/Handbook/commands/rigor.md) |
+| OpSec gate | [`.github/workflows/opsec-gate.yml`](../../.github/workflows/opsec-gate.yml) | Anonymity bar: no new egress/leak/identifier; fail-closed preserved | [`privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) |
+| Structural lint | [`.github/workflows/validate.yml`](../../.github/workflows/validate.yml) | Deterministic checks (lint, zero-dep, evals) — no credential needed | `scripts/` + `evals/` |
 
 The four moving parts you wire, in order:
 
 1. **Install the GitHub App and the credential.** Run `/install-github-app` inside Claude Code once; it installs the app and sets up a Claude credential secret.
 2. **Add the workflows.** Paste the review criteria from each plugin's example workflow into a `.github/workflows/*.yml` file (this repo already ships three you can copy verbatim).
 3. **Set the right permissions and credential.** A Claude credential (`CLAUDE_CODE_OAUTH_TOKEN` **or** `ANTHROPIC_API_KEY`) plus `id-token: write` for the Pro/Max OAuth path. The gates **skip cleanly** when no credential is present, so fork PRs never fail on a missing secret.
-4. **Make them required, and schedule the recurring work.** Mark the gates as required status checks in branch protection, and use `/schedule` for recurring [`researcher:ecosystem-watch`](../../40 Engineering/Handbook/commands/researcher.md), [`code-ops-suite:dependency-upgrade`](../../40 Engineering/Handbook/commands/code-ops-suite.md), and [`code-ops-suite:security-privacy-audit`](../../40 Engineering/Handbook/commands/code-ops-suite.md).
+4. **Make them required, and schedule the recurring work.** Mark the gates as required status checks in branch protection, and use `/schedule` for recurring [`researcher:ecosystem-watch`](../40 Engineering/Handbook/commands/researcher.md), [`code-ops-suite:dependency-upgrade`](../40 Engineering/Handbook/commands/code-ops-suite.md), and [`code-ops-suite:security-privacy-audit`](../40 Engineering/Handbook/commands/code-ops-suite.md).
 
 Two rules to hold in mind before the depth section:
 
@@ -56,7 +56,7 @@ The pattern is identical across all three. Each gate:
 
 1. Triggers on `pull_request` for `opened`, `synchronize`, `reopened`.
 2. Detects whether a credential is present, and skips cleanly if not.
-3. Runs [`anthropics/claude-code-action`](../../../.github/workflows/deep-review.yml) with the plugin's review criteria as the `prompt`.
+3. Runs [`anthropics/claude-code-action`](../../.github/workflows/deep-review.yml) with the plugin's review criteria as the `prompt`.
 
 ```mermaid
 flowchart TD
@@ -69,7 +69,7 @@ flowchart TD
 
 ### The engineering gate — `code-ops-suite:pr-review`
 
-The example at [`plugins/code-ops-suite/examples/github-pr-review.yml`](../../../plugins/code-ops-suite/examples/github-pr-review.yml) holds the PR to a senior engineering bar: correctness and intricate bugs, design and modularity, performance regressions, security introduced, privacy/data-handling (a privacy regression is **BLOCKING**), UI/accessibility, tests, docs, and convention fit. Its `prompt` says, when the plugin is available in CI:
+The example at [`plugins/code-ops-suite/examples/github-pr-review.yml`](../../plugins/code-ops-suite/examples/github-pr-review.yml) holds the PR to a senior engineering bar: correctness and intricate bugs, design and modularity, performance regressions, security introduced, privacy/data-handling (a privacy regression is **BLOCKING**), UI/accessibility, tests, docs, and convention fit. Its `prompt` says, when the plugin is available in CI:
 
 ```
 /code-ops-suite:pr-review for this pull request
@@ -79,26 +79,26 @@ The example at [`plugins/code-ops-suite/examples/github-pr-review.yml`](../../..
 
 ### The verification gate — `rigor:deep-review`
 
-The live workflow [`.github/workflows/deep-review.yml`](../../../.github/workflows/deep-review.yml) (mirroring [`plugins/rigor/examples/github-deep-review.yml`](../../../plugins/rigor/examples/github-deep-review.yml)) applies rigor's verification-first bar. Its prompt invokes `/rigor:deep-review` if the plugin is available, otherwise inlines the bar:
+The live workflow [`.github/workflows/deep-review.yml`](../../.github/workflows/deep-review.yml) (mirroring [`plugins/rigor/examples/github-deep-review.yml`](../../plugins/rigor/examples/github-deep-review.yml)) applies rigor's verification-first bar. Its prompt invokes `/rigor:deep-review` if the plugin is available, otherwise inlines the bar:
 
 - **Ground truth first** — it runs `node scripts/lint-plugins.mjs`, `node scripts/check-no-deps.mjs`, and the `evals/` harnesses so the review starts from facts.
 - **Evidence tiers** — every concern is tagged **CONFIRMED** (reproduced) / **PROBABLE** (strong static evidence) / **SPECULATIVE** (a low-confidence lead).
 - **A disconfirmation pass** before reporting anything: is it reachable, already handled, intentional, or already tested? Drop what doesn't survive.
 - A verdict and a do-not-inflate-tiers rule: never block on a SPECULATIVE, never wave through a CONFIRMED defect.
 
-Because it runs the toolchain, this gate's tools are `claude_args: "--allowed-tools Read,Grep,Glob,Bash"` — the only one of the three that gets `Bash`. For the tiers and disconfirmation method itself, see [05-evidence-and-tiers.md](../../40 Engineering/Handbook/05-evidence-and-tiers.md).
+Because it runs the toolchain, this gate's tools are `claude_args: "--allowed-tools Read,Grep,Glob,Bash"` — the only one of the three that gets `Bash`. For the tiers and disconfirmation method itself, see [05-evidence-and-tiers.md](../40 Engineering/Handbook/05-evidence-and-tiers.md).
 
 ### The anonymity gate — `privacy-opsec-suite:opsec-pr-gate`
 
-The live workflow [`.github/workflows/opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml) (mirroring [`plugins/privacy-opsec-suite/examples/github-opsec-gate.yml`](../../../plugins/privacy-opsec-suite/examples/github-opsec-gate.yml)) is the pre-merge anonymity/opsec gate. Its prompt invokes `/privacy-opsec-suite:opsec-pr-gate` if the plugin is available, otherwise inlines the criteria. It treats as **BLOCKING regressions**: a new outbound network path (or re-enabling lib-docs' fetch by default / removing its https-and-public-host allowlist), a new third-party import (the suite is dependency-free), a weakened default or loosened authorship/freshness gate, and any new log line or output emitting secrets / identifiers / IPs or added telemetry — plus the standard checks (no new identifier/fingerprint/correlation surface, fail-closed preserved, metadata minimized). Tools are read-only: `claude_args: "--allowed-tools Read,Grep,Glob"`. It must never echo real identifiers, secrets, or IPs.
+The live workflow [`.github/workflows/opsec-gate.yml`](../../.github/workflows/opsec-gate.yml) (mirroring [`plugins/privacy-opsec-suite/examples/github-opsec-gate.yml`](../../plugins/privacy-opsec-suite/examples/github-opsec-gate.yml)) is the pre-merge anonymity/opsec gate. Its prompt invokes `/privacy-opsec-suite:opsec-pr-gate` if the plugin is available, otherwise inlines the criteria. It treats as **BLOCKING regressions**: a new outbound network path (or re-enabling lib-docs' fetch by default / removing its https-and-public-host allowlist), a new third-party import (the suite is dependency-free), a weakened default or loosened authorship/freshness gate, and any new log line or output emitting secrets / identifiers / IPs or added telemetry — plus the standard checks (no new identifier/fingerprint/correlation surface, fail-closed preserved, metadata minimized). Tools are read-only: `claude_args: "--allowed-tools Read,Grep,Glob"`. It must never echo real identifiers, secrets, or IPs.
 
-> This gate is the CI enforcement endpoint of the anonymity track. The earlier track — `anonymity-threat-model` → the six leak audits → `LEAK_REGISTER.md` → `opsec-hardening` — is what produces a clean baseline; the gate keeps PRs from regressing it. See [02-mental-model.md](../../40 Engineering/Handbook/02-mental-model.md).
+> This gate is the CI enforcement endpoint of the anonymity track. The earlier track — `anonymity-threat-model` → the six leak audits → `LEAK_REGISTER.md` → `opsec-hardening` — is what produces a clean baseline; the gate keeps PRs from regressing it. See [02-mental-model.md](../40 Engineering/Handbook/02-mental-model.md).
 
 ---
 
 ## Step 3 — Permissions, credential, and the skip-clean behavior
 
-This is the part teams get wrong, so it is worth doing carefully. The two AI gates this repo ships ([`deep-review.yml`](../../../.github/workflows/deep-review.yml) and [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml)) declare exactly these permissions:
+This is the part teams get wrong, so it is worth doing carefully. The two AI gates this repo ships ([`deep-review.yml`](../../.github/workflows/deep-review.yml) and [`opsec-gate.yml`](../../.github/workflows/opsec-gate.yml)) declare exactly these permissions:
 
 ```yaml
 permissions:
@@ -129,7 +129,7 @@ Both AI workflows pass *both* secret inputs to the action and let it use whichev
     claude_args: "--allowed-tools Read,Grep,Glob,Bash"
 ```
 
-Note the action is **pinned to a commit SHA**, not a moving tag (`@30544b67…` with a trailing `# v1` comment that tracks the tag). That is the suite's own [`supply-chain-trust`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md) discipline applied to CI: a moved tag cannot inject code into your pipeline. Bump it deliberately. The `actions/checkout` and `actions/setup-node` steps are pinned the same way.
+Note the action is **pinned to a commit SHA**, not a moving tag (`@30544b67…` with a trailing `# v1` comment that tracks the tag). That is the suite's own [`supply-chain-trust`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) discipline applied to CI: a moved tag cannot inject code into your pipeline. Bump it deliberately. The `actions/checkout` and `actions/setup-node` steps are pinned the same way.
 
 ### Skip-clean on fork PRs
 
@@ -171,14 +171,14 @@ The per-PR gates catch regressions in a *change*. The recurring runs catch drift
 
 | Schedule this | Cadence idea | What it produces | Hands off to |
 |---------------|--------------|------------------|--------------|
-| [`researcher:ecosystem-watch`](../../40 Engineering/Handbook/commands/researcher.md) | Weekly | `ECOSYSTEM_WATCH.md` — a tiered, cited register of actionable changes (each run a diff against the last) | `dependency-upgrade` / `supply-chain-trust` / `feature-*` / `adr` |
-| [`code-ops-suite:dependency-upgrade`](../../40 Engineering/Handbook/commands/code-ops-suite.md) | Monthly, or on a watch finding | Verified, staged upgrade PRs + `DEPENDENCY_REPORT.md` | — (it ships the PRs) |
-| [`code-ops-suite:security-privacy-audit`](../../40 Engineering/Handbook/commands/code-ops-suite.md) | Quarterly | `THREAT_MODEL.md` + `SECURITY_PRIVACY_FINDINGS.md`; feeds `FINDINGS_REGISTER.md` | `remediation` / the privacy track |
+| [`researcher:ecosystem-watch`](../40 Engineering/Handbook/commands/researcher.md) | Weekly | `ECOSYSTEM_WATCH.md` — a tiered, cited register of actionable changes (each run a diff against the last) | `dependency-upgrade` / `supply-chain-trust` / `feature-*` / `adr` |
+| [`code-ops-suite:dependency-upgrade`](../40 Engineering/Handbook/commands/code-ops-suite.md) | Monthly, or on a watch finding | Verified, staged upgrade PRs + `DEPENDENCY_REPORT.md` | — (it ships the PRs) |
+| [`code-ops-suite:security-privacy-audit`](../40 Engineering/Handbook/commands/code-ops-suite.md) | Quarterly | `THREAT_MODEL.md` + `SECURITY_PRIVACY_FINDINGS.md`; feeds `FINDINGS_REGISTER.md` | `remediation` / the privacy track |
 
 Two properties of `ecosystem-watch` make it the right thing to schedule, and they carry over to a scheduled run:
 
 - **It is a diff, not a restart.** Each scheduled run re-grounds against the lockfile, gathers only changes since the prior run's `Verified-at` sha, drops entries that no longer apply (stamped `OBSOLETE-AT <sha>`), and surfaces only what is new and reachable against code you actually run.
-- **It honors the egress contract on every run.** `ecosystem-watch` is discovery-only — it proposes and hands off, it **never edits source**. Gathering changes needs **opt-in web egress**; a scheduled run operates inside a pre-agreed egress scope, records every external request in `EGRESS_MANIFEST.md`, and **stops at a checkpoint rather than widening egress unattended**. The `research-manifest.mjs validate` step fails closed on any artifact that cites an un-manifested source. This is the [researcher proposal layer's](../../40 Engineering/Handbook/02-mental-model.md) fail-closed discipline applied to a cron cadence.
+- **It honors the egress contract on every run.** `ecosystem-watch` is discovery-only — it proposes and hands off, it **never edits source**. Gathering changes needs **opt-in web egress**; a scheduled run operates inside a pre-agreed egress scope, records every external request in `EGRESS_MANIFEST.md`, and **stops at a checkpoint rather than widening egress unattended**. The `research-manifest.mjs validate` step fails closed on any artifact that cites an un-manifested source. This is the [researcher proposal layer's](../40 Engineering/Handbook/02-mental-model.md) fail-closed discipline applied to a cron cadence.
 
 Because the researcher proposes and hands off rather than editing, the natural pipeline is: **scheduled `ecosystem-watch` finds a reachable CVE → it hands off to `dependency-upgrade` → that ships a verified PR → your per-PR gates review the PR.** Continuous gates and scheduled research close the loop on each other.
 
@@ -195,11 +195,11 @@ flowchart LR
 
 ## Where to go next
 
-- The reference inventory of every gate and automation knob: [08-ci-and-automation.md](../../40 Engineering/Handbook/08-ci-and-automation.md).
-- The four-plugin roles these gates enforce: [02-mental-model.md](../../40 Engineering/Handbook/02-mental-model.md).
-- The evidence tiers and disconfirmation pass that `deep-review` applies: [05-evidence-and-tiers.md](../../40 Engineering/Handbook/05-evidence-and-tiers.md).
-- The registers `ecosystem-watch` and `security-privacy-audit` write, and their freshness rules: [04-registers-and-freshness.md](../../40 Engineering/Handbook/04-registers-and-freshness.md).
-- Per-plugin command catalogs: [code-ops-suite](../../40 Engineering/Handbook/commands/code-ops-suite.md) · [rigor](../../40 Engineering/Handbook/commands/rigor.md) · [privacy-opsec-suite](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md) · [researcher](../../40 Engineering/Handbook/commands/researcher.md).
+- The reference inventory of every gate and automation knob: [08-ci-and-automation.md](../40 Engineering/Handbook/08-ci-and-automation.md).
+- The four-plugin roles these gates enforce: [02-mental-model.md](../40 Engineering/Handbook/02-mental-model.md).
+- The evidence tiers and disconfirmation pass that `deep-review` applies: [05-evidence-and-tiers.md](../40 Engineering/Handbook/05-evidence-and-tiers.md).
+- The registers `ecosystem-watch` and `security-privacy-audit` write, and their freshness rules: [04-registers-and-freshness.md](../40 Engineering/Handbook/04-registers-and-freshness.md).
+- Per-plugin command catalogs: [code-ops-suite](../40 Engineering/Handbook/commands/code-ops-suite.md) · [rigor](../40 Engineering/Handbook/commands/rigor.md) · [privacy-opsec-suite](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) · [researcher](../40 Engineering/Handbook/commands/researcher.md).
 
 ---
 

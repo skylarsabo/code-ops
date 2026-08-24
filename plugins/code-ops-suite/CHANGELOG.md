@@ -8,6 +8,7 @@ All notable changes to this plugin are documented here. Versions track
 - **Runs reuse exact repository context.** A content-addressed snapshot caches the repo map, import graph, and atlas freshness once. Unit bundles add direct blast radius and fail explicitly on broad or over-budget context. Version 2 run contracts bind every bundle to the repository state.
 - `repo-docs` plans extraction from the changed-source intersection, so unchanged documentation domains receive no dispatch. New regression gates run on Linux and Windows.
 - Repository-local Markdown links now fail CI when their exact-case target is absent, keeping the consolidated hub portable across Linux and Windows.
+- Review hardening closes fail-open dependency, citation, manifest-plan, empty-scope, and version-2 cost-history cases. Reverse vendored-script parity now rejects undeclared plugin copies and missing helpers referenced from every plugin-owned runtime surface.
 
 ## 1.44.0
 - **Run contracts join intent, execution, and acceptance.** The new `run-contract.mjs` validates a versioned objective, quality vector, budgeted work graph, routing, dependencies, and disjoint writes before fan-out. It reconciles planned units with the dispatch ledger, records owner-qualified acceptance attempts, and writes a successful result only after every blocking criterion and planned dispatch passes.

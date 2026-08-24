@@ -282,17 +282,40 @@ for (const rs of RUNTIME_SCRIPTS) {
     else if (existsSync(copy) && readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: scripts/${rs.name} has drifted from the canonical scripts/${rs.name} — re-copy it`);
   }
 }
-// Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a skill/CONVENTIONS must be bundled+identical.
+// Reverse check: every bundled runtime script must be declared for that plugin. Without this,
+// an extra stale copy can survive forever because the forward manifest walk never sees it.
+for (const p of plugins) {
+  const scriptsDir = join(p.dir, 'scripts');
+  if (!existsSync(scriptsDir)) continue;
+  for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.mjs')) continue;
+    const declared = RUNTIME_SCRIPTS.some((runtime) => runtime.name === entry.name && runtime.plugins.includes(p.name));
+    if (!declared) fail(`${p.name}: bundled scripts/${entry.name} is not declared for this plugin in RUNTIME_SCRIPTS`);
+  }
+}
+// Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a plugin-owned prompt,
+// agent, README, or manifest surface must be bundled and byte-identical.
 const SCRIPT_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([\w.-]+\.mjs)/g;
 for (const p of plugins) {
-  const refd = new Set();
-  const bodies = [...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')), join(p.dir, 'CONVENTIONS.md')];
-  for (const f of bodies) if (existsSync(f)) for (const m of readText(f).matchAll(SCRIPT_REF_RE)) refd.add(m[1]);
-  for (const name of refd) {
+  const refd = new Map();
+  const bodies = [
+    ...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')),
+    join(p.dir, 'CONVENTIONS.md'),
+    join(p.dir, 'README.md'),
+    join(p.dir, '.claude-plugin', 'plugin.json'),
+    ...walkFiles(join(p.dir, 'agents')),
+    ...p.skills.flatMap((s) => walkFiles(join(p.dir, 'skills', s, 'agents'))),
+  ];
+  for (const f of bodies) if (existsSync(f)) for (const m of readText(f).matchAll(SCRIPT_REF_RE)) {
+    if (!refd.has(m[1])) refd.set(m[1], new Set());
+    refd.get(m[1]).add(rel(f));
+  }
+  for (const [name, sources] of refd) {
     const copy = join(p.dir, 'scripts', name);
     const canonical = join(ROOT, 'scripts', name);
-    if (!existsSync(copy)) fail(`${p.name}: a skill references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
-    else if (!existsSync(canonical)) fail(`${p.name}: bundled scripts/${name} has no canonical scripts/${name} at the repo root — cannot verify it against a source of truth`);
+    const sourceList = [...sources].join(', ');
+    if (!existsSync(copy)) fail(`${p.name}: ${sourceList} references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
+    else if (!existsSync(canonical)) fail(`${p.name}: ${sourceList} references bundled scripts/${name}, which has no canonical scripts/${name} at the repo root`);
     else if (readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
   }
 }

@@ -1,6 +1,6 @@
 # Researcher Egress — Local-First, Disclosed, Fail-Closed
 
-> Part of the [code-ops handbook](README.md). Plugin overview: [commands/researcher.md](commands/researcher.md). Companion guide: [the library-choice walkthrough](../../70 Guides/Guides/research-a-library-choice.md).
+> Part of the [code-ops handbook](README.md). Plugin overview: [commands/researcher.md](commands/researcher.md). Companion guide: [the library-choice walkthrough](../../70 Guides/research-a-library-choice.md).
 
 ## Orientation (stop here if you only need the gist)
 
@@ -204,7 +204,7 @@ The egress posture is also guardable on every PR: any change to the egress surfa
 The egress model is the researcher's contribution to the suite's shared backbone: it is how the **PROPOSAL layer** stays honest about the network while the **ANONYMITY TRACK** (`privacy-opsec-suite`) stays honest about leaks. The two reinforce each other — the researcher discloses what it sends; the privacy track audits whether it should have. A researcher artifact must pass *both* gates that protect a register: `revalidate-register.mjs` keeps its findings honest about *code*, and `research-manifest.mjs validate` keeps it honest about *what left the machine* ([04-registers-and-freshness.md](04-registers-and-freshness.md) §4; [researcher CONVENTIONS §12](../../../plugins/researcher/CONVENTIONS.md)).
 
 - For each researcher command in depth — including which phase holds the egress checkpoint and which artifact each one validates — see [commands/researcher.md](commands/researcher.md).
-- For an end-to-end journey that exercises the checkpoint, the manifest, and the gate on a real "adopt X?" decision, see [the library-choice walkthrough](../../70 Guides/Guides/research-a-library-choice.md).
+- For an end-to-end journey that exercises the checkpoint, the manifest, and the gate on a real "adopt X?" decision, see [the library-choice walkthrough](../../70 Guides/research-a-library-choice.md).
 - For how the registers the researcher produces stay fresh, and how the egress manifest differs from a findings register, see [04-registers-and-freshness.md](04-registers-and-freshness.md).
 - For the evidence tiers and disconfirmation pass the researcher applies to every claim it gathers, see [05-evidence-and-tiers.md](05-evidence-and-tiers.md).
 

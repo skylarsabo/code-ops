@@ -13,7 +13,7 @@ Every skill in the suite operates inside one non-negotiable envelope — the **a
 - **Fail closed** — on a proxy/route/circuit failure, **stop**; never fall back to clearnet or a less-anonymous path.
 - **Private by default** — anonymity is never opt-in; defaults are the most-protective option, and a guarantee is never weakened silently.
 
-The one-sentence test: **if there is no anonymity requirement, you do not need this suite** — use the spine ([`code-ops-suite`](../../../plugins/code-ops-suite/README.md)) and its `security-privacy-audit` for ordinary confidentiality and STRIDE/LINDDUN work. **If a returning user must stay unlinkable, or traffic must never escape a proxy, you do.** When you do, start with the keystone — [`anonymity-threat-model`](commands/privacy-opsec-suite.md#privacy-opsec-suiteanonymity-threat-model) — and walk the track through to the gates. The end-to-end journey is the [harden-anonymity guide](../../70 Guides/Guides/harden-anonymity.md).
+The one-sentence test: **if there is no anonymity requirement, you do not need this suite** — use the spine ([`code-ops-suite`](../../../plugins/code-ops-suite/README.md)) and its `security-privacy-audit` for ordinary confidentiality and STRIDE/LINDDUN work. **If a returning user must stay unlinkable, or traffic must never escape a proxy, you do.** When you do, start with the keystone — [`anonymity-threat-model`](commands/privacy-opsec-suite.md#privacy-opsec-suiteanonymity-threat-model) — and walk the track through to the gates. The end-to-end journey is the [harden-anonymity guide](../../70 Guides/harden-anonymity.md).
 
 ```mermaid
 flowchart TD
@@ -135,7 +135,7 @@ The same "map vs. focused sweep" distinction separates the keystone from each of
 | [`traffic-analysis-resistance`](commands/privacy-opsec-suite.md#privacy-opsec-suitetraffic-analysis-resistance) | **Traffic-shape** correlation: size/timing/volume side channels; padding/batching defaults (honest about a global passive adversary) | Header/TLS fingerprints → `fingerprint-resistance` |
 | [`supply-chain-trust`](commands/privacy-opsec-suite.md#privacy-opsec-suitesupply-chain-trust) | Dependencies that **phone home/add egress**, CVEs, build/lockfile integrity, and **agent-ingested content as a prompt-injection surface** (vendored skills/plugins, MCP tool descriptions, rules files, READMEs — untrusted input, never instructions; a working injection→egress chain blocks adoption) | (treats a telemetry dep as an anonymity finding, not just bloat) |
 
-All six audits feed the single backlog, [`LEAK_REGISTER.md`](04-registers-and-freshness.md), with stable IDs (for example `EGRESS-003`). From there [`opsec-hardening`](commands/privacy-opsec-suite.md#privacy-opsec-suiteopsec-hardening) fixes fail-closed with a regression test per leak, and [`opsec-pr-gate`](commands/privacy-opsec-suite.md#privacy-opsec-suiteopsec-pr-gate) plus [`authorship-hygiene`](commands/privacy-opsec-suite.md#privacy-opsec-suiteauthorship-hygiene) guard the result. The full chain and its checkpoints are walked in the [harden-anonymity guide](../../70 Guides/Guides/harden-anonymity.md).
+All six audits feed the single backlog, [`LEAK_REGISTER.md`](04-registers-and-freshness.md), with stable IDs (for example `EGRESS-003`). From there [`opsec-hardening`](commands/privacy-opsec-suite.md#privacy-opsec-suiteopsec-hardening) fixes fail-closed with a regression test per leak, and [`opsec-pr-gate`](commands/privacy-opsec-suite.md#privacy-opsec-suiteopsec-pr-gate) plus [`authorship-hygiene`](commands/privacy-opsec-suite.md#privacy-opsec-suiteauthorship-hygiene) guard the result. The full chain and its checkpoints are walked in the [harden-anonymity guide](../../70 Guides/harden-anonymity.md).
 
 ---
 
@@ -150,7 +150,7 @@ The suite also inherits the [evidence tiers](05-evidence-and-tiers.md) (CONFIRME
 ## See also
 
 - [commands/privacy-opsec-suite.md](commands/privacy-opsec-suite.md) — the full reference for all 14 suite commands, with per-command prerequisites, hand-offs, and sibling disambiguations.
-- [../../70 Guides/Guides/harden-anonymity.md](../../70 Guides/Guides/harden-anonymity.md) — the end-to-end journey: keystone → six audits → `LEAK_REGISTER.md` → `opsec-hardening` → `opsec-pr-gate` + `authorship-hygiene`.
+- [../../70 Guides/harden-anonymity.md](../../70 Guides/harden-anonymity.md) — the end-to-end journey: keystone → six audits → `LEAK_REGISTER.md` → `opsec-hardening` → `opsec-pr-gate` + `authorship-hygiene`.
 - [02-mental-model.md](02-mental-model.md) — how `privacy-opsec-suite` composes with the spine, `rigor`, and `researcher`.
 - [04-registers-and-freshness.md](04-registers-and-freshness.md) — the `LEAK_REGISTER.md` schema, leak-classes, `Verified-at`, and freshness.
 - [05-evidence-and-tiers.md](05-evidence-and-tiers.md) — CONFIRMED / PROBABLE / SPECULATIVE and the disconfirmation pass.

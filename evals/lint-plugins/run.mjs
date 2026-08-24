@@ -347,6 +347,36 @@ No completion heading here on purpose (case 3 mutation).
   check('5. vendored drift exits 1', r5.status === 1);
   check('5. message mentions "drifted"', r5.all.includes('drifted'));
 
+  // 5b. REVERSE VENDORED PARITY — an undeclared plugin-local script must not evade the
+  // forward RUNTIME_SCRIPTS walk merely because no prompt references it.
+  const d5b = clone('case5b-undeclared-vendored-script');
+  put(d5b, 'plugins/rigor/scripts/hidden-tool.mjs', '// Undeclared vendored script (case 5b).\n');
+  const r5b = runLint(d5b);
+  check('5b. undeclared bundled script exits 1', r5b.status === 1);
+  check('5b. message names reverse parity failure', r5b.all.includes('hidden-tool.mjs') && r5b.all.includes('not declared for this plugin'));
+
+  // 5c-e. SCRIPT REFERENCE SURFACES — agent prompts, plugin README prose, and plugin.json
+  // are runtime-owned package surfaces too. A missing helper reference on any one must fail.
+  const d5c = clone('case5c-agent-script-reference');
+  put(d5c, 'plugins/rigor/agents/tracer.md', `${readIn(d5c, 'plugins/rigor/agents/tracer.md')}\nRun \${CLAUDE_PLUGIN_ROOT}/scripts/missing-agent.mjs.\n`);
+  const r5c = runLint(d5c);
+  check('5c. agent script reference exits 1', r5c.status === 1);
+  check('5c. message names agent source and missing helper', r5c.all.includes('plugins/rigor/agents/tracer.md') && r5c.all.includes('missing-agent.mjs'));
+
+  const d5d = clone('case5d-readme-script-reference');
+  put(d5d, 'plugins/rigor/README.md', `${readIn(d5d, 'plugins/rigor/README.md')}\nRun \${CLAUDE_PLUGIN_ROOT}/scripts/missing-readme.mjs.\n`);
+  const r5d = runLint(d5d);
+  check('5d. README script reference exits 1', r5d.status === 1);
+  check('5d. message names README source and missing helper', r5d.all.includes('plugins/rigor/README.md') && r5d.all.includes('missing-readme.mjs'));
+
+  const d5e = clone('case5e-manifest-script-reference');
+  const manifest5e = JSON.parse(readIn(d5e, 'plugins/rigor/.claude-plugin/plugin.json'));
+  manifest5e.runtime = '${CLAUDE_PLUGIN_ROOT}/scripts/missing-manifest.mjs';
+  put(d5e, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify(manifest5e, null, 2));
+  const r5e = runLint(d5e);
+  check('5e. plugin manifest script reference exits 1', r5e.status === 1);
+  check('5e. message names manifest source and missing helper', r5e.all.includes('plugins/rigor/.claude-plugin/plugin.json') && r5e.all.includes('missing-manifest.mjs'));
+
   // 6. ADVISORY NON-GATING — an orphan root script with no evals/ reference is flagged
   // as advisory text but must NEVER fail the run.
   const d6 = clone('case6-advisory-orphan');

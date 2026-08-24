@@ -68,13 +68,13 @@ The fixer lands `BUG-007` at sha `def5678`. The fix recomputes the line total in
 Phase B does **not** read the register and act. It runs the pre-filter first.
 
 ```sh
-node scripts/revalidate-register.mjs docs/code-ops-run/2026-06-22/FINDINGS_REGISTER.md --root .
+node scripts/revalidate-register.mjs path/to/FINDINGS_REGISTER.md --root .
 ```
 
 Output (`HEAD` is now `def5678`):
 
 ```
-# docs/code-ops-run/2026-06-22/FINDINGS_REGISTER.md  (HEAD def5678)
+# path/to/FINDINGS_REGISTER.md  (HEAD def5678)
   !! GONE      BUG-007  — src/checkout/cart.ts missing; Verified-at abc1234 != HEAD def5678 — re-confirm
   !! MOVED     SEC-003  — src/auth/legacy-login.ts:64 > 51 lines; Verified-at abc1234 != HEAD def5678 — re-confirm
   ok FRESH     PERF-011  — Verified-at abc1234 != HEAD def5678 — re-confirm

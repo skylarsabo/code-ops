@@ -1,6 +1,6 @@
 # Research a Library Choice
 
-> A narrative walkthrough of deciding *which library to adopt* — and proving the decision before anyone writes code. You are a tech lead with an A-vs-B-vs-build question. You drive it through [`/researcher:library-eval`](../../40 Engineering/Handbook/commands/researcher.md) to get a grounded recommendation, gate that recommendation with [`/researcher:research-verify`](../../40 Engineering/Handbook/commands/researcher.md), then hand the verdict to [`/code-ops-suite:adr`](../../40 Engineering/Handbook/commands/code-ops-suite.md) to record the decision. The `researcher` is the **proposal layer**: it researches, proposes, and hands off — it **never edits code**.
+> A narrative walkthrough of deciding *which library to adopt* — and proving the decision before anyone writes code. You are a tech lead with an A-vs-B-vs-build question. You drive it through [`/researcher:library-eval`](../40 Engineering/Handbook/commands/researcher.md) to get a grounded recommendation, gate that recommendation with [`/researcher:research-verify`](../40 Engineering/Handbook/commands/researcher.md), then hand the verdict to [`/code-ops-suite:adr`](../40 Engineering/Handbook/commands/code-ops-suite.md) to record the decision. The `researcher` is the **proposal layer**: it researches, proposes, and hands off — it **never edits code**.
 
 ## Exec summary (stop here if you just want the shape)
 
@@ -10,15 +10,15 @@ Three moves, in order:
 
 | Step | Command | What you get | Edits code? |
 |------|---------|--------------|-------------|
-| 1 · Evaluate | [`/researcher:library-eval`](../../40 Engineering/Handbook/commands/researcher.md) | `LIBRARY_EVAL.md` — A-vs-B-vs-build recommendation, comparison table, migration cost, smallest slice; plus `EGRESS_MANIFEST.md` if any web source was used | No |
-| 2 · Verify | [`/researcher:research-verify`](../../40 Engineering/Handbook/commands/researcher.md) | A per-claim verdict report (SUPPORTED / PARTIAL / UNSUPPORTED) that **gates** the recommendation before anyone acts | No |
-| 3 · Record | [`/code-ops-suite:adr`](../../40 Engineering/Handbook/commands/code-ops-suite.md) | A decision record in context/options/decision/consequences form | Writes the ADR doc, not the integration |
+| 1 · Evaluate | [`/researcher:library-eval`](../40 Engineering/Handbook/commands/researcher.md) | `LIBRARY_EVAL.md` — A-vs-B-vs-build recommendation, comparison table, migration cost, smallest slice; plus `EGRESS_MANIFEST.md` if any web source was used | No |
+| 2 · Verify | [`/researcher:research-verify`](../40 Engineering/Handbook/commands/researcher.md) | A per-claim verdict report (SUPPORTED / PARTIAL / UNSUPPORTED) that **gates** the recommendation before anyone acts | No |
+| 3 · Record | [`/code-ops-suite:adr`](../40 Engineering/Handbook/commands/code-ops-suite.md) | A decision record in context/options/decision/consequences form | Writes the ADR doc, not the integration |
 
 Four rules carry the whole journey:
 
-1. **The researcher proposes; it never mutates source.** Its terminal output is a brief and a verdict — never a diff. The actual adoption is a separate hand-off ([`plugins/researcher/CONVENTIONS.md`](../../../plugins/researcher/CONVENTIONS.md) §4, §11).
-2. **Local-first, disclosed egress — the web is opt-in per run.** Default sources are your codebase, version-control history, and installed-dependency docs. Nothing leaves the machine without a checkpoint, and every external request is recorded in `EGRESS_MANIFEST.md` (§A). See [`07-researcher-egress.md`](../../40 Engineering/Handbook/07-researcher-egress.md).
-3. **Grounded in *your* code.** Every requirement, constraint, and fit judgment is cited at `file:line` against the repo — not the generic case. An ungrounded criterion is SPECULATIVE ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md) Phase 1).
+1. **The researcher proposes; it never mutates source.** Its terminal output is a brief and a verdict — never a diff. The actual adoption is a separate hand-off ([`plugins/researcher/CONVENTIONS.md`](../../plugins/researcher/CONVENTIONS.md) §4, §11).
+2. **Local-first, disclosed egress — the web is opt-in per run.** Default sources are your codebase, version-control history, and installed-dependency docs. Nothing leaves the machine without a checkpoint, and every external request is recorded in `EGRESS_MANIFEST.md` (§A). See [`07-researcher-egress.md`](../40 Engineering/Handbook/07-researcher-egress.md).
+3. **Grounded in *your* code.** Every requirement, constraint, and fit judgment is cited at `file:line` against the repo — not the generic case. An ungrounded criterion is SPECULATIVE ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) Phase 1).
 4. **Fail-closed before publishing.** `research-manifest.mjs validate LIBRARY_EVAL.md` enforces that no published artifact cites a web source absent from the manifest. An undisclosed egress fails the check (§A).
 
 All three commands can be called directly, or the model can route to them per the standard-operating-mode routing card; egress checkpoints below still gate every run.
@@ -53,13 +53,13 @@ and hand it that question.
 
 ### Step 1 — `/researcher:library-eval`
 
-**Mode:** REVIEW · **Produces:** `LIBRARY_EVAL.md` (the [`CONVENTIONS.md`](../../../plugins/researcher/CONVENTIONS.md) §13 documentation standard), plus `EGRESS_MANIFEST.md` if any web source was used. **Edits code:** never ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md)).
+**Mode:** REVIEW · **Produces:** `LIBRARY_EVAL.md` (the [`CONVENTIONS.md`](../../plugins/researcher/CONVENTIONS.md) §13 documentation standard), plus `EGRESS_MANIFEST.md` if any web source was used. **Edits code:** never ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md)).
 
 Five phases (0–4) with one egress checkpoint. The first thing `library-eval` does is **not** reach for the web — it frames the decision and grounds in your code.
 
 #### Phase 0 — Frame the decision *(checkpoint — egress is opt-in)*
 
-The skill pins down what is actually being decided ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md) Phase 0):
+The skill pins down what is actually being decided ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) Phase 0):
 
 - the **need** — the capability the candidate would serve (one shared, tested retry/backoff with jitter);
 - the **full candidate set** — A vs. B and, *named honestly as options*, **build-it-ourselves** and **do-nothing / keep the status quo**;
@@ -79,7 +79,7 @@ So the tool surfaces something like:
 >
 > Nothing else. Grant this scope?
 
-**What you decide here:** the criteria and weights, the candidate set, and — the high-stakes one — *whether any query leaves the machine, and to exactly which hosts and why* ([`CONVENTIONS.md`](../../../plugins/researcher/CONVENTIONS.md) §3). You grant the two hosts above. You could equally say *local-only* — and then B is evaluated only from what is locally knowable, marked `UNVERIFIED` where it cannot be confirmed against the actual version, rather than guessed (§4).
+**What you decide here:** the criteria and weights, the candidate set, and — the high-stakes one — *whether any query leaves the machine, and to exactly which hosts and why* ([`CONVENTIONS.md`](../../plugins/researcher/CONVENTIONS.md) §3). You grant the two hosts above. You could equally say *local-only* — and then B is evaluated only from what is locally knowable, marked `UNVERIFIED` where it cannot be confirmed against the actual version, rather than guessed (§4).
 
 Every approved request is recorded as the run proceeds:
 
@@ -89,11 +89,11 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/research-manifest.mjs record \
   --why "libB maintenance health + license + provenance"
 ```
 
-This appends one disclosed row (time · tool · host · url · why) to `EGRESS_MANIFEST.md`, creating the file with its header on first use. The skill proceeds with local grounding while the egress decision is pending — momentum on the local work never waits on the network decision. For the full egress model — what the checkpoint asks, how scope is granted, and how the manifest is recorded and validated — see [`07-researcher-egress.md`](../../40 Engineering/Handbook/07-researcher-egress.md).
+This appends one disclosed row (time · tool · host · url · why) to `EGRESS_MANIFEST.md`, creating the file with its header on first use. The skill proceeds with local grounding while the egress decision is pending — momentum on the local work never waits on the network decision. For the full egress model — what the checkpoint asks, how scope is granted, and how the manifest is recorded and validated — see [`07-researcher-egress.md`](../40 Engineering/Handbook/07-researcher-egress.md).
 
 #### Phase 1 — Ground in *our* code (requirements & constraints)
 
-Before judging any candidate, `library-eval` derives *your* truth from the code, citing `file:line` and tiering each claim ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md) Phase 1). This grounded requirements set is the rubric every candidate is scored against — an ungrounded criterion is SPECULATIVE.
+Before judging any candidate, `library-eval` derives *your* truth from the code, citing `file:line` and tiering each claim ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) Phase 1). This grounded requirements set is the rubric every candidate is scored against — an ungrounded criterion is SPECULATIVE.
 
 For our retry decision that means reading the real call sites and asking:
 
@@ -105,22 +105,22 @@ The status quo is now a documented, cited baseline — not a vibe.
 
 #### Phase 2 — Gather each candidate's real capabilities *(verify against the version, not memory)*
 
-For each candidate the skill establishes what it *actually* does, never asserting from training memory ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md) Phase 2):
+For each candidate the skill establishes what it *actually* does, never asserting from training memory ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) Phase 2):
 
 - **Library A (installed):** read the *installed version's* docs/types/source via `lib-docs.mjs` — primary, zero-egress, version-accurate. It cites the installed version, not "latest."
-- **Library B (web-only):** *only after the Phase 0 opt-in*, it composes the `deep-research` skill (fan-out search → fetch → adversarial verify) to gather B's own primary docs, repository, release notes, and license — recording **every** external request in the manifest as it goes, and triangulating (the project's own primary docs beat a secondary write-up; two independent secondaries beat one). Note: `deep-research` is **not** a skill bundled in this repo — it is an external Claude Code capability the researcher composes for the opt-in web leg when one is connected, and is skipped otherwise ([`README.md`](../../../plugins/researcher/README.md) line 7, [`CONVENTIONS.md`](../../../plugins/researcher/CONVENTIONS.md) §2); it is the only named skill in this walkthrough not defined under a `plugins/*/skills/` directory here.
+- **Library B (web-only):** *only after the Phase 0 opt-in*, it composes the `deep-research` skill (fan-out search → fetch → adversarial verify) to gather B's own primary docs, repository, release notes, and license — recording **every** external request in the manifest as it goes, and triangulating (the project's own primary docs beat a secondary write-up; two independent secondaries beat one). Note: `deep-research` is **not** a skill bundled in this repo — it is an external Claude Code capability the researcher composes for the opt-in web leg when one is connected, and is skipped otherwise ([`README.md`](../../plugins/researcher/README.md) line 7, [`CONVENTIONS.md`](../../plugins/researcher/CONVENTIONS.md) §2); it is the only named skill in this walkthrough not defined under a `plugins/*/skills/` directory here.
 - **Build-it-ourselves:** it scopes the minimal home-grown helper against the Phase 1 requirements — what you would own, test, and maintain.
 
 Each capability claim is pinned to its source (installed-doc reference, or external source + its manifest entry) and tiered. Anything it cannot verify against the actual version is marked `UNVERIFIED` rather than guessed.
 
 #### Phase 3 — Score against the criteria + disconfirm
 
-The skill scores every candidate against the Phase 1 criteria, then runs the **disconfirmation pass** so the recommendation survives scrutiny ([`CONVENTIONS.md`](../../../plugins/researcher/CONVENTIONS.md) §A; weighting by value × reach ÷ effort, adjusted for confidence/grounding, §8). It covers the dimensions that sink real adoptions — each cited and tiered ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md) Phase 3):
+The skill scores every candidate against the Phase 1 criteria, then runs the **disconfirmation pass** so the recommendation survives scrutiny ([`CONVENTIONS.md`](../../plugins/researcher/CONVENTIONS.md) §A; weighting by value × reach ÷ effort, adjusted for confidence/grounding, §8). It covers the dimensions that sink real adoptions — each cited and tiered ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) Phase 3):
 
 - **Fit & coverage** — does it meet *our* grounded requirements, or only the generic case? What glue would we still write?
 - **Maintenance health** — release cadence, open-issue/PR signal, bus factor, last-release recency (from the candidate's own repo, recorded if external).
 - **License** — compatibility with ours and our distribution; copyleft/attribution/field-of-use flagged as a developer decision.
-- **Supply-chain & egress trust** — transitive-dependency weight, install scripts, maintainer/provenance signals, telemetry or any new outbound path. Anything touching this suite's trust surface is **handed to** [`privacy-opsec-suite:supply-chain-trust`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md) rather than asserted here.
+- **Supply-chain & egress trust** — transitive-dependency weight, install scripts, maintainer/provenance signals, telemetry or any new outbound path. Anything touching this suite's trust surface is **handed to** [`privacy-opsec-suite:supply-chain-trust`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) rather than asserted here.
 - **Migration cost** — the concrete work to wire it into the Phase 1 seam: code churn at the four call sites, data/contract migration, test changes, rollout/rollback. It states the **smallest adoption slice** (one module behind a seam) before any wholesale switch.
 - **Lock-in & reversibility** — how hard to back out later; proprietary formats, one-way doors.
 
@@ -128,7 +128,7 @@ Any candidate or claim that does not survive is dropped or re-tiered: already ef
 
 #### Phase 4 — Recommendation with trade-offs + smallest slice
 
-`library-eval` synthesizes `LIBRARY_EVAL.md` to the §13 standard, **recommendation-first** ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md) Phase 4):
+`library-eval` synthesizes `LIBRARY_EVAL.md` to the §13 standard, **recommendation-first** ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) Phase 4):
 
 - the **recommendation in one paragraph** — which option, the decisive trade-off, and the overall tier (CONFIRMED / PROBABLE / SPECULATIVE);
 - a side-by-side **comparison table** of candidates against the weighted criteria;
@@ -141,7 +141,7 @@ Every sentence is cited and tiered, honest about confidence, and freshness-stamp
 node ${CLAUDE_PLUGIN_ROOT}/scripts/research-manifest.mjs validate LIBRARY_EVAL.md
 ```
 
-If `LIBRARY_EVAL.md` cites any `http(s)` host that is not present in `EGRESS_MANIFEST.md`, the script prints the offending citation and **exits non-zero** — publishing is blocked until you either record the request or remove the citation. A purely local-only evaluation (no web citations at all) passes this check trivially — that is the default, private path. The brief is "done" only when its reader could act without re-researching ([`CONVENTIONS.md`](../../../plugins/researcher/CONVENTIONS.md) §11).
+If `LIBRARY_EVAL.md` cites any `http(s)` host that is not present in `EGRESS_MANIFEST.md`, the script prints the offending citation and **exits non-zero** — publishing is blocked until you either record the request or remove the citation. A purely local-only evaluation (no web citations at all) passes this check trivially — that is the default, private path. The brief is "done" only when its reader could act without re-researching ([`CONVENTIONS.md`](../../plugins/researcher/CONVENTIONS.md) §11).
 
 > **A worked snippet of the recommendation head** (synthetic, to show the shape):
 >
@@ -178,7 +178,7 @@ The brief is strong, but it carries at least one PROBABLE, partly-secondary clai
 
 and hand it `LIBRARY_EVAL.md`.
 
-**Mode:** REVIEW · **Produces:** a per-claim verdict report that **gates** the recommendation before hand-off. **Edits code:** never; it edits neither the artifact nor the code ([`research-verify/SKILL.md`](../../../plugins/researcher/skills/research-verify/SKILL.md)).
+**Mode:** REVIEW · **Produces:** a per-claim verdict report that **gates** the recommendation before hand-off. **Edits code:** never; it edits neither the artifact nor the code ([`research-verify/SKILL.md`](../../plugins/researcher/skills/research-verify/SKILL.md)).
 
 The five phases, applied to our brief:
 
@@ -188,7 +188,7 @@ The five phases, applied to our brief:
   node ${CLAUDE_PLUGIN_ROOT}/scripts/research-manifest.mjs validate LIBRARY_EVAL.md
   ```
 
-  Any external claim without a manifest entry — or any cited web host missing from `EGRESS_MANIFEST.md` — is **undisclosed egress**: it is recorded as a finding and the artifact is treated as *failing intake* until resolved ([`research-verify/SKILL.md`](../../../plugins/researcher/skills/research-verify/SKILL.md) Phase 0). The checkpoint also states plainly which claims can be verified fully locally versus which would need fresh web egress, and confirms opt-in and scope before Phase 2 touches the network — defaulting to local-only if you do not approve.
+  Any external claim without a manifest entry — or any cited web host missing from `EGRESS_MANIFEST.md` — is **undisclosed egress**: it is recorded as a finding and the artifact is treated as *failing intake* until resolved ([`research-verify/SKILL.md`](../../plugins/researcher/skills/research-verify/SKILL.md) Phase 0). The checkpoint also states plainly which claims can be verified fully locally versus which would need fresh web egress, and confirms opt-in and scope before Phase 2 touches the network — defaulting to local-only if you do not approve.
 
 - **Phase 1 — Ground-check against our code.** For every claim it asks the grounding question: *does this actually hold for our code, given our constraints?* A recommendation that is "already done" or "incompatible with our stack" fails this phase no matter how well-sourced. (Here: re-read `charge.ts:88` and confirm A's API truly maps onto the real error types — not a different error shape than the brief assumed.)
 
@@ -210,14 +210,14 @@ The verdict is clear and the recommendation is grounded, verified, and SHA-stamp
 
 and hand it the verified `LIBRARY_EVAL.md`.
 
-The `adr` skill captures the *why* behind the decision in the standard **context / options / decision / consequences** form ([`plugins/code-ops-suite/skills/adr/SKILL.md`](../../../plugins/code-ops-suite/skills/adr/SKILL.md)). `library-eval` did the hard part for it:
+The `adr` skill captures the *why* behind the decision in the standard **context / options / decision / consequences** form ([`plugins/code-ops-suite/skills/adr/SKILL.md`](../../plugins/code-ops-suite/skills/adr/SKILL.md)). `library-eval` did the hard part for it:
 
 - **Context** ← the Phase 1 grounded need and constraints (the four drifting call sites, the version/egress posture).
 - **Options considered** ← the candidate set, including the *rejected alternatives* — library B and build-it-ourselves — and **why-not**, which an ADR specifically wants on the record.
 - **Decision** ← the recommendation paragraph (adopt A, the decisive trade-off, the tier).
 - **Consequences** ← the accepted risks/trade-offs and the migration cost.
 
-The ADR is a **document**, not the integration. The actual adoption — wiring A into the seam and any version bump — is a *further* hand-off to `code-ops-suite:dependency-upgrade`, and the flagged trust/egress concern on B (if you ever revisit it) routes to `privacy-opsec-suite:supply-chain-trust` ([`library-eval/SKILL.md`](../../../plugins/researcher/skills/library-eval/SKILL.md) "Hand-off"). At no point did `researcher` touch your source — it framed, grounded, evaluated, verified, and proposed.
+The ADR is a **document**, not the integration. The actual adoption — wiring A into the seam and any version bump — is a *further* hand-off to `code-ops-suite:dependency-upgrade`, and the flagged trust/egress concern on B (if you ever revisit it) routes to `privacy-opsec-suite:supply-chain-trust` ([`library-eval/SKILL.md`](../../plugins/researcher/skills/library-eval/SKILL.md) "Hand-off"). At no point did `researcher` touch your source — it framed, grounded, evaluated, verified, and proposed.
 
 ---
 
@@ -253,11 +253,11 @@ flowchart TB
 
 ## See also
 
-- [The researcher egress model](../../40 Engineering/Handbook/07-researcher-egress.md) — the Phase-0 checkpoint, `EGRESS_MANIFEST.md`, and the fail-closed `research-manifest.mjs validate` gate in full.
-- [Command reference — researcher](../../40 Engineering/Handbook/commands/researcher.md) — every researcher skill, phase by phase, with prerequisites and hand-offs.
-- [Mental model](../../40 Engineering/Handbook/02-mental-model.md) — where the PROPOSAL layer sits among the four plugins.
-- [Evidence and tiers](../../40 Engineering/Handbook/05-evidence-and-tiers.md) — CONFIRMED / PROBABLE / SPECULATIVE and the disconfirmation pass.
-- [Choosing an automation level](../../40 Engineering/Techniques/choosing-an-automation-level.md) — the gated / auto-safe / auto-all ladder for the hand-off skills.
+- [The researcher egress model](../40 Engineering/Handbook/07-researcher-egress.md) — the Phase-0 checkpoint, `EGRESS_MANIFEST.md`, and the fail-closed `research-manifest.mjs validate` gate in full.
+- [Command reference — researcher](../40 Engineering/Handbook/commands/researcher.md) — every researcher skill, phase by phase, with prerequisites and hand-offs.
+- [Mental model](../40 Engineering/Handbook/02-mental-model.md) — where the PROPOSAL layer sits among the four plugins.
+- [Evidence and tiers](../40 Engineering/Handbook/05-evidence-and-tiers.md) — CONFIRMED / PROBABLE / SPECULATIVE and the disconfirmation pass.
+- [Choosing an automation level](../40 Engineering/Techniques/choosing-an-automation-level.md) — the gated / auto-safe / auto-all ladder for the hand-off skills.
 - [Ship a verified fix](ship-a-verified-fix.md) — once the ADR is recorded and the adoption is built, this is how it lands as a clean PR.
 
 *Verified-at: c2b37e9*

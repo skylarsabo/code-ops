@@ -2,7 +2,7 @@
 
 `everything` is the cross-plugin superset orchestrator: it runs every workflow across all three engineering plugins — `code-ops-suite`, `rigor`, and `privacy-opsec-suite` — as one deduplicated, register-carrying pipeline, pausing at phase boundaries for your decisions. It is the most thorough and the most token-expensive option in the suite, and it **never auto-merges**.
 
-This guide walks the run end to end so you know what each phase does, which register it touches, and what each checkpoint actually decides. The authoritative source is [`plugins/code-ops-suite/skills/everything/SKILL.md`](../../../plugins/code-ops-suite/skills/everything/SKILL.md); this is the narrative companion to it.
+This guide walks the run end to end so you know what each phase does, which register it touches, and what each checkpoint actually decides. The authoritative source is [`plugins/code-ops-suite/skills/everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md); this is the narrative companion to it.
 
 ---
 
@@ -51,9 +51,9 @@ flowchart TD
 `everything` is the **spine** plugin (`code-ops-suite`) reaching across the **verification** layer (`rigor`) and the **anonymity track** (`privacy-opsec-suite`) and running them as one pipeline. The orchestrator itself lives in `code-ops-suite`, but it loads and applies the methodology of all three:
 
 - It first reads `code-ops-suite`'s `CONVENTIONS.md`, then also loads the `CONVENTIONS.md` and the relevant skill files from `rigor` and `privacy-opsec-suite`, so each phase applies its governing methodology.
-- In particular it applies **rigor's verification-first rules** throughout: evidence tiers (CONFIRMED / PROBABLE / SPECULATIVE), the disconfirmation pass, ground-truth-first, and the regression guard. See [`code-ops-docs/40 Engineering/Handbook/05-evidence-and-tiers.md`](../../40 Engineering/Handbook/05-evidence-and-tiers.md) and [`code-ops-docs/40 Engineering/Techniques/disconfirmation-pass.md`](../../40 Engineering/Techniques/disconfirmation-pass.md).
+- In particular it applies **rigor's verification-first rules** throughout: evidence tiers (CONFIRMED / PROBABLE / SPECULATIVE), the disconfirmation pass, ground-truth-first, and the regression guard. See [`code-ops-docs/40 Engineering/Handbook/05-evidence-and-tiers.md`](../40 Engineering/Handbook/05-evidence-and-tiers.md) and [`code-ops-docs/40 Engineering/Techniques/disconfirmation-pass.md`](../40 Engineering/Techniques/disconfirmation-pass.md).
 
-The shared backbone all three obey — developer-in-the-loop, evidence at `file:line`, behavior preservation, registers as single source of truth with `Verified-at <sha>` freshness, and the gated / auto-safe / auto-all automation ladder — is what lets the orchestrator hand findings cleanly between phases without re-deriving them. For the registers and the freshness discipline this run leans on heavily, see [`code-ops-docs/40 Engineering/Handbook/04-registers-and-freshness.md`](../../40 Engineering/Handbook/04-registers-and-freshness.md).
+The shared backbone all three obey — developer-in-the-loop, evidence at `file:line`, behavior preservation, registers as single source of truth with `Verified-at <sha>` freshness, and the gated / auto-safe / auto-all automation ladder — is what lets the orchestrator hand findings cleanly between phases without re-deriving them. For the registers and the freshness discipline this run leans on heavily, see [`code-ops-docs/40 Engineering/Handbook/04-registers-and-freshness.md`](../40 Engineering/Handbook/04-registers-and-freshness.md).
 
 ---
 
@@ -63,7 +63,7 @@ This is where you steer the entire run, and it is a mandatory checkpoint. The or
 
 1. **Scope** — the whole repo, or the riskiest subsystems first. Subsystems-first is recommended for large repos, because bug-hunting goes deep per subsystem and that depth is expensive.
 2. **Privacy track** — include the privacy-opsec phases (Phase 4) or not. Yes if the project has anonymity/opsec requirements; otherwise skip them and the leak register never opens.
-3. **Remediation automation level** — the canonical ladder (`code-ops §4`), applied with rigor's tier gate (`rigor §4` / `§H`). This governs every code-changing phase. See [`code-ops-docs/40 Engineering/Techniques/choosing-an-automation-level.md`](../../40 Engineering/Techniques/choosing-an-automation-level.md).
+3. **Remediation automation level** — the canonical ladder (`code-ops §4`), applied with rigor's tier gate (`rigor §4` / `§H`). This governs every code-changing phase. See [`code-ops-docs/40 Engineering/Techniques/choosing-an-automation-level.md`](../40 Engineering/Techniques/choosing-an-automation-level.md).
    - `gated` *(default)* — pause for your approval at each fix/closure batch.
    - `auto-safe` *(recommended ceiling)* — automatically apply **CONFIRMED + NOW-SAFE** fixes (each on a branch, each carrying a failing→passing regression test, each passing the regression guard); pause only for NEEDS-REVIEW, NEEDS-DESIGN, and the always-gated categories.
    - `auto-all` — *not recommended*; even here the always-gated categories still stop, and NEEDS-DESIGN is never auto-applied.
@@ -226,10 +226,10 @@ The run is complete when every in-scope phase is done; CONFIRMED bugs are fixed 
 
 - **Use `everything`** when you want the most exhaustive, end-to-end pass across all three plugins on a whole repo or its riskiest subsystems, and you are prepared for the cost. It is the cross-plugin superset.
 - **Use `code-ops-suite:full-sweep`** instead when you want the spine plugin's pipeline only — intra-plugin, no rigor verification layer or privacy track. Cheaper and narrower.
-- **Use `code-ops-suite:ship`** for one change (a feature or a one-off) end to end at full rigor, rather than a whole-repo sweep. See [`code-ops-docs/70 Guides/Guides/ship-a-verified-fix.md`](ship-a-verified-fix.md).
+- **Use `code-ops-suite:ship`** for one change (a feature or a one-off) end to end at full rigor, rather than a whole-repo sweep. See [`code-ops-docs/70 Guides/ship-a-verified-fix.md`](ship-a-verified-fix.md).
 - **Use `code-ops-suite:debug`** to drive a single bug from symptom to a proven root-cause fix.
 
-For the full task→command router and per-command detail, see [`code-ops-docs/40 Engineering/Handbook/commands/README.md`](../../40 Engineering/Handbook/commands/README.md). For how the orchestrators compare on phases and relative cost, see [`code-ops-docs/40 Engineering/Handbook/03-orchestrators.md`](../../40 Engineering/Handbook/03-orchestrators.md).
+For the full task→command router and per-command detail, see [`code-ops-docs/40 Engineering/Handbook/commands/README.md`](../40 Engineering/Handbook/commands/README.md). For how the orchestrators compare on phases and relative cost, see [`code-ops-docs/40 Engineering/Handbook/03-orchestrators.md`](../40 Engineering/Handbook/03-orchestrators.md).
 
 ---
 

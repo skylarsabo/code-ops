@@ -1,7 +1,7 @@
 ---
 type: home
 status: current
-updated: 2026-08-18
+updated: 2026-08-24
 tags:
   - meta
 ---
@@ -36,6 +36,7 @@ The code-ops profile waives `30 Ops/`, because this repo operates no service.
 | [40 Engineering/Handbook/README.md](40%20Engineering/Handbook/README.md) | Doctrine and command reference. |
 | [40 Engineering/Techniques/](40%20Engineering/Techniques/) | Engineering methods and standards. |
 | [20 Decisions/ADRs/](20%20Decisions/ADRs/) | Published ADRs. |
+| [70 Guides/](70%20Guides/) | Task-oriented implementation and review guides. |
 | [98 System/Atlas/](98%20System/Atlas/) | Machine-checked judgment cache. |
 | [../evals/README.md](../evals/README.md) | Regression evals and the calibration channel. |
 

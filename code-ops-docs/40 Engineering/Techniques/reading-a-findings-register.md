@@ -77,7 +77,7 @@ What each field is *for*:
 | **Effort** | Size of the fix | The `÷ effort` term of the priority score. |
 | **Risk-if-fixed** | Blast radius of *the change itself* | A low-value, high-risk fix may be deferred even if cheap. |
 
-> Some fields are commonly inlined or abbreviated in real registers (see `docs/code-ops-run/2026-06-22/FINDINGS_REGISTER.md` for live examples where `Proof`, `Root cause`, `Siblings`, and `Fix` stand in for `Evidence`/`Recommendation`). The schema is the contract; the layout flexes. If a field is genuinely unknown, expect it marked `UNVERIFIED` with what would confirm it (`§9`).
+> Some fields are commonly inlined or abbreviated in registers. `Proof`, `Root cause`, `Siblings`, and `Fix` can stand in for `Evidence` and `Recommendation`. The schema is the contract; the layout flexes. If a field is genuinely unknown, mark it `UNVERIFIED` with what would confirm it (`§9`).
 
 ---
 
@@ -106,7 +106,7 @@ A good register **leads with a ranked "top N highest-value"** (`codebase-audit` 
 
 In practice:
 
-1. **Apply the severity floor first.** Every `critical` outranks every `high`, which outranks every `medium`, and so on. `critical` items (data loss/leak, security breach, corruption) are surfaced immediately and never buried under a cheap-but-trivial win. In the live example register, `SEC-003` (an RCE in a shipped plugin) sits at the top for exactly this reason.
+1. **Apply the severity floor first.** Every `critical` outranks every `high`, which outranks every `medium`, and so on. `critical` items (data loss/leak, security breach, corruption) are surfaced immediately and never buried under a cheap-but-trivial win. In the illustrative register below, `SEC-003` sits at the top for this reason.
 2. **Within a severity band, score `impact × reach ÷ effort`.** A `high` that hits every endpoint and takes an hour beats a `high` that hits one rarely-used path and takes a week.
 3. **Weight by confidence and tier.** A `PROBABLE` with `low` confidence drops below a `CONFIRMED` of equal nominal score — you'd spend effort confirming it before you could even act.
 4. **Sanity-check `Risk-if-fixed`.** A cheap fix with high blast radius (touches a public contract, a migration, an auth path) is not actually cheap — it carries review and rollout cost. Defer or escalate it rather than treating it as a quick win.
@@ -154,7 +154,7 @@ A register is a *live* backlog, and the proven failure mode is a register that r
 
    It exits non-zero if any item is `MOVED`/`DRIFTED`/`GONE`/`AMBIGUOUS`/`NO-REF` (re-triage needed), unless `--report-only`. A `Verified-at` sha that differs from HEAD is reported as a **non-gating advisory** — a nudge to re-confirm, not a failure; so is an `Anchor:` whose value is not backtick- or quote-delimited (unparseable, so its `DRIFTED` check is skipped). A non-`FRESH` item is **re-triaged, never silently re-shown**.
 
-Resolved findings are not deleted — they're stamped `OBSOLETE-AT <sha>` so the history stays auditable (see the `RESOLUTION` note at the top of `docs/code-ops-run/2026-06-22/FINDINGS_REGISTER.md`).
+Resolved findings are not deleted. Stamp them `OBSOLETE-AT <sha>` so the history stays auditable.
 
 ---
 

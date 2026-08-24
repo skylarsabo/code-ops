@@ -1,6 +1,6 @@
 # Ship a Verified Fix
 
-> A narrative walkthrough of taking **one** change — a feature or a one-off — from intent to a clean, proven, trace-free pull request with [`/code-ops-suite:ship`](../../40 Engineering/Handbook/commands/code-ops-suite.md). This is the single-change counterpart to the broad orchestrators; where [`everything`](the-everything-pass.md) sweeps a whole repo, `ship` drives exactly one change end to end at full rigor.
+> A narrative walkthrough of taking **one** change — a feature or a one-off — from intent to a clean, proven, trace-free pull request with [`/code-ops-suite:ship`](../40 Engineering/Handbook/commands/code-ops-suite.md). This is the single-change counterpart to the broad orchestrators; where [`everything`](the-everything-pass.md) sweeps a whole repo, `ship` drives exactly one change end to end at full rigor.
 
 ## Exec summary (stop here if you just want the shape)
 
@@ -10,12 +10,12 @@ You have one change to make and you want it *done* — not "the code compiles," 
 
 | Phase | What happens | Composes | Checkpoint? |
 |------|--------------|----------|-------------|
-| 0 · Scope & design-check | Detect stack, take a baseline, size the change, set the automation level | [`rigor:ground-truth`](../../40 Engineering/Handbook/commands/rigor.md) | Yes |
-| 1 · Safety net | Pin current behavior where coverage is thin | [`rigor:safety-net`](../../40 Engineering/Handbook/commands/rigor.md) | Conditional |
+| 0 · Scope & design-check | Detect stack, take a baseline, size the change, set the automation level | [`rigor:ground-truth`](../40 Engineering/Handbook/commands/rigor.md) | Yes |
+| 1 · Safety net | Pin current behavior where coverage is thin | [`rigor:safety-net`](../40 Engineering/Handbook/commands/rigor.md) | Conditional |
 | 2 · Implement | The smallest correct change, matching repo conventions | implementation loop (`CONVENTIONS §11`) | — |
 | 3 · Prove | Failing→passing test; suite + regression guard green | regression guard (`rigor §H`) | — |
-| 4 · Privacy gate | Block any new leak/egress/identifier; fail-closed preserved | [`privacy-opsec-suite:opsec-pr-gate`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Conditional |
-| 5 · Finish traceless | Clean PR or stack, scrubbed of tool trace, scanner green | [`pr-split`](../../40 Engineering/Handbook/commands/code-ops-suite.md) + [`authorship-hygiene`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Yes (before push) |
+| 4 · Privacy gate | Block any new leak/egress/identifier; fail-closed preserved | [`privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Conditional |
+| 5 · Finish traceless | Clean PR or stack, scrubbed of tool trace, scanner green | [`pr-split`](../40 Engineering/Handbook/commands/code-ops-suite.md) + [`authorship-hygiene`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Yes (before push) |
 
 Two hard rules to remember before you read further:
 
@@ -38,7 +38,7 @@ and hand it that intent (a ticket, a request, or a one-line description all work
 
 ### Phase 0 — Scope & design-check *(checkpoint)*
 
-The first thing `ship` does is **not** write code. It establishes ground truth. It detects the stack, then runs [`/rigor:ground-truth`](../../40 Engineering/Handbook/commands/rigor.md) to capture the factual baseline — build/typecheck, lint, the test suite with a coverage map, and any static analysis — recorded as facts in `GROUND_TRUTH.md`, with a **blind-spot list** of modules that have little or no coverage. This is the "ground-truth-first" rule of the shared backbone: you measure the world before you change it, so later you can prove *what your change did* rather than guessing.
+The first thing `ship` does is **not** write code. It establishes ground truth. It detects the stack, then runs [`/rigor:ground-truth`](../40 Engineering/Handbook/commands/rigor.md) to capture the factual baseline — build/typecheck, lint, the test suite with a coverage map, and any static analysis — recorded as facts in `GROUND_TRUTH.md`, with a **blind-spot list** of modules that have little or no coverage. This is the "ground-truth-first" rule of the shared backbone: you measure the world before you change it, so later you can prove *what your change did* rather than guessing.
 
 It then learns the repo's own conventions (so the change reads native, not imposed) and **sizes the change**. This is the fork in the road:
 
@@ -59,7 +59,7 @@ The **always-gated** categories hold regardless of level: security/auth changes,
 
 This phase fires only if the change touches code with **thin coverage** — and Phase 0's blind-spot list is exactly how `ship` knows. Our export endpoint, it turns out, has happy-path tests but nothing exercising the page-boundary math. That is a blind spot.
 
-So `ship` runs [`/rigor:safety-net`](../../40 Engineering/Handbook/commands/rigor.md), which writes **characterization tests** that lock the *current observable behavior* of the target — including its current quirks, because the job here is to pin behavior, not to assert correctness — and runs them **green against the current code**. Critically, if `safety-net` notices the very bug you're about to fix, it does **not** fix it; it records it in `FINDINGS_REGISTER.md` as a candidate and leaves the fix for Phase 2/3. The net's purpose is to give the regression guard (Phase 3) something concrete to protect, so your change can be proven *behavior-preserving everywhere except where you intended to change behavior.*
+So `ship` runs [`/rigor:safety-net`](../40 Engineering/Handbook/commands/rigor.md), which writes **characterization tests** that lock the *current observable behavior* of the target — including its current quirks, because the job here is to pin behavior, not to assert correctness — and runs them **green against the current code**. Critically, if `safety-net` notices the very bug you're about to fix, it does **not** fix it; it records it in `FINDINGS_REGISTER.md` as a candidate and leaves the fix for Phase 2/3. The net's purpose is to give the regression guard (Phase 3) something concrete to protect, so your change can be proven *behavior-preserving everywhere except where you intended to change behavior.*
 
 If the target already had solid coverage, `ship` skips this phase. Scale every phase to the change — a one-off in well-tested code is a light pass.
 
@@ -83,14 +83,14 @@ Three things must be true to leave this phase:
 
 This phase runs only when **both** conditions hold: `privacy-opsec-suite` is installed, **and** the change touches a privacy surface — egress, logging, identifiers, or a default. Our row-fix touches none of those, so for this particular change `ship` skips it. But it is worth knowing what would happen if it didn't.
 
-Suppose the fix had added a log line including the exporting user's ID, or a retry that opened a new outbound request. Then `ship` runs the anonymity track's pre-merge gate ([`/privacy-opsec-suite:opsec-pr-gate`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md)), which treats as **BLOCKING** any new egress path or fail-closed bypass, any new log line touching PII/identifiers/IPs, any new identifier or fingerprint vector, any new correlation surface, any phone-home dependency, or any weakened (less-anonymous) default. Any anonymity regression is surfaced as **blocking** — it does not become an advisory note you can wave through. This is the ANONYMITY TRACK doing its one job: *no new leak ships.*
+Suppose the fix had added a log line including the exporting user's ID, or a retry that opened a new outbound request. Then `ship` runs the anonymity track's pre-merge gate ([`/privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md)), which treats as **BLOCKING** any new egress path or fail-closed bypass, any new log line touching PII/identifiers/IPs, any new identifier or fingerprint vector, any new correlation surface, any phone-home dependency, or any weakened (less-anonymous) default. Any anonymity regression is surfaced as **blocking** — it does not become an advisory note you can wave through. This is the ANONYMITY TRACK doing its one job: *no new leak ships.*
 
 ### Phase 5 — Finish traceless *(checkpoint before push)*
 
 The change is correct and proven. Now it has to *land*, and land clean. `ship` finishes through the **traceless** path:
 
-- If the work warrants a stack of small PRs, it runs [`/code-ops-suite:pr-split`](../../40 Engineering/Handbook/commands/code-ops-suite.md) to carve the branch into independently-green PRs.
-- Otherwise it ships a single PR, scrubbed by [`/privacy-opsec-suite:authorship-hygiene`](../../40 Engineering/Handbook/commands/privacy-opsec-suite.md) — three surfaces: **L1** attribution/tool metadata (mechanical), **L2** prose voice on commits and PR descriptions (matched to your history), and **L3** code-idiom blend-in (behavior-preserving).
+- If the work warrants a stack of small PRs, it runs [`/code-ops-suite:pr-split`](../40 Engineering/Handbook/commands/code-ops-suite.md) to carve the branch into independently-green PRs.
+- Otherwise it ships a single PR, scrubbed by [`/privacy-opsec-suite:authorship-hygiene`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) — three surfaces: **L1** attribution/tool metadata (mechanical), **L2** prose voice on commits and PR descriptions (matched to your history), and **L3** code-idiom blend-in (behavior-preserving).
 
 The mechanical floor under both is the bundled scanner, run **fail-closed**:
 
@@ -137,8 +137,8 @@ flowchart LR
 
 - [Audit a risky subsystem](audit-a-risky-subsystem.md) — the `rigor` journey when you're *investigating* rather than shipping one known change.
 - [The everything pass](the-everything-pass.md) — the whole-repo superset orchestrator, checkpoint by checkpoint.
-- [Orchestrators](../../40 Engineering/Handbook/03-orchestrators.md) — when to reach for `ship` vs `everything` vs `debug`.
-- [Evidence and tiers](../../40 Engineering/Handbook/05-evidence-and-tiers.md) — CONFIRMED / PROBABLE / SPECULATIVE and the disconfirmation pass that underwrite "proven."
-- [Choosing an automation level](../../40 Engineering/Techniques/choosing-an-automation-level.md) — picking `gated` vs `auto-safe` for a run.
+- [Orchestrators](../40 Engineering/Handbook/03-orchestrators.md) — when to reach for `ship` vs `everything` vs `debug`.
+- [Evidence and tiers](../40 Engineering/Handbook/05-evidence-and-tiers.md) — CONFIRMED / PROBABLE / SPECULATIVE and the disconfirmation pass that underwrite "proven."
+- [Choosing an automation level](../40 Engineering/Techniques/choosing-an-automation-level.md) — picking `gated` vs `auto-safe` for a run.
 
 *Verified-at: c2b37e9*

@@ -22,9 +22,10 @@ function buildCase(name, currentBody, ignoredBody = '') {
   mkdirSync(join(root, 'project-docs', '98 System'), { recursive: true });
   mkdirSync(join(root, 'project-docs', 'Reference'), { recursive: true });
   mkdirSync(join(root, 'project-docs', 'Ignored'), { recursive: true });
+  mkdirSync(join(root, 'source', 'Interior Space'), { recursive: true });
   writeFileSync(join(root, 'scripts', 'check-doc-citations.mjs'), readFileSync(SCRIPT));
   writeFileSync(join(root, 'scripts', 'target.mjs'), Array.from({ length: 10 }, (_, i) => `// ${i + 1}`).join('\n') + '\n');
-  writeFileSync(join(root, 'scripts', 'space target.mjs'), '// spaced path\n');
+  writeFileSync(join(root, 'source', 'Interior Space', 'target.mjs'), '// spaced directory\n');
   writeFileSync(join(root, 'project-docs', 'Reference', 'test.md'), currentBody);
   writeFileSync(join(root, 'project-docs', 'Ignored', 'ignored.md'), ignoredBody);
   writeFileSync(join(root, 'project-docs', '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify({ version: 1, hub: 'project-docs', domains: [
@@ -37,7 +38,7 @@ function buildCase(name, currentBody, ignoredBody = '') {
 }
 try {
   {
-    const fixture = buildCase('valid', 'See `scripts/target.mjs:3`, `scripts/target.mjs:2-9`, and `scripts/space target.mjs:1`.\n');
+    const fixture = buildCase('valid', 'See `scripts/target.mjs:3`, `scripts/target.mjs:2-9`, and `source/Interior Space/target.mjs:1`.\n');
     const result = run(fixture.script, fixture.root);
     check('manifest targets pass valid citations', result.status === 0 && result.out.includes('manifest-owned'), result.out);
   }
@@ -55,6 +56,21 @@ try {
     const fixture = buildCase('missing', 'See `scripts/nope.mjs:1`.\n');
     const result = run(fixture.script, fixture.root);
     check('missing citation target fails closed', result.status === 1 && result.out.includes('target file does not exist'), result.out);
+  }
+  {
+    const fixture = buildCase('bracket-missing', 'See [scripts/nope.mjs:1] for details.\n');
+    const result = run(fixture.script, fixture.root);
+    check('bracketed citation is detected', result.status === 1 && result.out.includes('scripts/nope.mjs:1'), result.out);
+  }
+  {
+    const fixture = buildCase('bare-prose', 'See scripts/target.mjs:3 for details.\n');
+    const result = run(fixture.script, fixture.root);
+    check('preceding prose is not swallowed into bare citation', result.status === 0, result.out);
+  }
+  {
+    const fixture = buildCase('spaced-filename', 'A filename with spaces is prose, not a citation: `scripts/missing target.mjs:1`.\n');
+    const result = run(fixture.script, fixture.root);
+    check('spaces are allowed only in interior directory segments', result.status === 0, result.out);
   }
   {
     const fixture = buildCase('fence', '```text\nscripts/nope.mjs:999\n```\n');

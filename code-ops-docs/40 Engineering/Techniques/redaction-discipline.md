@@ -226,7 +226,7 @@ still fully actionable.
 - [Privacy & OpSec primer](../Handbook/06-privacy-opsec-primer.md) — the privacy
   lens, the leak-class labels, and the anonymity & OpSec model this discipline
   serves.
-- [Respond to a suspected leak](../../70 Guides/Guides/respond-to-a-suspected-leak.md) —
+- [Respond to a suspected leak](../../70 Guides/respond-to-a-suspected-leak.md) —
   the end-to-end guide for when the radioactive thing is already loose
   (`leak-incident-response`: triage → contain → scope → plan, without making it
   worse).

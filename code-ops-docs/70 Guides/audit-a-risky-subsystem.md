@@ -4,7 +4,7 @@ You inherited the payments module. It has 4,000 lines, three contributors who ha
 
 This guide is the **rigor journey** for that situation. It is a narrative walk through six `rigor` commands, in order, on one subsystem. Every command name, mode, phase, and produced artifact below is taken from the real plugin source under `plugins/rigor/`.
 
-> **The rigor contract (the one sentence to remember):** *prove it or don't report it; measure it or don't claim it; close it so it can't come back.* See [`plugins/rigor/CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §0.
+> **The rigor contract (the one sentence to remember):** *prove it or don't report it; measure it or don't claim it; close it so it can't come back.* See [`plugins/rigor/CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §0.
 
 ---
 
@@ -24,11 +24,11 @@ review FINDINGS_REGISTER.md → CONFIRMED-led; you triage and bless
 
 Five rules carry the whole journey:
 
-1. **Ground truth before opinion.** Run the toolchain first; treat its output as fact ([`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §C).
-2. **Go deep, not wide.** Point `bug-hunt` at *one* subsystem — hunting a whole repo at once produces blind spots ([`bug-hunt/SKILL.md`](../../../plugins/rigor/skills/bug-hunt/SKILL.md) Phase 0).
-3. **Only CONFIRMED drives a fix.** Every finding carries a tier; inflating one is the cardinal sin ([`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §A).
-4. **Pin behavior before changing it.** `safety-net` makes "behavior-preserving" provable in low-coverage code ([`safety-net/SKILL.md`](../../../plugins/rigor/skills/safety-net/SKILL.md)).
-5. **A fix without a failing-then-passing test is not done.** And it must not break any prior proof ([`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §8, §H).
+1. **Ground truth before opinion.** Run the toolchain first; treat its output as fact ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §C).
+2. **Go deep, not wide.** Point `bug-hunt` at *one* subsystem — hunting a whole repo at once produces blind spots ([`bug-hunt/SKILL.md`](../../plugins/rigor/skills/bug-hunt/SKILL.md) Phase 0).
+3. **Only CONFIRMED drives a fix.** Every finding carries a tier; inflating one is the cardinal sin ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §A).
+4. **Pin behavior before changing it.** `safety-net` makes "behavior-preserving" provable in low-coverage code ([`safety-net/SKILL.md`](../../plugins/rigor/skills/safety-net/SKILL.md)).
+5. **A fix without a failing-then-passing test is not done.** And it must not break any prior proof ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §8, §H).
 
 You can call any command here directly, or the model can route to it per the standard-operating-mode routing card; either way every checkpoint below still applies. The orchestrator `/rigor:rigor-sweep` runs this same sequence end-to-end if you would rather drive it as one pass; this guide does it step by step so you can see and approve each checkpoint.
 
@@ -55,15 +55,15 @@ sequenceDiagram
     FV-->>FR: closed-with-proof; regression guard green
 ```
 
-For the wider mental model of where `rigor` sits among the four plugins, see [`code-ops-docs/40 Engineering/Handbook/02-mental-model.md`](../../40 Engineering/Handbook/02-mental-model.md). For the orchestrators, see [`code-ops-docs/40 Engineering/Handbook/03-orchestrators.md`](../../40 Engineering/Handbook/03-orchestrators.md).
+For the wider mental model of where `rigor` sits among the four plugins, see [`code-ops-docs/40 Engineering/Handbook/02-mental-model.md`](../40 Engineering/Handbook/02-mental-model.md). For the orchestrators, see [`code-ops-docs/40 Engineering/Handbook/03-orchestrators.md`](../40 Engineering/Handbook/03-orchestrators.md).
 
 ---
 
 ## Before you start
 
-- **Work on a branch.** `rigor` commits atomically, references finding IDs, and never breaks the build ([`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §4).
-- **Set the automation level once.** Default is `gated` — pause for approval at each fix batch. For an audit you are triaging by hand, `gated` is correct. `auto-safe` is the recommended ceiling and only ever auto-applies CONFIRMED + NOW-SAFE fixes; security/auth, secrets, data migrations, destructive ops, and public-contract changes are **always gated regardless of level**. See [`code-ops-docs/40 Engineering/Techniques/choosing-an-automation-level.md`](../../40 Engineering/Techniques/choosing-an-automation-level.md) and [`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §4.
-- **Know where artifacts land.** Run artifacts go in a dated folder under your repo's docs location, e.g. `docs/rigor/<date>/`, or the repo root if there is no docs convention ([`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §10). The standard filenames you will see **on this six-command journey**: `GROUND_TRUTH.md`, `TEST_SUITE_REPORT.md`, `FINDINGS_REGISTER.md`, `IMPLEMENTATION_LOG.md`, `EXECUTIVE_SUMMARY.md`. The branch commands (see "Where the journey can branch") add three more from the full §10 set — `CONSISTENCY_REGISTER.md` (consistency-closure), `IMPROVEMENTS_LOG.md` (improve-measured), and `REGRESSION_REPORT.md` (regression-hunt) — for eight standard filenames in all.
+- **Work on a branch.** `rigor` commits atomically, references finding IDs, and never breaks the build ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §4).
+- **Set the automation level once.** Default is `gated` — pause for approval at each fix batch. For an audit you are triaging by hand, `gated` is correct. `auto-safe` is the recommended ceiling and only ever auto-applies CONFIRMED + NOW-SAFE fixes; security/auth, secrets, data migrations, destructive ops, and public-contract changes are **always gated regardless of level**. See [`code-ops-docs/40 Engineering/Techniques/choosing-an-automation-level.md`](../40 Engineering/Techniques/choosing-an-automation-level.md) and [`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §4.
+- **Know where artifacts land.** Run artifacts go in a dated folder under your repo's docs location, e.g. `docs/rigor/<date>/`, or the repo root if there is no docs convention ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §10). The standard filenames you will see **on this six-command journey**: `GROUND_TRUTH.md`, `TEST_SUITE_REPORT.md`, `FINDINGS_REGISTER.md`, `IMPLEMENTATION_LOG.md`, `EXECUTIVE_SUMMARY.md`. The branch commands (see "Where the journey can branch") add three more from the full §10 set — `CONSISTENCY_REGISTER.md` (consistency-closure), `IMPROVEMENTS_LOG.md` (improve-measured), and `REGRESSION_REPORT.md` (regression-hunt) — for eight standard filenames in all.
 
 ---
 
@@ -90,7 +90,7 @@ The deliverable you care about most for a risky subsystem is the **blind-spot li
 
 **Mode:** AUDIT (executes the suite repeatedly + mutation checks; adds hardening tests only). **Produces:** `TEST_SUITE_REPORT.md` + a trust map.
 
-Here is the move most audits skip. Your proofs — repros and regression tests — are only as strong as the suite's ability to detect faults ([`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §F). A green suite is **not** proof until that fault-catching power is established. So before hunting, this skill asks: *what is "green" actually worth here?*
+Here is the move most audits skip. Your proofs — repros and regression tests — are only as strong as the suite's ability to detect faults ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §F). A green suite is **not** proof until that fault-catching power is established. So before hunting, this skill asks: *what is "green" actually worth here?*
 
 Phase 1 establishes that three ways:
 
@@ -119,7 +119,7 @@ The phases, in order:
 - **Phase 0 — Scope (checkpoint):** pick one component/subsystem. The skill is explicit: *go deep, not wide — hunting a whole large repo at once produces blind spots.* Point it at `payments/`, not the repo. It reads `GROUND_TRUTH.md` so it does not re-derive facts or re-flag tool findings.
 - **Phase 1 — Derive intent:** extract the invariants, contracts, and assumptions the code must uphold — from types, docs, tests, and call sites. *Bugs are violations of these.* For payments: "a refund never exceeds the captured amount," "a webhook is processed at most once."
 - **Phase 2 — Hunt:** trace control and data flow end-to-end and probe the correctness lenses (§7) — boundaries, null/empty, ordering, concurrency / races / TOCTOU, error paths, state-machine and contract violations, resource lifecycle, integer/precision, time, encoding. It generates adversarial inputs; where exact correctness is hard to assert, it uses an **oracle** (a reference/prior version, the spec, a parallel implementation, property generators, round-trip/metamorphic relations).
-- **Phase 3 — Prove, then disconfirm (the differentiator):** each candidate gets a failing test/repro on current code → **CONFIRMED** (repro saved); if it cannot be executed it is tiered **PROBABLE** (needs two independent evidence lines) or **SPECULATIVE**. Then the mandatory **disconfirmation pass** (§B) tries to *kill* each finding — is it reachable? handled elsewhere? intentional? already tested? — and drops what dies. See [`code-ops-docs/40 Engineering/Techniques/disconfirmation-pass.md`](../../40 Engineering/Techniques/disconfirmation-pass.md).
+- **Phase 3 — Prove, then disconfirm (the differentiator):** each candidate gets a failing test/repro on current code → **CONFIRMED** (repro saved); if it cannot be executed it is tiered **PROBABLE** (needs two independent evidence lines) or **SPECULATIVE**. Then the mandatory **disconfirmation pass** (§B) tries to *kill* each finding — is it reachable? handled elsewhere? intentional? already tested? — and drops what dies. See [`code-ops-docs/40 Engineering/Techniques/disconfirmation-pass.md`](../40 Engineering/Techniques/disconfirmation-pass.md).
 - **Phase 4 — Root cause & sibling sweep (§G):** for each CONFIRMED bug, trace to the **root cause** (not the symptom) and **search the codebase for siblings** — other sites with the same cause. The goal is to surface the whole *class*.
 
 ### `/rigor:quality-scan` — real issues, high signal
@@ -132,7 +132,7 @@ It targets the maintainability lenses that actually bite — **complexity hotspo
 
 ## Step 4 — Read the consolidated `FINDINGS_REGISTER.md`
 
-Both AUDIT skills above write into one register. It is a **live backlog and single source of truth** with stable IDs that persist across the whole lifecycle (`BUG-007` → register → repro test → commit/PR), per [`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §10. The full schema is §6. Here is a synthetic snippet for the payments audit so you can see the shape:
+Both AUDIT skills above write into one register. It is a **live backlog and single source of truth** with stable IDs that persist across the whole lifecycle (`BUG-007` → register → repro test → commit/PR), per [`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §10. The full schema is §6. Here is a synthetic snippet for the payments audit so you can see the shape:
 
 ```markdown
 # FINDINGS_REGISTER.md   (Verified-at: c2b37e9)
@@ -192,7 +192,7 @@ Both AUDIT skills above write into one register. It is a **live backlog and sing
 
 ### How to read it
 
-- **Tiers gate action.** Only **CONFIRMED** items may drive an automated fix ([`CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) §A). PROBABLE must be reproduced (promoted to CONFIRMED) before it is fixed. SPECULATIVE is a lead, never auto-fixed.
+- **Tiers gate action.** Only **CONFIRMED** items may drive an automated fix ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §A). PROBABLE must be reproduced (promoted to CONFIRMED) before it is fixed. SPECULATIVE is a lead, never auto-fixed.
 - **Tracks tell you *how* to act.** **NOW-SAFE** (CONFIRMED, local, low-risk) is the auto-safe lane. **NEEDS-REVIEW** (behavior-/contract-changing or PROBABLE) needs your eyes. **NEEDS-DESIGN** (architectural) is never auto-applied, even at `auto-all` (§6, §4).
 - **Read CONFIRMED first, ranked by demonstrated blast radius**, not theoretical severity (§D). `BUG-007` (money loss on a hot path, NOW-SAFE) outranks the PROBABLE precision lead.
 - **Check `Verified-at`.** Every entry stamps the sha its proof last passed on. Before acting on the register later, re-confirm freshness — there is a fast pre-filter:
@@ -201,7 +201,7 @@ Both AUDIT skills above write into one register. It is a **live backlog and sing
 node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .
 ```
 
-It reports each item as `FRESH` / `MOVED` / `DRIFTED` / `GONE` / `NO-REF` (with `AMBIGUOUS` for name collisions; `DRIFTED` fires when a cited line no longer contains the finding's delimited `Anchor:` substring; plus a non-gating advisory when an item's `Verified-at` sha differs from current HEAD). Anything not `FRESH` needs re-triage before you act on it. See [`code-ops-docs/40 Engineering/Handbook/04-registers-and-freshness.md`](../../40 Engineering/Handbook/04-registers-and-freshness.md) and the deeper read in [`code-ops-docs/40 Engineering/Techniques/reading-a-findings-register.md`](../../40 Engineering/Techniques/reading-a-findings-register.md). For what each tier means in lived practice, [`code-ops-docs/40 Engineering/Handbook/05-evidence-and-tiers.md`](../../40 Engineering/Handbook/05-evidence-and-tiers.md).
+It reports each item as `FRESH` / `MOVED` / `DRIFTED` / `GONE` / `NO-REF` (with `AMBIGUOUS` for name collisions; `DRIFTED` fires when a cited line no longer contains the finding's delimited `Anchor:` substring; plus a non-gating advisory when an item's `Verified-at` sha differs from current HEAD). Anything not `FRESH` needs re-triage before you act on it. See [`code-ops-docs/40 Engineering/Handbook/04-registers-and-freshness.md`](../40 Engineering/Handbook/04-registers-and-freshness.md) and the deeper read in [`code-ops-docs/40 Engineering/Techniques/reading-a-findings-register.md`](../40 Engineering/Techniques/reading-a-findings-register.md). For what each tier means in lived practice, [`code-ops-docs/40 Engineering/Handbook/05-evidence-and-tiers.md`](../40 Engineering/Handbook/05-evidence-and-tiers.md).
 
 **Your job at this checkpoint:** bless the CONFIRMED items you want fixed. You decide `BUG-007` and `BUG-011` go forward; `BUG-014` stays PROBABLE until reproduced; `Q-003` is routed to `/rigor:consistency-closure` later, not to a fix.
 
@@ -256,7 +256,7 @@ Because `BUG-011` is tracked **NEEDS-REVIEW** (it changes the webhook state mach
 - **Reviewing the resulting PR at the verification bar?** That is `/rigor:deep-review` — it blocks only on CONFIRMED defects/regressions.
 - **Want it all driven as one pass?** `/rigor:rigor-sweep` runs ground-truth → test-suite-audit → bug-hunt + quality-scan → safety-net → (approval) fix-verified → consistency-closure → measured improvements.
 
-To ship the fix as a verified, low-trace PR, continue with [`code-ops-docs/70 Guides/Guides/ship-a-verified-fix.md`](ship-a-verified-fix.md). For the full command reference, see [`code-ops-docs/40 Engineering/Handbook/commands/rigor.md`](../../40 Engineering/Handbook/commands/rigor.md).
+To ship the fix as a verified, low-trace PR, continue with [`code-ops-docs/70 Guides/ship-a-verified-fix.md`](ship-a-verified-fix.md). For the full command reference, see [`code-ops-docs/40 Engineering/Handbook/commands/rigor.md`](../40 Engineering/Handbook/commands/rigor.md).
 
 ---
 

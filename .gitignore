@@ -13,6 +13,11 @@ node_modules/
 
 # local run artifacts in the vault — never tracked (ADR 0001)
 code-ops-docs/80 Runs/
+
+# Retired local-only documentation locations remain ignored for compatibility (ADR 0001).
+docs/specs/
+docs/superpowers/
+docs/code-ops-run/
 # machine-specific Obsidian vault state (the standard's Git section)
 code-ops-docs/.obsidian/workspace.json
 code-ops-docs/.obsidian/workspace-mobile.json

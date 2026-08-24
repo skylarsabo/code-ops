@@ -185,6 +185,13 @@ try {
   ]);
   writeFileSync(join(completed, 'RUN_CONTRACT.json'), JSON.stringify({ version: 1, runId: 'completed', revision: 2, head: 'abc' }));
   writeFileSync(join(completed, 'RUN_CONTRACT_RESULT.json'), JSON.stringify({ version: 1, runId: 'completed', revision: 2, head: 'abc', status: 'PASS' }));
+  const completedV2 = seedRun(lifecycle, '2026-08-03 ship completed-v2', [
+    'D-001 | explorer@claude-sonnet-5 | map v2 | MAP.md | reported',
+    'D-002 | implementer@claude-sonnet-5 | change v2 | diff | reported',
+    'D-003 | reviewer@claude-opus-5 | review v2 | REVIEW.md | reported',
+  ]);
+  writeFileSync(join(completedV2, 'RUN_CONTRACT.json'), JSON.stringify({ version: 2, runId: 'completed-v2', revision: 1, head: 'v2' }));
+  writeFileSync(join(completedV2, 'RUN_CONTRACT_RESULT.json'), JSON.stringify({ version: 1, runId: 'completed-v2', revision: 1, head: 'v2', status: 'PASS' }));
   const live = seedRun(lifecycle, '2026-08-05 ship live', [
     'D-001 | explorer@claude-sonnet-5 | map cache | MAP.md | reported',
     'D-002 | implementer@claude-sonnet-5 | change cache | diff | reported',
@@ -219,7 +226,7 @@ try {
     /CAVEAT — 2 contract-backed run\(s\) have no successful final result/.test(r.stdout)
     && /2026-08-05 ship live/.test(r.stdout) && /2026-08-07 ship stale-result/.test(r.stdout), r.stdout);
   check('r. the machine shape separates live contracts from usable history',
-    rj?.priorRuns === 4 && rj?.comparableRuns === 4 && rj?.usableRuns === 2
+    rj?.priorRuns === 5 && rj?.comparableRuns === 5 && rj?.usableRuns === 3
     && rj?.inProgressRuns === 2, JSON.stringify(rj));
 
   // ---- a zero-row ledger is excluded from the basis, not counted as a 0-cost run ----

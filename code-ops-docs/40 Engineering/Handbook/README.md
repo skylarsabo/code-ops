@@ -55,15 +55,15 @@ The first slice, all under `code-ops-docs/` and tracked in the repo.
 - [commands/researcher.md](commands/researcher.md) — the 7 researcher commands.
 
 **Guides (end-to-end journeys)**
-- [../../70 Guides/Guides/audit-a-risky-subsystem.md](../../70 Guides/Guides/audit-a-risky-subsystem.md) — the rigor journey: ground-truth → test-suite-audit → bug-hunt + quality-scan → safety-net → fix-verified.
-- [../../70 Guides/Guides/ship-a-verified-fix.md](../../70 Guides/Guides/ship-a-verified-fix.md) — `code-ops-suite:ship` across rigor, the privacy gate, and a traceless PR.
-- [../../70 Guides/Guides/the-everything-pass.md](../../70 Guides/Guides/the-everything-pass.md) — the `everything` orchestrator end-to-end, checkpoint by checkpoint.
-- [../../70 Guides/Guides/debug-symptom-to-root-cause.md](../../70 Guides/Guides/debug-symptom-to-root-cause.md) — driving `code-ops-suite:debug` from a live symptom to a proven root-cause fix: reproduce first, fix at the cause, lock it behind a regression test.
-- [../../70 Guides/Guides/harden-anonymity.md](../../70 Guides/Guides/harden-anonymity.md) — the anonymity-track journey through `privacy-opsec-suite:full-sweep`: model, audits, hardening, and docs/gate as one fail-closed pipeline.
-- [../../70 Guides/Guides/respond-to-a-suspected-leak.md](../../70 Guides/Guides/respond-to-a-suspected-leak.md) — the incident journey: `leak-incident-response` then `opsec-hardening`, confirming from redacted evidence and locking the leak shut.
-- [../../70 Guides/Guides/research-a-library-choice.md](../../70 Guides/Guides/research-a-library-choice.md) — an A-vs-B-vs-build decision via `researcher:library-eval` → `research-verify` → `code-ops-suite:adr`, proven before anyone writes code.
-- [../../70 Guides/Guides/wire-ci-gates.md](../../70 Guides/Guides/wire-ci-gates.md) — the hands-on companion to chapter 08: standing up the three per-PR review gates and recurring researcher runs on a repo.
-- [../../70 Guides/Guides/ci-portability.md](../../70 Guides/Guides/ci-portability.md) — running the gates off GitHub: the mechanical validate chain translated to GitLab CI and CircleCI, with the agent-review gates marked as host-specific extension points.
+- [../../70 Guides/audit-a-risky-subsystem.md](../../70 Guides/audit-a-risky-subsystem.md) — the rigor journey: ground-truth → test-suite-audit → bug-hunt + quality-scan → safety-net → fix-verified.
+- [../../70 Guides/ship-a-verified-fix.md](../../70 Guides/ship-a-verified-fix.md) — `code-ops-suite:ship` across rigor, the privacy gate, and a traceless PR.
+- [../../70 Guides/the-everything-pass.md](../../70 Guides/the-everything-pass.md) — the `everything` orchestrator end-to-end, checkpoint by checkpoint.
+- [../../70 Guides/debug-symptom-to-root-cause.md](../../70 Guides/debug-symptom-to-root-cause.md) — driving `code-ops-suite:debug` from a live symptom to a proven root-cause fix: reproduce first, fix at the cause, lock it behind a regression test.
+- [../../70 Guides/harden-anonymity.md](../../70 Guides/harden-anonymity.md) — the anonymity-track journey through `privacy-opsec-suite:full-sweep`: model, audits, hardening, and docs/gate as one fail-closed pipeline.
+- [../../70 Guides/respond-to-a-suspected-leak.md](../../70 Guides/respond-to-a-suspected-leak.md) — the incident journey: `leak-incident-response` then `opsec-hardening`, confirming from redacted evidence and locking the leak shut.
+- [../../70 Guides/research-a-library-choice.md](../../70 Guides/research-a-library-choice.md) — an A-vs-B-vs-build decision via `researcher:library-eval` → `research-verify` → `code-ops-suite:adr`, proven before anyone writes code.
+- [../../70 Guides/wire-ci-gates.md](../../70 Guides/wire-ci-gates.md) — the hands-on companion to chapter 08: standing up the three per-PR review gates and recurring researcher runs on a repo.
+- [../../70 Guides/ci-portability.md](../../70 Guides/ci-portability.md) — running the gates off GitHub: the mechanical validate chain translated to GitLab CI and CircleCI, with the agent-review gates marked as host-specific extension points.
 
 **Techniques (focused how-tos)**
 - [../Techniques/reading-a-findings-register.md](../Techniques/reading-a-findings-register.md) — how to read and act on a findings register.

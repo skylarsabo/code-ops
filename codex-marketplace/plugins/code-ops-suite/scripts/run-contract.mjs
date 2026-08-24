@@ -135,7 +135,7 @@ function validate(c, root) {
   }
   const visiting = new Set(), visited = new Set();
   const visit = (id) => { if (visiting.has(id)) { errors.push(`dependency cycle at ${id}`); return; } if (visited.has(id)) return; visiting.add(id); const unit = byId.get(id); for (const dep of unit?.dependsOn || []) { const parent = byId.get(dep); if (!parent) errors.push(`${id} depends on unknown ${dep}`); else { if (parent.wave >= unit.wave) errors.push(`${id} dependency ${dep} must be in an earlier wave`); visit(dep); } } visiting.delete(id); visited.add(id); };
-  for (const id of byId) visit(id);
+  for (const id of byId.keys()) visit(id);
   return errors;
 }
 

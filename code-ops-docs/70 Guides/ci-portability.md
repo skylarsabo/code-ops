@@ -1,6 +1,6 @@
 # CI Portability
 
-> The suite ships its CI as GitHub Actions workflows, and [08-ci-and-automation.md](../../40 Engineering/Handbook/08-ci-and-automation.md) describes them in GitHub terms. Nothing in the gates is GitHub-specific except the plumbing. This guide translates the per-PR gates to **GitLab CI** and **CircleCI**, and marks exactly where the translation stops.
+> The suite ships its CI as GitHub Actions workflows, and [08-ci-and-automation.md](../40 Engineering/Handbook/08-ci-and-automation.md) describes them in GitHub terms. Nothing in the gates is GitHub-specific except the plumbing. This guide translates the per-PR gates to **GitLab CI** and **CircleCI**, and marks exactly where the translation stops.
 
 ## What ports, and what does not
 
@@ -17,13 +17,13 @@ The mechanical gate is the portable part, and it is also the important part: it 
 
 The agent gates are host-specific for one reason: they run through `anthropics/claude-code-action`, which is a GitHub Action. On another host you supply your own runner step — a container that has the Claude CLI, a credential in the host's secret store, and a way to post a comment through that host's API. That work is outside this repo, so the configs below carry the gate as a commented placeholder rather than a config that pretends to work.
 
-The zero-dependency rule makes the port trivial in both directions: the suite imports only `node:` builtins ([`scripts/check-no-deps.mjs`](../../../scripts/check-no-deps.mjs)), so a job needs a Node image and nothing else — no package install, no lockfile restore, no cache.
+The zero-dependency rule makes the port trivial in both directions: the suite imports only `node:` builtins ([`scripts/check-no-deps.mjs`](../../scripts/check-no-deps.mjs)), so a job needs a Node image and nothing else — no package install, no lockfile restore, no cache.
 
 ---
 
 ## The portable chain
 
-Every host below runs the same commands. Take them from the repo's own workflow ([`.github/workflows/validate.yml`](../../../.github/workflows/validate.yml)) rather than from this page, because that file is the source of truth and it grows. The core, in order:
+Every host below runs the same commands. Take them from the repo's own workflow ([`.github/workflows/validate.yml`](../../.github/workflows/validate.yml)) rather than from this page, because that file is the source of truth and it grows. The core, in order:
 
 ```bash
 node scripts/lint-plugins.mjs
@@ -168,10 +168,10 @@ Set the credential as an environment variable in a **Context**, not per project,
 
 ## Related
 
-- [08 · CI and automation](../../40 Engineering/Handbook/08-ci-and-automation.md) — the full gate inventory and what each one blocks.
+- [08 · CI and automation](../40 Engineering/Handbook/08-ci-and-automation.md) — the full gate inventory and what each one blocks.
 - [Wire CI gates](wire-ci-gates.md) — the GitHub walkthrough this guide mirrors.
-- [Choosing an automation level](../../40 Engineering/Techniques/choosing-an-automation-level.md) — `gated` / `auto-safe` / `auto-all` and the always-gated floor.
-- [The evals directory](../../../evals/README.md) — the harnesses the mechanical gate runs.
+- [Choosing an automation level](../40 Engineering/Techniques/choosing-an-automation-level.md) — `gated` / `auto-safe` / `auto-all` and the always-gated floor.
+- [The evals directory](../../evals/README.md) — the harnesses the mechanical gate runs.
 
 ---
 

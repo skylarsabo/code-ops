@@ -7,7 +7,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST_SUFFIX = '/98 System/DOCS_MANIFEST.json';
-const CITE_RE = /(?:^|[\s(`"'])((?:[A-Za-z0-9_.-]+(?: [A-Za-z0-9_.-]+)*\/)+[A-Za-z0-9_.-]+(?: [A-Za-z0-9_.-]+)*\.(?:mjs|js|md|yml|yaml|json)):([0-9]+)(?:-([0-9]+))?(?=$|[\s`)\]"'.,;:])/g;
+// The first path segment and filename stay space-free. Only interior directory segments
+// may contain spaces (for example `code-ops-docs/40 Engineering/Techniques/file.md`).
+// Keeping the first segment space-free prevents ordinary prose such as "See scripts/..."
+// from being swallowed into the citation path. `[` is a valid left delimiter so bracketed
+// citations receive the same validation as backticked and bare citations.
+const CITE_RE = /(?:^|[\s\[(`"'])((?:[A-Za-z0-9_.-]+\/)(?:(?:[A-Za-z0-9_.-]+(?: [A-Za-z0-9_.-]+)*)\/)*[A-Za-z0-9_.-]+\.(?:mjs|js|md|yml|yaml|json)):([0-9]+)(?:-([0-9]+))?(?=$|[\s`)\]"'.,;:])/g;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
 function gitPaths(args) {
   return execFileSync('git', args, { cwd: ROOT, timeout: 10000, maxBuffer: 64 * 1024 * 1024 })

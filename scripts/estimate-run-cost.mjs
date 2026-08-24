@@ -125,7 +125,7 @@ function readRun(ledgerPath) {
       const contract = JSON.parse(readFileSync(contractPath, 'utf8'));
       const result = JSON.parse(readFileSync(resultPath, 'utf8'));
       finalized = result.status === 'PASS'
-        && result.version === contract.version
+        && result.version === 1
         && typeof contract.runId === 'string'
         && result.runId === contract.runId
         && result.revision === contract.revision

@@ -124,6 +124,7 @@ if (command === 'build') {
     const { contract, unit, receipt } = loadBinding(root, contractPath, f['--unit']);
     rmSync(markerPath(out, 'BROAD_CONTEXT_REQUIRED'), { force: true });
     rmSync(markerPath(out, 'BUDGET_EXCEEDED'), { force: true });
+    rmSync(markerPath(out, 'EMPTY_SCOPE'), { force: true });
     const outputRelative = repoRelative(dirname(contractPath), out);
     if (!scopeMatches([contract.context.bundleDir], outputRelative)) throw new Error('bundle output must be inside contract context.bundleDir');
     const entry = cacheEntryPath(resolve(f['--cache']), receipt.snapshotId);
@@ -134,6 +135,10 @@ if (command === 'build') {
     const repoMap = parseRepoMap(readFileSync(resolve(entry, meta.payloads.repoMap.file), 'utf8'));
     const graph = parseImportGraph(readFileSync(resolve(entry, meta.payloads.importGraph.file), 'utf8'), repoMap.files.map((file) => file.path));
     const scoped = repoMap.files.filter((file) => scopeMatches(unit.scope, file.path));
+    if (scoped.length === 0) {
+      writeFailure(out, 'EMPTY_SCOPE', { version: 1, unitId: unit.id, scope: unit.scope, reason: 'scope matches no indexed repository paths' });
+      die(`context bundle scope is empty for ${unit.id}`);
+    }
     if (broadScope(unit.scope, repoMap.files.length, scoped.length)) {
       writeFailure(out, 'BROAD_CONTEXT_REQUIRED', { version: 1, unitId: unit.id, scope: unit.scope, reason: 'scope requires the full repository index' });
       die(`broad context required for ${unit.id}`);

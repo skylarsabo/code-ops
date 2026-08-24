@@ -1,6 +1,6 @@
 # 1. Handbook placement: suite-wide, tracked, repo-root `docs/`
 
-- Status: Accepted
+- Status: Superseded by [ADR 0002](0002-repository-documentation-hub.md)
 - Date: 2026-06-23
 
 ## Context
@@ -18,9 +18,9 @@ and the working/scratch paths:
 
 | Path | Status |
 | --- | --- |
-| `code-ops-docs/40 Engineering/Handbook/` | tracked-eligible |
-| `code-ops-docs/70 Guides/Guides/` | tracked-eligible |
-| `code-ops-docs/40 Engineering/Techniques/` | tracked-eligible |
+| `docs/handbook/` | tracked-eligible |
+| `docs/guides/` | tracked-eligible |
+| `docs/techniques/` | tracked-eligible |
 | `docs/specs/` | gitignored |
 | `docs/superpowers/` | gitignored |
 | `docs/code-ops-run/` | gitignored |
@@ -30,7 +30,7 @@ reviewed in PRs, and stays diffable. That immediately rules out
 `docs/specs/`, `docs/superpowers/`, and `docs/code-ops-run/`, which are
 gitignored (local specs, vendored superpowers material, and per-run audit
 artifacts respectively — intentionally not part of the published source of
-truth). The `code-ops-docs/40 Engineering/Handbook/`, `code-ops-docs/70 Guides/Guides/`, and `code-ops-docs/40 Engineering/Techniques/` paths are
+truth). The `docs/handbook/`, `docs/guides/`, and `docs/techniques/` paths are
 tracked-eligible and are the correct home.
 
 ### The marketplace-install caveat
@@ -59,7 +59,7 @@ gates and convention, not one uniform CI check:
 - `scripts/lint-plugins.mjs` checks plugin/handbook parity as a **per-push CI
   gate** (`validate.yml`) — it fails the build on drift.
 - `scripts/check-doc-citations.mjs` checks that `path:line` citations across
-  `code-ops-docs/40 Engineering/Handbook/`, `code-ops-docs/40 Engineering/Techniques/`, `code-ops-docs/70 Guides/Guides/`, and `code-ops-docs/20 Decisions/ADRs/` still
+  `docs/handbook/`, `docs/techniques/`, `docs/guides/`, and `docs/adr/` still
   resolve against the current tree — also a **per-push CI gate**
   (`validate.yml`).
 - `Verified-at:` stamps tie documents to the commit they were last verified
@@ -73,8 +73,8 @@ the doc-alignment sweep still depend on review discipline to catch the rest.
 
 ## Decision
 
-The suite-wide how-to handbook lives in **tracked** `code-ops-docs/40 Engineering/Handbook/` (alongside
-`code-ops-docs/70 Guides/Guides/` and `code-ops-docs/40 Engineering/Techniques/`), authored **suite-wide rather than
+The suite-wide how-to handbook lives in **tracked** `docs/handbook/` (alongside
+`docs/guides/` and `docs/techniques/`), authored **suite-wide rather than
 per-plugin**.
 
 It is explicitly **not** placed in the gitignored `docs/specs/`,
