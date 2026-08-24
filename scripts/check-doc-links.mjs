@@ -21,6 +21,28 @@ function exactCase(path) {
   for (const part of rel.split(sep)) { if (!existsSync(cursor) || !statSync(cursor).isDirectory() || !readdirSync(cursor).includes(part)) return false; cursor = resolve(cursor, part); }
   return existsSync(cursor);
 }
+function inside(base, path) { const rel = relative(base, path); return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)); }
+const headingCache = new Map();
+function headingAnchors(path) {
+  if (headingCache.has(path)) return headingCache.get(path);
+  const anchors = new Set(); let fenced = false;
+  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    if (fenced) continue;
+    const match = line.match(/^ {0,3}#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$/); if (!match) continue;
+    const text = match[1]
+      .replace(/!?\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/<[^>]+>/g, '')
+      .replace(/[`*_~]/g, '');
+    const base = text.toLowerCase().trim()
+      .replace(/[\p{P}\p{S}]/gu, (character) => character === '-' || character === '_' ? character : '')
+      .replace(/\s/g, '-');
+    let anchor = base; let suffix = 0;
+    while (anchors.has(anchor)) { suffix += 1; anchor = `${base}-${suffix}`; }
+    anchors.add(anchor);
+  }
+  headingCache.set(path, anchors); return anchors;
+}
 function maskInlineCode(line) {
   let masked = ''; let cursor = 0;
   while (cursor < line.length) {
@@ -53,16 +75,19 @@ for (const file of markdown.sort()) {
     if (fenced || /^(?: {4}|\t)/.test(line)) return;
     const scanned = maskInlineCode(line);
     for (const match of scanned.matchAll(/!?\[[^\]]*\]\(([^)]+)\)/g)) {
-      let target = match[1].trim().replace(/^<|>$/g, '').replace(/\s+["'][^"']*["']$/, '');
-      if (!target || target.startsWith('#') || /^(?:https?:|mailto:|obsidian:)/i.test(target)) continue;
-      target = target.split('#', 1)[0].split('?', 1)[0];
-      try { target = decodeURIComponent(target); } catch { failures.push(`${relative(root, file)}:${index + 1} has invalid URL encoding: ${match[1]}`); continue; }
-      if (!target || target.includes('<') || target.includes('>')) continue;
-      const absolute = resolve(dirname(file), target);
+      const destination = match[1].trim().replace(/^<|>$/g, '').replace(/\s+["'][^"']*["']$/, '');
+      if (!destination || /^(?:https?:|mailto:|obsidian:)/i.test(destination)) continue;
+      const hash = destination.indexOf('#'); let target = (hash < 0 ? destination : destination.slice(0, hash)).split('?', 1)[0];
+      let fragment = hash < 0 ? '' : destination.slice(hash + 1).split('?', 1)[0];
+      try { target = decodeURIComponent(target); fragment = decodeURIComponent(fragment); } catch { failures.push(`${relative(root, file)}:${index + 1} has invalid URL encoding: ${match[1]}`); continue; }
+      if (target.includes('<') || target.includes('>')) continue;
+      const absolute = target ? resolve(dirname(file), target) : file;
       const rel = relative(root, absolute);
       if (isAbsolute(target) || rel.startsWith('..') || isAbsolute(rel)) failures.push(`${relative(root, file)}:${index + 1} link escapes repository: ${target}`);
       else if (!existsSync(absolute)) failures.push(`${relative(root, file)}:${index + 1} target does not exist: ${target}`);
+      else if (statSync(absolute).isDirectory() && inside(hub, absolute)) failures.push(`${relative(root, file)}:${index + 1} hub-internal target is a directory; link to an index note: ${target}`);
       else if (!exactCase(absolute)) failures.push(`${relative(root, file)}:${index + 1} target case differs from disk: ${target}`);
+      else if (fragment && absolute.toLowerCase().endsWith('.md') && !headingAnchors(absolute).has(fragment)) failures.push(`${relative(root, file)}:${index + 1} heading fragment does not exist: ${destination}`);
     }
     for (const match of scanned.matchAll(/\[\[([^\]]+)\]\]/g)) {
       const absolute = wikiTarget(match[1], file, index); if (!absolute) continue;

@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
-      "verifiedDigest": "612798c6d7ea666db7105b9968af393f6a9c98d5886ff70e5c4a3306d8bb4cda"
+      "verifiedAt": "df39efa72ef876bee031f9b6846dae273d81eff4",
+      "verifiedDigest": "f359f62b722eb83a39c79f0571c5f4345c0e1751dd3bec5c8bc2795e7aafce7c"
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
-      "verifiedDigest": "df989add4737eb37ecf3be51511ad53337fc3be463243aba22bd2d4a0b6d622a"
+      "verifiedAt": "df39efa72ef876bee031f9b6846dae273d81eff4",
+      "verifiedDigest": "555d86caefcc4d55bd7c09673f433e411b31ad798130d2119692d7155438fdd6"
     },
     {
       "slug": "codex-render",
@@ -71,8 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "fe44a68fb15e73c2cc5bc285c88a381527d3117c",
-      "verifiedDigest": "4aa1265f5a37545b3451202768b744fb183047a1f83d80b4b72cbe2550047168"
+      "verifiedAt": "df39efa72ef876bee031f9b6846dae273d81eff4",
+      "verifiedDigest": "a5a0c346d928c14d0b3fbb465a4201c40257d9076c5a3c9ba086c52bf79b0870"
     },
     {
       "slug": "root-contracts",

@@ -14,6 +14,8 @@ The Ubuntu structural-lint job runs package lint, generated-output drift checks,
 
 The Windows job mirrors structural checks that can differ by path handling, quoting, or line endings. Evidence: `.github/workflows/validate.yml:151-255`.
 
+The documentation link gate rejects missing, escaping, case-unsafe, and ambiguous local targets. It rejects hub-internal directory links and unresolved local Markdown heading fragments. Evidence: `scripts/check-doc-links.mjs:76-89` and `evals/doc-links/run.mjs:11-28`.
+
 ## Pull-request gates
 
 `Deep Review (rigor)` runs on opened, synchronized, and reopened pull requests. It scopes review to changed files, asks Claude for a verification-first review, and fails closed if two review attempts fail. Evidence: `.github/workflows/deep-review.yml:11-27`, `.github/workflows/deep-review.yml:55-133`, and `.github/workflows/deep-review.yml:135-137`.

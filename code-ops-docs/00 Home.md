@@ -34,10 +34,10 @@ The code-ops profile waives `30 Ops/`, because this repo operates no service.
 | Tree | Canonical for |
 | --- | --- |
 | [40 Engineering/Handbook/README.md](40%20Engineering/Handbook/README.md) | Doctrine and command reference. |
-| [40 Engineering/Techniques/](40%20Engineering/Techniques/) | Engineering methods and standards. |
-| [20 Decisions/ADRs/](20%20Decisions/ADRs/) | Published ADRs. |
-| [70 Guides/](70%20Guides/) | Task-oriented implementation and review guides. |
-| [98 System/Atlas/](98%20System/Atlas/) | Machine-checked judgment cache. |
+| [Engineering techniques](40%20Engineering/Handbook/README.md#techniques-focused-how-tos) | Engineering methods and standards. |
+| [20 Decisions/ADRs/README.md](20%20Decisions/ADRs/README.md) | Published ADRs. |
+| [Task-oriented guides](40%20Engineering/Handbook/README.md#guides-end-to-end-journeys) | Task-oriented implementation and review guides. |
+| [98 System/Atlas/README.md](98%20System/Atlas/README.md) | Machine-checked judgment cache. |
 | [../evals/README.md](../evals/README.md) | Regression evals and the calibration channel. |
 
 `code-ops-docs/40 Engineering/Techniques/vault-standard.md` is the source of truth for the vault layout. [[Standard]] is a conformance copy of it.

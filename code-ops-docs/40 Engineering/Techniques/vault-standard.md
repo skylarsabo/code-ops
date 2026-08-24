@@ -48,6 +48,10 @@ Working notes use frontmatter: `type`, `status`, `updated`, and `tags`. Valid st
 
 Run contracts, context receipts, bundles, dispatch ledgers, findings registers, executive summaries, proof receipts, and handoffs live in `80 Runs/YYYY-MM-DD slug/`. Documentation alignment artifacts live in `98 System/`. Architecture, API, data, operations, and onboarding generators write to their manifest-owned targets. Decisions write to `20 Decisions/`.
 
+## Navigable collections
+
+Every collection linked from inside the hub has an explicit Markdown index note. Hub-internal links target notes or files, never bare directories. Local Markdown heading fragments resolve to headings in their target notes. These rules keep the same navigation valid in Obsidian, GitHub, and local Markdown renderers.
+
 ## Migration and conformance
 
 Migration moves authored docs into the hub, updates references, installs the manifest and extraction gates, then removes substantive legacy copies. Do not keep a permanent compatibility tree. A bounded pointer may remain only when an external host requires that path.
