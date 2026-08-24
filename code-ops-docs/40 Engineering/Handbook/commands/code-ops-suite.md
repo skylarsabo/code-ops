@@ -1,0 +1,460 @@
+# code-ops-suite — Command Reference
+
+The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 29 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
+
+A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate code-grounded reference docs and run-continuity state. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
+
+## Index
+
+**Assess (AUDIT / DISCOVERY)**
+- [`codebase-audit`](#code-ops-suitecodebase-audit) — broad multi-lens review; ranked findings backlog
+- [`security-privacy-audit`](#code-ops-suitesecurity-privacy-audit) — adversarial STRIDE + LINDDUN threat assessment
+- [`feature-discovery`](#code-ops-suitefeature-discovery) — grounded, ranked feature ideas + specs
+
+**Build (IMPLEMENT)**
+- [`remediation`](#code-ops-suiteremediation) — implement the findings backlog with tests
+- [`feature-implementation`](#code-ops-suitefeature-implementation) — build specified features, slice-first, behind flags
+- [`performance`](#code-ops-suiteperformance) — measure, optimize what's proven hot, prove it
+- [`test-hardening`](#code-ops-suitetest-hardening) — meaningful, deterministic coverage on critical paths
+- [`dependency-upgrade`](#code-ops-suitedependency-upgrade) — safe, staged upgrades + CVE remediation
+- [`normalize`](#code-ops-suitenormalize) — one consistent, behavior-preserving house style
+- [`pr-split`](#code-ops-suitepr-split) — carve a big branch into a clean, traceless stack
+
+**Review (REVIEW)**
+- [`pr-review`](#code-ops-suitepr-review) — rigorous pre-merge review against all lenses
+
+**Document (DOCUMENT)**
+- [`adopt-standards`](#code-ops-suiteadopt-standards) — bootstrap or maintain a repo's `CLAUDE.md` standards contract
+- [`doc-alignment`](#code-ops-suitedoc-alignment) — reconcile doc drift; establish the SSOT
+- [`repo-docs`](#code-ops-suiterepo-docs) — refresh affected manifest-owned documentation domains
+- [`onboarding`](#code-ops-suiteonboarding) — verified orientation guide with a diagram
+- [`current-docs`](#code-ops-suitecurrent-docs) — version-accurate library docs, in-house
+- [`architecture`](#code-ops-suitearchitecture) — deep C4 architecture reference
+- [`api-docs`](#code-ops-suiteapi-docs) — accurate interface reference
+- [`data-model`](#code-ops-suitedata-model) — ER diagram + per-entity invariants
+- [`adr`](#code-ops-suiteadr) — architecture decision records
+- [`ops-docs`](#code-ops-suiteops-docs) — the operator's runbook
+- [`handoff`](#code-ops-suitehandoff) — capture or resume a run's verifiable session state
+- [`atlas`](#code-ops-suiteatlas) — the repo's durable cache of judgment, with mechanical freshness
+
+**Meta / suite self-audit**
+- [`calibration-run`](#code-ops-suitecalibration-run) — standardized real-scale calibration, one-way sanitized channel
+- [`run-cost-audit`](#code-ops-suiterun-cost-audit) — audit a completed run's cost discipline
+- [`provider-parity-audit`](#code-ops-suiteprovider-parity-audit) — audit the suite's own prose for provider-specific assumptions
+
+**Orchestrators**
+- [`full-sweep`](#code-ops-suitefull-sweep) — the whole suite end-to-end (intra-plugin)
+- [`everything`](#code-ops-suiteeverything) — the cross-plugin superset (all three plugins)
+- [`ship`](#code-ops-suiteship) — implement one change end-to-end at full rigor
+- [`debug`](#code-ops-suitedebug) — drive a bug from symptom to proven root-cause fix
+
+---
+
+## Assess
+
+### `/code-ops-suite:codebase-audit`
+**Mode:** AUDIT
+
+**How it works.** Phase 0 (checkpoint) detects the stack and tooling, builds the real service/module inventory, captures the build/test/lint baseline, and opens a coverage ledger (every area × every applicable lens). Phase 1 runs the adaptive loop (`CONVENTIONS §1`): sub-agents apply the relevant quality lenses (`§10`) to disjoint slices and return findings in the finding schema (`§7`), classified by track (`§6`). It applies only confirmed **NOW-SAFE** fixes (with your OK per batch) via the implementation loop (`§11`), logging each. Produces `FINDINGS_REGISTER.md` (the authoritative backlog), `REMEDIATION_LOG.md` (applied fixes), `FEATURE_OPPORTUNITIES.md` (opportunities noticed in passing), and `EXECUTIVE_SUMMARY.md`, under a dated audit folder; the run is not done until the finished register passes `revalidate-register.mjs` clean — a non-FRESH citation is re-located against the real tree or dropped. Critical findings surface to you immediately.
+
+**Why it's useful.** It turns an unfamiliar or drifting codebase into a ranked, evidence-backed backlog you can act on cold — every finding cites `file:line`, states impact, and ends with a concrete recommendation, led by a "top N highest-value."
+
+**When to use it.** Reach for it on an unfamiliar inheritance, before a big push, or on a periodic health pass. It pays particular attention to modularity, performance, intricate correctness bugs, security, privacy/data handling, and (for UIs) styling/theming/a11y. Do **not** use it when you already have a register and just want it implemented (use `remediation`), nor when you want a deep adversarial security model (use `security-privacy-audit`).
+
+**Sibling disambiguation — `codebase-audit` vs `rigor:bug-hunt`.** `codebase-audit` is breadth: every module against every lens, static evidence acceptable, a wide backlog. `rigor:bug-hunt` is depth-with-proof: it goes deep per subsystem, requires a runnable reproduction before flagging, and emphasizes root cause plus a sibling sweep. Use `codebase-audit` to map the field; use `rigor:bug-hunt` to nail a specific class of defect to the floor.
+
+**Prerequisites & hand-offs.** No prerequisites beyond the plugin. Feeds `FINDINGS_REGISTER.md` → `remediation`; its `FEATURE_OPPORTUNITIES.md` → `feature-discovery`; routes the security lens depth-out to `security-privacy-audit`.
+
+### `/code-ops-suite:security-privacy-audit`
+**Mode:** AUDIT
+
+**How it works.** Phase 0 (checkpoint) maps the attack and data surface: every entry point, input, deserialization, upload, auth boundary, admin/debug surface, and client code; defines trust boundaries and the relevant adversaries (external attacker, passive/active network observer, malicious/compromised operator, legal/subpoena demand, malicious peer, supply-chain attacker); and builds a data-flow map for personal/sensitive data. Phase 1 fans out per surface and threat class: **STRIDE** for security (plus crypto/transport, config/headers/CORS/cookies, and a deep dependency-CVE pass with lockfile integrity) and **LINDDUN** for privacy, scaled to data sensitivity, plus the insider and legal threat. Findings use the schema (`§7`) augmented with threat class, exploitability, adversary, and a conceptual attack/leak scenario. It applies only trivial, obviously-safe hardening with your OK. Produces `THREAT_MODEL.md` (a durable, reusable artifact), `SECURITY_PRIVACY_FINDINGS.md`, and `EXECUTIVE_SUMMARY.md`; routes NEEDS-REVIEW/NEEDS-DESIGN items into `FINDINGS_REGISTER.md`.
+
+**Why it's useful.** It thinks like an attacker auditing your own system to harden it — deeper than the audit's single security lens — and leaves a reusable threat model plus a fix-first list ranked by severity × exploitability. The work is defensive: findings describe vulnerabilities and their fixes, never weaponized exploits.
+
+**When to use it.** Before exposing a new surface, after a security-relevant change, on a recurring schedule, or whenever the system handles personal/sensitive data. Do **not** reach for it for anonymity-specific egress/metadata/fingerprint work — that is the privacy-opsec-suite anonymity track.
+
+**Sibling disambiguation — `security-privacy-audit` vs `privacy-opsec-suite:anonymity-threat-model`.** This skill is a general STRIDE + LINDDUN assessment for any system, scaling its privacy depth to how much sensitive data the system handles. `privacy-opsec-suite:anonymity-threat-model` is the keystone of the anonymity track — it presumes the project has explicit anonymity/opsec requirements and seeds six parallel leak audits feeding a `LEAK_REGISTER.md`. Use this skill for "is my system secure and privacy-respecting?"; use the anonymity threat model for "can an adversary deanonymize a user of this system?".
+
+**Prerequisites & hand-offs.** No prerequisites. Feeds `FINDINGS_REGISTER.md` → `remediation`; `THREAT_MODEL.md` is consumed by ongoing security work and the privacy-opsec track where applicable.
+
+### `/code-ops-suite:feature-discovery`
+**Mode:** DISCOVERY
+
+**How it works.** Phase 0 (checkpoint) detects latent capabilities, maps the current feature set and main user flows, infers product intent and target users, and harvests intent signals (TODOs, disabled flags, stubbed endpoints, dead routes, and recurring demand from VCS history). Phase 1 fans out across discovery lenses × product areas — latent capability, half-built/abandoned, UX friction, workflow completion, power-user/automation, onboarding/activation, configurability, extensibility, performance-as-feature, accessibility, trust/transparency/control, category parity — producing ideas in the idea schema (`§7`). Phase 2 (checkpoint) scores ideas (impact × reach ÷ effort, weighted by confidence; `§8`), tags quick wins and big bets, defines the smallest valuable slice, and writes a mini-spec per chosen feature. Produces `FEATURE_OPPORTUNITIES.md`, the chosen mini-specs (`TOP_FEATURES.md` or `specs/`), `FEATURE_ROADMAP.md` (Now/Next/Later), and `EXECUTIVE_SUMMARY.md`. No code changes.
+
+**Why it's useful.** It mines high-value, grounded feature ideas from what the codebase can already cheaply do — not a generic wishlist — and hands implementation-ready specs to the build track.
+
+**When to use it.** At planning time, when looking for high-leverage work, or to turn the audit's `FEATURE_OPPORTUNITIES.md` into real specs. Do **not** use it to build features (that is `feature-implementation`) — it writes no code.
+
+**Prerequisites & hand-offs.** No prerequisites; can ingest `codebase-audit`'s `FEATURE_OPPORTUNITIES.md`. Feeds its mini-specs + roadmap → `feature-implementation`.
+
+---
+
+## Build
+
+### `/code-ops-suite:remediation`
+**Mode:** IMPLEMENT
+
+**How it works.** Phase 0 (checkpoint) reads `FINDINGS_REGISTER.md` — if it's absent, it stops and routes to `codebase-audit` / `rigor:bug-hunt` to produce one rather than synthesizing a register from memory — and **re-validates first** (`§12`): it runs `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .`, triages its FRESH / MOVED / DRIFTED / GONE / AMBIGUOUS / NO-REF report, drops anything already-fixed or obsolete (marking it `OBSOLETE-AT <sha>`), then builds a dependency + conflict graph (disjoint → parallel, coupled → serial), sequencing by value × risk. Phase 1 runs each item through the implementation loop (`§11`); NEEDS-REVIEW items change behavior by definition, so it confirms the intended new behavior and pins it with tests, and integrates continuously, re-running the full suite after each batch. NEEDS-DESIGN items get their options presented for a direction first. If three or more items fail verification or spawn new confirmed findings, the cascade circuit-breaker (`§11`) stops the loop and escalates the cluster as NEEDS-DESIGN instead of continuing to patch. Produces verified fixes (atomic branches/PRs), an updated `FINDINGS_REGISTER.md` — which must pass `revalidate-register.mjs --consumed <pre-run copy>`: no consumed item vanishes or closes without a pinned terminal form (closed-with-proof / deferred-with-reason / OBSOLETE-AT) — and `IMPLEMENTATION_LOG.md`; updates docs wherever behavior changed.
+
+**Why it's useful.** It is the disciplined executor of a backlog — implementing findings efficiently and at high quality without re-introducing the problems the audit found, and never re-listing items already fixed in code.
+
+**When to use it.** When a `FINDINGS_REGISTER.md` already exists (from `codebase-audit`, `security-privacy-audit`, or the deep-dives) and you want it implemented safely. Do **not** use it without a register — it consumes one as input.
+
+**Prerequisites & hand-offs.** Requires a `FINDINGS_REGISTER.md`. Consumes the register's NEEDS-REVIEW + NEEDS-DESIGN items; feeds its PRs → `pr-review`.
+
+### `/code-ops-suite:feature-implementation`
+**Mode:** IMPLEMENT
+
+**How it works.** Phase 0 (checkpoint) reads the specs, register, and roadmap, re-grounds each feature against current code, and drafts a build plan honoring dependencies — confirming which features, in what order, slice boundaries, flag strategy, and PR preference, and batch-answering each spec's open questions. Phase 1 builds the smallest valuable slice first, runs the implementation loop (`§11`), lands features behind flags where it reduces risk, builds real states (loading/empty/error/success, edge and unhappy paths), reuses existing services per the spec's "builds-on," asserts acceptance criteria, and re-checks the privacy posture on the actual implementation. Produces shipped features (flagged PRs), an updated `FEATURE_OPPORTUNITIES.md`, and `BUILD_LOG.md`; updates docs for everything shipped; and the updated register must pass `revalidate-register.mjs --consumed <pre-run copy>` — no consumed item vanishes or closes without a pinned terminal form.
+
+**Why it's useful.** It builds specified features incrementally and safely, matching the repo's conventions and verifying acceptance criteria — turning specs into shipped, tested, flag-guarded code.
+
+**When to use it.** When feature specs already exist (from `feature-discovery`). Do **not** use it for unspecified ideas (run `feature-discovery` first) or for a single ad-hoc change end-to-end (use `ship`).
+
+**Prerequisites & hand-offs.** Requires feature specs (+ `FEATURE_OPPORTUNITIES.md` + `FEATURE_ROADMAP.md`). Feeds its PRs → `pr-review`.
+
+### `/code-ops-suite:performance`
+**Mode:** IMPLEMENT
+
+**How it works.** Its prime directive is **measure first** — never optimize code not demonstrated to be hot. Phase 0 (checkpoint) identifies the perf-critical paths, sets up repeatable profiling + benchmarks, captures baseline numbers, and ranks hot spots by actual cost. Phase 1 fans out per hot path: where profiling points, it reduces algorithmic complexity, fixes data access (N+1, indexes with your OK, batching, caching with correct invalidation), concurrency, memory/allocation, payload size, frontend (code-split, trim deps, render thrash), and build/CI. Every optimization is confirmed hot → smallest change → benchmark before/after → tests green → commit with the delta; if a change doesn't move the number, it is reverted. Produces optimizations (each commit carrying before/after numbers) and `PERFORMANCE_REPORT.md`; remaining design/behavior-changing opportunities go to `FINDINGS_REGISTER.md`.
+
+**Why it's useful.** It delivers proven speedups, not speculative ones — and documents tempting-but-cold targets as "not worth it, here's the data," so you stop chasing them.
+
+**When to use it.** When something is measurably slow and you want hot paths optimized with proof. Do **not** use it for broad behavior-preserving cleanups with measured wins across the board — that is `rigor:improve-measured`.
+
+**Sibling disambiguation — `performance` vs `rigor:improve-measured`.** `code-ops-suite:performance` targets a specific slow surface: profile it, optimize the proven-hot path, prove the delta. `rigor:improve-measured` is the verification layer's broad measured-improvement pass — it only ships changes that carry a measured before→after delta and is behavior-preserving across whatever it touches. Reach for `performance` when you have a hot spot in mind; reach for `improve-measured` for a disciplined, evidence-gated improvement sweep.
+
+**Prerequisites & hand-offs.** No prerequisites; can ingest audit perf findings as leads. Feeds residual opportunities → `FINDINGS_REGISTER.md`.
+
+### `/code-ops-suite:test-hardening`
+**Mode:** IMPLEMENT
+
+**How it works.** Phase 0 (checkpoint) detects the frameworks/runners, baselines pass/fail, coverage and run time, identifies flaky tests (running the suite a few times), and ranks targets by risk × importance. Phase 1 fans out per area writing behavior-focused, deterministic, meaningful tests across happy/edge/boundary/error paths, with special passes for characterization tests (pinning current behavior before refactors), regression tests, and security/privacy-path tests; flaky tests are fixed at the root, never retry-wrapped. A **hard rule** holds throughout: never change product code to make a test pass — if a test exposes a bug, write a failing/skipped test documenting it and log a finding. Produces committed tests and `TEST_COVERAGE_REPORT.md`; bugs exposed go to `FINDINGS_REGISTER.md`.
+
+**Why it's useful.** It raises *meaningful* coverage where it matters — tests that assert behavior and would catch real regressions — and provides the characterization safety net that makes later refactors provably behavior-preserving.
+
+**When to use it.** When critical paths lack coverage, tests are flaky, or before a risky refactor. Do **not** use it to judge whether your existing tests actually catch faults — that is `rigor:test-suite-audit` (mutation/assertion strength).
+
+**Prerequisites & hand-offs.** No prerequisites; ingests audit under-test flags. Provides the characterization net consumed by `remediation`/`normalize`; logged bugs → `FINDINGS_REGISTER.md`.
+
+### `/code-ops-suite:dependency-upgrade`
+**Mode:** IMPLEMENT
+
+**How it works.** Phase 0 (checkpoint) catalogues direct vs transitive deps, current vs latest, deprecated/EOL, duplicates, known CVEs with severity, unused deps, licenses, and lockfile state, then prioritizes (CVEs → deprecated/EOL → valuable majors → routine minors → dedup/removal) and asks you to approve or defer the majors. Phase 1 upgrades one branch/PR per item: read the changelog/migration guide → for majors get your go-ahead and plan the migration → apply the bump + code changes → run the full suite, build, typecheck/lint → exercise UI-affecting libs → commit/PR with the version delta, breaking changes handled, and CVE refs. It flags any dependency that adds telemetry, phones home, or changes the egress/trust surface as a developer decision, and **never bulk-bumps**. CVEs are closed on evidence: a fresh advisory re-scan against the final lockfile (the ecosystem's live audit tool) must show no remaining high/critical advisories except those explicitly accepted or deferred with rationale — never inferred from the version bumps alone. Produces verified upgrade PRs, `DEPENDENCY_REPORT.md` (its CVEs-closed list backed by the re-scan output), and a clean lockfile.
+
+**Why it's useful.** It brings dependencies current *safely* — each change isolated, changelog-checked, and individually verified — closing CVEs without the "bump everything and pray" failure mode.
+
+**When to use it.** When dependencies are outdated or have known CVEs and you want staged, verified upgrades; good on a recurring schedule. Do **not** use it to bulk-bump everything at once — it deliberately refuses that.
+
+**Prerequisites & hand-offs.** No prerequisites; ingests audit deps findings. Feeds residual items back to the register.
+
+### `/code-ops-suite:normalize`
+**Mode:** IMPLEMENT (behavior-preserving)
+
+**How it works.** Phase 0 (required checkpoint) detects tooling, derives the house style from the codebase's dominant patterns, inventories the "tells" of hasty/generated code, the inconsistencies, and the modularization opportunities, and baselines tests/build/lint/coverage — capturing the ratified standard in `STYLE_GUIDE.md`. A "tells" checklist drives the hunt: narration comments, tutorial voice, placeholder/disclaimer comments, emoji, inflated prose, debug residue, generic names, over-defensive ceremony, over-engineered indirection, section-divider mega-functions, commented-out code, and inconsistent terminology. Phase 1 fans out conflict-aware across nine workstreams (style/formatting, naming, comments, dead-code removal, standardizing recurring operations, modularization, method clarity, README/docs, VCS history), committing in reviewable logical chunks, and finishing with a hostile-reviewer pass. **Behavior preservation is absolute** — tests green at every step; where coverage is thin, characterization tests come first. Produces the normalized codebase, `STYLE_GUIDE.md`, an enforced linter/formatter config + recommended pre-commit/CI gate, `NORMALIZATION_LOG.md`, and a separate list of behavior-changing issues found (not fixed here).
+
+**Why it's useful.** It makes the codebase read as the consistent work of one experienced team and hold up under line-by-line review, with the standard machine-enforced so consistency can't silently rot again.
+
+**When to use it.** When a codebase has inconsistent style or the artifacts of hasty/generated code and you want one professional standard. Do **not** use it to close *divergent implementations of a concept* (two competing ways to do the same thing) — that is `rigor:consistency-closure`.
+
+**Sibling disambiguation — `normalize` vs `rigor:consistency-closure`.** `code-ops-suite:normalize` is about surface and style: one coherent voice everywhere, tells removed, dead code gone, recurring operations done the same way, enforced by a linter/formatter config. `rigor:consistency-closure` is about semantic convergence: when a concept is implemented several divergent ways, it picks one canonical form, migrates every site, and adds enforcement so the divergence can't recur. Use `normalize` to make the code *look* like one team wrote it; use `consistency-closure` to make a concept *behave* one way everywhere.
+
+**Prerequisites & hand-offs.** No prerequisites; uses `test-hardening`-style characterization where coverage is thin. Routes behavior-changing finds to a separate list for the audit/remediation track.
+
+### `/code-ops-suite:pr-split`
+**Mode:** IMPLEMENT
+
+**How it works.** Phase 0 (checkpoint) resolves the merge-base against the target trunk, captures the full diff, runs `/rigor:ground-truth` for the baseline, learns the repo's commit/PR conventions, and confirms the trunk, max PR size, and automation level (`§4`). Phase 1 builds a change-unit graph and groups hunks into reviewer-sized PRs (~≤400 lines) by dependency, concern/layer, and atomicity, ordered topologically. Phase 2 verifies-as-it-carves: each stacked PR builds/tests green at its step — green-at-every-step is the invariant. Phase 3 is a fail-closed trace scrub: it runs `privacy-opsec-suite:authorship-hygiene` (L1 metadata, L2 prose voice, L3 code-idiom blend-in), which runs `scan-ai-tells.mjs` fail-closed; if privacy-opsec-suite is not installed it runs the bundled `${CLAUDE_PLUGIN_ROOT}/scripts/scan-ai-tells.mjs` directly as the mechanical floor — and aborts the push if the trace can't be cleaned. Phase 4 pushes the stack via `gh`, opening each PR against its parent. It **never auto-merges**.
+
+**Why it's useful.** It turns one unreviewable mega-branch into a clean stack of small, independently-green PRs scrubbed of AI/tooling trace — making review fast and the authorship hygiene airtight.
+
+**When to use it.** When you have one big branch to carve into a reviewable stack. Do **not** use it to review someone's diff (use `pr-review`) or to implement from scratch.
+
+**Prerequisites & hand-offs.** Requires `rigor` (for `/rigor:ground-truth`) and, ideally, `privacy-opsec-suite` (for `authorship-hygiene`; falls back to the bundled `scan-ai-tells.mjs`). Composes `privacy-opsec-suite:authorship-hygiene` fail-closed before any push; it is the traceless-finish stage that `ship`, `debug`, `full-sweep`, and `everything` delegate to.
+
+---
+
+## Review
+
+### `/code-ops-suite:pr-review`
+**Mode:** REVIEW
+
+**How it works.** Phase 0 pulls the PR/branch/diff and its intent (description, linked issue/finding/spec, surrounding code context) and reviews the diff *against* the code it changes; it traces the change's **reach** first — dependents and call sites of changed exported symbols, shared types/schemas, and API/DB contracts — and scales reviewer fan-out and depth to that reach, not just diff size (a small diff in a shared contract is a large review); for large PRs it fans out parallel reviewers per file-group and synthesizes one coherent review. Phase 1 applies the relevant lenses (`§10`) scoped to the diff plus needed context: correctness & intricate bugs, design & modularity, performance/efficiency regressions, security introduced, privacy/data-handling regressions (blocking, scaled to data sensitivity), UI/theming/a11y, tests, docs, and conventions. Output is a prioritized review — each comment at `file:line` with a concrete suggested change, labeled **Blocking** / **Should-fix** / **Nit** — ending with a verdict (*approve / approve-with-nits / request-changes*) and a 2–3 line summary, blocking items first. Before any item ships as **Blocking** it is put through independent refutation (`§7`): a fresh `reviewer`/`tracer` that did not raise it tries to kill it by locating a dominating guard/handler elsewhere; a refuted item drops or downgrades, citing the guard. Each comment quotes a verbatim **Anchor** (`§9`) of its cited line so the citation is checkable. Delivered as PR comments if a VCS tool is connected, else `REVIEW.md`. Review-only by default; it switches to the implementation loop only if asked to fix.
+
+**Why it's useful.** It is a senior-level pre-merge gate that catches the bugs, regressions, and missing tests that matter, with each comment carrying a concrete fix and a clear merge verdict.
+
+**When to use it.** Before merging any specific change; it can be wired into CI on every PR with the official `anthropics/claude-code-action@v1` (see the plugin's `examples/github-pr-review.yml`, or run `/install-github-app`). Do **not** use it for a verification-bar review that blocks only on reproduced defects (use `rigor:deep-review`) or for an anonymity gate (use `privacy-opsec-suite:opsec-pr-gate`).
+
+**Sibling disambiguation — `pr-review` vs `rigor:deep-review` vs `privacy-opsec-suite:opsec-pr-gate`.** All three review a change before merge, but at different bars. `code-ops-suite:pr-review` is the broad senior review across all quality lenses, producing prioritized comments and a verdict — it will flag should-fixes and nits. `rigor:deep-review` is the verification-first review: it blocks only on *reproduced* defects (evidence-tiered), trading breadth for a high-signal, low-noise gate. `privacy-opsec-suite:opsec-pr-gate` is the anonymity gate: it blocks a change that introduces a new leak, egress, identifier, or fingerprint, or that weakens fail-closed posture. Run `pr-review` for general merge readiness, `deep-review` when you want only proven blockers, and `opsec-pr-gate` on any change touching an anonymity surface.
+
+**Prerequisites & hand-offs.** No prerequisites; uses a VCS tool if connected. Consumes the PRs from `remediation`/`feature-implementation`; if asked to fix, it enters the implementation loop.
+
+---
+
+## Document
+
+### `/code-ops-suite:adopt-standards`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) detects mode: **BOOTSTRAP** when no `CLAUDE.md` exists (or an existing one fails a quick audit), **MAINTAIN** when a sound one already exists. In BOOTSTRAP mode it audits the repo — real build/test/lint/gate commands (run read-only or cited to the CI workflow `file:line`, never invented), architecture worth 3–5 lines, non-obvious gotchas, and doc-lifecycle rules — then writes `CLAUDE.md` in the house style. In MAINTAIN mode it re-verifies every claim against reality: commands still run, the gate chain still mirrors CI step-for-step, enforcement claims are truthful, `line N` citations are swept mechanically (not eyeballed) against the current tree, and cited paths still exist — fixing drift and reporting what was stale. The house style is fixed: `## Never (no gate will save you)` first (only real, repo-specific, backstop-free rules), `## Before declaring any change done` (the verified command chain mirroring CI, noting any unenforced convention), post-edit chores if the repo has them, `## Invariants the gates will catch`, and a local-only/gitignored docs note if applicable — never duplicating the user's global `~/.claude/CLAUDE.md` doctrine.
+
+**Why it's useful.** It keeps a repo's standards contract mechanically true instead of aspirational — the commands it lists actually run, the gates it claims actually gate, and the citations it makes actually resolve — so the next operator (human or agent) can trust it cold.
+
+**When to use it.** When a repo has no `CLAUDE.md` and needs one bootstrapped from verified reality, or when an existing one is suspected stale (commands that no longer run, citations that have drifted, a gate chain that no longer matches CI). Do **not** use it to write general engineering advice — every line must be project-specific and verified, not generic.
+
+**Prerequisites & hand-offs.** No prerequisites; uses CI workflow files and VCS history as evidence sources. Complements `doc-alignment` (which reconciles the rest of the docs) — `adopt-standards` owns the standards contract specifically.
+
+### `/code-ops-suite:adopt-global-standards`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) resolves both sides — the global `~/.claude/CLAUDE.md` and the marketplace checkout it caches — and detects **BOOTSTRAP** (no global file, or one carrying no suite doctrine) versus **MAINTAIN**, stating both paths and the marketplace commit being verified against. Phase 1 builds the current-doctrine baseline by reading the SSOT pages themselves — `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md` for the routing table, tier/effort rule and declared exception, `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` plus `AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs` for the enforced floors, `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and the `CONVENTIONS.md` §7/§9 schemas for the reporting standard — anchoring each claim to `file:line`. Phase 2 classifies every divergence as **CONTRADICTS** (the global file states a rule the SSOT now states differently — worse than silence, because sessions follow it), **STALE**, **MISSING**, **REPO-LOCAL** (repo facts that leaked upward, handed back to `adopt-standards`), or **LOCAL-DOCTRINE** (cross-repo rules the file already carries that no SSOT page states — kept, never pruned, and listed as candidates to promote into the marketplace), sweeping `line N` citations mechanically. Phase 3 checkpoints with the classified drift and the exact proposed edit before any write, names every removal with the bucket justifying it, and refuses to touch settings, hooks, permissions, or keybindings. Phase 4 writes additively — the four global sections are the floor, and every existing section survives unless it was classified CONTRADICTS or REPO-LOCAL — then stamps the marketplace commit verified against, so the next run computes drift from the log.
+
+**Why it's useful.** The global contract is a cache of the marketplace's doctrine, and a stale cache mis-routes every session in every repo silently — an inverted tier rule down-tiers work the SSOT routes to the strong tier, and nothing in a normal session surfaces that. This is the only command that re-verifies the cache against its source.
+
+**When to use it.** After the suite's SSOT pages move (a routing-table change, a tier/effort revision, a new enforcement mechanism), when the global file has no commit stamp so its age is unknowable, or when a session's routing seems to contradict the handbook. Do **not** use it to configure the harness — `settings.json`, hooks, and permissions are out of scope.
+
+**Prerequisites & hand-offs.** Needs a local checkout of this marketplace as its ground truth. The repo-side counterpart is `adopt-standards`: between the two, each fact lives in exactly one place, and `adopt-global-standards` hands any repo-local content it finds back to it.
+
+### `/code-ops-suite:doc-alignment`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) inventories all docs with each one's purpose, maps code reality, maps the intended SSOT (which doc is supposed to be authoritative per topic), and flags no-owner and duplicate-authority topics — using VCS history to date the drift. Phase 1 verifies every doc claim against code and classifies each mismatch (stale, wrong, contradictory, orphaned, missing, duplicate-SSOT, broken-ref, outdated-diagram, dead-procedure, drifted-comment), then auto-fixes unambiguous factual drift while bringing stale-vs-aspirational and structural calls to you (the central judgment: never silently delete a possible plan or "correct" reality to match a roadmap). Phase 2 establishes one authoritative source per topic with working cross-links and an index. Code is ground truth; it edits documentation only — a likely *code* bug is logged as a finding, not fixed. Produces reconciled docs (edited in place), `DRIFT_REPORT.md`, `SSOT_MAP.md`, and `OPEN_QUESTIONS.md`.
+
+**Why it's useful.** It reconciles drifted docs against code reality and leaves a clean single source of truth a future operator can trust — and is the skill that keeps the generated reference docs true over time.
+
+**When to use it.** When docs have drifted from code, or as the ground-truth first step of a sweep so later phases work from an accurate map. Do **not** expect it to change code — it logs code issues as findings instead.
+
+**Prerequisites & hand-offs.** No prerequisites; uses VCS history if available. Establishes the SSOT that the DOCUMENT-mode generators write into and keeps true; routes suspected code bugs to the audit/remediation track.
+
+### `/code-ops-suite:repo-docs`
+**Mode:** DOCUMENT
+
+**How it works.** It validates `<repo>-docs/98 System/DOCS_MANIFEST.json`, captures one exact repository snapshot, and reuses that snapshot's content-addressed repo map, import graph, and freshness-gated atlas. `docs-extract.mjs` intersects the repository delta with each domain's declared source patterns. Only affected domains receive bounded context bundles and model dispatches. Broad or over-budget contexts fail explicitly instead of truncating. After source-grounded updates, the workflow syncs domain source and content digests and runs the manifest, link, vault, lint, and extraction gates.
+
+**Why it's useful.** It replaces per-run rediscovery and whole-documentation rewrites with deterministic delta routing. The manifest makes architecture, contracts, data, standards, CI, infrastructure, observability, design, guides, and atlas ownership explicit.
+
+**When to use it.** After code, workflow, schema, or policy changes that may alter repository documentation. Use `doc-alignment` for open-ended contradiction analysis; use `repo-docs` for repeatable extraction into an established hub.
+
+**Prerequisites & hand-offs.** Requires one manifest-owned documentation hub and the bundled context compiler. Hands ambiguous code defects to the audit track rather than changing source behavior.
+
+### `/code-ops-suite:onboarding`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) maps the system — stack, services/modules, data models, main flows, entry points, build/test/run commands, conventions, and the data-handling model — and confirms the audience and emphasis. Phase 1 writes the guide in a sensible reading order: the mental model, architecture (with a diagram matching the real map), repo tour, getting started (clone→install→configure→run→test, **verified by actually running it**, secrets redacted), key flows traced through the actual code, conventions & standards, the data-handling/security rules a contributor must not break, gotchas, and a glossary. Follows the documentation quality standard (`§13`). Produces `ONBOARDING.md` (or a small `docs/onboarding/` set) inside the repo's SSOT structure, with the architecture diagram and a list of open questions.
+
+**Why it's useful.** It makes a new engineer — or a fresh agent — productive fast, with verified setup steps and real flows rather than a drifted paraphrase of old docs.
+
+**When to use it.** When a newcomer (human or agent) needs orientation, or to capture a freshly-mapped system. It sits *inside* the doc track. Do **not** treat its setup steps as unverified theory — it runs them to confirm they work.
+
+**Prerequisites & hand-offs.** No prerequisites; ingests reconciled SSOT docs if present. Lives inside the SSOT structure that `doc-alignment` keeps true.
+
+### `/code-ops-suite:current-docs`
+**Mode:** AUDIT (read-only)
+
+**How it works.** It implements the suite-wide "documentation/reference lookup" capability (`CONVENTIONS §2`) in-house — local-first, no third-party indexer, no query egress. It runs the bundled engine, `node ${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs <library> [topic] --root <repo>`, which resolves the **installed** version from `node_modules`, returns that package's real README (topic-filtered) plus its exported type signatures with zero network, and only falls back to fetching the library's own source (`llms.txt` / GitHub README) when the bundled docs are thin (`--no-fetch` forbids that, `--json` gives structured output). The same capability is exposed as the `code-ops-docs` MCP server's `resolve-library` / `get-docs` tools. Fetched (non-installed) docs are treated as `UNVERIFIED` against the running version.
+
+**Why it's useful.** It gives you version-accurate API facts that match what actually runs — unlike training-data memory or a third-party index pinned to a different version — and is the only correct source for private/internal packages.
+
+**When to use it.** Before writing code against an unfamiliar or version-sensitive API. It is the suite's default documentation-lookup mechanism, used implicitly by other skills to confirm library facts. Do **not** code an API from memory when this is available.
+
+**Prerequisites & hand-offs.** Works best with the library installed (reads `node_modules`); the `code-ops-docs` MCP server is optional. Feeds version-accurate facts into every other skill's implementation and DOCUMENT work.
+
+### `/code-ops-suite:architecture`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) detects the stack and builds the real inventory (deployable units, modules, entrypoints, public surfaces, external systems, datastores, deployment topology) and picks the 3–5 runtime flows that matter most. Phase 1 is a **C4 ascent** — System Context, Containers, Components — each a Mermaid diagram plus narrative explaining responsibilities, boundaries, and why it's split that way. Phase 2 gives each chosen flow a Mermaid sequence diagram with step narrative (what, why, invariants, failure/recovery). Phase 3 covers cross-cutting concerns and the load-bearing invariants. Phase 4 captures the handful of architectural decisions that shaped the system. It assembles per `§13` — a ≤1-page exec summary first, `file:line` citations throughout, inferences marked `UNVERIFIED`, and a freshness SHA stamp. Produces `ARCHITECTURE.md`.
+
+**Why it's useful.** It gives a senior engineer new to the system a diagram-rich, code-grounded map they can navigate and safely change from — not a flat "A → B."
+
+**When to use it.** When you need the authoritative structural reference for a system. Do **not** expect it to fix code — it logs any code issue as a finding.
+
+**Prerequisites & hand-offs.** No prerequisites. Seeds/links `adr` for the full decision records; kept true afterward by `doc-alignment`.
+
+### `/code-ops-suite:api-docs`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) detects the public surface — HTTP routes, a GraphQL schema, RPC/gRPC services, or a library's exported API — and stops if there is no real external surface. Phase 1 documents each operation generated from the handlers + types/schema (not memory): signature, parameters, request/response shapes (linking the type/schema `file:line`), auth/permissions, error responses + status codes, side effects, and rate limits. Phase 2 makes it usable with a "how to call it" orientation, one **real** example per common operation (drawn from tests or call-sites, never invented), and a Mermaid sequence diagram for any non-trivial multi-call flow. Assembles per `§13` with an exec summary, citations, and a SHA stamp. Produces `API.md` (or per-service).
+
+**Why it's useful.** It produces an accurate interface reference an integrating engineer can call correctly from the doc alone — shapes drawn from the actual types, examples drawn from actual call-sites.
+
+**When to use it.** When a system exposes a real API surface that needs reference docs. Do **not** force it where there is no external surface — it self-scopes and stops.
+
+**Prerequisites & hand-offs.** No prerequisites; uses `current-docs` for dependency facts. Kept true afterward by `doc-alignment`.
+
+### `/code-ops-suite:data-model`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) finds the source of truth for data (SQL migrations, ORM models, a schema file, or NoSQL document shapes) and stops if there is no persistent data model. Phase 1 draws a Mermaid `erDiagram` of entities and relationships (cardinality, FK direction), split into domain clusters if large. Phase 2 documents each entity from the cited schema: fields + types, keys/indexes, constraints, relationships, and the **invariants the code relies on** (uniqueness, soft-delete, ownership, retention) that the raw schema doesn't show. Phase 3 covers schema evolution (migration history), the data lifecycle, and any denormalization or derived data. Assembles per `§13` with an exec summary, schema/migration citations, and a SHA stamp. Produces `DATA-MODEL.md`.
+
+**Why it's useful.** It lets an engineer safely write a query or a migration from the doc — surfacing the non-obvious invariants the code depends on, which a raw schema dump never shows.
+
+**When to use it.** When a system has a persistent data model worth documenting. Do **not** force it where there is no data model — it self-scopes and stops.
+
+**Prerequisites & hand-offs.** No prerequisites. Kept true afterward by `doc-alignment`.
+
+### `/code-ops-suite:adr`
+**Mode:** DOCUMENT
+
+**How it works.** It runs in one of two modes (confirmed at the start): **Backfill** mines the code, VCS history, and existing docs for the load-bearing decisions already made, writing an evidence-grounded ADR for each that clears the admission gate; **New** authors an ADR for a decision being made now, with options and a recommendation. Each ADR follows the standard form — `NNNN-title`, Status, Context, Options considered (with honest trade-offs), Decision, Consequences — citing the code/commits that embody the decision, one ADR per choice. An admission gate applies in both modes: a decision earns an ADR only if it is hard to reverse, surprising without context, and the result of a real trade-off — a candidate failing any prong is routed to a named destination (a code comment, the repo's existing docs surface, or a CHANGELOG line) instead of being written up. It maintains a `code-ops-docs/20 Decisions/ADRs/README.md` index, ranks backfilled records by how load-bearing they are, and marks reconstructed rationale `UNVERIFIED` where history is silent. Produces numbered ADRs in `code-ops-docs/20 Decisions/ADRs/` (matching any existing ADR convention).
+
+**Why it's useful.** It captures the *why* behind the architecture — the "why is it this way?" choices a newcomer hits — so a decision's true context, the options actually weighed, and the honest consequences survive past the people who made them.
+
+**When to use it.** When you need to backfill the load-bearing past decisions or record a current one. Pairs with `architecture` (which seeds/links it). Do **not** use it to document structure or interfaces — that is `architecture` / `api-docs`.
+
+**Prerequisites & hand-offs.** No prerequisites; uses VCS history if available. Linked from `architecture`; kept true afterward by `doc-alignment`.
+
+### `/code-ops-suite:ops-docs`
+**Mode:** DOCUMENT
+
+**How it works.** Phase 0 (checkpoint) detects the operational surface (Dockerfiles/compose, CI/CD workflows, infra, deploy scripts, config/env, health checks, dashboards/alerts). Phase 1 documents the real deploy path (cited from the CI/scripts), rollback, and preconditions, with a Mermaid pipeline flow where it helps. Phase 2 is the configuration reference — the env/config the system actually reads, what each does, safe defaults, and the **secrets named but never valued** (`<REDACTED>`). Phase 3 gives incident runbooks (symptom → diagnosis → fix, with exact commands, grounded in real failure paths). Phase 4 covers health & observability. Assembles per `§13` with an exec summary (how it deploys, where it runs, the top 3 things that break + first response), citations, redacted secrets, and a SHA stamp. Produces `RUNBOOK.md` (and/or ops docs).
+
+**Why it's useful.** It lets a senior engineer who has never operated the system deploy it, roll it back, change config, and work the top incidents from the doc alone — every step grounded in the real scripts/config, no secret values present.
+
+**When to use it.** When a system needs an operator's runbook or on-call documentation. Do **not** expect secret values in it — they are named and redacted by rule (`§4`).
+
+**Prerequisites & hand-offs.** No prerequisites. Kept true afterward by `doc-alignment`.
+
+### `/code-ops-suite:handoff`
+**Mode:** DOCUMENT
+
+**How it works.** Two directions, picked at the start. **Write** — when a long run is near a context limit, ending, or changing hands — captures the run's true state as `HANDOFF.md` in the dated artifact folder: goal and state of play (phases complete/in-flight/not-started, automation level, operator steering), every register/artifact path stamped `Verified-at: <sha>`, decisions made with the options rejected, traps and dead ends (approaches that failed, mistakes the successor will be tempted to repeat), and in-flight boundaries with `file:line` pointers each carrying a verbatim Anchor; before handing over, `scan-redaction.mjs` runs over `HANDOFF.md` — the mechanical floor under the secrets rule, since a handoff travels further than a register. The rule throughout is **state, not instructions** — describe what is true ("the leak gate is implemented; the register sweep is not started"), never what to do next. **Resume** treats every claim as context to verify, not fact to trust: it runs `revalidate-register.mjs` on every named register, checks the anchored pointers (a `DRIFTED` pointer is stale state), re-runs the deterministic baseline if the tree moved, then re-plans from what verified — surfacing contradictions at a checkpoint instead of silently re-deciding.
+
+**Why it's useful.** Registers carry findings across phases, but nothing else carried decisions, rejected approaches, and in-flight boundaries across a context limit — the most valuable and least recoverable session state. A verifiable handoff turns "trust the summary" into "check the anchors."
+
+**When to use it.** Before a long run (`everything`, `full-sweep`, a big audit) hits a context limit or a session ends mid-run; on the other side, to resume from a `HANDOFF.md` someone else (or an earlier session) wrote. Do **not** use it as a findings store — findings belong in the registers it points to.
+
+**Prerequisites & hand-offs.** No prerequisites to write; Resume expects the `HANDOFF.md` plus whatever registers it names. Composes with every orchestrator; the registers it points at are kept fresh by `revalidate-register.mjs` (`§12`).
+
+### `/code-ops-suite:atlas`
+**Mode:** DOCUMENT
+
+**How it works.** The atlas is a durable, per-repo cache of judgment — `code-ops-docs/98 System/Atlas/` (fallback `atlas/`) holding `MANIFEST.json`, `INBOX.md`, and one prose section per area of the codebase. Phase 0 locates the atlas and runs `atlas-check.mjs check`, which for each section intersects the diff since that section's `verifiedAt` commit with the section's scope globs: nothing hit is FRESH, anything hit is STALE with the triggering paths, and an unresolvable stamp is STALE by design. Three idempotent phases follow. **INIT** scaffolds the atlas (refusing to overwrite an existing manifest) and the model designs the sectioning — 4-10 sections whose scopes cover every top-level path, verified by the checker's unmapped sweep — then stamps each at HEAD. **REFRESH**, the default, rewrites only the STALE sections, reading their triggering diff paths first, and re-stamps them; FRESH sections are never reopened. **CONSOLIDATE** folds inbox observations into the sections that own them, clears the folded entries, and stamps what it touched. Stamps are written only by `atlas-check.mjs stamp`, never by hand.
+
+**Why it's useful.** Every run on a repo re-derives the same understanding of it and then throws that understanding away. The atlas banks it — and, unlike a README, says mechanically whether each part is still true, so a FRESH section can be consumed without re-verification while a STALE one is treated as a lead, not a fact. See [the atlas technique](../../Techniques/atlas.md).
+
+**When to use it.** On a repo the suite will work in repeatedly: once to INIT, then whenever `check` reports STALE sections or the inbox has unfolded entries. Do **not** use it as a file/API inventory — those facts are re-derivable in seconds and rot fast, and they are explicitly out of a section's remit.
+
+**Prerequisites & hand-offs.** Requires a git repo (freshness is computed from commits). `code-ops-suite:ship` closes the loop on it: its final phase refreshes any section the shipped change turned STALE, in the same session, while the diff rationale is still recoverable.
+
+---
+
+### `/code-ops-suite:conform`
+**Mode:** ASSESS then DOCUMENT
+
+**How it works.** Phase A assesses five standardization surfaces read-only, in dependency order, and records each as CONFORMANT, DRIFTED, ABSENT, or UNKNOWN with the checker output that decided it: the repo's standards contract (the pair exists, matches an accepted parity mode, and carries the routing section); the docs vault (`<repo>-docs/` exists and `check-vault-standard.mjs` exits 0); the atlas (`code-ops-docs/98 System/Atlas/` exists, its manifest parses, and `atlas-check.mjs check` reports each section FRESH or STALE); doc alignment, assessed only when the first three surfaced a drift signal; and the user's global contract, off by default and never touched without asking. The verdicts go to `CONFORMANCE_REPORT.md`, written to the vault's `80 Runs/` folder when the repo has a vault and to its dated-docs convention when it does not. Phase B repairs the approved surfaces one at a time, delegating each to the skill that owns it and checkpointing between them, because repairing one surface changes what the next one reads. Phase C re-runs every mechanical check and re-writes the report in place, one row per surface, with the opening verdict noted in that row's evidence cell.
+
+**Why it's useful.** Each standardization surface already had a skill and a checker, but nothing asked whether a repo carried any of them. A repo could pass one surface and fail three, and that only surfaced later, when a run needed the artifact that was missing. This answers the whole question in one command, and answers it mechanically rather than by reading.
+
+**When to use it.** On a repo the suite is about to work in for the first time, or one that has not been checked since the standard moved. Assess-only is a complete run — stopping with the report in hand is a legitimate outcome. Do **not** expect it to implement any repair itself: every fix is delegated, so a surface it cannot delegate is reported, not improvised.
+
+**Prerequisites & hand-offs.** None beyond the repo. Composes `adopt-standards`, `vault`, `atlas`, `doc-alignment`, and (opt-in) `adopt-global-standards`; `code-ops-suite:everything` runs it assess-only inside phase 0, as its standardization preflight. See [the skill-composition map](../../Techniques/skill-composition.md).
+
+---
+
+### `/code-ops-suite:vault`
+**Mode:** DOCUMENT
+
+**How it works.** The vault is the repo's Obsidian notebook for design-time judgment — `<repo>-docs/` at the repo root, with numbered folders whose two-digit prefix fixes the sidebar order: `00` captures, `10`–`79` holds domain content, `80`–`99` is machinery. Phase 0 picks the mode. **SCAFFOLD** creates the folders, a self-contained versioned `Standard.md`, `00 Home.md`, `README.md`, and the templates. **MIGRATE** classifies every file in an existing docs tree into one of three destinations — stays in the code repo, moves into a numbered folder, or is archived with a `superseded-by` pointer — then moves rather than copies, adds the missing frontmatter, and rewrites intra-vault links as wikilinks. **CHECK** runs `node scripts/check-vault-standard.mjs <vault dir>`, which is fail-closed and enforces ten rules, enumerated in `code-ops-docs/40 Engineering/Techniques/vault-standard.md` under "Migration and conformance" — the root files, the machinery folders, the band rules, the `standard-version` floor, and the per-note frontmatter. A profile adds a status value by declaring it in the vault's own `Standard.md`, so the checker follows the profile instead of pinning one vocabulary for every repo.
+
+**Why it's useful.** One layout across every repo means an agent that has never opened this vault can still predict where a note goes and what its frontmatter says, so vault behavior stops being a per-repo thing each run relearns. See [the vault standard](../../Techniques/vault-standard.md).
+
+**When to use it.** When a repo's design notes have no home, or have one that no longer matches the standard. Do **not** use it to absorb tracked reference docs, published ADRs, or `code-ops-docs/98 System/Atlas/` — those are canonical where they are, and the atlas's freshness check needs repo-root scopes and git history.
+
+**Prerequisites & hand-offs.** None beyond the repo itself. `code-ops-suite:adopt-standards` owns the `CLAUDE.md` / `AGENTS.md` contract that routes agents to the vault's `Standard.md`; run it after a SCAFFOLD or MIGRATE rather than editing the contract from the vault skill.
+
+---
+
+## Meta / suite self-audit
+
+### `/code-ops-suite:calibration-run`
+**Mode:** ASSESS
+
+**How it works.** Phase 0 (checkpoint) confirms the target repo, that the session is a fresh isolated context, that the run is `assess-only`, and the one-way channel rule (only a sanitized note returns — `code-ops-docs/40 Engineering/Techniques/calibration-protocol.md`); runs `preflight.mjs`. Phase 1 runs the atlas leg (`atlas-check.mjs check`, or `init` when the target keeps no atlas), hands each section's FRESH/STALE state into the sweep briefs, and dispatches `full-sweep` (or `rigor:rigor-sweep`) in the `assess-only` track against the target, letting it run its own phases and checkpoints. Phase 2 extracts quality/token/orchestration/standardization metrics with `calibration-metrics.mjs --artifacts`. Phase 3 fills the sanitized-note template from the extracted metrics (counts, deltas vs. the prior table row, lessons — zero paths/code/URLs) and validates it fail-closed with `calibration-metrics.mjs --validate-note`. Phase 4 gates the note, ingests it into the calibration store under `evals/calibration/`, re-renders `evals/CALIBRATION_TABLE.md` from the store, and validates the graph.
+
+**Why it's useful.** It standardizes what would otherwise be an ad-hoc calibration run, and enforces the one-way channel mechanically instead of relying on the operator to remember not to quote the target's internals back.
+
+**When to use it.** When you want a real-scale (non-toy) calibration of the suite against an actual codebase. Do **not** use it for the small in-repo eval fixtures — those score with `evals/score.mjs` directly.
+
+**Prerequisites & hand-offs.** Requires a target repo and an isolated session. Feeds a validated row into `evals/CALIBRATION_TABLE.md`.
+
+### `/code-ops-suite:run-cost-audit`
+**Mode:** ASSESS
+
+**How it works.** Phase 0 collects raw counts from `calibration-metrics.mjs --artifacts` and dispatch/failure/redispatch rates from `dispatch-ledger.mjs check`. Phase 1 assesses the run against doctrine: bounded-wave discipline (`§1`) from the ledger's per-wave dispatch counts, artifact-size bounds (`§12`) via `scan-narration.mjs` over the run's summaries, and tier/effort mix against the routing table in `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`. Phase 2 writes `COST_AUDIT.md` (≤1 page): the top 3 cost drivers, each with a concrete routing/bounding recommendation cited to a ledger row or artifact.
+
+**Why it's useful.** It turns "this run felt expensive" into a cited, ranked list of what actually drove the cost and a concrete fix, instead of a vague impression.
+
+**When to use it.** After a large orchestrated run, to check whether its dispatch/tier/effort choices matched the suite's own doctrine. Do **not** use it on a live/in-progress run — it consumes a completed artifact folder.
+
+**Prerequisites & hand-offs.** Requires a completed run's artifact folder (registers, `DISPATCH_LEDGER.md`, `EXECUTIVE_SUMMARY.md`). Produces `COST_AUDIT.md` standalone.
+
+### `/code-ops-suite:provider-parity-audit`
+**Mode:** ASSESS
+
+**How it works.** Phase 0 dispatches an `explorer` operative to inventory provider-coupled prose across `plugins/*/skills/*/SKILL.md`, every plugin's `CONVENTIONS.md`, and `docs/` — named harness mechanics, literal tool names, host-specific invocation phrasing — returned as `file:line` hits, not rewritten files. Phase 1 classifies each hit: reconciled in the derived Codex render (no finding), needs generic rewording, or intentionally provider-specific (documented why). Phase 2 writes needs-rewording hits into `FINDINGS_REGISTER.md` in the finding schema (`§7`), tracked `NOW-SAFE` or `NEEDS-REVIEW`, with intentionally-provider-specific hits recorded as accepted-as-is so a later pass doesn't re-flag them.
+
+**Why it's useful.** `build-codex-marketplace.mjs --check` already guarantees the mechanical render is correct; this is the check for prose that quietly assumes only one host exists, which the render check cannot see.
+
+**When to use it.** Periodically, or after a batch of skill/doc edits, to keep the marketplace's prose honestly cross-host. Do **not** expect it to touch the derived Codex render — that's the build script's job.
+
+**Prerequisites & hand-offs.** No prerequisites. Feeds `FINDINGS_REGISTER.md` → `remediation` for the needs-rewording items.
+
+---
+
+## Orchestrators
+
+Orchestrators do not replace the individual skills — they run them in a sensible order, carry the shared registers forward fresh, maintain a master plan, and check in with you at every phase boundary.
+
+### `/code-ops-suite:full-sweep`
+**Mode:** orchestrator
+
+**How it works.** The **intra-plugin** pipeline. Phase 0 (checkpoint) scopes the run — track (`assess-only` / `full` / a custom subset), scope, risk tolerance, PR preference, and automation level (`§4`) — and compiles the objective, quality vector, budget, work graph, routing, and scopes into `RUN_CONTRACT.json`. It opens a master todo and a running `EXECUTIVE_SUMMARY.md`, carrying registers forward fresh (`§12`). Each later wave reconciles the contract against `DISPATCH_LEDGER.md`; declared learning triggers produce a new contract revision. Phases: **1 Ground truth** (`doc-alignment`); **2 Assess** (`codebase-audit` → `security-privacy-audit`, findings evidence-tiered and disconfirmed, merged into `FINDINGS_REGISTER.md`); **3 Safety net** (`test-hardening`); **4 Fix** (`remediation`, re-validating the register first); **5 Deep-dives** (`performance`, `dependency-upgrade`); **6 Consistency** (`normalize`); **7 Document** (`doc-alignment` then the generators — `architecture`, `data-model`, `api-docs`, `ops-docs`, `adr`, `onboarding`, self-scoping); **8 Ship** (`pr-split`). A separate **feature track** (`/code-ops-suite:full-sweep feature`) runs `feature-discovery` → `feature-implementation` → `pr-review` → `pr-split`. Finalization writes `RUN_CONTRACT_RESULT.json` only after every blocking criterion is accepted with replayable proof. Checkpoints remain at every phase boundary; nothing code-changing happens without your approval.
+
+**Why it's useful.** It runs the whole code-ops-suite end-to-end as one coherent, checkpointed pipeline — assess → safety-net → fix → polish → document — carrying the registers forward so nothing already-fixed is re-shown.
+
+**When to use it.** When you want the whole suite on one codebase as a guided pipeline. Do **not** reach for it when you want the cross-plugin superset with rigor's verification layer and the privacy track — that is `everything`.
+
+**Sibling disambiguation — `full-sweep` (intra-plugin) vs `everything` (cross-plugin).** `full-sweep` orchestrates only code-ops-suite skills; it needs nothing else installed and is the right default for a thorough single-plugin pass. `everything` is the superset across all three plugins — it weaves in rigor's verification methodology (evidence tiers, disconfirmation, the regression guard) and the privacy-opsec anonymity track, and requires `rigor` and `privacy-opsec-suite` installed. `everything` is deliberately the most thorough and most token-expensive option; `full-sweep` is the lighter, self-contained one.
+
+**Prerequisites & hand-offs.** No external plugins required (uses `rigor:ground-truth` only inside the `pr-split` ship phase, if installed). Orchestrates the full code-ops-suite; ends by shipping with `pr-split`.
+
+### `/code-ops-suite:everything`
+**Mode:** orchestrator
+
+**How it works.** The **cross-plugin superset**. Phase 0 (checkpoint) confirms all three plugins are available, sets scope, whether the privacy track is included, the remediation automation level (code-ops `§4` applied with rigor's tier gate), and the check-in level; it opens the master registers (`FINDINGS_REGISTER.md`, `CONSISTENCY_REGISTER.md`, and `LEAK_REGISTER.md` if privacy is in scope), a running `EXECUTIVE_SUMMARY.md`, and a growing proof set. Phases: **1 Map** (code-ops `doc-alignment` → `codebase-audit` → `security-privacy-audit`); **2 Ground truth & test trust** (rigor `ground-truth` → `test-suite-audit`); **3 Prove** (rigor `bug-hunt` + `quality-scan` + `regression-hunt`); **4 Anonymity & leak audits** (privacy-opsec `anonymity-threat-model` → the six leak audits → `LEAK_REGISTER.md`, if in scope); **5 Safety net** (rigor `safety-net`); **6 Consolidated review** (the main go/no-go checkpoint); **7 Remediate** (rigor `fix-verified` + code-ops `remediation` + privacy-opsec `opsec-hardening`); **8 Close inconsistencies** (rigor `consistency-closure`); **9 Improve** (rigor `improve-measured` + code-ops `performance` + `dependency-upgrade`); **10 Normalize & document** (code-ops `normalize` + the doc generators); **11 Final verification, report & ship** (`pr-split` with `authorship-hygiene`). CONFIRMED is separated from PROBABLE/SPECULATIVE throughout; never auto-merges.
+
+**Why it's useful.** It is the most exhaustive end-to-end pass available — map → prove → leak-audit → safety-net → remediate → close → improve → normalize → document — applying each plugin's governing methodology in the right order, deduplicated, with one growing proof set.
+
+**When to use it.** When you want the deepest possible pass and accept the token cost; it is phased with checkpoints, not a blind firehose, so you can widen or narrow scope at Phase 0. Do **not** reach for it for a single-plugin pass (use `full-sweep`) or a single change (use `ship`).
+
+**Prerequisites & hand-offs.** **Requires `code-ops-suite`, `rigor`, and `privacy-opsec-suite` all installed.** It loads each plugin's `CONVENTIONS.md` and skill files so every phase applies its governing methodology. Notes the PR gates to wire in (`rigor:deep-review`, `privacy-opsec-suite:opsec-pr-gate`); ships via `pr-split`.
+
+### `/code-ops-suite:ship`
+**Mode:** orchestrator
+
+**How it works.** Implements **one change** (a feature or a one-off) end-to-end, scaling each phase to the change (a one-off is light; a feature gets the full treatment). Phase 0 (checkpoint) detects the stack, runs `/rigor:ground-truth` for the baseline, sizes the change, confirms the approach for a feature, and sets the automation level. Phase 1 runs `/rigor:safety-net` if the change touches thin-coverage code. Phase 2 implements via the implementation loop (`§11`) at the smallest correct scope. Phase 3 proves it — tests that fail before and pass after, the full suite green, and the regression guard (`rigor §H`). Phase 4 is the privacy gate (if the change touches a privacy surface and `privacy-opsec-suite` is installed). Phase 5 finishes traceless — `pr-split` for a stack or a single PR scrubbed by `authorship-hygiene`, with `scan-ai-tells` passing fail-closed before push (the bundled `scan-ai-tells.mjs` as the floor if privacy-opsec-suite is absent). Never auto-merges.
+
+**Why it's useful.** It takes a single intent to a proven, behavior-preserving, privacy-checked, trace-free PR — full rigor without you orchestrating the phases by hand.
+
+**When to use it.** When you want to implement one change end-to-end at high quality. See the disambiguation below for `ship` vs `debug` vs `feature-implementation`.
+
+**Sibling disambiguation — `ship` vs `debug` vs `feature-implementation`.** `ship` implements one *new* change (feature or one-off) end-to-end with proof and a traceless finish. `debug` starts from a *symptom* and drives reproduce → isolate → root-cause → fix-with-regression-proof → traceless ship; reach for it when something is broken, not when you're adding capability. `feature-implementation` builds a *set* of already-specified features incrementally from `feature-discovery` specs — it is the batch builder, where `ship` is the single-change end-to-end driver.
+
+**Prerequisites & hand-offs.** **Requires `rigor`**; the privacy phase runs only if `privacy-opsec-suite` is installed and the change touches a privacy surface. Composes `rigor` (safety-net, proof, regression guard), the privacy leak gate, and `pr-split` + `authorship-hygiene` for the finish.
+
+### `/code-ops-suite:debug`
+**Mode:** orchestrator
+
+**How it works.** Drives a bug from symptom to a proven root-cause fix. Phase 0 (checkpoint) captures the symptom, runs `/rigor:ground-truth`, and uses rigor's verifier to build a reliable reproduction — if it can't be reproduced, it stops and reports exactly what's needed rather than guessing a fix. Phase 1 isolates: trace the control/data path with rigor's tracer, derive invariants, narrow to the smallest triggering path, and `/rigor:regression-hunt` to bisect if it's a regression. Phase 2 (checkpoint) identifies the real cause at the correct layer (not the nearest symptom), cited `file:line`, with a disconfirmation pass, and gets a go before editing. Phase 3 runs the `rigor:fix-verified` loop: the repro passes, the suite is green, the regression guard holds, siblings are swept, and an enforcement is added so the class can't recur — and if the fix keeps cascading into new findings, the cascade circuit-breaker (`§11`) stops the loop and escalates as NEEDS-DESIGN. Phase 4 is the privacy gate (if applicable). Phase 5 finishes traceless via `authorship-hygiene` / `pr-split`, with `scan-ai-tells` fail-closed. Never auto-merges.
+
+**Why it's useful.** It refuses to guess — reproduce first, fix at root cause with a regression test that failed before and passes now, sweep for siblings, and enforce against recurrence — so a fixed bug stays fixed.
+
+**When to use it.** When you have a bug symptom (error, stack trace, wrong behavior) to drive to a proven fix. Do **not** use it to add capability (use `ship`) or when you can't yet produce a reproduction — it will stop and ask for what's needed.
+
+**Prerequisites & hand-offs.** **Requires `rigor`** (verifier, tracer, `regression-hunt`, `fix-verified`); the privacy phase runs only if `privacy-opsec-suite` is installed and the fix touches a privacy surface. Finishes via `pr-split` + `authorship-hygiene`.
+
+---
+
+*Verified-at: a181b36*

@@ -14,9 +14,9 @@ Resolve the global contract at `~/.claude/CLAUDE.md` and the marketplace checkou
 
 ## Phase 1 — Build the current-doctrine baseline
 Read the SSOT pages themselves; never restate doctrine from memory or from the global file being audited. The load-bearing sources:
-- `docs/handbook/11-standard-operating-mode.md` — the task-type routing table, the tier and effort rule, the declared exception. This page is the SSOT for all three.
-- `docs/techniques/subagent-trade-offs.md` and the `AGENT_MODEL_FLOORS` map in `scripts/lint-plugins.mjs` — the lint-enforced floors no tier rule may contradict.
-- `docs/techniques/writing-standard.md` and each plugin's `CONVENTIONS.md` §7/§9 — the artifact schemas, evidence bar, and tier vocabulary the global reporting standard names.
+- `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md` — the task-type routing table, the tier and effort rule, the declared exception. This page is the SSOT for all three.
+- `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and the `AGENT_MODEL_FLOORS` map in `scripts/lint-plugins.mjs` — the lint-enforced floors no tier rule may contradict.
+- `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and each plugin's `CONVENTIONS.md` §7/§9 — the artifact schemas, evidence bar, and tier vocabulary the global reporting standard names.
 - The traceless-publishing mechanisms that back the version-control rules — name the script or hook that actually checks, not the intention.
 Record each baseline claim with the `file:line` it came from; an unanchored baseline claim cannot be diffed in the next run.
 

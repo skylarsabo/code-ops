@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fleet conformance checker for the code-ops suite — the multi-repo standard
-// (docs/techniques/fleet-standard.md). Runs against a FLEET.json manifest.
+// (code-ops-docs/40 Engineering/Techniques/fleet-standard.md). Runs against a FLEET.json manifest.
 //
 //   node scripts/check-fleet.mjs <FLEET.json>
 //
@@ -23,7 +23,7 @@
 // proves nothing.
 //
 // OUTPUT is the CONFORMANCE_REPORT.md surface-row grammar of
-// docs/techniques/artifact-grammars.md, section (d): | surface | verdict | checker | evidence |.
+// code-ops-docs/40 Engineering/Techniques/artifact-grammars.md, section (d): | surface | verdict | checker | evidence |.
 // calibration-metrics.mjs therefore ingests a fleet report with no parser change. That grammar
 // counts a REPEATED surface cell as unparseable, so each row's surface cell is the member's
 // kebab slug joined to the surface name (`ripper-vault`), and two members whose slugs collide
@@ -36,7 +36,7 @@
 //                    surfaces describe a repo this run has no mandate over.
 //   <slug>-contract  The contract pair exists and matches one accepted parity mode:
 //                    byte-identical copies, or a short pointer file naming the substantive
-//                    one as required reading (docs/techniques/vault-standard.md, Host parity).
+//                    one as required reading (code-ops-docs/40 Engineering/Techniques/vault-standard.md, Host parity).
 //   <slug>-vault     `<repo>-docs/` exists and check-vault-standard.mjs exits 0 against it.
 //                    ABSENT is advisory, never a failure: vault adoption stays voluntary
 //                    (decision D-002), so a fleet must not enforce what a repo may decline.
@@ -197,13 +197,13 @@ function readContract(dir) {
 // disagree before: the consent matcher stripped fences and the section scanner did not, so a
 // `## Fleet` written INSIDE an example fence closed the real section and hid a genuine consent.
 //
-// THE RULE SET, stated once here and mirrored in docs/techniques/fleet-standard.md. Every
+// THE RULE SET, stated once here and mirrored in code-ops-docs/40 Engineering/Techniques/fleet-standard.md. Every
 // markdown shape this checker recognizes is decided in this function and nowhere else, which
 // is what stops the consent matcher and the section scanner from disagreeing again. A yielded
 // line is `code` when markdown would render it verbatim; a `code` line is never markup, never a
 // heading, and never consent.
 //
-// These rules are NORMATIVE, not an approximation: docs/techniques/fleet-standard.md, under
+// These rules are NORMATIVE, not an approximation: code-ops-docs/40 Engineering/Techniques/fleet-standard.md, under
 // "The parsing rules are the specification", states that this rule set IS the consent contract
 // format, and that where a markdown renderer displays a contract differently, the rule set
 // governs enrollment. An edge case outside these rules is closed by amending the spec on
@@ -353,7 +353,7 @@ function consentSection(text) {
 // cap inside an open list, which reopened the indent hole 1.43.3 had closed: a bullet above a
 // four-space example enrolled a repo that declined in writing. Consent is what authorizes fleet
 // mode to WRITE, so the mirror cost more than the false decline it fixed. The author rule in
-// docs/techniques/fleet-standard.md — write consent flush and undecorated — carries the case a
+// code-ops-docs/40 Engineering/Techniques/fleet-standard.md — write consent flush and undecorated — carries the case a
 // deep indent inside a list would otherwise raise.
 const CONSENT_LINE = /^ {0,3}(?:[>*-][ \t]*)?fleet member:[ \t]*yes[ \t]*$/i;
 
@@ -362,7 +362,7 @@ const hasConsent = (text) => {
   return section !== null && section.some((e) => !e.code && CONSENT_LINE.test(e.line));
 };
 
-// Parity mode, per docs/techniques/vault-standard.md "Host parity": byte-identical copies, or a
+// Parity mode, per code-ops-docs/40 Engineering/Techniques/vault-standard.md "Host parity": byte-identical copies, or a
 // pointer pair where the short file names the substantive one as required reading. Anything
 // else is two contracts that have drifted, which is invisible to whichever host reads the other.
 function parityMode(found) {

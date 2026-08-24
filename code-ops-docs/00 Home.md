@@ -12,7 +12,7 @@ This is the map of the code-ops documentation system. Start here.
 
 ## This vault
 
-`code-ops-docs/` holds design-time judgment about the marketplace: working designs, decisions, and run notes. [[Standard]] defines the layout, the frontmatter, and the routing table. [[D-001 adopt vault standard]] records why this repo adopted it.
+`code-ops-docs/` is the only authored documentation hub for the marketplace. It holds shipped references, working designs, decisions, and run notes. [[Standard]] defines the layout and routing table. [[D-001 adopt vault standard]] records why this repo adopted it.
 
 Folders:
 
@@ -27,19 +27,19 @@ Folders:
 
 The code-ops profile waives `30 Ops/`, because this repo operates no service.
 
-## Canonical trees in the repo
+## Canonical domains
 
-These trees stay canonical. The vault links to them and never copies them. When a vault note matures into doctrine, promote it into the owning tree and leave a link behind.
+`[[98 System/DOCS_MANIFEST]]` is the only registry for these domains and their source evidence.
 
 | Tree | Canonical for |
 | --- | --- |
-| [../docs/handbook/README.md](../docs/handbook/README.md) | Doctrine and the command reference. |
-| [../docs/techniques/](../docs/techniques/) | How-tos, including [vault-standard.md](../docs/techniques/vault-standard.md) and [writing-standard.md](../docs/techniques/writing-standard.md). |
-| [../docs/adr/](../docs/adr/) | Published ADRs. |
-| [../docs/atlas/](../docs/atlas/) | Machine-checked judgment cache. Read a FRESH section as truth. Never copy one here. |
+| [40 Engineering/Handbook/README.md](40%20Engineering/Handbook/README.md) | Doctrine and command reference. |
+| [40 Engineering/Techniques/](40%20Engineering/Techniques/) | Engineering methods and standards. |
+| [20 Decisions/ADRs/](20%20Decisions/ADRs/) | Published ADRs. |
+| [98 System/Atlas/](98%20System/Atlas/) | Machine-checked judgment cache. |
 | [../evals/README.md](../evals/README.md) | Regression evals and the calibration channel. |
 
-`docs/techniques/vault-standard.md` is the source of truth for the vault layout. [[Standard]] is a conformance copy of it.
+`code-ops-docs/40 Engineering/Techniques/vault-standard.md` is the source of truth for the vault layout. [[Standard]] is a conformance copy of it.
 
 ## Current notes
 

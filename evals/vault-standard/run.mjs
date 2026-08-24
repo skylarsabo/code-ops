@@ -82,7 +82,7 @@ const scaffold = (files = {}) => {
   for (const f of ['00 Inbox', '10 Design', '90 Templates', '95 Attachments', '98 System', '99 Archive'])
     mkdirSync(join(dir, f), { recursive: true });
   const tree = {
-    'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 2\n---\n\n# Standard (synthesized fixture)\n',
+    'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 3\n---\n\n# Standard (synthesized fixture)\n',
     '00 Home.md': '---\ntype: home\nstatus: current\nupdated: 2026-08-18\n---\n\n# Home\n',
     'README.md': '# Readme — the git host entry point, deliberately without frontmatter\n',
     '10 Design/A note.md': '---\ntype: design\nstatus: draft\nupdated: 2026-08-18\n---\n\n# A note\n',
@@ -101,7 +101,7 @@ const base = run(scaffold());
 expect(base.status === 0, `the synthesized baseline vault should exit 0, got ${base.status}:\n${base.out}`);
 
 // Canonical run artifacts carry no frontmatter by design. All nine of the artifact table in
-// docs/techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem
+// code-ops-docs/40 Engineering/Techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem
 // has no underscore, so the shape rule alone rejected it and broke every orchestrated handoff.
 const CANONICAL = ['FINDINGS_REGISTER.md', 'LEAK_REGISTER.md', 'EXECUTIVE_SUMMARY.md',
   'DISPATCH_LEDGER.md', 'REPO_MAP.md', 'REFUTATION_LOG.md', 'RUN_RECEIPTS.md', 'HANDOFF.md',
@@ -118,7 +118,7 @@ expect(!/HANDOFF/.test(canon.out), `HANDOFF.md must not be reported, got:\n${can
 const stale = run(scaffold({
   'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 1\n---\n\n# Standard (stale)\n',
 }));
-expect(stale.status === 1 && /below the current standard-version 2/.test(stale.out),
+expect(stale.status === 1 && /below the current standard-version 3/.test(stale.out),
   `a standard-version below the floor must fail, got ${stale.status}:\n${stale.out}`);
 
 // YAML writes the same scalar bare, single-quoted, or double-quoted. Rejecting two of the three

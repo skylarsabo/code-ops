@@ -39,4 +39,4 @@ This repo remains the reference case for the escalated form: `.github/workflows/
 
 - [[Standard]]
 - [[D-001 adopt vault standard]]
-- `docs/techniques/vault-standard.md`
+- `code-ops-docs/40 Engineering/Techniques/vault-standard.md`

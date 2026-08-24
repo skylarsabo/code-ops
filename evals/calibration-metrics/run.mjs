@@ -581,11 +581,11 @@ try {
     d.status === 0 && /0 machine-block hit\(s\)/.test(d.stdout) && !/config:/.test(cleanNote), d.stdout);
 
   // ---- ab. a note written exactly to the template validates -------------------
-  // The template in docs/techniques/calibration-protocol.md is the shape an author fills in, so a
+  // The template in code-ops-docs/40 Engineering/Techniques/calibration-protocol.md is the shape an author fills in, so a
   // template shape the validator rejects makes a correctly-written note fail closed. Filling it
   // here — counts where the template asks for counts — pins the doc against the gate, so the two
   // hand-written halves cannot drift apart again.
-  const protocolDoc = readFileSync(join(REPO, 'docs', 'techniques', 'calibration-protocol.md'), 'utf8');
+  const protocolDoc = readFileSync(join(REPO, 'code-ops-docs', '40 Engineering', 'Techniques', 'calibration-protocol.md'), 'utf8');
   const templateFence = protocolDoc.match(/```\r?\n(## Calibration note[\s\S]*?)```/);
   check('ab. the sanitized-note template is extractable from the protocol doc', !!templateFence, protocolDoc.slice(0, 200));
   if (templateFence) {

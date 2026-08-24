@@ -12,7 +12,7 @@ description: "Use when you want to audit a completed orchestrated run's cost dis
 
 Audits how a finished run spent its budget, not whether its findings were correct.
 
-This audit is the **data producer** for the forward-looking half of the same loop: every stamped ledger it reads back is what `node <plugin-root>/scripts/estimate-run-cost.mjs --runs <runs dir> --skill <name>` uses at the NEXT run's Phase 0 to estimate a dispatch-count range and model-class mix before the budget is spent (see `docs/handbook/09-cost-and-scoping.md`).
+This audit is the **data producer** for the forward-looking half of the same loop: every stamped ledger it reads back is what `node <plugin-root>/scripts/estimate-run-cost.mjs --runs <runs dir> --skill <name>` uses at the NEXT run's Phase 0 to estimate a dispatch-count range and model-class mix before the budget is spent (see `code-ops-docs/40 Engineering/Handbook/09-cost-and-scoping.md`).
 
 ## Phase 0 — Collect
 Run `node <plugin-root>/scripts/calibration-metrics.mjs --artifacts <run folder>` for the raw counts (dispatches, tier/effort mix if recorded, artifact line counts), and `node <plugin-root>/scripts/dispatch-ledger.mjs check --ledger <run folder>/DISPATCH_LEDGER.md` for dispatch/redispatch/failure rates and any dangling rows.
@@ -20,14 +20,14 @@ Run `node <plugin-root>/scripts/calibration-metrics.mjs --artifacts <run folder>
 ## Phase 1 — Assess against doctrine
 - **Bounded-wave discipline (`§1`).** Compare the ledger's per-wave dispatch counts against the "handful of agents at a time" rule; flag any wave that fans out unbounded.
 - **Artifact-size bounds (`§12`).** Run `node <plugin-root>/scripts/scan-narration.mjs <run folder>/EXECUTIVE_SUMMARY.md <other run summaries>` — a HARD hit is an over-length or narrated artifact, an advisory is a borderline one.
-- **Tier/effort mix.** Compare each dispatch's model tier and reasoning effort (from the ledger's brief text or the operative transcripts, where recorded) against the routing table in `docs/techniques/subagent-trade-offs.md` — flag mechanical work routed above the tier its floor requires, and any judgment-bearing dispatch routed below the strong tier. Under-tiered judgment work is a cost finding, not a saving: price the redispatches and the discarded reports it caused.
+- **Tier/effort mix.** Compare each dispatch's model tier and reasoning effort (from the ledger's brief text or the operative transcripts, where recorded) against the routing table in `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` — flag mechanical work routed above the tier its floor requires, and any judgment-bearing dispatch routed below the strong tier. Under-tiered judgment work is a cost finding, not a saving: price the redispatches and the discarded reports it caused.
 
 ## Phase 1b — Score orchestration discipline
-Write `RUN_CONFORMANCE.md` in the check-row grammar of `docs/techniques/artifact-grammars.md` — check slug, `PASS | FAIL | N/A`, evidence. Score only what the artifacts decide mechanically; a rule this run could not violate is `N/A`, never a quiet PASS. Five checks:
+Write `RUN_CONFORMANCE.md` in the check-row grammar of `code-ops-docs/40 Engineering/Techniques/artifact-grammars.md` — check slug, `PASS | FAIL | N/A`, evidence. Score only what the artifacts decide mechanically; a rule this run could not violate is `N/A`, never a quiet PASS. Five checks:
 
 - `ledger-coverage` — every dispatched agent has a ledger row, cross-checked against the `DISPATCH_LEDGER.md` grammar on the same page.
 - `no-dangling` — no row left `dispatched` with no reported, failed, or redispatched successor.
-- `tier-routing` — judgment-bearing roles ran at the strong tier, and mech-class work sat at or above its lint-enforced floor (`AGENT_MODEL_FLOORS`, mirrored in `docs/techniques/subagent-trade-offs.md`).
+- `tier-routing` — judgment-bearing roles ran at the strong tier, and mech-class work sat at or above its lint-enforced floor (`AGENT_MODEL_FLOORS`, mirrored in `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`).
 - `effort-routing` — no low reasoning effort on a review dispatch, no xhigh on a breadth sweep.
 - `artifact-placement` — dated artifacts landed in the vault's `80 Runs/YYYY-MM-DD slug/` when the target repo carries a vault (`§12`); `N/A` when it carries none.
 

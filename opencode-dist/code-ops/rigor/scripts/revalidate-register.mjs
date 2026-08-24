@@ -143,7 +143,7 @@ function isItemId(id, after, afterNext) {
 
 // An item block begins only at an ENTRY-HEADING POSITION: the start of a line, optionally behind
 // markdown heading markers or a table row's leading pipe (the entry forms in
-// docs/techniques/artifact-grammars.md §(b)). An ID cited mid-line in a finding's own prose
+// code-ops-docs/40 Engineering/Techniques/artifact-grammars.md §(b)). An ID cited mid-line in a finding's own prose
 // ("duplicate of BUG-003") is a reference, not a new item — the unanchored scan split blocks on
 // every such mention and invented items out of body-text domain tags. Composed from ID_RE's own
 // source so the ID shape cannot drift between its two anchored uses (entry heads and receipts).

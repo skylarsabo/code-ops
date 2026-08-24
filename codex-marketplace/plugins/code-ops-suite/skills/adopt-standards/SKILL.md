@@ -39,7 +39,7 @@ Write/update `AGENTS.md` in this exact section order:
 3. **Post-edit chores** (derived-artifact regeneration, version bumps, parity updates) if the repo has them.
 4. **`## Invariants the gates will catch`** — what lint/CI mechanically enforces, so the reader knows what they can't get wrong without a tool catching it.
 5. **Local-only/gitignored docs note**, if the repo has scratch or non-tracked doc locations that doc-alignment/staleness sweeps should skip.
-6. **Documentation section**, when the repo carries (or adopts in this run) a `<repo>-docs/` Obsidian vault — route the reader to that vault's `Standard.md` routing table for where new design notes, decisions, and run artifacts go, instead of restating the layout here. The vault standard is `docs/techniques/vault-standard.md`; `code-ops-suite:vault` scaffolds, migrates, and checks one.
+6. **Documentation section**, when the repo carries (or adopts in this run) a `<repo>-docs/` Obsidian vault — route the reader to that vault's `Standard.md` routing table for where new design notes, decisions, and run artifacts go, instead of restating the layout here. The vault standard is `code-ops-docs/40 Engineering/Techniques/vault-standard.md`; `code-ops-suite:vault` scaffolds, migrates, and checks one.
 
 **Cross-cutting rules (apply throughout):**
 - **Every command written must be verified** — run it, or cite the CI/script `file:line` that defines it. Never invent one; if the repo has no build/test/lint infra for a category, state that honestly rather than filling the gap.

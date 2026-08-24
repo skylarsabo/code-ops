@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "hub": "code-ops-docs",
+  "domains": [
+    {
+      "id": "decisions",
+      "path": "20 Decisions/ADRs",
+      "status": "current",
+      "sources": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "plugins/**",
+        "scripts/**"
+      ],
+      "sourceDigest": "bad2418d08ded93d6fed86bb9d5c08e37cce067a3fea83c99ad3ff92e1171307",
+      "contentDigest": "587f59e8a5ec7e59d9ab9f410a54f1d32734121602518b689ce78eae86fa7720"
+    },
+    {
+      "id": "architecture",
+      "path": "30 Architecture/ARCHITECTURE.md",
+      "status": "current",
+      "sources": [
+        "plugins/**",
+        "scripts/**",
+        ".claude-plugin/**"
+      ],
+      "sourceDigest": "adfa52f32402329e72604f0a16350765e94c3ec9c3198111877dd34c025e24e0",
+      "contentDigest": "44ba891dce7484918524fe66ced84fc09093d18fd1da68e6423d901401e727ba"
+    },
+    {
+      "id": "contracts",
+      "path": "35 Contracts and Data/CONTRACTS.md",
+      "status": "current",
+      "sources": [
+        "plugins/**",
+        "scripts/**",
+        "evals/**"
+      ],
+      "sourceDigest": "227e96d834aba290e00baed57aec673c6232ab43884f9700493a60e0ddddd3d9",
+      "contentDigest": "b6c9b65d4b16481d48101a5c781938c4322fc65606c15d59ca57d98a787b7a23"
+    },
+    {
+      "id": "data-model",
+      "path": "35 Contracts and Data/DATA_MODEL.md",
+      "status": "current",
+      "sources": [
+        "plugins/**",
+        "scripts/**",
+        "evals/**"
+      ],
+      "sourceDigest": "227e96d834aba290e00baed57aec673c6232ab43884f9700493a60e0ddddd3d9",
+      "contentDigest": "c3326dea103992005867ec75f4cd6ec918c92d3ea600727b89a937cc95213d28"
+    },
+    {
+      "id": "engineering-standards",
+      "path": "40 Engineering/ENGINEERING_STANDARDS.md",
+      "status": "current",
+      "sources": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "scripts/lint-plugins.mjs",
+        "scripts/check-no-deps.mjs"
+      ],
+      "sourceDigest": "7926447a2657fb53c664fb67f47a499f9797c100daa531790a52cb047c10ed00",
+      "contentDigest": "735f927610eacf8e009221ef408ed7dae34623da2e80f07875cd3d3d71ee58b4"
+    },
+    {
+      "id": "handbook",
+      "path": "40 Engineering/Handbook",
+      "status": "current",
+      "sources": [
+        "plugins/**",
+        "scripts/**",
+        ".github/workflows/**"
+      ],
+      "sourceDigest": "ef5f57e1c8591eba4017b01066dde5d0101349861dcd9d0baeaa0b9592ea51cf",
+      "contentDigest": "9b465b0d987f565dd2bed18dcb9bed1a88e69e366c27bc584afec6fa5c492ea2"
+    },
+    {
+      "id": "techniques",
+      "path": "40 Engineering/Techniques",
+      "status": "current",
+      "sources": [
+        "plugins/**",
+        "scripts/**",
+        "evals/**"
+      ],
+      "sourceDigest": "227e96d834aba290e00baed57aec673c6232ab43884f9700493a60e0ddddd3d9",
+      "contentDigest": "8b1789029a51e5a5be85882b6b14fcf5bf7eea1c13e3029c4e00212d0af927bc"
+    },
+    {
+      "id": "api-reference",
+      "path": "40 Engineering/Handbook/commands",
+      "status": "current",
+      "sources": [
+        "plugins/*/skills/**"
+      ],
+      "sourceDigest": "682a85c098b2578021021b391886396b2b9c5b7c6c766f6d033c8a897d5dbff7",
+      "contentDigest": "f9857af7458addbc2c0640fddb96998254cf4d5ceb64fa83484f134e4a74036d"
+    },
+    {
+      "id": "ci-delivery",
+      "path": "50 Platform/CI_DELIVERY.md",
+      "status": "current",
+      "sources": [
+        ".github/workflows/**",
+        "scripts/**"
+      ],
+      "sourceDigest": "48812f012de9e1c0e38ddbc07b2a144f01489aad783ec197018a8c38b4747071",
+      "contentDigest": "edde33c86e4d7b617908200c244321431985a57030f2cc7934cc5c7ee36a578f"
+    },
+    {
+      "id": "infrastructure",
+      "path": "50 Platform/INFRASTRUCTURE.md",
+      "status": "current",
+      "sources": [
+        ".github/**",
+        ".claude-plugin/**",
+        "scripts/build-*.mjs"
+      ],
+      "sourceDigest": "adf19b3a08a726917093cd762ea9f81bbfeae93bb8c68e17a78672954e065e0a",
+      "contentDigest": "537f4ed7b621c3cece867a2e7de5ac474ca7552d64ca36ebd5346587202d3441"
+    },
+    {
+      "id": "observability",
+      "path": "55 Operations/OBSERVABILITY.md",
+      "status": "current",
+      "sources": [
+        "scripts/**",
+        ".github/workflows/**"
+      ],
+      "sourceDigest": "48812f012de9e1c0e38ddbc07b2a144f01489aad783ec197018a8c38b4747071",
+      "contentDigest": "1d73a4987532b2ad1b407bbb91b62b71c4343c269c2640df3a26186e5690dbcf"
+    },
+    {
+      "id": "design-system",
+      "path": "60 Experience/DESIGN_SYSTEM.md",
+      "status": "not-applicable",
+      "evidence": "The repository ships text, schemas, scripts, and host distributions; it has no user-interface runtime or visual component package.",
+      "sources": [
+        "plugins/**",
+        "scripts/**"
+      ],
+      "sourceDigest": "5503452a1b7b4f113d71174743ceb6efc4cfeffc0a16e5f4ba99796318e7ac91",
+      "contentDigest": "31042490717e5eff0ea7465f014d911ba2cce62e34e21790ed0d6e04d03c76d4"
+    },
+    {
+      "id": "guides",
+      "path": "70 Guides/Guides",
+      "status": "current",
+      "sources": [
+        "plugins/**",
+        "scripts/**"
+      ],
+      "sourceDigest": "5503452a1b7b4f113d71174743ceb6efc4cfeffc0a16e5f4ba99796318e7ac91",
+      "contentDigest": "f498f829af23b05209e635b1444dfc3ca4c87602ae30bbdf793e0101758dbab1"
+    },
+    {
+      "id": "atlas",
+      "path": "98 System/Atlas",
+      "status": "current",
+      "sources": [
+        "**"
+      ],
+      "sourceDigest": "e8c0e5696374adaef5440bef9bc2b93ef5192d80a420800ac1c1fef0fe8a3be7",
+      "contentDigest": "e293e28a6b7a7526ac284a9ab52878904e288b4b0b8717f173aca7a9b118b937"
+    }
+  ]
+}

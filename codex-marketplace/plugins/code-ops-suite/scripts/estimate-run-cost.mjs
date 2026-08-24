@@ -4,12 +4,12 @@
 //
 //   node scripts/estimate-run-cost.mjs --runs <dir> [--skill <name>] [--repo-size <mb>] [--json <path>]
 //
-// WHY: docs/handbook/09-cost-and-scoping.md says cost is a control you hold, set at Phase 0 —
+// WHY: code-ops-docs/40 Engineering/Handbook/09-cost-and-scoping.md says cost is a control you hold, set at Phase 0 —
 // but every mechanical reading the suite produced arrived AFTER the run, when the budget was
 // already spent. calibration-metrics.mjs and run-cost-audit measure a finished run; nothing
 // answered "how many dispatches is this shape of run likely to take?" before it started. This
 // script answers that from the only honest source available: the DISPATCH_LEDGER.md files of
-// prior runs, read with the same grammar their writer used (docs/techniques/artifact-grammars.md
+// prior runs, read with the same grammar their writer used (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md
 // grammar (a)).
 //
 // WHAT IT DOES NOT DO: no token-price math. Per-token prices drift between providers and
@@ -116,7 +116,26 @@ function readRun(ledgerPath) {
     byClass.set(cls, (byClass.get(cls) ?? 0) + 1);
   }
   const folder = resolve(ledgerPath, '..');
-  return { folder, label: basename(folder), dispatches, malformed, byClass };
+  const contractPath = join(folder, 'RUN_CONTRACT.json');
+  const resultPath = join(folder, 'RUN_CONTRACT_RESULT.json');
+  const contractBacked = existsSync(contractPath);
+  let finalized = !contractBacked;
+  if (contractBacked && existsSync(resultPath)) {
+    try {
+      const contract = JSON.parse(readFileSync(contractPath, 'utf8'));
+      const result = JSON.parse(readFileSync(resultPath, 'utf8'));
+      finalized = result.status === 'PASS'
+        && result.version === contract.version
+        && typeof contract.runId === 'string'
+        && result.runId === contract.runId
+        && result.revision === contract.revision
+        && typeof contract.head === 'string'
+        && result.head === contract.head;
+    } catch {
+      finalized = false;
+    }
+  }
+  return { folder, label: basename(folder), dispatches, malformed, byClass, contractBacked, finalized };
 }
 
 // A run is comparable to a named skill when the skill's name appears in its folder label. Run
@@ -178,6 +197,7 @@ const machine = {
   // parseable row. `comparableRuns` counts folders, which is not the same number.
   usableRuns: 0,
   emptyLedgerRuns: 0,
+  inProgressRuns: 0,
   depthCappedDirs: cappedAt.length,
   skillFilterFellBack: fellBack,
   estimate: null,
@@ -191,14 +211,18 @@ const machine = {
 // is most needed. `dispatch-ledger.mjs phase` produces such a ledger for any run that opened a
 // phase and died before its first dispatch, so this is an ordinary artifact, not a corner case.
 // Zero-row runs are excluded from the basis and reported by name instead.
-const usable = comparable.filter((r) => r.dispatches > 0);
-const emptyLedgers = comparable.filter((r) => r.dispatches === 0);
+const inProgress = comparable.filter((r) => r.contractBacked && !r.finalized);
+const usable = comparable.filter((r) => r.finalized && r.dispatches > 0);
+const emptyLedgers = comparable.filter((r) => r.finalized && r.dispatches === 0);
 machine.usableRuns = usable.length;
 machine.emptyLedgerRuns = emptyLedgers.length;
+machine.inProgressRuns = inProgress.length;
 
 if (comparable.length && !usable.length) {
   p(`  basis: ${basis}`);
-  p('  no estimate — every comparable ledger parsed to zero dispatch rows.');
+  p(inProgress.length === comparable.length
+    ? '  no estimate — every comparable contract-backed run is still in progress.'
+    : '  no estimate — every comparable ledger parsed to zero dispatch rows.');
 }
 
 if (usable.length) {
@@ -237,7 +261,7 @@ if (comparable.length) {
     p(`     Drawn from ${usable.length} comparable run(s). A range needs at least ${MIN_COMPARABLE}`);
     p('     to be a distribution rather than a sample; below that the min and the max are');
     p('     two observations, and the median is one of them. Read it as an order of');
-    p('     magnitude, and scope the run on the levers in docs/handbook/09-cost-and-scoping.md');
+    p('     magnitude, and scope the run on the levers in code-ops-docs/40 Engineering/Handbook/09-cost-and-scoping.md');
     p('     rather than on this line.');
   }
   if (emptyLedgers.length) {
@@ -247,6 +271,14 @@ if (comparable.length) {
     p('     aborted or not-yet-started run, or rows the grammar cannot read). Excluded from the');
     p('     range rather than counted as 0:');
     for (const r of emptyLedgers) p(`       ${r.label}${r.malformed ? ` (${r.malformed} unparseable row(s))` : ''}`);
+  }
+  if (inProgress.length) {
+    machine.caveats.push(`${inProgress.length} contract-backed run(s) have no successful final result — excluded from the range`);
+    p();
+    p(`  !! CAVEAT — ${inProgress.length} contract-backed run(s) have no successful final result.`);
+    p('     They are still running, failed finalization, or carry an unreadable result. Excluded');
+    p('     from history so partial work cannot train the next run\'s estimate:');
+    for (const r of inProgress) p(`       ${r.label}`);
   }
   if (fellBack) {
     machine.caveats.push(`no run folder matched "${flags['--skill']}" — the estimate covers every prior run`);
@@ -260,7 +292,7 @@ if (comparable.length) {
     p();
     p(`  !! CAVEAT — ${withMalformed.length} comparable run(s) carry unparseable ledger rows; their`);
     p('     dispatch counts are floors, not counts. Check them against grammar (a) in');
-    p('     docs/techniques/artifact-grammars.md.');
+    p('     code-ops-docs/40 Engineering/Techniques/artifact-grammars.md.');
   }
 }
 

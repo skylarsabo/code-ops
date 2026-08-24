@@ -13,14 +13,14 @@
 // per-artifact non-blank line count flagged against scan-narration.mjs's length-discipline
 // thresholds (CONVENTIONS §12: advisory once a run summary drifts past a page, hard once it's
 // clearly a transcript). It also reads the two conformance snapshots — CONFORMANCE_REPORT.md's
-// per-surface verdicts and RUN_CONFORMANCE.md's per-check results (docs/techniques/
+// per-surface verdicts and RUN_CONFORMANCE.md's per-check results (code-ops-docs/40 Engineering/Techniques/
 // artifact-grammars.md §(d)/§(e)) — so standardization drift and orchestration discipline become
 // trended series rather than one-off readings.
 // Each of the five named artifacts is OPTIONAL — its absence is
 // reported as "not present", never an error — and a malformed row/item/line is counted and
 // reported as "unparseable: N", never silently skipped (the same skip-noting convention the
 // referenced scripts use). A present, non-empty artifact that yields zero parsed items gets a
-// WARNING line naming it and pointing at docs/techniques/artifact-grammars.md — zero-parse on
+// WARNING line naming it and pointing at code-ops-docs/40 Engineering/Techniques/artifact-grammars.md — zero-parse on
 // non-empty text means shape drift, not absence (the finding that motivated this warning). The
 // The failed and redispatch rates are JOURNAL-FIRST: when the ledger's write journal
 // (`DISPATCH_LEDGER.md.journal.jsonl`, scripts/dispatch-ledger.mjs) sits beside it, per-unit history
@@ -59,7 +59,7 @@
 // `plugin:skill` slug references are allowlisted first (they are public vocabulary, not a
 // leak) so a clean note that legitimately names them never trips the gate. It also fails CLOSED
 // on the note's `## Machine block`: a note MISSING that section is rejected (the template now
-// requires it — docs/techniques/calibration-protocol.md), and every non-blank line inside it
+// requires it — code-ops-docs/40 Engineering/Techniques/calibration-protocol.md), and every non-blank line inside it
 // must match one of MACHINE_LINE_SHAPES, with a non-matching line reported by line number
 // alongside the shapes it could have taken. The scrubs above still run over the whole note,
 // the machine block included.
@@ -224,7 +224,7 @@ function isItemId(id, after, afterNext) {
 
 // An entry begins only at an ENTRY-HEADING POSITION: the start of a line, optionally behind
 // markdown heading markers or a table row's leading pipe (the two entry forms in
-// docs/techniques/artifact-grammars.md §(b)). An ID inside evidence prose ("duplicate of
+// code-ops-docs/40 Engineering/Techniques/artifact-grammars.md §(b)). An ID inside evidence prose ("duplicate of
 // BUG-003") or a domain tag in body text (INC-2024) is a reference, not a boundary — the
 // unanchored scan counted 13 of a real target's historical incident tags as findings. Composed
 // from ID_RE's own source so the ID shape cannot drift between the anchored and mid-line scans.
@@ -260,7 +260,7 @@ const countCoveredNegatives = (text) => text.split('\n').filter((l) => NO_FINDIN
 
 // An entry runs to the last line that BELONGS to it — it is terminated by the next entry
 // heading, by a covered-negative `NO-FINDINGS:` line, or by a non-entry markdown heading that
-// opens a new section (docs/techniques/artifact-grammars.md §(b) "Where an entry ends"). Without
+// opens a new section (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md §(b) "Where an entry ends"). Without
 // a terminator, a register's trailing covered-negative block was attributed to its final entry
 // and reliably tripped that entry's hard cap on a register whose entries were all tight.
 const SECTION_HEADING_RE = /^[ \t]*#{1,6}[ \t]+/;
@@ -302,7 +302,7 @@ function summarizeRegister(text) {
 // Refutation-log receipt lines per revalidate-register.mjs's comment grammar: one verdict per
 // line, keyed by the finding's own ID, carrying a SURVIVED|REFUTED token. A receipt is keyed by
 // an ID at RECEIPT POSITION — the start of the line — mirroring the entry-heading position
-// registers use (docs/techniques/artifact-grammars.md §(b)/§(c)). An ID cited mid-line in
+// registers use (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md §(b)/§(c)). An ID cited mid-line in
 // explanatory prose ("read BUG-001 as a duplicate of BUG-003") is a citation, not a receipt:
 // matched mid-line, such a line was counted unparseable, or — when the prose happened to carry a
 // verdict word — as a second verdict for a finding already receipted. A line whose leading ID
@@ -324,7 +324,7 @@ function summarizeRefutation(text) {
   return { total, survived, refuted, malformed, pct };
 }
 
-// ---- conformance snapshots (docs/techniques/artifact-grammars.md §(d)/§(e)) ----------
+// ---- conformance snapshots (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md §(d)/§(e)) ----------
 // Two table-row grammars that make standardization drift and orchestration discipline
 // measurable instead of a one-off reading. Both are parsed with the SAME semantics the three
 // older grammars get: a row that does not match, or whose enum cell is outside its set, is
@@ -480,7 +480,7 @@ function runMetrics(dir, outPath, jsonPath) {
   const warnZeroParse = (name, text) => {
     if (text.trim() === '') return; // genuinely empty is not shape drift
     p(`  !! WARNING: ${name} is present and non-empty but yielded 0 parsed items — check its`
-      + ' shape against docs/techniques/artifact-grammars.md before assuming there is nothing to report.');
+      + ' shape against code-ops-docs/40 Engineering/Techniques/artifact-grammars.md before assuming there is nothing to report.');
   };
 
   p(`# calibration-metrics — ${dir}`);
@@ -657,7 +657,7 @@ function runMetrics(dir, outPath, jsonPath) {
       // its own is findings written outside the register: every metric above misses them.
       if (!METRIC_ARTIFACTS.has(f.toUpperCase()) && entries.length)
         p(`  !! WARNING: ${f} carries ${entries.length} register-shaped entry(ies) that are NOT counted in`
-          + ' the metrics above — findings must live in FINDINGS_REGISTER.md (docs/techniques/artifact-grammars.md).');
+          + ' the metrics above — findings must live in FINDINGS_REGISTER.md (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md).');
     }
   }
 
@@ -709,7 +709,7 @@ function stripAllowlisted(line) {
   return out;
 }
 
-// ---- Machine block (docs/techniques/calibration-protocol.md note template) -----------
+// ---- Machine block (code-ops-docs/40 Engineering/Techniques/calibration-protocol.md note template) -----------
 // The block is the machine-readable half of a sanitized note: counts, kebab slugs and enum
 // words only, line-based, no fences and no paths. One regex per template line, in template
 // order, each paired with the shape text a violation is reported against.
@@ -779,7 +779,7 @@ function validateMachineBlock(text) {
     hits.push({
       line: 1, cat: 'MACHINE-BLOCK',
       snippet: 'no "## Machine block" section — the sanitized-note template requires one'
-        + ' (docs/techniques/calibration-protocol.md); a note without it cannot be ingested.',
+        + ' (code-ops-docs/40 Engineering/Techniques/calibration-protocol.md); a note without it cannot be ingested.',
     });
     return hits;
   }

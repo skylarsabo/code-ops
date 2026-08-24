@@ -2,7 +2,7 @@
 
 Adaptive, multi-agent engineering workflows for **any codebase**, authored here as the canonical Claude Code package and rendered into a native Codex package. In Claude Code invoke a workflow as `/code-ops-suite:<name>`; in Codex name `code-ops-suite:<name>` in your request. They run a dynamic, conflict-aware multi-agent loop and check in with you at the decisions that matter. Shared rules live once in `CONVENTIONS.md`, which every skill reads first.
 
-New to the suite? See the handbook at `docs/handbook/` (from the repo root) to learn to use it.
+New to the suite? See the handbook at `code-ops-docs/40 Engineering/Handbook/` (from the repo root) to learn to use it.
 
 ## Skills
 
@@ -31,9 +31,10 @@ Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` i
 - `adopt-standards` — bootstrap or maintain a repo's `CLAUDE.md` standards contract so it's mechanically kept, not aspirational.
 - `adopt-global-standards` — the cross-repo counterpart: re-verify the user's global `~/.claude/CLAUDE.md` against the marketplace's SSOT pages, classify every divergence (contradicts / stale / missing / repo-local), and rewrite it under checkpoint.
 - `doc-alignment` — reconcile doc drift against code; establish a clean single source of truth.
+- `repo-docs` — extract and refresh only affected documentation domains from one manifest-owned repository documentation hub.
 - `onboarding` — generate a verified, code-grounded orientation guide with an architecture diagram.
 - `current-docs` — current, version-accurate docs for a library from the version installed in this project (local-first, no third-party) — the in-house Context7 alternative. Also shipped as the `code-ops-docs` MCP server (`resolve-library` / `get-docs`) and wired as the `CONVENTIONS §2` documentation-lookup default suite-wide.
-- `atlas` — build, refresh, or consolidate the repo's atlas (`docs/atlas/`): a durable cache of judgment about the codebase — rationale, cross-file flows, invariants, gotchas — with per-section freshness decided mechanically against the diff since each section's stamp.
+- `atlas` — build, refresh, or consolidate the repo's atlas (`code-ops-docs/98 System/Atlas/`): a durable cache of judgment about the codebase — rationale, cross-file flows, invariants, gotchas — with per-section freshness decided mechanically against the diff since each section's stamp.
 - `vault` — scaffold, migrate, or check the repo's `<repo>-docs/` Obsidian vault against the one layout standard: numbered folders, a versioned self-contained `Standard.md`, and note frontmatter, with conformance decided fail-closed by `check-vault-standard.mjs`.
 - `handoff` — capture a long run's true state (decisions, dead ends, in-flight boundaries, anchored pointers, register paths) as a verifiable `HANDOFF.md` before a context limit or session end — or resume from one, re-verifying every claim against the tree first.
 
@@ -53,7 +54,7 @@ Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` i
 - `full-sweep` — run the whole suite end-to-end as one developer-in-the-loop pipeline (ground truth → assess → safety-net → fix → deep-dives → consistency → capture), pausing at each phase boundary. Intra-plugin.
 - `everything` — the cross-plugin superset: orchestrates every phase across all three plugins (map → prove → leak-audit → safety-net → remediate → close → improve → normalize). Requires `rigor` and `privacy-opsec-suite` installed; the most thorough and most token-expensive option.
 - `ship` — implement one change (feature or one-off) end-to-end at full rigor: design-check → safety-net → implement → prove → privacy-gate → traceless PR. Requires `rigor`; privacy phase if applicable.
-- `conform` — assess every standardization surface of a repo in one read-only pass (standards contract, `<repo>-docs/` vault, `docs/atlas/`, doc drift, and opt-in the global contract), write `CONFORMANCE_REPORT.md`, then repair surface by surface under checkpoint by delegating to the skill that owns each one.
+- `conform` — assess every standardization surface of a repo in one read-only pass (standards contract, `<repo>-docs/` vault, `code-ops-docs/98 System/Atlas/`, doc drift, and opt-in the global contract), write `CONFORMANCE_REPORT.md`, then repair surface by surface under checkpoint by delegating to the skill that owns each one.
 - `debug` — drive a bug from symptom to a proven root-cause fix: reproduce → isolate → confirm cause → `rigor:fix-verified` → traceless PR. Requires `rigor`.
 
 ## Subagents

@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "sections": [
+    {
+      "slug": "plugins-and-skills",
+      "file": "sections/plugins-and-skills.md",
+      "scope": [
+        "plugins",
+        ".claude-plugin"
+      ],
+      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+    },
+    {
+      "slug": "gate-scripts",
+      "file": "sections/gate-scripts.md",
+      "scope": [
+        "scripts",
+        ".githooks"
+      ],
+      "verifiedAt": "1ce3f2b8e717d540c99afa63210f4887b3556a48"
+    },
+    {
+      "slug": "evals-and-calibration",
+      "file": "sections/evals-and-calibration.md",
+      "scope": [
+        "evals"
+      ],
+      "verifiedAt": "b0a64328d392c35aedc53445171e6b2c73050c76"
+    },
+    {
+      "slug": "codex-render",
+      "file": "sections/codex-render.md",
+      "scope": [
+        "codex-marketplace",
+        ".agents"
+      ],
+      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+    },
+    {
+      "slug": "ci-workflows",
+      "file": "sections/ci-workflows.md",
+      "scope": [
+        ".github"
+      ],
+      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+    },
+    {
+      "slug": "docs-doctrine",
+      "file": "sections/docs-doctrine.md",
+      "scope": [
+        "code-ops-docs"
+      ],
+      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+    },
+    {
+      "slug": "root-contracts",
+      "file": "sections/root-contracts.md",
+      "scope": [
+        "README.md",
+        "CLAUDE.md",
+        "AGENTS.md",
+        "LICENSE",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+    }
+  ]
+}

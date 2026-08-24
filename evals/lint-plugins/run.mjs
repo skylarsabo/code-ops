@@ -22,7 +22,7 @@
 //     plus 'always-gated-core' which ALSO requires
 //     plugins/code-ops-suite/skills/everything/SKILL.md to exist and carry its sentence.
 // Contrast: the agent-related checks (9/10/12, AGENT_MODEL_FLOORS included) and the
-// per-skill handbook checks ARE properly conditional (an agents/ dir, a docs/handbook/
+// per-skill handbook checks ARE properly conditional (an agents/ dir, a code-ops-docs/40 Engineering/Handbook/
 // commands/ dir, a plugin's own skill list) and skip cleanly when a fixture omits them —
 // verified by reading their `if (existsSync(...))` / `for (slug of p.skills)` guards in
 // scripts/lint-plugins.mjs. PRODUCER_SELFCHECK and SHARED_PASSAGES have no such guard: they
@@ -31,7 +31,7 @@
 // CONVENTIONS.md and plugins/researcher/CONVENTIONS.md to exist on disk (with the doctrine
 // text) purely to satisfy SHARED_PASSAGES's existence check — which in turn means those two
 // dirs must ALSO be registered marketplace entries (else the separate "unregistered plugin
-// dir" check fires on them) and, since docs/handbook/commands/ exists in this fixture, each
+// dir" check fires on them) and, since code-ops-docs/40 Engineering/Handbook/commands/ exists in this fixture, each
 // needs a stub handbook page and a "**0 commands**" router bullet (0 skills each keeps every
 // per-skill requirement moot). The PINNED_TEXTS/ALWAYS_GATED_TEXT constants below are
 // transcribed verbatim from SHARED_PASSAGES in scripts/lint-plugins.mjs as of this writing.
@@ -86,7 +86,7 @@ const PINNED_TEXTS = [
   'Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it',
   'Pre-filter first, read narrow: at a phase boundary run the checker BEFORE any wholesale register read, then read only the non-FRESH/DRIFTED entries in full',
   'is NOT re-paneled — the receipts are the verdict; any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline — never the full register',
-  'hand its path to every operative brief; operatives consult the map first and use search only to go deeper than the map reaches, never to re-derive layout or find definitions the map already lists',
+  'hand the verified context artifact to every operative brief; operatives consult it first and use search only to go deeper than it reaches, never to re-derive layout or find definitions it already lists',
   "failed dispatch, not a weak signal — never synthesize around a missing report or fill its gap from the orchestrator's own assumptions",
   'redispatch once with a tightened, smaller brief; then escalate at the next checkpoint',
   'The row is written **at dispatch time**, atomically with the dispatch call itself — never a turn earlier or later — because a row written before its dispatch is a phantom indistinguishable from a hung operative',
@@ -223,7 +223,7 @@ function buildBaseline(root) {
   put(root, 'plugins/researcher/agents/gatherer.md', agentBody('gatherer', 'haiku', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
 
   // -- handbook (router index + one page per plugin) --
-  put(root, 'docs/handbook/commands/README.md', [
+  put(root, 'code-ops-docs/40 Engineering/Handbook/commands/README.md', [
     '# Command Reference (fixture)',
     '',
     'Fixture handbook index for evals/lint-plugins/run.mjs.',
@@ -247,9 +247,9 @@ function buildBaseline(root) {
     '',
   ].join('\n'));
   for (const filler of ['privacy-opsec-suite', 'researcher']) {
-    put(root, `docs/handbook/commands/${filler}.md`, `# Command Reference — ${filler} (fixture)\n\nNo commands (fixture filler plugin with 0 skills).\n`);
+    put(root, `code-ops-docs/40 Engineering/Handbook/commands/${filler}.md`, `# Command Reference — ${filler} (fixture)\n\nNo commands (fixture filler plugin with 0 skills).\n`);
   }
-  put(root, 'docs/handbook/commands/code-ops-suite.md', [
+  put(root, 'code-ops-docs/40 Engineering/Handbook/commands/code-ops-suite.md', [
     '# Command Reference — code-ops-suite (fixture)',
     '',
     '### `/code-ops-suite:codebase-audit`',
@@ -259,7 +259,7 @@ function buildBaseline(root) {
     'Fixture entry.',
     '',
   ].join('\n'));
-  put(root, 'docs/handbook/commands/rigor.md', [
+  put(root, 'code-ops-docs/40 Engineering/Handbook/commands/rigor.md', [
     '# Command Reference — rigor (fixture)',
     '',
     '### `/rigor:bug-hunt`',
@@ -332,10 +332,10 @@ No completion heading here on purpose (case 3 mutation).
 
   // 4. ROUTER COUNT — handbook "**N commands**" bullet set to a wrong N (rigor has 3 skills).
   const d4 = clone('case4-router-count');
-  const readme4 = readIn(d4, 'docs/handbook/commands/README.md');
+  const readme4 = readIn(d4, 'code-ops-docs/40 Engineering/Handbook/commands/README.md');
   const mutated4 = readme4.replace('- [rigor.md](rigor.md) — **3 commands**: fixture.', '- [rigor.md](rigor.md) — **5 commands**: fixture.');
   check('4. setup: router-count mutation string found', mutated4 !== readme4);
-  put(d4, 'docs/handbook/commands/README.md', mutated4);
+  put(d4, 'code-ops-docs/40 Engineering/Handbook/commands/README.md', mutated4);
   const r4 = runLint(d4);
   check('4. wrong router count exits 1', r4.status === 1);
   check('4. message mentions the count', r4.all.includes('**5 commands**') && r4.all.includes('actually has 3'));
@@ -368,10 +368,10 @@ No completion heading here on purpose (case 3 mutation).
   check('7. agent passage drift exits 1', r7.status === 1);
   check('7. message mentions the drifted agent passage', r7.all.includes('agent-escalate-dont-guess') && r7.all.includes('plugins/rigor/agents/tracer.md'));
 
-  // 8. BOGUS COMPOSITION EDGE — docs/techniques/skill-composition.md table cell names a
+  // 8. BOGUS COMPOSITION EDGE — code-ops-docs/40 Engineering/Techniques/skill-composition.md table cell names a
   // plugin:skill edge that does not resolve to a real plugins/<plugin>/skills/<skill>/ dir.
   const d8 = clone('case8-bogus-composition-edge');
-  put(d8, 'docs/techniques/skill-composition.md', [
+  put(d8, 'code-ops-docs/40 Engineering/Techniques/skill-composition.md', [
     '# Skill composition (fixture)',
     '',
     '| From skill | Invokes | Notes |',
@@ -419,7 +419,7 @@ No completion heading here on purpose (case 3 mutation).
   // so every assertion here reads check 22's OWN message text: check 17 can never satisfy
   // it. The fixture plants one real cross-skill reference and the matching edge row, then
   // each mutation breaks one direction.
-  const COMP_PATH = 'docs/techniques/skill-composition.md';
+  const COMP_PATH = 'code-ops-docs/40 Engineering/Techniques/skill-composition.md';
   const COMP_EDGE_ROW = '| `rigor:quality-scan` | `rigor:bug-hunt` | fixture edge (case 12) |';
   const compPage = (rows) => [
     '# Skill composition (fixture)',

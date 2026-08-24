@@ -21,6 +21,8 @@
 //        depth cap is disclosed rather than dropped behind "no ledger found under this tree".
 //   q.   Grammar (a) — the ledger row shape — is declared once in scripts/ledger-grammar.mjs
 //        and imported by the writer and both readers, never re-declared.
+//   r.   A contract-backed run does not enter historical estimates until its compiler result
+//        records PASS. In-progress work is named and counted separately, never learned from.
 //
 // Fixtures are built in a throwaway tmp tree rather than committed, following
 // evals/dispatch-ledger/run.mjs: one of the cases IS an empty directory, which git cannot track.
@@ -173,6 +175,52 @@ try {
   check('l. and the same class mix and counts',
     mj?.comparableRuns === 3 && mj?.priorRuns === 4 && mj?.modelClassMix?.strong === 4, JSON.stringify(mj));
   check('l. a clean n>=3 estimate carries no caveats', Array.isArray(mj?.caveats) && mj.caveats.length === 0, JSON.stringify(mj?.caveats));
+
+  // ---- contract-backed runs become history only after successful finalization -------
+  const lifecycle = join(work, 'lifecycle');
+  mkdirSync(lifecycle, { recursive: true });
+  const completed = seedRun(lifecycle, '2026-08-01 ship completed', [
+    'D-001 | explorer@claude-sonnet-5 | map auth | MAP.md | reported',
+    'D-002 | reviewer@claude-opus-5 | review auth | REVIEW.md | reported',
+  ]);
+  writeFileSync(join(completed, 'RUN_CONTRACT.json'), JSON.stringify({ version: 1, runId: 'completed', revision: 2, head: 'abc' }));
+  writeFileSync(join(completed, 'RUN_CONTRACT_RESULT.json'), JSON.stringify({ version: 1, runId: 'completed', revision: 2, head: 'abc', status: 'PASS' }));
+  const live = seedRun(lifecycle, '2026-08-05 ship live', [
+    'D-001 | explorer@claude-sonnet-5 | map cache | MAP.md | reported',
+    'D-002 | implementer@claude-sonnet-5 | change cache | diff | reported',
+    'D-003 | reviewer@claude-opus-5 | review cache | REVIEW.md | reported',
+    'D-004 | verifier@claude-opus-5 | run gates | RECEIPTS.md | dispatched',
+  ]);
+  writeFileSync(join(live, 'RUN_CONTRACT.json'), JSON.stringify({ runId: 'live' }));
+  const stale = seedRun(lifecycle, '2026-08-07 ship stale-result', [
+    'D-001 | explorer@claude-sonnet-5 | map stale | MAP.md | reported',
+    'D-002 | explorer@claude-sonnet-5 | map stale two | MAP2.md | reported',
+    'D-003 | explorer@claude-sonnet-5 | map stale three | MAP3.md | reported',
+    'D-004 | explorer@claude-sonnet-5 | map stale four | MAP4.md | reported',
+    'D-005 | explorer@claude-sonnet-5 | map stale five | MAP5.md | reported',
+    'D-006 | explorer@claude-sonnet-5 | map stale six | MAP6.md | reported',
+    'D-007 | reviewer@claude-opus-5 | review stale | REVIEW.md | reported',
+  ]);
+  writeFileSync(join(stale, 'RUN_CONTRACT.json'), JSON.stringify({ version: 1, runId: 'stale', revision: 2, head: 'new' }));
+  writeFileSync(join(stale, 'RUN_CONTRACT_RESULT.json'), JSON.stringify({ version: 1, runId: 'stale', revision: 1, head: 'old', status: 'PASS' }));
+  seedRun(lifecycle, '2026-08-09 ship legacy', [
+    'D-001 | explorer@claude-sonnet-5 | map parser | MAP.md | reported',
+    'D-002 | implementer@claude-sonnet-5 | change parser | diff | reported',
+    'D-003 | reviewer@claude-opus-5 | review parser | REVIEW.md | reported',
+    'D-004 | verifier@claude-opus-5 | run gates | RECEIPTS.md | reported',
+  ]);
+  const lifecycleJson = join(work, 'lifecycle.json');
+  const r = run(['--runs', lifecycle, '--skill', 'ship', '--json', lifecycleJson]);
+  let rj = null;
+  try { rj = JSON.parse(readFileSync(lifecycleJson, 'utf8')); } catch (e) { rj = { parseError: String(e.message) }; }
+  check('r. an in-progress contract run is excluded from the range',
+    /dispatch-count range: min 2, median 3, max 4/.test(r.stdout), r.stdout);
+  check('r. the in-progress contract run is named in a lifecycle caveat',
+    /CAVEAT — 2 contract-backed run\(s\) have no successful final result/.test(r.stdout)
+    && /2026-08-05 ship live/.test(r.stdout) && /2026-08-07 ship stale-result/.test(r.stdout), r.stdout);
+  check('r. the machine shape separates live contracts from usable history',
+    rj?.priorRuns === 4 && rj?.comparableRuns === 4 && rj?.usableRuns === 2
+    && rj?.inProgressRuns === 2, JSON.stringify(rj));
 
   // ---- a zero-row ledger is excluded from the basis, not counted as a 0-cost run ----
   // The fixture is exactly what `dispatch-ledger.mjs phase` writes for a run that opened a

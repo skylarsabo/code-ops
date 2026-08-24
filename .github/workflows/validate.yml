@@ -55,6 +55,9 @@ jobs:
       - name: Vault conformance (this repo's own vault)
         run: node scripts/check-vault-standard.mjs code-ops-docs
 
+      - name: Documentation manifest freshness
+        run: node scripts/docs-manifest.mjs check
+
       - name: Vault-standard regression eval
         run: node evals/vault-standard/run.mjs
 
@@ -115,6 +118,12 @@ jobs:
       - name: Doc line-citation gate
         run: node scripts/check-doc-citations.mjs
 
+      - name: Documentation link gate
+        run: node scripts/check-doc-links.mjs
+
+      - name: Documentation link regression eval
+        run: node evals/doc-links/run.mjs
+
       - name: Lint-gate fixture eval
         run: node evals/lint-plugins/run.mjs
 
@@ -129,6 +138,17 @@ jobs:
 
       - name: Dispatch-ledger regression eval
         run: node evals/dispatch-ledger/run.mjs
+
+      - name: Run-contract regression eval
+        run: node evals/run-contract/run.mjs
+
+      - name: Context snapshot and bundle regression evals
+        run: |
+          node evals/context-snapshot/run.mjs
+          node evals/context-bundle/run.mjs
+
+      - name: Documentation extraction regression eval
+        run: node evals/docs-manifest/run.mjs
 
       - name: Pre-run cost estimator eval
         run: node evals/estimate-run-cost/run.mjs
@@ -208,6 +228,9 @@ jobs:
       - name: Vault conformance (this repo's own vault)
         run: node scripts/check-vault-standard.mjs code-ops-docs
 
+      - name: Documentation manifest freshness
+        run: node scripts/docs-manifest.mjs check
+
       - name: Vault-standard regression eval
         run: node evals/vault-standard/run.mjs
 
@@ -232,6 +255,11 @@ jobs:
       - name: Doc-citation checker eval
         run: node evals/doc-citations/run.mjs
 
+      - name: Documentation link gate and regression eval
+        run: |
+          node scripts/check-doc-links.mjs
+          node evals/doc-links/run.mjs
+
       - name: Script-guard regression eval (2026-06-23 audit fixes)
         run: node evals/script-guards/run.mjs
 
@@ -245,6 +273,17 @@ jobs:
 
       - name: Import-graph regression eval
         run: node evals/import-graph/run.mjs
+
+      - name: Run-contract regression eval
+        run: node evals/run-contract/run.mjs
+
+      - name: Context snapshot and bundle regression evals
+        run: |
+          node evals/context-snapshot/run.mjs
+          node evals/context-bundle/run.mjs
+
+      - name: Documentation extraction regression eval
+        run: node evals/docs-manifest/run.mjs
 
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs

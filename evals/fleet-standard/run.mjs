@@ -44,7 +44,7 @@ const run = (manifest) => {
   return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };
 };
 
-// Grammar (d) of docs/techniques/artifact-grammars.md, copied here on purpose: this eval's job
+// Grammar (d) of code-ops-docs/40 Engineering/Techniques/artifact-grammars.md, copied here on purpose: this eval's job
 // is to prove check-fleet.mjs emits that shape, so importing the producer's own idea of the
 // shape would prove nothing. calibration-metrics.mjs holds the consuming copy.
 const ROW_RE = /^\|\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*([A-Za-z]+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;

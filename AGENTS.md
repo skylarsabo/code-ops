@@ -63,7 +63,7 @@ byte-identically and fails closed on a divergence.
 ## Writing standard
 
 Every artifact this repo produces follows the house writing standard in
-`docs/techniques/writing-standard.md`, which is the single source of truth for it: the
+`code-ops-docs/40 Engineering/Techniques/writing-standard.md`, which is the single source of truth for it: the
 sentence and paragraph caps, one term per concept, active voice, and the code carve-outs
 for identifiers and quoted output. It binds calibration notes, findings registers, commit
 messages, PR bodies, and skill prose alike. It stops at code blocks, quoted tool output,
@@ -100,8 +100,8 @@ untracked renderer inputs; CI still rejects drift when hooks are absent or bypas
 
 Adding or removing a skill also requires updating the plugin README's skill list and
 `(N skills)` count, the matching count in root `README.md`, and handbook entries in both
-`docs/handbook/commands/<plugin>.md` and the router table in
-`docs/handbook/commands/README.md` — lint enforces all four.
+`code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md` and the router table in
+`code-ops-docs/40 Engineering/Handbook/commands/README.md` — lint enforces all four.
 
 ## Invariants the lint gates will catch (fix, don't fight)
 
@@ -112,19 +112,16 @@ subagent" prose must resolve. No `<`/`>` in SKILL.md frontmatter values. Some do
 sentences are duplicated byte-identically across `CONVENTIONS.md` files on purpose
 (`SHARED_PASSAGES` in `lint-plugins.mjs`) — edit every listed copy in the same commit;
 never dedupe them or delete the pin. Agent frontmatter `model:` tiers have lint-enforced
-floors (`AGENT_MODEL_FLOORS`, kept in sync with `docs/techniques/subagent-trade-offs.md`)
+floors (`AGENT_MODEL_FLOORS`, kept in sync with `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`)
 — don't downgrade them to save tokens.
 
-## Local-only docs
+## The documentation hub
 
-`docs/specs/`, `docs/superpowers/`, and `docs/code-ops-run/` are gitignored scratch
-(ADR 0001) — exclude them from doc-alignment and staleness sweeps.
-
-## The vault
-
-`code-ops-docs/` is the Obsidian vault for working design notes and decisions about the
-marketplace itself. Follow the routing table in `code-ops-docs/Standard.md` ("Where new
-work goes"); the layout SSOT is `docs/techniques/vault-standard.md`. The handbook,
-techniques, ADRs, and atlas stay canonical where they are — a vault note that matures
-into doctrine is promoted into them and replaced with a link. `code-ops-docs/80 Runs/`
-is gitignored run scratch (ADR 0001 treatment).
+`code-ops-docs/` is the only authored documentation hub and the Obsidian vault for this
+repository. Follow `code-ops-docs/Standard.md`; the shared layout SSOT is
+`code-ops-docs/40 Engineering/Techniques/vault-standard.md`. The sole topic and source
+registry is `code-ops-docs/98 System/DOCS_MANIFEST.json`. Run
+`node scripts/docs-manifest.mjs check` before trusting it and use
+`code-ops-suite:repo-docs` for delta-based extraction. Code, schemas, workflows, plugin
+manifests, and skills remain executable evidence, not competing documentation trees.
+`code-ops-docs/80 Runs/` is gitignored run scratch (ADR 0001 treatment).

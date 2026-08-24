@@ -1,0 +1,6 @@
+interface:
+  display_name: "Repo Docs"
+  short_description: "Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub."
+  default_prompt: "Use code-ops-suite:repo-docs for this task."
+policy:
+  allow_implicit_invocation: true

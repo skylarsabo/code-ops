@@ -27,6 +27,12 @@ export const RUNTIME_SCRIPTS = [
   { name: 'calibration-metrics.mjs', plugins: ['code-ops-suite'] },
   { name: 'dispatch-ledger.mjs', plugins: ['code-ops-suite'] },
   { name: 'estimate-run-cost.mjs', plugins: ['code-ops-suite'] },
+  { name: 'run-contract.mjs', plugins: ['code-ops-suite'] },
+  { name: 'context-snapshot.mjs', plugins: ['code-ops-suite'] },
+  { name: 'context-bundle.mjs', plugins: ['code-ops-suite'] },
+  { name: 'context-index-lib.mjs', plugins: ['code-ops-suite'] },
+  { name: 'docs-manifest.mjs', plugins: ['code-ops-suite'] },
+  { name: 'docs-extract.mjs', plugins: ['code-ops-suite'] },
   // Imported by the three above for the model-class resolver; it ships as their dependency,
   // not because a skill invokes it directly.
   { name: 'model-tiers.mjs', plugins: ['code-ops-suite'] },

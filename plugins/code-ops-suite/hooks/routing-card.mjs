@@ -19,7 +19,7 @@ function main() {
     'claim verification -> /researcher:research-verify',
     'everything (broad/multi-domain) -> /code-ops-suite:everything',
     'operatives at the strong tier for judgment work; effort by ambiguity; verdicts stay with the lead',
-    'see: docs/handbook/11-standard-operating-mode.md and docs/techniques/dispatch-brief-template.md',
+    'see: code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md and code-ops-docs/40 Engineering/Techniques/dispatch-brief-template.md',
   ];
   console.log(lines.join('\n'));
   return 0;

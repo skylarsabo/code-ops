@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/lint-plugins.mjs)",
+      "Bash(node scripts/scan-ai-tells.mjs *)",
+      "Bash(node scripts/check-no-deps.mjs)",
+      "Bash(node scripts/check-doc-refs.mjs)",
+      "Bash(node scripts/revalidate-register.mjs *)",
+      "Bash(node scripts/build-codex-marketplace.mjs --check)",
+      "Bash(node scripts/preflight.mjs *)",
+      "Bash(node evals/score.mjs *)",
+      "Bash(node evals/register-staleness/run.mjs)",
+      "Bash(node evals/ai-tells/run.mjs)",
+      "Bash(node evals/script-guards/run.mjs)",
+      "mcp__Claude_Preview__preview_screenshot",
+      "mcp__Claude_Preview__preview_console_logs",
+      "mcp__Claude_Browser__preview_screenshot"
+    ]
+  }
+}

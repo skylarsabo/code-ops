@@ -1,6 +1,6 @@
 interface:
   display_name: "Atlas"
-  short_description: "Use when a repo's atlas — its durable, per-repo cache of judgment about the codebase — needs to be created, refreshed after the code moved, or consolidated from inbox observations. Freshness is decided mechanically by atlas-check.mjs; see docs/techniques/atlas.md."
+  short_description: "Use when a repo's atlas — its durable, per-repo cache of judgment about the codebase — needs to be created, refreshed after the code moved, or consolidated from inbox observations. Freshness is decided mechanically by atlas-check.mjs; see code-ops-docs/40 Engineering/Techniques/atlas.md."
   default_prompt: "Use code-ops-suite:atlas for this task."
 policy:
   allow_implicit_invocation: true

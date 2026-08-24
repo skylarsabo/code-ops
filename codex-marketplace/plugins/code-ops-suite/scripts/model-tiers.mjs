@@ -1,6 +1,6 @@
 // Data-only map of the suite's provider-agnostic model tiers.
 //
-// WHY: docs/techniques/subagent-trade-offs.md states the routing rule in provider-agnostic
+// WHY: code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md states the routing rule in provider-agnostic
 // terms (frontier > strong > mid), but the gate that enforced it hardcoded Anthropic's
 // alias ladder. A reader on another host could not tell which of their models satisfied a
 // floor. This module is the single source of truth for both readings, so the doctrine and

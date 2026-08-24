@@ -83,4 +83,4 @@ Write to the house writing standard: one term per concept, active voice, one ins
 
 Clarity outranks conformance. When a rule would obscure meaning, break it and say why.
 
-Full reference: `docs/techniques/writing-standard.md`.
+Full reference: `code-ops-docs/40 Engineering/Techniques/writing-standard.md`.

@@ -1,4 +1,4 @@
-// Data-only source of truth for grammar (a) of docs/techniques/artifact-grammars.md — the
+// Data-only source of truth for grammar (a) of code-ops-docs/40 Engineering/Techniques/artifact-grammars.md — the
 // DISPATCH_LEDGER.md table row.
 //
 // WHY: the row shape had three character-identical copies (dispatch-ledger.mjs, which writes
@@ -9,8 +9,8 @@
 // machinery exists to report. One module removes the drift instead of policing it.
 //
 // The writer could not serve as the SSOT: scripts/dispatch-ledger.mjs dispatches on argv at
-// module load, so importing it runs its CLI. This module has no side effects and no imports,
-// which is what lets all three read from it.
+// module load, so importing it runs its CLI. This module has no side effects, which lets every
+// ledger consumer share the grammar and journal replay without invoking the writer.
 //
 // Three consumers:
 //   - scripts/dispatch-ledger.mjs    — writes and validates rows.
@@ -30,3 +30,34 @@ export const LEDGER_STATUSES = ['dispatched', 'reported', 'failed', 'redispatche
 // The table header a ledger opens with, written by dispatch-ledger.mjs.
 export const LEDGER_HEADER = '| id | role | brief | expected artifact | status |\n'
   + '| --- | --- | --- | --- | --- |\n';
+
+export function replayDispatchJournal(text) {
+  const expected = new Map();
+  const violations = [];
+  const events = [];
+  text.split('\n').forEach((raw, index) => {
+    const line = raw.replace(/\r$/, '').trim();
+    if (!line) return;
+    const at = `J${index + 1}`;
+    let entry;
+    try { entry = JSON.parse(line); } catch { violations.push(`${at}: unparseable journal line: ${line.slice(0, 100)}`); return; }
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) { violations.push(`${at}: journal entry is not an object: ${line.slice(0, 100)}`); return; }
+    if (entry.op === 'phase') {
+      if (typeof entry.title !== 'string' || !entry.title) violations.push(`${at}: phase entry needs a non-empty title: ${line.slice(0, 100)}`);
+      else events.push(entry);
+      return;
+    }
+    if (entry.op === 'add') {
+      if (typeof entry.id !== 'string' || !/^D-\d+$/.test(entry.id) || entry.status !== 'dispatched') { violations.push(`${at}: malformed add entry: ${line.slice(0, 100)}`); return; }
+      if (expected.has(entry.id)) { violations.push(`${at}: duplicate add for ${entry.id}`); return; }
+      expected.set(entry.id, entry.status); events.push(entry); return;
+    }
+    if (entry.op === 'update') {
+      if (typeof entry.id !== 'string' || !/^D-\d+$/.test(entry.id) || !LEDGER_STATUSES.includes(entry.to)) { violations.push(`${at}: malformed update entry: ${line.slice(0, 100)}`); return; }
+      if (!expected.has(entry.id)) { violations.push(`${at}: update for ${entry.id}, which was never added`); return; }
+      expected.set(entry.id, entry.to); events.push(entry); return;
+    }
+    violations.push(`${at}: unknown journal op: ${line.slice(0, 100)}`);
+  });
+  return { expected, violations, events };
+}
