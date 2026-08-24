@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
     },
     {
       "slug": "gate-scripts",
@@ -17,7 +17,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1ce3f2b8e717d540c99afa63210f4887b3556a48"
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
     },
     {
       "slug": "evals-and-calibration",
@@ -25,16 +25,17 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b0a64328d392c35aedc53445171e6b2c73050c76"
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
     },
     {
       "slug": "codex-render",
       "file": "sections/codex-render.md",
       "scope": [
         "codex-marketplace",
-        ".agents"
+        ".agents",
+        "opencode-dist"
       ],
-      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
     },
     {
       "slug": "ci-workflows",
@@ -42,15 +43,30 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "a85851de4c5c10395e473e5ec7743ec57ae5f608"
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
     },
     {
       "slug": "docs-doctrine",
       "file": "sections/docs-doctrine.md",
       "scope": [
-        "code-ops-docs"
+        "code-ops-docs/00 Home.md",
+        "code-ops-docs/20 Decisions",
+        "code-ops-docs/30 Architecture",
+        "code-ops-docs/35 Contracts and Data",
+        "code-ops-docs/40 Engineering",
+        "code-ops-docs/50 Platform",
+        "code-ops-docs/55 Operations",
+        "code-ops-docs/60 Experience",
+        "code-ops-docs/70 Guides",
+        "code-ops-docs/Standard.md",
+        "scripts/atlas-check.mjs",
+        "scripts/check-doc-citations.mjs",
+        "scripts/check-doc-links.mjs",
+        "scripts/check-vault-standard.mjs",
+        "scripts/docs-extract.mjs",
+        "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
     },
     {
       "slug": "root-contracts",
@@ -59,11 +75,12 @@
         "README.md",
         "CLAUDE.md",
         "AGENTS.md",
+        ".claude",
         "LICENSE",
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "f1737470b3c685ad506098f57fa8b815d1ba5bc5"
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
     }
   ]
 }
