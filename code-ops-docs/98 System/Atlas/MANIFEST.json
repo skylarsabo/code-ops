@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
     },
     {
       "slug": "gate-scripts",
@@ -17,7 +17,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
     },
     {
       "slug": "evals-and-calibration",
@@ -25,7 +25,7 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
     },
     {
       "slug": "codex-render",
@@ -35,7 +35,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
     },
     {
       "slug": "ci-workflows",
@@ -66,7 +66,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
     },
     {
       "slug": "root-contracts",
