@@ -175,10 +175,14 @@ try {
   check('h. verifiedAt is now HEAD', readManifest(A).sections.find((s) => s.slug === 'core').verifiedAt === c2, readFileSync(manifestPath(A), 'utf8'));
   const h2 = run(['check', '--atlas', atlasA, '--gate']);
   check('h. check turns FRESH after the stamp and --gate passes', h2.status === 0 && /ok\s+FRESH\s+core\b/.test(h2.out), h2.out);
+  const hExplicit = run(['stamp', '--atlas', atlasA, '--section', 'core', '--at', 'HEAD']);
+  check('h. explicit --at HEAD remains commit-semantic and clears digest', hExplicit.status === 0 && !('verifiedDigest' in readManifest(A).sections.find((s) => s.slug === 'core')), hExplicit.out);
+  run(['stamp', '--atlas', atlasA, '--section', 'core']);
 
   // stamp --at <sha> pins an explicit commit (and resolves a short sha to the full one).
   const h3 = run(['stamp', '--atlas', atlasA, '--section', 'core', '--at', c1.slice(0, 8)]);
   check('h. stamp --at accepts a short sha', h3.status === 0, h3.out);
+  check('h. historical --at clears the current-state digest', !('verifiedDigest' in readManifest(A).sections.find((s) => s.slug === 'core')), readFileSync(manifestPath(A), 'utf8'));
   check('h. --at is stored as the resolved full sha', readManifest(A).sections.find((s) => s.slug === 'core').verifiedAt === c1, readFileSync(manifestPath(A), 'utf8'));
   const h4 = run(['check', '--atlas', atlasA]);
   check('h. rolling the stamp back makes the section STALE again', /!!\s+STALE\s+core\b/.test(h4.out), h4.out);
@@ -194,7 +198,7 @@ try {
 
   // ---- j. unknown sha in the manifest -> STALE with a reason ---------------
   const mj = readManifest(A);
-  mj.sections.find((s) => s.slug === 'core').verifiedAt = 'deadbee';
+  mj.sections.find((s) => s.slug === 'core').verifiedAt = 'deadbee'; delete mj.sections.find((s) => s.slug === 'core').verifiedDigest;
   writeManifest(A, mj);
   const j = run(['check', '--atlas', atlasA]);
   check('j. an unresolvable verifiedAt is STALE, not an error (fail-safe)', j.status === 0, j.out);
@@ -267,6 +271,7 @@ try {
     ['empty scope', { version: 1, sections: [{ ...good, scope: [] }] }],
     ['pathspec magic in scope', { version: 1, sections: [{ ...good, scope: [':(exclude)src'] }] }],
     ['non-string verifiedAt', { version: 1, sections: [{ ...good, verifiedAt: 12345 }] }],
+    ['malformed verifiedDigest', { version: 1, sections: [{ ...good, verifiedDigest: 'not-a-digest' }] }],
     // Moving refs are fail-CLOSED, not fail-safe STALE: a pin that re-resolves on every run can
     // never report stale, so the manifest lies rather than ages.
     ['moving-ref verifiedAt (HEAD)', { version: 1, sections: [{ ...good, verifiedAt: 'HEAD' }] }],
@@ -473,7 +478,9 @@ try {
   const hGood = { slug: 'one', file: 'sections/one.md', scope: ['src/**'], verifiedAt: hSha };
   g(H, ['branch', 'deadbeef']);
 
-  writeManifest(H, { version: 1, sections: [{ ...hGood, verifiedAt: 'deadbeef' }] });
+  writeManifest(H, { version: 1, sections: [hGood] });
+  run(['stamp', '--atlas', atlasH, '--section', 'one']);
+  const movingDigest = readManifest(H); movingDigest.sections[0].verifiedAt = 'deadbeef'; writeManifest(H, movingDigest);
   const u1 = run(['check', '--atlas', atlasH]);
   check('u. a hex-NAMED branch as verifiedAt exits 1 (fail-closed, not FRESH)', u1.status === 1, u1.out);
   check('u. it is reported MALFORMED, naming the ref/moving-pin hazard',
@@ -529,6 +536,44 @@ try {
     v1.status === 0 && /ok\s+FRESH\s+one\b/.test(v1.out), v1.out);
   check('v. the coverage sweep still runs (the root\'s own files are swept)',
     /unmapped top-level path 'a\.js'/.test(v1.out), v1.out);
+
+  // A current-state digest survives moving identical scoped content from worktree to HEAD.
+  const W = newRepo('worktree-stamp'); put(W, 'src/app.js', 'export const app = 1;\n'); commit(W, 'base'); const atlasW = join(W, 'docs', 'atlas'); run(['init', '--atlas', atlasW]); run(['add', '--atlas', atlasW, '--section', 'core', '--scope', 'src/**']); put(W, 'src/app.js', 'export const app = 2;\n'); g(W, ['add', 'src/app.js']); run(['stamp', '--atlas', atlasW, '--section', 'core']); commit(W, 'commit identical visible content');
+  const worktreeFresh = run(['check', '--atlas', atlasW]); check('w. staged scoped stamp remains FRESH after identical content is committed', worktreeFresh.status === 0 && /ok\s+FRESH\s+core\b/.test(worktreeFresh.out), worktreeFresh.out);
+  put(W, 'src/app.js', 'export const app = 3;\n'); g(W, ['add', 'src/app.js']); put(W, 'src/app.js', 'export const app = 2;\n'); const hidden = run(['check', '--atlas', atlasW]); check('w. staged content hidden by restored worktree is STALE', hidden.status === 0 && /!!\s+STALE\s+core\b/.test(hidden.out), hidden.out);
+  const refuse = run(['stamp', '--atlas', atlasW, '--section', 'core']); check('w. default stamp refuses scoped unstaged changes', refuse.status === 1 && /unstaged/.test(refuse.out), refuse.out);
+
+  const SM = newRepo('submodule'); const child = newRepo('submodule-child'); put(child, 'a.txt', 'a\n'); const childA = commit(child, 'a'); put(child, 'a.txt', 'b\n'); const childB = commit(child, 'b'); g(child, ['checkout', '-q', childA]); g(SM, ['-c', 'protocol.file.allow=always', 'submodule', 'add', child, 'vendor/child']); commit(SM, 'submodule a'); const atlasSM = join(SM, 'docs', 'atlas'); run(['init', '--atlas', atlasSM]); run(['add', '--atlas', atlasSM, '--section', 'vendor', '--scope', 'vendor/**']); run(['stamp', '--atlas', atlasSM, '--section', 'vendor']); commit(SM, 'stamp vendor'); g(join(SM, 'vendor', 'child'), ['checkout', '-q', childB]); g(SM, ['config', 'diff.ignoreSubmodules', 'all']); const subStale = run(['check', '--atlas', atlasSM]); const subRefuse = run(['stamp', '--atlas', atlasSM, '--section', 'vendor']); check('w. submodule checkout divergence ignores diff.ignoreSubmodules and is STALE', subStale.status === 0 && /!!\s+STALE\s+vendor\b/.test(subStale.out), subStale.out); check('w. default stamp refuses visible submodule divergence', subRefuse.status === 1 && /unstaged/.test(subRefuse.out), subRefuse.out);
+  g(W, ['reset', '--hard', 'HEAD']);
+  g(W, ['update-index', '--assume-unchanged', 'src/app.js']); put(W, 'src/app.js', 'export const app = 4;\n');
+  const assumed = run(['check', '--atlas', atlasW]); check('w. assume-unchanged cannot hide a scoped edit from digest freshness', assumed.status === 0 && /!!\s+STALE\s+core\b/.test(assumed.out), assumed.out);
+  const assumedStamp = run(['stamp', '--atlas', atlasW, '--section', 'core']); check('w. default stamp refuses assume-unchanged ambiguity', assumedStamp.status === 1 && /cannot calculate scoped tracked-state digest/.test(assumedStamp.out), assumedStamp.out);
+  g(W, ['update-index', '--no-assume-unchanged', 'src/app.js']); g(W, ['checkout', '--', 'src/app.js']);
+  g(W, ['update-index', '--skip-worktree', 'src/app.js']);
+  const skipped = run(['check', '--atlas', atlasW]); check('w. skip-worktree state cannot yield digest FRESH', skipped.status === 0 && /!!\s+STALE\s+core\b/.test(skipped.out), skipped.out);
+  g(W, ['update-index', '--no-skip-worktree', 'src/app.js']);
+
+  // Exact scope declarations are part of the digest even when they currently select the same files.
+  const T = newRepo('scope-binding'); put(T, 'src/app.js', 'export const app = 1;\n'); commit(T, 'base'); const atlasT = join(T, 'docs', 'atlas'); run(['init', '--atlas', atlasT]); run(['add', '--atlas', atlasT, '--section', 'core', '--scope', 'src/**']); run(['stamp', '--atlas', atlasT, '--section', 'core']); commit(T, 'stamp');
+  const narrowed = readManifest(T); narrowed.sections[0].scope = ['src/app.js']; writeManifest(T, narrowed);
+  const scopeChanged = run(['check', '--atlas', atlasT]); check('w. changing a scope declaration is STALE even when it selects the same file', scopeChanged.status === 0 && /!!\s+STALE\s+core\b/.test(scopeChanged.out), scopeChanged.out);
+
+  // A digest stamp survives a squash-like commit that has identical content but unrelated history.
+  const S = newRepo('squash');
+  put(S, 'src/app.js', 'export const app = 1;\n'); commit(S, 'base');
+  const atlasS = join(S, 'docs', 'atlas'); run(['init', '--atlas', atlasS]);
+  run(['add', '--atlas', atlasS, '--section', 'core', '--scope', 'src/**']);
+  run(['stamp', '--atlas', atlasS, '--section', 'core']); commit(S, 'feature stamp');
+  const stamped = readManifest(S).sections[0]; const tree = g(S, ['rev-parse', 'HEAD^{tree}']).trim();
+  const squash = g(S, ['commit-tree', tree, '-m', 'squash equivalent tree']).trim(); g(S, ['reset', '--hard', squash]);
+  g(S, ['reflog', 'expire', '--expire=now', '--all']); g(S, ['gc', '--prune=now']);
+  let originalPinGone = false; try { g(S, ['cat-file', '-e', `${stamped.verifiedAt}^{commit}`]); } catch { originalPinGone = true; }
+  check('w. squash proof removes the original verifiedAt commit', originalPinGone, stamped.verifiedAt);
+  const squashFresh = run(['check', '--atlas', atlasS]);
+  check('w. verifiedDigest remains FRESH after an equivalent-tree squash commit with an unresolvable commit pin', squashFresh.status === 0 && /ok\s+FRESH\s+core\b/.test(squashFresh.out) && readManifest(S).sections[0].verifiedDigest === stamped.verifiedDigest, squashFresh.out);
+  put(S, 'src/app.js', 'export const app = 2;\n');
+  const squashStale = run(['check', '--atlas', atlasS]);
+  check('w. verifiedDigest remains scope-aware and goes STALE on scoped content change', squashStale.status === 0 && /!!\s+STALE\s+core\b/.test(squashStale.out), squashStale.out);
 
   // ============================================================ D. usage errors
   check('n. no subcommand exits 2', run([]).status === 2);

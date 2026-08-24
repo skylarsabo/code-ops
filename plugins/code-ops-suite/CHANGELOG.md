@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.46.0
+- **Atlas freshness now survives squash merges and branch deletion.** Default stamps add a versioned `verifiedDigest` over exact scope declarations, the raw staged index, and the raw index-to-worktree delta. A matching digest is the only FRESH result for digest-backed sections; `verifiedAt` remains diagnostic, and legacy sections retain commit-diff behavior until refreshed.
+- Default stamps require scoped changes to be staged and refuse unstaged, unmerged, assume-unchanged, skip-worktree, or submodule checkout ambiguity. Scoped diffs override `diff.ignoreSubmodules`, so local configuration cannot hide a changed gitlink. Regressions cover hidden staged divergence, explicit historical stamps, exact scope binding, pruned feature history, and clean post-commit reuse.
+
 ## 1.45.0
 - **Repository docs now have one physical and mechanical authority.** `code-ops-docs/` contains the handbook, techniques, ADRs, guides, atlas, architecture, contracts, data model, engineering standards, CI, infrastructure, observability, and the explicit design-system verdict. `DOCS_MANIFEST.json` maps every domain to its source evidence and fails on stale digests or legacy authored Markdown.
 - **Runs reuse exact repository context.** A content-addressed snapshot caches the repo map, import graph, and atlas freshness once. Unit bundles add direct blast radius and fail explicitly on broad or over-budget context. Version 2 run contracts bind every bundle to the repository state.

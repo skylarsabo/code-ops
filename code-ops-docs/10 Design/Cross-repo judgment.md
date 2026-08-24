@@ -20,9 +20,9 @@ Two things a fleet operator wants, and neither exists:
 
 ## Sub-problem one: freshness across independent histories
 
-The atlas answers freshness with a `verifiedAt` commit and a git diff over a scope. The mechanism is exact and it is single-repo by construction. A shared section covering four repos has no single commit that means current, because the four histories advance independently and no ordering relates them.
+The atlas answers freshness with a per-repo `verifiedDigest` and a diagnostic `verifiedAt` stamp. The digest binds versioned, exact scope declarations and tracked state. The mechanism is single-repo by construction. A shared section covering four repos has no single current state, because the histories advance independently.
 
-The workable shape is one section with **per-repo stamps inside it**: the judgment is written once, and its freshness is a map from member to `verifiedAt`, checked per member against that member's own history. The section is then FRESH for some members and STALE for others at the same instant, which is correct and which every consumer must handle. A section that collapses to one verdict is either falsely fresh (any member current) or permanently stale (all members must agree), and both are worse than the honest split verdict.
+The workable shape is one section with **per-repo digest and diagnostic stamps inside it**. The judgment is written once. Freshness is a map from member to `verifiedDigest` and `verifiedAt`, checked against each member's tracked state. A section can be FRESH for some members and STALE for others at the same instant. Every consumer must handle that split. One verdict would be falsely fresh or permanently stale.
 
 The open question is not the data shape. It is where the section lives. A shared section inside one member's vault makes that member's checkout a dependency of the other three, which the fleet standard's consent rule argues against: a member can leave, and its vault leaves with it.
 

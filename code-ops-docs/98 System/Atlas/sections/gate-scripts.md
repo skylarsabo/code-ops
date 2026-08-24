@@ -2,7 +2,7 @@
 
 Charter: repository gates, renderers, orchestration compilers, and hook behavior. Excludes workflow scheduling and eval fixtures.
 
-The default posture is fail closed. Usage errors, malformed configuration, drifted generated output, untrusted documentation records, and invalid receipts fail. Process-risk advisories remain explicit exceptions. Atlas ambiguity is fail-safe: the checker calls a section stale rather than treating uncertain judgment as current.
+The default posture is fail closed. Usage errors, malformed configuration, drifted generated output, untrusted documentation records, and invalid receipts fail. Process-risk advisories remain explicit exceptions. Atlas ambiguity is fail-safe: the checker calls a section stale rather than treating uncertain judgment as current. Digest-backed sections bind exact scopes, the staged index, and the index-to-worktree delta; commit pins remain diagnostic and legacy-compatible.
 
 The run contract turns multi-agent work into a bounded artifact. It validates routing floors, dependency order, parallel write separation, retry limits, acceptance ownership, and final proof. Version 2 binds the contract to an exact context snapshot and rejects drift or an untracked-policy mismatch before work proceeds.
 

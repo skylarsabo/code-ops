@@ -8,4 +8,6 @@ Charter: substantive authored records in the documentation hub and the scripts t
 
 Citation validation reads current and not-applicable manifest targets instead of a hard-coded list. Vault conformance protects working-note structure while the manifest owns reference-target completeness. Only manifest targets in published reference bands receive the frontmatter exemption. Markdown and Obsidian wikilinks both fail when their targets are absent, case-unsafe, or ambiguous; code examples remain inert. The guide domain lives directly at `70 Guides/`, not under a duplicate nesting level. ADR 0001 preserves the historical handbook placement decision as superseded; ADR 0002 is the current migration decision. The legacy scratch locations remain ignored for compatibility, not as alternative documentation homes.
 
+Atlas doctrine distinguishes a portable content digest from its diagnostic commit stamp. The default workflow stages scoped changes before stamping. Historical `--at` stamps intentionally remain commit-only, and legacy manifests migrate on their next verified refresh.
+
 This section deliberately scopes substantive domain folders and documentation scripts rather than the hub root. Manifest digest updates and Atlas bookkeeping therefore do not invalidate the record by themselves. A source or canonical-document change still does.
