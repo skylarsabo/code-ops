@@ -59,6 +59,8 @@ Working notes carry `type`, `status`, `updated`, and `tags` frontmatter. Status 
 
 Use wikilinks within working vault notes. Use Markdown links in published reference material. Cite code with repository-relative paths and symbols. Never copy secrets or personal data.
 
+Every collection linked from inside the hub has an explicit Markdown index note. Hub-internal links target notes or files, never bare directories. Local Markdown heading fragments resolve to headings in their target notes.
+
 ## Runs and Git
 
 `80 Runs/` is gitignored. A run is a dated folder holding its contract, context receipts, bundles, ledgers, reports, and proof. Commit notes, templates, authoritative reference docs, and the shared Obsidian configuration. Do not commit machine-specific workspace state, caches, or trash.

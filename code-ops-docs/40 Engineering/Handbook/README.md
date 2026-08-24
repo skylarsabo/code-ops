@@ -54,7 +54,8 @@ The first slice, all under `code-ops-docs/` and tracked in the repo.
 - [commands/privacy-opsec-suite.md](commands/privacy-opsec-suite.md) — the 14 privacy-opsec-suite commands.
 - [commands/researcher.md](commands/researcher.md) — the 7 researcher commands.
 
-**Guides (end-to-end journeys)**
+### Guides (end-to-end journeys)
+
 - [../../70 Guides/audit-a-risky-subsystem.md](../../70 Guides/audit-a-risky-subsystem.md) — the rigor journey: ground-truth → test-suite-audit → bug-hunt + quality-scan → safety-net → fix-verified.
 - [../../70 Guides/ship-a-verified-fix.md](../../70 Guides/ship-a-verified-fix.md) — `code-ops-suite:ship` across rigor, the privacy gate, and a traceless PR.
 - [../../70 Guides/the-everything-pass.md](../../70 Guides/the-everything-pass.md) — the `everything` orchestrator end-to-end, checkpoint by checkpoint.
@@ -65,7 +66,9 @@ The first slice, all under `code-ops-docs/` and tracked in the repo.
 - [../../70 Guides/wire-ci-gates.md](../../70 Guides/wire-ci-gates.md) — the hands-on companion to chapter 08: standing up the three per-PR review gates and recurring researcher runs on a repo.
 - [../../70 Guides/ci-portability.md](../../70 Guides/ci-portability.md) — running the gates off GitHub: the mechanical validate chain translated to GitLab CI and CircleCI, with the agent-review gates marked as host-specific extension points.
 
-**Techniques (focused how-tos)**
+### Techniques (focused how-tos)
+
+**Techniques index**
 - [../Techniques/reading-a-findings-register.md](../Techniques/reading-a-findings-register.md) — how to read and act on a findings register.
 - [../Techniques/disconfirmation-pass.md](../Techniques/disconfirmation-pass.md) — running the disconfirmation pass that kills false positives.
 - [../Techniques/choosing-an-automation-level.md](../Techniques/choosing-an-automation-level.md) — picking gated vs auto-safe vs auto-all, and the always-gated categories.
