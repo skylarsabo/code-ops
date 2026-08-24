@@ -27,13 +27,13 @@ Take no write action in this phase. Walk the surfaces in the order of the table 
 | --- | --- | --- | --- |
 | 1 | Repo standards contract | The contract pair exists, matches one accepted parity mode (byte-identical, or a pointer file naming the contract as required reading), and carries the routing section | `code-ops-suite:adopt-standards` |
 | 2 | Docs vault | `<repo>-docs/` exists and `node <plugin-root>/scripts/check-vault-standard.mjs <vault dir>` exits 0 | `code-ops-suite:vault` in the mode Phase B detects |
-| 3 | Atlas | `docs/atlas/` exists (fallback `atlas/`), its manifest parses, and `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `code-ops-suite:atlas` |
+| 3 | Atlas | `code-ops-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `code-ops-suite:atlas` |
 | 4 | Doc alignment | Only when surfaces 1-3 surfaced drift signals: a contract, vault note, or repo doc referencing something the others contradict or no longer carry | `code-ops-suite:doc-alignment` |
 | 5 | Global contract *(optional, ask first)* | The user's global `~/.claude/AGENTS.md` carries a marketplace stamp current with this checkout | `code-ops-suite:adopt-global-standards` |
 
 Record each surface as CONFORMANT, DRIFTED, or ABSENT, with the checker output that decided it. A surface whose checker could not run is UNKNOWN, never CONFORMANT — a check that did not execute proves nothing (`§7`).
 
-Write those verdicts as the per-surface table row of the `CONFORMANCE_REPORT.md` grammar in `docs/techniques/artifact-grammars.md` — surface, verdict, checker command, evidence pointer. `calibration-metrics.mjs` reads that shape back, so a report written in prose instead makes this run's drift invisible to the trend rather than merely awkward to read.
+Write those verdicts as the per-surface table row of the `CONFORMANCE_REPORT.md` grammar in `code-ops-docs/40 Engineering/Techniques/artifact-grammars.md` — surface, verdict, checker command, evidence pointer. `calibration-metrics.mjs` reads that shape back, so a report written in prose instead makes this run's drift invisible to the trend rather than merely awkward to read.
 
 Surface 4 is off unless the assessment produced a drift signal. Doc alignment is expensive, and running it on a repo with no drift spends a full pass to learn what the first three checks already reported.
 
@@ -57,9 +57,9 @@ Re-run every mechanical check in the table, including the ones that already pass
 
 ## Fleet mode — many repos, one standard
 
-This mode turns on when the run is handed a `FLEET.json`, or when one sits at the invocation root. The layout, the manifest schema, and the consent rule are defined in `docs/techniques/fleet-standard.md`. Everything above still holds; a fleet run is the per-repo run performed member by member, under one report.
+This mode turns on when the run is handed a `FLEET.json`, or when one sits at the invocation root. The layout, the manifest schema, and the consent rule are defined in `code-ops-docs/40 Engineering/Techniques/fleet-standard.md`. Everything above still holds; a fleet run is the per-repo run performed member by member, under one report.
 
-**Consent decides who is in.** The manifest names a repo and the repo consents, by carrying the phrase `fleet member: yes` on a line of its own, in a `## Fleet` section of its own standards contract. A repo that only discusses the phrase — fenced as an example, or quoted inline in a written refusal — has not consented. The parsing rules in `docs/techniques/fleet-standard.md` are the specification of that format, so where a markdown renderer displays a contract differently, the spec governs enrollment and the divergence is a documentation issue rather than a checker bug. Three rules follow, and none of them bends:
+**Consent decides who is in.** The manifest names a repo and the repo consents, by carrying the phrase `fleet member: yes` on a line of its own, in a `## Fleet` section of its own standards contract. A repo that only discusses the phrase — fenced as an example, or quoted inline in a written refusal — has not consented. The parsing rules in `code-ops-docs/40 Engineering/Techniques/fleet-standard.md` are the specification of that format, so where a markdown renderer displays a contract differently, the spec governs enrollment and the divergence is a documentation issue rather than a checker bug. Three rules follow, and none of them bends:
 
 - A named repo that has not consented is reported as `named, not consenting` and is never operated on. That row is the evidence for skipping it — announce the skip and move on.
 - A consenting repo the manifest does not name is invisible to this run. A consent phrase is an offer, not an enrollment.

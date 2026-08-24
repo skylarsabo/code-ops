@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.12.2
+- Documentation references now resolve through the repository's sole `code-ops-docs/` hub after the handbook and techniques migration.
+
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
@@ -7,7 +10,7 @@ the source plugin manifest and matching marketplace entries.
 - **Tier-floor carrier for hosts that ignore agent frontmatter** — `scripts/preflight.mjs` now prints every bundled agent’s declared tier floor at Phase 0, so the floors are visible on any host. A new `CONVENTIONS.md` bullet makes the lead route each dispatch at or above its floor by hand where the host ignores `model:` frontmatter, and `run-cost-audit` records a below-floor dispatch as a `tier-routing` FAIL.
 
 ## 0.12.0
-- **New `CONVENTIONS.md` §14, Writing standard** — briefs and research notes follow one house standard. The section pins one term per concept, active voice, and one instruction per sentence. It caps instructions at 20 words and explanation at 25. Clarity outranks conformance, so a writer who breaks a rule states why. Full rules live in `docs/techniques/writing-standard.md`.
+- **New `CONVENTIONS.md` §14, Writing standard** — briefs and research notes follow one house standard. The section pins one term per concept, active voice, and one instruction per sentence. It caps instructions at 20 words and explanation at 25. Clarity outranks conformance, so a writer who breaks a rule states why. Full rules live in `code-ops-docs/40 Engineering/Techniques/writing-standard.md`.
 
 ## 0.11.0
 - **Model routing is quality-first** (`CONVENTIONS.md` §1): synthesis, verification, and every judgment-bearing dispatch run on the stronger model; the faster model covers mechanical breadth gathering only. A shallow or failed report costs a redispatch plus the orchestrator's attention.

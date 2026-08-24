@@ -88,7 +88,7 @@ const countNonBlank = (lines) => lines.filter((l) => l.replace(/\r$/, '').trim()
 
 // An entry begins only at an ENTRY-HEADING POSITION: the start of a line, optionally behind
 // markdown heading markers or a table row's leading pipe (the entry forms in
-// docs/techniques/artifact-grammars.md §(b)). An ID cited mid-line in evidence prose
+// code-ops-docs/40 Engineering/Techniques/artifact-grammars.md §(b)). An ID cited mid-line in evidence prose
 // ("duplicate of BUG-003") is a reference, not a boundary, and must not split an entry in two.
 // Composed from ID_RE's own source so the ID shape cannot drift between the two scans.
 const ENTRY_ID_RE = new RegExp('^[ \\t]*(?:#{1,6}[ \\t]+|\\|[ \\t]*)?' + ID_RE.source);
@@ -100,7 +100,7 @@ function isEntryHead(line) {
 
 // An entry runs to the last line that BELONGS to it — it is terminated by the next entry head,
 // by a covered-negative `NO-FINDINGS:` line, or by a non-entry markdown heading that opens a new
-// section (docs/techniques/artifact-grammars.md §(b) "Where an entry ends"). Without a
+// section (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md §(b) "Where an entry ends"). Without a
 // terminator, a register's trailing covered-negative block was charged to its final entry and
 // reliably blew that entry's hard bound on a register whose entries were all tight — the same
 // budget in calibration-metrics.mjs terminates entries identically.

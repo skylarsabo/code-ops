@@ -13,7 +13,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, resolve, join } from 'node:path';
+import { basename, dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -82,7 +82,7 @@ const scaffold = (files = {}) => {
   for (const f of ['00 Inbox', '10 Design', '90 Templates', '95 Attachments', '98 System', '99 Archive'])
     mkdirSync(join(dir, f), { recursive: true });
   const tree = {
-    'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 2\n---\n\n# Standard (synthesized fixture)\n',
+    'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 3\n---\n\n# Standard (synthesized fixture)\n',
     '00 Home.md': '---\ntype: home\nstatus: current\nupdated: 2026-08-18\n---\n\n# Home\n',
     'README.md': '# Readme — the git host entry point, deliberately without frontmatter\n',
     '10 Design/A note.md': '---\ntype: design\nstatus: draft\nupdated: 2026-08-18\n---\n\n# A note\n',
@@ -100,8 +100,43 @@ const scaffold = (files = {}) => {
 const base = run(scaffold());
 expect(base.status === 0, `the synthesized baseline vault should exit 0, got ${base.status}:\n${base.out}`);
 
+const withManifest = (dir, domains) => {
+  writeFileSync(join(dir, '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify({
+    version: 1,
+    hub: basename(dir),
+    domains,
+  }, null, 2)}\n`);
+  return dir;
+};
+
+// A manifest domain cannot convert a working-note band into a blanket exemption. Extra domains
+// are valid registry entries, so this must be enforced at the frontmatter-exemption boundary.
+const maliciousDomain = run(withManifest(scaffold({
+  '10 Design/Unfronted note.md': '# Ordinary working note\n',
+}), [{ id: 'design-notes', path: '10 Design', status: 'current' }]));
+expect(maliciousDomain.status === 1 && /10 Design\/Unfronted note\.md: no YAML frontmatter block/.test(maliciousDomain.out),
+  `a manifest domain targeting a working-note band must not exempt its notes, got ${maliciousDomain.status}:\n${maliciousDomain.out}`);
+
+// Published reference targets deliberately retain their reader-facing Markdown shape. Pin file
+// and directory targets, plus the not-applicable status used by repositories with no UI system.
+const publishedTargets = run(withManifest(scaffold({
+  '20 Decisions/ADRs/0001-record.md': '# Published decision\n',
+  '30 Architecture/ARCHITECTURE.md': '# Architecture reference\n',
+  '40 Engineering/Handbook/commands.md': '# Handbook reference\n',
+  '60 Experience/DESIGN_SYSTEM.md': '# No product UI\n',
+  '98 System/Atlas/module.md': '# Atlas reference\n',
+}), [
+  { id: 'decisions', path: '20 Decisions/ADRs', status: 'current' },
+  { id: 'architecture', path: '30 Architecture/ARCHITECTURE.md', status: 'current' },
+  { id: 'handbook', path: '40 Engineering/Handbook', status: 'current' },
+  { id: 'design-system', path: '60 Experience/DESIGN_SYSTEM.md', status: 'not-applicable' },
+  { id: 'atlas', path: '98 System/Atlas', status: 'current' },
+]));
+expect(publishedTargets.status === 0,
+  `current and not-applicable published manifest targets must remain exempt, got ${publishedTargets.status}:\n${publishedTargets.out}`);
+
 // Canonical run artifacts carry no frontmatter by design. All nine of the artifact table in
-// docs/techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem
+// code-ops-docs/40 Engineering/Techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem
 // has no underscore, so the shape rule alone rejected it and broke every orchestrated handoff.
 const CANONICAL = ['FINDINGS_REGISTER.md', 'LEAK_REGISTER.md', 'EXECUTIVE_SUMMARY.md',
   'DISPATCH_LEDGER.md', 'REPO_MAP.md', 'REFUTATION_LOG.md', 'RUN_RECEIPTS.md', 'HANDOFF.md',
@@ -118,7 +153,7 @@ expect(!/HANDOFF/.test(canon.out), `HANDOFF.md must not be reported, got:\n${can
 const stale = run(scaffold({
   'Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 1\n---\n\n# Standard (stale)\n',
 }));
-expect(stale.status === 1 && /below the current standard-version 2/.test(stale.out),
+expect(stale.status === 1 && /below the current standard-version 3/.test(stale.out),
   `a standard-version below the floor must fail, got ${stale.status}:\n${stale.out}`);
 
 // YAML writes the same scalar bare, single-quoted, or double-quoted. Rejecting two of the three

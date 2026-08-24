@@ -1,0 +1,11 @@
+# Gate scripts and hooks
+
+Charter: repository gates, renderers, orchestration compilers, and hook behavior. Excludes workflow scheduling and eval fixtures.
+
+The default posture is fail closed. Usage errors, malformed configuration, drifted generated output, untrusted documentation records, and invalid receipts fail. Process-risk advisories remain explicit exceptions. Atlas ambiguity is fail-safe: the checker calls a section stale rather than treating uncertain judgment as current.
+
+The run contract turns multi-agent work into a bounded artifact. It validates routing floors, dependency order, parallel write separation, retry limits, acceptance ownership, and final proof. Version 2 binds the contract to an exact context snapshot and rejects drift or an untracked-policy mismatch before work proceeds.
+
+The context compiler separates reusable structural indexing from unit context. A snapshot hashes visible Git state and generator identities, then caches the repository map, import graph, and optional Atlas report by content address. It preserves Unicode rename and copy destinations, canonicalizes aliased roots before symlink containment checks, and parses live Atlas freshness output. A bundle selects scoped files, import neighbors, visible changes, and fresh Atlas excerpts. Its reported byte count converges on the final serialized payload. An empty scope, broad scope, and byte overflow each fail with an explicit marker instead of producing a misleading ready bundle or silently truncating context.
+
+Documentation tooling discovers one `<hub>/98 System/DOCS_MANIFEST.json` rather than assuming a repository name. It hashes declared source and target records, rejects source globs that match no repository file, plans only affected domains, and routes citation checks through every manifest-owned Markdown target. A plan may tolerate digest drift but rejects structural manifest errors; citation parsing accepts bracketed paths and interior directory spaces without swallowing ordinary prose. Vault conformance limits manifest frontmatter exemptions to published reference bands, so an arbitrary manifest entry cannot exempt working notes. Link validation covers Obsidian wikilinks as well as Markdown links. `sync-vendored` and both renderers remain derived-output boundaries; the pre-commit hook is a convenience layer and CI is the final backstop.

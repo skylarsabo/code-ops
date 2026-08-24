@@ -2,12 +2,12 @@
 type: standard
 status: current
 updated: 2026-08-18
-standard-version: 2
+standard-version: 3
 ---
 
 # Standard (fixture conformance copy)
 
-This fixture vault claims the vault standard in `docs/techniques/vault-standard.md`.
+This fixture vault claims the vault standard in `code-ops-docs/40 Engineering/Techniques/vault-standard.md`.
 
 ## Profile
 

@@ -20,8 +20,8 @@
 //   6. Every ${CLAUDE_PLUGIN_ROOT}/scripts/X a skill references is bundled in that
 //      plugin and byte-identical to the canonical scripts/X.
 //   7. No skill copy-pastes a 40+ word passage verbatim out of its CONVENTIONS.md.
-//   8. (when docs/handbook/commands/ exists) every skill has an entry heading
-//      `### `/<plugin>:<skill>`` in docs/handbook/commands/<plugin>.md AND a qualified
+//   8. (when code-ops-docs/40 Engineering/Handbook/commands/ exists) every skill has an entry heading
+//      `### `/<plugin>:<skill>`` in code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md AND a qualified
 //      reference in the README router table; every such heading names a real skill.
 //   9. Every `§<id>` cited in a SKILL.md or agents/*.md resolves to a real `## <id> ·`
 //      section of the owning plugin's CONVENTIONS.md — or of a plugin named earlier on
@@ -40,11 +40,11 @@
 //      (the producer-side anchor gate cannot silently regress out of the wiring).
 //  14. SHARED_PASSAGES: the deliberately-duplicated doctrine cores are pinned byte-identically
 //      across every file that carries them — a partial doctrine rollout fails CI.
-//  15. Each docs/handbook/commands/README.md "Per-plugin command references" bullet's bolded
+//  15. Each code-ops-docs/40 Engineering/Handbook/commands/README.md "Per-plugin command references" bullet's bolded
 //      "**N commands**" count matches the plugin's actual skill count.
 //  16. ADVISORY ONLY (never gates): every root scripts/*.mjs with no reference anywhere under
 //      evals/ is flagged as a candidate for a regression eval.
-//  17. Every "From skill" / "Invokes" edge in docs/techniques/skill-composition.md's table
+//  17. Every "From skill" / "Invokes" edge in code-ops-docs/40 Engineering/Techniques/skill-composition.md's table
 //      resolves to a real plugins/<plugin>/skills/<skill>/ directory — a renamed or removed
 //      skill silently orphans the composition map otherwise.
 //  18. Every evals/<name>/ directory that contains a run.mjs is invoked as the literal string
@@ -60,10 +60,10 @@
 //  20. CLAUDE.md and AGENTS.md are byte-identical: they are one standards contract under the
 //      two names different hosts read, and a divergence is invisible to whichever host reads
 //      the other copy.
-//  21. (when docs/handbook/README.md and docs/techniques/ both exist) every technique page has
+//  21. (when code-ops-docs/40 Engineering/Handbook/README.md and code-ops-docs/40 Engineering/Techniques/ both exist) every technique page has
 //      a link entry in the handbook README's techniques list, every listed entry resolves to a
 //      real page, and the written-out "N techniques" count matches the page count.
-//  22. (when docs/techniques/skill-composition.md exists) the composition map matches the skill
+//  22. (when code-ops-docs/40 Engineering/Techniques/skill-composition.md exists) the composition map matches the skill
 //      tree in both directions: every qualified `<plugin>:<skill>` reference in a SKILL.md body
 //      (the skill's own name excluded) has an edge row under the page's "## The edges" heading,
 //      and every such row has a reference. Check 17 only proves the named edges resolve, so the
@@ -282,17 +282,40 @@ for (const rs of RUNTIME_SCRIPTS) {
     else if (existsSync(copy) && readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: scripts/${rs.name} has drifted from the canonical scripts/${rs.name} — re-copy it`);
   }
 }
-// Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a skill/CONVENTIONS must be bundled+identical.
+// Reverse check: every bundled runtime script must be declared for that plugin. Without this,
+// an extra stale copy can survive forever because the forward manifest walk never sees it.
+for (const p of plugins) {
+  const scriptsDir = join(p.dir, 'scripts');
+  if (!existsSync(scriptsDir)) continue;
+  for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.mjs')) continue;
+    const declared = RUNTIME_SCRIPTS.some((runtime) => runtime.name === entry.name && runtime.plugins.includes(p.name));
+    if (!declared) fail(`${p.name}: bundled scripts/${entry.name} is not declared for this plugin in RUNTIME_SCRIPTS`);
+  }
+}
+// Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a plugin-owned prompt,
+// agent, README, or manifest surface must be bundled and byte-identical.
 const SCRIPT_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([\w.-]+\.mjs)/g;
 for (const p of plugins) {
-  const refd = new Set();
-  const bodies = [...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')), join(p.dir, 'CONVENTIONS.md')];
-  for (const f of bodies) if (existsSync(f)) for (const m of readText(f).matchAll(SCRIPT_REF_RE)) refd.add(m[1]);
-  for (const name of refd) {
+  const refd = new Map();
+  const bodies = [
+    ...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')),
+    join(p.dir, 'CONVENTIONS.md'),
+    join(p.dir, 'README.md'),
+    join(p.dir, '.claude-plugin', 'plugin.json'),
+    ...walkFiles(join(p.dir, 'agents')),
+    ...p.skills.flatMap((s) => walkFiles(join(p.dir, 'skills', s, 'agents'))),
+  ];
+  for (const f of bodies) if (existsSync(f)) for (const m of readText(f).matchAll(SCRIPT_REF_RE)) {
+    if (!refd.has(m[1])) refd.set(m[1], new Set());
+    refd.get(m[1]).add(rel(f));
+  }
+  for (const [name, sources] of refd) {
     const copy = join(p.dir, 'scripts', name);
     const canonical = join(ROOT, 'scripts', name);
-    if (!existsSync(copy)) fail(`${p.name}: a skill references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
-    else if (!existsSync(canonical)) fail(`${p.name}: bundled scripts/${name} has no canonical scripts/${name} at the repo root — cannot verify it against a source of truth`);
+    const sourceList = [...sources].join(', ');
+    if (!existsSync(copy)) fail(`${p.name}: ${sourceList} references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
+    else if (!existsSync(canonical)) fail(`${p.name}: ${sourceList} references bundled scripts/${name}, which has no canonical scripts/${name} at the repo root`);
     else if (readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
   }
 }
@@ -327,10 +350,10 @@ for (const p of plugins) {
 // The handbook is the human-facing front door; it drifts the moment a skill is added or
 // renamed without touching docs. For every skill we require BOTH:
 //   a) an entry heading of the exact form `### ` + "`/<plugin>:<skill>`" in
-//      docs/handbook/commands/<plugin>.md, and
+//      code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md, and
 //   b) a qualified `/<plugin>:<skill>` reference in the README router table.
 // The reverse also has to hold: every `### `/<plugin>:<skill>`` heading must name a real skill.
-const handbookDir = join(ROOT, 'docs', 'handbook', 'commands');
+const handbookDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Handbook', 'commands');
 if (existsSync(handbookDir)) {
   // Router table: the `## The task → command router` section of the index, sliced off at the
   // next `##` heading so the per-plugin reference list below it does not count as "in the router".
@@ -406,18 +429,18 @@ if (existsSync(handbookDir)) {
 }
 
 // ---- 21. handbook techniques index parity -------------------------------------
-// docs/handbook/README.md's techniques list is the only index of docs/techniques/. A page
+// code-ops-docs/40 Engineering/Handbook/README.md's techniques list is the only index of code-ops-docs/40 Engineering/Techniques/. A page
 // added without a list entry is written and unread; an entry left behind by a deleted or
 // renamed page is a dead link in the handbook's front door; and the written-out count in the
 // "N techniques" claim is a third copy of the same fact that drifts independently of both.
 // Guarded on both paths existing, so the plugin-fixture evals (which ship no docs/ tree) are
 // unaffected.
 {
-  const hbReadmePath = join(ROOT, 'docs', 'handbook', 'README.md');
-  const techDir = join(ROOT, 'docs', 'techniques');
+  const hbReadmePath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Handbook', 'README.md');
+  const techDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques');
   if (existsSync(hbReadmePath) && existsSync(techDir)) {
     // Built, not listed: a hand-written table silently stops recognizing the correct count once
-    // docs/techniques/ outgrows it, and the operator is then told to add a count that is already
+    // code-ops-docs/40 Engineering/Techniques/ outgrows it, and the operator is then told to add a count that is already
     // there. Units and tens generate every value through ninety-nine.
     const UNITS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
     const TEENS = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
@@ -446,16 +469,16 @@ if (existsSync(handbookDir)) {
       listBlock = end === -1 ? body : body.slice(0, end);
     }
     const listed = new Set();
-    for (const m of listBlock.matchAll(/\.\.\/techniques\/([A-Za-z0-9._-]+\.md)/g)) listed.add(m[1]);
+    for (const m of listBlock.matchAll(/\.\.\/Techniques\/([A-Za-z0-9._-]+\.md)/g)) listed.add(m[1]);
     if (listStart === -1)
-      fail(`handbook: ${rel(hbReadmePath)} has no "**Techniques" list block — the index of docs/techniques/ is missing`);
+      fail(`handbook: ${rel(hbReadmePath)} has no "**Techniques" list block — the index of code-ops-docs/40 Engineering/Techniques/ is missing`);
 
     for (const f of files)
       if (!listed.has(f))
-        fail(`handbook: docs/techniques/${f} has no entry in the techniques list of ${rel(hbReadmePath)} — an unindexed technique page is written and unread`);
+        fail(`handbook: code-ops-docs/40 Engineering/Techniques/${f} has no entry in the techniques list of ${rel(hbReadmePath)} — an unindexed technique page is written and unread`);
     for (const f of [...listed].sort())
       if (!existsSync(join(techDir, f)))
-        fail(`handbook: ${rel(hbReadmePath)} links ../techniques/${f}, which does not exist — remove or repoint the entry`);
+        fail(`handbook: ${rel(hbReadmePath)} links ../Techniques/${f}, which does not exist — remove or repoint the entry`);
 
     // Two failure modes, reported apart: no count word at all, versus a count word the vocabulary
     // does not recognize. The second should be unreachable below 100 now that the words are
@@ -472,7 +495,7 @@ if (existsSync(handbookDir)) {
       fail(`handbook: ${rel(hbReadmePath)} states no written-out "N techniques" count (expected "${files.length}" spelled out)`);
     else for (const w of claims)
       if (NUMBER_WORDS[w] !== files.length)
-        fail(`handbook: ${rel(hbReadmePath)} claims "${w} techniques" but docs/techniques/ holds ${files.length} page(s) — update the count`);
+        fail(`handbook: ${rel(hbReadmePath)} claims "${w} techniques" but code-ops-docs/40 Engineering/Techniques/ holds ${files.length} page(s) — update the count`);
   }
 }
 
@@ -550,7 +573,7 @@ for (const p of plugins) {
 // as the model tier behind it. Each bundled agent declares a `model:` alias; this floor
 // table makes a downgrade a VISIBLE diff (the floor must be edited in the same change)
 // instead of a silent frontmatter tweak. Also keeps the handbook's "(model: `X`)"
-// annotations in docs/techniques/subagent-trade-offs.md in sync with the frontmatter.
+// annotations in code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md in sync with the frontmatter.
 //
 // The ordering comes from scripts/model-tiers.mjs so the gate and the provider-agnostic
 // doctrine (frontier > strong > mid) cannot describe different ladders. Frontmatter still
@@ -590,7 +613,7 @@ for (const p of plugins) {
   }
 }
 {
-  const tradeoffs = join(ROOT, 'docs', 'techniques', 'subagent-trade-offs.md');
+  const tradeoffs = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'subagent-trade-offs.md');
   if (existsSync(tradeoffs)) {
     const lines = readText(tradeoffs).split('\n');
     for (let i = 0; i < lines.length; i++) {
@@ -602,7 +625,7 @@ for (const p of plugins) {
         if (!pluginName) continue;
         const actual = agentModelByName.get(`${pluginName}/${m[2]}`);
         if (actual && actual !== m[3])
-          fail(`docs/techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
+          fail(`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
       }
     }
   }
@@ -662,7 +685,7 @@ const SHARED_PASSAGES = [
   { id: 'repanel-skip', files: CONVS('code-ops-suite', 'rigor'),
     text: 'is NOT re-paneled — the receipts are the verdict; any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline — never the full register' },
   { id: 'map-once', files: CONVS('code-ops-suite', 'rigor'),
-    text: 'hand its path to every operative brief; operatives consult the map first and use search only to go deeper than the map reaches, never to re-derive layout or find definitions the map already lists' },
+    text: 'hand the verified context artifact to every operative brief; operatives consult it first and use search only to go deeper than it reaches, never to re-derive layout or find definitions it already lists' },
   { id: 'always-gated-core', files: ['plugins/code-ops-suite/CONVENTIONS.md', 'plugins/code-ops-suite/skills/everything/SKILL.md'],
     text: '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge' },
   { id: 'operative-failure', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
@@ -760,7 +783,7 @@ function walkFiles(dir, out = []) {
 // separately refuses edge-shaped rows parked outside that section. Both loops skip
 // fenced code blocks, so a markdown example on the page is not read as page structure.
 {
-  const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
+  const compPath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'skill-composition.md');
   if (existsSync(compPath)) {
     const lines = readText(compPath).split('\n');
     // A fenced example is illustration, not page structure, so its rows are skipped —
@@ -892,7 +915,7 @@ function walkFiles(dir, out = []) {
 // and an edge-shaped row anywhere else on the page fails outright, so the scoping is
 // not an escape hatch. Fenced code blocks are skipped: an example is not structure.
 {
-  const compPath = join(ROOT, 'docs', 'techniques', 'skill-composition.md');
+  const compPath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'skill-composition.md');
   if (existsSync(compPath)) {
     const known = new Set();
     for (const p of plugins) for (const s of p.skills) known.add(`${p.name}:${s}`);

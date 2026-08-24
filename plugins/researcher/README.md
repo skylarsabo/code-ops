@@ -6,7 +6,7 @@ Adaptive, multi-agent workflows for **code-grounded research** — authored here
 
 It complements the rest of the marketplace rather than overlapping it: where `code-ops-suite:feature-discovery` mines opportunities from your code, the researcher's edge is bringing in **external** knowledge (best practices, library capabilities, prior art, pitfalls) and grounding it in your code; where `deep-research` is generic web research, the researcher composes it for the opt-in web leg but keeps the work code-grounded; where `lib-docs` / `current-docs` give zero-egress dependency docs, the researcher uses them as a primary grounding source.
 
-New to the suite? See the handbook at `docs/handbook/` (from the repo root) to learn to use it.
+New to the suite? See the handbook at `code-ops-docs/40 Engineering/Handbook/` (from the repo root) to learn to use it.
 
 ## Skills
 

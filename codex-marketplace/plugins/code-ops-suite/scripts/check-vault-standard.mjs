@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Vault conformance checker for the code-ops suite — the per-repo Obsidian vault standard
-// (docs/techniques/vault-standard.md). Runs against a vault directory in any repo.
+// (code-ops-docs/40 Engineering/Techniques/vault-standard.md). Runs against a vault directory in any repo.
 //
 //   node scripts/check-vault-standard.mjs <vault-dir>
 //
@@ -63,9 +63,9 @@ const BASE_STATUSES = ['draft', 'current', 'accepted', 'superseded'];
 const NUMBERED_DIR = /^(\d{2}) (.+)$/;
 // The lowest `standard-version` this checker accepts. Bump it in the same change that makes a
 // vault-standard revision binding, and publish the new value in the SSOT prose
-// (docs/techniques/vault-standard.md) so a vault author can read the number they must reach.
-const MIN_STANDARD_VERSION = 2;
-// The canonical run artifacts of docs/techniques/vault-standard.md's artifact table. They are
+// (code-ops-docs/40 Engineering/Techniques/vault-standard.md) so a vault author can read the number they must reach.
+const MIN_STANDARD_VERSION = 3;
+// The canonical run artifacts of code-ops-docs/40 Engineering/Techniques/vault-standard.md's artifact table. They are
 // exempt from the note rules by name, not by stem shape, because a bare all-caps stem
 // (`HANDOFF`) is indistinguishable from an ordinary note (`README`, `TODO`, `NOTES`) and the
 // shape rule below therefore refuses it. Listing them is what keeps that refusal safe.
@@ -87,7 +87,8 @@ const CANONICAL_ARTIFACTS = new Set([
 // being named in CANONICAL_ARTIFACTS above.
 const UPPER_SNAKE = /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const SKIP_DIRS = new Set(['.obsidian', '.trash', '.git', '90 Templates']);
+const SKIP_DIRS = new Set(['.obsidian', '.trash', '.git', '.local-legacy', '90 Templates']);
+const MANIFEST_STATUSES = new Set(['current', 'not-applicable']);
 
 const violations = [];
 const warnings = [];
@@ -157,6 +158,21 @@ function walkNotes(dir, vault, acc) {
   return acc;
 }
 
+// The manifest owns published reference targets, not arbitrary note folders. The shared vault
+// layout publishes references in the 30-79 domain bands, ADRs under 20 Decisions/ADRs, and the
+// Atlas under 98 System/Atlas. Keeping this boundary here prevents an extra manifest domain from
+// turning a working-note band such as 10 Design into a blanket frontmatter exemption.
+function isPublishedManifestTarget(domain) {
+  if (!domain || typeof domain.path !== 'string' || !MANIFEST_STATUSES.has(domain.status)) return false;
+  const path = domain.path.replaceAll('\\', '/').replace(/\/$/, '');
+  if (path === '20 Decisions/ADRs' || path.startsWith('20 Decisions/ADRs/')) return true;
+  if (path === '98 System/Atlas' || path.startsWith('98 System/Atlas/')) return true;
+  const match = /^(\d{2}) [^/]+(?:\/|$)/.exec(path);
+  if (!match) return false;
+  const band = Number(match[1]);
+  return band >= 30 && band <= 79;
+}
+
 const argv = process.argv.slice(2);
 if (argv.length !== 1 || argv[0].startsWith('-')) usage();
 const vault = resolve(argv[0]);
@@ -165,6 +181,18 @@ if (!existsSync(vault) || !statSync(vault).isDirectory()) {
   process.exit(2);
 }
 const rel = (p) => p.slice(vault.length + 1).replaceAll('\\', '/');
+const manifestOwned = new Set();
+const docsManifestPath = join(vault, '98 System', 'DOCS_MANIFEST.json');
+if (existsSync(docsManifestPath)) {
+  try {
+    const docsManifest = JSON.parse(readFileSync(docsManifestPath, 'utf8'));
+    if (docsManifest.version !== 1 || docsManifest.hub !== basename(vault) || !Array.isArray(docsManifest.domains)) {
+      fail('98 System/DOCS_MANIFEST.json does not declare this vault as its version 1 hub');
+    } else for (const domain of docsManifest.domains) {
+      if (isPublishedManifestTarget(domain)) manifestOwned.add(domain.path.replaceAll('\\', '/').replace(/\/$/, ''));
+    }
+  } catch (error) { fail(`98 System/DOCS_MANIFEST.json cannot be parsed: ${error.message}`); }
+}
 
 // ---- 1. Standard.md and its version -----------------------------------------------
 const standardPath = join(vault, 'Standard.md');
@@ -183,7 +211,7 @@ if (!existsSync(standardPath)) {
     if (!Number.isFinite(v))
       fail(`Standard.md frontmatter has \`standard-version: ${fm['standard-version']}\`, which is not a number — the version must be an integer this checker can compare against ${MIN_STANDARD_VERSION}`);
     else if (v < MIN_STANDARD_VERSION)
-      fail(`Standard.md claims \`standard-version: ${v}\`, below the current standard-version ${MIN_STANDARD_VERSION} — re-copy the body from docs/techniques/vault-standard.md, re-append the profile, and bump the stamp`);
+      fail(`Standard.md claims \`standard-version: ${v}\`, below the current standard-version ${MIN_STANDARD_VERSION} — re-copy the body from code-ops-docs/40 Engineering/Techniques/vault-standard.md, re-append the profile, and bump the stamp`);
   }
   for (const s of profileStatuses(standardText)) statuses.add(s);
 }
@@ -233,6 +261,8 @@ for (const abs of walkNotes(vault, vault, [])) {
   const stem = name.slice(0, -3);
   if (abs === standardPath) continue;
   if (name === 'README.md' && rel(abs) === 'README.md') continue;
+  const notePath = rel(abs);
+  if ([...manifestOwned].some((owned) => notePath === owned || notePath.startsWith(`${owned}/`))) continue;
   // Canonical suite artifact, parsed by other tools: named in the list, or all-caps with an
   // underscore. `README.md` is already past, and no other bare stem reaches either arm.
   if (CANONICAL_ARTIFACTS.has(name) || UPPER_SNAKE.test(stem)) continue;

@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "sections": [
+    {
+      "slug": "plugins-and-skills",
+      "file": "sections/plugins-and-skills.md",
+      "scope": [
+        "plugins",
+        ".claude-plugin"
+      ],
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+    },
+    {
+      "slug": "gate-scripts",
+      "file": "sections/gate-scripts.md",
+      "scope": [
+        "scripts",
+        ".githooks"
+      ],
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+    },
+    {
+      "slug": "evals-and-calibration",
+      "file": "sections/evals-and-calibration.md",
+      "scope": [
+        "evals"
+      ],
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+    },
+    {
+      "slug": "codex-render",
+      "file": "sections/codex-render.md",
+      "scope": [
+        "codex-marketplace",
+        ".agents",
+        "opencode-dist"
+      ],
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+    },
+    {
+      "slug": "ci-workflows",
+      "file": "sections/ci-workflows.md",
+      "scope": [
+        ".github"
+      ],
+      "verifiedAt": "622296053cab92326fabf3447a1248aba4f2ffe2"
+    },
+    {
+      "slug": "docs-doctrine",
+      "file": "sections/docs-doctrine.md",
+      "scope": [
+        "code-ops-docs/00 Home.md",
+        "code-ops-docs/20 Decisions",
+        "code-ops-docs/30 Architecture",
+        "code-ops-docs/35 Contracts and Data",
+        "code-ops-docs/40 Engineering",
+        "code-ops-docs/50 Platform",
+        "code-ops-docs/55 Operations",
+        "code-ops-docs/60 Experience",
+        "code-ops-docs/70 Guides",
+        "code-ops-docs/Standard.md",
+        "scripts/atlas-check.mjs",
+        "scripts/check-doc-citations.mjs",
+        "scripts/check-doc-links.mjs",
+        "scripts/check-vault-standard.mjs",
+        "scripts/docs-extract.mjs",
+        "scripts/docs-manifest.mjs"
+      ],
+      "verifiedAt": "02700efb0b08a31cfc2dafafe51d5b16f08c309a"
+    },
+    {
+      "slug": "root-contracts",
+      "file": "sections/root-contracts.md",
+      "scope": [
+        "README.md",
+        "CLAUDE.md",
+        "AGENTS.md",
+        ".claude",
+        "LICENSE",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "verifiedAt": "2966279e51d70147b41f91a979716d7377073d1e"
+    }
+  ]
+}

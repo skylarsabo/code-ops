@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Atlas checker for the code-ops suite — the per-repo knowledge cache with mechanical
-// staleness (docs/techniques/atlas.md). Runs INSIDE a target repo, never against this one.
+// staleness (code-ops-docs/40 Engineering/Techniques/atlas.md). Runs INSIDE a target repo, never against this one.
 //
 //   node scripts/atlas-check.mjs init  --atlas <dir>
 //   node scripts/atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]
@@ -156,7 +156,7 @@ function atlasDirOf(flags) {
 }
 
 // The repo the scopes are relative to: --root if given, else the git toplevel containing the
-// atlas dir (the normal case — docs/atlas lives inside the repo it describes), else cwd.
+// atlas dir (the normal case — code-ops-docs/98 System/Atlas lives inside the repo it describes), else cwd.
 function repoRootOf(atlasDir, explicit) {
   if (explicit) return resolve(explicit);
   if (existsSync(atlasDir)) {
@@ -308,7 +308,7 @@ function cmdCheck(args) {
 
   // The atlas dir is excluded from its own staleness diff and coverage sweep. WHY: `stamp`
   // rewrites MANIFEST.json inside the atlas dir, so a section whose scope covers that dir (the
-  // ordinary case — atlas at docs/atlas, a section scoped `docs/**`) is made stale by the very
+  // ordinary case — atlas at code-ops-docs/98 System/Atlas, a section scoped `docs/**`) is made stale by the very
   // write meant to freshen it, and can never converge to FRESH. `:(exclude)` is git's own
   // pathspec magic; the manifest's ban on a leading ':' governs manifest CONTENT (what a human
   // wrote as a scope, which must stay auditable), not the checker's internal pathspecs.

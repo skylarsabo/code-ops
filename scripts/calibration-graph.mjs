@@ -481,7 +481,7 @@ The trend SSOT for real-scale calibration runs (\`/code-ops-suite:calibration-ru
 sibling to \`evals/FLOOR_TABLE.md\`. A run document is fed **only** by a sanitized
 calibration note that has already passed \`scripts/calibration-metrics.mjs --validate-note\`
 — never by a hand-written row, and never with a target repo's name, path, or internals.
-See \`docs/techniques/calibration-protocol.md\` for the one-way channel rule, the run
+See \`code-ops-docs/40 Engineering/Techniques/calibration-protocol.md\` for the one-way channel rule, the run
 design, and the note template a run document is ingested from.
 `;
 
@@ -789,7 +789,7 @@ function cmdQuery(args) {
 
 // ---------------------------------------------------------------- ingest
 
-// Machine block grammar (docs/techniques/calibration-protocol.md's note template). Line-based
+// Machine block grammar (code-ops-docs/40 Engineering/Techniques/calibration-protocol.md's note template). Line-based
 // on purpose: no fences, no paths, only counts, kebab slugs and enum words, so the block adds
 // no leak surface to the one-way channel while still being machine-readable.
 const MACHINE_HEADING_RE = /^##\s+Machine block\s*$/i;

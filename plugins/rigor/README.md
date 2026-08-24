@@ -4,7 +4,7 @@ Verification-first workflows for **finding real bugs, closing inconsistencies, a
 
 Built on one rule: **prove it or don't report it; measure it or don't claim it; close it so it can't come back.** This is the deliberate answer to why fire-hose audits disappoint — they *assert* findings, *sample* instead of cover, and *inflate* confidence. Rigor trades some breadth and speed for signal and proof.
 
-New to the suite? See the handbook at `docs/handbook/` (from the repo root) to learn to use it.
+New to the suite? See the handbook at `code-ops-docs/40 Engineering/Handbook/` (from the repo root) to learn to use it.
 
 ## What makes it higher-quality
 

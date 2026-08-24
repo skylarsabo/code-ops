@@ -1,14 +1,14 @@
 ---
 name: code-ops-suite-atlas
-description: "Use when a repo's atlas — its durable, per-repo cache of judgment about the codebase — needs to be created, refreshed after the code moved, or consolidated from inbox observations. Freshness is decided mechanically by atlas-check.mjs; see docs/techniques/atlas.md."
+description: "Use when a repo's atlas — its durable, per-repo cache of judgment about the codebase — needs to be created, refreshed after the code moved, or consolidated from inbox observations. Freshness is decided mechanically by atlas-check.mjs; see code-ops-docs/40 Engineering/Techniques/atlas.md."
 ---
 
 # ATLAS — The Repo's Durable Cache of Judgment
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-atlas`, or by the model through the `skill` tool as `code-ops-suite-atlas`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin — the operating model (`§1`), the evidence standard (`§9`), and the single-source-of-truth conventions (`§12`) that this skill extends from one run's artifacts to a durable artifact the repo keeps — and `docs/techniques/atlas.md` for the manifest schema, the checker's modes, and the trust doctrine.
-**Mode:** DOCUMENT · **Consumes:** the target repo and its existing atlas, if any · **Produces:** `docs/atlas/` (fallback `atlas/` when the repo has no docs directory) — `MANIFEST.json`, `INBOX.md`, and one `sections/` file per section.
+**Invoked as `/code-ops-suite-atlas`, or by the model through the `skill` tool as `code-ops-suite-atlas`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin — the operating model (`§1`), the evidence standard (`§9`), and the single-source-of-truth conventions (`§12`) that this skill extends from one run's artifacts to a durable artifact the repo keeps — and `code-ops-docs/40 Engineering/Techniques/atlas.md` for the manifest schema, the checker's modes, and the trust doctrine.
+**Mode:** DOCUMENT · **Consumes:** the target repo and its existing atlas, if any · **Produces:** `code-ops-docs/98 System/Atlas/` (fallback `atlas/` when the repo has no docs directory) — `MANIFEST.json`, `INBOX.md`, and one `sections/` file per section.
 
 An atlas is what the previous run should have remembered and did not. Every future run pays to re-derive the same understanding of a repo; the atlas is where that understanding is banked so it can be read instead of rebuilt. It only pays off if a reader can trust it without re-deriving it, so each section carries a `verifiedAt` commit and the checker decides freshness against the diff since that commit — trust is mechanical here, never a reader's guess.
 

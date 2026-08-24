@@ -68,7 +68,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
-import { LEDGER_HEADER, LEDGER_ROW_RE, LEDGER_STATUSES } from './ledger-grammar.mjs';
+import { LEDGER_HEADER, LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-grammar.mjs';
 
 // Grammar (a) comes from scripts/ledger-grammar.mjs so this writer and the two readers
 // (calibration-metrics.mjs, estimate-run-cost.mjs) cannot drift apart.
@@ -211,38 +211,6 @@ function journalAppend(ledgerPath, entry, mayCreate) {
 // Replays the journal into the final status each id should carry. Returns
 // { expected: Map<id, status>, violations: string[] } — violations are fail-closed: a line that
 // cannot be read is a journal that cannot be trusted to prove anything.
-function replayJournal(text) {
-  const expected = new Map();
-  const violations = [];
-  text.split('\n').forEach((raw, idx) => {
-    const line = raw.replace(/\r$/, '').trim();
-    if (line === '') return;
-    const at = `J${idx + 1}`;
-    let e;
-    try { e = JSON.parse(line); }
-    catch { violations.push(`${at}: unparseable journal line: ${line.slice(0, 100)}`); return; }
-    if (!e || typeof e !== 'object' || Array.isArray(e)) { violations.push(`${at}: journal entry is not an object: ${line.slice(0, 100)}`); return; }
-    if (e.op === 'phase') {
-      if (typeof e.title !== 'string' || e.title === '') violations.push(`${at}: phase entry needs a non-empty title: ${line.slice(0, 100)}`);
-      return;
-    }
-    if (e.op === 'add') {
-      if (typeof e.id !== 'string' || !/^D-\d+$/.test(e.id) || e.status !== 'dispatched') { violations.push(`${at}: malformed add entry: ${line.slice(0, 100)}`); return; }
-      if (expected.has(e.id)) { violations.push(`${at}: duplicate add for ${e.id}`); return; }
-      expected.set(e.id, e.status);
-      return;
-    }
-    if (e.op === 'update') {
-      if (typeof e.id !== 'string' || !/^D-\d+$/.test(e.id) || !STATUSES.includes(e.to)) { violations.push(`${at}: malformed update entry: ${line.slice(0, 100)}`); return; }
-      if (!expected.has(e.id)) { violations.push(`${at}: update for ${e.id}, which was never added`); return; }
-      expected.set(e.id, e.to);
-      return;
-    }
-    violations.push(`${at}: unknown journal op: ${line.slice(0, 100)}`);
-  });
-  return { expected, violations };
-}
-
 // ---------------------------------------------------------------- add
 
 function cmdAdd(args) {
@@ -418,7 +386,7 @@ function cmdCheck(args) {
       console.log('  advisory: unjournaled ledger (pre-journal artifact, or rows written without dispatch-ledger.mjs) — phantom rows are undetectable here');
   } else {
     const jtext = readLedger(jp) ?? '';
-    const { expected, violations } = replayJournal(jtext);
+    const { expected, violations } = replayDispatchJournal(jtext);
     journalViolations.push(...violations);
     for (const v of violations) console.log(`  !! JOURNAL  ${v}`);
     if (!violations.length) {

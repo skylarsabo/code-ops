@@ -53,4 +53,4 @@ Prototype against the real four-repo fleet before any code ships. Run one sweep 
 
 If the labeled set shows the duplicates are few, choose C and stop. If the duplicates are many and the boundaries are clean, build A first, because grouping is reversible and merging is not. Reach for B only once a grammar change for per-member freshness is worth making on its own.
 
-Related: `docs/techniques/fleet-standard.md`, `docs/techniques/atlas.md`, [[Suite direction 2026-08]].
+Related: `code-ops-docs/40 Engineering/Techniques/fleet-standard.md`, `code-ops-docs/40 Engineering/Techniques/atlas.md`, [[Suite direction 2026-08]].
