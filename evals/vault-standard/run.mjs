@@ -135,6 +135,33 @@ const publishedTargets = run(withManifest(scaffold({
 expect(publishedTargets.status === 0,
   `current and not-applicable published manifest targets must remain exempt, got ${publishedTargets.status}:\n${publishedTargets.out}`);
 
+const recordManifest = (standardVersion) => {
+  const dir = scaffold({
+    'Standard.md': `---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: ${standardVersion}\n---\n\n# Standard\n`,
+    '98 System/Records/audit.md': '# Generated record index without note frontmatter\n',
+  });
+  writeFileSync(join(dir, '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify({
+    version: 2,
+    hub: basename(dir),
+    runs: { tracking: 'ignored' },
+    legacyPaths: [],
+    domains: [],
+    recordCollections: [{
+      id: 'audit-records', collectionUuid: '00000000-0000-4000-8000-000000000001', identityVersion: 1,
+      root: 'docs/audit', inventory: '98 System/Records/audit.json', citations: '98 System/Records/audit-citations.json',
+      curationLedger: '98 System/Records/audit-curation.jsonl', index: '98 System/Records/audit.md',
+      scopes: [{ pattern: '**/*.md', kind: 'record', policy: 'append-only' }],
+    }],
+  }, null, 2)}\n`);
+  return dir;
+};
+const generatedRecordIndex = run(recordManifest(4));
+expect(generatedRecordIndex.status === 0 && !/Records\/audit\.md/.test(generatedRecordIndex.out),
+  `a manifest-v2 generated record index must be exempt by exact path, got ${generatedRecordIndex.status}:\n${generatedRecordIndex.out}`);
+const incompatibleRecordManifest = run(recordManifest(3));
+expect(incompatibleRecordManifest.status === 1 && /standard-version: 4/.test(incompatibleRecordManifest.out),
+  `manifest v2 must require vault standard v4, got ${incompatibleRecordManifest.status}:\n${incompatibleRecordManifest.out}`);
+
 // Canonical run artifacts carry no frontmatter by design. All nine of the artifact table in
 // code-ops-docs/40 Engineering/Techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem
 // has no underscore, so the shape rule alone rejected it and broke every orchestrated handoff.

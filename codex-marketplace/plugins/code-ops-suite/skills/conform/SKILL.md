@@ -26,7 +26,7 @@ Take no write action in this phase. Walk the surfaces in the order of the table 
 | # | Surface | Mechanical check | Repair route |
 | --- | --- | --- | --- |
 | 1 | Repo standards contract | The contract pair exists, matches one accepted parity mode (byte-identical, or a pointer file naming the contract as required reading), and carries the routing section | `code-ops-suite:adopt-standards` |
-| 2 | Docs vault | `<repo>-docs/` exists and `node <plugin-root>/scripts/check-vault-standard.mjs <vault dir>` exits 0 | `code-ops-suite:vault` in the mode Phase B detects |
+| 2 | Documentation hub | `<repo>-docs/` exists; vault and manifest checks exit 0; manifest-v2 collections also pass `records check` | `code-ops-suite:vault` in the mode Phase B detects |
 | 3 | Atlas | `code-ops-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `code-ops-suite:atlas` |
 | 4 | Doc alignment | Only when surfaces 1-3 surfaced drift signals: a contract, vault note, or repo doc referencing something the others contradict or no longer carry | `code-ops-suite:doc-alignment` |
 | 5 | Global contract *(optional, ask first)* | The user's global `~/.claude/AGENTS.md` carries a marketplace stamp current with this checkout | `code-ops-suite:adopt-global-standards` |
@@ -45,7 +45,7 @@ Write `CONFORMANCE_REPORT.md` to the vault's `80 Runs/YYYY-MM-DD slug/` when the
 
 ## Phase B — Repair (one surface at a time)
 
-Run only the approved surfaces, in table order, and delegate each to its own skill. Hand the delegated skill the assessment it needs rather than making it re-derive the state: the parity mode and vault path for surface 1, the detected mode for surface 2, the STALE section list for surface 3, the drift signals for surface 4.
+Run only the approved surfaces, in table order, and delegate each to its own skill. Hand the delegated skill the assessment it needs rather than making it re-derive the state: the parity mode and vault path for surface 1; the vault mode, manifest version, and collection verdicts for surface 2; the STALE section list for surface 3; and the drift signals for surface 4.
 
 **Checkpoint between surfaces.** Repairing the contract changes what the vault check reads, and repairing the vault changes what doc alignment reconciles, so each surface starts from the state the previous one left. Report what the last surface changed, then confirm the next.
 

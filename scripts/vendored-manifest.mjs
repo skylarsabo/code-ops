@@ -33,6 +33,8 @@ export const RUNTIME_SCRIPTS = [
   { name: 'context-index-lib.mjs', plugins: ['code-ops-suite'] },
   { name: 'docs-manifest.mjs', plugins: ['code-ops-suite'] },
   { name: 'docs-extract.mjs', plugins: ['code-ops-suite'] },
+  { name: 'records.mjs', plugins: ['code-ops-suite'] },
+  { name: 'record-lib.mjs', plugins: ['code-ops-suite'] },
   // Imported by the three above for the model-class resolver; it ships as their dependency,
   // not because a skill invokes it directly.
   { name: 'model-tiers.mjs', plugins: ['code-ops-suite'] },

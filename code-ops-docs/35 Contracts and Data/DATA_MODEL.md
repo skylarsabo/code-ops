@@ -40,3 +40,20 @@ Only fresh Atlas sections can contribute prose to a context bundle. A stale sect
 ## Retention and sensitivity
 
 Run artifacts are repository-local working evidence. Do not put secrets, tokens, or personal data in a contract, cache, bundle, ledger, or documentation record. The repository has no modeled personal-data entity.
+
+## Documentation records
+
+| Record | Permanent identity | Mutable fields |
+| --- | --- | --- |
+| Collection | `collectionUuid` | Human `id` and presentation grouping. |
+| Adopted record | Deterministic full `REC-` ID, indexed Git path, SHA-256 | External curation state only. |
+| Native record | Deterministic full `REC-` ID, staged Git path, SHA-256 | External curation state only. |
+| Citation | Record ID, source line, raw and normalized targets | Regenerable Git locator fields. |
+| Curation event | Sequence and event digest | None after merge; corrections append replacement state. |
+| Semantic index | Generator version and semantic digest | Rendering may change without changing semantics. |
+
+The ID namespace hashes the collection UUID and normalized Git-index path. Collection labels do not affect identity. A split creates a new UUID for future records; a presentation merge preserves original namespaces.
+
+The curation ledger is ordered JSONL. Every event links the prior global event and the prior event for its record. The event contains complete metadata state, not a patch.
+
+`targetSha256` is authoritative for mutable evidence. Object format, blob OID, commit OID, and path are locators that may be regenerated after repository hash migration.

@@ -45,6 +45,41 @@ try {
   check('non-code-ops hub validates', result.status === 0, result.out);
 
   const completeManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const standardPath = join(repo, 'project-docs', 'Standard.md');
+  writeFileSync(standardPath, '---\nstandard-version: 4\n---\n\n# Standard\n');
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('manifest v1 remains valid under vault standard v4', result.status === 0, result.out);
+
+  const versionTwo = { version: 2, hub: completeManifest.hub, runs: { tracking: 'ignored' }, recordCollections: [], legacyPaths: [], domains: completeManifest.domains };
+  writeFileSync(standardPath, '---\nstandard-version: 3\n---\n\n# Standard\n');
+  writeFileSync(manifestPath, `${JSON.stringify(versionTwo, null, 2)}\n`);
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('manifest v2 fails under vault standard v3', result.status === 1 && result.out.includes('requires Standard.md standard-version 4'), result.out);
+  writeFileSync(standardPath, '---\nstandard-version: 4\n---\n\n# Standard\n');
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('manifest v2 is valid under vault standard v4 without records', result.status === 0, result.out);
+  const invalidRuns = structuredClone(versionTwo); invalidRuns.runs.tracking = 'sometimes';
+  writeFileSync(manifestPath, `${JSON.stringify(invalidRuns, null, 2)}\n`);
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('manifest v2 run tracking is explicit and closed', result.status === 1 && result.out.includes('runs.tracking must be tracked or ignored'), result.out);
+  writeFileSync(manifestPath, `${JSON.stringify(versionTwo, null, 2)}\n`);
+  const overlappingRecords = structuredClone(versionTwo);
+  overlappingRecords.recordCollections = [{
+    id: 'evidence', collectionUuid: '11111111-1111-4111-8111-111111111111', identityVersion: 1,
+    root: 'PROJECT-DOCS', inventory: '98 System/Records/inventory.json', citations: '98 System/Records/citations.json',
+    curationLedger: '98 System/Records/curation.jsonl', index: '98 System/Records/index.md',
+    scopes: [{ pattern: '**/*.md', kind: 'record', policy: 'append-only' }],
+  }];
+  writeFileSync(manifestPath, `${JSON.stringify(overlappingRecords, null, 2)}\n`);
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('generated record metadata cannot case-fold into its immutable root', result.status === 1 && result.out.includes('overlaps its immutable root'), result.out);
+  writeFileSync(manifestPath, `${JSON.stringify(versionTwo, null, 2)}\n`);
+  const v2Output = join(repo, 'v2-plan.json');
+  result = run(join(repo, 'scripts', 'docs-extract.mjs'), ['plan', '--root', repo, '--out', v2Output], repo);
+  const v2Receipt = result.status === 0 ? JSON.parse(readFileSync(v2Output, 'utf8')) : null;
+  check('manifest v2 extraction carries bounded record context', result.status === 0 && v2Receipt?.version === 2 && Array.isArray(v2Receipt.records) && v2Receipt.records.length === 0, result.out);
+  writeFileSync(manifestPath, `${JSON.stringify(completeManifest, null, 2)}\n`);
+
   writeFileSync(manifestPath, `${JSON.stringify({ ...completeManifest, profile: 'generic', domains: completeManifest.domains.filter((domain) => domain.id !== 'architecture') }, null, 2)}\n`);
   result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
   check('profile flag cannot bypass required domains', result.status === 1 && result.out.includes('unknown key profile') && result.out.includes('missing required documentation domain architecture'), result.out);

@@ -203,6 +203,20 @@ For the full carry-forward discipline — the re-validate-then-carry-what-surviv
 | Unsure what to delete | Keep every register; delete only logs/superseded folders | See the keep/delete split (§3) |
 | Researcher artifact won't publish | Check `EGRESS_MANIFEST.md` exists and is complete | `research-manifest.mjs validate` — fail-closed on un-manifested hosts ([04 §4](04-registers-and-freshness.md)) |
 
+## Durable record-collection recovery
+
+Use this procedure only for a manifest v2 record collection. Record adoption is irreversible. Preserve adopted paths and bytes. Restore authority through generated metadata and canonical vault documents, never by rewriting evidence.
+
+1. Stop before `adopt` when the repository is shallow, partial, promisor-backed, dirty, or missing required objects.
+2. Restore full history, then run `verify-history --strict` before any adoption or repair.
+3. Run `classify` and resolve every zero-match, multiple-match, and forbidden-file result in the same diff.
+4. Recover a failed append by restoring the staged record and artifact snapshot, then rerun `append`; do not hand-edit inventory, citations, or indexes.
+5. Recover a ledger conflict by rebasing the losing branch and regenerating only its unmerged tail under the repository-local lock.
+6. Investigate `evidence-lost` only after strict history verification. Treat `history-unavailable` as infrastructure work.
+7. Reindex locators only after the historical bytes match the stored `targetSha256`.
+
+Do not use a current path as historical fallback. Do not change a merged ledger event. Do not create a tombstone or pointer through manifest sync. See [the vault standard](../Techniques/vault-standard.md#durable-record-collections) for the normative contract.
+
 ---
 
 ## 6 · Stacked-PR merge procedure

@@ -16,6 +16,10 @@ The Windows job mirrors structural checks that can differ by path handling, quot
 
 The documentation link gate rejects missing, escaping, case-unsafe, and ambiguous local targets. It rejects hub-internal directory links and unresolved local Markdown heading fragments. Evidence: `scripts/check-doc-links.mjs:76-89` and `evals/doc-links/run.mjs:11-28`.
 
+The record-collection eval exercises immutable evidence contracts on Ubuntu and Windows. Repositories with record collections require a complete checkout using `fetch-depth: 0` and `filter: ""`. A shallow or partial checkout is infrastructure failure, not evidence loss.
+
+The v4 gate chain keeps responsibilities separate. The manifest gate owns domain and collection declarations. The records gate owns identities, baselines, history, citation state, curation chains, and semantic projections. The link gate continues to own ordinary hub navigation.
+
 ## Pull-request gates
 
 `Deep Review (rigor)` runs on opened, synchronized, and reopened pull requests. It scopes review to changed files, asks Claude for a verification-first review, and fails closed if two review attempts fail. Evidence: `.github/workflows/deep-review.yml:11-27`, `.github/workflows/deep-review.yml:55-133`, and `.github/workflows/deep-review.yml:135-137`.

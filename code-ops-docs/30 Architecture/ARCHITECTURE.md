@@ -52,3 +52,11 @@ A bundle selects files in the unit scope, direct import neighbors, visible chang
 ## Authority
 
 Code is authoritative for behavior. This document describes the implementation and must be updated with architecture-changing work. The documentation manifest identifies the canonical documentation records and their source evidence.
+
+## Documentation evidence boundary
+
+`docs-manifest.mjs` validates the authored hub and its required domains. Manifest v2 also registers permanent record collections without transferring authored authority to their historical paths.
+
+`records.mjs` owns collection classification, adoption, permanent identity, citation state, curation, history verification, and semantic projections. `docs-extract.mjs` gives affected documentation work only the collection inventory and semantic index. It never injects full record bodies by default.
+
+This separation keeps the hub authoritative while preserving immutable evidence. It also keeps large repositories bounded: one context snapshot serves the run, and unchanged collections create no model dispatch.
