@@ -197,7 +197,7 @@ if (existsSync(docsManifestPath)) {
     if (docsManifest.version === 2) {
       if (!Array.isArray(docsManifest.recordCollections)) fail('manifest version 2 has no recordCollections array');
       for (const collection of docsManifest.recordCollections || []) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
-        if (typeof collection?.[key] === 'string') generatedRecords.add(collection[key].replaceAll('\\', '/'));
+        if (typeof collection?.[key] === 'string' && collection[key].startsWith('98 System/Records/')) generatedRecords.add(collection[key].replaceAll('\\', '/'));
       }
     }
   } catch (error) { fail(`98 System/DOCS_MANIFEST.json cannot be parsed: ${error.message}`); }

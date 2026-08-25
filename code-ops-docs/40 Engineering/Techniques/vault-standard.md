@@ -51,7 +51,7 @@ The checker accepts standard version 3 while v4 adoption remains explicit. Manif
 
 ### Collection identity and classification
 
-Each collection declares a permanent `collectionUuid`, mutable human `id`, `identityVersion`, root, inventory, citations, curation ledger, generated index, and scopes. A collection UUID never changes. A label may change. A split creates a new UUID for future records. A presentation merge preserves original UUID namespaces.
+Each collection declares a permanent `collectionUuid`, mutable human `id`, `identityVersion`, root, inventory, citations, curation ledger, generated index, and scopes. All four generated paths live beneath `98 System/Records/` in the vault. A collection UUID never changes. A label may change. A split creates a new UUID for future records. A presentation merge preserves original UUID namespaces.
 
 Every tracked file beneath a collection root matches exactly one scope. Zero or multiple matches fail. Exact paths and globs have no implicit precedence. Classify unknown files in the same diff. Classification may report candidates but never choose policy.
 
@@ -76,7 +76,7 @@ supersedes: ["REC-ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
 
 Adopted record supersession uses an external append-only curation ledger. Each event stores a global sequence, previous event digest, record ID, previous event for that record, complete metadata state, informational `curatedAt`, and event digest. Sequence starts at one and follows file order. Global and per-record predecessor chains validate. The highest valid sequence wins. Corrections append complete replacement events.
 
-The ledger has one writer and uses a repository-local lock. Parallel branch tails cannot merge mechanically. The losing branch rebases and regenerates only its unmerged tail. CI rejects forks, duplicate sequences, broken hashes, and changed merged events.
+The ledger has one writer and uses a repository-local lock containing its process and acquisition time. A live or recent lock fails closed. The tool may recover a lock only after ten minutes when its recorded local process is gone. Parallel branch tails cannot merge mechanically. The losing branch rebases and regenerates only its unmerged tail. CI rejects forks, duplicate sequences, broken hashes, and changed merged events.
 
 The citation inventory stores every outbound Markdown citation with record ID, use-site source line, raw target, normalized target, ordered `resolvedVia`, state, and target metadata. It resolves inline links and images plus full, collapsed, and shortcut reference forms. Fenced, indented, and inline code is not citation syntax. Try the complete candidate as an exact path first. Then remove recognized suffixes in the applied order: accessors, line or range suffixes, symbols, fragments, and globs. Support repeated accessors.
 

@@ -158,6 +158,11 @@ const recordManifest = (standardVersion) => {
 const generatedRecordIndex = run(recordManifest(4));
 expect(generatedRecordIndex.status === 0 && !/Records\/audit\.md/.test(generatedRecordIndex.out),
   `a manifest-v2 generated record index must be exempt by exact path, got ${generatedRecordIndex.status}:\n${generatedRecordIndex.out}`);
+const generatedRecordSibling = recordManifest(4);
+writeFileSync(join(generatedRecordSibling, '98 System', 'Records', 'ordinary.md'), '# Ordinary malformed note\n');
+const generatedRecordSiblingResult = run(generatedRecordSibling);
+expect(generatedRecordSiblingResult.status === 1 && /Records\/ordinary\.md: no YAML frontmatter block/.test(generatedRecordSiblingResult.out),
+  `a generated-record exemption must not exempt an ordinary sibling note, got ${generatedRecordSiblingResult.status}:\n${generatedRecordSiblingResult.out}`);
 const incompatibleRecordManifest = run(recordManifest(3));
 expect(incompatibleRecordManifest.status === 1 && /standard-version: 4/.test(incompatibleRecordManifest.out),
   `manifest v2 must require vault standard v4, got ${incompatibleRecordManifest.status}:\n${incompatibleRecordManifest.out}`);

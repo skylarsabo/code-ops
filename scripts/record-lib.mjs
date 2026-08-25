@@ -1,8 +1,11 @@
 // Dependency-free primitives for durable documentation record collections.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, relative, resolve, sep } from 'node:path';
+import {
+  copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync,
+  realpathSync, renameSync, rmSync, writeFileSync,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from 'node:path';
 
 export const RECORD_VERSION = 1;
 export const FULL_ID_RE = /^REC-[A-Z2-7]{26}$/;
@@ -22,8 +25,38 @@ export const digestJson = (value) => sha256(canonical(value));
 export const posix = (value) => value.split(sep).join('/').normalize('NFC');
 export const safePath = (value) => typeof value === 'string' && value.length > 0
   && value === value.normalize('NFC') && !value.startsWith('/') && !value.includes('\\')
+  && !/^[A-Za-z]:/.test(value)
   && !value.startsWith('./') && !value.endsWith('/') && !value.includes('//')
   && !value.split('/').some((part) => part === '.' || part === '..' || part !== part.trim());
+
+function sameNativePath(left, right) {
+  const normalizedLeft = resolve(left); const normalizedRight = resolve(right);
+  return process.platform === 'win32'
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
+}
+function contained(root, target, allowRoot = false) {
+  const value = relative(root, target);
+  return (allowRoot && value === '')
+    || (value !== '' && value !== '..' && !value.startsWith(`..${sep}`) && !isAbsolute(value));
+}
+function existingAncestor(path) {
+  let cursor = path;
+  while (true) {
+    try { lstatSync(cursor); return cursor; }
+    catch (error) {
+      if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error;
+      const parent = dirname(cursor);
+      if (parent === cursor) throw new Error('path has no existing ancestor: ' + path);
+      cursor = parent;
+    }
+  }
+}
+function assertPhysicalContainment(root, target) {
+  const physicalRoot = realpathSync.native(root);
+  const physicalAncestor = realpathSync.native(existingAncestor(target));
+  if (!contained(physicalRoot, physicalAncestor, true)) throw new Error('path escapes repository through a link');
+}
 
 export function git(root, args, binary = false) {
   return execFileSync('git', args, {
@@ -37,10 +70,16 @@ export function gitPaths(root, args) {
 export function trackedPaths(root) { return gitPaths(root, ['ls-files', '-z']); }
 export function nativePath(root, path) {
   if (!safePath(path)) throw new Error('unsafe path: ' + path);
-  return resolve(root, path);
+  const absoluteRoot = resolve(root); const absolute = resolve(absoluteRoot, path);
+  if (!contained(absoluteRoot, absolute)) throw new Error('path escapes repository');
+  assertPhysicalContainment(absoluteRoot, absolute);
+  return absolute;
 }
 export function relativeRoot(root, absolute) {
-  const value = posix(relative(root, absolute));
+  const absoluteRoot = resolve(root); const target = resolve(absolute);
+  if (!contained(absoluteRoot, target)) throw new Error('path escapes repository');
+  assertPhysicalContainment(absoluteRoot, target);
+  const value = posix(relative(absoluteRoot, target));
   if (!safePath(value)) throw new Error('path escapes repository');
   return value;
 }
@@ -94,7 +133,9 @@ export function validateCollection(collection, hub) {
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(collection.collectionUuid)
     || collection.identityVersion !== 1 || !safePath(collection.root) || !safePath(hub)) throw new Error('invalid collection ' + collection.id);
   for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
-    if (!safePath(collection[key])) throw new Error(collection.id + ' has unsafe ' + key);
+    if (!safePath(collection[key]) || !collection[key].startsWith('98 System/Records/')) {
+      throw new Error(collection.id + ' has ' + key + ' outside 98 System/Records/');
+    }
     const generated = `${hub}/${collection[key]}`;
     const foldedGenerated = generated.toLowerCase(); const foldedRoot = collection.root.toLowerCase();
     if (foldedGenerated === foldedRoot || foldedGenerated.startsWith(`${foldedRoot}/`)) {
@@ -414,35 +455,98 @@ export function resolvePrefix(prefix, ids) {
 }
 
 export function atomicWrite(path, text) { writeAtomically([[path, text]]); }
+function pathKey(path) { return process.platform === 'win32' ? path.toLowerCase() : path; }
+function pathState(path) {
+  try { return lstatSync(path); }
+  catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return null;
+    throw error;
+  }
+}
+function assertNoSymlinkComponents(path) {
+  const absolute = resolve(path); const parsed = parse(absolute);
+  const parts = absolute.slice(parsed.root.length).split(sep).filter(Boolean);
+  let cursor = parsed.root;
+  for (let index = 0; index < parts.length; index += 1) {
+    cursor = resolve(cursor, parts[index]);
+    const state = pathState(cursor);
+    if (!state) continue;
+    if (state.isSymbolicLink()) throw new Error('atomic path contains a symbolic link: ' + cursor);
+    if (index < parts.length - 1 && !state.isDirectory()) throw new Error('atomic path component is not a directory: ' + cursor);
+  }
+}
+function assertResolvedParent(path) {
+  const parent = dirname(path); const physicalParent = realpathSync.native(parent);
+  if (!sameNativePath(parent, physicalParent)
+    || !sameNativePath(path, resolve(physicalParent, basename(path)))) {
+    throw new Error('atomic destination escapes its resolved parent: ' + path);
+  }
+}
 export function writeAtomically(entries) {
-  const prepared = []; const replaced = new Set();
+  const destinations = []; const prepared = []; const replaced = new Set();
   try {
-    for (const [path, text] of entries) {
-      mkdirSync(dirname(path), { recursive: true });
-      if (existsSync(path) && !lstatSync(path).isFile()) throw new Error('atomic destination is not a file: ' + path);
-      const temp = path + '.tmp-' + process.pid; const backup = path + '.bak-' + process.pid;
-      writeFileSync(temp, text); prepared.push({ path, temp, backup, existed: existsSync(path) });
+    if (!Array.isArray(entries) || entries.some((entry) => !Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string')) {
+      throw new Error('atomic entries must be [absolute path, content] pairs');
+    }
+    const seen = new Set();
+    for (const [rawPath, text] of entries) {
+      const path = resolve(rawPath);
+      if (!isAbsolute(rawPath) || !sameNativePath(rawPath, path)) throw new Error('atomic destination must be an absolute normalized path: ' + rawPath);
+      const key = pathKey(path);
+      if (seen.has(key)) throw new Error('duplicate atomic destination: ' + path);
+      seen.add(key); assertNoSymlinkComponents(path);
+      const state = pathState(path);
+      if (state && !state.isFile()) throw new Error('atomic destination is not a file: ' + path);
+      destinations.push({ path, text, existed: Boolean(state) });
+    }
+    for (let left = 0; left < destinations.length; left += 1) {
+      for (let right = left + 1; right < destinations.length; right += 1) {
+        if (contained(destinations[left].path, destinations[right].path)
+          || contained(destinations[right].path, destinations[left].path)) {
+          throw new Error('atomic destinations cannot contain one another');
+        }
+      }
+    }
+    for (const destination of destinations) {
+      const { path, text, existed } = destination; const parent = dirname(path);
+      assertNoSymlinkComponents(path);
+      mkdirSync(parent, { recursive: true });
+      assertNoSymlinkComponents(path); assertResolvedParent(path);
+      const state = pathState(path);
+      if (Boolean(state) !== existed || (state && !state.isFile())) throw new Error('atomic destination changed during preparation: ' + path);
+      const transactionDir = mkdtempSync(resolve(parent, '.records-atomic-'));
+      const temp = resolve(transactionDir, 'new'); const backup = resolve(transactionDir, 'old');
+      const item = { path, temp, backup, transactionDir, existed };
+      prepared.push(item);
+      assertNoSymlinkComponents(temp); assertResolvedParent(temp);
+      writeFileSync(temp, text, { flag: 'wx' });
+      if (existed) copyFileSync(path, backup);
     }
     for (const item of prepared) {
-      if (item.existed) renameSync(item.path, item.backup);
+      assertNoSymlinkComponents(item.path); assertResolvedParent(item.path);
+      assertNoSymlinkComponents(item.temp); assertResolvedParent(item.temp);
+      const state = pathState(item.path);
+      if (Boolean(state) !== item.existed || (state && !state.isFile())) throw new Error('atomic destination changed before replacement: ' + item.path);
       renameSync(item.temp, item.path); replaced.add(item.path);
     }
     for (const item of prepared) {
-      try { rmSync(item.backup, { force: true }); }
-      catch (error) { console.warn('records: warning: committed write left backup for manual cleanup: ' + item.backup + ' (' + error.code + ')'); }
+      try { rmSync(item.transactionDir, { recursive: true, force: true }); }
+      catch (error) { console.warn('records: warning: committed write left transaction files for manual cleanup: ' + item.transactionDir + ' (' + error.code + ')'); }
     }
   } catch (error) {
     let rollbackError = null;
     for (const item of [...prepared].reverse()) {
       try {
-        if (existsSync(item.backup)) {
-          rmSync(item.path, { force: true });
-          renameSync(item.backup, item.path);
-        } else if (!item.existed && replaced.has(item.path)) rmSync(item.path, { force: true });
+        if (!replaced.has(item.path)) continue;
+        if (item.existed && existsSync(item.backup)) renameSync(item.backup, item.path);
+        else if (!item.existed) rmSync(item.path, { force: true });
       } catch (rollbackFailure) { rollbackError ||= rollbackFailure; }
     }
-    for (const item of prepared) rmSync(item.temp, { force: true });
     if (rollbackError) throw new AggregateError([error, rollbackError], 'atomic write failed and rollback was incomplete; backup files were preserved');
+    for (const item of prepared) {
+      try { rmSync(item.transactionDir, { recursive: true, force: true }); }
+      catch (cleanupError) { console.warn('records: warning: failed transaction cleanup: ' + item.transactionDir + ' (' + cleanupError.code + ')'); }
+    }
     throw error;
   }
 }

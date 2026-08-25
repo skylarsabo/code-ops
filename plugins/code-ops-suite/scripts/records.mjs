@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Durable record-collection lifecycle for the documentation vault.
 import {
-  appendFileSync, existsSync, mkdirSync, readFileSync, rmSync,
+  appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import {
@@ -107,15 +107,25 @@ function outputRepoPath(context, key) { return relativeRoot(context.root, contex
 function gitObjectFormat(root) { return git(root, ['rev-parse', '--show-object-format']).trim(); }
 function headOid(root) { return git(root, ['rev-parse', 'HEAD']).trim(); }
 function stagedPaths(root) { return new Set(gitPaths(root, ['diff', '--cached', '--name-only', '-z'])); }
+function literalPath(path) { return `:(literal)${path}`; }
+
+function indexEntry(root, path) {
+  const rows = git(root, ['ls-files', '-s', '-z', '--', literalPath(path)], true).toString('utf8').split('\0').filter(Boolean);
+  if (rows.length !== 1) throw new Error(`expected one index entry for ${path}`);
+  const match = /^(\d+) ([0-9a-f]+) \d+\t([\s\S]+)$/.exec(rows[0]);
+  if (!match || match[3] !== path) throw new Error(`malformed index entry for ${path}`);
+  if (!['100644', '100755'].includes(match[1])) throw new Error(`unsupported Git index mode ${match[1]} for ${path}`);
+  return { mode: match[1], blobOid: match[2] };
+}
 
 function stagedBytes(root, path) {
-  try { return git(root, ['show', `:${path}`], true); } catch { return null; }
+  return git(root, ['cat-file', '-p', indexEntry(root, path).blobOid], true);
 }
 
 function assertGeneratedUntouched(context) {
   for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
     const path = outputRepoPath(context, key);
-    if (git(context.root, ['status', '--porcelain=v1', '--untracked-files=all', '--', path]).trim()) {
+    if (git(context.root, ['status', '--porcelain=v1', '--untracked-files=all', '--', literalPath(path)]).trim()) {
       throw new Error(`pre-existing generated-file edit: ${path}`);
     }
   }
@@ -135,7 +145,7 @@ const MANIFEST_GLOB = ':(glob)**/98 System/DOCS_MANIFEST.json';
 function committedManifestVersions(root) {
   let commits = [];
   try { commits = git(root, ['log', '--format=%H', '--reverse', '--', MANIFEST_GLOB]).trim().split(/\s+/).filter(Boolean); }
-  catch { return []; }
+  catch (error) { throw new Error(`cannot read manifest history: ${error.message}`); }
   return commits.map((commit) => {
     const paths = gitPaths(root, ['ls-tree', '-r', '--name-only', '-z', commit])
       .filter((path) => path.endsWith('/98 System/DOCS_MANIFEST.json'));
@@ -165,8 +175,8 @@ function collectionOutputPaths(context, key) {
 function committedFileVersions(root, paths) {
   const candidates = Array.isArray(paths) ? [...new Set(paths)] : [paths];
   let commits = [];
-  try { commits = git(root, ['log', '--format=%H', '--reverse', '--', ...candidates]).trim().split(/\s+/).filter(Boolean); }
-  catch { return []; }
+  try { commits = git(root, ['log', '--format=%H', '--reverse', '--', ...candidates.map(literalPath)]).trim().split(/\s+/).filter(Boolean); }
+  catch (error) { throw new Error(`cannot read generated-file history: ${error.message}`); }
   return commits.map((commit) => {
     const found = [];
     for (const path of candidates) {
@@ -314,7 +324,7 @@ function citationEntries(context, entry, sourceText, knownPaths, policyRows, mod
 }
 
 function introductionCommit(root, path) {
-  const commits = git(root, ['log', '--follow', '--diff-filter=A', '--format=%H', '--reverse', '--', path])
+  const commits = git(root, ['log', '--follow', '--diff-filter=A', '--format=%H', '--reverse', '--', literalPath(path)])
     .trim().split(/\s+/).filter(Boolean);
   if (!commits.length) throw new Error(`required historical object is unavailable for ${path}`);
   return commits[0];
@@ -322,11 +332,12 @@ function introductionCommit(root, path) {
 
 function inventoryEntry(context, row, provenance, staged = false) {
   const path = row.path;
+  const index = indexEntry(context.root, path);
   const bytes = staged ? stagedBytes(context.root, path) : readFileSync(nativePath(context.root, path));
   if (!bytes) throw new Error(`record bytes unavailable: ${path}`);
   const entry = {
     id: recordId(context.collection.collectionUuid, path), identityVersion: context.collection.identityVersion,
-    path, provenance, sha256: sha256(bytes), kind: row.kind, policy: row.policy,
+    path, provenance, sha256: sha256(staged ? bytes : git(context.root, ['cat-file', '-p', index.blobOid], true)), kind: row.kind, policy: row.policy,
   };
   if (provenance === 'adopted') entry.introducedCommit = introductionCommit(context.root, path);
   else { entry.introducedCommit = null; entry.introducedIndexHead = headOid(context.root); }
@@ -343,16 +354,18 @@ function adopt(context) {
   if (!history.ok) throw new HistoryUnavailableError(`adoption refused: ${history.reason}`);
   if (Object.values(context.output).some(existsSync)) throw new Error('adoption refuses existing generated baselines');
   const { rows } = collect(context);
+  for (const row of rows) indexEntry(context.root, row.path);
   const records = rows.filter((row) => row.kind === 'record');
-  const entries = records.map((row) => inventoryEntry(context, row, 'adopted'));
+  const entries = records.map((row) => inventoryEntry(context, row, 'adopted', true));
   if (new Set(entries.map((entry) => entry.id)).size !== entries.length) throw new Error('record ID collision');
-  const artifacts = rows.filter((row) => ['frozen', 'superseded'].includes(row.policy)).map((row) => ({
-    path: row.path, sha256: fileDigest(nativePath(context.root, row.path)), kind: row.kind, policy: row.policy,
-  }));
+  const artifacts = rows.filter((row) => ['frozen', 'superseded'].includes(row.policy)).map((row) => {
+    const index = indexEntry(context.root, row.path);
+    return { path: row.path, sha256: sha256(git(context.root, ['cat-file', '-p', index.blobOid], true)), kind: row.kind, policy: row.policy };
+  });
   const inventory = { version: 1, collectionUuid: context.collection.collectionUuid, entries, artifacts };
   const citationInventory = { version: 1, collectionUuid: context.collection.collectionUuid, entries: [] };
   for (const entry of entries) {
-    const sourceText = readFileSync(nativePath(context.root, entry.path), 'utf8');
+    const sourceText = git(context.root, ['show', `${entry.introducedCommit}:${entry.path}`], true).toString('utf8');
     const known = treePathsAt(context.root, entry.introducedCommit);
     citationInventory.entries.push(...citationEntries(context, entry, sourceText, known, rows, 'adopt'));
   }
@@ -611,6 +624,27 @@ function appendRecord(context, options) {
   console.log(JSON.stringify({ staged: options['no-stage'] ? [] : [recordPath, ...generated], written: generated }));
 }
 
+function acquireCurationLock(lock) {
+  const owner = `${lock}/owner.json`;
+  const staleAfterMs = 10 * 60 * 1000;
+  try { mkdirSync(lock); }
+  catch {
+    let metadata = null;
+    try { metadata = JSON.parse(readFileSync(owner, 'utf8')); } catch { /* corrupt locks require age proof below */ }
+    const age = Date.now() - statSync(lock).mtimeMs;
+    let alive = false;
+    if (Number.isInteger(metadata?.pid) && metadata.pid > 0) {
+      try { process.kill(metadata.pid, 0); alive = true; } catch (error) { if (error.code !== 'ESRCH') alive = true; }
+    }
+    if (alive || age < staleAfterMs) throw new Error('curation is single-writer and the lock is held');
+    // A lock older than the lease whose local PID is dead is recoverable. The
+    // lock contains no ledger data, so removing it cannot rewrite an event.
+    rmSync(lock, { recursive: true, force: false });
+    mkdirSync(lock);
+  }
+  writeFileSync(owner, `${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`);
+}
+
 function curate(context, options) {
   if (!options.record || !options.state) throw new Error('curate requires --record and complete JSON --state');
   const history = completeHistory(context.root);
@@ -623,7 +657,7 @@ function curate(context, options) {
   try { state = JSON.parse(options.state); } catch { throw new Error('--state must be valid JSON'); }
   if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('--state must be a complete JSON object');
   const lock = `${context.output.curationLedger}.lock`;
-  try { mkdirSync(lock); } catch { throw new Error('curation is single-writer and the lock is held'); }
+  acquireCurationLock(lock);
   try {
     const ledgerText = existsSync(context.output.curationLedger) ? readFileSync(context.output.curationLedger, 'utf8') : '';
     const events = readJsonl(context.output.curationLedger);
@@ -671,8 +705,17 @@ function reindexLocators(context) {
     if (!citation.target?.targetSha256) continue;
     const recovered = findBlobByDigest(context.root, citation.target.targetSha256);
     if (!recovered) throw new Error(`evidence-lost: ${citation.target.targetSha256}`);
+    if (recovered.targetSha256 !== citation.target.targetSha256) {
+      throw new Error(`digest-mismatch while reindexing ${citation.target.path}`);
+    }
     const before = canonical(citation.target);
-    citation.target = { ...citation.target, ...recovered, targetSha256: citation.target.targetSha256 };
+    // Path, introduction commit, and content digest are evidence identity. Object
+    // format and blob OID are regenerable locator cache fields only.
+    citation.target = {
+      ...citation.target,
+      objectFormat: recovered.objectFormat,
+      blobOid: recovered.blobOid,
+    };
     if (canonical(citation.target) !== before) changed += 1;
   }
   writeAtomically([[context.output.citations, `${JSON.stringify(citations, null, 2)}\n`]]);

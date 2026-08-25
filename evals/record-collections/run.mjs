@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Synthetic-only regression coverage. The literal-bracket case is deliberately defensive.
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { digestJson, extractCitations, recordId, resolvePrefix, sha256, writeAtomically } from '../../scripts/record-lib.mjs';
@@ -136,6 +136,9 @@ try {
   let nonNfcRejected = false;
   try { recordId(UUID, 'records/cafe\u0301.md'); } catch { nonNfcRejected = true; }
   check('non-NFC paths are rejected', nonNfcRejected);
+  let drivePathRejected = false;
+  try { recordId(UUID, 'C:/Windows/System32/evidence.md'); } catch { drivePathRejected = true; }
+  check('Windows drive-qualified record paths are rejected on every platform', drivePathRejected);
   check('eight-character prefixes resolve', resolvePrefix(firstId.slice(0, 12), [firstId]) === firstId);
   let ambiguousPrefix = false;
   try { resolvePrefix('REC-AAAAAAAA', ['REC-AAAAAAAAAAAAAAAAAAAAAAAAAA', 'REC-AAAAAAAABBBBBBBBBBBBBBBBBB']); } catch { ambiguousPrefix = true; }
@@ -152,6 +155,18 @@ try {
   try { writeAtomically([[join(atomicDir, 'first.txt'), 'after'], [join(atomicDir, 'not-a-file'), 'invalid']]); } catch { atomicRejected = true; }
   check('atomic preflight preserves earlier files when a later destination is invalid', atomicRejected
     && readFileSync(join(atomicDir, 'first.txt'), 'utf8') === 'before');
+  const atomicRealDir = join(work, 'atomic-real');
+  const atomicAliasDir = join(work, 'atomic-alias');
+  mkdirSync(atomicRealDir, { recursive: true });
+  writeFileSync(join(atomicRealDir, 'evidence.md'), 'immutable evidence');
+  let symlinkWriteRejected = false;
+  try {
+    symlinkSync(atomicRealDir, atomicAliasDir, process.platform === 'win32' ? 'junction' : 'dir');
+    try { writeAtomically([[join(atomicAliasDir, 'evidence.md'), 'clobbered']]); }
+    catch { symlinkWriteRejected = true; }
+  } catch { symlinkWriteRejected = process.platform === 'win32'; }
+  check('atomic writes reject symlinked parent directories before changing evidence', symlinkWriteRejected
+    && readFileSync(join(atomicRealDir, 'evidence.md'), 'utf8') === 'immutable evidence');
 
   const ambiguousRepo = join(work, 'ambiguous-history'); mkdirSync(ambiguousRepo, { recursive: true });
   git(['init', '--quiet', '-b', 'main'], ambiguousRepo);
@@ -230,6 +245,19 @@ try {
   result = run(['check', '--root', renamedRecord, ...COLLECTION], renamedRecord);
   check('adopted record rename fails', result.status === 1 && result.output.includes('deleted, renamed'), result.output);
 
+  const uninventoriedRecord = join(work, 'uninventoried-record'); cpSync(repo, uninventoriedRecord, { recursive: true });
+  write(uninventoriedRecord, 'records/extra.md', '# Uninventoried record\n');
+  git(['add', 'records/extra.md'], uninventoriedRecord);
+  result = run(['check', '--root', uninventoriedRecord, ...COLLECTION], uninventoriedRecord);
+  check('tracked records cannot bypass the inventory', result.status === 1
+    && result.output.includes('record missing from inventory'), result.output);
+  const uninventoriedFrozen = join(work, 'uninventoried-frozen'); cpSync(repo, uninventoriedFrozen, { recursive: true });
+  write(uninventoriedFrozen, 'records/frozen/new.json', '{"new":true}\n');
+  git(['add', 'records/frozen/new.json'], uninventoriedFrozen);
+  result = run(['check', '--root', uninventoriedFrozen, ...COLLECTION], uninventoriedFrozen);
+  check('tracked frozen artifacts cannot bypass the inventory', result.status === 1
+    && result.output.includes('frozen artifact missing from inventory'), result.output);
+
   const committedRewrite = join(work, 'committed-rewrite'); cpSync(repo, committedRewrite, { recursive: true });
   write(committedRewrite, 'records/one.md', `${originalRecord}\ncommitted rewrite\n`);
   const rewrittenInventoryPath = generated(committedRewrite, 'inventory.json');
@@ -256,6 +284,41 @@ try {
   result = run(['check', '--root', renamedHubRewrite, ...COLLECTION], renamedHubRewrite);
   check('hub rename cannot hide a coordinated immutable rewrite', result.status === 1
     && result.output.includes('record inventory changed'), result.output);
+
+  if (process.platform !== 'win32') {
+    const literalHubRepo = join(work, 'literal-hub'); mkdirSync(literalHubRepo, { recursive: true });
+    git(['init', '--quiet', '-b', 'main'], literalHubRepo);
+    write(literalHubRepo, ':hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+    const literalHubManifest = fixtureManifest(); literalHubManifest.hub = ':hub';
+    write(literalHubRepo, ':hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(literalHubManifest, null, 2)}\n`);
+    write(literalHubRepo, 'records/one.md', '# Literal pathspec record\n');
+    commit(literalHubRepo, 'seed literal-pathspec hub');
+    result = run(['adopt', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
+    check('literal-pathspec fixture adopts', result.status === 0, result.output);
+    commit(literalHubRepo, 'adopt literal-pathspec hub');
+    write(literalHubRepo, 'records/one.md', '# Rewritten literal pathspec record\n');
+    const literalInventoryPath = join(literalHubRepo, ':hub', '98 System', 'Records', 'inventory.json');
+    const literalInventory = JSON.parse(readFileSync(literalInventoryPath, 'utf8'));
+    literalInventory.entries[0].sha256 = sha256(readFileSync(join(literalHubRepo, 'records', 'one.md')));
+    writeFileSync(literalInventoryPath, `${JSON.stringify(literalInventory, null, 2)}\n`);
+    run(['render', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
+    commit(literalHubRepo, 'attempt coordinated rewrite under literal-pathspec hub');
+    result = run(['check', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
+    check('pathspec-like hub names cannot disable append-only history', result.status === 1
+      && result.output.includes('record inventory changed'), result.output);
+
+    const symlinkRepo = join(work, 'symlink-record'); mkdirSync(symlinkRepo, { recursive: true });
+    git(['init', '--quiet', '-b', 'main'], symlinkRepo);
+    write(symlinkRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+    write(symlinkRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+    write(work, 'outside-evidence.md', 'outside repository bytes\n');
+    mkdirSync(join(symlinkRepo, 'records'), { recursive: true });
+    symlinkSync('../../outside-evidence.md', join(symlinkRepo, 'records', 'linked.md'));
+    commit(symlinkRepo, 'seed tracked symlink');
+    result = run(['adopt', '--root', symlinkRepo, ...COLLECTION], symlinkRepo);
+    check('adoption rejects tracked symlinks before hashing external bytes', result.status === 1
+      && result.output.includes('unsupported Git index mode 120000'), result.output);
+  }
 
   const citationRewrite = join(work, 'citation-rewrite'); cpSync(repo, citationRewrite, { recursive: true });
   const rewrittenCitationsPath = generated(citationRewrite, 'citations.json');
@@ -295,6 +358,22 @@ try {
   check('validly hashed curation for an unknown record fails', result.status === 1 && result.output.includes('unknown record'), result.output);
   restoreFromHead(repo, 'hub/98 System/Records/curation.jsonl');
 
+  const unknownCitationRepo = join(work, 'unknown-citation'); cpSync(repo, unknownCitationRepo, { recursive: true });
+  const unknownCitationPath = generated(unknownCitationRepo, 'citations.json');
+  const unknownCitations = JSON.parse(readFileSync(unknownCitationPath, 'utf8'));
+  unknownCitations.entries.push({ ...unknownCitations.entries[0], recordId: 'REC-AAAAAAAAAAAAAAAAAAAAAAAAAA' });
+  writeFileSync(unknownCitationPath, `${JSON.stringify(unknownCitations, null, 2)}\n`);
+  result = run(['check', '--root', unknownCitationRepo, ...COLLECTION], unknownCitationRepo);
+  check('valid citation-shaped entries for unknown records fail', result.status === 1
+    && result.output.includes('citation references unknown record'), result.output);
+
+  const unknownPrefixRepo = join(work, 'unknown-prefix'); cpSync(repo, unknownPrefixRepo, { recursive: true });
+  write(unknownPrefixRepo, 'hub/unknown-prefix.md', '# Unknown record\n\n`REC-ZZZZZZZZ`\n');
+  git(['add', 'hub/unknown-prefix.md'], unknownPrefixRepo);
+  result = run(['check', '--root', unknownPrefixRepo, ...COLLECTION], unknownPrefixRepo);
+  check('unknown record prefixes in vault prose fail', result.status === 1
+    && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
+
   const deadRepo = join(work, 'resolved-to-dead'); cpSync(repo, deadRepo, { recursive: true });
   unlinkSync(join(deadRepo, 'records', 'mutable', 'stream.jsonl')); git(['add', '-u'], deadRepo);
   result = run(['check', '--root', deadRepo, ...COLLECTION], deadRepo);
@@ -323,6 +402,22 @@ try {
   result = run(['check', '--root', repo, ...COLLECTION], repo);
   check('semantic index requires every record anchor', result.status === 1 && result.output.includes('anchors drift'), result.output);
   writeFileSync(generated(repo, 'index.md'), canonicalIndex);
+  const staleSemanticIndex = join(work, 'stale-semantic-index'); cpSync(repo, staleSemanticIndex, { recursive: true });
+  result = run(['curate', '--root', staleSemanticIndex, ...COLLECTION, '--record', firstId,
+    '--at', '2026-01-01T00:00:00.000Z', '--state', '{"status":"reviewed"}'], staleSemanticIndex);
+  check('semantic index fixture can curate a record', result.status === 0, result.output);
+  writeFileSync(generated(staleSemanticIndex, 'index.md'), canonicalIndex);
+  result = run(['check', '--root', staleSemanticIndex, ...COLLECTION], staleSemanticIndex);
+  check('semantic index detects stale curation state even when anchors match', result.status === 1
+    && result.output.includes('semantic index drift'), result.output);
+  const staleLockRepo = join(work, 'stale-curation-lock'); cpSync(repo, staleLockRepo, { recursive: true });
+  const staleLock = `${generated(staleLockRepo, 'curation.jsonl')}.lock`;
+  mkdirSync(staleLock);
+  writeFileSync(join(staleLock, 'owner.json'), '{"pid":999999999,"acquiredAt":"2000-01-01T00:00:00.000Z"}\n');
+  const staleTime = new Date('2000-01-01T00:00:00.000Z'); utimesSync(staleLock, staleTime, staleTime);
+  result = run(['curate', '--root', staleLockRepo, ...COLLECTION, '--record', firstId,
+    '--at', '2026-01-01T00:00:00.000Z', '--state', '{"status":"reviewed"}'], staleLockRepo);
+  check('curation recovers a stale lock whose recorded process is gone', result.status === 0, result.output);
 
   result = run(['curate', '--root', repo, ...COLLECTION, '--record', firstId.slice(0, 12), '--at', '2026-01-01T00:00:00.000Z', '--state', '{"status":"reviewed","owner":"ops"}'], repo);
   check('curation accepts an unambiguous short ID', result.status === 0, result.output);
@@ -391,12 +486,19 @@ supersedes: ["${firstId}"]
   const citationPath = generated(repo, 'citations.json');
   const locatorDoc = JSON.parse(readFileSync(citationPath, 'utf8'));
   const located = locatorDoc.entries.find((item) => item.target?.blobOid);
+  const originalLocatorPath = located.target.path;
+  const originalLocatorCommit = located.target.commitOid;
   located.target.blobOid = '0'.repeat(located.target.blobOid.length);
   writeFileSync(citationPath, `${JSON.stringify(locatorDoc, null, 2)}\n`);
   result = run(['check', '--root', repo, ...COLLECTION], repo);
   check('bad Git locator recovers by authoritative content digest', result.status === 0, result.output);
   result = run(['reindex-locators', '--root', repo, ...COLLECTION], repo);
-  check('locator reindex regenerates cache fields', result.status === 0 && result.output.includes('locatorsUpdated'), result.output);
+  const reindexedCitation = JSON.parse(readFileSync(citationPath, 'utf8')).entries
+    .find((item) => item.recordId === located.recordId && item.sourceLine === located.sourceLine && item.rawTarget === located.rawTarget);
+  check('locator reindex regenerates cache fields without rewriting provenance', result.status === 0
+    && result.output.includes('locatorsUpdated')
+    && reindexedCitation.target.path === originalLocatorPath
+    && reindexedCitation.target.commitOid === originalLocatorCommit, result.output);
 
   commit(repo, 'snapshot advanced operations');
   const shallow = join(work, 'shallow');
@@ -432,6 +534,14 @@ supersedes: ["${firstId}"]
 
   const scopeRepo = join(work, 'scope'); cpSync(repo, scopeRepo, { recursive: true });
   const scopeManifestPath = join(scopeRepo, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const generatedBoundaryRepo = join(work, 'generated-boundary'); cpSync(repo, generatedBoundaryRepo, { recursive: true });
+  const generatedBoundaryManifestPath = join(generatedBoundaryRepo, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const generatedBoundary = JSON.parse(readFileSync(generatedBoundaryManifestPath, 'utf8'));
+  generatedBoundary.recordCollections[0].index = '40 Engineering/ordinary.md';
+  writeFileSync(generatedBoundaryManifestPath, `${JSON.stringify(generatedBoundary, null, 2)}\n`);
+  result = run(['classify', '--root', generatedBoundaryRepo, ...COLLECTION], generatedBoundaryRepo);
+  check('record engine independently confines generated paths to the reserved Records directory', result.status === 1
+    && result.output.includes('outside 98 System/Records/'), result.output);
   const overlap = JSON.parse(readFileSync(scopeManifestPath, 'utf8'));
   overlap.recordCollections[0].scopes.push({ pattern: '*.md', kind: 'artifact', policy: 'mutable' });
   writeFileSync(scopeManifestPath, `${JSON.stringify(overlap, null, 2)}\n`);

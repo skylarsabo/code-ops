@@ -6,7 +6,7 @@ Charter: workflow scheduling, credential boundaries, and merge-gate behavior. Ex
 
 The validation matrix now includes run-contract, context snapshot, context bundle, and documentation-manifest regressions. The Linux leg also executes the complete answer-key drift loop and real calibration-store validation. The Windows leg remains a deliberate portability subset, not a duplicate of every Linux check.
 
-Both validation legs run the durable record-collection regression. Their checkout requests full history and disables partial filtering. That configuration keeps missing checkout history distinct from genuine evidence loss and makes platform-specific path behavior visible before merge.
+Both validation legs run the durable record-collection regression and invoke `records check` for every collection declared by the live manifest. Their checkout requests full history and disables partial filtering. A `legacyPaths` exemption cannot exist without a collection-backed CI verifier. That configuration keeps missing checkout history distinct from genuine evidence loss and makes platform-specific path behavior visible before merge.
 
 `deep-review.yml` and `opsec-gate.yml` are credential-dependent PR gates. Their retry guard is load-bearing: two failed review attempts fail the job. A green result can still mean a skipped review, so workflow logs distinguish review from no-credential and generated-output cases.
 

@@ -13,6 +13,7 @@ const KEYS = new Set(['id', 'path', 'status', 'evidence', 'sources', 'sourceDige
 const COLLECTION_KEYS = new Set(['id', 'collectionUuid', 'identityVersion', 'root', 'inventory', 'citations', 'curationLedger', 'index', 'scopes']);
 const SCOPE_KEYS = new Set(['pattern', 'kind', 'policy']);
 const LEGACY_KEYS = new Set(['path', 'disposition', 'target', 'requiredBy']);
+const RECORDS_ROOT = '98 System/Records/';
 const SCOPE_POLICIES = new Map([
   ['record', new Set(['append-only'])],
   ['artifact', new Set(['mutable', 'frozen', 'superseded'])],
@@ -80,9 +81,15 @@ function inspectCollections(manifest, hub, files, errors) {
     || !['tracked', 'ignored'].includes(manifest.runs?.tracking)) errors.push('runs.tracking must be tracked or ignored');
   if (!Array.isArray(manifest.recordCollections)) errors.push('recordCollections must be an array');
   if (!Array.isArray(manifest.legacyPaths)) errors.push('legacyPaths must be an array');
+  const collections = Array.isArray(manifest.recordCollections) ? manifest.recordCollections : [];
+  const legacyPaths = Array.isArray(manifest.legacyPaths) ? manifest.legacyPaths : [];
+  if (Array.isArray(manifest.legacyPaths) && manifest.legacyPaths.length
+    && !collections.length) {
+    errors.push('legacyPaths require a record collection so CI can verify their evidence');
+  }
   const ids = new Set(); const uuids = new Set(); const roots = [];
-  for (const collection of manifest.recordCollections || []) {
-    exactKeys(collection, COLLECTION_KEYS, `record collection ${collection?.id || '<unknown>'}`, errors);
+  for (const collection of collections) {
+    if (!exactKeys(collection, COLLECTION_KEYS, `record collection ${collection?.id || '<unknown>'}`, errors)) continue;
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(collection?.id || '') || ids.has(collection.id)) errors.push(`invalid or duplicate record collection id ${collection?.id}`);
     else ids.add(collection.id);
     if (!UUID_RE.test(collection?.collectionUuid || '') || uuids.has(collection.collectionUuid?.toLowerCase())) errors.push(`${collection?.id || 'record collection'} has an invalid or duplicate collectionUuid`);
@@ -98,7 +105,7 @@ function inspectCollections(manifest, hub, files, errors) {
       if (aliases.length) errors.push(`${collection.id} root casing differs from Git index: ${aliases.join(', ')}`);
     }
     for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
-      if (!safeRelative(collection?.[key])) errors.push(`${collection?.id || 'record collection'} ${key} must be hub-relative`);
+      if (!safeRelative(collection?.[key]) || !collection[key].startsWith(RECORDS_ROOT)) errors.push(`${collection?.id || 'record collection'} ${key} must be inside ${RECORDS_ROOT}`);
       else if (safeRelative(collection?.root)) {
         const generatedPath = `${hub}/${collection[key]}`;
         const foldedGenerated = generatedPath.toLowerCase(); const foldedRoot = collection.root.toLowerCase();
@@ -115,13 +122,14 @@ function inspectCollections(manifest, hub, files, errors) {
     }
   }
   const generated = new Set();
-  for (const collection of manifest.recordCollections || []) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
+  for (const collection of collections) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
+    if (!collection || typeof collection !== 'object' || Array.isArray(collection)) continue;
     const path = `${hub}/${collection[key]}`.toLowerCase();
     if (generated.has(path)) errors.push(`${collection.id} reuses generated record path ${collection[key]}`);
     generated.add(path);
   }
   const legacy = new Set();
-  for (const [index, entry] of (manifest.legacyPaths || []).entries()) {
+  for (const [index, entry] of legacyPaths.entries()) {
     exactKeys(entry, LEGACY_KEYS, `legacy path ${index + 1}`, errors);
     if (!safeRelative(entry?.path) || legacy.has(entry.path?.toLowerCase())) errors.push(`legacy path ${index + 1} has an invalid or duplicate path`);
     else legacy.add(entry.path.toLowerCase());
@@ -135,6 +143,9 @@ function inspectCollections(manifest, hub, files, errors) {
       || entry.requiredBy.some((item) => !item || typeof item !== 'object' || Array.isArray(item)
         || !['record', 'commit', 'external'].includes(item.kind) || typeof item.ref !== 'string' || !item.ref.trim()
         || Object.keys(item).some((key) => !['kind', 'ref'].includes(key)))) errors.push(`legacy path ${index + 1} needs qualifying requiredBy evidence`);
+    if (entry?.requiredBy?.some((item) => item.kind === 'record'
+      && !/^REC-[A-Z2-7]{8,26}$/.test(item.ref))) errors.push(`legacy path ${index + 1} record evidence must use a record ID prefix`);
+    if (!entry?.requiredBy?.some((item) => item.kind === 'record') && !entry?.requiredBy?.some((item) => item.kind === 'external' || item.kind === 'commit')) errors.push(`legacy path ${index + 1} needs a verifiable control`);
   }
 }
 function inspect(root, manifest, hub) {
@@ -171,8 +182,10 @@ function inspect(root, manifest, hub) {
     domain._computed = { sourceDigest: expectedSource, contentDigest: expectedContent };
   }
   for (const id of REQUIRED) if (!ids.has(id)) errors.push(`missing required documentation domain ${id}`);
-  const collectionRoots = (manifest.recordCollections || []).map((collection) => `${collection.root}/`);
-  const legacyPaths = new Set((manifest.legacyPaths || []).map((entry) => entry.path));
+  const collectionRoots = (Array.isArray(manifest.recordCollections) ? manifest.recordCollections : [])
+    .filter((collection) => collection && typeof collection === 'object' && !Array.isArray(collection))
+    .map((collection) => `${collection.root}/`);
+  const legacyPaths = new Set((Array.isArray(manifest.legacyPaths) ? manifest.legacyPaths : []).map((entry) => entry.path));
   const legacy = files.filter((file) => file.startsWith('docs/') && /\.md$/i.test(file)
     && !collectionRoots.some((rootPath) => file.startsWith(rootPath)) && !legacyPaths.has(file));
   if (legacy.length) errors.push(`authored Markdown remains outside ${hub}: ${legacy.join(', ')}`);
