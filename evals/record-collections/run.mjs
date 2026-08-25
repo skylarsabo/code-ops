@@ -413,14 +413,20 @@ supersedes: ["${firstId}"]
   result = run(['verify-history', '--strict', '--root', partial, ...COLLECTION], partial);
   check('partial/promisor configuration fails strict history', result.status === 2 && result.output.includes('partial repository'), result.output);
 
-  const lost = join(work, 'lost');
-  const sourceGit = join(repo, '.git');
-  cpSync(repo, lost, { recursive: true, filter: (source) => source !== sourceGit && !source.startsWith(`${sourceGit}\\`) && !source.startsWith(`${sourceGit}/`) });
+  const lost = join(work, 'lost'); mkdirSync(lost, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], lost);
+  write(lost, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(lost, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(lost, 'records/one.md', '# Lost evidence\n\n[lost](records/frozen/lost.json)\n');
+  write(lost, 'records/frozen/lost.json', '{"lost":true}\n');
+  commit(lost, 'seed recoverable evidence');
+  unlinkSync(join(lost, 'records', 'frozen', 'lost.json')); commit(lost, 'remove evidence target');
+  result = run(['adopt', '--root', lost, ...COLLECTION], lost);
   const lostCitationsPath = generated(lost, 'citations.json');
   const lostCitations = JSON.parse(readFileSync(lostCitationsPath, 'utf8'));
   lostCitations.entries.find((item) => item.state === 'redirected').target.targetSha256 = 'f'.repeat(64);
   writeFileSync(lostCitationsPath, `${JSON.stringify(lostCitations, null, 2)}\n`);
-  git(['init', '--quiet', '-b', 'main'], lost); commit(lost, 'synthetic unavailable evidence baseline');
+  commit(lost, 'adopt unavailable evidence baseline');
   result = run(['check', '--root', lost, ...COLLECTION], lost);
   check('missing authoritative content with complete history is evidence-lost', result.status === 1 && result.output.includes('evidence-lost'), result.output);
 
