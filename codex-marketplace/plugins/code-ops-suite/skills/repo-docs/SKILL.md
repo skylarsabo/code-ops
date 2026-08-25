@@ -10,13 +10,13 @@ description: "Use when repository documentation must be extracted, refreshed, or
 **Invoke in Codex by naming `code-ops-suite:repo-docs`.** First read `<plugin-root>/CONVENTIONS.md` and its orchestration, evidence, and documentation sections.
 **Mode:** DOCUMENT · **Produces:** updated manifest-owned documents, an extraction plan, and freshness proof.
 
-Keep `<repo>-docs/` as the only authored documentation hub. Treat code, schemas, workflows, and configuration as behavioral evidence, not competing documentation locations. The hub's `98 System/DOCS_MANIFEST.json` is the only topic-to-document and topic-to-source registry.
+Keep `<repo>-docs/` as the only authored documentation hub. Treat code, schemas, workflows, and configuration as behavioral evidence. Registered immutable records remain governed evidence at permanent paths. The hub's `98 System/DOCS_MANIFEST.json` owns domains, record collections, legacy paths, and run tracking.
 
 ## Phase 0 — Establish exact context
 
 Locate the repository contract and documentation hub. Run `docs-manifest.mjs check`; do not trust a malformed registry. Prepare one exact context snapshot with `context-snapshot.mjs`. Reuse its content-addressed repo map, import graph, and freshness-gated atlas payload. Do not regenerate a repo map per operative.
 
-Run `docs-extract.mjs plan`. It intersects the current repository delta with every manifest domain's source patterns. A domain absent from the plan receives no model dispatch. A `not-applicable` domain receives evidence revalidation, never invented content.
+Run `docs-extract.mjs plan`. It intersects the current delta with domain sources and registered collections. A domain absent from the plan receives no dispatch. An unchanged collection contributes no context. An affected collection contributes only its semantic index and inventory; fetch a record body by ID only when the task needs it.
 
 ## Phase 1 — Extract bounded domains
 
@@ -26,8 +26,8 @@ Dispatch affected domains in bounded, conflict-free waves. Each brief names exac
 
 ## Phase 2 — Reconcile and prove
 
-Verify claims against current source and installed tooling. Remove duplicate authored explanations outside the hub; keep only short pointers where a host or external convention requires a legacy path. Run `docs-manifest.mjs sync` only after review, then run `docs-manifest.mjs check`. Run repository link, vault, lint, and relevant eval gates. A green digest proves alignment only for the source patterns declared in the manifest; report uncovered source areas honestly.
+Verify claims against current source, installed tooling, and cited record IDs. Remove duplicate authored explanations outside the hub. Keep only manifest-declared generated pointers with qualifying evidence. Never let manifest sync rewrite record inventories, citation baselines, curation ledgers, or tombstones. Run the manifest, records, links, vault, lint, and relevant eval gates.
 
 ## Done when
 
-The manifest owns every required documentation domain; only affected domains were dispatched; every current claim is source-grounded; every not-applicable claim has concrete evidence; no substantive authored documentation remains outside the hub; context bundles bind to the exact run snapshot; manifest, link, vault, lint, and extraction evals pass; and the lead reviewed the diff and proof.
+The manifest owns every domain and registered collection. Only affected domains were dispatched. Record context stayed semantic and ID-addressed. Every current claim is grounded. No substantive authored documentation remains outside the hub. Manifest, records, link, vault, lint, and extraction gates pass. The lead reviewed the diff and proof.

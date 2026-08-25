@@ -35,6 +35,21 @@ const tasks = plan.domains.map((domain, index) => ({
     ? 'Revalidate the recorded non-applicability evidence.'
     : 'Extract current claims from the listed changed sources; update only this canonical target.',
 }));
-const receipt = { version: 1, hub: plan.hub, manifestSha256: plan.manifestSha256, changedSha256: sha256(JSON.stringify(plan.changed)), tasks };
+const receipt = {
+  version: plan.version === 2 ? 2 : 1,
+  hub: plan.hub,
+  manifestSha256: plan.manifestSha256,
+  changedSha256: sha256(JSON.stringify(plan.changed)),
+  tasks,
+  ...(plan.version === 2 ? {
+    records: (plan.records || []).map((collection) => ({
+      id: collection.id,
+      index: collection.index,
+      inventory: collection.inventory,
+      affectedSources: collection.affectedSources,
+      instruction: 'Use the semantic index and inventory as bounded context; fetch record bodies by ID only when required.',
+    })),
+  } : {}),
+};
 atomicWrite(out, `${JSON.stringify(receipt, null, 2)}\n`);
 console.log(`ok documentation extraction plan (${tasks.length} task(s))`);

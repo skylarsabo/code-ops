@@ -11,6 +11,7 @@ history.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
+| [0003](0003-durable-record-collections.md) | Durable record collections | Accepted | 2026-08-24 |
 | [0002](0002-repository-documentation-hub.md) | Repository documentation hub and manifest | Accepted | 2026-08-24 |
 | [0001](0001-handbook-placement.md) | Handbook placement: suite-wide, tracked, repo-root `docs/` | Superseded | 2026-06-23 |
 

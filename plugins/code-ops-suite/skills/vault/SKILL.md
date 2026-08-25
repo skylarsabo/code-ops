@@ -7,11 +7,11 @@ description: "Use when a repo needs its Obsidian docs vault created, an existing
 **Invoked as `/code-ops-suite:vault`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin — the interaction protocol (`§3`), the safety rails (`§4`), the single-source-of-truth conventions (`§12`) that decide where a run's artifacts land, and the doc standard (`§13`) — and `code-ops-docs/40 Engineering/Techniques/vault-standard.md`, which is the source of truth for the layout, the profiles, and the promotion rule.
 **Mode:** DOCUMENT · **Consumes:** the target repo and its existing docs tree or vault, if any · **Produces:** `<repo>-docs/` — the numbered folders, `Standard.md`, `00 Home.md`, `README.md`, and the templates.
 
-A vault is where a repo's design-time judgment lives: designs, decisions, run notes, operator notes. One standard layout across every repo is the whole point — an agent that has never opened this vault can still predict where a note goes and what its frontmatter says. So the layout is not a per-repo preference, and this skill never invents a variant of it.
+The vault is the repository's complete authored documentation hub. It holds working judgment, current references, decisions, operations guidance, and generated record indexes. One standard layout lets an unfamiliar agent predict where every authored topic belongs.
 
 **The checker decides conformance, not a reading.** `node ${CLAUDE_PLUGIN_ROOT}/scripts/check-vault-standard.mjs <vault dir>` is fail-closed and enforces ten rules. It exits 1 on any of these:
 
-- A `Standard.md` missing from the vault root, or one whose `standard-version` is absent or below the current standard-version (2 today).
+- A `Standard.md` missing from the vault root, or one whose `standard-version` is below the accepted floor.
 - A missing `00 Home.md` or `README.md` at the vault root.
 - A missing machinery folder, except `80 Runs/`, which only warns.
 - A top-level folder with no two-digit numeric prefix.
@@ -24,8 +24,13 @@ A vault is where a repo's design-time judgment lives: designs, decisions, run no
 
 `90 Templates/`, the vault-root `README.md`, and the canonical suite artifacts (`HANDOFF.md`, `FINDINGS_REGISTER.md`, and the rest of the artifact table) are exempt from the note rules. Run the checker before declaring any mode done.
 
-## The boundary rule — what does NOT move into the vault
-Code is canonical for behavior. Tracked repo docs are canonical for shipped behavior and machine-checked judgment: reference trees, published ADRs, runbooks for shipped systems, and `code-ops-docs/98 System/Atlas/` (its freshness check needs repo-root scopes and git history, so it never moves). The vault is canonical for design-time judgment only. When vault content ships or becomes a public claim, promote it to the owning repo doc in the same change and leave a link behind. Never maintain two synchronized copies — that is the failure the boundary exists to prevent.
+## Authority and immutable records
+
+Code remains canonical for executable behavior. The hub is the only authored documentation authority. A manifest-v2 record collection may govern immutable evidence at its permanent historical path without making that tree an authored authority.
+
+Adoption is irreversible; authority is not. Never move, edit, delete, or rename an adopted record. When its guidance becomes obsolete, append curation metadata and publish the replacement in the hub. Generated indexes link the preserved bytes to the current authority.
+
+Standard v3 with manifest v1 remains conformant. Standard v4 with manifest v1 remains conformant without records. Record collections require standard v4 and manifest v2.
 
 ## Phase 0 — Detect the mode *(checkpoint)*
 Look for `<repo>-docs/` at the repo root. **SCAFFOLD** if absent. **MIGRATE** if the repo has a docs tree holding design-time notes under some other layout. **CHECK** if a conformant-looking vault already exists. State the mode and the profile you intend to apply, and confirm both with the developer before writing anything.
@@ -34,13 +39,15 @@ Look for `<repo>-docs/` at the repo root. **SCAFFOLD** if absent. **MIGRATE** if
 Create `<repo>-docs/` with the machinery folders `00 Inbox/`, `80 Runs/`, `90 Templates/`, `95 Attachments/`, `98 System/`, `99 Archive/`, plus the domain folders the profile calls for in the 10-79 band. Write `Standard.md` as a self-contained conformance copy of the standard — an agent in this repo has no code-ops checkout to read the source page from — stamped with `standard-version` and closing with a profile section that states every waiver and its reason. Write `00 Home.md` as the map of content, `README.md` as the git host's entry point, and the new-note templates. Decide with the developer whether `80 Runs/` is gitignored, and record that decision in the profile section.
 
 ## Phase 2 — MIGRATE
-Read the existing tree first and classify every file into one of three destinations: stays in the code repo (reference docs, published ADRs, the atlas), moves into a numbered vault folder, or is superseded and belongs in `99 Archive/` with a `superseded-by` pointer. Move rather than copy, so no file ends up in two trees. Then rename folders to the numbered scheme, add the frontmatter each note lacks, and rewrite intra-vault references as `[[Note name]]` wikilinks while leaving links that point at repo docs as ordinary markdown paths — git hosts do not render wikilinks. Verify links with Obsidian's broken-link check before finishing. A migration that silently drops a note is worse than one that leaves it in `00 Inbox/`.
+Inventory the existing tree before moving anything. Separate ordinary authored documents from candidate immutable records. Classify every tracked collection file with exactly one manifest scope. Remove forbidden files before adoption.
+
+Assign the permanent collection UUID, require complete Git history, then run `records adopt`. Adoption must finish before authored files move. Migrate ordinary authored documents in slices, using moves instead of copies. Add only mechanically eligible generated pointers or explicitly adopted tombstones. A record classification error requires curation and a new hub document, never byte rewriting.
 
 ## Phase 3 — CHECK
-Run the checker and repair the vault, never the checker. A warning about an absent `80 Runs/` is expected in a repo that gitignores it and is a real gap anywhere else. Then read the two things no checker can judge: whether `00 Home.md` still links every current design, decision, and run index, and whether any vault note has become a public claim that should have been promoted into a tracked repo doc.
+Run the vault and manifest checkers and repair the repository, never the gate. When manifest v2 declares collections, run `records check` and treat incomplete history separately from evidence loss. Confirm generated record indexes resolve full IDs and current authority links.
 
 ## Host parity
 The repo's standards-contract pair carries a documentation section routing agents to the vault's `Standard.md`. Two conformance modes are accepted: a byte-identical pair, or a pointer pair where one file is the contract and the other names it as required reading. Each host reads the filename it expects, so a drifted pair makes vault behavior differ by host. `/code-ops-suite:adopt-standards` owns that contract; hand it the vault path rather than editing the contract from here.
 
 ## Done when
-`check-vault-standard.mjs` exits 0 against the vault; `Standard.md` is self-contained, versioned, and states every profile waiver with its reason; `00 Home.md` links every current design, decision, and run index; no file exists in both the vault and a tracked repo doc; and the report names the mode run, the profile applied, and every file moved or left behind.
+`check-vault-standard.mjs`, `docs-manifest.mjs check`, and applicable `records check` commands pass. `Standard.md` is self-contained and versioned. Every authored topic has one hub authority. Every adopted record retains its indexed bytes and permanent ID. The report names the mode, profile, moves, adopted collections, generated pointers, and explicit tombstones.

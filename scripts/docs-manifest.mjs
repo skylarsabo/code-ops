@@ -7,8 +7,20 @@ import { resolve } from 'node:path';
 import { atomicWrite, pathMatchesGlob, safeRelative, sha256, toPosix } from './context-index-lib.mjs';
 
 const REQUIRED = new Set(['architecture', 'contracts', 'data-model', 'engineering-standards', 'api-reference', 'ci-delivery', 'infrastructure', 'observability', 'design-system', 'guides', 'atlas']);
-const TOP_KEYS = new Set(['version', 'hub', 'domains']);
+const TOP_KEYS_V1 = new Set(['version', 'hub', 'domains']);
+const TOP_KEYS_V2 = new Set(['version', 'hub', 'runs', 'recordCollections', 'legacyPaths', 'domains']);
 const KEYS = new Set(['id', 'path', 'status', 'evidence', 'sources', 'sourceDigest', 'contentDigest']);
+const COLLECTION_KEYS = new Set(['id', 'collectionUuid', 'identityVersion', 'root', 'inventory', 'citations', 'curationLedger', 'index', 'scopes']);
+const SCOPE_KEYS = new Set(['pattern', 'kind', 'policy']);
+const LEGACY_KEYS = new Set(['path', 'disposition', 'target', 'requiredBy']);
+const RECORDS_ROOT = '98 System/Records/';
+const SCOPE_POLICIES = new Map([
+  ['record', new Set(['append-only'])],
+  ['artifact', new Set(['mutable', 'frozen', 'superseded'])],
+  ['executable', new Set(['frozen', 'superseded'])],
+  ['forbidden', new Set(['forbidden'])],
+]);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
 function usage() { die('usage: docs-manifest.mjs check|sync|plan [--root <repo>] [--out <file>]', 2); }
 function flags(args) {
@@ -49,12 +61,104 @@ function findManifest(root) {
   if (!manifest || manifest.hub !== hub) die(`documentation manifest hub must equal ${hub}`);
   return { path, manifest, hub };
 }
+function exactKeys(value, keys, label, errors) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) { errors.push(`${label} must be an object`); return false; }
+  for (const key of Object.keys(value)) if (!keys.has(key)) errors.push(`${label} has unknown key ${key}`);
+  for (const key of keys) if (!(key in value)) errors.push(`${label} is missing ${key}`);
+  return true;
+}
+function standardVersion(root, hub) {
+  const path = resolve(root, hub, 'Standard.md');
+  if (!existsSync(path)) return null;
+  const match = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return null;
+  const value = match[1].split(/\r?\n/).map((line) => /^standard-version:\s*["']?([^"']+?)["']?\s*$/.exec(line)).find(Boolean)?.[1];
+  return value === undefined ? null : Number(value);
+}
+function inspectCollections(manifest, hub, files, errors) {
+  if (manifest.version !== 2) return;
+  if (!exactKeys(manifest.runs, new Set(['tracking']), 'runs', errors)
+    || !['tracked', 'ignored'].includes(manifest.runs?.tracking)) errors.push('runs.tracking must be tracked or ignored');
+  if (!Array.isArray(manifest.recordCollections)) errors.push('recordCollections must be an array');
+  if (!Array.isArray(manifest.legacyPaths)) errors.push('legacyPaths must be an array');
+  const collections = Array.isArray(manifest.recordCollections) ? manifest.recordCollections : [];
+  const legacyPaths = Array.isArray(manifest.legacyPaths) ? manifest.legacyPaths : [];
+  if (Array.isArray(manifest.legacyPaths) && manifest.legacyPaths.length
+    && !collections.length) {
+    errors.push('legacyPaths require a record collection so CI can verify their evidence');
+  }
+  const ids = new Set(); const uuids = new Set(); const roots = [];
+  for (const collection of collections) {
+    if (!exactKeys(collection, COLLECTION_KEYS, `record collection ${collection?.id || '<unknown>'}`, errors)) continue;
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(collection?.id || '') || ids.has(collection.id)) errors.push(`invalid or duplicate record collection id ${collection?.id}`);
+    else ids.add(collection.id);
+    if (!UUID_RE.test(collection?.collectionUuid || '') || uuids.has(collection.collectionUuid?.toLowerCase())) errors.push(`${collection?.id || 'record collection'} has an invalid or duplicate collectionUuid`);
+    else uuids.add(collection.collectionUuid.toLowerCase());
+    if (collection?.identityVersion !== 1) errors.push(`${collection?.id || 'record collection'} identityVersion must be 1`);
+    if (!safeRelative(collection?.root)) errors.push(`${collection?.id || 'record collection'} root must be a safe repository-relative path`);
+    else {
+      const normalized = collection.root.toLowerCase();
+      if (roots.some((root) => normalized === root || normalized.startsWith(`${root}/`) || root.startsWith(`${normalized}/`))) errors.push(`${collection.id} root overlaps another record collection`);
+      roots.push(normalized);
+      const prefix = `${collection.root}/`; const foldedPrefix = prefix.toLowerCase();
+      const aliases = files.filter((file) => file.toLowerCase().startsWith(foldedPrefix) && !file.startsWith(prefix));
+      if (aliases.length) errors.push(`${collection.id} root casing differs from Git index: ${aliases.join(', ')}`);
+    }
+    for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
+      if (!safeRelative(collection?.[key]) || !collection[key].startsWith(RECORDS_ROOT)) errors.push(`${collection?.id || 'record collection'} ${key} must be inside ${RECORDS_ROOT}`);
+      else if (safeRelative(collection?.root)) {
+        const generatedPath = `${hub}/${collection[key]}`;
+        const foldedGenerated = generatedPath.toLowerCase(); const foldedRoot = collection.root.toLowerCase();
+        if (foldedGenerated === foldedRoot || foldedGenerated.startsWith(`${foldedRoot}/`)) {
+          errors.push(`${collection.id} generated ${key} overlaps its immutable root`);
+        }
+      }
+    }
+    if (!Array.isArray(collection?.scopes) || !collection.scopes.length) errors.push(`${collection?.id || 'record collection'} needs scopes`);
+    for (const [index, scope] of (collection?.scopes || []).entries()) {
+      exactKeys(scope, SCOPE_KEYS, `${collection.id} scope ${index + 1}`, errors);
+      if (typeof scope?.pattern !== 'string' || !scope.pattern || scope.pattern.startsWith('/') || scope.pattern.includes('\\')) errors.push(`${collection.id} scope ${index + 1} has an invalid pattern`);
+      if (!SCOPE_POLICIES.get(scope?.kind)?.has(scope?.policy)) errors.push(`${collection.id} scope ${index + 1} has an invalid kind/policy pair`);
+    }
+  }
+  const generated = new Set();
+  for (const collection of collections) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
+    if (!collection || typeof collection !== 'object' || Array.isArray(collection)) continue;
+    const path = `${hub}/${collection[key]}`.toLowerCase();
+    if (generated.has(path)) errors.push(`${collection.id} reuses generated record path ${collection[key]}`);
+    generated.add(path);
+  }
+  const legacy = new Set();
+  for (const [index, entry] of legacyPaths.entries()) {
+    exactKeys(entry, LEGACY_KEYS, `legacy path ${index + 1}`, errors);
+    if (!safeRelative(entry?.path) || legacy.has(entry.path?.toLowerCase())) errors.push(`legacy path ${index + 1} has an invalid or duplicate path`);
+    else legacy.add(entry.path.toLowerCase());
+    if (!['pointer', 'tombstone'].includes(entry?.disposition)) errors.push(`legacy path ${index + 1} has an invalid disposition`);
+    if (safeRelative(entry?.path) && roots.some((root) => entry.path.toLowerCase() === root || entry.path.toLowerCase().startsWith(`${root}/`))) {
+      errors.push(`legacy path ${index + 1} overlaps an immutable record root`);
+    }
+    if (safeRelative(entry?.path) && generated.has(entry.path.toLowerCase())) errors.push(`legacy path ${index + 1} overlaps generated record metadata`);
+    if (!safeRelative(entry?.target) || !entry.target.startsWith(`${hub}/`)) errors.push(`legacy path ${index + 1} target must be inside the documentation hub`);
+    if (!Array.isArray(entry?.requiredBy) || !entry.requiredBy.length
+      || entry.requiredBy.some((item) => !item || typeof item !== 'object' || Array.isArray(item)
+        || !['record', 'commit', 'external'].includes(item.kind) || typeof item.ref !== 'string' || !item.ref.trim()
+        || Object.keys(item).some((key) => !['kind', 'ref'].includes(key)))) errors.push(`legacy path ${index + 1} needs qualifying requiredBy evidence`);
+    if (entry?.requiredBy?.some((item) => item.kind === 'record'
+      && !/^REC-[A-Z2-7]{8,26}$/.test(item.ref))) errors.push(`legacy path ${index + 1} record evidence must use a record ID prefix`);
+    if (!entry?.requiredBy?.some((item) => item.kind === 'record') && !entry?.requiredBy?.some((item) => item.kind === 'external' || item.kind === 'commit')) errors.push(`legacy path ${index + 1} needs a verifiable control`);
+  }
+}
 function inspect(root, manifest, hub) {
   const errors = [];
-  for (const key of Object.keys(manifest)) if (!TOP_KEYS.has(key)) errors.push(`manifest has unknown key ${key}`);
-  for (const key of TOP_KEYS) if (!(key in manifest)) errors.push(`manifest is missing ${key}`);
-  if (manifest.version !== 1 || !safeRelative(hub) || !Array.isArray(manifest.domains)) errors.push('manifest must use version 1, a safe hub, and a domains array');
-  const ids = new Set(); const paths = new Set(); const files = gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']);
+  const files = gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']);
+  const topKeys = manifest.version === 2 ? TOP_KEYS_V2 : TOP_KEYS_V1;
+  for (const key of Object.keys(manifest)) if (!topKeys.has(key)) errors.push(`manifest has unknown key ${key}`);
+  for (const key of topKeys) if (!(key in manifest)) errors.push(`manifest is missing ${key}`);
+  if (![1, 2].includes(manifest.version) || !safeRelative(hub) || !Array.isArray(manifest.domains)) errors.push('manifest must use version 1 or 2, a safe hub, and a domains array');
+  const claimedStandard = standardVersion(root, hub);
+  if (manifest.version === 2 && (!Number.isInteger(claimedStandard) || claimedStandard < 4)) errors.push('manifest version 2 requires Standard.md standard-version 4 or newer');
+  inspectCollections(manifest, hub, files, errors);
+  const ids = new Set(); const paths = new Set();
   for (const domain of manifest.domains || []) {
     for (const key of Object.keys(domain)) if (!KEYS.has(key)) errors.push(`${domain.id || 'domain'} has unknown key ${key}`);
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(domain.id || '') || ids.has(domain.id)) errors.push(`invalid or duplicate domain id ${domain.id}`);
@@ -78,7 +182,12 @@ function inspect(root, manifest, hub) {
     domain._computed = { sourceDigest: expectedSource, contentDigest: expectedContent };
   }
   for (const id of REQUIRED) if (!ids.has(id)) errors.push(`missing required documentation domain ${id}`);
-  const legacy = files.filter((file) => file.startsWith('docs/') && /\.md$/i.test(file));
+  const collectionRoots = (Array.isArray(manifest.recordCollections) ? manifest.recordCollections : [])
+    .filter((collection) => collection && typeof collection === 'object' && !Array.isArray(collection))
+    .map((collection) => `${collection.root}/`);
+  const legacyPaths = new Set((Array.isArray(manifest.legacyPaths) ? manifest.legacyPaths : []).map((entry) => entry.path));
+  const legacy = files.filter((file) => file.startsWith('docs/') && /\.md$/i.test(file)
+    && !collectionRoots.some((rootPath) => file.startsWith(rootPath)) && !legacyPaths.has(file));
   if (legacy.length) errors.push(`authored Markdown remains outside ${hub}: ${legacy.join(', ')}`);
   return errors;
 }
@@ -99,7 +208,12 @@ if (command === 'sync') {
 } else {
   if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
   const changed = new Set([...gitPaths(root, ['diff', '--name-only', '-z', 'HEAD', '--']), ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '-z'])]);
-  const plan = { version: 1, hub, manifestSha256: sha256(readFileSync(path)), changed: [...changed].sort(), domains: manifest.domains.map((domain) => ({ id: domain.id, path: `${hub}/${domain.path}`, affectedSources: [...changed].filter((file) => domain.sources.some((pattern) => pathMatchesGlob(pattern, file))).sort(), status: domain.status })).filter((domain) => domain.affectedSources.length) };
+  const records = (manifest.recordCollections || []).map((collection) => {
+    const generated = ['inventory', 'citations', 'curationLedger', 'index'].map((key) => `${hub}/${collection[key]}`);
+    const affectedSources = [...changed].filter((file) => file === collection.root || file.startsWith(`${collection.root}/`) || generated.includes(file)).sort();
+    return { id: collection.id, index: `${hub}/${collection.index}`, inventory: `${hub}/${collection.inventory}`, affectedSources };
+  }).filter((collection) => collection.affectedSources.length);
+  const plan = { version: manifest.version, hub, manifestSha256: sha256(readFileSync(path)), changed: [...changed].sort(), domains: manifest.domains.map((domain) => ({ id: domain.id, path: `${hub}/${domain.path}`, affectedSources: [...changed].filter((file) => domain.sources.some((pattern) => pathMatchesGlob(pattern, file))).sort(), status: domain.status })).filter((domain) => domain.affectedSources.length), records };
   for (const domain of manifest.domains) delete domain._computed;
   const output = `${JSON.stringify(plan, null, 2)}\n`; if (f['--out']) atomicWrite(resolve(f['--out']), output); else process.stdout.write(output);
 }

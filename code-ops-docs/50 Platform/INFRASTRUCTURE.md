@@ -29,3 +29,9 @@ The repository has no runtime third-party package dependency. CI can call a Clau
 ## Operational limits
 
 The context compiler sets a 30-second timeout for repository-map, import-graph, and Atlas commands. It limits subprocess output to 64 MiB. Evidence: `scripts/context-snapshot.mjs:72-79` and `scripts/context-snapshot.mjs:97-106`.
+
+## Record tooling distribution
+
+`records.mjs` and `record-lib.mjs` are canonical root scripts. The vendor manifest copies them byte-identically into the code-ops-suite package. Codex and opencode renderers then carry that package into their generated host projections.
+
+Record tooling uses Git and Node built-ins only. It stores generated inventories, citation baselines, curation JSONL, and semantic indexes beneath the documentation hub. Historical record bodies remain at their registered repository paths.

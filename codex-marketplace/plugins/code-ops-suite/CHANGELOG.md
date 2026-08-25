@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.47.0
+- **Vault standard v4 preserves immutable evidence without preserving a second documentation authority.** Manifest-v2 record collections assign permanent Git-index-derived IDs, freeze adopted bytes, capture citation state and mutable-target digests, and expose semantic indexes from the authored hub. The records engine fails closed on incomplete classification, shallow adoption, immutable drift, broken curation chains, and lost complete-history evidence.
+- **Documentation extraction stays bounded as evidence collections grow.** One exact repository map still serves the run, while affected collections contribute only their generated inventory and index. Record bodies are fetched by ID when a domain needs them, and unchanged collections create no dispatch.
+- **Migration is explicit and recoverable.** Adoption happens before authored moves, corrections append full curation state, legacy pointers require mechanical evidence, tombstones require explicit adoption, and Git object IDs remain regenerable locators beneath authoritative SHA-256 digests.
+
 ## 1.46.0
 - **Atlas freshness now survives squash merges and branch deletion.** Default stamps add a versioned `verifiedDigest` over exact scope declarations, the raw staged index, and the raw index-to-worktree delta. A matching digest is the only FRESH result for digest-backed sections; `verifiedAt` remains diagnostic, and legacy sections retain commit-diff behavior until refreshed.
 - Default stamps require scoped changes to be staged and refuse unstaged, unmerged, assume-unchanged, skip-worktree, or submodule checkout ambiguity. Scoped diffs override `diff.ignoreSubmodules`, so local configuration cannot hide a changed gitlink. Regressions cover hidden staged divergence, explicit historical stamps, exact scope binding, pruned feature history, and clean post-commit reuse.

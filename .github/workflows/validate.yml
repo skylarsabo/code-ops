@@ -31,6 +31,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          filter: ""
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
@@ -150,6 +151,11 @@ jobs:
       - name: Documentation extraction regression eval
         run: node evals/docs-manifest/run.mjs
 
+      - name: Durable record-collection regression eval
+        run: |
+          node evals/record-collections/run.mjs
+          node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
+
       - name: Pre-run cost estimator eval
         run: node evals/estimate-run-cost/run.mjs
 
@@ -204,6 +210,9 @@ jobs:
       # platform-specific regression (path handling, shell quoting, line endings) is caught
       # before merge instead of surfacing only for a Windows contributor.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          filter: ""
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
@@ -284,6 +293,11 @@ jobs:
 
       - name: Documentation extraction regression eval
         run: node evals/docs-manifest/run.mjs
+
+      - name: Durable record-collection regression eval
+        run: |
+          node evals/record-collections/run.mjs
+          node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
 
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs

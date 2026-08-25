@@ -182,14 +182,23 @@ if (!existsSync(vault) || !statSync(vault).isDirectory()) {
 }
 const rel = (p) => p.slice(vault.length + 1).replaceAll('\\', '/');
 const manifestOwned = new Set();
+const generatedRecords = new Set();
+let docsManifestVersion = null;
 const docsManifestPath = join(vault, '98 System', 'DOCS_MANIFEST.json');
 if (existsSync(docsManifestPath)) {
   try {
     const docsManifest = JSON.parse(readFileSync(docsManifestPath, 'utf8'));
-    if (docsManifest.version !== 1 || docsManifest.hub !== basename(vault) || !Array.isArray(docsManifest.domains)) {
-      fail('98 System/DOCS_MANIFEST.json does not declare this vault as its version 1 hub');
+    docsManifestVersion = docsManifest.version;
+    if (![1, 2].includes(docsManifest.version) || docsManifest.hub !== basename(vault) || !Array.isArray(docsManifest.domains)) {
+      fail('98 System/DOCS_MANIFEST.json does not declare this vault as its version 1 or 2 hub');
     } else for (const domain of docsManifest.domains) {
       if (isPublishedManifestTarget(domain)) manifestOwned.add(domain.path.replaceAll('\\', '/').replace(/\/$/, ''));
+    }
+    if (docsManifest.version === 2) {
+      if (!Array.isArray(docsManifest.recordCollections)) fail('manifest version 2 has no recordCollections array');
+      for (const collection of docsManifest.recordCollections || []) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
+        if (typeof collection?.[key] === 'string' && collection[key].startsWith('98 System/Records/')) generatedRecords.add(collection[key].replaceAll('\\', '/'));
+      }
     }
   } catch (error) { fail(`98 System/DOCS_MANIFEST.json cannot be parsed: ${error.message}`); }
 }
@@ -212,6 +221,8 @@ if (!existsSync(standardPath)) {
       fail(`Standard.md frontmatter has \`standard-version: ${fm['standard-version']}\`, which is not a number — the version must be an integer this checker can compare against ${MIN_STANDARD_VERSION}`);
     else if (v < MIN_STANDARD_VERSION)
       fail(`Standard.md claims \`standard-version: ${v}\`, below the current standard-version ${MIN_STANDARD_VERSION} — re-copy the body from code-ops-docs/40 Engineering/Techniques/vault-standard.md, re-append the profile, and bump the stamp`);
+    else if (docsManifestVersion === 2 && v < 4)
+      fail('Standard.md must claim `standard-version: 4` or newer when DOCS_MANIFEST.json uses version 2');
   }
   for (const s of profileStatuses(standardText)) statuses.add(s);
 }
@@ -262,6 +273,7 @@ for (const abs of walkNotes(vault, vault, [])) {
   if (abs === standardPath) continue;
   if (name === 'README.md' && rel(abs) === 'README.md') continue;
   const notePath = rel(abs);
+  if (generatedRecords.has(notePath)) continue;
   if ([...manifestOwned].some((owned) => notePath === owned || notePath.startsWith(`${owned}/`))) continue;
   // Canonical suite artifact, parsed by other tools: named in the list, or all-caps with an
   // underscore. `README.md` is already past, and no other bare stem reaches either arm.

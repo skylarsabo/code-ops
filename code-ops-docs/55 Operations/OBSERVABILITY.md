@@ -30,6 +30,14 @@ Atlas is a durable cache of code-grounded judgment. `atlas-check.mjs` reports ma
 
 Context bundles include an Atlas excerpt only when the matching section is fresh. This prevents stale prose from silently becoming agent context. Evidence: `scripts/context-bundle.mjs:58-74`.
 
+## Record-collection signals
+
+`records check` reports record and citation counts plus history state. It blocks incomplete classification, immutable drift, malformed curation chains, citation regression, invalid identities, and semantic-index drift.
+
+`history-unavailable` identifies checkout or object availability. `mutable-drifted` identifies current bytes that differ from pinned evidence. `evidence-lost` applies only after complete-history verification cannot recover the authoritative digest.
+
+Generated inventories and indexes are bounded operational signals. Agents receive those projections by default and fetch a record body only by ID when a task needs it.
+
 ## Operator response
 
 Treat a failed CI check, stale Atlas section, invalid snapshot, bundle budget marker, or unresolved acceptance criterion as a blocking signal. Reproduce the failure, repair the source, run the owning gate, and record the proof before merge.

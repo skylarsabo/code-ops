@@ -124,4 +124,7 @@ registry is `code-ops-docs/98 System/DOCS_MANIFEST.json`. Run
 `node scripts/docs-manifest.mjs check` before trusting it and use
 `code-ops-suite:repo-docs` for delta-based extraction. Code, schemas, workflows, plugin
 manifests, and skills remain executable evidence, not competing documentation trees.
+Manifest-v2 record collections may preserve immutable evidence at permanent historical
+paths; their inventory, citations, curation, and semantic index remain hub-governed. Run
+`node scripts/records.mjs check --collection <id>` for each registered collection.
 `code-ops-docs/80 Runs/` is gitignored run scratch (ADR 0001 treatment).

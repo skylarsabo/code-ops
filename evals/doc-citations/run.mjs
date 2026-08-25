@@ -43,6 +43,15 @@ try {
     check('manifest targets pass valid citations', result.status === 0 && result.out.includes('manifest-owned'), result.out);
   }
   {
+    const fixture = buildCase('manifest-v2', 'See `scripts/target.mjs:3`.\n');
+    const manifestPath = join(fixture.root, 'project-docs', '98 System', 'DOCS_MANIFEST.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    Object.assign(manifest, { version: 2, runs: { tracking: 'ignored' }, recordCollections: [], legacyPaths: [] });
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const result = run(fixture.script, fixture.root);
+    check('manifest v2 targets receive the same citation gate', result.status === 0 && result.out.includes('manifest-owned'), result.out);
+  }
+  {
     const fixture = buildCase('not-applicable', '# Current\n', 'Broken `scripts/nope.mjs:999` in recorded non-applicability evidence.\n');
     const result = run(fixture.script, fixture.root);
     check('not-applicable target remains citation-gated', result.status === 1 && result.out.includes('target file does not exist'), result.out);

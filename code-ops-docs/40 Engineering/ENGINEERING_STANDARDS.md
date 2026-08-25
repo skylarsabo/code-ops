@@ -38,3 +38,11 @@ Use `RUN_CONTRACT.json` before a substantial multi-agent run. Bound the dispatch
 ## Writing
 
 All repository artifacts follow the house writing standard. It requires short active sentences, one term per concept, and cited evidence for factual claims. Evidence: `code-ops-docs/40 Engineering/Techniques/writing-standard.md:1-105`.
+
+## Documentation and records
+
+`<repo>-docs/` is the only authored documentation authority. Manifest v2 may govern immutable evidence at permanent historical paths. Adoption preserves those bytes and paths forever; supersession moves authority through curation and a canonical hub document.
+
+Use Git-index paths for record identity. Classify every tracked collection file exactly once. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
+
+Run `records check` for each registered collection. Use `verify-history --strict` before adoption and before diagnosing evidence loss. Use synthetic fixtures only in this repository.

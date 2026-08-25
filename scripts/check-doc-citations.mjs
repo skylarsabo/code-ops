@@ -25,7 +25,7 @@ function loadManifest(files) {
   try { manifest = JSON.parse(readFileSync(resolve(ROOT, candidates[0]), 'utf8')); }
   catch (error) { die(`cannot parse documentation manifest: ${error.message}`, 2); }
   const hub = candidates[0].slice(0, -MANIFEST_SUFFIX.length);
-  if (!manifest || manifest.version !== 1 || manifest.hub !== hub || !Array.isArray(manifest.domains)) die('documentation manifest has invalid version, hub, or domains', 2);
+  if (!manifest || ![1, 2].includes(manifest.version) || manifest.hub !== hub || !Array.isArray(manifest.domains)) die('documentation manifest has invalid version, hub, or domains', 2);
   return { manifest, hub };
 }
 function isTarget(path, target) { return path === target || path.startsWith(`${target}/`); }
