@@ -97,6 +97,10 @@ try {
     ['scope keys are complete', (m) => { delete m.recordCollections[0].scopes[0].policy; }, 'scope 1 is missing policy'],
     ['scope patterns are safe', (m) => { m.recordCollections[0].scopes[0].pattern = '/**/*.md'; }, 'scope 1 has an invalid pattern'],
     ['scope kind and policy pairs are closed', (m) => { m.recordCollections[0].scopes[0].policy = 'mutable'; }, 'scope 1 has an invalid kind/policy pair'],
+    ['scope kind and policy values cannot exploit string coercion', (m) => {
+      m.recordCollections[0].scopes[0].kind = ['record'];
+      m.recordCollections[0].scopes[0].policy = ['append-only'];
+    }, 'scope 1 has an invalid kind/policy pair'],
     ['generated record paths cannot be reused', (m) => { m.recordCollections.push(validCollection('other', '22222222-2222-4222-8222-222222222222', 'other', 'evidence')); }, 'reuses generated record path'],
     ['legacy path keys are closed', (m) => { m.legacyPaths = [{ path: 'docs/old.md', disposition: 'pointer', target: 'project-docs/Standard.md', requiredBy: [{ kind: 'commit', ref: 'abc' }], extra: true }]; }, 'legacy path 1 has unknown key extra'],
     ['legacy paths are unique', (m) => { const e = { path: 'docs/old.md', disposition: 'pointer', target: 'project-docs/Standard.md', requiredBy: [{ kind: 'commit', ref: 'abc' }] }; m.legacyPaths = [e, structuredClone(e)]; }, 'invalid or duplicate path'],
@@ -158,6 +162,9 @@ try {
   expectScopeV2Error('scope v2 exact paths must exist in the Git index', (collection) => { collection.scopes[1].paths = ['missing.md']; }, 'exact path is not tracked');
   expectScopeV2Error('scope v2 exact paths use exact Git casing', (collection) => { collection.scopes[1].paths = ['ONE.md']; }, 'exact path casing differs from Git index');
   expectScopeV2Error('scope v2 exact owners cannot collide', (collection) => { collection.scopes[0].paths = ['one.md']; }, 'duplicates exact path');
+  expectScopeV2Error('scope v2 kind and policy values cannot exploit string coercion', (collection) => {
+    collection.scopes[0].kind = ['record']; collection.scopes[0].policy = ['append-only'];
+  }, 'invalid kind/policy pair');
   const unverifiedLegacy = structuredClone(versionTwo);
   unverifiedLegacy.legacyPaths = [{ path: 'docs/old.md', disposition: 'pointer', target: 'project-docs/Standard.md', requiredBy: [{ kind: 'external', ref: 'missing.txt' }] }];
   writeFileSync(manifestPath, `${JSON.stringify(unverifiedLegacy, null, 2)}\n`);

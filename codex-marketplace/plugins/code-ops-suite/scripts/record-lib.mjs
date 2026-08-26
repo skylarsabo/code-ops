@@ -165,7 +165,8 @@ export function scopeValidationErrors(collection, tracked = null) {
       if (shape.length) { errors.push(...shape); continue; }
       if (typeof scope.pattern !== 'string' || !scope.pattern || scope.pattern !== scope.pattern.normalize('NFC')
         || scope.pattern.startsWith('/') || scope.pattern.includes('\\')) errors.push(`${label} has an invalid pattern`);
-      if (!VALID_PAIRS.has(`${scope.kind}:${scope.policy}`)) errors.push(`${label} has an invalid kind/policy pair`);
+      if (typeof scope.kind !== 'string' || typeof scope.policy !== 'string'
+        || !VALID_PAIRS.has(`${scope.kind}:${scope.policy}`)) errors.push(`${label} has an invalid kind/policy pair`);
       continue;
     }
     const shape = shapeErrors(scope, V2_SCOPE_KEYS, label);
@@ -190,7 +191,8 @@ export function scopeValidationErrors(collection, tracked = null) {
         else exactOwners.set(path, scope.id);
       }
     }
-    if (!VALID_PAIRS.has(`${scope.kind}:${scope.policy}`)) errors.push(`${label} has an invalid kind/policy pair`);
+    if (typeof scope.kind !== 'string' || typeof scope.policy !== 'string'
+      || !VALID_PAIRS.has(`${scope.kind}:${scope.policy}`)) errors.push(`${label} has an invalid kind/policy pair`);
   }
   if (version === 2 && Array.isArray(tracked) && safePath(collection?.root)) {
     const trackedSet = new Set(tracked); const folded = new Map(tracked.map((path) => [path.toLowerCase(), path]));

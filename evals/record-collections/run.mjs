@@ -11,7 +11,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 106 : 109;
+const expectedCases = process.platform === 'win32' ? 112 : 115;
 let executedCases = 0;
 let work;
 
@@ -184,6 +184,16 @@ try {
   check('scope v2 glob ambiguity refuses adoption without generated files', result.status === 1
     && result.output.includes('invalid collection classification')
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(scopeV2Repo, name))), result.output);
+  result = run(['classify', '--root', scopeV2Repo, ...COLLECTION], scopeV2Repo);
+  check('invalid classification is not mislabeled as unavailable history', result.status === 1
+    && result.output.includes('"status": "classification-invalid"')
+    && !result.output.includes('"status": "history-unavailable"'), result.output);
+  const invalidShallowRepo = join(work, 'invalid-shallow-classification'); cpSync(scopeV2Repo, invalidShallowRepo, { recursive: true });
+  writeFileSync(join(invalidShallowRepo, '.git', 'shallow'), `${git(['rev-parse', 'HEAD'], invalidShallowRepo).trim()}\n`);
+  result = run(['classify', '--root', invalidShallowRepo, ...COLLECTION], invalidShallowRepo);
+  check('invalid classification takes precedence over unavailable history', result.status === 1
+    && result.output.includes('"status": "classification-invalid"')
+    && !result.output.includes('"status": "history-unavailable"'), result.output);
 
   const promotedRepo = join(work, 'promoted-record'); mkdirSync(promotedRepo, { recursive: true });
   git(['init', '--quiet', '-b', 'main'], promotedRepo);
@@ -498,6 +508,53 @@ try {
   check('ancestral post-adoption edit and revert remains history drift', result.status === 1
     && result.output.includes('adoption review history drift'), result.output);
 
+  const emptyReceiptRepo = join(work, 'empty-adoption-receipt'); cpSync(repo, emptyReceiptRepo, { recursive: true });
+  const emptyReceiptPath = generated(emptyReceiptRepo, 'inventory.json');
+  const emptyReceiptInventory = JSON.parse(readFileSync(emptyReceiptPath, 'utf8'));
+  emptyReceiptInventory.adoptionReview.candidates = [];
+  emptyReceiptInventory.adoptionReview.reviewed = [];
+  delete emptyReceiptInventory.adoptionReview.receiptDigest;
+  emptyReceiptInventory.adoptionReview.receiptDigest = digestJson(emptyReceiptInventory.adoptionReview);
+  writeFileSync(emptyReceiptPath, `${JSON.stringify(emptyReceiptInventory, null, 2)}\n`);
+  commit(emptyReceiptRepo, 'forge empty adoption receipt');
+  squashCurrentTree(emptyReceiptRepo, 'introduce forged empty adoption receipt');
+  result = run(['check', '--root', emptyReceiptRepo, ...COLLECTION], emptyReceiptRepo);
+  check('adoption receipt must cover every original immutable candidate', result.status === 1
+    && result.output.includes('adoption review is missing original candidate'), result.output);
+
+  const forgedRiskRepo = join(work, 'forged-adoption-risk'); cpSync(repo, forgedRiskRepo, { recursive: true });
+  const forgedRiskPath = generated(forgedRiskRepo, 'inventory.json');
+  const forgedRiskInventory = JSON.parse(readFileSync(forgedRiskPath, 'utf8'));
+  forgedRiskInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  forgedRiskInventory.adoptionReview.candidates[0].history.contentTransitions = 99;
+  forgedRiskInventory.adoptionReview.candidates[0].adoptionReadiness = 'ready';
+  forgedRiskInventory.adoptionReview.candidates[0].reason = 'stable-so-far';
+  forgedRiskInventory.adoptionReview.reviewed = [];
+  delete forgedRiskInventory.adoptionReview.receiptDigest;
+  forgedRiskInventory.adoptionReview.receiptDigest = digestJson(forgedRiskInventory.adoptionReview);
+  writeFileSync(forgedRiskPath, `${JSON.stringify(forgedRiskInventory, null, 2)}\n`);
+  commit(forgedRiskRepo, 'forge inconsistent adoption receipt');
+  squashCurrentTree(forgedRiskRepo, 'introduce internally inconsistent adoption receipt');
+  result = run(['check', '--root', forgedRiskRepo, ...COLLECTION], forgedRiskRepo);
+  check('receipt readiness and reason must agree with its recorded risk', result.status === 1
+    && result.output.includes('invalid adoption review candidate'), result.output);
+
+  const forgedSourceRepo = join(work, 'forged-source-head'); cpSync(revisedRepo, forgedSourceRepo, { recursive: true });
+  const forgedSourcePath = generated(forgedSourceRepo, 'inventory.json');
+  const forgedSourceInventory = JSON.parse(readFileSync(forgedSourcePath, 'utf8'));
+  forgedSourceInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  forgedSourceInventory.adoptionReview.candidates[0].history.contentTransitions = 0;
+  forgedSourceInventory.adoptionReview.candidates[0].adoptionReadiness = 'ready';
+  forgedSourceInventory.adoptionReview.candidates[0].reason = 'stable-so-far';
+  forgedSourceInventory.adoptionReview.reviewed = [];
+  delete forgedSourceInventory.adoptionReview.receiptDigest;
+  forgedSourceInventory.adoptionReview.receiptDigest = digestJson(forgedSourceInventory.adoptionReview);
+  writeFileSync(forgedSourcePath, `${JSON.stringify(forgedSourceInventory, null, 2)}\n`);
+  commit(forgedSourceRepo, 'introduce forged adoption receipt');
+  result = run(['check', '--root', forgedSourceRepo, ...COLLECTION], forgedSourceRepo);
+  check('unresolvable sourceHead cannot select a weaker verification path', result.status === 1
+    && result.output.includes('adoption review history drift'), result.output);
+
   const relabeled = join(work, 'relabeled'); cpSync(repo, relabeled, { recursive: true });
   const relabeledManifestPath = join(relabeled, 'hub', '98 System', 'DOCS_MANIFEST.json');
   const relabeledManifest = JSON.parse(readFileSync(relabeledManifestPath, 'utf8'));
@@ -753,6 +810,17 @@ supersedes: ["${firstId}"]
   result = run(['check', '--root', repo, ...COLLECTION], repo);
   check('native append passes staged-tree checks', result.status === 0, result.output);
   commit(repo, 'append native record');
+
+  const shallowArtifactClassRepo = join(work, 'shallow-artifact-classification'); cpSync(repo, shallowArtifactClassRepo, { recursive: true });
+  const shallowArtifactManifestPath = join(shallowArtifactClassRepo, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const shallowArtifactManifest = JSON.parse(readFileSync(shallowArtifactManifestPath, 'utf8'));
+  shallowArtifactManifest.recordCollections[0].scopes.find((scope) => scope.pattern === 'frozen/**').policy = 'superseded';
+  writeFileSync(shallowArtifactManifestPath, `${JSON.stringify(shallowArtifactManifest, null, 2)}\n`);
+  commit(shallowArtifactClassRepo, 'reclassify frozen artifacts');
+  writeFileSync(join(shallowArtifactClassRepo, '.git', 'shallow'), `${git(['rev-parse', 'HEAD'], shallowArtifactClassRepo).trim()}\n`);
+  result = run(['check', '--root', shallowArtifactClassRepo, ...COLLECTION], shallowArtifactClassRepo);
+  check('shallow checks still bind immutable artifact classification', result.status === 1
+    && result.output.includes('frozen artifact deleted, renamed, or reclassified'), result.output);
 
   write(repo, 'records/missing-image.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Missing image\n\n![proof](records/missing.png)\n');
   git(['add', 'records/missing-image.md'], repo);

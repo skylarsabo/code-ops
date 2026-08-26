@@ -374,9 +374,24 @@ function reviewCoversCurrentHistory(reviewed, current) {
     && now.priorIncarnations <= prior.priorIncarnations;
 }
 
-function reviewSourceIsAncestor(root, sourceHead) {
-  try { git(root, ['merge-base', '--is-ancestor', sourceHead, 'HEAD']); return true; }
-  catch { return false; }
+function expectedReviewRisk(history) {
+  if (history.priorIncarnations > 0) return { adoptionReadiness: 'review-required', reason: 'deleted-readded' };
+  if (history.contentTransitions > 0) return { adoptionReadiness: 'review-required', reason: 'historically-revised' };
+  return { adoptionReadiness: 'ready', reason: 'stable-so-far' };
+}
+
+function candidateRiskIsConsistent(candidate) {
+  const expected = expectedReviewRisk(candidate.history);
+  return candidate.adoptionReadiness === expected.adoptionReadiness && candidate.reason === expected.reason;
+}
+
+function adoptionCandidatePaths(context, inventory, historyComplete) {
+  const versions = historyComplete ? authoritativeJsonVersions(context, 'inventory') : [];
+  const authority = versions[0] || { entries: inventory.entries || [], artifacts: historyComplete ? inventory.artifacts || [] : [] };
+  return new Set([
+    ...(authority.entries || []).filter((entry) => entry.provenance === 'adopted').map((entry) => entry.path),
+    ...(authority.artifacts || []).map((artifact) => artifact.path),
+  ]);
 }
 
 function ignoredReviewPath(context, path) {
@@ -509,7 +524,7 @@ function adopt(context, options) {
 function checkInventory(context, rows, inventory, historyComplete = true) {
   if (![1, 2].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
   if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
-  const reviewCandidates = new Map(); const reviewedCandidates = new Map(); let reviewSourceHead = null;
+  const reviewCandidates = new Map(); const reviewedCandidates = new Map();
   if (inventory.version === 2) {
     const review = inventory.adoptionReview;
     if (!review || Object.keys(review).sort().join(',') !== 'candidates,collectionUuid,manifestSha256,receiptDigest,reviewed,sourceHead,version'
@@ -518,7 +533,6 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
       || !/^[0-9a-f]{64}$/.test(review.receiptDigest || '') || !Array.isArray(review.candidates) || !Array.isArray(review.reviewed)) {
       throw new Error('invalid record adoption review');
     }
-    reviewSourceHead = review.sourceHead;
     const { receiptDigest, ...authority } = review;
     if (receiptDigest !== digestJson(authority)) throw new Error('record adoption review digest mismatch');
     for (const candidate of review.candidates) {
@@ -531,7 +545,8 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
         || !history || Object.keys(history).sort().join(',') !== 'admittedCommit,baselineCommit,contentTransitions,firstRelevantCommit,lastRelevantCommit,priorIncarnations'
         || !['admittedCommit', 'baselineCommit', 'firstRelevantCommit', 'lastRelevantCommit'].every((key) => /^[0-9a-f]{40,64}$/.test(history[key] || ''))
         || !Number.isInteger(history.contentTransitions) || history.contentTransitions < 0
-        || !Number.isInteger(history.priorIncarnations) || history.priorIncarnations < 0) {
+        || !Number.isInteger(history.priorIncarnations) || history.priorIncarnations < 0
+        || !candidateRiskIsConsistent(candidate)) {
         throw new Error('invalid adoption review candidate');
       }
       reviewCandidates.set(candidate.path, candidate);
@@ -581,30 +596,43 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
   if (ids.size !== (inventory.entries || []).length) throw new Error('duplicate record identity');
   const immutableRows = new Map(rows.filter((row) => ['frozen', 'superseded'].includes(row.policy)).map((row) => [row.path, row]));
   for (const artifact of inventory.artifacts || []) {
-    if (!immutableRows.has(artifact.path)) throw new Error(`frozen artifact deleted, renamed, or reclassified: ${artifact.path}`);
+    const row = immutableRows.get(artifact.path);
+    if (!row || artifact.kind !== row.kind || artifact.policy !== row.policy) {
+      throw new Error(`frozen artifact deleted, renamed, or reclassified: ${artifact.path}`);
+    }
     if (fileDigest(nativePath(context.root, artifact.path)) !== artifact.sha256) throw new Error(`frozen artifact drift: ${artifact.path}`);
     immutableRows.delete(artifact.path);
   }
   if (immutableRows.size) throw new Error(`frozen artifact missing from inventory: ${[...immutableRows.keys()][0]}`);
   if (inventory.version === 2) {
-    const inventoryDigests = new Map([
-      ...(inventory.entries || []).map((entry) => [entry.path, entry.sha256]),
-      ...(inventory.artifacts || []).map((artifact) => [artifact.path, artifact.sha256]),
+    const expectedCandidatePaths = adoptionCandidatePaths(context, inventory, historyComplete);
+    for (const path of expectedCandidatePaths) if (!reviewCandidates.has(path)) {
+      throw new Error(`adoption review is missing original candidate: ${path}`);
+    }
+    for (const path of reviewCandidates.keys()) if (historyComplete && !expectedCandidatePaths.has(path)) {
+      throw new Error(`adoption review contains a non-original candidate: ${path}`);
+    }
+    const inventoryAuthority = new Map([
+      ...(inventory.entries || []).map((entry) => [entry.path, entry]),
+      ...(inventory.artifacts || []).map((artifact) => [artifact.path, artifact]),
     ]);
-    for (const candidate of reviewCandidates.values()) if (inventoryDigests.get(candidate.path) !== candidate.currentSha256) {
-      throw new Error(`adoption review candidate is not pinned by inventory: ${candidate.path}`);
+    for (const candidate of reviewCandidates.values()) {
+      const pinned = inventoryAuthority.get(candidate.path);
+      if (!pinned || pinned.sha256 !== candidate.currentSha256
+        || pinned.kind !== candidate.kind || pinned.policy !== candidate.policy) {
+        throw new Error(`adoption review candidate is not pinned by inventory: ${candidate.path}`);
+      }
     }
     if (historyComplete) {
       const candidateRows = rows.filter((row) => reviewCandidates.has(row.path));
       const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows);
-      const exactHistory = reviewSourceIsAncestor(context.root, reviewSourceHead);
       for (const candidate of reviewCandidates.values()) {
         const current = currentProfiles.get(candidate.path);
-        const covered = exactHistory
-          ? current && canonical(reviewAuthority(current)) === canonical(candidate)
-          : reviewCoversCurrentHistory(candidate, current);
-        if (!covered) {
+        if (!reviewCoversCurrentHistory(candidate, current)) {
           throw new Error(`adoption review history drift: ${candidate.path}`);
+        }
+        if (current.adoptionReadiness === 'review-required' && !reviewedCandidates.has(candidate.path)) {
+          throw new Error(`missing reviewed adoption candidate: ${candidate.path}`);
         }
       }
     }
@@ -924,7 +952,9 @@ function classifyCommand(context) {
   const { rows, problems } = collect(context, { allowProblems: true });
   const history = completeHistory(context.root);
   let rendered = rows;
-  let readiness = { status: 'history-unavailable', reason: history.reason };
+  let readiness = problems.length
+    ? { status: 'classification-invalid' }
+    : { status: 'history-unavailable', reason: history.reason };
   if (history.ok && !problems.length) {
     const profiles = adoptionHistoryProfiles(context.root, context.collection, rows, { allowUncommitted: true });
     rendered = rows.map((row) => {
