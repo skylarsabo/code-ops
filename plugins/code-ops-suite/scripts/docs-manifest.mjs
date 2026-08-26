@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { atomicWrite, pathMatchesGlob, safeRelative, sha256, toPosix } from './context-index-lib.mjs';
-import { scopeValidationErrors } from './record-lib.mjs';
+import { safePath, scopeValidationErrors } from './record-lib.mjs';
 
 const REQUIRED = new Set(['architecture', 'contracts', 'data-model', 'engineering-standards', 'api-reference', 'ci-delivery', 'infrastructure', 'observability', 'design-system', 'guides', 'atlas']);
 const TOP_KEYS_V1 = new Set(['version', 'hub', 'domains']);
@@ -91,7 +91,7 @@ function inspectCollections(manifest, hub, files, tracked, errors) {
     if (!UUID_RE.test(collection?.collectionUuid || '') || uuids.has(collection.collectionUuid?.toLowerCase())) errors.push(`${collection?.id || 'record collection'} has an invalid or duplicate collectionUuid`);
     else uuids.add(collection.collectionUuid.toLowerCase());
     if (collection?.identityVersion !== 1) errors.push(`${collection?.id || 'record collection'} identityVersion must be 1`);
-    if (!safeRelative(collection?.root)) errors.push(`${collection?.id || 'record collection'} root must be a safe repository-relative path`);
+    if (!safePath(collection?.root)) errors.push(`${collection?.id || 'record collection'} root must be a safe repository-relative path`);
     else {
       const normalized = collection.root.toLowerCase();
       if (roots.some((root) => normalized === root || normalized.startsWith(`${root}/`) || root.startsWith(`${normalized}/`))) errors.push(`${collection.id} root overlaps another record collection`);
@@ -101,8 +101,8 @@ function inspectCollections(manifest, hub, files, tracked, errors) {
       if (aliases.length) errors.push(`${collection.id} root casing differs from Git index: ${aliases.join(', ')}`);
     }
     for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
-      if (!safeRelative(collection?.[key]) || !collection[key].startsWith(RECORDS_ROOT)) errors.push(`${collection?.id || 'record collection'} ${key} must be inside ${RECORDS_ROOT}`);
-      else if (safeRelative(collection?.root)) {
+      if (!safePath(collection?.[key]) || !collection[key].startsWith(RECORDS_ROOT)) errors.push(`${collection?.id || 'record collection'} ${key} must be inside ${RECORDS_ROOT}`);
+      else if (safePath(collection?.root)) {
         const generatedPath = `${hub}/${collection[key]}`;
         const foldedGenerated = generatedPath.toLowerCase(); const foldedRoot = collection.root.toLowerCase();
         if (foldedGenerated === foldedRoot || foldedGenerated.startsWith(`${foldedRoot}/`)) {
@@ -110,7 +110,8 @@ function inspectCollections(manifest, hub, files, tracked, errors) {
         }
       }
     }
-    errors.push(...scopeValidationErrors(collection, tracked).map((error) => `${collection.id} ${error}`));
+    const collectionLabel = collection?.id || 'record collection';
+    errors.push(...scopeValidationErrors(collection, tracked).map((error) => `${collectionLabel} ${error}`));
   }
   const generated = new Set();
   for (const collection of collections) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {

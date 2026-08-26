@@ -5,11 +5,12 @@ the source plugin manifest and matching marketplace entries.
 
 ## 1.48.0
 - Record adoption now anchors identity to the reviewed current exact-path admission. Delete-and-readd and rename-back histories adopt the surviving path incarnation.
-- History profiling follows promotion lineages and batches exact-path history queries. Path, event, batch-count, and process-argument ceilings keep the work bounded.
+- History profiling follows promotion lineages and first-parent merge diffs. Per-path queries own rename evidence, while bounded exact-path batches add non-rename events. Path, event, batch-count, and process-argument ceilings keep the work bounded.
 - Scope classification v2 adds stable scope IDs, glob arrays, and exact tracked-path arrays. Exact paths outrank broad globs. Version 1 keeps exact-one semantics.
-- Adoption separates partition validity from history readiness. Historically revised immutable candidates require a current digest-bound review plan. Inventory v2 preserves the receipt and both baseline commits.
+- Adoption separates partition validity from history readiness. Historically revised immutable candidates require a current digest-bound review plan. Inventory v2 preserves the receipt, exact-path introduction commit, and citation baseline commit.
 - `classify` returns `{ classificationStatus, adoptionReadiness, rows }`. Invalid classification takes precedence over unavailable history. Callers do not need to infer status from row details.
 - Post-adoption checks apply one rewrite-tolerant rule. They verify original-candidate coverage, current bytes, classification, risk consistency, rationale coverage, and non-increasing risk counts.
+- Native append accepts only new record and immutable-artifact paths without reachable history. Existing paths route through reviewed adoption.
 - Incomplete history warns during ordinary checks and fails strict verification as infrastructure. `sourceHead` cannot select weaker verification.
 - Regressions cover promotion, path reuse, long Windows arguments, refusal atomicity, receipt tampering, inventory monotonicity, migration, and content-preserving history rewrites.
 

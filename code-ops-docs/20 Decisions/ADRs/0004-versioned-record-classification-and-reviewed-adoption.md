@@ -12,7 +12,7 @@ Adoption is irreversible. A warning or force flag leaves no durable evidence of 
 
 ## Decision
 
-Keep scope v1 unchanged. Add collection-local `classificationVersion: 2` with stable scope IDs, glob arrays, and exact-path arrays. Exact paths outrank globs. Competing exact owners and competing surviving glob owners fail. Scope order has no authority.
+Keep scope v1 unchanged. Add collection-local `classificationVersion: 2` with stable scope IDs, glob arrays, and exact-path arrays. Exact paths outrank globs. Competing exact owners and competing surviving glob owners fail. The single-owner rule makes scope order non-authoritative.
 
 Separate partition validity from adoption readiness. Profile immutable candidates with path-bounded history queries that follow promotions across prior paths. Bind the profile to current bytes, `HEAD`, and manifest bytes with SHA-256 digests.
 
@@ -38,4 +38,4 @@ Incomplete history prevents proof of candidate history or risk. Ordinary checks 
 
 `receiptDigest` is an unkeyed canonical checksum. It detects corruption and stale cross-field copies. It does not authenticate a reviewer or unreachable receipt bytes. Protected repository review is the procedural trust root. Rewrite tolerance assumes that the resulting tree preserves the receipt authority bytes. Total-history replacement requires an external signature or transparency log.
 
-Inventory v2 adds durable adoption-review metadata and a baseline commit. Inventory v1 remains readable. Generated projections and documentation must describe both versions until fleet evidence supports deprecation.
+Inventory v2 adds durable adoption-review metadata and a baseline commit. Inventory v1 remains readable but cannot prove reviewed adoption. Protected review or an external anchor must distinguish grandfathered v1 state from a newly authored downgrade. Generated projections and documentation must describe both versions until fleet evidence supports deprecation.

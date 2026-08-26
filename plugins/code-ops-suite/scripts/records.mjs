@@ -7,7 +7,7 @@ import { dirname, relative } from 'node:path';
 import {
   adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, extractCitations, findBlobByDigest, FULL_ID_RE, git,
-  gitPaths, historicalTarget, jsonl, nativePath, physicalRoot, posix,
+  gitPaths, historicalTarget, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
   readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
@@ -294,7 +294,8 @@ function recordFrontmatter(text) {
 function citationEntries(context, entry, sourceText, knownPaths, policyRows, mode) {
   const policy = new Map(policyRows.map((row) => [row.path, row]));
   const current = new Set(trackedPaths(context.root));
-  const baselineCommit = entry.baselineCommit || entry.introducedCommit;
+  if (mode === 'adopt' && !entry.baselineCommit) throw new Error(`missing adopted record baseline: ${entry.path}`);
+  const baselineCommit = mode === 'adopt' ? entry.baselineCommit : null;
   return extractCitations(sourceText).map((citation) => {
     const resolution = resolveCitation(citation.rawTarget, entry.path, knownPaths);
     const base = {
@@ -793,6 +794,9 @@ function appendRecord(context, options) {
   const { paths, rows } = collect(context);
   const row = rows.find((candidate) => candidate.path === recordPath);
   if (!row || row.kind !== 'record' || row.policy !== 'append-only') throw new Error('record is not classified as append-only');
+  if (pathHasHistory(context.root, recordPath)) {
+    throw new Error(`native append requires a new path with no reachable history: ${recordPath}; use reviewed adoption`);
+  }
   const inventory = readJson(context.output.inventory);
   const citations = readJson(context.output.citations);
   const events = readJsonl(context.output.curationLedger);
@@ -814,6 +818,9 @@ function appendRecord(context, options) {
   const stagedSet = stagedPaths(context.root);
   for (const artifact of newArtifacts) {
     if (!stagedSet.has(artifact.path)) throw new Error(`new immutable artifact must be staged with append: ${artifact.path}`);
+    if (pathHasHistory(context.root, artifact.path)) {
+      throw new Error(`native append requires a new immutable artifact path with no reachable history: ${artifact.path}; use reviewed adoption`);
+    }
     const bytes = stagedBytes(context.root, artifact.path);
     if (!bytes || !existsSync(nativePath(context.root, artifact.path))
       || !readFileSync(nativePath(context.root, artifact.path)).equals(bytes)) {

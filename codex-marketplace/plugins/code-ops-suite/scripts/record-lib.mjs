@@ -62,9 +62,9 @@ function existingAncestor(path) {
   }
 }
 function assertPhysicalContainment(root, target) {
-  const physicalRoot = realpathSync.native(root);
+  const rootPhysical = realpathSync.native(root);
   const physicalAncestor = realpathSync.native(existingAncestor(target));
-  if (!contained(physicalRoot, physicalAncestor, true)) throw new Error('path escapes repository through a link');
+  if (!contained(rootPhysical, physicalAncestor, true)) throw new Error('path escapes repository through a link');
 }
 
 export function physicalRoot(value) {
@@ -239,7 +239,10 @@ export function classify(collection, paths) {
   if (casingAliases.length) throw new Error(`collection root casing differs from Git index: ${casingAliases.join(', ')}`);
   const scopeErrors = scopeValidationErrors(collection, paths);
   if (scopeErrors.length) throw new Error(`invalid scope in ${collection.id}: ${scopeErrors.join('; ')}`);
-  const version = collection.classificationVersion || 1;
+  const version = Object.hasOwn(collection, 'classificationVersion') ? collection.classificationVersion : 1;
+  const ordered = version === 2
+    ? [...collection.scopes].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    : null;
   return paths.filter((path) => path.startsWith(prefix)).map((path) => {
     const relativePath = path.slice(prefix.length);
     if (version === 1) {
@@ -249,7 +252,6 @@ export function classify(collection, paths) {
         ...(candidates.length === 1 ? { kind: candidates[0].kind, policy: candidates[0].policy } : {}),
       };
     }
-    const ordered = [...collection.scopes].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
     const exact = ordered.filter((scope) => scope.paths.includes(relativePath));
     const globs = ordered.filter((scope) => !scope.paths.includes(relativePath)
       && scope.match.some((pattern) => matchGlob(pattern, relativePath)));
@@ -309,16 +311,21 @@ function parseHistory(output) {
 function pathHistory(root, path, follow = false) {
   return parseHistory(git(root, [
     'log', '--topo-order', ...(follow ? ['--follow'] : []),
-    '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
+    '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
     '--', `:(literal)${path}`,
   ], true).toString('utf8'));
 }
 
 function pathsHistory(root, paths) {
   return parseHistory(git(root, [
-    'log', '--topo-order', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
+    'log', '--topo-order', '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '--no-renames', '--no-abbrev',
     '--', ...paths.map((path) => `:(literal)${path}`),
   ], true).toString('utf8'));
+}
+
+export function pathHasHistory(root, path) {
+  if (!safePath(path)) throw new Error(`invalid history path: ${path}`);
+  return Boolean(git(root, ['log', '--full-history', '--format=%H', '--', `:(literal)${path}`]).trim());
 }
 
 export function historyPathBatches(paths) {
@@ -351,18 +358,30 @@ function repositoryHistory(root, rows) {
       if (discovered.size > MAX_HISTORY_EVENTS) throw new Error(`record history profile exceeds ${MAX_HISTORY_EVENTS} relevant events`);
     }
   }
-  const commitOrder = new Map(git(root, ['rev-list', '--topo-order', 'HEAD']).trim().split(/\s+/)
-    .filter(Boolean).map((commit, index) => [commit, index]));
+  const commitRows = git(root, ['rev-list', '--topo-order', '--parents', 'HEAD']).trim().split(/\r?\n/)
+    .filter(Boolean).map((line) => line.split(/\s+/));
+  const commitOrder = new Map(commitRows.map(([commit], index) => [commit, index]));
+  const commitParents = new Map(commitRows.map(([commit, ...parents]) => [commit, parents]));
   const events = [...discovered.values()];
   const renameAdds = new Set(); const renameDeletes = new Set();
   for (const event of events.filter((candidate) => candidate.status === 'R')) {
     renameAdds.add(canonical([event.commit, event.newPath, event.newBlobOid]));
     renameDeletes.add(canonical([event.commit, event.oldPath, event.oldBlobOid]));
   }
-  return events.filter((event) => event.status === 'R'
+  const duplicateMergeAdds = new Set();
+  for (const event of events.filter((candidate) => candidate.status === 'A')) {
+    const parents = commitParents.get(event.commit) || [];
+    if (parents.length < 2) continue;
+    const inherited = parents.some((parent) => {
+      try { return git(root, ['rev-parse', `${parent}:${event.newPath}`]).trim() === event.newBlobOid; }
+      catch { return false; }
+    });
+    if (inherited) duplicateMergeAdds.add(canonical(event));
+  }
+  return events.filter((event) => !duplicateMergeAdds.has(canonical(event)) && (event.status === 'R'
     || (event.status === 'A' && !renameAdds.has(canonical([event.commit, event.newPath, event.newBlobOid])))
     || (event.status === 'D' && !renameDeletes.has(canonical([event.commit, event.oldPath, event.oldBlobOid])))
-    || !['A', 'D'].includes(event.status))
+    || !['A', 'D'].includes(event.status)))
     .sort((left, right) => {
       const order = (commitOrder.get(left.commit) ?? Number.MAX_SAFE_INTEGER)
         - (commitOrder.get(right.commit) ?? Number.MAX_SAFE_INTEGER);
@@ -396,8 +415,10 @@ export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitt
     const admissionIndex = exactEvents.findIndex((event) => event.status === 'A');
     const currentTarget = targetAtIndex(root, row.path);
     if (!currentTarget) throw new Error(`record bytes unavailable from Git index: ${row.path}`);
+    const headTarget = targetAt(root, 'HEAD', row.path);
+    const indexDiffersFromHead = !headTarget || headTarget.blobOid !== currentTarget.blobOid;
     if (admissionIndex < 0) {
-      if (allowUncommitted) {
+      if (allowUncommitted && indexDiffersFromHead) {
         profiles.set(row.path, {
           path: row.path, kind: row.kind, policy: row.policy, currentSha256: currentTarget.targetSha256,
           adoptionReadiness: 'pending-commit', reason: 'uncommitted-index-entry',
@@ -444,7 +465,7 @@ export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitt
       && event.oldBlobOid !== event.newBlobOid && !/^0+$/.test(event.newBlobOid));
     const baselineEvent = currentEvents.find((event) => event.newBlobOid === currentTarget.blobOid);
     if (!baselineEvent) {
-      if (allowUncommitted) {
+      if (allowUncommitted && indexDiffersFromHead) {
         profiles.set(row.path, {
           path: row.path, kind: row.kind, policy: row.policy, currentSha256: currentTarget.targetSha256,
           adoptionReadiness: 'pending-commit', reason: 'uncommitted-index-entry',

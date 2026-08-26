@@ -55,11 +55,11 @@ Each collection declares a permanent `collectionUuid`, mutable human `id`, `iden
 
 Every tracked file beneath a collection root receives one scope. Zero or ambiguous owners fail. Collections without `classificationVersion` use scope v1 objects containing exactly `pattern`, `kind`, and `policy`. V1 retains exact-one matching and has no precedence.
 
-Scope v2 collections declare `classificationVersion: 2`. Each scope contains stable `id`, `match`, `paths`, `kind`, and `policy` fields. `match` and `paths` are arrays. Exact collection-relative `paths` outrank glob `match` selectors. Multiple exact owners fail. Without an exact owner, multiple glob owners fail. Selector order and scope order never select policy. Exact paths must exist in the Git index with exact casing. Manifest synchronization never creates, reorders, or rewrites scopes.
+Scope v2 collections declare `classificationVersion: 2`. Each scope contains stable `id`, `match`, `paths`, `kind`, and `policy` fields. `match` and `paths` are arrays. Exact collection-relative `paths` outrank glob `match` selectors. Multiple exact owners fail. Without an exact owner, multiple glob owners fail. The single-owner rule makes selector and scope order non-authoritative. Exact paths must exist in the Git index with exact casing. Manifest synchronization never creates, reorders, or rewrites scopes.
 
 Scopes distinguish immutable append-only records, mutable artifacts, frozen artifacts or executables, superseded artifacts or executables, and forbidden files. Mutable scopes remain classified and owned but are excluded from immutability hashing. Forbidden files, including tracked `.pyc`, block adoption.
 
-Git index paths and casing are authoritative. Adoption uses `git ls-files`. Native records stage before append. Untracked files may be reported but never receive IDs. Normalize a Git path with POSIX separators, Unicode NFC, exact index casing, and no dot segments.
+Git index paths and casing are authoritative. Adoption uses `git ls-files`. Native records stage before append and must have no reachable exact-path history. A historically present record or newly immutable artifact requires reviewed adoption. Untracked files may be reported but never receive IDs. Normalize a Git path with POSIX separators, Unicode NFC, exact index casing, and no dot segments.
 
 Record IDs use `REC-<base32(first-128-bits(sha256("code-ops-record-v1\\0" + collectionUuid + "\\0" + normalizedGitPath)))>`. Store `identityVersion: 1` on each collection and inventory entry. Collisions fail. IDs never renumber, change, or get reused.
 
@@ -103,6 +103,8 @@ With complete history, later checks require:
 `sourceHead` is a pre-adoption binding and diagnostic locator. It never selects a weaker post-adoption check. Incomplete-history checks warn and cannot verify candidate risk. Strict verification fails that state as infrastructure. A warning or force flag cannot replace the adoption receipt.
 
 `receiptDigest` is an unkeyed canonical checksum. It detects corruption and stale cross-field copies. It does not authenticate a reviewer or prove that unreachable receipt bytes survived. Protected repository review is the procedural trust root. Rewrite tolerance assumes the resulting tree preserves the receipt authority bytes. Total-history replacement requires an external signature or transparency log.
+
+Inventory v1 remains readable for compatibility but has no adoption-review receipt. The tool cannot distinguish a genuine grandfathered v1 inventory from a newly authored downgrade without an external anchor. Protected review must preserve that boundary until the collection migrates to v2.
 
 Present pinned historical content by default. Present the current path separately. Make drift visible. With complete history, missing digest content is `evidence-lost`.
 

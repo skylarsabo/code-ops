@@ -262,4 +262,4 @@ This pushes a synthetic merge commit as a plain fast-forward — not a rebase, n
 
 Related material lives in adjacent chapters: the register schemas, tracks, and the full `revalidate-register.mjs` reference in [04-registers-and-freshness](04-registers-and-freshness.md); the orchestrators' phase structure and checkpoints in [03-orchestrators](03-orchestrators.md); evidence tiers and the disconfirmation pass behind re-reading a survivor in [05-evidence-and-tiers](05-evidence-and-tiers.md). The dedicated carry-forward technique linked above is [techniques/register-carry-forward](../Techniques/register-carry-forward.md).
 
-*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*
+*Verified-at: 8b4eecc28da77eef4d0c863374d4e9e7bb7fcd71*

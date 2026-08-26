@@ -90,6 +90,7 @@ try {
     ['collection UUIDs are unique', (m) => { m.recordCollections.push(validCollection('other', m.recordCollections[0].collectionUuid, 'other', 'other')); }, 'invalid or duplicate collectionUuid'],
     ['identity versions are explicit', (m) => { m.recordCollections[0].identityVersion = 2; }, 'identityVersion must be 1'],
     ['collection roots are repository relative', (m) => { m.recordCollections[0].root = '../evidence'; }, 'root must be a safe repository-relative path'],
+    ['collection roots reject whitespace and dot segments', (m) => { m.recordCollections[0].root = 'evidence/ .'; }, 'root must be a safe repository-relative path'],
     ['collection roots cannot overlap', (m) => { m.recordCollections.push(validCollection('other', '22222222-2222-4222-8222-222222222222', 'evidence/nested', 'other')); }, 'root overlaps another record collection'],
     ['collection root casing follows the Git index', (m) => { m.recordCollections[0].root = 'EVIDENCE'; }, 'root casing differs from Git index'],
     ['collections require total scopes', (m) => { m.recordCollections[0].scopes = []; }, 'needs scopes'],
