@@ -19,6 +19,8 @@ const COLLECTION_KEYS = [
 ];
 const V1_SCOPE_KEYS = ['kind', 'pattern', 'policy'];
 const V2_SCOPE_KEYS = ['id', 'kind', 'match', 'paths', 'policy'];
+const MAX_HISTORY_PATHS = 10000;
+const MAX_HISTORY_EVENTS = 250000;
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonical = (value) => Array.isArray(value)
@@ -294,10 +296,7 @@ export function introductionCommit(root, path) {
   throw new Error(`record introduction is unresolvable for ${path}: no add-or-rename event contains the exact adopted path`);
 }
 
-function repositoryHistory(root) {
-  const output = git(root, [
-    'log', '--topo-order', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
-  ], true).toString('utf8');
+function parseHistory(output) {
   const tokens = output.split('\0'); const events = []; let commit = null;
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index]; const trimmed = token.trim();
@@ -313,9 +312,64 @@ function repositoryHistory(root) {
   return events;
 }
 
+function pathHistory(root, path, follow = false) {
+  return parseHistory(git(root, [
+    'log', '--topo-order', ...(follow ? ['--follow'] : []),
+    '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
+    '--', `:(literal)${path}`,
+  ], true).toString('utf8'));
+}
+
+function repositoryHistory(root, rows) {
+  const lineagePaths = new Set(rows.map((row) => row.path)); const discovered = new Map();
+  for (const path of [...lineagePaths].sort()) {
+    for (const event of pathHistory(root, path, true)) {
+      discovered.set(canonical(event), event);
+      if (event.status === 'R') { lineagePaths.add(event.oldPath); lineagePaths.add(event.newPath); }
+      if (lineagePaths.size > MAX_HISTORY_PATHS) throw new Error(`record history profile exceeds ${MAX_HISTORY_PATHS} lineage paths`);
+    }
+  }
+  for (const path of [...lineagePaths].sort()) {
+    for (const event of pathHistory(root, path)) {
+      discovered.set(canonical(event), event);
+      if (discovered.size > MAX_HISTORY_EVENTS) throw new Error(`record history profile exceeds ${MAX_HISTORY_EVENTS} relevant events`);
+    }
+  }
+  const commitOrder = new Map(git(root, ['rev-list', '--topo-order', 'HEAD']).trim().split(/\s+/)
+    .filter(Boolean).map((commit, index) => [commit, index]));
+  const events = [...discovered.values()];
+  const renameAdds = new Set(); const renameDeletes = new Set();
+  for (const event of events.filter((candidate) => candidate.status === 'R')) {
+    renameAdds.add(canonical([event.commit, event.newPath, event.newBlobOid]));
+    renameDeletes.add(canonical([event.commit, event.oldPath, event.oldBlobOid]));
+  }
+  return events.filter((event) => event.status === 'R'
+    || (event.status === 'A' && !renameAdds.has(canonical([event.commit, event.newPath, event.newBlobOid])))
+    || (event.status === 'D' && !renameDeletes.has(canonical([event.commit, event.oldPath, event.oldBlobOid])))
+    || !['A', 'D'].includes(event.status))
+    .sort((left, right) => {
+      const order = (commitOrder.get(left.commit) ?? Number.MAX_SAFE_INTEGER)
+        - (commitOrder.get(right.commit) ?? Number.MAX_SAFE_INTEGER);
+      return order || canonical(left).localeCompare(canonical(right));
+    });
+}
+
+function stableHistoryEvents(root, events, blobDigests) {
+  const contentDigest = (oid) => {
+    if (/^0+$/.test(oid)) return null;
+    if (!blobDigests.has(oid)) blobDigests.set(oid, sha256(git(root, ['cat-file', '-p', oid], true)));
+    return blobDigests.get(oid);
+  };
+  return events.map((event) => ({
+    status: event.status, oldPath: event.oldPath, newPath: event.newPath,
+    oldSha256: contentDigest(event.oldBlobOid), newSha256: contentDigest(event.newBlobOid),
+  })).sort((left, right) => canonical(left).localeCompare(canonical(right)));
+}
+
 export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitted = false } = {}) {
-  const events = repositoryHistory(root); const profiles = new Map();
-  for (const row of rows.filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy))) {
+  const immutable = rows.filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy));
+  const events = repositoryHistory(root, immutable); const profiles = new Map(); const blobDigests = new Map();
+  for (const row of immutable) {
     const exactEvents = events.flatMap((event, eventIndex) => {
       if (event.status === 'R' && event.newPath === row.path) return [{ ...event, eventIndex, status: 'A', path: row.path, renamedFrom: event.oldPath }];
       if (event.status === 'R' && event.oldPath === row.path) {
@@ -393,7 +447,11 @@ export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitt
       priorIncarnations: allPriorEvents.filter((event) => event.status === 'A'
         || (event.status === 'R' && event.newPath === event.path)).length,
     };
-    const historyDigest = digestJson({ path: row.path, lineageEvents, priorEvents: allPriorEvents });
+    const historyDigest = digestJson({
+      path: row.path,
+      lineageEvents: stableHistoryEvents(root, lineageEvents, blobDigests),
+      priorEvents: stableHistoryEvents(root, allPriorEvents, blobDigests),
+    });
     const adoptionReadiness = contentChanged || allPriorEvents.length ? 'review-required' : 'ready';
     profiles.set(row.path, {
       path: row.path, kind: row.kind, policy: row.policy, currentSha256: currentTarget.targetSha256,

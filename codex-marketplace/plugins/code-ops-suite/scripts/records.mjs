@@ -363,6 +363,22 @@ function reviewAuthority(candidate) {
   };
 }
 
+function reviewCoversCurrentHistory(reviewed, current) {
+  if (!current) return false;
+  for (const key of ['path', 'kind', 'policy', 'currentSha256']) {
+    if (reviewed[key] !== current[key]) return false;
+  }
+  const prior = reviewed.history; const now = current.history;
+  if (!prior || !now) return false;
+  return now.contentTransitions <= prior.contentTransitions
+    && now.priorIncarnations <= prior.priorIncarnations;
+}
+
+function reviewSourceIsAncestor(root, sourceHead) {
+  try { git(root, ['merge-base', '--is-ancestor', sourceHead, 'HEAD']); return true; }
+  catch { return false; }
+}
+
 function ignoredReviewPath(context, path) {
   if (!safePath(path)) throw new Error(`unsafe adoption review path: ${path}`);
   let tracked = false;
@@ -493,7 +509,7 @@ function adopt(context, options) {
 function checkInventory(context, rows, inventory, historyComplete = true) {
   if (![1, 2].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
   if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
-  const reviewCandidates = new Map(); const reviewedCandidates = new Map();
+  const reviewCandidates = new Map(); const reviewedCandidates = new Map(); let reviewSourceHead = null;
   if (inventory.version === 2) {
     const review = inventory.adoptionReview;
     if (!review || Object.keys(review).sort().join(',') !== 'candidates,collectionUuid,manifestSha256,receiptDigest,reviewed,sourceHead,version'
@@ -502,6 +518,7 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
       || !/^[0-9a-f]{64}$/.test(review.receiptDigest || '') || !Array.isArray(review.candidates) || !Array.isArray(review.reviewed)) {
       throw new Error('invalid record adoption review');
     }
+    reviewSourceHead = review.sourceHead;
     const { receiptDigest, ...authority } = review;
     if (receiptDigest !== digestJson(authority)) throw new Error('record adoption review digest mismatch');
     for (const candidate of review.candidates) {
@@ -580,9 +597,13 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
     if (historyComplete) {
       const candidateRows = rows.filter((row) => reviewCandidates.has(row.path));
       const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows);
+      const exactHistory = reviewSourceIsAncestor(context.root, reviewSourceHead);
       for (const candidate of reviewCandidates.values()) {
         const current = currentProfiles.get(candidate.path);
-        if (!current || canonical(reviewAuthority(current)) !== canonical(candidate)) {
+        const covered = exactHistory
+          ? current && canonical(reviewAuthority(current)) === canonical(candidate)
+          : reviewCoversCurrentHistory(candidate, current);
+        if (!covered) {
           throw new Error(`adoption review history drift: ${candidate.path}`);
         }
       }

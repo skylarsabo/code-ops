@@ -70,7 +70,7 @@ function standardVersion(root, hub) {
   const value = match[1].split(/\r?\n/).map((line) => /^standard-version:\s*["']?([^"']+?)["']?\s*$/.exec(line)).find(Boolean)?.[1];
   return value === undefined ? null : Number(value);
 }
-function inspectCollections(manifest, hub, files, errors) {
+function inspectCollections(manifest, hub, files, tracked, errors) {
   if (manifest.version !== 2) return;
   if (!exactKeys(manifest.runs, new Set(['tracking']), 'runs', errors)
     || !['tracked', 'ignored'].includes(manifest.runs?.tracking)) errors.push('runs.tracking must be tracked or ignored');
@@ -110,7 +110,7 @@ function inspectCollections(manifest, hub, files, errors) {
         }
       }
     }
-    errors.push(...scopeValidationErrors(collection, files).map((error) => `${collection.id} ${error}`));
+    errors.push(...scopeValidationErrors(collection, tracked).map((error) => `${collection.id} ${error}`));
   }
   const generated = new Set();
   for (const collection of collections) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
@@ -149,7 +149,7 @@ function inspect(root, manifest, hub) {
   if (![1, 2].includes(manifest.version) || !safeRelative(hub) || !Array.isArray(manifest.domains)) errors.push('manifest must use version 1 or 2, a safe hub, and a domains array');
   const claimedStandard = standardVersion(root, hub);
   if (manifest.version === 2 && (!Number.isInteger(claimedStandard) || claimedStandard < 4)) errors.push('manifest version 2 requires Standard.md standard-version 4 or newer');
-  inspectCollections(manifest, hub, tracked, errors);
+  inspectCollections(manifest, hub, files, tracked, errors);
   const ids = new Set(); const paths = new Set();
   for (const domain of manifest.domains || []) {
     for (const key of Object.keys(domain)) if (!KEYS.has(key)) errors.push(`${domain.id || 'domain'} has unknown key ${key}`);

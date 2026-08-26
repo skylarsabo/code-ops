@@ -118,6 +118,27 @@ try {
   writeFileSync(manifestPath, `${JSON.stringify(scopeV2Manifest, null, 2)}\n`);
   result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
   check('scope v2 accepts a broad glob with an exact tracked-path exception', result.status === 0, result.out);
+  writeFileSync(join(repo, 'evidence', 'untracked.md'), '# Correctly cased untracked evidence\n');
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('correctly cased untracked collection files do not affect index classification', result.status === 0, result.out);
+  rmSync(join(repo, 'evidence', 'untracked.md'), { force: true });
+  const untrackedExactManifest = structuredClone(scopeV2Manifest);
+  untrackedExactManifest.recordCollections[0].scopes[1].paths = ['untracked-exact.md'];
+  writeFileSync(join(repo, 'evidence', 'untracked-exact.md'), '# Untracked exact selector\n');
+  writeFileSync(manifestPath, `${JSON.stringify(untrackedExactManifest, null, 2)}\n`);
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('scope v2 exact selectors remain Git-index authoritative', result.status === 1
+    && result.out.includes('exact path is not tracked'), result.out);
+  rmSync(join(repo, 'evidence', 'untracked-exact.md'), { force: true });
+  writeFileSync(manifestPath, `${JSON.stringify(scopeV2Manifest, null, 2)}\n`);
+  if (process.platform !== 'win32') {
+    mkdirSync(join(repo, 'EVIDENCE'), { recursive: true });
+    writeFileSync(join(repo, 'EVIDENCE', 'untracked.md'), '# Mis-cased untracked evidence\n');
+    result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+    check('untracked collection-root casing aliases remain fail-closed', result.status === 1
+      && result.out.includes('root casing differs from Git index'), result.out);
+    rmSync(join(repo, 'EVIDENCE'), { recursive: true, force: true });
+  }
   const scopeV2Before = structuredClone(scopeV2Manifest.recordCollections[0]);
   result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['sync', '--root', repo], repo);
   const scopeV2After = JSON.parse(readFileSync(manifestPath, 'utf8')).recordCollections[0];

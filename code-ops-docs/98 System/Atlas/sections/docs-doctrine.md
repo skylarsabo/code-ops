@@ -17,3 +17,5 @@ Atlas doctrine distinguishes a portable content digest from its diagnostic commi
 This section deliberately scopes substantive domain folders and documentation scripts rather than the hub root. Manifest digest updates and Atlas bookkeeping therefore do not invalidate the record by themselves. A source or canonical-document change still does.
 
 One exact repository snapshot still serves each run. Documentation extraction contributes only affected collection indexes and inventories. Agents fetch a record body by permanent ID only when a domain needs it, so evidence volume does not become default context volume.
+
+The adoption review has two time domains. Before adoption, any `HEAD`, manifest, content, or history change invalidates the plan. After adoption, exact history remains mandatory while the reviewed anchor is ancestral; a content-preserving rewrite may replace locator commits without revoking authority, but it cannot increase the reviewed transition or prior-incarnation risk counts.

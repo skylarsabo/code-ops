@@ -7,7 +7,9 @@ All notable changes to this plugin are documented here. Versions track
 - Promoted records now resolve one canonical add-or-rename lineage and mechanically prove the selected commit contains the exact identity-bearing path. The CLI uses the shared resolver, and query failures no longer claim complete history is missing.
 - Scope classification v2 adds stable scope IDs, glob arrays, and exact tracked-path arrays. Exact paths outrank broad globs without declaration-order policy, while v1 keeps its exact-one semantics.
 - Irreversible adoption now separates partition validity from history readiness. Historically revised immutable candidates require a current digest-bound review plan, and inventory v2 preserves the receipt, path-introduction commit, and citation-baseline commit.
-- Synthetic regressions cover direct and merged promotion, reused source paths, staged native classification, exact-path precedence, order independence, v1-to-v2 migration, stale review invalidation, and zero generated outputs on refusal.
+- `classify` now emits `{ classificationStatus, adoptionReadiness, rows }` instead of a bare row array, so callers can distinguish a valid partition from adoption risk without parsing row detail.
+- Post-adoption receipt checks survive content-preserving history rewrites while failing closed when newly reachable history exceeds the reviewed risk profile. History collection is bounded to record lineage paths, and root-casing checks retain untracked-file coverage.
+- Synthetic regressions cover direct and merged promotion, reused source paths, staged native classification, exact-path precedence, order independence, v1-to-v2 migration, stale review invalidation, content-preserving history rewrites, and zero generated outputs on refusal.
 
 ## 1.47.1
 - Record commands canonicalize an aliased repository root once at entry while retaining physical containment checks for every descendant write. Cross-platform regressions prove ambient junctions or symlinks work and linked output paths still fail before mutation.

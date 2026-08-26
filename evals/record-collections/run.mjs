@@ -11,7 +11,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 103 : 106;
+const expectedCases = process.platform === 'win32' ? 106 : 109;
 let executedCases = 0;
 let work;
 
@@ -36,6 +36,14 @@ function git(args, cwd, binary = false) {
 function commit(repo, message) {
   git(['add', '-A'], repo);
   git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', message], repo);
+}
+function squashCurrentTree(repo, message) {
+  const tree = git(['rev-parse', 'HEAD^{tree}'], repo).trim();
+  const head = git([
+    '-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'commit-tree', tree, '-m', message,
+  ], repo).trim();
+  git(['reset', '--hard', head], repo);
 }
 function write(repo, path, text) {
   const target = join(repo, ...path.split('/'));
@@ -195,6 +203,11 @@ try {
     && promotedInventory?.entries?.[0]?.introducedCommit === promotionCommit
     && promotedPathExists
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => existsSync(generated(promotedRepo, name))), result.output);
+  const stableRewriteRepo = join(work, 'stable-history-rewrite'); cpSync(promotedRepo, stableRewriteRepo, { recursive: true });
+  commit(stableRewriteRepo, 'adopt stable promoted record');
+  squashCurrentTree(stableRewriteRepo, 'squashed stable adoption');
+  result = run(['check', '--root', stableRewriteRepo, ...COLLECTION], stableRewriteRepo);
+  check('stable adoption authority survives a content-preserving squash', result.status === 0, result.output);
 
   const revisedPromotionRepo = join(work, 'revised-promotion'); mkdirSync(revisedPromotionRepo, { recursive: true });
   git(['init', '--quiet', '-b', 'main'], revisedPromotionRepo);
@@ -347,6 +360,12 @@ try {
     && /^[0-9a-f]{64}$/.test(reviewedInventory?.adoptionReview?.receiptDigest || '')
     && reviewedInventory?.adoptionReview?.reviewed?.[0]?.disposition === 'freeze-current', result.output);
 
+  const rewrittenHistoryRepo = join(work, 'rewritten-reviewed-history'); cpSync(revisedRepo, rewrittenHistoryRepo, { recursive: true });
+  commit(rewrittenHistoryRepo, 'adopt reviewed record');
+  squashCurrentTree(rewrittenHistoryRepo, 'squashed reviewed adoption');
+  result = run(['check', '--root', rewrittenHistoryRepo, ...COLLECTION], rewrittenHistoryRepo);
+  check('content-preserving history rewrites retain reviewed adoption authority', result.status === 0, result.output);
+
   result = run(['adopt', '--root', repo, ...COLLECTION], repo);
   check('adoption writes all four baselines', result.status === 0
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => existsSync(generated(repo, name))), result.output);
@@ -470,6 +489,14 @@ try {
   check('fresh adoption passes semantic and history checks', result.status === 0, result.output);
   commit(repo, 'adopt records');
   const originalRecord = readFileSync(join(repo, 'records', 'one.md'), 'utf8');
+  const revertedHistoryRepo = join(work, 'reverted-record-history'); cpSync(repo, revertedHistoryRepo, { recursive: true });
+  write(revertedHistoryRepo, 'records/one.md', `${originalRecord}\ntransient rewrite\n`);
+  commit(revertedHistoryRepo, 'temporarily rewrite adopted record');
+  write(revertedHistoryRepo, 'records/one.md', originalRecord);
+  commit(revertedHistoryRepo, 'restore adopted record bytes');
+  result = run(['check', '--root', revertedHistoryRepo, ...COLLECTION], revertedHistoryRepo);
+  check('ancestral post-adoption edit and revert remains history drift', result.status === 1
+    && result.output.includes('adoption review history drift'), result.output);
 
   const relabeled = join(work, 'relabeled'); cpSync(repo, relabeled, { recursive: true });
   const relabeledManifestPath = join(relabeled, 'hub', '98 System', 'DOCS_MANIFEST.json');
