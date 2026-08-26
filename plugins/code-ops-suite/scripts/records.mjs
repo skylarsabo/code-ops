@@ -5,9 +5,9 @@ import {
 } from 'node:fs';
 import { dirname, relative } from 'node:path';
 import {
-  canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
+  adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, extractCitations, findBlobByDigest, FULL_ID_RE, git,
-  gitPaths, historicalTarget, jsonl, nativePath, physicalRoot, posix,
+  gitPaths, historicalTarget, introductionCommit, jsonl, nativePath, physicalRoot, posix,
   readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
@@ -22,7 +22,7 @@ function fail(message, code = 1) {
 
 function parseArgs(argv) {
   const options = {}; const flags = new Set(['strict', 'no-stage', 'legacy']);
-  const values = new Set(['root', 'manifest', 'collection', 'record', 'state', 'at']);
+  const values = new Set(['root', 'manifest', 'collection', 'record', 'state', 'at', 'out', 'review']);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith('--')) throw new Error(`unexpected argument ${token}`);
@@ -41,12 +41,12 @@ function parseArgs(argv) {
 function validateInvocation(command, options) {
   const shared = ['root', 'manifest', 'collection'];
   const commandOptions = {
-    classify: shared, adopt: shared, append: [...shared, 'record', 'no-stage'],
+    classify: shared, adopt: [...shared, 'review'], 'plan-adoption': [...shared, 'out'], append: [...shared, 'record', 'no-stage'],
     curate: [...shared, 'record', 'state', 'at'], render: [...shared, 'legacy'],
     check: shared, 'verify-history': [...shared, 'strict'], 'reindex-locators': shared,
   };
   const allowed = commandOptions[command];
-  if (!allowed) throw new Error('commands: classify adopt curate append render check verify-history reindex-locators');
+  if (!allowed) throw new Error('commands: classify plan-adoption adopt curate append render check verify-history reindex-locators');
   for (const key of Object.keys(options)) {
     if (!allowed.includes(key)) throw new Error(`--${key} is not valid for ${command}`);
   }
@@ -202,6 +202,7 @@ function authoritativeJsonVersions(context, key, authority = (value) => value) {
     catch { throw new Error(`${key} has invalid committed JSON at ${version.commit}`); }
     parsed.push({
       commit: version.commit, version: document.version, collectionUuid: document.collectionUuid,
+      adoptionReview: document.adoptionReview,
       entries: (document.entries || []).map(authority), artifacts: document.artifacts || [],
     });
   }
@@ -235,12 +236,16 @@ function assertBaseline(context, inventory, citations, ledgerText, historyComple
   const inventoryVersions = authoritativeJsonVersions(context, 'inventory');
   inventoryVersions.push({
     commit: 'current', version: inventory.version, collectionUuid: inventory.collectionUuid,
+    adoptionReview: inventory.adoptionReview,
     entries: inventory.entries || [], artifacts: inventory.artifacts || [],
   });
   for (let index = 1; index < inventoryVersions.length; index += 1) {
     if (inventoryVersions[index - 1].version !== inventoryVersions[index].version
       || inventoryVersions[index - 1].collectionUuid !== inventoryVersions[index].collectionUuid) {
       throw new Error('record inventory header changed after introduction');
+    }
+    if (canonical(inventoryVersions[index - 1].adoptionReview) !== canonical(inventoryVersions[index].adoptionReview)) {
+      throw new Error('record adoption review changed after introduction');
     }
     assertCanonicalPrefix('record inventory', inventoryVersions[index - 1].entries, inventoryVersions[index].entries);
     assertCanonicalPrefix('artifact inventory', inventoryVersions[index - 1].artifacts, inventoryVersions[index].artifacts);
@@ -289,6 +294,7 @@ function recordFrontmatter(text) {
 function citationEntries(context, entry, sourceText, knownPaths, policyRows, mode) {
   const policy = new Map(policyRows.map((row) => [row.path, row]));
   const current = new Set(trackedPaths(context.root));
+  const baselineCommit = entry.baselineCommit || entry.introducedCommit;
   return extractCitations(sourceText).map((citation) => {
     const resolution = resolveCitation(citation.rawTarget, entry.path, knownPaths);
     const base = {
@@ -300,7 +306,7 @@ function citationEntries(context, entry, sourceText, knownPaths, policyRows, mod
     if (resolution.state === 'ambiguous') return { ...base, state: 'ambiguous', matches: resolution.matches };
     if (resolution.state === 'dead-at-adoption') {
       if (mode === 'adopt') {
-        const historical = historicalTarget(context.root, resolution.normalizedTarget, entry.introducedCommit);
+        const historical = historicalTarget(context.root, resolution.normalizedTarget, baselineCommit);
         if (historical?.ambiguous) return {
           ...base, state: 'ambiguous',
           historicalCandidates: historical.targets.map((target) => ({ targetSha256: target.targetSha256 })),
@@ -310,7 +316,7 @@ function citationEntries(context, entry, sourceText, knownPaths, policyRows, mod
       return { ...base, state: 'dead-at-adoption' };
     }
     const targetPath = resolution.matches[0];
-    const target = mode === 'index' ? targetAtIndex(context.root, targetPath) : targetAt(context.root, entry.introducedCommit, targetPath);
+    const target = mode === 'index' ? targetAtIndex(context.root, targetPath) : targetAt(context.root, baselineCommit, targetPath);
     if (!target) return { ...base, state: 'dead-at-adoption' };
     if (mode === 'index' && existsSync(nativePath(context.root, targetPath))
       && fileDigest(nativePath(context.root, targetPath)) !== target.targetSha256) {
@@ -323,14 +329,106 @@ function citationEntries(context, entry, sourceText, knownPaths, policyRows, mod
   });
 }
 
-function introductionCommit(root, path) {
-  const commits = git(root, ['log', '--follow', '--diff-filter=A', '--format=%H', '--reverse', '--', literalPath(path)])
-    .trim().split(/\s+/).filter(Boolean);
-  if (!commits.length) throw new Error(`required historical object is unavailable for ${path}`);
-  return commits[0];
+function immutableRows(rows) {
+  return rows.filter((row) => row.kind === 'record' || ['frozen', 'superseded'].includes(row.policy));
 }
 
-function inventoryEntry(context, row, provenance, staged = false) {
+function adoptionPlan(context, rows) {
+  for (const row of rows) indexEntry(context.root, row.path);
+  const profiles = adoptionHistoryProfiles(context.root, context.collection, rows);
+  const candidates = immutableRows(rows).map((row) => {
+    const profile = profiles.get(row.path);
+    return {
+      ...profile,
+      disposition: profile.adoptionReadiness === 'review-required' ? null : 'not-required',
+      rationale: '',
+    };
+  });
+  return {
+    version: 1,
+    collectionUuid: context.collection.collectionUuid,
+    classificationVersion: context.collection.classificationVersion || 1,
+    sourceHead: headOid(context.root),
+    manifestSha256: fileDigest(context.manifestFile),
+    candidates,
+  };
+}
+
+function reviewAuthority(candidate) {
+  return {
+    path: candidate.path, kind: candidate.kind, policy: candidate.policy,
+    currentSha256: candidate.currentSha256, history: candidate.history,
+    historyDigest: candidate.historyDigest, adoptionReadiness: candidate.adoptionReadiness,
+    reason: candidate.reason,
+  };
+}
+
+function ignoredReviewPath(context, path) {
+  if (!safePath(path)) throw new Error(`unsafe adoption review path: ${path}`);
+  let tracked = false;
+  try { git(context.root, ['ls-files', '--error-unmatch', '--', literalPath(path)]); tracked = true; } catch { /* untracked is required */ }
+  if (tracked) throw new Error('adoption review plans cannot overwrite tracked files');
+  try { git(context.root, ['check-ignore', '-q', '--no-index', '--', path]); }
+  catch { throw new Error('adoption review plans must use an ignored repository path'); }
+  return nativePath(context.root, path);
+}
+
+function planAdoption(context, options) {
+  if (!options.out) throw new Error('plan-adoption requires --out');
+  if (!cleanWorktree(context.root)) throw new Error('adoption planning requires a clean worktree');
+  const history = completeHistory(context.root);
+  if (!history.ok) throw new HistoryUnavailableError(`adoption planning refused: ${history.reason}`);
+  if (Object.values(context.output).some(existsSync)) throw new Error('adoption planning refuses existing generated baselines');
+  const { rows } = collect(context);
+  const plan = adoptionPlan(context, rows);
+  const output = ignoredReviewPath(context, posix(options.out));
+  writeAtomically([[output, `${JSON.stringify(plan, null, 2)}\n`]]);
+  console.log(JSON.stringify({
+    plan: relativeRoot(context.root, output), candidates: plan.candidates.length,
+    reviewRequired: plan.candidates.filter((candidate) => candidate.adoptionReadiness === 'review-required').length,
+  }));
+}
+
+function adoptionReview(context, expected, reviewPath) {
+  const required = expected.candidates.filter((candidate) => candidate.adoptionReadiness === 'review-required');
+  if (required.length && !reviewPath) {
+    throw new Error(`adoption review required for ${required.map((candidate) => candidate.path).join(', ')}; run plan-adoption --out <ignored-path>`);
+  }
+  let supplied = expected;
+  if (reviewPath) {
+    supplied = readJson(ignoredReviewPath(context, posix(reviewPath)));
+    for (const key of ['version', 'collectionUuid', 'classificationVersion', 'sourceHead', 'manifestSha256']) {
+      if (canonical(supplied?.[key]) !== canonical(expected[key])) throw new Error(`adoption review is stale: ${key} changed`);
+    }
+    if (!Array.isArray(supplied.candidates) || supplied.candidates.length !== expected.candidates.length) {
+      throw new Error('adoption review is stale: candidate set changed');
+    }
+    for (let index = 0; index < expected.candidates.length; index += 1) {
+      if (canonical(reviewAuthority(supplied.candidates[index])) !== canonical(reviewAuthority(expected.candidates[index]))) {
+        throw new Error(`adoption review is stale: candidate changed at ${expected.candidates[index].path}`);
+      }
+    }
+  }
+  const reviewed = [];
+  for (const candidate of supplied.candidates) {
+    if (candidate.adoptionReadiness !== 'review-required') continue;
+    if (candidate.disposition !== 'freeze-current' || typeof candidate.rationale !== 'string' || !candidate.rationale.trim()) {
+      throw new Error(`adoption review requires freeze-current and rationale for ${candidate.path}`);
+    }
+    reviewed.push({
+      path: candidate.path, currentSha256: candidate.currentSha256, historyDigest: candidate.historyDigest,
+      disposition: candidate.disposition, rationale: candidate.rationale.trim(),
+    });
+  }
+  const receipt = {
+    version: 1, collectionUuid: expected.collectionUuid, sourceHead: expected.sourceHead,
+    manifestSha256: expected.manifestSha256,
+    candidates: expected.candidates.map(reviewAuthority), reviewed,
+  };
+  return { ...receipt, receiptDigest: digestJson(receipt) };
+}
+
+function inventoryEntry(context, row, provenance, staged = false, baseline = null) {
   const path = row.path;
   const index = indexEntry(context.root, path);
   const bytes = staged ? stagedBytes(context.root, path) : readFileSync(nativePath(context.root, path));
@@ -339,7 +437,10 @@ function inventoryEntry(context, row, provenance, staged = false) {
     id: recordId(context.collection.collectionUuid, path), identityVersion: context.collection.identityVersion,
     path, provenance, sha256: sha256(staged ? bytes : git(context.root, ['cat-file', '-p', index.blobOid], true)), kind: row.kind, policy: row.policy,
   };
-  if (provenance === 'adopted') entry.introducedCommit = introductionCommit(context.root, path);
+  if (provenance === 'adopted') {
+    entry.introducedCommit = baseline?.introducedCommit || introductionCommit(context.root, path);
+    entry.baselineCommit = baseline?.baselineCommit || entry.introducedCommit;
+  }
   else { entry.introducedCommit = null; entry.introducedIndexHead = headOid(context.root); }
   return entry;
 }
@@ -348,25 +449,36 @@ function renderCurrent(context, inventory, events) {
   return renderIndex(context.collection, context.hub, inventory, events);
 }
 
-function adopt(context) {
+function adopt(context, options) {
   if (!cleanWorktree(context.root)) throw new Error('adoption requires a clean worktree');
   const history = completeHistory(context.root);
   if (!history.ok) throw new HistoryUnavailableError(`adoption refused: ${history.reason}`);
   if (Object.values(context.output).some(existsSync)) throw new Error('adoption refuses existing generated baselines');
   const { rows } = collect(context);
-  for (const row of rows) indexEntry(context.root, row.path);
+  const plan = adoptionPlan(context, rows);
+  const review = adoptionReview(context, plan, options.review);
   const records = rows.filter((row) => row.kind === 'record');
-  const entries = records.map((row) => inventoryEntry(context, row, 'adopted', true));
+  const profiles = new Map(plan.candidates.map((candidate) => [candidate.path, candidate]));
+  const entries = records.map((row) => {
+    const profile = profiles.get(row.path);
+    const introduced = introductionCommit(context.root, row.path);
+    if (introduced !== profile.history.admittedCommit) {
+      throw new Error(`record introduction is unresolvable for ${row.path}: path-lineage and exact-path history disagree`);
+    }
+    return inventoryEntry(context, row, 'adopted', true, {
+      introducedCommit: introduced, baselineCommit: profile.history.baselineCommit,
+    });
+  });
   if (new Set(entries.map((entry) => entry.id)).size !== entries.length) throw new Error('record ID collision');
   const artifacts = rows.filter((row) => ['frozen', 'superseded'].includes(row.policy)).map((row) => {
     const index = indexEntry(context.root, row.path);
     return { path: row.path, sha256: sha256(git(context.root, ['cat-file', '-p', index.blobOid], true)), kind: row.kind, policy: row.policy };
   });
-  const inventory = { version: 1, collectionUuid: context.collection.collectionUuid, entries, artifacts };
+  const inventory = { version: 2, collectionUuid: context.collection.collectionUuid, adoptionReview: review, entries, artifacts };
   const citationInventory = { version: 1, collectionUuid: context.collection.collectionUuid, entries: [] };
   for (const entry of entries) {
-    const sourceText = git(context.root, ['show', `${entry.introducedCommit}:${entry.path}`], true).toString('utf8');
-    const known = treePathsAt(context.root, entry.introducedCommit);
+    const sourceText = git(context.root, ['show', `${entry.baselineCommit}:${entry.path}`], true).toString('utf8');
+    const known = treePathsAt(context.root, entry.baselineCommit);
     citationInventory.entries.push(...citationEntries(context, entry, sourceText, known, rows, 'adopt'));
   }
   writeAtomically([
@@ -378,8 +490,50 @@ function adopt(context) {
   console.log(JSON.stringify({ adopted: entries.length, artifacts: artifacts.length, citations: citationInventory.entries.length }));
 }
 
-function checkInventory(context, rows, inventory) {
-  if (inventory.version !== 1 || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
+function checkInventory(context, rows, inventory, historyComplete = true) {
+  if (![1, 2].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
+  if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
+  const reviewCandidates = new Map(); const reviewedCandidates = new Map();
+  if (inventory.version === 2) {
+    const review = inventory.adoptionReview;
+    if (!review || Object.keys(review).sort().join(',') !== 'candidates,collectionUuid,manifestSha256,receiptDigest,reviewed,sourceHead,version'
+      || review.version !== 1 || review.collectionUuid !== inventory.collectionUuid
+      || !/^[0-9a-f]{40,64}$/.test(review.sourceHead || '') || !/^[0-9a-f]{64}$/.test(review.manifestSha256 || '')
+      || !/^[0-9a-f]{64}$/.test(review.receiptDigest || '') || !Array.isArray(review.candidates) || !Array.isArray(review.reviewed)) {
+      throw new Error('invalid record adoption review');
+    }
+    const { receiptDigest, ...authority } = review;
+    if (receiptDigest !== digestJson(authority)) throw new Error('record adoption review digest mismatch');
+    for (const candidate of review.candidates) {
+      const history = candidate?.history;
+      if (!candidate || Object.keys(candidate).sort().join(',') !== 'adoptionReadiness,currentSha256,history,historyDigest,kind,path,policy,reason'
+        || !safePath(candidate.path) || reviewCandidates.has(candidate.path)
+        || !/^[0-9a-f]{64}$/.test(candidate.currentSha256 || '') || !/^[0-9a-f]{64}$/.test(candidate.historyDigest || '')
+        || !['ready', 'review-required'].includes(candidate.adoptionReadiness)
+        || !['stable-so-far', 'historically-revised', 'deleted-readded'].includes(candidate.reason)
+        || !history || Object.keys(history).sort().join(',') !== 'admittedCommit,baselineCommit,contentTransitions,firstRelevantCommit,lastRelevantCommit,priorIncarnations'
+        || !['admittedCommit', 'baselineCommit', 'firstRelevantCommit', 'lastRelevantCommit'].every((key) => /^[0-9a-f]{40,64}$/.test(history[key] || ''))
+        || !Number.isInteger(history.contentTransitions) || history.contentTransitions < 0
+        || !Number.isInteger(history.priorIncarnations) || history.priorIncarnations < 0) {
+        throw new Error('invalid adoption review candidate');
+      }
+      reviewCandidates.set(candidate.path, candidate);
+    }
+    for (const item of review.reviewed) {
+      if (!item || Object.keys(item).sort().join(',') !== 'currentSha256,disposition,historyDigest,path,rationale'
+        || !safePath(item.path) || reviewedCandidates.has(item.path) || !/^[0-9a-f]{64}$/.test(item.currentSha256 || '')
+        || !/^[0-9a-f]{64}$/.test(item.historyDigest || '') || item.disposition !== 'freeze-current'
+        || typeof item.rationale !== 'string' || !item.rationale.trim()) throw new Error('invalid reviewed adoption candidate');
+      const candidate = reviewCandidates.get(item.path);
+      if (!candidate || candidate.adoptionReadiness !== 'review-required'
+        || candidate.currentSha256 !== item.currentSha256 || candidate.historyDigest !== item.historyDigest) {
+        throw new Error(`reviewed adoption candidate does not match its history profile: ${item.path}`);
+      }
+      reviewedCandidates.set(item.path, item);
+    }
+    for (const candidate of reviewCandidates.values()) if (candidate.adoptionReadiness === 'review-required'
+      && !reviewedCandidates.has(candidate.path)) throw new Error(`missing reviewed adoption candidate: ${candidate.path}`);
+  }
   const recordRows = new Map(rows.filter((row) => row.kind === 'record').map((row) => [row.path, row]));
   const ids = new Set();
   for (const entry of inventory.entries || []) {
@@ -394,6 +548,10 @@ function checkInventory(context, rows, inventory) {
       if (!/^[0-9a-f]{40,64}$/.test(entry.introducedCommit || '') || 'introducedIndexHead' in entry || 'supersedes' in entry) {
         throw new Error(`invalid adopted record metadata: ${entry.path}`);
       }
+      if (inventory.version === 2 && !/^[0-9a-f]{40,64}$/.test(entry.baselineCommit || '')) {
+        throw new Error(`invalid adopted record baseline: ${entry.path}`);
+      }
+      if (inventory.version === 1 && 'baselineCommit' in entry) throw new Error(`inventory v1 record has a baseline commit: ${entry.path}`);
     } else {
       const metadata = recordFrontmatter(readFileSync(nativePath(context.root, entry.path), 'utf8'));
       if (entry.introducedCommit !== null || !/^[0-9a-f]{40,64}$/.test(entry.introducedIndexHead || '')
@@ -411,6 +569,25 @@ function checkInventory(context, rows, inventory) {
     immutableRows.delete(artifact.path);
   }
   if (immutableRows.size) throw new Error(`frozen artifact missing from inventory: ${[...immutableRows.keys()][0]}`);
+  if (inventory.version === 2) {
+    const inventoryDigests = new Map([
+      ...(inventory.entries || []).map((entry) => [entry.path, entry.sha256]),
+      ...(inventory.artifacts || []).map((artifact) => [artifact.path, artifact.sha256]),
+    ]);
+    for (const candidate of reviewCandidates.values()) if (inventoryDigests.get(candidate.path) !== candidate.currentSha256) {
+      throw new Error(`adoption review candidate is not pinned by inventory: ${candidate.path}`);
+    }
+    if (historyComplete) {
+      const candidateRows = rows.filter((row) => reviewCandidates.has(row.path));
+      const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows);
+      for (const candidate of reviewCandidates.values()) {
+        const current = currentProfiles.get(candidate.path);
+        if (!current || canonical(reviewAuthority(current)) !== canonical(candidate)) {
+          throw new Error(`adoption review history drift: ${candidate.path}`);
+        }
+      }
+    }
+  }
   return ids;
 }
 
@@ -495,13 +672,13 @@ function runCheck(context, { strict = false } = {}) {
   const citations = readJson(context.output.citations);
   const ledgerText = readFileSync(context.output.curationLedger, 'utf8');
   const events = readJsonl(context.output.curationLedger);
-  const ids = checkInventory(context, rows, inventory);
+  const history = completeHistory(context.root);
+  const ids = checkInventory(context, rows, inventory, history.ok);
   if (citations.version !== 1 || citations.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid citation inventory header');
   validateLedger(events, context.collection.collectionUuid);
   for (const event of events) {
     if (!FULL_ID_RE.test(event.recordId) || !ids.has(event.recordId)) throw new Error(`curation event references unknown record ${event.recordId}`);
   }
-  const history = completeHistory(context.root);
   if (strict && !history.ok) throw new HistoryUnavailableError(`infrastructure history unavailable: ${history.reason}`);
   assertBaseline(context, inventory, citations, ledgerText, history.ok);
   const warnings = [];
@@ -724,7 +901,26 @@ function reindexLocators(context) {
 
 function classifyCommand(context) {
   const { rows, problems } = collect(context, { allowProblems: true });
-  console.log(JSON.stringify(rows, null, 2));
+  const history = completeHistory(context.root);
+  let rendered = rows;
+  let readiness = { status: 'history-unavailable', reason: history.reason };
+  if (history.ok && !problems.length) {
+    const profiles = adoptionHistoryProfiles(context.root, context.collection, rows, { allowUncommitted: true });
+    rendered = rows.map((row) => {
+      const profile = profiles.get(row.path);
+      return profile ? {
+        ...row, adoptionReadiness: profile.adoptionReadiness,
+        ...(profile.historyDigest ? { historyDigest: profile.historyDigest, history: profile.history } : {}),
+        historyReason: profile.reason,
+      } : row;
+    });
+    const reviewRequired = [...profiles.values()].filter((profile) => profile.adoptionReadiness === 'review-required').length;
+    const pendingCommit = [...profiles.values()].filter((profile) => profile.adoptionReadiness === 'pending-commit').length;
+    readiness = { status: reviewRequired ? 'review-required' : pendingCommit ? 'pending-commit' : 'ready', reviewRequired, pendingCommit };
+  }
+  console.log(JSON.stringify({
+    classificationStatus: problems.length ? 'invalid' : 'partition-valid', adoptionReadiness: readiness, rows: rendered,
+  }, null, 2));
   if (problems.length) throw new Error(`invalid collection classification: ${problems.map((row) => row.path).join(', ')}`);
 }
 
@@ -735,7 +931,8 @@ try {
   const root = physicalRoot(options.root || process.cwd());
   const context = loadContext(root, options);
   if (command === 'classify') classifyCommand(context);
-  else if (command === 'adopt') adopt(context);
+  else if (command === 'plan-adoption') planAdoption(context, options);
+  else if (command === 'adopt') adopt(context, options);
   else if (command === 'append') appendRecord(context, options);
   else if (command === 'curate') curate(context, options);
   else if (command === 'render') render(context, options);

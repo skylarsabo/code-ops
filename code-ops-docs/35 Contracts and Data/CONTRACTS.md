@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-25
 ---
 
 # Contracts
@@ -45,12 +45,18 @@ Version 1 contracts remain valid without a context object. New context-bound run
 
 Manifest v1 contains `version`, `hub`, and `domains`. Manifest v2 retains those fields and adds `runs`, `recordCollections`, and `legacyPaths`. Version 2 requires vault standard v4. Version 1 remains valid under standards v3 and v4 when no collection is declared.
 
-Each record collection declares `id`, permanent `collectionUuid`, `identityVersion`, repository-relative `root`, four hub-relative generated paths, and total classification `scopes`. Scope objects contain exactly `pattern`, `kind`, and `policy`.
+Each record collection declares `id`, permanent `collectionUuid`, `identityVersion`, repository-relative `root`, four hub-relative generated paths, and total classification `scopes`. Omitted `classificationVersion` selects v1 scopes containing exactly `pattern`, `kind`, and `policy`.
+
+`classificationVersion: 2` selects scopes containing exactly `id`, `match`, `paths`, `kind`, and `policy`. Exact tracked `paths` outrank glob `match` selectors. Multiple exact owners, multiple surviving glob owners, zero owners, stale exact paths, and case mismatches fail. Scope order never resolves policy.
 
 Legacy paths contain `path`, `disposition`, hub-owned `target`, and qualifying `requiredBy` evidence. Manifest synchronization updates domain digests only. It never creates pointers, tombstones, inventories, citation baselines, or curation events.
 
 ## Record operations
 
-`records.mjs` exposes `classify`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Adoption and append are fail-closed transactions. Strict history failure is infrastructure failure; evidence loss requires a complete history.
+`records.mjs` exposes `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Adoption and append are fail-closed transactions. Strict history failure is infrastructure failure; evidence loss requires a complete history.
+
+`classify` reports partition validity and historical adoption readiness. Uncommitted index candidates report `pending-commit` without invalidating their structural classification. `plan-adoption` writes only to an ignored repository path. The plan binds `HEAD`, manifest bytes, candidate bytes, and path history. `adopt --review` recomputes those bindings. Historically revised immutable candidates require a `freeze-current` disposition and rationale.
+
+Inventory v2 stores `adoptionReview` beside records and artifacts. Its `receiptDigest` covers source bindings and reviewed candidates. Adopted record entries store `introducedCommit` for exact-path provenance and `baselineCommit` for citation resolution. Inventory v1 remains readable without these fields.
 
 Native records require YAML frontmatter containing `recordSchema: 1` and `supersedes: [...]`. The supersession value is a JSON array of full `REC-` IDs. Adopted records retain their original bytes and do not gain this schema.

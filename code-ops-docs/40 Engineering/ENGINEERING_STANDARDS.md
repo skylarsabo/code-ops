@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-25
 ---
 
 # Engineering Standards
@@ -43,6 +43,8 @@ All repository artifacts follow the house writing standard. It requires short ac
 
 `<repo>-docs/` is the only authored documentation authority. Manifest v2 may govern immutable evidence at permanent historical paths. Adoption preserves those bytes and paths forever; supersession moves authority through curation and a canonical hub document.
 
-Use Git-index paths for record identity. Classify every tracked collection file exactly once. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
+Use Git-index paths for record identity. Classify every tracked collection file exactly once. Scope v2 exact paths may override broad globs; ambiguous owners still fail. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
+
+Run `plan-adoption` before irreversible legacy adoption. Review every historically revised immutable candidate. Commit no generated baseline unless `adopt` accepts a current digest-bound receipt.
 
 Run `records check` for each registered collection. Use `verify-history --strict` before adoption and before diagnosing evidence loss. Use synthetic fixtures only in this repository.

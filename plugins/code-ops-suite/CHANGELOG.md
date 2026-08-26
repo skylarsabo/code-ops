@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.48.0
+- Promoted records now resolve one canonical add-or-rename lineage and mechanically prove the selected commit contains the exact identity-bearing path. The CLI uses the shared resolver, and query failures no longer claim complete history is missing.
+- Scope classification v2 adds stable scope IDs, glob arrays, and exact tracked-path arrays. Exact paths outrank broad globs without declaration-order policy, while v1 keeps its exact-one semantics.
+- Irreversible adoption now separates partition validity from history readiness. Historically revised immutable candidates require a current digest-bound review plan, and inventory v2 preserves the receipt, path-introduction commit, and citation-baseline commit.
+- Synthetic regressions cover direct and merged promotion, reused source paths, staged native classification, exact-path precedence, order independence, v1-to-v2 migration, stale review invalidation, and zero generated outputs on refusal.
+
 ## 1.47.1
 - Record commands canonicalize an aliased repository root once at entry while retaining physical containment checks for every descendant write. Cross-platform regressions prove ambient junctions or symlinks work and linked output paths still fail before mutation.
 - The record-collection eval now reports executed and expected case counts on success and unexpected aborts, initializes fixtures inside the failure boundary, and safely reports non-Error throws.

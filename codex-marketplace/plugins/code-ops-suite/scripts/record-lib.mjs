@@ -14,6 +14,11 @@ const VALID_PAIRS = new Set([
   'record:append-only', 'artifact:mutable', 'artifact:frozen', 'artifact:superseded',
   'executable:frozen', 'executable:superseded', 'forbidden:forbidden',
 ]);
+const COLLECTION_KEYS = [
+  'citations', 'collectionUuid', 'curationLedger', 'id', 'identityVersion', 'index', 'inventory', 'root', 'scopes',
+];
+const V1_SCOPE_KEYS = ['kind', 'pattern', 'policy'];
+const V2_SCOPE_KEYS = ['id', 'kind', 'match', 'paths', 'policy'];
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonical = (value) => Array.isArray(value)
@@ -136,9 +141,74 @@ export function matchGlob(pattern, candidate) {
   return new RegExp('^' + source + '$', 'u').test(candidate.normalize('NFC'));
 }
 
+function shapeErrors(value, keys, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [`${label} must be an object`];
+  const errors = [];
+  for (const key of Object.keys(value)) if (!keys.includes(key)) errors.push(`${label} has unknown key ${key}`);
+  for (const key of keys) if (!(key in value)) errors.push(`${label} is missing ${key}`);
+  return errors;
+}
+
+export function scopeValidationErrors(collection, tracked = null) {
+  const errors = [];
+  const declaredVersion = Object.hasOwn(collection || {}, 'classificationVersion');
+  const version = declaredVersion ? collection.classificationVersion : 1;
+  if (declaredVersion && version !== 2) errors.push('classificationVersion must be 2 when present');
+  if (!Array.isArray(collection?.scopes) || !collection.scopes.length) return [...errors, 'needs scopes'];
+  const ids = new Set(); const exactOwners = new Map();
+  for (const [index, scope] of collection.scopes.entries()) {
+    const label = `scope ${index + 1}`;
+    if (version === 1) {
+      const shape = shapeErrors(scope, V1_SCOPE_KEYS, label);
+      if (shape.length) { errors.push(...shape); continue; }
+      if (typeof scope.pattern !== 'string' || !scope.pattern || scope.pattern !== scope.pattern.normalize('NFC')
+        || scope.pattern.startsWith('/') || scope.pattern.includes('\\')) errors.push(`${label} has an invalid pattern`);
+      if (!VALID_PAIRS.has(`${scope.kind}:${scope.policy}`)) errors.push(`${label} has an invalid kind/policy pair`);
+      continue;
+    }
+    const shape = shapeErrors(scope, V2_SCOPE_KEYS, label);
+    if (shape.length) { errors.push(...shape); continue; }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(scope.id || '') || ids.has(scope.id)) errors.push(`${label} has an invalid or duplicate id`);
+    else ids.add(scope.id);
+    if (!Array.isArray(scope.match) || !Array.isArray(scope.paths) || (!scope.match.length && !scope.paths.length)) {
+      errors.push(`${label} needs at least one match or path selector`);
+    }
+    if (Array.isArray(scope.match)) {
+      if (new Set(scope.match).size !== scope.match.length) errors.push(`${label} has duplicate match selectors`);
+      for (const pattern of scope.match) {
+        if (typeof pattern !== 'string' || !pattern || pattern !== pattern.normalize('NFC')
+          || pattern.startsWith('/') || pattern.includes('\\')) errors.push(`${label} has an invalid match selector`);
+      }
+    }
+    if (Array.isArray(scope.paths)) {
+      if (new Set(scope.paths).size !== scope.paths.length) errors.push(`${label} has duplicate path selectors`);
+      for (const path of scope.paths) {
+        if (!safePath(path) || /[*?]/.test(path)) { errors.push(`${label} has an invalid exact path selector`); continue; }
+        if (exactOwners.has(path)) errors.push(`${label} duplicates exact path ${path} owned by ${exactOwners.get(path)}`);
+        else exactOwners.set(path, scope.id);
+      }
+    }
+    if (!VALID_PAIRS.has(`${scope.kind}:${scope.policy}`)) errors.push(`${label} has an invalid kind/policy pair`);
+  }
+  if (version === 2 && Array.isArray(tracked) && safePath(collection?.root)) {
+    const trackedSet = new Set(tracked); const folded = new Map(tracked.map((path) => [path.toLowerCase(), path]));
+    for (const scope of collection.scopes.filter((candidate) => Array.isArray(candidate?.paths))) {
+      for (const relativePath of scope.paths) {
+        if (!safePath(relativePath) || /[*?]/.test(relativePath)) continue;
+        const fullPath = `${collection.root}/${relativePath}`;
+        if (trackedSet.has(fullPath)) continue;
+        const alias = folded.get(fullPath.toLowerCase());
+        errors.push(alias ? `scope ${scope.id} exact path casing differs from Git index: ${alias}`
+          : `scope ${scope.id} exact path is not tracked: ${relativePath}`);
+      }
+    }
+  }
+  return errors;
+}
+
 export function validateCollection(collection, hub) {
-  const keys = ['citations', 'collectionUuid', 'curationLedger', 'id', 'identityVersion', 'index', 'inventory', 'root', 'scopes'];
-  if (!collection || Object.keys(collection).sort().join(',') !== keys.join(',')) throw new Error('record collection has an invalid shape');
+  const keys = [...COLLECTION_KEYS, ...(Object.hasOwn(collection || {}, 'classificationVersion') ? ['classificationVersion'] : [])];
+  if (!collection || Object.keys(collection).sort().join(',') !== keys.sort().join(',')) throw new Error('record collection has an invalid shape');
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(collection.id)
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(collection.collectionUuid)
     || collection.identityVersion !== 1 || !safePath(collection.root) || !safePath(hub)) throw new Error('invalid collection ' + collection.id);
@@ -152,12 +222,8 @@ export function validateCollection(collection, hub) {
       throw new Error(`${collection.id} generated ${key} overlaps its immutable root`);
     }
   }
-  if (!Array.isArray(collection.scopes) || !collection.scopes.length) throw new Error(collection.id + ' needs scopes');
-  for (const scope of collection.scopes) {
-    if (!scope || Object.keys(scope).sort().join(',') !== 'kind,pattern,policy'
-      || typeof scope.pattern !== 'string' || !scope.pattern || scope.pattern.includes('\\')
-      || !VALID_PAIRS.has(scope.kind + ':' + scope.policy)) throw new Error('invalid scope in ' + collection.id);
-  }
+  const scopeErrors = scopeValidationErrors(collection);
+  if (scopeErrors.length) throw new Error(`invalid scope in ${collection.id}: ${scopeErrors.join('; ')}`);
   return collection;
 }
 export function classify(collection, paths) {
@@ -165,12 +231,30 @@ export function classify(collection, paths) {
   const foldedPrefix = prefix.toLowerCase();
   const casingAliases = paths.filter((path) => path.toLowerCase().startsWith(foldedPrefix) && !path.startsWith(prefix));
   if (casingAliases.length) throw new Error(`collection root casing differs from Git index: ${casingAliases.join(', ')}`);
+  const scopeErrors = scopeValidationErrors(collection, paths);
+  if (scopeErrors.length) throw new Error(`invalid scope in ${collection.id}: ${scopeErrors.join('; ')}`);
+  const version = collection.classificationVersion || 1;
   return paths.filter((path) => path.startsWith(prefix)).map((path) => {
     const relativePath = path.slice(prefix.length);
-    const candidates = collection.scopes.filter((scope) => matchGlob(scope.pattern, relativePath));
+    if (version === 1) {
+      const candidates = collection.scopes.filter((scope) => matchGlob(scope.pattern, relativePath));
+      return {
+        path, relativePath, candidates,
+        ...(candidates.length === 1 ? { kind: candidates[0].kind, policy: candidates[0].policy } : {}),
+      };
+    }
+    const ordered = [...collection.scopes].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    const exact = ordered.filter((scope) => scope.paths.includes(relativePath));
+    const globs = ordered.filter((scope) => !scope.paths.includes(relativePath)
+      && scope.match.some((pattern) => matchGlob(pattern, relativePath)));
+    const candidates = exact.length ? exact : globs;
+    const resolution = exact.length ? 'exact-path' : 'glob';
     return {
       path, relativePath, candidates,
-      ...(candidates.length === 1 ? { kind: candidates[0].kind, policy: candidates[0].policy } : {}),
+      matchedScopeIds: [...new Set([...exact, ...globs].map((scope) => scope.id))].sort(),
+      ...(candidates.length === 1 ? {
+        kind: candidates[0].kind, policy: candidates[0].policy, scopeId: candidates[0].id, resolution,
+      } : {}),
     };
   });
 }
@@ -201,10 +285,123 @@ export function cleanWorktree(root) {
   return git(root, ['status', '--porcelain=v1', '--untracked-files=all']).trim() === '';
 }
 export function introductionCommit(root, path) {
-  const commits = git(root, ['log', '--follow', '--diff-filter=A', '--format=%H', '--reverse', '--', path])
+  const commits = git(root, ['log', '--follow', '--diff-filter=AR', '--format=%H', '--reverse', '--', `:(literal)${path}`])
     .trim().split(/\s+/).filter(Boolean);
-  if (!commits.length) throw new Error('required historical object is unavailable for ' + path);
-  return commits[0];
+  for (const commit of commits) {
+    try { git(root, ['cat-file', '-e', `${commit}:${path}`]); return commit; }
+    catch { /* try the next path-lineage event */ }
+  }
+  throw new Error(`record introduction is unresolvable for ${path}: no add-or-rename event contains the exact adopted path`);
+}
+
+function repositoryHistory(root) {
+  const output = git(root, [
+    'log', '--topo-order', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
+  ], true).toString('utf8');
+  const tokens = output.split('\0'); const events = []; let commit = null;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]; const trimmed = token.trim();
+    if (/^[0-9a-f]{40,64}$/.test(trimmed)) { commit = trimmed; continue; }
+    const match = /^:[0-7]{6} [0-7]{6} ([0-9a-f]+) ([0-9a-f]+) ([A-Z])\d*$/.exec(trimmed);
+    if (!match || !commit || index + 1 >= tokens.length) continue;
+    const oldPath = posix(tokens[++index]);
+    const newPath = match[3] === 'R' && index + 1 < tokens.length ? posix(tokens[++index]) : oldPath;
+    const row = { commit, oldBlobOid: match[1], newBlobOid: match[2], status: match[3], oldPath, newPath };
+    const prior = events.at(-1);
+    if (!prior || canonical(prior) !== canonical(row)) events.push(row);
+  }
+  return events;
+}
+
+export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitted = false } = {}) {
+  const events = repositoryHistory(root); const profiles = new Map();
+  for (const row of rows.filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy))) {
+    const exactEvents = events.flatMap((event, eventIndex) => {
+      if (event.status === 'R' && event.newPath === row.path) return [{ ...event, eventIndex, status: 'A', path: row.path, renamedFrom: event.oldPath }];
+      if (event.status === 'R' && event.oldPath === row.path) {
+        return [{ ...event, eventIndex, status: 'D', path: row.path, newBlobOid: '0'.repeat(event.newBlobOid.length), renamedTo: event.newPath }];
+      }
+      return event.status !== 'R' && event.newPath === row.path ? [{ ...event, eventIndex, path: row.path }] : [];
+    });
+    const admissionIndex = exactEvents.findIndex((event) => event.status === 'A');
+    const currentTarget = targetAtIndex(root, row.path);
+    if (!currentTarget) throw new Error(`record bytes unavailable from Git index: ${row.path}`);
+    if (admissionIndex < 0) {
+      if (allowUncommitted) {
+        profiles.set(row.path, {
+          path: row.path, kind: row.kind, policy: row.policy, currentSha256: currentTarget.targetSha256,
+          adoptionReadiness: 'pending-commit', reason: 'uncommitted-index-entry',
+        });
+        continue;
+      }
+      throw new Error(`record introduction is unresolvable for ${row.path}: no exact-path add event exists in current history`);
+    }
+    const currentEventRefs = exactEvents.slice(0, admissionIndex + 1);
+    const lineageEventRefs = [...currentEventRefs];
+    const lineageEventIndexes = new Set(currentEventRefs.map((event) => event.eventIndex));
+    const lineagePaths = new Set([row.path]);
+    let lineagePath = currentEventRefs.at(-1).renamedFrom || null;
+    if (lineagePath) {
+      lineagePaths.add(lineagePath);
+      const admissionCommit = currentEventRefs.at(-1).commit;
+      const admissionPosition = events.findIndex((event) => event.commit === admissionCommit
+        && event.status === 'R' && event.newPath === row.path && event.oldPath === lineagePath);
+      for (let eventIndex = admissionPosition + 1; eventIndex < events.length && lineagePath; eventIndex += 1) {
+        const event = events[eventIndex];
+        if (lineagePath && event.status === 'R' && event.newPath === lineagePath) {
+          lineageEventRefs.push({ ...event, eventIndex, path: lineagePath });
+          lineageEventIndexes.add(eventIndex);
+          lineagePath = event.oldPath;
+          lineagePaths.add(lineagePath);
+          continue;
+        }
+        if (lineagePath && event.status !== 'R' && event.newPath === lineagePath) {
+          lineageEventRefs.push({ ...event, eventIndex, path: lineagePath });
+          lineageEventIndexes.add(eventIndex);
+          if (event.status === 'A') lineagePath = null;
+        }
+      }
+    }
+    const stripEventIndex = ({ eventIndex: _eventIndex, ...event }) => event;
+    const currentEvents = currentEventRefs.map(stripEventIndex);
+    const lineageEvents = lineageEventRefs.map(stripEventIndex);
+    const allPriorEvents = events.flatMap((event, eventIndex) => {
+      if (lineageEventIndexes.has(eventIndex)) return [];
+      const priorPath = [...lineagePaths].find((path) => event.oldPath === path || event.newPath === path);
+      return priorPath ? [{ ...event, path: priorPath }] : [];
+    });
+    const contentChanged = lineageEvents.some((event) => event.status !== 'A'
+      && event.oldBlobOid !== event.newBlobOid && !/^0+$/.test(event.newBlobOid));
+    const baselineEvent = currentEvents.find((event) => event.newBlobOid === currentTarget.blobOid);
+    if (!baselineEvent) {
+      if (allowUncommitted) {
+        profiles.set(row.path, {
+          path: row.path, kind: row.kind, policy: row.policy, currentSha256: currentTarget.targetSha256,
+          adoptionReadiness: 'pending-commit', reason: 'uncommitted-index-entry',
+        });
+        continue;
+      }
+      throw new Error(`record baseline is unresolvable for ${row.path}: current index blob is absent from exact-path history`);
+    }
+    const history = {
+      admittedCommit: currentEvents[admissionIndex].commit,
+      baselineCommit: baselineEvent.commit,
+      firstRelevantCommit: lineageEvents.at(-1).commit,
+      lastRelevantCommit: lineageEvents[0].commit,
+      contentTransitions: lineageEvents.filter((event) => event.status !== 'A'
+        && event.oldBlobOid !== event.newBlobOid && !/^0+$/.test(event.newBlobOid)).length,
+      priorIncarnations: allPriorEvents.filter((event) => event.status === 'A'
+        || (event.status === 'R' && event.newPath === event.path)).length,
+    };
+    const historyDigest = digestJson({ path: row.path, lineageEvents, priorEvents: allPriorEvents });
+    const adoptionReadiness = contentChanged || allPriorEvents.length ? 'review-required' : 'ready';
+    profiles.set(row.path, {
+      path: row.path, kind: row.kind, policy: row.policy, currentSha256: currentTarget.targetSha256,
+      history, historyDigest, adoptionReadiness,
+      reason: allPriorEvents.length ? 'deleted-readded' : contentChanged ? 'historically-revised' : 'stable-so-far',
+    });
+  }
+  return profiles;
 }
 export function treePathsAt(root, commit) {
   return gitPaths(root, ['ls-tree', '-r', '-z', '--name-only', commit]);

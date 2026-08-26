@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-25
 ---
 
 # Data Model
@@ -57,3 +57,7 @@ The ID namespace hashes the collection UUID and normalized Git-index path. Colle
 The curation ledger is ordered JSONL. Every event links the prior global event and the prior event for its record. The event contains complete metadata state, not a patch.
 
 `targetSha256` is authoritative for mutable evidence. Object format, blob OID, commit OID, and path are locators that may be regenerated after repository hash migration.
+
+Collection classification has an independent version. Version 1 uses one glob pattern per scope. Version 2 gives each scope a stable ID, glob selectors, and exact-path selectors. This version never changes record identity.
+
+An adoption history profile contains the exact-path admission commit, baseline commit, rename lineage, content-transition count, prior-incarnation count, current SHA-256, and `historyDigest`. Admission remains anchored to the current path while readiness follows earlier promoted paths. The review plan binds those fields to `HEAD` and the manifest digest. Inventory v2 stores the candidate profiles, completed reviewed dispositions, and canonical receipt digest.
