@@ -24,7 +24,9 @@ concurrency:
 jobs:
   deep-review:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Two bounded attempts need independent step clocks. A job-level timeout alone cancels
+    # the whole job before the retry or fail-closed guard can run.
+    timeout-minutes: 80
     steps:
       - name: Detect credential
         id: key
@@ -88,6 +90,7 @@ jobs:
         id: review
         if: steps.key.outputs.present == 'true' && steps.scope.outputs.substantive == 'true'
         continue-on-error: true
+        timeout-minutes: 35
         uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -127,6 +130,7 @@ jobs:
         id: review_retry
         if: steps.review.outcome == 'failure'
         continue-on-error: true
+        timeout-minutes: 35
         uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
