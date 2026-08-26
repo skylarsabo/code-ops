@@ -64,6 +64,10 @@ A pre-merge **anonymity / OpSec** review for projects on the privacy track. The 
 
 Plus the standard anonymity checks: no new identifier / fingerprint / correlation surface, fail-closed preserved, metadata minimized. It **will not approve** any change that weakens an anonymity or fail-closed guarantee, and it never echoes real identifiers, secrets, or IPs. Tools are `Read,Grep,Glob`. This gate is the last link in the anonymity track — `anonymity-threat-model` → six leak audits → `LEAK_REGISTER.md` → `opsec-hardening` → **`opsec-pr-gate`** + `authorship-hygiene`; see [`commands/privacy-opsec-suite.md`](commands/privacy-opsec-suite.md).
 
+### One attempt definition, two bounded attempts
+
+Each live model gate defines its complete action-input map once with a YAML anchor. The retry aliases that map, so credentials, review criteria, tools, model, and turn ceiling cannot drift between attempts. The attempt steps keep separate identifiers, conditions, 35-minute clocks, and outcomes because the final guard must inspect both results. An 80-minute job clock leaves time for setup, two bounded attempts, and the guard; if both attempts fail, the guard still fails closed.
+
 ### The credential, and skipping cleanly
 
 All three model-backed gates need **one** Claude credential, set as a repo secret:
@@ -79,7 +83,7 @@ The workflow detects presence with a first step and gates every other step on it
   run: echo "present=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
 ```
 
-When neither secret is set — a fork PR, or a repo nobody has configured — the gate **skips cleanly** (it logs `gate skipped` and exits green) rather than failing on a missing secret ([`deep-review.yml`](../../../.github/workflows/deep-review.yml) lines 28–30, 88–90). This is deliberate: a missing credential must not turn into a red X that blocks unrelated work or a contributor's fork.
+When neither secret is set — a fork PR, or a repo nobody has configured — the gate **skips cleanly** (it logs `gate skipped` and exits green) rather than failing on a missing secret ([`deep-review.yml`](../../../.github/workflows/deep-review.yml)). This is deliberate: a missing credential must not turn into a red X that blocks unrelated work or a contributor's fork.
 
 #### The `id-token: write` permission
 
@@ -92,7 +96,7 @@ permissions:
   id-token: write   # claude-code-action mints an OIDC token for the Pro/Max OAuth path
 ```
 
-Both live gates carry this ([`deep-review.yml`](../../../.github/workflows/deep-review.yml) line 16, [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml) line 15). The `examples/*.yml` predate it and show only `contents: read` + `pull-requests: write`; if you use the OAuth token rather than an API key, add `id-token: write`. The actions are pinned to commit SHAs (per the suite's own `supply-chain-trust` skill) so a moved tag cannot inject code into CI; bump them deliberately and let the trailing `# v1` comment track the tag.
+Both live gates carry this ([`deep-review.yml`](../../../.github/workflows/deep-review.yml), [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml)). The `examples/*.yml` predate it and show only `contents: read` + `pull-requests: write`; if you use the OAuth token rather than an API key, add `id-token: write`. The actions are pinned to commit SHAs (per the suite's own `supply-chain-trust` skill) so a moved tag cannot inject code into CI; bump them deliberately and let the trailing `# v1` comment track the tag.
 
 ---
 
