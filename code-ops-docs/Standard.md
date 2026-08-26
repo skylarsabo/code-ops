@@ -36,7 +36,7 @@ The shared standard lives at `code-ops-docs/40 Engineering/Techniques/vault-stan
 
 ## Registry and trust
 
-`98 System/DOCS_MANIFEST.json` is the only topic-to-document and topic-to-source registry. It explicitly owns architecture, contracts, data models, engineering standards, API reference, CI and delivery, infrastructure, observability, design system, guides, atlas, and registered record collections. A domain is `current` or `not-applicable`; the latter requires concrete evidence.
+`98 System/DOCS_MANIFEST.json` is the only topic-to-document and topic-to-source registry. It explicitly owns architecture, contracts, data models, engineering standards, API reference, CI and delivery, infrastructure, observability, performance, design system, guides, atlas, and registered record collections. A domain is `current` or `not-applicable`; the latter requires concrete evidence.
 
 Run `node scripts/docs-manifest.mjs check` before trusting the hub. A matching source digest proves that the declared evidence paths have not moved since the document was reviewed. It does not prove coverage beyond those declared paths. Atlas prose is trusted only when `atlas-check.mjs` reports the section FRESH.
 

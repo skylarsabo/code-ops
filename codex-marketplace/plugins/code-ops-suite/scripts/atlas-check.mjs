@@ -4,7 +4,7 @@
 //
 //   node scripts/atlas-check.mjs init  --atlas <dir>
 //   node scripts/atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]
-//   node scripts/atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate]
+//   node scripts/atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--stats]
 //   node scripts/atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]
 //   node scripts/atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]
 //
@@ -72,7 +72,7 @@ const INBOX_HEADER = '# Atlas inbox\n\n'
 function usage() {
   console.error('usage: atlas-check.mjs init  --atlas <dir>');
   console.error('       atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]');
-  console.error('       atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate]');
+  console.error('       atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--stats]');
   console.error('       atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]');
   console.error('       atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]');
   process.exit(2);
@@ -104,7 +104,9 @@ function parseFlags(args, known, repeatable = new Set()) {
 
 // Every git call is explicit about cwd and bounded by a timeout — a hung git must not hang a
 // gate. Never throws: callers decide whether a failure is fail-safe (STALE) or fail-closed.
+let gitCallCount = 0;
 function git(args, cwd) {
+  gitCallCount++;
   try {
     const out = execFileSync('git', args, {
       cwd, encoding: 'utf8', timeout: 20000, maxBuffer: 64 * 1024 * 1024,
@@ -116,6 +118,7 @@ function git(args, cwd) {
   }
 }
 function gitBuffer(args, cwd) {
+  gitCallCount++;
   try { return { ok: true, out: execFileSync('git', args, { cwd, encoding: 'buffer', timeout: 20000, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }) }; }
   catch { return { ok: false, out: null }; }
 }
@@ -129,6 +132,16 @@ function resolveCommit(root, rev) {
   const sha = r.ok ? r.out.trim() : '';
   return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
 }
+function indexedPaths(output) {
+  const paths = [];
+  for (const entry of output.toString('utf8').split('\0')) {
+    if (!entry) continue;
+    const tab = entry.indexOf('\t');
+    if (tab < 0 || tab === entry.length - 1) return null;
+    paths.push(entry.slice(tab + 1));
+  }
+  return paths;
+}
 function scopeDigest(root, scope, excludeAtlas) {
   const index = gitBuffer(['ls-files', '-s', '-z', '--', ...scope, ...excludeAtlas], root);
   const dirty = gitBuffer(['diff', '--ignore-submodules=none', '--binary', '--full-index', '--no-ext-diff', '--no-textconv', '--no-renames', '--', ...scope, ...excludeAtlas], root);
@@ -136,9 +149,14 @@ function scopeDigest(root, scope, excludeAtlas) {
   const flags = gitBuffer(['ls-files', '-v', '-z', '--', ...scope, ...excludeAtlas], root);
   if (!index.ok || !dirty.ok || !unmerged.ok || !flags.ok || unmerged.out.length) return null;
   for (const entry of flags.out.toString('utf8').split('\0')) if (entry && (/^[a-z]/.test(entry) || /^[SM]/.test(entry))) return null;
+  const paths = indexedPaths(index.out);
+  if (paths === null) return null;
   const frame = (value) => Buffer.concat([Buffer.from(String(value.length)), Buffer.from([0]), value]);
   const scopeBytes = Buffer.from(scope.join('\0'));
-  return createHash('sha256').update(Buffer.from('atlas-scope-digest-v2\0')).update(frame(scopeBytes)).update(frame(index.out)).update(frame(dirty.out)).digest('hex');
+  return {
+    digest: createHash('sha256').update(Buffer.from('atlas-scope-digest-v2\0')).update(frame(scopeBytes)).update(frame(index.out)).update(frame(dirty.out)).digest('hex'),
+    paths,
+  };
 }
 
 // Resolve a value that CLAIMS to be a sha pin — a manifest `verifiedAt`, or `stamp --at <sha>`.
@@ -323,7 +341,8 @@ function cmdAdd(args) {
 
 function cmdCheck(args) {
   const gate = args.includes('--gate');
-  const rest = args.filter((a) => a !== '--gate');
+  const stats = args.includes('--stats');
+  const rest = args.filter((a) => a !== '--gate' && a !== '--stats');
   const f = parseFlags(rest, new Set(['--atlas', '--root']));
   if (!('--atlas' in f)) { console.error('x check needs --atlas'); usage(); }
   const atlasDir = atlasDirOf(f);
@@ -359,6 +378,7 @@ function cmdCheck(args) {
   }
 
   let stale = 0;
+  const pinCache = new Map();
   for (const [idx, s] of manifest.sections.entries()) {
     // Fail CLOSED on a hex-named ref, for the same reason the shape rule rejects `HEAD`: this is
     // a manifest whose pin lies, not a stamp that has aged out. The shape rule and this
@@ -371,14 +391,15 @@ function cmdCheck(args) {
       console.log(`  !!  STALE  ${s.slug}  — never stamped ('${UNVERIFIED}'): write the prose, verify it, then stamp`);
       continue;
     }
-    const { sha: pinned, movingRef } = resolvePin(root, s.verifiedAt);
+    if (!pinCache.has(s.verifiedAt)) pinCache.set(s.verifiedAt, resolvePin(root, s.verifiedAt));
+    const { sha: pinned, movingRef } = pinCache.get(s.verifiedAt);
     if (movingRef) {
       console.log(`  !!  MALFORMED  sections[${idx}].verifiedAt ${MOVING_PIN_REASON(s.verifiedAt)}`);
       console.log('\n1 manifest schema violation(s) — fix the manifest before trusting any section.');
       process.exit(1);
     }
-    const digest = s.verifiedDigest ? scopeDigest(root, s.scope, excludeAtlas) : null;
-    const digestMatches = digest !== null && digest === s.verifiedDigest;
+    const digestState = s.verifiedDigest ? scopeDigest(root, s.scope, excludeAtlas) : null;
+    const digestMatches = digestState !== null && digestState.digest === s.verifiedDigest;
     if (!pinned && !digestMatches) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — verifiedAt '${s.verifiedAt}' does not resolve to a commit in this repo (re-verify and re-stamp)`);
@@ -388,8 +409,10 @@ function cmdCheck(args) {
     // forever on a claim nobody can invalidate. Catch it before the diff verdict and call it what
     // it is: a section whose scope no longer points at the code. Per-section trust failure, so
     // STALE — not a manifest schema violation, since the store itself is well-formed.
-    const alive = git(['ls-files', '--', ...s.scope, ...excludeAtlas], root);
-    if (alive.ok && lines(alive.out).length === 0) {
+    const alive = digestState === null
+      ? git(['ls-files', '--', ...s.scope, ...excludeAtlas], root)
+      : { ok: true, paths: digestState.paths };
+    if (alive.ok && (alive.paths ?? lines(alive.out)).length === 0) {
       stale++;
       // Diagnose causally: if the same scope DOES match tracked files once the atlas exclusion
       // is lifted, the exclusion is the cause — the scope only covers the atlas's own tree,
@@ -476,6 +499,7 @@ function cmdCheck(args) {
   // The summary must not claim coverage a skipped sweep never established.
   const unmappedCell = sweepRan ? `${unmapped.length} unmapped` : 'unmapped unknown (sweep skipped)';
   console.log(`\n${manifest.sections.length} section(s), ${stale} stale, ${unmappedCell}.`);
+  if (stats) console.log(`git subprocesses: ${gitCallCount}`);
   if (stale && gate) {
     console.error('--gate: stale section(s) present — re-derive and re-stamp them, or treat their claims as leads, not facts.');
     process.exit(1);
@@ -519,9 +543,9 @@ function cmdStamp(args) {
   }
   target.verifiedAt = sha;
   if (!('--at' in f)) {
-    const digest = scopeDigest(root, target.scope, atlasExclusion(root, atlasDir).exclude);
-    if (!digest) { console.error('x cannot calculate scoped tracked-state digest; refusing to stamp'); process.exit(1); }
-    target.verifiedDigest = digest;
+    const digestState = scopeDigest(root, target.scope, atlasExclusion(root, atlasDir).exclude);
+    if (!digestState) { console.error('x cannot calculate scoped tracked-state digest; refusing to stamp'); process.exit(1); }
+    target.verifiedDigest = digestState.digest;
   } else delete target.verifiedDigest;
   try { writeFileSync(path, JSON.stringify(manifest, null, 2) + '\n'); }
   catch (e) { console.error(`x cannot write ${path}: ${e.message}`); process.exit(1); }

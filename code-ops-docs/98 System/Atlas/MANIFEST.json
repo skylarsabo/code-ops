@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8b4eecc28da77eef4d0c863374d4e9e7bb7fcd71",
-      "verifiedDigest": "fe3d5aa81a31cef3dcc1c9e17158b65ec08e921611b71b1ea86e23aa9d55adb9"
+      "verifiedAt": "41c5fc9486911001c1f3e196a9b33baef46ce643",
+      "verifiedDigest": "ed079ad285d066eef2ca87efdd0bb572f8f4a96d0bc376e8de3bc78576053378"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8b4eecc28da77eef4d0c863374d4e9e7bb7fcd71",
-      "verifiedDigest": "90965caa298a7ea8a60eb4e9c515146ff2ef9e276315cdb6df11482285652273"
+      "verifiedAt": "41c5fc9486911001c1f3e196a9b33baef46ce643",
+      "verifiedDigest": "69dcc8576ceeda0a561d9217efc79bb2f5b3d0e77ebaea5c3b750fa7720fd315"
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8b4eecc28da77eef4d0c863374d4e9e7bb7fcd71",
-      "verifiedDigest": "f9dfc283e94b2d9890d23d55d7755ccb9d259e2a8d3f43b8962b515252f6a1bc"
+      "verifiedAt": "41c5fc9486911001c1f3e196a9b33baef46ce643",
+      "verifiedDigest": "b3fbd99fc11109a2887ed7a36266ba2a9f632d222326b5a73b29f88cf8269865"
     },
     {
       "slug": "codex-render",
@@ -38,8 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8b4eecc28da77eef4d0c863374d4e9e7bb7fcd71",
-      "verifiedDigest": "38f22765e6dc3550330049593bef298e9d94e3340d52a00a02dc5d8bcf1374c2"
+      "verifiedAt": "41c5fc9486911001c1f3e196a9b33baef46ce643",
+      "verifiedDigest": "969b24cc406964051ba05baa7a9b7781b5b0b7ba784fd7769ab4442829136f18"
     },
     {
       "slug": "ci-workflows",
@@ -47,8 +47,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "6d06e46d16f095b031b29eaa68606cd6cc29f721",
-      "verifiedDigest": "5e80452ba8beb5e078291a2cc82ba3d5bc5cdb9e7807912ea67fa693f1a95ca3"
+      "verifiedAt": "41c5fc9486911001c1f3e196a9b33baef46ce643",
+      "verifiedDigest": "4f14436f6497026d7406be87dec5fe1f9220e947e7f2295bd6a1fee161405b6d"
     },
     {
       "slug": "docs-doctrine",
@@ -71,8 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "8b4eecc28da77eef4d0c863374d4e9e7bb7fcd71",
-      "verifiedDigest": "1b226a3ff58ec674431c3dbcc46777be3b2479f346e87a260fd754ece44033f2"
+      "verifiedAt": "41c5fc9486911001c1f3e196a9b33baef46ce643",
+      "verifiedDigest": "c233e4db5fe8ee00ddfd86e9a21acb895bd4048f7aa9cc32da60717f05b1986d"
     },
     {
       "slug": "root-contracts",
