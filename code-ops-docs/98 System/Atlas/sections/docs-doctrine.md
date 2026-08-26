@@ -18,4 +18,4 @@ This section deliberately scopes substantive domain folders and documentation sc
 
 One exact repository snapshot still serves each run. Documentation extraction contributes only affected collection indexes and inventories. Agents fetch a record body by permanent ID only when a domain needs it, so evidence volume does not become default context volume.
 
-The adoption review has two time domains. Before adoption, any `HEAD`, manifest, content, or history change invalidates the plan. After adoption, exact history remains mandatory while the reviewed anchor is ancestral; a content-preserving rewrite may replace locator commits without revoking authority, but it cannot increase the reviewed transition or prior-incarnation risk counts.
+The adoption review has two time domains. Before adoption, any `HEAD`, manifest, content, or history change invalidates the plan. The reviewed current path admission anchors record identity. The last matching content commit supplies the citation baseline. After adoption, a content-preserving rewrite may replace locators but cannot increase reviewed risk counts.

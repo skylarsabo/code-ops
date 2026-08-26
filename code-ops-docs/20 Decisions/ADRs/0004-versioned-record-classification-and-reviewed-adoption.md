@@ -24,8 +24,18 @@ Preserve both path introduction and content baseline commits. Introduction ident
 
 Heterogeneous evidence trees can use broad defaults without enumerating every ordinary path. Existing v1 collections remain valid and may migrate without changing record IDs or immutable policies.
 
-Operators pay one bounded history profile and an explicit review step before risky adoption. Any repository, manifest, content, or history drift invalidates the pre-adoption plan. Failed adoption leaves no generated files. Post-adoption checks use one content-and-risk rule, so an unreachable or forged `sourceHead` cannot select weaker verification. With complete history, the receipt must cover exactly the original adopted records and artifacts. Current bytes and classification must match, stored risk labels must agree with stored counts, every currently risky candidate needs a reviewed rationale, and recomputed risk counts cannot exceed the stored profile. With incomplete history, ordinary checks warn and cannot verify candidate history or risk; strict verification fails as infrastructure.
+Operators pay one bounded history profile and an explicit review step before risky adoption. Repository, manifest, content, or history drift invalidates the plan. Failed adoption leaves no generated files.
 
-`receiptDigest` is an unkeyed canonical checksum. It detects corruption and stale cross-field copies; it does not authenticate a reviewer or prove that receipt bytes survived after their prior commit became unreachable. Protected repository review is the procedural trust root. Rewrite tolerance assumes the resulting tree preserves the receipt authority bytes. A repository that permits total-history replacement to rewrite those bytes must anchor the receipt digest in an external signature or transparency log.
+Post-adoption checks use one content-and-risk rule. An unreachable or forged `sourceHead` cannot select weaker verification. With complete history, checks require:
+
+- exact coverage of the original candidates;
+- matching current bytes and classification;
+- risk labels that agree with stored counts;
+- a reviewed rationale for each currently risky candidate; and
+- recomputed counts that do not exceed the stored profile.
+
+Incomplete history prevents proof of candidate history or risk. Ordinary checks warn, while strict verification fails as infrastructure.
+
+`receiptDigest` is an unkeyed canonical checksum. It detects corruption and stale cross-field copies. It does not authenticate a reviewer or unreachable receipt bytes. Protected repository review is the procedural trust root. Rewrite tolerance assumes that the resulting tree preserves the receipt authority bytes. Total-history replacement requires an external signature or transparency log.
 
 Inventory v2 adds durable adoption-review metadata and a baseline commit. Inventory v1 remains readable. Generated projections and documentation must describe both versions until fleet evidence supports deprecation.

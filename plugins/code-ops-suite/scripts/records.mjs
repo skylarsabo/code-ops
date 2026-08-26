@@ -7,7 +7,7 @@ import { dirname, relative } from 'node:path';
 import {
   adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, extractCitations, findBlobByDigest, FULL_ID_RE, git,
-  gitPaths, historicalTarget, introductionCommit, jsonl, nativePath, physicalRoot, posix,
+  gitPaths, historicalTarget, jsonl, nativePath, physicalRoot, posix,
   readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
@@ -469,8 +469,9 @@ function inventoryEntry(context, row, provenance, staged = false, baseline = nul
     path, provenance, sha256: sha256(staged ? bytes : git(context.root, ['cat-file', '-p', index.blobOid], true)), kind: row.kind, policy: row.policy,
   };
   if (provenance === 'adopted') {
-    entry.introducedCommit = baseline?.introducedCommit || introductionCommit(context.root, path);
-    entry.baselineCommit = baseline?.baselineCommit || entry.introducedCommit;
+    if (!baseline?.introducedCommit || !baseline?.baselineCommit) throw new Error(`missing adopted record baseline: ${path}`);
+    entry.introducedCommit = baseline.introducedCommit;
+    entry.baselineCommit = baseline.baselineCommit;
   }
   else { entry.introducedCommit = null; entry.introducedIndexHead = headOid(context.root); }
   return entry;
@@ -492,12 +493,8 @@ function adopt(context, options) {
   const profiles = new Map(plan.candidates.map((candidate) => [candidate.path, candidate]));
   const entries = records.map((row) => {
     const profile = profiles.get(row.path);
-    const introduced = introductionCommit(context.root, row.path);
-    if (introduced !== profile.history.admittedCommit) {
-      throw new Error(`record introduction is unresolvable for ${row.path}: path-lineage and exact-path history disagree`);
-    }
     return inventoryEntry(context, row, 'adopted', true, {
-      introducedCommit: introduced, baselineCommit: profile.history.baselineCommit,
+      introducedCommit: profile.history.admittedCommit, baselineCommit: profile.history.baselineCommit,
     });
   });
   if (new Set(entries.map((entry) => entry.id)).size !== entries.length) throw new Error('record ID collision');

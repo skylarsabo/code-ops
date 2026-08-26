@@ -4,12 +4,14 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 ## 1.48.0
-- Promoted records now resolve one canonical add-or-rename lineage and mechanically prove the selected commit contains the exact identity-bearing path. The CLI uses the shared resolver, and query failures no longer claim complete history is missing.
-- Scope classification v2 adds stable scope IDs, glob arrays, and exact tracked-path arrays. Exact paths outrank broad globs without declaration-order policy, while v1 keeps its exact-one semantics.
-- Irreversible adoption now separates partition validity from history readiness. Historically revised immutable candidates require a current digest-bound review plan, and inventory v2 preserves the receipt, path-introduction commit, and citation-baseline commit.
-- `classify` now emits `{ classificationStatus, adoptionReadiness, rows }` instead of a bare row array. Invalid classification takes precedence over history availability, so callers can distinguish structural failure from adoption risk without parsing row detail.
-- Post-adoption receipt checks use one rewrite-tolerant rule instead of selecting a weaker path from `sourceHead`. With complete history, they require exact original-candidate coverage, exact bytes and classification, internally consistent risk labels, current-risk review coverage, and non-increasing risk counts. Incomplete history warns during ordinary checks and fails strict verification as infrastructure. History collection is bounded to record lineage paths, and root-casing checks retain untracked-file coverage.
-- Synthetic regressions cover direct and merged promotion, reused source paths, staged native classification, exact-path precedence, order independence, v1-to-v2 migration, stale review invalidation, content-preserving history rewrites, forged receipt omissions and labels, invalid shallow classification, and zero generated outputs on refusal.
+- Record adoption now anchors identity to the reviewed current exact-path admission. Delete-and-readd and rename-back histories adopt the surviving path incarnation.
+- History profiling follows promotion lineages and batches exact-path history queries. Path, event, batch-count, and process-argument ceilings keep the work bounded.
+- Scope classification v2 adds stable scope IDs, glob arrays, and exact tracked-path arrays. Exact paths outrank broad globs. Version 1 keeps exact-one semantics.
+- Adoption separates partition validity from history readiness. Historically revised immutable candidates require a current digest-bound review plan. Inventory v2 preserves the receipt and both baseline commits.
+- `classify` returns `{ classificationStatus, adoptionReadiness, rows }`. Invalid classification takes precedence over unavailable history. Callers do not need to infer status from row details.
+- Post-adoption checks apply one rewrite-tolerant rule. They verify original-candidate coverage, current bytes, classification, risk consistency, rationale coverage, and non-increasing risk counts.
+- Incomplete history warns during ordinary checks and fails strict verification as infrastructure. `sourceHead` cannot select weaker verification.
+- Regressions cover promotion, path reuse, long Windows arguments, refusal atomicity, receipt tampering, inventory monotonicity, migration, and content-preserving history rewrites.
 
 ## 1.47.1
 - Record commands canonicalize an aliased repository root once at entry while retaining physical containment checks for every descendant write. Cross-platform regressions prove ambient junctions or symlinks work and linked output paths still fail before mutation.

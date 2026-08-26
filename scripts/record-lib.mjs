@@ -21,6 +21,8 @@ const V1_SCOPE_KEYS = ['kind', 'pattern', 'policy'];
 const V2_SCOPE_KEYS = ['id', 'kind', 'match', 'paths', 'policy'];
 const MAX_HISTORY_PATHS = 10000;
 const MAX_HISTORY_EVENTS = 250000;
+const MAX_HISTORY_BATCH_PATHS = 128;
+const MAX_HISTORY_COMMAND_UNITS = 24000;
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonical = (value) => Array.isArray(value)
@@ -288,16 +290,6 @@ export function completeHistory(root) {
 export function cleanWorktree(root) {
   return git(root, ['status', '--porcelain=v1', '--untracked-files=all']).trim() === '';
 }
-export function introductionCommit(root, path) {
-  const commits = git(root, ['log', '--follow', '--diff-filter=AR', '--format=%H', '--reverse', '--', `:(literal)${path}`])
-    .trim().split(/\s+/).filter(Boolean);
-  for (const commit of commits) {
-    try { git(root, ['cat-file', '-e', `${commit}:${path}`]); return commit; }
-    catch { /* try the next path-lineage event */ }
-  }
-  throw new Error(`record introduction is unresolvable for ${path}: no add-or-rename event contains the exact adopted path`);
-}
-
 function parseHistory(output) {
   const tokens = output.split('\0'); const events = []; let commit = null;
   for (let index = 0; index < tokens.length; index += 1) {
@@ -322,6 +314,27 @@ function pathHistory(root, path, follow = false) {
   ], true).toString('utf8'));
 }
 
+function pathsHistory(root, paths) {
+  return parseHistory(git(root, [
+    'log', '--topo-order', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
+    '--', ...paths.map((path) => `:(literal)${path}`),
+  ], true).toString('utf8'));
+}
+
+export function historyPathBatches(paths) {
+  const batches = []; let batch = []; let commandUnits = 1024;
+  for (const path of paths) {
+    const argumentUnits = (`:(literal)${path}`).length * 2 + 3;
+    if (batch.length && (batch.length >= MAX_HISTORY_BATCH_PATHS
+      || commandUnits + argumentUnits > MAX_HISTORY_COMMAND_UNITS)) {
+      batches.push(batch); batch = []; commandUnits = 1024;
+    }
+    batch.push(path); commandUnits += argumentUnits;
+  }
+  if (batch.length) batches.push(batch);
+  return batches;
+}
+
 function repositoryHistory(root, rows) {
   const lineagePaths = new Set(rows.map((row) => row.path)); const discovered = new Map();
   for (const path of [...lineagePaths].sort()) {
@@ -331,8 +344,9 @@ function repositoryHistory(root, rows) {
       if (lineagePaths.size > MAX_HISTORY_PATHS) throw new Error(`record history profile exceeds ${MAX_HISTORY_PATHS} lineage paths`);
     }
   }
-  for (const path of [...lineagePaths].sort()) {
-    for (const event of pathHistory(root, path)) {
+  const exactPaths = [...lineagePaths].sort();
+  for (const batch of historyPathBatches(exactPaths)) {
+    for (const event of pathsHistory(root, batch)) {
       discovered.set(canonical(event), event);
       if (discovered.size > MAX_HISTORY_EVENTS) throw new Error(`record history profile exceeds ${MAX_HISTORY_EVENTS} relevant events`);
     }

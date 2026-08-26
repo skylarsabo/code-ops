@@ -46,7 +46,7 @@ Inventory the existing tree before moving anything. Separate ordinary authored d
 
 Assign the permanent collection UUID and require complete Git history. Run `records plan-adoption --out <ignored-path>`, review every `review-required` candidate, and record `freeze-current` plus a concrete rationale. Then run `records adopt --review <ignored-path>`. Adoption must finish before authored files move. Migrate ordinary authored documents in slices, using moves instead of copies. Add only mechanically eligible generated pointers or explicitly adopted tombstones. A record classification error requires curation and a new hub document, never byte rewriting.
 
-Treat protected repository review as the trust root for the receipt. `receiptDigest` is an unkeyed canonical checksum, not a reviewer signature. Rewrite tolerance assumes the resulting tree preserves the receipt authority bytes. A repository that permits total-history replacement to rewrite those bytes needs an external signature or transparency log.
+Treat protected repository review as the trust root for the receipt. `receiptDigest` is an unkeyed canonical checksum, not a reviewer signature. Rewrite tolerance assumes that the resulting tree preserves the receipt authority bytes. Total-history replacement requires an external signature or transparency log.
 
 ## Phase 3 — CHECK
 Run the vault and manifest checkers and repair the repository, never the gate. When manifest v2 declares collections, run `records check` and treat incomplete history separately from evidence loss. Confirm generated record indexes resolve full IDs and current authority links.

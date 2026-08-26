@@ -60,4 +60,14 @@ The curation ledger is ordered JSONL. Every event links the prior global event a
 
 Collection classification has an independent version. Version 1 uses one glob pattern per scope. Version 2 gives each scope a stable ID, glob selectors, and exact-path selectors. This version never changes record identity.
 
-An adoption history profile contains the exact-path admission commit, baseline commit, rename lineage, content-transition count, prior-incarnation count, current SHA-256, and `historyDigest`. The digest uses SHA-256 content identities and paths rather than commit or Git-object IDs. Admission remains anchored to the current path while readiness follows earlier promoted paths. The review plan binds the full profile to `HEAD` and the manifest digest. Inventory v2 stores the candidate profiles, completed reviewed dispositions, and canonical receipt digest. With complete history, later checks apply one rewrite-tolerant content-and-risk relation: current bytes and classification stay exact, stored labels agree with stored counts, current risk retains review coverage, counts never exceed the stored profile, and the original candidate set stays fixed. Incomplete history cannot prove candidate history or risk. The receipt digest provides integrity, not reviewer authentication, and total-history replacement needs an external trust anchor to authenticate original receipt bytes.
+An adoption history profile stores:
+
+- exact-path admission and content-baseline commits;
+- lineage bounds in `firstRelevantCommit` and `lastRelevantCommit`;
+- content-transition and prior-incarnation counts;
+- current SHA-256; and
+- `historyDigest`.
+
+The digest uses SHA-256 content identities and paths instead of Git object IDs. Admission stays anchored to the current path. Readiness also follows earlier promoted paths. The review plan binds the profile to `HEAD` and the manifest digest. Inventory v2 stores profiles, reviewed dispositions, and the canonical receipt digest.
+
+Complete-history checks keep current bytes and classification exact. Stored labels must agree with stored counts. Current risk retains review coverage, counts cannot increase, and the original candidate set stays fixed. Incomplete history cannot prove candidate history or risk. The receipt digest provides integrity, not reviewer authentication. Total-history replacement needs an external trust anchor.

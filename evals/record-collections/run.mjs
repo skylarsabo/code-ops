@@ -4,14 +4,14 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { digestJson, extractCitations, recordId, resolvePrefix, sha256, writeAtomically } from '../../scripts/record-lib.mjs';
+import { digestJson, extractCitations, historyPathBatches, recordId, resolvePrefix, sha256, writeAtomically } from '../../scripts/record-lib.mjs';
 
 const ROOT = process.cwd();
 const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 112 : 115;
+const expectedCases = process.platform === 'win32' ? 118 : 121;
 let executedCases = 0;
 let work;
 
@@ -184,6 +184,19 @@ try {
   check('scope v2 glob ambiguity refuses adoption without generated files', result.status === 1
     && result.output.includes('invalid collection classification')
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(scopeV2Repo, name))), result.output);
+
+  const longPaths = Array.from({ length: 128 }, (_, index) => {
+    const suffix = String(index).padStart(3, '0');
+    return `records/${'a'.repeat(120)}/${'b'.repeat(120)}/record-${suffix}.md`;
+  });
+  const longPathBatches = historyPathBatches(longPaths);
+  const batchesSpawn = longPathBatches.every((batch) => {
+    try { execFileSync('git', ['--version', ...batch.map((path) => `:(literal)${path}`)], { stdio: 'ignore' }); return true; }
+    catch (error) { return error.code !== 'ENAMETOOLONG'; }
+  });
+  check('exact-history batches stay within the Windows process argument budget', longPathBatches.length > 1
+    && longPathBatches.flat().join('\0') === longPaths.join('\0') && batchesSpawn);
+
   result = run(['classify', '--root', scopeV2Repo, ...COLLECTION], scopeV2Repo);
   check('invalid classification is not mislabeled as unavailable history', result.status === 1
     && result.output.includes('"status": "classification-invalid"')
@@ -273,6 +286,46 @@ try {
   check('reused promotion source paths require review before generated writes', result.status === 1
     && result.output.includes('adoption review required')
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(reusedPromotionRepo, name))), result.output);
+
+  const readdedRepo = join(work, 'readded-record'); mkdirSync(readdedRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], readdedRepo);
+  write(readdedRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(readdedRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(readdedRepo, 'records/one.md', '# First record incarnation\n'); commit(readdedRepo, 'add first record incarnation');
+  git(['rm', 'records/one.md'], readdedRepo); commit(readdedRepo, 'remove first record incarnation');
+  write(readdedRepo, 'records/one.md', '# Reviewed replacement incarnation\n'); commit(readdedRepo, 'add replacement record incarnation');
+  const readdedAdmission = git(['rev-parse', 'HEAD'], readdedRepo).trim();
+  writeFileSync(join(readdedRepo, '.git', 'info', 'exclude'), 'adoption-review.json\n');
+  result = run(['plan-adoption', '--root', readdedRepo, ...COLLECTION, '--out', 'adoption-review.json'], readdedRepo);
+  const readdedReview = JSON.parse(readFileSync(join(readdedRepo, 'adoption-review.json'), 'utf8'));
+  readdedReview.candidates[0].disposition = 'freeze-current';
+  readdedReview.candidates[0].rationale = 'The replacement incarnation is the reviewed immutable baseline.';
+  writeFileSync(join(readdedRepo, 'adoption-review.json'), `${JSON.stringify(readdedReview, null, 2)}\n`);
+  result = run(['adopt', '--root', readdedRepo, ...COLLECTION, '--review', 'adoption-review.json'], readdedRepo);
+  const readdedInventory = result.status === 0 ? JSON.parse(readFileSync(generated(readdedRepo, 'inventory.json'), 'utf8')) : null;
+  if (result.status === 0) commit(readdedRepo, 'adopt reviewed replacement incarnation');
+  const readdedCheck = result.status === 0 ? run(['check', '--root', readdedRepo, ...COLLECTION], readdedRepo) : result;
+  const readdedStrict = result.status === 0 ? run(['verify-history', '--strict', '--root', readdedRepo, ...COLLECTION], readdedRepo) : result;
+  check('reviewed delete and re-add adopts the current exact-path admission', result.status === 0
+    && readdedInventory?.entries?.[0]?.introducedCommit === readdedAdmission
+    && readdedCheck.status === 0 && readdedStrict.status === 0, `${result.output}${readdedCheck.output}${readdedStrict.output}`);
+
+  const renameBackRepo = join(work, 'rename-back-record'); mkdirSync(renameBackRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], renameBackRepo);
+  write(renameBackRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(renameBackRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(renameBackRepo, 'records/a.md', '# Rename-back record\n'); commit(renameBackRepo, 'add record at a');
+  git(['mv', 'records/a.md', 'records/b.md'], renameBackRepo); commit(renameBackRepo, 'move record to b');
+  git(['mv', 'records/b.md', 'records/a.md'], renameBackRepo); commit(renameBackRepo, 'move record back to a');
+  const renameBackAdmission = git(['rev-parse', 'HEAD'], renameBackRepo).trim();
+  result = run(['adopt', '--root', renameBackRepo, ...COLLECTION], renameBackRepo);
+  const renameBackInventory = result.status === 0 ? JSON.parse(readFileSync(generated(renameBackRepo, 'inventory.json'), 'utf8')) : null;
+  if (result.status === 0) commit(renameBackRepo, 'adopt rename-back record');
+  const renameBackCheck = result.status === 0 ? run(['check', '--root', renameBackRepo, ...COLLECTION], renameBackRepo) : result;
+  const renameBackStrict = result.status === 0 ? run(['verify-history', '--strict', '--root', renameBackRepo, ...COLLECTION], renameBackRepo) : result;
+  check('rename-back adoption uses the surviving exact-path admission', result.status === 0
+    && renameBackInventory?.entries?.[0]?.introducedCommit === renameBackAdmission
+    && renameBackCheck.status === 0 && renameBackStrict.status === 0, `${result.output}${renameBackCheck.output}${renameBackStrict.output}`);
 
   const reusedIntermediateRepo = join(work, 'reused-intermediate-promotion'); mkdirSync(reusedIntermediateRepo, { recursive: true });
   git(['init', '--quiet', '-b', 'main'], reusedIntermediateRepo);
@@ -508,6 +561,27 @@ try {
   check('ancestral post-adoption edit and revert remains history drift', result.status === 1
     && result.output.includes('adoption review history drift'), result.output);
 
+  const receiptDigestRepo = join(work, 'receipt-digest-mismatch'); cpSync(repo, receiptDigestRepo, { recursive: true });
+  const receiptDigestPath = generated(receiptDigestRepo, 'inventory.json');
+  const receiptDigestInventory = JSON.parse(readFileSync(receiptDigestPath, 'utf8'));
+  receiptDigestInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  writeFileSync(receiptDigestPath, `${JSON.stringify(receiptDigestInventory, null, 2)}\n`);
+  result = run(['check', '--root', receiptDigestRepo, ...COLLECTION], receiptDigestRepo);
+  check('receipt field tampering without a new digest fails', result.status === 1
+    && result.output.includes('record adoption review digest mismatch'), result.output);
+
+  const receiptRewriteRepo = join(work, 'receipt-history-rewrite'); cpSync(repo, receiptRewriteRepo, { recursive: true });
+  const receiptRewritePath = generated(receiptRewriteRepo, 'inventory.json');
+  const receiptRewriteInventory = JSON.parse(readFileSync(receiptRewritePath, 'utf8'));
+  receiptRewriteInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  delete receiptRewriteInventory.adoptionReview.receiptDigest;
+  receiptRewriteInventory.adoptionReview.receiptDigest = digestJson(receiptRewriteInventory.adoptionReview);
+  writeFileSync(receiptRewritePath, `${JSON.stringify(receiptRewriteInventory, null, 2)}\n`);
+  commit(receiptRewriteRepo, 'replace committed adoption receipt');
+  result = run(['check', '--root', receiptRewriteRepo, ...COLLECTION], receiptRewriteRepo);
+  check('a re-digested receipt cannot replace committed adoption authority', result.status === 1
+    && result.output.includes('record adoption review changed after introduction'), result.output);
+
   const emptyReceiptRepo = join(work, 'empty-adoption-receipt'); cpSync(repo, emptyReceiptRepo, { recursive: true });
   const emptyReceiptPath = generated(emptyReceiptRepo, 'inventory.json');
   const emptyReceiptInventory = JSON.parse(readFileSync(emptyReceiptPath, 'utf8'));
@@ -612,16 +686,26 @@ try {
   check('tracked frozen artifacts cannot bypass the inventory', result.status === 1
     && result.output.includes('frozen artifact missing from inventory'), result.output);
 
-  const committedRewrite = join(work, 'committed-rewrite'); cpSync(repo, committedRewrite, { recursive: true });
-  write(committedRewrite, 'records/one.md', `${originalRecord}\ncommitted rewrite\n`);
-  const rewrittenInventoryPath = generated(committedRewrite, 'inventory.json');
-  const rewrittenInventory = JSON.parse(readFileSync(rewrittenInventoryPath, 'utf8'));
-  rewrittenInventory.entries[0].sha256 = sha256(readFileSync(join(committedRewrite, 'records', 'one.md')));
-  writeFileSync(rewrittenInventoryPath, `${JSON.stringify(rewrittenInventory, null, 2)}\n`);
-  run(['render', '--root', committedRewrite, ...COLLECTION], committedRewrite); commit(committedRewrite, 'coordinated immutable rewrite');
-  result = run(['check', '--root', committedRewrite, ...COLLECTION], committedRewrite);
+  const candidatePinRepo = join(work, 'candidate-pin'); cpSync(repo, candidatePinRepo, { recursive: true });
+  write(candidatePinRepo, 'records/one.md', `${originalRecord}\ncommitted rewrite\n`);
+  const candidatePinPath = generated(candidatePinRepo, 'inventory.json');
+  const candidatePinInventory = JSON.parse(readFileSync(candidatePinPath, 'utf8'));
+  candidatePinInventory.entries[0].sha256 = sha256(readFileSync(join(candidatePinRepo, 'records', 'one.md')));
+  writeFileSync(candidatePinPath, `${JSON.stringify(candidatePinInventory, null, 2)}\n`);
+  run(['render', '--root', candidatePinRepo, ...COLLECTION], candidatePinRepo); commit(candidatePinRepo, 'coordinated immutable rewrite');
+  result = run(['check', '--root', candidatePinRepo, ...COLLECTION], candidatePinRepo);
   check('committed body plus inventory rehash cannot bypass the adoption receipt', result.status === 1
     && result.output.includes('adoption review candidate is not pinned by inventory'), result.output);
+
+  const committedRewrite = join(work, 'committed-rewrite'); cpSync(repo, committedRewrite, { recursive: true });
+  const rewrittenInventoryPath = generated(committedRewrite, 'inventory.json');
+  const rewrittenInventory = JSON.parse(readFileSync(rewrittenInventoryPath, 'utf8'));
+  rewrittenInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], committedRewrite).trim();
+  writeFileSync(rewrittenInventoryPath, `${JSON.stringify(rewrittenInventory, null, 2)}\n`);
+  commit(committedRewrite, 'rewrite committed inventory metadata');
+  result = run(['check', '--root', committedRewrite, ...COLLECTION], committedRewrite);
+  check('committed inventory metadata rewrites fail historical monotonicity', result.status === 1
+    && result.output.includes('record inventory changed'), result.output);
 
   const renamedHubRewrite = join(work, 'renamed-hub-rewrite'); cpSync(repo, renamedHubRewrite, { recursive: true });
   git(['mv', 'hub', 'knowledge-hub'], renamedHubRewrite);
@@ -629,16 +713,14 @@ try {
   const movedManifest = JSON.parse(readFileSync(movedManifestPath, 'utf8'));
   movedManifest.hub = 'knowledge-hub';
   writeFileSync(movedManifestPath, `${JSON.stringify(movedManifest, null, 2)}\n`);
-  write(renamedHubRewrite, 'records/one.md', `${originalRecord}\nrewrite hidden behind a hub move\n`);
   const movedInventoryPath = join(renamedHubRewrite, 'knowledge-hub', '98 System', 'Records', 'inventory.json');
   const movedInventory = JSON.parse(readFileSync(movedInventoryPath, 'utf8'));
-  movedInventory.entries[0].sha256 = sha256(readFileSync(join(renamedHubRewrite, 'records', 'one.md')));
+  movedInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], renamedHubRewrite).trim();
   writeFileSync(movedInventoryPath, `${JSON.stringify(movedInventory, null, 2)}\n`);
-  run(['render', '--root', renamedHubRewrite, ...COLLECTION], renamedHubRewrite);
-  commit(renamedHubRewrite, 'move hub with coordinated immutable rewrite');
+  commit(renamedHubRewrite, 'move hub with rewritten inventory metadata');
   result = run(['check', '--root', renamedHubRewrite, ...COLLECTION], renamedHubRewrite);
-  check('hub rename cannot hide a coordinated immutable rewrite', result.status === 1
-    && result.output.includes('adoption review candidate is not pinned by inventory'), result.output);
+  check('hub rename cannot hide a committed inventory rewrite', result.status === 1
+    && result.output.includes('record inventory changed'), result.output);
 
   if (process.platform !== 'win32') {
     const literalHubRepo = join(work, 'literal-hub'); mkdirSync(literalHubRepo, { recursive: true });
@@ -651,16 +733,14 @@ try {
     result = run(['adopt', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
     check('literal-pathspec fixture adopts', result.status === 0, result.output);
     commit(literalHubRepo, 'adopt literal-pathspec hub');
-    write(literalHubRepo, 'records/one.md', '# Rewritten literal pathspec record\n');
     const literalInventoryPath = join(literalHubRepo, ':hub', '98 System', 'Records', 'inventory.json');
     const literalInventory = JSON.parse(readFileSync(literalInventoryPath, 'utf8'));
-    literalInventory.entries[0].sha256 = sha256(readFileSync(join(literalHubRepo, 'records', 'one.md')));
+    literalInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], literalHubRepo).trim();
     writeFileSync(literalInventoryPath, `${JSON.stringify(literalInventory, null, 2)}\n`);
-    run(['render', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
-    commit(literalHubRepo, 'attempt coordinated rewrite under literal-pathspec hub');
+    commit(literalHubRepo, 'rewrite inventory under literal-pathspec hub');
     result = run(['check', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
-    check('pathspec-like hub names cannot disable append-only history', result.status === 1
-      && result.output.includes('adoption review candidate is not pinned by inventory'), result.output);
+    check('pathspec-like hub names cannot hide inventory history', result.status === 1
+      && result.output.includes('record inventory changed'), result.output);
 
     const symlinkRepo = join(work, 'symlink-record'); mkdirSync(symlinkRepo, { recursive: true });
     git(['init', '--quiet', '-b', 'main'], symlinkRepo);
