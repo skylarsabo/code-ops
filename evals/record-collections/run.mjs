@@ -226,7 +226,8 @@ try {
   git(['mv', 'drafts/promoted.md', 'records/promoted.md'], mergedPromotionRepo);
   commit(mergedPromotionRepo, 'promote branch record');
   git(['checkout', '-q', 'main'], mergedPromotionRepo);
-  git(['merge', '--no-ff', '-m', 'merge promoted record', 'draft-work'], mergedPromotionRepo);
+  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'merge', '--no-ff', '-m', 'merge promoted record', 'draft-work'], mergedPromotionRepo);
   result = run(['adopt', '--root', mergedPromotionRepo, ...COLLECTION], mergedPromotionRepo);
   check('merged pre-promotion revisions remain visible to adoption review', result.status === 1
     && result.output.includes('adoption review required')
