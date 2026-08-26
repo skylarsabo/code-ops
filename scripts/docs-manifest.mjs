@@ -5,21 +5,16 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { atomicWrite, pathMatchesGlob, safeRelative, sha256, toPosix } from './context-index-lib.mjs';
+import { safePath, scopeValidationErrors } from './record-lib.mjs';
 
 const REQUIRED = new Set(['architecture', 'contracts', 'data-model', 'engineering-standards', 'api-reference', 'ci-delivery', 'infrastructure', 'observability', 'design-system', 'guides', 'atlas']);
 const TOP_KEYS_V1 = new Set(['version', 'hub', 'domains']);
 const TOP_KEYS_V2 = new Set(['version', 'hub', 'runs', 'recordCollections', 'legacyPaths', 'domains']);
 const KEYS = new Set(['id', 'path', 'status', 'evidence', 'sources', 'sourceDigest', 'contentDigest']);
 const COLLECTION_KEYS = new Set(['id', 'collectionUuid', 'identityVersion', 'root', 'inventory', 'citations', 'curationLedger', 'index', 'scopes']);
-const SCOPE_KEYS = new Set(['pattern', 'kind', 'policy']);
+const COLLECTION_KEYS_V2 = new Set([...COLLECTION_KEYS, 'classificationVersion']);
 const LEGACY_KEYS = new Set(['path', 'disposition', 'target', 'requiredBy']);
 const RECORDS_ROOT = '98 System/Records/';
-const SCOPE_POLICIES = new Map([
-  ['record', new Set(['append-only'])],
-  ['artifact', new Set(['mutable', 'frozen', 'superseded'])],
-  ['executable', new Set(['frozen', 'superseded'])],
-  ['forbidden', new Set(['forbidden'])],
-]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
 function usage() { die('usage: docs-manifest.mjs check|sync|plan [--root <repo>] [--out <file>]', 2); }
@@ -75,7 +70,7 @@ function standardVersion(root, hub) {
   const value = match[1].split(/\r?\n/).map((line) => /^standard-version:\s*["']?([^"']+?)["']?\s*$/.exec(line)).find(Boolean)?.[1];
   return value === undefined ? null : Number(value);
 }
-function inspectCollections(manifest, hub, files, errors) {
+function inspectCollections(manifest, hub, files, tracked, errors) {
   if (manifest.version !== 2) return;
   if (!exactKeys(manifest.runs, new Set(['tracking']), 'runs', errors)
     || !['tracked', 'ignored'].includes(manifest.runs?.tracking)) errors.push('runs.tracking must be tracked or ignored');
@@ -89,13 +84,14 @@ function inspectCollections(manifest, hub, files, errors) {
   }
   const ids = new Set(); const uuids = new Set(); const roots = [];
   for (const collection of collections) {
-    if (!exactKeys(collection, COLLECTION_KEYS, `record collection ${collection?.id || '<unknown>'}`, errors)) continue;
+    const collectionKeys = Object.hasOwn(collection || {}, 'classificationVersion') ? COLLECTION_KEYS_V2 : COLLECTION_KEYS;
+    if (!exactKeys(collection, collectionKeys, `record collection ${collection?.id || '<unknown>'}`, errors)) continue;
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(collection?.id || '') || ids.has(collection.id)) errors.push(`invalid or duplicate record collection id ${collection?.id}`);
     else ids.add(collection.id);
     if (!UUID_RE.test(collection?.collectionUuid || '') || uuids.has(collection.collectionUuid?.toLowerCase())) errors.push(`${collection?.id || 'record collection'} has an invalid or duplicate collectionUuid`);
     else uuids.add(collection.collectionUuid.toLowerCase());
     if (collection?.identityVersion !== 1) errors.push(`${collection?.id || 'record collection'} identityVersion must be 1`);
-    if (!safeRelative(collection?.root)) errors.push(`${collection?.id || 'record collection'} root must be a safe repository-relative path`);
+    if (!safePath(collection?.root)) errors.push(`${collection?.id || 'record collection'} root must be a safe repository-relative path`);
     else {
       const normalized = collection.root.toLowerCase();
       if (roots.some((root) => normalized === root || normalized.startsWith(`${root}/`) || root.startsWith(`${normalized}/`))) errors.push(`${collection.id} root overlaps another record collection`);
@@ -105,8 +101,8 @@ function inspectCollections(manifest, hub, files, errors) {
       if (aliases.length) errors.push(`${collection.id} root casing differs from Git index: ${aliases.join(', ')}`);
     }
     for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
-      if (!safeRelative(collection?.[key]) || !collection[key].startsWith(RECORDS_ROOT)) errors.push(`${collection?.id || 'record collection'} ${key} must be inside ${RECORDS_ROOT}`);
-      else if (safeRelative(collection?.root)) {
+      if (!safePath(collection?.[key]) || !collection[key].startsWith(RECORDS_ROOT)) errors.push(`${collection?.id || 'record collection'} ${key} must be inside ${RECORDS_ROOT}`);
+      else if (safePath(collection?.root)) {
         const generatedPath = `${hub}/${collection[key]}`;
         const foldedGenerated = generatedPath.toLowerCase(); const foldedRoot = collection.root.toLowerCase();
         if (foldedGenerated === foldedRoot || foldedGenerated.startsWith(`${foldedRoot}/`)) {
@@ -114,12 +110,8 @@ function inspectCollections(manifest, hub, files, errors) {
         }
       }
     }
-    if (!Array.isArray(collection?.scopes) || !collection.scopes.length) errors.push(`${collection?.id || 'record collection'} needs scopes`);
-    for (const [index, scope] of (collection?.scopes || []).entries()) {
-      exactKeys(scope, SCOPE_KEYS, `${collection.id} scope ${index + 1}`, errors);
-      if (typeof scope?.pattern !== 'string' || !scope.pattern || scope.pattern.startsWith('/') || scope.pattern.includes('\\')) errors.push(`${collection.id} scope ${index + 1} has an invalid pattern`);
-      if (!SCOPE_POLICIES.get(scope?.kind)?.has(scope?.policy)) errors.push(`${collection.id} scope ${index + 1} has an invalid kind/policy pair`);
-    }
+    const collectionLabel = collection?.id || 'record collection';
+    errors.push(...scopeValidationErrors(collection, tracked).map((error) => `${collectionLabel} ${error}`));
   }
   const generated = new Set();
   for (const collection of collections) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
@@ -151,13 +143,14 @@ function inspectCollections(manifest, hub, files, errors) {
 function inspect(root, manifest, hub) {
   const errors = [];
   const files = gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']);
+  const tracked = gitPaths(root, ['ls-files', '-z']);
   const topKeys = manifest.version === 2 ? TOP_KEYS_V2 : TOP_KEYS_V1;
   for (const key of Object.keys(manifest)) if (!topKeys.has(key)) errors.push(`manifest has unknown key ${key}`);
   for (const key of topKeys) if (!(key in manifest)) errors.push(`manifest is missing ${key}`);
   if (![1, 2].includes(manifest.version) || !safeRelative(hub) || !Array.isArray(manifest.domains)) errors.push('manifest must use version 1 or 2, a safe hub, and a domains array');
   const claimedStandard = standardVersion(root, hub);
   if (manifest.version === 2 && (!Number.isInteger(claimedStandard) || claimedStandard < 4)) errors.push('manifest version 2 requires Standard.md standard-version 4 or newer');
-  inspectCollections(manifest, hub, files, errors);
+  inspectCollections(manifest, hub, files, tracked, errors);
   const ids = new Set(); const paths = new Set();
   for (const domain of manifest.domains || []) {
     for (const key of Object.keys(domain)) if (!KEYS.has(key)) errors.push(`${domain.id || 'domain'} has unknown key ${key}`);

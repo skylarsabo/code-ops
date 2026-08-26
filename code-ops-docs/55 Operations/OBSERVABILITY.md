@@ -30,6 +30,10 @@ Atlas is a durable cache of code-grounded judgment. `atlas-check.mjs` reports ma
 
 Context bundles include an Atlas excerpt only when the matching section is fresh. This prevents stale prose from silently becoming agent context. Evidence: `scripts/context-bundle.mjs:58-74`.
 
+## Performance evidence
+
+The canonical [performance reference](PERFORMANCE.md) owns the measurement protocol, current baseline, retained optimizations, and known hot paths. A context-snapshot cache hit should reuse the content-addressed structural index; a cold run includes repository map, import graph, and Atlas work.
+
 ## Record-collection signals
 
 `records check` reports record and citation counts plus history state. It blocks incomplete classification, immutable drift, malformed curation chains, citation regression, invalid identities, and semantic-index drift.

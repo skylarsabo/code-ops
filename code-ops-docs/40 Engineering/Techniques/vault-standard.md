@@ -53,11 +53,13 @@ The checker accepts standard version 3 while v4 adoption remains explicit. Manif
 
 Each collection declares a permanent `collectionUuid`, mutable human `id`, `identityVersion`, root, inventory, citations, curation ledger, generated index, and scopes. All four generated paths live beneath `98 System/Records/` in the vault. A collection UUID never changes. A label may change. A split creates a new UUID for future records. A presentation merge preserves original UUID namespaces.
 
-Every tracked file beneath a collection root matches exactly one scope. Zero or multiple matches fail. Exact paths and globs have no implicit precedence. Classify unknown files in the same diff. Classification may report candidates but never choose policy.
+Every tracked file beneath a collection root receives one scope. Zero or ambiguous owners fail. Collections without `classificationVersion` use scope v1 objects containing exactly `pattern`, `kind`, and `policy`. V1 retains exact-one matching and has no precedence.
+
+Scope v2 collections declare `classificationVersion: 2`. Each scope contains stable `id`, `match`, `paths`, `kind`, and `policy` fields. `match` and `paths` are arrays. Exact collection-relative `paths` outrank glob `match` selectors. Multiple exact owners fail. Without an exact owner, multiple glob owners fail. The single-owner rule makes selector and scope order non-authoritative. Exact paths must exist in the Git index with exact casing. Manifest synchronization never creates, reorders, or rewrites scopes.
 
 Scopes distinguish immutable append-only records, mutable artifacts, frozen artifacts or executables, superseded artifacts or executables, and forbidden files. Mutable scopes remain classified and owned but are excluded from immutability hashing. Forbidden files, including tracked `.pyc`, block adoption.
 
-Git index paths and casing are authoritative. Adoption uses `git ls-files`. Native records stage before append. Untracked files may be reported but never receive IDs. Normalize a Git path with POSIX separators, Unicode NFC, exact index casing, and no dot segments.
+Git index paths and casing are authoritative. Adoption uses `git ls-files`. Native records stage before append and must have no reachable exact-path history. A historically present record or newly immutable artifact requires reviewed adoption. Untracked files may be reported but never receive IDs. Normalize a Git path with POSIX separators, Unicode NFC, exact index casing, and no dot segments.
 
 Record IDs use `REC-<base32(first-128-bits(sha256("code-ops-record-v1\\0" + collectionUuid + "\\0" + normalizedGitPath)))>`. Store `identityVersion: 1` on each collection and inventory entry. Collisions fail. IDs never renumber, change, or get reused.
 
@@ -84,7 +86,25 @@ The citation inventory stores every outbound Markdown citation with record ID, u
 
 Citation states are `resolved-immutable`, `resolved-mutable`, `mutable-drifted`, `dead-at-adoption`, `ambiguous`, `external`, `glob`, `redirected`, `tombstoned`, `history-unavailable`, `evidence-lost`, and `digest-mismatch`. Baseline dead citations remain visible debt. A later resolved-to-dead transition blocks. Native records cannot introduce dead or ambiguous targets. Baseline debt must later receive a history pointer, tombstone, or explicit unresolved disposition.
 
-An immutable record that cites a mutable artifact stores authoritative `targetSha256`. Git object IDs are regenerable locators only: object format, blob OID, commit OID, and path. Adoption resolves historical content at the record introduction commit. Native append resolves the staged record and target snapshot. Reindex locators only after bytes match `targetSha256`. A Git hash-algorithm migration changes locators, not evidence identity.
+An immutable record that cites a mutable artifact stores authoritative `targetSha256`. Git object IDs are regenerable locators only: object format, blob OID, commit OID, and path. Adoption resolves citations at the baseline commit where the adopted bytes last match the reviewed current bytes. It separately preserves the exact-path introduction commit. Native append resolves the staged record and target snapshot. Reindex locators only after bytes match `targetSha256`. A Git hash-algorithm migration changes locators, not evidence identity.
+
+`classify` reports structural partition status and adoption readiness separately. A staged candidate without committed history remains partition-valid and reports `pending-commit`. Adoption still requires a clean, committed tree. Historical stability is a risk signal, never a safety claim. Before irreversible adoption, path-bounded history queries profile every immutable candidate and follow its promotion lineage. A content transition or prior path incarnation requires review. Mutable artifacts remain outside this review.
+
+`plan-adoption --out <ignored-path>` binds a review plan to `HEAD`, the manifest, current content, and canonical history. Historically revised candidates require `disposition: "freeze-current"` and a rationale. `adopt --review <ignored-path>` recomputes every binding before writing. Inventory v2 embeds the reviewed entries and receipt digest.
+
+With complete history, later checks require:
+
+- exact original-candidate coverage;
+- exact current bytes and classification;
+- internally consistent stored risk;
+- a rationale for every currently risky candidate; and
+- no increase in transition or prior-incarnation counts.
+
+`sourceHead` is a pre-adoption binding and diagnostic locator. It never selects a weaker post-adoption check. Incomplete-history checks warn and cannot verify candidate risk. Strict verification fails that state as infrastructure. A warning or force flag cannot replace the adoption receipt.
+
+`receiptDigest` is an unkeyed canonical checksum. It detects corruption and stale cross-field copies. It does not authenticate a reviewer or prove that unreachable receipt bytes survived. Protected repository review is the procedural trust root. Rewrite tolerance assumes the resulting tree preserves the receipt authority bytes. Total-history replacement requires an external signature or transparency log.
+
+Inventory v1 remains readable for compatibility but has no adoption-review receipt. The tool cannot distinguish a genuine grandfathered v1 inventory from a newly authored downgrade without an external anchor. Protected review must preserve that boundary until the collection migrates to v2.
 
 Present pinned historical content by default. Present the current path separately. Make drift visible. With complete history, missing digest content is `evidence-lost`.
 
@@ -96,7 +116,7 @@ Generated record indexes are semantic projections. They store generator version,
 
 A legacy pointer is eligible only when a registered immutable record mechanically cites it, a commit message on reachable refs cites it, or an external host or package requires it. Diffs, unreachable commits, and reflogs do not qualify. Generate exact bounded pointer files without authored prose. Mark a pointer stale after its last qualifying citation disappears. Require explicit adoption for tombstones. Manifest sync cannot rewrite immutable baselines or create tombstones.
 
-The canonical tool provides `classify`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. By default, `append` stages the record and artifact snapshot, validates the staged state, atomically writes inventory, citations, and index, stages only those generated paths, runs staged-tree checks, and prints staged paths. `--no-stage` is an advanced override.
+The canonical tool provides `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. By default, `append` stages the record and artifact snapshot, validates the staged state, atomically writes inventory, citations, and index, stages only those generated paths, runs staged-tree checks, and prints staged paths. `--no-stage` is an advanced override.
 
 Reject append when the record is unstaged, staged and working trees diverge, generated files contain unrelated edits, classification is incomplete, or a mutable target lacks its digest.
 
@@ -111,15 +131,16 @@ Migrate in this order:
 3. Classify every tracked file.
 4. Remove forbidden files.
 5. Assign permanent UUIDs.
-6. Adopt before moving files.
-7. Generate citation and history locators.
-8. Perform separate human curation.
-9. Generate semantic indexes.
-10. Migrate authored documents in slices.
-11. Add eligible pointers and explicit tombstones.
-12. Add CI gates, stamp version 4, and run full verification.
+6. Generate and review the digest-bound adoption plan.
+7. Adopt before moving files.
+8. Generate citation and history locators.
+9. Perform separate human curation.
+10. Generate semantic indexes.
+11. Migrate authored documents in slices.
+12. Add eligible pointers and explicit tombstones.
+13. Add CI gates, stamp version 4, and run full verification.
 
-Required proof covers compatibility, deterministic identity and casing, label changes, splits, prefix ambiguity, scope failures, policy conflicts, forbidden files, adopted and native records, staged append, ledger correction and forks, semantic rendering, citation resolution, debt regression, mutable drift, history recovery, locator regeneration, pointers, tombstones, and run tracking. Use synthetic fixtures only. Never copy private repository contents into fixtures or documentation examples.
+Required proof covers compatibility, deterministic identity and casing, label changes, splits, prefix ambiguity, v1 and v2 scope failures, exact-path precedence, promotion, review staleness, zero-output refusal, forbidden files, adopted and native records, staged append, ledger correction and forks, semantic rendering, citation resolution, debt regression, mutable drift, history recovery, locator regeneration, pointers, tombstones, and run tracking. Use synthetic fixtures only. Never copy private repository contents into fixtures or documentation examples.
 
 ## Context-efficient extraction
 

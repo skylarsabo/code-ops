@@ -21,7 +21,7 @@ try {
   mkdirSync(join(repo, 'project-docs', '98 System'), { recursive: true });
   mkdirSync(join(repo, 'project-docs', '40 Engineering'), { recursive: true });
   mkdirSync(join(repo, 'evidence'), { recursive: true });
-  for (const file of ['docs-manifest.mjs', 'docs-extract.mjs', 'context-index-lib.mjs']) {
+  for (const file of ['docs-manifest.mjs', 'docs-extract.mjs', 'context-index-lib.mjs', 'record-lib.mjs']) {
     cpSync(join(ROOT, 'scripts', file), join(repo, 'scripts', file));
   }
   writeFileSync(join(repo, 'plugins', 'alpha', 'skills', 'sample', 'SKILL.md'), '# Sample\n');
@@ -90,6 +90,7 @@ try {
     ['collection UUIDs are unique', (m) => { m.recordCollections.push(validCollection('other', m.recordCollections[0].collectionUuid, 'other', 'other')); }, 'invalid or duplicate collectionUuid'],
     ['identity versions are explicit', (m) => { m.recordCollections[0].identityVersion = 2; }, 'identityVersion must be 1'],
     ['collection roots are repository relative', (m) => { m.recordCollections[0].root = '../evidence'; }, 'root must be a safe repository-relative path'],
+    ['collection roots reject whitespace and dot segments', (m) => { m.recordCollections[0].root = 'evidence/ .'; }, 'root must be a safe repository-relative path'],
     ['collection roots cannot overlap', (m) => { m.recordCollections.push(validCollection('other', '22222222-2222-4222-8222-222222222222', 'evidence/nested', 'other')); }, 'root overlaps another record collection'],
     ['collection root casing follows the Git index', (m) => { m.recordCollections[0].root = 'EVIDENCE'; }, 'root casing differs from Git index'],
     ['collections require total scopes', (m) => { m.recordCollections[0].scopes = []; }, 'needs scopes'],
@@ -97,6 +98,10 @@ try {
     ['scope keys are complete', (m) => { delete m.recordCollections[0].scopes[0].policy; }, 'scope 1 is missing policy'],
     ['scope patterns are safe', (m) => { m.recordCollections[0].scopes[0].pattern = '/**/*.md'; }, 'scope 1 has an invalid pattern'],
     ['scope kind and policy pairs are closed', (m) => { m.recordCollections[0].scopes[0].policy = 'mutable'; }, 'scope 1 has an invalid kind/policy pair'],
+    ['scope kind and policy values cannot exploit string coercion', (m) => {
+      m.recordCollections[0].scopes[0].kind = ['record'];
+      m.recordCollections[0].scopes[0].policy = ['append-only'];
+    }, 'scope 1 has an invalid kind/policy pair'],
     ['generated record paths cannot be reused', (m) => { m.recordCollections.push(validCollection('other', '22222222-2222-4222-8222-222222222222', 'other', 'evidence')); }, 'reuses generated record path'],
     ['legacy path keys are closed', (m) => { m.legacyPaths = [{ path: 'docs/old.md', disposition: 'pointer', target: 'project-docs/Standard.md', requiredBy: [{ kind: 'commit', ref: 'abc' }], extra: true }]; }, 'legacy path 1 has unknown key extra'],
     ['legacy paths are unique', (m) => { const e = { path: 'docs/old.md', disposition: 'pointer', target: 'project-docs/Standard.md', requiredBy: [{ kind: 'commit', ref: 'abc' }] }; m.legacyPaths = [e, structuredClone(e)]; }, 'invalid or duplicate path'],
@@ -108,6 +113,59 @@ try {
     ['record-backed legacy evidence uses a record ID prefix', (m) => { m.legacyPaths = [{ path: 'docs/old.md', disposition: 'pointer', target: 'project-docs/Standard.md', requiredBy: [{ kind: 'record', ref: 'missing' }] }]; }, 'record evidence must use a record ID prefix'],
   ];
   for (const [name, mutate, fragment] of validationCases) expectV2Error(name, mutate, fragment);
+  const validScopeV2 = validCollection();
+  validScopeV2.classificationVersion = 2;
+  validScopeV2.scopes = [
+    { id: 'markdown-default', match: ['**/*.md'], paths: [], kind: 'record', policy: 'append-only' },
+    { id: 'one-exact', match: [], paths: ['one.md'], kind: 'record', policy: 'append-only' },
+  ];
+  const scopeV2Manifest = structuredClone(versionTwo); scopeV2Manifest.recordCollections = [validScopeV2];
+  writeFileSync(manifestPath, `${JSON.stringify(scopeV2Manifest, null, 2)}\n`);
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('scope v2 accepts a broad glob with an exact tracked-path exception', result.status === 0, result.out);
+  writeFileSync(join(repo, 'evidence', 'untracked.md'), '# Correctly cased untracked evidence\n');
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('correctly cased untracked collection files do not affect index classification', result.status === 0, result.out);
+  rmSync(join(repo, 'evidence', 'untracked.md'), { force: true });
+  const untrackedExactManifest = structuredClone(scopeV2Manifest);
+  untrackedExactManifest.recordCollections[0].scopes[1].paths = ['untracked-exact.md'];
+  writeFileSync(join(repo, 'evidence', 'untracked-exact.md'), '# Untracked exact selector\n');
+  writeFileSync(manifestPath, `${JSON.stringify(untrackedExactManifest, null, 2)}\n`);
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+  check('scope v2 exact selectors remain Git-index authoritative', result.status === 1
+    && result.out.includes('exact path is not tracked'), result.out);
+  rmSync(join(repo, 'evidence', 'untracked-exact.md'), { force: true });
+  writeFileSync(manifestPath, `${JSON.stringify(scopeV2Manifest, null, 2)}\n`);
+  if (process.platform !== 'win32') {
+    mkdirSync(join(repo, 'EVIDENCE'), { recursive: true });
+    writeFileSync(join(repo, 'EVIDENCE', 'untracked.md'), '# Mis-cased untracked evidence\n');
+    result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+    check('untracked collection-root casing aliases remain fail-closed', result.status === 1
+      && result.out.includes('root casing differs from Git index'), result.out);
+    rmSync(join(repo, 'EVIDENCE'), { recursive: true, force: true });
+  }
+  const scopeV2Before = structuredClone(scopeV2Manifest.recordCollections[0]);
+  result = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['sync', '--root', repo], repo);
+  const scopeV2After = JSON.parse(readFileSync(manifestPath, 'utf8')).recordCollections[0];
+  check('manifest sync preserves scope v2 policy byte-for-byte', result.status === 0
+    && JSON.stringify(scopeV2After) === JSON.stringify(scopeV2Before), result.out);
+  const expectScopeV2Error = (name, mutate, fragment) => {
+    const candidate = structuredClone(scopeV2Manifest); mutate(candidate.recordCollections[0]);
+    writeFileSync(manifestPath, `${JSON.stringify(candidate, null, 2)}\n`);
+    const probe = run(join(repo, 'scripts', 'docs-manifest.mjs'), ['check', '--root', repo], repo);
+    check(name, probe.status === 1 && probe.out.includes(fragment), probe.out);
+  };
+  expectScopeV2Error('classificationVersion is explicit when v2 is selected', (collection) => { collection.classificationVersion = 1; }, 'classificationVersion must be 2 when present');
+  expectScopeV2Error('scope v2 ids are unique slugs', (collection) => { collection.scopes[1].id = collection.scopes[0].id; }, 'invalid or duplicate id');
+  expectScopeV2Error('scope v2 selector arrays reject duplicates', (collection) => { collection.scopes[0].match.push('**/*.md'); }, 'duplicate match selectors');
+  expectScopeV2Error('scope v2 requires at least one selector', (collection) => { collection.scopes[0].match = []; }, 'needs at least one match or path selector');
+  expectScopeV2Error('scope v2 exact paths reject wildcard syntax', (collection) => { collection.scopes[1].paths = ['*.md']; }, 'invalid exact path selector');
+  expectScopeV2Error('scope v2 exact paths must exist in the Git index', (collection) => { collection.scopes[1].paths = ['missing.md']; }, 'exact path is not tracked');
+  expectScopeV2Error('scope v2 exact paths use exact Git casing', (collection) => { collection.scopes[1].paths = ['ONE.md']; }, 'exact path casing differs from Git index');
+  expectScopeV2Error('scope v2 exact owners cannot collide', (collection) => { collection.scopes[0].paths = ['one.md']; }, 'duplicates exact path');
+  expectScopeV2Error('scope v2 kind and policy values cannot exploit string coercion', (collection) => {
+    collection.scopes[0].kind = ['record']; collection.scopes[0].policy = ['append-only'];
+  }, 'invalid kind/policy pair');
   const unverifiedLegacy = structuredClone(versionTwo);
   unverifiedLegacy.legacyPaths = [{ path: 'docs/old.md', disposition: 'pointer', target: 'project-docs/Standard.md', requiredBy: [{ kind: 'external', ref: 'missing.txt' }] }];
   writeFileSync(manifestPath, `${JSON.stringify(unverifiedLegacy, null, 2)}\n`);

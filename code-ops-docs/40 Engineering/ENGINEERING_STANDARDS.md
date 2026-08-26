@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-25
 ---
 
 # Engineering Standards
@@ -27,6 +27,14 @@ Run the regression eval that owns any modified behavior. Fixtures that have an a
 - Keep vendored runtime scripts byte-identical to their canonical source through the vendor manifest.
 - Add documentation and regression proof in the same change as a behavior change.
 
+## Performance and simplicity
+
+Treat latency, context size, and repeated process or file work as quality constraints. Profile before optimizing. Keep a change only when a repeatable benchmark shows a material improvement and the owning regression eval preserves behavior.
+
+Use `node scripts/benchmark-command.mjs --runs 7 --warmup 1 -- <executable> [args ...]` for cross-platform wall-time evidence. Pass the executable interpreter explicitly for shell aliases or Windows command shims. Record the revision, runtime fingerprint, input state, cold or warm cache state, protocol, and median. Compare like with like; do not turn host-sensitive wall time into a universal CI threshold.
+
+Extract shared work when it removes measured duplication or closes behavioral drift. Keep public flow legible and reject abstractions that only move complexity. Performance work never weakens a quality gate, removes an eval case, or broadens agent context to save orchestration time.
+
 The vendor manifest declares the runtime script set. Evidence: `scripts/vendored-manifest.mjs:13-33`.
 
 ## Agent orchestration
@@ -43,6 +51,8 @@ All repository artifacts follow the house writing standard. It requires short ac
 
 `<repo>-docs/` is the only authored documentation authority. Manifest v2 may govern immutable evidence at permanent historical paths. Adoption preserves those bytes and paths forever; supersession moves authority through curation and a canonical hub document.
 
-Use Git-index paths for record identity. Classify every tracked collection file exactly once. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
+Use Git-index paths for record identity. Classify every tracked collection file exactly once. Scope v2 exact paths may override broad globs; ambiguous owners still fail. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
+
+Run `plan-adoption` before irreversible legacy adoption. Review every historically revised immutable candidate. Commit no generated baseline unless `adopt` accepts a current digest-bound receipt.
 
 Run `records check` for each registered collection. Use `verify-history --strict` before adoption and before diagnosing evidence loss. Use synthetic fixtures only in this repository.

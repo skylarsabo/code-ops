@@ -4,14 +4,14 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { digestJson, extractCitations, recordId, resolvePrefix, sha256, writeAtomically } from '../../scripts/record-lib.mjs';
+import { digestJson, extractCitations, historyPathBatches, recordId, resolvePrefix, sha256, writeAtomically } from '../../scripts/record-lib.mjs';
 
 const ROOT = process.cwd();
 const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 87 : 90;
+const expectedCases = process.platform === 'win32' ? 126 : 129;
 let executedCases = 0;
 let work;
 
@@ -36,6 +36,14 @@ function git(args, cwd, binary = false) {
 function commit(repo, message) {
   git(['add', '-A'], repo);
   git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', message], repo);
+}
+function squashCurrentTree(repo, message) {
+  const tree = git(['rev-parse', 'HEAD^{tree}'], repo).trim();
+  const head = git([
+    '-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'commit-tree', tree, '-m', message,
+  ], repo).trim();
+  git(['reset', '--hard', head], repo);
 }
 function write(repo, path, text) {
   const target = join(repo, ...path.split('/'));
@@ -127,6 +135,389 @@ try {
   check('recognized options fail on the wrong command', result.status === 1 && result.output.includes('--strict is not valid for check'), result.output);
   result = run(['verify-history', '--root', repo, ...COLLECTION], repo);
   check('history verification requires explicit strict mode', result.status === 1 && result.output.includes('requires --strict'), result.output);
+
+  const scopeV2Repo = join(work, 'scope-v2'); mkdirSync(scopeV2Repo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], scopeV2Repo);
+  write(scopeV2Repo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  const scopeV2Manifest = fixtureManifest();
+  scopeV2Manifest.recordCollections[0].classificationVersion = 2;
+  scopeV2Manifest.recordCollections[0].scopes = [
+    { id: 'jsonl-default', match: ['general/**', '**/*.jsonl'], paths: [], kind: 'artifact', policy: 'frozen' },
+    { id: 'day-profile-live', match: [], paths: ['special/day_profile.jsonl'], kind: 'artifact', policy: 'mutable' },
+  ];
+  write(scopeV2Repo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(scopeV2Manifest, null, 2)}\n`);
+  write(scopeV2Repo, 'records/general/frozen.jsonl', '{"frozen":true}\n');
+  write(scopeV2Repo, 'records/special/day_profile.jsonl', '{"mutable":true}\n');
+  commit(scopeV2Repo, 'seed scope v2 exception');
+  result = run(['classify', '--root', scopeV2Repo, ...COLLECTION], scopeV2Repo);
+  const firstScopeV2 = result.status === 0 ? JSON.parse(result.output) : null;
+  const reversedScopeV2 = structuredClone(scopeV2Manifest);
+  reversedScopeV2.recordCollections[0].scopes.reverse();
+  for (const scope of reversedScopeV2.recordCollections[0].scopes) {
+    scope.match.reverse();
+    scope.paths.reverse();
+  }
+  writeFileSync(join(scopeV2Repo, 'hub', '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify(reversedScopeV2, null, 2)}\n`);
+  const reversedResult = run(['classify', '--root', scopeV2Repo, ...COLLECTION], scopeV2Repo);
+  const secondScopeV2 = reversedResult.status === 0 ? JSON.parse(reversedResult.output) : null;
+  const selectedScope = (value) => value?.rows?.find((row) => row.path.endsWith('day_profile.jsonl'));
+  check('scope v2 exact paths outrank broad globs independent of order', result.status === 0 && reversedResult.status === 0
+    && selectedScope(firstScopeV2)?.scopeId === 'day-profile-live'
+    && selectedScope(firstScopeV2)?.resolution === 'exact-path'
+    && firstScopeV2?.rows?.find((row) => row.path.endsWith('general/frozen.jsonl'))?.scopeId === 'jsonl-default'
+    && JSON.stringify(selectedScope(firstScopeV2)) === JSON.stringify(selectedScope(secondScopeV2)), `${result.output}\n${reversedResult.output}`);
+  const unmatchedScopeV2 = join(work, 'scope-v2-unmatched'); cpSync(scopeV2Repo, unmatchedScopeV2, { recursive: true });
+  writeFileSync(join(unmatchedScopeV2, 'hub', '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify(scopeV2Manifest, null, 2)}\n`);
+  write(unmatchedScopeV2, 'records/unclassified.txt', 'not governed\n');
+  commit(unmatchedScopeV2, 'add unclassified collection path');
+  result = run(['adopt', '--root', unmatchedScopeV2, ...COLLECTION], unmatchedScopeV2);
+  check('scope v2 zero-match refuses adoption without generated files', result.status === 1
+    && result.output.includes('invalid collection classification')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(unmatchedScopeV2, name))), result.output);
+  const ambiguousScopeV2 = structuredClone(scopeV2Manifest);
+  ambiguousScopeV2.recordCollections[0].scopes.push({
+    id: 'jsonl-second-owner', match: ['general/**'], paths: [], kind: 'artifact', policy: 'frozen',
+  });
+  writeFileSync(join(scopeV2Repo, 'hub', '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify(ambiguousScopeV2, null, 2)}\n`);
+  commit(scopeV2Repo, 'introduce ambiguous scope v2 policy');
+  result = run(['adopt', '--root', scopeV2Repo, ...COLLECTION], scopeV2Repo);
+  check('scope v2 glob ambiguity refuses adoption without generated files', result.status === 1
+    && result.output.includes('invalid collection classification')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(scopeV2Repo, name))), result.output);
+
+  const longPaths = Array.from({ length: 128 }, (_, index) => {
+    const suffix = String(index).padStart(3, '0');
+    return `records/${'a'.repeat(120)}/${'b'.repeat(120)}/record-${suffix}.md`;
+  });
+  const longPathBatches = historyPathBatches(longPaths);
+  const batchesSpawn = longPathBatches.every((batch) => {
+    try { execFileSync('git', ['--version', ...batch.map((path) => `:(literal)${path}`)], { stdio: 'ignore' }); return true; }
+    catch (error) { return error.code !== 'ENAMETOOLONG'; }
+  });
+  check('exact-history batches stay within the Windows process argument budget', longPathBatches.length > 1
+    && longPathBatches.flat().join('\0') === longPaths.join('\0') && batchesSpawn);
+
+  function batchProfile(fillerCount) {
+    const batchRepo = join(work, `batch-profile-${fillerCount}`); mkdirSync(batchRepo, { recursive: true });
+    git(['init', '--quiet', '-b', 'main'], batchRepo);
+    write(batchRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+    write(batchRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+    write(batchRepo, 'other/p1.md', '# Shared predecessor\n');
+    write(batchRepo, 'records/p2.md', '# Shared predecessor\n');
+    commit(batchRepo, 'seed ambiguous rename predecessors');
+    unlinkSync(join(batchRepo, 'other', 'p1.md'));
+    unlinkSync(join(batchRepo, 'records', 'p2.md'));
+    write(batchRepo, 'records/q.md', '# Shared predecessor\n');
+    for (let index = 0; index < fillerCount; index += 1) {
+      write(batchRepo, `records/filler-${String(index).padStart(3, '0')}.md`, `# Filler ${index}\n`);
+    }
+    commit(batchRepo, 'replace predecessors and add fillers');
+    const classified = run(['classify', '--root', batchRepo, ...COLLECTION], batchRepo);
+    const row = classified.status === 0
+      ? JSON.parse(classified.output).rows.find((candidate) => candidate.path === 'records/q.md')
+      : null;
+    return { classified, row };
+  }
+  const smallBatchProfile = batchProfile(0);
+  const largeBatchProfile = batchProfile(200);
+  check('history profiles are invariant to unrelated batch membership', smallBatchProfile.classified.status === 0
+    && largeBatchProfile.classified.status === 0
+    && smallBatchProfile.row?.adoptionReadiness === largeBatchProfile.row?.adoptionReadiness
+    && smallBatchProfile.row?.historyDigest === largeBatchProfile.row?.historyDigest
+    && smallBatchProfile.row?.history?.contentTransitions === largeBatchProfile.row?.history?.contentTransitions
+    && smallBatchProfile.row?.history?.priorIncarnations === largeBatchProfile.row?.history?.priorIncarnations,
+  `${smallBatchProfile.classified.output}\n${largeBatchProfile.classified.output}`);
+
+  result = run(['classify', '--root', scopeV2Repo, ...COLLECTION], scopeV2Repo);
+  check('invalid classification is not mislabeled as unavailable history', result.status === 1
+    && result.output.includes('"status": "classification-invalid"')
+    && !result.output.includes('"status": "history-unavailable"'), result.output);
+  const invalidShallowRepo = join(work, 'invalid-shallow-classification'); cpSync(scopeV2Repo, invalidShallowRepo, { recursive: true });
+  writeFileSync(join(invalidShallowRepo, '.git', 'shallow'), `${git(['rev-parse', 'HEAD'], invalidShallowRepo).trim()}\n`);
+  result = run(['classify', '--root', invalidShallowRepo, ...COLLECTION], invalidShallowRepo);
+  check('invalid classification takes precedence over unavailable history', result.status === 1
+    && result.output.includes('"status": "classification-invalid"')
+    && !result.output.includes('"status": "history-unavailable"'), result.output);
+
+  const promotedRepo = join(work, 'promoted-record'); mkdirSync(promotedRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], promotedRepo);
+  write(promotedRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(promotedRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(promotedRepo, 'drafts/promoted.md', '# Promoted record\n');
+  commit(promotedRepo, 'create draft');
+  mkdirSync(join(promotedRepo, 'records'), { recursive: true });
+  git(['mv', 'drafts/promoted.md', 'records/promoted.md'], promotedRepo);
+  commit(promotedRepo, 'promote record');
+  const promotionCommit = git(['rev-parse', 'HEAD'], promotedRepo).trim();
+  result = run(['adopt', '--root', promotedRepo, ...COLLECTION], promotedRepo);
+  const promotedInventory = result.status === 0 ? JSON.parse(readFileSync(generated(promotedRepo, 'inventory.json'), 'utf8')) : null;
+  let promotedPathExists = false;
+  try { git(['cat-file', '-e', `${promotionCommit}:records/promoted.md`], promotedRepo); promotedPathExists = true; } catch { /* asserted below */ }
+  check('pre-adoption promotion resolves the exact current path introduction', result.status === 0
+    && promotedInventory?.entries?.[0]?.introducedCommit === promotionCommit
+    && promotedPathExists
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => existsSync(generated(promotedRepo, name))), result.output);
+  const stableRewriteRepo = join(work, 'stable-history-rewrite'); cpSync(promotedRepo, stableRewriteRepo, { recursive: true });
+  commit(stableRewriteRepo, 'adopt stable promoted record');
+  squashCurrentTree(stableRewriteRepo, 'squashed stable adoption');
+  result = run(['check', '--root', stableRewriteRepo, ...COLLECTION], stableRewriteRepo);
+  // ADR 0004 permits content-preserving rewrite tolerance. Total-history replacement needs an external anchor.
+  check('stable adoption authority survives a content-preserving squash', result.status === 0, result.output);
+
+  const revisedPromotionRepo = join(work, 'revised-promotion'); mkdirSync(revisedPromotionRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], revisedPromotionRepo);
+  write(revisedPromotionRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(revisedPromotionRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(revisedPromotionRepo, 'drafts/promoted.md', '# Draft evidence\n');
+  commit(revisedPromotionRepo, 'create promoted draft');
+  write(revisedPromotionRepo, 'drafts/promoted.md', '# Revised evidence\n');
+  commit(revisedPromotionRepo, 'revise promoted draft');
+  mkdirSync(join(revisedPromotionRepo, 'records'), { recursive: true });
+  git(['mv', 'drafts/promoted.md', 'records/promoted.md'], revisedPromotionRepo);
+  commit(revisedPromotionRepo, 'promote revised record');
+  result = run(['adopt', '--root', revisedPromotionRepo, ...COLLECTION], revisedPromotionRepo);
+  check('pre-promotion revisions require review after exact-path admission', result.status === 1
+    && result.output.includes('adoption review required')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(revisedPromotionRepo, name))), result.output);
+
+  const mergedPromotionRepo = join(work, 'merged-revised-promotion'); mkdirSync(mergedPromotionRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], mergedPromotionRepo);
+  write(mergedPromotionRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(mergedPromotionRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  commit(mergedPromotionRepo, 'seed collection policy');
+  git(['checkout', '-q', '-b', 'draft-work'], mergedPromotionRepo);
+  write(mergedPromotionRepo, 'drafts/promoted.md', '# Branch draft\n');
+  commit(mergedPromotionRepo, 'create branch draft');
+  write(mergedPromotionRepo, 'drafts/promoted.md', '# Branch revision\n');
+  commit(mergedPromotionRepo, 'revise branch draft');
+  mkdirSync(join(mergedPromotionRepo, 'records'), { recursive: true });
+  git(['mv', 'drafts/promoted.md', 'records/promoted.md'], mergedPromotionRepo);
+  commit(mergedPromotionRepo, 'promote branch record');
+  git(['checkout', '-q', 'main'], mergedPromotionRepo);
+  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'merge', '--no-ff', '-m', 'merge promoted record', 'draft-work'], mergedPromotionRepo);
+  result = run(['adopt', '--root', mergedPromotionRepo, ...COLLECTION], mergedPromotionRepo);
+  check('merged pre-promotion revisions remain visible to adoption review', result.status === 1
+    && result.output.includes('adoption review required')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(mergedPromotionRepo, name))), result.output);
+
+  const mergedBaselineRepo = join(work, 'merged-record-baseline'); mkdirSync(mergedBaselineRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], mergedBaselineRepo);
+  write(mergedBaselineRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(mergedBaselineRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  const baselineLines = Array.from({ length: 80 }, (_, index) => `line ${String(index + 1).padStart(2, '0')}`);
+  write(mergedBaselineRepo, 'records/one.md', `${baselineLines.join('\n')}\n`);
+  commit(mergedBaselineRepo, 'seed merge baseline');
+  git(['checkout', '-q', '-b', 'side-edit'], mergedBaselineRepo);
+  const sideLines = [...baselineLines]; sideLines[69] = 'line 70 side edit';
+  write(mergedBaselineRepo, 'records/one.md', `${sideLines.join('\n')}\n`); commit(mergedBaselineRepo, 'edit record on side');
+  git(['checkout', '-q', 'main'], mergedBaselineRepo);
+  const mainLines = [...baselineLines]; mainLines[1] = 'line 02 main edit';
+  write(mergedBaselineRepo, 'records/one.md', `${mainLines.join('\n')}\n`); commit(mergedBaselineRepo, 'edit record on main');
+  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'merge', '--no-ff', '-m', 'merge independent record edits', 'side-edit'], mergedBaselineRepo);
+  const mergedBaselineCommit = git(['rev-parse', 'HEAD'], mergedBaselineRepo).trim();
+  result = run(['classify', '--root', mergedBaselineRepo, ...COLLECTION], mergedBaselineRepo);
+  const mergedClassification = result.status === 0 ? JSON.parse(result.output) : null;
+  check('merge-produced record bytes classify as committed review-required history', result.status === 0
+    && mergedClassification?.adoptionReadiness?.status === 'review-required'
+    && mergedClassification?.rows?.[0]?.history?.baselineCommit === mergedBaselineCommit
+    && mergedClassification?.rows?.[0]?.historyReason !== 'uncommitted-index-entry', result.output);
+  writeFileSync(join(mergedBaselineRepo, '.git', 'info', 'exclude'), 'adoption-review.json\n');
+  result = run(['plan-adoption', '--root', mergedBaselineRepo, ...COLLECTION, '--out', 'adoption-review.json'], mergedBaselineRepo);
+  const mergedReview = result.status === 0 ? JSON.parse(readFileSync(join(mergedBaselineRepo, 'adoption-review.json'), 'utf8')) : null;
+  if (mergedReview) {
+    mergedReview.candidates[0].disposition = 'freeze-current';
+    mergedReview.candidates[0].rationale = 'The merge result is the reviewed immutable baseline.';
+    writeFileSync(join(mergedBaselineRepo, 'adoption-review.json'), `${JSON.stringify(mergedReview, null, 2)}\n`);
+  }
+  result = mergedReview
+    ? run(['adopt', '--root', mergedBaselineRepo, ...COLLECTION, '--review', 'adoption-review.json'], mergedBaselineRepo)
+    : result;
+  if (result.status === 0) commit(mergedBaselineRepo, 'adopt merge baseline');
+  const mergedBaselineCheck = result.status === 0 ? run(['check', '--root', mergedBaselineRepo, ...COLLECTION], mergedBaselineRepo) : result;
+  check('reviewed merge-produced baseline adopts and verifies', result.status === 0 && mergedBaselineCheck.status === 0,
+    `${result.output}\n${mergedBaselineCheck.output}`);
+
+  const mergeAddRepo = join(work, 'merge-add-record'); mkdirSync(mergeAddRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], mergeAddRepo);
+  write(mergeAddRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(mergeAddRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  commit(mergeAddRepo, 'seed merge-add policy');
+  git(['checkout', '-q', '-b', 'record-add'], mergeAddRepo);
+  write(mergeAddRepo, 'records/one.md', '# Added on side branch\n'); commit(mergeAddRepo, 'add side record');
+  const sideAdmission = git(['rev-parse', 'HEAD'], mergeAddRepo).trim();
+  git(['checkout', '-q', 'main'], mergeAddRepo);
+  write(mergeAddRepo, 'README.md', '# Mainline work\n'); commit(mergeAddRepo, 'advance mainline');
+  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'merge', '--no-ff', '-m', 'merge side record', 'record-add'], mergeAddRepo);
+  result = run(['adopt', '--root', mergeAddRepo, ...COLLECTION], mergeAddRepo);
+  const mergeAddInventory = result.status === 0 ? JSON.parse(readFileSync(generated(mergeAddRepo, 'inventory.json'), 'utf8')) : null;
+  check('merge-generated duplicate add preserves one semantic admission', result.status === 0
+    && mergeAddInventory?.entries?.[0]?.introducedCommit === sideAdmission
+    && mergeAddInventory?.adoptionReview?.candidates?.[0]?.history?.priorIncarnations === 0, result.output);
+
+  const reusedPromotionRepo = join(work, 'reused-promotion-source'); mkdirSync(reusedPromotionRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], reusedPromotionRepo);
+  write(reusedPromotionRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(reusedPromotionRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(reusedPromotionRepo, 'drafts/promoted.md', '# First incarnation\n');
+  commit(reusedPromotionRepo, 'create first source incarnation');
+  git(['rm', 'drafts/promoted.md'], reusedPromotionRepo);
+  commit(reusedPromotionRepo, 'delete first source incarnation');
+  write(reusedPromotionRepo, 'drafts/promoted.md', '# Second incarnation\n');
+  commit(reusedPromotionRepo, 'recreate source path');
+  mkdirSync(join(reusedPromotionRepo, 'records'), { recursive: true });
+  git(['mv', 'drafts/promoted.md', 'records/promoted.md'], reusedPromotionRepo);
+  commit(reusedPromotionRepo, 'promote reused source path');
+  result = run(['adopt', '--root', reusedPromotionRepo, ...COLLECTION], reusedPromotionRepo);
+  check('reused promotion source paths require review before generated writes', result.status === 1
+    && result.output.includes('adoption review required')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(reusedPromotionRepo, name))), result.output);
+
+  const readdedRepo = join(work, 'readded-record'); mkdirSync(readdedRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], readdedRepo);
+  write(readdedRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(readdedRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(readdedRepo, 'records/one.md', '# First record incarnation\n'); commit(readdedRepo, 'add first record incarnation');
+  git(['rm', 'records/one.md'], readdedRepo); commit(readdedRepo, 'remove first record incarnation');
+  write(readdedRepo, 'records/one.md', '# Reviewed replacement incarnation\n'); commit(readdedRepo, 'add replacement record incarnation');
+  const readdedAdmission = git(['rev-parse', 'HEAD'], readdedRepo).trim();
+  writeFileSync(join(readdedRepo, '.git', 'info', 'exclude'), 'adoption-review.json\n');
+  result = run(['plan-adoption', '--root', readdedRepo, ...COLLECTION, '--out', 'adoption-review.json'], readdedRepo);
+  const readdedReview = JSON.parse(readFileSync(join(readdedRepo, 'adoption-review.json'), 'utf8'));
+  readdedReview.candidates[0].disposition = 'freeze-current';
+  readdedReview.candidates[0].rationale = 'The replacement incarnation is the reviewed immutable baseline.';
+  writeFileSync(join(readdedRepo, 'adoption-review.json'), `${JSON.stringify(readdedReview, null, 2)}\n`);
+  result = run(['adopt', '--root', readdedRepo, ...COLLECTION, '--review', 'adoption-review.json'], readdedRepo);
+  const readdedInventory = result.status === 0 ? JSON.parse(readFileSync(generated(readdedRepo, 'inventory.json'), 'utf8')) : null;
+  if (result.status === 0) commit(readdedRepo, 'adopt reviewed replacement incarnation');
+  const readdedCheck = result.status === 0 ? run(['check', '--root', readdedRepo, ...COLLECTION], readdedRepo) : result;
+  const readdedStrict = result.status === 0 ? run(['verify-history', '--strict', '--root', readdedRepo, ...COLLECTION], readdedRepo) : result;
+  check('reviewed delete and re-add adopts the current exact-path admission', result.status === 0
+    && readdedInventory?.entries?.[0]?.introducedCommit === readdedAdmission
+    && readdedCheck.status === 0 && readdedStrict.status === 0, `${result.output}${readdedCheck.output}${readdedStrict.output}`);
+
+  const renameBackRepo = join(work, 'rename-back-record'); mkdirSync(renameBackRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], renameBackRepo);
+  write(renameBackRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(renameBackRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(renameBackRepo, 'records/a.md', '# Rename-back record\n'); commit(renameBackRepo, 'add record at a');
+  git(['mv', 'records/a.md', 'records/b.md'], renameBackRepo); commit(renameBackRepo, 'move record to b');
+  git(['mv', 'records/b.md', 'records/a.md'], renameBackRepo); commit(renameBackRepo, 'move record back to a');
+  const renameBackAdmission = git(['rev-parse', 'HEAD'], renameBackRepo).trim();
+  result = run(['adopt', '--root', renameBackRepo, ...COLLECTION], renameBackRepo);
+  const renameBackInventory = result.status === 0 ? JSON.parse(readFileSync(generated(renameBackRepo, 'inventory.json'), 'utf8')) : null;
+  if (result.status === 0) commit(renameBackRepo, 'adopt rename-back record');
+  const renameBackCheck = result.status === 0 ? run(['check', '--root', renameBackRepo, ...COLLECTION], renameBackRepo) : result;
+  const renameBackStrict = result.status === 0 ? run(['verify-history', '--strict', '--root', renameBackRepo, ...COLLECTION], renameBackRepo) : result;
+  check('rename-back adoption uses the surviving exact-path admission', result.status === 0
+    && renameBackInventory?.entries?.[0]?.introducedCommit === renameBackAdmission
+    && renameBackCheck.status === 0 && renameBackStrict.status === 0, `${result.output}${renameBackCheck.output}${renameBackStrict.output}`);
+
+  const reusedIntermediateRepo = join(work, 'reused-intermediate-promotion'); mkdirSync(reusedIntermediateRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], reusedIntermediateRepo);
+  write(reusedIntermediateRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(reusedIntermediateRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(reusedIntermediateRepo, 'drafts/promoted.md', '# Prior intermediate incarnation\n');
+  commit(reusedIntermediateRepo, 'create intermediate path');
+  git(['rm', 'drafts/promoted.md'], reusedIntermediateRepo);
+  commit(reusedIntermediateRepo, 'delete intermediate path');
+  write(reusedIntermediateRepo, 'raw/origin.md', '# Current origin\n');
+  commit(reusedIntermediateRepo, 'create terminal origin');
+  mkdirSync(join(reusedIntermediateRepo, 'drafts'), { recursive: true });
+  git(['mv', 'raw/origin.md', 'drafts/promoted.md'], reusedIntermediateRepo);
+  commit(reusedIntermediateRepo, 'move through reused intermediate path');
+  mkdirSync(join(reusedIntermediateRepo, 'records'), { recursive: true });
+  git(['mv', 'drafts/promoted.md', 'records/promoted.md'], reusedIntermediateRepo);
+  commit(reusedIntermediateRepo, 'promote through intermediate path');
+  result = run(['adopt', '--root', reusedIntermediateRepo, ...COLLECTION], reusedIntermediateRepo);
+  check('multi-hop promotion preserves prior intermediate-path incarnations', result.status === 1
+    && result.output.includes('adoption review required')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(reusedIntermediateRepo, name))), result.output);
+
+  const postDepartureReuseRepo = join(work, 'post-departure-lineage-reuse'); mkdirSync(postDepartureReuseRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], postDepartureReuseRepo);
+  write(postDepartureReuseRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(postDepartureReuseRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(postDepartureReuseRepo, 'raw/origin.md', '# Live origin\n');
+  commit(postDepartureReuseRepo, 'create live origin');
+  write(postDepartureReuseRepo, 'drafts/.keep', '');
+  git(['mv', 'raw/origin.md', 'drafts/stage.md'], postDepartureReuseRepo);
+  commit(postDepartureReuseRepo, 'move live evidence to staging');
+  write(postDepartureReuseRepo, 'raw/origin.md', '# Unrelated reuse\n');
+  commit(postDepartureReuseRepo, 'reuse departed origin path');
+  git(['rm', 'raw/origin.md'], postDepartureReuseRepo);
+  commit(postDepartureReuseRepo, 'delete reused origin path');
+  git(['mv', 'drafts/stage.md', 'drafts/promoted.md'], postDepartureReuseRepo);
+  commit(postDepartureReuseRepo, 'advance staged evidence');
+  mkdirSync(join(postDepartureReuseRepo, 'records'), { recursive: true });
+  git(['mv', 'drafts/promoted.md', 'records/promoted.md'], postDepartureReuseRepo);
+  commit(postDepartureReuseRepo, 'promote evidence after origin reuse');
+  result = run(['adopt', '--root', postDepartureReuseRepo, ...COLLECTION], postDepartureReuseRepo);
+  check('post-departure reuse on any lineage segment requires review', result.status === 1
+    && result.output.includes('adoption review required')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(postDepartureReuseRepo, name))), result.output);
+
+  const stagedNativeRepo = join(work, 'staged-native-classification'); mkdirSync(stagedNativeRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], stagedNativeRepo);
+  write(stagedNativeRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(stagedNativeRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  commit(stagedNativeRepo, 'seed staged native policy');
+  write(stagedNativeRepo, 'records/native.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Native record\n');
+  git(['add', 'records/native.md'], stagedNativeRepo);
+  result = run(['classify', '--root', stagedNativeRepo, ...COLLECTION], stagedNativeRepo);
+  check('classification separates staged native partition validity from adoption readiness', result.status === 0
+    && result.output.includes('"classificationStatus": "partition-valid"')
+    && result.output.includes('"status": "pending-commit"')
+    && result.output.includes('"adoptionReadiness": "pending-commit"'), result.output);
+
+  const revisedRepo = join(work, 'revised-record'); mkdirSync(revisedRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], revisedRepo);
+  write(revisedRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(revisedRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(revisedRepo, 'records/one.md', '# Draft evidence\n');
+  commit(revisedRepo, 'add evidence');
+  write(revisedRepo, 'records/one.md', '# Final evidence\n');
+  commit(revisedRepo, 'revise evidence before freeze');
+  writeFileSync(join(revisedRepo, '.git', 'info', 'exclude'), 'adoption-review.json\n');
+  result = run(['classify', '--root', revisedRepo, ...COLLECTION], revisedRepo);
+  check('classification reports historical immutable revision as review required', result.status === 0
+    && result.output.includes('"adoptionReadiness": "review-required"')
+    && result.output.includes('"historyDigest"'), result.output);
+  result = run(['adopt', '--root', revisedRepo, ...COLLECTION], revisedRepo);
+  check('review-required adoption refuses without creating generated files', result.status === 1
+    && result.output.includes('adoption review required')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(revisedRepo, name))), result.output);
+  result = run(['plan-adoption', '--root', revisedRepo, ...COLLECTION, '--out', 'adoption-review.json'], revisedRepo);
+  const reviewPath = join(revisedRepo, 'adoption-review.json');
+  const reviewPlan = result.status === 0 ? JSON.parse(readFileSync(reviewPath, 'utf8')) : null;
+  if (reviewPlan?.candidates?.[0]) {
+    reviewPlan.candidates[0].disposition = 'freeze-current';
+    reviewPlan.candidates[0].rationale = 'The final reviewed bytes are the intended immutable baseline.';
+    writeFileSync(reviewPath, `${JSON.stringify(reviewPlan, null, 2)}\n`);
+  }
+  const staleReviewRepo = join(work, 'stale-review'); cpSync(revisedRepo, staleReviewRepo, { recursive: true });
+  write(staleReviewRepo, 'records/one.md', '# Changed after review\n');
+  commit(staleReviewRepo, 'change after review');
+  result = run(['adopt', '--root', staleReviewRepo, ...COLLECTION, '--review', 'adoption-review.json'], staleReviewRepo);
+  check('history movement invalidates a review receipt before any generated write', result.status === 1
+    && result.output.includes('adoption review is stale')
+    && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(staleReviewRepo, name))), result.output);
+  result = run(['adopt', '--root', revisedRepo, ...COLLECTION, '--review', 'adoption-review.json'], revisedRepo);
+  const reviewedInventory = result.status === 0 ? JSON.parse(readFileSync(generated(revisedRepo, 'inventory.json'), 'utf8')) : null;
+  check('digest-bound review permits adoption and persists its receipt', result.status === 0
+    && reviewedInventory?.version === 2
+    && /^[0-9a-f]{64}$/.test(reviewedInventory?.adoptionReview?.receiptDigest || '')
+    && reviewedInventory?.adoptionReview?.reviewed?.[0]?.disposition === 'freeze-current', result.output);
+
+  const rewrittenHistoryRepo = join(work, 'rewritten-reviewed-history'); cpSync(revisedRepo, rewrittenHistoryRepo, { recursive: true });
+  commit(rewrittenHistoryRepo, 'adopt reviewed record');
+  squashCurrentTree(rewrittenHistoryRepo, 'squashed reviewed adoption');
+  result = run(['check', '--root', rewrittenHistoryRepo, ...COLLECTION], rewrittenHistoryRepo);
+  // The receipt bytes survive this rewrite. The trust model does not claim to detect total-history replacement.
+  check('content-preserving history rewrites retain reviewed adoption authority', result.status === 0, result.output);
+
   result = run(['adopt', '--root', repo, ...COLLECTION], repo);
   check('adoption writes all four baselines', result.status === 0
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => existsSync(generated(repo, name))), result.output);
@@ -250,6 +641,82 @@ try {
   check('fresh adoption passes semantic and history checks', result.status === 0, result.output);
   commit(repo, 'adopt records');
   const originalRecord = readFileSync(join(repo, 'records', 'one.md'), 'utf8');
+  const revertedHistoryRepo = join(work, 'reverted-record-history'); cpSync(repo, revertedHistoryRepo, { recursive: true });
+  write(revertedHistoryRepo, 'records/one.md', `${originalRecord}\ntransient rewrite\n`);
+  commit(revertedHistoryRepo, 'temporarily rewrite adopted record');
+  write(revertedHistoryRepo, 'records/one.md', originalRecord);
+  commit(revertedHistoryRepo, 'restore adopted record bytes');
+  result = run(['check', '--root', revertedHistoryRepo, ...COLLECTION], revertedHistoryRepo);
+  check('retained reviewed transitions expose a post-adoption edit and revert', result.status === 1
+    && result.output.includes('adoption review history drift'), result.output);
+
+  const receiptDigestRepo = join(work, 'receipt-digest-mismatch'); cpSync(repo, receiptDigestRepo, { recursive: true });
+  const receiptDigestPath = generated(receiptDigestRepo, 'inventory.json');
+  const receiptDigestInventory = JSON.parse(readFileSync(receiptDigestPath, 'utf8'));
+  receiptDigestInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  writeFileSync(receiptDigestPath, `${JSON.stringify(receiptDigestInventory, null, 2)}\n`);
+  result = run(['check', '--root', receiptDigestRepo, ...COLLECTION], receiptDigestRepo);
+  check('receipt field tampering without a new digest fails', result.status === 1
+    && result.output.includes('record adoption review digest mismatch'), result.output);
+
+  const receiptRewriteRepo = join(work, 'receipt-history-rewrite'); cpSync(repo, receiptRewriteRepo, { recursive: true });
+  const receiptRewritePath = generated(receiptRewriteRepo, 'inventory.json');
+  const receiptRewriteInventory = JSON.parse(readFileSync(receiptRewritePath, 'utf8'));
+  receiptRewriteInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  delete receiptRewriteInventory.adoptionReview.receiptDigest;
+  receiptRewriteInventory.adoptionReview.receiptDigest = digestJson(receiptRewriteInventory.adoptionReview);
+  writeFileSync(receiptRewritePath, `${JSON.stringify(receiptRewriteInventory, null, 2)}\n`);
+  commit(receiptRewriteRepo, 'replace committed adoption receipt');
+  result = run(['check', '--root', receiptRewriteRepo, ...COLLECTION], receiptRewriteRepo);
+  check('a re-digested receipt cannot replace committed adoption authority', result.status === 1
+    && result.output.includes('record adoption review changed after introduction'), result.output);
+
+  const emptyReceiptRepo = join(work, 'empty-adoption-receipt'); cpSync(repo, emptyReceiptRepo, { recursive: true });
+  const emptyReceiptPath = generated(emptyReceiptRepo, 'inventory.json');
+  const emptyReceiptInventory = JSON.parse(readFileSync(emptyReceiptPath, 'utf8'));
+  emptyReceiptInventory.adoptionReview.candidates = [];
+  emptyReceiptInventory.adoptionReview.reviewed = [];
+  delete emptyReceiptInventory.adoptionReview.receiptDigest;
+  emptyReceiptInventory.adoptionReview.receiptDigest = digestJson(emptyReceiptInventory.adoptionReview);
+  writeFileSync(emptyReceiptPath, `${JSON.stringify(emptyReceiptInventory, null, 2)}\n`);
+  commit(emptyReceiptRepo, 'forge empty adoption receipt');
+  squashCurrentTree(emptyReceiptRepo, 'introduce forged empty adoption receipt');
+  result = run(['check', '--root', emptyReceiptRepo, ...COLLECTION], emptyReceiptRepo);
+  check('adoption receipt must cover every original immutable candidate', result.status === 1
+    && result.output.includes('adoption review is missing original candidate'), result.output);
+
+  const forgedRiskRepo = join(work, 'forged-adoption-risk'); cpSync(repo, forgedRiskRepo, { recursive: true });
+  const forgedRiskPath = generated(forgedRiskRepo, 'inventory.json');
+  const forgedRiskInventory = JSON.parse(readFileSync(forgedRiskPath, 'utf8'));
+  forgedRiskInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  forgedRiskInventory.adoptionReview.candidates[0].history.contentTransitions = 99;
+  forgedRiskInventory.adoptionReview.candidates[0].adoptionReadiness = 'ready';
+  forgedRiskInventory.adoptionReview.candidates[0].reason = 'stable-so-far';
+  forgedRiskInventory.adoptionReview.reviewed = [];
+  delete forgedRiskInventory.adoptionReview.receiptDigest;
+  forgedRiskInventory.adoptionReview.receiptDigest = digestJson(forgedRiskInventory.adoptionReview);
+  writeFileSync(forgedRiskPath, `${JSON.stringify(forgedRiskInventory, null, 2)}\n`);
+  commit(forgedRiskRepo, 'forge inconsistent adoption receipt');
+  squashCurrentTree(forgedRiskRepo, 'introduce internally inconsistent adoption receipt');
+  result = run(['check', '--root', forgedRiskRepo, ...COLLECTION], forgedRiskRepo);
+  check('receipt readiness and reason must agree with its recorded risk', result.status === 1
+    && result.output.includes('invalid adoption review candidate'), result.output);
+
+  const forgedSourceRepo = join(work, 'forged-source-head'); cpSync(revisedRepo, forgedSourceRepo, { recursive: true });
+  const forgedSourcePath = generated(forgedSourceRepo, 'inventory.json');
+  const forgedSourceInventory = JSON.parse(readFileSync(forgedSourcePath, 'utf8'));
+  forgedSourceInventory.adoptionReview.sourceHead = '0'.repeat(40);
+  forgedSourceInventory.adoptionReview.candidates[0].history.contentTransitions = 0;
+  forgedSourceInventory.adoptionReview.candidates[0].adoptionReadiness = 'ready';
+  forgedSourceInventory.adoptionReview.candidates[0].reason = 'stable-so-far';
+  forgedSourceInventory.adoptionReview.reviewed = [];
+  delete forgedSourceInventory.adoptionReview.receiptDigest;
+  forgedSourceInventory.adoptionReview.receiptDigest = digestJson(forgedSourceInventory.adoptionReview);
+  writeFileSync(forgedSourcePath, `${JSON.stringify(forgedSourceInventory, null, 2)}\n`);
+  commit(forgedSourceRepo, 'introduce forged adoption receipt');
+  result = run(['check', '--root', forgedSourceRepo, ...COLLECTION], forgedSourceRepo);
+  check('forged lower transition counts cannot replace committed adoption authority', result.status === 1
+    && result.output.includes('adoption review history drift'), result.output);
 
   const relabeled = join(work, 'relabeled'); cpSync(repo, relabeled, { recursive: true });
   const relabeledManifestPath = join(relabeled, 'hub', '98 System', 'DOCS_MANIFEST.json');
@@ -258,6 +725,33 @@ try {
   writeFileSync(relabeledManifestPath, `${JSON.stringify(relabeledManifest, null, 2)}\n`);
   result = run(['check', '--root', relabeled, '--collection', 'renamed-evidence'], relabeled);
   check('collection label changes preserve identities and conformance', result.status === 0, result.output);
+
+  const migratedScope = join(work, 'migrated-scope-v2'); cpSync(repo, migratedScope, { recursive: true });
+  const migratedManifestPath = join(migratedScope, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const migratedManifest = JSON.parse(readFileSync(migratedManifestPath, 'utf8'));
+  migratedManifest.recordCollections[0].classificationVersion = 2;
+  migratedManifest.recordCollections[0].scopes = [
+    { id: 'records', match: ['*.md'], paths: [], kind: 'record', policy: 'append-only' },
+    { id: 'mutable', match: ['mutable/**'], paths: [], kind: 'artifact', policy: 'mutable' },
+    { id: 'frozen', match: ['frozen/**'], paths: [], kind: 'artifact', policy: 'frozen' },
+    { id: 'executables', match: ['exec/**'], paths: [], kind: 'executable', policy: 'frozen' },
+    { id: 'literal-bracket', match: [], paths: ['literal[0].json'], kind: 'artifact', policy: 'frozen' },
+  ];
+  writeFileSync(migratedManifestPath, `${JSON.stringify(migratedManifest, null, 2)}\n`);
+  const migratedInventoryBefore = readFileSync(generated(migratedScope, 'inventory.json'));
+  result = run(['check', '--root', migratedScope, ...COLLECTION], migratedScope);
+  check('policy-equivalent scope v1 to v2 migration preserves adopted baselines', result.status === 0
+    && migratedInventoryBefore.equals(readFileSync(generated(migratedScope, 'inventory.json'))), result.output);
+  const reclassifiedScope = join(work, 'reclassified-scope-v2'); cpSync(migratedScope, reclassifiedScope, { recursive: true });
+  const reclassifiedManifestPath = join(reclassifiedScope, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const reclassifiedManifest = JSON.parse(readFileSync(reclassifiedManifestPath, 'utf8'));
+  reclassifiedManifest.recordCollections[0].scopes[0] = {
+    id: 'records', match: ['*.md'], paths: [], kind: 'artifact', policy: 'frozen',
+  };
+  writeFileSync(reclassifiedManifestPath, `${JSON.stringify(reclassifiedManifest, null, 2)}\n`);
+  result = run(['check', '--root', reclassifiedScope, ...COLLECTION], reclassifiedScope);
+  check('scope v2 migration cannot reclassify an adopted record', result.status === 1
+    && result.output.includes('immutable record deleted, renamed, or reclassified'), result.output);
 
   const deletedRecord = join(work, 'deleted-record'); cpSync(repo, deletedRecord, { recursive: true });
   unlinkSync(join(deletedRecord, 'records', 'one.md')); git(['add', '-u'], deletedRecord);
@@ -281,15 +775,26 @@ try {
   check('tracked frozen artifacts cannot bypass the inventory', result.status === 1
     && result.output.includes('frozen artifact missing from inventory'), result.output);
 
+  const candidatePinRepo = join(work, 'candidate-pin'); cpSync(repo, candidatePinRepo, { recursive: true });
+  write(candidatePinRepo, 'records/one.md', `${originalRecord}\ncommitted rewrite\n`);
+  const candidatePinPath = generated(candidatePinRepo, 'inventory.json');
+  const candidatePinInventory = JSON.parse(readFileSync(candidatePinPath, 'utf8'));
+  candidatePinInventory.entries[0].sha256 = sha256(readFileSync(join(candidatePinRepo, 'records', 'one.md')));
+  writeFileSync(candidatePinPath, `${JSON.stringify(candidatePinInventory, null, 2)}\n`);
+  run(['render', '--root', candidatePinRepo, ...COLLECTION], candidatePinRepo); commit(candidatePinRepo, 'coordinated immutable rewrite');
+  result = run(['check', '--root', candidatePinRepo, ...COLLECTION], candidatePinRepo);
+  check('committed body plus inventory rehash cannot bypass the adoption receipt', result.status === 1
+    && result.output.includes('adoption review candidate is not pinned by inventory'), result.output);
+
   const committedRewrite = join(work, 'committed-rewrite'); cpSync(repo, committedRewrite, { recursive: true });
-  write(committedRewrite, 'records/one.md', `${originalRecord}\ncommitted rewrite\n`);
   const rewrittenInventoryPath = generated(committedRewrite, 'inventory.json');
   const rewrittenInventory = JSON.parse(readFileSync(rewrittenInventoryPath, 'utf8'));
-  rewrittenInventory.entries[0].sha256 = sha256(readFileSync(join(committedRewrite, 'records', 'one.md')));
+  rewrittenInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], committedRewrite).trim();
   writeFileSync(rewrittenInventoryPath, `${JSON.stringify(rewrittenInventory, null, 2)}\n`);
-  run(['render', '--root', committedRewrite, ...COLLECTION], committedRewrite); commit(committedRewrite, 'coordinated immutable rewrite');
+  commit(committedRewrite, 'rewrite committed inventory metadata');
   result = run(['check', '--root', committedRewrite, ...COLLECTION], committedRewrite);
-  check('committed body plus inventory rehash cannot self-authorize', result.status === 1 && result.output.includes('record inventory changed'), result.output);
+  check('committed inventory metadata rewrites fail historical monotonicity', result.status === 1
+    && result.output.includes('record inventory changed'), result.output);
 
   const renamedHubRewrite = join(work, 'renamed-hub-rewrite'); cpSync(repo, renamedHubRewrite, { recursive: true });
   git(['mv', 'hub', 'knowledge-hub'], renamedHubRewrite);
@@ -297,15 +802,13 @@ try {
   const movedManifest = JSON.parse(readFileSync(movedManifestPath, 'utf8'));
   movedManifest.hub = 'knowledge-hub';
   writeFileSync(movedManifestPath, `${JSON.stringify(movedManifest, null, 2)}\n`);
-  write(renamedHubRewrite, 'records/one.md', `${originalRecord}\nrewrite hidden behind a hub move\n`);
   const movedInventoryPath = join(renamedHubRewrite, 'knowledge-hub', '98 System', 'Records', 'inventory.json');
   const movedInventory = JSON.parse(readFileSync(movedInventoryPath, 'utf8'));
-  movedInventory.entries[0].sha256 = sha256(readFileSync(join(renamedHubRewrite, 'records', 'one.md')));
+  movedInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], renamedHubRewrite).trim();
   writeFileSync(movedInventoryPath, `${JSON.stringify(movedInventory, null, 2)}\n`);
-  run(['render', '--root', renamedHubRewrite, ...COLLECTION], renamedHubRewrite);
-  commit(renamedHubRewrite, 'move hub with coordinated immutable rewrite');
+  commit(renamedHubRewrite, 'move hub with rewritten inventory metadata');
   result = run(['check', '--root', renamedHubRewrite, ...COLLECTION], renamedHubRewrite);
-  check('hub rename cannot hide a coordinated immutable rewrite', result.status === 1
+  check('hub rename cannot hide a committed inventory rewrite', result.status === 1
     && result.output.includes('record inventory changed'), result.output);
 
   if (process.platform !== 'win32') {
@@ -319,15 +822,13 @@ try {
     result = run(['adopt', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
     check('literal-pathspec fixture adopts', result.status === 0, result.output);
     commit(literalHubRepo, 'adopt literal-pathspec hub');
-    write(literalHubRepo, 'records/one.md', '# Rewritten literal pathspec record\n');
     const literalInventoryPath = join(literalHubRepo, ':hub', '98 System', 'Records', 'inventory.json');
     const literalInventory = JSON.parse(readFileSync(literalInventoryPath, 'utf8'));
-    literalInventory.entries[0].sha256 = sha256(readFileSync(join(literalHubRepo, 'records', 'one.md')));
+    literalInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], literalHubRepo).trim();
     writeFileSync(literalInventoryPath, `${JSON.stringify(literalInventory, null, 2)}\n`);
-    run(['render', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
-    commit(literalHubRepo, 'attempt coordinated rewrite under literal-pathspec hub');
+    commit(literalHubRepo, 'rewrite inventory under literal-pathspec hub');
     result = run(['check', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
-    check('pathspec-like hub names cannot disable append-only history', result.status === 1
+    check('pathspec-like hub names cannot hide inventory history', result.status === 1
       && result.output.includes('record inventory changed'), result.output);
 
     const symlinkRepo = join(work, 'symlink-record'); mkdirSync(symlinkRepo, { recursive: true });
@@ -478,6 +979,78 @@ supersedes: ["${firstId}"]
   result = run(['check', '--root', repo, ...COLLECTION], repo);
   check('native append passes staged-tree checks', result.status === 0, result.output);
   commit(repo, 'append native record');
+
+  const reusedAppendRepo = join(work, 'reused-native-append'); cpSync(repo, reusedAppendRepo, { recursive: true });
+  write(reusedAppendRepo, 'records/reused.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# First incarnation\n');
+  commit(reusedAppendRepo, 'commit un-inventoried record incarnation');
+  git(['rm', 'records/reused.md'], reusedAppendRepo); commit(reusedAppendRepo, 'remove un-inventoried record incarnation');
+  write(reusedAppendRepo, 'records/reused.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Replacement incarnation\n');
+  git(['add', 'records/reused.md'], reusedAppendRepo);
+  const reusedInventoryBefore = readFileSync(generated(reusedAppendRepo, 'inventory.json'));
+  result = run(['append', '--root', reusedAppendRepo, ...COLLECTION, '--record', 'records/reused.md'], reusedAppendRepo);
+  check('native append rejects a reused record path before generated writes', result.status === 1
+    && result.output.includes('new path with no reachable history')
+    && reusedInventoryBefore.equals(readFileSync(generated(reusedAppendRepo, 'inventory.json'))), result.output);
+
+  const reclassifiedAppendRepo = join(work, 'reclassified-native-artifact'); cpSync(repo, reclassifiedAppendRepo, { recursive: true });
+  const reclassifiedAppendManifestPath = join(reclassifiedAppendRepo, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const reclassifiedAppendManifest = JSON.parse(readFileSync(reclassifiedAppendManifestPath, 'utf8'));
+  reclassifiedAppendManifest.recordCollections[0].classificationVersion = 2;
+  reclassifiedAppendManifest.recordCollections[0].scopes = [
+    { id: 'records', match: ['*.md'], paths: [], kind: 'record', policy: 'append-only' },
+    { id: 'mutable', match: ['mutable/**'], paths: [], kind: 'artifact', policy: 'mutable' },
+    { id: 'reclassified-result', match: [], paths: ['mutable/result.json'], kind: 'artifact', policy: 'frozen' },
+    { id: 'frozen', match: ['frozen/**'], paths: [], kind: 'artifact', policy: 'frozen' },
+    { id: 'executables', match: ['exec/**'], paths: [], kind: 'executable', policy: 'frozen' },
+    { id: 'literal-bracket', match: [], paths: ['literal[0].json'], kind: 'artifact', policy: 'frozen' },
+  ];
+  writeFileSync(reclassifiedAppendManifestPath, `${JSON.stringify(reclassifiedAppendManifest, null, 2)}\n`);
+  write(reclassifiedAppendRepo, 'records/three.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Three\n');
+  write(reclassifiedAppendRepo, 'records/mutable/result.json', '{"PRIMARY":{"summary":2},"A":[0]}\n');
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json', 'records/three.md', 'records/mutable/result.json'], reclassifiedAppendRepo);
+  result = run(['append', '--root', reclassifiedAppendRepo, ...COLLECTION, '--record', 'records/three.md'], reclassifiedAppendRepo);
+  check('native append rejects historically mutable paths reclassified as immutable', result.status === 1
+    && result.output.includes('new immutable artifact path with no reachable history'), result.output);
+
+  const mergeHiddenAppendRepo = join(work, 'merge-hidden-native-history'); cpSync(repo, mergeHiddenAppendRepo, { recursive: true });
+  git(['checkout', '-q', '-b', 'hidden-history'], mergeHiddenAppendRepo);
+  write(mergeHiddenAppendRepo, 'records/hidden.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Hidden record\n');
+  write(mergeHiddenAppendRepo, 'records/frozen/hidden.json', '{"hidden":true}\n');
+  commit(mergeHiddenAppendRepo, 'add paths on side branch');
+  git(['rm', 'records/hidden.md', 'records/frozen/hidden.json'], mergeHiddenAppendRepo);
+  commit(mergeHiddenAppendRepo, 'remove paths on side branch');
+  git(['checkout', '-q', 'main'], mergeHiddenAppendRepo);
+  write(mergeHiddenAppendRepo, 'README.md', '# Mainline advancement\n');
+  commit(mergeHiddenAppendRepo, 'advance main before hidden-history merge');
+  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'merge', '--no-ff', '-m', 'merge hidden path history', 'hidden-history'], mergeHiddenAppendRepo);
+  const mergeHiddenInventoryBefore = readFileSync(generated(mergeHiddenAppendRepo, 'inventory.json'));
+  write(mergeHiddenAppendRepo, 'records/hidden.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Replacement record\n');
+  git(['add', 'records/hidden.md'], mergeHiddenAppendRepo);
+  result = run(['append', '--root', mergeHiddenAppendRepo, ...COLLECTION, '--record', 'records/hidden.md'], mergeHiddenAppendRepo);
+  check('native append rejects record history hidden by merge simplification', result.status === 1
+    && result.output.includes('new path with no reachable history')
+    && mergeHiddenInventoryBefore.equals(readFileSync(generated(mergeHiddenAppendRepo, 'inventory.json'))), result.output);
+  git(['reset', '--quiet', 'HEAD', '--', 'records/hidden.md'], mergeHiddenAppendRepo);
+  unlinkSync(join(mergeHiddenAppendRepo, 'records', 'hidden.md'));
+  write(mergeHiddenAppendRepo, 'records/hidden-artifact.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Hidden artifact replacement\n');
+  write(mergeHiddenAppendRepo, 'records/frozen/hidden.json', '{"replacement":true}\n');
+  git(['add', 'records/hidden-artifact.md', 'records/frozen/hidden.json'], mergeHiddenAppendRepo);
+  result = run(['append', '--root', mergeHiddenAppendRepo, ...COLLECTION, '--record', 'records/hidden-artifact.md'], mergeHiddenAppendRepo);
+  check('native append rejects artifact history hidden by merge simplification', result.status === 1
+    && result.output.includes('new immutable artifact path with no reachable history')
+    && mergeHiddenInventoryBefore.equals(readFileSync(generated(mergeHiddenAppendRepo, 'inventory.json'))), result.output);
+
+  const shallowArtifactClassRepo = join(work, 'shallow-artifact-classification'); cpSync(repo, shallowArtifactClassRepo, { recursive: true });
+  const shallowArtifactManifestPath = join(shallowArtifactClassRepo, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const shallowArtifactManifest = JSON.parse(readFileSync(shallowArtifactManifestPath, 'utf8'));
+  shallowArtifactManifest.recordCollections[0].scopes.find((scope) => scope.pattern === 'frozen/**').policy = 'superseded';
+  writeFileSync(shallowArtifactManifestPath, `${JSON.stringify(shallowArtifactManifest, null, 2)}\n`);
+  commit(shallowArtifactClassRepo, 'reclassify frozen artifacts');
+  writeFileSync(join(shallowArtifactClassRepo, '.git', 'shallow'), `${git(['rev-parse', 'HEAD'], shallowArtifactClassRepo).trim()}\n`);
+  result = run(['check', '--root', shallowArtifactClassRepo, ...COLLECTION], shallowArtifactClassRepo);
+  check('shallow checks still bind immutable artifact classification', result.status === 1
+    && result.output.includes('frozen artifact deleted, renamed, or reclassified'), result.output);
 
   write(repo, 'records/missing-image.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Missing image\n\n![proof](records/missing.png)\n');
   git(['add', 'records/missing-image.md'], repo);

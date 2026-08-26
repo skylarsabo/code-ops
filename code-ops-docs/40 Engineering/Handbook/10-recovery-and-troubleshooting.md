@@ -209,11 +209,13 @@ Use this procedure only for a manifest v2 record collection. Record adoption is 
 
 1. Stop before `adopt` when the repository is shallow, partial, promisor-backed, dirty, or missing required objects.
 2. Restore full history, then run `verify-history --strict` before any adoption or repair.
-3. Run `classify` and resolve every zero-match, multiple-match, and forbidden-file result in the same diff.
-4. Recover a failed append by restoring the staged record and artifact snapshot, then rerun `append`; do not hand-edit inventory, citations, or indexes.
-5. Recover a ledger conflict by rebasing the losing branch and regenerating only its unmerged tail under the repository-local lock.
-6. Investigate `evidence-lost` only after strict history verification. Treat `history-unavailable` as infrastructure work.
-7. Reindex locators only after the historical bytes match the stored `targetSha256`.
+3. Run `classify` and resolve every zero-match, ambiguous-owner, and forbidden-file result in the same diff.
+4. Run `plan-adoption --out <ignored-path>`. Review every `review-required` candidate without changing its history bindings.
+5. Supply the completed plan to `adopt --review <ignored-path>`. Regenerate it when `HEAD`, manifest bytes, content, or history changes.
+6. Recover a failed append by restoring the staged record and artifact snapshot, then rerun `append`; do not hand-edit inventory, citations, or indexes.
+7. Recover a ledger conflict by rebasing the losing branch and regenerating only its unmerged tail under the repository-local lock.
+8. Investigate `evidence-lost` only after strict history verification. Treat `history-unavailable` as infrastructure work.
+9. Reindex locators only after the historical bytes match the stored `targetSha256`.
 
 Do not use a current path as historical fallback. Do not change a merged ledger event. Do not create a tombstone or pointer through manifest sync. See [the vault standard](../Techniques/vault-standard.md#durable-record-collections) for the normative contract.
 
@@ -260,4 +262,4 @@ This pushes a synthetic merge commit as a plain fast-forward — not a rebase, n
 
 Related material lives in adjacent chapters: the register schemas, tracks, and the full `revalidate-register.mjs` reference in [04-registers-and-freshness](04-registers-and-freshness.md); the orchestrators' phase structure and checkpoints in [03-orchestrators](03-orchestrators.md); evidence tiers and the disconfirmation pass behind re-reading a survivor in [05-evidence-and-tiers](05-evidence-and-tiers.md). The dedicated carry-forward technique linked above is [techniques/register-carry-forward](../Techniques/register-carry-forward.md).
 
-*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*
+*Verified-at: 8b4eecc28da77eef4d0c863374d4e9e7bb7fcd71*
