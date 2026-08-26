@@ -30,4 +30,4 @@ The repository has one location to navigate and one registry to validate. A docu
 
 Single-plugin installs still do not receive the repository hub. Plugin READMEs therefore remain the install-facing surface and point users toward the repository documentation when needed.
 
-Implementation evidence: commit `622296053cab92326fabf3447a1248aba4f2ffe2`, `code-ops-docs/Standard.md`, and `code-ops-docs/98 System/DOCS_MANIFEST.json`.
+Implementation evidence: commit `fe44a68fb15e73c2cc5bc285c88a381527d3117c`, `code-ops-docs/Standard.md`, and `code-ops-docs/98 System/DOCS_MANIFEST.json`.

@@ -16,6 +16,8 @@ The Windows job mirrors structural checks that can differ by path handling, quot
 
 The documentation link gate rejects missing, escaping, case-unsafe, and ambiguous local targets. It rejects hub-internal directory links and unresolved local Markdown heading fragments. Evidence: `scripts/check-doc-links.mjs:76-89` and `evals/doc-links/run.mjs:11-28`.
 
+The documentation citation gate validates both `path:line` references and explicit commit fields. Recognized commit IDs must be complete tokens, resolve unambiguously under the repository's Git object format, and name commits in `HEAD` history. A shallow checkout that cannot establish ancestry is an infrastructure failure, so both validation jobs fetch full history. Evidence: `scripts/check-doc-citations.mjs` and `.github/workflows/validate.yml`.
+
 The record-collection eval exercises immutable evidence contracts on Ubuntu and Windows. Repositories with record collections require a complete checkout using `fetch-depth: 0` and `filter: ""`. A shallow or partial checkout is infrastructure failure, not evidence loss.
 
 The v4 gate chain keeps responsibilities separate. The manifest gate owns domain and collection declarations. The records gate owns identities, baselines, history, citation state, curation chains, and semantic projections. The link gate continues to own ordinary hub navigation.

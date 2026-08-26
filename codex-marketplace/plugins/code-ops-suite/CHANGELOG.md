@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.47.1
+- Record commands canonicalize an aliased repository root once at entry while retaining physical containment checks for every descendant write. Cross-platform regressions prove ambient junctions or symlinks work and linked output paths still fail before mutation.
+- The record-collection eval now reports executed and expected case counts on success and unexpected aborts, initializes fixtures inside the failure boundary, and safely reports non-Error throws.
+- Documentation citation checks now validate recognized commit fields as complete, object-format-aware commit IDs with durable `HEAD` ancestry. Shallow history is an infrastructure failure, fenced examples and third-party pins stay outside the grammar, and the original line-citation coverage remains intact.
+- Legacy authored-document stamps were semantically reviewed against a durable base. Four stale claims were corrected, and the documentation-hub ADR now cites its reachable merge commit.
+
 ## 1.47.0
 - **Vault standard v4 preserves immutable evidence without preserving a second documentation authority.** Manifest-v2 record collections assign permanent Git-index-derived IDs, freeze adopted bytes, capture citation state and mutable-target digests, and expose semantic indexes from the authored hub. The records engine fails closed on incomplete classification, shallow adoption, immutable drift, broken curation chains, and lost complete-history evidence.
 - **Documentation extraction stays bounded as evidence collections grow.** One exact repository map still serves the run, while affected collections contribute only their generated inventory and index. Record bodies are fetched by ID when a domain needs them, and unchanged collections create no dispatch.

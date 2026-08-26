@@ -222,7 +222,7 @@ code-ops/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
     │   ├── CONVENTIONS.md                # shared backbone
-    │   ├── skills/                       # 29 workflows (incl. architecture/API/data-model/ADR/ops doc generators + current-docs + handoff + adopt-standards + orchestrators + calibration-run/run-cost-audit/provider-parity-audit)
+    │   ├── skills/                       # 33 workflows (incl. documentation generators + current-docs + handoff + standards/vault/conformance + orchestrators + suite self-audits)
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # Claude GitHub Actions workflow
     │   └── README.md

@@ -30,13 +30,13 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
 
 ### The spine: `code-ops-suite`
 
-`code-ops-suite` ([README](../../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **28 skills**, grouped by intent:
+`code-ops-suite` ([README](../../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **33 skills**, grouped by intent:
 
 - **Assess** — `codebase-audit` (broad multi-lens review → `FINDINGS_REGISTER.md`), `security-privacy-audit` (STRIDE + LINDDUN threat assessment → `THREAT_MODEL.md`).
 - **Build** — `remediation` (implements the findings backlog), `feature-discovery` (finds and specs grounded features), `feature-implementation` (builds the smallest valuable slice behind flags).
 - **Deep-dives** — `performance` (measure → optimize the proven-hot → prove with before/after numbers), `test-hardening` (meaningful, deterministic coverage), `dependency-upgrade` (safe, staged upgrades + CVE remediation).
 - **Gate / consistency** — `pr-review` (rigorous pre-merge review), `normalize` (one consistent professional style repo-wide, behavior-preserving), `pr-split` (carve a big branch into a clean stack of small green PRs; composes `privacy-opsec-suite:authorship-hygiene`, fail-closed).
-- **Docs / knowledge** — `doc-alignment` (reconcile doc drift, establish the SSOT), `onboarding` (verified orientation guide), `current-docs` (version-accurate dependency docs, local-first; also the `code-ops-docs` MCP server). `handoff` (capture or resume a long run's verifiable session state).
+- **Docs / knowledge** — `adopt-standards` and `adopt-global-standards` (maintain repo and user contracts), `doc-alignment` (reconcile doc drift), `repo-docs` (refresh the manifest-owned hub), `onboarding` (verified orientation), `current-docs` (version-accurate dependency docs), `handoff` (capture or resume verifiable run state), `atlas` (durable judgment cache), `vault` (create, migrate, or check the documentation vault), and `conform` (assess and repair the complete standard).
 - **Documentation generators** (Mode: DOCUMENT) — `architecture`, `api-docs`, `data-model`, `adr`, `ops-docs`.
 - **Meta / suite self-audit** — `calibration-run` (standardized real-scale calibration, one-way sanitized channel), `run-cost-audit` (audits a completed run's cost discipline), `provider-parity-audit` (audits the suite's own prose for provider-specific assumptions).
 - **Orchestrators** — `full-sweep` (the whole suite end-to-end, intra-plugin), `everything` (the cross-plugin superset across all three engineering/anonymity plugins), `ship` (one change at full rigor), `debug` (symptom → proven root-cause fix).
@@ -178,4 +178,4 @@ Each term is defined once here and used consistently across the handbook.
 
 ---
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*

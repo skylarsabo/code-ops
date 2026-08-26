@@ -168,4 +168,4 @@ Three consequences follow from this flow, all reinforced by [04-registers-and-fr
 - [commands/rigor.md](commands/rigor.md) — the `rigor` command reference (`bug-hunt`, `fix-verified`, `deep-review`, and the rest).
 - [`plugins/rigor/CONVENTIONS.md`](../../../plugins/rigor/CONVENTIONS.md) — §0, §A, §B, §C, §D, §E, §6: the source of every rule above.
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*

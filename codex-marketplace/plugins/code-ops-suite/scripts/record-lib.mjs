@@ -58,6 +58,16 @@ function assertPhysicalContainment(root, target) {
   if (!contained(physicalRoot, physicalAncestor, true)) throw new Error('path escapes repository through a link');
 }
 
+export function physicalRoot(value) {
+  const root = resolve(value);
+  try { return realpathSync.native(root); }
+  catch (error) {
+    if (error.code === 'ENOENT') throw new Error('repository root does not exist: ' + root);
+    if (error.code === 'ENOTDIR') throw new Error('repository root contains a non-directory component: ' + root);
+    throw error;
+  }
+}
+
 export function git(root, args, binary = false) {
   return execFileSync('git', args, {
     cwd: root, encoding: binary ? 'buffer' : 'utf8', timeout: 30000,
@@ -312,12 +322,12 @@ function nextCodeTick(text, from) {
   while (index >= 0 && escapedAt(text, index)) index = text.indexOf('`', index + 1);
   return index;
 }
-function maskCodeSpans(text) {
-  let masked = ''; let cursor = 0;
+function codeSpanRanges(text) {
+  const ranges = [];
+  let cursor = 0;
   while (cursor < text.length) {
     const start = nextCodeTick(text, cursor);
-    if (start < 0) return masked + text.slice(cursor);
-    masked += text.slice(cursor, start);
+    if (start < 0) break;
     let endTick = start;
     while (text[endTick] === '`') endTick += 1;
     const ticks = text.slice(start, endTick); let end = -1; let search = endTick;
@@ -327,11 +337,24 @@ function maskCodeSpans(text) {
       if (!escapedAt(text, candidate) && text[candidate - 1] !== '`' && text[candidate + ticks.length] !== '`') { end = candidate; break; }
       search = candidate + ticks.length;
     }
-    if (end < 0) { masked += ticks; cursor = endTick; continue; }
-    masked += text.slice(start, end + ticks.length).replace(/[^\r\n]/g, ' ');
+    if (end < 0) { cursor = endTick; continue; }
+    ranges.push([start, end + ticks.length]);
     cursor = end + ticks.length;
   }
-  return masked;
+  return ranges;
+}
+export function isInsideCodeSpan(text, index) {
+  return codeSpanRanges(text).some(([start, end]) => index >= start && index < end);
+}
+export function maskCodeSpans(text) {
+  let masked = '';
+  let cursor = 0;
+  for (const [start, end] of codeSpanRanges(text)) {
+    masked += text.slice(cursor, start);
+    masked += text.slice(start, end).replace(/[^\r\n]/g, ' ');
+    cursor = end;
+  }
+  return masked + text.slice(cursor);
 }
 function referenceLabel(label) { return label.trim().replace(/\s+/g, ' ').toLowerCase(); }
 export function extractCitations(text) {

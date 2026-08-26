@@ -179,4 +179,4 @@ node scripts/revalidate-register.mjs <register> --root <repo>
 
 For the full register schema, the three tracks (`NOW-SAFE` / `NEEDS-REVIEW` / `NEEDS-DESIGN`), the always-gated rails, and how all four plugins share this backbone, see [Registers and freshness](../Handbook/04-registers-and-freshness.md). For reading and prioritizing a populated register, see [Reading a findings register](reading-a-findings-register.md).
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*

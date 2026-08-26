@@ -165,4 +165,4 @@ Resolved findings are not deleted. Stamp them `OBSOLETE-AT <sha>` so the history
 - [Registers and freshness](../Handbook/04-registers-and-freshness.md) — the full register schema, tracks, `Verified-at`, and `revalidate-register.mjs`.
 - [Evidence and tiers](../Handbook/05-evidence-and-tiers.md) — `CONFIRMED` / `PROBABLE` / `SPECULATIVE` as lived practice.
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*
