@@ -576,7 +576,7 @@ try {
     commit(literalHubRepo, 'attempt coordinated rewrite under literal-pathspec hub');
     result = run(['check', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
     check('pathspec-like hub names cannot disable append-only history', result.status === 1
-      && result.output.includes('record inventory changed'), result.output);
+      && result.output.includes('adoption review candidate is not pinned by inventory'), result.output);
 
     const symlinkRepo = join(work, 'symlink-record'); mkdirSync(symlinkRepo, { recursive: true });
     git(['init', '--quiet', '-b', 'main'], symlinkRepo);
