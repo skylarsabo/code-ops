@@ -328,6 +328,34 @@ try {
     uvStamp.status === 1 && /never-stamped placeholder, not a rev/.test(uvStamp.err + uvStamp.out), uvStamp.err + uvStamp.out);
   g(C, ['branch', '-D', 'unverified']);
 
+  // A digest-backed scope gets liveness from `ls-files -s -z`. A space-and-bracket path proves
+  // that the NUL-delimited index record is not treated like quoted line-oriented output.
+  // Both sections deliberately share the same pin, exercising the per-check resolution cache.
+  const R = newRepo('cached-pin-unusual-path');
+  put(R, 'src/ordinary.js', 'ordinary\n');
+  put(R, 'src/odd name [v1].js', 'odd\n');
+  put(R, 'docs/atlas/sections/ordinary.md', '# Ordinary\n');
+  put(R, 'docs/atlas/sections/odd.md', '# Odd\n');
+  writeManifest(R, {
+    version: 1,
+    sections: [
+      { slug: 'ordinary', file: 'sections/ordinary.md', scope: ['src/ordinary.js'], verifiedAt: '0'.repeat(40) },
+      { slug: 'odd', file: 'sections/odd.md', scope: ['src/odd name [v1].js'], verifiedAt: '0'.repeat(40) },
+    ],
+  });
+  commit(R, 'seed cached pin fixture');
+  const atlasR = join(R, 'docs', 'atlas');
+  run(['stamp', '--atlas', atlasR, '--section', 'ordinary']);
+  run(['stamp', '--atlas', atlasR, '--section', 'odd']);
+  const cachedPin = readManifest(R).sections;
+  const cachedPinCheck = run(['check', '--atlas', atlasR, '--gate', '--stats']);
+  check('o. an unusual tracked path still keeps its digest-backed scope alive',
+    cachedPinCheck.status === 0 && /ok\s+FRESH\s+odd\b/.test(cachedPinCheck.out), cachedPinCheck.out);
+  check('o. repeated verifiedAt pins keep every section FRESH',
+    cachedPin[0].verifiedAt === cachedPin[1].verifiedAt && /ok\s+FRESH\s+ordinary\b/.test(cachedPinCheck.out), cachedPinCheck.out);
+  check('o. digest liveness and repeated pins stay inside the Git-process budget',
+    /git subprocesses: 13\b/.test(cachedPinCheck.out), cachedPinCheck.out);
+
   // A scope dead only because of the atlas exclusion must name that cause rather than suggest
   // a typo — both for a scope inside the atlas dir and for one a level up whose only tracked
   // content is the atlas.

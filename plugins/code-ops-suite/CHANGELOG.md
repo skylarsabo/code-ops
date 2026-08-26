@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.48.1
+- Atlas checks reuse tracked paths already present in each scoped digest and cache repeated immutable revision pins. The normal seven-section check launches 11 fewer Git subprocesses without changing digest bytes, liveness rules, or fail-closed behavior. Optional `check --stats` output makes the process budget executable.
+
 ## 1.48.0
 - Record adoption now anchors identity to the reviewed current exact-path admission. Delete-and-readd and rename-back histories adopt the surviving path incarnation.
 - History profiling follows promotion lineages and first-parent merge diffs. Per-path queries own rename evidence, while bounded exact-path batches add non-rename events. Path, event, batch-count, and process-argument ceilings keep the work bounded.
