@@ -48,7 +48,7 @@ sequenceDiagram
     FS->>TM: Phase 1 — model
     TM-->>LR: ANONYMITY_THREAT_MODEL.md + concrete leaks
     TM->>Dev: worst paths, go/no-go (checkpoint)
-    FS->>AU: Phase 2 — fan out (read-only)
+    FS->>AU: Phase 2 — bounded waves (read-only)
     AU-->>LR: merged, ranked leaks
     AU->>Dev: clearnet/DNS/identifier exposure first (checkpoint)
     FS->>HD: Phase 3 — harden (writes code)
@@ -102,7 +102,7 @@ The reason this is the keystone: a leak found by an audit means little until you
 
 ## Phase 2 — the six parallel audits → one `LEAK_REGISTER.md`
 
-**Mode:** AUDIT (read-only — no code changes). `full-sweep` runs the audits in parallel where they are independent, then merges everything into `LEAK_REGISTER.md` (schema §6) ([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 2). Read-only analysis parallelizes freely ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §1), so all six fan out at once and converge on one register.
+**Mode:** AUDIT (read-only — no code changes). `full-sweep` parallelizes independent audits in bounded waves, then merges everything into `LEAK_REGISTER.md` (schema §6) ([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 2). Read-only analysis uses the available concurrency without exceeding the orchestrator's wave limit ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §1), and every wave converges on one register.
 
 Each audit owns a non-overlapping lens. Knowing the boundaries tells you which audit a leak belongs to:
 
@@ -305,4 +305,4 @@ For the full anonymity-track orientation and where each skill fits, see [`code-o
 
 ---
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*

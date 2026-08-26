@@ -3,11 +3,11 @@
 import {
   appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, relative } from 'node:path';
 import {
   canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, extractCitations, findBlobByDigest, FULL_ID_RE, git,
-  gitPaths, historicalTarget, jsonl, nativePath, posix,
+  gitPaths, historicalTarget, jsonl, nativePath, physicalRoot, posix,
   readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
@@ -732,7 +732,7 @@ const [command, ...argv] = process.argv.slice(2);
 try {
   const options = parseArgs(argv);
   validateInvocation(command, options);
-  const root = resolve(options.root || process.cwd());
+  const root = physicalRoot(options.root || process.cwd());
   const context = loadContext(root, options);
   if (command === 'classify') classifyCommand(context);
   else if (command === 'adopt') adopt(context);

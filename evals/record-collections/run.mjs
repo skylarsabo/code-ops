@@ -8,12 +8,15 @@ import { digestJson, extractCitations, recordId, resolvePrefix, sha256, writeAto
 
 const ROOT = process.cwd();
 const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
-const work = mkdtempSync(join(tmpdir(), 'code-ops-records-'));
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
+const expectedCases = process.platform === 'win32' ? 87 : 90;
+let executedCases = 0;
+let work;
 
 function check(name, condition, detail = '') {
+  executedCases += 1;
   console.log(`${condition ? 'ok  ' : 'FAIL'} ${name}`);
   if (!condition) { failures.push(`${name}: ${detail}`); if (detail) console.log(detail); }
 }
@@ -60,6 +63,7 @@ function generated(repo, name) { return join(repo, 'hub', '98 System', 'Records'
 function restoreFromHead(repo, path) { write(repo, path, git(['show', `HEAD:${path}`], repo)); }
 
 try {
+  work = mkdtempSync(join(tmpdir(), 'code-ops-records-'));
   const repo = join(work, 'fixture');
   mkdirSync(repo, { recursive: true });
   git(['init', '--quiet', '-b', 'main'], repo);
@@ -126,6 +130,25 @@ try {
   result = run(['adopt', '--root', repo, ...COLLECTION], repo);
   check('adoption writes all four baselines', result.status === 0
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => existsSync(generated(repo, name))), result.output);
+  const ambientRootAlias = join(work, 'ambient-root-alias');
+  symlinkSync(repo, ambientRootAlias, process.platform === 'win32' ? 'junction' : 'dir');
+  result = run(['render', '--root', ambientRootAlias, ...COLLECTION], ambientRootAlias);
+  check('ambient repository root aliases permit representative writes', result.status === 0, result.output);
+  const linkedOutputRepo = join(work, 'linked-output');
+  cpSync(repo, linkedOutputRepo, { recursive: true });
+  const linkedOutput = join(linkedOutputRepo, 'hub', '98 System', 'Records');
+  const linkedOutputTarget = join(work, 'linked-output-target');
+  const preservedIndex = readFileSync(join(repo, 'hub', '98 System', 'Records', 'index.md'), 'utf8');
+  rmSync(linkedOutput, { recursive: true, force: true });
+  mkdirSync(linkedOutputTarget, { recursive: true });
+  for (const name of ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md']) {
+    writeFileSync(join(linkedOutputTarget, name), readFileSync(generated(repo, name)));
+  }
+  symlinkSync(linkedOutputTarget, linkedOutput, process.platform === 'win32' ? 'junction' : 'dir');
+  result = run(['render', '--root', linkedOutputRepo, ...COLLECTION], linkedOutputRepo);
+  check('intra-repository aliases still reject writes before mutation', result.status === 1
+    && result.output.includes('path escapes repository through a link')
+    && readFileSync(join(linkedOutputTarget, 'index.md'), 'utf8') === preservedIndex, result.output);
 
   const inventory = JSON.parse(readFileSync(generated(repo, 'inventory.json'), 'utf8'));
   const citations = JSON.parse(readFileSync(generated(repo, 'citations.json'), 'utf8')).entries;
@@ -611,12 +634,15 @@ supersedes: ["${firstId}"]
   const pointerRender = result;
   result = run(['check', '--root', recordPointerRepo, ...COLLECTION], recordPointerRepo);
   check('record-qualified pointer migration preserves pinned history and passes', pointerRender.status === 0 && result.status === 0, `${pointerRender.output}\n${result.output}`);
+  if (executedCases !== expectedCases) throw new Error(`expected ${expectedCases} cases but executed ${executedCases}`);
+  if (failures.length) throw new Error(failures.join('\n'));
+  console.log(`\nrecord-collections eval passed (${executedCases}/${expectedCases} cases)`);
+} catch (error) {
+  const message = error instanceof Error ? error.message : (() => {
+    try { return String(error); } catch { return '<unstringifiable thrown value>'; }
+  })();
+  console.error(`\nrecord-collections eval aborted (${executedCases}/${expectedCases} cases): ${message}`);
+  process.exitCode = 1;
 } finally {
-  rmSync(work, { recursive: true, force: true });
+  if (work) rmSync(work, { recursive: true, force: true });
 }
-
-if (failures.length) {
-  console.error(`\n${failures.join('\n')}`);
-  process.exit(1);
-}
-console.log('\nrecord-collections eval passed');

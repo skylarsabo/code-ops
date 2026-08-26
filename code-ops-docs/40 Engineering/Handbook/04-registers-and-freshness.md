@@ -246,4 +246,4 @@ For a deeper walkthrough of how to read, prioritize, and act on a populated regi
 
 Deeper register and freshness material lands in later first-slice files: the disconfirmation pass as lived practice in [05-evidence-and-tiers](05-evidence-and-tiers.md) and [techniques/disconfirmation-pass](../Techniques/disconfirmation-pass.md); how to read a populated register in [techniques/reading-a-findings-register](../Techniques/reading-a-findings-register.md). A register-carry-forward technique and a CI/automation chapter are planned but not yet authored.
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*

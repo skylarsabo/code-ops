@@ -120,7 +120,7 @@ This page documents all 14 skills. If you are new, read the suite intro above, t
 
 **How it works.** Phase 0 (checkpoint) reads `LEAK_REGISTER.md` and **re-validates first** (`CONVENTIONS §11`): it runs `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs LEAK_REGISTER.md --root .`, triages the FRESH/MOVED/DRIFTED/GONE/AMBIGUOUS/NO-REF report, and confirms each surviving leak still reproduces (dropping or `OBSOLETE-AT <sha>`-marking anything already fixed); it then builds a dependency/conflict graph and sequences by severity (deanonymization and secret leaks first), pausing to present the re-validation results, the order/batching, and the PR preference, and getting a direction on NEEDS-DESIGN items. Phase 1 implements via the implementation loop (`§10`): common hardening includes enforcing proxy/Tor routing and fail-closed, routing DNS through the proxy and closing WebRTC/IPv6 leaks, enforcing stream isolation, stripping metadata, redacting or removing sensitive logging and default-denying telemetry, removing/replacing fingerprint vectors, tightening cookie/session lifecycle, and default-denying egress. Several of these intentionally tighten behavior — that is the point, and each is confirmed with the developer and pinned. For every fix it adds a **regression test that fails if the leak returns** (asserts no clearnet connect on proxy failure, no PII in a log line, EXIF stripped). It produces atomic PRs/branches, an `IMPLEMENTATION_LOG.md`, an updated register — which must pass `revalidate-register.mjs --consumed <pre-run copy>`: no consumed leak vanishes or closes without a pinned terminal form (closed-with-proof / deferred-with-reason / OBSOLETE-AT) — and updated opsec docs.
 
-**Why it's useful.** It is the only IMPLEMENT-mode skill in the suite — the one that turns a leak backlog into shut-and-locked fixes. The regression-test-per-leak discipline means a closed leak stays closed.
+**Why it's useful.** It is the dedicated hardening implementation skill — the one that turns a leak backlog into shut-and-locked fixes. The regression-test-per-leak discipline means a closed leak stays closed.
 
 **When to use it.** After the audits (or `leak-incident-response`) have populated `LEAK_REGISTER.md` and you want the leaks fixed safely. Do not run it without a register — it consumes one as input. Because it changes the anonymity/opsec posture, its work is always gated (`§4`); never auto-merge.
 
@@ -202,4 +202,4 @@ This page documents all 14 skills. If you are new, read the suite intro above, t
 
 ---
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*

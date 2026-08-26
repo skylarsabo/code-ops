@@ -1,6 +1,6 @@
 # code-ops-suite — Command Reference
 
-The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 29 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
+The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 33 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
 
 A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate code-grounded reference docs and run-continuity state. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
 
@@ -25,6 +25,7 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 
 **Document (DOCUMENT)**
 - [`adopt-standards`](#code-ops-suiteadopt-standards) — bootstrap or maintain a repo's `CLAUDE.md` standards contract
+- [`adopt-global-standards`](#code-ops-suiteadopt-global-standards) — maintain the user-wide standards contract from marketplace doctrine
 - [`doc-alignment`](#code-ops-suitedoc-alignment) — reconcile doc drift; establish the SSOT
 - [`repo-docs`](#code-ops-suiterepo-docs) — refresh affected manifest-owned documentation domains
 - [`onboarding`](#code-ops-suiteonboarding) — verified orientation guide with a diagram
@@ -36,6 +37,8 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 - [`ops-docs`](#code-ops-suiteops-docs) — the operator's runbook
 - [`handoff`](#code-ops-suitehandoff) — capture or resume a run's verifiable session state
 - [`atlas`](#code-ops-suiteatlas) — the repo's durable cache of judgment, with mechanical freshness
+- [`conform`](#code-ops-suiteconform) — assess and repair the complete code-ops standard
+- [`vault`](#code-ops-suitevault) — create, migrate, or check the repository documentation vault
 
 **Meta / suite self-audit**
 - [`calibration-run`](#code-ops-suitecalibration-run) — standardized real-scale calibration, one-way sanitized channel
@@ -457,4 +460,4 @@ Orchestrators do not replace the individual skills — they run them in a sensib
 
 ---
 
-*Verified-at: a181b36*
+*Verified-at: 915760f18e1c03c0d7f1c04dc8f58cfb10618342*
