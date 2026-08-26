@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-26
 ---
 
 # CI and Delivery
@@ -24,9 +24,9 @@ The v4 gate chain keeps responsibilities separate. The manifest gate owns domain
 
 ## Pull-request gates
 
-`Deep Review (rigor)` runs on opened, synchronized, and reopened pull requests. It scopes review to changed files, asks Claude for a verification-first review, and fails closed if two review attempts fail. Evidence: `.github/workflows/deep-review.yml:11-27`, `.github/workflows/deep-review.yml:55-133`, and `.github/workflows/deep-review.yml:135-137`.
+`Deep Review (rigor)` runs on opened, synchronized, and reopened pull requests. It scopes review to changed files, asks Claude for a verification-first review, and fails closed if two review attempts fail. Evidence: the `Scope check`, `Verification-first review`, retry, and `failed twice` steps in [`.github/workflows/deep-review.yml`](../../.github/workflows/deep-review.yml).
 
-`OpSec PR Gate` is a distinct pull-request gate for privacy and operational-security review. It has the same event scope and requires a configured Claude credential. Evidence: `.github/workflows/opsec-gate.yml:10-28`.
+`OpSec PR Gate` is a distinct pull-request gate for privacy and operational-security review. It has the same event scope and requires a configured Claude credential. Evidence: [`.github/workflows/opsec-gate.yml`](../../.github/workflows/opsec-gate.yml).
 
 The branch protection policy requires `structural-lint`, `deep-review`, and `opsec-gate` before merge. This policy is configured outside the repository, so it requires live GitHub verification before a release decision.
 
