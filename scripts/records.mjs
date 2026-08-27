@@ -8,7 +8,7 @@ import {
   adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
   gitPaths, historicalTarget, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
-  readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
+  maskMarkdownFenceAndIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
 } from './record-lib.mjs';
@@ -664,7 +664,9 @@ function scanRecordPrefixes(context, allIds) {
   const seen = new Set();
   for (const path of markdown) {
     const text = readFileSync(nativePath(context.root, path), 'utf8');
-    for (const match of text.matchAll(/REC-[A-Z2-7]{8,26}(?![A-Z2-7])/g)) seen.add(match[0]);
+    const { maskedText, unterminatedFenceLine } = maskMarkdownFenceAndIndentBlocks(text);
+    if (unterminatedFenceLine !== null) throw new Error(`unterminated Markdown fence in ${path}:${unterminatedFenceLine}`);
+    for (const match of maskedText.matchAll(/REC-[A-Z2-7]{8,26}(?![A-Z2-7])/g)) seen.add(match[0]);
   }
   for (const value of seen) {
     if (FULL_ID_RE.test(value) && allIds.includes(value)) continue;

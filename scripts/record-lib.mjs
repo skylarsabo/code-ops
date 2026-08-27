@@ -782,20 +782,33 @@ export function maskCodeSpans(text) {
   }
   return masked + text.slice(cursor);
 }
-function referenceLabel(label) { return label.trim().replace(/\s+/g, ' ').toLowerCase(); }
-export function extractCitations(text) {
-  const lines = text.split(/\r?\n/); const fenceScanned = []; let fence = null;
-  for (const line of lines) {
+
+// Mask fenced and indented Markdown code blocks only. Inline code spans stay
+// visible so callers that validate prose identifiers can still inspect them;
+// callers that treat inline code as non-content apply maskCodeSpans separately.
+export function maskMarkdownFenceAndIndentBlocks(text) {
+  const lines = text.split(/\r?\n/); const masked = []; let fence = null;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-    if (!fence && marker) { fence = { character: marker[1][0], length: marker[1].length }; fenceScanned.push(' '.repeat(line.length)); continue; }
+    if (!fence && marker) {
+      fence = { character: marker[1][0], length: marker[1].length, sourceLine: index + 1 };
+      masked.push(' '.repeat(line.length)); continue;
+    }
     const closing = fence && /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
     if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) {
-      fence = null; fenceScanned.push(' '.repeat(line.length)); continue;
+      fence = null; masked.push(' '.repeat(line.length)); continue;
     }
-    if (fence || /^(?: {4}|\t)/.test(line)) { fenceScanned.push(' '.repeat(line.length)); continue; }
-    fenceScanned.push(line);
+    if (fence || /^(?: {4}|\t)/.test(line)) { masked.push(' '.repeat(line.length)); continue; }
+    masked.push(line);
   }
-  const scanned = maskCodeSpans(fenceScanned.join('\n')).split('\n');
+  return { maskedText: masked.join('\n'), unterminatedFenceLine: fence?.sourceLine ?? null };
+}
+
+function referenceLabel(label) { return label.trim().replace(/\s+/g, ' ').toLowerCase(); }
+export function extractCitations(text) {
+  const { maskedText } = maskMarkdownFenceAndIndentBlocks(text);
+  const scanned = maskCodeSpans(maskedText).split('\n');
 
   const definitions = new Map(); const definitionLines = new Set();
   for (let index = 0; index < scanned.length; index += 1) {

@@ -11,7 +11,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 135 : 138;
+const expectedCases = process.platform === 'win32' ? 138 : 141;
 let executedCases = 0;
 let work;
 
@@ -1005,6 +1005,55 @@ try {
   result = run(['check', '--root', unknownPrefixRepo, ...COLLECTION], unknownPrefixRepo);
   check('unknown record prefixes in vault prose fail', result.status === 1
     && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
+
+  const fencedPrefixRepo = join(work, 'fenced-prefix-example'); cpSync(repo, fencedPrefixRepo, { recursive: true });
+  write(fencedPrefixRepo, 'hub/fenced-prefix-example.md', `# Record examples
+
+\`\`\`yaml
+supersedes: ["REC-ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+\`\`\`
+
+~~~yaml
+supersedes: ["REC-ZYXWVUTSRQPONMLKJIHGFEDCBA"]
+~~~
+
+~~~~yaml
+REC-ZZZZZZZZ
+~~~
+~~~~
+
+    REC-YYYYYYYY
+`);
+  git(['add', 'hub/fenced-prefix-example.md'], fencedPrefixRepo);
+  result = run(['check', '--root', fencedPrefixRepo, ...COLLECTION], fencedPrefixRepo);
+  check('fenced and indented record examples do not create citation debt', result.status === 0, result.output);
+
+  const resumedPrefixRepo = join(work, 'resumed-prefix-scan'); cpSync(repo, resumedPrefixRepo, { recursive: true });
+  write(resumedPrefixRepo, 'hub/resumed-prefix-scan.md', `# Closed example
+
+\`\`\`yaml
+supersedes: ["REC-ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+\`\`\`
+
+Visible reference: REC-ZZZZZZZZ
+`);
+  git(['add', 'hub/resumed-prefix-scan.md'], resumedPrefixRepo);
+  result = run(['check', '--root', resumedPrefixRepo, ...COLLECTION], resumedPrefixRepo);
+  check('record-prefix scanning resumes after a valid fence closure', result.status === 1
+    && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
+
+  const unterminatedFenceRepo = join(work, 'unterminated-prefix-fence'); cpSync(repo, unterminatedFenceRepo, { recursive: true });
+  write(unterminatedFenceRepo, 'hub/unterminated-prefix-fence.md', `# Broken example
+
+\`\`\`yaml
+supersedes: []
+
+REC-ZZZZZZZZ
+`);
+  git(['add', 'hub/unterminated-prefix-fence.md'], unterminatedFenceRepo);
+  result = run(['check', '--root', unterminatedFenceRepo, ...COLLECTION], unterminatedFenceRepo);
+  check('unterminated fences fail before they can suppress record references', result.status === 1
+    && result.output.includes('unterminated Markdown fence in hub/unterminated-prefix-fence.md:3'), result.output);
 
   const deadRepo = join(work, 'resolved-to-dead'); cpSync(repo, deadRepo, { recursive: true });
   unlinkSync(join(deadRepo, 'records', 'mutable', 'stream.jsonl')); git(['add', '-u'], deadRepo);
