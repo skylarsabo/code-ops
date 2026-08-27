@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "a1f940b77932b0263b4e32e678bb100b0b27292e",
-      "verifiedDigest": "a48f7a30a52fd1126b41146e8ee697ceda35cfb657e77f6e927e74a0c01ce074"
+      "verifiedAt": "37463fead3db5c042426d8dc7a5fd74d778b0fd9",
+      "verifiedDigest": "d425b064cbb6472ccc5486b5e2c353d7e62f11f804ce282a48aa27e5d64ae757"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "a1f940b77932b0263b4e32e678bb100b0b27292e",
-      "verifiedDigest": "12c07cdbdb93c5326377a01afb528355acdedcbd6652593c8b3f94c43a141b29"
+      "verifiedAt": "37463fead3db5c042426d8dc7a5fd74d778b0fd9",
+      "verifiedDigest": "8dd48a4d8a6bad98b74ef881c0814823066ace307e80d2c2e7e8f56e3f8cd470"
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "a1f940b77932b0263b4e32e678bb100b0b27292e",
-      "verifiedDigest": "3445e287d8e476e0f0d70bd8ed762f79a9988f89852758b89fd546fc4c200a2b"
+      "verifiedAt": "37463fead3db5c042426d8dc7a5fd74d778b0fd9",
+      "verifiedDigest": "3dd2a8ab5e19c930b0c3e6d96bf4bd5683d4bda9abcf1acfaf2c249ca97b2b9f"
     },
     {
       "slug": "codex-render",
@@ -38,8 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "a1f940b77932b0263b4e32e678bb100b0b27292e",
-      "verifiedDigest": "f415a187fe5450cfddfb56db8db81ffe45724f5c5b20ef5d5ea0741b998179e8"
+      "verifiedAt": "37463fead3db5c042426d8dc7a5fd74d778b0fd9",
+      "verifiedDigest": "b6a225437ba5d7551e18d50ddf88db510b004ae90657cb7463573d681203ccc7"
     },
     {
       "slug": "ci-workflows",
@@ -86,8 +86,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "915760f18e1c03c0d7f1c04dc8f58cfb10618342",
-      "verifiedDigest": "3ade66dc5275824fa0a611c4d66ae75ee510bbae8d348356123f8918a3ae049b"
+      "verifiedAt": "cef7d6044f2d5b663eb6702df8dde16f682e5f50",
+      "verifiedDigest": "0836c6373e9fe07d64f8fdf9c5cc322d08b775af6e0b12eb64aacf3f90336f8d"
     }
   ]
 }

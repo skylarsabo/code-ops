@@ -11,7 +11,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 135 : 138;
+const expectedCases = process.platform === 'win32' ? 162 : 165;
 let executedCases = 0;
 let work;
 
@@ -671,6 +671,22 @@ try {
   check('unequal backtick runs remain literal citation text', extractCitations('`` [proof](records/missing.json) ```').length === 1);
   check('escaped backticks remain literal citation text', extractCitations('\\` [proof](records/missing.json) \\`').length === 1);
   check('escaped link openers do not create citation debt', extractCitations('Literal: \\[proof](records/missing.json)').length === 0);
+  check('indented code blocks do not create citation debt', extractCitations('    [proof](records/missing.json)').length === 0);
+  check('citation extraction resumes when a blockquote fence container ends',
+    extractCitations('> ```yaml\n> example: true\n[proof](records/missing.json)').length === 1);
+  check('citation extraction resumes when a list fence container ends',
+    extractCitations('- example\n  ```yaml\n  hidden: true\n\n[proof](records/missing.json)').length === 1);
+  check('invalid backtick-fence info strings do not suppress citations',
+    extractCitations('```yaml `invalid\n[proof](records/missing.json)').length === 1);
+  let unterminatedCitationError = '';
+  try {
+    extractCitations('```yaml\nexample: true\n[proof](records/missing.json)', 'records/broken.md');
+  } catch (error) {
+    unterminatedCitationError = String(error);
+  }
+  check('citation extraction rejects an unterminated fence',
+    unterminatedCitationError.includes('unterminated Markdown fence in records/broken.md:1'),
+    unterminatedCitationError);
   const atomicDir = join(work, 'atomic-probe'); mkdirSync(join(atomicDir, 'not-a-file'), { recursive: true });
   writeFileSync(join(atomicDir, 'first.txt'), 'before');
   let atomicRejected = false;
@@ -1006,6 +1022,186 @@ try {
   check('unknown record prefixes in vault prose fail', result.status === 1
     && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
 
+  const nestedPrefixRepo = join(work, 'nested-prefix'); cpSync(repo, nestedPrefixRepo, { recursive: true });
+  write(nestedPrefixRepo, 'hub/nested-prefix.md', '# Nested record\n\n- outer bullet\n    - nested bullet references REC-ZZZZZZZZ\n');
+  git(['add', 'hub/nested-prefix.md'], nestedPrefixRepo);
+  result = run(['check', '--root', nestedPrefixRepo, ...COLLECTION], nestedPrefixRepo);
+  check('unknown record prefixes in nested list prose fail', result.status === 1
+    && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
+
+  const lazyPrefixRepo = join(work, 'lazy-prefix'); cpSync(repo, lazyPrefixRepo, { recursive: true });
+  write(lazyPrefixRepo, 'hub/lazy-prefix.md', '# Lazy record\n\nParagraph\n    continuation references REC-XXXXXXXX\n');
+  git(['add', 'hub/lazy-prefix.md'], lazyPrefixRepo);
+  result = run(['check', '--root', lazyPrefixRepo, ...COLLECTION], lazyPrefixRepo);
+  check('indented paragraph continuations remain visible to record-prefix checks', result.status === 1
+    && result.output.includes('record prefix REC-XXXXXXXX is unresolved'), result.output);
+
+  const quotedLazyPrefixRepo = join(work, 'quoted-lazy-prefix'); cpSync(repo, quotedLazyPrefixRepo, { recursive: true });
+  write(quotedLazyPrefixRepo, 'hub/quoted-lazy-prefix.md', '# Quoted lazy record\n\n> Paragraph\n    continuation references REC-VVVVVVVV\n');
+  git(['add', 'hub/quoted-lazy-prefix.md'], quotedLazyPrefixRepo);
+  result = run(['check', '--root', quotedLazyPrefixRepo, ...COLLECTION], quotedLazyPrefixRepo);
+  check('lazy blockquote continuations remain visible to record-prefix checks', result.status === 1
+    && result.output.includes('record prefix REC-VVVVVVVV is unresolved'), result.output);
+
+  const indentedPrefixRepo = join(work, 'indented-prefix'); cpSync(repo, indentedPrefixRepo, { recursive: true });
+  write(indentedPrefixRepo, 'hub/indented-prefix.md', '# Indented record\n\n    REC-ASDFGHJK\n');
+  git(['add', 'hub/indented-prefix.md'], indentedPrefixRepo);
+  result = run(['check', '--root', indentedPrefixRepo, ...COLLECTION], indentedPrefixRepo);
+  check('unambiguous top-level indented record examples do not create citation debt', result.status === 0, result.output);
+
+  const fencedPrefixRepo = join(work, 'fenced-prefix-example'); cpSync(repo, fencedPrefixRepo, { recursive: true });
+  write(fencedPrefixRepo, 'hub/fenced-prefix-example.md', `# Record examples
+
+\`\`\`yaml
+supersedes: ["REC-ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+\`\`\`
+
+~~~yaml
+supersedes: ["REC-ZYXWVUTSRQPONMLKJIHGFEDCBA"]
+~~~
+
+~~~~yaml
+REC-ZZZZZZZZ
+~~~
+~~~~
+
+> ~~~yaml
+> supersedes: ["REC-QWERTYUIOPASDFGHJKLZXCVBNM"]
+> ~~~
+`);
+  git(['add', 'hub/fenced-prefix-example.md'], fencedPrefixRepo);
+  result = run(['check', '--root', fencedPrefixRepo, ...COLLECTION], fencedPrefixRepo);
+  check('fenced record examples do not create citation debt', result.status === 0, result.output);
+
+  const quotedFenceExitRepo = join(work, 'quoted-fence-exit'); cpSync(repo, quotedFenceExitRepo, { recursive: true });
+  write(quotedFenceExitRepo, 'hub/quoted-fence-exit.md', `# Quoted fence exit
+
+> \`\`\`yaml
+> supersedes: []
+Visible reference: REC-ZZZZZZZZ
+> \`\`\`
+`);
+  git(['add', 'hub/quoted-fence-exit.md'], quotedFenceExitRepo);
+  result = run(['check', '--root', quotedFenceExitRepo, ...COLLECTION], quotedFenceExitRepo);
+  check('record-prefix scanning resumes when a blockquote container ends', result.status === 1
+    && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
+
+  const nestedQuoteExitRepo = join(work, 'nested-quote-exit'); cpSync(repo, nestedQuoteExitRepo, { recursive: true });
+  write(nestedQuoteExitRepo, 'hub/nested-quote-exit.md', `# Nested quote exit
+
+> > \`\`\`yaml
+> Visible reference: REC-XXXXXXXX
+> > \`\`\`
+`);
+  git(['add', 'hub/nested-quote-exit.md'], nestedQuoteExitRepo);
+  result = run(['check', '--root', nestedQuoteExitRepo, ...COLLECTION], nestedQuoteExitRepo);
+  check('record-prefix scanning resumes at a parent blockquote depth', result.status === 1
+    && result.output.includes('record prefix REC-XXXXXXXX is unresolved'), result.output);
+
+  const quotedFenceEofRepo = join(work, 'quoted-fence-eof'); cpSync(repo, quotedFenceEofRepo, { recursive: true });
+  write(quotedFenceEofRepo, 'hub/quoted-fence-eof.md', '# Quoted fence EOF\n\n> ```yaml\n> supersedes: []\n');
+  git(['add', 'hub/quoted-fence-eof.md'], quotedFenceEofRepo);
+  result = run(['check', '--root', quotedFenceEofRepo, ...COLLECTION], quotedFenceEofRepo);
+  check('a blockquote container may close its fence at end of file', result.status === 0, result.output);
+
+  const listFenceExitRepo = join(work, 'list-fence-exit'); cpSync(repo, listFenceExitRepo, { recursive: true });
+  write(listFenceExitRepo, 'hub/list-fence-exit.md', '# List fence exit\n\n- example\n  ```yaml\n  supersedes: []\n\nVisible reference: REC-VVVVVVVV\n');
+  git(['add', 'hub/list-fence-exit.md'], listFenceExitRepo);
+  result = run(['check', '--root', listFenceExitRepo, ...COLLECTION], listFenceExitRepo);
+  check('record-prefix scanning resumes when a list container ends', result.status === 1
+    && result.output.includes('record prefix REC-VVVVVVVV is unresolved')
+    && !result.output.includes('unterminated Markdown fence'), result.output);
+
+  const listFenceEofRepo = join(work, 'list-fence-eof'); cpSync(repo, listFenceEofRepo, { recursive: true });
+  write(listFenceEofRepo, 'hub/list-fence-eof.md', '# List fence EOF\n\n- example\n  ```yaml\n  supersedes: []\n');
+  git(['add', 'hub/list-fence-eof.md'], listFenceEofRepo);
+  result = run(['check', '--root', listFenceEofRepo, ...COLLECTION], listFenceEofRepo);
+  check('a list container may close its fence at end of file', result.status === 0, result.output);
+
+  const invalidBacktickInfoRepo = join(work, 'invalid-backtick-info'); cpSync(repo, invalidBacktickInfoRepo, { recursive: true });
+  write(invalidBacktickInfoRepo, 'hub/invalid-backtick-info.md', '# Invalid backtick info\n\n```yaml `invalid\nREC-ASDFGHJK\n');
+  git(['add', 'hub/invalid-backtick-info.md'], invalidBacktickInfoRepo);
+  result = run(['check', '--root', invalidBacktickInfoRepo, ...COLLECTION], invalidBacktickInfoRepo);
+  check('backticks in a backtick-fence info string do not suppress record prefixes', result.status === 1
+    && result.output.includes('record prefix REC-ASDFGHJK is unresolved'), result.output);
+
+  const validTildeInfoRepo = join(work, 'valid-tilde-info'); cpSync(repo, validTildeInfoRepo, { recursive: true });
+  write(validTildeInfoRepo, 'hub/valid-tilde-info.md', '# Valid tilde info\n\n~~~yaml `valid\nREC-QWERTYUI\n~~~\n');
+  git(['add', 'hub/valid-tilde-info.md'], validTildeInfoRepo);
+  result = run(['check', '--root', validTildeInfoRepo, ...COLLECTION], validTildeInfoRepo);
+  check('backticks remain valid in tilde-fence info strings', result.status === 0, result.output);
+
+  const deeperQuoteContentRepo = join(work, 'deeper-quote-content'); cpSync(repo, deeperQuoteContentRepo, { recursive: true });
+  write(deeperQuoteContentRepo, 'hub/deeper-quote-content.md', '# Deeper quote content\n\n```yaml\n> REC-POIUYTRE\n```\n');
+  git(['add', 'hub/deeper-quote-content.md'], deeperQuoteContentRepo);
+  result = run(['check', '--root', deeperQuoteContentRepo, ...COLLECTION], deeperQuoteContentRepo);
+  check('deeper blockquote markers remain content inside a top-level fence', result.status === 0, result.output);
+
+  const nestedListFenceRepo = join(work, 'nested-list-fence'); cpSync(repo, nestedListFenceRepo, { recursive: true });
+  write(nestedListFenceRepo, 'hub/nested-list-fence.md', '# Nested list fence\n\n- outer\n    - inner\n      ```yaml\n      REC-LKJHGFDS\n      ```\n');
+  git(['add', 'hub/nested-list-fence.md'], nestedListFenceRepo);
+  result = run(['check', '--root', nestedListFenceRepo, ...COLLECTION], nestedListFenceRepo);
+  check('nested-list fenced record examples remain masked', result.status === 0, result.output);
+
+  const tabListFenceRepo = join(work, 'tab-list-fence'); cpSync(repo, tabListFenceRepo, { recursive: true });
+  write(tabListFenceRepo, 'hub/tab-list-fence.md', '# Tab list fence\n\n-\touter\n    ```yaml\n    REC-MNBVCXZL\n    ```\n');
+  git(['add', 'hub/tab-list-fence.md'], tabListFenceRepo);
+  result = run(['check', '--root', tabListFenceRepo, ...COLLECTION], tabListFenceRepo);
+  check('tab-indented list fences use marker-relative columns', result.status === 0, result.output);
+
+  const tabContinuationFenceRepo = join(work, 'tab-continuation-fence'); cpSync(repo, tabContinuationFenceRepo, { recursive: true });
+  write(tabContinuationFenceRepo, 'hub/tab-continuation-fence.md', '# Tab continuation fence\n\n- outer\n  ```yaml\n\tREC-CXCVBNML\n\t```\n');
+  git(['add', 'hub/tab-continuation-fence.md'], tabContinuationFenceRepo);
+  result = run(['check', '--root', tabContinuationFenceRepo, ...COLLECTION], tabContinuationFenceRepo);
+  check('tab expansion preserves list-fence continuation content', result.status === 0, result.output);
+
+  const orderedInterruptionRepo = join(work, 'ordered-interruption'); cpSync(repo, orderedInterruptionRepo, { recursive: true });
+  write(orderedInterruptionRepo, 'hub/ordered-interruption.md', '# Ordered interruption\n\nParagraph\n2. ```yaml\n   REC-AZERTYUI\n');
+  git(['add', 'hub/ordered-interruption.md'], orderedInterruptionRepo);
+  result = run(['check', '--root', orderedInterruptionRepo, ...COLLECTION], orderedInterruptionRepo);
+  check('non-one ordered markers cannot hide prefixes by interrupting prose', result.status === 1
+    && result.output.includes('record prefix REC-AZERTYUI is unresolved'), result.output);
+
+  const emptyInterruptionRepo = join(work, 'empty-interruption'); cpSync(repo, emptyInterruptionRepo, { recursive: true });
+  write(emptyInterruptionRepo, 'hub/empty-interruption.md', '# Empty interruption\n\nParagraph\n2.\n    ```yaml\n    REC-SDFGHJKL\n');
+  git(['add', 'hub/empty-interruption.md'], emptyInterruptionRepo);
+  result = run(['check', '--root', emptyInterruptionRepo, ...COLLECTION], emptyInterruptionRepo);
+  check('empty list markers cannot hide prefixes by interrupting prose', result.status === 1
+    && result.output.includes('record prefix REC-SDFGHJKL is unresolved'), result.output);
+
+  const orderedOneFenceRepo = join(work, 'ordered-one-fence'); cpSync(repo, orderedOneFenceRepo, { recursive: true });
+  write(orderedOneFenceRepo, 'hub/ordered-one-fence.md', '# Ordered one fence\n\nParagraph\n1. ```yaml\n   REC-DFGHJKLA\n');
+  git(['add', 'hub/ordered-one-fence.md'], orderedOneFenceRepo);
+  result = run(['check', '--root', orderedOneFenceRepo, ...COLLECTION], orderedOneFenceRepo);
+  check('ordered-one list fences may interrupt prose', result.status === 0, result.output);
+
+  const resumedPrefixRepo = join(work, 'resumed-prefix-scan'); cpSync(repo, resumedPrefixRepo, { recursive: true });
+  write(resumedPrefixRepo, 'hub/resumed-prefix-scan.md', `# Closed example
+
+\`\`\`yaml
+supersedes: ["REC-ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+\`\`\`
+
+Visible reference: REC-ZZZZZZZZ
+`);
+  git(['add', 'hub/resumed-prefix-scan.md'], resumedPrefixRepo);
+  result = run(['check', '--root', resumedPrefixRepo, ...COLLECTION], resumedPrefixRepo);
+  check('record-prefix scanning resumes after a valid fence closure', result.status === 1
+    && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
+
+  const unterminatedFenceRepo = join(work, 'unterminated-prefix-fence'); cpSync(repo, unterminatedFenceRepo, { recursive: true });
+  write(unterminatedFenceRepo, 'hub/unterminated-prefix-fence.md', `# Broken example
+
+\`\`\`yaml
+supersedes: []
+
+REC-ZZZZZZZZ
+`);
+  git(['add', 'hub/unterminated-prefix-fence.md'], unterminatedFenceRepo);
+  result = run(['check', '--root', unterminatedFenceRepo, ...COLLECTION], unterminatedFenceRepo);
+  check('unterminated fences fail before they can suppress record references', result.status === 1
+    && result.output.includes('unterminated Markdown fence in hub/unterminated-prefix-fence.md:3'), result.output);
+
   const deadRepo = join(work, 'resolved-to-dead'); cpSync(repo, deadRepo, { recursive: true });
   unlinkSync(join(deadRepo, 'records', 'mutable', 'stream.jsonl')); git(['add', '-u'], deadRepo);
   result = run(['check', '--root', deadRepo, ...COLLECTION], deadRepo);
@@ -1087,6 +1283,23 @@ supersedes: ["${firstId}"]
   result = run(['check', '--root', repo, ...COLLECTION], repo);
   check('native append passes staged-tree checks', result.status === 0, result.output);
   commit(repo, 'append native record');
+
+  const unterminatedAppendRepo = join(work, 'unterminated-native-append'); cpSync(repo, unterminatedAppendRepo, { recursive: true });
+  write(unterminatedAppendRepo, 'records/broken.md', `---
+recordSchema: 1
+supersedes: []
+---
+# Broken
+
+~~~yaml
+[proof](records/frozen/stable.json)
+`);
+  git(['add', 'records/broken.md'], unterminatedAppendRepo);
+  const unterminatedAppendInventory = readFileSync(generated(unterminatedAppendRepo, 'inventory.json'));
+  result = run(['append', '--root', unterminatedAppendRepo, ...COLLECTION, '--record', 'records/broken.md'], unterminatedAppendRepo);
+  check('native append rejects an unterminated fence before generated writes', result.status === 1
+    && result.output.includes('unterminated Markdown fence in records/broken.md:7')
+    && unterminatedAppendInventory.equals(readFileSync(generated(unterminatedAppendRepo, 'inventory.json'))), result.output);
 
   const reusedAppendRepo = join(work, 'reused-native-append'); cpSync(repo, reusedAppendRepo, { recursive: true });
   write(reusedAppendRepo, 'records/reused.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# First incarnation\n');

@@ -782,20 +782,168 @@ export function maskCodeSpans(text) {
   }
   return masked + text.slice(cursor);
 }
-function referenceLabel(label) { return label.trim().replace(/\s+/g, ' ').toLowerCase(); }
-export function extractCitations(text) {
-  const lines = text.split(/\r?\n/); const fenceScanned = []; let fence = null;
-  for (const line of lines) {
-    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-    if (!fence && marker) { fence = { character: marker[1][0], length: marker[1].length }; fenceScanned.push(' '.repeat(line.length)); continue; }
-    const closing = fence && /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
-    if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) {
-      fence = null; fenceScanned.push(' '.repeat(line.length)); continue;
-    }
-    if (fence || /^(?: {4}|\t)/.test(line)) { fenceScanned.push(' '.repeat(line.length)); continue; }
-    fenceScanned.push(line);
+
+function stripBlockquoteMarkers(raw, limit = Number.POSITIVE_INFINITY) {
+  let rest = raw; let depth = 0;
+  while (depth < limit) {
+    const marker = /^ {0,3}>[ \t]?/.exec(rest);
+    if (!marker) break;
+    rest = rest.slice(marker[0].length); depth += 1;
   }
-  const scanned = maskCodeSpans(fenceScanned.join('\n')).split('\n');
+  return { depth, rest };
+}
+
+function endColumn(value, startColumn = 0) {
+  let columns = startColumn;
+  for (const character of value) {
+    if (character === ' ') columns += 1;
+    else if (character === '\t') columns += 4 - (columns % 4);
+    else break;
+  }
+  return columns;
+}
+
+function stripIndentColumns(line, requiredColumns) {
+  let columns = 0; let offset = 0;
+  while (offset < line.length && columns < requiredColumns) {
+    if (line[offset] === ' ') columns += 1;
+    else if (line[offset] === '\t') columns += 4 - (columns % 4);
+    else return null;
+    offset += 1;
+  }
+  if (columns < requiredColumns) return null;
+  return `${' '.repeat(columns - requiredColumns)}${line.slice(offset)}`;
+}
+
+function markdownListItem(line) {
+  const marker = /^( {0,3})([-+*]|\d{1,9}[.)])([ \t]*)(.*)$/.exec(line);
+  if (!marker || (marker[3] === '' && marker[4] !== '')) return null;
+  const markerEnd = marker[1].length + marker[2].length;
+  const spacingColumns = endColumn(marker[3], markerEnd) - markerEnd;
+  if (marker[4] !== '' && spacingColumns === 0) return null;
+  const consumedSpacing = spacingColumns > 4 ? marker[3].slice(0, 1) : marker[3];
+  const content = spacingColumns > 4
+    ? `${marker[3].slice(consumedSpacing.length)}${marker[4]}` : marker[4];
+  return {
+    content,
+    contentIndent: consumedSpacing === '' ? markerEnd + 1 : endColumn(consumedSpacing, markerEnd),
+    orderedStart: /^\d/.test(marker[2]) ? Number.parseInt(marker[2], 10) : null,
+  };
+}
+
+function listLine(line, current, atBlockBoundary) {
+  let topLevel = markdownListItem(line);
+  if (topLevel && !current && !atBlockBoundary
+      && (topLevel.content.trim() === ''
+        || (topLevel.orderedStart !== null && topLevel.orderedStart !== 1))) topLevel = null;
+  if (topLevel) {
+    const indents = [topLevel.contentIndent]; let candidate = topLevel.content;
+    while (true) {
+      const nested = markdownListItem(candidate);
+      if (!nested) return { candidate, indents };
+      indents.push(indents.at(-1) + nested.contentIndent); candidate = nested.content;
+    }
+  }
+  if (!current || line.trim() === '') return { candidate: line, indents: current?.indents || [] };
+  for (let index = current.indents.length - 1; index >= 0; index -= 1) {
+    const parentIndent = current.indents[index]; const stripped = stripIndentColumns(line, parentIndent);
+    if (stripped === null) continue;
+    const indents = current.indents.slice(0, index + 1); let candidate = stripped;
+    while (true) {
+      const nested = markdownListItem(candidate);
+      if (!nested) return { candidate, indents };
+      indents.push(indents.at(-1) + nested.contentIndent); candidate = nested.content;
+    }
+  }
+  return { candidate: line, indents: [] };
+}
+
+// Mask fenced Markdown blocks only. Inline spans and indented content stay
+// visible so fail-closed prose validators cannot silently miss identifiers.
+// Container-scoped fences close when their blockquote or list container ends.
+export function maskMarkdownFencedBlocks(text, sourcePath = null) {
+  const lines = text.split(/\r?\n/); const masked = [];
+  let fence = null; let list = null; let previousBlank = true; let previousQuoteDepth = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index];
+    if (fence) {
+      const quoted = stripBlockquoteMarkers(raw, fence.quoteDepth);
+      let candidate = quoted.rest; let insideContainer = quoted.depth === fence.quoteDepth;
+      if (insideContainer && fence.listIndents.length > 0 && candidate.trim() !== '') {
+        const stripped = stripIndentColumns(candidate, fence.listIndent);
+        insideContainer = stripped !== null;
+        if (insideContainer) candidate = stripped;
+      }
+      if (insideContainer) {
+        const closing = /^ {0,3}(`+|~+)[ \t]*$/.exec(candidate);
+        if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) fence = null;
+        masked.push(' '.repeat(raw.length)); previousBlank = true; continue;
+      }
+      const parentIndents = fence.listIndents.slice(0, -1);
+      list = quoted.depth === fence.quoteDepth && parentIndents.length > 0
+        ? { quoteDepth: fence.quoteDepth, indents: parentIndents } : null;
+      fence = null;
+    }
+
+    const quote = stripBlockquoteMarkers(raw);
+    const quoteDepth = quote.depth; let candidate = quote.rest; let listIndent = null;
+    if (list && list.quoteDepth !== quoteDepth) list = null;
+    const parsedList = listLine(candidate, list, previousBlank || quoteDepth !== previousQuoteDepth);
+    candidate = parsedList.candidate;
+    list = parsedList.indents.length > 0 ? { quoteDepth, indents: parsedList.indents } : null;
+    if (list) listIndent = list.indents.at(-1);
+    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(candidate);
+    const validMarker = marker && !(marker[1][0] === '`' && marker[2].includes('`'));
+    if (validMarker) {
+      fence = {
+        character: marker[1][0], length: marker[1].length, quoteDepth,
+        listIndent, listIndents: list?.indents || [], sourceLine: index + 1,
+      };
+      masked.push(' '.repeat(raw.length)); previousBlank = true; previousQuoteDepth = quoteDepth; continue;
+    }
+    masked.push(raw); previousBlank = candidate.trim() === ''; previousQuoteDepth = quoteDepth;
+  }
+  if (fence && fence.quoteDepth === 0 && fence.listIndents.length === 0) {
+    const location = sourcePath ? ` in ${sourcePath}:${fence.sourceLine}` : ` at line ${fence.sourceLine}`;
+    throw new Error(`unterminated Markdown fence${location}`);
+  }
+  return { maskedText: masked.join('\n') };
+}
+
+// Prefix validation masks indentation only at an unambiguous top-level block
+// boundary. List content and indentation after non-blank prose stay visible.
+export function maskMarkdownFenceAndTopLevelIndentBlocks(text, sourcePath = null) {
+  const { maskedText } = maskMarkdownFencedBlocks(text, sourcePath);
+  const lines = maskedText.split('\n'); const masked = [];
+  let previousBlank = true; let listOpen = false; let previousQuoteDepth = 0;
+  for (const raw of lines) {
+    const quote = /^ {0,3}(?:>[ \t]?)+/.exec(raw);
+    const quoteDepth = quote ? (quote[0].match(/>/g) || []).length : 0;
+    const line = quote ? raw.slice(quote[0].length) : raw;
+    const blank = line.trim() === '';
+    const indented = /^(?: {4,}|\t)/.test(line);
+    if (quoteDepth !== previousQuoteDepth) listOpen = false;
+    if (!blank && indented && previousBlank && !listOpen) masked.push(' '.repeat(raw.length));
+    else masked.push(raw);
+    if (!blank && !indented) listOpen = /^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/.test(line);
+    previousBlank = blank; previousQuoteDepth = quoteDepth;
+  }
+  return { maskedText: masked.join('\n') };
+}
+
+// Citation syntax keeps its established indented-block exclusion. Prefix
+// validation uses the narrower top-level helper so ambiguous indentation stays
+// visible in the gate's fail-closed direction.
+export function maskMarkdownFenceAndIndentBlocks(text, sourcePath = null) {
+  const { maskedText } = maskMarkdownFencedBlocks(text, sourcePath);
+  return { maskedText: maskedText.split('\n')
+    .map((line) => (/^(?: {4}|\t)/.test(line) ? ' '.repeat(line.length) : line)).join('\n') };
+}
+
+function referenceLabel(label) { return label.trim().replace(/\s+/g, ' ').toLowerCase(); }
+export function extractCitations(text, sourcePath = null) {
+  const { maskedText } = maskMarkdownFenceAndIndentBlocks(text, sourcePath);
+  const scanned = maskCodeSpans(maskedText).split('\n');
 
   const definitions = new Map(); const definitionLines = new Set();
   for (let index = 0; index < scanned.length; index += 1) {
