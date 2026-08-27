@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 ## 1.48.3
-- Record-prefix checks now share the citation parser's fenced and indented Markdown masking without suppressing inline record IDs. Unterminated fences fail closed before they can hide later references.
+- Record-prefix checks now mask fenced examples and unambiguous top-level indented blocks while leaving inline, list, and ambiguous indented IDs visible. Citation extraction retains its broader indented-block exclusion. Blockquoted fences are masked, and unterminated fences fail before any citation path can hide later references.
 
 ## 1.48.2
 - Record conformance now hashes canonical stage-0 Git blobs and separately checks semantic index-to-worktree divergence. Batched, binary-safe Git snapshots preserve immutable authority across `autocrlf`, mixed historical line endings, and clean/smudge filters without hiding staged or unstaged changes. Individual collection blobs over 32 MiB fail closed before content loading.

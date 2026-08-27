@@ -8,7 +8,7 @@ import {
   adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
   gitPaths, historicalTarget, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
-  maskMarkdownFenceAndIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
+  maskMarkdownFenceAndTopLevelIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
 } from './record-lib.mjs';
@@ -298,7 +298,7 @@ function citationEntries(context, entry, sourceText, knownPaths, policyRows, mod
   const current = new Set(trackedPaths(context.root));
   if (mode === 'adopt' && !entry.baselineCommit) throw new Error(`missing adopted record baseline: ${entry.path}`);
   const baselineCommit = mode === 'adopt' ? entry.baselineCommit : null;
-  const resolved = extractCitations(sourceText).map((citation) => ({
+  const resolved = extractCitations(sourceText, entry.path).map((citation) => ({
     citation, resolution: resolveCitation(citation.rawTarget, entry.path, knownPaths),
   }));
   const targetPaths = mode === 'index' ? [...new Set(resolved
@@ -664,8 +664,7 @@ function scanRecordPrefixes(context, allIds) {
   const seen = new Set();
   for (const path of markdown) {
     const text = readFileSync(nativePath(context.root, path), 'utf8');
-    const { maskedText, unterminatedFenceLine } = maskMarkdownFenceAndIndentBlocks(text);
-    if (unterminatedFenceLine !== null) throw new Error(`unterminated Markdown fence in ${path}:${unterminatedFenceLine}`);
+    const { maskedText } = maskMarkdownFenceAndTopLevelIndentBlocks(text, path);
     for (const match of maskedText.matchAll(/REC-[A-Z2-7]{8,26}(?![A-Z2-7])/g)) seen.add(match[0]);
   }
   for (const value of seen) {

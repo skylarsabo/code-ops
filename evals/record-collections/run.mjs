@@ -11,7 +11,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 138 : 141;
+const expectedCases = process.platform === 'win32' ? 145 : 148;
 let executedCases = 0;
 let work;
 
@@ -671,6 +671,16 @@ try {
   check('unequal backtick runs remain literal citation text', extractCitations('`` [proof](records/missing.json) ```').length === 1);
   check('escaped backticks remain literal citation text', extractCitations('\\` [proof](records/missing.json) \\`').length === 1);
   check('escaped link openers do not create citation debt', extractCitations('Literal: \\[proof](records/missing.json)').length === 0);
+  check('indented code blocks do not create citation debt', extractCitations('    [proof](records/missing.json)').length === 0);
+  let unterminatedCitationError = '';
+  try {
+    extractCitations('```yaml\nexample: true\n[proof](records/missing.json)', 'records/broken.md');
+  } catch (error) {
+    unterminatedCitationError = String(error);
+  }
+  check('citation extraction rejects an unterminated fence',
+    unterminatedCitationError.includes('unterminated Markdown fence in records/broken.md:1'),
+    unterminatedCitationError);
   const atomicDir = join(work, 'atomic-probe'); mkdirSync(join(atomicDir, 'not-a-file'), { recursive: true });
   writeFileSync(join(atomicDir, 'first.txt'), 'before');
   let atomicRejected = false;
@@ -1006,6 +1016,33 @@ try {
   check('unknown record prefixes in vault prose fail', result.status === 1
     && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
 
+  const nestedPrefixRepo = join(work, 'nested-prefix'); cpSync(repo, nestedPrefixRepo, { recursive: true });
+  write(nestedPrefixRepo, 'hub/nested-prefix.md', '# Nested record\n\n- outer bullet\n    - nested bullet references REC-ZZZZZZZZ\n');
+  git(['add', 'hub/nested-prefix.md'], nestedPrefixRepo);
+  result = run(['check', '--root', nestedPrefixRepo, ...COLLECTION], nestedPrefixRepo);
+  check('unknown record prefixes in nested list prose fail', result.status === 1
+    && result.output.includes('record prefix REC-ZZZZZZZZ is unresolved'), result.output);
+
+  const lazyPrefixRepo = join(work, 'lazy-prefix'); cpSync(repo, lazyPrefixRepo, { recursive: true });
+  write(lazyPrefixRepo, 'hub/lazy-prefix.md', '# Lazy record\n\nParagraph\n    continuation references REC-XXXXXXXX\n');
+  git(['add', 'hub/lazy-prefix.md'], lazyPrefixRepo);
+  result = run(['check', '--root', lazyPrefixRepo, ...COLLECTION], lazyPrefixRepo);
+  check('indented paragraph continuations remain visible to record-prefix checks', result.status === 1
+    && result.output.includes('record prefix REC-XXXXXXXX is unresolved'), result.output);
+
+  const quotedLazyPrefixRepo = join(work, 'quoted-lazy-prefix'); cpSync(repo, quotedLazyPrefixRepo, { recursive: true });
+  write(quotedLazyPrefixRepo, 'hub/quoted-lazy-prefix.md', '# Quoted lazy record\n\n> Paragraph\n    continuation references REC-VVVVVVVV\n');
+  git(['add', 'hub/quoted-lazy-prefix.md'], quotedLazyPrefixRepo);
+  result = run(['check', '--root', quotedLazyPrefixRepo, ...COLLECTION], quotedLazyPrefixRepo);
+  check('lazy blockquote continuations remain visible to record-prefix checks', result.status === 1
+    && result.output.includes('record prefix REC-VVVVVVVV is unresolved'), result.output);
+
+  const indentedPrefixRepo = join(work, 'indented-prefix'); cpSync(repo, indentedPrefixRepo, { recursive: true });
+  write(indentedPrefixRepo, 'hub/indented-prefix.md', '# Indented record\n\n    REC-ASDFGHJK\n');
+  git(['add', 'hub/indented-prefix.md'], indentedPrefixRepo);
+  result = run(['check', '--root', indentedPrefixRepo, ...COLLECTION], indentedPrefixRepo);
+  check('unambiguous top-level indented record examples do not create citation debt', result.status === 0, result.output);
+
   const fencedPrefixRepo = join(work, 'fenced-prefix-example'); cpSync(repo, fencedPrefixRepo, { recursive: true });
   write(fencedPrefixRepo, 'hub/fenced-prefix-example.md', `# Record examples
 
@@ -1022,11 +1059,13 @@ REC-ZZZZZZZZ
 ~~~
 ~~~~
 
-    REC-YYYYYYYY
+> ~~~yaml
+> supersedes: ["REC-QWERTYUIOPASDFGHJKLZXCVBNM"]
+> ~~~
 `);
   git(['add', 'hub/fenced-prefix-example.md'], fencedPrefixRepo);
   result = run(['check', '--root', fencedPrefixRepo, ...COLLECTION], fencedPrefixRepo);
-  check('fenced and indented record examples do not create citation debt', result.status === 0, result.output);
+  check('fenced record examples do not create citation debt', result.status === 0, result.output);
 
   const resumedPrefixRepo = join(work, 'resumed-prefix-scan'); cpSync(repo, resumedPrefixRepo, { recursive: true });
   write(resumedPrefixRepo, 'hub/resumed-prefix-scan.md', `# Closed example
@@ -1136,6 +1175,23 @@ supersedes: ["${firstId}"]
   result = run(['check', '--root', repo, ...COLLECTION], repo);
   check('native append passes staged-tree checks', result.status === 0, result.output);
   commit(repo, 'append native record');
+
+  const unterminatedAppendRepo = join(work, 'unterminated-native-append'); cpSync(repo, unterminatedAppendRepo, { recursive: true });
+  write(unterminatedAppendRepo, 'records/broken.md', `---
+recordSchema: 1
+supersedes: []
+---
+# Broken
+
+~~~yaml
+[proof](records/frozen/stable.json)
+`);
+  git(['add', 'records/broken.md'], unterminatedAppendRepo);
+  const unterminatedAppendInventory = readFileSync(generated(unterminatedAppendRepo, 'inventory.json'));
+  result = run(['append', '--root', unterminatedAppendRepo, ...COLLECTION, '--record', 'records/broken.md'], unterminatedAppendRepo);
+  check('native append rejects an unterminated fence before generated writes', result.status === 1
+    && result.output.includes('unterminated Markdown fence in records/broken.md:7')
+    && unterminatedAppendInventory.equals(readFileSync(generated(unterminatedAppendRepo, 'inventory.json'))), result.output);
 
   const reusedAppendRepo = join(work, 'reused-native-append'); cpSync(repo, reusedAppendRepo, { recursive: true });
   write(reusedAppendRepo, 'records/reused.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# First incarnation\n');

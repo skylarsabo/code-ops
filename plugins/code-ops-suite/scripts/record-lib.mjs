@@ -783,31 +783,70 @@ export function maskCodeSpans(text) {
   return masked + text.slice(cursor);
 }
 
-// Mask fenced and indented Markdown code blocks only. Inline code spans stay
-// visible so callers that validate prose identifiers can still inspect them;
-// callers that treat inline code as non-content apply maskCodeSpans separately.
-export function maskMarkdownFenceAndIndentBlocks(text) {
+// Mask fenced Markdown blocks only. Inline spans and indented content stay
+// visible so fail-closed prose validators cannot silently miss identifiers.
+export function maskMarkdownFencedBlocks(text, sourcePath = null) {
   const lines = text.split(/\r?\n/); const masked = []; let fence = null;
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
+    const raw = lines[index];
+    const quote = /^ {0,3}(?:>[ \t]?)+/.exec(raw);
+    const quoteDepth = quote ? (quote[0].match(/>/g) || []).length : 0;
+    const line = quote ? raw.slice(quote[0].length) : raw;
     const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
     if (!fence && marker) {
-      fence = { character: marker[1][0], length: marker[1].length, sourceLine: index + 1 };
-      masked.push(' '.repeat(line.length)); continue;
+      fence = { character: marker[1][0], length: marker[1].length, quoteDepth, sourceLine: index + 1 };
+      masked.push(' '.repeat(raw.length)); continue;
     }
     const closing = fence && /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
-    if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) {
-      fence = null; masked.push(' '.repeat(line.length)); continue;
+    if (closing && quoteDepth === fence.quoteDepth
+        && closing[1][0] === fence.character && closing[1].length >= fence.length) {
+      fence = null;
     }
-    if (fence || /^(?: {4}|\t)/.test(line)) { masked.push(' '.repeat(line.length)); continue; }
-    masked.push(line);
+    if (fence || closing) {
+      masked.push(' '.repeat(raw.length)); continue;
+    }
+    masked.push(raw);
   }
-  return { maskedText: masked.join('\n'), unterminatedFenceLine: fence?.sourceLine ?? null };
+  if (fence) {
+    const location = sourcePath ? ` in ${sourcePath}:${fence.sourceLine}` : ` at line ${fence.sourceLine}`;
+    throw new Error(`unterminated Markdown fence${location}`);
+  }
+  return { maskedText: masked.join('\n') };
+}
+
+// Prefix validation masks indentation only at an unambiguous top-level block
+// boundary. List content and indentation after non-blank prose stay visible.
+export function maskMarkdownFenceAndTopLevelIndentBlocks(text, sourcePath = null) {
+  const { maskedText } = maskMarkdownFencedBlocks(text, sourcePath);
+  const lines = maskedText.split('\n'); const masked = [];
+  let previousBlank = true; let listOpen = false; let previousQuoteDepth = 0;
+  for (const raw of lines) {
+    const quote = /^ {0,3}(?:>[ \t]?)+/.exec(raw);
+    const quoteDepth = quote ? (quote[0].match(/>/g) || []).length : 0;
+    const line = quote ? raw.slice(quote[0].length) : raw;
+    const blank = line.trim() === '';
+    const indented = /^(?: {4,}|\t)/.test(line);
+    if (quoteDepth !== previousQuoteDepth) listOpen = false;
+    if (!blank && indented && previousBlank && !listOpen) masked.push(' '.repeat(raw.length));
+    else masked.push(raw);
+    if (!blank && !indented) listOpen = /^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/.test(line);
+    previousBlank = blank; previousQuoteDepth = quoteDepth;
+  }
+  return { maskedText: masked.join('\n') };
+}
+
+// Citation syntax keeps its established indented-block exclusion. Prefix
+// validation uses the narrower top-level helper so ambiguous indentation stays
+// visible in the gate's fail-closed direction.
+export function maskMarkdownFenceAndIndentBlocks(text, sourcePath = null) {
+  const { maskedText } = maskMarkdownFencedBlocks(text, sourcePath);
+  return { maskedText: maskedText.split('\n')
+    .map((line) => (/^(?: {4}|\t)/.test(line) ? ' '.repeat(line.length) : line)).join('\n') };
 }
 
 function referenceLabel(label) { return label.trim().replace(/\s+/g, ' ').toLowerCase(); }
-export function extractCitations(text) {
-  const { maskedText } = maskMarkdownFenceAndIndentBlocks(text);
+export function extractCitations(text, sourcePath = null) {
+  const { maskedText } = maskMarkdownFenceAndIndentBlocks(text, sourcePath);
   const scanned = maskCodeSpans(maskedText).split('\n');
 
   const definitions = new Map(); const definitionLines = new Set();
