@@ -6,8 +6,8 @@ import {
 import { dirname, relative } from 'node:path';
 import {
   adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
-  completeHistory, digestJson, extractCitations, findBlobByDigest, FULL_ID_RE, git,
-  gitPaths, historicalTarget, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
+  completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
+  gitPaths, historicalTarget, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
   readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
@@ -101,7 +101,6 @@ function collect(context, { allowProblems = false } = {}) {
   return { paths, rows, problems };
 }
 
-function fileDigest(path) { return sha256(readFileSync(path)); }
 function outputRepoPath(context, key) { return relativeRoot(context.root, context.output[key]); }
 
 function gitObjectFormat(root) { return git(root, ['rev-parse', '--show-object-format']).trim(); }
@@ -109,17 +108,20 @@ function headOid(root) { return git(root, ['rev-parse', 'HEAD']).trim(); }
 function stagedPaths(root) { return new Set(gitPaths(root, ['diff', '--cached', '--name-only', '-z'])); }
 function literalPath(path) { return `:(literal)${path}`; }
 
-function indexEntry(root, path) {
-  const rows = git(root, ['ls-files', '-s', '-z', '--', literalPath(path)], true).toString('utf8').split('\0').filter(Boolean);
-  if (rows.length !== 1) throw new Error(`expected one index entry for ${path}`);
-  const match = /^(\d+) ([0-9a-f]+) \d+\t([\s\S]+)$/.exec(rows[0]);
-  if (!match || match[3] !== path) throw new Error(`malformed index entry for ${path}`);
-  if (!['100644', '100755'].includes(match[1])) throw new Error(`unsupported Git index mode ${match[1]} for ${path}`);
-  return { mode: match[1], blobOid: match[2] };
+function indexedState(root, paths) {
+  return { files: indexSnapshot(root, paths), dirty: dirtyIndexPaths(root, paths) };
 }
-
-function stagedBytes(root, path) {
-  return git(root, ['cat-file', '-p', indexEntry(root, path).blobOid], true);
+function fileMatches(state, path, expectedSha256) {
+  const file = state.files.get(path);
+  return Boolean(file && !state.dirty.has(path) && file.targetSha256 === expectedSha256);
+}
+function targetFromIndexState(root, state, path) {
+  const file = state.files.get(path);
+  if (!file) return null;
+  return {
+    objectFormat: gitObjectFormat(root), blobOid: file.blobOid, commitOid: null,
+    path, targetSha256: file.targetSha256,
+  };
 }
 
 function assertGeneratedUntouched(context) {
@@ -296,8 +298,14 @@ function citationEntries(context, entry, sourceText, knownPaths, policyRows, mod
   const current = new Set(trackedPaths(context.root));
   if (mode === 'adopt' && !entry.baselineCommit) throw new Error(`missing adopted record baseline: ${entry.path}`);
   const baselineCommit = mode === 'adopt' ? entry.baselineCommit : null;
-  return extractCitations(sourceText).map((citation) => {
-    const resolution = resolveCitation(citation.rawTarget, entry.path, knownPaths);
+  const resolved = extractCitations(sourceText).map((citation) => ({
+    citation, resolution: resolveCitation(citation.rawTarget, entry.path, knownPaths),
+  }));
+  const targetPaths = mode === 'index' ? [...new Set(resolved
+    .filter(({ resolution }) => resolution.state === 'resolved' && resolution.matches.length === 1)
+    .map(({ resolution }) => resolution.matches[0]))] : [];
+  const indexState = mode === 'index' && targetPaths.length ? indexedState(context.root, targetPaths) : null;
+  return resolved.map(({ citation, resolution }) => {
     const base = {
       recordId: entry.id, sourceLine: citation.sourceLine, rawTarget: citation.rawTarget,
       normalizedTarget: resolution.normalizedTarget, resolvedVia: resolution.resolvedVia,
@@ -317,16 +325,17 @@ function citationEntries(context, entry, sourceText, knownPaths, policyRows, mod
       return { ...base, state: 'dead-at-adoption' };
     }
     const targetPath = resolution.matches[0];
-    const target = mode === 'index' ? targetAtIndex(context.root, targetPath) : targetAt(context.root, baselineCommit, targetPath);
+    const target = mode === 'index' ? targetFromIndexState(context.root, indexState, targetPath)
+      : targetAt(context.root, baselineCommit, targetPath);
     if (!target) return { ...base, state: 'dead-at-adoption' };
-    if (mode === 'index' && existsSync(nativePath(context.root, targetPath))
-      && fileDigest(nativePath(context.root, targetPath)) !== target.targetSha256) {
+    if (mode === 'index' && indexState.dirty.has(targetPath)) {
       throw new Error(`staged citation target differs from working tree: ${targetPath}`);
     }
     const row = policy.get(targetPath);
     const mutable = row?.policy === 'mutable';
-    const state = mode === 'adopt' && !current.has(targetPath) ? 'redirected' : mutable ? 'resolved-mutable' : 'resolved-immutable';
-    return { ...base, state, target };
+    const citationState = mode === 'adopt' && !current.has(targetPath) ? 'redirected'
+      : mutable ? 'resolved-mutable' : 'resolved-immutable';
+    return { ...base, state: citationState, target };
   });
 }
 
@@ -334,9 +343,8 @@ function immutableRows(rows) {
   return rows.filter((row) => row.kind === 'record' || ['frozen', 'superseded'].includes(row.policy));
 }
 
-function adoptionPlan(context, rows) {
-  for (const row of rows) indexEntry(context.root, row.path);
-  const profiles = adoptionHistoryProfiles(context.root, context.collection, rows);
+function adoptionPlan(context, rows, indexed = indexSnapshot(context.root, rows.map((row) => row.path))) {
+  const profiles = adoptionHistoryProfiles(context.root, context.collection, rows, { indexed });
   const candidates = immutableRows(rows).map((row) => {
     const profile = profiles.get(row.path);
     return {
@@ -350,7 +358,7 @@ function adoptionPlan(context, rows) {
     collectionUuid: context.collection.collectionUuid,
     classificationVersion: context.collection.classificationVersion || 1,
     sourceHead: headOid(context.root),
-    manifestSha256: fileDigest(context.manifestFile),
+    manifestSha256: targetAtIndex(context.root, relativeRoot(context.root, context.manifestFile))?.targetSha256,
     candidates,
   };
 }
@@ -396,17 +404,17 @@ function adoptionCandidatePaths(context, inventory, historyComplete) {
 }
 
 function ignoredReviewPath(context, path) {
-  if (!safePath(path)) throw new Error(`unsafe adoption review path: ${path}`);
+  if (!safePath(path)) throw new Error(`adoption review path must be repository-relative and safe: ${path}`);
   let tracked = false;
   try { git(context.root, ['ls-files', '--error-unmatch', '--', literalPath(path)]); tracked = true; } catch { /* untracked is required */ }
   if (tracked) throw new Error('adoption review plans cannot overwrite tracked files');
   try { git(context.root, ['check-ignore', '-q', '--no-index', '--', path]); }
-  catch { throw new Error('adoption review plans must use an ignored repository path'); }
+  catch { throw new Error('adoption review plans must use a repository-relative ignored path'); }
   return nativePath(context.root, path);
 }
 
 function planAdoption(context, options) {
-  if (!options.out) throw new Error('plan-adoption requires --out');
+  if (!options.out) throw new Error('plan-adoption requires --out <repo-relative-ignored-path>');
   if (!cleanWorktree(context.root)) throw new Error('adoption planning requires a clean worktree');
   const history = completeHistory(context.root);
   if (!history.ok) throw new HistoryUnavailableError(`adoption planning refused: ${history.reason}`);
@@ -424,7 +432,7 @@ function planAdoption(context, options) {
 function adoptionReview(context, expected, reviewPath) {
   const required = expected.candidates.filter((candidate) => candidate.adoptionReadiness === 'review-required');
   if (required.length && !reviewPath) {
-    throw new Error(`adoption review required for ${required.map((candidate) => candidate.path).join(', ')}; run plan-adoption --out <ignored-path>`);
+    throw new Error(`adoption review required for ${required.map((candidate) => candidate.path).join(', ')}; run plan-adoption --out <repo-relative-ignored-path>`);
   }
   let supplied = expected;
   if (reviewPath) {
@@ -460,14 +468,14 @@ function adoptionReview(context, expected, reviewPath) {
   return { ...receipt, receiptDigest: digestJson(receipt) };
 }
 
-function inventoryEntry(context, row, provenance, staged = false, baseline = null) {
+function inventoryEntry(context, row, provenance, baseline = null, indexed = null) {
   const path = row.path;
-  const index = indexEntry(context.root, path);
-  const bytes = staged ? stagedBytes(context.root, path) : readFileSync(nativePath(context.root, path));
+  const file = (indexed || indexSnapshot(context.root, [path])).get(path);
+  const bytes = file?.bytes;
   if (!bytes) throw new Error(`record bytes unavailable: ${path}`);
   const entry = {
     id: recordId(context.collection.collectionUuid, path), identityVersion: context.collection.identityVersion,
-    path, provenance, sha256: sha256(staged ? bytes : git(context.root, ['cat-file', '-p', index.blobOid], true)), kind: row.kind, policy: row.policy,
+    path, provenance, sha256: file.targetSha256, kind: row.kind, policy: row.policy,
   };
   if (provenance === 'adopted') {
     if (!baseline?.introducedCommit || !baseline?.baselineCommit) throw new Error(`missing adopted record baseline: ${path}`);
@@ -488,20 +496,20 @@ function adopt(context, options) {
   if (!history.ok) throw new HistoryUnavailableError(`adoption refused: ${history.reason}`);
   if (Object.values(context.output).some(existsSync)) throw new Error('adoption refuses existing generated baselines');
   const { rows } = collect(context);
-  const plan = adoptionPlan(context, rows);
+  const indexed = indexSnapshot(context.root, rows.map((row) => row.path));
+  const plan = adoptionPlan(context, rows, indexed);
   const review = adoptionReview(context, plan, options.review);
   const records = rows.filter((row) => row.kind === 'record');
   const profiles = new Map(plan.candidates.map((candidate) => [candidate.path, candidate]));
   const entries = records.map((row) => {
     const profile = profiles.get(row.path);
-    return inventoryEntry(context, row, 'adopted', true, {
+    return inventoryEntry(context, row, 'adopted', {
       introducedCommit: profile.history.admittedCommit, baselineCommit: profile.history.baselineCommit,
-    });
+    }, indexed);
   });
   if (new Set(entries.map((entry) => entry.id)).size !== entries.length) throw new Error('record ID collision');
   const artifacts = rows.filter((row) => ['frozen', 'superseded'].includes(row.policy)).map((row) => {
-    const index = indexEntry(context.root, row.path);
-    return { path: row.path, sha256: sha256(git(context.root, ['cat-file', '-p', index.blobOid], true)), kind: row.kind, policy: row.policy };
+    return { path: row.path, sha256: indexed.get(row.path).targetSha256, kind: row.kind, policy: row.policy };
   });
   const inventory = { version: 2, collectionUuid: context.collection.collectionUuid, adoptionReview: review, entries, artifacts };
   const citationInventory = { version: 1, collectionUuid: context.collection.collectionUuid, entries: [] };
@@ -519,7 +527,7 @@ function adopt(context, options) {
   console.log(JSON.stringify({ adopted: entries.length, artifacts: artifacts.length, citations: citationInventory.entries.length }));
 }
 
-function checkInventory(context, rows, inventory, historyComplete = true) {
+function checkInventory(context, rows, inventory, state, historyComplete = true) {
   if (![1, 2].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
   if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
   const reviewCandidates = new Map(); const reviewedCandidates = new Map();
@@ -574,6 +582,7 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
     if (!['adopted', 'native'].includes(entry.provenance) || entry.kind !== row.kind || entry.policy !== row.policy) {
       throw new Error(`invalid record provenance or classification: ${entry.path}`);
     }
+    if (!fileMatches(state, entry.path, entry.sha256)) throw new Error(`immutable record drift: ${entry.path}`);
     if (entry.provenance === 'adopted') {
       if (!/^[0-9a-f]{40,64}$/.test(entry.introducedCommit || '') || 'introducedIndexHead' in entry || 'supersedes' in entry) {
         throw new Error(`invalid adopted record metadata: ${entry.path}`);
@@ -583,11 +592,10 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
       }
       if (inventory.version === 1 && 'baselineCommit' in entry) throw new Error(`inventory v1 record has a baseline commit: ${entry.path}`);
     } else {
-      const metadata = recordFrontmatter(readFileSync(nativePath(context.root, entry.path), 'utf8'));
+      const metadata = recordFrontmatter(state.files.get(entry.path).bytes.toString('utf8'));
       if (entry.introducedCommit !== null || !/^[0-9a-f]{40,64}$/.test(entry.introducedIndexHead || '')
         || canonical(entry.supersedes) !== canonical(metadata.supersedes)) throw new Error(`invalid native record metadata: ${entry.path}`);
     }
-    if (fileDigest(nativePath(context.root, entry.path)) !== entry.sha256) throw new Error(`immutable record drift: ${entry.path}`);
     ids.add(entry.id); recordRows.delete(entry.path);
   }
   if (recordRows.size) throw new Error(`record missing from inventory: ${[...recordRows.keys()][0]}`);
@@ -598,7 +606,7 @@ function checkInventory(context, rows, inventory, historyComplete = true) {
     if (!row || artifact.kind !== row.kind || artifact.policy !== row.policy) {
       throw new Error(`frozen artifact deleted, renamed, or reclassified: ${artifact.path}`);
     }
-    if (fileDigest(nativePath(context.root, artifact.path)) !== artifact.sha256) throw new Error(`frozen artifact drift: ${artifact.path}`);
+    if (!fileMatches(state, artifact.path, artifact.sha256)) throw new Error(`frozen artifact drift: ${artifact.path}`);
     immutableRows.delete(artifact.path);
   }
   if (immutableRows.size) throw new Error(`frozen artifact missing from inventory: ${[...immutableRows.keys()][0]}`);
@@ -704,11 +712,16 @@ function legacyEligible(context, entry, citations, ids) {
   return false;
 }
 
+function legacyMatches(context, entry) {
+  const path = nativePath(context.root, entry.path); const expected = legacyContent(context, entry);
+  if (!existsSync(path)) return false;
+  return filteredBlobOid(context.root, entry.path) === filteredBlobOid(context.root, entry.path, Buffer.from(expected));
+}
+
 function checkLegacy(context, citations, ids) {
   for (const entry of context.manifest.legacyPaths || []) {
     if (!legacyEligible(context, entry, citations, ids)) throw new Error(`ineligible legacy path: ${entry.path}`);
-    const path = nativePath(context.root, entry.path);
-    if (!existsSync(path) || readFileSync(path, 'utf8') !== legacyContent(context, entry)) throw new Error(`legacy path drift: ${entry.path}`);
+    if (!legacyMatches(context, entry)) throw new Error(`legacy path drift: ${entry.path}`);
   }
 }
 
@@ -717,10 +730,17 @@ function runCheck(context, { strict = false } = {}) {
   for (const path of Object.values(context.output)) if (!existsSync(path)) throw new Error(`missing generated record file: ${relativeRoot(context.root, path)}`);
   const inventory = readJson(context.output.inventory);
   const citations = readJson(context.output.citations);
-  const ledgerText = readFileSync(context.output.curationLedger, 'utf8');
   const events = readJsonl(context.output.curationLedger);
+  const ledgerText = jsonl(events);
+  const current = new Set(trackedPaths(context.root));
+  const statePaths = new Set([
+    ...rows.map((row) => row.path),
+    ...(citations.entries || []).map((citation) => citation.target?.path).filter((path) => path && current.has(path)),
+    ...(context.manifest.legacyPaths || []).map((entry) => entry.path).filter((path) => current.has(path)),
+  ]);
+  const state = indexedState(context.root, [...statePaths]);
   const history = completeHistory(context.root);
-  const ids = checkInventory(context, rows, inventory, history.ok);
+  const ids = checkInventory(context, rows, inventory, state, history.ok);
   if (citations.version !== 1 || citations.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid citation inventory header');
   validateLedger(events, context.collection.collectionUuid);
   for (const event of events) {
@@ -730,7 +750,6 @@ function runCheck(context, { strict = false } = {}) {
   assertBaseline(context, inventory, citations, ledgerText, history.ok);
   const warnings = [];
   if (!history.ok) warnings.push(`history-unavailable: ${history.reason}`);
-  const current = new Set(trackedPaths(context.root));
   const recordById = new Map((inventory.entries || []).map((entry) => [entry.id, entry]));
   const allIds = allCollectionIds(context);
   const allowedStates = new Set(['resolved-immutable', 'resolved-mutable', 'dead-at-adoption', 'ambiguous', 'external', 'glob', 'redirected', 'tombstoned']);
@@ -749,17 +768,18 @@ function runCheck(context, { strict = false } = {}) {
     }
     const legacyEntry = (context.manifest.legacyPaths || []).find((entry) => entry.path === citation.target?.path);
     const exactLegacyReplacement = legacyEntry && current.has(legacyEntry.path)
-      && readFileSync(nativePath(context.root, legacyEntry.path), 'utf8') === legacyContent(context, legacyEntry)
+      && legacyMatches(context, legacyEntry)
       && legacyEligible(context, legacyEntry, citations.entries || [], allIds);
     if (['resolved-immutable', 'resolved-mutable'].includes(citation.state) && !current.has(citation.target?.path)) {
       throw new Error(`resolved-to-dead citation regression: ${citation.normalizedTarget}`);
     }
     if (citation.state === 'resolved-mutable' && current.has(citation.target?.path) && !exactLegacyReplacement) {
-      const digest = fileDigest(nativePath(context.root, citation.target.path));
-      if (digest !== citation.target.targetSha256) warnings.push(`mutable-drifted: ${citation.target.path}`);
+      if (!fileMatches(state, citation.target.path, citation.target.targetSha256)) {
+        warnings.push(`mutable-drifted: ${citation.target.path}`);
+      }
     }
     if (citation.state === 'resolved-immutable' && current.has(citation.target?.path) && !exactLegacyReplacement
-      && fileDigest(nativePath(context.root, citation.target.path)) !== citation.target.targetSha256) {
+      && !fileMatches(state, citation.target.path, citation.target.targetSha256)) {
       throw new Error(`digest-mismatch: ${citation.target.path}`);
     }
     if (citation.target) {
@@ -784,13 +804,9 @@ function appendRecord(context, options) {
   if (!trackedPaths(context.root).includes(recordPath) || !stagedPaths(context.root).has(recordPath)) {
     throw new Error('record must be tracked in the Git index and staged');
   }
-  const staged = stagedBytes(context.root, recordPath);
-  if (!staged || !existsSync(nativePath(context.root, recordPath))
-    || !readFileSync(nativePath(context.root, recordPath)).equals(staged)) throw new Error('staged record differs from working tree');
   assertGeneratedUntouched(context);
   const history = completeHistory(context.root);
   if (!history.ok) throw new HistoryUnavailableError(`append refused: ${history.reason}`);
-  const metadata = recordFrontmatter(staged.toString('utf8'));
   const { paths, rows } = collect(context);
   const row = rows.find((candidate) => candidate.path === recordPath);
   if (!row || row.kind !== 'record' || row.policy !== 'append-only') throw new Error('record is not classified as append-only');
@@ -802,16 +818,6 @@ function appendRecord(context, options) {
   const events = readJsonl(context.output.curationLedger);
   validateLedger(events, context.collection.collectionUuid);
   if ((inventory.entries || []).some((entry) => entry.path === recordPath)) throw new Error('record is already inventoried');
-  const knownIds = new Set((inventory.entries || []).map((entry) => entry.id));
-  for (const id of metadata.supersedes) if (!knownIds.has(id)) throw new Error(`supersedes references unknown record ${id}`);
-  const entry = inventoryEntry(context, row, 'native', true);
-  entry.supersedes = metadata.supersedes;
-  const additions = citationEntries(context, entry, staged.toString('utf8'), paths, rows, 'index');
-  for (const citation of additions) {
-    if (['dead-at-adoption', 'ambiguous', 'glob'].includes(citation.state)
-      || citation.resolvedVia.includes('glob-expanded')) throw new Error(`native record has unresolved citation: ${citation.rawTarget}`);
-    if (citation.state === 'resolved-mutable' && !citation.target?.targetSha256) throw new Error(`native mutable citation lacks a target digest: ${citation.rawTarget}`);
-  }
   const inventoriedArtifacts = new Set((inventory.artifacts || []).map((artifact) => artifact.path));
   const newArtifacts = rows.filter((candidate) => ['frozen', 'superseded'].includes(candidate.policy)
     && !inventoriedArtifacts.has(candidate.path));
@@ -821,16 +827,34 @@ function appendRecord(context, options) {
     if (pathHasHistory(context.root, artifact.path)) {
       throw new Error(`native append requires a new immutable artifact path with no reachable history: ${artifact.path}; use reviewed adoption`);
     }
-    const bytes = stagedBytes(context.root, artifact.path);
-    if (!bytes || !existsSync(nativePath(context.root, artifact.path))
-      || !readFileSync(nativePath(context.root, artifact.path)).equals(bytes)) {
-      throw new Error(`staged artifact differs from working tree: ${artifact.path}`);
-    }
-    inventory.artifacts.push({ path: artifact.path, sha256: sha256(bytes), kind: artifact.kind, policy: artifact.policy });
+  }
+  const immutablePaths = [recordPath, ...newArtifacts.map((artifact) => artifact.path)];
+  const state = indexedState(context.root, immutablePaths);
+  if (state.dirty.has(recordPath)) throw new Error('staged record differs from working tree');
+  for (const artifact of newArtifacts) if (state.dirty.has(artifact.path)) {
+    throw new Error(`staged artifact differs from working tree: ${artifact.path}`);
+  }
+  const staged = state.files.get(recordPath).bytes;
+  const metadata = recordFrontmatter(staged.toString('utf8'));
+  const knownIds = new Set((inventory.entries || []).map((entry) => entry.id));
+  for (const id of metadata.supersedes) if (!knownIds.has(id)) throw new Error(`supersedes references unknown record ${id}`);
+  const entry = inventoryEntry(context, row, 'native', null, state.files);
+  entry.supersedes = metadata.supersedes;
+  const additions = citationEntries(context, entry, staged.toString('utf8'), paths, rows, 'index');
+  for (const citation of additions) {
+    if (['dead-at-adoption', 'ambiguous', 'glob'].includes(citation.state)
+      || citation.resolvedVia.includes('glob-expanded')) throw new Error(`native record has unresolved citation: ${citation.rawTarget}`);
+    if (citation.state === 'resolved-mutable' && !citation.target?.targetSha256) throw new Error(`native mutable citation lacks a target digest: ${citation.rawTarget}`);
+  }
+  for (const artifact of newArtifacts) {
+    inventory.artifacts.push({
+      path: artifact.path, sha256: state.files.get(artifact.path).targetSha256,
+      kind: artifact.kind, policy: artifact.policy,
+    });
   }
   inventory.entries.push(entry);
   citations.entries.push(...additions);
-  assertBaseline(context, inventory, citations, readFileSync(context.output.curationLedger, 'utf8'));
+  assertBaseline(context, inventory, citations, jsonl(events));
   const writes = [
     [context.output.inventory, `${JSON.stringify(inventory, null, 2)}\n`],
     [context.output.citations, `${JSON.stringify(citations, null, 2)}\n`],
@@ -889,8 +913,8 @@ function curate(context, options) {
   const lock = `${context.output.curationLedger}.lock`;
   acquireCurationLock(lock);
   try {
-    const ledgerText = existsSync(context.output.curationLedger) ? readFileSync(context.output.curationLedger, 'utf8') : '';
     const events = readJsonl(context.output.curationLedger);
+    const ledgerText = jsonl(events);
     const previousEventDigest = validateLedger(events, context.collection.collectionUuid);
     const previousRecordEventDigest = [...events].reverse().find((event) => event.recordId === record)?.eventDigest || null;
     const event = {
@@ -960,7 +984,8 @@ function classifyCommand(context) {
     ? { status: 'classification-invalid' }
     : { status: 'history-unavailable', reason: history.reason };
   if (history.ok && !problems.length) {
-    const profiles = adoptionHistoryProfiles(context.root, context.collection, rows, { allowUncommitted: true });
+    const indexed = indexSnapshot(context.root, rows.map((row) => row.path));
+    const profiles = adoptionHistoryProfiles(context.root, context.collection, rows, { allowUncommitted: true, indexed });
     rendered = rows.map((row) => {
       const profile = profiles.get(row.path);
       return profile ? {

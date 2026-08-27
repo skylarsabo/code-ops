@@ -23,6 +23,7 @@ const MAX_HISTORY_PATHS = 10000;
 const MAX_HISTORY_EVENTS = 250000;
 const MAX_HISTORY_BATCH_PATHS = 128;
 const MAX_HISTORY_COMMAND_UNITS = 24000;
+const MAX_BLOB_BATCH_BYTES = 32 * 1024 * 1024;
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonical = (value) => Array.isArray(value)
@@ -83,10 +84,139 @@ export function git(root, args, binary = false) {
     maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
+function gitInput(root, args, input, binary = false, maxBuffer = 64 * 1024 * 1024) {
+  return execFileSync('git', args, {
+    cwd: root, input, encoding: binary ? 'buffer' : 'utf8', timeout: 30000,
+    maxBuffer, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+}
 export function gitPaths(root, args) {
   return git(root, args, true).toString('utf8').split('\0').filter(Boolean).map(posix);
 }
 export function trackedPaths(root) { return gitPaths(root, ['ls-files', '-z']); }
+
+export class GitStateError extends Error {}
+
+function literalPath(path) { return `:(literal)${path}`; }
+function oidInput(oids) { return Buffer.from(`${oids.join('\n')}\n`, 'ascii'); }
+
+function blobMetadata(root, oids) {
+  if (!oids.length) return [];
+  let output;
+  try {
+    output = gitInput(root, ['cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize)'], oidInput(oids));
+  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading index state: ${error.message}`); }
+  const lines = output.trim().split(/\r?\n/);
+  if (lines.length !== oids.length) throw new GitStateError('git-state: malformed cat-file batch metadata');
+  return lines.map((line, index) => {
+    const match = /^([0-9a-f]+) (\S+) (\d+)$/.exec(line);
+    if (!match || match[1] !== oids[index] || match[2] !== 'blob') {
+      throw new GitStateError(`git-state: malformed cat-file batch response for ${oids[index]}`);
+    }
+    return { oid: match[1], size: Number(match[3]) };
+  });
+}
+
+function blobBatches(metadata) {
+  const batches = []; let batch = []; let bytes = 0;
+  for (const entry of metadata) {
+    if (batch.length && bytes + entry.size > MAX_BLOB_BATCH_BYTES) {
+      batches.push(batch); batch = []; bytes = 0;
+    }
+    batch.push(entry); bytes += entry.size;
+  }
+  if (batch.length) batches.push(batch);
+  return batches;
+}
+
+function readBlobBatch(root, batch) {
+  const expectedBytes = batch.reduce((total, entry) => total + entry.size + entry.oid.length + 32, 0);
+  let output;
+  try {
+    output = gitInput(root, ['cat-file', '--batch'], oidInput(batch.map((entry) => entry.oid)), true,
+      Math.max(64 * 1024 * 1024, expectedBytes + 1024));
+  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading index state: ${error.message}`); }
+  const blobs = new Map(); let offset = 0;
+  for (const expected of batch) {
+    const headerEnd = output.indexOf(10, offset);
+    if (headerEnd < 0) throw new GitStateError(`git-state: malformed cat-file batch response for ${expected.oid}`);
+    const header = output.subarray(offset, headerEnd).toString('ascii');
+    const match = /^([0-9a-f]+) (\S+) (\d+)$/.exec(header);
+    const size = match ? Number(match[3]) : -1;
+    const contentStart = headerEnd + 1; const contentEnd = contentStart + size;
+    if (!match || match[1] !== expected.oid || match[2] !== 'blob' || size !== expected.size
+      || contentEnd >= output.length || output[contentEnd] !== 10) {
+      throw new GitStateError(`git-state: malformed cat-file batch response for ${expected.oid}`);
+    }
+    const bytes = output.subarray(contentStart, contentEnd);
+    blobs.set(expected.oid, { bytes: Buffer.from(bytes), targetSha256: sha256(bytes) });
+    offset = contentEnd + 1;
+  }
+  if (offset !== output.length) throw new GitStateError('git-state: malformed trailing cat-file batch data');
+  return blobs;
+}
+
+export function indexSnapshot(root, paths) {
+  if (!Array.isArray(paths)) throw new GitStateError('git-state: requested paths must be an array');
+  const requested = [...new Set(paths)].sort();
+  for (const path of requested) if (!safePath(path)) throw new GitStateError(`git-state: invalid requested path: ${path}`);
+  const rows = new Map(requested.map((path) => [path, []]));
+  for (const batch of historyPathBatches(requested)) {
+    let output;
+    try { output = git(root, ['ls-files', '--stage', '-z', '--', ...batch.map(literalPath)], true); }
+    catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading index state: ${error.message}`); }
+    for (const record of output.toString('utf8').split('\0').filter(Boolean)) {
+      const match = /^(\d+) ([0-9a-f]+) (\d+)\t([\s\S]+)$/.exec(record);
+      if (!match) throw new GitStateError('git-state: malformed ls-files --stage record');
+      const path = posix(match[4]);
+      if (!rows.has(path)) throw new GitStateError(`git-state: unexpected index entry: ${path}`);
+      rows.get(path).push({ mode: match[1], blobOid: match[2], stage: Number(match[3]) });
+    }
+  }
+  const entries = new Map();
+  for (const path of requested) {
+    const matches = rows.get(path);
+    if (!matches.length) throw new GitStateError(`git-state: missing stage-0 index entry: ${path}`);
+    if (matches.length !== 1 || matches[0].stage !== 0) throw new GitStateError(`git-state: non-single or unmerged index entry: ${path}`);
+    if (!['100644', '100755'].includes(matches[0].mode)) {
+      throw new GitStateError(`git-state: unsupported Git index mode ${matches[0].mode}: ${path}`);
+    }
+    entries.set(path, matches[0]);
+  }
+  const oids = [...new Set([...entries.values()].map((entry) => entry.blobOid))].sort();
+  const metadata = blobMetadata(root, oids);
+  const oversized = metadata.find((entry) => entry.size > MAX_BLOB_BATCH_BYTES);
+  if (oversized) {
+    const path = [...entries].find(([, entry]) => entry.blobOid === oversized.oid)?.[0] || oversized.oid;
+    throw new GitStateError(`git-state: blob exceeds ${MAX_BLOB_BATCH_BYTES}-byte limit: ${path}`);
+  }
+  const blobs = new Map();
+  for (const batch of blobBatches(metadata)) for (const [oid, blob] of readBlobBatch(root, batch)) blobs.set(oid, blob);
+  for (const [path, entry] of entries) Object.assign(entry, blobs.get(entry.blobOid));
+  return entries;
+}
+
+export function dirtyIndexPaths(root, paths) {
+  if (!Array.isArray(paths)) throw new GitStateError('git-state: requested paths must be an array');
+  const requested = [...new Set(paths)].sort(); const dirty = new Set();
+  for (const path of requested) if (!safePath(path)) throw new GitStateError(`git-state: invalid requested path: ${path}`);
+  for (const batch of historyPathBatches(requested)) {
+    let changed;
+    try { changed = gitPaths(root, ['diff', '--name-only', '-z', '--', ...batch.map(literalPath)]); }
+    catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading index state: ${error.message}`); }
+    for (const path of changed) dirty.add(path);
+  }
+  return dirty;
+}
+
+export function filteredBlobOid(root, path, bytes) {
+  if (!safePath(path)) throw new GitStateError(`git-state: invalid requested path: ${path}`);
+  try {
+    return (bytes === undefined
+      ? git(root, ['hash-object', `--path=${path}`, '--', path])
+      : gitInput(root, ['hash-object', `--path=${path}`, '--stdin'], bytes)).trim();
+  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while filtering ${path}: ${error.message}`); }
+}
 export function nativePath(root, path) {
   if (!safePath(path)) throw new Error('unsafe path: ' + path);
   const absoluteRoot = resolve(root); const absolute = resolve(absoluteRoot, path);
@@ -401,9 +531,10 @@ function stableHistoryEvents(root, events, blobDigests) {
   })).sort((left, right) => canonical(left).localeCompare(canonical(right)));
 }
 
-export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitted = false } = {}) {
+export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitted = false, indexed = null } = {}) {
   const immutable = rows.filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy));
   const events = repositoryHistory(root, immutable); const profiles = new Map(); const blobDigests = new Map();
+  const currentIndex = indexed || indexSnapshot(root, immutable.map((row) => row.path));
   for (const row of immutable) {
     const exactEvents = events.flatMap((event, eventIndex) => {
       if (event.status === 'R' && event.newPath === row.path) return [{ ...event, eventIndex, status: 'A', path: row.path, renamedFrom: event.oldPath }];
@@ -413,7 +544,7 @@ export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitt
       return event.status !== 'R' && event.newPath === row.path ? [{ ...event, eventIndex, path: row.path }] : [];
     });
     const admissionIndex = exactEvents.findIndex((event) => event.status === 'A');
-    const currentTarget = targetAtIndex(root, row.path);
+    const currentTarget = currentIndex.get(row.path);
     if (!currentTarget) throw new Error(`record bytes unavailable from Git index: ${row.path}`);
     const headTarget = targetAt(root, 'HEAD', row.path);
     const indexDiffersFromHead = !headTarget || headTarget.blobOid !== currentTarget.blobOid;
@@ -510,12 +641,15 @@ export function targetAt(root, commit, path) {
 }
 export function targetAtIndex(root, path) {
   try {
-    const line = git(root, ['ls-files', '--stage', '--', path]).trim().split(/\r?\n/)[0];
-    const match = /^\d+\s+([0-9a-f]+)\s+\d+\t/.exec(line || '');
-    if (!match) return null;
-    const content = git(root, ['show', ':' + path], true);
-    return { objectFormat: git(root, ['rev-parse', '--show-object-format']).trim(), blobOid: match[1], commitOid: null, path, targetSha256: sha256(content) };
-  } catch { return null; }
+    const entry = indexSnapshot(root, [path]).get(path);
+    return {
+      objectFormat: git(root, ['rev-parse', '--show-object-format']).trim(), blobOid: entry.blobOid,
+      commitOid: null, path, targetSha256: entry.targetSha256,
+    };
+  } catch (error) {
+    if (error instanceof GitStateError && error.message.startsWith('git-state: missing stage-0 index entry:')) return null;
+    throw error;
+  }
 }
 export function findBlobByDigest(root, digest) {
   const rows = git(root, ['rev-list', '--objects', '--all', '--missing=print']).split(/\r?\n/)
