@@ -210,8 +210,8 @@ Use this procedure only for a manifest v2 record collection. Record adoption is 
 1. Stop before `adopt` when the repository is shallow, partial, promisor-backed, dirty, or missing required objects.
 2. Restore full history, then run `verify-history --strict` before any adoption or repair.
 3. Run `classify` and resolve every zero-match, ambiguous-owner, and forbidden-file result in the same diff.
-4. Run `plan-adoption --out <ignored-path>`. Review every `review-required` candidate without changing its history bindings.
-5. Supply the completed plan to `adopt --review <ignored-path>`. Regenerate it when `HEAD`, manifest bytes, content, or history changes.
+4. Run `plan-adoption --out <repo-relative-ignored-path>`. Review every `review-required` candidate without changing its history bindings.
+5. Supply the completed plan to `adopt --review <repo-relative-ignored-path>`. Regenerate it when `HEAD`, manifest bytes, content, or history changes.
 6. Recover a failed append by restoring the staged record and artifact snapshot, then rerun `append`; do not hand-edit inventory, citations, or indexes.
 7. Recover a ledger conflict by rebasing the losing branch and regenerating only its unmerged tail under the repository-local lock.
 8. Investigate `evidence-lost` only after strict history verification. Treat `history-unavailable` as infrastructure work.

@@ -51,7 +51,7 @@ All repository artifacts follow the house writing standard. It requires short ac
 
 `<repo>-docs/` is the only authored documentation authority. Manifest v2 may govern immutable evidence at permanent historical paths. Adoption preserves those bytes and paths forever; supersession moves authority through curation and a canonical hub document.
 
-Use Git-index paths for record identity. Classify every tracked collection file exactly once. Scope v2 exact paths may override broad globs; ambiguous owners still fail. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
+Use Git-index paths and stage-0 blob bytes for record identity and content authority. Classify every tracked collection file exactly once. Scope v2 exact paths may override broad globs; ambiguous owners still fail. Content-aware Git comparisons reject semantic worktree divergence without treating checkout transformations as drift. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
 
 Run `plan-adoption` before irreversible legacy adoption. Review every historically revised immutable candidate. Commit no generated baseline unless `adopt` accepts a current digest-bound receipt.
 

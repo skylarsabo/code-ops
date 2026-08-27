@@ -55,13 +55,14 @@ Legacy paths contain `path`, `disposition`, hub-owned `target`, and qualifying `
 
 `records.mjs` exposes `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Adoption and append are fail-closed transactions. Strict history failure is infrastructure failure; evidence loss requires a complete history.
 
-`classify` reports partition validity and historical adoption readiness. Invalid classification reports `classification-invalid` even when history is unavailable. Uncommitted index candidates report `pending-commit` without invalidating structural classification. `plan-adoption` writes only to an ignored repository path. The plan binds `HEAD`, manifest bytes, candidate bytes, and path history. `adopt --review` recomputes those bindings. Historically revised immutable candidates require a `freeze-current` disposition and rationale.
+`classify` reports partition validity and historical adoption readiness. Invalid classification reports `classification-invalid` even when history is unavailable. Uncommitted index candidates report `pending-commit` without invalidating structural classification. `plan-adoption` writes only to a repository-relative ignored path. The plan binds `HEAD`, canonical Git-index manifest and candidate bytes, and path history. `adopt --review` recomputes those bindings. Historically revised immutable candidates require a `freeze-current` disposition and rationale.
 
 Inventory v2 stores `adoptionReview` beside records and artifacts. Its `receiptDigest` covers source bindings and reviewed candidates. Pre-adoption plans bind exact history.
 
 With complete history, post-adoption checks require:
 
-- exact current bytes and classification;
+- exact stage-0 Git-index blob bytes, no semantic index-to-worktree divergence, and exact classification;
+- a 32 MiB maximum for each individual collection blob;
 - consistent stored risk labels;
 - current-risk rationale coverage;
 - non-increasing risk counts; and

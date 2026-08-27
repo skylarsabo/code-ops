@@ -90,12 +90,13 @@ An immutable record that cites a mutable artifact stores authoritative `targetSh
 
 `classify` reports structural partition status and adoption readiness separately. A staged candidate without committed history remains partition-valid and reports `pending-commit`. Adoption still requires a clean, committed tree. Historical stability is a risk signal, never a safety claim. Before irreversible adoption, path-bounded history queries profile every immutable candidate and follow its promotion lineage. A content transition or prior path incarnation requires review. Mutable artifacts remain outside this review.
 
-`plan-adoption --out <ignored-path>` binds a review plan to `HEAD`, the manifest, current content, and canonical history. Historically revised candidates require `disposition: "freeze-current"` and a rationale. `adopt --review <ignored-path>` recomputes every binding before writing. Inventory v2 embeds the reviewed entries and receipt digest.
+`plan-adoption --out <repo-relative-ignored-path>` binds a review plan to `HEAD`, the manifest, current content, and canonical history. Historically revised candidates require `disposition: "freeze-current"` and a rationale. `adopt --review <repo-relative-ignored-path>` recomputes every binding before writing. Inventory v2 embeds the reviewed entries and receipt digest. Absolute paths are rejected because review receipts stay inside the repository's ignored run boundary.
 
 With complete history, later checks require:
 
 - exact original-candidate coverage;
-- exact current bytes and classification;
+- exact stage-0 Git-index blob bytes, no semantic index-to-worktree divergence, and exact classification;
+- a 32 MiB maximum for each individual collection blob;
 - internally consistent stored risk;
 - a rationale for every currently risky candidate; and
 - no increase in transition or prior-incarnation counts.

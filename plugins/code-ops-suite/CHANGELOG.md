@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.48.2
+- Record conformance now hashes canonical stage-0 Git blobs and separately checks semantic index-to-worktree divergence. Batched, binary-safe Git snapshots preserve immutable authority across `autocrlf`, mixed historical line endings, and clean/smudge filters without hiding staged or unstaged changes. Individual collection blobs over 32 MiB fail closed before content loading.
+- Native append, citation verification, curation ledgers, legacy pointers, and adoption-review manifest bindings use the same Git boundary. Review-plan errors and guidance now state that receipt paths must be repository-relative and ignored.
+
 ## 1.48.1
 - Atlas checks reuse tracked paths already present in each scoped digest and cache repeated immutable revision pins. The normal seven-section check launches 11 fewer Git subprocesses without changing digest bytes, liveness rules, or fail-closed behavior. Optional `check --stats` output makes the process budget executable.
 
