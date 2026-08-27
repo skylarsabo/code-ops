@@ -18,7 +18,7 @@
         "scripts/**"
       ],
       "sourceDigest": "56941ec50675960ab32145dcf65ca1afd56f41eb511c2850164aa07df9e2d31e",
-      "contentDigest": "191411da2be32eb74a11dbd609a9a5d24b8968ffb29cfe5b72cde5061347233d"
+      "contentDigest": "91bf8ec7f9f13b50b5fbb3dca79e48d8d24e171a5d2d2922d96780cb14791362"
     },
     {
       "id": "architecture",
@@ -80,7 +80,7 @@
         ".github/workflows/**"
       ],
       "sourceDigest": "829100f263b268376306b42351a94a106c00aabc91a9bd43d821fd93954a7326",
-      "contentDigest": "18a46c64387da476fe88a2daa7c1a514374b18fbb7ff0725ca1164acfe705e5a"
+      "contentDigest": "0a14f482f95a0107a3787bc1917e8bfd80a3b60f7b241f07241683f8f18eed7c"
     },
     {
       "id": "techniques",
@@ -184,7 +184,7 @@
         "**"
       ],
       "sourceDigest": "c0c259bd59b5746d1a2368b9410b3850f5767c229ae2c1c3329a0a276712bb1d",
-      "contentDigest": "842d06c59ebc266f06f68490c2118ba5ea5ed36aa5f3355b78d34018003fe72d"
+      "contentDigest": "317b189b0a189e8fd0d4ad7847e050128198ce8768938786f88f0709c52f721e"
     }
   ]
 }
