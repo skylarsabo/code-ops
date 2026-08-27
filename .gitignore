@@ -6,6 +6,7 @@ Thumbs.db
 
 # Claude Code install-time markers (created in the plugin cache, never part of source)
 .in_use/
+.claude/settings.local.json
 
 # node (none today, but defensive)
 node_modules/
