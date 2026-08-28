@@ -57,7 +57,7 @@ The ID namespace hashes the collection UUID and normalized Git-index path. Colle
 
 Inventory v3 keeps one `authorityBatches` array. The singular `adoptionReview` remains genesis evidence and supports v2 migration. It is not a second growing chain.
 
-Each authority batch links `previousBatchDigest` and binds the authority state before and after the operation. A non-genesis batch's `baseBindings.authorityBatchHead` equals that predecessor digest. Complete-history verification re-derives the source state. Its batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`.
+Each authority batch links `previousBatchDigest` and binds the authority state before and after the operation. A non-genesis batch's `baseBindings.authorityBatchHead` equals that predecessor digest. Complete-history verification re-derives the source state and the manifest digest at the batch-introduction commit. A reachable adoption source also binds the exact reviewed candidates and their complete history profiles. Its batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`.
 
 Incremental batches embed their complete receipt in `review`. Genesis and v2 migration bind the singular genesis receipt by `reviewReceiptDigest`. Native append carries no review payload.
 
@@ -85,4 +85,4 @@ The digest uses SHA-256 content identities and paths instead of Git object IDs. 
 
 Complete-history checks keep stage-0 Git-index blob bytes and classification exact. A content-aware Git comparison rejects semantic worktree divergence without treating checkout transformations as drift. Stored labels must agree with stored counts. Current risk retains review coverage, and counts cannot increase.
 
-Each reviewed batch keeps its exact candidate set. Authority coverage across batches remains exact once. Incomplete history cannot prove candidate history or risk. Receipt digests provide integrity, not reviewer authentication. Total-history replacement needs an external trust anchor.
+Each reviewed batch keeps its exact candidate set. Authority coverage across batches remains exact once. Reachable review sources must contain those candidate bytes and the bound manifest. Incomplete history cannot prove candidate history or risk. Receipt digests provide integrity, not reviewer authentication. Total-history replacement needs an external trust anchor.

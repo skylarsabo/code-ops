@@ -4,9 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 ## 1.49.0
-- The traceless scanner excludes box-drawing glyphs from emoji findings. An explicit `--emdash-baseline-file` preserves the fail-closed default while measuring net dash-count growth against verified pre-edit text.
-- Authority verification re-derives native exact-path history, batch-introduction commits, and complete predecessor bindings. A fresh v3 collection cannot claim a v2 migration.
-- Incremental admission verifies its written authority and restores the prior generated state on failure. A lock-release anomaly preserves the mutation result, so durable success cannot invite an unsafe retry.
+- The traceless scanner excludes box-drawing glyphs and non-pictographic topology arrows while still blocking bare BMP and supplemental pictographs, default emoji, flags, variation-selector emoji, and keycaps. An explicit `--emdash-baseline-file` preserves the fail-closed default while measuring net dash-count growth against verified pre-edit text.
+- Authority verification re-derives native exact-path history, batch-introduction commits, introduction-state manifests, and complete predecessor bindings. Reachable adoption sources must contain the reviewed candidates, the bound manifest, and the complete candidate history profiles. Operational classification parses the canonical Git-index manifest, so checkout filters cannot substitute worktree-only policy. Native writes reject visible worktree drift and staged manifest movement during the transaction. A fresh v3 collection cannot claim a v2 migration.
+- Every generated-authority writer uses shared post-write semantic verification and restores the prior generated state on failure. The manifest index snapshot is checked at both transaction boundaries, including when history is shallow. A lock-release anomaly preserves the mutation result, so durable success cannot invite an unsafe retry.
 - Adopted collections now accept committed immutable paths through reviewed incremental admission.
 - Inventory v3 records exact-once authority membership in one hash-chained history. Curation status stays in its separate ledger.
 - Empty incremental deltas are write-free no-ops unless `--require-delta` requests strict intake.

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-26
+updated: 2026-08-28
 ---
 
 # CI and Delivery
@@ -22,7 +22,7 @@ The record-collection eval exercises immutable evidence contracts on Ubuntu and 
 
 The v4 gate chain keeps responsibilities separate. The manifest gate owns domain and collection declarations. The records gate owns identities, authority batches, history, citation state, curation chains, and semantic projections. The link gate continues to own ordinary hub navigation.
 
-`pending-admission` blocks when an immutable Git-index path lacks authority. Existing evidence failures take precedence. Scheduled recovery prepares reviewed intake on a unique branch in an isolated worktree and never merges it automatically.
+`pending-admission` blocks when an immutable Git-index path lacks authority. Existing evidence failures take precedence. The vault standard advises adopters to run scheduled recovery on a unique branch in an isolated worktree. This repository does not ship that automation. Recovery automation must never merge its branch.
 
 ## Pull-request gates
 

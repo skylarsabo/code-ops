@@ -60,9 +60,10 @@ if (emdashBaselineFile && (files.length !== 1 || gitRange)) {
   console.error('x --emdash-baseline-file requires exactly one file target and cannot be combined with --git'); process.exit(2);
 }
 
-// Unicode properties exclude box-drawing and text-default symbols while retaining
-// emoji-presented pictographs and regional-indicator flags.
-const EMOJI = /(?:\p{Emoji_Presentation}|\p{Regional_Indicator}|\p{Extended_Pictographic}\uFE0F|[#*0-9]\uFE0F?\u20E3)/u;
+// Keep topology arrows, box drawing, and ordinary text symbols clean. Bare
+// pictographs retain the old symbol-block coverage except for box drawing, and
+// add the supplemental pictograph plane. VS16 remains an explicit emoji signal.
+const EMOJI = /(?:\p{Emoji_Presentation}|\p{Regional_Indicator}|(?=[\u{231A}-\u{24FF}\u{2580}-\u{27BF}\u{2B00}-\u{2BFF}\u{3030}\u{303D}\u{3297}\u{3299}\u{1F000}-\u{1FFFF}])\p{Extended_Pictographic}|\p{Extended_Pictographic}\uFE0F|[#*0-9]\uFE0F?\u20E3)/u;
 const LINE_CHECKS = [
   // Concrete tool/vendor names only — no bare \bai\b (it false-positives on .ai emails and the surname "Ai").
   { cat: 'TRAILER', re: /^\s*co-authored-by:\s*.*\b(claude|anthropic|codex|openai|gpt|chatgpt|copilot|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|perplexity|tabnine)\b/i },

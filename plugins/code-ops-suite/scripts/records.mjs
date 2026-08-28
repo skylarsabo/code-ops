@@ -10,7 +10,7 @@ import {
   completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
   gitPaths, historicalTarget, indexSemantic, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
   maskMarkdownFenceAndTopLevelIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
-  resolvePrefix, safePath, sha256, targetAt, targetAtIndex, trackedPaths, treePathsAt,
+  resolvePrefix, safePath, sha256, targetAt, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
 } from './record-lib.mjs';
 
@@ -65,7 +65,11 @@ function manifestPath(root, options) {
 
 function loadContext(root, options) {
   const manifestFile = manifestPath(root, options);
-  const manifest = readJson(manifestFile);
+  const manifestRepoPath = relativeRoot(root, manifestFile);
+  const manifestIndex = indexSnapshot(root, [manifestRepoPath]).get(manifestRepoPath);
+  let manifest;
+  try { manifest = JSON.parse(manifestIndex.bytes.toString('utf8')); }
+  catch { throw new Error(`documentation manifest has invalid Git-index JSON: ${manifestRepoPath}`); }
   if (manifest.version !== 2) throw new Error('record collections require documentation manifest v2');
   if (!manifest.runs || !['ignored', 'tracked'].includes(manifest.runs.tracking)) {
     throw new Error('manifest v2 requires runs.tracking as ignored or tracked');
@@ -88,7 +92,7 @@ function loadContext(root, options) {
   for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
     output[key] = nativePath(root, `${manifest.hub}/${collection[key]}`);
   }
-  const context = { root, manifest, manifestFile, hub: manifest.hub, collection, output };
+  const context = { root, manifest, manifestFile, manifestRepoPath, manifestIndex, hub: manifest.hub, collection, output };
   if (completeHistory(root).ok) assertManifestHistory(context);
   return context;
 }
@@ -136,6 +140,23 @@ function assertGeneratedUntouched(context) {
   }
 }
 
+function writeVerified(writes, verify) {
+  const originals = writes.map(([path]) => [path, existsSync(path) ? readFileSync(path) : null]);
+  try {
+    writeAtomically(writes);
+    verify();
+  } catch (error) {
+    try {
+      const existing = originals.filter(([, bytes]) => bytes !== null);
+      if (existing.length) writeAtomically(existing);
+      for (const [path, bytes] of originals) if (bytes === null) rmSync(path, { force: true });
+    } catch (rollbackError) {
+      throw new Error(`${error.message}; generated-authority rollback failed: ${rollbackError.message}`, { cause: error });
+    }
+    throw error;
+  }
+}
+
 function assertCanonicalPrefix(label, baseline, current) {
   if (!Array.isArray(baseline) || !Array.isArray(current) || current.length < baseline.length) {
     throw new Error(`${label} is not append-only`);
@@ -149,8 +170,14 @@ const AUTHORITY_BATCH_TYPES = new Set(['genesis-adoption', 'incremental-adoption
 const AUTHORITY_REF_TYPES = new Set(['record', 'artifact']);
 
 function manifestSha256(context) {
-  const target = targetAtIndex(context.root, relativeRoot(context.root, context.manifestFile));
-  if (!target?.targetSha256) throw new Error('documentation manifest bytes are unavailable from the Git index');
+  const { manifestRepoPath: path, manifestIndex: initial } = context;
+  const target = indexSnapshot(context.root, [path]).get(path);
+  if (target.blobOid !== initial.blobOid) {
+    throw new Error('documentation manifest Git-index state changed during operation');
+  }
+  if (filteredBlobOid(context.root, path) !== target.blobOid) {
+    throw new Error('documentation manifest differs between the Git index and working tree');
+  }
   return target.targetSha256;
 }
 
@@ -289,7 +316,10 @@ function settleMutationLock(lease, mutationError = null) {
 function withMutationLock(context, mutate) {
   const lease = acquireMutationLock(context);
   let result;
-  try { result = mutate(); }
+  try {
+    manifestSha256(context);
+    result = mutate();
+  }
   catch (error) { settleMutationLock(lease, error); }
   settleMutationLock(lease);
   return result;
@@ -297,22 +327,33 @@ function withMutationLock(context, mutate) {
 
 const MANIFEST_GLOB = ':(glob)**/98 System/DOCS_MANIFEST.json';
 
+function committedManifestAt(root, commit, candidatePaths = null) {
+  if (candidatePaths) {
+    const found = [];
+    for (const path of candidatePaths) {
+      try { found.push({ commit, path, bytes: git(root, ['show', `${commit}:${path}`], true) }); }
+      catch { /* absent at this commit */ }
+    }
+    if (found.length > 1) throw new Error(`multiple documentation manifests exist at ${commit}: ${found.map((item) => item.path).join(', ')}`);
+    return found[0] || { commit, path: null, bytes: null };
+  }
+  const paths = gitPaths(root, ['ls-tree', '-r', '--name-only', '-z', commit])
+    .filter((path) => path.endsWith('/98 System/DOCS_MANIFEST.json'));
+  if (paths.length > 1) throw new Error(`multiple documentation manifests exist at ${commit}: ${paths.join(', ')}`);
+  if (!paths.length) return { commit, path: null, bytes: null };
+  return { commit, path: paths[0], bytes: git(root, ['show', `${commit}:${paths[0]}`], true) };
+}
+
 function committedManifestVersions(root) {
   let commits = [];
   try { commits = git(root, ['log', '--format=%H', '--reverse', '--', MANIFEST_GLOB]).trim().split(/\s+/).filter(Boolean); }
   catch (error) { throw new Error(`cannot read manifest history: ${error.message}`); }
-  return commits.map((commit) => {
-    const paths = gitPaths(root, ['ls-tree', '-r', '--name-only', '-z', commit])
-      .filter((path) => path.endsWith('/98 System/DOCS_MANIFEST.json'));
-    if (paths.length > 1) throw new Error(`multiple documentation manifests exist at ${commit}: ${paths.join(', ')}`);
-    if (!paths.length) return { commit, path: null, bytes: null };
-    return { commit, path: paths[0], bytes: git(root, ['show', `${commit}:${paths[0]}`], true) };
-  });
+  return commits.map((commit) => committedManifestAt(root, commit));
 }
 
-function collectionOutputPaths(context, key) {
+function collectionOutputPaths(context, key, manifestVersions = committedManifestVersions(context.root)) {
   const paths = new Set([outputRepoPath(context, key)]);
-  for (const version of committedManifestVersions(context.root)) {
+  for (const version of manifestVersions) {
     if (!version.bytes || !version.path) continue;
     let manifest;
     try { manifest = JSON.parse(version.bytes.toString('utf8')); } catch { continue; }
@@ -427,12 +468,24 @@ function assertAuthorityBatchHistory(context, versions) {
     && (firstV3 === 0 || versions[firstV3 - 1].version !== 2)) {
     throw new Error('v2 migration authority requires an observed committed v2 predecessor');
   }
+  const manifestVersions = committedManifestVersions(context.root);
+  const manifestPaths = [...new Set(manifestVersions.map((version) => version.path).filter(Boolean))];
   const outputPaths = Object.fromEntries(['inventory', 'citations', 'curationLedger']
-    .map((key) => [key, collectionOutputPaths(context, key)]));
+    .map((key) => [key, collectionOutputPaths(context, key, manifestVersions)]));
   const sourceStates = new Map();
   const stateAt = (commit) => {
     if (!sourceStates.has(commit)) sourceStates.set(commit, generatedStateAt(context, commit, outputPaths));
     return sourceStates.get(commit);
+  };
+  const manifestDigests = new Map();
+  const manifestDigestAt = (commit) => {
+    if (commit === 'current') return manifestSha256(context);
+    if (!manifestDigests.has(commit)) {
+      const manifest = committedManifestAt(context.root, commit, manifestPaths);
+      if (!manifest.bytes) throw new Error(`authority batch introduction lacks a documentation manifest: ${commit}`);
+      manifestDigests.set(commit, sha256(manifest.bytes));
+    }
+    return manifestDigests.get(commit);
   };
   for (let versionIndex = 0; versionIndex < versions.length; versionIndex += 1) {
     const version = versions[versionIndex];
@@ -441,14 +494,28 @@ function assertAuthorityBatchHistory(context, versions) {
     const priorBatchCount = prior?.version === 3 ? (prior.authorityBatches || []).length : 0;
     for (let batchIndex = priorBatchCount; batchIndex < (version.authorityBatches || []).length; batchIndex += 1) {
       const batch = version.authorityBatches[batchIndex];
-      if (batch.type === 'genesis-adoption') continue;
+      if (batch.manifestSha256 !== manifestDigestAt(version.commit)) {
+        throw new Error(`authority batch manifest does not match its introduction state: sequence ${batch.sequence}`);
+      }
       const introducedAt = version.commit === 'current' ? 'HEAD' : version.commit;
       if (version.commit === 'current' && batch.sourceHead !== headOid(context.root)) {
         throw new Error(`uncommitted authority batch must bind current HEAD: sequence ${batch.sequence}`);
       }
-      if (!commitIsAncestor(context.root, batch.sourceHead, introducedAt)) {
+      const sourceReachable = commitIsReachable(context.root, batch.sourceHead);
+      if (sourceReachable && !commitIsAncestor(context.root, batch.sourceHead, introducedAt)) {
         throw new Error(`authority batch source does not precede its introduction: sequence ${batch.sequence}`);
       }
+      if (!sourceReachable && batch.type !== 'genesis-adoption') {
+        throw new Error(`authority batch source commit is not reachable from HEAD: sequence ${batch.sequence}`);
+      }
+      if (sourceReachable && ['genesis-adoption', 'incremental-adoption'].includes(batch.type)
+        && batch.manifestSha256 !== manifestDigestAt(batch.sourceHead)) {
+        throw new Error(`adoption authority batch manifest does not match its source state: sequence ${batch.sequence}`);
+      }
+      // A genesis receipt may survive a content-preserving history rewrite. In that
+      // case its source commit is only a locator; checkInventory applies the same
+      // rewrite-tolerant content-and-risk rule used by inventory v2.
+      if (batch.type === 'genesis-adoption') continue;
       const source = stateAt(batch.sourceHead);
       if (!source) throw new Error(`authority batch source lacks generated predecessor state: sequence ${batch.sequence}`);
       const expectedBindings = batchIndex === priorBatchCount
@@ -650,8 +717,9 @@ function reviewAuthority(candidate) {
   };
 }
 
-function reviewCoversCurrentHistory(reviewed, current) {
+function reviewCoversCurrentHistory(reviewed, current, exact = false) {
   if (!current) return false;
+  if (exact) return canonical(reviewAuthority(reviewed)) === canonical(reviewAuthority(current));
   for (const key of ['path', 'kind', 'policy', 'currentSha256']) {
     if (reviewed[key] !== current[key]) return false;
   }
@@ -863,12 +931,13 @@ function adopt(context, options) {
         const known = treePathsAt(context.root, entry.baselineCommit);
         citationInventory.entries.push(...citationEntries(context, entry, sourceText, known, rows, 'adopt'));
       }
-      writeAtomically([
+      const writes = [
         [context.output.inventory, `${JSON.stringify(inventory, null, 2)}\n`],
         [context.output.citations, `${JSON.stringify(citationInventory, null, 2)}\n`],
         [context.output.curationLedger, ''],
         [context.output.index, renderCurrent(context, inventory, [])],
-      ]);
+      ];
+      writeVerified(writes, () => runCheck(context));
       console.log(JSON.stringify({ mode: 'genesis', adopted: entries.length, artifacts: artifacts.length, citations: citationInventory.entries.length }));
       return;
     }
@@ -919,14 +988,7 @@ function adopt(context, options) {
       [context.output.citations, `${JSON.stringify(citations, null, 2)}\n`],
       [context.output.index, renderCurrent(context, inventory, events)],
     ];
-    const originals = writes.map(([path]) => [path, readFileSync(path)]);
-    try {
-      writeAtomically(writes);
-      runCheck(context);
-    } catch (error) {
-      writeAtomically(originals);
-      throw error;
-    }
+    writeVerified(writes, () => runCheck(context));
     console.log(JSON.stringify({
       mode: 'incremental', migrated: beforeMigration.version === 2, adopted: newEntries.length,
       artifacts: newArtifacts.length, citations: citations.entries.length - priorCitationCount,
@@ -1095,13 +1157,13 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
 function checkInventory(context, rows, inventory, state, historyComplete = true) {
   if (![1, 2, 3].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
   if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
-  const reviewCandidates = new Map(); const reviewedCandidates = new Map();
+  const reviewCandidates = new Map(); const reviewedCandidates = new Map(); const reviewSources = new Map();
   const originalReviewPaths = new Set();
   if ([2, 3].includes(inventory.version)) {
     const review = inventory.adoptionReview;
     const parsed = validateReviewReceipt(review, inventory.collectionUuid);
     for (const [path, candidate] of parsed.candidates) {
-      originalReviewPaths.add(path); reviewCandidates.set(path, candidate);
+      originalReviewPaths.add(path); reviewCandidates.set(path, candidate); reviewSources.set(path, review.sourceHead);
     }
     for (const [path, reviewed] of parsed.reviewed) reviewedCandidates.set(path, reviewed);
   }
@@ -1109,7 +1171,7 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
     for (const parsed of validateAuthorityBatches(inventory, { root: context.root, historyComplete })) {
       for (const [path, candidate] of parsed.candidates) {
         if (reviewCandidates.has(path)) throw new Error(`adoption candidate has duplicate receipt coverage: ${path}`);
-        reviewCandidates.set(path, candidate);
+        reviewCandidates.set(path, candidate); reviewSources.set(path, parsed.review.sourceHead);
       }
       for (const [path, reviewed] of parsed.reviewed) reviewedCandidates.set(path, reviewed);
     }
@@ -1131,6 +1193,12 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
       }
       if ([2, 3].includes(inventory.version) && !/^[0-9a-f]{40,64}$/.test(entry.baselineCommit || '')) {
         throw new Error(`invalid adopted record baseline: ${entry.path}`);
+      }
+      const candidate = reviewCandidates.get(entry.path);
+      if ([2, 3].includes(inventory.version) && candidate
+        && (entry.introducedCommit !== candidate.history.admittedCommit
+          || entry.baselineCommit !== candidate.history.baselineCommit)) {
+        throw new Error(`adopted record history does not match its review receipt: ${entry.path}`);
       }
       if (inventory.version === 1 && 'baselineCommit' in entry) throw new Error(`inventory v1 record has a baseline commit: ${entry.path}`);
     } else {
@@ -1187,7 +1255,12 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
       const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows);
       for (const candidate of reviewCandidates.values()) {
         const current = currentProfiles.get(candidate.path);
-        if (!reviewCoversCurrentHistory(candidate, current)) {
+        const sourceHead = reviewSources.get(candidate.path);
+        const sourceReachable = commitIsReachable(context.root, sourceHead);
+        if (sourceReachable && targetAt(context.root, sourceHead, candidate.path)?.targetSha256 !== candidate.currentSha256) {
+          throw new Error(`adoption review source does not contain its candidate: ${candidate.path}`);
+        }
+        if (!reviewCoversCurrentHistory(candidate, current, sourceReachable)) {
           throw new Error(`adoption review history drift: ${candidate.path}`);
         }
         if (current.adoptionReadiness === 'review-required' && !reviewedCandidates.has(candidate.path)) {
@@ -1282,6 +1355,7 @@ function checkLegacy(context, citations, ids) {
 function runCheck(context, {
   strict = false, allowPending = false, skipIndex = false, skipLegacyDrift = false,
 } = {}) {
+  manifestSha256(context);
   const { rows } = collect(context);
   for (const path of Object.values(context.output)) if (!existsSync(path)) throw new Error(`missing generated record file: ${relativeRoot(context.root, path)}`);
   const inventory = readJson(context.output.inventory);
@@ -1356,6 +1430,7 @@ function runCheck(context, {
   if (!allowPending && checkedInventory.pendingAdmissionProblem) {
     throw new Error(`pending-admission: ${checkedInventory.pendingAdmissionProblem}`);
   }
+  manifestSha256(context);
   for (const warning of [...new Set(warnings)]) console.warn(`records: warning: ${warning}`);
   const stateCounts = {};
   for (const citation of citations.entries || []) stateCounts[citation.state] = (stateCounts[citation.state] || 0) + 1;
@@ -1493,10 +1568,11 @@ function curate(context, options) {
     const nextText = ledgerText + jsonl([event]);
     const citations = readJson(context.output.citations);
     assertBaseline(context, inventory, citations, nextText);
-    writeAtomically([
+    const writes = [
       [context.output.curationLedger, nextText],
       [context.output.index, renderCurrent(context, inventory, [...events, event])],
-    ]);
+    ];
+    writeVerified(writes, () => runCheck(context, { allowPending: true }));
     console.log(JSON.stringify({ sequence: event.sequence, eventDigest: event.eventDigest }));
   });
 }
@@ -1516,16 +1592,11 @@ function render(context, options) {
         writes.push([nativePath(context.root, entry.path), legacyContent(context, entry)]);
       }
     }
-    const originals = writes.map(([path]) => [path, existsSync(path) ? readFileSync(path) : null]);
-    try {
-      writeAtomically(writes);
+    writeVerified(writes, () => {
       verifyIndex(readFileSync(context.output.index, 'utf8'), context.collection, inventory, events);
       if (options.legacy) checkLegacy(context, citations, ids);
-    } catch (error) {
-      writeAtomically(originals.filter(([, bytes]) => bytes !== null));
-      for (const [path, bytes] of originals) if (bytes === null) rmSync(path, { force: true });
-      throw error;
-    }
+      runCheck(context, { allowPending: true });
+    });
     console.log(JSON.stringify({ written: writes.map(([path]) => relativeRoot(context.root, path)) }));
   });
 }
@@ -1554,7 +1625,8 @@ function reindexLocators(context) {
       };
       if (canonical(citation.target) !== before) changed += 1;
     }
-    writeAtomically([[context.output.citations, `${JSON.stringify(citations, null, 2)}\n`]]);
+    writeVerified([[context.output.citations, `${JSON.stringify(citations, null, 2)}\n`]],
+      () => runCheck(context, { allowPending: true }));
     console.log(JSON.stringify({ locatorsUpdated: changed, objectFormat: gitObjectFormat(context.root) }));
   });
 }

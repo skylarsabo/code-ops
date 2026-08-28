@@ -18,6 +18,7 @@ const baseline = join(here, 'baseline.md');
 const baselineEdited = join(here, 'baseline-edited.md');
 const baselineGrowth = join(here, 'baseline-growth.md');
 const emojiEdge = join(here, 'emoji-edge.md');
+const textPictographs = join(here, 'text-pictographs.md');
 const run = (args) => spawnSync('node', [scanner, ...args], { encoding: 'utf8' });
 
 const fails = [];
@@ -47,6 +48,9 @@ expect(/clean/.test(c.stdout || ''), 'clean.md should report clean');
 expect(!((c.stdout || '') + (c.stderr || '')).includes('EMOJI'), 'clean topology glyphs should not flag as emoji');
 const edge = run([emojiEdge]);
 expect(edge.status === 1 && /EMOJI/.test(edge.stdout || ''), 'keycap emoji should remain a blocking emoji finding');
+const pictographs = run([textPictographs]);
+expect(pictographs.status === 1 && /EMOJI/.test(pictographs.stdout || ''),
+  'bare text-presentation pictographs should remain blocking emoji findings');
 expect(run([baselineEdited]).status === 1, 'baseline-edited.md should retain the default absolute em-dash gate');
 expect(run([baselineEdited, '--emdash-baseline-file', baseline]).status === 0,
   'a verified pre-edit baseline should subtract inherited em-dashes');
@@ -56,6 +60,10 @@ expect(run([baselineEdited, clean, '--emdash-baseline-file', baseline]).status =
   'an em-dash baseline should reject multiple current targets');
 expect(run([baselineEdited, '--emdash-baseline-file', join(here, 'missing.md')]).status === 2,
   'a missing em-dash baseline should fail closed');
+expect(run([baselineEdited, '--emdash-baseline-file']).status === 2,
+  'a missing em-dash baseline argument should fail closed');
+expect(run([baselineEdited, '--emdash-baseline-file', '--report-only']).status === 2,
+  'an option-like em-dash baseline argument should fail closed');
 
 if (fails.length) {
   console.error('FAIL — ai-tells eval:');

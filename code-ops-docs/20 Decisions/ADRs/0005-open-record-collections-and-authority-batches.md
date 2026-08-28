@@ -31,7 +31,9 @@ Keep the authority-batch chain separate from the curation ledger. Authority batc
 
 `plan-adoption --incremental` profiles only immutable paths that lack authority. An empty delta is a write-free success. `--require-delta` makes the same condition fail for strict automation. A non-empty first mutation of inventory v2 writes a `v2-migration` batch before the requested batch.
 
-Writers bind the current inventory, citations, index, manifest, Git state, and authority-batch head. They recompute those bindings under the collection mutation lock before any write. A stale binding or partial authority state fails without generated changes.
+Writers bind the current inventory, citations, index, manifest, Git state, and authority-batch head. Record operations parse policy from canonical Git-index manifest bytes. Authority mutations re-read that index entry at both transaction boundaries and refuse movement after context load, including when history is shallow. Native writes also require visible worktree manifest changes to match staged authority. Complete-history verification re-derives every batch's manifest binding from its introduction commit. Reachable adoption sources must contain the reviewed candidates, their complete history profiles, and the bound manifest.
+
+Writers recompute bindings under the collection mutation lock before any write. One shared helper atomically replaces generated authority, runs the full semantic check, and restores every prior byte when verification fails. A stale binding or partial authority state fails without lasting generated changes.
 
 Validate existing evidence before reporting new intake work. History loss, immutable drift, broken receipts, and invalid existing authority take precedence over `pending-admission`. A valid collection with unadmitted immutable paths fails with `pending-admission`.
 

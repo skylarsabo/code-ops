@@ -57,7 +57,7 @@ Legacy paths contain `path`, `disposition`, hub-owned `target`, and qualifying `
 
 `classify` reports partition validity and historical adoption readiness. Invalid classification reports `classification-invalid` even when history is unavailable. Uncommitted index candidates report `pending-commit` without invalidating structural classification. An immutable path outside authority blocks `check` as `pending-admission`.
 
-Genesis `plan-adoption` writes only to a repository-relative ignored path. The plan binds `HEAD`, canonical Git-index manifest and candidate bytes, and path history. Historically revised immutable candidates require a `freeze-current` disposition and rationale. `adopt --review` recomputes every binding.
+Genesis `plan-adoption` writes only to a repository-relative ignored path. Every record operation parses classification policy from canonical Git-index manifest bytes. Authority mutations revalidate that index snapshot before binding a batch and again after post-write verification. The plan binds `HEAD`, that manifest, candidate bytes, and path history. Historically revised immutable candidates require a `freeze-current` disposition and rationale. `adopt --review` recomputes every binding.
 
 `plan-adoption --incremental` writes a version 2 plan with `mode: "incremental"`. Its `baseBindings` cover inventory, citations, curation, index, and the authority-batch head. `adopt` infers incremental mode only from this receipt.
 
@@ -65,7 +65,7 @@ An empty incremental delta prints `{"mode":"incremental","status":"no-op","reaso
 
 Inventory v3 preserves singular `adoptionReview` for genesis evidence and v2 compatibility. Its one growing `authorityBatches` chain records all immutable membership and provenance. Incremental batches embed or bind their reviewed payload through `reviewReceiptDigest`.
 
-Each authority batch stores `version`, `sequence`, `type`, `previousBatchDigest`, `sourceHead`, `manifestSha256`, `priorAuthorityDigest`, `authorityDigest`, `baseBindings`, `objects`, `review`, `reviewReceiptDigest`, and `batchDigest`. Batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`. Genesis has no prior generated state, so only non-genesis batches carry `baseBindings`. Their `authorityBatchHead` equals `previousBatchDigest`, and complete-history checks re-derive every binding from the source state or an earlier batch in the same transaction.
+Each authority batch stores `version`, `sequence`, `type`, `previousBatchDigest`, `sourceHead`, `manifestSha256`, `priorAuthorityDigest`, `authorityDigest`, `baseBindings`, `objects`, `review`, `reviewReceiptDigest`, and `batchDigest`. Batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`. Genesis has no prior generated state, so only non-genesis batches carry `baseBindings`. Their `authorityBatchHead` equals `previousBatchDigest`. Complete-history checks re-derive every predecessor binding and the manifest digest from the batch-introduction commit or an earlier batch in the same transaction. A reachable adoption source must contain every reviewed candidate and the bound manifest, and its candidate histories must equal the receipt profiles.
 
 An `incremental-adoption` batch embeds its complete receipt in `review`. Genesis and v2 migration bind the singular `adoptionReview` by digest and set `review` to null. Native append sets both review fields to null.
 
@@ -100,7 +100,7 @@ Incomplete history warns during ordinary checks. Strict verification treats it a
 
 Failure ordering protects existing evidence first. Commands validate mode, clean state, complete history, and the existing baseline before candidate intake. They acquire the shared lock, then revalidate generated cleanliness, optimistic bindings, review, and history.
 
-Commands build the complete mutation in memory after validation. They atomically replace generated files, verify the result, and roll back every replacement on failure. They release only the lock token that they acquired. A release anomaly cannot replace the original mutation error or turn durable success into a retry-triggering failure.
+Commands build the complete mutation in memory after validation. One shared writer atomically replaces generated files, runs the complete semantic check, and rolls back every replacement on failure. The closing check includes the canonical manifest index snapshot, so shallow history cannot open a race. Commands release only the lock token that they acquired. A release anomaly cannot replace the original mutation error or turn durable success into a retry-triggering failure.
 
 The clone-wide lock lives at `<git-common-dir>/code-ops-record-locks/<collectionUuid>.lock/owner.json`. Its owner stores `pid`, `token`, and `acquiredAt`. A live or recent owner fails with `collection mutation lock is held`. A dead owner at least ten minutes old is recoverable.
 

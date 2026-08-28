@@ -14,7 +14,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 197 : 200;
+const expectedCases = process.platform === 'win32' ? 213 : 216;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -255,6 +255,7 @@ try {
     scope.paths.reverse();
   }
   writeFileSync(join(scopeV2Repo, 'hub', '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify(reversedScopeV2, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], scopeV2Repo);
   const reversedResult = run(['classify', '--root', scopeV2Repo, ...COLLECTION], scopeV2Repo);
   const secondScopeV2 = reversedResult.status === 0 ? JSON.parse(reversedResult.output) : null;
   const selectedScope = (value) => value?.rows?.find((row) => row.path.endsWith('day_profile.jsonl'));
@@ -861,6 +862,156 @@ try {
     && inventory.artifacts.every((artifact) => artifact.provenance === 'adopted'), result.output);
   commit(repo, 'adopt records');
 
+  const corruptPostWriteScript = instrumentedRecordsScript('generated-post-write-script', (source) => source.replace(
+    /(    writeAtomically\(writes\);\r?\n)(    verify\(\);)/,
+    `$1    if (process.env.CODE_OPS_EVAL_CORRUPT_WRITE === '1') writeFileSync(writes[0][0], '{"corrupt":true}\\n');\n$2`,
+  ));
+  const corruptGenesisRepo = join(work, 'genesis-post-write-rollback'); cpSync(repo, corruptGenesisRepo, { recursive: true });
+  git(['reset', '--hard', '-q', 'HEAD^'], corruptGenesisRepo);
+  result = runWithScript(corruptPostWriteScript, ['adopt', '--root', corruptGenesisRepo, ...COLLECTION],
+    corruptGenesisRepo, { CODE_OPS_EVAL_CORRUPT_WRITE: '1' });
+  check('genesis admission removes every generated file when post-write verification fails', result.status === 1
+    && result.output.includes('invalid record inventory header')
+    && GENERATED_NAMES.every((name) => !existsSync(generated(corruptGenesisRepo, name))), result.output);
+
+  const forgedGenesisReviewRepo = join(work, 'forged-genesis-review-binding');
+  cpSync(repo, forgedGenesisReviewRepo, { recursive: true });
+  git(['reset', '--hard', '-q', 'HEAD^'], forgedGenesisReviewRepo);
+  result = run(['adopt', '--root', forgedGenesisReviewRepo, ...COLLECTION], forgedGenesisReviewRepo);
+  if (result.status === 0) {
+    const forgedGenesisPath = generated(forgedGenesisReviewRepo, 'inventory.json');
+    const forgedGenesis = JSON.parse(readFileSync(forgedGenesisPath, 'utf8'));
+    forgedGenesis.authorityBatches[0].reviewReceiptDigest = null;
+    rehashAuthorityBatch(forgedGenesis.authorityBatches[0]);
+    writeFileSync(forgedGenesisPath, `${JSON.stringify(forgedGenesis, null, 2)}\n`);
+    commit(forgedGenesisReviewRepo, 'commit forged genesis review binding');
+  }
+  const forgedGenesisCheck = result.status === 0
+    ? run(['check', '--root', forgedGenesisReviewRepo, ...COLLECTION], forgedGenesisReviewRepo) : result;
+  check('genesis authority must retain its adoption review receipt binding', result.status === 0
+    && forgedGenesisCheck.status === 1
+    && forgedGenesisCheck.output.includes('authority genesis review binding mismatch'),
+  `${result.output}\n${forgedGenesisCheck.output}`);
+
+  const forgedGenesisManifestRepo = join(work, 'forged-genesis-manifest-binding');
+  cpSync(repo, forgedGenesisManifestRepo, { recursive: true });
+  git(['reset', '--hard', '-q', 'HEAD^'], forgedGenesisManifestRepo);
+  result = run(['adopt', '--root', forgedGenesisManifestRepo, ...COLLECTION], forgedGenesisManifestRepo);
+  if (result.status === 0) {
+    const forgedGenesisManifestPath = generated(forgedGenesisManifestRepo, 'inventory.json');
+    const forgedGenesisManifest = JSON.parse(readFileSync(forgedGenesisManifestPath, 'utf8'));
+    forgedGenesisManifest.adoptionReview.manifestSha256 = '0'.repeat(64);
+    delete forgedGenesisManifest.adoptionReview.receiptDigest;
+    forgedGenesisManifest.adoptionReview.receiptDigest = digestJson(forgedGenesisManifest.adoptionReview);
+    const forgedGenesisManifestBatch = forgedGenesisManifest.authorityBatches[0];
+    forgedGenesisManifestBatch.manifestSha256 = forgedGenesisManifest.adoptionReview.manifestSha256;
+    forgedGenesisManifestBatch.reviewReceiptDigest = forgedGenesisManifest.adoptionReview.receiptDigest;
+    rehashAuthorityBatch(forgedGenesisManifestBatch);
+    writeFileSync(forgedGenesisManifestPath, `${JSON.stringify(forgedGenesisManifest, null, 2)}\n`);
+    commit(forgedGenesisManifestRepo, 'commit forged genesis manifest binding');
+  }
+  const forgedGenesisManifestCheck = result.status === 0
+    ? run(['check', '--root', forgedGenesisManifestRepo, ...COLLECTION], forgedGenesisManifestRepo) : result;
+  check('genesis authority binds the manifest at its introduction commit', result.status === 0
+    && forgedGenesisManifestCheck.status === 1
+    && forgedGenesisManifestCheck.output.includes('authority batch manifest does not match its introduction state: sequence 1'),
+  `${result.output}\n${forgedGenesisManifestCheck.output}`);
+
+  const sourceCandidateRepo = join(work, 'genesis-source-candidate-binding'); mkdirSync(sourceCandidateRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], sourceCandidateRepo);
+  write(sourceCandidateRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(sourceCandidateRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  commit(sourceCandidateRepo, 'seed collection policy');
+  const sourceBeforeCandidate = git(['rev-parse', 'HEAD'], sourceCandidateRepo).trim();
+  write(sourceCandidateRepo, 'records/one.md', '# Source-bound record\n');
+  commit(sourceCandidateRepo, 'add source-bound record');
+  result = run(['adopt', '--root', sourceCandidateRepo, ...COLLECTION], sourceCandidateRepo);
+  if (result.status === 0) {
+    const sourceCandidateInventoryPath = generated(sourceCandidateRepo, 'inventory.json');
+    const sourceCandidateInventory = JSON.parse(readFileSync(sourceCandidateInventoryPath, 'utf8'));
+    sourceCandidateInventory.adoptionReview.sourceHead = sourceBeforeCandidate;
+    delete sourceCandidateInventory.adoptionReview.receiptDigest;
+    sourceCandidateInventory.adoptionReview.receiptDigest = digestJson(sourceCandidateInventory.adoptionReview);
+    rehashAuthorityChain(sourceCandidateInventory);
+    writeFileSync(sourceCandidateInventoryPath, `${JSON.stringify(sourceCandidateInventory, null, 2)}\n`);
+    commit(sourceCandidateRepo, 'commit early source binding');
+  }
+  const sourceCandidateCheck = result.status === 0
+    ? run(['check', '--root', sourceCandidateRepo, ...COLLECTION], sourceCandidateRepo) : result;
+  check('genesis review source must contain every adopted candidate', result.status === 0
+    && sourceCandidateCheck.status === 1
+    && sourceCandidateCheck.output.includes('adoption review source does not contain its candidate'),
+  `${result.output}\n${sourceCandidateCheck.output}`);
+
+  const sourceManifestRepo = join(work, 'genesis-source-manifest-binding'); mkdirSync(sourceManifestRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], sourceManifestRepo);
+  write(sourceManifestRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  const oldSourceManifest = fixtureManifest(); oldSourceManifest.recordCollections[0].id = 'evidence-old';
+  write(sourceManifestRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(oldSourceManifest, null, 2)}\n`);
+  write(sourceManifestRepo, 'records/one.md', '# Manifest-bound record\n');
+  commit(sourceManifestRepo, 'seed prior collection label');
+  const priorManifestHead = git(['rev-parse', 'HEAD'], sourceManifestRepo).trim();
+  write(sourceManifestRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  commit(sourceManifestRepo, 'rename collection label');
+  result = run(['adopt', '--root', sourceManifestRepo, ...COLLECTION], sourceManifestRepo);
+  if (result.status === 0) {
+    const sourceManifestInventoryPath = generated(sourceManifestRepo, 'inventory.json');
+    const sourceManifestInventory = JSON.parse(readFileSync(sourceManifestInventoryPath, 'utf8'));
+    sourceManifestInventory.adoptionReview.sourceHead = priorManifestHead;
+    delete sourceManifestInventory.adoptionReview.receiptDigest;
+    sourceManifestInventory.adoptionReview.receiptDigest = digestJson(sourceManifestInventory.adoptionReview);
+    rehashAuthorityChain(sourceManifestInventory);
+    writeFileSync(sourceManifestInventoryPath, `${JSON.stringify(sourceManifestInventory, null, 2)}\n`);
+    commit(sourceManifestRepo, 'commit prior-manifest source binding');
+  }
+  const sourceManifestCheck = result.status === 0
+    ? run(['check', '--root', sourceManifestRepo, ...COLLECTION], sourceManifestRepo) : result;
+  check('genesis review source must contain the adopted manifest', result.status === 0
+    && sourceManifestCheck.status === 1
+    && sourceManifestCheck.output.includes('adoption authority batch manifest does not match its source state'),
+  `${result.output}\n${sourceManifestCheck.output}`);
+
+  const forgedCandidateHistoryRepo = join(work, 'forged-genesis-candidate-history'); cpSync(repo, forgedCandidateHistoryRepo, { recursive: true });
+  git(['reset', '--hard', '-q', 'HEAD^'], forgedCandidateHistoryRepo);
+  result = run(['adopt', '--root', forgedCandidateHistoryRepo, ...COLLECTION], forgedCandidateHistoryRepo);
+  if (result.status === 0) {
+    const forgedCandidateHistoryPath = generated(forgedCandidateHistoryRepo, 'inventory.json');
+    const forgedCandidateHistory = JSON.parse(readFileSync(forgedCandidateHistoryPath, 'utf8'));
+    const candidate = forgedCandidateHistory.adoptionReview.candidates
+      .find((item) => forgedCandidateHistory.entries.some((entry) => entry.path === item.path));
+    candidate.history.baselineCommit = 'f'.repeat(40);
+    forgedCandidateHistory.entries.find((entry) => entry.path === candidate.path).baselineCommit = candidate.history.baselineCommit;
+    delete forgedCandidateHistory.adoptionReview.receiptDigest;
+    forgedCandidateHistory.adoptionReview.receiptDigest = digestJson(forgedCandidateHistory.adoptionReview);
+    rehashAuthorityChain(forgedCandidateHistory);
+    writeFileSync(forgedCandidateHistoryPath, `${JSON.stringify(forgedCandidateHistory, null, 2)}\n`);
+    commit(forgedCandidateHistoryRepo, 'commit forged candidate history');
+  }
+  const forgedCandidateHistoryCheck = result.status === 0
+    ? run(['check', '--root', forgedCandidateHistoryRepo, ...COLLECTION], forgedCandidateHistoryRepo) : result;
+  check('reachable adoption sources bind the complete candidate history profile', result.status === 0
+    && forgedCandidateHistoryCheck.status === 1
+    && forgedCandidateHistoryCheck.output.includes('adoption review history drift'),
+  `${result.output}\n${forgedCandidateHistoryCheck.output}`);
+
+  const forgedEntryHistoryRepo = join(work, 'forged-adopted-entry-history'); cpSync(repo, forgedEntryHistoryRepo, { recursive: true });
+  git(['reset', '--hard', '-q', 'HEAD^'], forgedEntryHistoryRepo);
+  result = run(['adopt', '--root', forgedEntryHistoryRepo, ...COLLECTION], forgedEntryHistoryRepo);
+  if (result.status === 0) {
+    const forgedEntryHistoryPath = generated(forgedEntryHistoryRepo, 'inventory.json');
+    const forgedEntryHistory = JSON.parse(readFileSync(forgedEntryHistoryPath, 'utf8'));
+    forgedEntryHistory.entries[0].baselineCommit = 'e'.repeat(40);
+    rehashAuthorityChain(forgedEntryHistory);
+    writeFileSync(forgedEntryHistoryPath, `${JSON.stringify(forgedEntryHistory, null, 2)}\n`);
+    commit(forgedEntryHistoryRepo, 'commit forged entry history');
+  }
+  const forgedEntryHistoryCheck = result.status === 0
+    ? run(['check', '--root', forgedEntryHistoryRepo, ...COLLECTION], forgedEntryHistoryRepo) : result;
+  check('adopted entry history must match its covering review candidate', result.status === 0
+    && forgedEntryHistoryCheck.status === 1
+    && forgedEntryHistoryCheck.output.includes('adopted record history does not match its review receipt'),
+  `${result.output}\n${forgedEntryHistoryCheck.output}`);
+
   const incrementalRepo = join(work, 'incremental-admission'); cpSync(repo, incrementalRepo, { recursive: true });
   writeFileSync(join(incrementalRepo, '.git', 'info', 'exclude'), 'incremental-review.json\nincremental-two.json\nempty-review.json\nrequired-review.json\n');
   const genesisInventory = JSON.parse(readFileSync(generated(incrementalRepo, 'inventory.json'), 'utf8'));
@@ -921,6 +1072,20 @@ try {
   `${result.output}\n${firstIncrementalCheck.output}\n${firstIncrementalStrict.output}`);
   commit(incrementalRepo, 'admit first incremental authority');
 
+  const earlyIncrementalSourceRepo = join(work, 'incremental-source-candidate-binding'); cpSync(incrementalRepo, earlyIncrementalSourceRepo, { recursive: true });
+  const earlyIncrementalInventoryPath = generated(earlyIncrementalSourceRepo, 'inventory.json');
+  const earlyIncrementalInventory = JSON.parse(readFileSync(earlyIncrementalInventoryPath, 'utf8'));
+  const earlyIncrementalBatch = earlyIncrementalInventory.authorityBatches[1];
+  const earlyIncrementalSource = git(['rev-parse', `${earlyIncrementalBatch.sourceHead}^`], earlyIncrementalSourceRepo).trim();
+  earlyIncrementalBatch.sourceHead = earlyIncrementalSource;
+  earlyIncrementalBatch.review.sourceHead = earlyIncrementalSource;
+  rehashAuthorityChain(earlyIncrementalInventory);
+  writeFileSync(earlyIncrementalInventoryPath, `${JSON.stringify(earlyIncrementalInventory, null, 2)}\n`);
+  commit(earlyIncrementalSourceRepo, 'commit early incremental source binding');
+  result = run(['check', '--root', earlyIncrementalSourceRepo, ...COLLECTION], earlyIncrementalSourceRepo);
+  check('incremental review source must contain every admitted candidate', result.status === 1
+    && result.output.includes('adoption review source does not contain its candidate'), result.output);
+
   const firstIncrementalCommitted = JSON.parse(readFileSync(generated(incrementalRepo, 'inventory.json'), 'utf8'));
   write(incrementalRepo, 'records/incremental-two.md', '# Incremental two\n');
   commit(incrementalRepo, 'commit second authority batch');
@@ -944,6 +1109,40 @@ try {
     `${result.output}\n${secondIncrementalCheck.output}`);
   commit(incrementalRepo, 'admit second incremental authority');
 
+  const rewrittenBatchRepo = join(work, 'rewritten-committed-authority-batch');
+  cpSync(incrementalRepo, rewrittenBatchRepo, { recursive: true });
+  const rewrittenBatchPath = generated(rewrittenBatchRepo, 'inventory.json');
+  const rewrittenBatchInventory = JSON.parse(readFileSync(rewrittenBatchPath, 'utf8'));
+  rewrittenBatchInventory.authorityBatches[1].review.candidates.reverse();
+  rehashAuthorityChain(rewrittenBatchInventory);
+  writeFileSync(rewrittenBatchPath, `${JSON.stringify(rewrittenBatchInventory, null, 2)}\n`);
+  commit(rewrittenBatchRepo, 'rewrite committed authority batch');
+  result = run(['check', '--root', rewrittenBatchRepo, ...COLLECTION], rewrittenBatchRepo);
+  check('committed authority batches remain a canonical append-only prefix', result.status === 1
+    && result.output.includes('authority batch chain changed at entry 2'), result.output);
+
+  const forgedBaseBindingsRepo = join(work, 'forged-authority-base-bindings');
+  cpSync(incrementalRepo, forgedBaseBindingsRepo, { recursive: true });
+  write(forgedBaseBindingsRepo, 'records/forged-bindings.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Forged bindings\n');
+  git(['add', 'records/forged-bindings.md'], forgedBaseBindingsRepo);
+  result = run(['append', '--root', forgedBaseBindingsRepo, ...COLLECTION,
+    '--record', 'records/forged-bindings.md'], forgedBaseBindingsRepo);
+  if (result.status === 0) {
+    const forgedBindingsPath = generated(forgedBaseBindingsRepo, 'inventory.json');
+    const forgedBindingsInventory = JSON.parse(readFileSync(forgedBindingsPath, 'utf8'));
+    const forgedBindingsBatch = forgedBindingsInventory.authorityBatches.at(-1);
+    forgedBindingsBatch.baseBindings.inventorySha256 = '0'.repeat(64);
+    rehashAuthorityBatch(forgedBindingsBatch);
+    writeFileSync(forgedBindingsPath, `${JSON.stringify(forgedBindingsInventory, null, 2)}\n`);
+    commit(forgedBaseBindingsRepo, 'commit forged authority predecessor binding');
+  }
+  const forgedBindingsCheck = result.status === 0
+    ? run(['check', '--root', forgedBaseBindingsRepo, ...COLLECTION], forgedBaseBindingsRepo) : result;
+  check('authority batches bind the exact generated predecessor state', result.status === 0
+    && forgedBindingsCheck.status === 1
+    && forgedBindingsCheck.output.includes('authority batch base bindings do not match its predecessor state'),
+  `${result.output}\n${forgedBindingsCheck.output}`);
+
   const incrementalTwoId = secondIncrementalInventory?.entries.find((entry) => entry.path === 'records/incremental-two.md')?.id;
   const preIncrementalCurationBatches = digestJson(secondIncrementalInventory?.authorityBatches || []);
   result = run(['curate', '--root', incrementalRepo, ...COLLECTION, '--record', incrementalTwoId,
@@ -962,6 +1161,37 @@ try {
     && digestJson(incrementalCurationInventory?.authorityBatches || []) === preIncrementalCurationBatches,
   `${result.output}\n${incrementalCurationCheck.output}`);
   commit(incrementalRepo, 'curate incremental authority');
+
+  const corruptCurationRepo = join(work, 'curation-post-write-rollback'); cpSync(incrementalRepo, corruptCurationRepo, { recursive: true });
+  const corruptCurationSnapshot = generatedSnapshot(corruptCurationRepo);
+  result = runWithScript(corruptPostWriteScript, ['curate', '--root', corruptCurationRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"post-write-proof"}', '--at', '2026-08-28T01:30:00.000Z'],
+  corruptCurationRepo, { CODE_OPS_EVAL_CORRUPT_WRITE: '1' });
+  check('curation restores the prior ledger and index when post-write verification fails', result.status === 1
+    && result.output.includes('curation ledger predecessor chain is invalid')
+    && generatedMatches(corruptCurationRepo, corruptCurationSnapshot), result.output);
+
+  const shallowManifestRaceRepo = join(work, 'shallow-post-write-manifest-race'); cpSync(incrementalRepo, shallowManifestRaceRepo, { recursive: true });
+  const alternateManifest = fixtureManifest(); alternateManifest.recordCollections[0].id = 'evidence-new';
+  write(shallowManifestRaceRepo, 'alternate-manifest.json', `${JSON.stringify(alternateManifest, null, 2)}\n`);
+  const alternateManifestOid = git(['hash-object', '-w', 'alternate-manifest.json'], shallowManifestRaceRepo).trim();
+  writeFileSync(join(shallowManifestRaceRepo, '.git', 'shallow'), `${git(['rev-parse', 'HEAD'], shallowManifestRaceRepo).trim()}\n`);
+  const shallowManifestRaceScript = instrumentedRecordsScript('shallow-post-write-manifest-race-script', (source) => source.replace(
+    '  manifestSha256(context);\n  const { rows } = collect(context);',
+    `  manifestSha256(context);
+  globalThis.__codeOpsEvalRunChecks = (globalThis.__codeOpsEvalRunChecks || 0) + 1;
+  if (globalThis.__codeOpsEvalRunChecks === 2 && process.env.CODE_OPS_EVAL_SWAP_OID) {
+    git(context.root, ['update-index', '--cacheinfo', '100644', process.env.CODE_OPS_EVAL_SWAP_OID, context.manifestRepoPath]);
+    delete process.env.CODE_OPS_EVAL_SWAP_OID;
+  }
+  const { rows } = collect(context);`,
+  ));
+  const shallowManifestRaceSnapshot = generatedSnapshot(shallowManifestRaceRepo);
+  result = runWithScript(shallowManifestRaceScript, ['render', '--root', shallowManifestRaceRepo, ...COLLECTION],
+    shallowManifestRaceRepo, { CODE_OPS_EVAL_SWAP_OID: alternateManifestOid });
+  check('post-write verification closes the manifest index race even without history', result.status === 1
+    && result.output.includes('documentation manifest Git-index state changed during operation')
+    && generatedMatches(shallowManifestRaceRepo, shallowManifestRaceSnapshot), result.output);
 
   const precedenceRepo = join(work, 'pending-evidence-precedence'); cpSync(incrementalRepo, precedenceRepo, { recursive: true });
   write(precedenceRepo, 'records/pending-with-index-failure.md', '# Pending while evidence is invalid\n');
@@ -1110,9 +1340,17 @@ try {
   write(reusedNativeRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
   write(reusedNativeRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
   write(reusedNativeRepo, 'records/one.md', '# Seed\n');
+  commit(reusedNativeRepo, 'seed surviving authority');
+  git(['checkout', '-q', '-b', 'hidden-native-history'], reusedNativeRepo);
   write(reusedNativeRepo, 'records/reused.md', '# Historical incarnation\n');
-  commit(reusedNativeRepo, 'seed a historical record path');
-  git(['rm', 'records/reused.md'], reusedNativeRepo); commit(reusedNativeRepo, 'delete the historical record path');
+  commit(reusedNativeRepo, 'seed a historical record path on a side branch');
+  git(['rm', 'records/reused.md'], reusedNativeRepo);
+  commit(reusedNativeRepo, 'delete the historical record path on the side branch');
+  git(['checkout', '-q', 'main'], reusedNativeRepo);
+  write(reusedNativeRepo, 'README.md', '# Mainline advancement\n');
+  commit(reusedNativeRepo, 'advance main before hidden native history');
+  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval',
+    'merge', '--no-ff', '-m', 'merge hidden native history', 'hidden-native-history'], reusedNativeRepo);
   result = run(['adopt', '--root', reusedNativeRepo, ...COLLECTION], reusedNativeRepo);
   if (result.status === 0) commit(reusedNativeRepo, 'adopt the surviving record');
   write(reusedNativeRepo, 'records/legitimate.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Legitimate native\n');
@@ -1147,7 +1385,7 @@ try {
   rehashAuthorityBatch(forgedNativeBatch); reusedInventory.authorityBatches.push(forgedNativeBatch);
   writeFileSync(reusedInventoryPath, `${JSON.stringify(reusedInventory, null, 2)}\n`);
   result = run(['check', '--root', reusedNativeRepo, ...COLLECTION], reusedNativeRepo);
-  check('a reachable source tree cannot hide earlier exact-path history from a forged native batch', legitimateNative.status === 0
+  check('merge-simplified history cannot hide an earlier exact path from a forged native batch', legitimateNative.status === 0
     && result.status === 1 && result.output.includes('native authority path has history before admission: records/reused.md'),
   `${legitimateNative.output}\n${result.output}`);
 
@@ -1251,12 +1489,14 @@ try {
     && !preCurationLedger.equals(readFileSync(generated(staleIncrementalRepo, 'curation.jsonl'))), racingMutation.output);
   check('concurrent generated mutation makes an incremental receipt stale before generated writes', stalePlanSucceeded
     && racingMutation.status === 0 && result.status === 1
-    && /stale|binding/i.test(result.output) && generatedMatches(staleIncrementalRepo, staleGenerated), result.output);
+    && result.output.includes('adoption review is stale: sourceHead changed')
+    && generatedMatches(staleIncrementalRepo, staleGenerated), result.output);
 
   const consumedReceiptSnapshot = generatedSnapshot(incrementalRepo);
   result = run(['adopt', '--root', incrementalRepo, ...COLLECTION, '--review', 'incremental-two.json'], incrementalRepo);
   check('a consumed incremental receipt cannot be replayed', result.status === 1
-    && /stale|binding/i.test(result.output) && generatedMatches(incrementalRepo, consumedReceiptSnapshot), result.output);
+    && result.output.includes('adoption review is stale: sourceHead changed')
+    && generatedMatches(incrementalRepo, consumedReceiptSnapshot), result.output);
 
   const sharedLockRepo = join(work, 'shared-lock-primary'); cpSync(incrementalRepo, sharedLockRepo, { recursive: true });
   const sharedLockSibling = join(work, 'shared-lock-sibling');
@@ -1326,10 +1566,6 @@ try {
     && result.output.includes('unknown record')
     && releaseErrorLedger.equals(readFileSync(generated(releaseErrorRepo, 'curation.jsonl'))), result.output);
 
-  const corruptIncrementalScript = instrumentedRecordsScript('incremental-post-write-script', (source) => source.replace(
-    /(      writeAtomically\(writes\);\r?\n)(      runCheck\(context\);)/,
-    `$1      if (process.env.CODE_OPS_EVAL_CORRUPT_INCREMENTAL === '1') writeFileSync(context.output.inventory, '{"corrupt":true}\\n');\n$2`,
-  ));
   const corruptIncrementalRepo = join(work, 'incremental-post-write-rollback'); cpSync(incrementalRepo, corruptIncrementalRepo, { recursive: true });
   writeFileSync(join(corruptIncrementalRepo, '.git', 'info', 'exclude'), 'corrupt-incremental.json\n');
   write(corruptIncrementalRepo, 'records/post-write.md', '# Post-write verification\n');
@@ -1338,8 +1574,8 @@ try {
     '--out', 'corrupt-incremental.json'], corruptIncrementalRepo);
   const corruptIncrementalSnapshot = generatedSnapshot(corruptIncrementalRepo);
   if (result.status === 0) {
-    result = runWithScript(corruptIncrementalScript, ['adopt', '--root', corruptIncrementalRepo, ...COLLECTION,
-      '--review', 'corrupt-incremental.json'], corruptIncrementalRepo, { CODE_OPS_EVAL_CORRUPT_INCREMENTAL: '1' });
+    result = runWithScript(corruptPostWriteScript, ['adopt', '--root', corruptIncrementalRepo, ...COLLECTION,
+      '--review', 'corrupt-incremental.json'], corruptIncrementalRepo, { CODE_OPS_EVAL_CORRUPT_WRITE: '1' });
   }
   check('incremental admission restores prior authority when post-write verification fails', result.status === 1
     && result.output.includes('invalid record inventory header')
@@ -1469,6 +1705,7 @@ try {
   const relabeledManifest = JSON.parse(readFileSync(relabeledManifestPath, 'utf8'));
   relabeledManifest.recordCollections[0].id = 'renamed-evidence';
   writeFileSync(relabeledManifestPath, `${JSON.stringify(relabeledManifest, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], relabeled);
   result = run(['check', '--root', relabeled, '--collection', 'renamed-evidence'], relabeled);
   check('collection label changes preserve identities and conformance', result.status === 0, result.output);
 
@@ -1484,6 +1721,7 @@ try {
     { id: 'literal-bracket', match: [], paths: ['literal[0].json'], kind: 'artifact', policy: 'frozen' },
   ];
   writeFileSync(migratedManifestPath, `${JSON.stringify(migratedManifest, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], migratedScope);
   const migratedInventoryBefore = readFileSync(generated(migratedScope, 'inventory.json'));
   result = run(['check', '--root', migratedScope, ...COLLECTION], migratedScope);
   check('policy-equivalent scope v1 to v2 migration preserves adopted baselines', result.status === 0
@@ -1495,6 +1733,7 @@ try {
     id: 'records', match: ['*.md'], paths: [], kind: 'artifact', policy: 'frozen',
   };
   writeFileSync(reclassifiedManifestPath, `${JSON.stringify(reclassifiedManifest, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], reclassifiedScope);
   result = run(['check', '--root', reclassifiedScope, ...COLLECTION], reclassifiedScope);
   check('scope v2 migration cannot reclassify an adopted record', result.status === 1
     && result.output.includes('immutable record deleted, renamed, or reclassified'), result.output);
@@ -1536,7 +1775,7 @@ try {
   const committedRewrite = join(work, 'committed-rewrite'); cpSync(repo, committedRewrite, { recursive: true });
   const rewrittenInventoryPath = generated(committedRewrite, 'inventory.json');
   const rewrittenInventory = JSON.parse(readFileSync(rewrittenInventoryPath, 'utf8'));
-  rewrittenInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], committedRewrite).trim();
+  rewrittenInventory.entries[0].operatorNote = 'rewritten after authority introduction';
   rehashAuthorityChain(rewrittenInventory);
   writeFileSync(rewrittenInventoryPath, `${JSON.stringify(rewrittenInventory, null, 2)}\n`);
   commit(committedRewrite, 'rewrite committed inventory metadata');
@@ -1552,7 +1791,7 @@ try {
   writeFileSync(movedManifestPath, `${JSON.stringify(movedManifest, null, 2)}\n`);
   const movedInventoryPath = join(renamedHubRewrite, 'knowledge-hub', '98 System', 'Records', 'inventory.json');
   const movedInventory = JSON.parse(readFileSync(movedInventoryPath, 'utf8'));
-  movedInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], renamedHubRewrite).trim();
+  movedInventory.entries[0].operatorNote = 'rewritten after authority introduction';
   rehashAuthorityChain(movedInventory);
   writeFileSync(movedInventoryPath, `${JSON.stringify(movedInventory, null, 2)}\n`);
   commit(renamedHubRewrite, 'move hub with rewritten inventory metadata');
@@ -1912,6 +2151,88 @@ supersedes: ["${firstId}"]
   check('native append passes staged-tree checks', result.status === 0, result.output);
   commit(repo, 'append native record');
 
+  const dirtyManifestRepo = join(work, 'dirty-manifest-native-append');
+  cpSync(repo, dirtyManifestRepo, { recursive: true });
+  const dirtyManifestPath = join(dirtyManifestRepo, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  const dirtyManifest = JSON.parse(readFileSync(dirtyManifestPath, 'utf8'));
+  dirtyManifest.recordCollections[0].scopes[0].pattern = '**/*.md';
+  writeFileSync(dirtyManifestPath, `${JSON.stringify(dirtyManifest, null, 2)}\n`);
+  write(dirtyManifestRepo, 'records/nested/native.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Dirty manifest native\n');
+  git(['add', 'records/nested/native.md'], dirtyManifestRepo);
+  const dirtyManifestSnapshot = generatedSnapshot(dirtyManifestRepo);
+  result = run(['append', '--root', dirtyManifestRepo, ...COLLECTION,
+    '--record', 'records/nested/native.md'], dirtyManifestRepo);
+  check('native append refuses a worktree manifest that differs from the Git index', result.status === 1
+    && result.output.includes('documentation manifest differs between the Git index and working tree')
+    && generatedMatches(dirtyManifestRepo, dirtyManifestSnapshot), result.output);
+
+  const filteredManifestRepo = join(work, 'non-injective-manifest-filter');
+  cpSync(repo, filteredManifestRepo, { recursive: true });
+  const filteredManifestPath = join(filteredManifestRepo, 'hub', '98 System', 'DOCS_MANIFEST.json');
+  write(filteredManifestRepo, 'canonical-manifest.json', readFileSync(filteredManifestPath, 'utf8'));
+  write(filteredManifestRepo, '.gitattributes', '"hub/98 System/DOCS_MANIFEST.json" filter=fixed\n');
+  git(['config', 'filter.fixed.clean', 'cat canonical-manifest.json'], filteredManifestRepo);
+  git(['config', 'filter.fixed.smudge', 'cat'], filteredManifestRepo);
+  commit(filteredManifestRepo, 'configure a non-injective manifest filter');
+  const broaderFilteredManifest = JSON.parse(readFileSync(filteredManifestPath, 'utf8'));
+  broaderFilteredManifest.recordCollections[0].scopes[0].pattern = '**/*.md';
+  writeFileSync(filteredManifestPath, `${JSON.stringify(broaderFilteredManifest, null, 2)}\n`);
+  const filterHidesManifestDifference = !git(['diff', '--name-only', '--', 'hub/98 System/DOCS_MANIFEST.json'], filteredManifestRepo).trim();
+  write(filteredManifestRepo, 'records/nested/filtered.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Filtered manifest native\n');
+  git(['add', 'records/nested/filtered.md'], filteredManifestRepo);
+  const filteredManifestSnapshot = generatedSnapshot(filteredManifestRepo);
+  result = run(['append', '--root', filteredManifestRepo, ...COLLECTION,
+    '--record', 'records/nested/filtered.md'], filteredManifestRepo);
+  check('Git-index manifest semantics survive a non-injective worktree clean filter', filterHidesManifestDifference
+    && result.status === 1 && result.output.includes('invalid collection classification')
+    && generatedMatches(filteredManifestRepo, filteredManifestSnapshot), result.output);
+
+  const swappedManifestRepo = join(work, 'mid-operation-manifest-index-swap');
+  cpSync(repo, swappedManifestRepo, { recursive: true });
+  const swappedManifest = fixtureManifest();
+  swappedManifest.recordCollections[0].scopes[0].pattern = '**/*.md';
+  write(swappedManifestRepo, 'swapped-manifest.json', `${JSON.stringify(swappedManifest, null, 2)}\n`);
+  const swappedManifestOid = git(['hash-object', '-w', 'swapped-manifest.json'], swappedManifestRepo).trim();
+  write(swappedManifestRepo, 'records/index-race.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Index race\n');
+  git(['add', 'records/index-race.md'], swappedManifestRepo);
+  const indexSwapScript = instrumentedRecordsScript('mid-operation-manifest-index-swap-script', (source) => source.replace(
+    'function manifestSha256(context) {\n',
+    `function manifestSha256(context) {
+  if (process.env.RECORD_EVAL_SWAP_OID) {
+    git(context.root, ['update-index', '--cacheinfo', '100644', process.env.RECORD_EVAL_SWAP_OID, context.manifestRepoPath]);
+    delete process.env.RECORD_EVAL_SWAP_OID;
+  }
+`,
+  ));
+  const indexSwapSnapshot = generatedSnapshot(swappedManifestRepo);
+  result = runWithScript(indexSwapScript, ['append', '--root', swappedManifestRepo, ...COLLECTION,
+    '--record', 'records/index-race.md'], swappedManifestRepo, { RECORD_EVAL_SWAP_OID: swappedManifestOid });
+  check('native append refuses a manifest index swap before generated writes', result.status === 1
+    && result.output.includes('documentation manifest Git-index state changed during operation')
+    && generatedMatches(swappedManifestRepo, indexSwapSnapshot), result.output);
+
+  const forgedManifestBatchRepo = join(work, 'forged-authority-manifest-binding');
+  cpSync(repo, forgedManifestBatchRepo, { recursive: true });
+  write(forgedManifestBatchRepo, 'records/forged-manifest.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Forged manifest binding\n');
+  git(['add', 'records/forged-manifest.md'], forgedManifestBatchRepo);
+  result = run(['append', '--root', forgedManifestBatchRepo, ...COLLECTION,
+    '--record', 'records/forged-manifest.md'], forgedManifestBatchRepo);
+  if (result.status === 0) {
+    const forgedManifestInventoryPath = generated(forgedManifestBatchRepo, 'inventory.json');
+    const forgedManifestInventory = JSON.parse(readFileSync(forgedManifestInventoryPath, 'utf8'));
+    const forgedManifestBatch = forgedManifestInventory.authorityBatches.at(-1);
+    forgedManifestBatch.manifestSha256 = '0'.repeat(64);
+    rehashAuthorityBatch(forgedManifestBatch);
+    writeFileSync(forgedManifestInventoryPath, `${JSON.stringify(forgedManifestInventory, null, 2)}\n`);
+    commit(forgedManifestBatchRepo, 'commit forged authority manifest binding');
+  }
+  const forgedManifestBatchCheck = result.status === 0
+    ? run(['check', '--root', forgedManifestBatchRepo, ...COLLECTION], forgedManifestBatchRepo) : result;
+  check('committed authority batches bind their introduction-state manifest', result.status === 0
+    && forgedManifestBatchCheck.status === 1
+    && forgedManifestBatchCheck.output.includes('authority batch manifest does not match its introduction state'),
+  `${result.output}\n${forgedManifestBatchCheck.output}`);
+
   const unterminatedAppendRepo = join(work, 'unterminated-native-append'); cpSync(repo, unterminatedAppendRepo, { recursive: true });
   write(unterminatedAppendRepo, 'records/broken.md', `---
 recordSchema: 1
@@ -2098,20 +2419,24 @@ supersedes: []
   const generatedBoundary = JSON.parse(readFileSync(generatedBoundaryManifestPath, 'utf8'));
   generatedBoundary.recordCollections[0].index = '40 Engineering/ordinary.md';
   writeFileSync(generatedBoundaryManifestPath, `${JSON.stringify(generatedBoundary, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], generatedBoundaryRepo);
   result = run(['classify', '--root', generatedBoundaryRepo, ...COLLECTION], generatedBoundaryRepo);
   check('record engine independently confines generated paths to the reserved Records directory', result.status === 1
     && result.output.includes('outside 98 System/Records/'), result.output);
   const overlap = JSON.parse(readFileSync(scopeManifestPath, 'utf8'));
   overlap.recordCollections[0].scopes.push({ pattern: '*.md', kind: 'artifact', policy: 'mutable' });
   writeFileSync(scopeManifestPath, `${JSON.stringify(overlap, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], scopeRepo);
   result = run(['classify', '--root', scopeRepo, ...COLLECTION], scopeRepo);
   check('multiple matching scopes fail classification', result.status === 1 && result.output.includes('invalid collection classification'), result.output);
   const zero = fixtureManifest(); writeFileSync(scopeManifestPath, `${JSON.stringify(zero, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], scopeRepo);
   write(scopeRepo, 'records/unclassified.bin', 'x'); git(['add', 'records/unclassified.bin'], scopeRepo);
   result = run(['classify', '--root', scopeRepo, ...COLLECTION], scopeRepo);
   check('zero matching scopes fail classification', result.status === 1 && result.output.includes('invalid collection classification'), result.output);
   const forbidden = fixtureManifest(); forbidden.recordCollections[0].scopes.push({ pattern: '**/*.pyc', kind: 'forbidden', policy: 'forbidden' });
   writeFileSync(scopeManifestPath, `${JSON.stringify(forbidden, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], scopeRepo);
   write(scopeRepo, 'records/cache/bad.pyc', 'x'); git(['add', 'records/cache/bad.pyc'], scopeRepo);
   result = run(['classify', '--root', scopeRepo, ...COLLECTION], scopeRepo);
   check('tracked pyc files are forbidden', result.status === 1 && result.output.includes('bad.pyc'), result.output);
@@ -2145,6 +2470,7 @@ supersedes: []
   check('legacy generated files pass mechanical eligibility checks', result.status === 0, result.output);
   legacy.legacyPaths[0].requiredBy = [{ kind: 'external', ref: 'missing.txt' }];
   writeFileSync(legacyManifestPath, `${JSON.stringify(legacy, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], legacyRepo);
   result = run(['render', '--legacy', '--root', legacyRepo, ...COLLECTION], legacyRepo);
   check('ineligible legacy paths fail closed', result.status === 1 && result.output.includes('ineligible legacy path'), result.output);
 
@@ -2166,6 +2492,7 @@ supersedes: []
     requiredBy: [{ kind: 'record', ref: pointerInventory.entries[0].id }],
   }];
   writeFileSync(pointerManifestPath, `${JSON.stringify(pointerManifest, null, 2)}\n`);
+  git(['add', 'hub/98 System/DOCS_MANIFEST.json'], recordPointerRepo);
   result = run(['render', '--legacy', '--root', recordPointerRepo, ...COLLECTION], recordPointerRepo);
   const pointerRender = result;
   result = run(['check', '--root', recordPointerRepo, ...COLLECTION], recordPointerRepo);
