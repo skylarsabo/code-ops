@@ -1812,7 +1812,7 @@ try {
     commit(literalHubRepo, 'adopt literal-pathspec hub');
     const literalInventoryPath = join(literalHubRepo, ':hub', '98 System', 'Records', 'inventory.json');
     const literalInventory = JSON.parse(readFileSync(literalInventoryPath, 'utf8'));
-    literalInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], literalHubRepo).trim();
+    literalInventory.entries[0].operatorNote = 'rewritten under a pathspec-like hub';
     rehashAuthorityChain(literalInventory);
     writeFileSync(literalInventoryPath, `${JSON.stringify(literalInventory, null, 2)}\n`);
     commit(literalHubRepo, 'rewrite inventory under literal-pathspec hub');
