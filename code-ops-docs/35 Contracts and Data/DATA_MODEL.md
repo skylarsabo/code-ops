@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-25
+updated: 2026-08-28
 ---
 
 # Data Model
@@ -48,13 +48,26 @@ Run artifacts are repository-local working evidence. Do not put secrets, tokens,
 | Collection | `collectionUuid` | Human `id` and presentation grouping. |
 | Adopted record | Deterministic full `REC-` ID, indexed Git path, SHA-256 | External curation state only. |
 | Native record | Deterministic full `REC-` ID, staged Git path, SHA-256 | External curation state only. |
+| Authority batch | Sequence and `batchDigest` | None after acceptance; new authority appends a batch. |
 | Citation | Record ID, source line, raw and normalized targets | Regenerable Git locator fields. |
 | Curation event | Sequence and event digest | None after merge; corrections append replacement state. |
 | Semantic index | Generator version and semantic digest | Rendering may change without changing semantics. |
 
 The ID namespace hashes the collection UUID and normalized Git-index path. Collection labels do not affect identity. A split creates a new UUID for future records; a presentation merge preserves original namespaces.
 
-The curation ledger is ordered JSONL. Every event links the prior global event and the prior event for its record. The event contains complete metadata state, not a patch.
+Inventory v3 keeps one `authorityBatches` array. The singular `adoptionReview` remains genesis evidence and supports v2 migration. It is not a second growing chain.
+
+Each authority batch links `previousBatchDigest` and binds the authority state before and after the operation. Its batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`.
+
+Incremental batches embed their complete receipt in `review`. Genesis and v2 migration bind the singular genesis receipt by `reviewReceiptDigest`. Native append carries no review payload.
+
+Each batch contains complete object references shaped as `{type, path, objectDigest}`. Object type is `record` or `artifact`. The union of all batches covers every immutable inventory object exactly once.
+
+The batch type constrains each referenced inventory object's provenance. Genesis and incremental objects use `adopted`. Native objects use `native`. Every native object binds `introducedIndexHead` to the batch `sourceHead`, whose reachable tree must not contain the object's path.
+
+Existing v2 records retain their valid provenance during migration. Existing v2 artifacts retain their exact provenance-less shape. Only `v2-migration` may cover such an artifact, and migration cannot manufacture provenance.
+
+The authority-batch chain records membership and provenance. The curation ledger records status and supersession. It is ordered JSONL, and every event links the prior global event and prior event for its record. A curation event contains complete metadata state, not a patch.
 
 `targetSha256` is authoritative for mutable evidence. Object format, blob OID, commit OID, and path are locators that may be regenerated after repository hash migration.
 
@@ -68,6 +81,8 @@ An adoption history profile stores:
 - current SHA-256; and
 - `historyDigest`.
 
-The digest uses SHA-256 content identities and paths instead of Git object IDs. Admission stays anchored to the current path. Readiness also follows earlier promoted paths. The review plan binds the profile to `HEAD` and the manifest digest. Inventory v2 stores profiles, reviewed dispositions, and the canonical receipt digest.
+The digest uses SHA-256 content identities and paths instead of Git object IDs. Admission stays anchored to the current path. Readiness also follows earlier promoted paths. A review plan binds the profile to `HEAD`, the manifest digest, and current authority state.
 
-Complete-history checks keep stage-0 Git-index blob bytes and classification exact. A content-aware Git comparison separately rejects semantic index-to-worktree divergence without treating checkout transformations as drift. Stored labels must agree with stored counts. Current risk retains review coverage, counts cannot increase, and the original candidate set stays fixed. Incomplete history cannot prove candidate history or risk. The receipt digest provides integrity, not reviewer authentication. Total-history replacement needs an external trust anchor.
+Complete-history checks keep stage-0 Git-index blob bytes and classification exact. A content-aware Git comparison rejects semantic worktree divergence without treating checkout transformations as drift. Stored labels must agree with stored counts. Current risk retains review coverage, and counts cannot increase.
+
+Each reviewed batch keeps its exact candidate set. Authority coverage across batches remains exact once. Incomplete history cannot prove candidate history or risk. Receipt digests provide integrity, not reviewer authentication. Total-history replacement needs an external trust anchor.

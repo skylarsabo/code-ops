@@ -359,11 +359,17 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 ### `/code-ops-suite:vault`
 **Mode:** DOCUMENT
 
-**How it works.** The vault is the repo's Obsidian notebook for design-time judgment — `<repo>-docs/` at the repo root, with numbered folders whose two-digit prefix fixes the sidebar order: `00` captures, `10`–`79` holds domain content, `80`–`99` is machinery. Phase 0 picks the mode. **SCAFFOLD** creates the folders, a self-contained versioned `Standard.md`, `00 Home.md`, `README.md`, and the templates. **MIGRATE** classifies every file in an existing docs tree into one of three destinations — stays in the code repo, moves into a numbered folder, or is archived with a `superseded-by` pointer — then moves rather than copies, adds the missing frontmatter, and rewrites intra-vault links as wikilinks. **CHECK** runs `node scripts/check-vault-standard.mjs <vault dir>`, which is fail-closed and enforces ten rules, enumerated in `code-ops-docs/40 Engineering/Techniques/vault-standard.md` under "Migration and conformance" — the root files, the machinery folders, the band rules, the `standard-version` floor, and the per-note frontmatter. A profile adds a status value by declaring it in the vault's own `Standard.md`, so the checker follows the profile instead of pinning one vocabulary for every repo.
+**How it works.** The vault is the repository's complete authored documentation hub at `<repo>-docs/`. Numbered folders make topic placement predictable. **SCAFFOLD** creates the hub, its self-contained `Standard.md`, home, README, and templates.
+
+**MIGRATE** separates ordinary authored documents from permanent historical records. It moves ordinary authored work into the hub. It adopts immutable records before any move and freezes adopted `_archive` paths in place.
+
+**CHECK** runs the vault, manifest, and applicable record checks. Existing evidence failures take precedence over `pending-admission`. A committed immutable path uses `plan-adoption --incremental`, while a new staged native record uses `append`.
+
+Collections remain open after genesis. Inventory v3 gives every authority object one `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration` batch. This membership chain remains separate from the curation ledger.
 
 **Why it's useful.** One layout across every repo means an agent that has never opened this vault can still predict where a note goes and what its frontmatter says, so vault behavior stops being a per-repo thing each run relearns. See [the vault standard](../../Techniques/vault-standard.md).
 
-**When to use it.** When a repo's design notes have no home, or have one that no longer matches the standard. Do **not** use it to absorb tracked reference docs, published ADRs, or `code-ops-docs/98 System/Atlas/` — those are canonical where they are, and the atlas's freshness check needs repo-root scopes and git history.
+**When to use it.** Use it to create or migrate a documentation hub, check conformance, or admit committed evidence into an existing collection. Do not move a governed record for archival. Use curation and a canonical hub document instead.
 
 **Prerequisites & hand-offs.** None beyond the repo itself. `code-ops-suite:adopt-standards` owns the `CLAUDE.md` / `AGENTS.md` contract that routes agents to the vault's `Standard.md`; run it after a SCAFFOLD or MIGRATE rather than editing the contract from the vault skill.
 

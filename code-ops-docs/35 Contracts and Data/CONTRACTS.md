@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-25
+updated: 2026-08-28
 ---
 
 # Contracts
@@ -53,11 +53,38 @@ Legacy paths contain `path`, `disposition`, hub-owned `target`, and qualifying `
 
 ## Record operations
 
-`records.mjs` exposes `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Adoption and append are fail-closed transactions. Strict history failure is infrastructure failure; evidence loss requires a complete history.
+`records.mjs` exposes `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Every authority mutation is a fail-closed transaction. Strict history failure is infrastructure failure. Evidence loss requires complete history.
 
-`classify` reports partition validity and historical adoption readiness. Invalid classification reports `classification-invalid` even when history is unavailable. Uncommitted index candidates report `pending-commit` without invalidating structural classification. `plan-adoption` writes only to a repository-relative ignored path. The plan binds `HEAD`, canonical Git-index manifest and candidate bytes, and path history. `adopt --review` recomputes those bindings. Historically revised immutable candidates require a `freeze-current` disposition and rationale.
+`classify` reports partition validity and historical adoption readiness. Invalid classification reports `classification-invalid` even when history is unavailable. Uncommitted index candidates report `pending-commit` without invalidating structural classification. An immutable path outside authority blocks `check` as `pending-admission`.
 
-Inventory v2 stores `adoptionReview` beside records and artifacts. Its `receiptDigest` covers source bindings and reviewed candidates. Pre-adoption plans bind exact history.
+Genesis `plan-adoption` writes only to a repository-relative ignored path. The plan binds `HEAD`, canonical Git-index manifest and candidate bytes, and path history. Historically revised immutable candidates require a `freeze-current` disposition and rationale. `adopt --review` recomputes every binding.
+
+`plan-adoption --incremental` writes a version 2 plan with `mode: "incremental"`. Its `baseBindings` cover inventory, citations, curation, index, and the authority-batch head. `adopt` infers incremental mode only from this receipt.
+
+An empty incremental delta prints `{"mode":"incremental","status":"no-op","reason":"no-pending-admission","candidates":0}` and writes nothing. `--require-delta` instead refuses with `incremental adoption requires at least one pending immutable path`.
+
+Inventory v3 preserves singular `adoptionReview` for genesis evidence and v2 compatibility. Its one growing `authorityBatches` chain records all immutable membership and provenance. Incremental batches embed or bind their reviewed payload through `reviewReceiptDigest`.
+
+Each authority batch stores `version`, `sequence`, `type`, `previousBatchDigest`, `sourceHead`, `manifestSha256`, `priorAuthorityDigest`, `authorityDigest`, `baseBindings`, `objects`, `review`, `reviewReceiptDigest`, and `batchDigest`. Batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`. Genesis has no prior generated state, so only non-genesis batches carry `baseBindings`.
+
+An `incremental-adoption` batch embeds its complete receipt in `review`. Genesis and v2 migration bind the singular `adoptionReview` by digest and set `review` to null. Native append sets both review fields to null.
+
+Each `objects` entry stores `type`, `path`, and `objectDigest`. The `type` is `record` or `artifact`. `objectDigest` hashes the complete immutable inventory object. Every immutable inventory object has exactly one matching authority object across the complete chain.
+
+Batch type and object provenance must agree:
+
+| Batch type | Record requirement | Artifact requirement |
+| --- | --- | --- |
+| `genesis-adoption` | `provenance: "adopted"` | `provenance: "adopted"` |
+| `incremental-adoption` | `provenance: "adopted"` | `provenance: "adopted"` |
+| `native-append` | `provenance: "native"`; `introducedIndexHead` equals batch `sourceHead`; the source tree lacks the path | Same constraints as the record object. |
+| `v2-migration` | Preserve the existing valid record object. | Preserve the existing artifact object without adding provenance. |
+
+A provenance-less artifact is valid only under `v2-migration`. Any other batch/provenance mismatch blocks authority validation. With complete history, each native batch `sourceHead` must be reachable from `HEAD`; a native object's path must be absent from that source tree.
+
+The first non-empty v2 authority mutation emits a receipted `v2-migration` batch before the requested batch. It preserves existing record, artifact, citation, and genesis receipt objects. Empty operations leave v2 unchanged.
+
+The authority-batch chain never carries curation state. The curation ledger never proves inventory membership. The two chains share mutation serialization but retain separate predecessors and digests.
 
 With complete history, post-adoption checks require:
 
@@ -66,10 +93,17 @@ With complete history, post-adoption checks require:
 - consistent stored risk labels;
 - current-risk rationale coverage;
 - non-increasing risk counts; and
-- exact original-candidate coverage.
+- exact reviewed-candidate coverage within each applicable batch; and
+- exact-once authority coverage across all immutable objects.
 
 Incomplete history warns during ordinary checks. Strict verification treats it as infrastructure failure. Commit rewrites may change locator fields without invalidating authority. `sourceHead` never selects a verification mode. Protected repository review is the trust root for the unkeyed digest.
 
-Adopted entries store `introducedCommit` for exact-path provenance. Inventory v2 adds `baselineCommit` for citation resolution. Inventory v1 keeps `introducedCommit` and must not carry `baselineCommit`. Version 1 remains a readable legacy format without a review receipt. Protected review or an external anchor must distinguish a genuine grandfathered inventory from a newly authored downgrade.
+Failure ordering protects existing evidence first. Commands validate mode, clean state, complete history, and the existing baseline before candidate intake. They acquire the shared lock, then revalidate generated cleanliness, optimistic bindings, review, and history.
 
-Native records require YAML frontmatter containing `recordSchema: 1` and `supersedes: [...]`. The supersession value is a JSON array of full `REC-` IDs. Native append accepts only staged paths with no reachable exact-path history. Historically present records and newly immutable artifacts use reviewed adoption. Adopted records retain their original bytes and do not gain this schema.
+Commands build the complete mutation in memory after validation. They atomically replace generated files and roll back every replacement on failure. They release only the lock token that they acquired.
+
+The clone-wide lock lives at `<git-common-dir>/code-ops-record-locks/<collectionUuid>.lock/owner.json`. Its owner stores `pid`, `token`, and `acquiredAt`. A live or recent owner fails with `collection mutation lock is held`. A dead owner at least ten minutes old is recoverable.
+
+Adopted entries store `introducedCommit` for exact-path provenance. Inventory v2 and v3 add `baselineCommit` for citation resolution. Inventory v1 keeps `introducedCommit` and must not carry `baselineCommit`. Version 1 remains a readable legacy format without a review receipt. Protected review or an external anchor must distinguish a genuine grandfathered inventory from a newly authored downgrade.
+
+Native records require YAML frontmatter containing `recordSchema: 1` and `supersedes: [...]`. The supersession value is a JSON array of full `REC-` IDs. Native append accepts only staged paths with no reachable exact-path history. Historically present records and newly immutable artifacts use reviewed incremental adoption after genesis. Adopted records retain their original bytes and do not gain this schema.

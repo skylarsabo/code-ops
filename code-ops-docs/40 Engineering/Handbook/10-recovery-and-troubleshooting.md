@@ -205,19 +205,65 @@ For the full carry-forward discipline — the re-validate-then-carry-what-surviv
 
 ## Durable record-collection recovery
 
-Use this procedure only for a manifest v2 record collection. Record adoption is irreversible. Preserve adopted paths and bytes. Restore authority through generated metadata and canonical vault documents, never by rewriting evidence.
+Use this procedure only for a manifest v2 record collection. Each admission is irreversible, but the collection remains open. Preserve admitted paths and bytes. Restore current authority through curation and canonical hub documents.
 
-1. Stop before `adopt` when the repository is shallow, partial, promisor-backed, dirty, or missing required objects.
-2. Restore full history, then run `verify-history --strict` before any adoption or repair.
-3. Run `classify` and resolve every zero-match, ambiguous-owner, and forbidden-file result in the same diff.
-4. Run `plan-adoption --out <repo-relative-ignored-path>`. Review every `review-required` candidate without changing its history bindings.
-5. Supply the completed plan to `adopt --review <repo-relative-ignored-path>`. Regenerate it when `HEAD`, manifest bytes, content, or history changes.
-6. Recover a failed append by restoring the staged record and artifact snapshot, then rerun `append`; do not hand-edit inventory, citations, or indexes.
-7. Recover a ledger conflict by rebasing the losing branch and regenerating only its unmerged tail under the repository-local lock.
-8. Investigate `evidence-lost` only after strict history verification. Treat `history-unavailable` as infrastructure work.
-9. Reindex locators only after the historical bytes match the stored `targetSha256`.
+### Diagnose before intake
 
-Do not use a current path as historical fallback. Do not change a merged ledger event. Do not create a tombstone or pointer through manifest sync. See [the vault standard](../Techniques/vault-standard.md#durable-record-collections) for the normative contract.
+1. Stop when the repository is shallow, partial, promisor-backed, dirty, or missing required objects.
+2. Restore full history, then run `verify-history --strict` before any authority mutation.
+3. Run `records check` before planning new intake. Repair existing evidence failures first.
+4. Run `classify`. Resolve every zero-match, ambiguous-owner, and forbidden-file result.
+5. Treat `pending-admission` only as an intake signal after existing authority passes.
+
+Evidence failures take precedence over new intake. Diagnose `evidence-lost`, immutable drift, broken authority batches, or malformed curation before admitting another path.
+
+### Choose the intake path
+
+Use native `append` for a staged native record with no reachable exact-path history. Restore its staged record and artifact snapshot before retrying a failed append.
+
+Use reviewed incremental admission for a committed immutable path or newly frozen artifact. Run:
+
+```sh
+node scripts/records.mjs plan-adoption --collection <id> --incremental --out <repo-relative-ignored-path>
+node scripts/records.mjs adopt --collection <id> --review <repo-relative-ignored-path>
+```
+
+Review every `review-required` candidate without changing its bindings. Regenerate the plan after any `HEAD`, manifest, content, history, generated-authority, or batch-head change.
+
+An empty incremental delta is a successful write-free no-op. Add `--require-delta` when a scheduled recovery must prove that it found work. The first non-empty v2 mutation writes the receipted v3 migration before admission.
+
+Never regenerate genesis as a superset. Never hand-edit inventory, citations, authority batches, curation, or indexes. Never move an admitted path into `_archive`. Freeze an adopted `_archive` path in place.
+
+### Recover concurrent work
+
+All authority writers share one clone-wide lock beneath Git's common directory. A lock held by a live or recent owner blocks. Recover only a dead owner that is at least ten minutes old.
+
+Optimistic bindings protect work from other clones. When a plan is stale, discard it and plan again. Do not copy its disposition into a new receipt without reviewing the new bindings.
+
+Recover a curation conflict by rebasing the losing branch. Regenerate only its unmerged curation tail. Never combine the authority-batch chain with the curation ledger.
+
+### Run scheduled recovery safely
+
+Scheduled recovery creates a unique branch in an isolated per-run worktree from the intended base. It never switches the shared checkout.
+
+1. Fetch and verify the intended base revision.
+2. Create the unique branch and isolated worktree.
+3. Run strict history, collection checks, classification, and incremental planning there.
+4. Review and apply only the bound receipt.
+5. Run collection and repository gates, then commit and push the recovery branch.
+6. Leave the shared checkout on its original branch for success and failure.
+
+Do not use `commit-tree` as the scheduled default. When worktrees are unavailable, assert the shared branch before work. Restore it in guaranteed cleanup and fail if restoration cannot be proved.
+
+### Roll out mixed collections
+
+Adopt closed, stable collections before a collection with recurring writers. Admit any committed late arrivals incrementally before designing the mixed collection.
+
+For the mixed collection, give each live writer an exact mutable scope. Let exact paths outrank broad immutable selectors for closed evidence. Prove the recurring job can run again without immutable drift.
+
+Enable scheduled intake before adopting a root that receives new immutable paths. Run one isolated recovery cycle and verify the next ordinary writer cycle. Only then adopt the dynamic collection.
+
+Do not use a current path as historical fallback. Do not change a merged curation event. Do not create a tombstone or pointer through manifest sync. See [the vault standard](../Techniques/vault-standard.md#durable-record-collections) for the normative contract.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-25
+updated: 2026-08-28
 ---
 
 # Engineering Standards
@@ -51,8 +51,12 @@ All repository artifacts follow the house writing standard. It requires short ac
 
 `<repo>-docs/` is the only authored documentation authority. Manifest v2 may govern immutable evidence at permanent historical paths. Adoption preserves those bytes and paths forever; supersession moves authority through curation and a canonical hub document.
 
-Use Git-index paths and stage-0 blob bytes for record identity and content authority. Classify every tracked collection file exactly once. Scope v2 exact paths may override broad globs; ambiguous owners still fail. Content-aware Git comparisons reject semantic worktree divergence without treating checkout transformations as drift. Adopt only from clean complete history, and adopt before moving ordinary authored files. Never edit a generated baseline by hand.
+Use Git-index paths and stage-0 blob bytes for record identity and content authority. Classify every tracked collection file exactly once. Scope v2 exact mutable paths may override broad immutable globs. Ambiguous owners still fail.
 
-Run `plan-adoption` before irreversible legacy adoption. Review every historically revised immutable candidate. Commit no generated baseline unless `adopt` accepts a current digest-bound receipt.
+Collections remain open, but each admission is irreversible. Use reviewed incremental admission for committed immutable paths. Use native append for new staged authority with no reachable history. Never move admitted evidence for archival.
+
+Keep the authority-batch chain separate from the curation ledger. Every immutable object needs exact-once batch coverage. Never edit generated authority by hand.
+
+Run `plan-adoption` before genesis adoption. Use `plan-adoption --incremental` for committed late arrivals. Review every historically revised immutable candidate. Commit no generated authority unless `adopt` accepts a current digest-bound receipt.
 
 Run `records check` for each registered collection. Use `verify-history --strict` before adoption and before diagnosing evidence loss. Use synthetic fixtures only in this repository.

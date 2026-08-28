@@ -34,9 +34,9 @@ Authored explanations, procedures, decisions, and references live in the hub. So
 
 ## Durable record collections
 
-A record collection preserves durable evidence that must retain its existing location. The hub remains the only authored authority. A registered historical record may remain at its stable path as governed evidence. Adoption preserves its bytes and path, then supersedes authority through generated metadata and a canonical vault document.
+A record collection preserves durable evidence that must retain its existing location. The hub remains the only authored authority. A registered historical record may remain at its stable path as governed evidence. Admission preserves its bytes and path. Curation and a canonical vault document can later supersede its authority.
 
-Adoption is irreversible. Do not rewrite adopted bytes, paths, inventory entries, curation events, or generated baselines. A future authority may supersede them through a new canonical document, generated metadata, or an ADR. Do not create a second documentation tree or a wholesale compatibility tree.
+A collection remains open after genesis adoption. Each admission is irreversible. Never rewrite admitted bytes, paths, inventory entry objects, authority batches, citation baselines, or curation events. Canonical aggregate files may append authority objects and regenerate semantic projections. Do not create a second documentation tree or a wholesale compatibility tree.
 
 Use this compatibility matrix:
 
@@ -59,7 +59,7 @@ Scope v2 collections declare `classificationVersion: 2`. Each scope contains sta
 
 Scopes distinguish immutable append-only records, mutable artifacts, frozen artifacts or executables, superseded artifacts or executables, and forbidden files. Mutable scopes remain classified and owned but are excluded from immutability hashing. Forbidden files, including tracked `.pyc`, block adoption.
 
-Git index paths and casing are authoritative. Adoption uses `git ls-files`. Native records stage before append and must have no reachable exact-path history. A historically present record or newly immutable artifact requires reviewed adoption. Untracked files may be reported but never receive IDs. Normalize a Git path with POSIX separators, Unicode NFC, exact index casing, and no dot segments.
+Git index paths and casing are authoritative. Admission uses `git ls-files`. Native records stage before append and must have no reachable exact-path history. A historically present record or newly immutable artifact requires reviewed genesis or incremental admission. Untracked files may be reported but never receive IDs. Normalize a Git path with POSIX separators, Unicode NFC, exact index casing, and no dot segments.
 
 Record IDs use `REC-<base32(first-128-bits(sha256("code-ops-record-v1\\0" + collectionUuid + "\\0" + normalizedGitPath)))>`. Store `identityVersion: 1` on each collection and inventory entry. Collisions fail. IDs never renumber, change, or get reused.
 
@@ -74,11 +74,35 @@ supersedes: ["REC-ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
 ---
 ```
 
+### Authority membership and admission
+
+Inventory v3 stores an append-only authority-batch chain. Authority batches prove membership and provenance. The curation ledger separately records status, supersession, and corrected metadata state. Never merge these chains.
+
+Authority batch types are `genesis-adoption`, `incremental-adoption`, `native-append`, and `v2-migration`. Each batch has one sequence, prior batch digest, operation bindings, complete membership, review binding, and batch digest. Every immutable authority object belongs to exactly one batch. Missing, duplicate, forged, reordered, or broken membership fails.
+
+`genesis-adoption` covers the initial reviewed candidate set. `incremental-adoption` covers committed immutable paths that arrive later. `native-append` covers staged native authority with no reachable history. `v2-migration` preserves the complete existing v2 authority before its first non-empty v3 mutation.
+
+Batch type enforces provenance. Genesis and incremental batches cover only `adopted` records and artifacts. Native batches cover only `native` records and artifacts. Each native object binds `introducedIndexHead` to the batch `sourceHead`, and the reachable source tree must not contain that path.
+
+Existing v2 records retain their valid provenance. V2 artifacts may lack provenance, and only `v2-migration` may cover that preserved shape. Migration never manufactures artifact provenance.
+
+Incremental batches embed their complete review receipt. Genesis and v2 migration bind the singular legacy `adoptionReview` by digest. Native append carries no review payload.
+
+Inventory v1 and v2 remain readable. The first non-empty authority mutation of inventory v2 writes a receipted `v2-migration` batch before the requested batch. An empty check, render, or incremental plan never changes the inventory version.
+
+`plan-adoption --incremental --out <repo-relative-ignored-path>` profiles only immutable Git-index paths absent from authority. The default empty delta exits zero, reports a machine-readable no-op, and writes nothing. Add `--require-delta` when automation must reject an empty delta.
+
+Incremental plans bind the existing inventory, citations, semantic index, manifest, Git state, and authority-batch head. Adoption recomputes those bindings under the mutation lock before any write. Existing entries, citation baselines, and accepted receipts remain semantically unchanged.
+
+Checks enforce exact-once authority coverage. An immutable tracked path without authority blocks as `pending-admission`. Existing evidence failures take precedence over intake status. History loss, immutable drift, broken receipts, and invalid authority must surface before `pending-admission`.
+
 ### Curation, citations, and historical evidence
 
 Adopted record supersession uses an external append-only curation ledger. Each event stores a global sequence, previous event digest, record ID, previous event for that record, complete metadata state, informational `curatedAt`, and event digest. Sequence starts at one and follows file order. Global and per-record predecessor chains validate. The highest valid sequence wins. Corrections append complete replacement events.
 
-The ledger has one writer and uses a repository-local lock containing its process and acquisition time. A live or recent lock fails closed. The tool may recover a lock only after ten minutes when its recorded local process is gone. Parallel branch tails cannot merge mechanically. The losing branch rebases and regenerates only its unmerged tail. CI rejects forks, duplicate sequences, broken hashes, and changed merged events.
+All authority writers use one clone-wide collection mutation lock. Store the lock beneath Git's common directory and key it by collection UUID. This location serializes sibling worktrees. Optimistic authority bindings reject stale work from other clones.
+
+The lock records its process and acquisition time. A live or recent lock fails closed. The tool may recover a lock only after ten minutes when its recorded local process is gone. Parallel curation tails cannot merge mechanically. The losing branch rebases and regenerates only its unmerged tail. CI rejects forks, duplicate sequences, broken hashes, and changed merged events.
 
 The citation inventory stores every outbound Markdown citation with record ID, use-site source line, raw target, normalized target, ordered `resolvedVia`, state, and target metadata. It resolves inline links and images plus full, collapsed, and shortcut reference forms. Fenced, indented, and inline code is not citation syntax. Try the complete candidate as an exact path first. Then remove recognized suffixes in the applied order: accessors, line or range suffixes, symbols, fragments, and globs. Support repeated accessors.
 
@@ -88,13 +112,14 @@ Citation states are `resolved-immutable`, `resolved-mutable`, `mutable-drifted`,
 
 An immutable record that cites a mutable artifact stores authoritative `targetSha256`. Git object IDs are regenerable locators only: object format, blob OID, commit OID, and path. Adoption resolves citations at the baseline commit where the adopted bytes last match the reviewed current bytes. It separately preserves the exact-path introduction commit. Native append resolves the staged record and target snapshot. Reindex locators only after bytes match `targetSha256`. A Git hash-algorithm migration changes locators, not evidence identity.
 
-`classify` reports structural partition status and adoption readiness separately. A staged candidate without committed history remains partition-valid and reports `pending-commit`. Adoption still requires a clean, committed tree. Historical stability is a risk signal, never a safety claim. Before irreversible adoption, path-bounded history queries profile every immutable candidate and follow its promotion lineage. A content transition or prior path incarnation requires review. Mutable artifacts remain outside this review.
+`classify` reports structural partition status and admission readiness separately. A staged candidate without committed history remains partition-valid and reports `pending-commit`. Reviewed admission requires a clean, committed tree. Historical stability is a risk signal, never a safety claim. Path-bounded history queries profile every reviewed immutable candidate and follow its promotion lineage. A content transition or prior path incarnation requires review. Mutable artifacts remain outside this review.
 
-`plan-adoption --out <repo-relative-ignored-path>` binds a review plan to `HEAD`, the manifest, current content, and canonical history. Historically revised candidates require `disposition: "freeze-current"` and a rationale. `adopt --review <repo-relative-ignored-path>` recomputes every binding before writing. Inventory v2 embeds the reviewed entries and receipt digest. Absolute paths are rejected because review receipts stay inside the repository's ignored run boundary.
+`plan-adoption --out <repo-relative-ignored-path>` binds genesis review to `HEAD`, the manifest, current content, and canonical history. Historically revised candidates require `disposition: "freeze-current"` and a rationale. `adopt --review <repo-relative-ignored-path>` recomputes every binding before writing. Absolute paths are rejected because review receipts stay inside the repository's ignored run boundary.
 
 With complete history, later checks require:
 
-- exact original-candidate coverage;
+- exact-once authority-batch membership and exact candidate coverage within each reviewed batch;
+- no immutable Git-index path outside authority;
 - exact stage-0 Git-index blob bytes, no semantic index-to-worktree divergence, and exact classification;
 - a 32 MiB maximum for each individual collection blob;
 - internally consistent stored risk;
@@ -105,7 +130,7 @@ With complete history, later checks require:
 
 `receiptDigest` is an unkeyed canonical checksum. It detects corruption and stale cross-field copies. It does not authenticate a reviewer or prove that unreachable receipt bytes survived. Protected repository review is the procedural trust root. Rewrite tolerance assumes the resulting tree preserves the receipt authority bytes. Total-history replacement requires an external signature or transparency log.
 
-Inventory v1 remains readable for compatibility but has no adoption-review receipt. The tool cannot distinguish a genuine grandfathered v1 inventory from a newly authored downgrade without an external anchor. Protected review must preserve that boundary until the collection migrates to v2.
+Inventory v1 remains readable for compatibility but has no adoption-review receipt. Inventory v2 has one genesis review without complete authority-batch coverage. Protected review must preserve each boundary until a non-empty authority mutation performs the receipted v3 migration.
 
 Present pinned historical content by default. Present the current path separately. Make drift visible. With complete history, missing digest content is `evidence-lost`.
 
@@ -115,15 +140,21 @@ Adoption refuses before writing in a shallow, partial, promisor-backed repositor
 
 Generated record indexes are semantic projections. They store generator version, canonical semantic digest, sorted IDs, normalized metadata, and full-ID anchors. Compare semantic digests, not formatting. Make renderer upgrades explicit. Record bodies are exempt from vault-note frontmatter.
 
-A legacy pointer is eligible only when a registered immutable record mechanically cites it, a commit message on reachable refs cites it, or an external host or package requires it. Diffs, unreachable commits, and reflogs do not qualify. Generate exact bounded pointer files without authored prose. Mark a pointer stale after its last qualifying citation disappears. Require explicit adoption for tombstones. Manifest sync cannot rewrite immutable baselines or create tombstones.
+A legacy pointer is eligible only when a registered immutable record mechanically cites it, a commit message on reachable refs cites it, or an external host or package requires it. Diffs, unreachable commits, and reflogs do not qualify. Generate exact bounded pointer files without authored prose. Mark a pointer stale after its last qualifying citation disappears. Require explicit admission for tombstones. Manifest sync cannot rewrite immutable baselines or create tombstones.
 
-The canonical tool provides `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. By default, `append` stages the record and artifact snapshot, validates the staged state, atomically writes inventory, citations, and index, stages only those generated paths, runs staged-tree checks, and prints staged paths. `--no-stage` is an advanced override.
+An `_archive` directory inside a record collection is not a relocation target. Classify its tracked content before admission. After admission, freeze each path in place. Use curation to supersede meaning without archival-by-move.
+
+The canonical tool provides `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Every authority writer uses the collection mutation lock and optimistic authority bindings. By default, `append` stages the record and artifact snapshot, validates the staged state, atomically writes inventory, citations, and index, stages only those generated paths, runs staged-tree checks, and prints staged paths. `--no-stage` is an advanced override.
 
 Reject append when the record is unstaged, staged and working trees diverge, generated files contain unrelated edits, classification is incomplete, or a mutable target lacks its digest.
 
 ### Context and migration
 
 One exact repository snapshot and repo map serve one run. Reuse the content-addressed cache. Ordinary context includes inventories and semantic indexes, never full record bodies. Fetch a body by record ID only when the domain requires it. Exclude mutable bodies unless requested. Atlas prose cites record IDs instead of copying evidence. An unchanged collection receives no dispatch or context.
+
+Scheduled intake runs on a unique branch in an isolated per-run worktree. It never switches the shared checkout. The run verifies the base branch, strict history, collection state, and candidate delta before planning admission. A failure may push the recovery branch for review, but no automation merges it.
+
+Use `commit-tree` only for an exceptional recovery with separately proven tree identity. It is not the scheduled default. When worktrees are unavailable, assert the shared branch before work and restore it in guaranteed cleanup.
 
 Migrate in this order:
 
@@ -141,7 +172,17 @@ Migrate in this order:
 12. Add eligible pointers and explicit tombstones.
 13. Add CI gates, stamp version 4, and run full verification.
 
-Required proof covers compatibility, deterministic identity and casing, label changes, splits, prefix ambiguity, v1 and v2 scope failures, exact-path precedence, promotion, review staleness, zero-output refusal, forbidden files, adopted and native records, staged append, ledger correction and forks, semantic rendering, citation resolution, debt regression, mutable drift, history recovery, locator regeneration, pointers, tombstones, and run tracking. Use synthetic fixtures only. Never copy private repository contents into fixtures or documentation examples.
+Required proof covers:
+
+- compatibility, deterministic identity, casing, label changes, splits, and prefix ambiguity;
+- scope failures, exact-path precedence, forbidden files, and promotion history;
+- genesis review, incremental review, stale receipts, empty deltas, and zero-output refusal;
+- authority-batch forgery, exact-once coverage, v2 migration, stale bindings, and mutation locks;
+- record and artifact provenance mismatches across every authority-batch type, including historical paths relabeled as native;
+- adopted records, native records, staged append, isolated recovery, and curation forks; and
+- semantic rendering, citations, history, locator repair, pointers, tombstones, and run tracking.
+
+Use synthetic fixtures only. Never copy private repository contents into fixtures or documentation examples.
 
 ## Context-efficient extraction
 

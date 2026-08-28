@@ -1,7 +1,7 @@
 ---
 type: standard
 status: current
-updated: 2026-08-24
+updated: 2026-08-28
 standard-version: 4
 tags:
   - meta
@@ -60,6 +60,20 @@ Working notes carry `type`, `status`, `updated`, and `tags` frontmatter. Status 
 Use wikilinks within working vault notes. Use Markdown links in published reference material. Cite code with repository-relative paths and symbols. Never copy secrets or personal data.
 
 Every collection linked from inside the hub has an explicit Markdown index note. Hub-internal links target notes or files, never bare directories. Local Markdown heading fragments resolve to headings in their target notes.
+
+## Durable collection intake
+
+Record collections remain open after genesis adoption. Each admitted authority object remains irreversible. Committed immutable paths use reviewed incremental admission. New staged native records use native append.
+
+Inventory v3 records authority membership in a separate hash-chained batch history. Its batch types are `genesis-adoption`, `incremental-adoption`, `native-append`, and `v2-migration`. Every authority object belongs to exactly one batch.
+
+Genesis and incremental batches contain only `adopted` records and artifacts. Native batches contain only `native` records and artifacts. Each native object's `introducedIndexHead` equals its batch `sourceHead`, and that source tree must not contain the object's path.
+
+Only `v2-migration` may cover an artifact without provenance. It preserves the complete v2 object and never manufactures provenance.
+
+The authority-batch chain records membership and provenance. The curation ledger records status and supersession. Never combine these chains or rewrite an accepted object in either chain.
+
+An adopted `_archive` path freezes in place. Move current authority through curation and a canonical hub document. Never archive a governed record by moving it.
 
 ## Runs and Git
 

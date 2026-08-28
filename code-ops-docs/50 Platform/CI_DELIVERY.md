@@ -20,7 +20,9 @@ The documentation citation gate validates both `path:line` references and explic
 
 The record-collection eval exercises immutable evidence contracts on Ubuntu and Windows. Repositories with record collections require a complete checkout using `fetch-depth: 0` and `filter: ""`. A shallow or partial checkout is infrastructure failure, not evidence loss.
 
-The v4 gate chain keeps responsibilities separate. The manifest gate owns domain and collection declarations. The records gate owns identities, baselines, history, citation state, curation chains, and semantic projections. The link gate continues to own ordinary hub navigation.
+The v4 gate chain keeps responsibilities separate. The manifest gate owns domain and collection declarations. The records gate owns identities, authority batches, history, citation state, curation chains, and semantic projections. The link gate continues to own ordinary hub navigation.
+
+`pending-admission` blocks when an immutable Git-index path lacks authority. Existing evidence failures take precedence. Scheduled recovery prepares reviewed intake on a unique branch in an isolated worktree and never merges it automatically.
 
 ## Pull-request gates
 

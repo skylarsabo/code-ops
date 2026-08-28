@@ -3,7 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { digestJson, extractCitations, historyPathBatches, indexSnapshot, recordId, resolvePrefix, sha256, writeAtomically } from '../../scripts/record-lib.mjs';
 
 const ROOT = process.cwd();
@@ -11,7 +11,8 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 162 : 165;
+const expectedCases = process.platform === 'win32' ? 190 : 193;
+const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
 
@@ -73,6 +74,51 @@ function fixtureManifest() {
   };
 }
 function generated(repo, name) { return join(repo, 'hub', '98 System', 'Records', name); }
+function generatedSnapshot(repo) {
+  return new Map(GENERATED_NAMES.map((name) => [name, readFileSync(generated(repo, name))]));
+}
+function generatedMatches(repo, snapshot) {
+  return GENERATED_NAMES.every((name) => snapshot.get(name).equals(readFileSync(generated(repo, name))));
+}
+function authorityRefDigest(refs) {
+  return digestJson([...refs].sort((left, right) => {
+    const leftKey = `${left.type}:${left.path}`; const rightKey = `${right.type}:${right.path}`;
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  }));
+}
+function rehashAuthorityBatch(batch) {
+  const { batchDigest: _batchDigest, ...authority } = batch;
+  batch.batchDigest = digestJson(authority);
+}
+function rehashAuthorityChain(inventory) {
+  const objects = new Map([
+    ...(inventory.entries || []).map((entry) => [`record:${entry.path}`, digestJson(entry)]),
+    ...(inventory.artifacts || []).map((artifact) => [`artifact:${artifact.path}`, digestJson(artifact)]),
+  ]);
+  let covered = []; let previousBatchDigest = null;
+  for (const batch of inventory.authorityBatches || []) {
+    batch.previousBatchDigest = previousBatchDigest;
+    batch.priorAuthorityDigest = authorityRefDigest(covered);
+    for (const ref of batch.objects) ref.objectDigest = objects.get(`${ref.type}:${ref.path}`) || ref.objectDigest;
+    covered = [...covered, ...batch.objects];
+    batch.authorityDigest = authorityRefDigest(covered);
+    if (['genesis-adoption', 'v2-migration'].includes(batch.type)) {
+      batch.reviewReceiptDigest = inventory.adoptionReview?.receiptDigest || null;
+    }
+    if (batch.type === 'genesis-adoption') {
+      batch.sourceHead = inventory.adoptionReview?.sourceHead || batch.sourceHead;
+      batch.manifestSha256 = inventory.adoptionReview?.manifestSha256 || batch.manifestSha256;
+    }
+    rehashAuthorityBatch(batch);
+    previousBatchDigest = batch.batchDigest;
+  }
+}
+function moveAuthorityRef(inventory, fromBatch, toBatch, predicate) {
+  const index = fromBatch.objects.findIndex(predicate);
+  if (index < 0) throw new Error('authority forgery fixture could not find the requested object');
+  toBatch.objects.push(fromBatch.objects.splice(index, 1)[0]);
+  rehashAuthorityChain(inventory);
+}
 function restoreFromHead(repo, path) { write(repo, path, git(['show', `HEAD:${path}`], repo)); }
 
 try {
@@ -525,9 +571,12 @@ try {
   result = run(['adopt', '--root', revisedRepo, ...COLLECTION, '--review', 'adoption-review.json'], revisedRepo);
   const reviewedInventory = result.status === 0 ? JSON.parse(readFileSync(generated(revisedRepo, 'inventory.json'), 'utf8')) : null;
   check('digest-bound review permits adoption and persists its receipt', result.status === 0
-    && reviewedInventory?.version === 2
+    && reviewedInventory?.version === 3
     && /^[0-9a-f]{64}$/.test(reviewedInventory?.adoptionReview?.receiptDigest || '')
-    && reviewedInventory?.adoptionReview?.reviewed?.[0]?.disposition === 'freeze-current', result.output);
+    && reviewedInventory?.adoptionReview?.reviewed?.[0]?.disposition === 'freeze-current'
+    && reviewedInventory?.authorityBatches?.[0]?.type === 'genesis-adoption'
+    && reviewedInventory?.authorityBatches?.[0]?.reviewReceiptDigest === reviewedInventory?.adoptionReview?.receiptDigest,
+  result.output);
 
   const rewrittenHistoryRepo = join(work, 'rewritten-reviewed-history'); cpSync(revisedRepo, rewrittenHistoryRepo, { recursive: true });
   commit(rewrittenHistoryRepo, 'adopt reviewed record');
@@ -762,8 +811,372 @@ try {
     && item.state === 'redirected' && /^[0-9a-f]{64}$/.test(item.target.targetSha256)), JSON.stringify(citations));
 
   result = run(['check', '--root', repo, ...COLLECTION], repo);
-  check('fresh adoption passes semantic and history checks', result.status === 0, result.output);
+  check('fresh adoption passes semantic and history checks', result.status === 0
+    && inventory.artifacts.every((artifact) => artifact.provenance === 'adopted'), result.output);
   commit(repo, 'adopt records');
+
+  const incrementalRepo = join(work, 'incremental-admission'); cpSync(repo, incrementalRepo, { recursive: true });
+  writeFileSync(join(incrementalRepo, '.git', 'info', 'exclude'), 'incremental-review.json\nincremental-two.json\nempty-review.json\nrequired-review.json\n');
+  const genesisInventory = JSON.parse(readFileSync(generated(incrementalRepo, 'inventory.json'), 'utf8'));
+  const genesisCitations = JSON.parse(readFileSync(generated(incrementalRepo, 'citations.json'), 'utf8'));
+  const genesisLedger = readFileSync(generated(incrementalRepo, 'curation.jsonl'));
+  write(incrementalRepo, 'records/incremental.md', `# Incremental
+
+[live](records/mutable/result.json)
+[frozen](records/frozen/incremental.json)
+`);
+  write(incrementalRepo, 'records/frozen/incremental.json', '{"incremental":1}\n');
+  commit(incrementalRepo, 'commit authority after genesis');
+  result = run(['check', '--root', incrementalRepo, ...COLLECTION], incrementalRepo);
+  check('committed post-genesis records report pending admission', result.status === 1
+    && result.output.includes('pending-admission') && result.output.includes('records/incremental.md'), result.output);
+  const beforeIncrementalPlan = generatedSnapshot(incrementalRepo);
+  result = run(['plan-adoption', '--incremental', '--root', incrementalRepo, ...COLLECTION,
+    '--out', 'incremental-review.json'], incrementalRepo);
+  const incrementalPlanPath = join(incrementalRepo, 'incremental-review.json');
+  const incrementalPlan = result.status === 0 && existsSync(incrementalPlanPath)
+    ? JSON.parse(readFileSync(incrementalPlanPath, 'utf8')) : null;
+  const incrementalCandidatePaths = incrementalPlan?.candidates?.map((candidate) => candidate.path).sort() || [];
+  check('incremental planning profiles only the committed immutable delta without generated writes', result.status === 0
+    && incrementalPlan?.version === 2 && incrementalPlan?.mode === 'incremental'
+    && JSON.stringify(incrementalCandidatePaths) === JSON.stringify([
+      'records/frozen/incremental.json', 'records/incremental.md',
+    ]) && generatedMatches(incrementalRepo, beforeIncrementalPlan), result.output);
+  result = run(['adopt', '--root', incrementalRepo, ...COLLECTION, '--review', 'incremental-review.json'], incrementalRepo);
+  let firstIncrementalOutput = null;
+  try { firstIncrementalOutput = JSON.parse(result.output); } catch { /* asserted below */ }
+  const firstIncrementalInventory = result.status === 0
+    ? JSON.parse(readFileSync(generated(incrementalRepo, 'inventory.json'), 'utf8')) : null;
+  const firstIncrementalCitations = result.status === 0
+    ? JSON.parse(readFileSync(generated(incrementalRepo, 'citations.json'), 'utf8')) : null;
+  check('incremental adoption preserves every prior authority object and the genesis receipt', result.status === 0
+    && firstIncrementalOutput?.citations === 2
+    && firstIncrementalInventory?.version === 3
+    && digestJson(firstIncrementalInventory.entries.slice(0, genesisInventory.entries.length)) === digestJson(genesisInventory.entries)
+    && digestJson(firstIncrementalInventory.artifacts.slice(0, genesisInventory.artifacts.length)) === digestJson(genesisInventory.artifacts)
+    && firstIncrementalInventory.artifacts.find((artifact) => artifact.path === 'records/frozen/incremental.json')?.provenance === 'adopted'
+    && digestJson(firstIncrementalInventory.adoptionReview) === digestJson(genesisInventory.adoptionReview)
+    && digestJson(firstIncrementalCitations.entries.slice(0, genesisCitations.entries.length)) === digestJson(genesisCitations.entries)
+    && genesisLedger.equals(readFileSync(generated(incrementalRepo, 'curation.jsonl'))), result.output);
+  const firstAuthorityBatches = firstIncrementalInventory?.authorityBatches || [];
+  check('first incremental mutation extends genesis with a reviewed authority batch', firstAuthorityBatches.length === 2
+    && firstAuthorityBatches[0].type === 'genesis-adoption'
+    && firstAuthorityBatches[1].type === 'incremental-adoption'
+    && firstAuthorityBatches[1].previousBatchDigest === firstAuthorityBatches[0].batchDigest
+    && firstAuthorityBatches[1].review?.receiptDigest === firstAuthorityBatches[1].reviewReceiptDigest,
+  JSON.stringify(firstAuthorityBatches));
+  const incrementalEntry = firstIncrementalInventory?.entries.find((entry) => entry.path === 'records/incremental.md');
+  const firstIncrementalCheck = result.status === 0 ? run(['check', '--root', incrementalRepo, ...COLLECTION], incrementalRepo) : result;
+  const firstIncrementalStrict = result.status === 0
+    ? run(['verify-history', '--strict', '--root', incrementalRepo, ...COLLECTION], incrementalRepo) : result;
+  check('incremental authority keeps deterministic IDs and passes complete-history verification', result.status === 0
+    && incrementalEntry?.id === recordId(UUID, 'records/incremental.md')
+    && firstIncrementalCheck.status === 0 && firstIncrementalStrict.status === 0,
+  `${result.output}\n${firstIncrementalCheck.output}\n${firstIncrementalStrict.output}`);
+  commit(incrementalRepo, 'admit first incremental authority');
+
+  const firstIncrementalCommitted = JSON.parse(readFileSync(generated(incrementalRepo, 'inventory.json'), 'utf8'));
+  write(incrementalRepo, 'records/incremental-two.md', '# Incremental two\n');
+  commit(incrementalRepo, 'commit second authority batch');
+  result = run(['plan-adoption', '--incremental', '--root', incrementalRepo, ...COLLECTION,
+    '--out', 'incremental-two.json'], incrementalRepo);
+  if (result.status === 0) {
+    result = run(['adopt', '--root', incrementalRepo, ...COLLECTION, '--review', 'incremental-two.json'], incrementalRepo);
+  }
+  const secondIncrementalInventory = result.status === 0
+    ? JSON.parse(readFileSync(generated(incrementalRepo, 'inventory.json'), 'utf8')) : null;
+  const secondAuthorityBatches = secondIncrementalInventory?.authorityBatches || [];
+  check('a second incremental batch extends both authority prefixes and the batch chain', result.status === 0
+    && digestJson(secondIncrementalInventory.entries.slice(0, firstIncrementalCommitted.entries.length)) === digestJson(firstIncrementalCommitted.entries)
+    && digestJson(secondIncrementalInventory.artifacts.slice(0, firstIncrementalCommitted.artifacts.length)) === digestJson(firstIncrementalCommitted.artifacts)
+    && digestJson(secondAuthorityBatches.slice(0, firstIncrementalCommitted.authorityBatches.length)) === digestJson(firstIncrementalCommitted.authorityBatches)
+    && secondAuthorityBatches.at(-1)?.type === 'incremental-adoption'
+    && secondAuthorityBatches.at(-1)?.previousBatchDigest === firstIncrementalCommitted.authorityBatches.at(-1).batchDigest,
+  `${result.output}\n${JSON.stringify(secondAuthorityBatches)}`);
+  const secondIncrementalCheck = result.status === 0 ? run(['check', '--root', incrementalRepo, ...COLLECTION], incrementalRepo) : result;
+  check('two committed incremental batches remain conformant', result.status === 0 && secondIncrementalCheck.status === 0,
+    `${result.output}\n${secondIncrementalCheck.output}`);
+  commit(incrementalRepo, 'admit second incremental authority');
+
+  const incrementalTwoId = secondIncrementalInventory?.entries.find((entry) => entry.path === 'records/incremental-two.md')?.id;
+  const preIncrementalCurationBatches = digestJson(secondIncrementalInventory?.authorityBatches || []);
+  result = run(['curate', '--root', incrementalRepo, ...COLLECTION, '--record', incrementalTwoId,
+    '--state', JSON.stringify({ status: 'superseded', supersededBy: incrementalEntry.id }),
+    '--at', '2026-08-28T01:00:00.000Z'], incrementalRepo);
+  const incrementalCurationCheck = result.status === 0
+    ? run(['check', '--root', incrementalRepo, ...COLLECTION], incrementalRepo) : result;
+  const incrementalCurationInventory = result.status === 0
+    ? JSON.parse(readFileSync(generated(incrementalRepo, 'inventory.json'), 'utf8')) : null;
+  const incrementalCurationEvents = result.status === 0
+    ? readFileSync(generated(incrementalRepo, 'curation.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse) : [];
+  check('incrementally admitted records use the ordinary supersession ledger and semantic index', result.status === 0
+    && incrementalCurationCheck.status === 0 && incrementalCurationEvents.at(-1)?.recordId === incrementalTwoId
+    && incrementalCurationEvents.at(-1)?.state?.status === 'superseded'
+    && readFileSync(generated(incrementalRepo, 'index.md'), 'utf8').includes('superseded')
+    && digestJson(incrementalCurationInventory?.authorityBatches || []) === preIncrementalCurationBatches,
+  `${result.output}\n${incrementalCurationCheck.output}`);
+  commit(incrementalRepo, 'curate incremental authority');
+
+  const precedenceRepo = join(work, 'pending-evidence-precedence'); cpSync(incrementalRepo, precedenceRepo, { recursive: true });
+  write(precedenceRepo, 'records/pending-with-index-failure.md', '# Pending while evidence is invalid\n');
+  commit(precedenceRepo, 'commit pending record before evidence failure');
+  const precedenceIndexPath = generated(precedenceRepo, 'index.md');
+  const precedenceIndex = readFileSync(precedenceIndexPath, 'utf8');
+  writeFileSync(precedenceIndexPath, precedenceIndex.replace(`<a id="${incrementalEntry.id}"></a>`, ''));
+  result = run(['check', '--root', precedenceRepo, ...COLLECTION], precedenceRepo);
+  check('existing semantic evidence failures take precedence over pending admission', result.status === 1
+    && result.output.includes('semantic index anchors drift') && !result.output.includes('pending-admission'), result.output);
+
+  const emptyIncrementalSnapshot = generatedSnapshot(incrementalRepo);
+  result = run(['plan-adoption', '--incremental', '--root', incrementalRepo, ...COLLECTION,
+    '--out', 'empty-review.json'], incrementalRepo);
+  let emptyPlanOutput = null;
+  try { emptyPlanOutput = JSON.parse(result.output); } catch { /* asserted below */ }
+  check('empty incremental planning is an exit-zero write-free no-op', result.status === 0
+    && emptyPlanOutput?.mode === 'incremental' && emptyPlanOutput?.status === 'no-op'
+    && emptyPlanOutput?.reason === 'no-pending-admission' && emptyPlanOutput?.candidates === 0
+    && !existsSync(join(incrementalRepo, 'empty-review.json'))
+    && generatedMatches(incrementalRepo, emptyIncrementalSnapshot), result.output);
+  const unsafeEmptyPlan = join(work, 'absolute-empty-review.json');
+  result = run(['plan-adoption', '--incremental', '--root', incrementalRepo, ...COLLECTION,
+    '--out', unsafeEmptyPlan], incrementalRepo);
+  check('empty incremental planning still rejects an absolute output path before writes', result.status === 1
+    && result.output.includes('adoption review path must be repository-relative and safe') && !existsSync(unsafeEmptyPlan)
+    && generatedMatches(incrementalRepo, emptyIncrementalSnapshot), result.output);
+  result = run(['plan-adoption', '--incremental', '--require-delta', '--root', incrementalRepo, ...COLLECTION,
+    '--out', 'required-review.json'], incrementalRepo);
+  check('require-delta refuses an empty incremental plan without writes', result.status === 1
+    && result.output.includes('incremental adoption requires at least one pending immutable path')
+    && !existsSync(join(incrementalRepo, 'required-review.json'))
+    && generatedMatches(incrementalRepo, emptyIncrementalSnapshot), result.output);
+
+  const nativeMigrationRepo = join(work, 'native-v2-migration'); mkdirSync(nativeMigrationRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], nativeMigrationRepo);
+  write(nativeMigrationRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(nativeMigrationRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(nativeMigrationRepo, 'records/one.md', '# Legacy v2 record\n');
+  write(nativeMigrationRepo, 'records/mutable/result.json', '{"live":true}\n');
+  write(nativeMigrationRepo, 'records/frozen/stable.json', '{"stable":true}\n');
+  write(nativeMigrationRepo, 'records/exec/probe.py', 'print("legacy")\n');
+  write(nativeMigrationRepo, 'records/literal[0].json', '{"literal":true}\n');
+  commit(nativeMigrationRepo, 'seed legacy authority');
+  let legacyV2BaselineCheck = { status: 1, output: 'legacy v2 baseline was not constructed' };
+  result = run(['adopt', '--root', nativeMigrationRepo, ...COLLECTION], nativeMigrationRepo);
+  if (result.status === 0) {
+    const legacyInventoryPath = generated(nativeMigrationRepo, 'inventory.json');
+    const legacyInventory = JSON.parse(readFileSync(legacyInventoryPath, 'utf8'));
+    legacyInventory.version = 2;
+    delete legacyInventory.authorityBatches;
+    for (const artifact of legacyInventory.artifacts || []) delete artifact.provenance;
+    writeFileSync(legacyInventoryPath, `${JSON.stringify(legacyInventory, null, 2)}\n`);
+    run(['render', '--root', nativeMigrationRepo, ...COLLECTION], nativeMigrationRepo);
+    legacyV2BaselineCheck = run(['check', '--root', nativeMigrationRepo, ...COLLECTION], nativeMigrationRepo);
+    commit(nativeMigrationRepo, 'establish legacy v2 baseline');
+  }
+  const nativeMigrationGenesis = JSON.parse(readFileSync(generated(nativeMigrationRepo, 'inventory.json'), 'utf8'));
+  write(nativeMigrationRepo, 'records/native-migration.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Native migration\n');
+  git(['add', 'records/native-migration.md'], nativeMigrationRepo);
+  result = run(['append', '--root', nativeMigrationRepo, ...COLLECTION, '--record', 'records/native-migration.md'], nativeMigrationRepo);
+  const nativeMigrationInventory = result.status === 0
+    ? JSON.parse(readFileSync(generated(nativeMigrationRepo, 'inventory.json'), 'utf8')) : null;
+  const nativeMigrationCheck = result.status === 0 ? run(['check', '--root', nativeMigrationRepo, ...COLLECTION], nativeMigrationRepo) : result;
+  check('native append migrates v2 authority before recording native membership', result.status === 0
+    && legacyV2BaselineCheck.status === 0 && nativeMigrationCheck.status === 0 && nativeMigrationInventory?.version === 3
+    && nativeMigrationInventory.authorityBatches?.map((batch) => batch.type).join(',') === 'v2-migration,native-append'
+    && digestJson(nativeMigrationInventory.adoptionReview) === digestJson(nativeMigrationGenesis.adoptionReview)
+    && digestJson(nativeMigrationInventory.entries.slice(0, nativeMigrationGenesis.entries.length)) === digestJson(nativeMigrationGenesis.entries)
+    && nativeMigrationInventory.artifacts.slice(0, nativeMigrationGenesis.artifacts.length)
+      .every((artifact) => !Object.hasOwn(artifact, 'provenance')),
+  `${result.output}\n${legacyV2BaselineCheck.output}\n${nativeMigrationCheck.output}`);
+
+  const uncoveredAuthorityRepo = join(work, 'uncovered-authority'); cpSync(nativeMigrationRepo, uncoveredAuthorityRepo, { recursive: true });
+  const uncoveredAuthorityPath = generated(uncoveredAuthorityRepo, 'inventory.json');
+  const uncoveredAuthority = JSON.parse(readFileSync(uncoveredAuthorityPath, 'utf8'));
+  const uncoveredBatch = uncoveredAuthority.authorityBatches.at(-1);
+  uncoveredBatch.objects = [];
+  const previouslyCovered = uncoveredAuthority.authorityBatches.slice(0, -1).flatMap((batch) => batch.objects);
+  uncoveredBatch.authorityDigest = authorityRefDigest(previouslyCovered);
+  rehashAuthorityBatch(uncoveredBatch);
+  writeFileSync(uncoveredAuthorityPath, `${JSON.stringify(uncoveredAuthority, null, 2)}\n`);
+  result = run(['check', '--root', uncoveredAuthorityRepo, ...COLLECTION], uncoveredAuthorityRepo);
+  check('validly rehashed batches cannot leave authority objects uncovered', result.status === 1
+    && result.output.includes('authority object lacks batch coverage'), result.output);
+
+  const duplicateCoverageRepo = join(work, 'duplicate-authority-coverage'); cpSync(nativeMigrationRepo, duplicateCoverageRepo, { recursive: true });
+  const duplicateCoveragePath = generated(duplicateCoverageRepo, 'inventory.json');
+  const duplicateCoverage = JSON.parse(readFileSync(duplicateCoveragePath, 'utf8'));
+  const duplicateRef = structuredClone(duplicateCoverage.authorityBatches.at(-1).objects[0]);
+  duplicateCoverage.authorityBatches[0].objects.push(duplicateRef);
+  duplicateCoverage.authorityBatches[0].objects.sort((left, right) => {
+    const leftKey = `${left.type}:${left.path}`; const rightKey = `${right.type}:${right.path}`;
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  duplicateCoverage.authorityBatches[0].authorityDigest = authorityRefDigest(duplicateCoverage.authorityBatches[0].objects);
+  rehashAuthorityBatch(duplicateCoverage.authorityBatches[0]);
+  duplicateCoverage.authorityBatches[1].previousBatchDigest = duplicateCoverage.authorityBatches[0].batchDigest;
+  duplicateCoverage.authorityBatches[1].priorAuthorityDigest = duplicateCoverage.authorityBatches[0].authorityDigest;
+  rehashAuthorityBatch(duplicateCoverage.authorityBatches[1]);
+  writeFileSync(duplicateCoveragePath, `${JSON.stringify(duplicateCoverage, null, 2)}\n`);
+  result = run(['check', '--root', duplicateCoverageRepo, ...COLLECTION], duplicateCoverageRepo);
+  check('validly rehashed batches cannot duplicate authority coverage', result.status === 1
+    && result.output.includes('authority object has duplicate batch coverage'), result.output);
+
+  const batchProvenanceRepo = join(work, 'authority-batch-provenance'); cpSync(incrementalRepo, batchProvenanceRepo, { recursive: true });
+  write(batchProvenanceRepo, 'records/native-provenance.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Native provenance\n');
+  git(['add', 'records/native-provenance.md'], batchProvenanceRepo);
+  const batchProvenanceSeed = run(['append', '--root', batchProvenanceRepo, ...COLLECTION,
+    '--record', 'records/native-provenance.md'], batchProvenanceRepo);
+
+  const adoptedRecordNativeRepo = join(work, 'adopted-record-in-native-batch'); cpSync(batchProvenanceRepo, adoptedRecordNativeRepo, { recursive: true });
+  const adoptedRecordNativePath = generated(adoptedRecordNativeRepo, 'inventory.json');
+  const adoptedRecordNative = JSON.parse(readFileSync(adoptedRecordNativePath, 'utf8'));
+  const relabeledRecord = adoptedRecordNative.entries.find((entry) => entry.provenance === 'adopted');
+  relabeledRecord.provenance = 'native';
+  relabeledRecord.introducedCommit = null;
+  relabeledRecord.introducedIndexHead = adoptedRecordNative.authorityBatches.at(-1).sourceHead;
+  relabeledRecord.supersedes = [];
+  delete relabeledRecord.baselineCommit;
+  moveAuthorityRef(adoptedRecordNative, adoptedRecordNative.authorityBatches[0], adoptedRecordNative.authorityBatches.at(-1),
+    (ref) => ref.type === 'record' && ref.path === relabeledRecord.path);
+  writeFileSync(adoptedRecordNativePath, `${JSON.stringify(adoptedRecordNative, null, 2)}\n`);
+  result = run(['check', '--root', adoptedRecordNativeRepo, ...COLLECTION], adoptedRecordNativeRepo);
+  check('a validly rehashed native batch cannot relabel a historical record as native', batchProvenanceSeed.status === 0
+    && result.status === 1 && result.output.includes('native authority batch contradicts record provenance'),
+  `${batchProvenanceSeed.output}\n${result.output}`);
+
+  const adoptedArtifactNativeRepo = join(work, 'adopted-artifact-in-native-batch'); cpSync(batchProvenanceRepo, adoptedArtifactNativeRepo, { recursive: true });
+  const adoptedArtifactNativePath = generated(adoptedArtifactNativeRepo, 'inventory.json');
+  const adoptedArtifactNative = JSON.parse(readFileSync(adoptedArtifactNativePath, 'utf8'));
+  const relabeledArtifact = adoptedArtifactNative.artifacts.find((artifact) => artifact.provenance === 'adopted');
+  relabeledArtifact.provenance = 'native';
+  relabeledArtifact.introducedIndexHead = adoptedArtifactNative.authorityBatches.at(-1).sourceHead;
+  moveAuthorityRef(adoptedArtifactNative, adoptedArtifactNative.authorityBatches[0], adoptedArtifactNative.authorityBatches.at(-1),
+    (ref) => ref.type === 'artifact' && ref.path === relabeledArtifact.path);
+  writeFileSync(adoptedArtifactNativePath, `${JSON.stringify(adoptedArtifactNative, null, 2)}\n`);
+  result = run(['check', '--root', adoptedArtifactNativeRepo, ...COLLECTION], adoptedArtifactNativeRepo);
+  check('a validly rehashed native batch cannot relabel a historical frozen artifact as native', batchProvenanceSeed.status === 0
+    && result.status === 1 && result.output.includes('native authority batch contradicts artifact provenance'),
+  `${batchProvenanceSeed.output}\n${result.output}`);
+
+  const expandedMigrationRepo = join(work, 'expanded-v2-migration-batch'); cpSync(nativeMigrationRepo, expandedMigrationRepo, { recursive: true });
+  const expandedMigrationPath = generated(expandedMigrationRepo, 'inventory.json');
+  const expandedMigration = JSON.parse(readFileSync(expandedMigrationPath, 'utf8'));
+  moveAuthorityRef(expandedMigration, expandedMigration.authorityBatches.at(-1), expandedMigration.authorityBatches[0],
+    (ref) => ref.type === 'record');
+  writeFileSync(expandedMigrationPath, `${JSON.stringify(expandedMigration, null, 2)}\n`);
+  result = run(['check', '--root', expandedMigrationRepo, ...COLLECTION], expandedMigrationRepo);
+  check('a rehashed v2 migration batch cannot absorb newly appended authority', result.status === 1
+    && result.output.includes('v2 migration authority batch does not exactly cover inherited objects'), result.output);
+
+  const staleIncrementalRepo = join(work, 'stale-incremental-binding'); cpSync(incrementalRepo, staleIncrementalRepo, { recursive: true });
+  writeFileSync(join(staleIncrementalRepo, '.git', 'info', 'exclude'), 'stale-incremental.json\n');
+  write(staleIncrementalRepo, 'records/planned.md', '# Planned incremental authority\n');
+  commit(staleIncrementalRepo, 'commit planned authority');
+  result = run(['plan-adoption', '--incremental', '--root', staleIncrementalRepo, ...COLLECTION,
+    '--out', 'stale-incremental.json'], staleIncrementalRepo);
+  const stalePlanSucceeded = result.status === 0;
+  const preCurationInventory = JSON.parse(readFileSync(generated(staleIncrementalRepo, 'inventory.json'), 'utf8'));
+  const preCurationLedger = readFileSync(generated(staleIncrementalRepo, 'curation.jsonl'));
+  const curatedRecord = preCurationInventory.entries[0].id;
+  const racingMutation = run(['curate', '--root', staleIncrementalRepo, ...COLLECTION,
+    '--record', curatedRecord, '--state', '{"status":"reviewed"}', '--at', '2026-08-28T00:00:00.000Z'], staleIncrementalRepo);
+  if (racingMutation.status === 0) commit(staleIncrementalRepo, 'commit concurrent curation mutation');
+  const staleGenerated = generatedSnapshot(staleIncrementalRepo);
+  result = stalePlanSucceeded && racingMutation.status === 0
+    ? run(['adopt', '--root', staleIncrementalRepo, ...COLLECTION, '--review', 'stale-incremental.json'], staleIncrementalRepo)
+    : racingMutation;
+  const staleInventory = JSON.parse(readFileSync(generated(staleIncrementalRepo, 'inventory.json'), 'utf8'));
+  check('curation can advance generated bindings without rewriting authority membership', racingMutation.status === 0
+    && staleInventory.authorityBatches?.at(-1)?.batchDigest === preCurationInventory.authorityBatches?.at(-1)?.batchDigest
+    && !preCurationLedger.equals(readFileSync(generated(staleIncrementalRepo, 'curation.jsonl'))), racingMutation.output);
+  check('concurrent generated mutation makes an incremental receipt stale before generated writes', stalePlanSucceeded
+    && racingMutation.status === 0 && result.status === 1
+    && /stale|binding/i.test(result.output) && generatedMatches(staleIncrementalRepo, staleGenerated), result.output);
+
+  const consumedReceiptSnapshot = generatedSnapshot(incrementalRepo);
+  result = run(['adopt', '--root', incrementalRepo, ...COLLECTION, '--review', 'incremental-two.json'], incrementalRepo);
+  check('a consumed incremental receipt cannot be replayed', result.status === 1
+    && /stale|binding/i.test(result.output) && generatedMatches(incrementalRepo, consumedReceiptSnapshot), result.output);
+
+  const sharedLockRepo = join(work, 'shared-lock-primary'); cpSync(incrementalRepo, sharedLockRepo, { recursive: true });
+  const sharedLockSibling = join(work, 'shared-lock-sibling');
+  git(['worktree', 'add', '-q', '-b', 'lock-sibling', sharedLockSibling, 'HEAD'], sharedLockRepo);
+  write(sharedLockSibling, 'records/locked-native.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Locked native\n');
+  git(['add', 'records/locked-native.md'], sharedLockSibling);
+  const primaryCommonDir = resolve(sharedLockRepo, git(['rev-parse', '--git-common-dir'], sharedLockRepo).trim());
+  const siblingCommonDir = resolve(sharedLockSibling, git(['rev-parse', '--git-common-dir'], sharedLockSibling).trim());
+  const sharedMutationLock = join(primaryCommonDir, 'code-ops-record-locks', `${UUID}.lock`);
+  mkdirSync(sharedMutationLock, { recursive: true });
+  writeFileSync(join(sharedMutationLock, 'owner.json'), `${JSON.stringify({
+    pid: process.pid, token: '33333333-3333-4333-8333-333333333333', acquiredAt: new Date().toISOString(),
+  })}\n`);
+  const sharedLockSnapshot = generatedSnapshot(sharedLockSibling);
+  result = run(['append', '--root', sharedLockSibling, ...COLLECTION, '--record', 'records/locked-native.md'], sharedLockSibling);
+  check('sibling worktrees observe one clone-wide collection mutation lock', primaryCommonDir === siblingCommonDir
+    && result.status === 1 && result.output.includes('collection mutation lock is held')
+    && generatedMatches(sharedLockSibling, sharedLockSnapshot), result.output);
+  rmSync(sharedMutationLock, { recursive: true, force: false });
+  result = run(['append', '--root', sharedLockSibling, ...COLLECTION, '--record', 'records/locked-native.md'], sharedLockSibling);
+  const unlockedInventory = result.status === 0
+    ? JSON.parse(readFileSync(generated(sharedLockSibling, 'inventory.json'), 'utf8')) : null;
+  check('released clone-wide lock permits the waiting authority mutation', result.status === 0
+    && unlockedInventory?.authorityBatches?.at(-1)?.type === 'native-append', result.output);
+
+  const ownerlessLockRepo = join(work, 'ownerless-collection-lock'); cpSync(incrementalRepo, ownerlessLockRepo, { recursive: true });
+  const ownerlessCommonDir = resolve(ownerlessLockRepo, git(['rev-parse', '--git-common-dir'], ownerlessLockRepo).trim());
+  const ownerlessLock = join(ownerlessCommonDir, 'code-ops-record-locks', `${UUID}.lock`);
+  mkdirSync(ownerlessLock, { recursive: true });
+  const ownerlessSnapshot = generatedSnapshot(ownerlessLockRepo);
+  result = run(['curate', '--root', ownerlessLockRepo, ...COLLECTION, '--record', incrementalTwoId,
+    '--state', '{"status":"reviewed"}', '--at', '2026-08-28T02:00:00.000Z'], ownerlessLockRepo);
+  check('a recent ownerless collection lock refuses promptly without generated writes', result.status === 1
+    && result.output.includes('collection mutation lock is held')
+    && generatedMatches(ownerlessLockRepo, ownerlessSnapshot), result.output);
+  const ownerlessStaleTime = new Date('2000-01-01T00:00:00.000Z');
+  utimesSync(ownerlessLock, ownerlessStaleTime, ownerlessStaleTime);
+  result = run(['curate', '--root', ownerlessLockRepo, ...COLLECTION, '--record', incrementalTwoId,
+    '--state', '{"status":"reviewed"}', '--at', '2026-08-28T02:00:00.000Z'], ownerlessLockRepo);
+  check('an aged ownerless collection lock is recovered for the waiting mutation', result.status === 0
+    && !existsSync(ownerlessLock), result.output);
+
+  const scheduledRepo = join(work, 'scheduled-mutable-incremental'); mkdirSync(scheduledRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], scheduledRepo);
+  write(scheduledRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  const scheduledManifest = fixtureManifest();
+  scheduledManifest.recordCollections[0].classificationVersion = 2;
+  scheduledManifest.recordCollections[0].scopes = [
+    { id: 'records', match: ['*.md'], paths: [], kind: 'record', policy: 'append-only' },
+    { id: 'jsonl-default', match: ['**/*.jsonl'], paths: [], kind: 'artifact', policy: 'frozen' },
+    { id: 'daily-live', match: [], paths: ['live/day_profile.jsonl'], kind: 'artifact', policy: 'mutable' },
+  ];
+  write(scheduledRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(scheduledManifest, null, 2)}\n`);
+  write(scheduledRepo, 'records/seed.md', '# Seed\n\n[live](records/live/day_profile.jsonl)\n');
+  write(scheduledRepo, 'records/closed/seed.jsonl', '{"closed":true}\n');
+  write(scheduledRepo, 'records/live/day_profile.jsonl', '{"day":1}\n');
+  commit(scheduledRepo, 'seed scheduled collection');
+  result = run(['adopt', '--root', scheduledRepo, ...COLLECTION], scheduledRepo);
+  if (result.status === 0) commit(scheduledRepo, 'adopt scheduled collection');
+  writeFileSync(join(scheduledRepo, '.git', 'info', 'exclude'), 'scheduled-review.json\n');
+  write(scheduledRepo, 'records/later.md', '# Later scheduled evidence\n');
+  write(scheduledRepo, 'records/live/day_profile.jsonl', '{"day":1}\n{"day":2}\n');
+  commit(scheduledRepo, 'scheduled record and mutable row');
+  result = run(['plan-adoption', '--incremental', '--root', scheduledRepo, ...COLLECTION,
+    '--out', 'scheduled-review.json'], scheduledRepo);
+  const scheduledReview = result.status === 0
+    ? JSON.parse(readFileSync(join(scheduledRepo, 'scheduled-review.json'), 'utf8')) : null;
+  check('incremental planning keeps broad immutable globs behind exact mutable paths', result.status === 0
+    && scheduledReview?.candidates?.map((candidate) => candidate.path).join(',') === 'records/later.md'
+    && !scheduledReview?.candidates?.some((candidate) => candidate.path === 'records/live/day_profile.jsonl'), result.output);
+  if (result.status === 0) {
+    result = run(['adopt', '--root', scheduledRepo, ...COLLECTION, '--review', 'scheduled-review.json'], scheduledRepo);
+  }
+  if (result.status === 0) commit(scheduledRepo, 'admit scheduled evidence');
+  write(scheduledRepo, 'records/live/day_profile.jsonl', '{"day":1}\n{"day":2}\n{"day":3}\n');
+  const scheduledCheck = result.status === 0 ? run(['check', '--root', scheduledRepo, ...COLLECTION], scheduledRepo) : result;
+  check('scheduled mutable appends remain warnings after incremental immutable admission', result.status === 0
+    && scheduledCheck.status === 0 && scheduledCheck.output.includes('"warnings":1'),
+  `${result.output}\n${scheduledCheck.output}`);
+
   const originalRecord = readFileSync(join(repo, 'records', 'one.md'), 'utf8');
   const revertedHistoryRepo = join(work, 'reverted-record-history'); cpSync(repo, revertedHistoryRepo, { recursive: true });
   write(revertedHistoryRepo, 'records/one.md', `${originalRecord}\ntransient rewrite\n`);
@@ -789,6 +1202,7 @@ try {
   receiptRewriteInventory.adoptionReview.sourceHead = '0'.repeat(40);
   delete receiptRewriteInventory.adoptionReview.receiptDigest;
   receiptRewriteInventory.adoptionReview.receiptDigest = digestJson(receiptRewriteInventory.adoptionReview);
+  rehashAuthorityChain(receiptRewriteInventory);
   writeFileSync(receiptRewritePath, `${JSON.stringify(receiptRewriteInventory, null, 2)}\n`);
   commit(receiptRewriteRepo, 'replace committed adoption receipt');
   result = run(['check', '--root', receiptRewriteRepo, ...COLLECTION], receiptRewriteRepo);
@@ -802,6 +1216,7 @@ try {
   emptyReceiptInventory.adoptionReview.reviewed = [];
   delete emptyReceiptInventory.adoptionReview.receiptDigest;
   emptyReceiptInventory.adoptionReview.receiptDigest = digestJson(emptyReceiptInventory.adoptionReview);
+  rehashAuthorityChain(emptyReceiptInventory);
   writeFileSync(emptyReceiptPath, `${JSON.stringify(emptyReceiptInventory, null, 2)}\n`);
   commit(emptyReceiptRepo, 'forge empty adoption receipt');
   squashCurrentTree(emptyReceiptRepo, 'introduce forged empty adoption receipt');
@@ -836,6 +1251,7 @@ try {
   forgedSourceInventory.adoptionReview.reviewed = [];
   delete forgedSourceInventory.adoptionReview.receiptDigest;
   forgedSourceInventory.adoptionReview.receiptDigest = digestJson(forgedSourceInventory.adoptionReview);
+  rehashAuthorityChain(forgedSourceInventory);
   writeFileSync(forgedSourcePath, `${JSON.stringify(forgedSourceInventory, null, 2)}\n`);
   commit(forgedSourceRepo, 'introduce forged adoption receipt');
   result = run(['check', '--root', forgedSourceRepo, ...COLLECTION], forgedSourceRepo);
@@ -904,6 +1320,7 @@ try {
   const candidatePinPath = generated(candidatePinRepo, 'inventory.json');
   const candidatePinInventory = JSON.parse(readFileSync(candidatePinPath, 'utf8'));
   candidatePinInventory.entries[0].sha256 = sha256(readFileSync(join(candidatePinRepo, 'records', 'one.md')));
+  rehashAuthorityChain(candidatePinInventory);
   writeFileSync(candidatePinPath, `${JSON.stringify(candidatePinInventory, null, 2)}\n`);
   run(['render', '--root', candidatePinRepo, ...COLLECTION], candidatePinRepo); commit(candidatePinRepo, 'coordinated immutable rewrite');
   result = run(['check', '--root', candidatePinRepo, ...COLLECTION], candidatePinRepo);
@@ -914,6 +1331,7 @@ try {
   const rewrittenInventoryPath = generated(committedRewrite, 'inventory.json');
   const rewrittenInventory = JSON.parse(readFileSync(rewrittenInventoryPath, 'utf8'));
   rewrittenInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], committedRewrite).trim();
+  rehashAuthorityChain(rewrittenInventory);
   writeFileSync(rewrittenInventoryPath, `${JSON.stringify(rewrittenInventory, null, 2)}\n`);
   commit(committedRewrite, 'rewrite committed inventory metadata');
   result = run(['check', '--root', committedRewrite, ...COLLECTION], committedRewrite);
@@ -929,6 +1347,7 @@ try {
   const movedInventoryPath = join(renamedHubRewrite, 'knowledge-hub', '98 System', 'Records', 'inventory.json');
   const movedInventory = JSON.parse(readFileSync(movedInventoryPath, 'utf8'));
   movedInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], renamedHubRewrite).trim();
+  rehashAuthorityChain(movedInventory);
   writeFileSync(movedInventoryPath, `${JSON.stringify(movedInventory, null, 2)}\n`);
   commit(renamedHubRewrite, 'move hub with rewritten inventory metadata');
   result = run(['check', '--root', renamedHubRewrite, ...COLLECTION], renamedHubRewrite);
@@ -949,6 +1368,7 @@ try {
     const literalInventoryPath = join(literalHubRepo, ':hub', '98 System', 'Records', 'inventory.json');
     const literalInventory = JSON.parse(readFileSync(literalInventoryPath, 'utf8'));
     literalInventory.entries[0].baselineCommit = git(['rev-parse', 'HEAD'], literalHubRepo).trim();
+    rehashAuthorityChain(literalInventory);
     writeFileSync(literalInventoryPath, `${JSON.stringify(literalInventory, null, 2)}\n`);
     commit(literalHubRepo, 'rewrite inventory under literal-pathspec hub');
     result = run(['check', '--root', literalHubRepo, ...COLLECTION], literalHubRepo);
@@ -1239,9 +1659,10 @@ REC-ZZZZZZZZ
   check('semantic index detects stale curation state even when anchors match', result.status === 1
     && result.output.includes('semantic index drift'), result.output);
   const staleLockRepo = join(work, 'stale-curation-lock'); cpSync(repo, staleLockRepo, { recursive: true });
-  const staleLock = `${generated(staleLockRepo, 'curation.jsonl')}.lock`;
-  mkdirSync(staleLock);
-  writeFileSync(join(staleLock, 'owner.json'), '{"pid":999999999,"acquiredAt":"2000-01-01T00:00:00.000Z"}\n');
+  const staleLockCommon = resolve(staleLockRepo, git(['rev-parse', '--git-common-dir'], staleLockRepo).trim());
+  const staleLock = join(staleLockCommon, 'code-ops-record-locks', `${UUID}.lock`);
+  mkdirSync(staleLock, { recursive: true });
+  writeFileSync(join(staleLock, 'owner.json'), '{"pid":999999999,"token":"stale-owner","acquiredAt":"2000-01-01T00:00:00.000Z"}\n');
   const staleTime = new Date('2000-01-01T00:00:00.000Z'); utimesSync(staleLock, staleTime, staleTime);
   result = run(['curate', '--root', staleLockRepo, ...COLLECTION, '--record', firstId,
     '--at', '2026-01-01T00:00:00.000Z', '--state', '{"status":"reviewed"}'], staleLockRepo);
@@ -1279,7 +1700,8 @@ supersedes: ["${firstId}"]
   result = run(['append', '--root', repo, ...COLLECTION, '--record', 'records/two.md'], repo);
   check('native append stages record metadata transaction', result.status === 0 && result.output.includes('records/two.md'), result.output);
   const nativeInventory = JSON.parse(readFileSync(generated(repo, 'inventory.json'), 'utf8'));
-  check('native append snapshots new immutable artifacts', nativeInventory.artifacts.some((item) => item.path === 'records/frozen/native.json'), JSON.stringify(nativeInventory));
+  check('native append snapshots new immutable artifacts', nativeInventory.artifacts.some((item) => item.path === 'records/frozen/native.json'
+    && item.provenance === 'native'), JSON.stringify(nativeInventory));
   result = run(['check', '--root', repo, ...COLLECTION], repo);
   check('native append passes staged-tree checks', result.status === 0, result.output);
   commit(repo, 'append native record');
@@ -1399,6 +1821,20 @@ supersedes: []
   result = run(['append', '--root', repo, ...COLLECTION, '--record', 'records/three.md', '--no-stage'], repo);
   check('advanced no-stage mode writes without staging generated files', result.status === 0
     && !git(['diff', '--cached', '--name-only'], repo).includes('inventory.json'), result.output);
+
+  const unsafeNoStageRepo = join(work, 'unsafe-no-stage-pending'); cpSync(incrementalRepo, unsafeNoStageRepo, { recursive: true });
+  write(unsafeNoStageRepo, 'records/unadmitted.md', '# Unadmitted committed authority\n');
+  commit(unsafeNoStageRepo, 'commit unrelated pending authority');
+  write(unsafeNoStageRepo, 'records/staged-native.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Staged native\n');
+  git(['add', 'records/staged-native.md'], unsafeNoStageRepo);
+  const unsafeNoStageSnapshot = generatedSnapshot(unsafeNoStageRepo);
+  result = run(['append', '--root', unsafeNoStageRepo, ...COLLECTION,
+    '--record', 'records/staged-native.md', '--no-stage'], unsafeNoStageRepo);
+  const unsafeNoStageStaged = git(['diff', '--cached', '--name-only'], unsafeNoStageRepo).trim().split('\n').filter(Boolean);
+  check('no-stage append rolls back when unrelated committed authority is pending admission', result.status === 1
+    && result.output.includes('pending-admission: record missing from inventory: records/unadmitted.md')
+    && generatedMatches(unsafeNoStageRepo, unsafeNoStageSnapshot)
+    && unsafeNoStageStaged.join(',') === 'records/staged-native.md', result.output);
 
   const citationPath = generated(repo, 'citations.json');
   const locatorDoc = JSON.parse(readFileSync(citationPath, 'utf8'));
