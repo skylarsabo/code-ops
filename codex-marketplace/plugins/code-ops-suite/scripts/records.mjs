@@ -10,7 +10,7 @@ import {
   completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
   gitPaths, historicalTarget, indexSemantic, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
   maskMarkdownFenceAndTopLevelIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
-  resolvePrefix, safePath, sha256, targetAt, trackedPaths, treePathsAt,
+  resolvePrefix, safePath, sha256, targetAt, targetsAt, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
 } from './record-lib.mjs';
 
@@ -92,8 +92,15 @@ function loadContext(root, options) {
   for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
     output[key] = nativePath(root, `${manifest.hub}/${collection[key]}`);
   }
-  const context = { root, manifest, manifestFile, manifestRepoPath, manifestIndex, hub: manifest.hub, collection, output };
-  if (completeHistory(root).ok) assertManifestHistory(context);
+  const history = completeHistory(root);
+  const context = {
+    root, manifest, manifestFile, manifestRepoPath, manifestIndex, hub: manifest.hub, collection, output,
+    history, manifestVersions: null,
+  };
+  if (history.ok) {
+    context.manifestVersions = committedManifestVersions(root);
+    assertManifestHistory(context, context.manifestVersions);
+  }
   return context;
 }
 
@@ -351,7 +358,7 @@ function committedManifestVersions(root) {
   return commits.map((commit) => committedManifestAt(root, commit));
 }
 
-function collectionOutputPaths(context, key, manifestVersions = committedManifestVersions(context.root)) {
+function collectionOutputPaths(context, key, manifestVersions = context.manifestVersions ?? committedManifestVersions(context.root)) {
   const paths = new Set([outputRepoPath(context, key)]);
   for (const version of manifestVersions) {
     if (!version.bytes || !version.path) continue;
@@ -468,7 +475,7 @@ function assertAuthorityBatchHistory(context, versions) {
     && (firstV3 === 0 || versions[firstV3 - 1].version !== 2)) {
     throw new Error('v2 migration authority requires an observed committed v2 predecessor');
   }
-  const manifestVersions = committedManifestVersions(context.root);
+  const manifestVersions = context.manifestVersions ?? committedManifestVersions(context.root);
   const manifestPaths = [...new Set(manifestVersions.map((version) => version.path).filter(Boolean))];
   const outputPaths = Object.fromEntries(['inventory', 'citations', 'curationLedger']
     .map((key) => [key, collectionOutputPaths(context, key, manifestVersions)]));
@@ -539,8 +546,8 @@ function assertAuthorityBatchHistory(context, versions) {
   }
 }
 
-function assertManifestHistory(context) {
-  const versions = committedManifestVersions(context.root)
+function assertManifestHistory(context, manifestVersions = context.manifestVersions ?? committedManifestVersions(context.root)) {
+  const versions = manifestVersions
     .filter((version) => version.bytes)
     .map((version) => {
       try { return { commit: version.commit, manifest: JSON.parse(version.bytes.toString('utf8')) }; }
@@ -763,7 +770,7 @@ function planAdoption(context, options) {
   if (!options.out) throw new Error('plan-adoption requires --out <repo-relative-ignored-path>');
   const output = ignoredReviewPath(context, posix(options.out));
   if (!cleanWorktree(context.root)) throw new Error('adoption planning requires a clean worktree');
-  const history = completeHistory(context.root);
+  const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`adoption planning refused: ${history.reason}`);
   const { rows } = collect(context);
   let planRows = rows; let extension = {};
@@ -888,7 +895,7 @@ function renderCurrent(context, inventory, events) {
 
 function adopt(context, options) {
   if (!cleanWorktree(context.root)) throw new Error('adoption requires a clean worktree');
-  const history = completeHistory(context.root);
+  const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`adoption refused: ${history.reason}`);
   const supplied = options.review ? readJson(ignoredReviewPath(context, posix(options.review))) : null;
   const incremental = supplied?.mode === 'incremental';
@@ -1080,6 +1087,9 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
     if (historyComplete && batch.type === 'native-append' && (!root || !commitIsReachable(root, batch.sourceHead))) {
       throw new Error('authority batch source commit is not reachable from HEAD');
     }
+    const nativeSourceTargets = historyComplete && batch.type === 'native-append'
+      ? targetsAt(root, batch.sourceHead, batch.objects.map((ref) => ref.path))
+      : null;
     if (batch.priorAuthorityDigest !== authorityDigest(runningRefs)) throw new Error('authority batch prior digest mismatch');
     const batchKeys = new Set();
     for (const ref of batch.objects) {
@@ -1097,7 +1107,7 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
         }
         if (batch.type === 'native-append' && (record.provenance !== 'native'
           || record.introducedIndexHead !== batch.sourceHead
-          || (historyComplete && targetAt(root, batch.sourceHead, ref.path) !== null))) {
+          || (historyComplete && nativeSourceTargets.get(ref.path) !== null))) {
           throw new Error(`native authority batch contradicts record provenance: ${ref.path}`);
         }
       } else {
@@ -1107,7 +1117,7 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
         }
         if (batch.type === 'native-append' && (artifact.provenance !== 'native'
           || artifact.introducedIndexHead !== batch.sourceHead
-          || (historyComplete && targetAt(root, batch.sourceHead, ref.path) !== null))) {
+          || (historyComplete && nativeSourceTargets.get(ref.path) !== null))) {
           throw new Error(`native authority batch contradicts artifact provenance: ${ref.path}`);
         }
         if (batch.type === 'v2-migration' && Object.hasOwn(artifact, 'provenance')) {
@@ -1253,14 +1263,28 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
     if (historyComplete) {
       const candidateRows = rows.filter((row) => reviewCandidates.has(row.path));
       const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows);
+      const pathsBySource = new Map();
+      for (const candidate of reviewCandidates.values()) {
+        const sourceHead = reviewSources.get(candidate.path);
+        if (!pathsBySource.has(sourceHead)) pathsBySource.set(sourceHead, []);
+        pathsBySource.get(sourceHead).push(candidate.path);
+      }
+      const sourceStates = new Map();
+      for (const [sourceHead, paths] of pathsBySource) {
+        const reachable = commitIsReachable(context.root, sourceHead);
+        sourceStates.set(sourceHead, {
+          reachable,
+          targets: reachable ? targetsAt(context.root, sourceHead, paths) : null,
+        });
+      }
       for (const candidate of reviewCandidates.values()) {
         const current = currentProfiles.get(candidate.path);
         const sourceHead = reviewSources.get(candidate.path);
-        const sourceReachable = commitIsReachable(context.root, sourceHead);
-        if (sourceReachable && targetAt(context.root, sourceHead, candidate.path)?.targetSha256 !== candidate.currentSha256) {
+        const source = sourceStates.get(sourceHead);
+        if (source.reachable && source.targets.get(candidate.path)?.targetSha256 !== candidate.currentSha256) {
           throw new Error(`adoption review source does not contain its candidate: ${candidate.path}`);
         }
-        if (!reviewCoversCurrentHistory(candidate, current, sourceReachable)) {
+        if (!reviewCoversCurrentHistory(candidate, current, source.reachable)) {
           throw new Error(`adoption review history drift: ${candidate.path}`);
         }
         if (current.adoptionReadiness === 'review-required' && !reviewedCandidates.has(candidate.path)) {
@@ -1369,7 +1393,7 @@ function runCheck(context, {
     ...(context.manifest.legacyPaths || []).map((entry) => entry.path).filter((path) => current.has(path)),
   ]);
   const state = indexedState(context.root, [...statePaths]);
-  const history = completeHistory(context.root);
+  const history = context.history;
   const checkedInventory = checkInventory(context, rows, inventory, state, history.ok);
   const { ids } = checkedInventory;
   if (citations.version !== 1 || citations.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid citation inventory header');
@@ -1448,7 +1472,7 @@ function appendRecord(context, options) {
     throw new Error('record must be tracked in the Git index and staged');
   }
   assertGeneratedUntouched(context);
-  const history = completeHistory(context.root);
+  const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`append refused: ${history.reason}`);
   withMutationLock(context, () => {
     assertGeneratedUntouched(context);
@@ -1544,7 +1568,7 @@ function appendRecord(context, options) {
 
 function curate(context, options) {
   if (!options.record || !options.state) throw new Error('curate requires --record and complete JSON --state');
-  const history = completeHistory(context.root);
+  const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`curation refused: ${history.reason}`);
   let state;
   try { state = JSON.parse(options.state); } catch { throw new Error('--state must be valid JSON'); }
@@ -1602,7 +1626,7 @@ function render(context, options) {
 }
 
 function reindexLocators(context) {
-  const history = completeHistory(context.root);
+  const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`infrastructure history unavailable: ${history.reason}`);
   withMutationLock(context, () => {
     runCheck(context, { allowPending: true });
@@ -1633,7 +1657,7 @@ function reindexLocators(context) {
 
 function classifyCommand(context) {
   const { rows, problems } = collect(context, { allowProblems: true });
-  const history = completeHistory(context.root);
+  const history = context.history;
   let rendered = rows;
   let readiness = problems.length
     ? { status: 'classification-invalid' }

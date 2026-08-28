@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 ## 1.49.0
+- Record history profiling batches HEAD tree lookups and historical blob hashing. Receipt-source checks and reachable-blob recovery use bounded batch reads.
+- Per-command caches reuse repository completeness, manifest history, and object format without crossing operation boundaries. Every authority check remains fail-closed.
+- The Windows record eval fell from 1,031.356 to 659.283 seconds (36.1%). The 200-record profile fell from 42.553 to a median 8.634 seconds.
+- Windows CI now allows 20 minutes, preserving its complete validation workload while providing measured runner-variance headroom.
 - The traceless scanner excludes box-drawing glyphs and non-pictographic topology arrows while still blocking bare BMP and supplemental pictographs, default emoji, flags, variation-selector emoji, and keycaps. An explicit `--emdash-baseline-file` preserves the fail-closed default while measuring net dash-count growth against verified pre-edit text.
 - Authority verification re-derives native exact-path history, batch-introduction commits, introduction-state manifests, and complete predecessor bindings. Reachable adoption sources must contain the reviewed candidates, the bound manifest, and the complete candidate history profiles. Operational classification parses the canonical Git-index manifest, so checkout filters cannot substitute worktree-only policy. Native writes reject visible worktree drift and staged manifest movement during the transaction. A fresh v3 collection cannot claim a v2 migration.
 - Every generated-authority writer uses shared post-write semantic verification and restores the prior generated state on failure. The manifest index snapshot is checked at both transaction boundaries, including when history is shallow. A lock-release anomaly preserves the mutation result, so durable success cannot invite an unsafe retry.

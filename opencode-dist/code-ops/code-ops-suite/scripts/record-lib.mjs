@@ -24,6 +24,7 @@ const MAX_HISTORY_EVENTS = 250000;
 const MAX_HISTORY_BATCH_PATHS = 128;
 const MAX_HISTORY_COMMAND_UNITS = 24000;
 const MAX_BLOB_BATCH_BYTES = 32 * 1024 * 1024;
+const OBJECT_FORMATS = new Map();
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonical = (value) => Array.isArray(value)
@@ -78,6 +79,12 @@ export function physicalRoot(value) {
   }
 }
 
+function objectFormat(root) {
+  const key = physicalRoot(root);
+  if (!OBJECT_FORMATS.has(key)) OBJECT_FORMATS.set(key, git(root, ['rev-parse', '--show-object-format']).trim());
+  return OBJECT_FORMATS.get(key);
+}
+
 export function git(root, args, binary = false) {
   return execFileSync('git', args, {
     cwd: root, encoding: binary ? 'buffer' : 'utf8', timeout: 30000,
@@ -100,20 +107,27 @@ export class GitStateError extends Error {}
 function literalPath(path) { return `:(literal)${path}`; }
 function oidInput(oids) { return Buffer.from(`${oids.join('\n')}\n`, 'ascii'); }
 
-function blobMetadata(root, oids) {
+function objectMetadata(root, oids) {
   if (!oids.length) return [];
   let output;
   try {
     output = gitInput(root, ['cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize)'], oidInput(oids));
-  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading index state: ${error.message}`); }
+  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading object metadata: ${error.message}`); }
   const lines = output.trim().split(/\r?\n/);
   if (lines.length !== oids.length) throw new GitStateError('git-state: malformed cat-file batch metadata');
   return lines.map((line, index) => {
     const match = /^([0-9a-f]+) (\S+) (\d+)$/.exec(line);
-    if (!match || match[1] !== oids[index] || match[2] !== 'blob') {
+    if (!match || match[1] !== oids[index]) {
       throw new GitStateError(`git-state: malformed cat-file batch response for ${oids[index]}`);
     }
-    return { oid: match[1], size: Number(match[3]) };
+    return { oid: match[1], type: match[2], size: Number(match[3]) };
+  });
+}
+
+function blobMetadata(root, oids) {
+  return objectMetadata(root, oids).map((entry) => {
+    if (entry.type !== 'blob') throw new GitStateError(`git-state: object is not a blob: ${entry.oid}`);
+    return entry;
   });
 }
 
@@ -135,7 +149,7 @@ function readBlobBatch(root, batch) {
   try {
     output = gitInput(root, ['cat-file', '--batch'], oidInput(batch.map((entry) => entry.oid)), true,
       Math.max(64 * 1024 * 1024, expectedBytes + 1024));
-  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading index state: ${error.message}`); }
+  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading object content: ${error.message}`); }
   const blobs = new Map(); let offset = 0;
   for (const expected of batch) {
     const headerEnd = output.indexOf(10, offset);
@@ -519,11 +533,12 @@ function repositoryHistory(root, rows) {
     });
 }
 
-function stableHistoryEvents(root, events, blobDigests) {
+function stableHistoryEvents(events, blobDigests) {
   const contentDigest = (oid) => {
     if (/^0+$/.test(oid)) return null;
-    if (!blobDigests.has(oid)) blobDigests.set(oid, sha256(git(root, ['cat-file', '-p', oid], true)));
-    return blobDigests.get(oid);
+    const digest = blobDigests.get(oid);
+    if (!digest) throw new GitStateError(`git-state: history blob is unavailable: ${oid}`);
+    return digest;
   };
   return events.map((event) => ({
     status: event.status, oldPath: event.oldPath, newPath: event.newPath,
@@ -531,10 +546,50 @@ function stableHistoryEvents(root, events, blobDigests) {
   })).sort((left, right) => canonical(left).localeCompare(canonical(right)));
 }
 
+function historyBlobDigests(root, events) {
+  const oids = [...new Set(events.flatMap((event) => [event.oldBlobOid, event.newBlobOid])
+    .filter((oid) => oid && !/^0+$/.test(oid)))].sort();
+  const metadata = blobMetadata(root, oids);
+  const oversized = metadata.find((entry) => entry.size > MAX_BLOB_BATCH_BYTES);
+  if (oversized) throw new GitStateError(`git-state: history blob exceeds ${MAX_BLOB_BATCH_BYTES}-byte limit: ${oversized.oid}`);
+  const digests = new Map();
+  for (const batch of blobBatches(metadata)) {
+    for (const [oid, blob] of readBlobBatch(root, batch)) digests.set(oid, blob.targetSha256);
+  }
+  return digests;
+}
+
+function treeBlobOids(root, commit, paths) {
+  const requested = [...new Set(paths)].sort();
+  const entries = new Map(requested.map((path) => [path, null]));
+  for (const path of requested) if (!safePath(path)) throw new GitStateError(`git-state: invalid requested path: ${path}`);
+  for (const batch of historyPathBatches(requested)) {
+    let output;
+    try {
+      output = git(root, ['ls-tree', '-r', '-z', '--full-tree', commit, '--', ...batch.map(literalPath)], true);
+    } catch (error) {
+      throw new GitStateError(`git-state: Git subprocess failed while reading ${commit} tree state: ${error.message}`);
+    }
+    for (const record of output.toString('utf8').split('\0').filter(Boolean)) {
+      const match = /^([0-7]{6}) (\S+) ([0-9a-f]+)\t([\s\S]+)$/.exec(record);
+      if (!match) throw new GitStateError(`git-state: malformed ls-tree record at ${commit}`);
+      const path = posix(match[4]);
+      if (!entries.has(path)) throw new GitStateError(`git-state: unexpected tree entry at ${commit}: ${path}`);
+      if (!['100644', '100755'].includes(match[1]) || match[2] !== 'blob') {
+        throw new GitStateError(`git-state: unsupported tree entry at ${commit}: ${path}`);
+      }
+      if (entries.get(path) !== null) throw new GitStateError(`git-state: duplicate tree entry at ${commit}: ${path}`);
+      entries.set(path, match[3]);
+    }
+  }
+  return entries;
+}
+
 export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitted = false, indexed = null } = {}) {
   const immutable = rows.filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy));
-  const events = repositoryHistory(root, immutable); const profiles = new Map(); const blobDigests = new Map();
+  const events = repositoryHistory(root, immutable); const profiles = new Map(); const profileDrafts = [];
   const currentIndex = indexed || indexSnapshot(root, immutable.map((row) => row.path));
+  const headBlobOids = treeBlobOids(root, 'HEAD', immutable.map((row) => row.path));
   for (const row of immutable) {
     const exactEvents = events.flatMap((event, eventIndex) => {
       if (event.status === 'R' && event.newPath === row.path) return [{ ...event, eventIndex, status: 'A', path: row.path, renamedFrom: event.oldPath }];
@@ -546,8 +601,7 @@ export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitt
     const admissionIndex = exactEvents.findIndex((event) => event.status === 'A');
     const currentTarget = currentIndex.get(row.path);
     if (!currentTarget) throw new Error(`record bytes unavailable from Git index: ${row.path}`);
-    const headTarget = targetAt(root, 'HEAD', row.path);
-    const indexDiffersFromHead = !headTarget || headTarget.blobOid !== currentTarget.blobOid;
+    const indexDiffersFromHead = headBlobOids.get(row.path) !== currentTarget.blobOid;
     if (admissionIndex < 0) {
       if (allowUncommitted && indexDiffersFromHead) {
         profiles.set(row.path, {
@@ -615,16 +669,24 @@ export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitt
       priorIncarnations: allPriorEvents.filter((event) => event.status === 'A'
         || (event.status === 'R' && event.newPath === event.path)).length,
     };
-    const historyDigest = digestJson({
-      path: row.path,
-      lineageEvents: stableHistoryEvents(root, lineageEvents, blobDigests),
-      priorEvents: stableHistoryEvents(root, allPriorEvents, blobDigests),
-    });
     const adoptionReadiness = contentChanged || allPriorEvents.length ? 'review-required' : 'ready';
-    profiles.set(row.path, {
+    profiles.set(row.path, null);
+    profileDrafts.push({ path: row.path, lineageEvents, allPriorEvents, profile: {
       path: row.path, kind: row.kind, policy: row.policy, currentSha256: currentTarget.targetSha256,
-      history, historyDigest, adoptionReadiness,
+      history, adoptionReadiness,
       reason: allPriorEvents.length ? 'deleted-readded' : contentChanged ? 'historically-revised' : 'stable-so-far',
+    } });
+  }
+  const blobDigests = historyBlobDigests(root, profileDrafts
+    .flatMap((draft) => [...draft.lineageEvents, ...draft.allPriorEvents]));
+  for (const draft of profileDrafts) {
+    profiles.set(draft.path, {
+      ...draft.profile,
+      historyDigest: digestJson({
+        path: draft.path,
+        lineageEvents: stableHistoryEvents(draft.lineageEvents, blobDigests),
+        priorEvents: stableHistoryEvents(draft.allPriorEvents, blobDigests),
+      }),
     });
   }
   return profiles;
@@ -632,18 +694,31 @@ export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitt
 export function treePathsAt(root, commit) {
   return gitPaths(root, ['ls-tree', '-r', '-z', '--name-only', commit]);
 }
+export function targetsAt(root, commit, paths) {
+  const tree = treeBlobOids(root, commit, paths);
+  const oids = [...new Set([...tree.values()].filter(Boolean))].sort();
+  const metadata = blobMetadata(root, oids);
+  const oversized = metadata.find((entry) => entry.size > MAX_BLOB_BATCH_BYTES);
+  if (oversized) throw new GitStateError(`git-state: tree blob exceeds ${MAX_BLOB_BATCH_BYTES}-byte limit: ${oversized.oid}`);
+  const blobs = new Map();
+  for (const batch of blobBatches(metadata)) for (const [oid, blob] of readBlobBatch(root, batch)) blobs.set(oid, blob);
+  const format = oids.length ? objectFormat(root) : null;
+  return new Map([...tree].map(([path, blobOid]) => [path, blobOid ? {
+    objectFormat: format, blobOid, commitOid: commit, path, targetSha256: blobs.get(blobOid).targetSha256,
+  } : null]));
+}
 export function targetAt(root, commit, path) {
   try {
     const blobOid = git(root, ['rev-parse', commit + ':' + path]).trim();
     const content = git(root, ['cat-file', '-p', blobOid], true);
-    return { objectFormat: git(root, ['rev-parse', '--show-object-format']).trim(), blobOid, commitOid: commit, path, targetSha256: sha256(content) };
+    return { objectFormat: objectFormat(root), blobOid, commitOid: commit, path, targetSha256: sha256(content) };
   } catch { return null; }
 }
 export function targetAtIndex(root, path) {
   try {
     const entry = indexSnapshot(root, [path]).get(path);
     return {
-      objectFormat: git(root, ['rev-parse', '--show-object-format']).trim(), blobOid: entry.blobOid,
+      objectFormat: objectFormat(root), blobOid: entry.blobOid,
       commitOid: null, path, targetSha256: entry.targetSha256,
     };
   } catch (error) {
@@ -654,19 +729,41 @@ export function targetAtIndex(root, path) {
 export function findBlobByDigest(root, digest) {
   const rows = git(root, ['rev-list', '--objects', '--all', '--missing=print']).split(/\r?\n/)
     .filter((line) => line && !line.startsWith('?')).sort();
-  const seen = new Set();
+  const paths = new Map(); const oids = [];
   for (const row of rows) {
     const [oid, ...pathParts] = row.split(' ');
-    if (seen.has(oid)) continue;
-    seen.add(oid);
+    if (paths.has(oid)) continue;
+    paths.set(oid, pathParts.join(' ') || null); oids.push(oid);
+  }
+  const metadata = objectMetadata(root, oids).filter((entry) => entry.type === 'blob');
+  const match = (oid, content) => sha256(content) === digest ? {
+    objectFormat: objectFormat(root), blobOid: oid, commitOid: null,
+    path: paths.get(oid), targetSha256: digest,
+  } : null;
+  const readIndividually = (entries) => {
+    for (const entry of entries) {
+      try {
+        const found = match(entry.oid, git(root, ['cat-file', '-p', entry.oid], true));
+        if (found) return found;
+      } catch { /* another reachable blob may still resolve */ }
+    }
+    return null;
+  };
+  for (const batch of blobBatches(metadata)) {
+    if (batch.some((entry) => entry.size > MAX_BLOB_BATCH_BYTES)) {
+      const found = readIndividually(batch);
+      if (found) return found;
+      continue;
+    }
     try {
-      if (git(root, ['cat-file', '-t', oid]).trim() !== 'blob') continue;
-      const content = git(root, ['cat-file', '-p', oid], true);
-      if (sha256(content) === digest) return {
-        objectFormat: git(root, ['rev-parse', '--show-object-format']).trim(),
-        blobOid: oid, commitOid: null, path: pathParts.join(' ') || null, targetSha256: digest,
-      };
-    } catch { /* another object may still resolve */ }
+      for (const [oid, blob] of readBlobBatch(root, batch)) {
+        const found = match(oid, blob.bytes);
+        if (found) return found;
+      }
+    } catch {
+      const found = readIndividually(batch);
+      if (found) return found;
+    }
   }
   return null;
 }

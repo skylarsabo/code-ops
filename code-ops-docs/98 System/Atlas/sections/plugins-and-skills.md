@@ -18,6 +18,8 @@ The documentation skills now share one v4 authority model. `vault` owns genesis 
 
 The shared boundary rejects symlinked or drive-qualified paths before reads and writes. Canonical stage-0 blobs own content identity and native metadata. Git's content-aware comparison separates checkout transformations from real edits. Native authority is re-derived from exact path history and its batch-introduction commit. A clone-wide collection lock serializes authority writers across sibling worktrees without making durable success retryable when cleanup fails.
 
+The records engine treats Git process launches as a bounded resource. It batches HEAD-tree comparisons, historical blob hashing, receipt-source validation, and reachable-object recovery. Command-local caches reuse repository format, completeness, and manifest history without carrying state into another operation. Per-path `--follow` queries remain separate because they own rename-lineage evidence.
+
 The traceless scanner is one canonical script shared by the code-ops and privacy packages. Unicode emoji properties keep topology glyphs out of findings. A single-file dash baseline subtracts inherited density only; every attribution, tool, phrase, boilerplate, and emoji rule still scans the complete edited text.
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.

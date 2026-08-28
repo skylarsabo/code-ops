@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "81885c3366a89437170d46735112f73fa4ddcf5c",
-      "verifiedDigest": "2b05f3097a0e0edd1db502066515a72055e24b165fe510eb7d4807b785edffe5"
+      "verifiedAt": "72c05c43ace3303d18c5a3ec90f81c01328bef0a",
+      "verifiedDigest": "7a85e640056acd1e2bf920193e700103233816a287d63c7c62d7c01f48ebfa4c"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "81885c3366a89437170d46735112f73fa4ddcf5c",
-      "verifiedDigest": "704ceab3a3f5205213731b196ea143d304be5b40f17801559e4a2b235db24d2c"
+      "verifiedAt": "72c05c43ace3303d18c5a3ec90f81c01328bef0a",
+      "verifiedDigest": "4fa557f482b7dbd730efaa189f8ed0fb4006c432f5703531787f793437a85011"
     },
     {
       "slug": "evals-and-calibration",
@@ -38,8 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "81885c3366a89437170d46735112f73fa4ddcf5c",
-      "verifiedDigest": "db198387017b8277ae83ee3b04e34b22931fe0787310c73b0020fb43c3d17c3d"
+      "verifiedAt": "72c05c43ace3303d18c5a3ec90f81c01328bef0a",
+      "verifiedDigest": "b6f3b8aa62f1a299cee4caebec2f5b09952eb742768e063a702073383189585a"
     },
     {
       "slug": "ci-workflows",
@@ -47,8 +47,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "a63dbe4d849d95ac689c6c4d51930d149c61e9a7",
-      "verifiedDigest": "456f59dec8bc8322031006ed9e3c0ef4275b5a283ffdf6cbc8d0ac690ef16c43"
+      "verifiedAt": "72c05c43ace3303d18c5a3ec90f81c01328bef0a",
+      "verifiedDigest": "082556777289e3d8a8533704abc0514ddc38785d4926c606d449fcaa2c5b34b9"
     },
     {
       "slug": "docs-doctrine",

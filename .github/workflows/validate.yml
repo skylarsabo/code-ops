@@ -206,7 +206,7 @@ jobs:
 
   structural-lint-windows:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       # Same pinned actions as structural-lint above — see that job's comment for the SHA-pin
       # rationale. This job mirrors the ubuntu structural-lint checks on Windows so a
