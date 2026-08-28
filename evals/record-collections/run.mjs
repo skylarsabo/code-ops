@@ -4,14 +4,17 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { digestJson, extractCitations, historyPathBatches, indexSnapshot, recordId, resolvePrefix, sha256, writeAtomically } from '../../scripts/record-lib.mjs';
+import {
+  citationAuthority, digestJson, extractCitations, historyPathBatches, indexSemantic, indexSnapshot, jsonl,
+  recordId, resolvePrefix, sha256, writeAtomically,
+} from '../../scripts/record-lib.mjs';
 
 const ROOT = process.cwd();
 const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 190 : 193;
+const expectedCases = process.platform === 'win32' ? 197 : 200;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -22,8 +25,13 @@ function check(name, condition, detail = '') {
   if (!condition) { failures.push(`${name}: ${detail}`); if (detail) console.log(detail); }
 }
 function run(args, cwd) {
+  return runWithScript(SCRIPT, args, cwd);
+}
+function runWithScript(script, args, cwd, env = {}) {
   try {
-    const stdout = execFileSync(process.execPath, [SCRIPT, ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const stdout = execFileSync(process.execPath, [script, ...args], {
+      cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env },
+    });
     return { status: 0, output: stdout };
   } catch (error) {
     return { status: error.status ?? 1, output: `${error.stdout || ''}${error.stderr || ''}` };
@@ -56,6 +64,14 @@ function write(repo, path, text) {
   mkdirSync(join(target, '..'), { recursive: true });
   writeFileSync(target, text);
 }
+function instrumentedRecordsScript(name, transform) {
+  const directory = join(work, name); mkdirSync(directory, { recursive: true });
+  const source = readFileSync(SCRIPT, 'utf8'); const instrumented = transform(source);
+  if (instrumented === source) throw new Error(`instrumentation anchor was not found for ${name}`);
+  const script = join(directory, 'records.mjs'); writeFileSync(script, instrumented);
+  cpSync(join(ROOT, 'scripts', 'record-lib.mjs'), join(directory, 'record-lib.mjs'));
+  return script;
+}
 function fixtureManifest() {
   return {
     version: 2, hub: 'hub', runs: { tracking: 'ignored' }, domains: [], legacyPaths: [],
@@ -86,6 +102,27 @@ function authorityRefDigest(refs) {
     return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
   }));
 }
+function inventoryAuthorityRefs(inventory) {
+  return [
+    ...(inventory.entries || []).map((entry) => ({ type: 'record', path: entry.path, objectDigest: digestJson(entry) })),
+    ...(inventory.artifacts || []).map((artifact) => ({ type: 'artifact', path: artifact.path, objectDigest: digestJson(artifact) })),
+  ].sort((left, right) => {
+    const leftKey = `${left.type}:${left.path}`; const rightKey = `${right.type}:${right.path}`;
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+}
+function fixtureGeneratedBindings(inventory, citations, events) {
+  const citationSemantics = {
+    version: citations.version, collectionUuid: citations.collectionUuid,
+    entries: (citations.entries || []).map(citationAuthority),
+  };
+  return {
+    inventorySha256: digestJson(inventory), citationsSha256: digestJson(citationSemantics),
+    curationLedgerSha256: sha256(Buffer.from(jsonl(events))),
+    indexSha256: digestJson(indexSemantic(fixtureManifest().recordCollections[0], inventory, events)),
+    authorityBatchHead: inventory.authorityBatches?.at(-1)?.batchDigest || null,
+  };
+}
 function rehashAuthorityBatch(batch) {
   const { batchDigest: _batchDigest, ...authority } = batch;
   batch.batchDigest = digestJson(authority);
@@ -95,9 +132,10 @@ function rehashAuthorityChain(inventory) {
     ...(inventory.entries || []).map((entry) => [`record:${entry.path}`, digestJson(entry)]),
     ...(inventory.artifacts || []).map((artifact) => [`artifact:${artifact.path}`, digestJson(artifact)]),
   ]);
-  let covered = []; let previousBatchDigest = null;
+  let covered = []; let previousBatchDigest = null; let previousBatch = null;
   for (const batch of inventory.authorityBatches || []) {
     batch.previousBatchDigest = previousBatchDigest;
+    if (batch.baseBindings) batch.baseBindings.authorityBatchHead = previousBatchDigest;
     batch.priorAuthorityDigest = authorityRefDigest(covered);
     for (const ref of batch.objects) ref.objectDigest = objects.get(`${ref.type}:${ref.path}`) || ref.objectDigest;
     covered = [...covered, ...batch.objects];
@@ -105,12 +143,20 @@ function rehashAuthorityChain(inventory) {
     if (['genesis-adoption', 'v2-migration'].includes(batch.type)) {
       batch.reviewReceiptDigest = inventory.adoptionReview?.receiptDigest || null;
     }
+    if (batch.type === 'incremental-adoption' && batch.review) {
+      batch.review.baseBindings = structuredClone(previousBatch?.type === 'v2-migration'
+        && previousBatch.sourceHead === batch.sourceHead ? previousBatch.baseBindings : batch.baseBindings);
+      delete batch.review.receiptDigest;
+      batch.review.receiptDigest = digestJson(batch.review);
+      batch.reviewReceiptDigest = batch.review.receiptDigest;
+    }
     if (batch.type === 'genesis-adoption') {
       batch.sourceHead = inventory.adoptionReview?.sourceHead || batch.sourceHead;
       batch.manifestSha256 = inventory.adoptionReview?.manifestSha256 || batch.manifestSha256;
     }
     rehashAuthorityBatch(batch);
     previousBatchDigest = batch.batchDigest;
+    previousBatch = batch;
   }
 }
 function moveAuthorityRef(inventory, fromBatch, toBatch, predicate) {
@@ -946,7 +992,7 @@ try {
   result = run(['plan-adoption', '--incremental', '--require-delta', '--root', incrementalRepo, ...COLLECTION,
     '--out', 'required-review.json'], incrementalRepo);
   check('require-delta refuses an empty incremental plan without writes', result.status === 1
-    && result.output.includes('incremental adoption requires at least one pending immutable path')
+    && result.output.includes('incremental admission requires at least one pending immutable path')
     && !existsSync(join(incrementalRepo, 'required-review.json'))
     && generatedMatches(incrementalRepo, emptyIncrementalSnapshot), result.output);
 
@@ -1014,6 +1060,7 @@ try {
   duplicateCoverage.authorityBatches[0].authorityDigest = authorityRefDigest(duplicateCoverage.authorityBatches[0].objects);
   rehashAuthorityBatch(duplicateCoverage.authorityBatches[0]);
   duplicateCoverage.authorityBatches[1].previousBatchDigest = duplicateCoverage.authorityBatches[0].batchDigest;
+  duplicateCoverage.authorityBatches[1].baseBindings.authorityBatchHead = duplicateCoverage.authorityBatches[0].batchDigest;
   duplicateCoverage.authorityBatches[1].priorAuthorityDigest = duplicateCoverage.authorityBatches[0].authorityDigest;
   rehashAuthorityBatch(duplicateCoverage.authorityBatches[1]);
   writeFileSync(duplicateCoveragePath, `${JSON.stringify(duplicateCoverage, null, 2)}\n`);
@@ -1057,6 +1104,119 @@ try {
   check('a validly rehashed native batch cannot relabel a historical frozen artifact as native', batchProvenanceSeed.status === 0
     && result.status === 1 && result.output.includes('native authority batch contradicts artifact provenance'),
   `${batchProvenanceSeed.output}\n${result.output}`);
+
+  const reusedNativeRepo = join(work, 'reused-path-forged-native'); mkdirSync(reusedNativeRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], reusedNativeRepo);
+  write(reusedNativeRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(reusedNativeRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(reusedNativeRepo, 'records/one.md', '# Seed\n');
+  write(reusedNativeRepo, 'records/reused.md', '# Historical incarnation\n');
+  commit(reusedNativeRepo, 'seed a historical record path');
+  git(['rm', 'records/reused.md'], reusedNativeRepo); commit(reusedNativeRepo, 'delete the historical record path');
+  result = run(['adopt', '--root', reusedNativeRepo, ...COLLECTION], reusedNativeRepo);
+  if (result.status === 0) commit(reusedNativeRepo, 'adopt the surviving record');
+  write(reusedNativeRepo, 'records/legitimate.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Legitimate native\n');
+  git(['add', 'records/legitimate.md'], reusedNativeRepo);
+  const legitimateNative = run(['append', '--root', reusedNativeRepo, ...COLLECTION,
+    '--record', 'records/legitimate.md'], reusedNativeRepo);
+  const reusedInventoryPath = generated(reusedNativeRepo, 'inventory.json');
+  const reusedInventory = JSON.parse(readFileSync(reusedInventoryPath, 'utf8'));
+  const reusedCitations = JSON.parse(readFileSync(generated(reusedNativeRepo, 'citations.json'), 'utf8'));
+  const reusedLedgerText = readFileSync(generated(reusedNativeRepo, 'curation.jsonl'), 'utf8').trim();
+  const reusedEvents = reusedLedgerText ? reusedLedgerText.split(/\r?\n/).map(JSON.parse) : [];
+  const forgedNativeBase = fixtureGeneratedBindings(reusedInventory, reusedCitations, reusedEvents);
+  const forgedNativeSource = reusedInventory.authorityBatches.at(-1).sourceHead;
+  write(reusedNativeRepo, 'records/reused.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Reused native\n');
+  git(['add', 'records/reused.md'], reusedNativeRepo);
+  const reusedEntry = {
+    id: recordId(UUID, 'records/reused.md'), identityVersion: 1, path: 'records/reused.md', provenance: 'native',
+    sha256: sha256(readFileSync(join(reusedNativeRepo, 'records', 'reused.md'))), kind: 'record', policy: 'append-only',
+    introducedCommit: null, introducedIndexHead: forgedNativeSource, supersedes: [],
+  };
+  const priorNativeRefs = inventoryAuthorityRefs(reusedInventory);
+  reusedInventory.entries.push(reusedEntry);
+  const reusedRef = { type: 'record', path: reusedEntry.path, objectDigest: digestJson(reusedEntry) };
+  const forgedNativeBatch = {
+    version: 1, sequence: reusedInventory.authorityBatches.length + 1, type: 'native-append',
+    previousBatchDigest: reusedInventory.authorityBatches.at(-1).batchDigest, sourceHead: forgedNativeSource,
+    manifestSha256: sha256(readFileSync(join(reusedNativeRepo, 'hub', '98 System', 'DOCS_MANIFEST.json'))),
+    priorAuthorityDigest: authorityRefDigest(priorNativeRefs),
+    authorityDigest: authorityRefDigest([...priorNativeRefs, reusedRef]), baseBindings: forgedNativeBase,
+    objects: [reusedRef], review: null, reviewReceiptDigest: null,
+  };
+  rehashAuthorityBatch(forgedNativeBatch); reusedInventory.authorityBatches.push(forgedNativeBatch);
+  writeFileSync(reusedInventoryPath, `${JSON.stringify(reusedInventory, null, 2)}\n`);
+  result = run(['check', '--root', reusedNativeRepo, ...COLLECTION], reusedNativeRepo);
+  check('a reachable source tree cannot hide earlier exact-path history from a forged native batch', legitimateNative.status === 0
+    && result.status === 1 && result.output.includes('native authority path has history before admission: records/reused.md'),
+  `${legitimateNative.output}\n${result.output}`);
+
+  const reusedArtifactRepo = join(work, 'reused-artifact-forged-native'); mkdirSync(reusedArtifactRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], reusedArtifactRepo);
+  write(reusedArtifactRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(reusedArtifactRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(reusedArtifactRepo, 'records/one.md', '# Seed\n');
+  write(reusedArtifactRepo, 'records/frozen/reused.json', '{"historical":true}\n');
+  commit(reusedArtifactRepo, 'seed a historical artifact path');
+  git(['rm', 'records/frozen/reused.json'], reusedArtifactRepo); commit(reusedArtifactRepo, 'delete the historical artifact path');
+  result = run(['adopt', '--root', reusedArtifactRepo, ...COLLECTION], reusedArtifactRepo);
+  if (result.status === 0) commit(reusedArtifactRepo, 'adopt before the native artifact transaction');
+  write(reusedArtifactRepo, 'records/native-artifact.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Native artifact\n');
+  write(reusedArtifactRepo, 'records/frozen/template.json', '{"native":true}\n');
+  git(['add', 'records/native-artifact.md', 'records/frozen/template.json'], reusedArtifactRepo);
+  const legitimateArtifactBatch = run(['append', '--root', reusedArtifactRepo, ...COLLECTION,
+    '--record', 'records/native-artifact.md'], reusedArtifactRepo);
+  const reusedArtifactPath = generated(reusedArtifactRepo, 'inventory.json');
+  const reusedArtifactInventory = JSON.parse(readFileSync(reusedArtifactPath, 'utf8'));
+  const nativeArtifact = reusedArtifactInventory.artifacts.find((artifact) => artifact.path === 'records/frozen/template.json');
+  nativeArtifact.path = 'records/frozen/reused.json';
+  const nativeArtifactBatch = reusedArtifactInventory.authorityBatches.at(-1);
+  nativeArtifactBatch.objects.find((ref) => ref.path === 'records/frozen/template.json').path = nativeArtifact.path;
+  rehashAuthorityChain(reusedArtifactInventory);
+  git(['rm', '-f', 'records/frozen/template.json'], reusedArtifactRepo);
+  write(reusedArtifactRepo, 'records/frozen/reused.json', '{"native":true}\n');
+  git(['add', 'records/frozen/reused.json'], reusedArtifactRepo);
+  writeFileSync(reusedArtifactPath, `${JSON.stringify(reusedArtifactInventory, null, 2)}\n`);
+  result = run(['check', '--root', reusedArtifactRepo, ...COLLECTION], reusedArtifactRepo);
+  check('native artifact authority cannot reuse a historically deleted exact path', legitimateArtifactBatch.status === 0
+    && result.status === 1 && result.output.includes('native authority path has history before admission: records/frozen/reused.json'),
+  `${legitimateArtifactBatch.output}\n${result.output}`);
+
+  const separatedNativeRepo = join(work, 'native-path-before-batch'); cpSync(repo, separatedNativeRepo, { recursive: true });
+  write(separatedNativeRepo, 'records/separated.md', '---\nrecordSchema: 1\nsupersedes: []\n---\n# Separated native\n');
+  git(['add', 'records/separated.md'], separatedNativeRepo);
+  const separatedNative = run(['append', '--root', separatedNativeRepo, ...COLLECTION,
+    '--record', 'records/separated.md'], separatedNativeRepo);
+  if (separatedNative.status === 0) {
+    git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm',
+      'commit native path before its authority batch', '--only', '--', 'records/separated.md'], separatedNativeRepo);
+    commit(separatedNativeRepo, 'commit delayed native authority batch');
+  }
+  result = separatedNative.status === 0
+    ? run(['check', '--root', separatedNativeRepo, ...COLLECTION], separatedNativeRepo)
+    : separatedNative;
+  check('native authority path must first appear in the same commit as its batch', separatedNative.status === 0
+    && result.status === 1 && result.output.includes('native authority path was not introduced with its batch: records/separated.md'),
+  `${separatedNative.output}\n${result.output}`);
+
+  const falseMigrationRepo = join(work, 'fresh-v3-false-migration'); mkdirSync(falseMigrationRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], falseMigrationRepo);
+  write(falseMigrationRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(falseMigrationRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  write(falseMigrationRepo, 'records/one.md', '# Fresh v3\n'); commit(falseMigrationRepo, 'seed fresh collection');
+  result = run(['adopt', '--root', falseMigrationRepo, ...COLLECTION], falseMigrationRepo);
+  const falseMigrationPath = generated(falseMigrationRepo, 'inventory.json');
+  const falseMigrationInventory = JSON.parse(readFileSync(falseMigrationPath, 'utf8'));
+  falseMigrationInventory.authorityBatches[0].type = 'v2-migration';
+  falseMigrationInventory.authorityBatches[0].baseBindings = {
+    inventorySha256: '0'.repeat(64), citationsSha256: '0'.repeat(64), curationLedgerSha256: '0'.repeat(64),
+    indexSha256: '0'.repeat(64), authorityBatchHead: null,
+  };
+  rehashAuthorityBatch(falseMigrationInventory.authorityBatches[0]);
+  writeFileSync(falseMigrationPath, `${JSON.stringify(falseMigrationInventory, null, 2)}\n`);
+  result = run(['check', '--root', falseMigrationRepo, ...COLLECTION], falseMigrationRepo);
+  check('a fresh v3 collection cannot claim a migration without a committed v2 predecessor', result.status === 1
+    && result.output.includes('v2 migration authority requires an observed committed v2 predecessor'), result.output);
 
   const expandedMigrationRepo = join(work, 'expanded-v2-migration-batch'); cpSync(nativeMigrationRepo, expandedMigrationRepo, { recursive: true });
   const expandedMigrationPath = generated(expandedMigrationRepo, 'inventory.json');
@@ -1138,6 +1298,52 @@ try {
     '--state', '{"status":"reviewed"}', '--at', '2026-08-28T02:00:00.000Z'], ownerlessLockRepo);
   check('an aged ownerless collection lock is recovered for the waiting mutation', result.status === 0
     && !existsSync(ownerlessLock), result.output);
+
+  const releaseFailureScript = instrumentedRecordsScript('release-failure-script', (source) => source.replace(
+    /function releaseMutationLock\(lease\) \{\r?\n/,
+    (match) => `${match}  if (process.env.CODE_OPS_EVAL_RELEASE_FAILURE === '1') throw new Error('synthetic release failure');\n`,
+  ));
+  const releaseSuccessRepo = join(work, 'release-failure-after-success'); cpSync(incrementalRepo, releaseSuccessRepo, { recursive: true });
+  const releaseSuccessLedger = generated(releaseSuccessRepo, 'curation.jsonl');
+  const releaseSuccessBefore = readFileSync(releaseSuccessLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  result = runWithScript(releaseFailureScript, ['curate', '--root', releaseSuccessRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"release-proof"}', '--at', '2026-08-28T03:00:00.000Z'],
+  releaseSuccessRepo, { CODE_OPS_EVAL_RELEASE_FAILURE: '1' });
+  const releaseSuccessAfter = readFileSync(releaseSuccessLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  const releaseSuccessCheck = run(['check', '--root', releaseSuccessRepo, ...COLLECTION], releaseSuccessRepo);
+  check('a release anomaly cannot turn a durable mutation into a retry-triggering failure', result.status === 0
+    && releaseSuccessAfter === releaseSuccessBefore + 1 && releaseSuccessCheck.status === 0,
+  `${result.output}\n${releaseSuccessCheck.output}`);
+  const releaseSuccessCommonDir = resolve(releaseSuccessRepo, git(['rev-parse', '--git-common-dir'], releaseSuccessRepo).trim());
+  rmSync(join(releaseSuccessCommonDir, 'code-ops-record-locks', `${UUID}.lock`), { recursive: true, force: true });
+
+  const releaseErrorRepo = join(work, 'release-failure-after-mutation-error'); cpSync(incrementalRepo, releaseErrorRepo, { recursive: true });
+  const releaseErrorLedger = readFileSync(generated(releaseErrorRepo, 'curation.jsonl'));
+  result = runWithScript(releaseFailureScript, ['curate', '--root', releaseErrorRepo, ...COLLECTION,
+    '--record', `REC-${'Z'.repeat(26)}`, '--state', '{"status":"invalid"}'], releaseErrorRepo,
+  { CODE_OPS_EVAL_RELEASE_FAILURE: '1' });
+  check('a release anomaly preserves the original mutation error', result.status === 1
+    && result.output.includes('unknown record')
+    && releaseErrorLedger.equals(readFileSync(generated(releaseErrorRepo, 'curation.jsonl'))), result.output);
+
+  const corruptIncrementalScript = instrumentedRecordsScript('incremental-post-write-script', (source) => source.replace(
+    /(      writeAtomically\(writes\);\r?\n)(      runCheck\(context\);)/,
+    `$1      if (process.env.CODE_OPS_EVAL_CORRUPT_INCREMENTAL === '1') writeFileSync(context.output.inventory, '{"corrupt":true}\\n');\n$2`,
+  ));
+  const corruptIncrementalRepo = join(work, 'incremental-post-write-rollback'); cpSync(incrementalRepo, corruptIncrementalRepo, { recursive: true });
+  writeFileSync(join(corruptIncrementalRepo, '.git', 'info', 'exclude'), 'corrupt-incremental.json\n');
+  write(corruptIncrementalRepo, 'records/post-write.md', '# Post-write verification\n');
+  commit(corruptIncrementalRepo, 'commit pending post-write evidence');
+  result = run(['plan-adoption', '--incremental', '--root', corruptIncrementalRepo, ...COLLECTION,
+    '--out', 'corrupt-incremental.json'], corruptIncrementalRepo);
+  const corruptIncrementalSnapshot = generatedSnapshot(corruptIncrementalRepo);
+  if (result.status === 0) {
+    result = runWithScript(corruptIncrementalScript, ['adopt', '--root', corruptIncrementalRepo, ...COLLECTION,
+      '--review', 'corrupt-incremental.json'], corruptIncrementalRepo, { CODE_OPS_EVAL_CORRUPT_INCREMENTAL: '1' });
+  }
+  check('incremental admission restores prior authority when post-write verification fails', result.status === 1
+    && result.output.includes('invalid record inventory header')
+    && generatedMatches(corruptIncrementalRepo, corruptIncrementalSnapshot), result.output);
 
   const scheduledRepo = join(work, 'scheduled-mutable-incremental'); mkdirSync(scheduledRepo, { recursive: true });
   git(['init', '--quiet', '-b', 'main'], scheduledRepo);

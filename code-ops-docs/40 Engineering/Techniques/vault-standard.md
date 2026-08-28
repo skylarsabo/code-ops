@@ -78,11 +78,11 @@ supersedes: ["REC-ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
 
 Inventory v3 stores an append-only authority-batch chain. Authority batches prove membership and provenance. The curation ledger separately records status, supersession, and corrected metadata state. Never merge these chains.
 
-Authority batch types are `genesis-adoption`, `incremental-adoption`, `native-append`, and `v2-migration`. Each batch has one sequence, prior batch digest, operation bindings, complete membership, review binding, and batch digest. Every immutable authority object belongs to exactly one batch. Missing, duplicate, forged, reordered, or broken membership fails.
+Authority batch types are `genesis-adoption`, `incremental-adoption`, `native-append`, and `v2-migration`. Each batch has one sequence, prior batch digest, operation bindings, complete membership, review binding, and batch digest. Each non-genesis binding names the immediate prior batch head and is re-derived under complete history. Every immutable authority object belongs to exactly one batch. Missing, duplicate, forged, reordered, or broken membership fails.
 
-`genesis-adoption` covers the initial reviewed candidate set. `incremental-adoption` covers committed immutable paths that arrive later. `native-append` covers staged native authority with no reachable history. `v2-migration` preserves the complete existing v2 authority before its first non-empty v3 mutation.
+`genesis-adoption` covers the initial reviewed candidate set. `incremental-adoption` covers committed immutable paths that arrive later. `native-append` covers staged native authority whose exact path has no history through the source commit and first appears with its batch. `v2-migration` preserves the complete existing v2 authority before its first non-empty v3 mutation and requires an observed committed v2 predecessor.
 
-Batch type enforces provenance. Genesis and incremental batches cover only `adopted` records and artifacts. Native batches cover only `native` records and artifacts. Each native object binds `introducedIndexHead` to the batch `sourceHead`, and the reachable source tree must not contain that path.
+Batch type enforces provenance. Genesis and incremental batches cover only `adopted` records and artifacts. Native batches cover only `native` records and artifacts. Each native object binds `introducedIndexHead` to the batch `sourceHead`. The exact path has no history through that source and first appears with the committed batch.
 
 Existing v2 records retain their valid provenance. V2 artifacts may lack provenance, and only `v2-migration` may cover that preserved shape. Migration never manufactures artifact provenance.
 

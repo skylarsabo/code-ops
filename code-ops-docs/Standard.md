@@ -65,9 +65,9 @@ Every collection linked from inside the hub has an explicit Markdown index note.
 
 Record collections remain open after genesis adoption. Each admitted authority object remains irreversible. Committed immutable paths use reviewed incremental admission. New staged native records use native append.
 
-Inventory v3 records authority membership in a separate hash-chained batch history. Its batch types are `genesis-adoption`, `incremental-adoption`, `native-append`, and `v2-migration`. Every authority object belongs to exactly one batch.
+Inventory v3 records authority membership in a separate hash-chained batch history. Its batch types are `genesis-adoption`, `incremental-adoption`, `native-append`, and `v2-migration`. Every authority object belongs to exactly one batch, and complete-history checks re-derive each non-genesis predecessor binding.
 
-Genesis and incremental batches contain only `adopted` records and artifacts. Native batches contain only `native` records and artifacts. Each native object's `introducedIndexHead` equals its batch `sourceHead`, and that source tree must not contain the object's path.
+Genesis and incremental batches contain only `adopted` records and artifacts. Native batches contain only `native` records and artifacts. Each native object's `introducedIndexHead` equals its batch `sourceHead`. The exact path has no history through that source and first appears with the committed batch.
 
 Only `v2-migration` may cover an artifact without provenance. It preserves the complete v2 object and never manufactures provenance.
 

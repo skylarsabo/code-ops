@@ -57,15 +57,15 @@ The ID namespace hashes the collection UUID and normalized Git-index path. Colle
 
 Inventory v3 keeps one `authorityBatches` array. The singular `adoptionReview` remains genesis evidence and supports v2 migration. It is not a second growing chain.
 
-Each authority batch links `previousBatchDigest` and binds the authority state before and after the operation. Its batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`.
+Each authority batch links `previousBatchDigest` and binds the authority state before and after the operation. A non-genesis batch's `baseBindings.authorityBatchHead` equals that predecessor digest. Complete-history verification re-derives the source state. Its batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`.
 
 Incremental batches embed their complete receipt in `review`. Genesis and v2 migration bind the singular genesis receipt by `reviewReceiptDigest`. Native append carries no review payload.
 
 Each batch contains complete object references shaped as `{type, path, objectDigest}`. Object type is `record` or `artifact`. The union of all batches covers every immutable inventory object exactly once.
 
-The batch type constrains each referenced inventory object's provenance. Genesis and incremental objects use `adopted`. Native objects use `native`. Every native object binds `introducedIndexHead` to the batch `sourceHead`, whose reachable tree must not contain the object's path.
+The batch type constrains each referenced inventory object's provenance. Genesis and incremental objects use `adopted`. Native objects use `native`. Every native object binds `introducedIndexHead` to the batch `sourceHead`. Its exact path has no history through that source and first appears with the committed batch.
 
-Existing v2 records retain their valid provenance during migration. Existing v2 artifacts retain their exact provenance-less shape. Only `v2-migration` may cover such an artifact, and migration cannot manufacture provenance.
+Existing v2 records retain their valid provenance during migration. Existing v2 artifacts retain their exact provenance-less shape. Only `v2-migration` may cover such an artifact, migration cannot manufacture provenance, and a committed v2 predecessor must exist.
 
 The authority-batch chain records membership and provenance. The curation ledger records status and supersession. It is ordered JSONL, and every event links the prior global event and prior event for its record. A curation event contains complete metadata state, not a patch.
 
@@ -81,7 +81,7 @@ An adoption history profile stores:
 - current SHA-256; and
 - `historyDigest`.
 
-The digest uses SHA-256 content identities and paths instead of Git object IDs. Admission stays anchored to the current path. Readiness also follows earlier promoted paths. A review plan binds the profile to `HEAD`, the manifest digest, and current authority state.
+The digest uses SHA-256 content identities and paths instead of Git object IDs. Admission stays anchored to the current path. Readiness also follows earlier promoted paths. Every review plan binds the profile to `HEAD` and the manifest digest. An incremental review plan also binds current authority state.
 
 Complete-history checks keep stage-0 Git-index blob bytes and classification exact. A content-aware Git comparison rejects semantic worktree divergence without treating checkout transformations as drift. Stored labels must agree with stored counts. Current risk retains review coverage, and counts cannot increase.
 

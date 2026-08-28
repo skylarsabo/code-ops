@@ -16,6 +16,8 @@ Plugin changes have three coupled outputs: the canonical package, host projectio
 
 The documentation skills now share one v4 authority model. `vault` owns genesis and incremental admission, migration, and conformance. `repo-docs` owns bounded extraction, `doc-alignment` reconciles current authority, and `atlas` cites preserved evidence by record ID. The code-ops-suite vendors one records engine so every host executes the same identity, batch, and history rules.
 
-The shared boundary rejects symlinked or drive-qualified paths before reads and writes. Canonical stage-0 blobs own content identity and native metadata. Git's content-aware comparison separates checkout transformations from real edits. A clone-wide collection lock serializes authority writers across sibling worktrees.
+The shared boundary rejects symlinked or drive-qualified paths before reads and writes. Canonical stage-0 blobs own content identity and native metadata. Git's content-aware comparison separates checkout transformations from real edits. Native authority is re-derived from exact path history and its batch-introduction commit. A clone-wide collection lock serializes authority writers across sibling worktrees without making durable success retryable when cleanup fails.
+
+The traceless scanner is one canonical script shared by the code-ops and privacy packages. Unicode emoji properties keep topology glyphs out of findings. A single-file dash baseline subtracts inherited density only; every attribution, tool, phrase, boilerplate, and emoji rule still scans the complete edited text.
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.

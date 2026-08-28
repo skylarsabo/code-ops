@@ -213,10 +213,6 @@ function generatedBindings(context, inventory, citations, events) {
   };
 }
 
-function currentGeneratedBindings(context, inventory, citations, events) {
-  return generatedBindings(context, inventory, citations, events);
-}
-
 function validBindings(bindings) {
   return bindings && Object.keys(bindings).sort().join(',')
     === 'authorityBatchHead,citationsSha256,curationLedgerSha256,indexSha256,inventorySha256'
@@ -281,9 +277,22 @@ function releaseMutationLock(lease) {
   rmSync(lease.lock, { recursive: true, force: false });
 }
 
+function settleMutationLock(lease, mutationError = null) {
+  try { releaseMutationLock(lease); }
+  catch (releaseError) {
+    console.warn(`records: warning: collection mutation lock was not released after the mutation attempt: ${releaseError.message}`);
+    if (mutationError) throw mutationError;
+  }
+  if (mutationError) throw mutationError;
+}
+
 function withMutationLock(context, mutate) {
   const lease = acquireMutationLock(context);
-  try { return mutate(); } finally { releaseMutationLock(lease); }
+  let result;
+  try { result = mutate(); }
+  catch (error) { settleMutationLock(lease, error); }
+  settleMutationLock(lease);
+  return result;
 }
 
 const MANIFEST_GLOB = ':(glob)**/98 System/DOCS_MANIFEST.json';
@@ -356,6 +365,113 @@ function authoritativeJsonVersions(context, key, authority = (value) => value) {
   return parsed;
 }
 
+function historicalOutputBytes(context, key, commit, paths = collectionOutputPaths(context, key)) {
+  const found = [];
+  for (const path of paths) {
+    try { found.push({ path, bytes: git(context.root, ['show', `${commit}:${path}`], true) }); }
+    catch { /* absent at this commit */ }
+  }
+  if (found.length > 1) throw new Error(`multiple historical ${key} authorities exist at ${commit}`);
+  return found[0]?.bytes ?? null;
+}
+
+function generatedStateAt(context, commit, outputPaths = {}) {
+  const inventoryBytes = historicalOutputBytes(context, 'inventory', commit, outputPaths.inventory);
+  const citationBytes = historicalOutputBytes(context, 'citations', commit, outputPaths.citations);
+  const ledgerBytes = historicalOutputBytes(context, 'curationLedger', commit, outputPaths.curationLedger);
+  if (inventoryBytes === null || citationBytes === null || ledgerBytes === null) return null;
+  let inventory; let citations; let events;
+  try {
+    inventory = JSON.parse(inventoryBytes.toString('utf8'));
+    citations = JSON.parse(citationBytes.toString('utf8'));
+    const ledger = ledgerBytes.toString('utf8').trim();
+    events = ledger ? ledger.split(/\r?\n/).map((line) => JSON.parse(line)) : [];
+  } catch { throw new Error(`generated authority has invalid JSON at ${commit}`); }
+  return { inventory, citations, events, bindings: generatedBindings(context, inventory, citations, events) };
+}
+
+function inventoryVersionDocument(version, batchCount = null) {
+  const document = {
+    version: version.version, collectionUuid: version.collectionUuid,
+    ...(version.adoptionReview === undefined ? {} : { adoptionReview: structuredClone(version.adoptionReview) }),
+    entries: structuredClone(version.entries || []), artifacts: structuredClone(version.artifacts || []),
+  };
+  if (version.version !== 3) return document;
+  const authorityBatches = structuredClone(batchCount === null
+    ? (version.authorityBatches || []) : (version.authorityBatches || []).slice(0, batchCount));
+  if (batchCount !== null) {
+    const covered = new Set(authorityBatches.flatMap((batch) => batch.objects.map(authorityRefKey)));
+    document.entries = document.entries.filter((entry) => covered.has(`record:${entry.path}`));
+    document.artifacts = document.artifacts.filter((artifact) => covered.has(`artifact:${artifact.path}`));
+  }
+  return { ...document, authorityBatches };
+}
+
+function pathHasHistoryAt(root, commit, path) {
+  return Boolean(git(root, ['log', '--full-history', '--format=%H', commit, '--', literalPath(path)]).trim());
+}
+
+function commitIsAncestor(root, ancestor, descendant) {
+  try { git(root, ['merge-base', '--is-ancestor', ancestor, descendant]); return true; }
+  catch { return false; }
+}
+
+function pathCommitsBetween(root, from, to, path) {
+  return git(root, ['log', '--full-history', '--format=%H', `${from}..${to}`, '--', literalPath(path)])
+    .trim().split(/\s+/).filter(Boolean);
+}
+
+function assertAuthorityBatchHistory(context, versions) {
+  const firstV3 = versions.findIndex((version) => version.version === 3);
+  if (firstV3 >= 0 && versions[firstV3].authorityBatches?.[0]?.type === 'v2-migration'
+    && (firstV3 === 0 || versions[firstV3 - 1].version !== 2)) {
+    throw new Error('v2 migration authority requires an observed committed v2 predecessor');
+  }
+  const outputPaths = Object.fromEntries(['inventory', 'citations', 'curationLedger']
+    .map((key) => [key, collectionOutputPaths(context, key)]));
+  const sourceStates = new Map();
+  const stateAt = (commit) => {
+    if (!sourceStates.has(commit)) sourceStates.set(commit, generatedStateAt(context, commit, outputPaths));
+    return sourceStates.get(commit);
+  };
+  for (let versionIndex = 0; versionIndex < versions.length; versionIndex += 1) {
+    const version = versions[versionIndex];
+    if (version.version !== 3) continue;
+    const prior = versions[versionIndex - 1];
+    const priorBatchCount = prior?.version === 3 ? (prior.authorityBatches || []).length : 0;
+    for (let batchIndex = priorBatchCount; batchIndex < (version.authorityBatches || []).length; batchIndex += 1) {
+      const batch = version.authorityBatches[batchIndex];
+      if (batch.type === 'genesis-adoption') continue;
+      const introducedAt = version.commit === 'current' ? 'HEAD' : version.commit;
+      if (version.commit === 'current' && batch.sourceHead !== headOid(context.root)) {
+        throw new Error(`uncommitted authority batch must bind current HEAD: sequence ${batch.sequence}`);
+      }
+      if (!commitIsAncestor(context.root, batch.sourceHead, introducedAt)) {
+        throw new Error(`authority batch source does not precede its introduction: sequence ${batch.sequence}`);
+      }
+      const source = stateAt(batch.sourceHead);
+      if (!source) throw new Error(`authority batch source lacks generated predecessor state: sequence ${batch.sequence}`);
+      const expectedBindings = batchIndex === priorBatchCount
+        ? source.bindings
+        : generatedBindings(context, inventoryVersionDocument(version, batchIndex), source.citations, source.events);
+      if (canonical(batch.baseBindings) !== canonical(expectedBindings)) {
+        throw new Error(`authority batch base bindings do not match its predecessor state: sequence ${batch.sequence}`);
+      }
+      if (batch.type !== 'native-append') continue;
+      for (const ref of batch.objects) {
+        if (pathHasHistoryAt(context.root, batch.sourceHead, ref.path)) {
+          throw new Error(`native authority path has history before admission: ${ref.path}`);
+        }
+        if (version.commit === 'current') continue;
+        const commits = pathCommitsBetween(context.root, batch.sourceHead, version.commit, ref.path);
+        if (commits.length !== 1 || commits[0] !== version.commit) {
+          throw new Error(`native authority path was not introduced with its batch: ${ref.path}`);
+        }
+      }
+    }
+  }
+}
+
 function assertManifestHistory(context) {
   const versions = committedManifestVersions(context.root)
     .filter((version) => version.bytes)
@@ -403,14 +519,15 @@ function assertBaseline(context, inventory, citations, ledgerText, historyComple
     if (priorVersion === 3) {
       assertCanonicalPrefix('authority batch chain', inventoryVersions[index - 1].authorityBatches, inventoryVersions[index].authorityBatches);
     } else if (currentVersion === 3) {
-      const migration = inventoryVersions[index].authorityBatches[0];
+      const migrationBatch = inventoryVersions[index].authorityBatches[0];
       const inherited = authorityObjectRefs(inventoryVersions[index - 1]);
-      if (migration?.type !== 'v2-migration') throw new Error('inventory v2 to v3 transition lacks a migration authority batch');
-      if (canonical(migration.objects) !== canonical(inherited)) {
+      if (migrationBatch?.type !== 'v2-migration') throw new Error('inventory v2 to v3 transition lacks a migration authority batch');
+      if (canonical(migrationBatch.objects) !== canonical(inherited)) {
         throw new Error('v2 migration authority batch does not exactly cover inherited objects');
       }
     }
   }
+  assertAuthorityBatchHistory(context, inventoryVersions);
   const citationVersions = authoritativeJsonVersions(context, 'citations', citationAuthority);
   citationVersions.push({
     commit: 'current', version: citations.version, collectionUuid: citations.collectionUuid,
@@ -583,19 +700,19 @@ function planAdoption(context, options) {
   const { rows } = collect(context);
   let planRows = rows; let extension = {};
   if (options.incremental) {
-    if (!Object.values(context.output).every(existsSync)) throw new Error('incremental adoption planning requires existing generated baselines');
+    if (!Object.values(context.output).every(existsSync)) throw new Error('incremental admission planning requires existing generated baselines');
     const checked = runCheck(context, { allowPending: true });
     const pending = new Set(checked.pendingAdmission);
     planRows = immutableRows(rows).filter((row) => pending.has(row.path));
     if (!planRows.length) {
-      if (options['require-delta']) throw new Error('incremental adoption requires at least one pending immutable path');
+      if (options['require-delta']) throw new Error('incremental admission requires at least one pending immutable path');
       console.log(JSON.stringify({ mode: 'incremental', status: 'no-op', reason: 'no-pending-admission', candidates: 0 }));
       return;
     }
     const inventory = readJson(context.output.inventory);
     const citations = readJson(context.output.citations);
     const events = readJsonl(context.output.curationLedger);
-    extension = { mode: 'incremental', baseBindings: currentGeneratedBindings(context, inventory, citations, events) };
+    extension = { mode: 'incremental', baseBindings: generatedBindings(context, inventory, citations, events) };
   } else if (Object.values(context.output).some(existsSync)) {
     throw new Error('adoption planning refuses existing generated baselines');
   }
@@ -708,10 +825,9 @@ function adopt(context, options) {
   const supplied = options.review ? readJson(ignoredReviewPath(context, posix(options.review))) : null;
   const incremental = supplied?.mode === 'incremental';
   const generatedExist = Object.values(context.output).map(existsSync);
-  if (incremental && !generatedExist.every(Boolean)) throw new Error('incremental adoption requires existing generated baselines');
+  if (incremental && !generatedExist.every(Boolean)) throw new Error('incremental admission requires existing generated baselines');
   if (!incremental && generatedExist.some(Boolean)) throw new Error('adoption refuses existing generated baselines');
-  const lease = acquireMutationLock(context);
-  try {
+  return withMutationLock(context, () => {
     if (!cleanWorktree(context.root)) throw new Error('adoption state changed before mutation lock acquisition');
     const { rows } = collect(context);
     if (!incremental) {
@@ -767,14 +883,15 @@ function adopt(context, options) {
     const priorCitationCount = (citations.entries || []).length;
     const events = readJsonl(context.output.curationLedger);
     const ledgerText = jsonl(events);
-    const baseBindings = currentGeneratedBindings(context, existingInventory, citations, events);
+    const baseBindings = generatedBindings(context, existingInventory, citations, events);
     const plan = adoptionPlan(context, deltaRows, indexed, { mode: 'incremental', baseBindings });
     const review = adoptionReview(context, plan, options.review);
-    if (!deltaRows.length) throw new Error('incremental adoption review is stale or already applied');
+    if (!deltaRows.length) throw new Error('incremental admission review is stale or already applied');
     const profiles = new Map(plan.candidates.map((candidate) => [candidate.path, candidate]));
     const beforeMigration = structuredClone(existingInventory);
     const inventory = migrateV2Inventory(context, existingInventory, baseBindings);
     const beforeAdmission = structuredClone(inventory);
+    const admissionBaseBindings = generatedBindings(context, beforeAdmission, citations, events);
     const newEntries = deltaRows.filter((row) => row.kind === 'record').map((row) => {
       const profile = profiles.get(row.path);
       return inventoryEntry(context, row, 'adopted', {
@@ -789,7 +906,7 @@ function adopt(context, options) {
     inventory.artifacts.push(...newArtifacts);
     if (new Set(inventory.entries.map((entry) => entry.id)).size !== inventory.entries.length) throw new Error('record ID collision');
     addAuthorityBatch(context, inventory, 'incremental-adoption', beforeAdmission,
-      [...newEntries, ...newArtifacts].map((item) => item.path), { review, baseBindings });
+      [...newEntries, ...newArtifacts].map((item) => item.path), { review, baseBindings: admissionBaseBindings });
     validateAuthorityBatches(inventory, { root: context.root, historyComplete: true });
     for (const entry of newEntries) {
       const sourceText = git(context.root, ['show', `${entry.baselineCommit}:${entry.path}`], true).toString('utf8');
@@ -797,17 +914,25 @@ function adopt(context, options) {
       citations.entries.push(...citationEntries(context, entry, sourceText, known, rows, 'adopt'));
     }
     assertBaseline(context, inventory, citations, ledgerText);
-    writeAtomically([
+    const writes = [
       [context.output.inventory, `${JSON.stringify(inventory, null, 2)}\n`],
       [context.output.citations, `${JSON.stringify(citations, null, 2)}\n`],
       [context.output.index, renderCurrent(context, inventory, events)],
-    ]);
+    ];
+    const originals = writes.map(([path]) => [path, readFileSync(path)]);
+    try {
+      writeAtomically(writes);
+      runCheck(context);
+    } catch (error) {
+      writeAtomically(originals);
+      throw error;
+    }
     console.log(JSON.stringify({
       mode: 'incremental', migrated: beforeMigration.version === 2, adopted: newEntries.length,
       artifacts: newArtifacts.length, citations: citations.entries.length - priorCitationCount,
       authorityBatch: inventory.authorityBatches.at(-1).batchDigest,
     }));
-  } finally { releaseMutationLock(lease); }
+  });
 }
 
 function validateReviewReceipt(review, collectionUuid) {
@@ -886,7 +1011,8 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
       || (batch.baseBindings !== null && !validBindings(batch.baseBindings))) throw new Error('invalid authority batch');
     if ((index === 0) !== ['genesis-adoption', 'v2-migration'].includes(batch.type)) throw new Error('invalid authority batch genesis');
     if ((batch.type === 'genesis-adoption' && batch.baseBindings !== null)
-      || (batch.type !== 'genesis-adoption' && !validBindings(batch.baseBindings))) {
+      || (batch.type !== 'genesis-adoption' && (!validBindings(batch.baseBindings)
+        || batch.baseBindings.authorityBatchHead !== previousBatchDigest))) {
       throw new Error('authority batch has invalid base bindings for its type');
     }
     if (historyComplete && batch.type === 'native-append' && (!root || !commitIsReachable(root, batch.sourceHead))) {
@@ -934,8 +1060,12 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
       if (!batch.review || batch.reviewReceiptDigest !== batch.review.receiptDigest) throw new Error('incremental authority batch lacks its review receipt');
       const parsed = validateReviewReceipt(batch.review, inventory.collectionUuid);
       if (batch.review.version !== 2 || batch.review.mode !== 'incremental') throw new Error('incremental authority batch has the wrong review mode');
+      const priorBatch = inventory.authorityBatches[index - 1];
+      const reviewBindingsMatch = canonical(batch.baseBindings) === canonical(batch.review.baseBindings)
+        || (priorBatch?.type === 'v2-migration' && priorBatch.sourceHead === batch.sourceHead
+          && canonical(priorBatch.baseBindings) === canonical(batch.review.baseBindings));
       if (batch.sourceHead !== batch.review.sourceHead || batch.manifestSha256 !== batch.review.manifestSha256
-        || canonical(batch.baseBindings) !== canonical(batch.review.baseBindings)) {
+        || !reviewBindingsMatch) {
         throw new Error('incremental authority batch contradicts its review receipt');
       }
       const expectedPaths = [...parsed.candidates.keys()].sort();
@@ -1280,11 +1410,12 @@ function appendRecord(context, options) {
     const metadata = recordFrontmatter(staged.toString('utf8'));
     const knownIds = new Set((currentInventory.entries || []).map((entry) => entry.id));
     for (const id of metadata.supersedes) if (!knownIds.has(id)) throw new Error(`supersedes references unknown record ${id}`);
-    const baseBindings = currentGeneratedBindings(context, currentInventory, citations, events);
+    const baseBindings = generatedBindings(context, currentInventory, citations, events);
     const inventory = currentInventory.version === 2
       ? migrateV2Inventory(context, currentInventory, baseBindings)
       : structuredClone(currentInventory);
     const beforeAdmission = structuredClone(inventory);
+    const admissionBaseBindings = generatedBindings(context, beforeAdmission, citations, events);
     const entry = inventoryEntry(context, row, 'native', null, state.files);
     entry.supersedes = metadata.supersedes;
     const additions = citationEntries(context, entry, staged.toString('utf8'), paths, rows, 'index');
@@ -1302,7 +1433,8 @@ function appendRecord(context, options) {
     }
     inventory.entries.push(entry);
     if (inventory.version === 3) {
-      addAuthorityBatch(context, inventory, 'native-append', beforeAdmission, immutablePaths, { baseBindings });
+      addAuthorityBatch(context, inventory, 'native-append', beforeAdmission, immutablePaths,
+        { baseBindings: admissionBaseBindings });
       validateAuthorityBatches(inventory, { root: context.root, historyComplete: true });
     }
     citations.entries.push(...additions);
@@ -1387,6 +1519,7 @@ function render(context, options) {
     const originals = writes.map(([path]) => [path, existsSync(path) ? readFileSync(path) : null]);
     try {
       writeAtomically(writes);
+      verifyIndex(readFileSync(context.output.index, 'utf8'), context.collection, inventory, events);
       if (options.legacy) checkLegacy(context, citations, ids);
     } catch (error) {
       writeAtomically(originals.filter(([, bytes]) => bytes !== null));

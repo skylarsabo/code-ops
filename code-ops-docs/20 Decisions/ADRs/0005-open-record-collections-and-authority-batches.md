@@ -19,11 +19,11 @@ Keep each collection open while making every admission irreversible. Add invento
 - `native-append` for new staged native authority; and
 - `v2-migration` for the one-way receipt that preserves existing v2 authority.
 
-Every immutable authority object belongs to exactly one batch. Each batch binds its complete membership, provenance, prior batch digest, and receipt digest. Genesis has no prior generated state; every later batch also binds its optimistic input state. Missing, duplicate, forged, or broken membership fails.
+Every immutable authority object belongs to exactly one batch. Each batch binds its complete membership, provenance, prior batch digest, and receipt digest. Genesis has no prior generated state. Every later batch binds its immediate predecessor state, including the prior batch head, and complete-history verification re-derives that binding. Missing, duplicate, forged, or broken membership fails.
 
-Enforce provenance through batch type. Genesis and incremental batches cover only `adopted` records and artifacts. Native batches cover only `native` records and artifacts. Each native object's `introducedIndexHead` must equal its batch `sourceHead`, and the reachable source tree must not contain that path.
+Enforce provenance through batch type. Genesis and incremental batches cover only `adopted` records and artifacts. Native batches cover only `native` records and artifacts. Each native object's `introducedIndexHead` equals its batch `sourceHead`. The exact path has no history through that source and first appears in the commit that records the batch.
 
-Migration preserves existing v2 record objects and their valid provenance. Only `v2-migration` may cover provenance-less artifacts because v2 artifacts lacked that field. It must preserve those complete objects and never manufacture provenance.
+Migration preserves existing v2 record objects and their valid provenance. Only `v2-migration` may cover provenance-less artifacts because v2 artifacts lacked that field. It must preserve those complete objects, follow an observed committed v2 predecessor, and never manufacture provenance.
 
 Preserve singular `adoptionReview` as genesis evidence and for v2 migration compatibility. Incremental batches embed their complete review receipt. Do not create a second growing review chain.
 

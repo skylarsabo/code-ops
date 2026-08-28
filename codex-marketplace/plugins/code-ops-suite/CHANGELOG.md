@@ -4,13 +4,16 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 ## 1.49.0
+- The traceless scanner excludes box-drawing glyphs from emoji findings. An explicit `--emdash-baseline-file` preserves the fail-closed default while measuring net dash-count growth against verified pre-edit text.
+- Authority verification re-derives native exact-path history, batch-introduction commits, and complete predecessor bindings. A fresh v3 collection cannot claim a v2 migration.
+- Incremental admission verifies its written authority and restores the prior generated state on failure. A lock-release anomaly preserves the mutation result, so durable success cannot invite an unsafe retry.
 - Adopted collections now accept committed immutable paths through reviewed incremental admission.
 - Inventory v3 records exact-once authority membership in one hash-chained history. Curation status stays in its separate ledger.
 - Empty incremental deltas are write-free no-ops unless `--require-delta` requests strict intake.
 - The first non-empty v2 mutation records a receipted migration without changing existing authority objects.
 - Authority batches reject record or artifact provenance that contradicts the admission type. Native objects bind a reachable pre-admission tree that proves their paths were absent. V2 migration alone preserves provenance-less legacy artifacts.
 - Every authority writer uses one clone-wide collection lock, optimistic bindings, and atomic rollback.
-- Recovery uses unique branches in isolated worktrees and freezes adopted archive paths in place.
+- Vault guidance directs scheduled recovery to unique branches in isolated worktrees and freezes adopted archive paths in place.
 
 ## 1.48.3
 - Record-prefix checks now mask fenced examples and unambiguous top-level indented blocks while leaving inline, list, and ambiguous indented IDs visible. Citation extraction retains its broader indented-block exclusion. Blockquote- and list-scoped fences stop at their container boundary, invalid backtick info strings remain prose, and genuinely unterminated top-level fences fail before any citation path can hide later references.

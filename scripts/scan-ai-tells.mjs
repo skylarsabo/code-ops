@@ -5,7 +5,8 @@
 // traceless-publishing violation the moment it's pushed; catching it mechanically at the
 // gate is cheaper than relying on a human proofreading every message by eye.
 //
-//   node scripts/scan-ai-tells.mjs <file> [...more] [--git <range>] [--report-only] [--emdash-max N]
+//   node scripts/scan-ai-tells.mjs <file> [...more] [--git <range>] [--report-only]
+//     [--emdash-max N] [--emdash-baseline-file <pre-edit-file>]
 //
 // Scans commit-message / PR-body TEXT (not code idioms — that's the skill's judgment job)
 // for the giveaways that mark a commit/PR as AI/tool-authored:
@@ -28,12 +29,14 @@ import { basename } from 'node:path';
 const argv = process.argv.slice(2);
 let reportOnly = false;
 let sawEmdashMax = false, emdashMaxRaw;
+let emdashBaselineFile = null;
 let gitRange = null;
 const files = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--report-only') reportOnly = true;
   else if (a === '--emdash-max') { sawEmdashMax = true; emdashMaxRaw = argv[++i]; }
+  else if (a === '--emdash-baseline-file') emdashBaselineFile = argv[++i];
   else if (a === '--git') gitRange = argv[++i]; // option-like values are rejected below, before git runs
   // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
   // otherwise silently scan nothing relevant and report clean.
@@ -50,8 +53,16 @@ const EMDASH_MAX = (() => {
   return n;
 })();
 
-// Includes regional-indicator flags (1F1E6-1F1FF) and the low band from 231A (watch/hourglass/alarm) up.
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{1F000}-\u{1F0FF}\u{231A}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u;
+if (emdashBaselineFile !== null && (!emdashBaselineFile || emdashBaselineFile.startsWith('--'))) {
+  console.error('x --emdash-baseline-file needs a file path'); process.exit(2);
+}
+if (emdashBaselineFile && (files.length !== 1 || gitRange)) {
+  console.error('x --emdash-baseline-file requires exactly one file target and cannot be combined with --git'); process.exit(2);
+}
+
+// Unicode properties exclude box-drawing and text-default symbols while retaining
+// emoji-presented pictographs and regional-indicator flags.
+const EMOJI = /(?:\p{Emoji_Presentation}|\p{Regional_Indicator}|\p{Extended_Pictographic}\uFE0F|[#*0-9]\uFE0F?\u20E3)/u;
 const LINE_CHECKS = [
   // Concrete tool/vendor names only — no bare \bai\b (it false-positives on .ai emails and the surname "Ai").
   { cat: 'TRAILER', re: /^\s*co-authored-by:\s*.*\b(claude|anthropic|codex|openai|gpt|chatgpt|copilot|gemini|bard|codeium|windsurf|llama|mistral|deepseek|aider|perplexity|tabnine)\b/i },
@@ -62,7 +73,9 @@ const LINE_CHECKS = [
   { cat: 'BOILERPLATE', re: /^#{1,4}\s*test plan\b/i },
 ];
 
-function scanText(label, text) {
+function emdashCount(text) { return (text.match(/[–—―−]/g) || []).length; }
+
+function scanText(label, text, emdashBaseline = 0) {
   const hits = [];
   const lines = text.split('\n');
   lines.forEach((raw, i) => {
@@ -70,8 +83,12 @@ function scanText(label, text) {
     for (const c of LINE_CHECKS) if (c.re.test(line)) hits.push({ cat: c.cat, line: i + 1, snippet: line.trim().slice(0, 70) });
     if (EMOJI.test(line)) hits.push({ cat: 'EMOJI', line: i + 1, snippet: line.trim().slice(0, 70) });
   });
-  const emdashes = (text.match(/[–—―−]/g) || []).length; // em/en/horizontal-bar/minus look-alikes
-  if (emdashes >= EMDASH_MAX) hits.push({ cat: 'EMDASH', line: 0, snippet: `${emdashes} em-dashes (threshold ${EMDASH_MAX})` });
+  const emdashes = emdashCount(text); // em/en/horizontal-bar/minus look-alikes
+  const netGrowth = Math.max(0, emdashes - emdashBaseline);
+  if (netGrowth >= EMDASH_MAX) {
+    const baseline = emdashBaselineFile ? `; net growth ${netGrowth} above baseline ${emdashBaseline}` : '';
+    hits.push({ cat: 'EMDASH', line: 0, snippet: `${emdashes} em-dashes${baseline} (threshold ${EMDASH_MAX})` });
+  }
   return { label, hits };
 }
 
@@ -80,6 +97,11 @@ function scanText(label, text) {
 // wins; a masked 2-vs-1 exit would let a broken invocation quietly report as merely "dirty").
 let hadError = false;
 const targets = [];
+let emdashBaseline = 0;
+if (emdashBaselineFile) {
+  if (!existsSync(emdashBaselineFile)) { console.error(`x not found: ${emdashBaselineFile}`); hadError = true; }
+  else emdashBaseline = emdashCount(readFileSync(emdashBaselineFile, 'utf8'));
+}
 for (const f of files) {
   if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
@@ -97,7 +119,7 @@ if (targets.length === 0 && !hadError) { console.error('usage: scan-ai-tells.mjs
 
 let total = 0;
 for (const t of targets) {
-  const { hits } = scanText(t.label, t.text);
+  const { hits } = scanText(t.label, t.text, emdashBaseline);
   total += hits.length;
   console.log(`\n# ${t.label}${hits.length ? '' : '  — clean'}`);
   for (const h of hits) console.log(`  !! ${h.cat.padEnd(11)} ${h.line ? 'L' + h.line : '  '}  ${h.snippet}`);

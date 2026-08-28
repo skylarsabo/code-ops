@@ -36,7 +36,7 @@ The canonical [performance reference](PERFORMANCE.md) owns the measurement proto
 
 ## Record-collection signals
 
-`records check` reports authority objects, batch coverage, citations, and history state. It blocks incomplete classification, `pending-admission`, immutable drift, malformed authority or curation chains, citation regression, invalid identities, and semantic-index drift.
+`records check` reports record and citation counts, citation states, pending admissions, and history state. It blocks incomplete classification, incomplete batch coverage, immutable drift, malformed authority or curation chains, citation regression, invalid identities, and semantic-index drift.
 
 Diagnose existing evidence before intake. History loss, broken receipts, and immutable drift take precedence over `pending-admission`. An empty incremental plan is a measured no-op, not a repair.
 
