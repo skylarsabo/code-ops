@@ -46,7 +46,7 @@ For always-on application, add a pointer in your repo's `CLAUDE.md` to this plug
 
 ## Loops & automation
 - **In-session loop:** drive a skill to its "Done when" criteria with `/loop`.
-- **On every PR:** wire `opsec-pr-gate` into CI with `anthropics/claude-code-action@v1` — see `examples/github-opsec-gate.yml` (canonical setup: `/install-github-app`, then paste the criteria).
+- **On every PR:** wire `opsec-pr-gate` into CI with the Claude Code action pinned to a reviewed commit — see `examples/github-opsec-gate.yml` (canonical setup: `/install-github-app`, then paste the criteria).
 - **Recurring:** put `tor-egress-audit`, `metadata-leak-audit`, and `supply-chain-trust` on a schedule (Routines / `/schedule`).
 - **Deterministic backstops:** pre-commit secret scanning, a dependency bot for CVEs, and CI checks that fail on a clearnet connection or unredacted-log pattern complement the judgment-heavy skills.
 

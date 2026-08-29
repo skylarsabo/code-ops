@@ -28,13 +28,20 @@ jobs:
       # cannot inject code into CI. Bump deliberately; the trailing comment tracks the version.
       # fetch-depth: 0 (full history) so the PR-only plugin-bump check below can diff against
       # origin/<base_ref> — a shallow clone would not have the base branch's history available.
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: ""
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '20'
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: GitHub Action pin policy
+        run: node scripts/check-action-pins.mjs
+
+      - name: GitHub Action pin regression eval
+        run: node evals/action-pins/run.mjs
 
       - name: Structural lint (the gate)
         run: node scripts/lint-plugins.mjs
@@ -212,13 +219,20 @@ jobs:
       # rationale. This job mirrors the ubuntu structural-lint checks on Windows so a
       # platform-specific regression (path handling, shell quoting, line endings) is caught
       # before merge instead of surfacing only for a Windows contributor.
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: ""
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '20'
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: GitHub Action pin policy
+        run: node scripts/check-action-pins.mjs
+
+      - name: GitHub Action pin regression eval
+        run: node evals/action-pins/run.mjs
 
       - name: Structural lint (the gate)
         run: node scripts/lint-plugins.mjs

@@ -74,7 +74,7 @@ For **always-on** application (not just inside a skill), add a pointer in your r
 - **Tool-layer traceless gate:** a bundled `PreToolUse` hook (`hooks/hooks.json` + `hooks/enforce-traceless.mjs`) scans a `git commit` / `gh pr create|merge` Bash call for AI/tool trace before it runs and blocks on a hit; CI stays the fail-closed backstop.
 - **Session-start routing card:** a bundled `SessionStart` hook (`hooks/routing-card.mjs`) prints a hard-capped routing card mapping task types to the right skill/orchestrator so the lead defaults into standard operating mode from the first turn.
 - **In-session loop:** run a skill repeatedly toward its "Done when" criteria with the built-in `/loop`.
-- **On every PR:** wire `pr-review` into CI with the official `anthropics/claude-code-action@v1`. See `examples/github-pr-review.yml` — but the canonical setup is to run `/install-github-app`, which generates a correct workflow; then paste the review criteria in.
+- **On every PR:** wire `pr-review` into CI with the official Claude Code action pinned to a reviewed commit. See `examples/github-pr-review.yml` — but the canonical setup is to run `/install-github-app`, which generates a correct workflow; then paste the review criteria in.
 - **Recurring maintenance:** put `dependency-upgrade` and `security-privacy-audit` on a schedule with Routines (`/schedule`).
 - **Let deterministic tools do deterministic work:** wire a formatter + linter into a pre-commit hook, a dependency bot for CVEs, SAST for the security baseline, and coverage gates in CI — and reserve the skills for the judgment-heavy work (audit, threat model, feature discovery, intricate-bug hunting).
 

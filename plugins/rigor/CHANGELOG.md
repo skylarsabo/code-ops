@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.16.4
+- The shipped deep-review workflow example now pins checkout and the Claude Code action to reviewed immutable commits.
+
 ## 2.16.3
 - Documentation references now resolve through the repository's sole `code-ops-docs/` hub after the handbook and techniques migration.
 

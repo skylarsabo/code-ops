@@ -183,7 +183,7 @@ This page documents all 14 skills. If you are new, read the suite intro above, t
 
 **When to use it.** On every PR (wire it into CI), and especially as the gate after `opsec-hardening` lands fixes. It is review-only by default. Disambiguation among the three review gates: `code-ops-suite:pr-review` is general engineering review (correctness, design, tests, maintainability); `rigor:deep-review` is the high-signal, evidence-tiered verification review (prove-it-or-don't, disconfirmation); `privacy-opsec-suite:opsec-pr-gate` is the anonymity counterpart — it blocks specifically on egress/logging/identifier/fingerprint/correlation/weakened-default regressions and nothing else is its job. Run all three for a change that is both risky and anonymity-sensitive.
 
-**Prerequisites & hand-offs.** Plugin installed. For CI, wire it with `anthropics/claude-code-action@v1` using the canonical setup in [`examples/github-opsec-gate.yml`](../../../../plugins/privacy-opsec-suite/examples/github-opsec-gate.yml) (`/install-github-app`, then paste the criteria). A VCS tool is used to post inline comments if connected. It is the last link after the audits → `LEAK_REGISTER.md` → `opsec-hardening` chain.
+**Prerequisites & hand-offs.** Plugin installed. For CI, use the reviewed immutable action pin in [`examples/github-opsec-gate.yml`](../../../../plugins/privacy-opsec-suite/examples/github-opsec-gate.yml) and `/install-github-app`. A VCS tool is used to post inline comments if connected. It is the last link after the audits → `LEAK_REGISTER.md` → `opsec-hardening` chain.
 
 ---
 

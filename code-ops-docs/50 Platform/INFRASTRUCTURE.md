@@ -1,20 +1,20 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-29
 ---
 
 # Infrastructure
 
 ## Runtime
 
-The project is a Node.js repository that intentionally uses only Node built-ins. The validation workflow installs Node 20 on Ubuntu and Windows. Evidence: `.github/workflows/validate.yml:31-37`, `.github/workflows/validate.yml:157-163`, and `scripts/check-no-deps.mjs:19-28`.
+The project is a Node.js repository that intentionally uses only Node built-ins. `.node-version` is the runtime SSOT and selects Node 24 LTS. CI and local tooling consume that file rather than maintain separate Node versions. Evidence: `.node-version`, `.github/workflows/validate.yml`, and `scripts/check-no-deps.mjs`.
 
 There is no application server, managed database, container image, Terraform root, or cloud-runtime configuration in the current repository. This is an inspected repository boundary, not a statement about hosts that install the marketplace.
 
 ## Repository infrastructure
 
-GitHub Actions provides CI. GitHub hosts pull requests, branch protection, and the marketplace repository. The workflow pins third-party action commits rather than mutable tags. Evidence: `.github/workflows/validate.yml:26-37` and `.github/workflows/deep-review.yml:31-35`.
+GitHub Actions provides CI. GitHub hosts pull requests, branch protection, and the marketplace repository. `.github/actions-lock.json` owns the reviewed action identities, immutable SHAs, provenance, permissions, egress, telemetry, and advisory notes. The deterministic checker rejects mutable, unlisted, or drifted action references.
 
 Git hooks can regenerate derived host distributions and reject unsafe staging conditions. CI remains the backstop when hooks are missing or bypassed. Evidence: `AGENTS.md:115-117`.
 

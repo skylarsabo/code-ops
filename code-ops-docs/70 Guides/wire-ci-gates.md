@@ -120,7 +120,7 @@ Both AI workflows pass *both* secret inputs to the action and let it use whichev
 ```yaml
 - name: Verification-first review
   if: steps.key.outputs.present == 'true'
-  uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+  uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
   with:
     claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -129,7 +129,7 @@ Both AI workflows pass *both* secret inputs to the action and let it use whichev
     claude_args: "--allowed-tools Read,Grep,Glob,Bash"
 ```
 
-Note the action is **pinned to a commit SHA**, not a moving tag (`@30544b67…` with a trailing `# v1` comment that tracks the tag). That is the suite's own [`supply-chain-trust`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) discipline applied to CI: a moved tag cannot inject code into your pipeline. Bump it deliberately. The `actions/checkout` and `actions/setup-node` steps are pinned the same way.
+The action is **pinned to a commit SHA**, not a moving tag. `.github/actions-lock.json` binds every approved action identity to one reviewed SHA and version annotation. The deterministic enforcement rejects an unlisted action, a mutable reference, or pin drift. Update the policy and workflow together after reviewing the upstream change.
 
 ### Skip-clean on fork PRs
 

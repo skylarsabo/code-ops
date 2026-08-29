@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.49.1
+- The shipped pull-request workflow example now pins checkout and the Codex action to reviewed immutable commits.
+
 ## 1.49.0
 - Record history profiling batches HEAD tree lookups and historical blob hashing. Receipt-source checks and reachable-blob recovery use bounded batch reads; historical blobs above the 32 MiB batch ceiling fall back to individual reads under Git's existing 64 MiB process bound. The 32 MiB current-record policy is unchanged.
 - Per-command caches reuse repository completeness, manifest history, and object format without crossing operation boundaries. Every authority check remains fail-closed.
