@@ -25,7 +25,7 @@ Enforce provenance through batch type. Genesis and incremental batches cover onl
 
 Migration preserves existing v2 record objects and their valid provenance. Only `v2-migration` may cover provenance-less artifacts because v2 artifacts lacked that field. It must preserve those complete objects, follow an observed committed v2 predecessor, and never manufacture provenance.
 
-Preserve singular `adoptionReview` as genesis evidence and for v2 migration compatibility. Incremental batches embed their complete review receipt. Do not create a second growing review chain.
+Preserve singular version 1 `adoptionReview` as genesis evidence and for v2 migration compatibility. Incremental batches embed their complete version 2 review receipt. The containing slot determines the required schema. Do not create a second growing review chain.
 
 Keep the authority-batch chain separate from the curation ledger. Authority batches prove membership and provenance. Curation events record status, supersession, and corrected metadata state. Both chains use one clone-wide collection mutation lock beneath Git's common directory, keyed by collection UUID.
 
@@ -33,7 +33,7 @@ Keep the authority-batch chain separate from the curation ledger. Authority batc
 
 Writers bind the current inventory, citations, index, manifest, Git state, and authority-batch head. Record operations parse policy from canonical Git-index manifest bytes. Authority mutations re-read that index entry at both transaction boundaries and refuse movement after context load, including when history is shallow. Native writes also require visible worktree manifest changes to match staged authority. Complete-history verification re-derives every batch's manifest binding from its introduction commit. Reachable adoption sources must contain the reviewed candidates, their complete history profiles, and the bound manifest.
 
-Writers recompute bindings under the collection mutation lock before any write. One shared helper atomically replaces generated authority, runs the full semantic check, and restores every prior byte when verification fails. A stale binding or partial authority state fails without lasting generated changes.
+Writers recompute bindings under the collection mutation lock before any write. They bind token plus directory identity at authority-write and release boundaries. Stale recovery quarantines and identity-checks the judged directory before deletion. One shared helper atomically replaces generated authority, runs the full semantic check, and restores every prior byte when verification fails. A stale binding or partial authority state fails without lasting generated changes.
 
 Validate existing evidence before reporting new intake work. History loss, immutable drift, broken receipts, and invalid existing authority take precedence over `pending-admission`. A valid collection with unadmitted immutable paths fails with `pending-admission`.
 

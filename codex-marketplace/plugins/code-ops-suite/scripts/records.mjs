@@ -15,6 +15,8 @@ import {
 } from './record-lib.mjs';
 
 class HistoryUnavailableError extends Error {}
+class LostMutationLeaseError extends Error {}
+class DurableMutationLockLossError extends Error {}
 
 function fail(message, code = 1) {
   console.error(`records: ${message}`);
@@ -147,13 +149,18 @@ function assertGeneratedUntouched(context) {
   }
 }
 
-function writeVerified(writes, verify) {
+function writeVerified(writes, verify, assertLease = () => {}) {
   const originals = writes.map(([path]) => [path, existsSync(path) ? readFileSync(path) : null]);
+  let wrote = false;
   try {
+    assertLease();
     writeAtomically(writes);
+    wrote = true;
     verify();
   } catch (error) {
+    if (!wrote) throw error;
     try {
+      assertLease();
       const existing = originals.filter(([, bytes]) => bytes !== null);
       if (existing.length) writeAtomically(existing);
       for (const [path, bytes] of originals) if (bytes === null) rmSync(path, { force: true });
@@ -264,6 +271,58 @@ function mutationLockPath(context) {
   return join(commonGitDir(context.root), 'code-ops-record-locks', `${context.collection.collectionUuid}.lock`);
 }
 
+function lockIdentity(path) {
+  const state = statSync(path, { bigint: true });
+  if (state.ino === 0n) {
+    throw new Error('cannot verify collection mutation lock identity');
+  }
+  return { dev: state.dev.toString(), ino: state.ino.toString(), mtimeMs: Number(state.mtimeMs) };
+}
+
+function sameLockIdentity(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+function readLockOwner(owner) {
+  try {
+    return JSON.parse(readFileSync(owner, 'utf8'));
+  } catch { return null; }
+}
+
+function restoreQuarantinedLock(lock, owner, quarantine) {
+  // mkdir reserves the original name without replacing a lease that appeared after rename.
+  try { mkdirSync(lock); }
+  catch (error) {
+    if (error.code === 'EEXIST') throw new Error('collection mutation lock changed during stale recovery');
+    throw error;
+  }
+  try {
+    const quarantinedOwner = join(quarantine, 'owner.json');
+    if (existsSync(quarantinedOwner)) {
+      writeFileSync(owner, readFileSync(quarantinedOwner), { flag: 'wx' });
+    }
+    rmSync(quarantine, { recursive: true, force: false });
+  } catch (error) {
+    // Keep the reserved directory: removing it could erase a replacement that won the race.
+    throw error;
+  }
+}
+
+function requireMutationLease(lease, ErrorType, message) {
+  let metadata = null; let identity = null;
+  try {
+    metadata = JSON.parse(readFileSync(lease.owner, 'utf8'));
+    identity = lockIdentity(lease.lock);
+  } catch { /* throw the uniform ownership error below */ }
+  if (metadata?.token !== lease.token || !identity || !sameLockIdentity(lease.identity, identity)) {
+    throw new ErrorType(message);
+  }
+}
+
+function assertMutationLease(lease) {
+  requireMutationLease(lease, Error, 'collection mutation lock ownership changed before authority write');
+}
+
 function acquireMutationLock(context) {
   const lock = mutationLockPath(context);
   const owner = join(lock, 'owner.json');
@@ -273,16 +332,14 @@ function acquireMutationLock(context) {
     try { mkdirSync(lock); }
     catch (error) {
       if (error.code !== 'EEXIST') throw error;
-      let metadata = null; let age;
-      try {
-        metadata = JSON.parse(readFileSync(owner, 'utf8'));
-        age = Date.now() - statSync(lock).mtimeMs;
-      } catch (readError) {
-        try { age = Date.now() - statSync(lock).mtimeMs; } catch (statError) {
-          if (statError.code === 'ENOENT') continue;
-          throw statError;
-        }
+      let observed;
+      try { observed = lockIdentity(lock); }
+      catch (statError) {
+        if (statError.code === 'ENOENT') continue;
+        throw statError;
       }
+      const metadata = readLockOwner(owner);
+      const age = Date.now() - observed.mtimeMs;
       let alive = false;
       if (Number.isInteger(metadata?.pid) && metadata.pid > 0) {
         try { process.kill(metadata.pid, 0); alive = true; } catch (processError) { if (processError.code !== 'ESRCH') alive = true; }
@@ -294,20 +351,23 @@ function acquireMutationLock(context) {
         if (['ENOENT', 'EEXIST'].includes(renameError.code)) continue;
         throw renameError;
       }
+      const quarantined = lockIdentity(quarantine);
+      if (!sameLockIdentity(observed, quarantined)) {
+        restoreQuarantinedLock(lock, owner, quarantine);
+        throw new Error('collection mutation lock changed during stale recovery');
+      }
       rmSync(quarantine, { recursive: true, force: false });
       continue;
     }
     const token = randomUUID();
     try { writeFileSync(owner, `${JSON.stringify({ pid: process.pid, token, acquiredAt: new Date().toISOString() })}\n`); }
     catch (error) { rmSync(lock, { recursive: true, force: true }); throw error; }
-    return { lock, owner, token };
+    return { lock, owner, token, identity: lockIdentity(lock) };
   }
 }
 
 function releaseMutationLock(lease) {
-  let current = null;
-  try { current = JSON.parse(readFileSync(lease.owner, 'utf8')); } catch { /* ownership mismatch below */ }
-  if (current?.token !== lease.token) throw new Error('collection mutation lock ownership changed before release');
+  requireMutationLease(lease, LostMutationLeaseError, 'collection mutation lock ownership changed before release');
   rmSync(lease.lock, { recursive: true, force: false });
 }
 
@@ -316,6 +376,9 @@ function settleMutationLock(lease, mutationError = null) {
   catch (releaseError) {
     console.warn(`records: warning: collection mutation lock was not released after the mutation attempt: ${releaseError.message}`);
     if (mutationError) throw mutationError;
+    if (releaseError instanceof LostMutationLeaseError) {
+      throw new DurableMutationLockLossError('durable mutation completed but collection lock ownership was lost; do not retry');
+    }
   }
   if (mutationError) throw mutationError;
 }
@@ -325,7 +388,7 @@ function withMutationLock(context, mutate) {
   let result;
   try {
     manifestSha256(context);
-    result = mutate();
+    result = mutate(lease);
   }
   catch (error) { settleMutationLock(lease, error); }
   settleMutationLock(lease);
@@ -902,7 +965,7 @@ function adopt(context, options) {
   const generatedExist = Object.values(context.output).map(existsSync);
   if (incremental && !generatedExist.every(Boolean)) throw new Error('incremental admission requires existing generated baselines');
   if (!incremental && generatedExist.some(Boolean)) throw new Error('adoption refuses existing generated baselines');
-  return withMutationLock(context, () => {
+  return withMutationLock(context, (lease) => {
     if (!cleanWorktree(context.root)) throw new Error('adoption state changed before mutation lock acquisition');
     const { rows } = collect(context);
     if (!incremental) {
@@ -944,7 +1007,7 @@ function adopt(context, options) {
         [context.output.curationLedger, ''],
         [context.output.index, renderCurrent(context, inventory, [])],
       ];
-      writeVerified(writes, () => runCheck(context));
+      writeVerified(writes, () => runCheck(context), () => assertMutationLease(lease));
       console.log(JSON.stringify({ mode: 'genesis', adopted: entries.length, artifacts: artifacts.length, citations: citationInventory.entries.length }));
       return;
     }
@@ -995,7 +1058,7 @@ function adopt(context, options) {
       [context.output.citations, `${JSON.stringify(citations, null, 2)}\n`],
       [context.output.index, renderCurrent(context, inventory, events)],
     ];
-    writeVerified(writes, () => runCheck(context));
+    writeVerified(writes, () => runCheck(context), () => assertMutationLease(lease));
     console.log(JSON.stringify({
       mode: 'incremental', migrated: beforeMigration.version === 2, adopted: newEntries.length,
       artifacts: newArtifacts.length, citations: citations.entries.length - priorCitationCount,
@@ -1004,12 +1067,12 @@ function adopt(context, options) {
   });
 }
 
-function validateReviewReceipt(review, collectionUuid) {
+function validateReviewReceipt(review, collectionUuid, expectedVersion) {
   const versionOneKeys = 'candidates,collectionUuid,manifestSha256,receiptDigest,reviewed,sourceHead,version';
   const versionTwoKeys = 'baseBindings,candidates,collectionUuid,manifestSha256,mode,receiptDigest,reviewed,sourceHead,version';
-  const expectedKeys = review?.version === 2 ? versionTwoKeys : versionOneKeys;
+  const expectedKeys = expectedVersion === 2 ? versionTwoKeys : versionOneKeys;
   if (!review || Object.keys(review).sort().join(',') !== expectedKeys
-    || ![1, 2].includes(review.version) || review.collectionUuid !== collectionUuid
+    || ![1, 2].includes(expectedVersion) || review.version !== expectedVersion || review.collectionUuid !== collectionUuid
     || (review.version === 2 && (review.mode !== 'incremental' || !validBindings(review.baseBindings)))
     || !/^[0-9a-f]{40,64}$/.test(review.sourceHead || '') || !/^[0-9a-f]{64}$/.test(review.manifestSha256 || '')
     || !/^[0-9a-f]{64}$/.test(review.receiptDigest || '') || !Array.isArray(review.candidates) || !Array.isArray(review.reviewed)) {
@@ -1130,7 +1193,7 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
     if (batch.batchDigest !== digestJson(batchWithoutDigest(batch))) throw new Error('authority batch digest mismatch');
     if (batch.type === 'incremental-adoption') {
       if (!batch.review || batch.reviewReceiptDigest !== batch.review.receiptDigest) throw new Error('incremental authority batch lacks its review receipt');
-      const parsed = validateReviewReceipt(batch.review, inventory.collectionUuid);
+      const parsed = validateReviewReceipt(batch.review, inventory.collectionUuid, 2);
       if (batch.review.version !== 2 || batch.review.mode !== 'incremental') throw new Error('incremental authority batch has the wrong review mode');
       const priorBatch = inventory.authorityBatches[index - 1];
       const reviewBindingsMatch = canonical(batch.baseBindings) === canonical(batch.review.baseBindings)
@@ -1171,7 +1234,7 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
   const originalReviewPaths = new Set();
   if ([2, 3].includes(inventory.version)) {
     const review = inventory.adoptionReview;
-    const parsed = validateReviewReceipt(review, inventory.collectionUuid);
+    const parsed = validateReviewReceipt(review, inventory.collectionUuid, 1);
     for (const [path, candidate] of parsed.candidates) {
       originalReviewPaths.add(path); reviewCandidates.set(path, candidate); reviewSources.set(path, review.sourceHead);
     }
@@ -1474,7 +1537,7 @@ function appendRecord(context, options) {
   assertGeneratedUntouched(context);
   const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`append refused: ${history.reason}`);
-  withMutationLock(context, () => {
+  withMutationLock(context, (lease) => {
     assertGeneratedUntouched(context);
     runCheck(context, { allowPending: true });
     const { paths, rows } = collect(context);
@@ -1546,8 +1609,11 @@ function appendRecord(context, options) {
     const generated = writes.map(([path]) => relativeRoot(context.root, path));
     const originals = writes.map(([path]) => [path, readFileSync(path)]);
     let stagedGenerated = false;
+    let wrote = false;
     try {
+      assertMutationLease(lease);
       writeAtomically(writes);
+      wrote = true;
       if (!options['no-stage']) {
         git(context.root, ['add', '--', ...generated]); stagedGenerated = true;
         git(context.root, ['diff', '--cached', '--check']);
@@ -1555,7 +1621,8 @@ function appendRecord(context, options) {
       runCheck(context);
     } catch (error) {
       if (stagedGenerated) git(context.root, ['reset', '--quiet', 'HEAD', '--', ...generated]);
-      writeAtomically(originals);
+      if (wrote) assertMutationLease(lease);
+      if (wrote) writeAtomically(originals);
       throw error;
     }
     console.log(JSON.stringify({
@@ -1573,7 +1640,7 @@ function curate(context, options) {
   let state;
   try { state = JSON.parse(options.state); } catch { throw new Error('--state must be valid JSON'); }
   if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('--state must be a complete JSON object');
-  withMutationLock(context, () => {
+  withMutationLock(context, (lease) => {
     runCheck(context, { allowPending: true });
     const inventory = readJson(context.output.inventory);
     const ids = (inventory.entries || []).map((entry) => entry.id);
@@ -1596,13 +1663,13 @@ function curate(context, options) {
       [context.output.curationLedger, nextText],
       [context.output.index, renderCurrent(context, inventory, [...events, event])],
     ];
-    writeVerified(writes, () => runCheck(context, { allowPending: true }));
+    writeVerified(writes, () => runCheck(context, { allowPending: true }), () => assertMutationLease(lease));
     console.log(JSON.stringify({ sequence: event.sequence, eventDigest: event.eventDigest }));
   });
 }
 
 function render(context, options) {
-  withMutationLock(context, () => {
+  withMutationLock(context, (lease) => {
     runCheck(context, { allowPending: true, skipIndex: true, skipLegacyDrift: options.legacy === true });
     const inventory = readJson(context.output.inventory);
     const events = readJsonl(context.output.curationLedger);
@@ -1620,7 +1687,7 @@ function render(context, options) {
       verifyIndex(readFileSync(context.output.index, 'utf8'), context.collection, inventory, events);
       if (options.legacy) checkLegacy(context, citations, ids);
       runCheck(context, { allowPending: true });
-    });
+    }, () => assertMutationLease(lease));
     console.log(JSON.stringify({ written: writes.map(([path]) => relativeRoot(context.root, path)) }));
   });
 }
@@ -1628,7 +1695,7 @@ function render(context, options) {
 function reindexLocators(context) {
   const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`infrastructure history unavailable: ${history.reason}`);
-  withMutationLock(context, () => {
+  withMutationLock(context, (lease) => {
     runCheck(context, { allowPending: true });
     const citations = readJson(context.output.citations);
     let changed = 0;
@@ -1650,7 +1717,7 @@ function reindexLocators(context) {
       if (canonical(citation.target) !== before) changed += 1;
     }
     writeVerified([[context.output.citations, `${JSON.stringify(citations, null, 2)}\n`]],
-      () => runCheck(context, { allowPending: true }));
+      () => runCheck(context, { allowPending: true }), () => assertMutationLease(lease));
     console.log(JSON.stringify({ locatorsUpdated: changed, objectFormat: gitObjectFormat(context.root) }));
   });
 }
@@ -1699,5 +1766,5 @@ try {
   else if (command === 'verify-history') console.log(JSON.stringify(runCheck(context, { strict: options.strict === true })));
   else if (command === 'reindex-locators') reindexLocators(context);
 } catch (error) {
-  fail(error.message, error instanceof HistoryUnavailableError ? 2 : 1);
+  fail(error.message, error instanceof HistoryUnavailableError ? 2 : error instanceof DurableMutationLockLossError ? 3 : 1);
 }

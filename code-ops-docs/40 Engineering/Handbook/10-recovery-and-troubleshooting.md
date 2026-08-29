@@ -236,7 +236,9 @@ Never regenerate genesis as a superset. Never hand-edit inventory, citations, au
 
 ### Recover concurrent work
 
-All authority writers share one clone-wide lock beneath Git's common directory. A lock held by a live or recent owner blocks. Recover only a dead owner that is at least ten minutes old.
+All authority writers share one clone-wide lock beneath Git's common directory. A lock held by a live or recent owner blocks. Recover only a dead owner that is at least ten minutes old. Recovery binds the judged directory identity and refuses a replacement lease.
+
+Exit 3 means authority bytes may be durable but lock ownership was lost. Do not retry automatically. Inspect the generated authority and replacement lock, then run `records check` before choosing a recovery action.
 
 Optimistic bindings protect work from other clones. When a plan is stale, discard it and plan again. Do not copy its disposition into a new receipt without reviewing the new bindings.
 

@@ -22,7 +22,7 @@
 // reported even when hits were also found, never silently downgraded to 1. Otherwise 1 =
 // any AI-trace hit found (unless --report-only), 0 = clean.
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
@@ -58,6 +58,10 @@ if (emdashBaselineFile !== null && (!emdashBaselineFile || emdashBaselineFile.st
 }
 if (emdashBaselineFile && (files.length !== 1 || gitRange)) {
   console.error('x --emdash-baseline-file requires exactly one file target and cannot be combined with --git'); process.exit(2);
+}
+if (emdashBaselineFile && existsSync(emdashBaselineFile) && existsSync(files[0])
+  && realpathSync.native(emdashBaselineFile) === realpathSync.native(files[0])) {
+  console.error('x --emdash-baseline-file must resolve to a different file than the scan target'); process.exit(2);
 }
 
 // Keep topology arrows, box drawing, and ordinary text symbols clean. Bare

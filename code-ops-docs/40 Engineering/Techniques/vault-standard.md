@@ -86,7 +86,7 @@ Batch type enforces provenance. Genesis and incremental batches cover only `adop
 
 Existing v2 records retain their valid provenance. V2 artifacts may lack provenance, and only `v2-migration` may cover that preserved shape. Migration never manufactures artifact provenance.
 
-Incremental batches embed their complete review receipt. Genesis and v2 migration bind the singular legacy `adoptionReview` by digest. Native append carries no review payload.
+Incremental batches embed their complete version 2 review receipt. Genesis and v2 migration bind the singular version 1 `adoptionReview` by digest. Native append carries no review payload. A receipt never selects the schema of the slot that contains it.
 
 Inventory v1 and v2 remain readable. The first non-empty authority mutation of inventory v2 writes a receipted `v2-migration` batch before the requested batch. An empty check, render, or incremental plan never changes the inventory version.
 
@@ -100,9 +100,9 @@ Checks enforce exact-once authority coverage. An immutable tracked path without 
 
 Adopted record supersession uses an external append-only curation ledger. Each event stores a global sequence, previous event digest, record ID, previous event for that record, complete metadata state, informational `curatedAt`, and event digest. Sequence starts at one and follows file order. Global and per-record predecessor chains validate. The highest valid sequence wins. Corrections append complete replacement events.
 
-All authority writers use one clone-wide collection mutation lock. Store the lock beneath Git's common directory and key it by collection UUID. This location serializes sibling worktrees. Optimistic authority bindings reject stale work from other clones.
+All authority writers use one clone-wide collection mutation lock. Store the lock beneath Git's common directory and key it by collection UUID. This location serializes sibling worktrees. Writers prove the lock token and directory identity before authority writes and release. Optimistic authority bindings reject stale work from other clones.
 
-The lock records its process and acquisition time. A live or recent lock fails closed. The tool may recover a lock only after ten minutes when its recorded local process is gone. Parallel curation tails cannot merge mechanically. The losing branch rebases and regenerates only its unmerged tail. CI rejects forks, duplicate sequences, broken hashes, and changed merged events.
+The lock records its process and acquisition time. A live or recent lock fails closed. The tool may recover a lock only after ten minutes when its recorded local process is gone. Recovery quarantines the judged directory and deletes it only when device and inode still match. A replacement lease is restored under an atomically reserved path and recovery fails. Lost ownership after a durable mutation exits 3 and forbids automatic retry. Parallel curation tails cannot merge mechanically. The losing branch rebases and regenerates only its unmerged tail. CI rejects forks, duplicate sequences, broken hashes, and changed merged events.
 
 The citation inventory stores every outbound Markdown citation with record ID, use-site source line, raw target, normalized target, ordered `resolvedVia`, state, and target metadata. It resolves inline links and images plus full, collapsed, and shortcut reference forms. Fenced, indented, and inline code is not citation syntax. Try the complete candidate as an exact path first. Then remove recognized suffixes in the applied order: accessors, line or range suffixes, symbols, fragments, and globs. Support repeated accessors.
 

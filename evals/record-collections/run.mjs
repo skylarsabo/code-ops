@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Synthetic-only regression coverage. The literal-bracket case is deliberately defensive.
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
@@ -14,7 +14,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 213 : 216;
+const expectedCases = process.platform === 'win32' ? 219 : 222;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -863,7 +863,7 @@ try {
   commit(repo, 'adopt records');
 
   const corruptPostWriteScript = instrumentedRecordsScript('generated-post-write-script', (source) => source.replace(
-    /(    writeAtomically\(writes\);\r?\n)(    verify\(\);)/,
+    /(    writeAtomically\(writes\);\r?\n    wrote = true;\r?\n)(    verify\(\);)/,
     `$1    if (process.env.CODE_OPS_EVAL_CORRUPT_WRITE === '1') writeFileSync(writes[0][0], '{"corrupt":true}\\n');\n$2`,
   ));
   const corruptGenesisRepo = join(work, 'genesis-post-write-rollback'); cpSync(repo, corruptGenesisRepo, { recursive: true });
@@ -1247,6 +1247,27 @@ try {
     writeFileSync(legacyInventoryPath, `${JSON.stringify(legacyInventory, null, 2)}\n`);
     run(['render', '--root', nativeMigrationRepo, ...COLLECTION], nativeMigrationRepo);
     legacyV2BaselineCheck = run(['check', '--root', nativeMigrationRepo, ...COLLECTION], nativeMigrationRepo);
+
+    const wrongGenesisReviewRepo = join(work, 'wrong-genesis-review-version');
+    cpSync(nativeMigrationRepo, wrongGenesisReviewRepo, { recursive: true });
+    const wrongGenesisReviewPath = generated(wrongGenesisReviewRepo, 'inventory.json');
+    const wrongGenesisReview = JSON.parse(readFileSync(wrongGenesisReviewPath, 'utf8'));
+    wrongGenesisReview.adoptionReview.version = 2;
+    wrongGenesisReview.adoptionReview.mode = 'incremental';
+    wrongGenesisReview.adoptionReview.baseBindings = {
+      authorityBatchHead: null,
+      citationsSha256: '0'.repeat(64),
+      curationLedgerSha256: '0'.repeat(64),
+      indexSha256: '0'.repeat(64),
+      inventorySha256: '0'.repeat(64),
+    };
+    delete wrongGenesisReview.adoptionReview.receiptDigest;
+    wrongGenesisReview.adoptionReview.receiptDigest = digestJson(wrongGenesisReview.adoptionReview);
+    writeFileSync(wrongGenesisReviewPath, `${JSON.stringify(wrongGenesisReview, null, 2)}\n`);
+    const wrongGenesisReviewCheck = run(['check', '--root', wrongGenesisReviewRepo, ...COLLECTION], wrongGenesisReviewRepo);
+    check('singular genesis adoption review requires receipt version one', wrongGenesisReviewCheck.status === 1
+      && wrongGenesisReviewCheck.output.includes('invalid record adoption review'), wrongGenesisReviewCheck.output);
+
     commit(nativeMigrationRepo, 'establish legacy v2 baseline');
   }
   const nativeMigrationGenesis = JSON.parse(readFileSync(generated(nativeMigrationRepo, 'inventory.json'), 'utf8'));
@@ -1539,6 +1560,49 @@ try {
   check('an aged ownerless collection lock is recovered for the waiting mutation', result.status === 0
     && !existsSync(ownerlessLock), result.output);
 
+  const staleReplacementScript = instrumentedRecordsScript('stale-lock-replacement-script', (source) => source.replace(
+    /(      const quarantine = `\$\{lock\}\.stale-\$\{randomUUID\(\)\}`;\r?\n)/,
+    (match) => `${match}      if (process.env.CODE_OPS_EVAL_REPLACE_STALE_LOCK === '1') {\n        rmSync(lock, { recursive: true, force: true });\n        mkdirSync(lock);\n        writeFileSync(owner, '{"pid":1,"token":"fresh-owner","acquiredAt":"2026-08-28T02:30:00.000Z"}\\n');\n      }\n`,
+  ));
+  const staleReplacementRepo = join(work, 'stale-lock-replacement'); cpSync(incrementalRepo, staleReplacementRepo, { recursive: true });
+  const staleReplacementCommonDir = resolve(staleReplacementRepo, git(['rev-parse', '--git-common-dir'], staleReplacementRepo).trim());
+  const staleReplacementLock = join(staleReplacementCommonDir, 'code-ops-record-locks', `${UUID}.lock`);
+  mkdirSync(staleReplacementLock, { recursive: true });
+  writeFileSync(join(staleReplacementLock, 'owner.json'), '{"pid":999999999,"token":"stale-owner","acquiredAt":"2000-01-01T00:00:00.000Z"}\n');
+  utimesSync(staleReplacementLock, ownerlessStaleTime, ownerlessStaleTime);
+  const staleReplacementSnapshot = generatedSnapshot(staleReplacementRepo);
+  result = runWithScript(staleReplacementScript, ['curate', '--root', staleReplacementRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"replacement-race"}', '--at', '2026-08-28T02:30:00.000Z'],
+  staleReplacementRepo, { CODE_OPS_EVAL_REPLACE_STALE_LOCK: '1' });
+  const staleReplacementOwner = existsSync(join(staleReplacementLock, 'owner.json'))
+    ? JSON.parse(readFileSync(join(staleReplacementLock, 'owner.json'), 'utf8')) : null;
+  check('stale recovery refuses a lock replaced after its stale verdict without removing the replacement', result.status === 1
+    && result.output.includes('collection mutation lock changed during stale recovery')
+    && staleReplacementOwner?.token === 'fresh-owner'
+    && generatedMatches(staleReplacementRepo, staleReplacementSnapshot), result.output);
+  rmSync(staleReplacementLock, { recursive: true, force: false });
+
+  const interruptedRecoveryScript = instrumentedRecordsScript('interrupted-stale-recovery-script', (source) => source.replace(
+    /      const quarantined = lockIdentity\(quarantine\);\r?\n/,
+    (match) => `${match}      if (process.env.CODE_OPS_EVAL_INTERRUPT_STALE_RECOVERY === '1') throw new Error('synthetic interrupted stale recovery');\n`,
+  ));
+  const interruptedRecoveryRepo = join(work, 'interrupted-stale-recovery'); cpSync(incrementalRepo, interruptedRecoveryRepo, { recursive: true });
+  const interruptedRecoveryCommonDir = resolve(interruptedRecoveryRepo, git(['rev-parse', '--git-common-dir'], interruptedRecoveryRepo).trim());
+  const interruptedRecoveryLock = join(interruptedRecoveryCommonDir, 'code-ops-record-locks', `${UUID}.lock`);
+  mkdirSync(interruptedRecoveryLock, { recursive: true });
+  writeFileSync(join(interruptedRecoveryLock, 'owner.json'), '{"pid":999999999,"token":"stale-owner","acquiredAt":"2000-01-01T00:00:00.000Z"}\n');
+  utimesSync(interruptedRecoveryLock, ownerlessStaleTime, ownerlessStaleTime);
+  result = runWithScript(interruptedRecoveryScript, ['curate', '--root', interruptedRecoveryRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"interrupted-recovery"}', '--at', '2026-08-28T02:45:00.000Z'],
+  interruptedRecoveryRepo, { CODE_OPS_EVAL_INTERRUPT_STALE_RECOVERY: '1' });
+  const interruptedQuarantines = readdirSync(join(interruptedRecoveryCommonDir, 'code-ops-record-locks'))
+    .filter((name) => name.startsWith(`${UUID}.lock.stale-`));
+  result = run(['curate', '--root', interruptedRecoveryRepo, ...COLLECTION, '--record', incrementalTwoId,
+    '--state', '{"status":"recovered-after-interruption"}', '--at', '2026-08-28T02:45:30.000Z'], interruptedRecoveryRepo);
+  check('an interrupted stale recovery leaves an inert quarantine and does not block the next mutation', result.status === 0
+    && interruptedQuarantines.length === 1, result.output);
+  rmSync(join(interruptedRecoveryCommonDir, 'code-ops-record-locks', interruptedQuarantines[0]), { recursive: true, force: false });
+
   const releaseFailureScript = instrumentedRecordsScript('release-failure-script', (source) => source.replace(
     /function releaseMutationLock\(lease\) \{\r?\n/,
     (match) => `${match}  if (process.env.CODE_OPS_EVAL_RELEASE_FAILURE === '1') throw new Error('synthetic release failure');\n`,
@@ -1556,6 +1620,58 @@ try {
   `${result.output}\n${releaseSuccessCheck.output}`);
   const releaseSuccessCommonDir = resolve(releaseSuccessRepo, git(['rev-parse', '--git-common-dir'], releaseSuccessRepo).trim());
   rmSync(join(releaseSuccessCommonDir, 'code-ops-record-locks', `${UUID}.lock`), { recursive: true, force: true });
+
+  const lostLeaseScript = instrumentedRecordsScript('lost-lease-script', (source) => source.replace(
+    /function releaseMutationLock\(lease\) \{\r?\n/,
+    (match) => `${match}  if (process.env.CODE_OPS_EVAL_LOST_LEASE === '1') writeFileSync(lease.owner, '{"pid":1,"token":"replacement-owner","acquiredAt":"2026-08-28T03:30:00.000Z"}\\n');\n`,
+  ));
+  const lostLeaseRepo = join(work, 'lost-lease-after-success'); cpSync(incrementalRepo, lostLeaseRepo, { recursive: true });
+  const lostLeaseLedger = generated(lostLeaseRepo, 'curation.jsonl');
+  const lostLeaseBefore = readFileSync(lostLeaseLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  result = runWithScript(lostLeaseScript, ['curate', '--root', lostLeaseRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"lost-lease-proof"}', '--at', '2026-08-28T03:30:00.000Z'],
+  lostLeaseRepo, { CODE_OPS_EVAL_LOST_LEASE: '1' });
+  const lostLeaseAfter = readFileSync(lostLeaseLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  const lostLeaseCheck = run(['check', '--root', lostLeaseRepo, ...COLLECTION], lostLeaseRepo);
+  check('a lost lease after durable mutation is fatal without inviting a retry', result.status === 3
+    && lostLeaseAfter === lostLeaseBefore + 1 && lostLeaseCheck.status === 0
+    && result.output.includes('durable mutation completed') && result.output.includes('do not retry'), `${result.output}\n${lostLeaseCheck.output}`);
+  const lostLeaseCommonDir = resolve(lostLeaseRepo, git(['rev-parse', '--git-common-dir'], lostLeaseRepo).trim());
+  rmSync(join(lostLeaseCommonDir, 'code-ops-record-locks', `${UUID}.lock`), { recursive: true, force: true });
+
+  const identityOnlyLostLeaseScript = instrumentedRecordsScript('identity-only-lost-lease-script', (source) => source.replace(
+    /function releaseMutationLock\(lease\) \{\r?\n/,
+    (match) => `${match}  if (process.env.CODE_OPS_EVAL_REPLACE_LEASE_IDENTITY === '1') {\n    rmSync(lease.lock, { recursive: true, force: true });\n    mkdirSync(lease.lock);\n    writeFileSync(lease.owner, JSON.stringify({ pid: 1, token: lease.token, acquiredAt: '2026-08-28T03:35:00.000Z' }) + '\\n');\n  }\n`,
+  ));
+  const identityOnlyLostLeaseRepo = join(work, 'identity-only-lost-lease-after-success'); cpSync(incrementalRepo, identityOnlyLostLeaseRepo, { recursive: true });
+  const identityOnlyLostLeaseLedger = generated(identityOnlyLostLeaseRepo, 'curation.jsonl');
+  const identityOnlyLostLeaseBefore = readFileSync(identityOnlyLostLeaseLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  result = runWithScript(identityOnlyLostLeaseScript, ['curate', '--root', identityOnlyLostLeaseRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"identity-only-lost-lease-proof"}', '--at', '2026-08-28T03:35:00.000Z'],
+  identityOnlyLostLeaseRepo, { CODE_OPS_EVAL_REPLACE_LEASE_IDENTITY: '1' });
+  const identityOnlyLostLeaseAfter = readFileSync(identityOnlyLostLeaseLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  check('an identity-only replacement with the same token is fatal after durable mutation', result.status === 3
+    && identityOnlyLostLeaseAfter === identityOnlyLostLeaseBefore + 1
+    && result.output.includes('durable mutation completed') && result.output.includes('do not retry'), result.output);
+  const identityOnlyLostLeaseCommonDir = resolve(identityOnlyLostLeaseRepo, git(['rev-parse', '--git-common-dir'], identityOnlyLostLeaseRepo).trim());
+  rmSync(join(identityOnlyLostLeaseCommonDir, 'code-ops-record-locks', `${UUID}.lock`), { recursive: true, force: true });
+
+  const lostLeaseBeforeWriteScript = instrumentedRecordsScript('lost-lease-before-write-script', (source) => source.replace(
+    /function assertMutationLease\(lease\) \{\r?\n/,
+    (match) => `${match}  if (process.env.CODE_OPS_EVAL_LOST_LEASE_BEFORE_WRITE === '1') {\n    rmSync(lease.lock, { recursive: true, force: true });\n    mkdirSync(lease.lock);\n    writeFileSync(lease.owner, '{"pid":1,"token":"replacement-owner","acquiredAt":"2026-08-28T03:40:00.000Z"}\\n');\n  }\n`,
+  ));
+  const lostLeaseBeforeWriteRepo = join(work, 'lost-lease-before-write'); cpSync(incrementalRepo, lostLeaseBeforeWriteRepo, { recursive: true });
+  const lostLeaseBeforeWriteSnapshot = generatedSnapshot(lostLeaseBeforeWriteRepo);
+  result = runWithScript(lostLeaseBeforeWriteScript, ['curate', '--root', lostLeaseBeforeWriteRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"lost-lease-before-write"}', '--at', '2026-08-28T03:40:00.000Z'],
+  lostLeaseBeforeWriteRepo, { CODE_OPS_EVAL_LOST_LEASE_BEFORE_WRITE: '1' });
+  const lostLeaseBeforeWriteCommonDir = resolve(lostLeaseBeforeWriteRepo, git(['rev-parse', '--git-common-dir'], lostLeaseBeforeWriteRepo).trim());
+  const lostLeaseBeforeWriteLock = join(lostLeaseBeforeWriteCommonDir, 'code-ops-record-locks', `${UUID}.lock`);
+  check('a lost lease before authority write is fatal without overwriting the replacement lock', result.status === 1
+    && result.output.includes('collection mutation lock ownership changed before authority write')
+    && existsSync(lostLeaseBeforeWriteLock)
+    && generatedMatches(lostLeaseBeforeWriteRepo, lostLeaseBeforeWriteSnapshot), result.output);
+  rmSync(lostLeaseBeforeWriteLock, { recursive: true, force: true });
 
   const releaseErrorRepo = join(work, 'release-failure-after-mutation-error'); cpSync(incrementalRepo, releaseErrorRepo, { recursive: true });
   const releaseErrorLedger = readFileSync(generated(releaseErrorRepo, 'curation.jsonl'));

@@ -6,7 +6,7 @@
 //   node evals/ai-tells/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { dirname, resolve, join } from 'node:path';
+import { dirname, resolve, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -16,6 +16,7 @@ const clean = join(here, 'clean.md');
 const codex = join(here, 'codex.md');
 const baseline = join(here, 'baseline.md');
 const baselineEdited = join(here, 'baseline-edited.md');
+const baselineEditedAlias = `${here}${sep}.${sep}baseline-edited.md`;
 const baselineGrowth = join(here, 'baseline-growth.md');
 const emojiEdge = join(here, 'emoji-edge.md');
 const textPictographs = join(here, 'text-pictographs.md');
@@ -56,14 +57,35 @@ expect(run([baselineEdited, '--emdash-baseline-file', baseline]).status === 0,
   'a verified pre-edit baseline should subtract inherited em-dashes');
 expect(run([baselineGrowth, '--emdash-baseline-file', baseline]).status === 1,
   'net growth of three em-dashes should still fail against a baseline');
+const hardTellWithBaseline = run([codex, '--emdash-baseline-file', baseline]);
+expect(hardTellWithBaseline.status === 1
+  && /TRAILER/.test(hardTellWithBaseline.stdout || '')
+  && /TOOL/.test(hardTellWithBaseline.stdout || ''),
+  'a valid em-dash baseline must not suppress hard tells in the current target');
+const sameFileBaseline = run([baselineEdited, '--emdash-baseline-file', baselineEditedAlias]);
+expect(sameFileBaseline.status === 2,
+  'an em-dash baseline resolving to the current target should fail closed');
+expect(sameFileBaseline.stderr === 'x --emdash-baseline-file must resolve to a different file than the scan target\n',
+  `same-file baseline should report the exact usage error, got ${JSON.stringify(sameFileBaseline.stderr)}`);
 expect(run([baselineEdited, clean, '--emdash-baseline-file', baseline]).status === 2,
   'an em-dash baseline should reject multiple current targets');
+const gitBaseline = run([baselineEdited, '--git', 'HEAD', '--emdash-baseline-file', baseline]);
+expect(gitBaseline.status === 2,
+  'an em-dash baseline should remain incompatible with --git when one file target is also present');
+expect(gitBaseline.stderr === 'x --emdash-baseline-file requires exactly one file target and cannot be combined with --git\n',
+  `--git incompatibility should report the exact usage error, got ${JSON.stringify(gitBaseline.stderr)}`);
 expect(run([baselineEdited, '--emdash-baseline-file', join(here, 'missing.md')]).status === 2,
   'a missing em-dash baseline should fail closed');
-expect(run([baselineEdited, '--emdash-baseline-file']).status === 2,
+const missingBaselineValue = run([baselineEdited, '--emdash-baseline-file']);
+expect(missingBaselineValue.status === 2,
   'a missing em-dash baseline argument should fail closed');
-expect(run([baselineEdited, '--emdash-baseline-file', '--report-only']).status === 2,
+expect(missingBaselineValue.stderr === 'x --emdash-baseline-file needs a file path\n',
+  `missing baseline value should report the exact usage error, got ${JSON.stringify(missingBaselineValue.stderr)}`);
+const optionBaselineValue = run([baselineEdited, '--emdash-baseline-file', '--report-only']);
+expect(optionBaselineValue.status === 2,
   'an option-like em-dash baseline argument should fail closed');
+expect(optionBaselineValue.stderr === 'x --emdash-baseline-file needs a file path\n',
+  `option-like baseline value should report the exact usage error, got ${JSON.stringify(optionBaselineValue.stderr)}`);
 
 if (fails.length) {
   console.error('FAIL — ai-tells eval:');
