@@ -6,7 +6,7 @@
 // gate is cheaper than relying on a human proofreading every message by eye.
 //
 //   node scripts/scan-ai-tells.mjs <file> [...more] [--git <range>] [--report-only]
-//     [--emdash-max N] [--emdash-baseline-file <pre-edit-file>]
+//     [--emdash-max N] [--emdash-baseline-rev <pre-edit-revision>]
 //
 // Scans commit-message / PR-body TEXT (not code idioms — that's the skill's judgment job)
 // for the giveaways that mark a commit/PR as AI/tool-authored:
@@ -18,25 +18,25 @@
 //   BOILERPLATE the Claude PR template heading "## Test plan"
 //
 // Exit: a single tallied verdict, fail-closed wins over hits. 2 = a missing target file, a
-// failed `git log`, or a usage/config error (no target, unknown flag, bad --emdash-max) —
+// failed Git read, or a usage/config error (no target, unknown flag, bad --emdash-max) —
 // reported even when hits were also found, never silently downgraded to 1. Otherwise 1 =
 // any AI-trace hit found (unless --report-only), 0 = clean.
 
-import { readFileSync, existsSync, realpathSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { basename } from 'node:path';
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
 const argv = process.argv.slice(2);
 let reportOnly = false;
 let sawEmdashMax = false, emdashMaxRaw;
-let emdashBaselineFile = null;
+let emdashBaselineRev = null;
 let gitRange = null;
 const files = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--report-only') reportOnly = true;
   else if (a === '--emdash-max') { sawEmdashMax = true; emdashMaxRaw = argv[++i]; }
-  else if (a === '--emdash-baseline-file') emdashBaselineFile = argv[++i];
+  else if (a === '--emdash-baseline-rev') emdashBaselineRev = argv[++i];
   else if (a === '--git') gitRange = argv[++i]; // option-like values are rejected below, before git runs
   // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
   // otherwise silently scan nothing relevant and report clean.
@@ -53,15 +53,11 @@ const EMDASH_MAX = (() => {
   return n;
 })();
 
-if (emdashBaselineFile !== null && (!emdashBaselineFile || emdashBaselineFile.startsWith('--'))) {
-  console.error('x --emdash-baseline-file needs a file path'); process.exit(2);
+if (emdashBaselineRev !== null && (!emdashBaselineRev || emdashBaselineRev.startsWith('-'))) {
+  console.error('x --emdash-baseline-rev needs a revision'); process.exit(2);
 }
-if (emdashBaselineFile && (files.length !== 1 || gitRange)) {
-  console.error('x --emdash-baseline-file requires exactly one file target and cannot be combined with --git'); process.exit(2);
-}
-if (emdashBaselineFile && existsSync(emdashBaselineFile) && existsSync(files[0])
-  && realpathSync.native(emdashBaselineFile) === realpathSync.native(files[0])) {
-  console.error('x --emdash-baseline-file must resolve to a different file than the scan target'); process.exit(2);
+if (emdashBaselineRev && (files.length !== 1 || gitRange)) {
+  console.error('x --emdash-baseline-rev requires exactly one file target and cannot be combined with --git'); process.exit(2);
 }
 
 // Keep topology arrows, box drawing, and ordinary text symbols clean. Bare
@@ -80,6 +76,40 @@ const LINE_CHECKS = [
 
 function emdashCount(text) { return (text.match(/[–—―−]/g) || []).length; }
 
+function historicalText(file, revision) {
+  const target = resolve(file); const cwd = dirname(target); let root; let commit;
+  try {
+    root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd, encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  } catch { throw new Error('--emdash-baseline-rev requires a tracked target in a Git repository'); }
+  const targetPath = relative(resolve(root), target);
+  if (!targetPath || targetPath === '..' || targetPath.startsWith(`..${sep}`) || isAbsolute(targetPath)) {
+    throw new Error('--emdash-baseline-rev requires a tracked target in a Git repository');
+  }
+  const gitPath = targetPath.split(sep).join('/');
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', `:(literal)${gitPath}`], {
+      cwd: root, timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch { throw new Error('--emdash-baseline-rev requires a tracked target in a Git repository'); }
+  try {
+    commit = execFileSync('git', ['rev-parse', '--verify', `${revision}^{commit}`], {
+      cwd: root, encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  } catch { throw new Error('--emdash-baseline-rev could not resolve a commit'); }
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], {
+      cwd: root, timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch { throw new Error('--emdash-baseline-rev must resolve to an ancestor of HEAD'); }
+  try {
+    return execFileSync('git', ['cat-file', '-p', `${commit}:${gitPath}`], {
+      cwd: root, encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch { throw new Error('--emdash-baseline-rev could not read the target at that revision'); }
+}
+
 function scanText(label, text, emdashBaseline = 0) {
   const hits = [];
   const lines = text.split('\n');
@@ -91,25 +121,25 @@ function scanText(label, text, emdashBaseline = 0) {
   const emdashes = emdashCount(text); // em/en/horizontal-bar/minus look-alikes
   const netGrowth = Math.max(0, emdashes - emdashBaseline);
   if (netGrowth >= EMDASH_MAX) {
-    const baseline = emdashBaselineFile ? `; net growth ${netGrowth} above baseline ${emdashBaseline}` : '';
+    const baseline = emdashBaselineRev ? `; net growth ${netGrowth} above baseline ${emdashBaseline}` : '';
     hits.push({ cat: 'EMDASH', line: 0, snippet: `${emdashes} em-dashes${baseline} (threshold ${EMDASH_MAX})` });
   }
   return { label, hits };
 }
 
-// A missing target file or a failed git log is a config/usage error, not a scan result — tracked
+// A missing target file or failed Git read is a config/usage error, not a scan result — tracked
 // separately from hit counts so it can win at the end even when hits were also found (fail-closed
 // wins; a masked 2-vs-1 exit would let a broken invocation quietly report as merely "dirty").
 let hadError = false;
 const targets = [];
 let emdashBaseline = 0;
-if (emdashBaselineFile) {
-  if (!existsSync(emdashBaselineFile)) { console.error(`x not found: ${emdashBaselineFile}`); hadError = true; }
-  else emdashBaseline = emdashCount(readFileSync(emdashBaselineFile, 'utf8'));
-}
 for (const f of files) {
   if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
+}
+if (emdashBaselineRev && targets.length === 1) {
+  try { emdashBaseline = emdashCount(historicalText(files[0], emdashBaselineRev)); }
+  catch (error) { console.error(`x ${error.message}`); hadError = true; }
 }
 if (gitRange) {
   // execFileSync (no shell) — the range is passed as argv tokens, so shell metacharacters cannot inject.

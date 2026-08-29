@@ -170,6 +170,25 @@ function readBlobBatch(root, batch) {
   return blobs;
 }
 
+function historicalBlobDigests(root, metadata) {
+  const digests = new Map(); const batched = [];
+  for (const entry of metadata) {
+    if (entry.size <= MAX_BLOB_BATCH_BYTES) {
+      batched.push(entry);
+      continue;
+    }
+    let bytes;
+    try { bytes = git(root, ['cat-file', '-p', entry.oid], true); }
+    catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading historical object content: ${error.message}`); }
+    if (bytes.length !== entry.size) throw new GitStateError(`git-state: historical blob size changed while reading: ${entry.oid}`);
+    digests.set(entry.oid, sha256(bytes));
+  }
+  for (const batch of blobBatches(batched)) {
+    for (const [oid, blob] of readBlobBatch(root, batch)) digests.set(oid, blob.targetSha256);
+  }
+  return digests;
+}
+
 export function indexSnapshot(root, paths) {
   if (!Array.isArray(paths)) throw new GitStateError('git-state: requested paths must be an array');
   const requested = [...new Set(paths)].sort();
@@ -549,14 +568,7 @@ function stableHistoryEvents(events, blobDigests) {
 function historyBlobDigests(root, events) {
   const oids = [...new Set(events.flatMap((event) => [event.oldBlobOid, event.newBlobOid])
     .filter((oid) => oid && !/^0+$/.test(oid)))].sort();
-  const metadata = blobMetadata(root, oids);
-  const oversized = metadata.find((entry) => entry.size > MAX_BLOB_BATCH_BYTES);
-  if (oversized) throw new GitStateError(`git-state: history blob exceeds ${MAX_BLOB_BATCH_BYTES}-byte limit: ${oversized.oid}`);
-  const digests = new Map();
-  for (const batch of blobBatches(metadata)) {
-    for (const [oid, blob] of readBlobBatch(root, batch)) digests.set(oid, blob.targetSha256);
-  }
-  return digests;
+  return historicalBlobDigests(root, blobMetadata(root, oids));
 }
 
 function treeBlobOids(root, commit, paths) {
@@ -697,14 +709,10 @@ export function treePathsAt(root, commit) {
 export function targetsAt(root, commit, paths) {
   const tree = treeBlobOids(root, commit, paths);
   const oids = [...new Set([...tree.values()].filter(Boolean))].sort();
-  const metadata = blobMetadata(root, oids);
-  const oversized = metadata.find((entry) => entry.size > MAX_BLOB_BATCH_BYTES);
-  if (oversized) throw new GitStateError(`git-state: tree blob exceeds ${MAX_BLOB_BATCH_BYTES}-byte limit: ${oversized.oid}`);
-  const blobs = new Map();
-  for (const batch of blobBatches(metadata)) for (const [oid, blob] of readBlobBatch(root, batch)) blobs.set(oid, blob);
+  const digests = historicalBlobDigests(root, blobMetadata(root, oids));
   const format = oids.length ? objectFormat(root) : null;
   return new Map([...tree].map(([path, blobOid]) => [path, blobOid ? {
-    objectFormat: format, blobOid, commitOid: commit, path, targetSha256: blobs.get(blobOid).targetSha256,
+    objectFormat: format, blobOid, commitOid: commit, path, targetSha256: digests.get(blobOid),
   } : null]));
 }
 export function targetAt(root, commit, path) {

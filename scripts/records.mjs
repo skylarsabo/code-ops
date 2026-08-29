@@ -207,6 +207,10 @@ function authorityObjectRefs(inventory) {
 }
 
 function authorityRefKey(ref) { return `${ref.type}:${ref.path}`; }
+function validAuthorityRef(ref) {
+  return Boolean(ref && Object.keys(ref).sort().join(',') === 'objectDigest,path,type'
+    && AUTHORITY_REF_TYPES.has(ref.type) && safePath(ref.path) && /^[0-9a-f]{64}$/.test(ref.objectDigest || ''));
+}
 function authorityRefCompare(left, right) {
   const leftKey = authorityRefKey(left); const rightKey = authorityRefKey(right);
   return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
@@ -1150,16 +1154,13 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
     if (historyComplete && batch.type === 'native-append' && (!root || !commitIsReachable(root, batch.sourceHead))) {
       throw new Error('authority batch source commit is not reachable from HEAD');
     }
+    if (batch.objects.some((ref) => !validAuthorityRef(ref))) throw new Error('invalid authority object reference');
     const nativeSourceTargets = historyComplete && batch.type === 'native-append'
       ? targetsAt(root, batch.sourceHead, batch.objects.map((ref) => ref.path))
       : null;
     if (batch.priorAuthorityDigest !== authorityDigest(runningRefs)) throw new Error('authority batch prior digest mismatch');
     const batchKeys = new Set();
     for (const ref of batch.objects) {
-      if (!ref || Object.keys(ref).sort().join(',') !== 'objectDigest,path,type'
-        || !AUTHORITY_REF_TYPES.has(ref.type) || !safePath(ref.path) || !/^[0-9a-f]{64}$/.test(ref.objectDigest || '')) {
-        throw new Error('invalid authority object reference');
-      }
       const key = authorityRefKey(ref);
       if (batchKeys.has(key) || covered.has(key)) throw new Error(`authority object has duplicate batch coverage: ${ref.path}`);
       if (canonical(actual.get(key)) !== canonical(ref)) throw new Error(`authority object digest mismatch: ${ref.path}`);

@@ -55,7 +55,7 @@ Treat protected repository review as the trust root for the receipt. `receiptDig
 ## Phase 3 — CHECK
 Run the vault and manifest checkers and repair the repository, never the gate. When manifest v2 declares collections, run `records check`. Existing authority failures take precedence over `pending-admission`. Treat incomplete history separately from evidence loss.
 
-For a committed immutable path, run `records plan-adoption --incremental --out <repo-relative-ignored-path>`. Review the plan, record required dispositions, then pass it to `records adopt --review`. An empty delta is a write-free success. Use `--require-delta` only with `--incremental` when automation must prove that it found work.
+For a committed immutable path in an inventory v2 or v3 collection, run `records plan-adoption --incremental --out <repo-relative-ignored-path>`. Review the plan, record required dispositions, then pass it to `records adopt --review`. An empty delta is a write-free success. Use `--require-delta` only with `--incremental` when automation must prove that it found work. Inventory v1 remains readable but cannot use incremental admission.
 
 For a staged native record with no reachable path history, use `records append`. The first non-empty v2 authority mutation performs a receipted v3 migration. Never regenerate genesis as a superset.
 

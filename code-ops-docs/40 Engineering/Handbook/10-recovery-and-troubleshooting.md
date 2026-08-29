@@ -259,9 +259,9 @@ Do not use `commit-tree` as the scheduled default. When worktrees are unavailabl
 
 ### Roll out mixed collections
 
-Adopt closed, stable collections before a collection with recurring writers. Admit any committed late arrivals incrementally before designing the mixed collection.
+Adopt quiescent collections before a collection with recurring writers. Admit any committed late arrivals incrementally before designing the mixed collection. Incremental intake requires inventory v2 or v3; inventory v1 remains readable but cannot enter the authority-batch chain.
 
-For the mixed collection, give each live writer an exact mutable scope. Let exact paths outrank broad immutable selectors for closed evidence. Prove the recurring job can run again without immutable drift.
+For the mixed collection, give each live writer an exact mutable scope. Let exact paths outrank broad immutable selectors for quiescent evidence. Prove the recurring job can run again without immutable drift.
 
 Enable scheduled intake before adopting a root that receives new immutable paths. Run one isolated recovery cycle and verify the next ordinary writer cycle. Only then adopt the dynamic collection.
 

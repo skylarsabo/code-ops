@@ -1,7 +1,7 @@
 # Changelog — privacy-opsec-suite
 
 ## 1.18.3
-- The traceless scanner uses bounded Unicode emoji properties instead of treating box-drawing glyphs as emoji. Bare text-presentation pictographs, emoji presentation, flags, and keycaps remain blocking. `--emdash-baseline-file` measures net dash-count growth against separate verified pre-edit text while every hard tell still scans the complete current text. A self-baseline fails closed.
+- The traceless scanner uses bounded Unicode emoji properties instead of treating box-drawing glyphs as emoji. Bare text-presentation pictographs, emoji presentation, flags, and keycaps remain blocking. `--emdash-baseline-rev` measures net dash-count growth against the same tracked path at an ancestor commit while every hard tell still scans the complete current text. Arbitrary baseline files are rejected.
 
 ## 1.18.2
 - Documentation references now resolve through the repository's sole `code-ops-docs/` hub after the handbook and techniques migration.

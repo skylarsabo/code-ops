@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Synthetic-only regression coverage. The literal-bracket case is deliberately defensive.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
-  citationAuthority, digestJson, extractCitations, historyPathBatches, indexSemantic, indexSnapshot, jsonl,
-  recordId, resolvePrefix, sha256, writeAtomically,
+  adoptionHistoryProfiles, citationAuthority, digestJson, extractCitations, historyPathBatches, indexSemantic,
+  indexSnapshot, jsonl, recordId, resolvePrefix, sha256, targetsAt, writeAtomically,
 } from '../../scripts/record-lib.mjs';
 
 const ROOT = process.cwd();
@@ -14,7 +14,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 219 : 222;
+const expectedCases = process.platform === 'win32' ? 227 : 230;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -37,6 +37,15 @@ function runWithScript(script, args, cwd, env = {}) {
     return { status: error.status ?? 1, output: `${error.stdout || ''}${error.stderr || ''}` };
   }
 }
+function runWithScriptCaptured(script, args, cwd, env = {}) {
+  const child = spawnSync(process.execPath, [script, ...args], {
+    cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env },
+  });
+  return {
+    status: child.status ?? 1,
+    output: `${child.stdout || ''}${child.stderr || ''}${child.error ? `\n${child.error.message}` : ''}`,
+  };
+}
 function git(args, cwd, binary = false) {
   return execFileSync('git', ['-c', 'core.autocrlf=false', ...args], {
     cwd, encoding: binary ? 'buffer' : 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
@@ -49,7 +58,7 @@ function configuredGit(args, cwd, binary = false) {
 }
 function commit(repo, message) {
   git(['add', '-A'], repo);
-  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', message], repo);
+  git(['-c', 'gc.auto=0', '-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', message], repo);
 }
 function squashCurrentTree(repo, message) {
   const tree = git(['rev-parse', 'HEAD^{tree}'], repo).trim();
@@ -303,6 +312,30 @@ try {
   try { indexSnapshot(oversizedBlobRepo, ['large.bin']); } catch (error) { oversizedBlobError = error.message; }
   check('canonical Git snapshots reject one blob above the bounded memory limit',
     oversizedBlobError.includes('exceeds 33554432-byte limit') && oversizedBlobError.includes('large.bin'), oversizedBlobError);
+
+  const historicalBlobRepo = join(work, 'oversized-history-blob'); mkdirSync(historicalBlobRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], historicalBlobRepo);
+  const historicalPath = 'records/historical-large.md';
+  const historicalBytes = Buffer.alloc((34 * 1024 * 1024), 98);
+  const historicalDigest = sha256(historicalBytes);
+  write(historicalBlobRepo, historicalPath, historicalBytes);
+  commit(historicalBlobRepo, 'add large historical record');
+  write(historicalBlobRepo, historicalPath, '# Current record\n');
+  commit(historicalBlobRepo, 'settle historical record');
+  const historicalRows = [{ path: historicalPath, kind: 'record', policy: 'append-only' }];
+  let historicalProfile = null; let historicalProfileError = '';
+  try {
+    historicalProfile = adoptionHistoryProfiles(
+      historicalBlobRepo, fixtureManifest().recordCollections[0], historicalRows,
+    ).get(historicalPath);
+  } catch (error) { historicalProfileError = error.message; }
+  check('history profiling reads a pre-adoption blob above the batch limit individually',
+    /^[0-9a-f]{64}$/.test(historicalProfile?.historyDigest || '') && !historicalProfileError, historicalProfileError);
+  let historicalTarget = null; let historicalTargetError = '';
+  try { historicalTarget = targetsAt(historicalBlobRepo, 'HEAD~1', [historicalPath]).get(historicalPath); }
+  catch (error) { historicalTargetError = error.message; }
+  check('historical target lookup reads a blob above the batch limit individually',
+    historicalTarget?.targetSha256 === historicalDigest && !historicalTargetError, historicalTargetError);
 
   function batchProfile(fillerCount) {
     const batchRepo = join(work, `batch-profile-${fillerCount}`); mkdirSync(batchRepo, { recursive: true });
@@ -1286,6 +1319,79 @@ try {
       .every((artifact) => !Object.hasOwn(artifact, 'provenance')),
   `${result.output}\n${legacyV2BaselineCheck.output}\n${nativeMigrationCheck.output}`);
 
+  const missingIncrementalReviewRepo = join(work, 'missing-incremental-review');
+  cpSync(incrementalRepo, missingIncrementalReviewRepo, { recursive: true });
+  const missingIncrementalReviewPath = generated(missingIncrementalReviewRepo, 'inventory.json');
+  const missingIncrementalReview = JSON.parse(readFileSync(missingIncrementalReviewPath, 'utf8'));
+  const unreviewedIncrementalBatch = missingIncrementalReview.authorityBatches.at(-1);
+  unreviewedIncrementalBatch.review = null;
+  unreviewedIncrementalBatch.reviewReceiptDigest = null;
+  rehashAuthorityBatch(unreviewedIncrementalBatch);
+  writeFileSync(missingIncrementalReviewPath, `${JSON.stringify(missingIncrementalReview, null, 2)}\n`);
+  result = run(['check', '--root', missingIncrementalReviewRepo, ...COLLECTION], missingIncrementalReviewRepo);
+  check('an incremental authority batch cannot discard its embedded review receipt', result.status === 1
+    && result.output.includes('incremental authority batch lacks its review receipt'), result.output);
+
+  const embeddedNativeReviewRepo = join(work, 'native-batch-with-review');
+  cpSync(nativeMigrationRepo, embeddedNativeReviewRepo, { recursive: true });
+  const embeddedNativeReviewPath = generated(embeddedNativeReviewRepo, 'inventory.json');
+  const embeddedNativeReview = JSON.parse(readFileSync(embeddedNativeReviewPath, 'utf8'));
+  const reviewedNativeBatch = embeddedNativeReview.authorityBatches.at(-1);
+  reviewedNativeBatch.review = structuredClone(embeddedNativeReview.adoptionReview);
+  rehashAuthorityBatch(reviewedNativeBatch);
+  writeFileSync(embeddedNativeReviewPath, `${JSON.stringify(embeddedNativeReview, null, 2)}\n`);
+  result = run(['check', '--root', embeddedNativeReviewRepo, ...COLLECTION], embeddedNativeReviewRepo);
+  check('a non-incremental authority batch cannot embed an adoption review', result.status === 1
+    && result.output.includes('non-incremental authority batch embeds a review'), result.output);
+
+  const desynchronizedGenesisRepo = join(work, 'desynchronized-genesis-source');
+  cpSync(incrementalRepo, desynchronizedGenesisRepo, { recursive: true });
+  const desynchronizedGenesisPath = generated(desynchronizedGenesisRepo, 'inventory.json');
+  const desynchronizedGenesis = JSON.parse(readFileSync(desynchronizedGenesisPath, 'utf8'));
+  const desynchronizedGenesisBatch = desynchronizedGenesis.authorityBatches[0];
+  desynchronizedGenesisBatch.sourceHead = git(['rev-parse', 'HEAD'], desynchronizedGenesisRepo).trim();
+  rehashAuthorityBatch(desynchronizedGenesisBatch);
+  writeFileSync(desynchronizedGenesisPath, `${JSON.stringify(desynchronizedGenesis, null, 2)}\n`);
+  result = run(['check', '--root', desynchronizedGenesisRepo, ...COLLECTION], desynchronizedGenesisRepo);
+  check('genesis authority cannot desynchronize from its adoption review source', result.status === 1
+    && result.output.includes('authority genesis contradicts its adoption review'), result.output);
+
+  const manufacturedMigrationProvenanceRepo = join(work, 'manufactured-migration-provenance');
+  cpSync(nativeMigrationRepo, manufacturedMigrationProvenanceRepo, { recursive: true });
+  const manufacturedMigrationProvenancePath = generated(manufacturedMigrationProvenanceRepo, 'inventory.json');
+  const manufacturedMigrationProvenance = JSON.parse(readFileSync(manufacturedMigrationProvenancePath, 'utf8'));
+  const inheritedArtifactRef = manufacturedMigrationProvenance.authorityBatches[0].objects
+    .find((ref) => ref.type === 'artifact');
+  manufacturedMigrationProvenance.artifacts.find((artifact) => artifact.path === inheritedArtifactRef.path)
+    .provenance = 'adopted';
+  rehashAuthorityChain(manufacturedMigrationProvenance);
+  writeFileSync(manufacturedMigrationProvenancePath, `${JSON.stringify(manufacturedMigrationProvenance, null, 2)}\n`);
+  result = run(['check', '--root', manufacturedMigrationProvenanceRepo, ...COLLECTION], manufacturedMigrationProvenanceRepo);
+  check('a v2 migration batch cannot manufacture artifact provenance', result.status === 1
+    && result.output.includes('v2 migration cannot manufacture artifact provenance'), result.output);
+
+  const unreachableNativeSourceRepo = join(work, 'unreachable-native-source');
+  cpSync(nativeMigrationRepo, unreachableNativeSourceRepo, { recursive: true });
+  const unreachableNativeSourcePath = generated(unreachableNativeSourceRepo, 'inventory.json');
+  const unreachableNativeSource = JSON.parse(readFileSync(unreachableNativeSourcePath, 'utf8'));
+  unreachableNativeSource.authorityBatches.at(-1).sourceHead = 'f'.repeat(40);
+  rehashAuthorityBatch(unreachableNativeSource.authorityBatches.at(-1));
+  writeFileSync(unreachableNativeSourcePath, `${JSON.stringify(unreachableNativeSource, null, 2)}\n`);
+  result = run(['check', '--root', unreachableNativeSourceRepo, ...COLLECTION], unreachableNativeSourceRepo);
+  check('native authority requires a source commit reachable from HEAD', result.status === 1
+    && result.output.includes('authority batch source commit is not reachable from HEAD'), result.output);
+
+  const malformedNativeRefRepo = join(work, 'malformed-native-reference');
+  cpSync(nativeMigrationRepo, malformedNativeRefRepo, { recursive: true });
+  const malformedNativeRefPath = generated(malformedNativeRefRepo, 'inventory.json');
+  const malformedNativeRef = JSON.parse(readFileSync(malformedNativeRefPath, 'utf8'));
+  malformedNativeRef.authorityBatches.at(-1).objects = [null];
+  rehashAuthorityBatch(malformedNativeRef.authorityBatches.at(-1));
+  writeFileSync(malformedNativeRefPath, `${JSON.stringify(malformedNativeRef, null, 2)}\n`);
+  result = run(['check', '--root', malformedNativeRefRepo, ...COLLECTION], malformedNativeRefRepo);
+  check('malformed native authority references report their schema error without crashing', result.status === 1
+    && result.output.includes('invalid authority object reference') && !result.output.includes('TypeError'), result.output);
+
   const uncoveredAuthorityRepo = join(work, 'uncovered-authority'); cpSync(nativeMigrationRepo, uncoveredAuthorityRepo, { recursive: true });
   const uncoveredAuthorityPath = generated(uncoveredAuthorityRepo, 'inventory.json');
   const uncoveredAuthority = JSON.parse(readFileSync(uncoveredAuthorityPath, 'utf8'));
@@ -1562,7 +1668,7 @@ try {
 
   const staleReplacementScript = instrumentedRecordsScript('stale-lock-replacement-script', (source) => source.replace(
     /(      const quarantine = `\$\{lock\}\.stale-\$\{randomUUID\(\)\}`;\r?\n)/,
-    (match) => `${match}      if (process.env.CODE_OPS_EVAL_REPLACE_STALE_LOCK === '1') {\n        rmSync(lock, { recursive: true, force: true });\n        mkdirSync(lock);\n        writeFileSync(owner, '{"pid":1,"token":"fresh-owner","acquiredAt":"2026-08-28T02:30:00.000Z"}\\n');\n      }\n`,
+    (match) => `${match}      if (process.env.CODE_OPS_EVAL_REPLACE_STALE_LOCK === '1') {\n        const replacement = \`${'${lock}'}.replacement\`;\n        mkdirSync(replacement);\n        writeFileSync(join(replacement, 'owner.json'), '{"pid":1,"token":"fresh-owner","acquiredAt":"2026-08-28T02:30:00.000Z"}\\n');\n        rmSync(lock, { recursive: true, force: true });\n        renameSync(replacement, lock);\n      }\n`,
   ));
   const staleReplacementRepo = join(work, 'stale-lock-replacement'); cpSync(incrementalRepo, staleReplacementRepo, { recursive: true });
   const staleReplacementCommonDir = resolve(staleReplacementRepo, git(['rev-parse', '--git-common-dir'], staleReplacementRepo).trim());
@@ -1610,12 +1716,13 @@ try {
   const releaseSuccessRepo = join(work, 'release-failure-after-success'); cpSync(incrementalRepo, releaseSuccessRepo, { recursive: true });
   const releaseSuccessLedger = generated(releaseSuccessRepo, 'curation.jsonl');
   const releaseSuccessBefore = readFileSync(releaseSuccessLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
-  result = runWithScript(releaseFailureScript, ['curate', '--root', releaseSuccessRepo, ...COLLECTION,
+  result = runWithScriptCaptured(releaseFailureScript, ['curate', '--root', releaseSuccessRepo, ...COLLECTION,
     '--record', incrementalTwoId, '--state', '{"status":"release-proof"}', '--at', '2026-08-28T03:00:00.000Z'],
   releaseSuccessRepo, { CODE_OPS_EVAL_RELEASE_FAILURE: '1' });
   const releaseSuccessAfter = readFileSync(releaseSuccessLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
   const releaseSuccessCheck = run(['check', '--root', releaseSuccessRepo, ...COLLECTION], releaseSuccessRepo);
   check('a release anomaly cannot turn a durable mutation into a retry-triggering failure', result.status === 0
+    && result.output.includes('warning: collection mutation lock was not released')
     && releaseSuccessAfter === releaseSuccessBefore + 1 && releaseSuccessCheck.status === 0,
   `${result.output}\n${releaseSuccessCheck.output}`);
   const releaseSuccessCommonDir = resolve(releaseSuccessRepo, git(['rev-parse', '--git-common-dir'], releaseSuccessRepo).trim());
@@ -1679,7 +1786,7 @@ try {
     '--record', `REC-${'Z'.repeat(26)}`, '--state', '{"status":"invalid"}'], releaseErrorRepo,
   { CODE_OPS_EVAL_RELEASE_FAILURE: '1' });
   check('a release anomaly preserves the original mutation error', result.status === 1
-    && result.output.includes('unknown record')
+    && result.output.includes('unknown record') && result.output.includes('warning: collection mutation lock was not released')
     && releaseErrorLedger.equals(readFileSync(generated(releaseErrorRepo, 'curation.jsonl'))), result.output);
 
   const corruptIncrementalRepo = join(work, 'incremental-post-write-rollback'); cpSync(incrementalRepo, corruptIncrementalRepo, { recursive: true });

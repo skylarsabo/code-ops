@@ -88,9 +88,9 @@ Existing v2 records retain their valid provenance. V2 artifacts may lack provena
 
 Incremental batches embed their complete version 2 review receipt. Genesis and v2 migration bind the singular version 1 `adoptionReview` by digest. Native append carries no review payload. A receipt never selects the schema of the slot that contains it.
 
-Inventory v1 and v2 remain readable. The first non-empty authority mutation of inventory v2 writes a receipted `v2-migration` batch before the requested batch. An empty check, render, or incremental plan never changes the inventory version.
+Inventory v1 and v2 remain readable. Inventory v1 never gains authority-batch coverage; incremental admission requires inventory v2 or v3. The first non-empty authority mutation of inventory v2 writes a receipted `v2-migration` batch before the requested batch. An empty check, render, or incremental plan never changes the inventory version.
 
-`plan-adoption --incremental --out <repo-relative-ignored-path>` profiles only immutable Git-index paths absent from authority. The default empty delta exits zero, reports a machine-readable no-op, and writes nothing. Add `--require-delta` when automation must reject an empty delta.
+`plan-adoption --incremental --out <repo-relative-ignored-path>` requires inventory v2 or v3 and profiles only immutable Git-index paths absent from authority. The default empty delta exits zero, reports a machine-readable no-op, and writes nothing. Add `--require-delta` when automation must reject an empty delta.
 
 Incremental plans bind the existing inventory, citations, semantic index, manifest, Git state, and authority-batch head. Adoption recomputes those bindings under the mutation lock before any write. Existing entries, citation baselines, and accepted receipts remain semantically unchanged.
 
@@ -130,7 +130,7 @@ With complete history, later checks require:
 
 `receiptDigest` is an unkeyed canonical checksum. It detects corruption and stale cross-field copies. It does not authenticate a reviewer or prove that unreachable receipt bytes survived. Protected repository review is the procedural trust root. Rewrite tolerance assumes the resulting tree preserves the receipt authority bytes. Total-history replacement requires an external signature or transparency log.
 
-Inventory v1 remains readable for compatibility but has no adoption-review receipt. Inventory v2 has one genesis review without complete authority-batch coverage. Protected review must preserve each boundary until a non-empty authority mutation performs the receipted v3 migration.
+Inventory v1 remains readable for compatibility but has no adoption-review receipt and never migrates into the authority-batch chain. Inventory v2 has one genesis review without complete authority-batch coverage. Protected review must preserve the v2 boundary until a non-empty authority mutation performs the receipted v3 migration.
 
 Present pinned historical content by default. Present the current path separately. Make drift visible. With complete history, missing digest content is `evidence-lost`.
 
