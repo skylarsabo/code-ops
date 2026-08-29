@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # CI and Delivery
@@ -19,6 +19,8 @@ The documentation link gate rejects missing, escaping, case-unsafe, and ambiguou
 The documentation citation gate validates both `path:line` references and explicit commit fields. Recognized commit IDs must be complete tokens, resolve unambiguously under the repository's Git object format, and name commits in `HEAD` history. A shallow checkout that cannot establish ancestry is an infrastructure failure, so both validation jobs fetch full history. Evidence: `scripts/check-doc-citations.mjs` and `.github/workflows/validate.yml`.
 
 The record-collection eval exercises immutable evidence contracts on Ubuntu and Windows. Repositories with record collections require a complete checkout using `fetch-depth: 0` and `filter: ""`. A shallow or partial checkout is infrastructure failure, not evidence loss.
+
+Both validation jobs run the Atlas fixture eval and gate this repository's live Atlas with `atlas-check.mjs --gate`. Any stale live section blocks the job.
 
 The v4 gate chain keeps responsibilities separate. The manifest gate owns domain and collection declarations. The records gate owns identities, authority batches, history, citation state, curation chains, and semantic projections. The link gate continues to own ordinary hub navigation.
 
@@ -40,6 +42,8 @@ Release changes must bump the canonical plugin version, the marketplace entry, a
 
 ## Merge safety
 
-Never rely on a pull request to validate its own change to a PR-gate workflow. Validate a gate-workflow edit in a follow-up pull request that does not change that workflow. Evidence: `AGENTS.md:37-39`.
+Same-repository `pull_request` runs use the merge ref, so they exercise edits to PR-gate workflows. Reviewers must still confirm that the edited step ran instead of skipping.
+
+Fork credential skips need a same-repository run. `pull_request_target` and `schedule` edits need proof from the default branch after merge. A `push` edit needs an actual push run on the intended pushed ref. Evidence: [`check-gate-workflow-edit.mjs`](../../scripts/check-gate-workflow-edit.mjs) and [the repository contract](../../AGENTS.md).
 
 The project does not define an automatic production deployment. Its delivery artifact is a versioned, validated marketplace package.

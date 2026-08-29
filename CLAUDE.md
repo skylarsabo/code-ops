@@ -16,9 +16,11 @@ break silently.
   `--git <range>`). The code-ops-suite `PreToolUse` hook (`enforce-traceless`) also
   blocks a flagged `git commit` / `gh pr create|merge` at the tool layer; CI stays the
   fail-closed backstop.
-- **PR-gate workflows only take effect once merged to main.** A PR that edits
-  `.github/workflows/deep-review.yml` or `opsec-gate.yml` is not reviewed by its own
-  edit; verify gate changes on a follow-up PR that does not touch the workflows.
+- **Prove PR-gate workflow edits against their event.** Same-repository `pull_request`
+  runs use the merge ref, so they exercise edits to `deep-review.yml` and `opsec-gate.yml`.
+  Fork pull requests may skip without credentials. `pull_request_target` and `schedule`
+  run from the default branch, while `push` runs the workflow on the pushed ref; prove
+  each edited path with its actual event and ref.
 - **`evals/*/ANSWER_KEY.*` never enters the context handed to a skill under eval.**
 - **The real-scale calibration channel is one-way** (see `evals/README.md`): only the
   sanitized calibration note returns from a private-repo calibration run; never quote

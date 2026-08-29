@@ -3,12 +3,10 @@
 //
 //   node scripts/check-gate-workflow-edit.mjs [--base <ref>]
 //
-// WHY: CLAUDE.md notes a PR-gate workflow only takes effect once merged to main — a PR
-// that edits deep-review.yml or opsec-gate.yml is not reviewed by its own edit. This
-// script flags that condition loudly so a contributor knows to verify the change on a
-// follow-up PR that does not touch the workflows. It is advisory only: it never fails
-// the run, because the underlying risk (an unreviewed gate edit) is a human-process
-// concern, not a mechanical defect to gate on.
+// WHY: a same-repository pull_request uses the merge ref and can execute edits to these
+// gates. Fork requests can skip without credentials. pull_request_target and schedule
+// use the default branch, while push uses the pushed ref. This advisory tells reviewers
+// to confirm which event and ref ran instead of inferring coverage from a green check.
 //
 // FAIL-OPEN: if <base> does not resolve as a git ref (e.g. a push event with no PR base
 // to diff against), this prints a skip note and exits 0. Every path in this script exits
@@ -39,9 +37,10 @@ const touched = GATE_WORKFLOWS.filter((w) => changedPaths.includes(w));
 if (touched.length > 0) {
   console.log('!!! GATE WORKFLOW EDITED !!!');
   console.log(`This PR touches: ${touched.join(', ')}`);
-  console.log('This PR is NOT reviewed by its own edited gate — PR-gate workflows only take');
-  console.log('effect once merged to main. Verify this change on a follow-up PR that does not');
-  console.log('touch the workflow files.');
+  console.log('A same-repository pull_request uses the merge ref, so this run can exercise');
+  console.log('the edited gate. Confirm that the review step executed instead of skipping.');
+  console.log('Fork pull requests can lack credentials. pull_request_target and schedule use');
+  console.log('the default branch; push uses the pushed ref. Prove each actual event and ref.');
 } else {
   console.log('OK — no gate workflow (deep-review.yml, opsec-gate.yml) touched in this diff.');
 }

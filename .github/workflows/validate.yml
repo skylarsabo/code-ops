@@ -181,6 +181,9 @@ jobs:
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
 
+      - name: Atlas freshness (this repo's own Atlas)
+        run: node scripts/atlas-check.mjs check --atlas "code-ops-docs/98 System/Atlas" --gate
+
       - name: Performance measurement regression eval
         run: node evals/benchmark-command/run.mjs
 
@@ -318,6 +321,9 @@ jobs:
 
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
+
+      - name: Atlas freshness (this repo's own Atlas)
+        run: node scripts/atlas-check.mjs check --atlas "code-ops-docs/98 System/Atlas" --gate
 
       - name: Performance measurement regression eval
         run: node evals/benchmark-command/run.mjs

@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6a0745086caaf6f16806103d40ca859112bdfee7",
-      "verifiedDigest": "3538ea9e1bd766aa12811618123fae078031acec972cc6d7db0f48de3933ab8e"
+      "verifiedAt": "92aa58650bfa6478f15968ecf553b815d831cb55",
+      "verifiedDigest": "8134ddf339b2ad4352282a1e54b465f8bd0054ea6bd2e9ea62684b7dfae36e4f"
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "6a0745086caaf6f16806103d40ca859112bdfee7",
-      "verifiedDigest": "bed23c627cd2d572cd0bb9b6cb7975ee590b7ac6b583cfae83c0ca6887ca0809"
+      "verifiedAt": "92aa58650bfa6478f15968ecf553b815d831cb55",
+      "verifiedDigest": "63749b9df7e08a4397e4b177342038bdee07453e6f2e20cdfc54efa447f3f0c9"
     },
     {
       "slug": "codex-render",
@@ -47,8 +47,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "6a0745086caaf6f16806103d40ca859112bdfee7",
-      "verifiedDigest": "69e7c78d55ca8842a130a9455fdccfd85b009a96c87b0be364a1f2ff63e8ff45"
+      "verifiedAt": "92aa58650bfa6478f15968ecf553b815d831cb55",
+      "verifiedDigest": "191180da384e69286f1dadd49076cd1d0f765310fce35ff3c5060bd842cbdd94"
     },
     {
       "slug": "docs-doctrine",
@@ -71,8 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "d3b43972fcb9fb52c03b5e02d8f1b5e9d443c797",
-      "verifiedDigest": "d5575bff92a43d20f8492f5385ce64d9b1fd0f46578e51f049769e7bd11c1519"
+      "verifiedAt": "92aa58650bfa6478f15968ecf553b815d831cb55",
+      "verifiedDigest": "64aaca5f1c4c391d1838cdb48d81c131c9c6a93010f9ca1580bcf509695d75da"
     },
     {
       "slug": "root-contracts",
@@ -86,8 +86,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "cef7d6044f2d5b663eb6702df8dde16f682e5f50",
-      "verifiedDigest": "0836c6373e9fe07d64f8fdf9c5cc322d08b775af6e0b12eb64aacf3f90336f8d"
+      "verifiedAt": "92aa58650bfa6478f15968ecf553b815d831cb55",
+      "verifiedDigest": "1838b1f793673fa969ce6ce4c01613b666ca3c526f90e97b8b87cda903502b2d"
     },
     {
       "slug": "runtime-toolchain",

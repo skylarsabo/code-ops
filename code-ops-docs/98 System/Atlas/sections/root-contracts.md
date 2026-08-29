@@ -4,6 +4,8 @@ Charter: repository-root instructions, discovery metadata, ignore policy, and to
 
 `CLAUDE.md` and `AGENTS.md` are byte-identical host contracts. They put unenforced safety rules first, then describe model routing, acceptance ownership, generated-output boundaries, documentation authority, and required gates. A change to either contract must update the other in the same commit.
 
+The gate-edit clause follows event semantics. Same-repository `pull_request` runs use the merge ref, `pull_request_target` and `schedule` use the default branch, and `push` uses the pushed ref. Fork credential skips require a same-repository proof run.
+
 The documentation clause names the hub as the sole authored authority and the manifest as its registry. It also recognizes manifest-v2 record collections as immutable governed evidence, routing collection verification to the shared records engine instead of inviting direct edits at historical paths.
 
 The root README is an orientation surface for the whole marketplace. Plugin READMEs remain installation surfaces because a single-plugin install does not include the repository README. Root counts and plugin command counts are mechanically coupled to skill directories and handbook routing.
