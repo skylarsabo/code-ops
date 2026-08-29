@@ -71,6 +71,10 @@ Plus the standard anonymity checks: no new identifier / fingerprint / correlatio
 
 Each live model gate defines its complete action-input map once with a YAML anchor. The retry aliases that map, so credentials, review criteria, tools, model, and turn ceiling cannot drift between attempts. The attempt steps keep separate identifiers, conditions, 35-minute clocks, and outcomes because the final guard must inspect both results. An 80-minute job clock leaves time for setup, two bounded attempts, and the guard; if both attempts fail, the guard still fails closed.
 
+### Prove workflow changes after merge
+
+A pull request cannot exercise its own edits to PR-gate workflows. After merging a gate change, open a separate non-workflow pull request from current `main`. Require fresh `deep-review`, `opsec-gate`, and structural checks before treating the change as live-proven. The earlier pull request proves its other behavior, not its edited gate.
+
 ### The credential, and skipping cleanly
 
 All three model-backed gates need **one** Claude credential, set as a repo secret:
@@ -175,4 +179,4 @@ Two rules hold at every level: the **always-gated categories** (security/auth, s
 - [The evals directory](../../../evals/README.md) — the harnesses the `validate` gate runs.
 - [Shell discipline](../Techniques/shell-discipline.md) — why a hook-gated `git commit` or `gh pr create` runs standalone, never chained into a compound command.
 
-*Verified-at: b22d0da*
+*Verified-at: d3b4397*

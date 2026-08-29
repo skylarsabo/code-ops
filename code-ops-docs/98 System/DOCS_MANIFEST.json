@@ -80,7 +80,7 @@
         ".github/workflows/**"
       ],
       "sourceDigest": "c868d0690b7779d3474e41e315eb680833cecfb4c370e3bae0caf0097d9117c8",
-      "contentDigest": "e22735fed9755897d1b50bda0e7f8d9c522e83b49a9e697bd452639972e3ae12"
+      "contentDigest": "91a1c5abe3418752d687113748b348eb3ee1423016a434f7da045e0c1a6decaa"
     },
     {
       "id": "techniques",
@@ -184,7 +184,7 @@
         "**"
       ],
       "sourceDigest": "f719d65ce34358713bd52896de5272d986740488925cd0616aacd3eeee478453",
-      "contentDigest": "c6c626adbe79730309dd0253b0eb4ece41bb34aa3355334b8b084560d1be4de2"
+      "contentDigest": "7e0731ac9ceeccbba7146e9d9d59f784926c93b0d0004b3da67b63e105fedf2f"
     }
   ]
 }
