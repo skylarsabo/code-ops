@@ -14,6 +14,8 @@ Atlas default stamps are content-addressed independently of branch topology. The
 
 Plugin changes have three coupled outputs: the canonical package, host projections, and marketplace metadata. A new runtime script must enter the vendored manifest when skills reference it. A new skill also changes the plugin README, root count, handbook command reference, and router. Do not patch a generated host copy to solve a canonical-package defect.
 
+Shipped GitHub workflow examples are governed dependency surfaces, not illustrative exceptions. They use the same reviewed immutable action pins as the repository workflows, and a plugin patch release carries any example-only dependency refresh through marketplace parity and both host projections.
+
 The documentation skills now share one v4 authority model. `vault` owns genesis and incremental admission, migration, and conformance. `repo-docs` owns bounded extraction, `doc-alignment` reconciles current authority, and `atlas` cites preserved evidence by record ID. The code-ops-suite vendors one records engine so every host executes the same identity, batch, and history rules.
 
 The shared boundary rejects symlinked or drive-qualified paths before reads and writes. Canonical stage-0 blobs own content identity and native metadata. Git's content-aware comparison separates checkout transformations from real edits. Native authority is re-derived from exact path history and its batch-introduction commit. A clone-wide collection lock binds token plus directory identity across sibling worktrees. Cleanup failures preserve ordinary durable success, while ownership loss produces a do-not-retry outcome.

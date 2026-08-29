@@ -8,6 +8,9 @@ The suite is built for a developer in the loop, but two kinds of work run unatte
 - **Three PR gates, one per layer.** `code-ops-suite:pr-review` (breadth), `rigor:deep-review` (verification), `privacy-opsec-suite:opsec-pr-gate` (anonymity). Each posts inline comments at `file:line` and ends with a verdict; each blocks a different class of regression.
 - **All three need a Claude credential** — `CLAUDE_CODE_OAUTH_TOKEN` (a Pro/Max subscription token) **or** `ANTHROPIC_API_KEY`. Without either, the gate **skips cleanly** instead of failing. The OAuth path needs `id-token: write`.
 - **A fourth gate runs with no credential at all:** the structural `validate` workflow (`lint-plugins` + `check-no-deps` + the eval harnesses). It is pure Node, deterministic, and the real backstop on this repo.
+- **One runtime pin governs local and CI execution.** [`.node-version`](../../../.node-version) selects Node 24 LTS. Do not add separate workflow or local Node pins.
+- **Actions use immutable, allowlisted SHAs.** [`.github/actions-lock.json`](../../../.github/actions-lock.json) owns the approved identities, pins, and review metadata.
+- **Dependabot opens review work; it never merges it.** [`.github/dependabot.yml`](../../../.github/dependabot.yml) groups weekly action minor and patch updates. Majors stay separate. Every update must refresh the action policy and governed examples before CI can pass.
 - **Make the gates count:** mark them as required status checks in branch protection so a `request-changes` verdict actually blocks the merge.
 - **Recurring work runs on `/schedule`:** put `researcher:ecosystem-watch`, `code-ops-suite:dependency-upgrade`, and `code-ops-suite:security-privacy-audit` on a cadence.
 
@@ -96,7 +99,7 @@ permissions:
   id-token: write   # claude-code-action mints an OIDC token for the Pro/Max OAuth path
 ```
 
-Both live gates carry this ([`deep-review.yml`](../../../.github/workflows/deep-review.yml), [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml)). The `examples/*.yml` predate it and show only `contents: read` + `pull-requests: write`; if you use the OAuth token rather than an API key, add `id-token: write`. The actions are pinned to commit SHAs (per the suite's own `supply-chain-trust` skill) so a moved tag cannot inject code into CI; bump them deliberately and let the trailing `# v1` comment track the tag.
+Both live gates carry this ([`deep-review.yml`](../../../.github/workflows/deep-review.yml), [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml)). The shipped examples use an API key and show only `contents: read` + `pull-requests: write`; add `id-token: write` when using OAuth. The action policy rejects mutable or unlisted references. Update its pin and review metadata deliberately.
 
 ---
 
@@ -107,6 +110,7 @@ The fourth gate needs **no credential and no model**. [`validate.yml`](../../../
 | Step | Command | What it guards |
 | --- | --- | --- |
 | Structural lint | `node scripts/lint-plugins.mjs` | Manifests parse and agree; README skill counts match the real `skills/` dirs; every `SKILL.md` has `description:`, a `## Done when` heading, and a `CONVENTIONS.md` reference; orchestrators only reference skills that exist; **bundled plugin scripts are byte-identical to canonical `scripts/`**; command-reference entries exist; every `§<id>` citation resolves to a real CONVENTIONS section and "the X subagent" prose names a bundled agent; no angle brackets in SKILL.md frontmatter (a discovery-time injection surface); every bundled agent declares a `model:` at or above its floor in the linter's AGENT_MODEL_FLOORS table; and the register-producing skills' `## Done when` still runs `revalidate-register.mjs` — the producer-side anchor gate must not silently regress ([`scripts/lint-plugins.mjs`](../../../scripts/lint-plugins.mjs) header). |
+| Action pin enforcement | `node scripts/check-action-pins.mjs` | Only entries from `.github/actions-lock.json` may appear in governed workflows and examples. The current labels are `actions/checkout` v7.0.1, `actions/setup-node` v7.0.0, and `anthropics/claude-code-action` v1.0.210. Mutable tags, unlisted actions, and pin or annotation drift fail closed. |
 | Zero-dependency guard | `node scripts/check-no-deps.mjs` | Every import is a `node:` builtin or a local relative path — no third-party bare import (`SUPPLY-002`), which would open an npm dependency-confusion / transitive-CVE surface ([`scripts/check-no-deps.mjs`](../../../scripts/check-no-deps.mjs) header). |
 | Register-staleness eval | `node evals/register-staleness/run.mjs` | `revalidate-register.mjs` correctly classifies fresh / moved / already-fixed / no-reference items and fails closed on stale entries — the one behavior the field actually lost — and its strict schema gate, `--consumed` terminal-state gate, and `<REDACTED-LINE>` carve-out hold. |
 | AI-trace scanner eval | `node evals/ai-tells/run.mjs` | `scan-ai-tells.mjs` flags a dirty PR body across every category and stays silent on a clean body with decoys. |

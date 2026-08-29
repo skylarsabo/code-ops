@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-29",
+  "nodeVersionFile": ".node-version",
+  "sources": [
+    ".github/workflows",
+    "plugins/code-ops-suite/examples/github-pr-review.yml",
+    "plugins/privacy-opsec-suite/examples/github-opsec-gate.yml",
+    "plugins/rigor/examples/github-deep-review.yml"
+  ],
+  "allowLocalActions": true,
+  "actions": {
+    "actions/checkout": {
+      "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "version": "v7.0.1",
+      "repository": "https://github.com/actions/checkout",
+      "license": "MIT",
+      "tagVerification": "verified GitHub signature",
+      "runtime": "node24",
+      "workflowPermissions": [
+        "contents: read"
+      ],
+      "egress": "GitHub and explicitly configured Git remotes",
+      "telemetry": "GitHub-hosted action execution; no separate action telemetry identified",
+      "advisories": []
+    },
+    "actions/setup-node": {
+      "sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "version": "v7.0.0",
+      "repository": "https://github.com/actions/setup-node",
+      "license": "MIT",
+      "tagVerification": "verified GitHub signature",
+      "runtime": "node24",
+      "workflowPermissions": [],
+      "egress": "Node.js distributions and GitHub release infrastructure",
+      "telemetry": "GitHub-hosted action execution; no separate action telemetry identified",
+      "advisories": []
+    },
+    "anthropics/claude-code-action": {
+      "sha": "a874e9ecd7bb36efdad65429c6b35815f5a08f10",
+      "version": "v1.0.210",
+      "repository": "https://github.com/anthropics/claude-code-action",
+      "license": "MIT",
+      "tagVerification": "unsigned annotated tag; immutable commit pin independently resolved",
+      "runtime": "composite (Bun and Claude Code)",
+      "workflowPermissions": [
+        "contents: read",
+        "id-token: write for OAuth",
+        "pull-requests: write for PR review gates"
+      ],
+      "egress": "GitHub, Anthropic, OAuth exchange, and action-managed tool installation endpoints",
+      "telemetry": "Provider-mediated model and GitHub action execution",
+      "advisories": [
+        "GHSA-395f-4hp3-45gv: shell-quote 1.8.4 is present upstream; local workflow reachability is unconfirmed"
+      ]
+    }
+  }
+}

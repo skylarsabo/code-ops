@@ -68,6 +68,9 @@
 //      (the skill's own name excluded) has an edge row under the page's "## The edges" heading,
 //      and every such row has a reference. Check 17 only proves the named edges resolve, so the
 //      map could drift from the tree without either side failing.
+//  23. This marketplace keeps its Node SSOT, action lock, update-bot config, checker, and both
+//      platform invocations present. Removing the policy and its call sites cannot disable the
+//      supply-chain gate silently.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -834,6 +837,27 @@ function walkFiles(dir, out = []) {
       if (!workflowText.includes(needle))
         fail(`evals/${name}/run.mjs exists but is not invoked in ${rel(workflowPath)} (expected the literal string "${needle}")`);
     }
+  }
+}
+
+// ---- 23. repository CI dependency-policy wiring ----------------------------
+// This rule belongs to the marketplace repository, not to the portable plugin linter.
+// Synthetic consumers omit marketplace.name and therefore do not inherit this repo's CI files.
+if (mp?.name === 'code-ops') {
+  const required = [
+    '.node-version',
+    '.github/actions-lock.json',
+    '.github/dependabot.yml',
+    'scripts/check-action-pins.mjs',
+  ];
+  for (const path of required) if (!existsSync(join(ROOT, ...path.split('/')))) fail(`missing repository CI dependency-policy file: ${path}`);
+
+  const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
+  if (!existsSync(workflowPath)) fail('missing .github/workflows/validate.yml — cannot verify action-pin gate wiring');
+  else {
+    const needle = 'node scripts/check-action-pins.mjs';
+    const count = readText(workflowPath).split(needle).length - 1;
+    if (count !== 2) fail(`.github/workflows/validate.yml must invoke "${needle}" once per platform job (expected 2, found ${count})`);
   }
 }
 

@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.12.3
+- CI guidance now requires a reviewed immutable Claude Code action pin for the delegated OpSec gate.
+
 ## 0.12.2
 - Documentation references now resolve through the repository's sole `code-ops-docs/` hub after the handbook and techniques migration.
 

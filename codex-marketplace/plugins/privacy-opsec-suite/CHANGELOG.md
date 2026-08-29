@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.18.4
+- The shipped OpSec workflow example now pins checkout and the Codex action to reviewed immutable commits.
+
 ## 1.18.3
 - The traceless scanner uses bounded Unicode emoji properties instead of treating box-drawing glyphs as emoji. Bare text-presentation pictographs, emoji presentation, flags, and keycaps remain blocking. `--emdash-baseline-rev` measures net dash-count growth against the same tracked path at an ancestor commit while every hard tell still scans the complete current text. Arbitrary baseline files are rejected.
 

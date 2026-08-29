@@ -48,7 +48,7 @@ Invoke with `/rigor:<name>` in Claude Code or `rigor:<name>` in Codex, or let th
 ## Running it
 - **Whole pipeline:** `/rigor:rigor-sweep` (start with `assess-only` to get proven findings before changing anything).
 - **Just hunt bugs:** `/rigor:ground-truth` → `/rigor:bug-hunt` on your riskiest subsystem.
-- **On every PR:** wire `deep-review` into CI with `anthropics/claude-code-action@v1` — see `examples/github-deep-review.yml`.
+- **On every PR:** wire `deep-review` into CI with the Claude Code action pinned to a reviewed commit — see `examples/github-deep-review.yml`.
 
 ## How to get the most out of it
 - Run `ground-truth` then `test-suite-audit` first — the rest is only as trustworthy as the tests under it, and you want to know where "green" is real.

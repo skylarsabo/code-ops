@@ -58,7 +58,7 @@ Registers are live backlogs / single source of truth with stable IDs (`RSCH-007`
 
 - **In-session loop:** drive a skill to its "Done when" criteria with the built-in `/loop`.
 - **Recurring watch:** `ecosystem-watch` is built to schedule — put it on a Routine (`/schedule`) to keep up with dependency updates, CVEs, deprecations, and newly-available capabilities, and let it open hand-offs into `code-ops-suite:dependency-upgrade` / `privacy-opsec-suite:supply-chain-trust`.
-- **Guard the egress posture on every PR:** any change to the egress surface (a new outbound path, a weakened disclosure, an un-manifested source) is blocking. Wire `privacy-opsec-suite:opsec-pr-gate` into CI with `anthropics/claude-code-action@v1` to gate it (canonical setup: `/install-github-app`, then paste the criteria).
+- **Guard the egress posture on every PR:** any change to the egress surface (a new outbound path, a weakened disclosure, an un-manifested source) is blocking. Wire `privacy-opsec-suite:opsec-pr-gate` into CI with the Claude Code action pinned to a reviewed commit (canonical setup: `/install-github-app`, then paste the criteria).
 - **Deterministic backstops:** the `research-manifest.mjs` record → validate round-trip is fail-closed and runs cheaply in CI — an egress without a manifest entry, or an un-cited external claim, fails the build. Reserve the judgment-heavy skills (spike, verify, ideate, library-eval) for the work that needs a model.
 
 ## Notes

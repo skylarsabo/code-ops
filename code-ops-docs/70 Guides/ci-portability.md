@@ -8,7 +8,7 @@ The repo runs four per-PR gates. They split cleanly in two:
 
 | Gate | Kind | Ports? |
 | --- | --- | --- |
-| `validate` (structural lint, zero-dep guard, render checks, evals) | Mechanical — Node only, no credential, no network | **Yes.** Any host that runs Node 20 runs it unchanged. |
+| `validate` (structural lint, zero-dep guard, render checks, evals) | Mechanical — Node only, no credential, no network | **Yes.** Any host that runs the repository's Node 24 LTS pin runs it unchanged. |
 | `deep-review` (`rigor:deep-review`) | Agent review — needs a Claude credential and a host action | No. Shown below as an extension point. |
 | `opsec-gate` (`privacy-opsec-suite:opsec-pr-gate`) | Agent review — same | No. Shown below as an extension point. |
 | Breadth review (`code-ops-suite:pr-review`) | Agent review — same | No. Shown below as an extension point. |
@@ -37,7 +37,7 @@ for k in evals/*/ANSWER_KEY.json; do node evals/score.mjs "$k" --check; done
 
 Then the eval harnesses under `evals/*/run.mjs`. Two constraints carry across hosts:
 
-- **Node 20.** The scripts use modern `node:` APIs; pin the image, do not float it.
+- **Node 24 LTS.** Read `.node-version` where the host permits it. Otherwise mirror that major in the host image and update both together.
 - **Full history for the diff-based checks.** `check-plugin-bump.mjs` and `check-gate-workflow-edit.mjs` diff against the merge base, so a shallow clone fails them. Each host has its own knob, marked below.
 
 ---
@@ -50,7 +50,7 @@ Save as `.gitlab-ci.yml` at the repo root.
 stages: [validate]
 
 default:
-  image: node:20
+  image: node:24
 
 variables:
   # check-plugin-bump.mjs / check-gate-workflow-edit.mjs diff against the target
@@ -113,7 +113,7 @@ version: 2.1
 jobs:
   structural-lint:
     docker:
-      - image: cimg/node:20.11
+      - image: cimg/node:24.20
     steps:
       - checkout   # CircleCI checkout is full-history by default
       - run:
@@ -159,7 +159,7 @@ Set the credential as an environment variable in a **Context**, not per project,
 ## Porting checklist
 
 1. Copy the command list from `.github/workflows/validate.yml`, not from this page.
-2. Pin Node 20 and take a full-history checkout.
+2. Use the Node 24 LTS runtime SSOT and take a full-history checkout.
 3. Run the whole chain in one job. It is fast, and a split buys nothing without a dependency install to cache.
 4. Mark the job required in the host's branch-protection equivalent.
 5. Leave the agent gates as a named, commented extension point until you have a runner for them. A gate that half-works is worse than a gate that is visibly absent.

@@ -155,7 +155,7 @@ Orchestrator:
 
 **When to use it.** When you want a PR/diff reviewed with reproduced, tiered concerns. **rigor:deep-review vs code-ops-suite:pr-review vs privacy-opsec-suite:opsec-pr-gate:** `rigor:deep-review` is the high-rigor counterpart that reproduces and tiers concerns and blocks only on CONFIRMED defects/regressions; `code-ops-suite:pr-review` is the broad-coverage PR review; `privacy-opsec-suite:opsec-pr-gate` is the anonymity/leak gate for projects with opsec needs. Use `deep-review` when proof-grade review of correctness and regressions is what you want. Do NOT use it to apply fixes — it produces a review; switch to `fix-verified` to act on CONFIRMED items.
 
-**Prerequisites & hand-offs.** Runs the `ground-truth` tooling itself on the branch; a connected VCS tool lets it post PR comments. Wire it into CI on every PR with `anthropics/claude-code-action@v1` — see [`plugins/rigor/examples/github-deep-review.yml`](../../../../plugins/rigor/examples/github-deep-review.yml). Hands CONFIRMED defects to `fix-verified`.
+**Prerequisites & hand-offs.** Runs the `ground-truth` tooling itself on the branch; a connected VCS tool lets it post PR comments. Wire it into CI on every PR with the reviewed immutable action pin in [`plugins/rigor/examples/github-deep-review.yml`](../../../../plugins/rigor/examples/github-deep-review.yml). Hands CONFIRMED defects to `fix-verified`.
 
 ---
 
