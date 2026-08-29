@@ -3,6 +3,23 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.49.0
+- Record history profiling batches HEAD tree lookups and historical blob hashing. Receipt-source checks and reachable-blob recovery use bounded batch reads; historical blobs above the 32 MiB batch ceiling fall back to individual reads under Git's existing 64 MiB process bound. The 32 MiB current-record policy is unchanged.
+- Per-command caches reuse repository completeness, manifest history, and object format without crossing operation boundaries. Every authority check remains fail-closed.
+- At 213 cases, the Windows record eval fell from 1,031.356 to 659.283 seconds (36.1%). The 200-record profile fell from 42.553 to a median 8.634 seconds.
+- Windows CI now allows 20 minutes because this release expands the record contract from 165 to 227 platform-applicable cases. The timeout preserves the complete workload and bounded hosted-runner headroom; the 213-case measurement above is optimization evidence, not the final suite runtime.
+- The traceless scanner excludes box-drawing glyphs and non-pictographic topology arrows while still blocking bare BMP and supplemental pictographs, default emoji, flags, variation-selector emoji, and keycaps. `--emdash-baseline-rev` measures net dash-count growth against the same tracked path at an ancestor commit. Arbitrary baseline files are rejected, and hard tells still scan the complete current text.
+- Authority verification re-derives native exact-path history, batch-introduction commits, introduction-state manifests, and complete predecessor bindings. Reachable adoption sources must contain the reviewed candidates, the bound manifest, and the complete candidate history profiles. Operational classification parses the canonical Git-index manifest, so checkout filters cannot substitute worktree-only policy. Native writes reject visible worktree drift and staged manifest movement during the transaction. A fresh v3 collection cannot claim a v2 migration.
+- Every generated-authority writer uses shared post-write semantic verification and restores the prior generated state on failure. The manifest index snapshot is checked at both transaction boundaries, including when history is shallow. Stale-lock recovery binds directory identity and preserves a replacement lease. Ordinary cleanup failures retain durable success, while lost ownership exits 3 with an explicit do-not-retry result.
+- Genesis review slots require receipt version 1. Incremental authority batches require their embedded receipt version 2, so a receipt cannot select its own authority schema.
+- Adopted collections now accept committed immutable paths through reviewed incremental admission.
+- Inventory v3 records exact-once authority membership in one hash-chained history. Curation status stays in its separate ledger.
+- Empty incremental deltas are write-free no-ops unless `--require-delta` requests strict intake.
+- The first non-empty v2 mutation records a receipted migration without changing existing authority objects.
+- Authority batches reject record or artifact provenance that contradicts the admission type. Native objects bind a reachable pre-admission tree that proves their paths were absent. V2 migration alone preserves provenance-less legacy artifacts.
+- Every authority writer uses one clone-wide collection lock, optimistic bindings, and atomic rollback.
+- Vault guidance directs scheduled recovery to unique branches in isolated worktrees and freezes adopted archive paths in place.
+
 ## 1.48.3
 - Record-prefix checks now mask fenced examples and unambiguous top-level indented blocks while leaving inline, list, and ambiguous indented IDs visible. Citation extraction retains its broader indented-block exclusion. Blockquote- and list-scoped fences stop at their container boundary, invalid backtick info strings remain prose, and genuinely unterminated top-level fences fail before any citation path can hide later references.
 

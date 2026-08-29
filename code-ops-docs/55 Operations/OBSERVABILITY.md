@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-28
 ---
 
 # Observability
@@ -36,7 +36,9 @@ The canonical [performance reference](PERFORMANCE.md) owns the measurement proto
 
 ## Record-collection signals
 
-`records check` reports record and citation counts plus history state. It blocks incomplete classification, immutable drift, malformed curation chains, citation regression, invalid identities, and semantic-index drift.
+`records check` reports record and citation counts, citation states, pending admissions, and history state. It blocks incomplete classification, incomplete batch coverage, immutable drift, malformed authority or curation chains, citation regression, invalid identities, and semantic-index drift.
+
+Diagnose existing evidence before intake. History loss, broken receipts, and immutable drift take precedence over `pending-admission`. An empty incremental plan is a measured no-op, not a repair.
 
 `history-unavailable` identifies checkout or object availability. `mutable-drifted` identifies current bytes that differ from pinned evidence. `evidence-lost` applies only after complete-history verification cannot recover the authoritative digest.
 

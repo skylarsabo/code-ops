@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-24
+updated: 2026-08-28
 ---
 
 # Architecture
@@ -57,6 +57,8 @@ Code is authoritative for behavior. This document describes the implementation a
 
 `docs-manifest.mjs` validates the authored hub and its required domains. Manifest v2 also registers permanent record collections without transferring authored authority to their historical paths.
 
-`records.mjs` owns collection classification, adoption, permanent identity, citation state, curation, history verification, and semantic projections. `docs-extract.mjs` gives affected documentation work only the collection inventory and semantic index. It never injects full record bodies by default.
+`records.mjs` owns collection classification, admission, permanent identity, citation state, curation, history verification, and semantic projections. Inventory v3 keeps one authority-batch chain for membership and provenance. The separate curation ledger owns status and supersession.
+
+Every authority writer uses one clone-wide lock beneath Git's common directory. Optimistic bindings reject stale work from another clone. `docs-extract.mjs` gives affected documentation work only the collection inventory and semantic index. It never injects full record bodies by default.
 
 This separation keeps the hub authoritative while preserving immutable evidence. It also keeps large repositories bounded: one context snapshot serves the run, and unchanged collections create no model dispatch.

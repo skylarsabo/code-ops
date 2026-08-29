@@ -11,6 +11,7 @@ history.
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
+| [0005](0005-open-record-collections-and-authority-batches.md) | Open record collections and authority batches | Accepted | 2026-08-28 |
 | [0004](0004-versioned-record-classification-and-reviewed-adoption.md) | Versioned record classification and reviewed adoption | Accepted | 2026-08-25 |
 | [0003](0003-durable-record-collections.md) | Durable record collections | Accepted | 2026-08-24 |
 | [0002](0002-repository-documentation-hub.md) | Repository documentation hub and manifest | Accepted | 2026-08-24 |
