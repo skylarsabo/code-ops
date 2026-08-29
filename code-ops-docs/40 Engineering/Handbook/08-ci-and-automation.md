@@ -71,6 +71,19 @@ Plus the standard anonymity checks: no new identifier / fingerprint / correlatio
 
 Each live model gate defines its complete action-input map once with a YAML anchor. The retry aliases that map, so credentials, review criteria, tools, model, and turn ceiling cannot drift between attempts. The attempt steps keep separate identifiers, conditions, 35-minute clocks, and outcomes because the final guard must inspect both results. An 80-minute job clock leaves time for setup, two bounded attempts, and the guard; if both attempts fail, the guard still fails closed.
 
+### Prove workflow changes against their event
+
+Both live gates trigger on `pull_request`, so GitHub runs their workflow files from the merge ref. A same-repository pull request therefore exercises edits to `deep-review.yml` and `opsec-gate.yml`.
+
+Four cases still need separate proof:
+
+- A fork pull request may expose no credential, so the model gate can skip cleanly.
+- A `pull_request_target` gate runs the workflow from the default branch.
+- A `schedule` gate only runs the latest commit on the default branch.
+- A `push` gate runs the workflow on the pushed ref, not the pull-request merge ref.
+
+For default-branch events, verify the edit after merge. For `push`, inspect an actual push run on the intended ref. [`check-gate-workflow-edit.mjs`](../../../scripts/check-gate-workflow-edit.mjs) flags gate edits so reviewers inspect the event, ref, and executed steps.
+
 ### The credential, and skipping cleanly
 
 All three model-backed gates need **one** Claude credential, set as a repo secret:
@@ -175,4 +188,4 @@ Two rules hold at every level: the **always-gated categories** (security/auth, s
 - [The evals directory](../../../evals/README.md) — the harnesses the `validate` gate runs.
 - [Shell discipline](../Techniques/shell-discipline.md) — why a hook-gated `git commit` or `gh pr create` runs standalone, never chained into a compound command.
 
-*Verified-at: b22d0da*
+*Verified-at: d3b4397*

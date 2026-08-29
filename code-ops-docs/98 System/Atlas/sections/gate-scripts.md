@@ -4,6 +4,8 @@ Charter: repository gates, renderers, orchestration compilers, and hook behavior
 
 The default posture is fail closed. Usage errors, malformed configuration, drifted generated output, untrusted documentation records, and invalid receipts fail. Process-risk advisories remain explicit exceptions. Atlas ambiguity is fail-safe: the checker calls a section stale rather than treating uncertain judgment as current. Digest-backed sections bind exact scopes, the staged index, and the index-to-worktree delta; commit pins remain diagnostic and legacy-compatible.
 
+The gate-workflow advisory treats same-repository `pull_request` runs as merge-ref execution. It distinguishes fork credential skips, default-branch `pull_request_target` and `schedule` runs, and pushed-ref `push` runs while remaining advisory-only.
+
 GitHub Action dependencies have one reviewed lock at `.github/actions-lock.json`. The action-pin checker requires exact lowercase commit SHAs, full semantic-version annotations, complete review metadata, and `.node-version` as the only setup-node runtime authority. It scans repository workflows, shipped examples, reusable workflows, and the metadata of reachable local composite actions with physical-path deduplication. Unsupported YAML forms, mutable or unlisted actions, unsafe local paths, and policy drift fail closed.
 
 The run contract turns multi-agent work into a bounded artifact. It validates routing floors, dependency order, parallel write separation, retry limits, acceptance ownership, and final proof. Version 2 binds the contract to an exact context snapshot and rejects drift or an untracked-policy mismatch before work proceeds.
