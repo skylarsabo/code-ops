@@ -78,6 +78,7 @@ person or model with hardware-backed identity. Evidence:
 The receipt chain has one report per required gate. It is valid only when every report is
 ignored, byte-identical to its receipt reference, bound to the current plan, and linked by
 the prior receipt digest. Reviewer IDs and physical report files must also be distinct.
+Device and inode identity remains full-width instead of passing through JavaScript numbers.
 Optional GitHub statuses are external projections of passing receipts, not part of the local
 data model. Evidence:
 `scripts/local-review-gate.mjs:184-259` and `scripts/local-review-gate.mjs:274-468`.
@@ -85,10 +86,11 @@ data model. Evidence:
 A judgment-eval plan stores its mode, execution policy, current head, matrix receipt,
 selected model IDs, generated units, creation time, and digest. Each worker unit names a
 fixture, tier, arm, replication, target, skill documents, and ignored findings path; it does
-not expose the answer key. Ambiguous Git index flags invalidate planning and replay. A score receipt stores the plan, head, execution policy, completion
-totals, per-unit findings and score digests, and its own digest. Evidence:
-`scripts/judgment-evals.mjs:119-184` and
-`scripts/judgment-evals.mjs:186-325`.
+not expose the answer key. Ambiguous Git index flags invalidate planning and replay. Ignored
+authority paths reject linked components, and a score output cannot physically alias the plan
+or a findings file. A score receipt stores the plan, head, execution policy, completion totals,
+per-unit findings and score digests, and its own digest. Evidence:
+`scripts/judgment-evals.mjs:121-186` and `scripts/judgment-evals.mjs:188-329`.
 
 ## Structural cache
 

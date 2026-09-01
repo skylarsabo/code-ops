@@ -2,10 +2,11 @@
 // Regression eval for the local SHA-bound deep-review and OpSec gate.
 
 import { execFileSync } from 'node:child_process';
-import { linkSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { samePhysicalFile } from '../../scripts/context-index-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -80,6 +81,12 @@ try {
 
   writeFileSync(join(root, p.deep), '# Local deep review\n\nPASS: no confirmed blockers.\n');
   writeFileSync(join(root, p.opsec), '# Local OpSec review\n\nPASS: no privacy regressions.\n');
+  const deepIdentity = statSync(join(root, p.deep), { bigint: true });
+  const opsecIdentity = statSync(join(root, p.opsec), { bigint: true });
+  check('compares distinct report identities without integer precision loss',
+    typeof deepIdentity.dev === 'bigint' && typeof deepIdentity.ino === 'bigint'
+    && typeof opsecIdentity.dev === 'bigint' && typeof opsecIdentity.ino === 'bigint'
+    && !samePhysicalFile(join(root, p.deep), join(root, p.opsec)));
   const deep = record(root, p, 'local-deep-review', p.deep, '0', '0', 'PASS', 'deep-reviewer@strong-model');
   const opsec = record(root, p, 'local-opsec-gate', p.opsec, '0', '0', 'PASS', 'opsec-reviewer@strong-model');
   check('records both strong high-effort review reports', deep.status === 0 && opsec.status === 0, `${deep.stderr}\n${opsec.stderr}`);
@@ -165,6 +172,7 @@ try {
   rmSync(join(root2, aliasPath));
   const reportAliasPath = `${p2.folder}/deep-report-alias.md`;
   linkSync(join(root2, p2.deep), join(root2, reportAliasPath));
+  check('recognizes hard-linked report identities', samePhysicalFile(join(root2, p2.deep), join(root2, reportAliasPath)));
   const duplicateReport = record(root2, p2, 'local-opsec-gate', reportAliasPath, '0', '0', 'PASS', 'opsec-reviewer@strong-model');
   check('requires distinct physical reports across gates', duplicateReport.status !== 0
     && duplicateReport.stderr.includes('distinct physical report files') && readFileSync(join(root2, p2.receipts), 'utf8') === beforeAlias, duplicateReport.stderr);

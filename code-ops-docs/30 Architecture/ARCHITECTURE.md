@@ -99,9 +99,14 @@ digest. A check requires one passing receipt for each domain. Evidence:
 `scripts/local-review-gate.mjs:374-468`.
 
 Authority paths cannot use symbolic-link components or physical aliases, and the two gates
-must name different reviewer identities. The publisher reads live remote refs without changing
+must name different reviewer identities. Physical identity retains full-width device and inode
+values so Windows file IDs cannot collide through numeric rounding. The publisher reads live remote refs without changing
 the local tracking state. It requires the planned base and reviewed feature tip on one remote,
 then derives the GitHub destination from that same remote.
+
+The local judgment-eval planner applies the linked-component boundary to plans, findings,
+and score receipts. Scoring rejects portable or physical aliases with its plan or findings
+before any output write.
 
 Hosted CI remains the deterministic backstop. The `validate` workflow runs structural
 checks and regression evals on pull requests, main pushes, and manual dispatch. It also

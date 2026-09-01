@@ -2,7 +2,7 @@
 // Regression eval for the provider-neutral local judgment-eval planner and scorer.
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +51,15 @@ try {
   const planned = run(['plan', '--root', root, '--mode', 'trend', '--execution', 'available', '--out', planPath, '--strong-model', 'strong-model'], root);
   check('trend plan compiles from one canonical matrix', planned.status === 0, planned.stderr);
   const plan = JSON.parse(readFileSync(join(root, planPath), 'utf8'));
+  const planBytes = readFileSync(join(root, planPath));
+  const planAlias = join(root, 'run/plan-alias');
+  symlinkSync(join(root, 'run/trend'), planAlias, process.platform === 'win32' ? 'junction' : 'dir');
+  const linkedPlan = run(['plan', '--root', root, '--mode', 'trend', '--execution', 'available', '--out', 'run/plan-alias/plan.json', '--strong-model', 'strong-model'], root);
+  const linkedPlanPreserved = readFileSync(join(root, planPath)).equals(planBytes);
+  check('plan output rejects linked components without replacing existing authority', linkedPlan.status !== 0
+    && linkedPlan.stderr.includes('symbolic-link components') && linkedPlanPreserved, linkedPlan.stderr);
+  writeFileSync(join(root, planPath), planBytes);
+  unlinkSync(planAlias);
   check('trend plan has one strong skill arm per fixture', plan.execution === 'available'
     && plan.units.length === 7 && plan.units.every((unit) => unit.tier === 'strong' && unit.arm === 'skill' && unit.rep === 1));
   check('worker units do not expose answer-key paths', plan.units.every((unit) => !Object.hasOwn(unit, 'answerKey')));
@@ -69,6 +78,20 @@ try {
   check('score output cannot case-alias and overwrite its plan', aliasedOutput.status !== 0
     && aliasedOutput.stderr.includes('must not overwrite')
     && JSON.parse(readFileSync(join(root, planPath), 'utf8')).planSha256 === plan.planSha256, aliasedOutput.stderr);
+  const scoreAlias = join(root, 'run/score-alias');
+  symlinkSync(join(root, 'run/trend'), scoreAlias, process.platform === 'win32' ? 'junction' : 'dir');
+  const linkedScore = run(['score', '--root', root, '--plan', planPath, '--out', 'run/score-alias/plan.json'], root);
+  const linkedScorePreserved = readFileSync(join(root, planPath)).equals(planBytes);
+  check('score output rejects linked components without replacing its plan', linkedScore.status !== 0
+    && linkedScore.stderr.includes('symbolic-link components') && linkedScorePreserved, linkedScore.stderr);
+  writeFileSync(join(root, planPath), planBytes);
+  unlinkSync(scoreAlias);
+  const hardlinkOutput = join(root, 'run/trend/scores-hardlink.json');
+  linkSync(join(root, planPath), hardlinkOutput);
+  const hardlinkedScore = run(['score', '--root', root, '--plan', planPath, '--out', 'run/trend/scores-hardlink.json'], root);
+  check('score output rejects a physical alias without replacing its plan', hardlinkedScore.status !== 0
+    && hardlinkedScore.stderr.includes('must not overwrite') && readFileSync(join(root, planPath)).equals(planBytes), hardlinkedScore.stderr);
+  rmSync(hardlinkOutput, { force: true });
   const scored = run(['score', '--root', root, '--plan', planPath, '--out', 'run/trend/scores.json'], root);
   const receipt = scored.status === 0 ? JSON.parse(readFileSync(join(root, 'run/trend/scores.json'), 'utf8')) : null;
   check('scores every local result and writes a digest-bound receipt', scored.status === 0 && receipt.execution === 'available'

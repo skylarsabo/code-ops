@@ -58,8 +58,10 @@ export function portableKey(value) {
 
 export function samePhysicalFile(first, second) {
   if (!existsSync(first) || !existsSync(second)) return false;
-  const firstStat = statSync(first);
-  const secondStat = statSync(second);
+  // Windows file IDs routinely exceed Number.MAX_SAFE_INTEGER. Keep device and
+  // inode values lossless so distinct files cannot alias after number rounding.
+  const firstStat = statSync(first, { bigint: true });
+  const secondStat = statSync(second, { bigint: true });
   return portableKey(realpathSync.native(first)) === portableKey(realpathSync.native(second))
     || (firstStat.dev === secondStat.dev && firstStat.ino === secondStat.ino);
 }

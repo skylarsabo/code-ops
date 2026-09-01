@@ -8,6 +8,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   assertNoAmbiguousIndexFlags,
+  assertNoSymlinkComponents,
+  assertTrackedStage0RegularFiles,
   atomicWrite,
   canonical,
   checkedPath,
@@ -17,6 +19,7 @@ import {
   portableKey,
   readJson,
   safeRelative,
+  samePhysicalFile,
   sha256,
 } from './context-index-lib.mjs';
 
@@ -52,6 +55,7 @@ function flags(args, known) {
 function ignored(root, value, label, mustExist = false) {
   if (!safeRelative(value)) throw new Error(`${label} must be a repository-relative portable path`);
   const absolute = checkedPath(root, value);
+  assertNoSymlinkComponents(root, absolute, label);
   if (mustExist && (!existsSync(absolute) || !statSync(absolute).isFile())) throw new Error(`${label} must name an existing file`);
   try { git(root, ['check-ignore', '-q', '--no-index', '--', value]); }
   catch { throw new Error(`${label} must be ignored by Git`); }
@@ -61,9 +65,7 @@ function ignored(root, value, label, mustExist = false) {
 function trackedFile(root, value, label) {
   if (!safeRelative(value)) throw new Error(`${label} has an unsafe path`);
   const absolute = checkedPath(root, value);
-  if (!existsSync(absolute) || !statSync(absolute).isFile()) throw new Error(`${label} is missing: ${value}`);
-  try { git(root, ['ls-files', '--error-unmatch', '--', value]); }
-  catch { throw new Error(`${label} must be tracked: ${value}`); }
+  assertTrackedStage0RegularFiles(root, [value], label);
   return { path: value, sha256: sha256(readFileSync(absolute)) };
 }
 
@@ -292,8 +294,10 @@ if (command === 'plan') {
     const root = resolve(f['--root']);
     const current = loadCurrent(root, f['--plan']);
     const out = ignored(root, f['--out'], 'judgment score output');
+    const findings = current.plan.units.map((unit) => ignored(root, unit.findingsPath, `findings path for ${unit.id}`));
     if (portableKey(out.relative) === portableKey(current.path.relative)
-      || current.plan.units.some((unit) => portableKey(unit.findingsPath) === portableKey(out.relative))) {
+      || findings.some((entry) => portableKey(entry.relative) === portableKey(out.relative))
+      || [current.path, ...findings].some((entry) => samePhysicalFile(entry.absolute, out.absolute))) {
       throw new Error('judgment score output must not overwrite its plan or findings');
     }
     const scorer = trackedFile(root, 'evals/score.mjs', 'judgment scorer');
