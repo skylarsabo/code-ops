@@ -12,7 +12,7 @@ Performance is a quality constraint for the repository and its generated plugins
 
 Optimize end-to-end operator latency, agent context bytes, child-process count, filesystem work, and CI feedback time. Prefer removing work, reusing exact results, and narrowing inputs at authority boundaries. Do not trade away correctness, validation coverage, deterministic output, or readable control flow.
 
-The long-horizon runtime uses a bounded stable prefix for cache-ready prompt input. It records cache events and token counts only when the host exposes them. Keep unsupported or unobservable cache data explicit. Evidence: `scripts/runtime-lib.mjs:15-20`, `143-168`, and `281-293`.
+The long-horizon runtime uses a bounded stable prefix for cache-ready prompt input. It records cache events and token counts only when the host exposes them. Keep unsupported or unobservable cache data explicit. Evidence: `scripts/runtime-lib.mjs:17-22`, `148-174`, and `291-309`.
 
 ## Measurement protocol
 

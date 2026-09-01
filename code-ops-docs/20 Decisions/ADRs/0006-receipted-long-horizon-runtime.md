@@ -29,13 +29,17 @@ observation time. The runtime binds its digest, capability states and policy out
 contract bytes, Git head, snapshot receipt, and compiled prefix metadata into each
 receipt.
 
+Capability and receipt paths must differ under portable case folding. They cannot resolve
+to one physical file when both exist. Receipt replay accepts only complete 40- or 64-digit
+Git object IDs.
+
 The receipt log starts with `init` and appends `checkpoint`, `resume`, `replan`, or
 `observation` records. Each record binds the previous digest and its own digest. A resume
 replays the latest checkpoint references. A changed binding requires a replan with the
 same run ID and exactly the next contract revision.
 
-Evidence: `scripts/runtime-lib.mjs:122-166`, `scripts/runtime-lib.mjs:178-209`, and
-`scripts/runtime-lib.mjs:295-341`.
+Evidence: `scripts/runtime-lib.mjs:128-174`, `scripts/runtime-lib.mjs:175-227`, and
+`scripts/runtime-lib.mjs:310-358`.
 
 ## Consequences
 

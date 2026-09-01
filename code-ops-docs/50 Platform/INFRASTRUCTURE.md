@@ -10,7 +10,7 @@ updated: 2026-09-01
 
 The project is a Node.js repository that intentionally uses only Node built-ins. `.node-version` is the runtime SSOT and selects Node 24 LTS. CI and local tooling consume that file rather than maintain separate Node versions. Evidence: `.node-version`, `.github/workflows/validate.yml`, and `scripts/check-no-deps.mjs`.
 
-Long-horizon runs use an explicit host-capability receipt. The receipt records host, provider, model, observation source, and five capability states. The tools do not infer capabilities from a model name. Evidence: `scripts/host-capabilities.mjs:1-68` and `scripts/runtime-lib.mjs:15-20`.
+Long-horizon runs use an explicit host-capability receipt. The receipt records host, provider, model, observation source, and five capability states. The tools do not infer capabilities from a model name. Evidence: `scripts/host-capabilities.mjs:1-68` and `scripts/runtime-lib.mjs:17-22`.
 
 The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:96-136`, `205-218`, and `253-292`.
 
@@ -38,7 +38,7 @@ and `scripts/local-review-gate.mjs:1-39`.
 
 The context compiler sets a 30-second timeout for repository-map, import-graph, and Atlas commands. It limits subprocess output to 64 MiB. Evidence: `scripts/context-snapshot.mjs:52-59` and `61-105`.
 
-The runtime receipt chain has a 32 MiB limit. Each configured stable prefix has its own byte limit. Stable-prefix files must be tracked UTF-8 text. Evidence: `scripts/runtime-lib.mjs:143-168` and `300-346`.
+The runtime receipt chain has a 32 MiB limit. Each configured stable prefix has its own byte limit. Stable-prefix files must be tracked UTF-8 text. Evidence: `scripts/runtime-lib.mjs:148-174` and `310-358`.
 
 ## Record tooling distribution
 

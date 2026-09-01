@@ -55,9 +55,10 @@ Run Contract v3 adds a runtime boundary to the v2 context binding. The contract 
 host-capability receipt, a JSONL runtime receipt chain, ordered stable-prefix source
 files, a prefix byte limit, and a policy for prompt caching, compaction, context editing,
 host memory, and task budget. The contract validator verifies the context snapshot and
-the runtime configuration before runtime work starts. Evidence:
+the runtime configuration before runtime work starts. Capability and receipt paths must
+differ portably and physically. Runtime heads use exact SHA-1 or SHA-256 object IDs. Evidence:
 `scripts/run-contract.mjs:11-27`, `scripts/run-contract.mjs:60-72`, and
-`scripts/runtime-lib.mjs:73-106`.
+`scripts/runtime-lib.mjs:76-114` and `scripts/runtime-lib.mjs:175-192`.
 
 `host-capabilities.mjs` writes one explicit descriptor. It records host, provider, model,
 evidence source, observation time, and one state per capability. The descriptor does not
@@ -67,7 +68,7 @@ and `scripts/host-capabilities.mjs:30-67`.
 The stable-prefix compiler accepts only exact tracked UTF-8 text paths. It emits a framed,
 ordered byte payload and records its digest, total bytes, and per-file digests. It rejects
 invalid paths, NUL bytes, and payloads over the contract limit. Evidence:
-`scripts/runtime-lib.mjs:142-166`.
+`scripts/runtime-lib.mjs:148-174`.
 
 The runtime creates an `init` receipt, then appends checkpoints, resumes, replans, and
 optional observations under a runtime mutation lock. A checkpoint binds the verified
@@ -79,22 +80,23 @@ and advances exactly one revision. Evidence: `scripts/run-runtime.mjs:107-136` a
 Receipt replay verifies contiguous sequence numbers, predecessor digests, receipt digests,
 binding stability, checkpoint requirements, and resume replay. This chain is the runtime
 continuity record; source code remains authoritative for behavior. Evidence:
-`scripts/runtime-lib.mjs:295-341`.
+`scripts/runtime-lib.mjs:310-358`.
 
 ## Local judgment before PR
 
 Model judgment happens locally before a pull request. `local-review-gate.mjs` prepares a
-review plan only from a clean, non-default feature branch whose base is an ancestor of
+review plan only from a clean, unambiguous-index, non-default feature branch whose base is an ancestor of
 `HEAD`. The plan binds base and head SHAs, a binary diff digest, and sorted changed paths.
 Plan, report, and receipt paths must be ignored by Git. Evidence:
-`scripts/local-review-gate.mjs:79-191` and `scripts/local-review-gate.mjs:363-389`.
+`scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:83-185`, and
+`scripts/local-review-gate.mjs:357-383`.
 
 The local gate has exactly two review domains: `local-deep-review` and
 `local-opsec-gate`. Each report receipt is chained and binds the review plan, reviewer and
 model label, tier, effort, verdict, confirmed and blocking finding counts, and report
 digest. A check requires one passing receipt for each domain. Evidence:
-`scripts/local-review-gate.mjs:32-40`, `scripts/local-review-gate.mjs:200-275`, and
-`scripts/local-review-gate.mjs:390-484`.
+`scripts/local-review-gate.mjs:35-43`, `scripts/local-review-gate.mjs:194-269`, and
+`scripts/local-review-gate.mjs:384-478`.
 
 Authority paths cannot use symbolic-link components or physical aliases, and the two gates
 must name different reviewer identities. The publisher reads live remote refs without changing

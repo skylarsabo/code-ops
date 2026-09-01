@@ -31,14 +31,15 @@ The v4 gate chain keeps responsibilities separate. The manifest gate owns domain
 Model-driven deep review and OpSec review run locally before a pull request. A local Codex
 automation may run the same review and weekly judgment trend or floor-calibration work. The
 local gate binds the base SHA, HEAD SHA, binary-diff digest, changed paths, reviewer identity,
-strong-or-frontier tier, report digest, and hash-chained receipts. It rejects a dirty worktree,
+strong-or-frontier tier, report digest, and hash-chained receipts. It rejects a dirty or
+index-ambiguous worktree,
 base movement, changed HEAD, changed diff, report drift, missing reviews, and non-PASS verdicts.
-Evidence: `scripts/local-review-gate.mjs:104-275` and
-`scripts/local-review-gate.mjs:363-456`.
+Evidence: `scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:97-269`,
+and `scripts/local-review-gate.mjs:357-450`.
 
 `local-review-gate.mjs publish` can publish verified local receipts as commit statuses. Status
 publication is optional. It does not make GitHub the review executor. Evidence:
-`scripts/local-review-gate.mjs:290-360` and `scripts/local-review-gate.mjs:457-484`.
+`scripts/local-review-gate.mjs:284-354` and `scripts/local-review-gate.mjs:451-478`.
 
 GitHub `validate` is the required hosted merge gate. It runs deterministic lint, rendering,
 checks, and regression tests only. Branch protection should require its structural jobs. Any
@@ -54,7 +55,7 @@ Release changes must bump the canonical plugin version, the marketplace entry, a
 ## Merge safety
 
 Local review plans reject base movement, HEAD movement, binary-diff movement, report drift,
-reviewer reuse, path aliases, and dirty worktrees. Publication separately verifies both live
+reviewer reuse, path aliases, dirty worktrees, and ambiguous Git index flags. Publication separately verifies both live
 remote refs and the destination repository. Strict required statuses invalidate a merge
 candidate after base movement. GitHub `validate` independently checks the submitted merge ref
 with deterministic commands.

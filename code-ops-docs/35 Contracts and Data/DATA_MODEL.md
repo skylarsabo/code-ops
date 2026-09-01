@@ -37,52 +37,55 @@ A v3 contract's `runtime` object names the capability descriptor and JSONL recei
 the ordered `stablePrefix`, `maxStablePrefixBytes`, and capability policy. Its receipt
 binding captures the contract-file digest, head, snapshot identity and receipt digest,
 host descriptor digest and identity, capability states and outcomes, and compiled-prefix
-metadata. Evidence: `scripts/runtime-lib.mjs:23-34`, `scripts/runtime-lib.mjs:178-209`.
+metadata. Head is an exact full Git object ID. Capability and receipt paths are distinct
+under portable case folding and cannot alias one physical file. Evidence:
+`scripts/runtime-lib.mjs:26-37`, `scripts/runtime-lib.mjs:175-227`.
 
 The stable-prefix metadata contains its digest, total bytes, and ordered entries. Each
 entry contains an exact repository-relative path, source-file digest, and byte count.
-Evidence: `scripts/runtime-lib.mjs:142-166` and `scripts/runtime-lib.mjs:255-262`.
+Evidence: `scripts/runtime-lib.mjs:148-174` and `scripts/runtime-lib.mjs:265-277`.
 
 Each runtime receipt stores version, sequence, kind, UTC timestamp, predecessor digest,
 binding, references, observation, and receipt digest. References can name a ledger and its
 journal, an acceptance ledger, a handoff, bundles, and artifacts. File references retain
-their repository-relative paths and digests. Evidence: `scripts/runtime-lib.mjs:25-35` and
-`scripts/runtime-lib.mjs:213-273`.
+their repository-relative paths and digests. Evidence: `scripts/runtime-lib.mjs:27-38` and
+`scripts/runtime-lib.mjs:228-289`.
 
 An observation has observability, ordered unique cache events, source, and nullable
 nonnegative token counters. It is evidence supplied by provider usage, host telemetry, or
 an operator. It is not inferred from a capability state or model name. Evidence:
-`scripts/runtime-lib.mjs:276-287`.
+`scripts/runtime-lib.mjs:291-304`.
 
 ## Local judgment records
 
 A local review plan stores version, branch, base reference and SHA, head SHA, binary diff
 digest, sorted changed paths, ignored receipt path, fixed gate names, creation time, and
-plan digest. Its two gate names are `local-deep-review` and `local-opsec-gate`. Evidence:
-`scripts/local-review-gate.mjs:32-40`, `scripts/local-review-gate.mjs:147-191`, and
-`scripts/local-review-gate.mjs:363-389`.
+plan digest. Its two gate names are `local-deep-review` and `local-opsec-gate`. Hidden
+`assume-unchanged` or `skip-worktree` index state invalidates preparation and replay. Evidence:
+`scripts/local-review-gate.mjs:35-43`, `scripts/local-review-gate.mjs:141-185`, and
+`scripts/local-review-gate.mjs:357-383`.
 
 A local review receipt stores version, sequence, gate, verdict, timestamp, reviewer and
 model label, tier, effort, plan digest, report path/digest/bytes, finding counts,
 predecessor digest, and receipt digest. Reviewer and model labels are attestations. The
 schema validates their syntax and declared routing values but does not authenticate the
 person or model with hardware-backed identity. Evidence:
-`scripts/local-review-gate.mjs:200-275` and `scripts/local-review-gate.mjs:390-442`.
+`scripts/local-review-gate.mjs:194-269` and `scripts/local-review-gate.mjs:384-436`.
 
 The receipt chain has one report per required gate. It is valid only when every report is
 ignored, byte-identical to its receipt reference, bound to the current plan, and linked by
 the prior receipt digest. Reviewer IDs and physical report files must also be distinct.
 Optional GitHub statuses are external projections of passing receipts, not part of the local
 data model. Evidence:
-`scripts/local-review-gate.mjs:200-275` and `scripts/local-review-gate.mjs:290-484`.
+`scripts/local-review-gate.mjs:194-269` and `scripts/local-review-gate.mjs:284-478`.
 
 A judgment-eval plan stores its mode, execution policy, current head, matrix receipt,
 selected model IDs, generated units, creation time, and digest. Each worker unit names a
 fixture, tier, arm, replication, target, skill documents, and ignored findings path; it does
-not expose the answer key. A score receipt stores the plan, head, execution policy, completion
+not expose the answer key. Ambiguous Git index flags invalidate planning and replay. A score receipt stores the plan, head, execution policy, completion
 totals, per-unit findings and score digests, and its own digest. Evidence:
-`scripts/judgment-evals.mjs:118-183` and
-`scripts/judgment-evals.mjs:185-324`.
+`scripts/judgment-evals.mjs:119-184` and
+`scripts/judgment-evals.mjs:186-325`.
 
 ## Structural cache
 

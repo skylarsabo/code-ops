@@ -12,15 +12,16 @@
 
 `local-review-gate.mjs` prepares a review only from a clean feature branch. It binds the base
 SHA, HEAD SHA, binary-diff digest, and changed paths into an ignored plan. A changed base, HEAD,
-diff, or worktree invalidates the plan. Evidence: `scripts/local-review-gate.mjs:104-191`
-and `scripts/local-review-gate.mjs:363-389`.
+diff, worktree, or ambiguous Git index flag invalidates the plan. Evidence:
+`scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:97-185`, and
+`scripts/local-review-gate.mjs:357-383`.
 
 Record one receipt for `local-deep-review` and one for `local-opsec-gate`. Each receipt names a
 strong-or-frontier reviewer, high-or-higher effort, verdict, report digest, finding counts, and
 prior receipt digest. A PASS requires zero blocking findings. `check` replays the exact chain and
 rejects missing, duplicate, drifted, or failing receipts. The gate also requires distinct reviewer
 identities and refuses symbolic-link or physical-file aliases among authority files. Evidence:
-`scripts/local-review-gate.mjs:200-275` and `scripts/local-review-gate.mjs:390-456`.
+`scripts/local-review-gate.mjs:194-269` and `scripts/local-review-gate.mjs:384-450`.
 
 Run the reviews with the applicable `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate`
 bars. The local reviewer performs the model judgment. The gate validates its durable evidence.
@@ -54,7 +55,8 @@ review path. See `plugins/code-ops-suite/examples/github-pr-review.yml`,
 
 Run `judgment-evals.mjs plan --mode trend --execution available` weekly through local Codex
 automation. Use `unavailable` only when the host mechanically withholds execution. Keep the full
-plan lead-only and hand workers only units, which omit answer-key paths. Run `--mode floor`
+plan lead-only and hand workers only units, which omit answer-key paths. Clear any
+`assume-unchanged` or `skip-worktree` flags before planning. Run `--mode floor`
 locally when policy requires calibration; it refuses identical strong and weak model IDs. Both
 modes are local measurements, not hosted merge checks.
 

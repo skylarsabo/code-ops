@@ -102,6 +102,7 @@ const ORCH_TOKEN_ALLOWLIST = new Set([
   'deep-research', 'lib-docs', 'code-ops-docs', // external skill / bundled script / MCP server the researcher composes, not researcher skills
   'local-deep-review', 'local-opsec-gate', // GitHub commit-status contexts, not skills
   'available', 'unavailable', // judgment execution-policy values, not skills
+  'assume-unchanged', 'skip-worktree', // Git index flags, not skills
 ]);
 const SLUGISH = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // single-word OR hyphenated lowercase token
 

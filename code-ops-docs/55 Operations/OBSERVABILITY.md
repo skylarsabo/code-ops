@@ -18,7 +18,7 @@ The local review gate provides separate deep-review and OpSec signals before a p
 Its plan binds base SHA, HEAD SHA, binary diff, and changed paths. Its receipts bind reviewer,
 tier, effort, report digest, verdict, and predecessor digest. Remote verification adds live base
 and feature-tip evidence before status publication. Evidence:
-`scripts/local-review-gate.mjs:147-275` and `scripts/local-review-gate.mjs:340-484`.
+`scripts/local-review-gate.mjs:141-269` and `scripts/local-review-gate.mjs:334-478`.
 
 ## Durable records
 
@@ -28,9 +28,9 @@ The dispatch ledger stores a JSONL journal beside the Markdown table. The checke
 
 The context compiler records exact-state receipts and cache payload digests. It verifies the receipt before a context-bound contract or bundle can be used. Evidence: `scripts/context-index-lib.mjs:140-205`, `scripts/run-contract.mjs:57-65`, and `scripts/context-bundle.mjs:41-50`.
 
-The long-horizon runtime records a host-capability binding and a hash-chained checkpoint log. It binds checkpoints to the contract, snapshot, stable prefix, and optional ledger, acceptance, handoff, bundle, and artifact references. Evidence: `scripts/runtime-lib.mjs:183-215`, `300-346`, and `scripts/run-runtime.mjs:159-218`.
+The long-horizon runtime records a host-capability binding and a hash-chained checkpoint log. It binds checkpoints to the contract, snapshot, stable prefix, and optional ledger, acceptance, handoff, bundle, and artifact references. Evidence: `scripts/runtime-lib.mjs:193-227`, `310-358`, and `scripts/run-runtime.mjs:159-218`.
 
-Use `run-runtime.mjs metrics --json` to obtain receipt, checkpoint, resume, replan, stable-prefix, prompt-cache, and receipt-size metrics. Elapsed time is `UNKNOWN`; the tool does not convert host wall-clock readings into a false cross-session measure. Evidence: `scripts/runtime-lib.mjs:353-384` and `scripts/run-runtime.mjs:340-358`.
+Use `run-runtime.mjs metrics --json` to obtain receipt, checkpoint, resume, replan, stable-prefix, prompt-cache, and receipt-size metrics. Elapsed time is `UNKNOWN`; the tool does not convert host wall-clock readings into a false cross-session measure. Evidence: `scripts/runtime-lib.mjs:363-394` and `scripts/run-runtime.mjs:340-358`.
 
 `judgment-evals.mjs` records local judgment trend and floor-calibration plans and scoring
 receipts. The plan and receipt expose whether execution was available; workers receive no answer

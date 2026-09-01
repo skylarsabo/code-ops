@@ -49,34 +49,36 @@ Evidence: `scripts/context-bundle.mjs:44-54`, `scripts/context-bundle.mjs:160-21
 and five named capability states: `promptCaching`, `compaction`, `contextEditing`,
 `hostMemory`, and `taskBudget`. State is one of `controllable`, `managed-observable`,
 `managed-unobservable`, `unsupported`, or `unknown`. The source is `operator`,
-`host-probe`, or `provider-docs`. Evidence: `scripts/runtime-lib.mjs:15-20` and
-`scripts/runtime-lib.mjs:94-119`.
+`host-probe`, or `provider-docs`. Evidence: `scripts/runtime-lib.mjs:17-22` and
+`scripts/runtime-lib.mjs:100-127`.
 
 Each v3 runtime policy is `off`, `prefer`, `require`, or `require-observable`. `require`
 accepts only controllable or host-managed states. `require-observable` excludes
 managed-unobservable states. `prefer` records `durable-fallback` for unavailable or unknown
 features; `off` records `disabled`. Unsatisfied required policy fails contract validation.
-Evidence: `scripts/runtime-lib.mjs:122-139` and `scripts/run-contract.mjs:60-72`.
+Evidence: `scripts/runtime-lib.mjs:128-147` and `scripts/run-contract.mjs:60-72`.
 
 ## Stable prefix and runtime receipts
 
 The stable prefix is an ordered list of exact Git-index files. Compilation frames each UTF-8
 file in a deterministic payload and records its SHA-256 digest, byte count, and entries.
 The payload must not exceed `maxStablePrefixBytes`. Evidence:
-`scripts/runtime-lib.mjs:142-166`.
+`scripts/runtime-lib.mjs:148-174`.
 
 `RUN_RUNTIME_RECEIPTS.jsonl` is an append-only hash chain. Every version-1 record has a
 sequence, timestamp, predecessor digest, binding, references, optional observation, and
 its own digest. The first record is `init`. Later records are `checkpoint`, `resume`,
 `replan`, or `observation`. Replay rejects torn, blank, malformed, reordered, or
-digest-invalid records. Evidence: `scripts/runtime-lib.mjs:21-35` and
-`scripts/runtime-lib.mjs:295-325`.
+digest-invalid records. Evidence: `scripts/runtime-lib.mjs:24-38` and
+`scripts/runtime-lib.mjs:310-340`.
 
 The binding includes contract bytes, Git head, snapshot identity and receipt bytes, host
 descriptor identity and digest, capability states and policy outcomes, and stable-prefix
 metadata. An unchanged contract revision must retain this complete binding. A replan keeps
-the run ID and increments the revision by one. Evidence: `scripts/runtime-lib.mjs:178-209`
-and `scripts/runtime-lib.mjs:326-339`.
+the run ID and increments the revision by one. Git heads are complete 40- or 64-digit object
+IDs. Capability and receipt paths must differ portably and cannot share one physical file.
+Evidence: `scripts/runtime-lib.mjs:175-227`
+and `scripts/runtime-lib.mjs:341-356`.
 
 A checkpoint requires a strict dispatch-ledger reference and may bind acceptance, handoff,
 bundle, and artifact files by digest. Resume replays and revalidates the latest checkpoint
@@ -91,7 +93,7 @@ It may record `hit`, `miss`, or `write` events and cache-read, cache-write, inpu
 output token counts. Unobservable and unsupported observations cannot carry cache events or
 token metrics. Provider-usage observations must carry at least one metric. The metrics view
 reports normalized totals and event counts; elapsed time remains `UNKNOWN`. Evidence:
-`scripts/runtime-lib.mjs:276-287`, `scripts/runtime-lib.mjs:348-379`, and
+`scripts/runtime-lib.mjs:291-304`, `scripts/runtime-lib.mjs:359-394`, and
 `scripts/run-runtime.mjs:293-317`.
 
 ## Local judgment gate
@@ -100,7 +102,8 @@ reports normalized totals and event counts; elapsed time remains `UNKNOWN`. Evid
 branch. The plan binds `baseSha`, `headSha`, `diffSha256`, sorted `changedPaths`, its
 receipt path, and the exact gate set: `local-deep-review` and `local-opsec-gate`. The base
 must be an ancestor of head, and an empty diff is rejected. Evidence:
-`scripts/local-review-gate.mjs:79-191` and `scripts/local-review-gate.mjs:363-389`.
+`scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:83-185`, and
+`scripts/local-review-gate.mjs:357-383`.
 
 Each ignored JSONL receipt has a sequence, gate, verdict, timestamp, reviewer and model
 label, tier, effort, plan digest, report reference, finding counts, predecessor digest,
@@ -108,31 +111,32 @@ and receipt digest. `PASS` requires zero blocking findings. A replay rejects rep
 duplicate gates, foreign plans, missing final newlines, oversized chains, and invalid
 sequence or predecessor links. A complete check requires exactly one passing receipt per
 gate from a distinct reviewer identity. Authority files must not use linked components or
-physical aliases. Evidence: `scripts/local-review-gate.mjs:32-40`,
-`scripts/local-review-gate.mjs:86-102`, `scripts/local-review-gate.mjs:200-275`, and
-`scripts/local-review-gate.mjs:390-442`.
+physical aliases. Evidence: `scripts/local-review-gate.mjs:35-43`,
+`scripts/context-index-lib.mjs:55-79`, `scripts/local-review-gate.mjs:194-269`, and
+`scripts/local-review-gate.mjs:384-436`.
 
-The gate fails when a tracked or untracked worktree change, branch change, advanced base,
-changed head or diff, report drift, or receipt drift invalidates its plan. Prepare a new
+The gate fails when a tracked or untracked worktree change, ambiguous Git index flag, branch
+change, advanced base, changed head or diff, report drift, or receipt drift invalidates its plan. Prepare a new
 plan after boundary drift. Reviewer and model fields are attestations. Their format is
 validated, but the receipt chain does not provide hardware-backed identity. Evidence:
-`scripts/local-review-gate.mjs:163-191` and `scripts/local-review-gate.mjs:200-275`.
+`scripts/local-review-gate.mjs:157-185` and `scripts/local-review-gate.mjs:194-269`.
 
 `publish` is optional. After a passing local check, it can post one GitHub commit status
 per receipt to the reviewed SHA. It verifies that SHA is remotely available. The caller
 needs GitHub write authority for the status endpoint. A status is supplementary evidence;
 publication failure does not alter the local pass or fail result. Evidence:
-`scripts/local-review-gate.mjs:290-360` and `scripts/local-review-gate.mjs:457-484`.
+`scripts/local-review-gate.mjs:284-354` and `scripts/local-review-gate.mjs:451-478`.
 
 ## Judgment evals
 
 `judgment-evals.mjs` plans provider-neutral local workers in `trend` or `floor` mode. It
 binds the tracked matrix, fixture tree, answer key, relevant skill documents, selected
 models, declared execution availability, and ignored findings paths to a lead-only plan.
-Worker units omit answer-key paths. Floor mode rejects identical normalized model IDs. The
+Worker units omit answer-key paths. Planning and replay reject ambiguous Git index flags
+before workers read fixtures. Floor mode rejects identical normalized model IDs. The
 deterministic scorer binds each findings file, execution policy, and score output into a
-receipt. Evidence: `scripts/judgment-evals.mjs:21-28`,
-`scripts/judgment-evals.mjs:82-183`, and `scripts/judgment-evals.mjs:185-324`.
+receipt. Evidence: `scripts/judgment-evals.mjs:23-30`,
+`scripts/judgment-evals.mjs:84-184`, and `scripts/judgment-evals.mjs:186-325`.
 
 The matrix declares the fixture-to-answer-key and fixture-to-skill mapping. Its current
 fixtures cover bug, leak, documentation-drift, normalization, and trap-focused review
@@ -161,7 +165,7 @@ Evidence: `scripts/run-contract.mjs:75-89`, `scripts/context-bundle.mjs:44-54`, 
 
 The local judgment gate is independent of Run Contract versions. It stores ignored review
 plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
-`scripts/local-review-gate.mjs:45-50` and `scripts/local-review-gate.mjs:264-484`.
+`scripts/local-review-gate.mjs:48-53` and `scripts/local-review-gate.mjs:258-478`.
 
 ## Documentation manifest
 

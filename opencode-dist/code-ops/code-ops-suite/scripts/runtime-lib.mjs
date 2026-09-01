@@ -7,9 +7,11 @@ import {
   digestJson,
   git,
   gitPaths,
+  portableKey,
   readJson,
   repoRelative,
   safeRelative,
+  samePhysicalFile,
   sha256,
 } from './context-index-lib.mjs';
 
@@ -35,7 +37,7 @@ const BUNDLE_REFERENCE_KEYS = new Set(['unitId', 'path', 'bundleId', 'sha256']);
 const OBSERVATION_KEYS = new Set(['observability', 'cacheEvents', 'source', 'cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens']);
 const RECEIPT_KINDS = new Set(['init', 'checkpoint', 'resume', 'replan', 'observation']);
 const SHA256_RE = /^[0-9a-f]{64}$/;
-const GIT_OID_RE = /^[0-9a-f]{40,64}$/;
+const GIT_OID_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const MAX_RUNTIME_BYTES = 32 * 1024 * 1024;
 const UTF8 = new TextDecoder('utf-8', { fatal: true });
 
@@ -68,7 +70,7 @@ function validSha(value) {
 }
 
 function uniquePortablePaths(paths) {
-  return new Set(paths.map((path) => path.normalize('NFC').toLowerCase())).size === paths.length;
+  return new Set(paths.map(portableKey)).size === paths.length;
 }
 
 export function validateRuntimeConfig(runtime) {
@@ -76,7 +78,10 @@ export function validateRuntimeConfig(runtime) {
   if (!exact(runtime, RUNTIME_KEYS, 'runtime', errors)) return errors;
   if (!safeRelative(runtime.capabilities)) errors.push('runtime.capabilities must be a safe repository-relative path');
   if (!safeRelative(runtime.receipts)) errors.push('runtime.receipts must be a safe repository-relative path');
-  if (runtime.capabilities === runtime.receipts) errors.push('runtime.capabilities and runtime.receipts must differ');
+  if (safeRelative(runtime.capabilities) && safeRelative(runtime.receipts)
+    && portableKey(runtime.capabilities) === portableKey(runtime.receipts)) {
+    errors.push('runtime.capabilities and runtime.receipts must differ portably');
+  }
   if (!Array.isArray(runtime.stablePrefix) || runtime.stablePrefix.length === 0
     || runtime.stablePrefix.some((path) => !safeRelative(path))) {
     errors.push('runtime.stablePrefix must be a nonempty array of safe repository-relative paths');
@@ -173,6 +178,11 @@ export function verifyRuntimeConfig(root, runtime) {
   for (const [label, path] of [['capabilities', runtime.capabilities], ['receipts', runtime.receipts]]) {
     try { git(root, ['check-ignore', '-q', '--', path]); }
     catch { throw new Error(`runtime.${label} must use a repository-ignored path`); }
+  }
+  const capabilityPath = checkedPath(root, runtime.capabilities);
+  const receiptPath = checkedPath(root, runtime.receipts);
+  if (samePhysicalFile(capabilityPath, receiptPath)) {
+    throw new Error('runtime.capabilities and runtime.receipts must not name the same physical file');
   }
   const capabilities = loadHostCapabilities(root, runtime.capabilities);
   const decisions = evaluateRuntimePolicy(runtime, capabilities.value);

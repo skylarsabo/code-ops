@@ -8,6 +8,7 @@ import {
   readlinkSync,
   realpathSync,
   renameSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -49,6 +50,32 @@ export function gitPaths(root, args) {
 
 export function toPosix(value) {
   return value.split(sep).join('/');
+}
+
+export function portableKey(value) {
+  return value.normalize('NFC').toLowerCase();
+}
+
+export function samePhysicalFile(first, second) {
+  if (!existsSync(first) || !existsSync(second)) return false;
+  const firstStat = statSync(first);
+  const secondStat = statSync(second);
+  return portableKey(realpathSync.native(first)) === portableKey(realpathSync.native(second))
+    || (firstStat.dev === secondStat.dev && firstStat.ino === secondStat.ino);
+}
+
+export function assertNoAmbiguousIndexFlags(root) {
+  const ambiguous = [];
+  for (const entry of git(root, ['ls-files', '-v', '-z']).toString('utf8').split('\0')) {
+    if (!entry) continue;
+    if (entry.length < 3 || entry[1] !== ' ') throw new Error('malformed Git index flag output');
+    if (/^[a-zSM]$/.test(entry[0])) ambiguous.push(toPosix(entry.slice(2)));
+  }
+  if (ambiguous.length) {
+    const sample = ambiguous.slice(0, 5).join(', ');
+    const remainder = ambiguous.length > 5 ? ` (+${ambiguous.length - 5} more)` : '';
+    throw new Error(`ambiguous Git index flags must be cleared before reading worktree state: ${sample}${remainder}`);
+  }
 }
 
 export function safeRelative(value) {

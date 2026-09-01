@@ -14,7 +14,7 @@ Atlas default stamps are content-addressed independently of branch topology. The
 
 Plugin changes have three coupled outputs: the canonical package, host projections, and marketplace metadata. A new runtime script must enter the vendored manifest when skills reference it. A new skill also changes the plugin README, root count, handbook command reference, and router. Do not patch a generated host copy to solve a canonical-package defect.
 
-The 34-skill code-ops package now carries `local-review-gate`. Its exact-SHA plan, two independent reviewer receipts, remote-ref verification, and optional commit-status publication form the pre-PR judgment boundary. One judgment matrix drives local weekly trend and explicit floor calibration. Worker units omit answer-key paths and record whether execution was available.
+The 34-skill code-ops package now carries `local-review-gate`. Its exact-SHA plan, two independent reviewer receipts, remote-ref verification, and optional commit-status publication form the pre-PR judgment boundary. It rejects ambiguous Git index flags before worktree inspection. One judgment matrix drives local weekly trend and explicit floor calibration. Worker units omit answer-key paths and record whether execution was available.
 
 Shipped GitHub workflow examples are governed dependency surfaces, not illustrative exceptions. They use the same reviewed immutable action pins as the repository workflows, and a plugin patch release carries any example-only dependency refresh through marketplace parity and both host projections.
 

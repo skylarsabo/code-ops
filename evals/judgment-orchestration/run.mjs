@@ -34,6 +34,20 @@ try {
   git(root, ['add', '.']); git(root, ['commit', '-m', 'fixture']);
   mkdirSync(join(root, 'run/trend'), { recursive: true });
   const planPath = 'run/trend/plan.json';
+  const hiddenTarget = 'evals/bug-garden/repo/src/auth.js';
+  for (const [flag, clearFlag, label] of [
+    ['--skip-worktree', '--no-skip-worktree', 'skip-worktree'],
+    ['--assume-unchanged', '--no-assume-unchanged', 'assume-unchanged'],
+  ]) {
+    git(root, ['update-index', flag, hiddenTarget]);
+    writeFileSync(join(root, hiddenTarget), `hidden ${label} drift\n`);
+    const hiddenPlan = run(['plan', '--root', root, '--mode', 'trend', '--execution', 'available',
+      '--out', `run/${label}/plan.json`, '--strong-model', 'strong-model'], root);
+    check(`${label} fixture state blocks judgment planning`, hiddenPlan.status !== 0 && hiddenPlan.stderr.includes('ambiguous Git index'), hiddenPlan.stderr);
+    git(root, ['update-index', clearFlag, hiddenTarget]);
+    git(root, ['checkout', '--', hiddenTarget]);
+    rmSync(join(root, 'run', label), { recursive: true, force: true });
+  }
   const planned = run(['plan', '--root', root, '--mode', 'trend', '--execution', 'available', '--out', planPath, '--strong-model', 'strong-model'], root);
   check('trend plan compiles from one canonical matrix', planned.status === 0, planned.stderr);
   const plan = JSON.parse(readFileSync(join(root, planPath), 'utf8'));

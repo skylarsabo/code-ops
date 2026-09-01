@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -14,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { replayRuntimeReceipts } from '../../scripts/runtime-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -136,6 +138,23 @@ try {
   r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
   check('version 3 runtime contract validates', r.status === 0, r.out);
 
+  const caseAliased = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId, {
+    runtime: { receipts: 'run/host_capabilities.json' },
+  });
+  r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
+  check('runtime authority paths must differ portably', r.status === 1 && /must differ portably/.test(r.out), r.out);
+  writeContract(1, caseAliased.head, firstSnapshot.snapshotId);
+
+  const receiptAlias = join(runDir, 'receipt-alias.jsonl');
+  linkSync(capabilityPath, receiptAlias);
+  const physicalAlias = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId, {
+    runtime: { receipts: 'run/receipt-alias.jsonl' },
+  });
+  r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
+  check('runtime authority paths must not share one physical file', r.status === 1 && /same physical file/.test(r.out), r.out);
+  rmSync(receiptAlias);
+  writeContract(1, physicalAlias.head, firstSnapshot.snapshotId);
+
   const unignored = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId, { runtime: { receipts: 'RUNTIME.jsonl' } });
   r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
   check('runtime state must use an ignored path', r.status === 1 && /repository-ignored/.test(r.out), r.out);
@@ -195,6 +214,23 @@ try {
   writeFileSync(join(runDir, 'REPORT.md'), reportBytes);
 
   const goodChain = readFileSync(runtimePath, 'utf8');
+  const firstReceipt = JSON.parse(goodChain.split('\n')[0]);
+  const rejectsInvalidOidLength = [39, 41, 63, 65].every((length) => {
+    const invalid = structuredClone(firstReceipt);
+    invalid.binding.head = 'a'.repeat(length);
+    invalid.receiptSha256 = receiptDigest(invalid);
+    try { replayRuntimeReceipts(`${JSON.stringify(invalid)}\n`); return false; }
+    catch { return true; }
+  });
+  check('receipt replay rejects non-exact Git object ID lengths', rejectsInvalidOidLength);
+  const acceptsSupportedOidLength = [40, 64].every((length) => {
+    const valid = structuredClone(firstReceipt);
+    valid.binding.head = 'a'.repeat(length);
+    valid.receiptSha256 = receiptDigest(valid);
+    try { replayRuntimeReceipts(`${JSON.stringify(valid)}\n`); return true; }
+    catch { return false; }
+  });
+  check('receipt replay accepts exact SHA-1 and SHA-256 object ID lengths', acceptsSupportedOidLength);
   writeFileSync(runtimePath, goodChain.trimEnd());
   r = run(RUNTIME, ['verify', '--root', root, '--contract', contractPath], root);
   check('torn receipt tail fails closed', r.status === 1 && /torn tail/.test(r.out), r.out);

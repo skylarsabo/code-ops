@@ -94,6 +94,26 @@ try {
     && published.statuses.map((entry) => entry.context).sort().join(',') === 'local-deep-review,local-opsec-gate'
     && published.statuses.every((entry) => entry.state === 'success' && entry.target_url.endsWith(plan.headSha)), dry.stderr);
 
+  git(root, ['update-index', '--skip-worktree', 'one.txt']);
+  writeFileSync(join(root, 'one.txt'), 'hidden skip-worktree drift\n');
+  const skippedPrepare = prepare(root, paths(root, '-hidden-skip'));
+  const skippedRecord = record(root, p, 'local-deep-review', p.deep);
+  const skippedCheck = run(['check', '--root', root, '--plan', p.plan], root);
+  check('skip-worktree state blocks prepare', skippedPrepare.status !== 0 && skippedPrepare.stderr.includes('ambiguous Git index'), skippedPrepare.stderr);
+  check('skip-worktree state blocks record', skippedRecord.status !== 0 && skippedRecord.stderr.includes('ambiguous Git index'), skippedRecord.stderr);
+  check('skip-worktree state blocks check', skippedCheck.status !== 0 && skippedCheck.stderr.includes('ambiguous Git index'), skippedCheck.stderr);
+  git(root, ['update-index', '--no-skip-worktree', 'one.txt']);
+  git(root, ['checkout', '--', 'one.txt']);
+
+  git(root, ['update-index', '--assume-unchanged', 'one.txt']);
+  writeFileSync(join(root, 'one.txt'), 'hidden assume-unchanged drift\n');
+  const assumedPrepare = prepare(root, paths(root, '-hidden-assume'));
+  const assumedCheck = run(['check', '--root', root, '--plan', p.plan], root);
+  check('assume-unchanged state blocks prepare', assumedPrepare.status !== 0 && assumedPrepare.stderr.includes('ambiguous Git index'), assumedPrepare.stderr);
+  check('assume-unchanged state blocks check', assumedCheck.status !== 0 && assumedCheck.stderr.includes('ambiguous Git index'), assumedCheck.stderr);
+  git(root, ['update-index', '--no-assume-unchanged', 'one.txt']);
+  git(root, ['checkout', '--', 'one.txt']);
+
   const duplicate = record(root, p, 'local-deep-review', p.deep);
   check('rejects duplicate gate coverage', duplicate.status !== 0 && duplicate.stderr.includes('already exists'), duplicate.stderr);
 

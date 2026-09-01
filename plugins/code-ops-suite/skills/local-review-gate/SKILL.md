@@ -12,7 +12,7 @@ description: "Use when deep review, OpSec review, or judgment evals should run l
 
 ### Phase 0 — deterministic floor
 
-Run the repository's deterministic preflight, lint, build, and focused tests first. Commit every intended source and documentation change. A dirty worktree, empty diff, detached/default branch, unresolved base, or base that is not an ancestor stops the gate.
+Run the repository's deterministic preflight, lint, build, and focused tests first. Commit every intended source and documentation change. A dirty worktree, ambiguous `assume-unchanged` or `skip-worktree` index flag, empty diff, detached/default branch, unresolved base, or base that is not an ancestor stops the gate.
 
 Create an ignored run folder keyed by the current short HEAD. Then prepare the immutable review boundary:
 
@@ -69,7 +69,7 @@ node ${CLAUDE_PLUGIN_ROOT}/scripts/judgment-evals.mjs plan \
   --strong-model <stable-model-id> [--weak-model <stable-model-id>]
 ```
 
-Keep the full plan lead-only because its matrix binding contains answer-key paths. Dispatch only each plan unit, which intentionally omits the answer key. Every worker stays read-only on the target. Skill-arm units read their listed skill documents and plugin conventions; control units receive neither. Each writes only its declared `findingsPath` as a JSON array of `{file,line,note,tier}`. Set `--execution available` when workers can run commands or repros and `unavailable` only when the host mechanically withholds execution; the score receipt preserves that capability boundary. Model IDs and execution policy stay fixed within a series. The floor planner refuses identical normalized strong and weak model IDs.
+Keep the full plan lead-only because its matrix binding contains answer-key paths. Dispatch only each plan unit, which intentionally omits the answer key. Every worker stays read-only on the target. Skill-arm units read their listed skill documents and plugin conventions; control units receive neither. Each writes only its declared `findingsPath` as a JSON array of `{file,line,note,tier}`. Planning and replay reject ambiguous Git index flags before workers read fixture paths. Set `--execution available` when workers can run commands or repros and `unavailable` only when the host mechanically withholds execution; the score receipt preserves that capability boundary. Model IDs and execution policy stay fixed within a series. The floor planner refuses identical normalized strong and weak model IDs.
 
 After every unit returns, run `judgment-evals.mjs score`, then `judgment-evals.mjs check-receipt`. They refuse HEAD, fixture, key, skill, candidate, or score drift; replay the deterministic scorer; and verify one digest-bound local result receipt. Trend and floor results inform the calibration store but never become PR merge checks.
 

@@ -16,6 +16,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import {
+  assertNoAmbiguousIndexFlags,
   atomicWrite,
   canonical,
   checkedPath,
@@ -23,9 +24,11 @@ import {
   git,
   gitPaths,
   gitText,
+  portableKey,
   readJson,
   repoRelative,
   safeRelative,
+  samePhysicalFile,
   sha256,
 } from './context-index-lib.mjs';
 
@@ -77,8 +80,6 @@ function integer(value, label) {
   return parsed;
 }
 
-function portableKey(path) { return path.normalize('NFC').toLowerCase(); }
-
 function repositoryRoot(value) {
   return realpathSync.native(resolve(value));
 }
@@ -93,15 +94,8 @@ function rejectSymlinkComponents(root, absolute, label) {
   }
 }
 
-function sameFile(first, second) {
-  if (!existsSync(first) || !existsSync(second)) return false;
-  const firstStat = statSync(first);
-  const secondStat = statSync(second);
-  return portableKey(realpathSync.native(first)) === portableKey(realpathSync.native(second))
-    || (firstStat.dev === secondStat.dev && firstStat.ino === secondStat.ino);
-}
-
 function cleanWorktree(root) {
+  assertNoAmbiguousIndexFlags(root);
   return git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']).length === 0;
 }
 
@@ -243,7 +237,7 @@ function replayReceiptText(root, current, text) {
     const reviewerKey = portableKey(receipt.reviewer);
     if (reviewers.has(reviewerKey)) throw new Error('local review gates require independent reviewer identities');
     const report = ignoredPath(root, receipt.report.path, 'review report', true);
-    if (reportFiles.some((path) => sameFile(path, report.absolute))) throw new Error('local review gates require distinct physical report files');
+    if (reportFiles.some((path) => samePhysicalFile(path, report.absolute))) throw new Error('local review gates require distinct physical report files');
     const bytes = readFileSync(report.absolute);
     if (bytes.length !== receipt.report.bytes || sha256(bytes) !== receipt.report.sha256) throw new Error(`review report drift: ${receipt.report.path}`);
     seen.add(receipt.gate);
@@ -401,7 +395,7 @@ if (command === 'prepare') {
     if ([current.path.relative, current.receipts.relative].some((path) => portableKey(path) === portableKey(report.relative))) {
       throw new Error('review report must not alias the plan or receipt chain');
     }
-    if ([current.path.absolute, current.receipts.absolute].some((path) => sameFile(path, report.absolute))) {
+    if ([current.path.absolute, current.receipts.absolute].some((path) => samePhysicalFile(path, report.absolute))) {
       throw new Error('review report must not be the same physical file as the plan or receipt chain');
     }
     const blockingFindings = integer(f['--blocking'], 'blocking findings');

@@ -24,8 +24,8 @@ Require the host's deterministic validation job in its branch-protection equival
 Run deep review and OpSec review on the local Codex host before opening a pull request. The
 local gate binds base SHA, HEAD SHA, binary diff, report digests, strong-or-frontier reviewer
 receipts, and a hash chain. Its ignored plan and receipts travel as local operational evidence,
-not as hosted CI state. Evidence: `scripts/local-review-gate.mjs:104-275` and
-`scripts/local-review-gate.mjs:363-456`.
+not as hosted CI state. Evidence: `scripts/local-review-gate.mjs:97-269` and
+`scripts/local-review-gate.mjs:357-450`.
 
 Use `local-review-gate.mjs publish` only when commit statuses help an adopting team's workflow.
 The publisher verifies both live branch tips and binds the destination to that Git remote. The

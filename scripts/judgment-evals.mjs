@@ -7,12 +7,14 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  assertNoAmbiguousIndexFlags,
   atomicWrite,
   canonical,
   checkedPath,
   digestJson,
   git,
   gitText,
+  portableKey,
   readJson,
   safeRelative,
   sha256,
@@ -103,10 +105,9 @@ function matrixState(root, path) {
 }
 
 function clean(root) {
+  assertNoAmbiguousIndexFlags(root);
   return git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']).length === 0;
 }
-
-function portableKey(path) { return path.normalize('NFC').toLowerCase(); }
 
 function planSha256(plan) {
   const { planSha256: omitted, ...body } = plan;
