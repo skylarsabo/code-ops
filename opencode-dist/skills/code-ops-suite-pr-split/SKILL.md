@@ -8,7 +8,7 @@ description: "Use when you have one big branch you want carved into a clean, rev
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
 **Invoked as `/code-ops-suite-pr-split`, or by the model through the `skill` tool as `code-ops-suite-pr-split`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin — operating model, interaction protocol, safety rails (incl. the automation-level ladder `§4`), and the implementation loop (`§11`) this skill follows.
-**Mode:** IMPLEMENT. **Consumes:** the current branch (vs its trunk). **Produces:** a stack of small, independently-green PRs, opened with trace-free, voice-matched metadata. **Composes:** `privacy-opsec-suite:authorship-hygiene` (fail-closed) before any push.
+**Mode:** IMPLEMENT. **Consumes:** the current branch (vs its trunk). **Produces:** a stack of small, independently-green PRs, opened with trace-free, voice-matched metadata. **Composes:** `privacy-opsec-suite:authorship-hygiene` and `code-ops-suite:local-review-gate` (both fail-closed) before any push.
 
 ## Phase 0 — Scope & baseline  *(checkpoint)*
 Resolve the merge-base against the target trunk; capture the full diff. Run `/rigor-ground-truth` for the build/test/lint baseline. Learn the repo's commit/PR conventions from `git log` (feeds the hygiene pass). Confirm: trunk, max PR size, and the **automation level** (`§4`; default `gated` — for full auto-execute, set it explicitly here).
@@ -22,12 +22,12 @@ For each PR in order: create the stacked branch on its parent, apply only its hu
 ## Phase 3 — Trace scrub (fail-closed)
 Run `privacy-opsec-suite:authorship-hygiene` over the whole stack — L1 metadata, L2 prose voice, L3 code-idiom blend-in — which runs `scan-ai-tells.mjs` fail-closed. If `privacy-opsec-suite` is not installed, run the bundled `<plugin-root>/scripts/scan-ai-tells.mjs` directly as the mechanical floor. **Abort the push if the trace can't be cleaned.**
 
-## Phase 4 — Publish
-Push the stack and open each PR via `gh`, targeting its parent branch (a true stack), with the voice-matched descriptions. **Never auto-merge**; never force-push over an existing remote branch without confirmation. Per the automation level: `gated` pauses before push; `auto-safe`/full-auto proceed after one abortable dry-run summary.
+## Phase 4 — Local review and publish
+For each final stacked branch, run `code-ops-suite:local-review-gate` against its exact parent and committed HEAD. A fix invalidates that branch's receipts and every descendant whose base or diff moved. Push each reviewed branch without opening its PR, publish its SHA-bound local statuses, then open the PR via `gh` against its parent. **Never auto-merge**; never force-push over an existing remote branch without confirmation. Per the automation level: `gated` pauses before push; `auto-safe`/full-auto proceed after one abortable dry-run summary.
 Merging the stack once it's up is a developer action, not this skill's — see `code-ops-docs/40 Engineering/Handbook/10-recovery-and-troubleshooting.md` §6 (from the repo root) for the retarget-before-delete order and the CONFLICTING-tip reconciliation once a parent PR merges.
 
 ## Safety rails (full-auto floor)
 `scan-ai-tells` passes before push (fail-closed) · each PR green before the next is carved · never auto-merge · one abortable dry-run before the outward-facing push · L3 behavior-preserving.
 
 ## Done when
-Every PR in the stack is atomic, single-concern, and **independently builds/tests green**; the stack is pushed and opened with trace-free, voice-matched titles/descriptions (`scan-ai-tells` exits 0 over the whole stack); nothing was auto-merged; and the summary lists the stack (with links) and anything left for your decision.
+Every PR in the stack is atomic, single-concern, and **independently builds/tests green**; each final committed diff has current local deep-review and OpSec receipts; the stack is pushed and opened with trace-free, voice-matched titles/descriptions (`scan-ai-tells` exits 0 over the whole stack); nothing was auto-merged; and the summary lists the stack, receipt identities, links, and anything left for your decision.

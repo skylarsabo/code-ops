@@ -6,8 +6,11 @@ import { execFileSync } from 'node:child_process';
 import { PROVIDER_TIERS, TIER_ORDER, TIER_RANK } from './model-tiers.mjs';
 import { LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-grammar.mjs';
 import { scopesIntersect, verifySnapshotReceipt } from './context-index-lib.mjs';
+import { validateRuntimeConfig, verifyRuntimeConfig } from './runtime-lib.mjs';
 
-const TOP = new Set(['version', 'revision', 'runId', 'head', 'objective', 'nonGoals', 'lead', 'quality', 'budget', 'sharedContext', 'replanOn', 'units', 'context']);
+const TOP_V1 = ['version', 'revision', 'runId', 'head', 'objective', 'nonGoals', 'lead', 'quality', 'budget', 'sharedContext', 'replanOn', 'units'];
+const TOP_V2 = new Set([...TOP_V1, 'context']);
+const TOP_V3 = new Set([...TOP_V2, 'runtime']);
 const CONTEXT = new Set(['snapshot', 'snapshotId', 'bundleDir', 'untrackedPolicy', 'maxBundleBytes', 'maxAtlasExcerptBytes']);
 const LEAD = new Set(['model', 'tier', 'effort']);
 const QUALITY = new Set(['dimensions', 'criteria']);
@@ -21,6 +24,7 @@ const KINDS = new Set(['mechanical', 'breadth', 'execution', 'judgment', 'review
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh']);
 const REPLAN = ['scope-change', 'new-dependency', 'failed-dispatch', 'quality-gate-failure'];
 const REPLAN_V2 = [...REPLAN, 'context-drift'];
+const REPLAN_V3 = [...REPLAN_V2, 'runtime-drift'];
 const ACCEPT_HEADER = '| criterion | attempt | verdict | proof | accepted by | reason |\n| --- | --- | --- | --- | --- | --- |\n';
 
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
@@ -54,7 +58,7 @@ function readJson(path) { try { return JSON.parse(readFileSync(path, 'utf8')); }
 function loadContract(path, root) { const contract = readJson(path); const errors = validate(contract, root); if (errors.length) die(`contract invalid:\n${errors.map((x) => `  - ${x}`).join('\n')}`); verifyContext(contract, path, root); return contract; }
 
 function verifyContext(contract, contractPath, root) {
-  if (contract.version !== 2) return;
+  if (contract.version < 2) return;
   const receiptPath = resolve(dirname(contractPath), contract.context.snapshot);
   try {
     const receipt = readJson(receiptPath);
@@ -62,21 +66,27 @@ function verifyContext(contract, contractPath, root) {
     if (receipt.state?.untracked?.policy !== contract.context.untrackedPolicy) die('context untrackedPolicy does not match receipt');
     verifySnapshotReceipt(root, receipt);
   } catch (error) { die(error.message.includes('context snapshot drift') ? error.message : `context snapshot drift; prepare a new receipt, increment contract revision, and re-bundle affected units`); }
+  if (contract.version === 3) {
+    try { verifyRuntimeConfig(root, contract.runtime); }
+    catch (error) { die(error.message); }
+  }
 }
 
 function validate(c, root) {
   const errors = [];
   if (!c || Array.isArray(c) || typeof c !== 'object') return ['contract must be an object'];
-  exact(c, c.version === 1 ? new Set([...TOP].filter((key) => key !== 'context')) : TOP, 'contract', errors);
-  if (![1, 2].includes(c.version)) errors.push('version must be 1 or 2');
-  if (c.version === 1 && 'context' in c) errors.push('version 1 must not contain context');
-  if (c.version === 2) {
+  exact(c, c.version === 1 ? new Set(TOP_V1) : c.version === 2 ? TOP_V2 : TOP_V3, 'contract', errors);
+  if (![1, 2, 3].includes(c.version)) errors.push('version must be 1, 2, or 3');
+  if (c.version === 1 && ('context' in c || 'runtime' in c)) errors.push('version 1 must not contain context or runtime');
+  if (c.version === 2 && 'runtime' in c) errors.push('version 2 must not contain runtime');
+  if (c.version >= 2) {
     exact(c.context, CONTEXT, 'context', errors);
     if (!safePath(c.context?.snapshot) || !safePath(c.context?.bundleDir)) errors.push('context snapshot and bundleDir must be safe relative paths');
     if (!/^[0-9a-f]{64}$/.test(c.context?.snapshotId || '')) errors.push('context.snapshotId must be lowercase SHA-256');
     if (!['metadata', 'exclude', 'allowlist'].includes(c.context?.untrackedPolicy)) errors.push('context.untrackedPolicy is invalid');
     for (const key of ['maxBundleBytes', 'maxAtlasExcerptBytes']) if (!Number.isInteger(c.context?.[key]) || c.context[key] < 1) errors.push(`context.${key} must be a positive integer`);
   }
+  if (c.version === 3) errors.push(...validateRuntimeConfig(c.runtime));
   if (!Number.isInteger(c.revision) || c.revision < 1) errors.push('revision must be a positive integer');
   if (typeof c.runId !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(c.runId)) errors.push('runId must be kebab-case');
   const head = gitHead(root); if (!head) errors.push('cannot resolve current git HEAD'); else if (c.head !== head) errors.push('head does not match current git HEAD');
@@ -100,7 +110,7 @@ function validate(c, root) {
   exact(c.budget, BUDGET, 'budget', errors);
   for (const key of BUDGET) if (!Number.isInteger(c.budget?.[key]) || c.budget[key] < 1) errors.push(`budget.${key} must be a positive integer`);
   if (!Array.isArray(c.sharedContext) || !c.sharedContext.length || c.sharedContext.some((x) => !safePath(x))) errors.push('sharedContext must be nonempty safe relative paths');
-  const expectedReplan = c.version === 2 ? REPLAN_V2 : REPLAN;
+  const expectedReplan = c.version === 3 ? REPLAN_V3 : c.version === 2 ? REPLAN_V2 : REPLAN;
   if (!Array.isArray(c.replanOn) || c.replanOn.length !== expectedReplan.length || new Set(c.replanOn).size !== expectedReplan.length || expectedReplan.some((x) => !c.replanOn.includes(x))) errors.push('replanOn must contain the canonical set exactly once');
   const unitIds = new Set(); const byId = new Map(); const waves = new Map();
   if (!Array.isArray(c.units) || !c.units.length) errors.push('units must be nonempty');

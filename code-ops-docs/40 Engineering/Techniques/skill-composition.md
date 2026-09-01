@@ -38,14 +38,16 @@ on this page is illustration, not page structure.
 | `code-ops-suite:debug` | `privacy-opsec-suite:authorship-hygiene` | always, before push — the traceless gate | none named (scrubbed commits/PR) |
 | `code-ops-suite:debug` | `code-ops-suite:pr-split` | the fix is multi-part and ships as a stack | none named (a PR stack) |
 | `code-ops-suite:everything` | `code-ops-suite:conform` | always, in phase 0 before any register opens — assess-only by default | `CONFORMANCE_REPORT.md` |
-| `code-ops-suite:everything` | `rigor:deep-review` | hand-off — the PR gate to wire in at phase 11 | none named (the review verdict) |
-| `code-ops-suite:everything` | `privacy-opsec-suite:opsec-pr-gate` | hand-off — the anonymity PR gate to wire in at phase 11 | none named (the gate verdict) |
+| `code-ops-suite:everything` | `code-ops-suite:local-review-gate` | phase 11, after each final stack diff is committed and before its PR exists | plan, two reports, and receipt chain |
+| `code-ops-suite:local-review-gate` | `rigor:deep-review` | Track A, against the exact committed diff | ignored deep-review report and SHA-bound receipt |
+| `code-ops-suite:local-review-gate` | `privacy-opsec-suite:opsec-pr-gate` | Track A, against the exact committed diff | ignored OpSec report and SHA-bound receipt |
 | `code-ops-suite:normalize` | `rigor:consistency-closure` | routing pointer — divergent implementations of one concept go there instead | none (routing pointer) |
 | `code-ops-suite:performance` | `rigor:improve-measured` | routing pointer — broad behavior-preserving measured wins go there instead | none (routing pointer) |
 | `code-ops-suite:pr-review` | `rigor:deep-review` | routing pointer — a verification-bar review blocking only on reproduced defects | none (routing pointer) |
 | `code-ops-suite:pr-review` | `privacy-opsec-suite:opsec-pr-gate` | routing pointer — the anonymity gate | none (routing pointer) |
 | `code-ops-suite:pr-split` | `rigor:ground-truth` | for the build/test/lint baseline | `GROUND_TRUTH.md` |
 | `code-ops-suite:pr-split` | `privacy-opsec-suite:authorship-hygiene` | always, fail-closed, before any push | none named (scrubbed commits/PRs) |
+| `code-ops-suite:pr-split` | `code-ops-suite:local-review-gate` | every final stacked branch, before its push and PR creation | plan, two reports, and receipt chain |
 | `code-ops-suite:remediation` | `code-ops-suite:codebase-audit` | `FINDINGS_REGISTER.md` is absent — fallback producer | `FINDINGS_REGISTER.md` |
 | `code-ops-suite:remediation` | `rigor:bug-hunt` | same fallback, when the register should be proof-backed | `FINDINGS_REGISTER.md` |
 | `code-ops-suite:ship` | `rigor:ground-truth` | for the baseline | `GROUND_TRUTH.md` |
@@ -54,6 +56,7 @@ on this page is illustration, not page structure.
 | `code-ops-suite:ship` | `researcher:research-verify` | a claim/assumption needs verification before a design commitment | none named |
 | `code-ops-suite:ship` | `privacy-opsec-suite:metadata-leak-audit` | change touches egress/logging/identifiers/a default, and the plugin is installed | findings enter `FINDINGS_REGISTER.md`, anomaly regression surfaced as blocking |
 | `code-ops-suite:ship` | `privacy-opsec-suite:authorship-hygiene` | always — the traceless finish | none named (scrubbed commits/PRs) |
+| `code-ops-suite:ship` | `code-ops-suite:local-review-gate` | always, after the final intended diff is committed and before the PR exists | plan, two reports, and receipt chain |
 | `code-ops-suite:ship` | `code-ops-suite:pr-split` | the change ships as a stack rather than one PR | none named (a PR stack) |
 | `code-ops-suite:test-hardening` | `rigor:test-suite-audit` | routing pointer — auditing whether existing tests catch faults goes there | none (routing pointer) |
 | `code-ops-suite:vault` | `code-ops-suite:adopt-standards` | hand-off — the contract pair owns the documentation section routing to the vault | none named (the contract pair) |
@@ -98,9 +101,9 @@ on this page is illustration, not page structure.
 
 Every skill not named above issues no qualified reference and receives none — each
 runs its own loop against its own `CONVENTIONS.md` only. Twenty-one of the marketplace's
-sixty-five skills are standalone, and they fall in two plugins:
+sixty-six skills are standalone, and they fall in two plugins:
 
-- `code-ops-suite` (11 of 33): `api-docs`, `architecture`, `current-docs`,
+- `code-ops-suite` (11 of 34): `api-docs`, `architecture`, `current-docs`,
   `data-model`, `handoff`, `onboarding`, `ops-docs`, `provider-parity-audit`,
   `repo-docs`, `run-cost-audit`, `security-privacy-audit`.
 - `privacy-opsec-suite` (10 of 14): `anon-session-audit`, `anonymity-threat-model`,
@@ -115,10 +118,9 @@ Three of the four sweep orchestrators — `code-ops-suite:full-sweep`,
 `privacy-opsec-suite:full-sweep`, and `rigor:rigor-sweep` — sequence their *own*
 plugin's skills by name in prose rather than by qualified reference, so they appear
 here only as targets, never as sources. `researcher:research-sweep` is the exception:
-it names nine qualified hand-off targets. `code-ops-suite:everything` is the only
-orchestrator that calls another skill outright — `conform`, in phase 0 — and it also
-names `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate` as the PR gates its
-final phase hands off to.
+it names nine qualified hand-off targets. `code-ops-suite:everything` calls `conform`
+in phase 0 and `local-review-gate` in its final phase. The local gate owns the deep-review
+and OpSec-review hand-offs for the exact committed diff.
 
 ## The handoff contract
 

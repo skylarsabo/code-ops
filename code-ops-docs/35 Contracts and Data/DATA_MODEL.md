@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-28
+updated: 2026-09-01
 ---
 
 # Data Model
@@ -20,14 +20,88 @@ Canonical package metadata is JSON in `plugins/*/.claude-plugin/plugin.json` and
 | Work unit | `D-NNN` | References quality criteria and earlier dependencies. |
 | Snapshot receipt | SHA-256 `snapshotId` | Binds the visible repository state and index generator. |
 | Context bundle | SHA-256 `bundleId` | Binds one unit to one contract revision and snapshot. |
+| Host capabilities | SHA-256 file digest | Names host evidence and one state per runtime capability. |
+| Runtime receipt | `sequence`, SHA-256 `receiptSha256` | Binds runtime inputs to the preceding receipt. |
+| Local review plan | SHA-256 `planSha256` | Binds one feature-branch diff and its two required gates. |
+| Local review receipt | `sequence`, SHA-256 `receiptSha256` | Binds one gate report to a local review plan. |
+| Judgment-eval plan | SHA-256 `planSha256` | Binds fixtures, inputs, model arms, execution availability, and findings paths. |
+| Judgment-eval receipt | SHA-256 `receiptSha256` | Binds deterministic score and capability evidence to one eval plan. |
 | Dispatch ledger row | `D-NNN` | Mirrors one planned unit and records its status. |
 | Acceptance row | criterion and attempt | Supplies proof and an authorized verdict. |
 
 The identifier formats, ordered quality criteria, and unit dependency rules are validated by `run-contract.mjs`. Evidence: `scripts/run-contract.mjs:67-140`.
 
+## Runtime records
+
+A v3 contract's `runtime` object names the capability descriptor and JSONL receipt path,
+the ordered `stablePrefix`, `maxStablePrefixBytes`, and capability policy. Its receipt
+binding captures the contract-file digest, head, snapshot identity and receipt digest,
+host descriptor digest, capability states and outcomes, and compiled-prefix metadata. Raw
+descriptor labels and observation time stay outside the runtime chain. The descriptor writer
+requires an ignored path without linked components. Head is an exact full Git object ID.
+Capability and receipt paths are distinct under portable case folding and
+cannot alias one physical file. Evidence:
+`scripts/runtime-lib.mjs:26-37`, `scripts/runtime-lib.mjs:173-218`.
+
+The stable-prefix metadata contains its digest, total bytes, and ordered entries. Each
+entry contains an exact repository-relative path, source-file digest, and byte count.
+Sources must be regular stage-0 index files without linked components. Evidence:
+`scripts/context-index-lib.mjs:82-110`, `scripts/runtime-lib.mjs:148-172`, and
+`scripts/runtime-lib.mjs:258-270`.
+
+Each runtime receipt stores version, sequence, kind, UTC timestamp, predecessor digest,
+binding, references, observation, and receipt digest. References can name a ledger and its
+journal, an acceptance ledger, a handoff, bundles, and artifacts. File references retain
+their repository-relative paths and digests. Evidence: `scripts/runtime-lib.mjs:27-38` and
+`scripts/runtime-lib.mjs:228-289`.
+
+An observation has observability, ordered unique cache events, source, and nullable
+nonnegative token counters. It is evidence supplied by provider usage, host telemetry, or
+an operator. It is not inferred from a capability state or model name. Evidence:
+`scripts/runtime-lib.mjs:291-304`.
+
+## Local judgment records
+
+A local review plan stores version, branch, base reference and SHA, head SHA, binary diff
+digest, sorted changed paths, ignored receipt path, fixed gate names, creation time, and
+plan digest. Its two gate names are `local-deep-review` and `local-opsec-gate`. Hidden
+`assume-unchanged` or `skip-worktree` index state invalidates preparation and replay. Evidence:
+`scripts/local-review-gate.mjs:35-43`, `scripts/local-review-gate.mjs:141-185`, and
+`scripts/local-review-gate.mjs:357-383`.
+
+A local review receipt stores version, sequence, gate, verdict, timestamp, reviewer and
+model label, tier, effort, plan digest, report path/digest/bytes, finding counts,
+predecessor digest, and receipt digest. Reviewer and model labels are attestations. The
+schema validates their syntax and declared routing values but does not authenticate the
+person or model with hardware-backed identity. Evidence:
+`scripts/local-review-gate.mjs:194-269` and `scripts/local-review-gate.mjs:384-436`.
+
+The receipt chain has one report per required gate. It is valid only when every report is
+ignored, byte-identical to its receipt reference, bound to the current plan, and linked by
+the prior receipt digest. Ignored authority paths cannot portably alias tracked Git paths.
+Reviewer IDs and physical report files must also be distinct.
+Device and inode identity remains full-width instead of passing through JavaScript numbers.
+Optional GitHub statuses are external projections of passing receipts, not part of the local
+data model. Evidence:
+`scripts/local-review-gate.mjs:184-259` and `scripts/local-review-gate.mjs:274-468`.
+
+A judgment-eval plan stores its mode, execution policy, current head, matrix receipt,
+selected model IDs, generated units, creation time, and digest. Each worker unit names a
+fixture, tier, arm, replication, target, skill documents, and ignored findings path; it does
+not expose the answer key. Ambiguous Git index flags invalidate planning and replay. Ignored
+authority paths reject linked components or portable aliases to tracked Git paths. A score
+output cannot physically alias the plan or a findings file. A score receipt stores the plan,
+head, execution policy, completion totals,
+per-unit findings and score digests, and its own digest. Evidence:
+`scripts/judgment-evals.mjs:121-186` and `scripts/judgment-evals.mjs:188-329`.
+
 ## Structural cache
 
-The context cache is content addressed by `snapshotId`. Each entry contains `REPO_MAP.md`, `IMPORT_GRAPH.md`, `ATLAS_STATE.txt`, and `META.json`, with SHA-256 values recorded for every payload. Evidence: `scripts/context-snapshot.mjs:81-124` and `scripts/context-index-lib.mjs:187-205`.
+The context cache is content addressed by `snapshotId`. Snapshot preparation and replay
+reject hidden Git-index flags before observing worktree state. Each entry contains
+`REPO_MAP.md`, `IMPORT_GRAPH.md`, `ATLAS_STATE.txt`, and `META.json`, with SHA-256 values
+recorded for every payload. Evidence: `scripts/context-snapshot.mjs:81-124` and
+`scripts/context-index-lib.mjs:67-110`, `scripts/context-index-lib.mjs:225-277`.
 
 The cache can be reused only when its identifier, generator identity, and payload digests verify. A corrupt target is retained with an `.invalid-<timestamp>` suffix before replacement. Evidence: `scripts/context-snapshot.mjs:81-124`.
 

@@ -3,6 +3,15 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.50.0
+- Run Contract v3 adds an explicit host-capability policy, a bounded ordered stable prefix, and a runtime receipt location while preserving v1 and v2 compatibility.
+- Long-horizon runs can initialize, checkpoint, replan, resume, verify, and measure one hash-chained runtime record without duplicating dispatch, acceptance, Atlas, snapshot, or handoff authority.
+- Cache acceleration remains host-owned. Code Ops emits exact cache-ready prefix bytes, records managed or unavailable fallbacks, and aggregates normalized provider cache token telemetry when the host exposes it.
+- Runtime receipts and default metrics retain only the capability-descriptor digest, states, and policy outcomes. Capability initialization refuses Git-visible or linked outputs before writing raw provenance. Stable prefixes reject linked or non-regular index entries, and context snapshots reject hidden Git-index state.
+- `local-review-gate` moves deep review and OpSec judgment before PR creation. Exact base, HEAD, binary diff, report, reviewer, and receipt identities bind optional GitHub commit statuses to the reviewed SHA.
+- One tracked judgment matrix now plans provider-neutral local trend and model-floor runs. Deterministic scoring writes a digest-bound receipt; hosted Actions no longer spend model time on review or calibration.
+- Local review and judgment planning reject hidden Git index flags before reading worktree state. Ignored authority outputs cannot portably alias tracked Git paths. Judgment authority paths also reject linked components and physical output aliases, with lossless device and inode comparison on Windows. Runtime authority paths reject portable and physical aliases, while receipt replay accepts only exact SHA-1 or SHA-256 object IDs.
+
 ## 1.49.1
 - The shipped pull-request workflow example now pins checkout and the Claude Code action to reviewed immutable commits.
 

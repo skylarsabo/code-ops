@@ -10,7 +10,7 @@ The whole recovery model rests on one fact established in [04-registers-and-fres
 
 The four-step recovery, in order:
 
-1. **Find the run folder.** Artifacts land in a dated folder under the repo's docs location — `docs/<area>/<date>/` (e.g. `docs/rigor/<date>/`, `docs/privacy/<date>/`), or repo root if the repo has no docs convention ([code-ops CONVENTIONS §12](../../../plugins/code-ops-suite/CONVENTIONS.md)). If the repo carries a `<repo>-docs/` Obsidian vault ([vault standard](../Techniques/vault-standard.md)), look in the vault's `80 Runs/YYYY-MM-DD slug/` instead. The standard filenames are `FINDINGS_REGISTER.md`, `LEAK_REGISTER.md`, and `EXECUTIVE_SUMMARY.md`, plus per-plugin registers and logs.
+1. **Find the run folder.** Artifacts land in a dated folder under the repo's docs location — `docs/<area>/<date>/` (e.g. `docs/rigor/<date>/`, `docs/privacy/<date>/`), or repo root if the repo has no docs convention ([code-ops CONVENTIONS §12](../../../plugins/code-ops-suite/CONVENTIONS.md)). If the repo carries a `<repo>-docs/` Obsidian vault ([vault standard](../Techniques/vault-standard.md)), look in the vault's `80 Runs/YYYY-MM-DD slug/` instead. The standard filenames are `FINDINGS_REGISTER.md`, `LEAK_REGISTER.md`, and `EXECUTIVE_SUMMARY.md`, plus per-plugin registers and logs. A version 3 runtime run also has `HOST_CAPABILITIES.json` and `RUN_RUNTIME_RECEIPTS.jsonl`.
 2. **Re-validate every carried register against current `HEAD`** — `node scripts/revalidate-register.mjs <register> --root <repo>` — *before* you re-run or resume anything.
 3. **Re-triage every non-`FRESH` item** (`MOVED` / `DRIFTED` / `GONE` / `AMBIGUOUS` / `NO-REF`), and re-read the `FRESH` survivors. Anything already fixed gets stamped `OBSOLETE-AT <sha>` and is never re-shown.
 4. **Resume from the last clean phase boundary.** Re-enter the orchestrator at Phase 0; it re-scopes, re-opens the master plan, and carries the revalidated registers forward.
@@ -74,6 +74,21 @@ Every orchestrator is **checkpointed and developer-in-the-loop** ([03-orchestrat
 
 ### How to resume
 
+For a bounded version 2 run, use the ordinary Phase 0 recovery below. For a multi-phase or
+resumable version 3 run, verify its receipt chain before selecting the next phase:
+
+```sh
+node scripts/run-runtime.mjs verify --root <repo> --contract <run folder>/RUN_CONTRACT.json
+```
+
+The command verifies the receipt chain, current runtime binding, and latest checkpoint
+references. Do not resume when it fails. Replan when the contract, snapshot, declared host
+capabilities, or stable prefix changed. Update the contract to the next revision, prepare
+affected bundles, then append `run-runtime.mjs replan` with the current ledger and artifacts.
+When the binding is unchanged, append `run-runtime.mjs resume` instead. Stable prefixes are
+usable only when the host can inject the exact emitted payload. Cache activity is optional
+telemetry, never evidence that the run state survived.
+
 0. **Check for a dispatch ledger first.** If the run folder has a `DISPATCH_LEDGER.md`, read it before touching phase boundaries — see "Per-unit resume via the dispatch ledger" below. A dangling row means a specific sub-agent dispatch died or hung; that unit can often be resumed on its own, without re-entering the whole phase.
 1. **Re-enter the orchestrator at Phase 0** with the same scope and track. Point it at the existing run folder so it re-opens the master plan and the running `EXECUTIVE_SUMMARY.md` rather than starting a fresh folder. Phase 0 is a checkpoint by design — it re-scopes and re-confirms the automation level before any phase consumes anything.
 2. **Let it (or you) revalidate first.** The orchestrator carries the registers forward *fresh* — every register it inherits is run through `revalidate-register.mjs` and the non-`FRESH` items are re-triaged before any phase acts on them. If you are driving the recovery by hand, run §3's revalidate command yourself before resuming a phase.
@@ -101,6 +116,14 @@ This prints an `advisory:` line for every row still `dispatched` (never `reporte
 | Scope or track was wrong | **Re-run from Phase 0** with corrected scope | Phase 0 is where scope, track, and automation level are set |
 
 Because no orchestrator auto-merges and every code change lands on a branch as a commit/PR, resuming never risks an unreviewed merge — the worst case of a bad resume is a re-run phase, not a lost or duplicated landing.
+
+### Recover a version 3 runtime lock
+
+`run-runtime.mjs` creates `<receipt path>.lock` only while it appends a receipt. A lock error
+does not prove that the prior writer failed. First inspect its `owner.json` and confirm that the
+owner is gone. Then run `run-runtime.mjs verify` against the contract. Remove the lock only
+after both checks pass. Re-run the intended command once. If verification fails, preserve the
+lock and receipt chain. Diagnose or replan from the last valid boundary instead.
 
 ---
 

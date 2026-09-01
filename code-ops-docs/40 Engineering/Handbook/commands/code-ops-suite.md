@@ -1,6 +1,6 @@
 # code-ops-suite — Command Reference
 
-The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 33 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
+The **code-ops-suite** plugin is the spine of the marketplace: broad-breadth engineering workflows for any codebase, packaged as 34 namespaced skills you invoke as `/code-ops-suite:<name>`. Every skill reads the shared [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first — the backbone that defines the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch, tests-green, redact secrets, never fabricate), the modes, the finding/fix tracks, the schemas, the severity taxonomy, the quality lenses, the implementation loop, and the single-source-of-truth conventions. Skills are invoked by slash command or routed to by the model per the standard-operating-mode routing card; side-effect-bearing phases keep their checkpoints and nothing ever auto-merges. This page is the complete reference: one entry per skill, grouped by what it does, with the orchestrators last.
 
 A quick orientation for newcomers: the suite has three shapes of work. **Assess** skills read the code and write a ranked backlog. **Build** skills implement against that backlog or against specs. **Document** skills generate code-grounded reference docs and run-continuity state. Four **orchestrators** chain the others into one developer-in-the-loop pipeline. The thread that ties everything together is the **register** — a live backlog with stable IDs (`SEC-003`, `PERF-007`, `FEAT-012`) that flows discovery → register → commit/PR → log, kept fresh with `Verified-at: <sha>` stamps and the `revalidate-register.mjs` freshness check.
 
@@ -22,6 +22,7 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 
 **Review (REVIEW)**
 - [`pr-review`](#code-ops-suitepr-review) — rigorous pre-merge review against all lenses
+- [`local-review-gate`](#code-ops-suitelocal-review-gate) — local deep review, OpSec gate, and judgment-eval receipts before PR creation
 
 **Document (DOCUMENT)**
 - [`adopt-standards`](#code-ops-suiteadopt-standards) — bootstrap or maintain a repo's `CLAUDE.md` standards contract
@@ -169,13 +170,13 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 ### `/code-ops-suite:pr-split`
 **Mode:** IMPLEMENT
 
-**How it works.** Phase 0 (checkpoint) resolves the merge-base against the target trunk, captures the full diff, runs `/rigor:ground-truth` for the baseline, learns the repo's commit/PR conventions, and confirms the trunk, max PR size, and automation level (`§4`). Phase 1 builds a change-unit graph and groups hunks into reviewer-sized PRs (~≤400 lines) by dependency, concern/layer, and atomicity, ordered topologically. Phase 2 verifies-as-it-carves: each stacked PR builds/tests green at its step — green-at-every-step is the invariant. Phase 3 is a fail-closed trace scrub: it runs `privacy-opsec-suite:authorship-hygiene` (L1 metadata, L2 prose voice, L3 code-idiom blend-in), which runs `scan-ai-tells.mjs` fail-closed; if privacy-opsec-suite is not installed it runs the bundled `${CLAUDE_PLUGIN_ROOT}/scripts/scan-ai-tells.mjs` directly as the mechanical floor — and aborts the push if the trace can't be cleaned. Phase 4 pushes the stack via `gh`, opening each PR against its parent. It **never auto-merges**.
+**How it works.** Phase 0 (checkpoint) resolves the merge-base against the target trunk, captures the full diff, runs `/rigor:ground-truth` for the baseline, learns the repo's commit/PR conventions, and confirms the trunk, max PR size, and automation level (`§4`). Phase 1 builds a change-unit graph and groups hunks into reviewer-sized PRs (~≤400 lines) by dependency, concern/layer, and atomicity, ordered topologically. Phase 2 verifies-as-it-carves: each stacked PR builds/tests green at its step — green-at-every-step is the invariant. Phase 3 is a fail-closed trace scrub through `privacy-opsec-suite:authorship-hygiene` and `scan-ai-tells.mjs`. Phase 4 runs `local-review-gate` on each final stacked branch against its parent, pushes the branch without a PR, publishes the SHA-bound statuses, then opens each PR against its parent. A moved parent invalidates the descendant review. It **never auto-merges**.
 
 **Why it's useful.** It turns one unreviewable mega-branch into a clean stack of small, independently-green PRs scrubbed of AI/tooling trace — making review fast and the authorship hygiene airtight.
 
 **When to use it.** When you have one big branch to carve into a reviewable stack. Do **not** use it to review someone's diff (use `pr-review`) or to implement from scratch.
 
-**Prerequisites & hand-offs.** Requires `rigor` (for `/rigor:ground-truth`) and, ideally, `privacy-opsec-suite` (for `authorship-hygiene`; falls back to the bundled `scan-ai-tells.mjs`). Composes `privacy-opsec-suite:authorship-hygiene` fail-closed before any push; it is the traceless-finish stage that `ship`, `debug`, `full-sweep`, and `everything` delegate to.
+**Prerequisites & hand-offs.** Requires `rigor`, `privacy-opsec-suite`, and the local review gate. Composes `privacy-opsec-suite:authorship-hygiene` and `local-review-gate` fail-closed before any push; it is the finish stage that `ship`, `debug`, `full-sweep`, and `everything` delegate to.
 
 ---
 
@@ -193,6 +194,17 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 **Sibling disambiguation — `pr-review` vs `rigor:deep-review` vs `privacy-opsec-suite:opsec-pr-gate`.** All three review a change before merge, but at different bars. `code-ops-suite:pr-review` is the broad senior review across all quality lenses, producing prioritized comments and a verdict — it will flag should-fixes and nits. `rigor:deep-review` is the verification-first review: it blocks only on *reproduced* defects (evidence-tiered), trading breadth for a high-signal, low-noise gate. `privacy-opsec-suite:opsec-pr-gate` is the anonymity gate: it blocks a change that introduces a new leak, egress, identifier, or fingerprint, or that weakens fail-closed posture. Run `pr-review` for general merge readiness, `deep-review` when you want only proven blockers, and `opsec-pr-gate` on any change touching an anonymity surface.
 
 **Prerequisites & hand-offs.** No prerequisites; uses a VCS tool if connected. Consumes the PRs from `remediation`/`feature-implementation`; if asked to fix, it enters the implementation loop.
+
+### `/code-ops-suite:local-review-gate`
+**Mode:** REVIEW
+
+**How it works.** Track A runs deterministic checks before spending model time, commits the final diff, and prepares an ignored plan binding the current base SHA, HEAD SHA, binary full-index diff digest, changed paths, and required gate names. Two independent strong-tier, high-effort reviewers then run `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate` locally against that boundary. The lead accepts their evidence and records each report in one hash-chained receipt set. Any base movement, new commit, report edit, missing gate, duplicate gate, malformed receipt, or blocking verdict invalidates the pass. After traceless checks, the branch is pushed without a PR and the verified local receipts may publish `local-deep-review` and `local-opsec-gate` commit statuses for the exact remote SHA. The PR opens only afterward; hosted CI stays deterministic. Track B compiles local trend or model-floor units from `evals/judgment-matrix.json`, dispatches them read-only, and writes one digest-bound deterministic scoring receipt.
+
+**Why it's useful.** It pays for judgment once on the operator's local host, before review latency and hosted Actions begin, while keeping merge evidence bound to the exact bytes reviewed. One fixture matrix also removes the duplicated scheduled and dispatch workflow definitions.
+
+**When to use it.** Use Track A for every change that will become a PR. Use Track B for scheduled quality trends or explicit model-floor calibration. Do not reuse receipts after changing HEAD or updating the base, and do not treat judgment-eval results as merge gates.
+
+**Prerequisites & hand-offs.** Track A requires `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate`, a clean committed feature branch, and `gh` only when publishing GitHub statuses. Track B requires the tracked judgment matrix and the repository scorer. `ship` invokes Track A before push.
 
 ---
 
@@ -438,12 +450,12 @@ Orchestrators do not replace the individual skills — they run them in a sensib
 
 **When to use it.** When you want the deepest possible pass and accept the token cost; it is phased with checkpoints, not a blind firehose, so you can widen or narrow scope at Phase 0. Do **not** reach for it for a single-plugin pass (use `full-sweep`) or a single change (use `ship`).
 
-**Prerequisites & hand-offs.** **Requires `code-ops-suite`, `rigor`, and `privacy-opsec-suite` all installed.** It loads each plugin's `CONVENTIONS.md` and skill files so every phase applies its governing methodology. Notes the PR gates to wire in (`rigor:deep-review`, `privacy-opsec-suite:opsec-pr-gate`); ships via `pr-split`.
+**Prerequisites & hand-offs.** **Requires `code-ops-suite`, `rigor`, and `privacy-opsec-suite` all installed.** It loads each plugin's `CONVENTIONS.md` and skill files so every phase applies its governing methodology. Final diffs route through `local-review-gate` before PR creation and ship via `pr-split`.
 
 ### `/code-ops-suite:ship`
 **Mode:** orchestrator
 
-**How it works.** Implements **one change** (a feature or a one-off) end-to-end, scaling each phase to the change (a one-off is light; a feature gets the full treatment). Phase 0 (checkpoint) detects the stack, runs `/rigor:ground-truth` for the baseline, sizes the change, confirms the approach for a feature, and sets the automation level. Phase 1 runs `/rigor:safety-net` if the change touches thin-coverage code. Phase 2 implements via the implementation loop (`§11`) at the smallest correct scope. Phase 3 proves it — tests that fail before and pass after, the full suite green, and the regression guard (`rigor §H`). Phase 4 is the privacy gate (if the change touches a privacy surface and `privacy-opsec-suite` is installed). Phase 5 finishes traceless — `pr-split` for a stack or a single PR scrubbed by `authorship-hygiene`, with `scan-ai-tells` passing fail-closed before push (the bundled `scan-ai-tells.mjs` as the floor if privacy-opsec-suite is absent). Never auto-merges.
+**How it works.** Implements **one change** (a feature or a one-off) end-to-end, scaling each phase to the change (a one-off is light; a feature gets the full treatment). Phase 0 (checkpoint) detects the stack, runs `/rigor:ground-truth` for the baseline, sizes the change, confirms the approach for a feature, and sets the automation level. Phase 1 runs `/rigor:safety-net` if the change touches thin-coverage code. Phase 2 implements via the implementation loop (`§11`) at the smallest correct scope. Phase 3 proves it — tests that fail before and pass after, the full suite green, and the regression guard (`rigor §H`). Phase 4 is the privacy gate if the change touches a privacy surface. Phase 5 commits the final diff, runs `local-review-gate` for local deep and OpSec review, finishes traceless, pushes the branch, publishes the SHA-bound local statuses, and only then opens the PR. Hosted CI runs deterministic checks. Never auto-merges.
 
 **Why it's useful.** It takes a single intent to a proven, behavior-preserving, privacy-checked, trace-free PR — full rigor without you orchestrating the phases by hand.
 
@@ -451,7 +463,7 @@ Orchestrators do not replace the individual skills — they run them in a sensib
 
 **Sibling disambiguation — `ship` vs `debug` vs `feature-implementation`.** `ship` implements one *new* change (feature or one-off) end-to-end with proof and a traceless finish. `debug` starts from a *symptom* and drives reproduce → isolate → root-cause → fix-with-regression-proof → traceless ship; reach for it when something is broken, not when you're adding capability. `feature-implementation` builds a *set* of already-specified features incrementally from `feature-discovery` specs — it is the batch builder, where `ship` is the single-change end-to-end driver.
 
-**Prerequisites & hand-offs.** **Requires `rigor`**; the privacy phase runs only if `privacy-opsec-suite` is installed and the change touches a privacy surface. Composes `rigor` (safety-net, proof, regression guard), the privacy leak gate, and `pr-split` + `authorship-hygiene` for the finish.
+**Prerequisites & hand-offs.** **Requires `rigor` and `privacy-opsec-suite` for the local review gate.** Composes `rigor` (safety-net, proof, regression guard), the privacy leak gate, `local-review-gate`, and `pr-split` + `authorship-hygiene` for the finish.
 
 ### `/code-ops-suite:debug`
 **Mode:** orchestrator

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-26
+updated: 2026-09-01
 ---
 
 # Performance
@@ -11,6 +11,8 @@ updated: 2026-08-26
 Performance is a quality constraint for the repository and its generated plugins. Measure the real path before changing it. Retain an optimization only when repeatable evidence shows a material improvement and the owning regression eval preserves behavior.
 
 Optimize end-to-end operator latency, agent context bytes, child-process count, filesystem work, and CI feedback time. Prefer removing work, reusing exact results, and narrowing inputs at authority boundaries. Do not trade away correctness, validation coverage, deterministic output, or readable control flow.
+
+The long-horizon runtime uses a bounded stable prefix for cache-ready prompt input. It records cache events and token counts only when the host exposes them. Keep unsupported or unobservable cache data explicit. Evidence: `scripts/runtime-lib.mjs:17-22`, `148-174`, and `291-309`.
 
 ## Measurement protocol
 
@@ -48,6 +50,7 @@ Exploratory measurements also observed a 321.0 ms warm context-snapshot median, 
 - Benchmark a stable command at least seven times after one warmup when the runtime is short enough.
 - Separate cold-cache and warm-cache results.
 - Prefer deterministic structural budgets, such as child-process counts and context-byte ceilings, over fragile machine-wide time limits.
+- Keep runtime elapsed time as `UNKNOWN` unless one monotonic source measures it across the complete run.
 - Require failing-then-passing regression proof for changed behavior.
 - Preserve the full case count when optimizing an eval or CI path.
 - Revert a speculative optimization that has no material repeatable effect.

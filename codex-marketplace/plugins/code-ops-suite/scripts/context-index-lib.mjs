@@ -8,6 +8,7 @@ import {
   readlinkSync,
   realpathSync,
   renameSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -49,6 +50,79 @@ export function gitPaths(root, args) {
 
 export function toPosix(value) {
   return value.split(sep).join('/');
+}
+
+export function portableKey(value) {
+  return value.normalize('NFC').toLowerCase();
+}
+
+export function samePhysicalFile(first, second) {
+  if (!existsSync(first) || !existsSync(second)) return false;
+  // Windows file IDs routinely exceed Number.MAX_SAFE_INTEGER. Keep device and
+  // inode values lossless so distinct files cannot alias after number rounding.
+  const firstStat = statSync(first, { bigint: true });
+  const secondStat = statSync(second, { bigint: true });
+  return portableKey(realpathSync.native(first)) === portableKey(realpathSync.native(second))
+    || (firstStat.dev === secondStat.dev && firstStat.ino === secondStat.ino);
+}
+
+export function assertNoAmbiguousIndexFlags(root) {
+  const ambiguous = [];
+  for (const entry of git(root, ['ls-files', '-v', '-z']).toString('utf8').split('\0')) {
+    if (!entry) continue;
+    if (entry.length < 3 || entry[1] !== ' ') throw new Error('malformed Git index flag output');
+    if (/^[a-zSM]$/.test(entry[0])) ambiguous.push(toPosix(entry.slice(2)));
+  }
+  if (ambiguous.length) {
+    const sample = ambiguous.slice(0, 5).join(', ');
+    const remainder = ambiguous.length > 5 ? ` (+${ambiguous.length - 5} more)` : '';
+    throw new Error(`ambiguous Git index flags must be cleared before reading worktree state: ${sample}${remainder}`);
+  }
+}
+
+export function assertNoTrackedPortableAlias(root, path, label = 'path') {
+  const key = portableKey(toPosix(path));
+  const match = gitPaths(root, ['--literal-pathspecs', 'ls-files', '-z'])
+    .find((tracked) => portableKey(tracked) === key);
+  if (match) throw new Error(`${label} must not portably alias tracked Git path: ${match}`);
+}
+
+export function assertNoSymlinkComponents(root, absolute, label = 'path') {
+  const lexical = relative(resolve(root), resolve(absolute));
+  if (lexical === '..' || lexical.startsWith(`..${sep}`) || isAbsolute(lexical)) {
+    throw new Error(`${label} must stay inside the repository`);
+  }
+  let cursor = resolve(root);
+  for (const component of lexical.split(sep).filter(Boolean)) {
+    cursor = resolve(cursor, component);
+    if (!existsSync(cursor)) break;
+    if (lstatSync(cursor).isSymbolicLink()) throw new Error(`${label} must not contain symbolic-link components`);
+  }
+}
+
+export function assertTrackedStage0RegularFiles(root, paths, label = 'path') {
+  const entries = new Map();
+  const raw = git(root, ['--literal-pathspecs', 'ls-files', '--stage', '-z', '--', ...paths]).toString('utf8');
+  for (const record of raw.split('\0').filter(Boolean)) {
+    const separator = record.indexOf('\t');
+    const header = separator === -1 ? null : /^([0-7]{6}) ([0-9a-f]+) ([0-3])$/.exec(record.slice(0, separator));
+    if (!header) throw new Error('malformed Git stage entry');
+    const path = toPosix(record.slice(separator + 1));
+    const candidates = entries.get(path) || [];
+    candidates.push({ mode: header[1], stage: Number(header[3]) });
+    entries.set(path, candidates);
+  }
+  for (const path of paths) {
+    const candidates = entries.get(path) || [];
+    if (candidates.length !== 1 || candidates[0].stage !== 0 || !['100644', '100755'].includes(candidates[0].mode)) {
+      throw new Error(`${label} must name a regular Git stage-0 file: ${path}`);
+    }
+    const absolute = checkedPath(root, path);
+    assertNoSymlinkComponents(root, absolute, label);
+    if (!existsSync(absolute) || !lstatSync(absolute).isFile()) {
+      throw new Error(`${label} must name a regular worktree file: ${path}`);
+    }
+  }
 }
 
 export function safeRelative(value) {
@@ -163,6 +237,7 @@ export function collectState(root, policy = 'metadata', allowlist = [], atlasCon
   }
   if (policy === 'allowlist' && !allowlist.length) throw new Error('allowlist requires --allow-untracked');
   if (allowlist.some((entry) => !safeRelative(entry))) throw new Error('allowlist contains an unsafe path');
+  assertNoAmbiguousIndexFlags(root);
   const untracked = untrackedState(root, policy, allowlist);
   const head = gitText(root, ['rev-parse', 'HEAD']);
   const visibleState = {

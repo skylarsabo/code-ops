@@ -2,7 +2,7 @@
 
 One repository, four installable plugins of adaptive, multi-agent engineering workflows. Claude Code and Grok Build both read the canonical source packages directly; Codex and opencode each use a tracked native render generated from that same source. Add the marketplace once on your host, then install whichever plugin a project needs.
 
-- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, manifest-governed repo docs, standards-contract adoption (repo and global), onboarding, code normalization, PR-splitting, ship, debug, current-docs, plus architecture & API/data-model/ADR/ops doc generation, run handoff/resume, the per-repo atlas, the docs vault, and the standardization conformance pass, plus calibration/cost/provider-parity self-audits. (33 skills)
+- **`code-ops-suite`** — general engineering for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, local SHA-bound review gates, manifest-governed repo docs, standards-contract adoption (repo and global), onboarding, code normalization, PR-splitting, ship, debug, current-docs, plus architecture & API/data-model/ADR/ops doc generation, run handoff/resume, the per-repo atlas, the docs vault, and the standardization conformance pass, plus calibration/cost/provider-parity self-audits. (34 skills)
 - **`privacy-opsec-suite`** — privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, opsec PR gate, authorship hygiene. (14 skills)
 - **`rigor`** — verification-first quality: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, ship measured improvements. Prove-it-or-don't-report-it. (11 skills)
 - **`researcher`** — code-grounded research: ground in the codebase (or given materials), gather external knowledge, and propose improvements, design briefs (spikes), library evaluations, ideas, and an ecosystem watch. Every claim cited and tiered; local-first with disclosed, fail-closed egress; it proposes and hands implementation to the other suites. (7 skills)
@@ -185,7 +185,7 @@ Before each relevant commit it regenerates both host distributions and stages on
 - `scripts/check-autofix-scope.mjs` — auto-apply diff gate: denies always-gated paths, oversize diffs, and export-touching lines before an agent may auto-apply a fix; fail-closed with no flags. `scripts/run-proof.mjs` — execution-receipt ledger (record/replay) so a claimed test result is replayable, not narrated. `scripts/check-proof-integrity.mjs` — add-only pins for proof tests (a weakened proof is a loud PROOF-AMENDED, never silent). `scripts/scan-redaction.mjs` — fail-closed secret shapes over the suite's own output artifacts. `scripts/scan-injection-tells.mjs` — prompt-injection tells in agent-ingested content (report-only floor, opt-in fail-on).
 - `scripts/lib-docs.mjs` — in-house, local-first "current docs" engine (a Context7 alternative): resolves a library's **installed** version and returns its README + type exports with zero network by default (opt-in `--fetch` fallback to the library's own source). Bundled into each plugin, and also exposed as the `code-ops-docs` MCP server (`scripts/lib-docs-mcp.mjs`, declared in `code-ops-suite`'s manifest).
 
-**AI PR gates (optional, Claude-specific):** `.github/workflows/deep-review.yml` (rigor verification-first review) and `opsec-gate.yml` (privacy-opsec gate) run on PRs. They need a Claude credential — a Pro/Max subscription token (`CLAUDE_CODE_OAUTH_TOKEN`, from `claude setup-token`) **or** an `ANTHROPIC_API_KEY` repo secret — and skip cleanly when neither is set (e.g. fork PRs). Actions are SHA-pinned.
+**Local review before PR creation:** `code-ops-suite:local-review-gate` runs rigor's deep review and the privacy OpSec gate on the operator's host. It binds both reports to the exact base SHA, HEAD SHA, and binary diff, then can publish `local-deep-review` and `local-opsec-gate` commit statuses after the branch is pushed. GitHub Actions runs deterministic validation only. Provider-specific workflow examples remain available for repositories that explicitly prefer hosted model review.
 
 ## Optional: always-on conventions
 Each plugin ships its own `CONVENTIONS.md` (its operating model, interaction protocol, safety rails, schemas, and lenses), and every skill reads its plugin's file first. To make those principles apply in *every* session — not just inside a skill — add a line to the project's `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex):
@@ -196,13 +196,13 @@ The three plugins compose into one flow; run as much or as little as a task need
 1. **`code-ops-suite:full-sweep`** (or `:codebase-audit`) — broad map of the codebase and a first findings pass.
 2. **`rigor:rigor-sweep`** (start `assess-only`) — establish ground truth, validate the test suite, then **prove** the real bugs, lock behavior with safety nets, and fix at root cause with a regression guard. This is the high-signal core.
 3. **`privacy-opsec-suite:full-sweep`** — only on projects with anonymity/opsec requirements: the threat model, Tor/egress + leak audits, and hardening.
-4. Wire the matching PR gate(s) into CI: `rigor:deep-review` and/or `privacy-opsec-suite:opsec-pr-gate`.
+4. Run `code-ops-suite:local-review-gate` on the final committed diff before opening the PR; keep deterministic lint, build, and tests in CI.
 Rule of thumb: `code-ops-suite` for breadth, **`rigor` for proof**, `privacy-opsec-suite` for the anonymity specialization.
 
 **Run all of it in one command:** `/code-ops-suite:everything` in Claude Code, or `code-ops-suite:everything` named in Codex, orchestrates every phase across all three plugins end-to-end (map → ground-truth + test-trust → prove → leak audits → safety net → consolidated review → remediate → close inconsistencies → improve → normalize → final report). It's the most thorough and most token-expensive option, runs phased with checkpoints (not a blind firehose), and takes a **remediation automation level** at Phase 0 — `gated` (default), `auto-safe` (auto-apply only CONFIRMED + NOW-SAFE fixes, each test-backed and on a branch), or `auto-all` (not recommended) — with security/auth, secrets, data migrations, public contracts, and destructive/irreversible changes **always gated** and nothing ever auto-merged. Requires all three plugins installed.
 
 ## Optional: CI / automation
-- Per-PR review/gate: run `/install-github-app` (generates a correct workflow + sets `ANTHROPIC_API_KEY`), then paste the criteria from each plugin's `examples/*.yml` (`rigor`'s `github-deep-review.yml`, `privacy-opsec-suite`'s `github-opsec-gate.yml`, `code-ops-suite`'s `github-pr-review.yml`).
+- Local pre-PR review/gate: run `code-ops-suite:local-review-gate`, push the reviewed branch, publish its SHA-bound statuses, then open the PR. The plugin `examples/*.yml` remain an opt-in hosted fallback for other repositories.
 - Recurring scans (dependencies, security, egress/metadata, a periodic `rigor` bug sweep): schedule with Routines (`/schedule`).
 - Let deterministic tools (formatter/linter + pre-commit, dependency bot, SAST, mutation/coverage gates) handle the mechanical checks; reserve the skills for judgment-heavy work.
 
@@ -222,7 +222,7 @@ code-ops/
     ├── code-ops-suite/
     │   ├── .claude-plugin/plugin.json
     │   ├── CONVENTIONS.md                # shared backbone
-    │   ├── skills/                       # 33 workflows (incl. documentation generators + current-docs + handoff + standards/vault/conformance + orchestrators + suite self-audits)
+    │   ├── skills/                       # 34 workflows (incl. local review, documentation generators + current-docs + handoff + standards/vault/conformance + orchestrators + suite self-audits)
     │   ├── agents/                       # explorer + reviewer subagents
     │   ├── examples/                     # Claude GitHub Actions workflow
     │   └── README.md

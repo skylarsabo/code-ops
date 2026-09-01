@@ -10,6 +10,16 @@ The validation matrix now includes run-contract, context snapshot, context bundl
 
 Both validation legs run the durable record-collection regression and invoke `records check` for every collection declared by the live manifest. Their checkout requests full history and disables partial filtering. A `legacyPaths` exemption cannot exist without a collection-backed CI verifier. That configuration keeps missing checkout history distinct from genuine evidence loss and makes platform-specific path behavior visible before merge.
 
-`deep-review.yml` and `opsec-gate.yml` are credential-dependent PR gates. Their retry guard is load-bearing: two failed review attempts fail the job. A green result can still mean a skipped review, so workflow logs distinguish review from no-credential and generated-output cases.
+Model-driven deep review and OpSec review run locally before a pull request. The local gate
+binds base and HEAD SHAs, binary diff, changed paths, distinct strong-or-frontier reviewers,
+and a receipt hash chain. After the branch push, publication verifies the live base and feature
+refs and binds the destination repository to that Git remote. Strict required statuses prevent
+later base movement from reusing the merge candidate. Weekly trend and floor calibration also
+run through local Codex automation with explicit execution policy. They measure judgment
+quality and do not define GitHub merge correctness.
 
-Same-repository `pull_request` runs resolve workflow files from the merge ref, so they exercise edits to the PR gates. The advisory tells reviewers to confirm that the edited path ran. Fork credential skips need a same-repository run; `pull_request_target` and `schedule` use the default branch; `push` uses the pushed ref. Measurement workflows retain stable model pins for comparability and do not define merge correctness.
+GitHub `validate.yml` remains deterministic. It runs lint, rendering, checks, and regression
+tests, including local-gate and judgment-planner fixtures, on the pull-request merge ref,
+pushed `main` ref, or manual dispatch. The former deep-review, OpSec, scheduled judgment, and
+floor workflows are absent. Consumer GitHub review examples remain opt-in integrations whose
+credentials, events, and status policy belong to the adopter.

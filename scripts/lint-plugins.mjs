@@ -91,7 +91,7 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // `everything` is the cross-plugin orchestrator (references skills across all plugins);
 // full-sweep / rigor-sweep are intra-plugin (must reference only their OWN plugin's skills).
-const CROSS_PLUGIN_ORCH = new Set(['everything']);
+const CROSS_PLUGIN_ORCH = new Set(['everything', 'local-review-gate']);
 const INTRA_PLUGIN_ORCH = new Set(['full-sweep', 'rigor-sweep', 'research-sweep', 'conform']);
 // Lowercase slug-shaped tokens that legitimately appear emphasized in an orchestrator but
 // are NOT skills (track names, automation levels, plugin names, opsec terms, phase words).
@@ -100,6 +100,9 @@ const ORCH_TOKEN_ALLOWLIST = new Set([
   'code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher',
   'full', 'track', // emphasized prose words in the sweeps ("the full pass", "per track"), not skills
   'deep-research', 'lib-docs', 'code-ops-docs', // external skill / bundled script / MCP server the researcher composes, not researcher skills
+  'local-deep-review', 'local-opsec-gate', // GitHub commit-status contexts, not skills
+  'available', 'unavailable', // judgment execution-policy values, not skills
+  'assume-unchanged', 'skip-worktree', // Git index flags, not skills
 ]);
 const SLUGISH = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // single-word OR hyphenated lowercase token
 

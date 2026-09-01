@@ -1,6 +1,6 @@
 # Command Reference — Index & Task Router
 
-The code-ops marketplace ships **65 commands** across four plugins. Call any command as
+The code-ops marketplace ships **66 commands** across four plugins. Call any command as
 `/<plugin>:<skill>` in Claude Code, or name `<plugin>:<skill>` in a Codex request; the
 model can also route to a command per the standard-operating-mode routing card. Either
 way, side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing
@@ -77,7 +77,7 @@ which routes each plugin set supports, see
 | **Find when a bug was introduced** | `/rigor:regression-hunt` | rigor | VCS-bisects a confirmed bug to its origin commit and sweeps recent changes. |
 | **Fix a confirmed bug at root cause** | `/rigor:fix-verified` | rigor | Failing→passing regression test, regression guard, sibling sweep, enforcement. |
 | **Drive a bug from symptom to proven fix** | `/code-ops-suite:debug` (orchestrator) | code-ops-suite (+ rigor) | reproduce → isolate → confirm cause → `rigor:fix-verified` → traceless PR. **Requires `rigor`**; **Optional:** `privacy-opsec-suite` — without it the leak check is skipped and the bundled `scan-ai-tells.mjs` runs as the traceless gate. |
-| **Ship one change end-to-end at full rigor** | `/code-ops-suite:ship` (orchestrator) | code-ops-suite (+ rigor, privacy) | design-check → safety-net → implement → prove → privacy-gate → traceless PR. **Requires `rigor`**; **Optional:** `privacy-opsec-suite` — without it the privacy phase is skipped and the bundled `scan-ai-tells.mjs` runs as the traceless gate. See [ship-a-verified-fix](../../../70 Guides/ship-a-verified-fix.md). |
+| **Ship one change end-to-end at full rigor** | `/code-ops-suite:ship` (orchestrator) | code-ops-suite + rigor + privacy | design-check → safety-net → implement → prove → local deep/OpSec receipts → traceless PR. See [ship-a-verified-fix](../../../70 Guides/ship-a-verified-fix.md). |
 | **Build a feature from scratch** | `/code-ops-suite:feature-discovery` → `/code-ops-suite:feature-implementation` → `/code-ops-suite:pr-review` | code-ops-suite | Discover + spec grounded features → build smallest slice behind flags → gate. |
 | **Make something measurably faster** | `/rigor:ground-truth` → `/code-ops-suite:performance` | code-ops-suite (+ rigor) | **Requires `rigor`** for the ground-truth baseline. Optimize only what is proven hot; prove it with before/after numbers. `/rigor:improve-measured` for measured deltas. |
 | **Add meaningful test coverage** | `/rigor:ground-truth` → `/rigor:test-suite-audit` → `/code-ops-suite:test-hardening` | code-ops-suite (+ rigor) | **Requires `rigor`** for the first two steps; `/code-ops-suite:test-hardening` runs alone without it. Validate the suite (mutation/flaky) first, then harden critical paths. |
@@ -85,6 +85,7 @@ which routes each plugin set supports, see
 | **Upgrade dependencies / clear CVEs safely** | `/code-ops-suite:dependency-upgrade` | code-ops-suite | Staged upgrades, never bulk-bumps. Pair with `researcher:ecosystem-watch`. |
 | **Review a PR before merge** (breadth) | `/code-ops-suite:pr-review` | code-ops-suite | Rigorous pre-merge review across all lenses; prioritized comments + verdict. |
 | **Review a PR at the verification bar** (depth) | `/rigor:deep-review` | rigor | Blocks only on `CONFIRMED` defects/regressions. The high-signal counterpart to `pr-review`. |
+| **Review locally before opening a PR** | `/code-ops-suite:local-review-gate` → `/rigor:deep-review` + `/privacy-opsec-suite:opsec-pr-gate` | code-ops-suite + rigor + privacy | Binds local deep review and OpSec reports to the exact base, HEAD, and diff; can publish required commit statuses before PR creation. Also plans local judgment evals. |
 | **Normalize a repo to one consistent style** | `/code-ops-suite:normalize` | code-ops-suite | Behavior-preserving; removes the artifacts of hasty/generated code. |
 | **Split a big branch into clean small PRs** | `/code-ops-suite:pr-split` | code-ops-suite (+ privacy) | **Optional:** `privacy-opsec-suite` — composes `authorship-hygiene` (fail-closed) when installed, else the bundled `scan-ai-tells.mjs` is the mechanical floor. Never auto-merges. |
 | **Bank what a run learned about a repo** | `/code-ops-suite:atlas` | code-ops-suite | Builds/refreshes `code-ops-docs/98 System/Atlas/`: judgment prose per section, each stamped and mechanically checked FRESH or STALE. |
@@ -123,9 +124,7 @@ which routes each plugin set supports, see
 | **Calibrate the suite against a real repo** | `/code-ops-suite:calibration-run` | code-ops-suite | **Optional:** `rigor` — needed only when `rigor:rigor-sweep` is the mechanism under calibration. Isolated, assess-only; only a sanitized note crosses back into `evals/CALIBRATION_TABLE.md`. |
 | **Audit a completed run's cost discipline** | `/code-ops-suite:run-cost-audit` | code-ops-suite | Dispatch counts, artifact sizes, tier/effort mix vs. the suite's own routing doctrine → `COST_AUDIT.md`. |
 | **Audit the suite's prose for provider-specific assumptions** | `/code-ops-suite:provider-parity-audit` | code-ops-suite | Prose only — the mechanical Codex render is already covered by `build-codex-marketplace.mjs --check`. |
-| **Wire a breadth PR gate into CI** | `/code-ops-suite:pr-review` in CI | code-ops-suite | Use the reviewed immutable action pin in `plugins/code-ops-suite/examples/github-pr-review.yml`. Run `/install-github-app`, then paste the review criteria. |
-| **Wire a verification PR gate into CI** | `/rigor:deep-review` in CI | rigor | Same action; see `plugins/rigor/examples/github-deep-review.yml`. |
-| **Wire an anonymity PR gate into CI** | `/privacy-opsec-suite:opsec-pr-gate` in CI | privacy-opsec-suite | Blocks any change adding egress/logging/identifiers/fingerprint/correlation/weakened defaults. See `plugins/privacy-opsec-suite/examples/github-opsec-gate.yml`. Also guards the researcher's egress posture. |
+| **Keep judgment off hosted CI** | `/code-ops-suite:local-review-gate` before PR creation | code-ops-suite + rigor + privacy | Run both judgment gates locally and leave deterministic lint, build, and tests in CI. The shipped action examples remain an opt-in portability fallback. |
 | **Scrub AI/tooling trace before publishing** | `/privacy-opsec-suite:authorship-hygiene` | privacy-opsec-suite | Metadata, prose voice, code idiom (bundled `scan-ai-tells.mjs`); fail-closed before publish. |
 
 > Composition rule of thumb: **researcher proposes → code-ops-suite builds → rigor proves
@@ -140,7 +139,7 @@ which routes each plugin set supports, see
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) — **33 commands**: the engineering spine (assess, build, deep-dives, gate/consistency, docs/knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
+- [code-ops-suite.md](code-ops-suite.md) — **34 commands**: the engineering spine (assess, build, deep-dives, local review, gate/consistency, docs/knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep` / `everything` / `ship` / `debug`).
 - [rigor.md](rigor.md) — **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) — **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) — **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).

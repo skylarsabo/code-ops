@@ -1,8 +1,9 @@
 # Model-floor calibration table
 
-Raw results of the pre-registered model-floor calibration (`.github/workflows/evals-floor.yml`),
-per the measurement protocol in [`README.md`](README.md). Each row aggregates 3 reps of one
-{fixture × model tier × arm} cell; per-rep raw output lives in the linked run's logs.
+Raw results of the pre-registered local model-floor calibration compiled from
+`evals/judgment-matrix.json` by `scripts/judgment-evals.mjs`, per the measurement protocol
+in [`README.md`](README.md). Each row aggregates the registered reps of one
+{fixture × model tier × arm} cell; per-rep evidence lives in the linked local receipt.
 
 ## Pre-registration (declared before the baseline run)
 
