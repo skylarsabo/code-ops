@@ -32,6 +32,17 @@ try {
   writeFileSync(join(root, '.gitignore'), 'run/\nevals/*/_run/\n');
   git(root, ['init', '-b', 'main']); git(root, ['config', 'user.email', 'eval@example.invalid']); git(root, ['config', 'user.name', 'Eval']);
   git(root, ['add', '.']); git(root, ['commit', '-m', 'fixture']);
+  mkdirSync(join(root, 'Run'), { recursive: true });
+  const trackedVictim = join(root, 'Run/Victim.md');
+  const victimBytes = Buffer.from('tracked authority\n');
+  writeFileSync(trackedVictim, victimBytes);
+  git(root, ['add', '-f', 'Run/Victim.md']); git(root, ['commit', '-m', 'tracked mixed-case authority']);
+  const trackedAliasPlan = run(['plan', '--root', root, '--mode', 'trend', '--execution', 'available',
+    '--out', 'run/victim.md', '--strong-model', 'strong-model'], root);
+  const trackedAliasPlanPreserved = readFileSync(trackedVictim).equals(victimBytes);
+  check('plan output rejects a portable alias of a tracked path without mutation', trackedAliasPlan.status !== 0
+    && trackedAliasPlan.stderr.includes('tracked Git path') && trackedAliasPlanPreserved, trackedAliasPlan.stderr);
+  writeFileSync(trackedVictim, victimBytes);
   mkdirSync(join(root, 'run/trend'), { recursive: true });
   const planPath = 'run/trend/plan.json';
   const hiddenTarget = 'evals/bug-garden/repo/src/auth.js';
@@ -92,6 +103,11 @@ try {
   check('score output rejects a physical alias without replacing its plan', hardlinkedScore.status !== 0
     && hardlinkedScore.stderr.includes('must not overwrite') && readFileSync(join(root, planPath)).equals(planBytes), hardlinkedScore.stderr);
   rmSync(hardlinkOutput, { force: true });
+  const trackedAliasScore = run(['score', '--root', root, '--plan', planPath, '--out', 'run/victim.md'], root);
+  const trackedAliasScorePreserved = readFileSync(trackedVictim).equals(victimBytes);
+  check('score output rejects a portable alias of a tracked path without mutation', trackedAliasScore.status !== 0
+    && trackedAliasScore.stderr.includes('tracked Git path') && trackedAliasScorePreserved, trackedAliasScore.stderr);
+  writeFileSync(trackedVictim, victimBytes);
   const scored = run(['score', '--root', root, '--plan', planPath, '--out', 'run/trend/scores.json'], root);
   const receipt = scored.status === 0 ? JSON.parse(readFileSync(join(root, 'run/trend/scores.json'), 'utf8')) : null;
   check('scores every local result and writes a digest-bound receipt', scored.status === 0 && receipt.execution === 'available'

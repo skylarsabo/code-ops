@@ -149,6 +149,17 @@ try {
 
   const root2 = repo(); roots.push(root2);
   const p2 = paths(root2, '-blocking');
+  mkdirSync(join(root2, 'Run'), { recursive: true });
+  const trackedVictim = join(root2, 'Run/Victim.md');
+  const victimBytes = Buffer.from('tracked authority\n');
+  writeFileSync(trackedVictim, victimBytes);
+  git(root2, ['add', '-f', 'Run/Victim.md']); git(root2, ['commit', '-m', 'tracked mixed-case authority']);
+  const trackedAlias = run(['prepare', '--root', root2, '--base', 'main', '--out', 'run/victim.md',
+    '--receipts', 'run/case-alias/receipts.jsonl'], root2);
+  const trackedAliasPreserved = readFileSync(trackedVictim).equals(victimBytes);
+  check('plan output rejects a portable alias of a tracked path without mutation', trackedAlias.status !== 0
+    && trackedAlias.stderr.includes('tracked Git path') && trackedAliasPreserved, trackedAlias.stderr);
+  writeFileSync(trackedVictim, victimBytes);
   const portableAlias = run(['prepare', '--root', root2, '--base', 'main', '--out', 'run/alias/Plan.json', '--receipts', 'run/alias/plan.json'], root2);
   check('refuses case-folded plan and receipt aliases', portableAlias.status !== 0 && portableAlias.stderr.includes('differ portably'), portableAlias.stderr);
   const expressionBase = run(['prepare', '--root', root2, '--base', 'HEAD~1', '--out', 'run/expression/plan.json', '--receipts', 'run/expression/receipts.jsonl'], root2);

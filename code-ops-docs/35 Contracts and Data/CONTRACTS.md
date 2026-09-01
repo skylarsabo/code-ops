@@ -118,7 +118,8 @@ and receipt digest. `PASS` requires zero blocking findings. A replay rejects rep
 duplicate gates, foreign plans, missing final newlines, oversized chains, and invalid
 sequence or predecessor links. A complete check requires exactly one passing receipt per
 gate from a distinct reviewer identity. Authority files must not use linked components or
-physical aliases. Physical identity uses lossless device and inode values on every host.
+physical aliases, and ignored authority outputs must not portably alias tracked Git paths.
+Physical identity uses lossless device and inode values on every host.
 Evidence: `scripts/local-review-gate.mjs:35-43`,
 `scripts/context-index-lib.mjs:55-79`, `scripts/local-review-gate.mjs:194-269`, and
 `scripts/local-review-gate.mjs:384-436`.
@@ -143,7 +144,8 @@ models, declared execution availability, and ignored findings paths to a lead-on
 Worker units omit answer-key paths. Planning and replay reject ambiguous Git index flags
 before workers read fixtures. Floor mode rejects identical normalized model IDs. The
 deterministic scorer binds each findings file, execution policy, and score output into a
-receipt. Ignored plan, findings, and receipt paths reject linked components. A score output
+receipt. Ignored plan, findings, and receipt paths reject linked components and portable
+aliases to tracked Git paths. A score output
 must not portably or physically alias the plan or any findings file. Evidence:
 `scripts/judgment-evals.mjs:23-30`, `scripts/judgment-evals.mjs:52-186`, and
 `scripts/judgment-evals.mjs:188-329`.

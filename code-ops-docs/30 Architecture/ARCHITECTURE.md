@@ -98,7 +98,8 @@ digest. A check requires one passing receipt for each domain. Evidence:
 `scripts/local-review-gate.mjs:35-43`, `scripts/local-review-gate.mjs:194-269`, and
 `scripts/local-review-gate.mjs:374-468`.
 
-Authority paths cannot use symbolic-link components or physical aliases, and the two gates
+Ignored authority paths cannot portably alias tracked Git paths or use symbolic-link
+components or physical aliases, and the two gates
 must name different reviewer identities. Physical identity retains full-width device and inode
 values so Windows file IDs cannot collide through numeric rounding. The publisher reads live remote refs without changing
 the local tracking state. It requires the planned base and reviewed feature tip on one remote,

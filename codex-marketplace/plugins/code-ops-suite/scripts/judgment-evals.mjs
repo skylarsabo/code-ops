@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 import {
   assertNoAmbiguousIndexFlags,
   assertNoSymlinkComponents,
+  assertNoTrackedPortableAlias,
   assertTrackedStage0RegularFiles,
   atomicWrite,
   canonical,
@@ -56,6 +57,7 @@ function ignored(root, value, label, mustExist = false) {
   if (!safeRelative(value)) throw new Error(`${label} must be a repository-relative portable path`);
   const absolute = checkedPath(root, value);
   assertNoSymlinkComponents(root, absolute, label);
+  assertNoTrackedPortableAlias(root, value, label);
   if (mustExist && (!existsSync(absolute) || !statSync(absolute).isFile())) throw new Error(`${label} must name an existing file`);
   try { git(root, ['check-ignore', '-q', '--no-index', '--', value]); }
   catch { throw new Error(`${label} must be ignored by Git`); }

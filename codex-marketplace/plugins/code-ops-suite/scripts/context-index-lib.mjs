@@ -80,6 +80,13 @@ export function assertNoAmbiguousIndexFlags(root) {
   }
 }
 
+export function assertNoTrackedPortableAlias(root, path, label = 'path') {
+  const key = portableKey(toPosix(path));
+  const match = gitPaths(root, ['--literal-pathspecs', 'ls-files', '-z'])
+    .find((tracked) => portableKey(tracked) === key);
+  if (match) throw new Error(`${label} must not portably alias tracked Git path: ${match}`);
+}
+
 export function assertNoSymlinkComponents(root, absolute, label = 'path') {
   const lexical = relative(resolve(root), resolve(absolute));
   if (lexical === '..' || lexical.startsWith(`..${sep}`) || isAbsolute(lexical)) {

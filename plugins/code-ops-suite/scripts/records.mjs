@@ -13,6 +13,7 @@ import {
   resolvePrefix, safePath, sha256, targetAt, targetsAt, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
 } from './record-lib.mjs';
+import { assertNoTrackedPortableAlias } from './context-index-lib.mjs';
 
 class HistoryUnavailableError extends Error {}
 class LostMutationLeaseError extends Error {}
@@ -825,9 +826,7 @@ function adoptionCandidatePaths(context, inventory, historyComplete) {
 
 function ignoredReviewPath(context, path) {
   if (!safePath(path)) throw new Error(`adoption review path must be repository-relative and safe: ${path}`);
-  let tracked = false;
-  try { git(context.root, ['ls-files', '--error-unmatch', '--', literalPath(path)]); tracked = true; } catch { /* untracked is required */ }
-  if (tracked) throw new Error('adoption review plans cannot overwrite tracked files');
+  assertNoTrackedPortableAlias(context.root, path, 'adoption review path');
   try { git(context.root, ['check-ignore', '-q', '--no-index', '--', path]); }
   catch { throw new Error('adoption review plans must use a repository-relative ignored path'); }
   return nativePath(context.root, path);

@@ -10,7 +10,7 @@ the source plugin manifest and matching marketplace entries.
 - Runtime receipts and default metrics retain only the capability-descriptor digest, states, and policy outcomes. Stable prefixes reject linked or non-regular index entries, and context snapshots reject hidden Git-index state.
 - `local-review-gate` moves deep review and OpSec judgment before PR creation. Exact base, HEAD, binary diff, report, reviewer, and receipt identities bind optional GitHub commit statuses to the reviewed SHA.
 - One tracked judgment matrix now plans provider-neutral local trend and model-floor runs. Deterministic scoring writes a digest-bound receipt; hosted Actions no longer spend model time on review or calibration.
-- Local review and judgment planning reject hidden Git index flags before reading worktree state. Judgment authority paths reject linked components and physical output aliases, with lossless device and inode comparison on Windows. Runtime authority paths reject portable and physical aliases, while receipt replay accepts only exact SHA-1 or SHA-256 object IDs.
+- Local review and judgment planning reject hidden Git index flags before reading worktree state. Ignored authority outputs cannot portably alias tracked Git paths. Judgment authority paths also reject linked components and physical output aliases, with lossless device and inode comparison on Windows. Runtime authority paths reject portable and physical aliases, while receipt replay accepts only exact SHA-1 or SHA-256 object IDs.
 
 ## 1.49.1
 - The shipped pull-request workflow example now pins checkout and the Codex action to reviewed immutable commits.

@@ -2,7 +2,7 @@
 // Writes and validates explicit host capability receipts without guessing from a model name.
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { atomicWrite, checkedPath, safeRelative } from './context-index-lib.mjs';
+import { assertNoTrackedPortableAlias, atomicWrite, checkedPath, safeRelative } from './context-index-lib.mjs';
 import {
   CAPABILITY_STATES,
   loadHostCapabilities,
@@ -35,6 +35,7 @@ if (command === 'init') {
   try {
     const root = resolve(f['--root']);
     if (!safeRelative(f['--out'])) throw new Error('--out must be a repository-relative path');
+    assertNoTrackedPortableAlias(root, f['--out'], 'host capabilities output');
     const out = checkedPath(root, f['--out']);
     if (existsSync(out)) throw new Error(`host capabilities already exist: ${f['--out']}`);
     const value = {

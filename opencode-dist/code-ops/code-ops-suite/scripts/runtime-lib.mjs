@@ -3,6 +3,7 @@ import { existsSync, statSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
 import {
+  assertNoTrackedPortableAlias,
   assertTrackedStage0RegularFiles,
   checkedPath,
   digestJson,
@@ -174,6 +175,7 @@ export function verifyRuntimeConfig(root, runtime) {
   const errors = validateRuntimeConfig(runtime);
   if (errors.length) throw new Error(`runtime config invalid:\n${errors.map((error) => `  - ${error}`).join('\n')}`);
   for (const [label, path] of [['capabilities', runtime.capabilities], ['receipts', runtime.receipts]]) {
+    assertNoTrackedPortableAlias(root, path, `runtime.${label}`);
     try { git(root, ['check-ignore', '-q', '--', path]); }
     catch { throw new Error(`runtime.${label} must use a repository-ignored path`); }
   }

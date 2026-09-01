@@ -14,7 +14,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 227 : 230;
+const expectedCases = process.platform === 'win32' ? 228 : 231;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -79,6 +79,7 @@ function instrumentedRecordsScript(name, transform) {
   if (instrumented === source) throw new Error(`instrumentation anchor was not found for ${name}`);
   const script = join(directory, 'records.mjs'); writeFileSync(script, instrumented);
   cpSync(join(ROOT, 'scripts', 'record-lib.mjs'), join(directory, 'record-lib.mjs'));
+  cpSync(join(ROOT, 'scripts', 'context-index-lib.mjs'), join(directory, 'context-index-lib.mjs'));
   return script;
 }
 function fixtureManifest() {
@@ -648,6 +649,16 @@ try {
   check('absolute adoption-review inputs explain the repository-relative contract', result.status === 1
     && result.output.includes('repository-relative')
     && ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'].every((name) => !existsSync(generated(revisedRepo, name))), result.output);
+  const portableReviewRepo = join(work, 'portable-review-alias'); cpSync(revisedRepo, portableReviewRepo, { recursive: true });
+  writeFileSync(join(portableReviewRepo, '.git', 'info', 'exclude'), 'adoption-review.json\nreview/\n');
+  write(portableReviewRepo, 'Review/Victim.json', 'tracked authority\n');
+  git(['add', '-f', 'Review/Victim.json'], portableReviewRepo);
+  commit(portableReviewRepo, 'add tracked mixed-case authority');
+  const reviewVictim = join(portableReviewRepo, 'Review', 'Victim.json');
+  const reviewVictimBytes = readFileSync(reviewVictim);
+  result = run(['plan-adoption', '--root', portableReviewRepo, ...COLLECTION, '--out', 'review/victim.json'], portableReviewRepo);
+  check('adoption review output rejects a portable alias of a tracked path without mutation', result.status === 1
+    && result.output.includes('tracked Git path') && readFileSync(reviewVictim).equals(reviewVictimBytes), result.output);
   result = run(['adopt', '--root', revisedRepo, ...COLLECTION, '--review', 'adoption-review.json'], revisedRepo);
   const reviewedInventory = result.status === 0 ? JSON.parse(readFileSync(generated(revisedRepo, 'inventory.json'), 'utf8')) : null;
   check('digest-bound review permits adoption and persists its receipt', result.status === 0
