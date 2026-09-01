@@ -10,7 +10,7 @@ or an operator change.
 - Durable state lives in files, never only in the conversation.
 - Compact at a phase boundary you choose, not when auto-compact fires mid-task.
 - A fresh subagent with a tight brief is a better compaction than a summary.
-- Batch follow-ups to a live subagent. Its prompt cache expires in minutes.
+- Treat a cache as an acceleration, never as durable state.
 - At a workstream boundary, rebuild from artifacts instead of carrying history forward.
 
 ## Durable state lives on disk
@@ -20,7 +20,7 @@ Anything that exists only in the conversation is lost at the next compaction, an
 rebuilt approximation of a register is not the register. The suite already leans on
 this: registers are the SSOT ([04 · Registers and freshness](../Handbook/04-registers-and-freshness.md)),
 the dispatch ledger makes a hung subagent visible as a dangling entry, and
-`RUN_RECEIPTS.md` replays a proof the transcript can no longer show.
+`RUN_RUNTIME_RECEIPTS.jsonl` replays a version 3 runtime boundary that the transcript can no longer show.
 
 The test is simple. If the session ended now, could the next one continue from the files
 alone? If not, the missing piece belongs on disk before the next dispatch.
@@ -36,11 +36,15 @@ When the main context has grown past usefulness, prefer a fresh subagent with a 
 brief over dragging history forward. The brief names the files and the artifacts. That
 *is* the compaction, and it carries no accumulated noise.
 
-## Respect the subagent cache
+## Treat acceleration as optional
 
-A live subagent holds a warm prompt cache that expires in minutes. Batch the follow-ups
-you already know you need and send them promptly. A late follow-up pays full price for
-context the subagent still holds.
+A live subagent or host may retain reusable context. Batch known follow-ups when that
+state is available. Do not rely on retention, duration, or a cache hit without host
+evidence. A fresh session must reconstruct the run from durable artifacts alone.
+
+For a version 3 run, declare host capabilities before fan-out. Use a stable prefix only
+when the host can inject the exact emitted payload. Record observed cache events in the
+runtime receipt chain. Do not treat a prefix, cache, compaction, or host memory as state.
 
 Reuse a live subagent when the next task builds on context it already carries. Spawn a
 fresh one when stale context would mislead it. Reuse is a cost decision, and correctness
@@ -54,7 +58,8 @@ extractive or abstractive, because a summary drops the detail the next decision 
 and cannot say which detail it dropped.
 
 `/code-ops-suite:handoff` captures a run's true state as a verifiable `HANDOFF.md` and
-re-verifies every claim before a resume acts on it.
+re-verifies every claim before a resume acts on it. A version 3 resume also replays its
+receipt chain, verifies the current binding, and reuses the latest checkpoint references.
 
 ## Related
 

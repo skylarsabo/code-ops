@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-29
+updated: 2026-09-01
 ---
 
 # Infrastructure
@@ -9,6 +9,10 @@ updated: 2026-08-29
 ## Runtime
 
 The project is a Node.js repository that intentionally uses only Node built-ins. `.node-version` is the runtime SSOT and selects Node 24 LTS. CI and local tooling consume that file rather than maintain separate Node versions. Evidence: `.node-version`, `.github/workflows/validate.yml`, and `scripts/check-no-deps.mjs`.
+
+Long-horizon runs use an explicit host-capability receipt. The receipt records host, provider, model, observation source, and five capability states. The tools do not infer capabilities from a model name. Evidence: `scripts/host-capabilities.mjs:1-68` and `scripts/runtime-lib.mjs:15-20`.
+
+The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:96-136`, `205-218`, and `253-292`.
 
 There is no application server, managed database, container image, Terraform root, or cloud-runtime configuration in the current repository. This is an inspected repository boundary, not a statement about hosts that install the marketplace.
 
@@ -24,11 +28,17 @@ The first host renderer maps canonical plugin packages into its marketplace proj
 
 ## External dependencies
 
-The repository has no runtime third-party package dependency. CI can call a Claude action for deep review and OpSec review when a credential is configured. Those integrations are bounded to pull-request workflows. Evidence: `scripts/check-no-deps.mjs:24-28`, `.github/workflows/deep-review.yml:28-137`, and `.github/workflows/opsec-gate.yml:28-140`.
+The repository has no runtime third-party package dependency. Model-driven deep review and
+OpSec review execute locally through Codex, not on this repository's GitHub runner. The local
+review gate needs only Git, Node, ignored receipt storage, and an available local reviewer.
+GitHub review examples remain opt-in consumer integrations. Evidence: `scripts/check-no-deps.mjs:24-28`
+and `scripts/local-review-gate.mjs:1-39`.
 
 ## Operational limits
 
-The context compiler sets a 30-second timeout for repository-map, import-graph, and Atlas commands. It limits subprocess output to 64 MiB. Evidence: `scripts/context-snapshot.mjs:72-79` and `scripts/context-snapshot.mjs:97-106`.
+The context compiler sets a 30-second timeout for repository-map, import-graph, and Atlas commands. It limits subprocess output to 64 MiB. Evidence: `scripts/context-snapshot.mjs:52-59` and `61-105`.
+
+The runtime receipt chain has a 32 MiB limit. Each configured stable prefix has its own byte limit. Stable-prefix files must be tracked UTF-8 text. Evidence: `scripts/runtime-lib.mjs:143-168` and `300-346`.
 
 ## Record tooling distribution
 

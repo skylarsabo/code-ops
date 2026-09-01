@@ -15,4 +15,4 @@ Measures normalization **recall** and **false-positive rate** of `code-ops-suite
 ## Notes
 - normalize is behavior-preserving: it should remove dead/unreachable code and generated tells, and leave intentional idioms alone.
 - `node evals/score.mjs evals/hasty-code/ANSWER_KEY.json --check` verifies the key still matches the fixture (run after editing `repo/`).
-- This is **not** a CI gate (it needs a model run); the scheduled job in `.github/workflows/evals.yml` runs it.
+- This is **not** a CI gate. The local judgment automation plans it from `evals/judgment-matrix.json`; GitHub Actions checks only the deterministic fixture and orchestration machinery.

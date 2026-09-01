@@ -315,11 +315,12 @@ the lead.
 ## (f) RUN_CONTRACT.json and RUN_CONTRACT_RESULT.json
 
 `RUN_CONTRACT.json` is the run's versioned intent and work graph. Generate it after Phase 0,
-then run `scripts/run-contract.mjs check` before fan-out. Its top-level fields are:
+then run `scripts/run-contract.mjs check` before fan-out. Version 2 is the bounded-run
+contract. Version 3 adds runtime state for multi-phase or resumable runs. Its top-level fields are:
 
 ```
 version · revision · runId · head · objective · nonGoals · lead · quality · budget
-sharedContext · replanOn · units · context (version 2 only)
+sharedContext · replanOn · units · context (versions 2 and 3) · runtime (version 3 only)
 ```
 
 Quality is a vector of named dimensions and stable `Q-NNN` criteria. Each criterion names
@@ -336,6 +337,25 @@ Version 2 binds `context.snapshot`, `snapshotId`, `bundleDir`, `untrackedPolicy`
 `maxBundleBytes`, and `maxAtlasExcerptBytes`. `context-drift` joins the canonical replan
 triggers. A snapshot or bundle that does not match the current visible state fails before
 dispatch.
+
+Version 3 retains the version 2 context binding. Its `runtime` declares a capability
+descriptor, receipt chain, stable-prefix paths and byte cap, and one policy per capability.
+`HOST_CAPABILITIES.json` records host, provider, model, observation source, timestamp, and
+states for prompt caching, compaction, context editing, host memory, and task budget. Do not
+infer those states from the model name. A required unavailable capability fails validation.
+
+`RUN_RUNTIME_RECEIPTS.jsonl` is a hash-chained sequence of `init`, `checkpoint`, `resume`,
+`replan`, and optional observation receipts. Each runtime binding includes contract, snapshot,
+host-capability, and stable-prefix digests. A resume repeats the latest checkpoint references.
+A replan preserves `runId` and advances `revision` by one. Binding drift blocks continuation
+until a replan records the next valid contract. Cache observations are optional telemetry.
+They accelerate work when observed. They never replace receipts or artifacts.
+
+The stable prefix is deterministic UTF-8 content from tracked files within its declared byte
+cap. `run-runtime.mjs prefix` emits it, but no script injects it into a host. Use it only when
+the selected host can inject that exact payload. The runtime receipt chain serializes mutations
+with a sibling lock directory. A surviving lock requires owner and chain inspection before
+manual removal.
 
 `RUN_CONTRACT_RESULT.json` is a compiler-owned terminal artifact. `finalize` creates it only
 after strict plan-to-ledger reconciliation and PASS evidence for every blocking criterion.

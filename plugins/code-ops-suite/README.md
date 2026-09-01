@@ -24,6 +24,7 @@ Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` i
 
 **Gate / consistency**
 - `pr-review` — rigorous pre-merge review of one PR/diff against all lenses; prioritized comments + verdict.
+- `local-review-gate` — runs deep review and OpSec judgment locally against the final committed diff, records SHA-bound receipts, and publishes optional commit statuses before a PR exists; also plans and scores local judgment evals.
 - `normalize` — one consistent professional style repo-wide; removes the artifacts of hasty/generated code; behavior-preserving.
 - `pr-split` — carve an existing big branch into a clean stack of small, independently-green PRs, scrubbed of AI/tooling trace (composes `privacy-opsec-suite:authorship-hygiene`, fail-closed); never auto-merges.
 
@@ -53,7 +54,7 @@ Invoke with `/code-ops-suite:<name>` in Claude Code or `code-ops-suite:<name>` i
 **Orchestrators**
 - `full-sweep` — run the whole suite end-to-end as one developer-in-the-loop pipeline (ground truth → assess → safety-net → fix → deep-dives → consistency → capture), pausing at each phase boundary. Intra-plugin.
 - `everything` — the cross-plugin superset: orchestrates every phase across all three plugins (map → prove → leak-audit → safety-net → remediate → close → improve → normalize). Requires `rigor` and `privacy-opsec-suite` installed; the most thorough and most token-expensive option.
-- `ship` — implement one change (feature or one-off) end-to-end at full rigor: design-check → safety-net → implement → prove → privacy-gate → traceless PR. Requires `rigor`; privacy phase if applicable.
+- `ship` — implement one change (feature or one-off) end-to-end at full rigor: design-check → safety-net → implement → prove → local review gate → traceless PR. Requires `rigor` and local review dependencies.
 - `conform` — assess every standardization surface of a repo in one read-only pass (standards contract, `<repo>-docs/` vault, `code-ops-docs/98 System/Atlas/`, doc drift, and opt-in the global contract), write `CONFORMANCE_REPORT.md`, then repair surface by surface under checkpoint by delegating to the skill that owns each one.
 - `debug` — drive a bug from symptom to a proven root-cause fix: reproduce → isolate → confirm cause → `rigor:fix-verified` → traceless PR. Requires `rigor`.
 
@@ -74,7 +75,7 @@ For **always-on** application (not just inside a skill), add a pointer in your r
 - **Tool-layer traceless gate:** a bundled `PreToolUse` hook (`hooks/hooks.json` + `hooks/enforce-traceless.mjs`) scans a `git commit` / `gh pr create|merge` Bash call for AI/tool trace before it runs and blocks on a hit; CI stays the fail-closed backstop.
 - **Session-start routing card:** a bundled `SessionStart` hook (`hooks/routing-card.mjs`) prints a hard-capped routing card mapping task types to the right skill/orchestrator so the lead defaults into standard operating mode from the first turn.
 - **In-session loop:** run a skill repeatedly toward its "Done when" criteria with the built-in `/loop`.
-- **On every PR:** wire `pr-review` into CI with the official Claude Code action pinned to a reviewed commit. See `examples/github-pr-review.yml` — but the canonical setup is to run `/install-github-app`, which generates a correct workflow; then paste the review criteria in.
+- **Before every PR:** run `local-review-gate` against the final committed diff. Keep deterministic tests in hosted CI; publish the local SHA-bound statuses when branch protection requires them.
 - **Recurring maintenance:** put `dependency-upgrade` and `security-privacy-audit` on a schedule with Routines (`/schedule`).
 - **Let deterministic tools do deterministic work:** wire a formatter + linter into a pre-commit hook, a dependency bot for CVEs, SAST for the security baseline, and coverage gates in CI — and reserve the skills for the judgment-heavy work (audit, threat model, feature discovery, intricate-bug hunting).
 

@@ -1,191 +1,69 @@
 # 08 · CI and automation
 
-The suite is built for a developer in the loop, but two kinds of work run unattended once you wire them up: **per-PR gates** that hold every merge to the suite's bars, and **recurring skills** that watch the ecosystem and keep registers fresh. This chapter shows how to wire both, what each gate actually blocks, and the one credential and permission they need.
-
 ## The short version
 
-- **Canonical setup is `/install-github-app`.** Run it inside Claude Code. It installs the GitHub App, sets the Claude credential secret, and generates a correct, current starter workflow. Then paste in the criteria from each plugin's `examples/*.yml`. Do not hand-copy action input names — they evolve, and the generator tracks them.
-- **Three PR gates, one per layer.** `code-ops-suite:pr-review` (breadth), `rigor:deep-review` (verification), `privacy-opsec-suite:opsec-pr-gate` (anonymity). Each posts inline comments at `file:line` and ends with a verdict; each blocks a different class of regression.
-- **All three need a Claude credential** — `CLAUDE_CODE_OAUTH_TOKEN` (a Pro/Max subscription token) **or** `ANTHROPIC_API_KEY`. Without either, the gate **skips cleanly** instead of failing. The OAuth path needs `id-token: write`.
-- **A fourth gate runs with no credential at all:** the structural `validate` workflow (`lint-plugins` + `check-no-deps` + the eval harnesses). It is pure Node, deterministic, and the real backstop on this repo.
-- **One runtime pin governs local and CI execution.** [`.node-version`](../../../.node-version) selects Node 24 LTS. Do not add separate workflow or local Node pins.
-- **Actions use immutable, allowlisted SHAs.** [`.github/actions-lock.json`](../../../.github/actions-lock.json) owns the approved identities, pins, and review metadata.
-- **Dependabot opens review work; it never merges it.** [`.github/dependabot.yml`](../../../.github/dependabot.yml) groups weekly action minor and patch updates. Majors stay separate. Every update must refresh the action policy and governed examples before CI can pass.
-- **Make the gates count:** mark them as required status checks in branch protection so a `request-changes` verdict actually blocks the merge.
-- **Recurring work runs on `/schedule`:** put `researcher:ecosystem-watch`, `code-ops-suite:dependency-upgrade`, and `code-ops-suite:security-privacy-audit` on a cadence.
+- Run model-driven deep review and OpSec review locally before opening a pull request.
+- Use local Codex automation for the weekly judgment trend and policy-required floor calibration.
+- Require GitHub `validate` for deterministic lint, rendering, checks, and regression tests.
+- Treat optional published commit statuses as transport for verified local receipts, not review execution.
+- Keep consumer GitHub review examples opt-in. Their credentials and branch-protection policy belong to the adopter.
 
-Two practical guides go deeper: [wiring the gates step by step](../../70 Guides/wire-ci-gates.md) and [choosing an automation level](../Techniques/choosing-an-automation-level.md).
+## Local judgment gate
 
----
+`local-review-gate.mjs` prepares a review only from a clean feature branch. It binds the base
+SHA, HEAD SHA, binary-diff digest, and changed paths into an ignored plan. A changed base, HEAD,
+diff, or worktree invalidates the plan. Evidence: `scripts/local-review-gate.mjs:104-191`
+and `scripts/local-review-gate.mjs:363-389`.
 
-## Canonical setup: `/install-github-app`
+Record one receipt for `local-deep-review` and one for `local-opsec-gate`. Each receipt names a
+strong-or-frontier reviewer, high-or-higher effort, verdict, report digest, finding counts, and
+prior receipt digest. A PASS requires zero blocking findings. `check` replays the exact chain and
+rejects missing, duplicate, drifted, or failing receipts. The gate also requires distinct reviewer
+identities and refuses symbolic-link or physical-file aliases among authority files. Evidence:
+`scripts/local-review-gate.mjs:200-275` and `scripts/local-review-gate.mjs:390-456`.
 
-Every example workflow in the suite opens with the same instruction, and it is the one to follow: run `/install-github-app` inside Claude Code. It installs the GitHub App on the repo, configures the credential secret, and **generates a working starter workflow** against the current `anthropics/claude-code-action` input names. The `examples/*.yml` files are illustrative starting points, not drop-in guarantees — the action's exact input names evolve, and only the generator is guaranteed current ([code-ops-suite `examples/github-pr-review.yml`](../../../plugins/code-ops-suite/examples/github-pr-review.yml) header).
+Run the reviews with the applicable `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate`
+bars. The local reviewer performs the model judgment. The gate validates its durable evidence.
+It does not auto-merge or replace a human acceptance decision.
 
-The workflow you adopt has two halves:
+Use `publish` only when commit statuses help the team's GitHub workflow. It verifies the live
+remote base and feature refs, derives the status repository from that remote, and rejects a
+conflicting override before posting. Configure required statuses in strict mode so base movement
+invalidates the merge candidate. Publication is optional.
 
-1. The **plumbing** — triggers, permissions, credential detection, checkout. Take this from the generated workflow (or the live workflows this repo already ships).
-2. The **review criteria** — the `prompt:` block. Take this from the relevant plugin's `examples/*.yml` and tune it. If the plugin is installed in CI, the prompt can invoke the skill directly (`/rigor:deep-review for this pull request`); if not, the prompt **inlines the bar** so the gate is self-contained. The repo's own live workflows do exactly this: invoke the skill if present, else apply the bar inline.
+## GitHub validation
 
-```mermaid
-flowchart LR
-  A["/install-github-app"] --> B["GitHub App installed<br/>+ credential secret set<br/>+ starter workflow generated"]
-  B --> C["paste prompt from<br/>plugin examples/*.yml"]
-  C --> D["per-PR gate live"]
-```
+`validate.yml` is this repository's hosted merge gate. It uses `contents: read` and runs only
+deterministic Node lint, renderer checks, checks, and regression tests. It does not execute the
+model-driven review, OpSec review, weekly trend, or floor calibration. Evidence:
+`.github/workflows/validate.yml:1-20` and `:31-199`.
 
----
+Require the relevant structural validation jobs in branch protection. A hosted green check proves
+only its deterministic commands. The local review receipts remain separate evidence.
 
-## The three PR gates
+## Consumer GitHub examples
 
-The suite ships one PR gate per layer of the [4-plugin mental model](02-mental-model.md). They are independent jobs — wire one, two, or all three — and they stack cleanly because each blocks a different class of regression. The live versions in this repo are [`deep-review.yml`](../../../.github/workflows/deep-review.yml) and [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml); the breadth gate ships as an example for you to adopt.
+The plugin examples for breadth review, deep review, and OpSec review remain supported as
+opt-in consumer integrations. An adopter may use `/install-github-app`, its own credential,
+permissions, and required-status policy. Those workflows are not this repository's canonical
+review path. See `plugins/code-ops-suite/examples/github-pr-review.yml`,
+`plugins/rigor/examples/github-deep-review.yml`, and
+`plugins/privacy-opsec-suite/examples/github-opsec-gate.yml`.
 
-| Gate | Skill | Layer | Example / live workflow |
-| --- | --- | --- | --- |
-| Breadth review | `code-ops-suite:pr-review` | SPINE | [`github-pr-review.yml`](../../../plugins/code-ops-suite/examples/github-pr-review.yml) |
-| Verification review | `rigor:deep-review` | VERIFICATION | [`deep-review.yml`](../../../.github/workflows/deep-review.yml) (example: [`github-deep-review.yml`](../../../plugins/rigor/examples/github-deep-review.yml)) |
-| Anonymity gate | `privacy-opsec-suite:opsec-pr-gate` | ANONYMITY | [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml) (example: [`github-opsec-gate.yml`](../../../plugins/privacy-opsec-suite/examples/github-opsec-gate.yml)) |
+## Recurring local automation
 
-All three trigger on `pull_request: [opened, synchronize, reopened]`, run least-privilege (`contents: read`, `pull-requests: write`), restrict tools, post inline comments labeled **Blocking / Should-fix / Nit**, and close with a verdict (`approve` / `approve-with-nits` / `request-changes`).
+Run `judgment-evals.mjs plan --mode trend --execution available` weekly through local Codex
+automation. Use `unavailable` only when the host mechanically withholds execution. Keep the full
+plan lead-only and hand workers only units, which omit answer-key paths. Run `--mode floor`
+locally when policy requires calibration; it refuses identical strong and weak model IDs. Both
+modes are local measurements, not hosted merge checks.
 
-### `code-ops-suite:pr-review` — the breadth gate
-
-A senior-engineering review of the diff **against the surrounding code, not in isolation**. It checks correctness and intricate bugs, design and modularity, performance regressions, security introduced (injection, authz, SSRF, IDOR), privacy/data-handling regressions, UI/accessibility for UI changes, tests, docs, and convention fit ([`github-pr-review.yml`](../../../plugins/code-ops-suite/examples/github-pr-review.yml)). It **scales the review to the change's reach, not its diff size** — for changed exported symbols, shared types/schemas, and API/DB contracts it traces the dependents and call sites and scales reviewer fan-out and depth to that reach (a small diff in a shared contract is a large review). **Blocks:** a security or privacy regression — those it will not approve. Tools are restricted to `Read,Grep,Glob` (read + comment, no arbitrary writes). The deeper command reference is [`commands/code-ops-suite.md`](commands/code-ops-suite.md).
-
-### `rigor:deep-review` — the verification gate
-
-The same diff held to a **verification-first** bar: ground truth first, then review. The repo's live gate ([`deep-review.yml`](../../../.github/workflows/deep-review.yml)) runs `node scripts/lint-plugins.mjs`, `node scripts/check-no-deps.mjs`, and the `evals/` harnesses so the review starts from facts. Like `pr-review` it traces the dependents of changed exported symbols and shared contracts so ranking reflects **demonstrated reach**, not diff size. Every concern is assigned an evidence tier — **CONFIRMED** (reproduced) / **PROBABLE** (strong static evidence) / **SPECULATIVE** (a lead) — and run through a disconfirmation pass (is it reachable, already handled, intentional, already tested?) before it is reported. **Blocks:** a CONFIRMED defect or regression. The rule is explicit — *never block on a SPECULATIVE, never wave through a CONFIRMED defect.* For this repo it additionally treats as Blocking a bundled plugin copy that drifts from its canonical `scripts/` source, and any change that makes a lint or eval pass while the behavior it guards is broken. Tools are `Read,Grep,Glob,Bash` (Bash so it can actually run the ground-truth checks). See [`05-evidence-and-tiers.md`](05-evidence-and-tiers.md) and the [disconfirmation pass](../Techniques/disconfirmation-pass.md).
-
-### `privacy-opsec-suite:opsec-pr-gate` — the anonymity gate
-
-A pre-merge **anonymity / OpSec** review for projects on the privacy track. The live gate ([`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml)) treats four properties of this repo's own tooling as Blocking regressions that must not silently weaken:
-
-- a new outbound network path, or re-enabling lib-docs' fetch by default / removing its https-and-public-host allowlist (egress stays opt-in and host-constrained);
-- a new third-party import (the suite is dependency-free — `check-no-deps` must stay green);
-- a weakened default or a loosened authorship/freshness gate (`scan-ai-tells`, `revalidate-register`): a fail-closed check turned fail-open, a removed validation, or coverage narrowed;
-- a new log line or output emitting secrets / identifiers / IPs, or added telemetry.
-
-Plus the standard anonymity checks: no new identifier / fingerprint / correlation surface, fail-closed preserved, metadata minimized. It **will not approve** any change that weakens an anonymity or fail-closed guarantee, and it never echoes real identifiers, secrets, or IPs. Tools are `Read,Grep,Glob`. This gate is the last link in the anonymity track — `anonymity-threat-model` → six leak audits → `LEAK_REGISTER.md` → `opsec-hardening` → **`opsec-pr-gate`** + `authorship-hygiene`; see [`commands/privacy-opsec-suite.md`](commands/privacy-opsec-suite.md).
-
-### One attempt definition, two bounded attempts
-
-Each live model gate defines its complete action-input map once with a YAML anchor. The retry aliases that map, so credentials, review criteria, tools, model, and turn ceiling cannot drift between attempts. The attempt steps keep separate identifiers, conditions, 35-minute clocks, and outcomes because the final guard must inspect both results. An 80-minute job clock leaves time for setup, two bounded attempts, and the guard; if both attempts fail, the guard still fails closed.
-
-### Prove workflow changes against their event
-
-Both live gates trigger on `pull_request`, so GitHub runs their workflow files from the merge ref. A same-repository pull request therefore exercises edits to `deep-review.yml` and `opsec-gate.yml`.
-
-Four cases still need separate proof:
-
-- A fork pull request may expose no credential, so the model gate can skip cleanly.
-- A `pull_request_target` gate runs the workflow from the default branch.
-- A `schedule` gate only runs the latest commit on the default branch.
-- A `push` gate runs the workflow on the pushed ref, not the pull-request merge ref.
-
-For default-branch events, verify the edit after merge. For `push`, inspect an actual push run on the intended ref. [`check-gate-workflow-edit.mjs`](../../../scripts/check-gate-workflow-edit.mjs) flags gate edits so reviewers inspect the event, ref, and executed steps.
-
-### The credential, and skipping cleanly
-
-All three model-backed gates need **one** Claude credential, set as a repo secret:
-
-- `CLAUDE_CODE_OAUTH_TOKEN` — a Pro/Max subscription token, produced by `claude setup-token`; **or**
-- `ANTHROPIC_API_KEY` — an Anthropic API key.
-
-The workflow detects presence with a first step and gates every other step on it:
-
-```yaml
-- name: Detect credential
-  id: key
-  run: echo "present=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
-```
-
-When neither secret is set — a fork PR, or a repo nobody has configured — the gate **skips cleanly** (it logs `gate skipped` and exits green) rather than failing on a missing secret ([`deep-review.yml`](../../../.github/workflows/deep-review.yml)). This is deliberate: a missing credential must not turn into a red X that blocks unrelated work or a contributor's fork.
-
-#### The `id-token: write` permission
-
-The Pro/Max OAuth path needs one extra permission beyond the example workflows' defaults. `claude-code-action` mints an **OIDC token** to exchange for the OAuth credential, which requires:
-
-```yaml
-permissions:
-  contents: read
-  pull-requests: write
-  id-token: write   # claude-code-action mints an OIDC token for the Pro/Max OAuth path
-```
-
-Both live gates carry this ([`deep-review.yml`](../../../.github/workflows/deep-review.yml), [`opsec-gate.yml`](../../../.github/workflows/opsec-gate.yml)). The shipped examples use an API key and show only `contents: read` + `pull-requests: write`; add `id-token: write` when using OAuth. The action policy rejects mutable or unlisted references. Update its pin and review metadata deliberately.
-
----
-
-## The structural gate: `validate`
-
-The fourth gate needs **no credential and no model**. [`validate.yml`](../../../.github/workflows/validate.yml) runs on every push and PR with only `contents: read`, and it is the deterministic backstop the model-backed gates sit on top of. It runs, in order:
-
-| Step | Command | What it guards |
-| --- | --- | --- |
-| Structural lint | `node scripts/lint-plugins.mjs` | Manifests parse and agree; README skill counts match the real `skills/` dirs; every `SKILL.md` has `description:`, a `## Done when` heading, and a `CONVENTIONS.md` reference; orchestrators only reference skills that exist; **bundled plugin scripts are byte-identical to canonical `scripts/`**; command-reference entries exist; every `§<id>` citation resolves to a real CONVENTIONS section and "the X subagent" prose names a bundled agent; no angle brackets in SKILL.md frontmatter (a discovery-time injection surface); every bundled agent declares a `model:` at or above its floor in the linter's AGENT_MODEL_FLOORS table; and the register-producing skills' `## Done when` still runs `revalidate-register.mjs` — the producer-side anchor gate must not silently regress ([`scripts/lint-plugins.mjs`](../../../scripts/lint-plugins.mjs) header). |
-| Action pin enforcement | `node scripts/check-action-pins.mjs` | Only entries from `.github/actions-lock.json` may appear in governed workflows and examples. The current labels are `actions/checkout` v7.0.1, `actions/setup-node` v7.0.0, and `anthropics/claude-code-action` v1.0.210. Mutable tags, unlisted actions, and pin or annotation drift fail closed. |
-| Zero-dependency guard | `node scripts/check-no-deps.mjs` | Every import is a `node:` builtin or a local relative path — no third-party bare import (`SUPPLY-002`), which would open an npm dependency-confusion / transitive-CVE surface ([`scripts/check-no-deps.mjs`](../../../scripts/check-no-deps.mjs) header). |
-| Register-staleness eval | `node evals/register-staleness/run.mjs` | `revalidate-register.mjs` correctly classifies fresh / moved / already-fixed / no-reference items and fails closed on stale entries — the one behavior the field actually lost — and its strict schema gate, `--consumed` terminal-state gate, and `<REDACTED-LINE>` carve-out hold. |
-| AI-trace scanner eval | `node evals/ai-tells/run.mjs` | `scan-ai-tells.mjs` flags a dirty PR body across every category and stays silent on a clean body with decoys. |
-| lib-docs engine eval | `node evals/lib-docs/run.mjs` | `lib-docs.mjs` resolves versions, returns the matched README section, rejects traversal-shaped names, and makes **no** network call under `noFetch`. |
-| MCP smoke test | `node evals/lib-docs/mcp-smoke.mjs` | `lib-docs-mcp.mjs` answers the stdio JSON-RPC handshake (initialize → tools/list → tools/call). |
-| Researcher egress-manifest eval | `node evals/research-manifest/run.mjs` | The researcher's disclosed-egress manifest behavior. |
-| Script-guard regression eval | `node evals/script-guards/run.mjs` | The 2026-06-23 bundled-script audit fixes (`SCR-001..005`, across `lib-docs` / `check-no-deps` / `revalidate-register` / `research-manifest`) stay green — a fixed script defect can't silently regress. |
-| Proof-receipt + proof-integrity eval | `node evals/proof-receipts/run.mjs` | `run-proof.mjs` records a replayable receipt per executed proof (`RUN_RECEIPTS.md`) and replays fail-closed on exit-code mismatch, treating the ledger itself as an injection surface; `check-proof-integrity.mjs` keeps `PROOF_MANIFEST.md` pins add-only — only an explicit, loudly-reported `PROOF-AMENDED` line may move a pin. |
-| Autofix scope-gate eval | `node evals/autofix-scope/run.mjs` | `check-autofix-scope.mjs` mechanically denies always-gated diffs in the `auto-safe` lane (auth-path, workflow, oversize, export-touching, missing-test changes), rejects option-smuggling refs, and above all fails closed: with no operator present even a clean diff is denied. |
-| Redaction + injection-tell scanner eval | `node evals/redaction-scan/run.mjs` | `scan-redaction.mjs` flags secret shapes in a run's own output artifacts and `scan-injection-tells.mjs` flags prompt-injection tells in agent-ingested content — a dirty fixture is caught across every category while a clean fixture full of decoys stays silent. |
-| Fixture-drift guard | `node evals/score.mjs <ANSWER_KEY> --check` over every `evals/*/ANSWER_KEY.json` | Each judgment-eval answer key still matches its fixture, so a key can't silently drift from what it scores. |
-| Plugin validate (best-effort) | `claude plugin validate` if the CLI is present, else a no-op | A bonus when the CLI is on the runner; the comment is explicit that **structural-lint is the gate**, not this step. |
-
-These are the [eval harnesses](../../../evals/README.md) that keep the suite's "signal over noise" claim falsifiable. Because `validate` runs without any secret, it is the gate that protects the suite on fork PRs and in any clone — wire it first.
-
----
-
-## Making gates required
-
-A gate that posts a `request-changes` verdict still lets a merge through unless the check is **required**. To make a gate enforce:
-
-1. In the repo's **Settings → Branches → branch protection rule** for your default branch, enable **Require status checks to pass before merging**.
-2. Add the relevant job names — `structural-lint`, `deep-review`, `opsec-gate`, and/or the breadth review job — to the required list.
-
-A nuance specific to these gates: because the model-backed jobs **skip cleanly** without a credential, decide whether a *skipped* run should count as passing. On a repo that has the secret set, a skip means something is misconfigured; on a public repo that takes fork PRs, skips are expected. The structural `validate` gate has no such caveat — it always runs — so requiring `structural-lint` is the safe floor for any repo.
-
----
-
-## Recurring automation with `/schedule`
-
-Some skills are built to run on a cadence rather than per-PR. Put them on a **Routine** with `/schedule`:
-
-- **`researcher:ecosystem-watch`** — the flagship scheduled skill. Each run is a **diff against the last `ECOSYSTEM_WATCH.md`**: it re-grounds, gathers only changes since the prior run's `Verified-at` SHA within the standing egress opt-in and budget, drops entries that no longer apply, and surfaces only what is new and reachable. It researches and proposes — it **never edits source** — and hands off into `code-ops-suite:dependency-upgrade` and `privacy-opsec-suite:supply-chain-trust`. A scheduled run still honors the egress model: it stays inside the pre-agreed scope and **stops at a checkpoint rather than widening egress unattended** ([researcher `ecosystem-watch/SKILL.md`](../../../plugins/researcher/skills/ecosystem-watch/SKILL.md)).
-- **`code-ops-suite:dependency-upgrade`** — staged, verified upgrades on a cadence. It deliberately refuses a bulk bump-everything pass ([`commands/code-ops-suite.md`](commands/code-ops-suite.md)).
-- **`code-ops-suite:security-privacy-audit`** — a recurring security/privacy sweep; good after security-relevant changes or whenever the system handles sensitive data.
-
-The pattern is the same for all three: a scheduled run diffs against the last register's `Verified-at` SHA and acts only on what is new ([researcher `ecosystem-watch/SKILL.md`](../../../plugins/researcher/skills/ecosystem-watch/SKILL.md), "Recurring schedule", line 29 — the diff-against-last-`Verified-at`-SHA model; the [researcher `README.md`](../../../plugins/researcher/README.md) line 60 and [code-ops-suite `README.md`](../../../plugins/code-ops-suite/README.md) line 67 cover putting these skills on a schedule). See [`04-registers-and-freshness.md`](04-registers-and-freshness.md) for how the SHA stamp and `revalidate-register.mjs` make that diff trustworthy.
-
----
-
-## Recap: the automation-level ladder
-
-CI and recurring runs use the same automation ladder as every code-changing run in the suite. It is one setting, chosen up front, governing how much the agent applies before it stops and asks:
-
-| Level | What it does |
-| --- | --- |
-| `gated` *(default)* | Pauses for approval at every fix or closure batch. Nothing lands without a yes. |
-| `auto-safe` *(recommended ceiling)* | Auto-applies only **NOW-SAFE** items — branched, behavior-preserving, test-backed, trivially revertible. Pauses for everything else. In the rigor layer, the item must also be **CONFIRMED**. |
-| `auto-all` *(not recommended)* | Auto-applies beyond NOW-SAFE; the always-gated floor and NEEDS-DESIGN still hold. |
-
-Two rules hold at every level: the **always-gated categories** (security/auth, secrets, data migrations and destructive ops, public API/contract changes) stop regardless of level, and **nothing ever auto-merges** — even auto-applied fixes land as commits or PRs for review. This matters for automation because a scheduled run is still bounded by it: a recurring `dependency-upgrade` at `auto-safe` lands only the mechanical bumps on a branch and stops for anything contract-touching. The PR gates are themselves read-only (their tools never include arbitrary writes), so they only ever *comment* — the ladder governs the code-changing skills they hand off to. The full treatment is in [choosing an automation level](../Techniques/choosing-an-automation-level.md).
-
----
+`researcher:ecosystem-watch`, `code-ops-suite:dependency-upgrade`, and
+`code-ops-suite:security-privacy-audit` can also run on a local cadence. Their ordinary safety,
+egress, and approval rules remain in force.
 
 ## Related
 
-- [Wire the CI gates](../../70 Guides/wire-ci-gates.md) — the step-by-step end-to-end setup guide.
-- [CI portability](../../70 Guides/ci-portability.md) — the same gates on GitLab CI and CircleCI: the mechanical chain ports unchanged, the agent gates are host-specific.
-- [Choosing an automation level](../Techniques/choosing-an-automation-level.md) — `gated` vs `auto-safe` vs `auto-all` and the always-gated floor.
-- [03 · Orchestrators](03-orchestrators.md) — the skills the gates and schedules invoke.
-- [04 · Registers and freshness](04-registers-and-freshness.md) — the `Verified-at` SHA and `revalidate-register.mjs` that make scheduled diffs trustworthy.
-- [The evals directory](../../../evals/README.md) — the harnesses the `validate` gate runs.
-- [Shell discipline](../Techniques/shell-discipline.md) — why a hook-gated `git commit` or `gh pr create` runs standalone, never chained into a compound command.
-
-*Verified-at: d3b4397*
+- [Wire CI gates](../../70 Guides/wire-ci-gates.md)
+- [CI portability](../../70 Guides/ci-portability.md)
+- [The evals directory](../../../evals/README.md)

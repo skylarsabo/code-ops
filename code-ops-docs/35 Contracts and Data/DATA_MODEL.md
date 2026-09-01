@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-28
+updated: 2026-09-01
 ---
 
 # Data Model
@@ -20,10 +20,69 @@ Canonical package metadata is JSON in `plugins/*/.claude-plugin/plugin.json` and
 | Work unit | `D-NNN` | References quality criteria and earlier dependencies. |
 | Snapshot receipt | SHA-256 `snapshotId` | Binds the visible repository state and index generator. |
 | Context bundle | SHA-256 `bundleId` | Binds one unit to one contract revision and snapshot. |
+| Host capabilities | SHA-256 file digest | Names host evidence and one state per runtime capability. |
+| Runtime receipt | `sequence`, SHA-256 `receiptSha256` | Binds runtime inputs to the preceding receipt. |
+| Local review plan | SHA-256 `planSha256` | Binds one feature-branch diff and its two required gates. |
+| Local review receipt | `sequence`, SHA-256 `receiptSha256` | Binds one gate report to a local review plan. |
+| Judgment-eval plan | SHA-256 `planSha256` | Binds fixtures, inputs, model arms, execution availability, and findings paths. |
+| Judgment-eval receipt | SHA-256 `receiptSha256` | Binds deterministic score and capability evidence to one eval plan. |
 | Dispatch ledger row | `D-NNN` | Mirrors one planned unit and records its status. |
 | Acceptance row | criterion and attempt | Supplies proof and an authorized verdict. |
 
 The identifier formats, ordered quality criteria, and unit dependency rules are validated by `run-contract.mjs`. Evidence: `scripts/run-contract.mjs:67-140`.
+
+## Runtime records
+
+A v3 contract's `runtime` object names the capability descriptor and JSONL receipt path,
+the ordered `stablePrefix`, `maxStablePrefixBytes`, and capability policy. Its receipt
+binding captures the contract-file digest, head, snapshot identity and receipt digest,
+host descriptor digest and identity, capability states and outcomes, and compiled-prefix
+metadata. Evidence: `scripts/runtime-lib.mjs:23-34`, `scripts/runtime-lib.mjs:178-209`.
+
+The stable-prefix metadata contains its digest, total bytes, and ordered entries. Each
+entry contains an exact repository-relative path, source-file digest, and byte count.
+Evidence: `scripts/runtime-lib.mjs:142-166` and `scripts/runtime-lib.mjs:255-262`.
+
+Each runtime receipt stores version, sequence, kind, UTC timestamp, predecessor digest,
+binding, references, observation, and receipt digest. References can name a ledger and its
+journal, an acceptance ledger, a handoff, bundles, and artifacts. File references retain
+their repository-relative paths and digests. Evidence: `scripts/runtime-lib.mjs:25-35` and
+`scripts/runtime-lib.mjs:213-273`.
+
+An observation has observability, ordered unique cache events, source, and nullable
+nonnegative token counters. It is evidence supplied by provider usage, host telemetry, or
+an operator. It is not inferred from a capability state or model name. Evidence:
+`scripts/runtime-lib.mjs:276-287`.
+
+## Local judgment records
+
+A local review plan stores version, branch, base reference and SHA, head SHA, binary diff
+digest, sorted changed paths, ignored receipt path, fixed gate names, creation time, and
+plan digest. Its two gate names are `local-deep-review` and `local-opsec-gate`. Evidence:
+`scripts/local-review-gate.mjs:32-40`, `scripts/local-review-gate.mjs:147-191`, and
+`scripts/local-review-gate.mjs:363-389`.
+
+A local review receipt stores version, sequence, gate, verdict, timestamp, reviewer and
+model label, tier, effort, plan digest, report path/digest/bytes, finding counts,
+predecessor digest, and receipt digest. Reviewer and model labels are attestations. The
+schema validates their syntax and declared routing values but does not authenticate the
+person or model with hardware-backed identity. Evidence:
+`scripts/local-review-gate.mjs:200-275` and `scripts/local-review-gate.mjs:390-442`.
+
+The receipt chain has one report per required gate. It is valid only when every report is
+ignored, byte-identical to its receipt reference, bound to the current plan, and linked by
+the prior receipt digest. Reviewer IDs and physical report files must also be distinct.
+Optional GitHub statuses are external projections of passing receipts, not part of the local
+data model. Evidence:
+`scripts/local-review-gate.mjs:200-275` and `scripts/local-review-gate.mjs:290-484`.
+
+A judgment-eval plan stores its mode, execution policy, current head, matrix receipt,
+selected model IDs, generated units, creation time, and digest. Each worker unit names a
+fixture, tier, arm, replication, target, skill documents, and ignored findings path; it does
+not expose the answer key. A score receipt stores the plan, head, execution policy, completion
+totals, per-unit findings and score digests, and its own digest. Evidence:
+`scripts/judgment-evals.mjs:118-183` and
+`scripts/judgment-evals.mjs:185-324`.
 
 ## Structural cache
 

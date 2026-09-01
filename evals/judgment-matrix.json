@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "bug-garden",
+      "target": "evals/bug-garden/repo",
+      "answerKey": "evals/bug-garden/ANSWER_KEY.json",
+      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
+    },
+    {
+      "id": "leak-lab",
+      "target": "evals/leak-lab/repo",
+      "answerKey": "evals/leak-lab/ANSWER_KEY.json",
+      "skillDocs": [
+        "plugins/privacy-opsec-suite/skills/metadata-leak-audit/SKILL.md",
+        "plugins/privacy-opsec-suite/skills/tor-egress-audit/SKILL.md",
+        "plugins/privacy-opsec-suite/skills/anon-session-audit/SKILL.md"
+      ]
+    },
+    {
+      "id": "drifted-docs",
+      "target": "evals/drifted-docs/repo",
+      "answerKey": "evals/drifted-docs/ANSWER_KEY.json",
+      "skillDocs": ["plugins/code-ops-suite/skills/doc-alignment/SKILL.md"]
+    },
+    {
+      "id": "hasty-code",
+      "target": "evals/hasty-code/repo",
+      "answerKey": "evals/hasty-code/ANSWER_KEY.json",
+      "skillDocs": ["plugins/code-ops-suite/skills/normalize/SKILL.md"]
+    },
+    {
+      "id": "trap-garden",
+      "target": "evals/trap-garden/repo",
+      "answerKey": "evals/trap-garden/ANSWER_KEY.json",
+      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
+    },
+    {
+      "id": "calibration-traps",
+      "target": "evals/calibration-traps/repo",
+      "answerKey": "evals/calibration-traps/ANSWER_KEY.json",
+      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
+    },
+    {
+      "id": "xfn-traps",
+      "target": "evals/xfn-traps/repo",
+      "answerKey": "evals/xfn-traps/ANSWER_KEY.json",
+      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
+    }
+  ]
+}

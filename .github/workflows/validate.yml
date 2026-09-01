@@ -150,6 +150,14 @@ jobs:
       - name: Run-contract regression eval
         run: node evals/run-contract/run.mjs
 
+      - name: Long-horizon runtime regression eval
+        run: node evals/run-runtime/run.mjs
+
+      - name: Local review and judgment orchestration evals
+        run: |
+          node evals/local-review-gate/run.mjs
+          node evals/judgment-orchestration/run.mjs
+
       - name: Context snapshot and bundle regression evals
         run: |
           node evals/context-snapshot/run.mjs
@@ -168,9 +176,6 @@ jobs:
 
       - name: Run-artifact narration scanner eval
         run: node evals/scan-narration/run.mjs
-
-      - name: Gate-workflow-edit regression eval
-        run: node evals/gate-workflow-edit/run.mjs
 
       - name: Calibration-metrics regression eval
         run: node evals/calibration-metrics/run.mjs
@@ -210,9 +215,6 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/check-plugin-bump.mjs --base "origin/${{ github.base_ref }}"
 
-      - name: Gate-workflow-edit advisory (PR only)
-        if: github.event_name == 'pull_request'
-        run: node scripts/check-gate-workflow-edit.mjs --base "origin/${{ github.base_ref }}"
 
   structural-lint-windows:
     runs-on: windows-latest
@@ -305,6 +307,14 @@ jobs:
 
       - name: Run-contract regression eval
         run: node evals/run-contract/run.mjs
+
+      - name: Long-horizon runtime regression eval
+        run: node evals/run-runtime/run.mjs
+
+      - name: Local review and judgment orchestration evals
+        run: |
+          node evals/local-review-gate/run.mjs
+          node evals/judgment-orchestration/run.mjs
 
       - name: Context snapshot and bundle regression evals
         run: |

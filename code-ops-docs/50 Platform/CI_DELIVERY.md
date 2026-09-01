@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-29
+updated: 2026-09-01
 ---
 
 # CI and Delivery
@@ -10,9 +10,9 @@ updated: 2026-08-29
 
 The `validate` workflow runs for every pull request, pushes to `main`, and manual dispatch. It cancels an older run for the same Git ref. Evidence: `.github/workflows/validate.yml:1-20`.
 
-The Ubuntu structural-lint job runs package lint, generated-output drift checks, dependency checks, vault conformance, and the repository regression evals. Evidence: `.github/workflows/validate.yml:23-150`.
+The Ubuntu structural-lint job runs package lint, generated-output drift checks, dependency checks, vault conformance, and repository regression evals. It runs the long-horizon runtime eval. Evidence: `.github/workflows/validate.yml:23-154`.
 
-The Windows job mirrors structural checks that can differ by path handling, quoting, or line endings. Evidence: `.github/workflows/validate.yml:151-255`.
+The Windows job runs the long-horizon runtime eval too. This detects path, quoting, and line-ending failures that differ by host. Evidence: `.github/workflows/validate.yml:220-313`.
 
 The documentation link gate rejects missing, escaping, case-unsafe, and ambiguous local targets. It rejects hub-internal directory links and unresolved local Markdown heading fragments. Evidence: `scripts/check-doc-links.mjs:76-89` and `evals/doc-links/run.mjs:11-28`.
 
@@ -28,11 +28,22 @@ The v4 gate chain keeps responsibilities separate. The manifest gate owns domain
 
 ## Pull-request gates
 
-`Deep Review (rigor)` runs on opened, synchronized, and reopened pull requests. It scopes review to changed files, asks Claude for a verification-first review, and fails closed if two review attempts fail. Evidence: the `Scope check`, `Verification-first review`, retry, and `failed twice` steps in [`.github/workflows/deep-review.yml`](../../.github/workflows/deep-review.yml).
+Model-driven deep review and OpSec review run locally before a pull request. A local Codex
+automation may run the same review and weekly judgment trend or floor-calibration work. The
+local gate binds the base SHA, HEAD SHA, binary-diff digest, changed paths, reviewer identity,
+strong-or-frontier tier, report digest, and hash-chained receipts. It rejects a dirty worktree,
+base movement, changed HEAD, changed diff, report drift, missing reviews, and non-PASS verdicts.
+Evidence: `scripts/local-review-gate.mjs:104-275` and
+`scripts/local-review-gate.mjs:363-456`.
 
-`OpSec PR Gate` is a distinct pull-request gate for privacy and operational-security review. It has the same event scope and requires a configured Claude credential. Evidence: [`.github/workflows/opsec-gate.yml`](../../.github/workflows/opsec-gate.yml).
+`local-review-gate.mjs publish` can publish verified local receipts as commit statuses. Status
+publication is optional. It does not make GitHub the review executor. Evidence:
+`scripts/local-review-gate.mjs:290-360` and `scripts/local-review-gate.mjs:457-484`.
 
-The branch protection policy requires `structural-lint`, `deep-review`, and `opsec-gate` before merge. This policy is configured outside the repository, so it requires live GitHub verification before a release decision.
+GitHub `validate` is the required hosted merge gate. It runs deterministic lint, rendering,
+checks, and regression tests only. Branch protection should require its structural jobs. Any
+consumer can still opt into the shipped GitHub review examples and manage their own credential,
+permissions, and required-status policy.
 
 ## Delivery path
 
@@ -42,8 +53,10 @@ Release changes must bump the canonical plugin version, the marketplace entry, a
 
 ## Merge safety
 
-Same-repository `pull_request` runs use the merge ref, so they exercise edits to PR-gate workflows. Reviewers must still confirm that the edited step ran instead of skipping.
-
-Fork credential skips need a same-repository run. `pull_request_target` and `schedule` edits need proof from the default branch after merge. A `push` edit needs an actual push run on the intended pushed ref. Evidence: [`check-gate-workflow-edit.mjs`](../../scripts/check-gate-workflow-edit.mjs) and [the repository contract](../../AGENTS.md).
+Local review plans reject base movement, HEAD movement, binary-diff movement, report drift,
+reviewer reuse, path aliases, and dirty worktrees. Publication separately verifies both live
+remote refs and the destination repository. Strict required statuses invalidate a merge
+candidate after base movement. GitHub `validate` independently checks the submitted merge ref
+with deterministic commands.
 
 The project does not define an automatic production deployment. Its delivery artifact is a versioned, validated marketplace package.

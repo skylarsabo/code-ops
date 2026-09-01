@@ -16,11 +16,11 @@ break silently.
   `--git <range>`). The code-ops-suite `PreToolUse` hook (`enforce-traceless`) also
   blocks a flagged `git commit` / `gh pr create|merge` at the tool layer; CI stays the
   fail-closed backstop.
-- **Prove PR-gate workflow edits against their event.** Same-repository `pull_request`
-  runs use the merge ref, so they exercise edits to `deep-review.yml` and `opsec-gate.yml`.
-  Fork pull requests may skip without credentials. `pull_request_target` and `schedule`
-  run from the default branch, while `push` runs the workflow on the pushed ref; prove
-  each edited path with its actual event and ref.
+- **Judgment happens locally before the PR exists.** Commit the final diff, run
+  `code-ops-suite:local-review-gate` against the exact base and HEAD, and require both
+  SHA-bound receipts before push. Push the branch without a PR, publish the verified
+  `local-deep-review` and `local-opsec-gate` commit statuses, then open the PR. Hosted
+  Actions run deterministic checks only; any new commit or base movement voids the review.
 - **`evals/*/ANSWER_KEY.*` never enters the context handed to a skill under eval.**
 - **The real-scale calibration channel is one-way** (see `evals/README.md`): only the
   sanitized calibration note returns from a private-repo calibration run; never quote

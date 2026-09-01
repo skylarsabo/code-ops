@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-08-28
+updated: 2026-09-01
 ---
 
 # Architecture
@@ -49,9 +49,80 @@ The context compiler separates an exact repository snapshot from a per-unit bund
 
 A bundle selects files in the unit scope, direct import neighbors, visible changes, and freshness-gated Atlas excerpts. It fails with a marker when scope is broad or the byte budget is exceeded. Evidence: `scripts/context-bundle.mjs:52-83` and `scripts/context-bundle.mjs:85-164`.
 
+## Long-horizon runtime
+
+Run Contract v3 adds a runtime boundary to the v2 context binding. The contract names a
+host-capability receipt, a JSONL runtime receipt chain, ordered stable-prefix source
+files, a prefix byte limit, and a policy for prompt caching, compaction, context editing,
+host memory, and task budget. The contract validator verifies the context snapshot and
+the runtime configuration before runtime work starts. Evidence:
+`scripts/run-contract.mjs:11-27`, `scripts/run-contract.mjs:60-72`, and
+`scripts/runtime-lib.mjs:73-106`.
+
+`host-capabilities.mjs` writes one explicit descriptor. It records host, provider, model,
+evidence source, observation time, and one state per capability. The descriptor does not
+infer host behavior from the model name. Evidence: `scripts/host-capabilities.mjs:12-15`
+and `scripts/host-capabilities.mjs:30-67`.
+
+The stable-prefix compiler accepts only exact tracked UTF-8 text paths. It emits a framed,
+ordered byte payload and records its digest, total bytes, and per-file digests. It rejects
+invalid paths, NUL bytes, and payloads over the contract limit. Evidence:
+`scripts/runtime-lib.mjs:142-166`.
+
+The runtime creates an `init` receipt, then appends checkpoints, resumes, replans, and
+optional observations under a runtime mutation lock. A checkpoint binds the verified
+ledger, optional acceptance and handoff files, verified context bundles, and named
+artifacts. Resume revalidates the latest checkpoint references. Replan retains the run ID
+and advances exactly one revision. Evidence: `scripts/run-runtime.mjs:107-136` and
+`scripts/run-runtime.mjs:186-290`.
+
+Receipt replay verifies contiguous sequence numbers, predecessor digests, receipt digests,
+binding stability, checkpoint requirements, and resume replay. This chain is the runtime
+continuity record; source code remains authoritative for behavior. Evidence:
+`scripts/runtime-lib.mjs:295-341`.
+
+## Local judgment before PR
+
+Model judgment happens locally before a pull request. `local-review-gate.mjs` prepares a
+review plan only from a clean, non-default feature branch whose base is an ancestor of
+`HEAD`. The plan binds base and head SHAs, a binary diff digest, and sorted changed paths.
+Plan, report, and receipt paths must be ignored by Git. Evidence:
+`scripts/local-review-gate.mjs:79-191` and `scripts/local-review-gate.mjs:363-389`.
+
+The local gate has exactly two review domains: `local-deep-review` and
+`local-opsec-gate`. Each report receipt is chained and binds the review plan, reviewer and
+model label, tier, effort, verdict, confirmed and blocking finding counts, and report
+digest. A check requires one passing receipt for each domain. Evidence:
+`scripts/local-review-gate.mjs:32-40`, `scripts/local-review-gate.mjs:200-275`, and
+`scripts/local-review-gate.mjs:390-484`.
+
+Authority paths cannot use symbolic-link components or physical aliases, and the two gates
+must name different reviewer identities. The publisher reads live remote refs without changing
+the local tracking state. It requires the planned base and reviewed feature tip on one remote,
+then derives the GitHub destination from that same remote.
+
+Hosted CI remains the deterministic backstop. The `validate` workflow runs structural
+checks and regression evals on pull requests, main pushes, and manual dispatch. It also
+runs the local-review and judgment-orchestration fixture evals; it does not run a hosted
+model-review service. Provider-specific action examples are compatibility paths, not the
+source of the local judgment decision. Evidence: `.github/workflows/validate.yml:3-16`,
+`.github/workflows/validate.yml:23-67`, and `.github/workflows/validate.yml:147-159`.
+
+The optional status publisher first verifies the local receipt chain and both remote branch
+tips, then posts one success status per gate. A receipt's reviewer, model, and execution fields
+are attestations; the chains prove record integrity, not hardware-backed identity. Strict
+required statuses provide the separate base-update invalidation boundary.
+
 ## Authority
 
-Code is authoritative for behavior. This document describes the implementation and must be updated with architecture-changing work. The documentation manifest identifies the canonical documentation records and their source evidence.
+Code is authoritative for behavior. The contract author chooses policy. The host descriptor
+states only observed or operator-supplied capability evidence. Runtime receipts prove the
+bound inputs and their sequence, not provider execution, elapsed time, or unreported cache
+savings. Local judgment receipts prove the reviewed diff, report bytes, and receipt order.
+They do not authenticate their reviewer or model labels. GitHub statuses are optional
+external evidence and require write authority. This document describes the implementation
+and must be updated with architecture-changing work. The documentation manifest identifies
+the canonical documentation records and their source evidence.
 
 ## Documentation evidence boundary
 

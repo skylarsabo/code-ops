@@ -1,14 +1,18 @@
 ---
 type: reference
 status: current
-updated: 2026-08-28
+updated: 2026-09-01
 ---
 
 # Contracts
 
 ## Run contract
 
-`RUN_CONTRACT.json` is the machine-checked plan for an orchestrated run. `run-contract.mjs` supports versions 1 and 2. Version 2 adds a required context binding. Evidence: `scripts/run-contract.mjs:10-24` and `scripts/run-contract.mjs:67-83`.
+`RUN_CONTRACT.json` is the machine-checked plan for an orchestrated run.
+`run-contract.mjs` supports versions 1, 2, and 3. Version 2 adds a required context
+binding. Version 3 adds a required runtime binding and `runtime-drift` to the canonical
+replan triggers. Evidence: `scripts/run-contract.mjs:11-27` and
+`scripts/run-contract.mjs:75-114`.
 
 Each contract declares these top-level concerns:
 
@@ -16,6 +20,8 @@ Each contract declares these top-level concerns:
 - `budget` limits dispatches, concurrent work, and retries per unit.
 - `units` define scope, artifact, dependencies, routing, and quality criteria.
 - `context` binds version 2 work to a snapshot, bundle location, untracked-file policy, and byte budgets.
+- `runtime` binds version 3 work to host-capability evidence, runtime receipts, a stable
+  prompt prefix, a prefix byte budget, and one policy per capability.
 
 The validator requires the lead to use a strong-or-frontier model at high effort. Execution, judgment, and review units have separate tier and effort floors. Evidence: `scripts/run-contract.mjs:84-125`.
 
@@ -31,6 +37,113 @@ The snapshot command can generate a delta only when it receives both a previous 
 
 The bundle never silently falls back to broad context. It writes `BROAD_CONTEXT_REQUIRED` for high-risk or oversized scope. It writes `BUDGET_EXCEEDED` when the rendered bundle exceeds `maxBundleBytes`. Evidence: `scripts/context-bundle.mjs:52-55` and `scripts/context-bundle.mjs:117-162`.
 
+Context bundles support both v2 and v3 contracts. A bundle still binds its run ID,
+contract revision, work unit, snapshot, compiler digest, and bounded contents. Runtime
+receipts reference a verified bundle by unit ID, bundle ID, path, and file digest.
+Evidence: `scripts/context-bundle.mjs:44-54`, `scripts/context-bundle.mjs:160-214`, and
+`scripts/run-runtime.mjs:177-183`.
+
+## Host capabilities and policy
+
+`HOST_CAPABILITIES.json` has version, host, provider, model, source, observation time,
+and five named capability states: `promptCaching`, `compaction`, `contextEditing`,
+`hostMemory`, and `taskBudget`. State is one of `controllable`, `managed-observable`,
+`managed-unobservable`, `unsupported`, or `unknown`. The source is `operator`,
+`host-probe`, or `provider-docs`. Evidence: `scripts/runtime-lib.mjs:15-20` and
+`scripts/runtime-lib.mjs:94-119`.
+
+Each v3 runtime policy is `off`, `prefer`, `require`, or `require-observable`. `require`
+accepts only controllable or host-managed states. `require-observable` excludes
+managed-unobservable states. `prefer` records `durable-fallback` for unavailable or unknown
+features; `off` records `disabled`. Unsatisfied required policy fails contract validation.
+Evidence: `scripts/runtime-lib.mjs:122-139` and `scripts/run-contract.mjs:60-72`.
+
+## Stable prefix and runtime receipts
+
+The stable prefix is an ordered list of exact Git-index files. Compilation frames each UTF-8
+file in a deterministic payload and records its SHA-256 digest, byte count, and entries.
+The payload must not exceed `maxStablePrefixBytes`. Evidence:
+`scripts/runtime-lib.mjs:142-166`.
+
+`RUN_RUNTIME_RECEIPTS.jsonl` is an append-only hash chain. Every version-1 record has a
+sequence, timestamp, predecessor digest, binding, references, optional observation, and
+its own digest. The first record is `init`. Later records are `checkpoint`, `resume`,
+`replan`, or `observation`. Replay rejects torn, blank, malformed, reordered, or
+digest-invalid records. Evidence: `scripts/runtime-lib.mjs:21-35` and
+`scripts/runtime-lib.mjs:295-325`.
+
+The binding includes contract bytes, Git head, snapshot identity and receipt bytes, host
+descriptor identity and digest, capability states and policy outcomes, and stable-prefix
+metadata. An unchanged contract revision must retain this complete binding. A replan keeps
+the run ID and increments the revision by one. Evidence: `scripts/runtime-lib.mjs:178-209`
+and `scripts/runtime-lib.mjs:326-339`.
+
+A checkpoint requires a strict dispatch-ledger reference and may bind acceptance, handoff,
+bundle, and artifact files by digest. Resume replays and revalidates the latest checkpoint
+references. Verification rejects any binding or referenced-file drift. Evidence:
+`scripts/run-runtime.mjs:159-169`, `scripts/run-runtime.mjs:200-217`, and
+`scripts/run-runtime.mjs:253-329`.
+
+## Cache telemetry
+
+An observation records cache observability as `observed`, `unobservable`, or `unsupported`.
+It may record `hit`, `miss`, or `write` events and cache-read, cache-write, input, and
+output token counts. Unobservable and unsupported observations cannot carry cache events or
+token metrics. Provider-usage observations must carry at least one metric. The metrics view
+reports normalized totals and event counts; elapsed time remains `UNKNOWN`. Evidence:
+`scripts/runtime-lib.mjs:276-287`, `scripts/runtime-lib.mjs:348-379`, and
+`scripts/run-runtime.mjs:293-317`.
+
+## Local judgment gate
+
+`local-review-gate.mjs` creates an ignored review plan for a clean non-default feature
+branch. The plan binds `baseSha`, `headSha`, `diffSha256`, sorted `changedPaths`, its
+receipt path, and the exact gate set: `local-deep-review` and `local-opsec-gate`. The base
+must be an ancestor of head, and an empty diff is rejected. Evidence:
+`scripts/local-review-gate.mjs:79-191` and `scripts/local-review-gate.mjs:363-389`.
+
+Each ignored JSONL receipt has a sequence, gate, verdict, timestamp, reviewer and model
+label, tier, effort, plan digest, report reference, finding counts, predecessor digest,
+and receipt digest. `PASS` requires zero blocking findings. A replay rejects report drift,
+duplicate gates, foreign plans, missing final newlines, oversized chains, and invalid
+sequence or predecessor links. A complete check requires exactly one passing receipt per
+gate from a distinct reviewer identity. Authority files must not use linked components or
+physical aliases. Evidence: `scripts/local-review-gate.mjs:32-40`,
+`scripts/local-review-gate.mjs:86-102`, `scripts/local-review-gate.mjs:200-275`, and
+`scripts/local-review-gate.mjs:390-442`.
+
+The gate fails when a tracked or untracked worktree change, branch change, advanced base,
+changed head or diff, report drift, or receipt drift invalidates its plan. Prepare a new
+plan after boundary drift. Reviewer and model fields are attestations. Their format is
+validated, but the receipt chain does not provide hardware-backed identity. Evidence:
+`scripts/local-review-gate.mjs:163-191` and `scripts/local-review-gate.mjs:200-275`.
+
+`publish` is optional. After a passing local check, it can post one GitHub commit status
+per receipt to the reviewed SHA. It verifies that SHA is remotely available. The caller
+needs GitHub write authority for the status endpoint. A status is supplementary evidence;
+publication failure does not alter the local pass or fail result. Evidence:
+`scripts/local-review-gate.mjs:290-360` and `scripts/local-review-gate.mjs:457-484`.
+
+## Judgment evals
+
+`judgment-evals.mjs` plans provider-neutral local workers in `trend` or `floor` mode. It
+binds the tracked matrix, fixture tree, answer key, relevant skill documents, selected
+models, declared execution availability, and ignored findings paths to a lead-only plan.
+Worker units omit answer-key paths. Floor mode rejects identical normalized model IDs. The
+deterministic scorer binds each findings file, execution policy, and score output into a
+receipt. Evidence: `scripts/judgment-evals.mjs:21-28`,
+`scripts/judgment-evals.mjs:82-183`, and `scripts/judgment-evals.mjs:185-324`.
+
+The matrix declares the fixture-to-answer-key and fixture-to-skill mapping. Its current
+fixtures cover bug, leak, documentation-drift, normalization, and trap-focused review
+work. Evidence: `evals/judgment-matrix.json:1-50`.
+
+Hosted CI keeps deterministic validation. `validate.yml` runs the structural gate and
+regression evals, including the local-review and judgment-orchestration fixture evals.
+Provider action examples remain compatibility paths, not a substitute for local model
+judgment. Evidence: `.github/workflows/validate.yml:23-67` and
+`.github/workflows/validate.yml:147-159`.
+
 ## Acceptance and result
 
 `ACCEPTANCE.md` is an append-only table. Every row names a quality criterion, attempt number, verdict, proof, actor, and reason. Evidence: `scripts/run-contract.mjs:24`, `scripts/run-contract.mjs:188-205`, and `scripts/run-contract.mjs:218-224`.
@@ -39,7 +152,16 @@ Finalization requires every planned dispatch to be reported and every blocking c
 
 ## Compatibility
 
-Version 1 contracts remain valid without a context object. New context-bound runs use version 2. Do not add context fields to a version 1 contract. Evidence: `scripts/run-contract.mjs:71-83`.
+Version 1 contracts remain valid without `context` or `runtime`. Version 2 contracts
+remain valid with `context` and without `runtime`. Version 3 requires both `context` and
+`runtime`. Context bundles accept v2 and v3. The long-horizon runtime accepts v3 only.
+Do not add context or runtime fields to a v1 contract, or runtime to a v2 contract.
+Evidence: `scripts/run-contract.mjs:75-89`, `scripts/context-bundle.mjs:44-54`, and
+`scripts/run-runtime.mjs:86-93`.
+
+The local judgment gate is independent of Run Contract versions. It stores ignored review
+plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
+`scripts/local-review-gate.mjs:45-50` and `scripts/local-review-gate.mjs:264-484`.
 
 ## Documentation manifest
 
