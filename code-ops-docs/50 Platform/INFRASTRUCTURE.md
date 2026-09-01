@@ -13,7 +13,8 @@ The project is a Node.js repository that intentionally uses only Node built-ins.
 Long-horizon runs use an explicit, ignored host-capability descriptor. The descriptor records
 host, provider, model, observation source, and five capability states. Runtime receipts and
 default metrics retain only its digest, states, and policy outcomes. The tools do not infer
-capabilities from a model name. Evidence: `scripts/host-capabilities.mjs:1-68` and
+capabilities from a model name. Initialization rejects Git-visible paths and linked components
+before writing raw provenance. Evidence: `scripts/host-capabilities.mjs:1-79` and
 `scripts/runtime-lib.mjs:17-29`, `193-218`.
 
 The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:96-136`, `205-218`, and `253-292`.

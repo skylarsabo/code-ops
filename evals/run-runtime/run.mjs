@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  existsSync,
   linkSync,
   mkdirSync,
   mkdtempSync,
@@ -108,6 +109,15 @@ function writeContract(revision, head, snapshotId, overrides = {}) {
   return contract;
 }
 
+function capabilityInit(out) {
+  return [
+    'init', '--root', root, '--out', out, '--host', 'codex-desktop',
+    '--provider', 'openai', '--model', 'gpt-5.6-sol', '--source', 'operator',
+    '--prompt-caching', 'managed-unobservable', '--compaction', 'managed-unobservable',
+    '--context-editing', 'unsupported', '--host-memory', 'managed-unobservable', '--task-budget', 'unsupported',
+  ];
+}
+
 try {
   mkdirSync(root);
   mkdirSync(runDir);
@@ -120,12 +130,17 @@ try {
   git(root, ['add', '.']);
   git(root, ['commit', '-qm', 'fixture']);
 
-  let r = run(CAPABILITIES, [
-    'init', '--root', root, '--out', 'run/HOST_CAPABILITIES.json', '--host', 'codex-desktop',
-    '--provider', 'openai', '--model', 'gpt-5.6-sol', '--source', 'operator',
-    '--prompt-caching', 'managed-unobservable', '--compaction', 'managed-unobservable',
-    '--context-editing', 'unsupported', '--host-memory', 'managed-unobservable', '--task-budget', 'unsupported',
-  ], root);
+  let r = run(CAPABILITIES, capabilityInit('HOST_CAPABILITIES.json'), root);
+  check('capability initialization rejects Git-visible output without writing', r.status === 1
+    && /ignored by Git/.test(r.out) && !existsSync(join(root, 'HOST_CAPABILITIES.json')), r.out);
+  const capabilityLink = join(root, 'capability-link');
+  symlinkSync(runDir, capabilityLink, process.platform === 'win32' ? 'junction' : 'dir');
+  r = run(CAPABILITIES, capabilityInit('capability-link/HOST_CAPABILITIES.json'), root);
+  check('capability initialization rejects linked output without writing', r.status === 1
+    && /symbolic-link components/.test(r.out) && !existsSync(capabilityPath), r.out);
+  rmSync(capabilityLink, { force: true });
+  rmSync(capabilityPath, { force: true });
+  r = run(CAPABILITIES, capabilityInit('run/HOST_CAPABILITIES.json'), root);
   check('capability descriptor initializes', r.status === 0, r.out);
   r = run(CAPABILITIES, ['check', '--root', root, '--file', 'run/HOST_CAPABILITIES.json'], root);
   check('capability descriptor validates', r.status === 0 && /capabilities/.test(r.out), r.out);

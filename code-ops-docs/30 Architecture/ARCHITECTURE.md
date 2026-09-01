@@ -62,8 +62,9 @@ differ portably and physically. Runtime heads use exact SHA-1 or SHA-256 object 
 
 `host-capabilities.mjs` writes one explicit descriptor. It records host, provider, model,
 evidence source, observation time, and one state per capability. The descriptor does not
-infer host behavior from the model name. Evidence: `scripts/host-capabilities.mjs:12-15`
-and `scripts/host-capabilities.mjs:30-67`.
+infer host behavior from the model name. Initialization requires an ignored path without
+linked components before writing. Evidence: `scripts/host-capabilities.mjs:12-22` and
+`scripts/host-capabilities.mjs:37-79`.
 
 The stable-prefix compiler accepts only exact tracked UTF-8 text paths. It emits a framed,
 ordered byte payload and records its digest, total bytes, and per-file digests. It rejects

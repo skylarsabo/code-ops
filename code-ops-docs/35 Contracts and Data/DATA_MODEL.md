@@ -37,8 +37,9 @@ A v3 contract's `runtime` object names the capability descriptor and JSONL recei
 the ordered `stablePrefix`, `maxStablePrefixBytes`, and capability policy. Its receipt
 binding captures the contract-file digest, head, snapshot identity and receipt digest,
 host descriptor digest, capability states and outcomes, and compiled-prefix metadata. Raw
-descriptor labels and observation time stay outside the runtime chain. Head is an exact full
-Git object ID. Capability and receipt paths are distinct under portable case folding and
+descriptor labels and observation time stay outside the runtime chain. The descriptor writer
+requires an ignored path without linked components. Head is an exact full Git object ID.
+Capability and receipt paths are distinct under portable case folding and
 cannot alias one physical file. Evidence:
 `scripts/runtime-lib.mjs:26-37`, `scripts/runtime-lib.mjs:173-218`.
 

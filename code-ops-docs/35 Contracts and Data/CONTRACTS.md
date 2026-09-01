@@ -81,7 +81,8 @@ digest-invalid records. Evidence: `scripts/runtime-lib.mjs:24-38` and
 The binding includes contract bytes, Git head, snapshot identity and receipt bytes, the host
 descriptor digest, capability states and policy outcomes, and stable-prefix metadata. It
 does not copy raw host, provider, model, source, or observation-time labels from the ignored
-descriptor. An unchanged contract revision must retain this complete binding. A replan keeps
+descriptor. Descriptor initialization rejects Git-visible paths and linked components before
+writing. An unchanged contract revision must retain this complete binding. A replan keeps
 the run ID and increments the revision by one. Git heads are complete 40- or 64-digit object
 IDs. Capability and receipt paths must differ portably and cannot share one physical file.
 Evidence: `scripts/runtime-lib.mjs:173-218` and `scripts/runtime-lib.mjs:334-349`.
