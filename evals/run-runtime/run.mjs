@@ -15,7 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { replayRuntimeReceipts } from '../../scripts/runtime-lib.mjs';
+import { compileStablePrefix, replayRuntimeReceipts } from '../../scripts/runtime-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -138,6 +138,27 @@ try {
   r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
   check('version 3 runtime contract validates', r.status === 0, r.out);
 
+  const indexedLink = join(root, 'prefix-link.txt');
+  const ignoredPrefix = join(runDir, 'ignored-prefix.txt');
+  const linkPayload = join(outer, 'prefix-link-payload.txt');
+  writeFileSync(ignoredPrefix, 'ignored target sentinel\n');
+  writeFileSync(linkPayload, 'run/ignored-prefix.txt');
+  const indexedLinkOid = git(root, ['hash-object', '-w', linkPayload]);
+  rmSync(linkPayload);
+  try { symlinkSync('run/ignored-prefix.txt', indexedLink, 'file'); }
+  catch { writeFileSync(indexedLink, 'run/ignored-prefix.txt'); }
+  git(root, ['update-index', '--add', '--cacheinfo', `120000,${indexedLinkOid},prefix-link.txt`]);
+  const linkedPrefix = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId, {
+    runtime: { stablePrefix: ['prefix-link.txt'] },
+  });
+  let linkedPrefixRejected = false;
+  try { compileStablePrefix(root, linkedPrefix.runtime); }
+  catch (error) { linkedPrefixRejected = /regular Git stage-0 file/.test(error.message); }
+  check('stable prefix rejects tracked links before reading an ignored target', linkedPrefixRejected);
+  git(root, ['update-index', '--force-remove', 'prefix-link.txt']);
+  rmSync(indexedLink);
+  writeContract(1, linkedPrefix.head, firstSnapshot.snapshotId);
+
   const caseAliased = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId, {
     runtime: { receipts: 'run/host_capabilities.json' },
   });
@@ -201,6 +222,11 @@ try {
   check('metrics preserve combined cache events and totals', metrics?.promptCache?.cacheReadInputTokens === 1200
     && metrics?.promptCache?.cacheWriteInputTokens === 400 && metrics?.promptCache?.events?.hit === 1
     && metrics?.promptCache?.events?.write === 1 && metrics?.resumes === 1 && metrics?.checkpoints === 1, r.out);
+  const rawCapabilityFields = ['host', 'provider', 'model', 'source', 'observedAt'];
+  const capabilityBinding = metrics?.hostCapabilities;
+  check('runtime metrics minimize raw host provenance', capabilityBinding
+    && rawCapabilityFields.every((field) => !(field in capabilityBinding))
+    && Object.keys(capabilityBinding).sort().join(',') === 'outcomes,sha256,states', JSON.stringify(capabilityBinding));
 
   r = run(RUNTIME, [
     'observe', '--root', root, '--contract', contractPath, '--observability', 'unobservable', '--source', 'operator', '--input-tokens', '1',

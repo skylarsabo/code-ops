@@ -96,7 +96,7 @@ The local gate has exactly two review domains: `local-deep-review` and
 model label, tier, effort, verdict, confirmed and blocking finding counts, and report
 digest. A check requires one passing receipt for each domain. Evidence:
 `scripts/local-review-gate.mjs:35-43`, `scripts/local-review-gate.mjs:194-269`, and
-`scripts/local-review-gate.mjs:384-478`.
+`scripts/local-review-gate.mjs:374-468`.
 
 Authority paths cannot use symbolic-link components or physical aliases, and the two gates
 must name different reviewer identities. The publisher reads live remote refs without changing

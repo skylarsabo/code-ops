@@ -39,7 +39,7 @@ and `scripts/local-review-gate.mjs:357-450`.
 
 `local-review-gate.mjs publish` can publish verified local receipts as commit statuses. Status
 publication is optional. It does not make GitHub the review executor. Evidence:
-`scripts/local-review-gate.mjs:284-354` and `scripts/local-review-gate.mjs:451-478`.
+`scripts/local-review-gate.mjs:274-344` and `scripts/local-review-gate.mjs:441-468`.
 
 GitHub `validate` is the required hosted merge gate. It runs deterministic lint, rendering,
 checks, and regression tests only. Branch protection should require its structural jobs. Any

@@ -27,11 +27,14 @@ capability receipt, a repository-local receipt log, a bounded ordered stable pre
 one policy for every declared capability. The capability receipt records its source and
 observation time. The runtime binds its digest, capability states and policy outcomes,
 contract bytes, Git head, snapshot receipt, and compiled prefix metadata into each
-receipt.
+receipt. It does not copy raw host, provider, model, source, or observation-time labels
+into the runtime chain or default metrics view.
 
 Capability and receipt paths must differ under portable case folding. They cannot resolve
 to one physical file when both exist. Receipt replay accepts only complete 40- or 64-digit
-Git object IDs.
+Git object IDs. Stable-prefix inputs must be regular stage-0 Git-index files with no
+symbolic-link component. Context snapshots reject hidden index flags before computing an
+identity.
 
 The receipt log starts with `init` and appends `checkpoint`, `resume`, `replan`, or
 `observation` records. Each record binds the previous digest and its own digest. A resume

@@ -78,6 +78,44 @@ export function assertNoAmbiguousIndexFlags(root) {
   }
 }
 
+export function assertNoSymlinkComponents(root, absolute, label = 'path') {
+  const lexical = relative(resolve(root), resolve(absolute));
+  if (lexical === '..' || lexical.startsWith(`..${sep}`) || isAbsolute(lexical)) {
+    throw new Error(`${label} must stay inside the repository`);
+  }
+  let cursor = resolve(root);
+  for (const component of lexical.split(sep).filter(Boolean)) {
+    cursor = resolve(cursor, component);
+    if (!existsSync(cursor)) break;
+    if (lstatSync(cursor).isSymbolicLink()) throw new Error(`${label} must not contain symbolic-link components`);
+  }
+}
+
+export function assertTrackedStage0RegularFiles(root, paths, label = 'path') {
+  const entries = new Map();
+  const raw = git(root, ['--literal-pathspecs', 'ls-files', '--stage', '-z', '--', ...paths]).toString('utf8');
+  for (const record of raw.split('\0').filter(Boolean)) {
+    const separator = record.indexOf('\t');
+    const header = separator === -1 ? null : /^([0-7]{6}) ([0-9a-f]+) ([0-3])$/.exec(record.slice(0, separator));
+    if (!header) throw new Error('malformed Git stage entry');
+    const path = toPosix(record.slice(separator + 1));
+    const candidates = entries.get(path) || [];
+    candidates.push({ mode: header[1], stage: Number(header[3]) });
+    entries.set(path, candidates);
+  }
+  for (const path of paths) {
+    const candidates = entries.get(path) || [];
+    if (candidates.length !== 1 || candidates[0].stage !== 0 || !['100644', '100755'].includes(candidates[0].mode)) {
+      throw new Error(`${label} must name a regular Git stage-0 file: ${path}`);
+    }
+    const absolute = checkedPath(root, path);
+    assertNoSymlinkComponents(root, absolute, label);
+    if (!existsSync(absolute) || !lstatSync(absolute).isFile()) {
+      throw new Error(`${label} must name a regular worktree file: ${path}`);
+    }
+  }
+}
+
 export function safeRelative(value) {
   return typeof value === 'string'
     && value.length > 0
@@ -190,6 +228,7 @@ export function collectState(root, policy = 'metadata', allowlist = [], atlasCon
   }
   if (policy === 'allowlist' && !allowlist.length) throw new Error('allowlist requires --allow-untracked');
   if (allowlist.some((entry) => !safeRelative(entry))) throw new Error('allowlist contains an unsafe path');
+  assertNoAmbiguousIndexFlags(root);
   const untracked = untrackedState(root, policy, allowlist);
   const head = gitText(root, ['rev-parse', 'HEAD']);
   const visibleState = {

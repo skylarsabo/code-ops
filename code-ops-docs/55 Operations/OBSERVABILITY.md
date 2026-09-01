@@ -18,7 +18,7 @@ The local review gate provides separate deep-review and OpSec signals before a p
 Its plan binds base SHA, HEAD SHA, binary diff, and changed paths. Its receipts bind reviewer,
 tier, effort, report digest, verdict, and predecessor digest. Remote verification adds live base
 and feature-tip evidence before status publication. Evidence:
-`scripts/local-review-gate.mjs:141-269` and `scripts/local-review-gate.mjs:334-478`.
+`scripts/local-review-gate.mjs:131-259` and `scripts/local-review-gate.mjs:324-468`.
 
 ## Durable records
 
@@ -26,11 +26,20 @@ An orchestrated run records its plan in `RUN_CONTRACT.json`, work state in `DISP
 
 The dispatch ledger stores a JSONL journal beside the Markdown table. The checker replays journal entries and detects malformed history, state drift, and retry-limit violations. Evidence: `scripts/dispatch-ledger.mjs:192-243` and `scripts/dispatch-ledger.mjs:379-429`.
 
-The context compiler records exact-state receipts and cache payload digests. It verifies the receipt before a context-bound contract or bundle can be used. Evidence: `scripts/context-index-lib.mjs:140-205`, `scripts/run-contract.mjs:57-65`, and `scripts/context-bundle.mjs:41-50`.
+The context compiler records exact-state receipts and cache payload digests. It rejects
+hidden Git-index flags before preparing or replaying an identity, then verifies the receipt
+before a context-bound contract or bundle can be used. Evidence:
+`scripts/context-index-lib.mjs:67-110`, `225-277`, `scripts/run-contract.mjs:57-65`, and
+`scripts/context-bundle.mjs:41-50`.
 
 The long-horizon runtime records a host-capability binding and a hash-chained checkpoint log. It binds checkpoints to the contract, snapshot, stable prefix, and optional ledger, acceptance, handoff, bundle, and artifact references. Evidence: `scripts/runtime-lib.mjs:193-227`, `310-358`, and `scripts/run-runtime.mjs:159-218`.
 
-Use `run-runtime.mjs metrics --json` to obtain receipt, checkpoint, resume, replan, stable-prefix, prompt-cache, and receipt-size metrics. Elapsed time is `UNKNOWN`; the tool does not convert host wall-clock readings into a false cross-session measure. Evidence: `scripts/runtime-lib.mjs:363-394` and `scripts/run-runtime.mjs:340-358`.
+Use `run-runtime.mjs metrics --json` to obtain receipt, checkpoint, resume, replan,
+stable-prefix, prompt-cache, and receipt-size metrics. The default view includes only the
+capability-descriptor digest, states, and policy outcomes, not raw host provenance. Elapsed
+time is `UNKNOWN`; the tool does not convert host wall-clock readings into a false
+cross-session measure. Evidence: `scripts/runtime-lib.mjs:352-386` and
+`scripts/run-runtime.mjs:340-358`.
 
 `judgment-evals.mjs` records local judgment trend and floor-calibration plans and scoring
 receipts. The plan and receipt expose whether execution was available; workers receive no answer

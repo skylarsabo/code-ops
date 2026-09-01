@@ -351,9 +351,10 @@ A replan preserves `runId` and advances `revision` by one. Binding drift blocks 
 until a replan records the next valid contract. Cache observations are optional telemetry.
 They accelerate work when observed. They never replace receipts or artifacts.
 
-The stable prefix is deterministic UTF-8 content from tracked files within its declared byte
-cap. `run-runtime.mjs prefix` emits it, but no script injects it into a host. Use it only when
-the selected host can inject that exact payload. The runtime receipt chain serializes mutations
+The stable prefix is deterministic UTF-8 content from regular stage-0 tracked files without
+linked components, within its declared byte cap. `run-runtime.mjs prefix` emits it, but no
+script injects it into a host. Use it only when the selected host can inject that exact payload.
+The runtime receipt chain serializes mutations
 with a sibling lock directory. A surviving lock requires owner and chain inspection before
 manual removal.
 

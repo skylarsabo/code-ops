@@ -27,7 +27,12 @@ The validator requires the lead to use a strong-or-frontier model at high effort
 
 ## Snapshot receipt
 
-`CONTEXT_SNAPSHOT.json` identifies one visible repository state. Its identifier covers Git head, staged state, unstaged state, untracked-file policy, and generator digests. Ignored content is excluded by policy. Evidence: `scripts/context-index-lib.mjs:99-166` and `scripts/context-snapshot.mjs:143-170`.
+`CONTEXT_SNAPSHOT.json` identifies one visible repository state. Its identifier covers Git
+head, staged state, unstaged state, untracked-file policy, and generator digests. Ignored
+content is excluded by policy. Snapshot preparation and replay reject `assume-unchanged`,
+`skip-worktree`, and unresolved index states before hashing worktree bytes. Evidence:
+`scripts/context-index-lib.mjs:67-110`, `scripts/context-index-lib.mjs:225-277`, and
+`scripts/context-snapshot.mjs:108-170`.
 
 The snapshot command can generate a delta only when it receives both a previous receipt and a delta output. A changed snapshot requires a new contract revision and affected bundles. Evidence: `scripts/context-snapshot.mjs:30-35`, `scripts/context-snapshot.mjs:123-170`, and `scripts/run-contract.mjs:57-65`.
 
@@ -60,10 +65,11 @@ Evidence: `scripts/runtime-lib.mjs:128-147` and `scripts/run-contract.mjs:60-72`
 
 ## Stable prefix and runtime receipts
 
-The stable prefix is an ordered list of exact Git-index files. Compilation frames each UTF-8
+The stable prefix is an ordered list of regular stage-0 Git-index files. Compilation rejects
+linked components and non-regular index modes before reading bytes. It frames each UTF-8
 file in a deterministic payload and records its SHA-256 digest, byte count, and entries.
 The payload must not exceed `maxStablePrefixBytes`. Evidence:
-`scripts/runtime-lib.mjs:148-174`.
+`scripts/context-index-lib.mjs:82-110` and `scripts/runtime-lib.mjs:148-172`.
 
 `RUN_RUNTIME_RECEIPTS.jsonl` is an append-only hash chain. Every version-1 record has a
 sequence, timestamp, predecessor digest, binding, references, optional observation, and
@@ -72,13 +78,13 @@ its own digest. The first record is `init`. Later records are `checkpoint`, `res
 digest-invalid records. Evidence: `scripts/runtime-lib.mjs:24-38` and
 `scripts/runtime-lib.mjs:310-340`.
 
-The binding includes contract bytes, Git head, snapshot identity and receipt bytes, host
-descriptor identity and digest, capability states and policy outcomes, and stable-prefix
-metadata. An unchanged contract revision must retain this complete binding. A replan keeps
+The binding includes contract bytes, Git head, snapshot identity and receipt bytes, the host
+descriptor digest, capability states and policy outcomes, and stable-prefix metadata. It
+does not copy raw host, provider, model, source, or observation-time labels from the ignored
+descriptor. An unchanged contract revision must retain this complete binding. A replan keeps
 the run ID and increments the revision by one. Git heads are complete 40- or 64-digit object
 IDs. Capability and receipt paths must differ portably and cannot share one physical file.
-Evidence: `scripts/runtime-lib.mjs:175-227`
-and `scripts/runtime-lib.mjs:341-356`.
+Evidence: `scripts/runtime-lib.mjs:173-218` and `scripts/runtime-lib.mjs:334-349`.
 
 A checkpoint requires a strict dispatch-ledger reference and may bind acceptance, handoff,
 bundle, and artifact files by digest. Resume replays and revalidates the latest checkpoint
@@ -92,8 +98,9 @@ An observation records cache observability as `observed`, `unobservable`, or `un
 It may record `hit`, `miss`, or `write` events and cache-read, cache-write, input, and
 output token counts. Unobservable and unsupported observations cannot carry cache events or
 token metrics. Provider-usage observations must carry at least one metric. The metrics view
-reports normalized totals and event counts; elapsed time remains `UNKNOWN`. Evidence:
-`scripts/runtime-lib.mjs:291-304`, `scripts/runtime-lib.mjs:359-394`, and
+reports normalized totals and event counts plus the minimized capability binding; raw host
+provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evidence:
+`scripts/runtime-lib.mjs:284-297`, `scripts/runtime-lib.mjs:352-386`, and
 `scripts/run-runtime.mjs:293-317`.
 
 ## Local judgment gate
@@ -125,7 +132,7 @@ validated, but the receipt chain does not provide hardware-backed identity. Evid
 per receipt to the reviewed SHA. It verifies that SHA is remotely available. The caller
 needs GitHub write authority for the status endpoint. A status is supplementary evidence;
 publication failure does not alter the local pass or fail result. Evidence:
-`scripts/local-review-gate.mjs:284-354` and `scripts/local-review-gate.mjs:451-478`.
+`scripts/local-review-gate.mjs:274-344` and `scripts/local-review-gate.mjs:441-468`.
 
 ## Judgment evals
 
@@ -165,7 +172,7 @@ Evidence: `scripts/run-contract.mjs:75-89`, `scripts/context-bundle.mjs:44-54`, 
 
 The local judgment gate is independent of Run Contract versions. It stores ignored review
 plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
-`scripts/local-review-gate.mjs:48-53` and `scripts/local-review-gate.mjs:258-478`.
+`scripts/local-review-gate.mjs:48-53` and `scripts/local-review-gate.mjs:248-468`.
 
 ## Documentation manifest
 

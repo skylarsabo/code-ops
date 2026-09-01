@@ -36,14 +36,17 @@ The identifier formats, ordered quality criteria, and unit dependency rules are 
 A v3 contract's `runtime` object names the capability descriptor and JSONL receipt path,
 the ordered `stablePrefix`, `maxStablePrefixBytes`, and capability policy. Its receipt
 binding captures the contract-file digest, head, snapshot identity and receipt digest,
-host descriptor digest and identity, capability states and outcomes, and compiled-prefix
-metadata. Head is an exact full Git object ID. Capability and receipt paths are distinct
-under portable case folding and cannot alias one physical file. Evidence:
-`scripts/runtime-lib.mjs:26-37`, `scripts/runtime-lib.mjs:175-227`.
+host descriptor digest, capability states and outcomes, and compiled-prefix metadata. Raw
+descriptor labels and observation time stay outside the runtime chain. Head is an exact full
+Git object ID. Capability and receipt paths are distinct under portable case folding and
+cannot alias one physical file. Evidence:
+`scripts/runtime-lib.mjs:26-37`, `scripts/runtime-lib.mjs:173-218`.
 
 The stable-prefix metadata contains its digest, total bytes, and ordered entries. Each
 entry contains an exact repository-relative path, source-file digest, and byte count.
-Evidence: `scripts/runtime-lib.mjs:148-174` and `scripts/runtime-lib.mjs:265-277`.
+Sources must be regular stage-0 index files without linked components. Evidence:
+`scripts/context-index-lib.mjs:82-110`, `scripts/runtime-lib.mjs:148-172`, and
+`scripts/runtime-lib.mjs:258-270`.
 
 Each runtime receipt stores version, sequence, kind, UTC timestamp, predecessor digest,
 binding, references, observation, and receipt digest. References can name a ledger and its
@@ -77,7 +80,7 @@ ignored, byte-identical to its receipt reference, bound to the current plan, and
 the prior receipt digest. Reviewer IDs and physical report files must also be distinct.
 Optional GitHub statuses are external projections of passing receipts, not part of the local
 data model. Evidence:
-`scripts/local-review-gate.mjs:194-269` and `scripts/local-review-gate.mjs:284-478`.
+`scripts/local-review-gate.mjs:184-259` and `scripts/local-review-gate.mjs:274-468`.
 
 A judgment-eval plan stores its mode, execution policy, current head, matrix receipt,
 selected model IDs, generated units, creation time, and digest. Each worker unit names a
@@ -89,7 +92,11 @@ totals, per-unit findings and score digests, and its own digest. Evidence:
 
 ## Structural cache
 
-The context cache is content addressed by `snapshotId`. Each entry contains `REPO_MAP.md`, `IMPORT_GRAPH.md`, `ATLAS_STATE.txt`, and `META.json`, with SHA-256 values recorded for every payload. Evidence: `scripts/context-snapshot.mjs:81-124` and `scripts/context-index-lib.mjs:187-205`.
+The context cache is content addressed by `snapshotId`. Snapshot preparation and replay
+reject hidden Git-index flags before observing worktree state. Each entry contains
+`REPO_MAP.md`, `IMPORT_GRAPH.md`, `ATLAS_STATE.txt`, and `META.json`, with SHA-256 values
+recorded for every payload. Evidence: `scripts/context-snapshot.mjs:81-124` and
+`scripts/context-index-lib.mjs:67-110`, `scripts/context-index-lib.mjs:225-277`.
 
 The cache can be reused only when its identifier, generator identity, and payload digests verify. A corrupt target is retained with an `.invalid-<timestamp>` suffix before replacement. Evidence: `scripts/context-snapshot.mjs:81-124`.
 

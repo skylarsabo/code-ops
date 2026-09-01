@@ -3,10 +3,10 @@ import { existsSync, statSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
 import {
+  assertTrackedStage0RegularFiles,
   checkedPath,
   digestJson,
   git,
-  gitPaths,
   portableKey,
   readJson,
   repoRelative,
@@ -26,7 +26,7 @@ export const RUNTIME_RECEIPT_VERSION = 1;
 const RUNTIME_KEYS = new Set(['capabilities', 'receipts', 'stablePrefix', 'maxStablePrefixBytes', 'policy']);
 const CAPABILITY_KEYS = new Set(['version', 'host', 'provider', 'model', 'source', 'observedAt', 'capabilities']);
 const BINDING_KEYS = new Set(['runId', 'contractRevision', 'contractSha256', 'head', 'snapshotId', 'snapshotReceiptSha256', 'hostCapabilities', 'stablePrefix']);
-const HOST_BINDING_KEYS = new Set(['sha256', 'host', 'provider', 'model', 'source', 'observedAt', 'states', 'outcomes']);
+const HOST_BINDING_KEYS = new Set(['sha256', 'states', 'outcomes']);
 const PREFIX_KEYS = new Set(['sha256', 'bytes', 'entries']);
 const PREFIX_ENTRY_KEYS = new Set(['path', 'sha256', 'bytes']);
 const RECEIPT_KEYS = new Set(['version', 'sequence', 'kind', 'recordedAt', 'previousReceiptSha256', 'binding', 'references', 'observation', 'receiptSha256']);
@@ -148,13 +148,11 @@ export function evaluateRuntimePolicy(runtime, descriptor) {
 export function compileStablePrefix(root, runtime) {
   const configErrors = validateRuntimeConfig(runtime);
   if (configErrors.length) throw new Error(`runtime config invalid:\n${configErrors.map((error) => `  - ${error}`).join('\n')}`);
-  const tracked = new Set(gitPaths(root, ['ls-files', '-z']));
+  assertTrackedStage0RegularFiles(root, runtime.stablePrefix, 'stable prefix path');
   const parts = [Buffer.from('CODE-OPS-STABLE-PREFIX 1\n', 'utf8')];
   const entries = [];
   for (const path of runtime.stablePrefix) {
-    if (!tracked.has(path)) throw new Error(`stable prefix path is not an exact Git-index path: ${path}`);
     const absolute = checkedPath(root, path);
-    if (!statSync(absolute).isFile()) throw new Error(`stable prefix path must name a file: ${path}`);
     const bytes = readFileSync(absolute);
     try { UTF8.decode(bytes); } catch { throw new Error(`stable prefix path is not valid UTF-8 text: ${path}`); }
     if (bytes.includes(0)) throw new Error(`stable prefix path contains a NUL byte: ${path}`);
@@ -209,11 +207,6 @@ export function runtimeBinding(root, contractPath, contract) {
       snapshotReceiptSha256: sha256(snapshotBytes),
       hostCapabilities: {
         sha256: verified.capabilities.sha256,
-        host: verified.capabilities.value.host,
-        provider: verified.capabilities.value.provider,
-        model: verified.capabilities.value.model,
-        source: verified.capabilities.value.source,
-        observedAt: verified.capabilities.value.observedAt,
         states: verified.capabilities.value.capabilities,
         outcomes: Object.fromEntries(CAPABILITY_NAMES.map((name) => [name, verified.decisions[name].outcome])),
       },
@@ -257,9 +250,7 @@ function validateBinding(value, errors) {
     || !validSha(value.contractSha256) || !GIT_OID_RE.test(value.head || '') || !validSha(value.snapshotId)
     || !validSha(value.snapshotReceiptSha256)) errors.push('runtime binding fields are invalid');
   if (exact(value.hostCapabilities, HOST_BINDING_KEYS, 'runtime hostCapabilities binding', errors)) {
-    if (!validSha(value.hostCapabilities.sha256) || !cleanLabel(value.hostCapabilities.host) || !cleanLabel(value.hostCapabilities.provider)
-      || !cleanLabel(value.hostCapabilities.model) || !['operator', 'host-probe', 'provider-docs'].includes(value.hostCapabilities.source)
-      || !normalizedTimestamp(value.hostCapabilities.observedAt)) errors.push('runtime hostCapabilities binding identity is invalid');
+    if (!validSha(value.hostCapabilities.sha256)) errors.push('runtime hostCapabilities binding digest is invalid');
     if (exact(value.hostCapabilities.states, new Set(CAPABILITY_NAMES), 'runtime host capability states', errors)) {
       for (const name of CAPABILITY_NAMES) if (!CAPABILITY_STATES.includes(value.hostCapabilities.states[name])) errors.push(`runtime host capability state ${name} is invalid`);
     }

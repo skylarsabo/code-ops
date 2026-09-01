@@ -6,7 +6,6 @@
 import { execFileSync } from 'node:child_process';
 import {
   existsSync,
-  lstatSync,
   mkdirSync,
   readFileSync,
   realpathSync,
@@ -14,9 +13,10 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import {
   assertNoAmbiguousIndexFlags,
+  assertNoSymlinkComponents,
   atomicWrite,
   canonical,
   checkedPath,
@@ -84,16 +84,6 @@ function repositoryRoot(value) {
   return realpathSync.native(resolve(value));
 }
 
-function rejectSymlinkComponents(root, absolute, label) {
-  const lexical = relative(root, absolute);
-  let cursor = root;
-  for (const component of lexical.split(sep).filter(Boolean)) {
-    cursor = join(cursor, component);
-    if (!existsSync(cursor)) break;
-    if (lstatSync(cursor).isSymbolicLink()) throw new Error(`${label} must not contain symbolic-link components`);
-  }
-}
-
 function cleanWorktree(root) {
   assertNoAmbiguousIndexFlags(root);
   return git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']).length === 0;
@@ -118,7 +108,7 @@ function currentBranch(root, baseRef = null) {
 function ignoredPath(root, value, label, mustExist = false) {
   if (!safeRelative(value)) throw new Error(`${label} must be a repository-relative portable path`);
   const absolute = checkedPath(root, value);
-  rejectSymlinkComponents(root, absolute, label);
+  assertNoSymlinkComponents(root, absolute, label);
   if (mustExist && (!existsSync(absolute) || !statSync(absolute).isFile())) throw new Error(`${label} must name an existing file`);
   try { git(root, ['check-ignore', '-q', '--no-index', '--', value]); }
   catch { throw new Error(`${label} must be ignored by Git`); }
