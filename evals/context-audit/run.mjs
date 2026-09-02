@@ -39,31 +39,33 @@ try { agg = JSON.parse(j.stdout); } catch { fails.push('--json output must parse
 if (agg) {
   const m = agg.main, s = agg.subagents, a = agg.all;
   expect(agg.files === 2, `files should be 2 (main + subagent), got ${agg.files}`);
-  expect(m.messages.assistant === 5, `main assistant messages deduped to 5, got ${m.messages.assistant}`);
+  expect(m.messages.assistant === 6, `main assistant messages deduped to 6, got ${m.messages.assistant}`);
   expect(m.messages.user === 1, `human turns counted without tool-result carriers: 1, got ${m.messages.user}`);
-  expect(m.usage.input === 211, `main input tokens 100+50+50+1+10 = 211 once, got ${m.usage.input}`);
-  expect(m.usage.cacheRead === 2401, `main cache read 300+600+700+1+800 = 2401, got ${m.usage.cacheRead}`);
+  expect(m.usage.input === 212, `main input tokens 100+50+50+1+1+10 = 212 once, got ${m.usage.input}`);
+  expect(m.usage.cacheRead === 2402, `main cache read 300+600+700+1+1+800 = 2402, got ${m.usage.cacheRead}`);
   expect(m.usage.cacheCreate === 200, `main cache create is the per-field max (200, not 150 or 350), got ${m.usage.cacheCreate}`);
-  expect(m.usage.output === 106, `main output max(40,60)+20+20+1+5 = 106, got ${m.usage.output}`);
+  expect(m.usage.output === 107, `main output max(40,60)+20+20+1+1+5 = 107, got ${m.usage.output}`);
   expect(m.usage.thinking === 10, `main thinking 10 once, got ${m.usage.thinking}`);
-  expect(m.usage.total === 211 + 2401 + 200 + 106, `main total, got ${m.usage.total}`);
+  expect(m.usage.total === 212 + 2402 + 200 + 107, `main total, got ${m.usage.total}`);
   expect(s.usage.input === 7 && s.usage.cacheCreate === 11 && s.usage.cacheRead === 13 && s.usage.output === 3, `subagent usage 7/11/13/3, got ${JSON.stringify(s.usage)}`);
-  expect(a.usage.input === 218, `all input = 211 + 7, got ${a.usage.input}`);
-  expect(m.models['model-x'] === 2 && m.models['model-y'] === 3, `main model mix x:2 y:3, got ${JSON.stringify(m.models)}`);
+  expect(a.usage.input === 219, `all input = 212 + 7, got ${a.usage.input}`);
+  expect(m.models['model-x'] === 2 && m.models['model-y'] === 4, `main model mix x:2 y:4, got ${JSON.stringify(m.models)}`);
   expect(s.models['model-z'] === 1, `subagent model z:1, got ${JSON.stringify(s.models)}`);
-  expect(m.toolCalls.Bash === 2 && m.toolCalls.Read === 2, `main tool calls Bash:2 Read:2, got ${JSON.stringify(m.toolCalls)}`);
-  expect(m.toolResultChars.Bash === 36, `Bash result chars 32+4, got ${m.toolResultChars.Bash}`);
+  expect(m.toolCalls.Bash === 3 && m.toolCalls.Read === 2, `main tool calls Bash:3 Read:2, got ${JSON.stringify(m.toolCalls)}`);
+  expect(m.toolResultChars.Bash === 39, `Bash result chars 32+4+3, got ${m.toolResultChars.Bash}`);
   expect(m.toolResultChars.Read === 36, `Read result chars 18*2 = 36, got ${m.toolResultChars.Read}`);
   expect(s.toolResultChars.Grep === 23, `subagent Grep chars 23, got ${s.toolResultChars.Grep}`);
-  expect(a.toolResultCharsTotal === 36 + 36 + 23, `all tool result chars, got ${a.toolResultCharsTotal}`);
+  expect(a.toolResultCharsTotal === 39 + 36 + 23, `all tool result chars, got ${a.toolResultCharsTotal}`);
   expect(m.bashFamilies['git status'] === 32, `cd-prefix stripped family "git status" = 32, got ${JSON.stringify(m.bashFamilies)}`);
   expect(!('cd' in m.bashFamilies) && !Object.keys(m.bashFamilies).some((k) => k.startsWith('cd')), 'no "cd" family may survive');
   expect(m.bashFamilies['(script)'] === undefined && m.bashFamilies['node'] === 4, `a path-bearing command keys as its command word only, got ${JSON.stringify(m.bashFamilies)}`);
   expect(!Object.keys(m.bashFamilies).some((k) => /[./\\"']/.test(k)), `no family key may carry a path fragment, quote, or extension: ${JSON.stringify(Object.keys(m.bashFamilies))}`);
+  expect(m.bashFamilies['rg'] === 3, `a command outside the subcommand allow-list keys as the bare word, got ${JSON.stringify(m.bashFamilies)}`);
+  expect(Object.keys(m.bashFamilies).every((k) => /^(\(\w+\)|[A-Za-z][A-Za-z0-9-]*( [A-Za-z][A-Za-z0-9-]*)?)$/.test(k)), `family keys are one or two plain words: ${JSON.stringify(Object.keys(m.bashFamilies))}`);
   expect(m.repeatReads.paths === 1 && m.repeatReads.extraReads === 1 && m.repeatReads.extraChars === 18, `repeat reads 1/1/18, got ${JSON.stringify(m.repeatReads)}`);
   expect(m.textChars.thinking === 10 && m.textChars.assistant === 5, `text chars thinking 10 / assistant 4+1, got ${JSON.stringify(m.textChars)}`);
   expect(m.firstTs === '2026-09-01T10:00:00.000Z' && m.lastTs === '2026-09-01T10:10:00.000Z', `window, got ${m.firstTs}..${m.lastTs}`);
-  expect(!/secret-file|patch-secret|private dir|C:\/repo/.test(JSON.stringify(agg)), 'sanitized --json must not carry any fixture path, basename, or argument');
+  expect(!/secret-file|patch-secret|private dir|C:\/repo|SECRETPATTERN|INTERNALHOST|SECRETNAME/.test(JSON.stringify(agg)), 'sanitized --json must not carry any fixture path, basename, pattern, host, or argument word');
   expect(agg.dir === undefined, 'sanitized --json must not carry the transcript dir');
 }
 
@@ -72,7 +74,7 @@ const md = run([cli, '--transcripts', fixture]);
 expect(md.status === 0, `markdown should exit 0, got ${md.status}`);
 expect(/# Context audit/.test(md.stdout), 'markdown header');
 expect(/\| git status \| 32 \|/.test(md.stdout), 'markdown family row');
-expect(!/secret-file|patch-secret|private dir/.test(md.stdout), 'sanitized markdown must not carry any fixture path or basename');
+expect(!/secret-file|patch-secret|private dir|SECRETPATTERN|INTERNALHOST|SECRETNAME/.test(md.stdout), 'sanitized markdown must not carry any fixture path, basename, pattern, or host');
 expect(/Read \*\.ts/.test(md.stdout), 'sanitized Read label keeps only the extension');
 
 // --raw keeps the truncated path for local inspection.
@@ -101,10 +103,10 @@ if (existsSync(ledger)) {
   expect(rows.length === 1, `one row, got ${rows.length}`);
   const r = rows[0] || {};
   expect(r.v === 1 && r.sessionId === 'sess-1' && r.reason === 'other', `row identity, got ${JSON.stringify(r).slice(0, 200)}`);
-  expect(r.tokens?.main?.input === 211 && r.tokens?.main?.cacheRead === 2401 && r.tokens?.main?.output === 106, `row main tokens, got ${JSON.stringify(r.tokens)}`);
+  expect(r.tokens?.main?.input === 212 && r.tokens?.main?.cacheRead === 2402 && r.tokens?.main?.output === 107, `row main tokens, got ${JSON.stringify(r.tokens)}`);
   expect(r.tokens?.subagents?.input === 7, `row subagent tokens, got ${JSON.stringify(r.tokens?.subagents)}`);
-  expect(r.files === 2 && r.skipped === 0 && r.turns === 5 && r.durationMs === 600000, `row files/skipped/turns/duration, got ${r.files}/${r.skipped}/${r.turns}/${r.durationMs}`);
-  expect(r.toolCalls?.Bash === 2 && r.toolCalls?.Read === 2, `row tool calls, got ${JSON.stringify(r.toolCalls)}`);
+  expect(r.files === 2 && r.skipped === 0 && r.turns === 6 && r.durationMs === 600000, `row files/skipped/turns/duration, got ${r.files}/${r.skipped}/${r.turns}/${r.durationMs}`);
+  expect(r.toolCalls?.Bash === 3 && r.toolCalls?.Read === 2, `row tool calls, got ${JSON.stringify(r.toolCalls)}`);
   expect(!JSON.stringify(r).includes('secret-file'), 'row must not carry file contents or paths from the transcript');
 }
 const h2 = run([hook], { input: 'not json at all', env });
@@ -121,7 +123,7 @@ const rc = run([cli, 'receipts', '--ledger', ledger, '--cwd', root, '--json']);
 expect(rc.status === 0, `receipts --json should exit 0, got ${rc.status}: ${rc.stderr}`);
 try {
   const r = JSON.parse(rc.stdout);
-  expect(r.sessions === 1 && r.usage.input === 218 && r.durationMs === 600000, `receipts aggregate, got ${rc.stdout.slice(0, 200)}`);
+  expect(r.sessions === 1 && r.usage.input === 219 && r.durationMs === 600000, `receipts aggregate, got ${rc.stdout.slice(0, 200)}`);
 } catch { fails.push('receipts --json must parse'); }
 
 const rcAll = run([cli, 'receipts', '--ledger', ledger, '--all', '--json']);

@@ -60,10 +60,14 @@ function contentText(c) {
 }
 
 // `cd <dir> && git status` → `git status`; `FOO=1 node scripts/x.mjs` → `node`.
-// Contract: a family is the command word plus a plain subcommand, or `(script)` when the
-// command itself is a path. No argument text, path fragment, or basename ever becomes a key,
-// so a family table is safe to publish.
+// Contract: a family is the command word alone, or the command word plus its subcommand for
+// the commands in SUBCOMMAND_TOOLS, or `(script)` / `(assignment)` placeholders. A first
+// argument is never a key for any other command (`rg <pattern>`, `ssh <host>`, `cat <file>`
+// all key as the bare word), so a family table is safe to publish.
 const WORD_RE = /^[A-Za-z][A-Za-z0-9-]*$/;
+const SUBCOMMAND_TOOLS = new Set(['git', 'gh', 'npm', 'pnpm', 'yarn', 'bun', 'cargo', 'go', 'docker', 'kubectl', 'helm',
+  'pip', 'pipx', 'uv', 'poetry', 'dotnet', 'gradle', 'mvn', 'terraform', 'tofu', 'pulumi', 'aws', 'gcloud', 'az',
+  'brew', 'apt', 'apt-get', 'dnf', 'systemctl', 'jj', 'hg', 'svn', 'claude', 'codex', 'rtk', 'codegraph']);
 export function bashFamily(cmd) {
   let c = String(cmd || '').trim();
   for (let i = 0; i < 50; i++) {
@@ -77,7 +81,7 @@ export function bashFamily(cmd) {
   if (toks[0].includes('=')) return '(assignment)';
   const first = WORD_RE.test(toks[0]) ? toks[0] : '(script)';
   const second = toks[1] || '';
-  if (WORD_RE.test(second) && first !== '(script)') return `${first} ${second}`;
+  if (SUBCOMMAND_TOOLS.has(first.toLowerCase()) && WORD_RE.test(second)) return `${first} ${second}`;
   return first;
 }
 

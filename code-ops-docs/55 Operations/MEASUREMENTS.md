@@ -23,15 +23,15 @@ Usage is deduplicated by message id. The host writes one assistant message as se
 
 ## Baseline: this repository, 2026-06-23 to 2026-09-02
 
-Recorded at commit `a9105a8` on 2026-09-02. Receipt: `RCPT-003` in the run folder `80 Runs/2026-09-02 phase0-context-audit/` (local, gitignored), output digest `f222f8a770e1`. Command: `node scripts/context-audit.mjs --top 10 --json`. Window: 23 sessions and 200 subagent threads.
+Recorded at commit `a9105a8` on 2026-09-02. Receipt: `RCPT-004` in the run folder `80 Runs/2026-09-02 phase0-context-audit/` (local, gitignored), output digest `f80a73868920`. Command: `node scripts/context-audit.mjs --top 10 --json`. Window: 23 sessions and 200 subagent threads.
 
 ### Exact tokens
 
 | Thread | Assistant messages | Input | Cache read | Cache create | Output | Thinking | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| main | 3,129 | 284,053 | 982,653,199 | 19,557,239 | 2,910,849 | 186,851 | 1,005,405,340 |
-| subagents | 4,417 | 696,275 | 346,008,165 | 17,262,458 | 3,225,649 | 212,820 | 367,192,547 |
-| all | 7,546 | 980,328 | 1,328,661,364 | 36,819,697 | 6,136,498 | 399,671 | 1,372,597,887 |
+| main | 3,139 | 286,585 | 986,553,451 | 19,580,780 | 2,925,676 | 188,530 | 1,009,346,492 |
+| subagents | 4,454 | 696,349 | 349,241,719 | 17,414,420 | 3,275,991 | 228,021 | 370,628,479 |
+| all | 7,593 | 982,934 | 1,335,795,170 | 36,995,200 | 6,201,667 | 416,551 | 1,379,974,971 |
 
 Cache reads are 96.8% of all tokens. Uncached input plus cache creation is 2.8%. Output is 0.4%. The cost lever is therefore what stays resident in the window turn after turn, not what is typed or generated.
 
@@ -39,9 +39,9 @@ Cache reads are 96.8% of all tokens. Uncached input plus cache creation is 2.8%.
 
 | Source | Share |
 | --- | ---: |
-| Tool results | 77.5% |
-| . Read | 48.7% |
-| . Bash | 20.8% |
+| Tool results | 77.6% |
+| . Read | 48.6% |
+| . Bash | 21.0% |
 | . Grep | 2.6% |
 | . Agent reports | 1.7% |
 | Assistant text | 7.1% |
@@ -52,14 +52,14 @@ Cache reads are 96.8% of all tokens. Uncached input plus cache creation is 2.8%.
 
 | Bash family | Result chars |
 | --- | ---: |
-| git diff | 981,840 |
-| node | 886,712 |
-| grep | 595,542 |
-| sed | 594,084 |
-| echo | 407,562 |
-| cat | 288,121 |
-| for f | 205,952 |
-| ls | 163,225 |
+| git diff | 1,009,739 |
+| node | 887,800 |
+| sed | 598,600 |
+| grep | 596,598 |
+| for | 470,756 |
+| echo | 419,587 |
+| cat | 297,471 |
+| ls | 173,458 |
 
 The six largest single results were all Reads of `.txt` files between 62,705 and 76,423 characters. Those are persisted tool outputs and task outputs the suite itself produced, read back whole.
 
@@ -67,9 +67,9 @@ Repeat reads: 152 paths were read more than once, 207 extra reads, 1,099,139 cha
 
 ### What the baseline says
 
-1. Reads are the first-order cost, at 48.7% of all context characters, and the largest ones are the suite's own artifacts. Bounded reads and a query surface come before any command filter.
+1. Reads are the first-order cost, at 48.6% of all context characters, and the largest ones are the suite's own artifacts. Bounded reads and a query surface come before any command filter.
 2. Bash is second, and its top families are diffs, script runs, sed and grep reads through the shell. A shape-keyed digest covers those with one detector each.
-3. Subagent threads carry 26.8% of all tokens and 52.6% of output tokens. Operative brief and return-shape discipline is a measurable lever.
+3. Subagent threads carry 26.9% of all tokens and 52.8% of output tokens. Operative brief and return-shape discipline is a measurable lever.
 4. Re-reads alone are 1,099,139 characters. A staleness-aware read cache or the index refresh in the design note would remove most of them.
 
 ## Method for the next rows
