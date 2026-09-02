@@ -56,6 +56,12 @@ Context bundles include an Atlas excerpt only when the matching section is fresh
 
 The canonical [performance reference](PERFORMANCE.md) owns the measurement protocol, current baseline, retained optimizations, and known hot paths. A context-snapshot cache hit should reuse the content-addressed structural index; a cold run includes repository map, import graph, and Atlas work.
 
+## Session receipts
+
+The `SessionEnd` hook `session-receipt.mjs` appends one row per session to a local ledger: exact tokens by class for the main thread and its subagents, tool calls by tool, model mix, and wall time. It prints nothing to the model and fails open on every error. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:1-20`.
+
+`context-audit.mjs` reads the same transcripts on demand and reports tokens, context characters by tool, Bash output by command family, and repeat reads, sanitized by default. The [measurements reference](MEASUREMENTS.md) owns the baseline rows and the method for adding one. Evidence: `scripts/context-audit.mjs:1-18` and `scripts/transcript-lib.mjs:10-17`.
+
 ## Record-collection signals
 
 `records check` reports record and citation counts, citation states, pending admissions, and history state. It blocks incomplete classification, incomplete batch coverage, immutable drift, malformed authority or curation chains, citation regression, invalid identities, and semantic-index drift.

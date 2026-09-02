@@ -20,6 +20,8 @@ The documentation citation gate validates both `path:line` references and explic
 
 The record-collection eval exercises immutable evidence contracts on Ubuntu and Windows. Repositories with record collections require a complete checkout using `fetch-depth: 0` and `filter: ""`. A shallow or partial checkout is infrastructure failure, not evidence loss.
 
+Both validation jobs run the context-audit eval, which pins the transcript parser and the `SessionEnd` receipt hook against a synthetic fixture on both hosts. Evidence: `evals/context-audit/run.mjs:1-13`.
+
 Both validation jobs run the Atlas fixture eval and gate this repository's live Atlas with `atlas-check.mjs --gate`. Any stale live section blocks the job.
 
 The v4 gate chain keeps responsibilities separate. The manifest gate owns domain and collection declarations. The records gate owns identities, authority batches, history, citation state, curation chains, and semantic projections. The link gate continues to own ordinary hub navigation.

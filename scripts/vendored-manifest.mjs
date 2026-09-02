@@ -52,4 +52,8 @@ export const RUNTIME_SCRIPTS = [
   // check-fleet.mjs spawns check-vault-standard.mjs as a SIBLING, so the two must ship into
   // the same plugin scripts/ dir or the fleet run's vault surface is UNKNOWN everywhere.
   { name: 'check-fleet.mjs', plugins: ['code-ops-suite'] },
+  // transcript-lib.mjs is imported by the SessionEnd receipt hook (hooks/session-receipt.mjs)
+  // as ../scripts/transcript-lib.mjs, and context-audit.mjs is its CLI reader.
+  { name: 'transcript-lib.mjs', plugins: ['code-ops-suite'] },
+  { name: 'context-audit.mjs', plugins: ['code-ops-suite'] },
 ];

@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.51.0
+- `context-audit.mjs` reads the host's local session transcripts and reports exact token usage by class (input, cache read, cache creation, output, thinking), deduplicated by message id, with main and subagent threads apart. It also reports context characters by tool, Bash output by command family, repeat reads, and the largest results. Output is sanitized by default; `--raw` keeps truncated commands and paths for local inspection.
+- A `SessionEnd` hook appends one receipt row per session to `~/.claude/code-ops/session-receipts.jsonl` (or `$CODE_OPS_RECEIPTS`): tokens by class, tool calls, model mix, and wall time. It prints nothing to the model, sends nothing off the machine, and fails open. `context-audit.mjs receipts` summarizes the ledger.
+- `transcript-lib.mjs` is the shared parser behind both, vendored with the plugin.
+
 ## 1.50.0
 - Run Contract v3 adds an explicit host-capability policy, a bounded ordered stable prefix, and a runtime receipt location while preserving v1 and v2 compatibility.
 - Long-horizon runs can initialize, checkpoint, replan, resume, verify, and measure one hash-chained runtime record without duplicating dispatch, acceptance, Atlas, snapshot, or handoff authority.

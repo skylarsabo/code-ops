@@ -111,6 +111,12 @@ An Atlas has a `MANIFEST.json` with versioned sections, scope declarations, and 
 
 Only fresh Atlas sections can contribute prose to a context bundle. A stale section contributes metadata, not an authoritative excerpt. Evidence: `scripts/context-bundle.mjs:58-74`.
 
+## Session receipts
+
+A session receipt is one JSON line, version `1`, with `ts`, `sessionId`, `cwd`, `reason`, `durationMs`, `models`, `turns`, `toolCalls`, `toolResultChars`, `files`, and `tokens` split into `main` and `subagents`, each with `input`, `cacheRead`, `cacheCreate`, `output`, `thinking`, and `total`. Usage is deduplicated by message id because the host writes one assistant message as several transcript lines that repeat the same usage block. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:44-62` and `scripts/transcript-lib.mjs:131-146`.
+
+The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so it can never be committed by accident. Rows carry the working directory path and no transcript content.
+
 ## Retention and sensitivity
 
 Run artifacts are repository-local working evidence. Do not put secrets, tokens, or personal data in a contract, cache, bundle, ledger, or documentation record. The repository has no modeled personal-data entity.

@@ -23,3 +23,5 @@ tests, including local-gate and judgment-planner fixtures, on the pull-request m
 pushed `main` ref, or manual dispatch. The former deep-review, OpSec, scheduled judgment, and
 floor workflows are absent. Consumer GitHub review examples remain opt-in integrations whose
 credentials, events, and status policy belong to the adopter.
+
+Both legs run the context-audit regression, which exercises the transcript parser and the `SessionEnd` receipt hook against a synthetic fixture, so path and stdin handling for the hook are proven on Windows before merge.
