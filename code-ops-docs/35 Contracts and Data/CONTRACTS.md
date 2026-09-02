@@ -106,7 +106,7 @@ provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evid
 
 ## Session receipt hook
 
-The `SessionEnd` hook reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:33-66`.
+The `SessionEnd` hook reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:32-81`.
 
 `context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. Evidence: `scripts/context-audit.mjs:77-90`.
 

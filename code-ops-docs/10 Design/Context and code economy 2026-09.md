@@ -31,7 +31,7 @@ One reading of the request: "make this our own while increasing token costs" is 
 
 ## Baseline measurement
 
-Scratch measurement over the 23 session transcripts for this repository, run 2026-09-02 (character counts, bytes divided by four as the token estimate, the same approximation rtk uses):
+Scratch measurement over the 23 main-thread transcripts for this repository, run 2026-09-02, main thread only and character counts. Superseded by the receipted, all-thread baseline in `55 Operations/MEASUREMENTS.md`, which puts tool results at 77% once subagent threads are included. Kept here because the conclusions below were drawn from it:
 
 | Slice | Share of context |
 | --- | --- |

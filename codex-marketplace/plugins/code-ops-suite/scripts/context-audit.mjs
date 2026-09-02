@@ -5,7 +5,7 @@
 //
 //   node scripts/context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>]
 //                                  [--top N] [--json] [--raw] [--out <file>]
-//   node scripts/context-audit.mjs receipts [--ledger <file>] [--json] [--cwd <dir>]
+//   node scripts/context-audit.mjs receipts [--ledger <file>] [--json] [--cwd <dir> | --all]
 //
 // Default transcript dir: `~/.claude/projects/<slug of --cwd or the current directory>`.
 // Default ledger: $CODE_OPS_RECEIPTS or `~/.claude/code-ops/session-receipts.jsonl`.
@@ -23,14 +23,14 @@ import { defaultTranscriptDir, summarizeDirectory, renderMarkdown, mergeSummarie
 
 function usage() {
   console.error('usage: context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>] [--top N] [--json] [--raw] [--out <file>]');
-  console.error('       context-audit.mjs receipts [--ledger <file>] [--cwd <dir>] [--json]');
+  console.error('       context-audit.mjs receipts [--ledger <file>] [--cwd <dir> | --all] [--json]');
   process.exit(2);
 }
 
 const argv = process.argv.slice(2);
 const mode = argv[0] === 'receipts' ? 'receipts' : 'transcripts';
 if (mode === 'receipts') argv.shift();
-const opt = { transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null };
+const opt = { transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const need = () => { const v = argv[++i]; if (v === undefined || v.startsWith('--')) usage(); return v; };
@@ -42,6 +42,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--raw') opt.raw = true;
   else if (a === '--out') opt.out = need();
   else if (a === '--ledger') opt.ledger = need();
+  else if (a === '--all') opt.all = true;
   else usage();
 }
 if (opt.since && !Number.isFinite(Date.parse(opt.since))) usage();
@@ -83,7 +84,7 @@ for (const line of readFileSync(ledger, 'utf8').split('\n')) {
   if (!line.trim()) continue;
   try { const r = JSON.parse(line); if (r && typeof r === 'object' && r.v === 1) rows.push(r); } catch { /* skip */ }
 }
-const wanted = opt.cwd ? resolve(opt.cwd).replace(/\\/g, '/').toLowerCase() : null;
+const wanted = opt.all ? null : resolve(opt.cwd).replace(/\\/g, '/').toLowerCase();
 const mine = rows.filter((r) => !wanted || String(r.cwd || '').replace(/\\/g, '/').toLowerCase() === wanted);
 const sum = emptySummary();
 const byModel = {};

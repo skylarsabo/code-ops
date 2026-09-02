@@ -15,7 +15,7 @@
 // stdin may never close on some Windows shells, so a short timer finishes with what arrived.
 //
 // Row shape (v: 1): { v, ts, sessionId, cwd, reason, durationMs, models, turns, toolCalls,
-//   toolResultChars, files, tokens: { main: {...}, subagents: {...} } }
+//   toolResultChars, files, skipped, tokens: { main: {...}, subagents: {...} } }
 
 import { readFileSync, appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -23,15 +23,20 @@ import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 let input = '';
-let done = false;
+let pending = null;
 
 function ledgerPath() {
   return process.env.CODE_OPS_RECEIPTS || join(homedir(), '.claude', 'code-ops', 'session-receipts.jsonl');
 }
 
-async function finish() {
-  if (done) return;
-  done = true;
+// Every caller (stdin end, stdin error, the timer) awaits the same promise, so a late
+// caller can never exit the process while the first is still writing the row.
+function finish() {
+  if (!pending) pending = doFinish();
+  return pending;
+}
+
+async function doFinish() {
   try {
     const payload = JSON.parse(input.replace(/^\uFEFF/, ''));
     const transcript = typeof payload?.transcript_path === 'string' ? payload.transcript_path : '';
@@ -39,9 +44,10 @@ async function finish() {
     const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
     const lib = await import(pathToFileURL(libPath).href);
     const main = lib.summarizeTranscript(readFileSync(transcript, 'utf8'), { top: 0 });
+    const subFiles = lib.subagentFilesFor(transcript);
     const subs = [];
-    for (const f of lib.subagentFilesFor(transcript)) {
-      try { subs.push(lib.summarizeTranscript(readFileSync(f, 'utf8'), { top: 0 })); } catch { /* skip */ }
+    for (const f of subFiles) {
+      try { subs.push(lib.summarizeTranscript(readFileSync(f, 'utf8'), { top: 0 })); } catch { /* counted in skipped */ }
     }
     const sub = lib.mergeSummaries(subs, { top: 0 });
     const strip = (u) => ({ input: u.input, cacheRead: u.cacheRead, cacheCreate: u.cacheCreate, output: u.output, thinking: u.thinking, total: u.total });
@@ -56,7 +62,8 @@ async function finish() {
       turns: main.messages.assistant,
       toolCalls: main.toolCalls,
       toolResultChars: main.toolResultCharsTotal,
-      files: 1 + subs.length,
+      files: 1 + subFiles.length,
+      skipped: subFiles.length - subs.length,
       tokens: { main: strip(main.usage), subagents: strip(sub.usage) },
     };
     const out = ledgerPath();

@@ -14,7 +14,9 @@
 //   - Subagent transcripts live beside the session file: `<dir>/<sessionId>/subagents/*.jsonl`,
 //     and their lines carry `isSidechain: true`. They are summarized separately from the main
 //     thread because operative cost is the number the tiering doctrine needs.
-//   - Tool results are attributed to the tool by `tool_use_id` → the earlier `tool_use` block.
+//   - Tool results are attributed to the tool by `tool_use_id` → the earlier `tool_use` block
+//     in the same file; a result whose call lives in another file lands in the `?` bucket.
+//   - `messages.user` counts human turns only; tool-result carrier lines are excluded.
 //
 // Sanitized by default: labels are tool names, command families (first word plus a plain
 // subcommand), and file extensions — never paths, arguments, or content. `raw: true` keeps a
@@ -57,21 +59,25 @@ function contentText(c) {
   return s;
 }
 
-// `cd <dir> && git status` → `git status`; `FOO=1 node scripts/x.mjs` → `node x.mjs`.
+// `cd <dir> && git status` → `git status`; `FOO=1 node scripts/x.mjs` → `node`.
+// Contract: a family is the command word plus a plain subcommand, or `(script)` when the
+// command itself is a path. No argument text, path fragment, or basename ever becomes a key,
+// so a family table is safe to publish.
+const WORD_RE = /^[A-Za-z][A-Za-z0-9-]*$/;
 export function bashFamily(cmd) {
   let c = String(cmd || '').trim();
-  for (let i = 0; i < 5; i++) {
-    const m = c.match(/^cd\s+(?:"[^"]*"|'[^']*'|\S+)\s*(?:&&|;)\s*/);
+  for (let i = 0; i < 50; i++) {
+    const m = c.match(/^cd\s+(?:"[^"]*"|'[^']*'|[^\s"']\S*)\s*(?:&&|;|\n)\s*/);
     if (!m) break;
     c = c.slice(m[0].length);
   }
-  c = c.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s+)+/, '');
-  const toks = c.split(/\s+/).filter(Boolean);
-  if (toks.length === 0) return '(empty)';
-  const first = toks[0].replace(/^.*[\\/]/, '');
+  c = c.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|(?!\$\()\S*)\s+)+/, '');
+  const toks = c.split(/\s+/).filter(Boolean).map((t) => t.replace(/^["'(]+|["');|&]+$/g, ''));
+  if (toks.length === 0 || toks[0] === '') return '(empty)';
+  if (toks[0].includes('=')) return '(assignment)';
+  const first = WORD_RE.test(toks[0]) ? toks[0] : '(script)';
   const second = toks[1] || '';
-  if (/^[a-z][a-z0-9-]*$/i.test(second) && !/^-/.test(second)) return `${first} ${second}`;
-  if (/[\\/]/.test(second)) return `${first} ${basename(second)}`.slice(0, 40);
+  if (WORD_RE.test(second) && first !== '(script)') return `${first} ${second}`;
   return first;
 }
 
@@ -145,7 +151,9 @@ export function summarizeTranscript(text, opts = {}) {
         usageById.set(id, { input: 0, cacheRead: 0, cacheCreate: 0, output: 0, thinking: 0 });
       }
     } else if (o.type === 'user') {
-      s.messages.user++;
+      // A human turn, not a tool-result carrier line (those also arrive as `type: "user"`).
+      const carriesResult = Array.isArray(msg.content) && msg.content.some((b) => b && b.type === 'tool_result');
+      if (!carriesResult) s.messages.user++;
     }
     const content = msg.content;
     if (typeof content === 'string') {
