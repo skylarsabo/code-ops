@@ -23,3 +23,5 @@ History regressions cover promotion, delete-and-readd, rename-back, path reuse, 
 Invalid classification is tested with complete and shallow history. Manifest coverage proves that non-string scopes fail. Untracked casing aliases remain visible, and untracked files cannot satisfy exact selectors.
 
 The traceless eval keeps box-drawing trees and text-default symbols clean while retaining presentation emoji and keycap coverage. A temporary Git history proves inherited dash density can be separated only through an ancestor commit. It rejects arbitrary self or copied baselines, unrelated commits with identical trees, untracked recreations, `--git` mixing, and any attempt to suppress a hard-tell category.
+
+The context-audit eval is the first measurement regression. It pins the transcript parser (usage deduplicated by message id, subagent threads apart), the sanitized-versus-raw output rule, and the `SessionEnd` receipt hook (one row, silent stdout, fail-open) against a synthetic fixture that carries no real transcript content.
