@@ -15,6 +15,7 @@ Effort: <default per agent-kind routing (see subagent-trade-offs.md); override o
 Expected return:
   - sections + finding tiers (CONFIRMED / PROBABLE / SPECULATIVE)
   - dense, file:line cited, no raw dumps
+Batching: request every independent item in one tool round; wait only on true dependencies
 Escalation: <what counts as blocked or ambiguous for this task, and that it must escalate
   rather than guess>
 Constraints: <do-not-touch list; no commits unless this brief explicitly says so>
@@ -23,7 +24,9 @@ Constraints: <do-not-touch list; no commits unless this brief explicitly says so
 Objective and Scope bound the work; Context points at orientation material instead of
 re-explaining the codebase; Expected return sets the report shape so the orchestrator
 can merge without re-deriving structure; Escalation and Constraints are the guardrails
-that keep a subagent from improvising past what it was asked.
+that keep a subagent from improvising past what it was asked. The lead dispatches in the
+background and continues independent work; it waits only when the next step depends on
+the result.
 
 ## Per-agent-kind notes
 
@@ -63,4 +66,4 @@ Escalation: if the swallow looks intentional (a comment or test asserts it), sto
 Constraints: do not edit retry.ts; no commits.
 ```
 
-*Verified-at: c2b37e9*
+*Verified-at: d1d86c0*

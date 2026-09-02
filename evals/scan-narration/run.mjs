@@ -17,6 +17,7 @@ const scanner = resolve(here, '..', '..', 'scripts', 'scan-narration.mjs');
 const clean = join(here, 'clean.md');
 const processNarration = join(here, 'process-narration.md');
 const filler = join(here, 'filler.md');
+const mannered = join(here, 'mannered.md');
 const ioThroughput = join(here, 'io-throughput.md');
 const tableRestatement = join(here, 'EXECUTIVE_SUMMARY_TABLE.md');
 const advisory61 = join(here, 'advisory-61.md');
@@ -61,6 +62,12 @@ expect(/RESTATEMENT/.test(tr.stdout || ''), 'EXECUTIVE_SUMMARY_TABLE.md should f
 const f = run([filler]);
 expect(f.status === 0, `filler.md should exit 0 (advisory only), got ${f.status}`);
 expect(/FILLER/.test(f.stdout || ''), 'filler.md should flag FILLER');
+
+// Mannered prose: advisory only, exit 0; the clean summary must not trip it.
+const mn = run([mannered]);
+expect(mn.status === 0, `mannered.md should exit 0 (advisory only), got ${mn.status}`);
+expect(/MANNERED/.test(mn.stdout || ''), 'mannered.md should flag MANNERED');
+expect(!/MANNERED/.test(c.stdout || ''), 'clean.md must not flag MANNERED');
 
 // False-positive guard: "I/O throughput" must never trip PROCESS-NARRATION (or any category).
 const io = run([ioThroughput]);

@@ -15,7 +15,7 @@
 //   node evals/context-audit/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, rmSync, appendFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -62,6 +62,7 @@ if (agg) {
   expect(!Object.keys(m.bashFamilies).some((k) => /[./\\"']/.test(k)), `no family key may carry a path fragment, quote, or extension: ${JSON.stringify(Object.keys(m.bashFamilies))}`);
   expect(m.bashFamilies['rg'] === 3, `a command outside the subcommand allow-list keys as the bare word, got ${JSON.stringify(m.bashFamilies)}`);
   expect(Object.keys(m.bashFamilies).every((k) => /^(\(\w+\)|[A-Za-z][A-Za-z0-9-]*( [A-Za-z][A-Za-z0-9-]*)?)$/.test(k)), `family keys are one or two plain words: ${JSON.stringify(Object.keys(m.bashFamilies))}`);
+  expect(m.largest.length >= 3 && m.largest[0].chars === 32 && m.largest[0].label === 'Bash git status' && m.largest.every((r, i) => i === 0 || m.largest[i - 1].chars >= r.chars), `largest is sorted descending with the 32-char Bash result first, got ${JSON.stringify(m.largest)}`);
   expect(m.repeatReads.paths === 1 && m.repeatReads.extraReads === 1 && m.repeatReads.extraChars === 18, `repeat reads 1/1/18, got ${JSON.stringify(m.repeatReads)}`);
   expect(m.textChars.thinking === 10 && m.textChars.assistant === 5, `text chars thinking 10 / assistant 4+1, got ${JSON.stringify(m.textChars)}`);
   expect(m.firstTs === '2026-09-01T10:00:00.000Z' && m.lastTs === '2026-09-01T10:10:00.000Z', `window, got ${m.firstTs}..${m.lastTs}`);
@@ -126,8 +127,16 @@ try {
   expect(r.sessions === 1 && r.usage.input === 219 && r.durationMs === 600000, `receipts aggregate, got ${rc.stdout.slice(0, 200)}`);
 } catch { fails.push('receipts --json must parse'); }
 
+// A second row from another directory: --all sees both, --cwd root sees one.
+appendFileSync(ledger, JSON.stringify({ v: 1, ts: '2026-09-01T11:00:00.000Z', sessionId: 'other', cwd: join(tmp, 'elsewhere'), durationMs: 1000, models: { 'model-q': 1 }, turns: 1, toolCalls: {}, toolResultChars: 0, files: 1, skipped: 0, tokens: { main: { input: 5, cacheRead: 0, cacheCreate: 0, output: 1, thinking: 0, total: 6 }, subagents: { input: 0, cacheRead: 0, cacheCreate: 0, output: 0, thinking: 0, total: 0 } } }) + '\n');
 const rcAll = run([cli, 'receipts', '--ledger', ledger, '--all', '--json']);
-expect(rcAll.status === 0 && JSON.parse(rcAll.stdout || '{}').sessions === 1, 'receipts --all reads every row');
+expect(rcAll.status === 0 && JSON.parse(rcAll.stdout || '{}').sessions === 2, 'receipts --all reads every row');
+const rcRoot = run([cli, 'receipts', '--ledger', ledger, '--cwd', root, '--json']);
+expect(rcRoot.status === 0 && JSON.parse(rcRoot.stdout || '{}').sessions === 1, 'receipts --cwd filters to one directory even with other rows present');
+// Off switch: no row, no file, exit 0.
+const offLedger = join(tmp, 'off', 'receipts.jsonl');
+const hOff = run([hook], { input: payload, env: { ...process.env, CODE_OPS_RECEIPTS: 'off' } });
+expect(hOff.status === 0 && hOff.stdout === '' && !existsSync(offLedger), 'CODE_OPS_RECEIPTS=off writes nothing and exits 0');
 const rcOther = run([cli, 'receipts', '--ledger', ledger, '--cwd', tmp, '--json']);
 expect(rcOther.status === 0 && JSON.parse(rcOther.stdout || '{}').sessions === 0, 'receipts --cwd filters rows to that directory');
 

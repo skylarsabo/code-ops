@@ -19,6 +19,7 @@
 //   RESTATEMENT        an EXECUTIVE_SUMMARY-shaped file inlining 5+ consecutive register
 //                      table rows instead of linking to the register
 //   FILLER             hedging/ceremony phrases ("it is worth noting", "in conclusion", ...)
+//   MANNERED           metaphor standing in for a direct statement ("earns its keep", ...)
 //
 // Exit: a single tallied verdict, fail-closed wins over hits. 2 = a missing target file or a
 // usage/config error (no target, unknown flag) — reported even when hits were also found,
@@ -154,6 +155,20 @@ const FILLER_CHECKS = [
   { re: /\bimportantly,/i, label: 'importantly,' },
 ];
 
+// Mannered prose (advisory): a metaphor doing the work of a literal phrase.
+const MANNERED_CHECKS = [
+  { re: /\bearns its keep\b/i, label: 'earns its keep' },
+  { re: /\bworth turning\b/i, label: 'worth turning' },
+  { re: /\bnorth star\b/i, label: 'north star' },
+  { re: /\bat the end of the day\b/i, label: 'at the end of the day' },
+  { re: /\bmoves? the needle\b/i, label: 'move the needle' },
+  { re: /\bdouble-edged sword\b/i, label: 'double-edged sword' },
+  { re: /\blow-hanging fruit\b/i, label: 'low-hanging fruit' },
+  { re: /\bsecret sauce\b/i, label: 'secret sauce' },
+  { re: /\bunder the hood\b/i, label: 'under the hood' },
+  { re: /\bbeating heart\b/i, label: 'beating heart' },
+];
+
 // A register table row: `| cell | cell | ... |`. Requires at least two pipe-delimited cells
 // so a single stray '|' in prose (rare, but possible) doesn't count as a row.
 const TABLE_ROW_RE = /^\s*\|.+\|.+\|\s*$/;
@@ -195,6 +210,7 @@ function scanText(label, text) {
     const line = raw.replace(/\r$/, '');
     for (const c of PROCESS_NARRATION_CHECKS) if (c.re.test(line)) hits.hard.push({ cat: 'PROCESS-NARRATION', line: i + 1, snippet: line.trim().slice(0, 70) });
     for (const c of FILLER_CHECKS) if (c.re.test(line)) hits.advisory.push({ cat: 'FILLER', line: i + 1, snippet: line.trim().slice(0, 70) });
+    for (const c of MANNERED_CHECKS) if (c.re.test(line)) hits.advisory.push({ cat: 'MANNERED', line: i + 1, snippet: line.trim().slice(0, 70) });
   });
 
   if (isSummaryArtifact(label)) {

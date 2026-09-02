@@ -23,3 +23,5 @@ ADR 0006 defines the receipted long-horizon runtime: stable prompt prefixes are 
 Admission review has two time domains. Before admission, any bound Git, manifest, candidate, generated-authority, or batch-head change invalidates the plan. Review plans stay at repository-relative ignored paths. The reviewed current path anchors identity, and the matching content commit supplies the citation baseline. After admission, locator-only repair cannot change authority membership or increase reviewed risk counts. Checkout-only transformations never change evidence identity.
 
 The hub now owns a measurements reference under `55 Operations/`, registered as its own manifest domain over the transcript library, the audit CLI, the receipt hook, and their eval. Its rows come from local receipts only. The design note under `10 Design/` that motivates them proposes and never binds.
+
+The writing standard defines mannered prose and a formatting rule. Context hygiene now requires an append-only history, turn-scoped reminders, and whole-history replacement at compaction, with the compaction point set later because cache reads are cheap.

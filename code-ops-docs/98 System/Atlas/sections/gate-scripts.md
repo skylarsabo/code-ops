@@ -31,3 +31,5 @@ All authority writers share a clone-wide lock under Git's common directory. Writ
 The traceless scanner distinguishes Unicode emoji presentation from layout glyphs. Its optional single-file dash baseline reads the same tracked path at an ancestor commit and measures only introduced density. The ordinary absolute threshold remains the default, arbitrary baseline files are rejected, and every hard tell still reads the full current text.
 
 Measurement now has a receipt path of its own. `transcript-lib.mjs` parses the host's local session transcripts with usage deduplicated by message id and subagent threads summarized apart from the main thread. `context-audit.mjs` is its sanitized CLI, and the `SessionEnd` hook is its ledger writer. None of the three touches the model, the network, or the repository tree; a row without a receipt does not enter the measurements reference.
+
+The narration scanner reports mannered prose (metaphor standing in for a literal phrase) as an advisory category beside filler.

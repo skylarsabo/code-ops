@@ -95,6 +95,8 @@ const PINNED_TEXTS = [
   "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript; a finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence",
   "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics — identical readers repeat one another's misreads, and diversity catches what redundancy cannot.",
   'On a host that ignores agent `model:` frontmatter the lead acknowledges that printed floor table and routes every dispatch at or above its floor by hand — a below-floor dispatch is a doctrine violation that `run-cost-audit` records as a `tier-routing` FAIL.',
+  'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.',
+  'A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.',
   'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.',
 ];
 const ALWAYS_GATED_TEXT = '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge';
@@ -130,6 +132,7 @@ const AGENT_ESCALATE = 'If the question is ambiguous, return the open question t
 const AGENT_REDACT_FULL = 'Redact any secrets/PII to `<REDACTED:reason>`; never reproduce a secret value.';
 const AGENT_REDACT_SHORT = 'Redact secrets/PII.';
 const AGENT_DENSE_EVIDENCE = 'Reports must stay dense and evidence-cited — no raw dumps.';
+const AGENT_BATCH = 'Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.';
 const AGENT_TIER_BOUNDARY = "Tier at the evidence you have: label a finding CONFIRMED only when an executed repro or trace appears in your own transcript; a finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.";
 
 const agentBody = (name, model, texts) => `---
@@ -197,8 +200,8 @@ function buildBaseline(root) {
     doneRevalidate: false,
     extra: `\n${ALWAYS_GATED_TEXT}** without explicit developer approval at a checkpoint.\n`,
   }));
-  put(root, 'plugins/code-ops-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
-  put(root, 'plugins/code-ops-suite/agents/reviewer.md', agentBody('reviewer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
+  put(root, 'plugins/code-ops-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL]));
+  put(root, 'plugins/code-ops-suite/agents/reviewer.md', agentBody('reviewer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
 
   // -- rigor: bug-hunt, quality-scan, consistency-closure (all PRODUCER_SELFCHECK) --
   put(root, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify({ name: 'rigor', version: '0.1.0', description: 'fixture rigor plugin' }, null, 2));
@@ -207,8 +210,8 @@ function buildBaseline(root) {
   put(root, 'plugins/rigor/skills/bug-hunt/SKILL.md', skillBody('BUG HUNT'));
   put(root, 'plugins/rigor/skills/quality-scan/SKILL.md', skillBody('QUALITY SCAN'));
   put(root, 'plugins/rigor/skills/consistency-closure/SKILL.md', skillBody('CONSISTENCY CLOSURE'));
-  put(root, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_TIER_BOUNDARY]));
-  put(root, 'plugins/rigor/agents/verifier.md', agentBody('verifier', 'opus', [AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
+  put(root, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
+  put(root, 'plugins/rigor/agents/verifier.md', agentBody('verifier', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
 
   // -- privacy-opsec-suite / researcher: bare SHARED_PASSAGES filler, 0 skills each --
   for (const filler of ['privacy-opsec-suite', 'researcher']) {
@@ -217,10 +220,10 @@ function buildBaseline(root) {
     put(root, `plugins/${filler}/README.md`, `# ${filler} (fixture)\n\nNo skills — SHARED_PASSAGES filler only.\n`);
   }
   // -- privacy-opsec-suite / researcher agents (AGENT_SHARED_PASSAGES filler) --
-  put(root, 'plugins/privacy-opsec-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_ESCALATE]));
-  put(root, 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md', agentBody('privacy-reviewer', 'opus', [AGENT_ESCALATE, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
-  put(root, 'plugins/researcher/agents/claim-checker.md', agentBody('claim-checker', 'sonnet', [AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE]));
-  put(root, 'plugins/researcher/agents/gatherer.md', agentBody('gatherer', 'haiku', [AGENT_ESCALATE, AGENT_REDACT_FULL]));
+  put(root, 'plugins/privacy-opsec-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_BATCH, AGENT_ESCALATE]));
+  put(root, 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md', agentBody('privacy-reviewer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
+  put(root, 'plugins/researcher/agents/claim-checker.md', agentBody('claim-checker', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/researcher/agents/gatherer.md', agentBody('gatherer', 'haiku', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL]));
 
   // -- handbook (router index + one page per plugin) --
   put(root, 'code-ops-docs/40 Engineering/Handbook/commands/README.md', [

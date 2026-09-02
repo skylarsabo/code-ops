@@ -8,8 +8,8 @@
 // before-and-after arms come from normal work on the same repository.
 //
 // Ledger: $CODE_OPS_RECEIPTS, else `~/.claude/code-ops/session-receipts.jsonl` — a home-dir
-// file on purpose, so it can never be committed by accident. Read it with
-// `node scripts/context-audit.mjs receipts`.
+// file on purpose, so it can never be committed by accident. `CODE_OPS_RECEIPTS=off` (or `0`,
+// `false`) disables the hook. Read the ledger with `node scripts/context-audit.mjs receipts`.
 //
 // Fail-open on every path: bad stdin, missing transcript, unwritable ledger → exit 0 silently.
 // stdin may never close on some Windows shells, so a short timer finishes with what arrived.
@@ -38,6 +38,7 @@ function finish() {
 
 async function doFinish() {
   try {
+    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECEIPTS || '')) return;
     const payload = JSON.parse(input.replace(/^\uFEFF/, ''));
     const transcript = typeof payload?.transcript_path === 'string' ? payload.transcript_path : '';
     if (!transcript || !existsSync(transcript)) return;

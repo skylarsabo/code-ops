@@ -36,6 +36,18 @@ When the main context has grown past usefulness, prefer a fresh subagent with a 
 brief over dragging history forward. The brief names the files and the artifacts. That
 *is* the compaction, and it carries no accumulated noise.
 
+Keep the conversation history append-only. Never edit, summarize in place, or remove an
+earlier turn, because the host's prompt cache and any bound thinking blocks restart from
+the first changed byte. Send a per-turn reminder as a turn-scoped message, and change
+instructions with a mid-conversation system message rather than a rewritten system prompt.
+
+When compaction is unavoidable, replace the whole history with one summary plus the new
+turn and replay nothing else. Cache reads are cheap on current models, so a later
+compaction point often costs less than an early one. The summary keeps the six items the
+PreCompact hook names: problems and how each was resolved, options tried or set aside,
+every stated constraint and decision in its exact words, where things stand, what is still
+open, and the exact names, numbers, and references that are hard to reconstruct.
+
 ## Treat acceleration as optional
 
 A live subagent or host may retain reusable context. Batch known follow-ups when that

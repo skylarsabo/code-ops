@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.19.0
+- Both operatives batch independent tool calls in one round. Conventions carry the finish-the-turn check and the scope-discipline rule for implementation work.
+
 ## 1.18.4
 - The shipped OpSec workflow example now pins checkout and the Claude Code action to reviewed immutable commits.
 

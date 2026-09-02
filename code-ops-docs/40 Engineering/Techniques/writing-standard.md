@@ -64,6 +64,22 @@ Rules serve the principles, not the reverse.
 - Keep lists to one level. Flatten a nested list into its parent item.
 - Do not mix instructions and description in one list.
 
+## Mannered prose
+
+Mannered prose substitutes metaphor and flourish for direct statement: "a dial worth
+turning" for "a parameter worth varying", "earns its keep" for "still matters". The
+phrase displays the writer instead of conveying the idea, and it drags in connotations the
+writer did not choose. When a literal phrase exists, use it. The narration scanner reports
+the common forms as an advisory.
+
+## Formatting
+
+- Use lists and headers when the content is multifaceted enough that they help, or when
+  the reader asks for them.
+- When the reader asks for minimal formatting, use none.
+- In a conversational exchange, keep to plain prose.
+- Bold the first words of a bullet, never a whole sentence.
+
 ## The adaptation for code
 
 The source standard was written for aircraft maintenance manuals. These clauses replace

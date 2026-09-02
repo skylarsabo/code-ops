@@ -710,6 +710,10 @@ const SHARED_PASSAGES = [
     text: "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics — identical readers repeat one another's misreads, and diversity catches what redundancy cannot." },
   { id: 'tier-floor-carrier', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
     text: 'On a host that ignores agent `model:` frontmatter the lead acknowledges that printed floor table and routes every dispatch at or above its floor by hand — a below-floor dispatch is a doctrine violation that `run-cost-audit` records as a `tier-routing` FAIL.' },
+  { id: 'last-paragraph-check', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: 'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.' },
+  { id: 'scope-discipline', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: 'A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.' },
   { id: 'writing-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
     text: 'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.' },
 ];
@@ -735,8 +739,14 @@ const AGENT_SHARED_PASSAGES = [
     text: 'Redact secrets/PII.' },
   { id: 'agent-dense-evidence-cited', files: AGENTS(
       'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
-      'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md'),
+      'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md', 'plugins/rigor/agents/tracer.md'),
     text: 'dense and evidence-cited' },
+  { id: 'agent-batch-tool-calls', files: AGENTS(
+      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md',
+      'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+      'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
+      'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
+    text: 'Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.' },
   { id: 'agent-tier-boundary', files: AGENTS(
       'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
