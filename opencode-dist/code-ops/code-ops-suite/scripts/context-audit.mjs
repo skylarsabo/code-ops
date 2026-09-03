@@ -5,7 +5,7 @@
 //
 //   node scripts/context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>]
 //                                  [--top N] [--json] [--raw] [--out <file>]
-//   node scripts/context-audit.mjs receipts [--ledger <file>] [--json] [--cwd <dir> | --all]
+//   node scripts/context-audit.mjs receipts [--ledger <file>] [--json] [--cwd <dir> | --all] [--by-arm]
 //
 // Default transcript dir: `~/.claude/projects/<slug of --cwd or the current directory>`.
 // Default ledger: $CODE_OPS_RECEIPTS or `~/.claude/code-ops/session-receipts.jsonl`.
@@ -23,14 +23,14 @@ import { defaultTranscriptDir, summarizeDirectory, renderMarkdown, mergeSummarie
 
 function usage() {
   console.error('usage: context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>] [--top N] [--json] [--raw] [--out <file>]');
-  console.error('       context-audit.mjs receipts [--ledger <file>] [--cwd <dir> | --all] [--json]');
+  console.error('       context-audit.mjs receipts [--ledger <file>] [--cwd <dir> | --all] [--json] [--by-arm]');
   process.exit(2);
 }
 
 const argv = process.argv.slice(2);
 const mode = argv[0] === 'receipts' ? 'receipts' : 'transcripts';
 if (mode === 'receipts') argv.shift();
-const opt = { transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false };
+const opt = { transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false, byArm: false };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const need = () => { const v = argv[++i]; if (v === undefined || v.startsWith('--')) usage(); return v; };
@@ -43,6 +43,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--out') opt.out = need();
   else if (a === '--ledger') opt.ledger = need();
   else if (a === '--all') opt.all = true;
+  else if (a === '--by-arm') opt.byArm = true;
   else usage();
 }
 if (opt.since && !Number.isFinite(Date.parse(opt.since))) usage();
@@ -86,6 +87,50 @@ for (const line of readFileSync(ledger, 'utf8').split('\n')) {
 }
 const wanted = opt.all ? null : resolve(opt.cwd).replace(/\\/g, '/').toLowerCase();
 const mine = rows.filter((r) => !wanted || String(r.cwd || '').replace(/\\/g, '/').toLowerCase() === wanted);
+// --by-arm: one group per combination of opt-in switches a session ran under, so an arm reads
+// against its control on the same repository. Rows written before the switches were recorded
+// group as `unknown`. Every figure is a per-session mean, because arms have different counts.
+const armKey = (r) => {
+  if (!r.arms || typeof r.arms !== 'object') return 'unknown';
+  const on = Object.entries(r.arms).filter(([, v]) => v === true).map(([k]) => k).sort();
+  return on.length ? on.join('+') : 'none';
+};
+if (opt.byArm) {
+  const groups = new Map();
+  for (const r of mine) {
+    const key = armKey(r);
+    if (!groups.has(key)) groups.set(key, { arm: key, sessions: 0, durationMs: 0, tokens: 0, input: 0, cacheRead: 0, output: 0, toolResultChars: 0, contextAtEnd: 0, turns: 0, toolCalls: 0 });
+    const g = groups.get(key);
+    g.sessions++;
+    g.durationMs += Number(r.durationMs) || 0;
+    for (const scope of ['main', 'subagents']) {
+      const u = r.tokens?.[scope];
+      if (!u) continue;
+      g.input += Number(u.input) || 0; g.cacheRead += Number(u.cacheRead) || 0; g.output += Number(u.output) || 0;
+      g.tokens += (Number(u.input) || 0) + (Number(u.cacheRead) || 0) + (Number(u.cacheCreate) || 0) + (Number(u.output) || 0);
+    }
+    g.toolResultChars += Number(r.toolResultChars) || 0;
+    g.contextAtEnd += Number(r.contextAtEnd) || 0;
+    g.turns += Number(r.turns) || 0;
+    g.toolCalls += Object.values(r.toolCalls || {}).reduce((n, v) => n + (Number(v) || 0), 0);
+  }
+  const arms = [...groups.values()].sort((a, b) => a.arm.localeCompare(b.arm));
+  const per = (g, k) => (g.sessions ? g[k] / g.sessions : 0);
+  const means = arms.map((g) => ({ arm: g.arm, sessions: g.sessions, perSession: {
+    minutes: per(g, 'durationMs') / 60000, tokens: per(g, 'tokens'), input: per(g, 'input'), cacheRead: per(g, 'cacheRead'), output: per(g, 'output'),
+    toolResultChars: per(g, 'toolResultChars'), contextAtEnd: per(g, 'contextAtEnd'), turns: per(g, 'turns'), toolCalls: per(g, 'toolCalls'),
+    toolResultCharsPerTurn: per(g, 'turns') ? per(g, 'toolResultChars') / per(g, 'turns') : 0 } }));
+  if (opt.json) emit(JSON.stringify({ v: 1, byArm: means }, null, 2));
+  else {
+    const f = (n, d = 0) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: d });
+    const L = ['# Session receipts by arm', '', 'Per-session means. An arm reads against `none` on the same directory; `unknown` rows predate the switch record.', '',
+      '| Arm | Sessions | Minutes | Tokens | Cache read | Output | Tool-result chars | Per turn | Context at end | Tool calls |',
+      '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'];
+    for (const m of means) L.push(`| ${m.arm} | ${m.sessions} | ${f(m.perSession.minutes, 1)} | ${f(m.perSession.tokens)} | ${f(m.perSession.cacheRead)} | ${f(m.perSession.output)} | ${f(m.perSession.toolResultChars)} | ${f(m.perSession.toolResultCharsPerTurn)} | ${f(m.perSession.contextAtEnd)} | ${f(m.perSession.toolCalls)} |`);
+    emit(L.join('\n'));
+  }
+  process.exit(0);
+}
 const sum = emptySummary();
 const byModel = {};
 let durationMs = 0;

@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.61.0
+- `hooks/session-receipt.mjs` records `arms` (which of `CODE_OPS_DIGEST`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_INDEX` the session ran under) and `contextAtEnd` (the tokens the last assistant message carried in) on every row. `context-audit.mjs receipts --by-arm` groups rows by that record and prints per-session means, so an arm reads against its control. The measurement page pre-registers the schedule and the decision rules.
+
 ## 1.60.0
 - `scripts/context-query.mjs` is the query-able symbol index: `find`, `callers`, `callees`, `blast`, and `explore` answer with `file:line` anchors, one-line signatures, and edge lists over a home-directory index keyed by content sha, never a verbatim dump. A call resolves same-file, then through an imported name (aliases included), then tree-wide as ambiguous, else unresolved, and the ceiling is printed on every edge result. A result touching a file changed since the build carries a stale banner. `explore` stops at `--budget` with `BUDGET_EXCEEDED` and appends bodies only under `--with-source`.
 - `scripts/symbol-lib.mjs` holds the definition rules, definition spans, call sites, and import edges. `skim.mjs` now imports its rules from it, so the outline and the index agree.

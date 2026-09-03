@@ -80,3 +80,33 @@ Each mechanism ships behind a per-repo switch. A row is added only with the swit
 The ladder card (`hooks/ladder-card.mjs`, switch `CODE_OPS_LADDER_CARD`) is the Workstream B arm. Its row compares implementer subagent transcripts with the card against the brief-only control on diff line count, tokens, and the correctness gate, and the card is removed if it does not win.
 
 The symbol index (`context-query.mjs`, hook `index-refresh.mjs`, switch `CODE_OPS_INDEX`) is the Workstream C arm. Its row compares sessions that answer a structural question through the query tool against sessions that read the map, on tool calls, tokens, and the context resident at session end, which is the metric codegraph loses on.
+
+## Pre-registered comparison, Phase 6
+
+Every receipt row records which opt-in switches the session ran under, in `arms`, and the
+context resident at session end, in `contextAtEnd`. `node scripts/context-audit.mjs receipts
+--by-arm` groups rows by that record and prints per-session means, so an arm reads against the
+`none` control on the same directory with the same command. Rows written before the record
+existed group as `unknown` and are not a control.
+
+The schedule is one arm at a time on this repository, ten sessions each, in this order: `none`,
+`digest`, `digest+index`, `digest+index+ladderCard`. A session counts when it ends normally and
+lasts over five minutes. The switches live in the ignored `.claude/settings.local.json` of this
+checkout, never in the tracked settings, so the arm is a property of this machine's sessions.
+
+The decision rules are fixed before the rows exist:
+
+- **Digest.** The default flips on when tool-result characters per turn fall by at least a
+  quarter against `none`, total tokens per session do not rise, and every eval stays green. A
+  smaller fall keeps the switch opt-in. A rise in tokens per session removes the hook.
+- **Index.** The index stays when context at end and tool-result characters per session both
+  fall against the preceding arm with tool calls per session not up by more than a tenth. Any
+  other outcome removes the refresh hook and keeps the query tool as a plain command.
+- **Ladder card.** The card stays when subagent tokens per session fall against the preceding
+  arm with the deterministic gates green on the same work. Any other outcome removes the hook,
+  and the ladder stays where it is, in the briefs and the conventions.
+
+A row is published here with the arm, the window, the session count, the four per-session
+means the rule reads, and the receipt of the `--by-arm` run. Evidence:
+`plugins/code-ops-suite/hooks/session-receipt.mjs:68-71`, `scripts/context-audit.mjs:93-132`,
+and `scripts/transcript-lib.mjs:212`.
