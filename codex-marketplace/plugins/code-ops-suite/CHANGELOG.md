@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.54.0
+- The model review gates are opt-in. `ship` asks at its first checkpoint whether to run them, recommends yes only for a high-risk surface or a delegated review, and otherwise ships on the deterministic chain and the lead's own diff read. `local-review-gate` opens with a checkpoint and never starts from another skill's judgment. `pr-split` follows the same rule per branch. The conventions carry the rule as a safety rail.
+
 ## 1.53.0
 - `scripts/co.mjs` is one entrypoint over the canonical scripts: `co <domain> <verb> [args...]` resolves the verb to a sibling script through a static table, rewrites `process.argv`, and imports it, so the wrapped script's exit code and output are its own. `co --help` lists every domain and verb; an unknown domain, an unknown verb, or a verb whose script this plugin does not vendor exits 2.
 - `scripts/cli-lib.mjs` collects the flag parser, usage and exit helpers, git wrapper, and file walker that the canonical scripts had rewritten one per file. No script migrates onto it in this release; it ships beside `co.mjs` so the first domain migration is a one-file diff.

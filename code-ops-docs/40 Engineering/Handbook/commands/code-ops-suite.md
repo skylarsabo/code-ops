@@ -202,7 +202,7 @@ A quick orientation for newcomers: the suite has three shapes of work. **Assess*
 
 **Why it's useful.** It pays for judgment once on the operator's local host, before review latency and hosted Actions begin, while keeping merge evidence bound to the exact bytes reviewed. One fixture matrix also removes the duplicated scheduled and dispatch workflow definitions.
 
-**When to use it.** Use Track A for every change that will become a PR. Use Track B for scheduled quality trends or explicit model-floor calibration. Do not reuse receipts after changing HEAD or updating the base, and do not treat judgment-eval results as merge gates.
+**When to use it.** Use Track A when the operator opts in: a change that touches a high-risk surface, or one the operator wants reviewed by name. It is not the default for every PR; the deterministic chain and the lead's diff read are. Use Track B for scheduled quality trends or explicit model-floor calibration. Do not reuse receipts after changing HEAD or updating the base, and do not treat judgment-eval results as merge gates.
 
 **Prerequisites & hand-offs.** Track A requires `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate`, a clean committed feature branch, and `gh` only when publishing GitHub statuses. Track B requires the tracked judgment matrix and the repository scorer. `ship` invokes Track A before push.
 
@@ -463,7 +463,7 @@ Orchestrators do not replace the individual skills — they run them in a sensib
 
 **Sibling disambiguation — `ship` vs `debug` vs `feature-implementation`.** `ship` implements one *new* change (feature or one-off) end-to-end with proof and a traceless finish. `debug` starts from a *symptom* and drives reproduce → isolate → root-cause → fix-with-regression-proof → traceless ship; reach for it when something is broken, not when you're adding capability. `feature-implementation` builds a *set* of already-specified features incrementally from `feature-discovery` specs — it is the batch builder, where `ship` is the single-change end-to-end driver.
 
-**Prerequisites & hand-offs.** **Requires `rigor` and `privacy-opsec-suite` for the local review gate.** Composes `rigor` (safety-net, proof, regression guard), the privacy leak gate, `local-review-gate`, and `pr-split` + `authorship-hygiene` for the finish.
+**Prerequisites & hand-offs.** **Requires `rigor`, and `privacy-opsec-suite` when the change touches a privacy surface.** Composes `rigor` (safety-net, proof, regression guard), the privacy leak gate, `local-review-gate` only when the operator opted in at Phase 0, and `pr-split` + `authorship-hygiene` for the finish.
 
 ### `/code-ops-suite:debug`
 **Mode:** orchestrator
