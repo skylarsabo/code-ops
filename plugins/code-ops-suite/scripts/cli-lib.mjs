@@ -7,10 +7,9 @@
 // place those live.
 //
 // Scripts migrate onto it one domain at a time, so a migration diff stays reviewable and a
-// regression stays attributable. This slice migrates none of them: every existing script keeps
-// its private copies until its domain moves, and this module has no consumer yet beyond its
-// regression eval. It ships now, and beside `scripts/co.mjs`, so the first domain migration is
-// a one-file diff rather than a new file plus four vendored copies plus a version bump.
+// regression stays attributable. The `scan` domain is migrated: the seven scripts behind
+// `co scan <verb>` parse their flags here. Every other script keeps its private copies until
+// its own domain moves.
 //
 // `co.mjs` deliberately does NOT import this module. A plugin can vendor `co.mjs` without the
 // script a verb names, and `co.mjs` has to survive that to report it — so it stays free of
@@ -35,15 +34,24 @@ export class UsageError extends Error {
 // parseFlags(argv, spec) -> { flags, positional }
 //
 // `argv` is the argument list without the node binary and the script path. `spec` maps a
-// flag name (no leading dashes) to `{ value, required, default }`. `value: true` takes the
-// next argument; `value: false` is a boolean present/absent switch. Everything that is not
-// a known flag or its value becomes a positional. A bare `--` ends flag parsing: every
-// remaining argument is positional, including one that starts with a dash.
+// flag name (no leading dashes) to a rule:
+//   value     `true` takes the next argument, `false` is a present/absent switch
+//   default   the value the flag carries when it is absent
+//   required  throw when the flag is absent
+//   many      collect every occurrence into an array; an absent flag is `[]`
+//   raw       take a flag-shaped next argument as the value, for a flag whose own check
+//             must report a smuggled option (`--git --output=x`) by name
+//   missing   the message tail for a missing value, so a migrated script keeps the wording
+//             its callers already pin
+// Everything that is not a known flag or its value becomes a positional. A bare `--` ends
+// flag parsing: every remaining argument is positional, including one that starts with a dash.
 export function parseFlags(argv, spec = {}) {
   const flags = {};
   const positional = [];
+  const take = (name, rule, value) => { if (rule.many) flags[name].push(value); else flags[name] = value; };
   for (const [name, rule] of Object.entries(spec)) {
-    if (rule && 'default' in rule) flags[name] = rule.default;
+    if (rule && rule.many) flags[name] = [];
+    else if (rule && 'default' in rule) flags[name] = rule.default;
   }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -58,21 +66,26 @@ export function parseFlags(argv, spec = {}) {
     const eq = arg.indexOf('=');
     const name = (eq === -1 ? arg : arg.slice(0, eq)).slice(2);
     const rule = Object.hasOwn(spec, name) ? spec[name] : undefined;
-    if (!rule) throw new UsageError(`unknown flag: --${name}`);
+    // The wording is the one every migrated gate script already reports, so a caller that
+    // pins the message keeps it after the migration.
+    if (!rule) throw new UsageError(`unknown argument: --${name}`);
     if (!rule.value) {
       if (eq !== -1) throw new UsageError(`--${name} takes no value`);
       flags[name] = true;
       continue;
     }
     if (eq !== -1) {
-      flags[name] = arg.slice(eq + 1);
+      take(name, rule, arg.slice(eq + 1));
       continue;
     }
     // A following flag is not a value: `--out --json` is a missing value, not a file named
-    // `--json`, the same rule the subcommand scripts already enforce by hand.
+    // `--json`, the same rule the subcommand scripts already enforce by hand. `raw` opts out,
+    // because a flag that rejects option smuggling has to see the smuggled token.
     const next = argv[i + 1];
-    if (next === undefined || next.startsWith('--')) throw new UsageError(`--${name} requires a value`);
-    flags[name] = next;
+    if (next === undefined || (!rule.raw && next.startsWith('--'))) {
+      throw new UsageError(`--${name} ${rule.missing ?? 'requires a value'}`);
+    }
+    take(name, rule, next);
     i++;
   }
   for (const [name, rule] of Object.entries(spec)) {
@@ -92,6 +105,18 @@ export function usage(lines, code = 2) {
 export function die(message, code = 1) {
   console.error(`x ${message}`);
   process.exit(code);
+}
+
+// parseFlags, reported the way a gate script reports a caller error: `x <message>` on stderr,
+// the script's own usage line under it when one is given, exit 2. Every migrated script wants
+// that shape, so none of them keeps a private try/catch for it.
+export function parseOrDie(argv, spec, usageLine = null) {
+  try {
+    return parseFlags(argv, spec);
+  } catch (error) {
+    if (!(error instanceof UsageError)) throw error;
+    usage(usageLine === null ? `x ${error.message}` : [`x ${error.message}`, usageLine], 2);
+  }
 }
 
 // Run git and return trimmed stdout. stderr is discarded and stdin is closed, so a git

@@ -41,35 +41,31 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
+import { die, parseOrDie, usage } from './cli-lib.mjs';
 
-const usage = () => {
-  console.error('usage: check-autofix-scope.mjs (--diff <file> | --git <ref>) [--interactive] [--level auto-safe|gated] [--root <repo>] [--require-test]');
-  process.exit(2);
-};
+const USAGE = 'usage: check-autofix-scope.mjs (--diff <file> | --git <ref>) [--interactive] [--level auto-safe|gated] [--root <repo>] [--require-test]';
 
-const argv = process.argv.slice(2);
-let root = '.', diffFile = null, gitRef = null, interactive = false, level = null, requireTest = false;
-for (let i = 0; i < argv.length; i++) {
-  const a = argv[i];
-  if (a === '--root') {
-    root = argv[++i];
-    if (root === undefined || root.trim() === '' || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
-  } else if (a === '--diff') {
-    diffFile = argv[++i];
-    if (diffFile === undefined || diffFile.startsWith('--')) { console.error('x --diff needs a file'); process.exit(2); }
-  } else if (a === '--git') {
-    gitRef = argv[++i]; // option-like values are rejected below with a specific message, before git runs
-    if (gitRef === undefined) { console.error('x --git needs a ref'); process.exit(2); }
-  } else if (a === '--level') {
-    level = argv[++i];
-    // fail closed on a malformed gate config rather than silently treating a typo as "denied anyway"
-    if (level !== 'auto-safe' && level !== 'gated') { console.error(`x --level must be auto-safe or gated (got: ${level ?? '<missing>'})`); process.exit(2); }
-  } else if (a === '--interactive') interactive = true;
-  else if (a === '--require-test') requireTest = true;
-  else { console.error(`x unknown argument: ${a}`); usage(); }
-}
-if ((diffFile === null) === (gitRef === null)) usage(); // exactly one diff source
-root = resolve(root);
+// `raw` on --git and --level so a flag-shaped value reaches this script's own check: --git
+// rejects option smuggling by name below, before git runs, and --level names the typo it got.
+const { flags, positional } = parseOrDie(process.argv.slice(2), {
+  root: { value: true, default: '.', missing: 'needs a path' },
+  diff: { value: true, missing: 'needs a file' },
+  git: { value: true, raw: true, missing: 'needs a ref' },
+  level: { value: true, raw: true, missing: 'must be auto-safe or gated (got: <missing>)' },
+  interactive: { value: false },
+  'require-test': { value: false },
+}, USAGE);
+if (positional.length) usage([`x unknown argument: ${positional[0]}`, USAGE], 2);
+const diffFile = flags.diff ?? null;
+const gitRef = flags.git ?? null;
+const level = flags.level ?? null;
+const interactive = flags.interactive === true;
+const requireTest = flags['require-test'] === true;
+if (flags.root.trim() === '') die('--root needs a path', 2);
+// fail closed on a malformed gate config rather than silently treating a typo as "denied anyway"
+if (level !== null && level !== 'auto-safe' && level !== 'gated') die(`--level must be auto-safe or gated (got: ${level})`, 2);
+if ((diffFile === null) === (gitRef === null)) usage(USAGE, 2); // exactly one diff source
+const root = resolve(flags.root);
 
 // ---------- config: optional .autofix-scope.json at --root ----------
 // Read if present. Malformed content or wrong types exit 2 — a broken gate config must never
@@ -79,17 +75,17 @@ const cfgPath = join(root, '.autofix-scope.json');
 if (existsSync(cfgPath)) {
   let raw;
   try { raw = JSON.parse(readFileSync(cfgPath, 'utf8')); }
-  catch (e) { console.error(`x malformed .autofix-scope.json: ${e.message}`); process.exit(2); }
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) { console.error('x .autofix-scope.json must be a JSON object'); process.exit(2); }
+  catch (e) { die(`malformed .autofix-scope.json: ${e.message}`, 2); }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) die('.autofix-scope.json must be a JSON object', 2);
   if (raw.extraDenyGlobs !== undefined) {
     if (!Array.isArray(raw.extraDenyGlobs) || raw.extraDenyGlobs.some((g) => typeof g !== 'string' || g.length === 0)) {
-      console.error('x .autofix-scope.json: extraDenyGlobs must be an array of non-empty strings'); process.exit(2);
+      die('.autofix-scope.json: extraDenyGlobs must be an array of non-empty strings', 2);
     }
     cfg.extraDenyGlobs = raw.extraDenyGlobs;
   }
   for (const k of ['maxLines', 'maxFiles']) {
     if (raw[k] !== undefined) {
-      if (typeof raw[k] !== 'number' || !Number.isFinite(raw[k]) || raw[k] < 1) { console.error(`x .autofix-scope.json: ${k} must be a positive number`); process.exit(2); }
+      if (typeof raw[k] !== 'number' || !Number.isFinite(raw[k]) || raw[k] < 1) die(`.autofix-scope.json: ${k} must be a positive number`, 2);
       cfg[k] = Math.floor(raw[k]);
     }
   }
@@ -98,7 +94,7 @@ if (existsSync(cfgPath)) {
 // ---------- diff acquisition ----------
 let label, diffText;
 if (diffFile !== null) {
-  if (!existsSync(diffFile)) { console.error(`x diff file not found: ${diffFile}`); process.exit(2); }
+  if (!existsSync(diffFile)) die(`diff file not found: ${diffFile}`, 2);
   diffText = readFileSync(diffFile, 'utf8');
   label = diffFile;
 } else {
@@ -106,10 +102,10 @@ if (diffFile !== null) {
   // Also reject option-like tokens (leading '-') so a ref value cannot smuggle git options
   // (e.g. --output=<path>); a real rev never starts with '-'. A trailing '--' marks end-of-options.
   const refTokens = gitRef.split(/\s+/).filter(Boolean);
-  if (refTokens.length === 0) { console.error('x --git needs a ref'); process.exit(2); }
-  if (refTokens.some((t) => t.startsWith('-'))) { console.error(`x --git ref must not contain option-like tokens: ${gitRef}`); process.exit(2); }
+  if (refTokens.length === 0) die('--git needs a ref', 2);
+  if (refTokens.some((t) => t.startsWith('-'))) die(`--git ref must not contain option-like tokens: ${gitRef}`, 2);
   try { diffText = execFileSync('git', ['diff', ...refTokens, '--'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 10000 }); }
-  catch (e) { console.error(`x git diff ${gitRef} failed: ${e.message}`); process.exit(2); }
+  catch (e) { die(`git diff ${gitRef} failed: ${e.message}`, 2); }
   label = `git ${gitRef}`;
 }
 

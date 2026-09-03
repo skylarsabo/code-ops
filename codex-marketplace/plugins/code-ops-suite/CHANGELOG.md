@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.63.0
+- The `scan` domain moves onto `cli-lib.mjs`: `scan-ai-tells.mjs`, `scan-narration.mjs`, `scan-redaction.mjs`, `scan-injection-tells.mjs`, `check-autofix-scope.mjs`, `scan-overbuild.mjs`, and `harvest-deferrals.mjs` drop their hand-rolled argv loops for `parseFlags` and `parseOrDie`. Every flag, positional, exit code, and message stays as it was, and the seven regression evals pass untouched.
+- `parseFlags` gains three opt-in rule keys: `many` for a repeatable flag, `raw` for a flag whose own check must see a smuggled option, and `missing` for the wording a caller already pins.
+- `debug`, `handoff`, `pr-split`, `run-cost-audit`, and `ship` invoke these scripts as `co.mjs scan <verb>` instead of by path. The direct paths still work.
+- `lint-plugins.mjs` resolves a façade reference through co.mjs's verb table, so `co.mjs scan <verb>` carries the same bundling requirement as the direct path, and a verb the table does not carry fails closed.
+
 ## 1.62.0
 - `context-query.mjs refresh --provider ctags|codegraph|none` adds two optional fidelity providers, detected at use and treated as data. With `ctags` an installed Universal Ctags runs over the files about to be parsed and its definitions merge into a file only on a line the line rules left free, each marked `source` and mapped onto the index's own kinds. `codegraph` is detected and reported, not ingested. A provider that is absent prints one line and the line rules stand alone, so a refresh never fails for a missing tool. The index records the providers its definitions came from and `status` prints them.
 - `preflight.mjs` prints `ctags` and `codegraph` as present or absent beside its other capability lines. Neither absence can fail a preflight.

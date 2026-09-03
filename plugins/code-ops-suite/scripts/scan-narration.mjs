@@ -28,20 +28,17 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
+import { parseOrDie, usage } from './cli-lib.mjs';
 
 const USAGE = 'usage: scan-narration.mjs <file> [...more] [--report-only] [--help]';
 
 const argv = process.argv.slice(2);
-let reportOnly = false;
-const files = [];
-for (const a of argv) {
-  if (a === '--help' || a === '-h') { console.log(USAGE); process.exit(0); }
-  else if (a === '--report-only') reportOnly = true;
-  // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
-  // otherwise silently scan nothing relevant and report clean.
-  else if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
-  else files.push(a);
-}
+// `-h` carries one dash, which the shared parser leaves as a positional, so help is answered
+// before the parse. An unrecognized --flag never falls through to "treat it as a file" — a
+// typo'd flag would otherwise silently scan nothing relevant and report clean.
+if (argv.includes('--help') || argv.includes('-h')) { console.log(USAGE); process.exit(0); }
+const { flags, positional: files } = parseOrDie(argv, { 'report-only': { value: false } });
+const reportOnly = flags['report-only'] === true;
 
 // The "roughly one page" bound from CONVENTIONS §12 (length discipline for run summaries):
 // advisory once a report drifts past a page, hard once it's clearly a transcript, not a synthesis.
@@ -247,7 +244,7 @@ for (const f of files) {
   if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
 }
-if (targets.length === 0 && !hadError) { console.error(USAGE); process.exit(2); }
+if (targets.length === 0 && !hadError) usage(USAGE);
 
 let hardTotal = 0, advisoryTotal = 0;
 for (const t of targets) {

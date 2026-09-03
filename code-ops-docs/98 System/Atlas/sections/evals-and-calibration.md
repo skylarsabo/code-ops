@@ -24,4 +24,6 @@ Invalid classification is tested with complete and shallow history. Manifest cov
 
 The traceless eval keeps box-drawing trees and text-default symbols clean while retaining presentation emoji and keycap coverage. A temporary Git history proves inherited dash density can be separated only through an ancestor commit. It rejects arbitrary self or copied baselines, unrelated commits with identical trees, untracked recreations, `--git` mixing, and any attempt to suppress a hard-tell category.
 
+The façade eval now pins the migrated domain end to end. Every `scan` verb must answer `--help` with the same exit code, stdout, and stderr as its own script, so a shared flag parser cannot quietly reword a gate. The lint eval adds the façade-reference cases: an unbundled verb script and a verb outside the table both fail closed, and the same reference passes once the script is bundled.
+
 The context-audit eval is the first measurement regression. It pins the transcript parser (usage deduplicated by message id, subagent threads apart), the sanitized-versus-raw output rule, and the `SessionEnd` receipt hook (one row, silent stdout, fail-open) against a synthetic fixture that carries no real transcript content.
