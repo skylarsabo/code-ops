@@ -30,4 +30,4 @@ Vault migration must make irreversible judgment durable. The skill plans genesis
 
 The code-ops package now carries a third hook. `session-receipt.mjs` runs at `SessionEnd`, prints nothing to the model, and appends one exact-usage row per session to a home-directory ledger. It imports `transcript-lib.mjs` from the plugin's vendored scripts, so that library and its CLI reader `context-audit.mjs` are vendored-manifest entries even though no skill invokes them yet.
 
-A fourth hook, `precompact-preserve.mjs`, hands every compaction the six-item preservation instruction as `additionalContext`. Every bundled agent now carries the batch-independent-tool-calls clause, pinned like the other agent passages.
+A fourth hook, `precompact-preserve.mjs`, prints the six-item preservation instruction on stdout, which the host reads as the compaction's custom instructions. Every bundled agent now carries the batch-independent-tool-calls clause, pinned like the other agent passages.

@@ -4,8 +4,10 @@
 //
 // WHY: a client-side summary that drops a decision, a constraint, or an exact identifier
 // costs a full re-derivation later. The six items below are the ones a resumed session
-// cannot reconstruct from the tree alone. The text is emitted as `additionalContext` and
-// reaches only the compaction step, never an ordinary turn, so it adds no per-turn tokens.
+// cannot reconstruct from the tree alone. The host reads a PreCompact hook's raw stdout as
+// the compaction's custom instructions (there is no structured field for this event), so
+// the text is printed plain. It reaches only the compaction step, never an ordinary turn,
+// so it adds no per-turn tokens.
 //
 // No stdin parsing; the payload (compaction_trigger, transcript_path) is irrelevant to the
 // instruction. Fail-open: any error exits 0 with no output.
@@ -19,13 +21,12 @@ const INSTRUCTION = [
   '(5) everything still open, unresolved, promised, or expected next;',
   '(6) names, numbers, dates, paths, commit ids, register ids, links, and exact wording that would be hard to reconstruct.',
   "Keep what the developer said, asked for, or established close to their own words. Condense the assistant's own reasoning to its conclusions and outputs. Be complete on the six items even at the cost of length, and concise on everything else.",
+  'Keep every `<REDACTED:reason>` marker as it stands and never restore a redacted value.',
   'Run artifacts on disk (registers, ledgers, receipts, HANDOFF.md) remain the authority; name their paths rather than restating their contents.',
 ].join('\n');
 
 try {
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'PreCompact', additionalContext: INSTRUCTION },
-  }));
+  process.stdout.write(INSTRUCTION + '\n');
   process.exit(0);
 } catch {
   process.exit(0);

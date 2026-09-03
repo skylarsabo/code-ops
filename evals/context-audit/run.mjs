@@ -134,9 +134,17 @@ expect(rcAll.status === 0 && JSON.parse(rcAll.stdout || '{}').sessions === 2, 'r
 const rcRoot = run([cli, 'receipts', '--ledger', ledger, '--cwd', root, '--json']);
 expect(rcRoot.status === 0 && JSON.parse(rcRoot.stdout || '{}').sessions === 1, 'receipts --cwd filters to one directory even with other rows present');
 // Off switch: no row, no file, exit 0.
-const offLedger = join(tmp, 'off', 'receipts.jsonl');
-const hOff = run([hook], { input: payload, env: { ...process.env, CODE_OPS_RECEIPTS: 'off' } });
-expect(hOff.status === 0 && hOff.stdout === '' && !existsSync(offLedger), 'CODE_OPS_RECEIPTS=off writes nothing and exits 0');
+// The guard must return before any write: with the value `off`, a missing guard would
+// treat `off` as a relative ledger path and create a file named `off` in the cwd.
+const offDir = mkdtempSync(join(tmpdir(), 'ca-off-'));
+const rowsBefore = readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length;
+for (const v of ['off', '0', 'false']) {
+  const hOff = run([hook], { input: payload, cwd: offDir, env: { ...process.env, CODE_OPS_RECEIPTS: v } });
+  expect(hOff.status === 0 && hOff.stdout === '', `CODE_OPS_RECEIPTS=${v} exits 0 with no stdout`);
+  expect(!existsSync(join(offDir, v)), `CODE_OPS_RECEIPTS=${v} must not create a file named ${v}`);
+}
+expect(readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === rowsBefore, 'the off switch appends nothing to the real ledger');
+rmSync(offDir, { recursive: true, force: true });
 const rcOther = run([cli, 'receipts', '--ledger', ledger, '--cwd', tmp, '--json']);
 expect(rcOther.status === 0 && JSON.parse(rcOther.stdout || '{}').sessions === 0, 'receipts --cwd filters rows to that directory');
 

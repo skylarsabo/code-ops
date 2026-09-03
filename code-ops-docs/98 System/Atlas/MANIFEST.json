@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "d1d86c03c9484382bf90010891f51f15005c1640",
-      "verifiedDigest": "7f41d57e8cc9e65407c8c74453e881d81946b50cc3aa2de1415a9cab5b4b76e7"
+      "verifiedAt": "d67b5a5ae1f942cec7eb29e2f299ec907bcf4141",
+      "verifiedDigest": "39cf01ac0625e221d22b0529e5b7bc2d515e20dcd12c7989a86bda0fb492bf43"
     },
     {
       "slug": "gate-scripts",
@@ -27,8 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "d1d86c03c9484382bf90010891f51f15005c1640",
-      "verifiedDigest": "8ec239eefee0edd53be0c2532fcb2196e35ae2a21a4f774539dc15ceedae8309"
+      "verifiedAt": "d67b5a5ae1f942cec7eb29e2f299ec907bcf4141",
+      "verifiedDigest": "123219db322fac3e8500aa576886bf087b8ff4b0cfce265c60d217d42478d98f"
     },
     {
       "slug": "codex-render",
@@ -38,8 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "d1d86c03c9484382bf90010891f51f15005c1640",
-      "verifiedDigest": "994f01fceb1b714cfebbd864736b940adc707ff16e5c8155c9e1217295343f8f"
+      "verifiedAt": "d67b5a5ae1f942cec7eb29e2f299ec907bcf4141",
+      "verifiedDigest": "72089f575cb0ffea1308f1f960515db70df69d8f41c2b60d727be13736d9e874"
     },
     {
       "slug": "ci-workflows",
@@ -71,8 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "d1d86c03c9484382bf90010891f51f15005c1640",
-      "verifiedDigest": "30d42a40a2fdaf7324d95eb67cb4cb4a013be7bddc9ba5608b9a42bbe8831241"
+      "verifiedAt": "d67b5a5ae1f942cec7eb29e2f299ec907bcf4141",
+      "verifiedDigest": "ce18a9cd712fc7fdc3014ea568c76465cfabba50204251ac356141300ace829e"
     },
     {
       "slug": "root-contracts",

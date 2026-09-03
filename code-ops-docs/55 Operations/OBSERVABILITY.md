@@ -58,7 +58,7 @@ The canonical [performance reference](PERFORMANCE.md) owns the measurement proto
 
 ## Session receipts
 
-A `PreCompact` hook tells the host what a compaction summary must preserve, so a resumed session does not redo work or lose a stated constraint. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:1-11`.
+A `PreCompact` hook prints what a compaction summary must preserve, and the host reads that stdout as the compaction's custom instructions, so a resumed session does not redo work or lose a stated constraint. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:1-11`.
 
 The `SessionEnd` hook `session-receipt.mjs` appends one row per session to a local ledger: exact tokens by class for the main thread and its subagents, tool calls by tool, model mix, and wall time. It prints nothing to the model and fails open on every error. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:1-20`.
 

@@ -5,7 +5,7 @@ the source plugin manifest and matching marketplace entries.
 
 ## 1.52.0
 - Doctrine aligned with the current frontier-model prompting guidance: operatives batch independent tool calls in one round, the lead dispatches in the background and continues independent work, every plugin's conventions carry a finish-the-turn check, the implementation loop keeps changes and committed tests to what the task asks, edits are surgical, and a sourcing brief never runs at low effort. Effort level names are declared non-portable across model generations.
-- A `PreCompact` hook injects the six-item preservation instruction into every compaction, and `handoff` keeps the developer's constraints and open promises in their exact words.
+- A `PreCompact` hook prints the six-item preservation instruction, which the host reads as the compaction's custom instructions, and tells the summary to leave redaction markers as they stand. `handoff` keeps the developer's constraints and open promises in their exact words.
 - `session-receipt.mjs` honors `CODE_OPS_RECEIPTS=off`. The context-audit eval now proves `receipts --all` against a second directory, pins the order of the largest results, and covers the off switch. Data-model and observability citations corrected.
 - The narration scanner reports mannered prose as an advisory, and the writing standard gains its definition and a formatting rule.
 
