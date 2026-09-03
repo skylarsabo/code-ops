@@ -10,16 +10,16 @@ Name a workflow in Codex as `rigor:<skill>`. Every generated skill sets `policy.
 
 ## Skills
 
-- `bug-hunt` — Use when you want REAL bugs found and proven, not a list of guesses — each candidate proven with a failing test. The flagship.
-- `consistency-closure` — Use when the same concept is implemented divergently and you want it closed for good — one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize.
-- `deep-review` — Use when you want a PR/diff reviewed at the verification bar — blocking only on CONFIRMED defects/regressions. The high-rigor counterpart to code-ops-suite:pr-review.
+- `bug-hunt` — Use when you want REAL bugs found and proven, not a list of guesses. Each candidate is proven with a failing test. The flagship.
+- `consistency-closure` — Use when the same concept is implemented divergently and you want it closed for good, in one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize.
+- `deep-review` — Use when you want a PR or diff reviewed at the verification bar, blocking only on CONFIRMED defects and regressions. The high-rigor counterpart to code-ops-suite:pr-review.
 - `fix-verified` — Use when CONFIRMED bugs exist and you want them fixed at root cause with proof. Requires CONFIRMED findings as input.
-- `ground-truth` — Use when you want the factual baseline before any analysis — run the real toolchain and capture ground truth + a coverage/blind-spot map. Run first.
+- `ground-truth` — Use when you want the factual baseline before any analysis. Runs the real toolchain and captures ground truth plus a coverage and blind-spot map. Run this first.
 - `improve-measured` — Use when you want measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization specifically, see code-ops-suite:performance.
-- `quality-scan` — Use when you want high-signal, defect-causing quality issues with evidence and tiers — not cosmetic nits.
+- `quality-scan` — Use when you want high-signal, defect-causing quality issues with evidence and tiers, not cosmetic nits.
 - `regression-hunt` — Use when something used to work and you need to pinpoint the commit that broke it and find related regressions in recent changes.
-- `rigor-sweep` — Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline; start assess-only. Intra-plugin orchestrator.
-- `safety-net` — Use before refactoring or fixing low-coverage code — writes characterization tests that lock current observable behavior.
+- `rigor-sweep` — Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline. Start on the assess-only track. Intra-plugin orchestrator.
+- `safety-net` — Use before refactoring or fixing low-coverage code. Writes characterization tests that lock current observable behavior.
 - `test-suite-audit` — Use when you need to know whether a green suite actually catches faults. Validates the tests other proofs rest on.
 
 ## Packaging notes

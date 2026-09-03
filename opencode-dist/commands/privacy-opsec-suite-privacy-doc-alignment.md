@@ -1,5 +1,5 @@
 ---
-description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the SSOT."
+description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the single source of truth."
 ---
 
 Use the `privacy-opsec-suite-privacy-doc-alignment` skill for this task, following it end to end.

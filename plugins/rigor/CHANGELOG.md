@@ -1,5 +1,7 @@
 # Changelog — rigor
 
+## 2.18.8
+- Documentation sweep: the README and all eleven skill pages are rewritten onto the house writing standard, with no em-dashes and no semicolons in prose, and the README gains a context-economy section naming `co.mjs context skim` and the suite's default-on hooks with their off switches. No phase, checkpoint, script invocation, or `CONVENTIONS.md` citation changed.
 ## 2.18.7
 - `CONVENTIONS.md` and both agent definitions rewritten to the house writing standard: no em-dashes and no semicolons in prose, one instruction per sentence, and headings as noun phrases. Meaning and every section id are unchanged. §1 now names the session mechanisms that are on by default and their off switches, and `skim.mjs` is named where the skim rule asks for it.
 

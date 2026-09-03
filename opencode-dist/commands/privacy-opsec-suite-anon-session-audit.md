@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to verify sessions are truly unlinkable. Owns linkability/session identity — not network egress or file metadata."
+description: "Use when you need to verify sessions are truly unlinkable. Owns linkability and session identity, not network egress or file metadata."
 ---
 
 Use the `privacy-opsec-suite-anon-session-audit` skill for this task, following it end to end.

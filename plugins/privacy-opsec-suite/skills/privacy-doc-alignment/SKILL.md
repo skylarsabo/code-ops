@@ -1,21 +1,54 @@
 ---
-description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the SSOT."
+description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the single source of truth."
 ---
 
-# PRIVACY DOC ALIGNMENT — Promises That Match Reality
+# Privacy documentation alignment: promises that match reality
 
-**Invoked as `/privacy-opsec-suite:privacy-doc-alignment`.** First read the bundled `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` (search the plugin directory for it if needed) — it defines the operating model, the central **anonymity & OpSec model** (§A), the interaction protocol, safety rails, schemas, and lenses this skill references by section.
-**Mode:** DOCUMENT · **Produces:** reconciled docs, `DRIFT_REPORT.md`, `SSOT_MAP.md`, `OPEN_QUESTIONS.md`. Edits documentation only — log any code issue as a finding, don't change code.
+**Invoked as `/privacy-opsec-suite:privacy-doc-alignment`.** First read the bundled
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. Search the plugin directory for it if the path does
+not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
+the interaction protocol, the safety rails, the schemas, and the lenses this skill
+references by section.
 
-## Phase 0 — Inventory & map  *(checkpoint)*
-Inventory the privacy/opsec docs (privacy policy, threat model, opsec runbooks, contributor rules) with each one's purpose; dispatch the explorer subagent to map **code reality** against them; map intended **SSOT** (which doc is authoritative per topic; flag no-owner and duplicate authorities).
-> **CHECKPOINT:** present the inventory, the topic→authority map, and the biggest gaps; confirm which docs are authoritative vs. aspirational.
+- **Mode:** DOCUMENT.
+- **Produces:** reconciled documentation, `DRIFT_REPORT.md`, `SSOT_MAP.md`, and
+  `OPEN_QUESTIONS.md`.
+- **Limit:** it edits documentation only. Log any code issue as a finding and change no
+  code.
 
-## Phase 1 — Verify, reconcile, establish SSOT
-Verify **every privacy claim against the code**. Classify drift (stale / wrong / contradictory / orphaned / missing / duplicate-SSOT). **Top priority:** any **privacy promise the code does not actually keep** — an unkept promise is worse than none; flag it loudly as a finding, don't quietly soften the doc. Auto-fix unambiguous factual drift; bring stale-vs-aspirational and structural changes to the developer. Establish one authoritative **threat model**, **privacy policy**, and **opsec runbook**, an index, and a clear **"rules contributors must not break"** doc (what not to log/collect/route to, how defaults must stay).
+## Phase 0: inventory and map  *(checkpoint)*
+
+Inventory the privacy and opsec documentation, meaning the privacy policy, the threat model,
+the opsec runbooks, and the contributor rules, and state each one's purpose. Dispatch the
+explorer subagent to map code reality against them. Map the intended single source of truth,
+naming which document is authoritative per topic, and flag every topic with no owner and
+every topic with duplicate authorities.
+
+> **CHECKPOINT:** present the inventory, the map from topic to authority, and the biggest
+> gaps. Confirm which documents are authoritative and which are aspirational.
+
+## Phase 1: verify, reconcile, and establish the single source of truth
+
+Verify every privacy claim against the code. Classify the drift as stale, wrong,
+contradictory, orphaned, missing, or a duplicate authority.
+
+The top priority is any privacy promise the code does not actually keep. An unkept promise
+is worse than no promise. Flag it loudly as a finding, and never quietly soften the
+document.
+
+Auto-fix the unambiguous factual drift. Bring the stale-versus-aspirational judgments and
+the structural changes to the developer. Establish one authoritative threat model, one
+privacy policy, and one opsec runbook, plus an index and a clear document of the rules
+contributors must not break, covering what not to log, what not to collect, where not to
+route, and how the defaults must stay.
 
 ## Deliverables
-Reconciled docs; `DRIFT_REPORT.md` (items, type, resolution, evidence); `SSOT_MAP.md`; `OPEN_QUESTIONS.md`. Surface any unkept promise at the top.
+
+Reconciled documentation. `DRIFT_REPORT.md` listing each item, its type, its resolution, and
+its evidence. `SSOT_MAP.md`. `OPEN_QUESTIONS.md`. Surface any unkept promise at the top.
 
 ## Done when
-Docs match code; unkept promises are surfaced (not hidden); the SSOT is clean (one authority per topic, links resolve, index exists); contributor rules are documented; no code changed.
+
+The documentation matches the code, and unkept promises are surfaced rather than hidden. The
+single source of truth is clean, with one authority per topic, links that resolve, and an
+index. The contributor rules are documented, and no code changed.

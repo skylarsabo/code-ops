@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to prove no traffic escapes the proxy/Tor. Owns network egress + routing."
+description: "Use when you need to prove no traffic escapes the proxy or Tor. Owns network egress and routing."
 ---
 
 Use the `privacy-opsec-suite-tor-egress-audit` skill for this task, following it end to end.

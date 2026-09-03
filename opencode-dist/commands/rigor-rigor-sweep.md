@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline; start assess-only. Intra-plugin orchestrator."
+description: "Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline. Start on the assess-only track. Intra-plugin orchestrator."
 ---
 
 Use the `rigor-rigor-sweep` skill for this task, following it end to end.

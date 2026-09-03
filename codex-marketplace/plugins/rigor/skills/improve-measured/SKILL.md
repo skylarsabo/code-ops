@@ -3,25 +3,50 @@ name: improve-measured
 description: "Use when you want measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization specifically, see code-ops-suite:performance."
 ---
 
-# IMPROVE (MEASURED) — No Speculative Refactors
+# Measured improvement: no speculative refactors
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `rigor:improve-measured`.** First read the bundled `<plugin-root>/CONVENTIONS.md` — it defines the **verification-first methodology** — evidence tiers, the disconfirmation pass, ground-truth-first, root-cause-over-symptom, and the regression guard — plus the operating model, interaction protocol, and safety rails this skill follows.
-**Mode:** IMPLEMENT (via the fix–prove–guard loop `§8`) · **Produces:** `IMPROVEMENTS_LOG.md`, diffs/PRs; summary with measured deltas. Rule: **if you can't measure the "before", you can't claim the "after".**
+**Invoke in Codex by naming `rigor:improve-measured`.** First read the bundled
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
+(evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
+the regression guard), plus the operating model, the interaction protocol, and the safety
+rails this skill follows.
 
-## Phase 0 — Scope + define "better"  *(checkpoint)*
-Agree what improvement means here: runtime/latency, allocations/queries, complexity, bundle/footprint, removable code/deps, or API ergonomics. Read `GROUND_TRUTH.md`. Confirm a `safety-net` exists for the target (or run it first) so "behavior-preserving" is provable.
+- **Mode:** IMPLEMENT, through the fix-prove-guard loop in `§8`.
+- **Produces:** `IMPROVEMENTS_LOG.md`, the diffs or pull requests, and a summary carrying
+  the measured deltas.
+- **Rule:** if you cannot measure the before, you cannot claim the after.
 
-## Phase 1 — Baseline the candidates
-For each candidate, have a `verifier` capture a **concrete baseline measurement** first: a benchmark number, a complexity score, an allocation/query/IO count, a bundle size, or the exact dead code/dependency to remove. Reject speculative "feels cleaner" changes lacking a measurable basis.
+## Phase 0: scope and define better  *(checkpoint)*
 
-## Phase 2 — Implement and re-measure
-Apply the change **behavior-preservingly** (`§8`): keep the full suite + proof set green, then have the `verifier` **re-measure** and record before → after → delta. Roll back any change whose measured delta doesn't justify it.
-> Checkpoint per change if behavior-adjacent or touching a public contract.
+Agree what improvement means here: runtime or latency, allocations or queries, complexity,
+bundle or footprint size, removable code or dependencies, or API ergonomics. Read
+`GROUND_TRUTH.md`. Confirm that a `safety-net` exists for the target, or run it first, so
+that behavior-preserving is provable.
+
+## Phase 1: baseline the candidates
+
+For each candidate, have a `verifier` capture a concrete baseline measurement first: a
+benchmark number, a complexity score, an allocation, query, or IO count, a bundle size, or
+the exact dead code or dependency to remove. Reject any speculative change that has no
+measurable basis.
+
+## Phase 2: implement and re-measure
+
+Apply the change behavior-preservingly (`§8`) and keep the full suite and the proof set
+green. Then have the `verifier` re-measure and record the before, the after, and the delta.
+Roll back any change whose measured delta does not justify it.
+
+> Take a checkpoint per change when it is behavior-adjacent or touches a public contract.
 
 ## Deliverables
-`IMPROVEMENTS_LOG.md` — each change with baseline → result → delta and its proof (benchmark output, metric, removed-lines count); diffs/PRs; a summary of the measured wins.
+
+`IMPROVEMENTS_LOG.md` records each change with its baseline, result, and delta, and with its
+proof, which may be benchmark output, a metric, or a removed-lines count. Add the diffs or
+pull requests, and a summary of the measured wins.
 
 ## Done when
-Every shipped improvement shows a before/after metric, behavior is preserved (proof set green), and tests are green; speculative changes excluded.
+
+Every shipped improvement shows a before-and-after metric, behavior is preserved with the
+proof set green, and the tests are green. Speculative changes are excluded.

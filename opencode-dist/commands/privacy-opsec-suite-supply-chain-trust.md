@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to vet dependencies for telemetry/phone-home/egress, CVEs, and build/lockfile integrity under an anonymity-hostile model."
+description: "Use when you need to vet dependencies for telemetry, phone-home behavior, and egress, for CVEs, and for build and lockfile integrity under an anonymity-hostile model."
 ---
 
 Use the `privacy-opsec-suite-supply-chain-trust` skill for this task, following it end to end.

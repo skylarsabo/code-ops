@@ -1,5 +1,5 @@
 ---
-description: "Use when you must decide whether to adopt a library or approach (A-vs-B-vs-build) and want a code-grounded fit assessment, migration cost, and a tiered recommendation; writes no code."
+description: "Use when you must decide whether to adopt a library or approach, comparing A against B against building it, and want a code-grounded fit assessment, migration cost, and a tiered recommendation. Writes no code."
 ---
 
 Use the `researcher-library-eval` skill for this task, following it end to end.

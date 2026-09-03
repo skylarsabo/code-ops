@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the factual baseline before any analysis — run the real toolchain and capture ground truth + a coverage/blind-spot map. Run first."
+description: "Use when you want the factual baseline before any analysis. Runs the real toolchain and captures ground truth plus a coverage and blind-spot map. Run this first."
 ---
 
 Use the `rigor-ground-truth` skill for this task, following it end to end.
