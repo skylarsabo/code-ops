@@ -121,6 +121,11 @@ function show(ref, file) {
 const headLines = (file) => show(headRef, file).split('\n');
 
 // `git grep` over the tree at <head>; returns [{file, line, text}] and never throws on no match.
+// Patterns use POSIX classes only: on macOS `git grep -E` runs the system regex, which has no
+// `\s`, `\w`, or `\b`, and a pattern with them silently matches nothing there.
+const SP = '[[:space:]]';
+const WORD = '[[:alnum:]_]';
+const END = `([^[:alnum:]_]|$)`;
 function treeGrep(pattern, { fixed = false, exclude = null } = {}) {
   const args = ['grep', '-n', '-I', fixed ? '-F' : '-E', '-e', pattern, headRef, '--', '.'];
   if (exclude) args.push(`:(exclude)${exclude}`);
@@ -157,7 +162,7 @@ const NEW_FILE_MIN_LINES = 44;
       const m = DEF_RE.exec(text);
       if (!m) continue;
       const name = m[1] ?? m[2];
-      const users = treeGrep(`(implements|extends)\\s+${name}\\b|class\\s+\\w+\\([^)]*\\b${name}\\b`).filter((r) => !(r.file === file && r.line === line));
+      const users = treeGrep(`(implements|extends)${SP}+${name}${END}|class${SP}+${WORD}+\\([^)]*[^[:alnum:]_]${name}${END}`).filter((r) => !(r.file === file && r.line === line));
       if (users.length <= 1) hit('SINGLE-IMPLEMENTOR', file, line, `${name} has ${users.length} implementor${users.length === 1 ? '' : 's'} in the tree`);
     }
   }
@@ -299,7 +304,7 @@ const nonBlank = (text) => text.split('\n').filter((l) => l.trim()).length;
       if (!m) continue;
       const name = m[1] ?? m[2] ?? m[3] ?? m[4];
       if (name.length < 3) continue;
-      const others = treeGrep(`(export\\s+(async\\s+)?(function|const|let|class)\\s+${name}\\b|module\\.exports\\.${name}\\s*=|^def\\s+${name}\\s*\\(|^class\\s+${name}\\b)`, { exclude: file })
+      const others = treeGrep(`(export${SP}+(async${SP}+)?(function|const|let|class)${SP}+${name}${END}|module\\.exports\\.${name}${SP}*=|^def${SP}+${name}${SP}*\\(|^class${SP}+${name}${END})`, { exclude: file })
         .filter((r) => blobOf.get(r.file) !== blobOf.get(file));
       if (others.length > 0) hit('DUPLICATE-HELPER', file, line, `${name} is already exported by ${others[0].file}:${others[0].line}`);
     }
