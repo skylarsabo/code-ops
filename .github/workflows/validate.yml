@@ -347,8 +347,10 @@ jobs:
 
       # The record eval dominates this leg (about 754 s of a 960 s job on the measured runs, against
       # 73 s on Ubuntu). It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
-      # so it runs here only when the range under test touched those inputs, the manifest, the
-      # generated record authority, or this workflow. Ubuntu still runs it on every change, and
+      # so it runs here only when the range under test touched those inputs, the generated record
+      # authority, or this workflow. The documentation manifest is deliberately not on the list: it
+      # re-syncs on nearly every change, and a manifest-only edit cannot alter record behavior
+      # that the Ubuntu copy of the same eval would miss. Ubuntu still runs it on every change, and
       # the weekly schedule and manual dispatch run it here unconditionally.
       - name: Detect record-collection inputs
         id: records
@@ -366,7 +368,7 @@ jobs:
             push) case "$BEFORE" in ''|0000000000000000000000000000000000000000) decide true; exit 0 ;; esac; range="$BEFORE..$HEAD_SHA" ;;
             *) decide true; exit 0 ;;
           esac
-          files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections .github/workflows/validate.yml "code-ops-docs/98 System/DOCS_MANIFEST.json" "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
+          files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections .github/workflows/validate.yml "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
           if [ -n "$files" ]; then decide true; else decide false; fi
       - name: Durable record-collection regression eval
         if: steps.records.outputs.changed == 'true'
