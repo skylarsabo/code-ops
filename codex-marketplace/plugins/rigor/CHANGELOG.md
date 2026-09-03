@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.1
+- Vendored `co.mjs` refreshed: its verb table gains `scan overbuild` and `scan deferrals`, whose scripts ship in code-ops-suite.
+
 ## 2.18.0
 - The fix loop carries the ordered objective and the code-economy ladder, pinned byte-identically with the code-ops-suite and privacy-opsec-suite conventions.
 

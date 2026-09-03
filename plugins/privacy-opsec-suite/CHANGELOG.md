@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.1
+- Vendored `co.mjs` refreshed: its verb table gains `scan overbuild` and `scan deferrals`, whose scripts ship in code-ops-suite.
+
 ## 1.20.0
 - The implementation loop carries the ordered objective and the code-economy ladder, pinned byte-identically with the code-ops-suite and rigor conventions.
 

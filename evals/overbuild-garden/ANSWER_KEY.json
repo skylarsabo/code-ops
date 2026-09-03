@@ -1,0 +1,30 @@
+{
+  "fixture": "overbuild-garden",
+  "repo": "repo/change",
+  "lineTolerance": 3,
+  "thresholds": { "recall": 0.9, "maxDecoys": 0 },
+  "planted": [
+    { "id": "OB-1", "file": "package.json", "line": 6, "anchor": "\"lodash\"", "category": "NEW-DEPENDENCY", "desc": "lodash is added with no decision record in the diff; the one blocking tell" },
+    { "id": "OB-2", "file": "config.json", "line": 3, "anchor": "\"cacheTtl\"", "category": "UNREAD-CONFIG", "desc": "a new top-level config key that no file reads" },
+    { "id": "OB-3", "file": "src/report.py", "line": 13, "anchor": "def load_report(path)", "category": "PASS-THROUGH", "desc": "a Python function whose whole body forwards its parameter to read_json" },
+    { "id": "OB-4", "file": "src/store.ts", "line": 1, "anchor": "A key-value store behind one interface", "category": "NEW-FILE-RATIO", "desc": "one of four new source files averaging under the size bound" },
+    { "id": "OB-5", "file": "src/store.ts", "line": 5, "anchor": "export interface Store", "category": "SINGLE-IMPLEMENTOR", "desc": "an interface with one implementor in the tree" },
+    { "id": "OB-6", "file": "src/tiny-a.js", "line": 1, "anchor": "export const A", "category": "NEW-FILE-RATIO", "desc": "a five-line file added beside its twin" },
+    { "id": "OB-7", "file": "src/tiny-b.js", "line": 1, "anchor": "export const B", "category": "NEW-FILE-RATIO", "desc": "a five-line file added beside its twin" },
+    { "id": "OB-8", "file": "src/users.js", "line": 22, "anchor": "export function getUser(id)", "category": "PASS-THROUGH", "desc": "getUser forwards id to fetchUser and adds nothing" },
+    { "id": "OB-9", "file": "src/users.js", "line": 36, "anchor": "export function slugify(text)", "category": "DUPLICATE-HELPER", "desc": "slugify is already exported by src/text.js" },
+    { "id": "OB-10", "file": "src/users.js", "line": 49, "anchor": "const start = (page - 1) * size", "category": "COMMENTED-CODE", "desc": "three consecutive comment lines shaped like code" },
+    { "id": "OB-11", "file": "tests/big.test.js", "line": 1, "anchor": "import assert", "category": "TEST-BLOAT", "desc": "a new test file over twice the median size of its siblings" }
+  ],
+  "decoys": [
+    { "id": "DECOY-1", "file": "src/extract.js", "line": 1, "anchor": "Paging and summary", "desc": "a legitimate extraction: a sized module with two callers in the same diff" },
+    { "id": "DECOY-2", "file": "src/shapes.ts", "line": 15, "anchor": "export interface Named", "desc": "an interface with two implementors in the same diff" },
+    { "id": "DECOY-3", "file": "tests/extract.test.js", "line": 1, "anchor": "import assert", "desc": "a new test file sized like its neighbors" },
+    { "id": "DECOY-4", "file": "package.json", "line": 7, "anchor": "\"zod\"", "desc": "a new dependency with a decision record in the same diff" },
+    { "id": "DECOY-5", "file": "config.json", "line": 4, "anchor": "\"logLevel\"", "desc": "a new config key that src/server.js reads" },
+    { "id": "DECOY-6", "file": "src/users.js", "line": 26, "anchor": "getUserOrThrow", "desc": "a wrapper that adds a guard, not a pass-through" },
+    { "id": "DECOY-7", "file": "src/users.js", "line": 32, "anchor": "fetchUserById", "desc": "a wrapper that changes its argument, not a pass-through" },
+    { "id": "DECOY-8", "file": "src/users.js", "line": 53, "anchor": "Paging moved to extract.js", "desc": "three consecutive prose comment lines" },
+    { "id": "DECOY-9", "file": "src/report.py", "line": 17, "anchor": "load_report_or_empty", "desc": "a Python wrapper that adds error handling" }
+  ]
+}

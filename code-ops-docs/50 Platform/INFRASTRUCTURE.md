@@ -47,6 +47,14 @@ checkout runs with the digest and another runs without it, and their session rec
 Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-15` and
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161`.
 
+A second opt-in hook, `ladder-card.mjs`, runs at `SubagentStart` and hands an implementer-class
+subagent the code-economy ladder as a card of at most ten lines. It stays inert until
+`CODE_OPS_LADDER_CARD` holds `1`, `on`, or `true` in the same `env` block. It writes nothing to
+disk and reads nothing but the payload. The card is an experiment arm: Phase 6 of the context and
+code economy note keeps it only if the session receipts show it beats the brief-only control.
+Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:6-10` and
+`plugins/code-ops-suite/hooks/ladder-card.mjs:51`.
+
 ## Host projections
 
 The first host renderer maps canonical plugin packages into its marketplace projection and manifest. The opencode renderer maps them into `opencode-dist/`, including host-specific commands, agents, and configuration. Evidence: `AGENTS.md:108-117` and `scripts/build-opencode-dist.mjs:475-489`.

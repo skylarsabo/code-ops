@@ -57,6 +57,8 @@ const TABLE = {
     redaction: 'scan-redaction.mjs',
     injection: 'scan-injection-tells.mjs',
     autofix: 'check-autofix-scope.mjs',
+    overbuild: 'scan-overbuild.mjs',
+    deferrals: 'harvest-deferrals.mjs',
   },
   check: {
     vault: 'check-vault-standard.mjs',

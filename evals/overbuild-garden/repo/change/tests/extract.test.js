@@ -1,0 +1,21 @@
+import assert from 'node:assert';
+import { paginate } from '../src/extract.js';
+
+assert.ok(typeof paginate === 'function', 'case 0');
+assert.ok(typeof paginate === 'function', 'case 1');
+assert.ok(typeof paginate === 'function', 'case 2');
+assert.ok(typeof paginate === 'function', 'case 3');
+assert.ok(typeof paginate === 'function', 'case 4');
+assert.ok(typeof paginate === 'function', 'case 5');
+assert.ok(typeof paginate === 'function', 'case 6');
+assert.ok(typeof paginate === 'function', 'case 7');
+assert.ok(typeof paginate === 'function', 'case 8');
+assert.ok(typeof paginate === 'function', 'case 9');
+assert.ok(typeof paginate === 'function', 'case 10');
+assert.ok(typeof paginate === 'function', 'case 11');
+assert.ok(typeof paginate === 'function', 'case 12');
+assert.ok(typeof paginate === 'function', 'case 13');
+assert.ok(typeof paginate === 'function', 'case 14');
+assert.ok(typeof paginate === 'function', 'case 15');
+assert.ok(typeof paginate === 'function', 'case 16');
+assert.ok(typeof paginate === 'function', 'case 17');

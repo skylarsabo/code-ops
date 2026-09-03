@@ -70,4 +70,8 @@ export const RUNTIME_SCRIPTS = [
   // scripts/ dir or the digest cannot load its detectors.
   { name: 'digest.mjs', plugins: ['code-ops-suite'] },
   { name: 'digest-lib.mjs', plugins: ['code-ops-suite'] },
+  // The over-build scanner and the deferral harvest back the code-economy ladder; `co scan
+  // overbuild` and `co scan deferrals` reach them from the suite's skills.
+  { name: 'scan-overbuild.mjs', plugins: ['code-ops-suite'] },
+  { name: 'harvest-deferrals.mjs', plugins: ['code-ops-suite'] },
 ];
