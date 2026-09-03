@@ -117,6 +117,21 @@ A session receipt is one JSON line, version `1`, with `ts`, `sessionId`, `cwd`, 
 
 The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so by default it is never inside a repository. Setting `CODE_OPS_RECEIPTS=off` disables the hook. Rows carry the working directory path and no transcript content.
 
+## Digest receipts
+
+A digest receipt is one JSON line, version `1`, with `ts`, `cwd`, `argv`, `exit`, `shape`,
+`bytesIn`, `bytesOut`, `linesIn`, `linesOut`, `sha256`, and `raw`. `argv` holds the command
+tokens exactly as the caller gave them. `sha256` covers the raw file named by `raw`, which holds
+the command's stdout, then a `----- stderr -----` separator and its stderr when stderr is not
+empty. `linesIn` counts that whole file; `linesOut` counts what the digest printed, including its
+trailer. Evidence: `scripts/digest.mjs:234-249` and `scripts/digest.mjs:210-213`.
+
+The store lives outside the repository, at `~/.claude/code-ops/digest/<project slug of cwd>/`,
+unless `--store` or `$CODE_OPS_DIGEST_DIR` names another directory. Raw files sit under
+`<store>/<ISO date>/`; the ledger is `<store>/DIGEST_RECEIPTS.jsonl`. Both writes fail open, so a
+run whose store is unwritable still prints a correct digest with no raw path. Rows carry the
+working directory and the command, never the output. Evidence: `scripts/digest.mjs:156-185`.
+
 ## Retention and sensitivity
 
 Run artifacts are repository-local working evidence. Do not put secrets, tokens, or personal data in a contract, cache, bundle, ledger, or documentation record. The repository has no modeled personal-data entity.

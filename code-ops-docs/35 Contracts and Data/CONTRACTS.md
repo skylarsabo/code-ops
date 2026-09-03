@@ -188,6 +188,47 @@ The local judgment gate is independent of Run Contract versions. It stores ignor
 plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
 `scripts/local-review-gate.mjs:48-53` and `scripts/local-review-gate.mjs:248-468`.
 
+## Output digest
+
+`digest.mjs` spawns the command after `--` directly, with no shell, and captures stdout and
+stderr apart. The child's exit code becomes the digest's exit code on every path, including a
+signal kill. A missing `--` exits 2 with usage. An executable that cannot spawn exits 127 and
+names itself. Evidence: `scripts/digest.mjs:121-150`, `scripts/digest.mjs:194-196`, and
+`scripts/digest.mjs:203-204`.
+
+One shape is chosen per invocation. The detectors run in a fixed order, and the command tokens
+bias only the cases the detectors leave open. Nine shapes exist: `json`, `diff`, `test`,
+`diagnostics`, `stack`, `log`, `table`, `listing`, and `plain`. `plain` is the fallback, and it
+passes output through under a line cap rather than filtering it. Evidence:
+`scripts/digest-lib.mjs:372-423`, `scripts/digest-lib.mjs:425`, and
+`scripts/digest-lib.mjs:447-461`.
+
+The must-keep contract is fixed before any stage runs. `mustKeep(shape, raw, digested)` requires
+every raw line matching `error`, `fail`, `failed`, `failure`, `exception`, `panic`, `fatal`,
+`traceback`, `cannot`, `not found`, `denied`, or `refused`, plus the final non-blank line. A
+`test` digest also keeps every failing test name and the summary. A `diff` digest keeps every
+`diff --git` and `@@` header. A `diagnostics` digest keeps at least one line per file that had a
+diagnostic, and states the totals. Past 200 matching lines the digest keeps the first 200 and
+states the total. Comparison allows for a fold count appended to a line and for truncation to the
+first `--line` characters. `digestText` enforces the same set by construction, so no stage may
+drop or rewrite a protected line. Evidence: `scripts/digest-lib.mjs:26-31`,
+`scripts/digest-lib.mjs:463-489`, `scripts/digest-lib.mjs:490-524`, and
+`scripts/digest-lib.mjs:526-559`.
+
+Every elided region prints `[elided N lines: sed -n 'A,Bp' <raw path>]`, or `[elided N lines]`
+under `--no-store`. The ranges ascend, never overlap, and never cover a kept line. The final
+printed line is always the trailer
+`[exit <code> · <shape> · <rawLines> lines → <outLines> · raw <path> · sha256:<first 12>]`, with
+`raw -` when nothing was stored. A stderr digest offsets its line numbers past the stdout section,
+so its recovery hints address the raw file. Evidence: `scripts/digest-lib.mjs:102-108`,
+`scripts/digest.mjs:224-232`, and `scripts/digest.mjs:216-222`.
+
+Raw bytes go to `--store`, else `$CODE_OPS_DIGEST_DIR`, else
+`~/.claude/code-ops/digest/<project slug of cwd>/`, at `<store>/<ISO date>/<HHMMSS>-<sha8>.txt`.
+The default is a home-directory path, so a raw output is never inside a repository. Store writes
+fail open: an unwritable store prints the digest with `raw -` and keeps going. Evidence:
+`scripts/digest.mjs:156-185`.
+
 ## Script entrypoint
 
 `co <domain> <verb> [args...]` resolves one verb to one sibling script through a static

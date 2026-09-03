@@ -39,6 +39,7 @@ const TABLE = {
     graph: 'import-graph.mjs',
     audit: 'context-audit.mjs',
     skim: 'skim.mjs',
+    digest: 'digest.mjs',
   },
   run: {
     preflight: 'preflight.mjs',

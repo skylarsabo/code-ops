@@ -66,4 +66,8 @@ export const RUNTIME_SCRIPTS = [
   // Every plugin's operatives read files, and the read-side outline is what keeps a large
   // file from entering a context whole, so skim.mjs ships wherever briefs are executed.
   { name: 'skim.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
+  // digest.mjs imports digest-lib.mjs as a SIBLING, so the two ship into the same plugin
+  // scripts/ dir or the digest cannot load its detectors.
+  { name: 'digest.mjs', plugins: ['code-ops-suite'] },
+  { name: 'digest-lib.mjs', plugins: ['code-ops-suite'] },
 ];

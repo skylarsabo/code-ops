@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.17.3
+- Vendored `co.mjs` refreshed: its verb table gains `context digest`, whose script only code-ops-suite bundles. No behavior in this plugin changes.
+
 ## 2.17.2
 - Vendors `skim.mjs` so `${CLAUDE_PLUGIN_ROOT}/scripts/skim.mjs <file>` prints a file outline with line ranges, and an operative reads a range instead of the whole file.
 

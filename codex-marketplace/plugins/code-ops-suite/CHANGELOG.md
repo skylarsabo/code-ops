@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.56.0
+- `scripts/digest.mjs` runs a command, writes the raw output to a local receipt store, and prints a shape-keyed compression of it: unified diffs, compiler and linter diagnostics, test-runner output, stack traces, log streams, tables, file listings, and JSON each get their own detector and stages, and an unrecognized shape passes through under a line cap. The child's exit code always becomes the digest's exit code, every elided region prints the `sed -n 'A,Bp'` that recovers it, and the trailer names the exit code, the shape, the before-and-after line counts, and the raw file's sha256.
+- The compression is loss-bounded by contract, not by intent. `digest-lib.mjs` computes the must-keep line set before any stage runs, and no stage may drop or rewrite a line in it: every error, failure, or refusal line, the final line, failing test names and the summary, diff and hunk headers, and one line per file that had a diagnostic. `evals/digest/run.mjs` proves retention and reduction together over an eleven-file corpus, and proves the contract can fail by applying the tail cap alone.
+- `co context digest -- <cmd>` reaches the same script through the entrypoint façade.
+
 ## 1.55.0
 - `scripts/skim.mjs` prints a file's outline — Markdown headings with flat section spans, code definitions with import and export rows, top-level JSON keys with array lengths, JSONL record keys, and a marker preview for unstructured text — so an operative reads `--range A,B` instead of the whole file. Outline mode prints names and headings, never bodies; an outline past `--max` ends with a `+N more` line. `co context skim` reaches it.
 - The "Skim huge files, then deepen" convention now names the tool that does it.

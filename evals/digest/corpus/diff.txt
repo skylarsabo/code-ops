@@ -1,0 +1,288 @@
+diff --git a/src/app/routes/orders.js b/src/app/routes/orders.js
+index 1a2b3c..9f8e7d 100644
+--- a/src/app/routes/orders.js
++++ b/src/app/routes/orders.js
+@@ -20,33 +20,33 @@ function region00(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];
+@@ -110,33 +110,33 @@ function region01(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];
+diff --git a/src/app/routes/invoices.js b/src/app/routes/invoices.js
+index 1a2b43..9f8e88 100644
+--- a/src/app/routes/invoices.js
++++ b/src/app/routes/invoices.js
+@@ -20,33 +20,33 @@ function region10(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];
+@@ -110,33 +110,33 @@ function region11(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];
+diff --git a/src/lib/format/money.js b/src/lib/format/money.js
+index 1a2b4a..9f8e93 100644
+--- a/src/lib/format/money.js
++++ b/src/lib/format/money.js
+@@ -20,33 +20,33 @@ function region20(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];
+@@ -110,33 +110,33 @@ function region21(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];
+diff --git a/src/lib/format/date.js b/src/lib/format/date.js
+index 1a2b51..9f8e9e 100644
+--- a/src/lib/format/date.js
++++ b/src/lib/format/date.js
+@@ -20,33 +20,33 @@ function region30(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];
+@@ -110,33 +110,33 @@ function region31(input, options) {
+   const step0 = input.slice(0, 4);
+   const step1 = input.slice(1, 5);
+   const step2 = input.slice(2, 6);
+   const step3 = input.slice(3, 7);
+   const step4 = input.slice(4, 8);
+   const step5 = input.slice(5, 9);
+   const step6 = input.slice(6, 10);
+   const step7 = input.slice(7, 11);
+   const step8 = input.slice(8, 12);
+   const step9 = input.slice(9, 13);
+   const step10 = input.slice(10, 14);
+   const step11 = input.slice(11, 15);
+   const step12 = input.slice(12, 16);
+   const step13 = input.slice(13, 17);
+   const step14 = input.slice(14, 18);
+-  return step0 + step1;
+-  // legacy path kept for the old callers
++  return join(step0, step1, options.locale);
+   const tail0 = options.tail[0];
+   const tail1 = options.tail[1];
+   const tail2 = options.tail[2];
+   const tail3 = options.tail[3];
+   const tail4 = options.tail[4];
+   const tail5 = options.tail[5];
+   const tail6 = options.tail[6];
+   const tail7 = options.tail[7];
+   const tail8 = options.tail[8];
+   const tail9 = options.tail[9];
+   const tail10 = options.tail[10];
+   const tail11 = options.tail[11];
+   const tail12 = options.tail[12];
+   const tail13 = options.tail[13];
+   const tail14 = options.tail[14];

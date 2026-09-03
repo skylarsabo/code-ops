@@ -1,0 +1,301 @@
+src/app/handlers/users.py:10:1: F401 imported but unused in block 0
+src/app/handlers/users.py:13:2: E501 line too long (112 > 100) in block 1
+src/app/handlers/users.py:16:3: W605 invalid escape sequence in block 2
+src/app/handlers/users.py:19:4: B008 do not perform call in argument defaults in block 3
+src/app/handlers/users.py:22:5: C401 unnecessary generator in block 4
+src/app/handlers/users.py:25:6: F401 imported but unused in block 5
+src/app/handlers/users.py:28:7: E501 line too long (112 > 100) in block 6
+src/app/handlers/users.py:31:8: W605 invalid escape sequence in block 7
+src/app/handlers/users.py:34:9: B008 do not perform call in argument defaults in block 8
+src/app/handlers/users.py:37:1: C401 unnecessary generator in block 9
+src/app/handlers/users.py:40:2: F401 imported but unused in block 10
+src/app/handlers/users.py:43:3: E501 line too long (112 > 100) in block 11
+src/app/handlers/users.py:46:4: W605 invalid escape sequence in block 12
+src/app/handlers/users.py:49:5: B008 do not perform call in argument defaults in block 13
+src/app/handlers/users.py:52:6: C401 unnecessary generator in block 14
+src/app/handlers/users.py:55:7: F401 imported but unused in block 15
+src/app/handlers/users.py:58:8: E501 line too long (112 > 100) in block 16
+src/app/handlers/users.py:900:1: E902 cannot read the file, permission denied
+src/app/handlers/users.py:64:1: B008 do not perform call in argument defaults in block 18
+src/app/handlers/users.py:67:2: C401 unnecessary generator in block 19
+src/app/handlers/users.py:70:3: F401 imported but unused in block 20
+src/app/handlers/users.py:73:4: E501 line too long (112 > 100) in block 21
+src/app/handlers/users.py:76:5: W605 invalid escape sequence in block 22
+src/app/handlers/users.py:79:6: B008 do not perform call in argument defaults in block 23
+src/app/handlers/users.py:82:7: C401 unnecessary generator in block 24
+src/app/handlers/users.py:85:8: F401 imported but unused in block 25
+src/app/handlers/users.py:88:9: E501 line too long (112 > 100) in block 26
+src/app/handlers/users.py:91:1: W605 invalid escape sequence in block 27
+src/app/handlers/users.py:94:2: B008 do not perform call in argument defaults in block 28
+src/app/handlers/users.py:97:3: C401 unnecessary generator in block 29
+src/app/handlers/orders.py:10:1: E501 line too long (112 > 100) in block 0
+src/app/handlers/orders.py:13:2: W605 invalid escape sequence in block 1
+src/app/handlers/orders.py:16:3: B008 do not perform call in argument defaults in block 2
+src/app/handlers/orders.py:19:4: C401 unnecessary generator in block 3
+src/app/handlers/orders.py:22:5: F401 imported but unused in block 4
+src/app/handlers/orders.py:25:6: E501 line too long (112 > 100) in block 5
+src/app/handlers/orders.py:28:7: W605 invalid escape sequence in block 6
+src/app/handlers/orders.py:31:8: B008 do not perform call in argument defaults in block 7
+src/app/handlers/orders.py:34:9: C401 unnecessary generator in block 8
+src/app/handlers/orders.py:37:1: F401 imported but unused in block 9
+src/app/handlers/orders.py:40:2: E501 line too long (112 > 100) in block 10
+src/app/handlers/orders.py:43:3: W605 invalid escape sequence in block 11
+src/app/handlers/orders.py:46:4: B008 do not perform call in argument defaults in block 12
+src/app/handlers/orders.py:49:5: C401 unnecessary generator in block 13
+src/app/handlers/orders.py:52:6: F401 imported but unused in block 14
+src/app/handlers/orders.py:55:7: E501 line too long (112 > 100) in block 15
+src/app/handlers/orders.py:58:8: W605 invalid escape sequence in block 16
+src/app/handlers/orders.py:61:9: B008 do not perform call in argument defaults in block 17
+src/app/handlers/orders.py:64:1: C401 unnecessary generator in block 18
+src/app/handlers/orders.py:67:2: F401 imported but unused in block 19
+src/app/handlers/orders.py:70:3: E501 line too long (112 > 100) in block 20
+src/app/handlers/orders.py:73:4: W605 invalid escape sequence in block 21
+src/app/handlers/orders.py:76:5: B008 do not perform call in argument defaults in block 22
+src/app/handlers/orders.py:79:6: C401 unnecessary generator in block 23
+src/app/handlers/orders.py:82:7: F401 imported but unused in block 24
+src/app/handlers/orders.py:85:8: E501 line too long (112 > 100) in block 25
+src/app/handlers/orders.py:88:9: W605 invalid escape sequence in block 26
+src/app/handlers/orders.py:91:1: B008 do not perform call in argument defaults in block 27
+src/app/handlers/orders.py:94:2: C401 unnecessary generator in block 28
+src/app/handlers/orders.py:97:3: F401 imported but unused in block 29
+src/app/handlers/reports.py:10:1: W605 invalid escape sequence in block 0
+src/app/handlers/orders.py:901:1: E902 cannot read the file, permission denied
+src/app/handlers/reports.py:16:3: C401 unnecessary generator in block 2
+src/app/handlers/reports.py:19:4: F401 imported but unused in block 3
+src/app/handlers/reports.py:22:5: E501 line too long (112 > 100) in block 4
+src/app/handlers/reports.py:25:6: W605 invalid escape sequence in block 5
+src/app/handlers/reports.py:28:7: B008 do not perform call in argument defaults in block 6
+src/app/handlers/reports.py:31:8: C401 unnecessary generator in block 7
+src/app/handlers/reports.py:34:9: F401 imported but unused in block 8
+src/app/handlers/reports.py:37:1: E501 line too long (112 > 100) in block 9
+src/app/handlers/reports.py:40:2: W605 invalid escape sequence in block 10
+src/app/handlers/reports.py:43:3: B008 do not perform call in argument defaults in block 11
+src/app/handlers/reports.py:46:4: C401 unnecessary generator in block 12
+src/app/handlers/reports.py:49:5: F401 imported but unused in block 13
+src/app/handlers/reports.py:52:6: E501 line too long (112 > 100) in block 14
+src/app/handlers/reports.py:55:7: W605 invalid escape sequence in block 15
+src/app/handlers/reports.py:58:8: B008 do not perform call in argument defaults in block 16
+src/app/handlers/reports.py:61:9: C401 unnecessary generator in block 17
+src/app/handlers/reports.py:64:1: F401 imported but unused in block 18
+src/app/handlers/reports.py:67:2: E501 line too long (112 > 100) in block 19
+src/app/handlers/reports.py:70:3: W605 invalid escape sequence in block 20
+src/app/handlers/reports.py:73:4: B008 do not perform call in argument defaults in block 21
+src/app/handlers/reports.py:76:5: C401 unnecessary generator in block 22
+src/app/handlers/reports.py:79:6: F401 imported but unused in block 23
+src/app/handlers/reports.py:82:7: E501 line too long (112 > 100) in block 24
+src/app/handlers/reports.py:85:8: W605 invalid escape sequence in block 25
+src/app/handlers/reports.py:88:9: B008 do not perform call in argument defaults in block 26
+src/app/handlers/reports.py:91:1: C401 unnecessary generator in block 27
+src/app/handlers/reports.py:94:2: F401 imported but unused in block 28
+src/app/handlers/reports.py:97:3: E501 line too long (112 > 100) in block 29
+src/app/models/account.py:10:1: B008 do not perform call in argument defaults in block 0
+src/app/models/account.py:13:2: C401 unnecessary generator in block 1
+src/app/models/account.py:16:3: F401 imported but unused in block 2
+src/app/models/account.py:19:4: E501 line too long (112 > 100) in block 3
+src/app/models/account.py:22:5: W605 invalid escape sequence in block 4
+src/app/models/account.py:25:6: B008 do not perform call in argument defaults in block 5
+src/app/models/account.py:28:7: C401 unnecessary generator in block 6
+src/app/models/account.py:31:8: F401 imported but unused in block 7
+src/app/models/account.py:34:9: E501 line too long (112 > 100) in block 8
+src/app/models/account.py:37:1: W605 invalid escape sequence in block 9
+src/app/models/account.py:40:2: B008 do not perform call in argument defaults in block 10
+src/app/models/account.py:43:3: C401 unnecessary generator in block 11
+src/app/models/account.py:46:4: F401 imported but unused in block 12
+src/app/models/account.py:49:5: E501 line too long (112 > 100) in block 13
+src/app/handlers/reports.py:902:1: E902 cannot read the file, permission denied
+src/app/models/account.py:55:7: B008 do not perform call in argument defaults in block 15
+src/app/models/account.py:58:8: C401 unnecessary generator in block 16
+src/app/models/account.py:61:9: F401 imported but unused in block 17
+src/app/models/account.py:64:1: E501 line too long (112 > 100) in block 18
+src/app/models/account.py:67:2: W605 invalid escape sequence in block 19
+src/app/models/account.py:70:3: B008 do not perform call in argument defaults in block 20
+src/app/models/account.py:73:4: C401 unnecessary generator in block 21
+src/app/models/account.py:76:5: F401 imported but unused in block 22
+src/app/models/account.py:79:6: E501 line too long (112 > 100) in block 23
+src/app/models/account.py:82:7: W605 invalid escape sequence in block 24
+src/app/models/account.py:85:8: B008 do not perform call in argument defaults in block 25
+src/app/models/account.py:88:9: C401 unnecessary generator in block 26
+src/app/models/account.py:91:1: F401 imported but unused in block 27
+src/app/models/account.py:94:2: E501 line too long (112 > 100) in block 28
+src/app/models/account.py:97:3: W605 invalid escape sequence in block 29
+src/app/models/invoice.py:10:1: C401 unnecessary generator in block 0
+src/app/models/invoice.py:13:2: F401 imported but unused in block 1
+src/app/models/invoice.py:16:3: E501 line too long (112 > 100) in block 2
+src/app/models/invoice.py:19:4: W605 invalid escape sequence in block 3
+src/app/models/invoice.py:22:5: B008 do not perform call in argument defaults in block 4
+src/app/models/invoice.py:25:6: C401 unnecessary generator in block 5
+src/app/models/invoice.py:28:7: F401 imported but unused in block 6
+src/app/models/invoice.py:31:8: E501 line too long (112 > 100) in block 7
+src/app/models/invoice.py:34:9: W605 invalid escape sequence in block 8
+src/app/models/invoice.py:37:1: B008 do not perform call in argument defaults in block 9
+src/app/models/invoice.py:40:2: C401 unnecessary generator in block 10
+src/app/models/invoice.py:43:3: F401 imported but unused in block 11
+src/app/models/invoice.py:46:4: E501 line too long (112 > 100) in block 12
+src/app/models/invoice.py:49:5: W605 invalid escape sequence in block 13
+src/app/models/invoice.py:52:6: B008 do not perform call in argument defaults in block 14
+src/app/models/invoice.py:55:7: C401 unnecessary generator in block 15
+src/app/models/invoice.py:58:8: F401 imported but unused in block 16
+src/app/models/invoice.py:61:9: E501 line too long (112 > 100) in block 17
+src/app/models/invoice.py:64:1: W605 invalid escape sequence in block 18
+src/app/models/invoice.py:67:2: B008 do not perform call in argument defaults in block 19
+src/app/models/invoice.py:70:3: C401 unnecessary generator in block 20
+src/app/models/invoice.py:73:4: F401 imported but unused in block 21
+src/app/models/invoice.py:76:5: E501 line too long (112 > 100) in block 22
+src/app/models/invoice.py:79:6: W605 invalid escape sequence in block 23
+src/app/models/invoice.py:82:7: B008 do not perform call in argument defaults in block 24
+src/app/models/invoice.py:85:8: C401 unnecessary generator in block 25
+src/app/models/invoice.py:88:9: F401 imported but unused in block 26
+src/app/models/invoice.py:91:1: E501 line too long (112 > 100) in block 27
+src/app/models/invoice.py:94:2: W605 invalid escape sequence in block 28
+src/app/models/invoice.py:97:3: B008 do not perform call in argument defaults in block 29
+src/app/models/account.py:903:1: E902 cannot read the file, permission denied
+src/app/services/mailer.py:13:2: E501 line too long (112 > 100) in block 1
+src/app/services/mailer.py:16:3: W605 invalid escape sequence in block 2
+src/app/services/mailer.py:19:4: B008 do not perform call in argument defaults in block 3
+src/app/services/mailer.py:22:5: C401 unnecessary generator in block 4
+src/app/services/mailer.py:25:6: F401 imported but unused in block 5
+src/app/services/mailer.py:28:7: E501 line too long (112 > 100) in block 6
+src/app/services/mailer.py:31:8: W605 invalid escape sequence in block 7
+src/app/services/mailer.py:34:9: B008 do not perform call in argument defaults in block 8
+src/app/services/mailer.py:37:1: C401 unnecessary generator in block 9
+src/app/services/mailer.py:40:2: F401 imported but unused in block 10
+src/app/services/mailer.py:43:3: E501 line too long (112 > 100) in block 11
+src/app/services/mailer.py:46:4: W605 invalid escape sequence in block 12
+src/app/services/mailer.py:49:5: B008 do not perform call in argument defaults in block 13
+src/app/services/mailer.py:52:6: C401 unnecessary generator in block 14
+src/app/services/mailer.py:55:7: F401 imported but unused in block 15
+src/app/services/mailer.py:58:8: E501 line too long (112 > 100) in block 16
+src/app/services/mailer.py:61:9: W605 invalid escape sequence in block 17
+src/app/services/mailer.py:64:1: B008 do not perform call in argument defaults in block 18
+src/app/services/mailer.py:67:2: C401 unnecessary generator in block 19
+src/app/services/mailer.py:70:3: F401 imported but unused in block 20
+src/app/services/mailer.py:73:4: E501 line too long (112 > 100) in block 21
+src/app/services/mailer.py:76:5: W605 invalid escape sequence in block 22
+src/app/services/mailer.py:79:6: B008 do not perform call in argument defaults in block 23
+src/app/services/mailer.py:82:7: C401 unnecessary generator in block 24
+src/app/services/mailer.py:85:8: F401 imported but unused in block 25
+src/app/services/mailer.py:88:9: E501 line too long (112 > 100) in block 26
+src/app/services/mailer.py:91:1: W605 invalid escape sequence in block 27
+src/app/services/mailer.py:94:2: B008 do not perform call in argument defaults in block 28
+src/app/services/mailer.py:97:3: C401 unnecessary generator in block 29
+src/app/services/queue.py:10:1: E501 line too long (112 > 100) in block 0
+src/app/services/queue.py:13:2: W605 invalid escape sequence in block 1
+src/app/services/queue.py:16:3: B008 do not perform call in argument defaults in block 2
+src/app/services/queue.py:19:4: C401 unnecessary generator in block 3
+src/app/services/queue.py:22:5: F401 imported but unused in block 4
+src/app/services/queue.py:25:6: E501 line too long (112 > 100) in block 5
+src/app/services/queue.py:28:7: W605 invalid escape sequence in block 6
+src/app/services/queue.py:31:8: B008 do not perform call in argument defaults in block 7
+src/app/services/queue.py:34:9: C401 unnecessary generator in block 8
+src/app/services/queue.py:37:1: F401 imported but unused in block 9
+src/app/services/queue.py:40:2: E501 line too long (112 > 100) in block 10
+src/app/services/queue.py:43:3: W605 invalid escape sequence in block 11
+src/app/services/queue.py:46:4: B008 do not perform call in argument defaults in block 12
+src/app/services/queue.py:49:5: C401 unnecessary generator in block 13
+src/app/services/queue.py:52:6: F401 imported but unused in block 14
+src/app/services/queue.py:55:7: E501 line too long (112 > 100) in block 15
+src/app/services/queue.py:58:8: W605 invalid escape sequence in block 16
+src/app/services/queue.py:61:9: B008 do not perform call in argument defaults in block 17
+src/app/services/queue.py:64:1: C401 unnecessary generator in block 18
+src/app/models/invoice.py:904:1: E902 cannot read the file, permission denied
+src/app/services/queue.py:70:3: E501 line too long (112 > 100) in block 20
+src/app/services/queue.py:73:4: W605 invalid escape sequence in block 21
+src/app/services/queue.py:76:5: B008 do not perform call in argument defaults in block 22
+src/app/services/queue.py:79:6: C401 unnecessary generator in block 23
+src/app/services/queue.py:82:7: F401 imported but unused in block 24
+src/app/services/queue.py:85:8: E501 line too long (112 > 100) in block 25
+src/app/services/queue.py:88:9: W605 invalid escape sequence in block 26
+src/app/services/queue.py:91:1: B008 do not perform call in argument defaults in block 27
+src/app/services/queue.py:94:2: C401 unnecessary generator in block 28
+src/app/services/queue.py:97:3: F401 imported but unused in block 29
+src/app/util/text.py:10:1: W605 invalid escape sequence in block 0
+src/app/util/text.py:13:2: B008 do not perform call in argument defaults in block 1
+src/app/util/text.py:16:3: C401 unnecessary generator in block 2
+src/app/util/text.py:19:4: F401 imported but unused in block 3
+src/app/util/text.py:22:5: E501 line too long (112 > 100) in block 4
+src/app/util/text.py:25:6: W605 invalid escape sequence in block 5
+src/app/util/text.py:28:7: B008 do not perform call in argument defaults in block 6
+src/app/util/text.py:31:8: C401 unnecessary generator in block 7
+src/app/util/text.py:34:9: F401 imported but unused in block 8
+src/app/util/text.py:37:1: E501 line too long (112 > 100) in block 9
+src/app/util/text.py:40:2: W605 invalid escape sequence in block 10
+src/app/util/text.py:43:3: B008 do not perform call in argument defaults in block 11
+src/app/util/text.py:46:4: C401 unnecessary generator in block 12
+src/app/util/text.py:49:5: F401 imported but unused in block 13
+src/app/util/text.py:52:6: E501 line too long (112 > 100) in block 14
+src/app/util/text.py:55:7: W605 invalid escape sequence in block 15
+src/app/util/text.py:58:8: B008 do not perform call in argument defaults in block 16
+src/app/util/text.py:61:9: C401 unnecessary generator in block 17
+src/app/util/text.py:64:1: F401 imported but unused in block 18
+src/app/util/text.py:67:2: E501 line too long (112 > 100) in block 19
+src/app/util/text.py:70:3: W605 invalid escape sequence in block 20
+src/app/util/text.py:73:4: B008 do not perform call in argument defaults in block 21
+src/app/util/text.py:76:5: C401 unnecessary generator in block 22
+src/app/services/mailer.py:905:1: E902 cannot read the file, permission denied
+src/app/util/text.py:82:7: E501 line too long (112 > 100) in block 24
+src/app/util/text.py:85:8: W605 invalid escape sequence in block 25
+src/app/util/text.py:88:9: B008 do not perform call in argument defaults in block 26
+src/app/util/text.py:91:1: C401 unnecessary generator in block 27
+src/app/util/text.py:94:2: F401 imported but unused in block 28
+src/app/util/text.py:97:3: E501 line too long (112 > 100) in block 29
+src/app/util/time.py:10:1: B008 do not perform call in argument defaults in block 0
+src/app/util/time.py:13:2: C401 unnecessary generator in block 1
+src/app/util/time.py:16:3: F401 imported but unused in block 2
+src/app/util/time.py:19:4: E501 line too long (112 > 100) in block 3
+src/app/util/time.py:22:5: W605 invalid escape sequence in block 4
+src/app/util/time.py:25:6: B008 do not perform call in argument defaults in block 5
+src/app/util/time.py:28:7: C401 unnecessary generator in block 6
+src/app/util/time.py:31:8: F401 imported but unused in block 7
+src/app/util/time.py:34:9: E501 line too long (112 > 100) in block 8
+src/app/util/time.py:37:1: W605 invalid escape sequence in block 9
+src/app/util/time.py:40:2: B008 do not perform call in argument defaults in block 10
+src/app/util/time.py:43:3: C401 unnecessary generator in block 11
+src/app/util/time.py:46:4: F401 imported but unused in block 12
+src/app/util/time.py:49:5: E501 line too long (112 > 100) in block 13
+src/app/util/time.py:52:6: W605 invalid escape sequence in block 14
+src/app/util/time.py:55:7: B008 do not perform call in argument defaults in block 15
+src/app/util/time.py:58:8: C401 unnecessary generator in block 16
+src/app/util/time.py:61:9: F401 imported but unused in block 17
+src/app/util/time.py:64:1: E501 line too long (112 > 100) in block 18
+src/app/util/time.py:67:2: W605 invalid escape sequence in block 19
+src/app/util/time.py:70:3: B008 do not perform call in argument defaults in block 20
+src/app/util/time.py:73:4: C401 unnecessary generator in block 21
+src/app/util/time.py:76:5: F401 imported but unused in block 22
+src/app/util/time.py:79:6: E501 line too long (112 > 100) in block 23
+src/app/util/time.py:82:7: W605 invalid escape sequence in block 24
+src/app/util/time.py:85:8: B008 do not perform call in argument defaults in block 25
+src/app/util/time.py:88:9: C401 unnecessary generator in block 26
+src/app/services/queue.py:906:1: E902 cannot read the file, permission denied
+src/app/util/time.py:94:2: E501 line too long (112 > 100) in block 28
+src/app/util/time.py:97:3: W605 invalid escape sequence in block 29
+src/app/cli/main.py:10:1: C401 unnecessary generator in block 0
+src/app/cli/main.py:13:2: F401 imported but unused in block 1
+src/app/cli/main.py:16:3: E501 line too long (112 > 100) in block 2
+src/app/cli/main.py:19:4: W605 invalid escape sequence in block 3
+src/app/cli/main.py:22:5: B008 do not perform call in argument defaults in block 4
+src/app/cli/main.py:25:6: C401 unnecessary generator in block 5
+src/app/cli/main.py:28:7: F401 imported but unused in block 6
+src/app/cli/main.py:31:8: E501 line too long (112 > 100) in block 7
+src/app/cli/main.py:34:9: W605 invalid escape sequence in block 8
+src/app/cli/main.py:37:1: B008 do not perform call in argument defaults in block 9
+src/app/cli/main.py:40:2: C401 unnecessary generator in block 10
+src/app/cli/main.py:43:3: F401 imported but unused in block 11
+src/app/cli/main.py:46:4: E501 line too long (112 > 100) in block 12
+src/app/cli/main.py:49:5: W605 invalid escape sequence in block 13
+src/app/cli/main.py:52:6: B008 do not perform call in argument defaults in block 14
+src/app/cli/main.py:55:7: C401 unnecessary generator in block 15
+src/app/cli/main.py:58:8: F401 imported but unused in block 16
+src/app/cli/main.py:61:9: E501 line too long (112 > 100) in block 17
+src/app/util/text.py:907:1: E902 cannot read the file, permission denied
+src/app/cli/main.py:67:2: B008 do not perform call in argument defaults in block 19
+src/app/cli/main.py:70:3: C401 unnecessary generator in block 20
+src/app/cli/main.py:73:4: F401 imported but unused in block 21
+src/app/cli/main.py:76:5: E501 line too long (112 > 100) in block 22
+src/app/cli/main.py:79:6: W605 invalid escape sequence in block 23
+src/app/cli/main.py:82:7: B008 do not perform call in argument defaults in block 24
+src/app/cli/main.py:85:8: C401 unnecessary generator in block 25
+src/app/cli/main.py:88:9: F401 imported but unused in block 26
+src/app/cli/main.py:91:1: E501 line too long (112 > 100) in block 27
+src/app/cli/main.py:94:2: W605 invalid escape sequence in block 28
+src/app/cli/main.py:97:3: B008 do not perform call in argument defaults in block 29
+Found 300 diagnostics in 10 files.
