@@ -14,7 +14,7 @@ This skill orchestrates the other skills in sequence as one developer-in-the-loo
 It does not replace them. It carries the registers and a growing proof set forward, keeps a
 master plan and a coverage map, and checks in at every phase boundary.
 
-## Phase 0. Scope the run  *(checkpoint)*
+## Phase 0: scope the run  *(checkpoint)*
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` first. A
 FAIL stops the run before any fan-out, and an advisory is noted in the register. After
@@ -32,17 +32,17 @@ Read a large file through its outline first:
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs context skim <file>` prints the imports, symbols,
 and line counts, so a brief can then read one range instead of the whole file.
 
-## Phase 1. Ground truth
+## Phase 1: ground truth
 
 Run **ground-truth**. The deterministic toolchain becomes the factual baseline and the
 coverage and blind-spot map.
 
-## Phase 2. Trust the tests
+## Phase 2: trust the tests
 
 Run **test-suite-audit**, which checks flakiness, assertion strength, and mutation kill
 rate, so you know where green is real before you rely on it.
 
-## Phase 3. Find, read-only, with proofs
+## Phase 3: find, read-only, with proofs
 
 Run **bug-hunt**, deep and per subsystem, with its root cause and sibling sweep, and run
 **quality-scan**. Both prove and disconfirm into `FINDINGS_REGISTER.md`. Use
@@ -56,24 +56,24 @@ synthesize around it.
 
 > **CHECKPOINT:** review the CONFIRMED-led register and decide what to fix.
 
-## Phase 4. Safety net
+## Phase 4: safety net
 
 Run **safety-net** on the blind spots and on anything queued for change, so the next phase's
 fixes and refactors are provably behavior-preserving.
 
-## Phase 5. Fix, which writes code and requires approval
+## Phase 5: fix, which writes code and requires approval
 
 Run **fix-verified** on the CONFIRMED bugs. Each one gets a failing-then-passing regression
 test, a root-cause fix, a sibling sweep, the regression guard, and an enforcement.
 
 > **CHECKPOINT:** confirm each batch.
 
-## Phase 6. Close inconsistencies
+## Phase 6: close inconsistencies
 
 Run **consistency-closure**. Approve a canonical form per concept, migrate every site, and
 add the enforcement.
 
-## Phase 7. Improve, optional and as scoped
+## Phase 7: improve, optional and as scoped
 
 Run **improve-measured**. Only a change with a before-and-after metric ships.
 

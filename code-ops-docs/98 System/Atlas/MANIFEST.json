@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "a8041d15e7ffd9fae9fdaa53b5e06f0d232335ec",
-      "verifiedDigest": "a52c857d3cf6aeb9546c899a8ac6d3e9ff92d69a1f5629a02ae2d2d64edd18f5"
+      "verifiedAt": "57fdc69d873e1f3db2ba5b356f6b8e0978bab238",
+      "verifiedDigest": "88f7f964472f3e680300dd230c4b7398382881c3ba443637b86bf06fad00574c"
     },
     {
       "slug": "gate-scripts",
@@ -52,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "a8041d15e7ffd9fae9fdaa53b5e06f0d232335ec",
-      "verifiedDigest": "617b4717a40c7713638179272dbae4198523b5e9376efd8851637179fc1fde24"
+      "verifiedAt": "57fdc69d873e1f3db2ba5b356f6b8e0978bab238",
+      "verifiedDigest": "b64e22fb9aa90b403fbc925bb732c49c0dcc74de3c12a21c37214cd58dc5943e"
     },
     {
       "slug": "ci-workflows",

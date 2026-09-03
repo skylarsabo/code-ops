@@ -17,7 +17,7 @@ rails this skill follows.
 - **Eligibility:** it fixes CONFIRMED items. A PROBABLE item must be reproduced, and so
   promoted to CONFIRMED, before it is fixed.
 
-## Phase 0. Re-validate and sequence  *(checkpoint)*
+## Phase 0: re-validate and sequence  *(checkpoint)*
 
 If `FINDINGS_REGISTER.md` is absent, stop. There is nothing verified to fix, so route to
 `/rigor:bug-hunt` to produce one. Never synthesize a register from memory.
@@ -43,7 +43,7 @@ drop anything refuted. An item CONFIRMED by its own executed repro proceeds as i
 Build a dependency and conflict graph, then sequence by demonstrated impact (`§D`). For a
 NEEDS-DESIGN item, present the options and get a direction first.
 
-## Phase 1. The fix-prove-guard loop (`§8`), per item
+## Phase 1: the fix-prove-guard loop (`§8`), per item
 
 1. A `verifier` confirms the failing repro.
 2. A `tracer` traces the item to its root cause (`§G`), and you make the minimal correct fix

@@ -13,14 +13,14 @@ references by section.
 - **Mode:** AUDIT.
 - **Produces:** findings in `LEAK_REGISTER.md`, plus a summary.
 
-## Phase 0. Identify the distinguishing surface  *(checkpoint)*
+## Phase 0: identify the distinguishing surface  *(checkpoint)*
 
 Determine what could distinguish one anonymous session from another, or re-link them, on
 both the client and the server side.
 
 > **CHECKPOINT:** present the candidate fingerprint surface, then confirm the scope.
 
-## Phase 1. Enumerate and homogenize
+## Phase 1: enumerate and homogenize
 
 Dispatch the explorer subagent to enumerate the surface across these layers:
 

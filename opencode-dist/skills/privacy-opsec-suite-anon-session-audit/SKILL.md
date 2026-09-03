@@ -16,7 +16,7 @@ references by section.
 - **Mode:** AUDIT.
 - **Produces:** findings in `LEAK_REGISTER.md`, plus a summary.
 
-## Phase 0. Map identity and sessions  *(checkpoint)*
+## Phase 0: map identity and sessions  *(checkpoint)*
 
 Dispatch the explorer subagent to trace how identity and sessions work: the session
 identifiers, the cookies and tokens, the account model (account-less, guest, or ephemeral),
@@ -25,7 +25,7 @@ the client and on the server.
 
 > **CHECKPOINT:** present the session and identity map, then confirm the scope.
 
-## Phase 1. Hunt linkability
+## Phase 1: hunt linkability
 
 - **Cross-request and cross-session linkability.** Can two requests, or two sessions, be
   tied to one user through a reused token, a stable identifier, or account binding?

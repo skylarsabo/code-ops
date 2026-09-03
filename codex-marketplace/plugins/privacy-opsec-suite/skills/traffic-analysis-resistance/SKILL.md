@@ -18,7 +18,7 @@ references by section.
 - **Expectations:** state them honestly. Full protection against a global passive adversary
   is generally out of scope. This skill reduces correlatability, it does not eliminate it.
 
-## Phase 0. Characterize the observable traffic  *(checkpoint)*
+## Phase 0: characterize the observable traffic  *(checkpoint)*
 
 Dispatch the explorer subagent to describe what an on-path or endpoint observer can see:
 request and response sizes, timing, volume, and cadence.
@@ -26,7 +26,7 @@ request and response sizes, timing, volume, and cadence.
 > **CHECKPOINT:** present the observable-traffic profile. Confirm the scope and the threat,
 > meaning an on-path observer or an endpoint.
 
-## Phase 1. Find the correlatable signatures
+## Phase 1: find the correlatable signatures
 
 - **Size signatures.** Distinctive request or response sizes that reveal which action or
   which content is in play, payload-size oracles, and compression side channels of the

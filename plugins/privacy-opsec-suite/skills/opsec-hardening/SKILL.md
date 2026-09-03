@@ -15,7 +15,7 @@ references by section.
 - **Produces:** fixes as branches or pull requests, `IMPLEMENTATION_LOG.md`, the updated
   register, and updated opsec documentation.
 
-## Phase 0. Plan from the leak backlog  *(checkpoint)*
+## Phase 0: plan from the leak backlog  *(checkpoint)*
 
 Read `LEAK_REGISTER.md`, then re-validate it first (`CONVENTIONS §11`). Run
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs LEAK_REGISTER.md --root .` and
@@ -28,7 +28,7 @@ leaks first.
 > request preference. For a NEEDS-DESIGN item, present the options and get a direction
 > first.
 
-## Phase 1. Implement, through `CONVENTIONS §10`
+## Phase 1: implement, through `CONVENTIONS §10`
 
 Several of the common hardening changes intentionally tighten behavior, which is the point.
 Confirm each one with the developer and pin it with a test:

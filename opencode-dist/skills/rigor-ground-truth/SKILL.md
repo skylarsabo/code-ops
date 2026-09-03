@@ -17,13 +17,13 @@ rails this skill follows.
 - **Produces:** `GROUND_TRUTH.md`, and seeds CONFIRMED items into `FINDINGS_REGISTER.md`.
 - **Order:** run this skill first. Everything else builds on it.
 
-## Phase 0. Detect the toolchain  *(checkpoint if ambiguous)*
+## Phase 0: detect the toolchain  *(checkpoint if ambiguous)*
 
 Identify what the repository has: a build or typecheck step, linters, the test runner and
 its coverage tool, a benchmark harness, a mutation-testing tool, and any static analyzer.
 Note what is missing.
 
-## Phase 1. Run the tools and harvest facts (`§C`)
+## Phase 1: run the tools and harvest facts (`§C`)
 
 Run each tool and capture its output as ground truth rather than opinion:
 

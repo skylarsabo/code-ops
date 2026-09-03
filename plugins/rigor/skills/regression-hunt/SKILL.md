@@ -14,13 +14,13 @@ rails this skill follows.
 - **Produces:** `REGRESSION_REPORT.md`, and findings into `FINDINGS_REGISTER.md`.
 - **Pairing:** run it with `bug-hunt` to bisect a confirmed bug, or run it after a release.
 
-## Phase 0. Scope  *(checkpoint)*
+## Phase 0: scope  *(checkpoint)*
 
 Define the target. Either name a known behavior change to bisect to its origin, or name a
 window such as the regressions introduced in the last N commits or since a given release.
 Confirm the time range and what correct looked like before.
 
-## Phase 1. Locate and confirm
+## Phase 1: locate and confirm
 
 - **Bisect a known bug.** Have a `verifier` write a test that detects it, then execute the
   version-control bisect to the commit that introduced it. Report the commit, the change,

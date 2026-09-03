@@ -19,7 +19,7 @@ engineer can implement without re-researching. Local sources come first, and web
 opt-in at a checkpoint (`§A`). The skill proposes and hands off. It never edits source
 (`§11`).
 
-## Phase 0. Scope the question and set direction  *(checkpoint)*
+## Phase 0: scope the question and set direction  *(checkpoint)*
 
 Restate the problem in one sentence. Read what the developer handed you, meaning the task or
 plan, the pasted text, the file paths, and the URLs. Identify the decision the brief must
@@ -31,7 +31,7 @@ and a disconfirmation list of what would make a tempting option wrong here.
 > the directions. Confirm whether web egress is permitted for this run, and if so, its scope
 > and which hosts (`§3`). The default is local-only. Proceed within the agreed scope.
 
-## Phase 1. Ground in our code  *(local, no egress)*
+## Phase 1: ground in our code  *(local, no egress)*
 
 Dispatch gatherers, in parallel over disjoint sub-questions, to judge the options against
 reality rather than a generic template. Detect the stack. Map the modules, data, and
@@ -41,7 +41,7 @@ meaning services, libraries, and data, and find the hard edges, meaning contract
 invariants, and blast radius. Each grounding observation cites `file:line` and is tiered
 (`§7`, and the `§10` grounding lens).
 
-## Phase 2. Gather the options and the prior art  *(local first, web only if approved)*
+## Phase 2: gather the options and the prior art  *(local first, web only if approved)*
 
 Enumerate the credible approaches, including building it ourselves and using a capability we
 already have, and how each one is solved in the wild (the `§10` prior-art lens).
@@ -63,7 +63,7 @@ grounding, the value, the smallest slice, the effort, and the risks. Disconfirm 
 Is it already done here? Is it incompatible with our constraints? Is it superseded? Is it
 assumed rather than measured? Drop what does not survive (`§A`).
 
-## Phase 3. Verify the load-bearing claims and disconfirm
+## Phase 3: verify the load-bearing claims and disconfirm
 
 Identify the claims the recommendation rests on, meaning the facts that would make the brief
 wrong if they were wrong. Dispatch a claim-checker per load-bearing claim, in parallel, to
@@ -74,7 +74,7 @@ blog post, and two independent secondary sources beat one. Re-run the disconfirm
 against the front-runner, asking what would make this the wrong call for us. Re-tier or drop
 what no longer holds, and stamp each survivor `Verified-at: <sha>` (`§12`).
 
-## Phase 4. Synthesize the brief and recommend  *(checkpoint)*
+## Phase 4: synthesize the brief and recommend  *(checkpoint)*
 
 Write the brief on the `§13` standard. Lead with a summary of at most one paragraph, giving
 the recommendation and the reason. Then give the options with honest trade-offs, scored by

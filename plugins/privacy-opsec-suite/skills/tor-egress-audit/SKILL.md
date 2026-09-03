@@ -14,7 +14,7 @@ references by section.
 - **Produces:** an egress map and findings in `LEAK_REGISTER.md`, plus a summary.
 - **Escalation:** surface any clearnet or DNS leak as critical.
 
-## Phase 0. Enumerate every egress path  *(checkpoint)*
+## Phase 0: enumerate every egress path  *(checkpoint)*
 
 Dispatch the explorer subagent to list all outbound network behavior: HTTP clients, raw
 sockets, DNS, telemetry and analytics, third-party SDKs, CDNs, and fonts, webhooks, and
@@ -24,7 +24,7 @@ go over Tor, SOCKS, or the proxy, and what is intentionally direct.
 > **CHECKPOINT:** present the egress map and the intended routing. Confirm the scope and the
 > routing policy.
 
-## Phase 1. Verify that the routing actually holds
+## Phase 1: verify that the routing actually holds
 
 - **Proxy enforcement.** Does the traffic that must be anonymized actually traverse the
   SOCKS or Tor proxy? Find any client or library that bypasses it through a direct connect,

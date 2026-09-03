@@ -1,6 +1,6 @@
 # Changelog — privacy-opsec-suite
 
-## 1.20.6
+## 1.20.8
 - Documentation sweep: the README and all fourteen skill pages are rewritten onto the house writing standard, with no em-dashes and no semicolons in prose, and the README gains a context-economy section naming `co.mjs context skim` and the suite's default-on hooks with their off switches. The subagent entries now name capability tiers instead of model names. No phase, checkpoint, script invocation, or `CONVENTIONS.md` citation changed.
 
 ## 1.20.5

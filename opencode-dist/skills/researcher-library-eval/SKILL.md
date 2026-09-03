@@ -18,7 +18,7 @@ the lenses, referenced by section.
 - **Rule:** capabilities are verified against the version, never from memory. The skill
   never edits code. It evaluates, recommends, and hands off (`§11`).
 
-## Phase 0. Frame the decision  *(checkpoint, and egress is opt-in)*
+## Phase 0: frame the decision  *(checkpoint, and egress is opt-in)*
 
 Pin the need, the candidates, and the weighted decision criteria for this repository rather
 than a generic checklist. The candidate set includes building it ourselves and keeping the
@@ -35,7 +35,7 @@ meaning evaluable locally, or as web-only.
 > `node <plugin-root>/scripts/research-manifest.mjs record ...`, storing the time,
 > the tool, the host, the URL, and the reason. Proceed locally while the decision is pending.
 
-## Phase 1. Ground in our code: requirements and constraints
+## Phase 1: ground in our code: requirements and constraints
 
 Dispatch gatherers, in parallel over disjoint sub-questions, to derive our own truth first,
 citing `file:line` and tiering each claim (`§7`). Cover the requirements, meaning the call
@@ -46,7 +46,7 @@ whether the candidate phones home, bundles telemetry, or opens a new outbound pa
 any incumbent it would replace and the migration seam. An ungrounded criterion is
 SPECULATIVE (`§A`).
 
-## Phase 2. Gather the real capabilities  *(verify against the version, not memory)*
+## Phase 2: gather the real capabilities  *(verify against the version, not memory)*
 
 Never assert from training memory (the `§10` source-quality lens):
 
@@ -66,7 +66,7 @@ Pin each capability claim to its source, which is an installed document or an ex
 source with a manifest entry, and tier it. Anything unverifiable against the actual version
 is `UNVERIFIED`, never guessed (`§4`).
 
-## Phase 3. Score and disconfirm
+## Phase 3: score and disconfirm
 
 Dispatch a claim-checker per candidate, in parallel, to score it and run the disconfirmation
 pass (`§A`). Weight by value multiplied by reach, divided by effort, and adjust for
@@ -89,7 +89,7 @@ confidence and grounding (`§8`). Cover each of the following, cited and tiered:
 Drop or re-tier what does not survive: already solved here, incompatible with a hard
 constraint, or superseded (`§A`).
 
-## Phase 4. Recommendation with trade-offs and the smallest slice
+## Phase 4: recommendation with trade-offs and the smallest slice
 
 Write the brief on the `§13` standard. Lead with the recommendation in one paragraph, naming
 which option, the decisive trade-off, and the overall tier of CONFIRMED, PROBABLE, or

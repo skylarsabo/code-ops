@@ -13,7 +13,7 @@ It runs them in order, carries `LEAK_REGISTER.md` forward, keeps a master plan, 
 in with you at every phase boundary. The stance is defensive: protect the system's own users
 and find and fix the leaks in your own code.
 
-## Phase 0. Scope the run  *(checkpoint)*
+## Phase 0: scope the run  *(checkpoint)*
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` first. A
 FAIL stops the run before any fan-out, and an advisory is noted in the register. After
@@ -36,14 +36,14 @@ Read a large file through its outline first:
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs context skim <file>` prints the imports, symbols,
 and line counts, so a brief can then read one range instead of the whole file.
 
-## Phase 1. Model
+## Phase 1: model
 
 Run **anonymity-threat-model** to map the adversaries, the assets that identify or link a
 user, and the deanonymization paths. Everything downstream references it.
 
 > **CHECKPOINT:** the worst paths, then a go or no-go decision.
 
-## Phase 2. Audit, read-only
+## Phase 2: audit, read-only
 
 Run the audits, parallelizing the independent ones: **anon-session-audit**,
 **tor-egress-audit**, **metadata-leak-audit**, **fingerprint-resistance**,
@@ -53,7 +53,7 @@ Run the audits, parallelizing the independent ones: **anon-session-audit**,
 > **CHECKPOINT:** the ranked leaks, led by any clearnet, DNS, or identifier exposure. Decide
 > what to fix.
 
-## Phase 3. Harden, which writes code and requires approval
+## Phase 3: harden, which writes code and requires approval
 
 Run **opsec-hardening** against `LEAK_REGISTER.md`. Enforce proxy routing and fail-closed
 behavior, close the DNS, WebRTC, and IPv6 leaks, enforce stream isolation, strip metadata,
@@ -63,7 +63,7 @@ the leak returns.
 > **CHECKPOINT:** confirm each batch (`CONVENTIONS §4`), and confirm any intentional
 > behavior-tightening with me.
 
-## Phase 4. Documentation and gate
+## Phase 4: documentation and gate
 
 Run **privacy-doc-alignment** to reconcile the privacy promises, the threat model, and the
 opsec runbooks against the code, surfacing any unkept promise loudly, and to establish the

@@ -16,7 +16,7 @@ section.
   handed off (`§11`). The skill never edits source. It is schedulable, and each run diffs
   the prior register.
 
-## Phase 0. Inventory the stack, the scope, and the egress  *(checkpoint)*
+## Phase 0: inventory the stack, the scope, and the egress  *(checkpoint)*
 
 Detect the package managers, manifests, and lockfiles, the runtime pins, the container and
 base images, the CI toolchain, and the platform SDKs. Read the prior `ECOSYSTEM_WATCH.md`
@@ -29,7 +29,7 @@ also deprecations and capabilities, and the freshness window.
 > grounded in the lockfile and the installed documentation. No request leaves the machine
 > before approval (`§A`, `§3`), and the approved budget bounds Phase 2.
 
-## Phase 1. Ground what we actually run  *(local, no egress)*
+## Phase 1: ground what we actually run  *(local, no egress)*
 
 Dispatch gatherers, in parallel over disjoint dependency groups, to resolve the installed
 and locked versions from the lockfile rather than from the manifest ranges, and to confirm
@@ -40,7 +40,7 @@ MCP server's `get-docs` tool when `code-ops-suite` is installed, which costs zer
 egress (`§2`). Include each dependency's own deprecation notices. Record the runtime and
 base-image pins, and the versions relevant to an end-of-life date.
 
-## Phase 2. Gather the changes  *(opt-in web, every request recorded)*
+## Phase 2: gather the changes  *(opt-in web, every request recorded)*
 
 Proceed only with the Phase 0 opt-in, and stay inside the agreed hosts and budget. Compose
 the `deep-research` skill. Per dependency, gather the new releases, the advisories and CVEs
@@ -55,7 +55,7 @@ fails closed (`§A`, `§12`). Redact secrets and personal data to `<REDACTED:rea
 If you need more reach than was approved, stop and return to a checkpoint. Never widen
 egress silently.
 
-## Phase 3. Triage and disconfirm  *(compose `research-verify`)*
+## Phase 3: triage and disconfirm  *(compose `research-verify`)*
 
 Run the disconfirmation pass (`§A`) before any register entry:
 
@@ -70,7 +70,7 @@ CONFIRMED means an affected version with reachable usage, verified against our t
 primary advisory. The other tiers are PROBABLE and SPECULATIVE (`§7`). Discard the ecosystem
 noise that does not touch us.
 
-## Phase 4. Register and hand off  *(checkpoint)*
+## Phase 4: register and hand off  *(checkpoint)*
 
 Write the survivors to `ECOSYSTEM_WATCH.md` on the finding schema (`§6`), with an
 `RSCH-NNN`, all fields, the sources, meaning the lockfile entry, the installed document, or

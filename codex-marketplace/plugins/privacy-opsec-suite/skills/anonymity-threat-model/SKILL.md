@@ -17,7 +17,7 @@ references by section.
 - **Produces:** `ANONYMITY_THREAT_MODEL.md`, and it feeds concrete leaks into
   `LEAK_REGISTER.md`. The model is a durable, reusable artifact.
 
-## Phase 0. Inventory assets, adversaries, and goals  *(checkpoint)*
+## Phase 0: inventory assets, adversaries, and goals  *(checkpoint)*
 
 Enumerate the assets that identify or link a user: the real IP address and location, account
 and session identifiers, behavioral patterns, device characteristics, metadata, and anything
@@ -28,7 +28,7 @@ unlinkability, unobservability, deniability, and minimization.
 > **CHECKPOINT:** present the assets, adversaries, trust boundaries, and stated goals.
 > Confirm the scope and which adversaries to emphasize.
 
-## Phase 1. Map the deanonymization paths
+## Phase 1: map the deanonymization paths
 
 For each pairing of an adversary with an asset, dispatch the explorer subagent to trace the
 data and traffic flows and work out how the adversary could observe, link, or deanonymize.

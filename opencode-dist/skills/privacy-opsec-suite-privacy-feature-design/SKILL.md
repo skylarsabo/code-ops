@@ -18,7 +18,7 @@ references by section.
   and a summary.
 - **Limit:** discovery and specification only, with no implementation.
 
-## Phase 0. Understand the product and its anonymity model  *(checkpoint)*
+## Phase 0: understand the product and its anonymity model  *(checkpoint)*
 
 Dispatch the explorer subagent to map the current feature set, the anonymity and opsec
 model, the latent capabilities, and the intent signals, meaning TODOs, stubs, and disabled
@@ -27,7 +27,7 @@ flags.
 > **CHECKPOINT:** confirm the direction, the target users, what is in and out of scope, and
 > the appetite.
 
-## Phase 1. Find features that deepen trust and control
+## Phase 1: find features that deepen trust and control
 
 Grounded in the code, look for privacy and trust capabilities that strengthen the product's
 position:
@@ -47,7 +47,7 @@ Gate every idea against the anonymity model (`§A`). An idea must strengthen ano
 neutral to it. Anything that would erode anonymity is flagged for a developer decision, and
 never silently proposed. Define each idea's smallest valuable slice.
 
-## Phase 2. Prioritize, then specify  *(checkpoint)*
+## Phase 2: prioritize, then specify  *(checkpoint)*
 
 Rank each idea by value multiplied by reach, divided by effort, and weighted by confidence.
 Tag the quick wins and the big bets.

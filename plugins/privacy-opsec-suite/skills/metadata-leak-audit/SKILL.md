@@ -13,7 +13,7 @@ references by section.
 - **Mode:** AUDIT.
 - **Produces:** findings in `LEAK_REGISTER.md`, plus a summary.
 
-## Phase 0. Inventory the metadata sources  *(checkpoint)*
+## Phase 0: inventory the metadata sources  *(checkpoint)*
 
 Find everywhere metadata is produced, stored, served, or logged: logging, telemetry and
 analytics, error and crash reporting, generated and served files, response headers, caches
@@ -21,7 +21,7 @@ and the CDN, and backups.
 
 > **CHECKPOINT:** present the inventory, then confirm the scope.
 
-## Phase 1. Hunt and minimize
+## Phase 1: hunt and minimize
 
 Dispatch the explorer subagent to hunt across those sources:
 

@@ -18,14 +18,14 @@ rails this skill follows.
 - **Target:** issues that cause defects or real maintenance pain. Cosmetic style is the
   formatter's job and stays out of scope.
 
-## Phase 0. Scope  *(checkpoint)*
+## Phase 0: scope  *(checkpoint)*
 
 Pick the area. Read `GROUND_TRUTH.md` so you skip what the linter and the type checker
 already enforce. If that file is absent, run `/rigor-ground-truth` first, or harvest the
 `§C` toolchain baseline for the area yourself before scanning. Never reason ahead of the
 toolchain.
 
-## Phase 1. Find the defect-causing quality issues
+## Phase 1: find the defect-causing quality issues
 
 Dispatch a `tracer` to hunt the maintainability lenses in `§7` that actually bite:
 

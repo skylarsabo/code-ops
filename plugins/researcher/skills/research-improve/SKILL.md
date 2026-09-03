@@ -20,7 +20,7 @@ and disclosed (`§A`). Every claim is cited and tiered (`§7`), and a candidate 
 disconfirmation is dropped. The skill proposes and hands off. It never edits source (`§A`,
 `§11`).
 
-## Phase 0. Scope, targets, and egress permission  *(checkpoint)*
+## Phase 0: scope, targets, and egress permission  *(checkpoint)*
 
 Pin the target, meaning the modules, the subsystem, or the concern, which may be
 correctness, robustness, idiomatic dependency use, maintainability, or a non-measured
@@ -35,7 +35,7 @@ Decide whether web research is needed at all.
 > why, which hosts and queries, and what for, then get explicit opt-in before any request
 > leaves the machine. If it is declined, proceed local-only.
 
-## Phase 1. Ground: map the relevant code and its constraints
+## Phase 1: ground: map the relevant code and its constraints
 
 Dispatch gatherers, in parallel over disjoint sub-questions, to build the local picture
 before reaching out. Cover the target's structure, the seams where a change would apply, the
@@ -46,7 +46,7 @@ what they pin, the blast radius per seam, and the constraints that would veto a 
 Record the commit SHA researched against (`§12`). Anything not grounded in our code stays
 `UNVERIFIED` (`§A`).
 
-## Phase 2. Gather  *(local first, web only if opted in)*
+## Phase 2: gather  *(local first, web only if opted in)*
 
 Work cheapest and most local first:
 
@@ -65,7 +65,7 @@ Work cheapest and most local first:
   Redact secrets and personal data to `<REDACTED:reason>` (`§4`). Surface the running
   manifest at the next checkpoint.
 
-## Phase 3. Verify and disconfirm each candidate  *(checkpoint)*
+## Phase 3: verify and disconfirm each candidate  *(checkpoint)*
 
 Run the disconfirmation pass on every candidate (`§A`, `§10`), because assertion is not
 evidence:
@@ -90,7 +90,7 @@ current SHA (`§12`).
 > anything that egressed. The developer confirms which ones graduate to the register. Drop
 > the rest with a one-line reason.
 
-## Phase 4. Register the findings (`§6` schema, tiered, cited, handed off)
+## Phase 4: register the findings (`§6` schema, tiered, cited, handed off)
 
 Write each survivor to `RESEARCH_FINDINGS.md` as an `RSCH-NNN` entry on the finding schema
 (`§6`), with all fields and a `Verified-at: <sha>` stamp. Assign the track, which is

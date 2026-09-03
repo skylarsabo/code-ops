@@ -18,26 +18,26 @@ rails this skill follows.
   summary.
 - **Protocol:** the closure protocol in `§9`.
 
-## Phase 0. Scope  *(checkpoint)*
+## Phase 0: scope  *(checkpoint)*
 
 Pick the concept space, for example error handling, data access, validation, the naming of
 one idea, or the shape of an API response.
 
-## Phase 1. Inventory the variants
+## Phase 1: inventory the variants
 
 Dispatch a `tracer` to find divergent implementations of one concept: several ways of doing
 one thing, drifted duplication, inconsistent return, error, or null conventions, contract
 drift across call sites, and inconsistent naming for a single idea. Group the variants by
 concept and show each one with its `file:line`.
 
-## Phase 2. Choose the canonical form  *(checkpoint, and a real decision)*
+## Phase 2: choose the canonical form  *(checkpoint, and a real decision)*
 
 For each group, propose one canonical form with its rationale, weighing correctness, safety,
 ergonomics, and prevalence.
 
 > **CHECKPOINT:** the developer approves the canonical choice per group before any migration.
 
-## Phase 3. Close and enforce
+## Phase 3: close and enforce
 
 Migrate every other site to the canonical form. Each migration is behavior-preserving,
 conflict-aware, tested, and committed. Then add a mechanical enforcement, which may be a

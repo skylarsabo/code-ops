@@ -15,21 +15,21 @@ rails this skill follows.
   the measured deltas.
 - **Rule:** if you cannot measure the before, you cannot claim the after.
 
-## Phase 0. Scope and define better  *(checkpoint)*
+## Phase 0: scope and define better  *(checkpoint)*
 
 Agree what improvement means here: runtime or latency, allocations or queries, complexity,
 bundle or footprint size, removable code or dependencies, or API ergonomics. Read
 `GROUND_TRUTH.md`. Confirm that a `safety-net` exists for the target, or run it first, so
 that behavior-preserving is provable.
 
-## Phase 1. Baseline the candidates
+## Phase 1: baseline the candidates
 
 For each candidate, have a `verifier` capture a concrete baseline measurement first: a
 benchmark number, a complexity score, an allocation, query, or IO count, a bundle size, or
 the exact dead code or dependency to remove. Reject any speculative change that has no
 measurable basis.
 
-## Phase 2. Implement and re-measure
+## Phase 2: implement and re-measure
 
 Apply the change behavior-preservingly (`§8`) and keep the full suite and the proof set
 green. Then have the `verifier` re-measure and record the before, the after, and the delta.

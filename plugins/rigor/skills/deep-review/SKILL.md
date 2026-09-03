@@ -14,7 +14,7 @@ rails this skill follows.
 - **Produces:** tiered `file:line` comments and a verdict. They go to the pull request when
   a version-control tool is connected, and to `REVIEW.md` otherwise.
 
-## Phase 0. Understand the change
+## Phase 0: understand the change
 
 Pull the diff, its intent from the description and any linked issue or specification, and
 the surrounding code. Run the `GROUND_TRUTH` tooling on the branch, meaning typecheck, lint,
@@ -23,7 +23,7 @@ subagents and synthesize their reports. For a changed exported symbol or a share
 contract, use a `tracer` to locate its dependents, so that ranking reflects demonstrated
 reach (`§D`) rather than diff size.
 
-## Phase 1. Review against the lenses, with proof
+## Phase 1: review against the lenses, with proof
 
 Apply the correctness, failure-handling, consistency, and defect-causing-maintainability
 lenses (`§7`). Reproduce each concern where that is feasible, with a failing test or a

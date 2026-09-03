@@ -16,7 +16,7 @@ references by section.
 - **Mode:** AUDIT, plus safe fixes applied with confirmation.
 - **Produces:** findings in `LEAK_REGISTER.md`, plus a report.
 
-## Phase 0. Inventory the dependencies and their behavior  *(checkpoint)*
+## Phase 0: inventory the dependencies and their behavior  *(checkpoint)*
 
 Dispatch the explorer subagent to catalogue the direct and transitive dependencies, their
 network behavior, their known CVEs by severity, and the build and lockfile integrity.
@@ -24,7 +24,7 @@ network behavior, their known CVEs by severity, and the build and lockfile integ
 > **CHECKPOINT:** present the inventory with the telemetry, egress, and CVE flags
 > highlighted, then confirm the scope.
 
-## Phase 1. Assess trust under the model
+## Phase 1: assess trust under the model
 
 - **Egress and telemetry, the anonymity risk.** Does any dependency phone home, send
   analytics or telemetry, make a third-party call, add an egress path, or add a fingerprint

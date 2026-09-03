@@ -18,12 +18,12 @@ rails this skill follows.
 - **Produces:** `TEST_SUITE_REPORT.md` with a trust map, plus targeted hardening tests.
 - **Standing:** the foundation under every other proof (`§F`).
 
-## Phase 0. Scope  *(checkpoint)*
+## Phase 0: scope  *(checkpoint)*
 
 Target the whole suite, or focus on the modules you rely on as proofs or intend to change.
 Read `GROUND_TRUTH.md` for the coverage map.
 
-## Phase 1. Establish what green is worth
+## Phase 1: establish what green is worth
 
 - **Flaky or nondeterministic tests.** Have a `verifier` run the suite, or the target
   tests, several times. Flag any test with unstable results into a quarantine list. A flaky
@@ -36,7 +36,7 @@ Read `GROUND_TRUTH.md` for the coverage map.
   them. A surviving mutant marks exactly where a passing test guards nothing. Cross-check
   against coverage: high coverage with a low kill rate is the dangerous combination.
 
-## Phase 2. Harden the gaps
+## Phase 2: harden the gaps
 
 Propose targeted tests that kill the surviving mutants and add the missing edge and error
 assertions. Write the NOW-SAFE additions yourself. Re-run to confirm the kill rate improves.

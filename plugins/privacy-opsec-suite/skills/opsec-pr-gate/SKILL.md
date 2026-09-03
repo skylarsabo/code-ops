@@ -15,13 +15,13 @@ references by section.
   version-control tool is connected, and to `REVIEW.md` otherwise.
 - **Default:** review only.
 
-## Phase 0. Understand the change
+## Phase 0: understand the change
 
 Pull the request or diff, its intent from the description and any linked issue, leak ID, or
 specification, and the surrounding code. For a large pull request, fan out to the
 privacy-reviewer subagent and synthesize the reports.
 
-## Phase 1. Review against the anonymity and opsec model
+## Phase 1: review against the anonymity and opsec model
 
 Apply the lenses (`§9`). Treat each of these as a BLOCKING regression:
 

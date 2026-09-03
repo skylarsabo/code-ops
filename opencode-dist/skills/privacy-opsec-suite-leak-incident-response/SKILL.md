@@ -20,7 +20,7 @@ references by section.
 - **When to use it:** a possible anonymity or privacy leak, or a correlation vector, is
   suspected.
 
-## Phase 0. Establish what is suspected  *(checkpoint)*
+## Phase 0: establish what is suspected  *(checkpoint)*
 
 Capture the suspected leak, the affected area, and the timeline, without making the leak
 worse. Do not add logging of personal data in order to investigate. Work from redacted
@@ -29,7 +29,7 @@ evidence.
 > **CHECKPOINT:** present what is suspected and the investigation plan, then confirm the
 > scope. Surface anything clearly critical immediately.
 
-## Phase 1. Triage, contain, scope, then plan
+## Phase 1: triage, contain, scope, then plan
 
 - **Triage.** Dispatch the explorer subagent to confirm, with redacted `file:line` evidence,
   whether the leak is real. Rule out the false positives.

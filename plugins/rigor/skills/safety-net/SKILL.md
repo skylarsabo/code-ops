@@ -14,12 +14,12 @@ rails this skill follows.
 - **Produces:** a characterization test suite, plus suspicious-behavior findings.
 - **Purpose:** it gives the regression guard (`§H`) something concrete to protect.
 
-## Phase 0. Pick targets  *(checkpoint)*
+## Phase 0: pick targets  *(checkpoint)*
 
 Choose what to pin: the blind spots listed in `GROUND_TRUTH.md`, the code queued for a fix,
 a refactor, or an improvement, and the high-risk modules. Confirm the scope.
 
-## Phase 1. Characterize current behavior
+## Phase 1: characterize current behavior
 
 Dispatch a `tracer` to trace each target's current observable behavior across its call
 sites, including its current quirks, because these tests pin behavior rather than

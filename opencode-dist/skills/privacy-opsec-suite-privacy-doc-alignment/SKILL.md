@@ -19,7 +19,7 @@ references by section.
 - **Limit:** it edits documentation only. Log any code issue as a finding and change no
   code.
 
-## Phase 0. Inventory and map  *(checkpoint)*
+## Phase 0: inventory and map  *(checkpoint)*
 
 Inventory the privacy and opsec documentation, meaning the privacy policy, the threat model,
 the opsec runbooks, and the contributor rules, and state each one's purpose. Dispatch the
@@ -30,7 +30,7 @@ every topic with duplicate authorities.
 > **CHECKPOINT:** present the inventory, the map from topic to authority, and the biggest
 > gaps. Confirm which documents are authoritative and which are aspirational.
 
-## Phase 1. Verify, reconcile, and establish the single source of truth
+## Phase 1: verify, reconcile, and establish the single source of truth
 
 Verify every privacy claim against the code. Classify the drift as stale, wrong,
 contradictory, orphaned, missing, or a duplicate authority.

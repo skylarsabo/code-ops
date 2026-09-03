@@ -23,7 +23,7 @@ repository. Every idea is cited and tiered (`§7`), grounded (`§A`), feasibilit
 cut to its smallest slice. The skill proposes and hands off (`§11`), and writes no code
 (`§4`).
 
-## Phase 0. Product read, direction, and egress permission  *(checkpoint)*
+## Phase 0: product read, direction, and egress permission  *(checkpoint)*
 
 Work locally only. Detect the stack and read the product: the current feature set, the main
 flows, the target users, and the intent signals in the documentation, the README, the
@@ -37,7 +37,7 @@ and what net-new means for this product.
 > trends is opted in and bounded, naming which questions and which hosts. No network call
 > happens before that approval (`§3`).
 
-## Phase 1. Ground the capabilities, the latent assets, and the constraints
+## Phase 1: ground the capabilities, the latent assets, and the constraints
 
 Work locally only. Dispatch gatherers, in parallel over disjoint sub-questions, to cite
 everything at `file:line`. Establish the floor an idea must clear:
@@ -52,7 +52,7 @@ everything at `file:line`. Establish the floor an idea must clear:
 
 Note the directions that version-control history shows were tried and abandoned.
 
-## Phase 2. Gather inspiration  *(local first, web only if opted in at Phase 0)*
+## Phase 2: gather inspiration  *(local first, web only if opted in at Phase 0)*
 
 - **Dependency capabilities.** Dispatch gatherers, in parallel over disjoint dependencies,
   for what installed libraries already offer that we do not use. Use
@@ -85,7 +85,7 @@ Mine these lenses, aiming for net-new rather than parity:
 Apply the honest-novelty lens (`§10`) throughout, and tag what is genuinely new against what
 merely follows a trend.
 
-## Phase 3. Feasibility and disconfirmation  *(compose `research-verify`)*
+## Phase 3: feasibility and disconfirmation  *(compose `research-verify`)*
 
 Run the disconfirmation pass (`§A`) on every candidate before it earns an ID, and drop what
 does not survive:
@@ -103,7 +103,7 @@ external claims behind it adversarially and to set the honest tier. A single wea
 lead is SPECULATIVE (`§7`). An ungrounded claim is `UNVERIFIED` and ranks below anything
 PROBABLE or CONFIRMED (`§8`).
 
-## Phase 4. Register the ideas  *(checkpoint)*
+## Phase 4: register the ideas  *(checkpoint)*
 
 Write each survivor to `IDEAS_REGISTER.md` on the finding and idea schema (`§6`), with a
 stable `IDEA-NNN`, all fields, and a `Verified-at: <sha>` stamp. The disconfirmation field

@@ -21,7 +21,7 @@ forward fresh, keeps a master plan, pauses at every phase boundary, and always s
 - **Requirements:** nothing beyond the researcher plugin. It composes a `code-ops-suite`,
   `rigor`, or `privacy-opsec-suite` skill only when installed, and only for hand-off (`§11`).
 
-## Phase 0. Scope the run and set egress permission  *(checkpoint)*
+## Phase 0: scope the run and set egress permission  *(checkpoint)*
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>` first. A
 FAIL stops the run before any fan-out, and an advisory is noted in the register. After
@@ -58,7 +58,7 @@ and line counts, so a brief reads one range instead of the whole file.
 > request will be disclosed in `EGRESS_MANIFEST.md`. No web request happens before you
 > approve. Keep local gathering moving while a decision is pending (`§3`).
 
-## Phase 1. Ground in our code  *(local, zero egress)*
+## Phase 1: ground in our code  *(local, zero egress)*
 
 Establish the grounding baseline every later phase ties back to (the `§A` grounding rule).
 Map the relevant architecture, the constraints, and the in-repository prior art. Verify every
@@ -69,7 +69,7 @@ is.
 
 > **CHECKPOINT:** the grounded picture, and the open questions the next phase must answer.
 
-## Phase 2. Gather  *(checkpoint, which surfaces the manifest)*
+## Phase 2: gather  *(checkpoint, which surfaces the manifest)*
 
 Run the selected discovery skills against the grounded baseline, fanning out read-only
 (`§1`): **research-improve**, **research-ideate**, **library-eval**, **research-spike**, and
@@ -85,7 +85,7 @@ approved scope, and every external request is recorded the moment it happens:
 > **CHECKPOINT:** the raw candidate registers, the gaps still open, and the current
 > `EGRESS_MANIFEST.md`, showing exactly what left the machine.
 
-## Phase 3. Verify  *(checkpoint)*
+## Phase 3: verify  *(checkpoint)*
 
 Run **research-verify** over every load-bearing claim, recommendation, and external fact,
 adversarially, against both our code and the cited sources (`§7`, and the `§10` grounding
@@ -102,7 +102,7 @@ dropping or `OBSOLETE-AT <sha>`-stamping anything that no longer holds (`§12`).
 > **CHECKPOINT:** the verified, re-tiered registers, with CONFIRMED separated from PROBABLE
 > and SPECULATIVE, and any claim that failed, with the manifest still in view.
 
-## Phase 4. Propose and hand off  *(checkpoint)*
+## Phase 4: propose and hand off  *(checkpoint)*
 
 Rank the survivors by value multiplied by reach, divided by effort, and weighted by tier and
 grounding (`§8`). For each one, give the concrete recommendation, the smallest valuable
@@ -121,7 +121,7 @@ re-researching (`§11`). The researcher never edits code (`§A`, `§4`).
 
 > **CHECKPOINT:** the ranked, hand-off-ready registers and briefs.
 
-## Phase 5. Consolidate the executive summary  *(final, validate before publishing)*
+## Phase 5: consolidate the executive summary  *(final, validate before publishing)*
 
 Write one `EXECUTIVE_SUMMARY.md` carrying the questions, the grounded answer, and the
 unified picture across the findings, the ideas, and the briefs, with CONFIRMED separated

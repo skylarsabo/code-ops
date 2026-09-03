@@ -1,6 +1,6 @@
 # Changelog — researcher
 
-## 0.13.9
+## 0.13.11
 - Documentation sweep: the README and all seven skill pages are rewritten onto the house writing standard, with no em-dashes and no semicolons in prose, and the README gains subagent and context-economy sections naming capability tiers, `co.mjs context skim`, and the suite's default-on hooks with their off switches. No phase, checkpoint, script invocation, or `CONVENTIONS.md` citation changed.
 
 ## 0.13.8
