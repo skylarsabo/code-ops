@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "cc09f8603dc4bb4de3479343095e7c2807d3a262451f3091ab2f6c7cfb81f5ff"
+      "verifiedAt": "f4f62378cb8dcb42233fc4824874532b26ceca34",
+      "verifiedDigest": "7d97c79b6c8b29530301345f5ae79fa77cc47c983b927cd5ca749a9aa9b4e598"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,15 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "31d5c5d25a61de71fbdb93c6f88dda39a864b3bfb6f013897202a5ab112f8c30"
+      "verifiedAt": "f4f62378cb8dcb42233fc4824874532b26ceca34",
+      "verifiedDigest": "4505dd02ee59da1e241b9281e7c9f1d83628ecc51fa682750e8cf696de5fa50c",
+      "claims": [
+        {
+          "file": "scripts/atlas-check.mjs",
+          "line": 306,
+          "anchor": "function classifyClaims(root, sections) {"
+        }
+      ]
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +34,15 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "4d2f4a7166b4b2d9a3a7cdc6feea5f727a9e292805d2d45ab5dbaaa6527a3d66"
+      "verifiedAt": "f4f62378cb8dcb42233fc4824874532b26ceca34",
+      "verifiedDigest": "9a7b1f23c098da4300c326b3984bc4c719b84e5b22e06bc69b9943342294c1d3",
+      "claims": [
+        {
+          "file": "scripts/judgment-evals.mjs",
+          "line": 155,
+          "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
+        }
+      ]
     },
     {
       "slug": "codex-render",
@@ -38,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "ea7fb6957af795dec57b11be1060803beb626a53407654ba23f963aecf8863eb"
+      "verifiedAt": "f4f62378cb8dcb42233fc4824874532b26ceca34",
+      "verifiedDigest": "e4e771070dbf74cf056a99c80295efdddc10604ba7e094d425230708547300fe"
     },
     {
       "slug": "ci-workflows",
@@ -71,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "92b11fdead2f43b6112ca3ceefe690b7665759a7",
-      "verifiedDigest": "4ac215910830afc0bab6285179bbee1c6b3e7548dc82bfa4a606c2023d944f5f"
+      "verifiedAt": "f4f62378cb8dcb42233fc4824874532b26ceca34",
+      "verifiedDigest": "e7fedbe343c199333e32d1b7c4337d898836117d8aac8348d660da46ace2dda9"
     },
     {
       "slug": "root-contracts",

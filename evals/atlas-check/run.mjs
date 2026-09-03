@@ -42,14 +42,15 @@ const check = (name, cond, detail) => {
   if (!cond) fails.push(detail ? `${name} — ${String(detail).slice(0, 400)}` : name);
 };
 
-const run = (args, cwd) => {
+const runScript = (script, args, cwd, env) => {
   try {
-    const stdout = execFileSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8', timeout: 30000, cwd: cwd ?? REPO });
+    const stdout = execFileSync(process.execPath, [script, ...args], { encoding: 'utf8', timeout: 120000, cwd: cwd ?? REPO, env: env ?? process.env });
     return { status: 0, out: stdout };
   } catch (e) {
     return { status: e.status ?? 1, out: (e.stdout || '') + (e.stderr || '') };
   }
 };
+const run = (args, cwd, env) => runScript(SCRIPT, args, cwd, env);
 
 // ---- scratch git repos ------------------------------------------------------
 const cleanupDirs = [];
@@ -602,6 +603,108 @@ try {
   put(S, 'src/app.js', 'export const app = 2;\n');
   const squashStale = run(['check', '--atlas', atlasS]);
   check('w. verifiedDigest remains scope-aware and goes STALE on scoped content change', squashStale.status === 0 && /!!\s+STALE\s+core\b/.test(squashStale.out), squashStale.out);
+
+  // ============================================================ J. claims
+  // A claim is a `path:line` citation in a section's prose. `stamp` records one per citation with
+  // an anchor copied verbatim from the cited line; `check` classifies them through the register
+  // classifier, so a section whose scope moved keeps the claims that did not.
+  const CL = newRepo('claims');
+  put(CL, 'src/app.js', 'export const app = 1;\nexport function boot() { return app; }\n');
+  put(CL, 'src/util.js', 'export const util = 1;\n');
+  put(CL, 'tools/build.sh', 'echo build\n');
+  commit(CL, 'init');
+  const atlasCL = join(CL, 'docs', 'atlas');
+  run(['init', '--atlas', atlasCL]);
+  run(['add', '--atlas', atlasCL, '--section', 'core', '--scope', 'src/**']);
+  run(['add', '--atlas', atlasCL, '--section', 'tools', '--scope', 'tools/**']);
+  put(CL, 'docs/atlas/sections/core.md',
+    '# Core\n\nCharter: the src tree.\n\nBoot resolves the module constant, at src/app.js:2.\n'
+    + 'The sibling constant is deliberately separate, at src/util.js:1.\n');
+  commit(CL, 'atlas');
+  const y1 = run(['stamp', '--atlas', atlasCL, '--section', 'core']);
+  run(['stamp', '--atlas', atlasCL, '--section', 'tools']);
+  check('y. stamp reports the claim count it recorded', /\(atlas\) stamped core: \S+ -> [0-9a-f]{7} \(2 claim\(s\)\)/.test(y1.out), y1.out);
+  const clClaims = JSON.parse(readFileSync(join(atlasCL, 'MANIFEST.json'), 'utf8')).sections.find((s) => s.slug === 'core').claims;
+  check('y. a section citing two lines records two claims',
+    Array.isArray(clClaims) && clClaims.length === 2
+    && clClaims[0].file === 'src/app.js' && clClaims[0].line === 2
+    && clClaims[1].file === 'src/util.js' && clClaims[1].line === 1, JSON.stringify(clClaims));
+  check('y. each claim carries an anchor that is a verbatim substring of its cited line',
+    clClaims.every((c) => typeof c.anchor === 'string' && c.anchor.length > 0 && c.anchor.length <= 80 && !c.anchor.includes('`'))
+    && readFileSync(join(CL, 'src', 'app.js'), 'utf8').split('\n')[1].includes(clClaims[0].anchor)
+    && readFileSync(join(CL, 'src', 'util.js'), 'utf8').split('\n')[0].includes(clClaims[1].anchor), JSON.stringify(clClaims));
+  const y2 = run(['check', '--atlas', atlasCL]);
+  check('y. every claim reads fresh right after the stamp', /claims: 2 fresh, 0 moved, 0 drifted, 0 gone/.test(y2.out), y2.out);
+  check('y. a section that cites nothing reports `claims: none`', /claims: none/.test(y2.out), y2.out);
+  check('y. the summary counts the claims', /2 claim\(s\), 0 needing re-verification\./.test(y2.out), y2.out);
+  check('y. --claims-gate passes while every claim is fresh', run(['check', '--atlas', atlasCL, '--claims-gate']).status === 0);
+
+  // Rewrite the cited line so it still exists but no longer carries the anchor: DRIFTED, the
+  // status the register classifier owns.
+  put(CL, 'src/app.js', 'export const app = 1;\nexport function boot(flag) { return flag ? app : 0; }\n');
+  const y3 = run(['check', '--atlas', atlasCL]);
+  check('y. the plain check still reports the digest verdict', y3.status === 0 && /!!\s+STALE\s+core\b/.test(y3.out), y3.out);
+  check('y. one claim is drifted and the rest stay fresh', /claims: 1 fresh, 0 moved, 1 drifted, 0 gone/.test(y3.out), y3.out);
+  check('y. the drifted claim is named with its file and line', /!!\s+DRIFTED\s+src\/app\.js:2\b/.test(y3.out), y3.out);
+  check('y. the untouched claim is not listed as an offender', !/src\/util\.js:1/.test(y3.out), y3.out);
+  check('y. the summary counts the drifted claim', /2 claim\(s\), 1 needing re-verification\./.test(y3.out), y3.out);
+  const y4 = run(['check', '--atlas', atlasCL, '--claims-gate']);
+  check('y. --claims-gate exits 1 on a drifted claim', y4.status === 1 && /--claims-gate: 1 claim/.test(y4.out), y4.out);
+  const y5 = run(['check', '--atlas', atlasCL]);
+  check('y. without a gate flag a drifted claim is still exit 0 (report-only)', y5.status === 0, y5.out);
+
+  // A cited line that no longer exists is MOVED, and a cited file that is gone is GONE — both come
+  // from the same classifier, so the atlas cannot disagree with a findings register about either.
+  put(CL, 'src/app.js', 'export const app = 1;\n');
+  const y6 = run(['check', '--atlas', atlasCL, '--claims-gate']);
+  check('y. a cited line past the end of its file is moved', /claims: 1 fresh, 1 moved, 0 drifted, 0 gone/.test(y6.out) && y6.status === 1, y6.out);
+  rmSync(join(CL, 'src', 'util.js'), { force: true });
+  const y7 = run(['check', '--atlas', atlasCL]);
+  check('y. a cited file that is gone is reported gone', /claims: 0 fresh, 1 moved, 0 drifted, 1 gone/.test(y7.out), y7.out);
+
+  // A malformed claim is a manifest that cannot be read, not a section that aged out: fail closed.
+  const clm = JSON.parse(readFileSync(join(atlasCL, 'MANIFEST.json'), 'utf8'));
+  clm.sections.find((s) => s.slug === 'core').claims = [{ file: 'src/app.js', line: 0 }];
+  writeFileSync(join(atlasCL, 'MANIFEST.json'), JSON.stringify(clm, null, 2) + '\n');
+  const y8 = run(['check', '--atlas', atlasCL]);
+  check('y. a claim with a non-positive line is MALFORMED and exits 1',
+    y8.status === 1 && /!!\s+MALFORMED\s+sections\[0\]\.claims\[0\]\.line/.test(y8.out), y8.out);
+  clm.sections.find((s) => s.slug === 'core').claims = [{ file: 'src/app.js', line: 1, anchor: 'has a ` backtick' }];
+  writeFileSync(join(atlasCL, 'MANIFEST.json'), JSON.stringify(clm, null, 2) + '\n');
+  const y9 = run(['check', '--atlas', atlasCL]);
+  check('y. a backtick in an anchor is MALFORMED (the register delimits anchors with backticks)',
+    y9.status === 1 && /!!\s+MALFORMED\s+sections\[0\]\.claims\[0\]\.anchor/.test(y9.out), y9.out);
+
+  // ============================================================ K. graph-derived scope suggestion
+  const SC = newRepo('scope-suggest');
+  put(SC, 'lib/core.js', 'export const core = 1;\n');
+  put(SC, 'src/a.js', "import { core } from '../lib/core.js';\nexport const a = core;\n");
+  put(SC, 'src/b.js', "import { core } from '../lib/core.js';\nexport const b = core;\n");
+  commit(SC, 'init');
+  const atlasSC = join(SC, 'docs', 'atlas');
+  run(['init', '--atlas', atlasSC]);
+  run(['add', '--atlas', atlasSC, '--section', 'core', '--scope', 'lib/**']);
+  commit(SC, 'atlas');
+  const emptyIndex = mkdtempSync(join(tmpdir(), 'atlas-noindex-'));
+  cleanupDirs.push(emptyIndex);
+  const z1 = run(['scope', 'core', '--atlas', atlasSC, '--suggest', '--root', SC], SC, { ...process.env, CODE_OPS_INDEX_DIR: emptyIndex });
+  check('z. a missing symbol index exits 1 and says which command builds one',
+    z1.status === 1 && /no symbol index/.test(z1.out) && /context-query\.mjs refresh/.test(z1.out), z1.out);
+  const indexDir = mkdtempSync(join(tmpdir(), 'atlas-index-'));
+  cleanupDirs.push(indexDir);
+  const built = runScript(join(REPO, 'scripts', 'context-query.mjs'), ['refresh', '--root', SC], SC, { ...process.env, CODE_OPS_INDEX_DIR: indexDir });
+  check('z. the symbol index builds over the fixture', built.status === 0, built.out);
+  const z2 = run(['scope', 'core', '--atlas', atlasSC, '--suggest', '--root', SC], SC, { ...process.env, CODE_OPS_INDEX_DIR: indexDir });
+  check('z. both importing files are suggested', z2.status === 0 && /\bsrc\/a\.js\b/.test(z2.out) && /\bsrc\/b\.js\b/.test(z2.out), z2.out);
+  check('z. they are printed as a pathspec list for `add --scope`', /--scope src\/a\.js --scope src\/b\.js/.test(z2.out), z2.out);
+  check('z. a file already inside the scope is never suggested', !/--scope lib\/core\.js/.test(z2.out), z2.out);
+  check('z. the suggestion writes nothing',
+    JSON.parse(readFileSync(join(atlasSC, 'MANIFEST.json'), 'utf8')).sections[0].scope.join(',') === 'lib/**',
+    readFileSync(join(atlasSC, 'MANIFEST.json'), 'utf8'));
+  const z3 = run(['scope', 'not-a-section', '--atlas', atlasSC, '--suggest', '--root', SC], SC, { ...process.env, CODE_OPS_INDEX_DIR: indexDir });
+  check('z. an unknown slug exits 1 naming the known ones', z3.status === 1 && /unknown section slug: not-a-section/.test(z3.out), z3.out);
+  check('z. scope without --suggest exits 2', run(['scope', 'core', '--atlas', atlasSC], SC).status === 2);
+  check('z. scope without a slug exits 2', run(['scope', '--atlas', atlasSC, '--suggest'], SC).status === 2);
 
   // ============================================================ D. usage errors
   check('n. no subcommand exits 2', run([]).status === 2);
