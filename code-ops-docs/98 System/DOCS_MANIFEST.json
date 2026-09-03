@@ -30,7 +30,7 @@
         ".claude-plugin/**"
       ],
       "sourceDigest": "416bf52544bd8ed625423729d8314a0253ef02dfdbcaf47040d804914c19d5c6",
-      "contentDigest": "9561029564c0966b54d53913a12351a6e75043d39d8bab670f78e651c6bc2bff"
+      "contentDigest": "bf757370a45e49b37aa2a8fa88695992fc0a5acd0c96f717ad39308d47ac5c08"
     },
     {
       "id": "contracts",
@@ -42,7 +42,7 @@
         "evals/**"
       ],
       "sourceDigest": "7eda4581150431c8ad70c7886951d9b24f4f162a0e4a2c492368c70d03ebd399",
-      "contentDigest": "59a3614d51165e060a9c11317a6cdc5852501db1124eff2b2be56856a8064e46"
+      "contentDigest": "f405d31996f28bfe17cbb9f86d1617be7dafd701a2498c6195de07e92e58acb0"
     },
     {
       "id": "data-model",
@@ -54,7 +54,7 @@
         "evals/**"
       ],
       "sourceDigest": "7eda4581150431c8ad70c7886951d9b24f4f162a0e4a2c492368c70d03ebd399",
-      "contentDigest": "9b345b57315510bafc5b6ce0b789f5210227b4142241ea6a0ad4908bc81294bf"
+      "contentDigest": "6436d18473df82ebcd06a1a6deeefa51ef824f36ed461d7d9e31901ff5cea630"
     },
     {
       "id": "engineering-standards",
@@ -65,10 +65,17 @@
         "CLAUDE.md",
         "scripts/lint-plugins.mjs",
         "scripts/check-no-deps.mjs",
-        "scripts/benchmark-command.mjs"
+        "scripts/benchmark-command.mjs",
+        "plugins/code-ops-suite/CONVENTIONS.md",
+        "plugins/code-ops-suite/hooks/hooks.json",
+        "scripts/scan-overbuild.mjs",
+        "scripts/harvest-deferrals.mjs",
+        "scripts/context-audit.mjs",
+        "scripts/context-query.mjs",
+        "scripts/digest.mjs"
       ],
-      "sourceDigest": "a494f5186fbfff953f7a1def55b3ac0281091a2eab7822d22a175f09d58f1a84",
-      "contentDigest": "8cf2bf8adf88cc16a056f694953d61391b1961dc79cbd33bae560dce5b8ad92d"
+      "sourceDigest": "8c51d4326ce0a11d2e2605f6d1b33510cbd002db6c1fe3719d6d71f1f414af76",
+      "contentDigest": "b1f1e5736f7c002450b111beff4a61b15ba573d6931533526bb7a0be38cc685c"
     },
     {
       "id": "handbook",
@@ -80,7 +87,7 @@
         ".github/workflows/**"
       ],
       "sourceDigest": "f7d220b09562ec3437b69a788b44ca131f292f6d00379259f15bbaa084646923",
-      "contentDigest": "bba5f55982f40308e04d49259b69dd5a362d5481eb55179657e2f40b928543bf"
+      "contentDigest": "da5223fe2c48375ec364a4a7215da77fde8c1aab865fe417dfbef7063ed15436"
     },
     {
       "id": "techniques",
@@ -92,7 +99,7 @@
         "evals/**"
       ],
       "sourceDigest": "7eda4581150431c8ad70c7886951d9b24f4f162a0e4a2c492368c70d03ebd399",
-      "contentDigest": "8df110e54856c5d5bb1445e9694cd423d274b00aa02cb645b7c11f1804a01666"
+      "contentDigest": "805bf5160e23594e302f9288de64d2e3c4e77dba8ec6c30d008077fd9da791b0"
     },
     {
       "id": "api-reference",
@@ -102,7 +109,7 @@
         "plugins/*/skills/**"
       ],
       "sourceDigest": "bd1711905e46d12cc95d4e46a80be1bf26cd278d490d6ee383efdfc377eae9f7",
-      "contentDigest": "b7c239f870953b8e1ccc3a62751b07b47a2d3b5dfd1a32d42a7200cc7d422c66"
+      "contentDigest": "06c11ecbd82815fcd207fd5d07aced2dc9bc25d07486c5546f23d0422068f1ad"
     },
     {
       "id": "ci-delivery",
@@ -113,7 +120,7 @@
         "scripts/**"
       ],
       "sourceDigest": "07e39e0c4e0788914723a7dd92eff7e7c05e66d5188274721db535a7e1cb7cec",
-      "contentDigest": "ccb37436d66c46bf78caeba733cf087234944e6dd91e978cb83a8ccbd8c93f8f"
+      "contentDigest": "b50290c0f67ecbd8dba589f887412fbf8c58a3054350597658756e374c26d03b"
     },
     {
       "id": "infrastructure",
@@ -125,7 +132,7 @@
         "scripts/build-*.mjs"
       ],
       "sourceDigest": "bebb608f8abce417d83b05582959a7b32907a1388513ac8b47439373839a80d9",
-      "contentDigest": "d60a66d4026eda2badef77bf6ba792f6d69a6bb4e5047a35feda05eddd2e6cc9"
+      "contentDigest": "0fe1bbe667f11a5d601e8f40d5ec414094d93173a692b676acc5dbdebe4739f7"
     },
     {
       "id": "observability",
@@ -136,7 +143,7 @@
         ".github/workflows/**"
       ],
       "sourceDigest": "07e39e0c4e0788914723a7dd92eff7e7c05e66d5188274721db535a7e1cb7cec",
-      "contentDigest": "f2012c9df216e710813d3d62e8d20e7b1cf1ce338868f1e38053d59393e7fbf6"
+      "contentDigest": "ac1673048bb53c0e10a54f8308a846c86b837d9c3851fc5eccbde229fcabd73f"
     },
     {
       "id": "performance",
@@ -151,7 +158,7 @@
         ".github/workflows/validate.yml"
       ],
       "sourceDigest": "ace25f20ba11542e56338831160de53578a644267bfae3a619580da13afa3183",
-      "contentDigest": "82d437873f3d7c490a0f004288958d469006014be53d9a7dd5406dc88cde8536"
+      "contentDigest": "a3b8495952fb0519e20a661107d026e87a8374ac8759cc4b135f4c442b064c1d"
     },
     {
       "id": "measurements",
@@ -176,7 +183,7 @@
         "scripts/**"
       ],
       "sourceDigest": "881c2672cedf775265c141e793c224ab9ed433b527aa3fa6876d55a9fa7f267b",
-      "contentDigest": "31042490717e5eff0ea7465f014d911ba2cce62e34e21790ed0d6e04d03c76d4"
+      "contentDigest": "c750a11981ba12925f868901f122b26cc2b30880c8d0d5802eabae980c73d729"
     },
     {
       "id": "guides",
@@ -187,7 +194,7 @@
         "scripts/**"
       ],
       "sourceDigest": "881c2672cedf775265c141e793c224ab9ed433b527aa3fa6876d55a9fa7f267b",
-      "contentDigest": "dcb139274a72cbc47e81396789886a559176cead1fc9596a46917931de8e20ae"
+      "contentDigest": "90fd56685e8f55a92b41c954b8c7f619d845d099ebf03b0a7a913fbd94aac78a"
     },
     {
       "id": "atlas",
@@ -197,7 +204,7 @@
         "**"
       ],
       "sourceDigest": "805873f03602a3422424a856eab924aff2816d366ad5dbccaf7c674855769218",
-      "contentDigest": "9e51afc0b08d3009def7823081f6250666b9b8ed500778272875cacafeb5a317"
+      "contentDigest": "60edab856b91d381fc7bcfb51b03b806c51c1335a4af32fef308d32fdb01b3fd"
     }
   ]
 }
