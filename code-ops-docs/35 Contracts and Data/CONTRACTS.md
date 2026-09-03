@@ -377,8 +377,8 @@ prefers an exact path over a suffix match, so a vendored copy never shadows the 
 `BUDGET_EXCEEDED` marker, and appends definition bodies only under `--with-source` and only
 within the same budget. `refresh` re-parses only files whose content sha changed, `refresh
 <path>` re-parses one file, and `--exclude <prefix>` is remembered by the index. Evidence:
-`scripts/context-query.mjs:8-19`, `scripts/context-query.mjs:119`,
-`scripts/context-query.mjs:160`, and `scripts/context-query.mjs:366`.
+`scripts/context-query.mjs:8-21`, `scripts/context-query.mjs:218`,
+`scripts/context-query.mjs:266`, and `scripts/context-query.mjs:434`.
 
 The ceiling is printed on every edge result. Definitions, spans, calls, and import edges come
 from the line rules in `symbol-lib.mjs`, which `skim.mjs` shares, so the outline and the index
@@ -388,14 +388,39 @@ definition of that name in the tree, marked ambiguous, else unresolved. A dynami
 path, a string-built name, or a type-dispatched call stays ambiguous or unresolved by contract.
 A result that touches a file whose content changed since the index was built carries a stale
 banner, and `--no-stale-check` suppresses the check. Evidence: `scripts/symbol-lib.mjs:47`,
-`scripts/symbol-lib.mjs:97`, `scripts/symbol-lib.mjs:144`, `scripts/context-query.mjs:176`,
-`scripts/context-query.mjs:231`, and `scripts/context-query.mjs:247`.
+`scripts/symbol-lib.mjs:97`, `scripts/symbol-lib.mjs:144`, `scripts/context-query.mjs:282`,
+`scripts/context-query.mjs:337`, and `scripts/context-query.mjs:358`.
+
+Two optional providers raise fidelity, and both are data rather than a requirement.
+`refresh --provider ctags|codegraph|none` defaults to `none`, and nothing is spawned unless the
+flag names one. With `ctags` the tool runs Universal Ctags over the files about to be parsed,
+reading the list on stdin so a long list never meets a command-line limit, and merges a tag into
+a file only on a line the rules left free. A merged definition carries `source`, a kind map turns
+the ctags kind into the index's own, and the signature comes from the tag pattern. A provider that
+is absent, is a different ctags, or fails prints one line on stderr and the rules stand alone, so
+a refresh never fails for a missing tool. `codegraph` is detected and reported, not ingested. The
+index records the providers its definitions came from and `status` prints them. Evidence:
+`scripts/context-query.mjs:31-33`, `scripts/context-query.mjs:120`,
+`scripts/context-query.mjs:166`, `scripts/context-query.mjs:201`, and
+`scripts/context-query.mjs:216`.
+
+`context-query-mcp.mjs` is the same queries as a newline-delimited JSON-RPC 2.0 stdio server, so
+a host with no shell reaches them. The server is `code-ops-query` in the plugin manifest's
+`mcpServers`, and it declares two tools: `context_query`, taking a command of `find`, `callers`,
+`callees`, `blast`, `explore`, or `status` with a target and optional `budget`, `fuzzy`, and
+`root`; and `context_refresh`, taking optional `paths` and `root`. Each call spawns the sibling
+query script with `--json` and returns its JSON as the tool's text content, so a query that finds
+nothing still answers. A caller's mistake comes back as an Invalid-params error and a failure
+inside the script as an Internal error, never a process exit. Evidence:
+`scripts/context-query-mcp.mjs:22-24`, `scripts/context-query-mcp.mjs:64`,
+`scripts/context-query-mcp.mjs:72`, `plugins/code-ops-suite/.claude-plugin/plugin.json:30-35`,
+and `evals/context-query-mcp/run.mjs:82-97`.
 
 The index is a home-directory file, `$CODE_OPS_INDEX_DIR/index.json` or
 `~/.claude/code-ops/index/<project slug>/index.json`, keyed by the repository root, so a query
 never reads another repository's index and nothing is committed. The opt-in `PostToolUse` hook
 `index-refresh.mjs` calls `refresh <file>` after every edit with a five-second budget and prints
-nothing. Evidence: `scripts/context-query.mjs:83` and
+nothing. Evidence: `scripts/context-query.mjs:97` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
 ## Over-build scanner

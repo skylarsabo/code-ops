@@ -216,6 +216,8 @@ function skillAgentYaml(pluginName, slug, description) {
   ].join('\n');
 }
 
+const mcpNames = (manifest) => Object.keys(manifest.mcpServers ?? {}).map((name) => `\`${name}\``).join(', ');
+
 function generatedReadme(spec, manifest, skills) {
   const lines = [
     `# ${spec.displayName} for Codex`,
@@ -238,7 +240,7 @@ function generatedReadme(spec, manifest, skills) {
     '- Claude-specific GitHub Action examples are intentionally not bundled here.',
     '- Root-level `agents/*.md` files are collaboration-subagent briefing templates; Codex does not auto-discover them as Claude agents.',
   ];
-  if (spec.mcp) lines.push('- `code-ops-docs` is bundled as an optional, plugin-scoped MCP server.');
+  if (spec.mcp) lines.push(`- The package bundles optional, plugin-scoped MCP servers: ${mcpNames(manifest)}.`);
   if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
     lines.push('- The traceless-publishing hook is bundled. Codex requires the user to review and trust plugin hooks before they run.');
   }
@@ -246,7 +248,7 @@ function generatedReadme(spec, manifest, skills) {
   return lines.join('\n');
 }
 
-function compatibilityNotes(spec) {
+function compatibilityNotes(spec, sourceManifest) {
   const lines = [
     '# Platform compatibility',
     '',
@@ -263,7 +265,7 @@ function compatibilityNotes(spec) {
   if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
     lines.push('- The `PreToolUse` traceless-publishing hook is retained as `hooks/hooks.json`. Codex skips plugin hooks until the user reviews and trusts the hook definition.');
   }
-  if (spec.mcp) lines.push('- The `code-ops-docs` MCP declaration is translated from Claude’s inline manifest entry to Codex `.mcp.json` with a plugin-root-relative script path.');
+  if (spec.mcp) lines.push(`- The render moves each MCP declaration from Claude’s inline manifest entry to Codex \`.mcp.json\` with a plugin-root-relative script path: ${mcpNames(sourceManifest)}.`);
   lines.push('', 'The generated package must continue to pass the Codex plugin validator and marketplace install smoke test.', '');
   return lines.join('\n');
 }
@@ -298,16 +300,18 @@ function createManifest(spec, sourceManifest) {
   return manifest;
 }
 
-function createMcpConfig() {
-  return {
-    mcpServers: {
-      'code-ops-docs': {
-        command: 'node',
-        args: ['./scripts/lib-docs-mcp.mjs'],
-        cwd: '.',
-      },
-    },
-  };
+// Derived from the canonical manifest, never a second list: a server added to plugin.json has to
+// reach the Codex package too, and a hand-kept copy here would drop it silently.
+function createMcpConfig(sourceManifest) {
+  const servers = {};
+  for (const [name, spec] of Object.entries(sourceManifest.mcpServers ?? {})) {
+    servers[name] = {
+      command: spec.command ?? 'node',
+      args: (spec.args ?? []).map((arg) => (typeof arg === 'string' ? arg.replaceAll(`${ROOT_TOKEN}/`, './') : arg)),
+      cwd: '.',
+    };
+  }
+  return { mcpServers: servers };
 }
 
 function canonicalMarketplaceEntries() {
@@ -386,7 +390,7 @@ function buildExpectedFiles() {
 
     add(`${base}/.codex-plugin/plugin.json`, JSON.stringify(createManifest(spec, sourceManifest), null, 2) + '\n');
     add(`${base}/README.md`, generatedReadme(spec, sourceManifest, skills));
-    add(`${base}/PLATFORM_COMPATIBILITY.md`, compatibilityNotes(spec));
+    add(`${base}/PLATFORM_COMPATIBILITY.md`, compatibilityNotes(spec, sourceManifest));
     add(`${base}/CONVENTIONS.md`, portableText(readText(sourcePath(spec.name, 'CONVENTIONS.md'))));
     add(`${base}/CHANGELOG.md`, portableText(readText(sourcePath(spec.name, 'CHANGELOG.md'))).replace('`.claude-plugin/plugin.json` and the matching entry in the marketplace.', 'the source plugin manifest and matching marketplace entries.'));
     addSourceTree(sourcePath(spec.name, 'scripts'), `${base}/scripts`);
@@ -398,7 +402,7 @@ function buildExpectedFiles() {
     if (existsSync(sourceHooks)) {
       addSourceTree(sourceHooks, `${base}/hooks`, (contents) => contents.replaceAll(ROOT_TOKEN, CODEX_ROOT_TOKEN));
     }
-    if (spec.mcp) add(`${base}/.mcp.json`, JSON.stringify(createMcpConfig(), null, 2) + '\n');
+    if (spec.mcp) add(`${base}/.mcp.json`, JSON.stringify(createMcpConfig(sourceManifest), null, 2) + '\n');
   }
 
   add('README.md', [
@@ -438,6 +442,20 @@ function validateExpectedFiles(expected) {
       const mcp = JSON.parse(expected.get(mcpPath));
       expect(mcp.mcpServers?.['code-ops-docs']?.command === 'node', `${mcpPath} has no code-ops-docs server`);
       expect(mcp.mcpServers?.['code-ops-docs']?.args?.[0] === './scripts/lib-docs-mcp.mjs', `${mcpPath} has the wrong code-ops-docs path`);
+      // Every server the canonical manifest declares must reach the Codex package, with its
+      // script path rewritten and the script itself bundled.
+      const sourceServers = JSON.parse(readText(sourcePath(spec.name, '.claude-plugin', 'plugin.json'))).mcpServers ?? {};
+      for (const [server, sourceSpec] of Object.entries(sourceServers)) {
+        const rendered = mcp.mcpServers?.[server];
+        expect(rendered !== undefined, `${mcpPath} drops the ${server} server the canonical manifest declares`);
+        if (!rendered) continue;
+        const script = (sourceSpec.args ?? []).find((arg) => typeof arg === 'string' && arg.startsWith(ROOT_TOKEN));
+        expect(script !== undefined, `${spec.name}: MCP server ${server} names no ${ROOT_TOKEN} script`);
+        if (!script) continue;
+        const relative = script.replace(`${ROOT_TOKEN}/`, './');
+        expect(rendered.args?.includes(relative), `${mcpPath}: ${server} must name ${relative}`);
+        expect(expected.has(`${base}/${relative.slice(2)}`), `${base}/${relative.slice(2)} is not bundled, so the ${server} server cannot start`);
+      }
     }
 
     const skillPrefix = `${base}/skills/`;

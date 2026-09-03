@@ -18,10 +18,12 @@
 //   - a file edited after the index carries a stale banner until refreshed, and
 //     --no-stale-check suppresses it;
 //   - unknown symbols exit 1, bad flags exit 2, --json parses;
-//   - the hook is off by default, re-indexes the edited file when on, and fails open.
+//   - the hook is off by default, re-indexes the edited file when on, and fails open;
+//   - `--provider none` spawns nothing, a missing provider says so on stderr and still indexes,
+//     and a provider definition joins a file only on a line the rules left free.
 
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,6 +37,9 @@ const expect = (ok, msg) => { if (!ok) fails.push(msg); };
 
 const work = mkdtempSync(join(tmpdir(), 'context-query-'));
 const store = mkdtempSync(join(tmpdir(), 'context-index-'));
+const providerStore = mkdtempSync(join(tmpdir(), 'context-index-provider-'));
+const stubStore = mkdtempSync(join(tmpdir(), 'context-index-stub-'));
+const stubBin = mkdtempSync(join(tmpdir(), 'context-ctags-bin-'));
 const env = { ...process.env, CODE_OPS_INDEX_DIR: store };
 delete env.CODE_OPS_INDEX;
 const git = (...args) => {
@@ -143,9 +148,68 @@ try {
     expect(r.status === 0 && r.stdout === '', `${name}: the hook fails open, got ${r.status}/${JSON.stringify(r.stdout)}`);
   }
   console.log('ok   the refresh hook is off by default, re-indexes on Edit when on, and fails open');
+
+  // ---------------------------------------------------------------- providers
+  const noProvider = qj('refresh', '--provider', 'none');
+  expect(noProvider.r.status === 0 && noProvider.j?.providers.length === 0 && !/^provider /m.test(noProvider.r.stderr),
+    `--provider none spawns nothing and records no provider, got ${JSON.stringify(noProvider.r.stderr)}`);
+  const badProvider = q('refresh', '--provider', 'nope');
+  expect(badProvider.status === 2, `an unknown provider exits 2, got ${badProvider.status}`);
+  expect(/^providers: none \(line rules only\)$/m.test(q('status').stdout), `status names the providers, got ${q('status').stdout}`);
+
+  // A full index under the provider, in its own store, so the not-installed path is proven to
+  // index rather than to fall through a no-op refresh.
+  const provider = (...args) => { const r = spawnSync('node', [query, ...args, '--json'], { cwd: work, encoding: 'utf8', env: { ...env, CODE_OPS_INDEX_DIR: providerStore } }); let j = null; try { j = JSON.parse(r.stdout); } catch { /* reported by caller */ } return { r, j }; };
+  const version = spawnSync('ctags', ['--version'], { encoding: 'utf8' });
+  const realCtags = version.status === 0 && /Universal Ctags/i.test(version.stdout ?? '');
+  const withCtags = provider('refresh', '--provider', 'ctags');
+  expect(withCtags.r.status === 0 && withCtags.j?.files === 7, `--provider ctags still indexes every file, got ${withCtags.r.stdout}${withCtags.r.stderr}`);
+  if (realCtags) {
+    expect(/^provider ctags: Universal Ctags/m.test(withCtags.r.stderr) && withCtags.j.providers.includes('ctags'), `an installed ctags is named and recorded, got ${withCtags.r.stderr}`);
+  } else {
+    expect(/^provider ctags: not installed, line rules only$/m.test(withCtags.r.stderr), `an absent ctags says so and proceeds, got ${JSON.stringify(withCtags.r.stderr)}`);
+    console.log('note ctags is not installed here — the shim leg below proves the merge where the platform allows a shim');
+  }
+  const merged = JSON.parse(readFileSync(join(providerStore, 'index.json'), 'utf8'));
+  for (const [file, entry] of Object.entries(merged.files)) {
+    const lines = entry.defs.map((d) => d.line);
+    expect(new Set(lines).size === lines.length, `${file}: a provider definition must never double a line the rules already claimed`);
+  }
+  const codegraph = provider('refresh', '--provider', 'codegraph');
+  expect(codegraph.r.status === 0 && /^provider codegraph: (detected, ingest not implemented|not installed, line rules only)$/m.test(codegraph.r.stderr),
+    `codegraph reports detection either way and never fails the refresh, got ${JSON.stringify(codegraph.r.stderr)}`);
+  console.log('ok   providers are opt-in, absence is a note, and no merged line doubles a rule');
+
+  // A shim on PATH proves the merge, the kind map, and the line rule without installing a tool.
+  // Windows resolves an executable through PATHEXT and Node refuses a .cmd without a shell, so
+  // the shim is POSIX-only and Windows relies on the assertions above.
+  if (process.platform === 'win32') {
+    console.log('skip the ctags shim leg: Windows cannot place an extensionless shim on PATH');
+  } else {
+    const tag = (name, line, end, kind, pattern) => JSON.stringify({ _type: 'tag', name, path: 'src/text.js', pattern, line, end, kind });
+    writeFileSync(join(stubBin, 'ctags'), [
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo "Universal Ctags 6.1.0, Copyright (C) 2015 Universal Ctags Team"; exit 0; fi',
+      'cat > /dev/null',
+      `echo '${tag('slugify', 1, 3, 'function', '/^export function slugify(text) {$/')}'`,
+      `echo '${tag('planted', 6, 6, 'variable', '/^  return text.length > max ? 1 : 2;$/')}'`,
+      '',
+    ].join('\n'));
+    chmodSync(join(stubBin, 'ctags'), 0o755);
+    const shim = spawnSync('node', [query, 'refresh', '--provider', 'ctags', '--json'],
+      { cwd: work, encoding: 'utf8', env: { ...env, CODE_OPS_INDEX_DIR: stubStore, PATH: `${stubBin}:${process.env.PATH}` } });
+    const shimJson = JSON.parse(shim.stdout);
+    expect(shim.status === 0 && shimJson.providers.includes('ctags'), `the index records the provider it merged, got ${shim.stdout}${shim.stderr}`);
+    const defs = JSON.parse(readFileSync(join(stubStore, 'index.json'), 'utf8')).files['src/text.js'].defs;
+    const planted = defs.find((d) => d.name === 'planted');
+    expect(planted?.source === 'ctags' && planted.kind === 'const' && planted.line === 6 && planted.end === 6 && planted.sig === 'return text.length > max ? 1 : 2;',
+      `a merged definition carries its source, its mapped kind, and its signature, got ${JSON.stringify(planted)}`);
+    expect(defs.filter((d) => d.line === 1).length === 1 && defs.find((d) => d.line === 1).source === undefined,
+      `the line rules keep line 1, got ${JSON.stringify(defs.filter((d) => d.line === 1))}`);
+    console.log('ok   a ctags shim merges only free lines, mapped to the index kinds');
+  }
 } finally {
-  rmSync(work, { recursive: true, force: true });
-  rmSync(store, { recursive: true, force: true });
+  for (const dir of [work, store, providerStore, stubStore, stubBin]) rmSync(dir, { recursive: true, force: true });
 }
 
 if (fails.length) {

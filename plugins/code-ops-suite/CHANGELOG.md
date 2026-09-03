@@ -3,6 +3,13 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.61.0
+- `context-query.mjs refresh --provider ctags|codegraph|none` adds two optional fidelity providers, detected at use and treated as data. With `ctags` an installed Universal Ctags runs over the files about to be parsed and its definitions merge into a file only on a line the line rules left free, each marked `source` and mapped onto the index's own kinds. `codegraph` is detected and reported, not ingested. A provider that is absent prints one line and the line rules stand alone, so a refresh never fails for a missing tool. The index records the providers its definitions came from and `status` prints them.
+- `preflight.mjs` prints `ctags` and `codegraph` as present or absent beside its other capability lines. Neither absence can fail a preflight.
+- `scripts/context-query-mcp.mjs` is the `code-ops-query` MCP server: a newline-delimited JSON-RPC 2.0 stdio server offering `context_query` and `context_refresh`, so a host with no shell reaches the same index. Every bad request answers with a JSON-RPC error rather than a process exit.
+- The Codex renderer derives `.mcp.json` from the canonical manifest instead of a hand-kept list, and its check fails when a declared server or its bundled script is missing.
+- `evals/context-query-mcp` pins the server end to end; `evals/context-query` gains the provider contract.
+
 ## 1.60.0
 - `scripts/context-query.mjs` is the query-able symbol index: `find`, `callers`, `callees`, `blast`, and `explore` answer with `file:line` anchors, one-line signatures, and edge lists over a home-directory index keyed by content sha, never a verbatim dump. A call resolves same-file, then through an imported name (aliases included), then tree-wide as ambiguous, else unresolved, and the ceiling is printed on every edge result. A result touching a file changed since the build carries a stale banner. `explore` stops at `--budget` with `BUDGET_EXCEEDED` and appends bodies only under `--with-source`.
 - `scripts/symbol-lib.mjs` holds the definition rules, definition spans, call sites, and import edges. `skim.mjs` now imports its rules from it, so the outline and the index agree.

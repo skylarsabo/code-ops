@@ -50,7 +50,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - The complete workflow text and conventions are rendered from `plugins/code-ops-suite/` in the source repository.
 - Claude-specific GitHub Action examples are intentionally not bundled here.
 - Root-level `agents/*.md` files are collaboration-subagent briefing templates; Codex does not auto-discover them as Claude agents.
-- `code-ops-docs` is bundled as an optional, plugin-scoped MCP server.
+- The package bundles optional, plugin-scoped MCP servers: `code-ops-docs`, `code-ops-query`.
 - The traceless-publishing hook is bundled. Codex requires the user to review and trust plugin hooks before they run.
 
 For source history and release notes, see the generated `CHANGELOG.md` and the repository root.
