@@ -84,8 +84,9 @@ weighted by tier and grounding (`§8`), with security first.
 Hand off per `§11`. CVEs and upgrades go to `code-ops-suite:dependency-upgrade`. Egress,
 telemetry, provenance, and integrity concerns go to
 `privacy-opsec-suite:supply-chain-trust`. Adoptable capabilities go to
-`feature-discovery` or `feature-implementation`. A forced architectural choice, such as
-migrating off an end-of-life runtime, goes to `adr`.
+`code-ops-suite:feature-discovery` or `code-ops-suite:feature-implementation`. A forced
+architectural choice, such as migrating off an end-of-life runtime, goes to
+`code-ops-suite:adr`.
 
 Before publishing, run
 `node <plugin-root>/scripts/revalidate-register.mjs ECOSYSTEM_WATCH.md --root <repo>`

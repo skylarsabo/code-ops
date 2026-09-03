@@ -17,7 +17,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "d7bfdefc057384abb86ceec488e92cc44ea28db0e1f1279495960623382246cd",
+      "sourceDigest": "f52dfa638c1ab0577788087045e563cd31babf10b29b81bf406acf4c6d6b9739",
       "contentDigest": "d788e92c39c196ca12bd2f3bb62e1fe7eafccdb5091c7326230f0c36c384ce08"
     },
     {
@@ -29,7 +29,7 @@
         "scripts/**",
         ".claude-plugin/**"
       ],
-      "sourceDigest": "2c361add0b6c54bba0e6ab8f1d0524ab7cf8fc9f67b9aa225a2628432e02e42a",
+      "sourceDigest": "d7091845f75ee86ada4d6f6ee654d57cd39ca18232d595e5dfdcc7d382d9817a",
       "contentDigest": "bf757370a45e49b37aa2a8fa88695992fc0a5acd0c96f717ad39308d47ac5c08"
     },
     {
@@ -41,7 +41,7 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "57c036d07fd94d335035dde5573bd96fb931d6b28ff50cc2d6d62f6ac2a50958",
+      "sourceDigest": "e68fa6df0b23e3783cdcf5e7abca4c447b823bf59dbc2caa1724291938700503",
       "contentDigest": "d04e5591a6f26d010df4c3fdc5f228e51b86da3b7113fefb7367a8b163b26392"
     },
     {
@@ -53,7 +53,7 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "57c036d07fd94d335035dde5573bd96fb931d6b28ff50cc2d6d62f6ac2a50958",
+      "sourceDigest": "e68fa6df0b23e3783cdcf5e7abca4c447b823bf59dbc2caa1724291938700503",
       "contentDigest": "6436d18473df82ebcd06a1a6deeefa51ef824f36ed461d7d9e31901ff5cea630"
     },
     {
@@ -86,7 +86,7 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "ba8c6918b61941053915c3960d1198eab3319cf3ef5dc605dcd46b9952e22441",
+      "sourceDigest": "1db7098e2e40d7d37a634ab53a762a8526bc9b56944319d2efca593773779dfd",
       "contentDigest": "2f017a0d0d1e28bd8edc551938802d1ba0d6dbc274522bceeba006cab463a0cc"
     },
     {
@@ -98,8 +98,8 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "57c036d07fd94d335035dde5573bd96fb931d6b28ff50cc2d6d62f6ac2a50958",
-      "contentDigest": "614f0dbb81b19eb42693d564ff27b8bb1654354106bcf8530cad06b5459928d4"
+      "sourceDigest": "e68fa6df0b23e3783cdcf5e7abca4c447b823bf59dbc2caa1724291938700503",
+      "contentDigest": "e8c920942c7c9e5707421efad1affa84b5faff5644ece055295817c2c3a94da9"
     },
     {
       "id": "api-reference",
@@ -108,7 +108,7 @@
       "sources": [
         "plugins/*/skills/**"
       ],
-      "sourceDigest": "fbc5bc5a68c6fea7f15b22e8f5b06d9e6a5271d0ab31236513ac0ba2b135bc1b",
+      "sourceDigest": "8b28481fee250a337301fb014b4ba9c825277b0bfd7556b9539a3eafff3df17a",
       "contentDigest": "06c11ecbd82815fcd207fd5d07aced2dc9bc25d07486c5546f23d0422068f1ad"
     },
     {
@@ -131,7 +131,7 @@
         ".claude-plugin/**",
         "scripts/build-*.mjs"
       ],
-      "sourceDigest": "8491f4c8c0ba7281101370707b925e9cdee184895e4701ec781814ec101d9c5b",
+      "sourceDigest": "e583cde4c0bae7473e7e25b67cf98acad5e8dd9d9afa91179f2aca6f321b92b5",
       "contentDigest": "0fe1bbe667f11a5d601e8f40d5ec414094d93173a692b676acc5dbdebe4739f7"
     },
     {
@@ -182,7 +182,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "2bdd642aa19189ef7737811002cb0e1fb700b6a66defd91e33d6e3c370173839",
+      "sourceDigest": "2df898062d7fdf9333ee60f4f1c39a359bf42a00eec8e8d3a4c77dfbc931a6f6",
       "contentDigest": "c750a11981ba12925f868901f122b26cc2b30880c8d0d5802eabae980c73d729"
     },
     {
@@ -193,7 +193,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "2bdd642aa19189ef7737811002cb0e1fb700b6a66defd91e33d6e3c370173839",
+      "sourceDigest": "2df898062d7fdf9333ee60f4f1c39a359bf42a00eec8e8d3a4c77dfbc931a6f6",
       "contentDigest": "90fd56685e8f55a92b41c954b8c7f619d845d099ebf03b0a7a913fbd94aac78a"
     },
     {
@@ -203,8 +203,8 @@
       "sources": [
         "**"
       ],
-      "sourceDigest": "ce5f53dacba4fdfa110c2b7b547fcacf0901a69da3c1af9342da26e118d6deb0",
-      "contentDigest": "79a123379b87df9b1a6d2923b09e3d266cabddafd2fb5b50c9b690bd3fcc4394"
+      "sourceDigest": "e1eb7cdc39222feb4e730b72861bde67911fbfc433fa7bbd76c499a1aaf490fd",
+      "contentDigest": "b527bf7e92e2a4e63f48093859772b1014871d415bf4d6c2a70e684ed79db8ac"
     }
   ]
 }

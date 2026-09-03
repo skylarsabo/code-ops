@@ -69,6 +69,9 @@ example on this page is illustration and not page structure.
 | `privacy-opsec-suite:opsec-pr-gate` | `rigor:deep-review` | routing pointer: the verification-bar counterpart | none (routing pointer) |
 | `researcher:ecosystem-watch` | `code-ops-suite:dependency-upgrade` | hand-off: CVEs and version bumps | `ECOSYSTEM_WATCH.md` |
 | `researcher:ecosystem-watch` | `privacy-opsec-suite:supply-chain-trust` | hand-off: egress/telemetry/provenance concerns | `ECOSYSTEM_WATCH.md` |
+| `researcher:ecosystem-watch` | `code-ops-suite:feature-discovery` | hand-off: an adoptable capability worth specifying | `ECOSYSTEM_WATCH.md` |
+| `researcher:ecosystem-watch` | `code-ops-suite:feature-implementation` | hand-off: an adoptable capability with a spec | `ECOSYSTEM_WATCH.md` |
+| `researcher:ecosystem-watch` | `code-ops-suite:adr` | hand-off: a forced architectural choice, such as leaving an end-of-life runtime | `ECOSYSTEM_WATCH.md` |
 | `researcher:library-eval` | `code-ops-suite:adr` | hand-off: the decision and its rejected alternatives | none named |
 | `researcher:library-eval` | `code-ops-suite:dependency-upgrade` | hand-off: adoption, migration, and any version bump | none named |
 | `researcher:library-eval` | `privacy-opsec-suite:supply-chain-trust` | hand-off: flagged trust/egress concerns | none named |
@@ -78,6 +81,7 @@ example on this page is illustration and not page structure.
 | `researcher:research-improve` | `code-ops-suite:remediation` | hand-off: grounded improvements to implement | `RESEARCH_FINDINGS.md` |
 | `researcher:research-improve` | `rigor:fix-verified` | hand-off: improvements needing proof-backed fixes | `RESEARCH_FINDINGS.md` |
 | `researcher:research-improve` | `rigor:improve-measured` | hand-off: improvements needing a measured before→after delta | `RESEARCH_FINDINGS.md` |
+| `researcher:research-improve` | `code-ops-suite:adr` | hand-off: an architectural rework parked at NEEDS-DESIGN | `RESEARCH_FINDINGS.md` |
 | `researcher:research-spike` | `code-ops-suite:adr` | hand-off: an architectural decision worth recording | the design brief |
 | `researcher:research-spike` | `code-ops-suite:feature-implementation` | hand-off: the build, when specs exist | the design brief |
 | `researcher:research-spike` | `code-ops-suite:ship` | hand-off: the build, as one end-to-end change | the design brief |
