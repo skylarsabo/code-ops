@@ -62,7 +62,7 @@ const METACHAR_RE = /[|&;<>`$\n\r]/;
 // be in it; a function decides the cases a list cannot.
 const FAMILIES = {
   git: new Set(['diff', 'show', 'status', 'log', 'ls-files', 'blame']),
-  gh: new Set(['pr', 'issue', 'run', 'api']),
+  gh: new Set(['pr', 'issue', 'run']),
   npm: new Set(['test', 'run']),
   pnpm: new Set(['test', 'run']),
   cargo: new Set(['test', 'build', 'check', 'clippy']),
@@ -161,14 +161,15 @@ function rewrite(command, scriptPath) {
   const cwd = dir === null ? '' : ` --cwd ${dir.startsWith('"') ? dir : `"${dir}"`}`;
   // CODE_OPS_DIGEST_STORE=off keeps the compression and writes no raw file and no receipt row;
   // the elision hints then carry no path and name only the line counts.
-  const store = /^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST_STORE ?? '') ? ' --no-store' : '';
+  const store = STORE_OFF ? ' --no-store' : '';
   return `node "${scriptPath}"${store}${cwd} -- ${tokens.join(' ')}`;
 }
 
+const STORE_OFF = /^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST_STORE ?? '');
 const CONTEXT = 'Output digested by code-ops: elided regions carry a sed hint into the raw file '
-  + 'named in the trailer; run the original command only if you need the whole output.';
+  + 'named in the trailer. Run the original command only if you need the whole output.';
 const CONTEXT_NO_STORE = 'Output digested by code-ops with the raw store off: elided regions are not '
-  + 'recoverable; run the original command if you need the whole output.';
+  + 'recoverable. Run the original command if you need the whole output.';
 
 function main() {
   if (!/^(1|on|true)$/i.test(process.env.CODE_OPS_DIGEST ?? '')) return;
@@ -196,7 +197,7 @@ function main() {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       updatedInput: { ...payload.tool_input, command: rewritten },
-      additionalContext: rewritten.includes('" --no-store ') ? CONTEXT_NO_STORE : CONTEXT,
+      additionalContext: STORE_OFF ? CONTEXT_NO_STORE : CONTEXT,
     },
   })}\n`);
 }

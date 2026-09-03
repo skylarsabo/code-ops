@@ -63,7 +63,7 @@ function rewriteOf(input, value = 'on', script = hook) {
 }
 
 const CONTEXT = 'Output digested by code-ops: elided regions carry a sed hint into the raw file '
-  + 'named in the trailer; run the original command only if you need the whole output.';
+  + 'named in the trailer. Run the original command only if you need the whole output.';
 
 // Every payload the eval uses, rewritten or not, in one place so the off-switch block can
 // replay the whole set.
@@ -79,6 +79,7 @@ const PASSED_THROUGH = [
   'git diff | head',
   'echo "$HOME"',
   'gh pr list --json number',
+  'gh api repos/o/r/pulls',
   'node scripts/digest.mjs -- ls',
   'rm -rf x',
   'git status > out.txt',
@@ -111,6 +112,9 @@ const PASSED_THROUGH = [
   const ctxOn = JSON.parse(withStore.stdout).hookSpecificOutput.additionalContext;
   expect(/not recoverable/.test(ctxOff) && !/sed hint/.test(ctxOff), `with the store off the context must not promise recovery, got ${ctxOff}`);
   expect(/sed hint/.test(ctxOn), 'with the store on the context names the recovery hint');
+  const literal = runHook(payloadFor('git log --oneline --no-store'), 'on');
+  const ctxLiteral = JSON.parse(literal.stdout).hookSpecificOutput.additionalContext;
+  expect(/sed hint/.test(ctxLiteral), `a literal --no-store argument with the store on must keep the recovery line, got ${ctxLiteral}`);
 }
 
 // The digest itself honors the store switch, and the default store slug follows the directory

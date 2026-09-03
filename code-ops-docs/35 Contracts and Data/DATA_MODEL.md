@@ -127,7 +127,8 @@ empty. `linesIn` counts that whole file; `linesOut` counts what the digest print
 trailer. Evidence: `scripts/digest.mjs:254-269` and `scripts/digest.mjs:230-233`.
 
 A row's `cwd` is the directory the command ran in, which under `--cwd` is the target the caller named, while the store it is filed under follows the directory the digest started in. The store lives outside the repository, at `~/.claude/code-ops/digest/<project slug of cwd>/`,
-unless `--store` or `$CODE_OPS_DIGEST_DIR` names another directory. Raw files sit under
+unless `--store` or `$CODE_OPS_DIGEST_DIR` names another directory, and `--no-store` or
+`CODE_OPS_DIGEST_STORE=off` outranks both and stores nothing. Raw files sit under
 `<store>/<ISO date>/`; the ledger is `<store>/DIGEST_RECEIPTS.jsonl`. Both writes fail open, so a
 run whose store is unwritable still prints a correct digest with no raw path. Rows carry the
 working directory and the command, never the output. Evidence: `scripts/digest.mjs:166-195`.
