@@ -3,6 +3,8 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.70.0
+- `CONVENTIONS.md`, both agent definitions, and the pinned doctrine sentences rewritten to the house writing standard: no em-dashes and no semicolons in prose, one instruction per sentence, and headings as noun phrases. Meaning is unchanged, and every pinned sentence moved in the linter table, the eval mirror, and every listed copy in one commit. `CONVENTIONS.md` §1 and §2 now name the session mechanisms that are on by default and their off switches, and the stale "opt-in" note on the `index-refresh.mjs` hook in `context-query.mjs` is corrected.
 ## 1.69.0
 - `model-tiers.mjs` gains the `opencode` provider: the OpenCode Zen free ladder (`ling-3.0-flash-fin-free` light, `nemotron-3.5-lightning-free` mid, `mimo-v2.5-free` strong) with the lead unset, and it becomes `DEFAULT_PROVIDER`, so the rendered `opencode-dist/opencode.json` binds every agent to a free model that clears its floor and carries no top-level `model`. The lead inherits the session model and a fresh install costs nothing.
 - A provider may leave `frontier` null (`leadInherits`) and declare `registry: 'cli'` with a `verifiedAt` date. The renderer then omits the top-level `model`, MODEL_TIERS.md says the lead is unset, `check-model-registry.mjs` skips the models.dev fetch for that provider, and `evals/opencode-dist` pins the unset lead and the publish-command ask rules on the default config.

@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.7
+- `CONVENTIONS.md` and both agent definitions rewritten to the house writing standard: no em-dashes and no semicolons in prose, one instruction per sentence, and headings as noun phrases. Meaning and every section id are unchanged. §1 now names the session mechanisms that are on by default and their off switches, and `skim.mjs` is named where the skim rule asks for it.
+
 ## 2.18.5
 - Vendored `repo-map.mjs`, `import-graph.mjs`, and `symbol-lib.mjs` refreshed: the map and the graph now read their definition rules and their import extraction from the shared library instead of their own copies. Output is unchanged.
 
