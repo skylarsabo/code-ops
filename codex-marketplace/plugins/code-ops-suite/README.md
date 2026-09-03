@@ -12,37 +12,37 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 
 - `adopt-global-standards` — Use when the user's global ~/.claude/CLAUDE.md needs to be created, brought up to the suite's current doctrine, or re-verified after the marketplace's standards moved.
 - `adopt-standards` — Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality.
-- `adr` — Use when you need to capture the WHY behind a codebase's architecture as decision records — backfilling load-bearing past decisions or authoring an ADR for a current one.
-- `api-docs` — Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory.
+- `adr` — Use when you need to capture the reasons behind a codebase's architecture as decision records, either backfilling load-bearing past decisions or authoring an ADR for a current one.
+- `api-docs` — Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory.
 - `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.
-- `atlas` — Use when a repo's atlas — its durable, per-repo cache of judgment about the codebase — needs to be created, refreshed after the code moved, or consolidated from inbox observations. Freshness is decided mechanically by atlas-check.mjs; see code-ops-docs/40 Engineering/Techniques/atlas.md.
-- `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. Never quotes the target's internals back into this repo — see code-ops-docs/40 Engineering/Techniques/calibration-protocol.md.
-- `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes.
-- `conform` — Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back — the standards contract, the docs vault, the atlas, and doc drift, assessed in one pass and repaired under checkpoint.
-- `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory.
+- `atlas` — Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See code-ops-docs/40 Engineering/Techniques/atlas.md.
+- `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See code-ops-docs/40 Engineering/Techniques/calibration-protocol.md.
+- `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes.
+- `conform` — Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back. It assesses the standards contract, the docs vault, the atlas, and doc drift in one pass, then repairs under checkpoint.
+- `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory.
 - `data-model` — Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations.
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.
-- `dependency-upgrade` — Use when dependencies are outdated or have known CVEs and you want safe, staged upgrades verified at each step; never bulk-bumps.
+- `dependency-upgrade` — Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps.
 - `doc-alignment` — Use when docs have drifted from code and you want them reconciled into a clean single source of truth.
-- `everything` — Use when you want the most exhaustive end-to-end pass across all three plugins; token-expensive and checkpointed. Cross-plugin superset — requires code-ops-suite, rigor, and privacy-opsec-suite installed.
-- `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase (not a generic wishlist). Discovery only — writes no code.
-- `feature-implementation` — Use when feature specs already exist and you want them built incrementally. Requires specs as input.
-- `full-sweep` — Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. Intra-plugin orchestrator; for the cross-plugin superset use everything.
-- `handoff` — Use when a long run must survive a context limit, session end, or operator change — capture the run's true state as a verifiable HANDOFF.md, or resume from one, re-verifying every claim first.
+- `everything` — Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed.
+- `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code.
+- `feature-implementation` — Use when feature specs already exist and you want them built incrementally. It requires specs as input.
+- `full-sweep` — Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything.
+- `handoff` — Use when a long run must survive a context limit, session end, or operator change. It captures the run's true state as a verifiable HANDOFF.md, or resumes from one after re-verifying every claim.
 - `local-review-gate` — Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication.
-- `normalize` — Use when a codebase has inconsistent style or the artifacts of hasty/generated code and you want one professional, behavior-preserving standard. To close divergent implementations of a concept, see rigor:consistency-closure.
-- `onboarding` — Use when you need a verified, code-grounded orientation guide (with an architecture diagram) for a new contributor.
-- `ops-docs` — Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate or be on-call for it.
-- `performance` — Use when something is measurably slow or you want hot paths optimized with proof; profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured.
-- `pr-review` — Use when you want a rigorous pre-merge review of one PR/diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review; for an anonymity gate, privacy-opsec-suite:opsec-pr-gate.
+- `normalize` — Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. To close divergent implementations of a concept, see rigor:consistency-closure.
+- `onboarding` — Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor.
+- `ops-docs` — Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it.
+- `performance` — Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured.
+- `pr-review` — Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review. For an anonymity gate, use privacy-opsec-suite:opsec-pr-gate.
 - `pr-split` — Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless.
-- `provider-parity-audit` — Use when you want to audit the marketplace's own prose for provider-specific assumptions (harness mechanics, tool names, hook semantics) that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check; this skill covers prose only.
-- `remediation` — Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW/NEEDS-DESIGN items implemented safely with tests. Requires a register as input.
+- `provider-parity-audit` — Use when you want to audit the marketplace's own prose for provider-specific assumptions such as harness mechanics, tool names, and hook semantics that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check, so this skill covers prose only.
+- `remediation` — Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input.
 - `repo-docs` — Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub.
-- `run-cost-audit` — Use when you want to audit a completed orchestrated run's cost discipline — dispatch counts, artifact sizes, tier/effort mix — against the suite's own bounded-wave and routing doctrine. Consumes a finished run's artifact folder, not a live one.
-- `security-privacy-audit` — Use when you need an adversarial security + privacy threat assessment of attack surface and deanonymization paths — deeper than the audit's security lens. For anonymity-specific egress/metadata/fingerprint work, use the privacy-opsec-suite.
-- `ship` — Use when you want to implement one change — a feature or a one-off — end to end at high quality, shipped as a clean traceless PR.
-- `test-hardening` — Use when critical paths lack meaningful coverage or tests are flaky; builds characterization + regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit.
+- `run-cost-audit` — Use when you want to audit a completed orchestrated run's cost discipline, covering dispatch counts, artifact sizes, and tier and effort mix, against the suite's own bounded-wave and routing doctrine. It consumes a finished run's artifact folder, not a live one.
+- `security-privacy-audit` — Use when you need an adversarial security and privacy threat assessment of attack surface and deanonymization paths, deeper than the audit's security lens. For anonymity-specific egress, metadata, and fingerprint work, use the privacy-opsec-suite.
+- `ship` — Use when you want to implement one change, a feature or a one-off, end to end at high quality, shipped as a clean traceless PR.
+- `test-hardening` — Use when critical paths lack meaningful coverage or tests are flaky. It builds characterization and regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit.
 - `vault` — Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance.
 
 ## Packaging notes

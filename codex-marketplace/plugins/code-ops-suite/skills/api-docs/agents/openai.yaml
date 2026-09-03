@@ -1,6 +1,6 @@
 interface:
   display_name: "API Docs"
-  short_description: "Use when you need an accurate API/interface reference for a codebase, generated from the code and types, not memory."
+  short_description: "Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory."
   default_prompt: "Use code-ops-suite:api-docs for this task."
 policy:
   allow_implicit_invocation: true

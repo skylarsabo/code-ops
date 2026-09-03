@@ -3,51 +3,79 @@ name: code-ops-suite-adopt-standards
 description: "Use when a repo's AGENTS.md standards contract needs to be created, brought up to the house style, or re-verified against reality."
 ---
 
-# ADOPT STANDARDS — Bootstrap or Maintain the Repo's Standards Contract
+# Adopt standards: bootstrap or maintain the repo's standards contract
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-adopt-standards`, or by the model through the `skill` tool as `code-ops-suite-adopt-standards`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin (search the plugin directory for it if needed) — it defines the operating model, interaction protocol, safety rails, schemas, and quality lenses this skill references by section. For this DOCUMENT-mode skill the binding sections are §2 (tools/in-house docs lookup), §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those five; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
-**Mode:** DOCUMENT · **Produces:** `AGENTS.md` (written or updated in place), a drift report at a checkpoint when in MAINTAIN mode.
+**Invoked as `/code-ops-suite-adopt-standards`, or by the model through the `skill` tool as `code-ops-suite-adopt-standards`.** First read the
+`<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory
+for it if needed. It defines the operating model, interaction protocol, safety rails, schemas,
+and quality lenses this skill references by section. For this DOCUMENT-mode skill the binding
+sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safety rails), §12
+(SSOT and registers), and §13 (doc standard). Read those five. The fan-out and fix machinery
+(§1, §5 to §8, §11) does not apply here.
+**Mode:** DOCUMENT · **Produces:** `AGENTS.md`, written or updated in place, plus a drift report
+at a checkpoint when the run is in MAINTAIN mode.
 
-Keep a repo's standards contract (`AGENTS.md`) **mechanically kept, not aspirational** — every command it states runs, every gate it claims exists really gates, every citation still points at real code. **Code and CI are ground truth; the contract serves the next operator (human or agent) who reads it cold and trusts it.**
+Keep a repo's standards contract (`AGENTS.md`) **mechanically kept, not aspirational.** Every
+command it states runs. Every gate it claims exists really gates. Every citation still points
+at real code. **Code and CI are ground truth.** The contract serves the next operator, human or
+agent, who reads it cold and trusts it.
 
-## Phase 0 — Detect mode  *(checkpoint)*
-Check for an existing `AGENTS.md`. **BOOTSTRAP** if absent, or if present but failing a quick audit (commands that don't run, no real gate chain, citations that don't resolve). **MAINTAIN** if present and broadly sound. Confirm the mode with the developer before proceeding; state which and why.
+## Phase 0: the mode  *(checkpoint)*
 
-## Phase 1 — BOOTSTRAP (no AGENTS.md, or one failing the audit)
-Dispatch an `explorer` operative to audit the repo first, verifying everything rather than inferring it from filenames:
-- **Real build/test/lint/gate commands** — run them read-only where safe, or cite the CI workflow `file:line` that defines them; never invent a command that "should" exist.
-- **Architecture worth 3–5 lines** — the shape a senior engineer needs before touching the repo, not a restated file tree.
-- **Non-obvious gotchas** — the things that bite a newcomer (a lint trap, a derived-artifact directory, an ordering requirement) — verified, not guessed.
-- **Doc-lifecycle rules** — what's generated vs. hand-authored, what regenerates what, and any local-only/gitignored doc locations.
-Then write `AGENTS.md` in the house style (Phase 3).
+Check for an existing `AGENTS.md`. Pick **BOOTSTRAP** when the file is absent, or present but
+failing a quick audit: commands that do not run, no real gate chain, citations that do not
+resolve. Pick **MAINTAIN** when the file is present and broadly sound. Confirm the mode with
+the developer before proceeding, and state which mode and why.
 
-## Phase 2 — MAINTAIN (existing AGENTS.md)
+## Phase 1: BOOTSTRAP, for no contract or one that failed the audit
+
+Dispatch an `explorer` operative to audit the repo first, verifying everything rather than
+inferring it from filenames:
+- **Real build, test, lint, and gate commands.** Run them read-only where safe, or cite the CI workflow `file:line` that defines them. Never invent a command that "should" exist.
+- **Architecture worth 3-5 lines.** Capture the shape a senior engineer needs before touching the repo, not a restated file tree.
+- **Non-obvious gotchas.** Capture the things that bite a newcomer: a lint trap, a derived-artifact directory, an ordering requirement. Verify each one rather than guessing.
+- **Doc-lifecycle rules.** Capture what is generated against what is hand-authored, what regenerates what, and any local-only or gitignored doc locations.
+
+Then write `AGENTS.md` in the house style of Phase 3.
+
+## Phase 2: MAINTAIN, for an existing contract
+
 Verify every claim against reality:
-- Every command still exists and runs (or still resolves to the CI step it claims to mirror).
-- The gate chain still mirrors CI step-for-step — no step added to CI and missing here, no step here that CI dropped.
-- Every enforcement claim is truthful — a claimed gate actually gates (name the mechanism), or it is honestly marked aspirational.
-- Every `line N` citation is still accurate — **sweep them mechanically** (grep the cited line and diff its content against what the sentence claims); do not eyeball this by skimming, stale line citations are exactly what a skim misses.
+- Every command still exists and runs, or still resolves to the CI step it claims to mirror.
+- The gate chain still mirrors CI step for step. No step was added to CI and left out here, and no step here was dropped from CI.
+- Every enforcement claim is truthful. A claimed gate actually gates and names its mechanism, or it is honestly marked aspirational.
+- Every `line N` citation is still accurate. **Sweep the citations mechanically:** grep the cited line and diff its content against what the sentence claims. Do not eyeball this by skimming, because stale line citations are exactly what a skim misses.
 - Every cited path still exists.
-Fix drift found; do not silently accept a claim that no longer holds. Report every drift item found (what was stale, what changed) — the report is a deliverable, not incidental output.
 
-## Phase 3 — House style (the deliverable's required shape)
-Write/update `AGENTS.md` in this exact section order:
-1. **`## Never (no gate will save you)`** first — only real, repo-specific rules that have no mechanical backstop. Never invent one to fill the section; if the repo has no such rules, say so or omit the section.
-2. **`## Before declaring any change done`** — the exact verified command chain, mirroring CI step-for-step. Note explicitly, per convention, when a documented convention has **no enforcing gate** — an unmarked convention reads as enforced when it is not.
-3. **Post-edit chores** (derived-artifact regeneration, version bumps, parity updates) if the repo has them.
-4. **`## Invariants the gates will catch`** — what lint/CI mechanically enforces, so the reader knows what they can't get wrong without a tool catching it.
-5. **Local-only/gitignored docs note**, if the repo has scratch or non-tracked doc locations that doc-alignment/staleness sweeps should skip.
-6. **Documentation section**, when the repo carries (or adopts in this run) a `<repo>-docs/` Obsidian vault — route the reader to that vault's `Standard.md` routing table for where new design notes, decisions, and run artifacts go, instead of restating the layout here. The vault standard is `code-ops-docs/40 Engineering/Techniques/vault-standard.md`; `/code-ops-suite-vault` scaffolds, migrates, and checks one.
+Fix the drift you find. Never silently accept a claim that no longer holds. Report every drift
+item found, naming what was stale and what changed. The report is a deliverable, not incidental
+output.
 
-**Cross-cutting rules (apply throughout):**
-- **Every command written must be verified** — run it, or cite the CI/script `file:line` that defines it. Never invent one; if the repo has no build/test/lint infra for a category, state that honestly rather than filling the gap.
-- **Enforcement claims are truthful** — gate-enforced claims name the gate; anything else is plainly marked aspirational.
-- **No duplication of the user's global `~/.claude/AGENTS.md` doctrine** — model roles, truthful reporting, token economy, context hygiene, and other cross-repo doctrine live there, not re-stated per repo.
-- **`AGENTS.md` / `AGENTS.md` parity has two accepted modes** — a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one and keep it; a pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
-- **Relative dates become absolute** ("verify by 2026-08-01", never "next month").
-- **Terse imperative prose, copy-paste-ready commands, project-specific facts only** — no filler, no generic engineering advice a competent agent already knows.
+## Phase 3: the house style, the deliverable's required shape
+
+Write or update `AGENTS.md` in this exact section order:
+1. **`## Never (no gate will save you)`** comes first. It carries only real, repo-specific rules that have no mechanical backstop. Never invent one to fill the section. When the repo has no such rules, say so or omit the section.
+2. **`## Before declaring any change done`** carries the exact verified command chain, mirroring CI step for step. Per convention, note explicitly when a documented convention has **no enforcing gate**, because an unmarked convention reads as enforced when it is not.
+3. **Post-edit chores** (derived-artifact regeneration, version bumps, parity updates) follow, when the repo has them.
+4. **`## Invariants the gates will catch`** names what lint and CI mechanically enforce, so the reader knows what they cannot get wrong without a tool catching it.
+5. **A local-only or gitignored docs note** follows, when the repo has scratch or non-tracked doc locations that doc-alignment and staleness sweeps should skip.
+6. **A documentation section** follows, when the repo carries a `<repo>-docs/` Obsidian vault or adopts one in this run. Route the reader to that vault's `Standard.md` routing table for where new design notes, decisions, and run artifacts go, rather than restating the layout here. The vault standard is `code-ops-docs/40 Engineering/Techniques/vault-standard.md`, and `/code-ops-suite-vault` scaffolds, migrates, and checks one.
+
+**Cross-cutting rules, applied throughout:**
+- **Verify every command written.** Run it, or cite the CI or script `file:line` that defines it. Never invent one. When the repo has no build, test, or lint infrastructure for a category, state that honestly rather than filling the gap.
+- **Keep enforcement claims truthful.** A gate-enforced claim names its gate. Anything else is plainly marked aspirational.
+- **Do not duplicate the user's global `~/.claude/AGENTS.md` doctrine.** Model roles, truthful reporting, token economy, context hygiene, and other cross-repo doctrine live there, and are not restated per repo.
+- **Keep `AGENTS.md` and `AGENTS.md` in one of two accepted parity modes:** a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one mode and keep it. A pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
+- **Make relative dates absolute.** Write "verify by 2026-08-01", never "next month".
+- **Keep the prose terse and imperative, the commands copy-paste-ready, and the facts project-specific.** No filler, and no generic engineering advice a competent agent already knows.
 
 ## Done when
-Every command in the produced/updated `AGENTS.md` is verified against reality (run or CI-cited); the gate chain matches CI; every enforcement claim is truthful (gate named, or marked aspirational); no global-doctrine duplication; every `line N` citation checked and correct; drift found in MAINTAIN mode is listed in the report, never silently fixed without disclosure.
+
+- Every command in the produced or updated `AGENTS.md` is verified against reality, either run or CI-cited.
+- The gate chain matches CI.
+- Every enforcement claim is truthful, with its gate named or an aspirational marking.
+- No global doctrine is duplicated.
+- Every `line N` citation was checked and is correct.
+- Drift found in MAINTAIN mode is listed in the report, never silently fixed without disclosure.

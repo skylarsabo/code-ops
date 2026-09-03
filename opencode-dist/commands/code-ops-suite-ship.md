@@ -1,5 +1,5 @@
 ---
-description: "Use when you want to implement one change — a feature or a one-off — end to end at high quality, shipped as a clean traceless PR."
+description: "Use when you want to implement one change, a feature or a one-off, end to end at high quality, shipped as a clean traceless PR."
 ---
 
 Use the `code-ops-suite-ship` skill for this task, following it end to end.

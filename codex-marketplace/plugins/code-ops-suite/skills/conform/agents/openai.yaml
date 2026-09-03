@@ -1,6 +1,6 @@
 interface:
   display_name: "Conform"
-  short_description: "Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back — the standards contract, the docs vault, the atlas, and doc drift, assessed in one pass and repaired under checkpoint."
+  short_description: "Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back. It assesses the standards contract, the docs vault, the atlas, and doc drift in one pass, then repairs under checkpoint."
   default_prompt: "Use code-ops-suite:conform for this task."
 policy:
   allow_implicit_invocation: true

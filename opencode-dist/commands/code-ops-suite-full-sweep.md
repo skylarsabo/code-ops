@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. Intra-plugin orchestrator; for the cross-plugin superset use everything."
+description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything."
 ---
 
 Use the `code-ops-suite-full-sweep` skill for this task, following it end to end.
