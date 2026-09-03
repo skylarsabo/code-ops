@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.2
+- Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
+
 ## 1.20.1
 - Vendored `co.mjs` refreshed: its verb table gains `scan overbuild` and `scan deferrals`, whose scripts ship in code-ops-suite.
 

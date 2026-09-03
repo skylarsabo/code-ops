@@ -10,7 +10,8 @@ skeleton, one line per agent kind on what changes, and a short worked example.
 ```
 Objective: <one sentence — what this subagent must determine or produce>
 Scope: <target files or dirs — explicitly disjoint from any sibling dispatch in this wave>
-Context: <pointer into the repo map or IMPORT_GRAPH relevant to Scope — a path, not a paste>
+Context: <pointer into the repo map or IMPORT_GRAPH relevant to Scope — a path, not a paste;
+  name the `context-query.mjs` command that answers the structural question, not its output>
 Effort: <default per agent-kind routing (see subagent-trade-offs.md); override only with a stated reason>
 Expected return:
   - sections + finding tiers (CONFIRMED / PROBABLE / SPECULATIVE)

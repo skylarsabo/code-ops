@@ -66,6 +66,10 @@ export const RUNTIME_SCRIPTS = [
   // Every plugin's operatives read files, and the read-side outline is what keeps a large
   // file from entering a context whole, so skim.mjs ships wherever briefs are executed.
   { name: 'skim.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
+  // skim.mjs imports symbol-lib.mjs as a sibling, so the library ships wherever skim does;
+  // context-query.mjs imports it too and ships with the hook that refreshes its index.
+  { name: 'symbol-lib.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
+  { name: 'context-query.mjs', plugins: ['code-ops-suite'] },
   // digest.mjs imports digest-lib.mjs as a SIBLING, so the two ship into the same plugin
   // scripts/ dir or the digest cannot load its detectors.
   { name: 'digest.mjs', plugins: ['code-ops-suite'] },

@@ -314,7 +314,89 @@ printed name is truncated to 80 characters. An outline longer than `--max` ends 
 line-number gutters and nothing else, clamped to the file, with `B` defaulting to `A+40`.
 A binary file prints its header and `binary`. Exit 1 covers a missing or unreadable file
 and a binary file under `--range`; exit 2 covers a bad invocation. Evidence:
-`scripts/skim.mjs:11-20`, `scripts/skim.mjs:112-120`, and `scripts/skim.mjs:234-251`.
+`scripts/skim.mjs:11-20`, `scripts/skim.mjs:91-99`, and `scripts/skim.mjs:213-230`.
+
+## Over-build scanner
+
+`scan-overbuild.mjs --git <range>` reads one diff and the tree at its head through git, never
+the working tree, and reports eight deterministic tells: a burst of small new files, an
+interface with one implementor, a function that forwards its own parameters to one call, a
+package-manifest entry with no decision record in the same diff, a new test file over twice
+its siblings' median, a root config key no file reads, an exported name another file already
+exports, and three consecutive comment lines shaped like code. Only the unrecorded dependency
+blocks: it exits 1 unless `--report-only`, and every other tell is advisory. `--exclude
+<prefix>` drops derived copies from the diff and the tree lookups, and a byte-identical vendored
+copy never counts as a duplicate because it shares the blob. The header states the ceiling: the
+tells are line-shaped heuristics, a hit is a lead, and a clean run proves nothing. Evidence:
+`scripts/scan-overbuild.mjs:11-32`, `scripts/scan-overbuild.mjs:81`,
+`scripts/scan-overbuild.mjs:248`, `scripts/scan-overbuild.mjs:303`, and
+`scripts/scan-overbuild.mjs:344`.
+
+`evals/overbuild-garden` scores the scanner the way `hasty-code` scores a skill, with a recall
+bar of 0.9 over eleven planted over-builds and a zero-decoy bar over nine legitimate shapes: a
+sized extraction with two callers, an interface with two implementors, a neighbor-sized test, a
+recorded dependency, a read config key, two wrappers that add behavior, and prose comments. The
+run builds a throwaway repository from `repo/base` and `repo/change`, asserts no unkeyed hit, and
+proves the eval can fail by removing the new-file bound in a temp copy. Evidence:
+`evals/overbuild-garden/run.mjs:16-25` and `evals/overbuild-garden/ANSWER_KEY.json:5`.
+
+## Deferral harvest
+
+`harvest-deferrals.mjs` collects every `deferred(<ceiling>, <upgrade path>)` marker in a comment
+line of a tracked text file into `DEFERRALS_REGISTER.md`, in the item grammar that
+`revalidate-register.mjs` re-greps: id, `File: path:line`, a backticked `Anchor:` that is the
+marker text as written, `Ceiling:`, `Upgrade:`, and `Verified-at:`. In Markdown and HTML only an
+HTML comment counts, because a heading or a bold line starts the same way, and a ceiling that
+starts with `<` is the template, not a marker. The id is derived from the file path and the
+ceiling text, so it survives a line move and changes only when the marker moves file or changes
+ceiling. `--check` re-harvests and exits 1 when the register on disk disagrees, ignoring
+`Verified-at`. The default output lands in `<hub>/98 System/` when exactly one docs hub exists.
+Evidence: `scripts/harvest-deferrals.mjs:62-64`, `scripts/harvest-deferrals.mjs:87-93`, and
+`scripts/harvest-deferrals.mjs:126`.
+
+## Ladder card hook
+
+`hooks/ladder-card.mjs` runs at `SubagentStart` and prints the code-economy ladder as
+`hookSpecificOutput.additionalContext` for an implementer-class agent type only. It does nothing
+unless `CODE_OPS_LADDER_CARD` is `1`, `on`, or `true`. The host contract was read from the
+installed 2.1.257 bundle: the input carries `agent_id` and `agent_type` (offset 183160743, built
+at 190336771), the output schema accepts `additionalContext` (183169362), and the host appends
+that context to the subagent's own messages (188311119). A read-only type, bare or
+plugin-qualified, and any type ending in `explorer` or `reviewer`, gets nothing. The card is at
+most ten lines. Bad JSON, a missing type, or another event name exits 0 with no output, and the
+hook returns no permission decision. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
+`plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
+
+## Symbol index and query
+
+`context-query.mjs` answers a structural question with `file:line` anchors, one-line
+signatures, and edge lists, never a verbatim dump: `find`, `callers`, `callees`, `blast`, and
+`explore`, plus `refresh` and `status`. A symbol is a name or a `path:name` pin, and a pin
+prefers an exact path over a suffix match, so a vendored copy never shadows the canonical file.
+`explore` ranks definitions before matching lines, stops at `--budget` bytes with a
+`BUDGET_EXCEEDED` marker, and appends definition bodies only under `--with-source` and only
+within the same budget. `refresh` re-parses only files whose content sha changed, `refresh
+<path>` re-parses one file, and `--exclude <prefix>` is remembered by the index. Evidence:
+`scripts/context-query.mjs:8-19`, `scripts/context-query.mjs:119`,
+`scripts/context-query.mjs:160`, and `scripts/context-query.mjs:366`.
+
+The ceiling is printed on every edge result. Definitions, spans, calls, and import edges come
+from the line rules in `symbol-lib.mjs`, which `skim.mjs` shares, so the outline and the index
+agree on what a definition is. A call resolves to the definition of that name in the same file,
+else in the file the caller imports that name from (an `as` alias included), else to every
+definition of that name in the tree, marked ambiguous, else unresolved. A dynamic import by
+path, a string-built name, or a type-dispatched call stays ambiguous or unresolved by contract.
+A result that touches a file whose content changed since the index was built carries a stale
+banner, and `--no-stale-check` suppresses the check. Evidence: `scripts/symbol-lib.mjs:47`,
+`scripts/symbol-lib.mjs:97`, `scripts/symbol-lib.mjs:144`, `scripts/context-query.mjs:176`,
+`scripts/context-query.mjs:231`, and `scripts/context-query.mjs:247`.
+
+The index is a home-directory file, `$CODE_OPS_INDEX_DIR/index.json` or
+`~/.claude/code-ops/index/<project slug>/index.json`, keyed by the repository root, so a query
+never reads another repository's index and nothing is committed. The opt-in `PostToolUse` hook
+`index-refresh.mjs` calls `refresh <file>` after every edit with a five-second budget and prints
+nothing. Evidence: `scripts/context-query.mjs:83` and
+`plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
 ## Over-build scanner
 

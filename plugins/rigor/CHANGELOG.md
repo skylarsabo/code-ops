@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.2
+- Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
+
 ## 2.18.1
 - Vendored `co.mjs` refreshed: its verb table gains `scan overbuild` and `scan deferrals`, whose scripts ship in code-ops-suite.
 

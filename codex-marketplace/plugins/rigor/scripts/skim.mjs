@@ -21,6 +21,7 @@
 
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
+import { CODE } from './symbol-lib.mjs';
 
 const NAME_MAX = 80;
 const trunc = (s) => {
@@ -33,31 +34,9 @@ const usage = (message) => {
   process.exit(2);
 };
 
-// Definition regexes copied from the RULES table in scripts/repo-map.mjs, deliberately as a
-// copy: repo-map.mjs walks the whole tree at import time, so it cannot be imported for its
-// table alone. Coarse by design — a map, not a parser. Import and export rows are this
-// file's own addition, because an operative orienting in a module wants its edges too.
-const JS_DEFS = [
-  [/^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/, 'fn'],
-  [/^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/, 'class'],
-  [/^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=/, 'const'],
-];
-const JS = { defs: JS_DEFS, imports: /^\s*(?:import[\s({]|(?:const|let|var)\s+.*\brequire\()/, exports: /^\s*(?:export\b|module\.exports\b)/ };
-const CODE = {
-  '.js': JS, '.mjs': JS, '.cjs': JS, '.jsx': JS, '.ts': JS, '.tsx': JS,
-  '.py': { defs: [[/^(?:async\s+)?def\s+(\w+)/, 'def'], [/^class\s+(\w+)/, 'class']], imports: /^\s*(?:import|from)\s/, exports: null },
-  '.go': { defs: [[/^func\s+(?:\([^)]*\)\s*)?(\w+)/, 'func'], [/^type\s+(\w+)/, 'type']], imports: /^\s*import[\s(]/, exports: null },
-  '.rs': {
-    defs: [
-      [/^(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)/, 'fn'],
-      [/^(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|trait)\s+(\w+)/, 'type'],
-      [/^impl(?:<[^>]*>)?\s+([\w:]+)/, 'impl'],
-    ],
-    imports: /^\s*(?:pub\s+)?use\s/, exports: null,
-  },
-  '.java': { defs: [[/^\s{0,4}(?:public|protected|private)?\s*(?:abstract\s+|static\s+|final\s+|sealed\s+)*(?:class|interface|record|enum)\s+(\w+)/, 'type']], imports: /^\s*import\s/, exports: null },
-  '.cs': { defs: [[/^\s{0,4}(?:public|internal|protected|private)?\s*(?:abstract\s+|static\s+|sealed\s+|partial\s+)*(?:class|interface|record|struct|enum)\s+(\w+)/, 'type']], imports: /^\s*using\s+[A-Za-z_]/, exports: null },
-};
+// The definition rules live in symbol-lib.mjs, shared with context-query.mjs, so the outline
+// and the index agree on what a definition is. Import and export rows are this file's own
+// addition, because an operative orienting in a module wants its edges too.
 
 const argv = process.argv.slice(2);
 let file = null, range = null, defsOnly = false, max = 120, asJson = false;

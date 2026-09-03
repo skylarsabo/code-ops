@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.5
+- Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
+
 ## 0.13.4
 - Vendored `co.mjs` refreshed: its verb table gains `scan overbuild` and `scan deferrals`, whose scripts ship in code-ops-suite.
 
