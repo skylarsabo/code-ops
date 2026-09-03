@@ -248,10 +248,10 @@ fail open: an unwritable store prints the digest with `raw -` and keeps going. E
 ## Digest rewrite hook
 
 `digest-rewrite.mjs` is a `PreToolUse` Bash stage that turns an allowlisted simple command into
-a digest run. It is opt-in and off everywhere. The hook does nothing unless `CODE_OPS_DIGEST`
-holds `1`, `on`, or `true`, compared without regard to case. Any other value, unset and `off`
-among them, exits `0` before the payload is read. A repository opts in through the `env` block
-of its `.claude/settings.json`, and that is the only supported way. Evidence:
+a digest run. It is on by default. The hook does nothing when `CODE_OPS_DIGEST` holds `off`,
+`0`, or `false`, compared without regard to case, and exits `0` before the payload is read in
+that case; unset and every other value leave it on. A user or a repository turns it off through
+the `env` block of a `.claude/settings.json`. Evidence:
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161` and
 `plugins/code-ops-suite/hooks/hooks.json:5-16`.
 
@@ -279,8 +279,11 @@ beside the rest of the tool input, plus one line of `additionalContext` naming w
 output lives. The installed host reassigns the tool input to the hook's `updatedInput` and only
 then runs its permission evaluation, so the operator's own rules judge the rewritten command as
 they judge any other `node` call. That moves the permission key: a rule written for `git`, `gh`,
-or `sed` no longer matches the wrapped form, and a broad `node` allow rule admits it. An operator
-who keeps command-specific deny or ask rules should mirror them for `node` before opting in.
+or `sed` no longer matches the wrapped form, and a broad `node` allow rule admits it. The host
+accepts a wildcard anywhere in a Bash rule, so an operator mirrors a read-only allow rule for the
+wrapped form by pinning the script name and the family, as in `Bash(node "*/scripts/digest.mjs"
+-- git diff *)`, never as a bare `node` rule. An operator who keeps command-specific deny or ask
+rules mirrors them the same way before opting in.
 With `CODE_OPS_DIGEST_STORE=off` the rewrite adds `--no-store`, so the digest keeps its
 compression and its contract but writes no raw file and no receipt row. The default store slug
 follows the directory the digest process started in, never a `--cwd` target. Version `2.1.257` of the host bundle under
@@ -366,7 +369,7 @@ Evidence: `scripts/harvest-deferrals.mjs:62-64`, `scripts/harvest-deferrals.mjs:
 
 `hooks/ladder-card.mjs` runs at `SubagentStart` and prints the code-economy ladder as
 `hookSpecificOutput.additionalContext` for an implementer-class agent type only. It does nothing
-unless `CODE_OPS_LADDER_CARD` is `1`, `on`, or `true`. The host contract was read from the
+when `CODE_OPS_LADDER_CARD` is `off`, `0`, or `false`, and runs otherwise. The host contract was read from the
 installed 2.1.257 bundle: the input carries `agent_id` and `agent_type` (offset 183160743, built
 at 190336771), the output schema accepts `additionalContext` (183169362), and the host appends
 that context to the subagent's own messages (188311119). A read-only type, bare or
@@ -426,8 +429,8 @@ and `evals/context-query-mcp/run.mjs:82-97`.
 
 The index is a home-directory file, `$CODE_OPS_INDEX_DIR/index.json` or
 `~/.claude/code-ops/index/<project slug>/index.json`, keyed by the repository root, so a query
-never reads another repository's index and nothing is committed. The opt-in `PostToolUse` hook
-`index-refresh.mjs` calls `refresh <file>` after every edit with a five-second budget and prints
+never reads another repository's index and nothing is committed. The `PostToolUse` hook
+`index-refresh.mjs`, on unless `CODE_OPS_INDEX` says off, calls `refresh <file>` after every edit with a five-second budget and prints
 nothing. Evidence: `scripts/context-query.mjs:97` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 

@@ -47,7 +47,7 @@ const payloadFor = (command, extra = {}) => JSON.stringify({
   tool_input: { command, description: 'fixture', ...extra },
 });
 
-// `on` is the switch value under test everywhere except the off-switch block below.
+// `on` is the switch value under test everywhere except the off-switch block below; unset behaves the same.
 function runHook(input, value = 'on', script = hook) {
   const env = { ...process.env };
   if (value === null) delete env.CODE_OPS_DIGEST;
@@ -142,9 +142,9 @@ const PASSED_THROUGH = [
 
 // ---------------------------------------------------------------- the off switch
 
-// The guard must return before the payload is read: an unset, `off`, or unrecognized switch
-// must produce nothing at all, for every payload the on-switch block rewrites.
-for (const value of [null, 'off', '0', 'false', 'yes', '']) {
+// The guard must return before the payload is read: `off`, `0`, or `false` must produce nothing at
+// all, for every payload the default rewrites.
+for (const value of ['off', '0', 'false', 'OFF', 'False']) {
   for (const [command] of REWRITTEN) {
     const r = runHook(payloadFor(command), value);
     const label = value === null ? 'unset' : JSON.stringify(value);
@@ -276,7 +276,13 @@ if (fails.length) {
   console.error(`\ndigest-hook eval FAILED (${fails.length})`);
   process.exit(1);
 }
-console.log('ok   the switch is off by default: unset, off, 0, false, and an unnamed value print nothing');
+console.log('ok   off, 0, and false print nothing; unset and unnamed values leave the hook on');
+{
+  for (const value of [null, 'yes', '', 'on', '1']) {
+    const r = runHook(payloadFor('git diff --stat'), value);
+    expect(r.status === 0 && /updatedInput/.test(r.stdout), `CODE_OPS_DIGEST=${value === null ? 'unset' : JSON.stringify(value)} must leave the hook on, got ${JSON.stringify(r.stdout.slice(0, 80))}`);
+  }
+}
 console.log(`ok   ${REWRITTEN.length} allowlisted commands rewrite exactly, cd prefix included, tool input preserved`);
 console.log(`ok   ${PASSED_THROUGH.length} compound, structured, unlisted, wrapped, and over-long commands pass through`);
 console.log('ok   no permissionDecision: the host re-evaluates permissions against updatedInput');

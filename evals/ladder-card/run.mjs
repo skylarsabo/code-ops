@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Regression eval for plugins/code-ops-suite/hooks/ladder-card.mjs, the opt-in SubagentStart
 // card. It pins the contract the hook promises:
-//   - off by default: without CODE_OPS_LADDER_CARD the hook prints nothing for any payload;
+//   - on by default: without CODE_OPS_LADDER_CARD an implementer type gets the card, and off, 0,
+//     or false silences it for every payload;
 //   - on, an implementer-class type (general-purpose, mech, claude, a custom name, and a
 //     plugin-qualified implementer) gets exactly one JSON line whose additionalContext is the
 //     card, at most ten lines, under 1200 characters, with hookEventName SubagentStart and no
@@ -37,20 +38,22 @@ const READ_ONLY = ['explorer', 'reviewer', 'tracer', 'verifier', 'gatherer', 'cl
   'code-ops-suite:explorer', 'code-ops-suite:reviewer', 'rigor:tracer', 'rigor:verifier', 'researcher:gatherer', 'researcher:claim-checker',
   'privacy-opsec-suite:privacy-reviewer', 'privacy-opsec-suite:explorer', 'acme:schema-explorer', 'acme:diff-reviewer'];
 
-// ---------------------------------------------------------------- off by default
+// ---------------------------------------------------------------- the off switch
 for (const t of [...IMPLEMENTERS, ...READ_ONLY]) {
+  for (const sw of ['off', '0', 'false', 'OFF']) {
+    const r = runHook(payload(t), sw);
+    expect(r.status === 0 && r.stdout === '', `${t} under ${sw}: must get nothing, got ${r.status}/${JSON.stringify(r.stdout)}`);
+  }
+}
+for (const t of IMPLEMENTERS) {
   const r = runHook(payload(t));
-  expect(r.status === 0 && r.stdout === '', `off by default: ${t} must get nothing, got ${r.status}/${JSON.stringify(r.stdout)}`);
+  expect(r.status === 0 && /additionalContext/.test(r.stdout), `on by default: ${t} with no switch must get the card, got ${r.status}/${JSON.stringify(r.stdout.slice(0, 60))}`);
 }
-for (const sw of ['off', '0', 'false', 'yes', '']) {
-  const r = runHook(payload('general-purpose'), sw);
-  expect(r.status === 0 && r.stdout === '', `switch value ${JSON.stringify(sw)} must keep the hook off`);
-}
-console.log(`ok   off by default for ${IMPLEMENTERS.length + READ_ONLY.length} types and five non-on switch values`);
+console.log(`ok   off, 0, and false silence the card for ${IMPLEMENTERS.length + READ_ONLY.length} types; unset leaves it on`);
 
 // ---------------------------------------------------------------- on, implementer-class
 let card = null;
-for (const sw of ['1', 'on', 'true', 'ON', 'True']) {
+for (const sw of ['1', 'on', 'true', 'yes', '']) {
   for (const t of IMPLEMENTERS) {
     const r = runHook(payload(t), sw);
     expect(r.status === 0 && r.stdout.trim().split('\n').length === 1, `${t} under ${sw}: one JSON line, got ${r.status}/${JSON.stringify(r.stdout)}`);
@@ -71,7 +74,7 @@ for (const rung of ['Does it need to exist', 'Does it exist here', 'standard lib
   expect((card ?? '').includes(rung), `the card carries the rung "${rung}"`);
 }
 expect(/hot path/.test(card ?? '') && /deferred\(<ceiling>, <upgrade path>\)/.test(card ?? ''), 'the card carries the hot-path rule and the marker');
-console.log(`ok   implementer-class types get the ${lines.length}-line card (${(card ?? '').length} chars) under five on-values`);
+console.log(`ok   implementer-class types get the ${lines.length}-line card (${(card ?? '').length} chars) under five non-off values`);
 
 // ---------------------------------------------------------------- on, read-only
 for (const t of READ_ONLY) {
