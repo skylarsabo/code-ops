@@ -233,7 +233,7 @@ so its recovery hints address the raw file. Evidence: `scripts/digest-lib.mjs:10
 
 Raw bytes go to `--store`, else `$CODE_OPS_DIGEST_DIR`, else
 `~/.claude/code-ops/digest/<project slug of cwd>/`, at `<store>/<ISO date>/<HHMMSS>-<sha8>.txt`.
-The default is a home-directory path, so a raw output is never inside a repository. Store writes
+`--no-store` or `CODE_OPS_DIGEST_STORE=off` outranks all three and stores nothing. The default is a home-directory path, so a raw output is never inside a repository. Store writes
 fail open: an unwritable store prints the digest with `raw -` and keeps going. Evidence:
 `scripts/digest.mjs:166-195`.
 
@@ -264,7 +264,7 @@ A command that already runs the digest passes through, so no output is wrapped t
 script path resolves from the hook's own location, and a missing script passes through as well.
 Every pass-through prints nothing at all. Evidence:
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:149-150` and
-`plugins/code-ops-suite/hooks/digest-rewrite.mjs:171-175`.
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:172-176`.
 
 The hook states no permission decision. It returns `updatedInput` carrying the rewritten command
 beside the rest of the tool input, plus one line of `additionalContext` naming where the raw
@@ -282,13 +282,13 @@ call reaches returns `{decision:await d(n,r,o,p,y),input:r}` for a hook that dec
 offset `187458088`. Version `2.1.251` reassigns the same way at offset `186659765`. Because the
 host re-evaluates, no `ask` is needed to put the rewritten command in front of the operator, and
 the hook never returns `allow`. Evidence:
-`plugins/code-ops-suite/hooks/digest-rewrite.mjs:177-189` and
-`evals/digest-hook/run.mjs:125-134`.
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:178-190` and
+`evals/digest-hook/run.mjs:186-189`.
 
 The hook fails open on every path. Bad JSON, a missing command, another tool, or any thrown
 error exits `0` with no output. It never exits `2`, never blocks a call, and never spawns or
 imports beyond three Node built-ins, because it runs in front of every Bash call. Evidence:
-`plugins/code-ops-suite/hooks/digest-rewrite.mjs:160-191`.
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:160-192`.
 
 ## Script entrypoint
 

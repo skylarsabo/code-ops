@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "067e775aa7f5ab3f72b7475e9712c843e3e9b695",
-      "verifiedDigest": "00e5d1be8224f0a7c26976614714ac63a02d012cc53cc3e48c65e9f00bc548e8"
+      "verifiedAt": "006da0bb2ab0ea49637112beec4247c8393feb5c",
+      "verifiedDigest": "35e69f5615ce5863a510ffc51ba02807d1e040593366a8e9ab54cb3476694489"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "067e775aa7f5ab3f72b7475e9712c843e3e9b695",
-      "verifiedDigest": "0127eeeb2e56cc6e2d46c03771085d66ecf86920bcbc2c7fcd113b12ce2b93fd"
+      "verifiedAt": "006da0bb2ab0ea49637112beec4247c8393feb5c",
+      "verifiedDigest": "8078102ff4e1a159ac78e321c4116e87e2a7c740281de44af34792cacded7d7d"
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "067e775aa7f5ab3f72b7475e9712c843e3e9b695",
-      "verifiedDigest": "cb3058223fddfda340bab57d147058c41696c8829d55ab0cedf0ccec92b86255"
+      "verifiedAt": "006da0bb2ab0ea49637112beec4247c8393feb5c",
+      "verifiedDigest": "3543cde1d8c035e46767692d91f292c2182bb4b1b013ab6d1dafa54a40b944d1"
     },
     {
       "slug": "codex-render",
@@ -38,8 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "067e775aa7f5ab3f72b7475e9712c843e3e9b695",
-      "verifiedDigest": "1b510f6da539fee6b682c764165b7dc914eff2bebf34ba585e722f94b6623949"
+      "verifiedAt": "006da0bb2ab0ea49637112beec4247c8393feb5c",
+      "verifiedDigest": "268559289185bc8c9f2273311a8737f9dd0275fb131fb564f1667d59f2d8f876"
     },
     {
       "slug": "ci-workflows",
@@ -71,8 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "067e775aa7f5ab3f72b7475e9712c843e3e9b695",
-      "verifiedDigest": "e4d0a9bdc8d81d596f359136b1f30c5b4aa1ca7f3eb25027601c6ac88d6e4890"
+      "verifiedAt": "006da0bb2ab0ea49637112beec4247c8393feb5c",
+      "verifiedDigest": "28372e608015eaf3b851271508fd97ba93ac9ca8295282453256d288ce460759"
     },
     {
       "slug": "root-contracts",

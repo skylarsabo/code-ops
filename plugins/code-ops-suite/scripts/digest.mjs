@@ -28,11 +28,11 @@
 // aimed at another directory cannot file its output under that directory's slug. A `--cwd` that
 // names no directory exits 2 with usage.
 //
-// Receipt store: `--store`, else `$CODE_OPS_DIGEST_DIR`, else
-// `~/.claude/code-ops/digest/<project slug of cwd>/` — a home-directory path by default, so a raw
-// output can never be committed by accident. Raw bytes go to `<store>/<ISO date>/<HHMMSS>-<sha8>.txt`
-// and one JSON line is appended to `<store>/DIGEST_RECEIPTS.jsonl`. Store writes FAIL OPEN: an
-// unwritable store prints the digest with `raw -` rather than losing the run.
+// Receipt store: `--store`, else `$CODE_OPS_DIGEST_DIR`, else `~/.claude/code-ops/digest/<slug>/`,
+// a home-directory path by default, so a raw output can never be committed by accident. `--no-store`
+// or `CODE_OPS_DIGEST_STORE=off` outranks all three and stores nothing. Raw bytes go to
+// `<store>/<ISO date>/<HHMMSS>-<sha8>.txt` and one JSON line is appended to `<store>/DIGEST_RECEIPTS.jsonl`.
+// Store writes FAIL OPEN: an unwritable store prints the digest with `raw -` rather than losing the run.
 //
 // Everything is printed on stdout, including the stderr section, because the digest is one report
 // and its trailer must be the last line a reader sees. `--json` prints one object instead.
@@ -167,10 +167,10 @@ function parse(argv) {
 // checkout's raw outputs never mix with another's.
 const projectSlug = (cwd) => String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 
-function storeDir(o, workdir) {
+function storeDir(o, startDir) {
   if (o.store) return resolve(o.store);
   if (process.env.CODE_OPS_DIGEST_DIR) return resolve(process.env.CODE_OPS_DIGEST_DIR);
-  return join(homedir(), '.claude', 'code-ops', 'digest', projectSlug(workdir));
+  return join(homedir(), '.claude', 'code-ops', 'digest', projectSlug(startDir));
 }
 
 // Returns the raw path and its digest, or null when storing is off or fails. Never throws: an

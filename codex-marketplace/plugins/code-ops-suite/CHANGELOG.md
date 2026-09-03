@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.57.1
+- `hooks/digest-rewrite.mjs` drops `gh api` from the allowlist, because an API answer is read by a parser and a digest of it is the wrong tool. One boolean now decides both the `--no-store` flag and the context line, so a command carrying a literal `--no-store` argument with the store on keeps its recovery hint.
+- `scripts/digest.mjs` and the contracts, data-model, and infrastructure pages state that `--no-store` or `CODE_OPS_DIGEST_STORE=off` outranks `--store` and `$CODE_OPS_DIGEST_DIR`.
+
 ## 1.57.0
 - `hooks/digest-rewrite.mjs` is a second `PreToolUse` Bash stage that rewrites an allowlisted simple command into a `digest.mjs` run through `updatedInput`, so tool output enters the context compressed and receipted. It is opt-in and off everywhere: without `CODE_OPS_DIGEST` set to `1`, `on`, or `true` it exits 0 before reading the payload. A repository turns it on through the `env` block of its `.claude/settings.json`.
 - The rewrite is narrow by contract. One optional leading `cd <dir> &&` becomes `--cwd <dir>`; anything else carrying a pipe, list, redirect, expansion, subshell, or heredoc passes through, as does a token outside the bare or plain double-quoted forms, a command word outside the family allowlist, a `gh` call asking for structured output, a command already wrapped in the digest, and any command over 2000 characters. The hook returns no permission decision, because the installed host re-runs its whole permission evaluation against the rewritten command.
