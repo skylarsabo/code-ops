@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.3
+- Vendored `preflight.mjs` refreshed: it prints `ctags` and `codegraph` as detected capabilities, present or absent, never as a requirement.
+
 ## 1.20.2
 - Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
 

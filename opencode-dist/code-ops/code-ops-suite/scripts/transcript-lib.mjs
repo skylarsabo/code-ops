@@ -109,6 +109,9 @@ export function emptySummary() {
     repeatReads: { paths: 0, extraReads: 0, extraChars: 0 },
     largest: [],
     firstTs: null, lastTs: null, durationMs: 0,
+    // Tokens the last assistant message carried in: the context resident at session end, which
+    // is the cost a verbatim payload leaves behind and the metric the query index targets.
+    contextAtEnd: 0,
   };
 }
 
@@ -205,6 +208,8 @@ export function summarizeTranscript(text, opts = {}) {
     }
   }
   for (const u of usageById.values()) addUsage(s.usage, u);
+  const lastUsage = [...usageById.values()].pop();
+  s.contextAtEnd = lastUsage ? lastUsage.input + lastUsage.cacheRead + lastUsage.cacheCreate : 0;
   for (const n of readsByPath.values()) if (n > 1) s.repeatReads.paths++;
   s.largest.sort((a, c) => c.chars - a.chars);
   s.largest.length = Math.min(s.largest.length, top);
@@ -236,6 +241,7 @@ export function mergeSummaries(list, opts = {}) {
     m.repeatReads.extraChars += s.repeatReads.extraChars;
     m.largest.push(...s.largest);
     m.durationMs += s.durationMs;
+    m.contextAtEnd = Math.max(m.contextAtEnd, s.contextAtEnd);
     if (s.firstTs) { const t = Date.parse(s.firstTs); if (first === null || t < first) first = t; }
     if (s.lastTs) { const t = Date.parse(s.lastTs); if (last === null || t > last) last = t; }
   }
