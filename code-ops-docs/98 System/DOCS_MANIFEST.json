@@ -79,7 +79,7 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "e0073edbbb7f86702c96fdafacc2025249e36fd6122417dd59ccc15acafd155a",
+      "sourceDigest": "8f8390f5231421b926bc90322de862f37b412d8068da13798d5d55b1cb7c0713",
       "contentDigest": "a983a7732075c18f67875c923673ec7477101ed6cf58cc229e9933ebe4858e01"
     },
     {
@@ -112,8 +112,8 @@
         ".github/workflows/**",
         "scripts/**"
       ],
-      "sourceDigest": "91f26b490ae571ac0c6f4d5f507303cd384da2779b7e5b540f40f657470dd5c3",
-      "contentDigest": "401fc8ab942deaf9ba46dc357a683822e073bb0159e9f9e0f8fcfa900224784f"
+      "sourceDigest": "04e2425e21d39c8abbfd174984c5e45c128fd8c4a3870cc07e210d252e049767",
+      "contentDigest": "18560a956e0621bcfc456852815883d14554b684b88ae3289f3e2d40aca6523a"
     },
     {
       "id": "infrastructure",
@@ -124,7 +124,7 @@
         ".claude-plugin/**",
         "scripts/build-*.mjs"
       ],
-      "sourceDigest": "03389cdc545f41e7c9b8110a599948536d24a8833530906ecfd21f23e2eed350",
+      "sourceDigest": "f90d416c9a05b3d00c9626b5a80b3d9dacf6acefd519a281d9d9c5b28316637f",
       "contentDigest": "0a155c92a1b50eb2cc692ef9d55728cb6669b4d35629e18dff06bc3c92c671bc"
     },
     {
@@ -135,7 +135,7 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "91f26b490ae571ac0c6f4d5f507303cd384da2779b7e5b540f40f657470dd5c3",
+      "sourceDigest": "04e2425e21d39c8abbfd174984c5e45c128fd8c4a3870cc07e210d252e049767",
       "contentDigest": "ac586bfd27a8aa296f246f3b057c947b84569b8d8a8dc8bde847773dd39d87cd"
     },
     {
@@ -150,7 +150,7 @@
         "evals/record-collections/**",
         ".github/workflows/validate.yml"
       ],
-      "sourceDigest": "c71b777608780bc29c828d5dd1c2118583d2111651c7f185e881354970448710",
+      "sourceDigest": "39ccabea01d8c9d14bcc955611e5931e5d3e4e7bcf9bd6af4793e8ac28e342d7",
       "contentDigest": "82d437873f3d7c490a0f004288958d469006014be53d9a7dd5406dc88cde8536"
     },
     {
@@ -196,8 +196,8 @@
       "sources": [
         "**"
       ],
-      "sourceDigest": "09f87902207e3ff88e31b173b84cdacf9d86f290b1b3d4442bd8b717079b012f",
-      "contentDigest": "697b02e1e5f2633bec4f884843a6fb5bf3d308ded1290716bc1df59608bed7db"
+      "sourceDigest": "1694684b5f1c49cedf4ee39de3c9af89aefd45b69e78a5538891821e701afe29",
+      "contentDigest": "0875d32def92864e358213fc8ef6881738e3dbcc77f519565dbcd5feef05eff6"
     }
   ]
 }

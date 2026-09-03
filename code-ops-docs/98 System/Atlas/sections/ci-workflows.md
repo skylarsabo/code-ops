@@ -27,3 +27,5 @@ credentials, events, and status policy belong to the adopter.
 Both legs run the context-audit regression, which exercises the transcript parser and the `SessionEnd` receipt hook against a synthetic fixture, so path and stdin handling for the hook are proven on Windows before merge.
 
 The model review gates became opt-in on 2026-09-03: `ship` asks at its first checkpoint, the local gate opens with its own checkpoint, and branch protection on `main` must require only the deterministic checks, so unreviewed changes merge on hosted CI alone while reviewed ones still carry SHA-bound statuses.
+
+The Windows record-collection eval is path-gated as of 2026-09-03: it runs on a pull request or push only when the record scripts, their eval, the manifest, the record authority, or the workflow changed, and unconditionally on the weekly schedule and manual dispatch. Ubuntu keeps it on every change. The gate exists because that one step cost about 754 seconds of a 960-second Windows job while the Ubuntu copy cost 73.
