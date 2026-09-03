@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.69.0
+- `model-tiers.mjs` gains the `opencode` provider: the OpenCode Zen free ladder (`ling-3.0-flash-fin-free` light, `nemotron-3.5-lightning-free` mid, `mimo-v2.5-free` strong) with the lead unset, and it becomes `DEFAULT_PROVIDER`, so the rendered `opencode-dist/opencode.json` binds every agent to a free model that clears its floor and carries no top-level `model`. The lead inherits the session model and a fresh install costs nothing.
+- A provider may leave `frontier` null (`leadInherits`) and declare `registry: 'cli'` with a `verifiedAt` date. The renderer then omits the top-level `model`, MODEL_TIERS.md says the lead is unset, `check-model-registry.mjs` skips the models.dev fetch for that provider, and `evals/opencode-dist` pins the unset lead and the publish-command ask rules on the default config.
+
 ## 1.68.0
 - `scan-overbuild.mjs` writes its tree-grep patterns with POSIX classes, because `git grep -E` on macOS runs the system regex, which has no `\s`, `\w`, or `\b`, so the single-implementor and duplicate-helper tells matched nothing there. The first macOS host-eval run found it.
 
