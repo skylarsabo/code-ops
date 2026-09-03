@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.58.0
+- The implementation loop carries the code-economy ladder: the objective is ordered (correctness and the safety floor, module boundaries, measured performance, readability, then size), and a change climbs six rungs before new code is written. Both sentences are pinned byte-identically across the code-ops-suite, rigor, and privacy-opsec-suite conventions. A deliberate simplification is marked `deferred(<ceiling>, <upgrade path>)`.
+- `pr-review` and the quality lenses gain a size-and-boundary lens, `normalize` rule F extracts only on the ladder's evidence, and the dispatch brief template carries a `Size discipline:` line for implementer briefs.
+
 ## 1.57.1
 - `hooks/digest-rewrite.mjs` drops `gh api` from the allowlist, because an API answer is read by a parser and a digest of it is the wrong tool. One boolean now decides both the `--no-store` flag and the context line, so a command carrying a literal `--no-store` argument with the store on keeps its recovery hint.
 - `scripts/digest.mjs` and the contracts, data-model, and infrastructure pages state that `--no-store` or `CODE_OPS_DIGEST_STORE=off` outranks `--store` and `$CODE_OPS_DIGEST_DIR`.

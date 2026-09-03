@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.0
+- The implementation loop carries the ordered objective and the code-economy ladder, pinned byte-identically with the code-ops-suite and rigor conventions.
+
 ## 1.19.3
 - Vendored `co.mjs` refreshed: its verb table gains `context digest`, whose script only code-ops-suite bundles. No behavior in this plugin changes.
 

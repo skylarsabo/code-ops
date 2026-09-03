@@ -16,6 +16,9 @@ Expected return:
   - sections + finding tiers (CONFIRMED / PROBABLE / SPECULATIVE)
   - dense, file:line cited, no raw dumps
 Batching: request every independent item in one tool round; wait only on true dependencies
+Size discipline: <implementer briefs only: correctness and the safety floor, then boundaries, then
+  measured performance, then readability, then size; mark a deliberate simplification
+  deferred(<ceiling>, <upgrade path>)>
 Escalation: <what counts as blocked or ambiguous for this task, and that it must escalate
   rather than guess>
 Constraints: <do-not-touch list; no commits unless this brief explicitly says so>
