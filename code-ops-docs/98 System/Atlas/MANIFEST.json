@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "23c7f1be213ba8290fed0a6f718129710559770a",
-      "verifiedDigest": "b43b1d5938159ed4772795723b0f90bf46ae9497be4b851f6e41723381076b3f"
+      "verifiedAt": "b828f98100b0f852cb020d44066d7c2daf5b5f1a",
+      "verifiedDigest": "7103ac869941c23552053060166ed0504936ecfb8716b14e1d52071b19e90c5d"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "a20b9936e99f2e4fdd2077ec41532761ec848f62",
-      "verifiedDigest": "1d5858167183b3c5cc19f97808cc6e4dadb09c766ec51f2782e1c395ceedae19"
+      "verifiedAt": "b828f98100b0f852cb020d44066d7c2daf5b5f1a",
+      "verifiedDigest": "feb42b2910320ebb08ef41ddef68d62471e43565a8335df8fa53c2e7e115fe95"
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +27,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "a20b9936e99f2e4fdd2077ec41532761ec848f62",
-      "verifiedDigest": "02f309004e19c2c414879e587b311bca332fcca93cb2c5e9d8b5e261cf3a68dd"
+      "verifiedAt": "b828f98100b0f852cb020d44066d7c2daf5b5f1a",
+      "verifiedDigest": "07eb23d0d8ab6f38a6ce08e3d4e6b9766fb2d347f4373f4d82dd7d104ae48c55"
     },
     {
       "slug": "codex-render",
@@ -38,8 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "23c7f1be213ba8290fed0a6f718129710559770a",
-      "verifiedDigest": "9255566b5db2a7a1e209da5058cc4ee8a1eff817f38387d26e09e730594a172e"
+      "verifiedAt": "b828f98100b0f852cb020d44066d7c2daf5b5f1a",
+      "verifiedDigest": "bfacc625ea698c57dbbfc605b2caba9493fed7a0e087dd0eeb8a4362ca40511e"
     },
     {
       "slug": "ci-workflows",

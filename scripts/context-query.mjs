@@ -38,7 +38,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { extname, join, relative, resolve } from 'node:path';
 import { calls, definitions, imports, isCodeExt } from './symbol-lib.mjs';
@@ -77,7 +77,10 @@ function git(root, gitArgs) {
   }
 }
 
-const root = resolve(o.root ?? git(process.cwd(), ['rev-parse', '--show-toplevel']).trim());
+// Real paths on both sides: a Windows runner hands the hook a short-name temp path while git
+// prints the long form, and a relative path between the two forms escapes the tree.
+const real = (p) => { try { return realpathSync.native(p); } catch { return p; } };
+const root = real(resolve(o.root ?? git(process.cwd(), ['rev-parse', '--show-toplevel']).trim()));
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 const projectSlug = (p) => String(p).replace(/[^A-Za-z0-9]/g, '-');
 const storeDir = process.env.CODE_OPS_INDEX_DIR ? resolve(process.env.CODE_OPS_INDEX_DIR) : join(homedir(), '.claude', 'code-ops', 'index', projectSlug(root));
@@ -124,7 +127,7 @@ function refresh(only = null) {
   const exists = (p) => trackedSet.has(p);
   const files = { ...previous.files };
   let reused = 0; let parsed = 0; let dropped = 0;
-  const targets = only ? only.map((p) => toPosix(relative(root, resolve(root, p)))).filter((p) => trackedSet.has(p)) : tracked;
+  const targets = only ? only.map((p) => toPosix(relative(root, real(resolve(root, p))))).filter((p) => trackedSet.has(p)) : tracked;
   if (!only) for (const f of Object.keys(files)) if (!trackedSet.has(f)) { delete files[f]; dropped++; }
   for (const file of targets) {
     let buf;
@@ -312,7 +315,7 @@ switch (command) {
   case 'blast': {
     if (!args[0]) die('blast needs a path');
     const idx = ensureIndex();
-    const path = toPosix(relative(root, resolve(root, args[0])));
+    const path = toPosix(relative(root, real(resolve(root, args[0]))));
     if (!idx.files[path]) { printer([`${path} is not an indexed code file`], { path, indexed: false }); process.exit(1); }
     const importers = importersOf(idx, path, o.depth);
     const defs = idx.files[path].defs.map((d) => ({ file: path, ...d }));
