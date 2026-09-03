@@ -1,14 +1,24 @@
 # The fleet standard
 
-A fleet is a named set of repos that one operator standardizes together. Every skill in the suite operates on one repo. A fleet adds the layer above: a manifest that names the members, a consent rule that lets each repo refuse, and one checker that reports every member's conformance in a single table. This page is the source of truth for the manifest shape, the consent rule, and the checker's contract.
+A fleet is a named set of repos that one operator standardizes together. Every skill in
+the suite operates on one repo. A fleet adds the layer above: a manifest that names the
+members, a consent rule that lets each repo refuse, and one checker that reports every
+member's conformance in a single table. This page is the source of truth for the manifest
+shape, the consent rule, and the checker's contract.
 
-## Why a manifest and not a scan
+## Why membership is declared, not scanned
 
-A directory scan finds repos. It cannot tell an operator which repos they meant. A workspace holds vendored checkouts, throwaway clones, and other people's code, and a fleet operation that walks all of them edits repos nobody enrolled. So membership is declared, in a file the operator writes and reviews.
+A directory scan finds repos. It cannot tell an operator which repos they meant. A
+workspace holds vendored checkouts, throwaway clones, and other people's code. A fleet
+operation that walks all of them edits repos nobody enrolled. So membership is declared,
+in a file the operator writes and reviews.
 
 ## The manifest
 
-`FLEET.json` sits at a workspace root — the directory holding the member repos. The same schema works at any directory the operator chooses, so a user-scope fleet is the same file placed higher up. Member paths resolve against the manifest's own directory, which makes a relative manifest portable between machines.
+`FLEET.json` sits at a workspace root, the directory holding the member repos. The same
+schema works at any directory the operator chooses, so a user-scope fleet is the same file
+placed higher up. Member paths resolve against the manifest's own directory, which makes a
+relative manifest portable between machines.
 
 ```json
 {
@@ -20,35 +30,51 @@ A directory scan finds repos. It cannot tell an operator which repos they meant.
 }
 ```
 
-- `version` — the integer `1`. A manifest with another value is refused rather than guessed at.
-- `members` — a non-empty array. Each entry is an object.
-- `path` — the member repo, relative to the manifest's directory or absolute.
-- `profile` — the vault profile the member claims: `product`, `research`, or a profile a later standard adds. The checker records it and does not rule on it, because the vault's own `Standard.md` is where a profile is defined.
-- `roles` — free strings the operator uses to select a subset of the fleet. Nothing mechanical reads them today.
+- `version`: the integer `1`. A manifest with another value is refused rather than guessed at.
+- `members`: a non-empty array. Each entry is an object.
+- `path`: the member repo, relative to the manifest's directory, or absolute.
+- `profile`: the vault profile the member claims, one of `product`, `research`, or a profile a later standard adds. The checker records it and does not rule on it, because the vault's own `Standard.md` defines a profile.
+- `roles`: free strings the operator uses to select a subset of the fleet. Nothing mechanical reads them today.
 
-A member entry carrying an unknown key is a manifest-shape error. A silently-ignored key is how a typo in `profile` becomes an unenforced claim.
+A member entry carrying an unknown key is a manifest-shape error. A silently ignored key
+is how a typo in `profile` becomes an unenforced claim.
 
 ## Consent
 
-Membership is two-sided. The manifest names a repo, and the repo consents. Consent lives in the repo's own standards contract — the pair of files hosts read, in either parity mode described under "Host parity" in `vault-standard.md`. The contract carries a `## Fleet` section, and inside it the literal phrase `fleet member: yes` on a line of its own, matched case-insensitively.
+Membership is two-sided. The manifest names a repo, and the repo consents. Consent lives
+in the repo's own standards contract, the pair of files hosts read, in either parity mode
+described under "Host parity" in `vault-standard.md`. The contract carries a `## Fleet`
+section. Inside it sits the literal phrase `fleet member: yes`, on a line of its own,
+matched case-insensitively.
 
-The phrase must be the whole line, because a contract that discusses the rule must not thereby enroll itself. One list bullet or blockquote marker, and up to three spaces of indent, are decoration on a line that still counts. These do not count, and each is an ordinary way to write a refusal:
+The phrase must be the whole line, because a contract that discusses the rule must not
+thereby enroll itself. One list bullet or blockquote marker, and up to three spaces of
+indent, are decoration on a line that still counts. These four placements do not count,
+and each is an ordinary way to write a refusal:
 
 - The phrase inside a fenced code block, which is how a contract shows the phrase without asserting it.
 - The phrase inside an indented code block, which is the same act written the other way.
 - The phrase quoted inline in a sentence, as in an explicit written decline.
 - The phrase anywhere outside the `## Fleet` section.
 
-The heading may be written closed-ATX (`## Fleet ##`); the trailing hashes are trimmed before the match.
+The heading may be written closed-ATX (`## Fleet ##`). The trailing hashes are trimmed
+before the match.
 
-Code is code wherever the phrase sits inside it. The checker walks the contract line by line through one CommonMark-shaped reader, and every part of the check — what a heading is, what consent is, what a pointer's body is — sees the same answer. The reader is `markdownLines` in `scripts/check-fleet.mjs`, which states this rule set in full. In short:
+### How the checker reads a contract
+
+Code is code wherever the phrase sits inside it. The checker walks the contract line by
+line through one CommonMark-shaped reader. Every part of the check sees the same answer:
+what a heading is, what consent is, and what a pointer's body is. The reader is
+`markdownLines` in `scripts/check-fleet.mjs`, which states the rule set in full. In short:
 
 - A uniform blockquote prefix is stripped before the leaf-block tests, so a blockquoted fence opens a block exactly as a bare one does. A fence closes only at the same quote depth that opened it, so a quote marker inside an open block is content rather than a closer.
-- Three or more backticks or tildes open a fenced block, and only a fence of the same character and at least the same length, with nothing after it, closes one. A fence left unterminated suppresses everything to the end of the file, which fails in the safe direction.
-- Four or more spaces of indent, or a tab, open an indented code block where one can begin: after a blank line, at the start of the file, or under another indented line, and never inside a list, where the same indent is list content. An open indented block wins over a fence marker inside it. A list opens at a bullet or ordered marker and closes at the next non-blank line indented less than four spaces that is not itself a marker — a fence opener at the left margin is such a line, so a fenced block closes the list before it.
-- Three spaces of indent are decoration, not code. That boundary is the same one the consent line is matched against, everywhere and without exception. An open list changes what counts as code and nothing else: inside a list, indentation beyond the item's own boundary is presentation or code, never enrollment. Consent is therefore one rule in every context, which is what keeps a contract that shows the phrase as an indented example inside a list from enrolling the repo that wrote it.
+- Three or more backticks or tildes open a fenced block. Only a fence of the same character and at least the same length, with nothing after it, closes one. A fence left unterminated suppresses everything to the end of the file, which fails in the safe direction.
+- Four or more spaces of indent, or a tab, open an indented code block where one can begin: after a blank line, at the start of the file, or under another indented line. One never begins inside a list, where the same indent is list content. An open indented block wins over a fence marker inside it. A list opens at a bullet or ordered marker and closes at the next non-blank line indented less than four spaces that is not itself a marker. A fence opener at the left margin is such a line, so a fenced block closes the list before it.
+- Three spaces of indent are decoration, not code. That boundary is the same one the consent line is matched against, everywhere and without exception. An open list changes what counts as code and nothing else. Inside a list, indentation beyond the item's own boundary is presentation or code, never enrollment. Consent is therefore one rule in every context, which keeps a contract that shows the phrase as an indented example inside a list from enrolling the repo that wrote it.
 
-Because the same reader decides what a heading is, a `## Fleet` written inside an example block does not close the real section, and a repo that quotes the heading it must write is still enrolled by the consent line below the quotation.
+Because the same reader decides what a heading is, a `## Fleet` written inside an example
+block does not close the real section. A repo that quotes the heading it must write is
+still enrolled by the consent line below the quotation.
 
 ```markdown
 ## Fleet
@@ -61,34 +87,55 @@ This repo is enrolled in the workspace fleet. Doctrine changes arrive through
 
 Three states follow, and the checker names each:
 
-- **Named and consenting** — the manifest lists the repo and the contract carries the phrase. Fleet operations run against it.
-- **Named, not consenting** — the manifest lists the repo and the contract does not carry the phrase. The checker reports the row and never operates on the repo. This state is not a failure. A repo declines by doing nothing.
-- **Consenting, not named** — the contract carries the phrase and no manifest lists the repo. The repo is invisible to fleet operations. A consent phrase is an offer, not an enrollment.
+- **Named and consenting**: the manifest lists the repo and the contract carries the phrase. Fleet operations run against it.
+- **Named, not consenting**: the manifest lists the repo and the contract does not carry the phrase. The checker prints the consent row alone and never operates on the repo. The state is not a failure. A repo declines by doing nothing.
+- **Consenting, not named**: the contract carries the phrase and no manifest lists the repo. The repo is invisible to fleet operations. A consent phrase is an offer, not an enrollment.
 
 ### The parsing rules are the specification
 
-The rules above are normative. They are the specification of the consent contract format, not an approximation of CommonMark that a renderer could correct. The checker implements the spec, and where any markdown renderer displays a contract differently, the spec governs enrollment. A renderer that disagrees is a documentation problem to describe, never a checker bug to chase.
+The rules above are normative. They specify the consent contract format. They are not an
+approximation of CommonMark that a renderer could correct. The checker implements the
+spec, and where any markdown renderer displays a contract differently, the spec governs
+enrollment. A renderer that disagrees is a documentation problem to describe, never a
+checker bug to chase.
 
-Two author-facing rules make every edge case irrelevant, and a contract that follows them never meets one:
+Two author-facing rules make every edge case irrelevant, and a contract that follows them
+never meets one:
 
-- Write consent as a flush, undecorated line: `fleet member: yes`, at the left margin, inside the `## Fleet` section.
+- Write consent as a flush, undecorated line, `fleet member: yes`, at the left margin, inside the `## Fleet` section.
 - Show the phrase in an example only inside a flush fenced block, opened and closed at the left margin.
 
-An edge case the rules above do not cover is closed by amending this page and the checker together, on purpose. It is never closed by silently matching whatever a renderer happens to do, because a spec that tracks a renderer is not a spec.
+An edge case the rules above do not cover is closed by amending this page and the checker
+together, on purpose. It is never closed by silently matching whatever a renderer happens
+to do, because a spec that tracks a renderer is not a spec.
 
 #### Amended 2026-08-19
 
-Version 1.43.4 lifted the consent line's three-space indent cap inside an open list. The amendment removes the lift. Consent is one rule in every context: up to three spaces of indent, and at most one bullet or blockquote marker.
+Version 1.43.4 lifted the consent line's three-space indent cap inside an open list. The
+amendment removes the lift. Consent is one rule in every context: up to three spaces of
+indent, and at most one bullet or blockquote marker.
 
-Two reasons. First, the lift reopened the hole 1.43.3 had closed. A four-space example under a bullet enrolled a repo that declined in writing, and enrollment is what authorizes fleet mode to write to that repo. A false decline costs a row an operator can read; a false consent costs edits to a repo that said no. Second, a rule that changes with its container contradicts this page's own simplicity rule. The two author-facing rules above make the case moot: write consent flush, and show examples in a flush fenced block.
+Two reasons. First, the lift reopened the hole 1.43.3 had closed. A four-space example
+under a bullet enrolled a repo that declined in writing, and enrollment is what authorizes
+fleet mode to write to that repo. A false decline costs a row an operator can read. A
+false consent costs edits to a repo that said no. Second, a rule that changes with its
+container contradicts this page's own simplicity rule. The two author-facing rules above
+make the case moot: write consent flush, and show examples in a flush fenced block.
 
-The same amendment fixes the list's close condition in the checker. A fence opener at less than four spaces of indent closes an open list, as the rule set already stated, so list context never survives the block that ends it.
+The same amendment fixes the list's close condition in the checker. A fence opener at less
+than four spaces of indent closes an open list, as the rule set already stated, so list
+context never survives the block that ends it.
 
 ### The consent doctrine
 
-Consent is per-repo and revocable. A repo leaves the fleet by editing its own contract, and the change takes effect on the next fleet run with no manifest edit and no operator approval.
+Consent is per-repo and revocable. A repo leaves the fleet by editing its own contract,
+and the change takes effect on the next fleet run, with no manifest edit and no operator
+approval.
 
-Fleet operations never edit a member's consent. A run that could write the phrase it then reads has no consent rule at all — it has a formality. So the consent section is out of scope for every repair a fleet run performs, including a doctrine propagation that rewrites the rest of the contract.
+Fleet operations never edit a member's consent. A run that could write the phrase it then
+reads has no consent rule at all. It has a formality. So the consent section is out of
+scope for every repair a fleet run performs, including a doctrine propagation that
+rewrites the rest of the contract.
 
 ## The checker
 
@@ -96,34 +143,49 @@ Fleet operations never edit a member's consent. A run that could write the phras
 node scripts/check-fleet.mjs <FLEET.json>
 ```
 
-The checker validates the manifest, resolves each member, reads consent, and runs the per-repo checks that exist locally. It writes one table row per member per surface, in the `CONFORMANCE_REPORT.md` surface-row grammar of `artifact-grammars.md`, section (d). Calibration ingest therefore reads a fleet report with no parser change.
+Reach the same script as `co check fleet <FLEET.json>`. The checker validates the
+manifest, resolves each member, reads consent, and runs the per-repo checks that exist
+locally. It writes one table row per member per surface, in the `CONFORMANCE_REPORT.md`
+surface-row grammar of `artifact-grammars.md`, section (d). Calibration ingest therefore
+reads a fleet report with no parser change.
 
-The surface cell is the member's slug joined to the surface name, as in `ripper-vault`. That grammar counts a repeated surface cell as unparseable, so the member slug is what keeps each row distinct. Two members whose slugs collide are a manifest-shape error.
+The surface cell is the member's slug joined to the surface name, as in `ripper-vault`.
+That grammar counts a repeated surface cell as unparseable, so the member slug is what
+keeps each row distinct. Two members whose slugs collide are a manifest-shape error.
 
 | Surface | What decides it |
 | --- | --- |
 | `<slug>-consent` | CONFORMANT when the contract carries the phrase in a `## Fleet` section, ABSENT otherwise |
-| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading. A pointer is at most 40 lines, says the file it names is binding, names it somewhere in its first paragraph rather than in passing further down, and carries no heading of its own at any depth other than `## Fleet` — a `###` under that heading is a section of its own, and a short substantive contract that happens to mention its twin is not a pointer. Two pointers naming each other are DRIFTED, because neither file is the substantive contract and every host reads a stub |
+| `<slug>-contract` | The contract pair exists and matches one parity mode: byte-identical copies, or a short pointer file naming the substantive one as required reading. A pointer is at most 40 lines, says the file it names is binding, names it somewhere in its first paragraph rather than in passing further down, and carries no heading of its own at any depth other than `## Fleet`. A `###` under that heading is a section of its own, and a short substantive contract that happens to mention its twin is not a pointer. Two pointers naming each other are DRIFTED, because neither file is the substantive contract and every host reads a stub |
 | `<slug>-vault` | `<repo>-docs/` exists and `check-vault-standard.mjs` exits 0 against it |
 
-A member with no vault reports `ABSENT` and does not fail the run. Vault adoption stays voluntary, exactly as it does per-repo.
+A member with no vault reports `ABSENT` and does not fail the run. Vault adoption stays
+voluntary, exactly as it does per-repo.
 
 Exit codes:
 
-- `0` — every consenting member passed every surface it carries. A named, not consenting member leaves a row and does not change this.
-- `1` — a manifest-shape error, or a consenting member failing a surface.
-- `2` — a usage error.
+- `0`: every consenting member passed every surface it carries. A named, not consenting member leaves a row and does not change the exit code.
+- `1`: a manifest-shape error, or a consenting member failing a surface.
+- `2`: a usage error.
 
-The checker is fail-closed on everything it cannot read. A member path that does not resolve, a contract it cannot open, or a vault check that fails to run reports `UNKNOWN`, which fails the run for a consenting member. A check that did not execute proves nothing.
+The checker is fail-closed on everything it cannot read. A member path that does not
+resolve, a contract it cannot open, or a vault check that fails to run reports `UNKNOWN`,
+which fails the run for a consenting member. A check that did not execute proves nothing.
 
 ## What the checker does not do
 
-It never writes. It reports the fleet's state, and repair is the job of `/code-ops-suite:conform` in fleet mode, member by member, under checkpoint.
+It never writes. It reports the fleet's state, and repair is the job of
+`/code-ops-suite:conform` in fleet mode, member by member, under checkpoint.
 
-It does not deduplicate findings across members, and it does not carry one member's freshness stamp to another. Both need a design pass first. Independent git histories give each repo its own notion of current, and a similarity rule that merges two findings wrongly costs more than reporting the same finding twice.
+It does not deduplicate findings across members, and it does not carry one member's
+freshness stamp to another. Both need a design pass first. Independent git histories give
+each repo its own notion of current, and a similarity rule that merges two findings
+wrongly costs more than reporting the same finding twice.
 
 ## Enforcement
 
-Conformance is checkable by machine here, and machine-*enforced* only where CI runs the checker. A fleet spans repos, so no single repo's CI is the natural home for the fleet check. Today it is a command an operator or an agent runs from the workspace root.
+Conformance is checkable by machine here, and machine-enforced only where CI runs the
+checker. A fleet spans repos, so no single repo's CI is the natural home for the fleet
+check. Today it is a command an operator or an agent runs from the workspace root.
 
-*Verified-at: d26c441 (2026-08-18)*
+*Verified-at: b0ffede (2026-09-03)*

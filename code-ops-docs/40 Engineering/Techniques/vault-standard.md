@@ -1,10 +1,12 @@
 # The repository documentation hub standard
 
-Every product or research repository keeps one `<repo>-docs/` hub at its root. The hub is both the Obsidian vault and the only authored documentation tree. This removes the old split between a vault for design judgment and `docs/` for reference material.
+This page is the shared layout contract for a `<repo>-docs/` hub: the folders, the manifest, the record collections, and the checks that gate them. Read it before you scaffold a hub, before you migrate an existing `docs/` tree, and before you trust either one. Each repository's own `Standard.md` specializes this page and never contradicts it.
+
+Every product or research repository keeps one `<repo>-docs/` hub at its root. The hub is both the Obsidian vault and the only authored documentation tree. One hub removes the older split between a vault for design judgment and a `docs/` tree for reference material.
 
 ## Base layout
 
-Structural folders carry two-digit prefixes. `00` captures work; `10` through `79` hold domain content; `80` through `99` hold machinery.
+Structural folders carry two-digit prefixes. `00` captures work. `10` through `79` hold domain content. `80` through `99` hold machinery.
 
 | Folder | Holds |
 | --- | --- |
@@ -88,7 +90,7 @@ Existing v2 records retain their valid provenance. V2 artifacts may lack provena
 
 Incremental batches embed their complete version 2 review receipt. Genesis and v2 migration bind the singular version 1 `adoptionReview` by digest. Native append carries no review payload. A receipt never selects the schema of the slot that contains it.
 
-Inventory v1 and v2 remain readable. Inventory v1 never gains authority-batch coverage; incremental admission requires inventory v2 or v3. The first non-empty authority mutation of inventory v2 writes a receipted `v2-migration` batch before the requested batch. An empty check, render, or incremental plan never changes the inventory version.
+Inventory v1 and v2 remain readable. Inventory v1 never gains authority-batch coverage, so incremental admission requires inventory v2 or v3. The first non-empty authority mutation of inventory v2 writes a receipted `v2-migration` batch before the requested batch. An empty check, render, or incremental plan never changes the inventory version.
 
 `plan-adoption --incremental --out <repo-relative-ignored-path>` requires inventory v2 or v3 and profiles only immutable Git-index paths absent from authority. The default empty delta exits zero, reports a machine-readable no-op, and writes nothing. Add `--require-delta` when automation must reject an empty delta.
 
@@ -118,13 +120,13 @@ An immutable record that cites a mutable artifact stores authoritative `targetSh
 
 With complete history, later checks require:
 
-- exact-once authority-batch membership and exact candidate coverage within each reviewed batch;
-- no immutable Git-index path outside authority;
-- exact stage-0 Git-index blob bytes, no semantic index-to-worktree divergence, and exact classification;
-- a 32 MiB maximum for each individual collection blob;
-- internally consistent stored risk;
-- a rationale for every currently risky candidate; and
-- no increase in transition or prior-incarnation counts.
+- exact-once authority-batch membership and exact candidate coverage within each reviewed batch
+- no immutable Git-index path outside authority
+- exact stage-0 Git-index blob bytes, no semantic index-to-worktree divergence, and exact classification
+- a 32 MiB maximum for each individual collection blob
+- internally consistent stored risk
+- a rationale for every currently risky candidate
+- no increase in transition or prior-incarnation counts
 
 `sourceHead` is a pre-adoption binding and diagnostic locator. It never selects a weaker post-adoption check. Incomplete-history checks warn and cannot verify candidate risk. Strict verification fails that state as infrastructure. A warning or force flag cannot replace the adoption receipt.
 
@@ -134,7 +136,7 @@ Inventory v1 remains readable for compatibility but has no adoption-review recei
 
 Present pinned historical content by default. Present the current path separately. Make drift visible. With complete history, missing digest content is `evidence-lost`.
 
-Adoption refuses before writing in a shallow, partial, promisor-backed repository, or when required objects are missing. Append and curation also require complete history because they extend immutable authority. No shallow write fallback exists. Ordinary checks warn `history-unavailable`. `verify-history --strict` fails as infrastructure configuration, not evidence corruption. Use `evidence-lost` only with complete history. GitHub Actions adopters use `fetch-depth: 0` and `filter: ""`. Ambiguous historical resolution requires an explicit reviewed disposition. Never use current-state fallback. Historical verification follows the manifest and generated authority across a hub rename; a move cannot reset an immutable baseline.
+Adoption refuses before writing in a shallow, partial, promisor-backed repository, or when required objects are missing. Append and curation also require complete history because they extend immutable authority. No shallow write fallback exists. Ordinary checks warn `history-unavailable`. `verify-history --strict` fails as infrastructure configuration, not evidence corruption. Use `evidence-lost` only with complete history. GitHub Actions adopters use `fetch-depth: 0` and `filter: ""`. Ambiguous historical resolution requires an explicit reviewed disposition. Never use current-state fallback. Historical verification follows the manifest and generated authority across a hub rename. A move cannot reset an immutable baseline.
 
 ### Projections, pointers, and transactions
 
@@ -174,13 +176,13 @@ Migrate in this order:
 
 Required proof covers:
 
-- compatibility, deterministic identity, casing, label changes, splits, and prefix ambiguity;
-- scope failures, exact-path precedence, forbidden files, and promotion history;
-- genesis review, incremental review, stale receipts, empty deltas, and zero-output refusal;
-- authority-batch forgery, exact-once coverage, v2 migration, stale bindings, and mutation locks;
-- record and artifact provenance mismatches across every authority-batch type, including historical paths relabeled as native;
-- adopted records, native records, staged append, isolated recovery, and curation forks; and
-- semantic rendering, citations, history, locator repair, pointers, tombstones, and run tracking.
+- compatibility, deterministic identity, casing, label changes, splits, and prefix ambiguity
+- scope failures, exact-path precedence, forbidden files, and promotion history
+- genesis review, incremental review, stale receipts, empty deltas, and zero-output refusal
+- authority-batch forgery, exact-once coverage, v2 migration, stale bindings, and mutation locks
+- record and artifact provenance mismatches across every authority-batch type, including historical paths relabeled as native
+- adopted records, native records, staged append, isolated recovery, and curation forks
+- semantic rendering, citations, history, locator repair, pointers, tombstones, and run tracking
 
 Use synthetic fixtures only. Never copy private repository contents into fixtures or documentation examples.
 
@@ -188,11 +190,17 @@ Use synthetic fixtures only. Never copy private repository contents into fixture
 
 One orchestration run prepares one exact repository snapshot. Its content-addressed cache holds the repo map, import graph, and atlas freshness report. Operatives receive unit-scoped bundles compiled from that cache. They do not regenerate the map. The extraction planner intersects changed source paths with manifest domains, so unchanged domains consume no model context.
 
-The compiler never silently truncates. Broad scopes produce `BROAD_CONTEXT_REQUIRED`; byte overflow produces `BUDGET_EXCEEDED`. Either result requires a declared replan. A repository state change invalidates the snapshot and every bound bundle.
+The compiler never silently truncates. A broad scope produces `BROAD_CONTEXT_REQUIRED`. A byte overflow produces `BUDGET_EXCEEDED`. Either result requires a declared replan. A repository state change invalidates the snapshot and every bound bundle.
+
+Four suite mechanisms sit under that budget and run unless a switch turns them off. Read a file's outline with `node scripts/skim.mjs <file>` and then read a range, rather than the whole file. Ask `node scripts/context-query.mjs find|callers|callees|blast <symbol>` for a structural answer as `file:line` anchors. Let the `PreToolUse` digest hook compress command output through `scripts/digest.mjs`. Let the `SessionEnd` receipt record the run for `scripts/context-audit.mjs`.
+
+Each switch is `CODE_OPS_INDEX`, `CODE_OPS_DIGEST`, `CODE_OPS_LADDER_CARD`, or `CODE_OPS_RECEIPTS`, and each holds `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`. A repository documents its own switches in its platform pages rather than here.
 
 ## Trust model
 
 Trust code for behavior. Trust a manifest domain only when its source and content digests pass. Trust atlas prose only when its section is FRESH. Treat stale artifacts as leads. Treat ignored files as unknown unless the run explicitly brings them into scope.
+
+Atlas freshness reaches claim granularity. A claim is one `path:line` citation inside a section's prose, stamped with an anchor copied verbatim from the cited line. `atlas-check.mjs check` classifies every claim through the same rules a findings register uses, and `--claims-gate` exits non-zero on any claim it did not call FRESH.
 
 Working notes use frontmatter: `type`, `status`, `updated`, and `tags`. Valid statuses are `draft`, `current`, `accepted`, and `superseded`, plus an explicitly declared profile status. Manifest-owned published references retain their reader-facing Markdown shape and use the manifest gate instead of note frontmatter.
 

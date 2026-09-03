@@ -1,10 +1,20 @@
-# Cost and Scoping — Fitting a Run to a Budget
+# Cost and Scoping: Fitting a Run to a Budget
 
-> Part of the [code-ops handbook](README.md). Companion chapters: [03-orchestrators.md](03-orchestrators.md) (the seven orchestrators and their phases) and [techniques/subagent-trade-offs.md](../Techniques/subagent-trade-offs.md) (when context isolation is worth the extra cost — *planned, see [Coming next](README.md#the-handbook-is-complete)*).
+This chapter decides how much a run costs and how you hold that cost down. It covers the
+four levers you set at Phase 0, the estimate you can read before a run, and the
+mechanisms that compress a session's context while it runs. Read it before starting an
+orchestrator on an unfamiliar repository.
 
-## Exec summary (stop here if you only need the gist)
+> Part of the [code-ops handbook](README.md). Companion chapters:
+> [03-orchestrators.md](03-orchestrators.md) for the seven orchestrators and their phases,
+> and [subagent-trade-offs.md](../Techniques/subagent-trade-offs.md) for when context
+> isolation is worth the extra cost.
 
-Cost in code-ops is a **control you hold**, not a fixed price. You set it at **Phase 0** of any orchestrator — by choosing *which* orchestrator, *what scope*, *which track*, and *how often it checks in*. Two rules cover most of the decision:
+## Executive summary (stop here if you only need the gist)
+
+Cost in code-ops is a control you hold, not a fixed price. You set it at Phase 0 of any
+orchestrator by choosing the orchestrator, the scope, the track, and the check-in
+frequency. Two rules cover most of the decision.
 
 1. **Pick the narrowest thing that covers your goal.** Relative cost, largest to smallest:
 
@@ -13,22 +23,28 @@ Cost in code-ops is a **control you hold**, not a fixed price. You set it at **P
    (all 3 plugins)              (one plugin, whole suite)                            (one scoped change)   (one task)
    ```
 
-2. **Start read-only, scope to the riskiest subsystem, defer the optional deep-dives, then let the consolidated checkpoint tell you what is worth fixing.** A read-only assessment is far cheaper than a code-changing run and de-risks every downstream phase.
+2. **Start read-only, scope to the riskiest subsystem, then let the consolidated
+   checkpoint say what is worth fixing.** A read-only assessment is far cheaper than a
+   code-changing run, and it de-risks every downstream phase.
 
-No absolute token numbers appear here on purpose — they age, and the real cost scales with repo size, scope, track, and check-in frequency, all of which you set per run. What is stable is the *ordering* and the *levers*. The rest of this chapter is the depth behind those two rules.
+No absolute token numbers appear here on purpose. They age, and real cost scales with
+repository size, scope, track, and check-in frequency, all of which you set per run. What
+is stable is the ordering and the levers. Measured numbers live in
+[MEASUREMENTS.md](../../55 Operations/MEASUREMENTS.md), which is the page that owns them.
 
 ---
 
 ## 1 · The cost ladder
 
-The orchestrators form a strict cost ladder. From [03-orchestrators.md § Relative cost and depth](03-orchestrators.md#relative-cost-and-depth):
+The orchestrators form a strict cost ladder. From
+[03-orchestrators.md](03-orchestrators.md#relative-cost-and-depth):
 
 | Tier | What runs | Relative cost |
 | --- | --- | --- |
-| `everything` | The cross-plugin superset — all three engineering plugins (code-ops-suite + rigor + privacy-opsec-suite), deduplicated, one consolidated go/no-go | **most expensive** |
-| `full-sweep` · `rigor-sweep` · privacy `full-sweep` · `research-sweep` | One plugin's whole suite, end-to-end (intra-plugin) | a tier below `everything`; roughly comparable to one another |
+| `everything` | The cross-plugin superset: all three engineering plugins (code-ops-suite, rigor, privacy-opsec-suite), deduplicated, one consolidated go/no-go | **most expensive** |
+| `full-sweep` · `rigor-sweep` · privacy `full-sweep` · `research-sweep` | One plugin's whole suite, end to end | a tier below `everything`, and roughly comparable to one another |
 | `ship` / `debug` | One scoped change or one symptom, run at full rigor | much cheaper than a sweep |
-| A single skill | One task (`codebase-audit`, `bug-hunt`, `tor-egress-audit`, …) | **cheapest unit** |
+| A single skill | One task (`codebase-audit`, `bug-hunt`, `tor-egress-audit`) | **cheapest unit** |
 
 ```mermaid
 flowchart TD
@@ -49,65 +65,92 @@ flowchart TD
     class C,K small
 ```
 
-The orchestrators do **not** replace the skills they chain — they sequence them. So the cheapest correct move is often to run one constituent skill directly. The orchestrators exist for when one skill is not enough; reach up the ladder only when the breadth is genuinely needed. When two tiers both fit, **prefer the narrowest**: a single skill over an intra-plugin sweep, an intra-plugin sweep over `everything`.
+The orchestrators do not replace the skills they chain. They sequence them. So the
+cheapest correct move is often to run one constituent skill directly. Reach up the ladder
+only when the breadth is genuinely needed. When two tiers both fit, prefer the narrowest.
 
-Why `everything` sits alone at the top: it is the only orchestrator that requires all three engineering plugins installed, and its own `SKILL.md` calls it *"deliberately the most thorough and most token-expensive option."* It runs the supersets of all three, so reach for it only on a critical repo.
+`everything` sits alone at the top because it is the only orchestrator that requires all
+three engineering plugins installed, and its own `SKILL.md` calls it "deliberately the
+most thorough and most token-expensive option." Reach for it only on a critical
+repository.
 
 ---
 
 ## 2 · The four levers you set at Phase 0
 
-Every orchestrator opens with a **scoping checkpoint** before any work starts. Four levers there determine cost. None of them require re-running anything — you set them once, up front.
+Every orchestrator opens with a scoping checkpoint before any work starts. Four levers
+there determine cost. You set them once, up front.
 
-### Lever 1 — Track: start read-only
+### Lever 1. Track: start read-only
 
-Every sweep offers a read-only track that does no code changes — the single biggest cost (and risk) lever. The exact name differs by plugin but the shape is identical:
+Every sweep offers a read-only track that changes no code. That track is the biggest cost
+lever and the biggest risk lever. The name differs by plugin. The shape does not.
 
 | Orchestrator | Read-only track | Full track |
 | --- | --- | --- |
 | `full-sweep` (code-ops-suite) | `assess-only` (read + document) | `full` (assess → safety net → fix → polish → document) |
 | `rigor-sweep` | `assess-only` (facts + proven findings) | `full` (also fix / close / improve) |
 | privacy `full-sweep` | `audit-only` (read + document) | `full` (audit → harden → docs/gate) |
-| `research-sweep` | local-first, **never edits** by design | proposes + hands off (still never edits) |
+| `research-sweep` | local-first, never edits by design | proposes and hands off, still never edits |
 
-A read-only pass is far cheaper than a code-changing one — it skips the safety-net, fix, close, and improve phases entirely — and it produces the register that lets you decide whether the expensive phases are worth running at all. **Always assess before you change.** Run the read-only track first; promote to `full` (or a custom subset) only for the parts the assessment proves are worth it.
+A read-only pass skips the safety-net, fix, close, and improve phases entirely, and it
+produces the register that tells you whether the expensive phases are worth running at
+all. Always assess before you change. Run the read-only track first, then promote to
+`full` for the parts the assessment proves worth it.
 
-`research-sweep` is the extreme case of read-only: the **proposal layer** never edits code under any track. It produces registers and design briefs and hands off to the other three plugins. Its cost lever is **egress**, not edits — see Lever 4.
+`research-sweep` is the extreme case: the proposal layer never edits code under any
+track. It produces registers and design briefs and hands off to the other three plugins.
+Its cost lever is egress, covered under Lever 4.
 
-### Lever 2 — Scope: the riskiest subsystem first
+### Lever 2. Scope: the riskiest subsystem first
 
-Cost scales with how much code each phase reads and reasons over. Narrowing scope is a near-linear cost cut.
+Cost scales with how much code each phase reads and reasons over. Narrowing scope cuts
+cost close to linearly.
 
-`everything`'s Phase 0 makes the recommendation explicit: scope to *"the whole repo, or the riskiest subsystems first (recommended for large repos; bug-hunting goes deep per subsystem)."* The same applies to every sweep. On a large repo:
+The Phase 0 of `everything` makes the recommendation explicit: scope to "the whole repo,
+or the riskiest subsystems first (recommended for large repos; bug-hunting goes deep per
+subsystem)." The same applies to every sweep. On a large repository:
 
-- Identify the one or two subsystems where a defect hurts most (auth, payments, the egress path, the data layer).
+- Identify the one or two subsystems where a defect hurts most: authentication, payments, the egress path, the data layer.
 - Scope the run to those first.
-- Expand only if the first pass surfaces reasons to.
+- Expand only if the first pass surfaces a reason to.
 
-This pairs naturally with Lever 1: a **read-only assessment scoped to the riskiest subsystem** is the cheapest high-signal starting move in the whole suite.
+Lever 2 pairs with Lever 1. A read-only assessment scoped to the riskiest subsystem is
+the cheapest high-signal starting move in the whole suite.
 
-### Lever 3 — Defer the optional deep-dives
+### Lever 3. Defer the optional deep-dives
 
-Some phases are explicitly optional and run only if you select them at Phase 0. The two most expensive optionals are **performance** and **dependency-upgrade**:
+Some phases run only if you select them at Phase 0. The two most expensive optional
+phases are performance and dependency-upgrade:
 
-- In `full-sweep`, Phase 5 (*"Deep-dives (optional, as scoped)"*) runs *performance* and/or *dependency-upgrade* only if selected.
-- In `rigor-sweep`, Phase 7 (`improve-measured`) is optional — *"only changes with a before/after metric ship."*
-- In `everything`, the improve phase (`improve-measured` + `performance` + `dependency-upgrade`) ships measured deltas only.
+- In `full-sweep`, Phase 5 runs performance or dependency-upgrade only if selected.
+- In `rigor-sweep`, Phase 7 (`improve-measured`) is optional, and only changes with a before-and-after metric ship.
+- In `everything`, the improve phase (`improve-measured`, `performance`, `dependency-upgrade`) ships measured deltas only.
 
-Defer these on a first pass. They are valuable but rarely urgent, and each adds cost without changing your correctness or security verdict. Run them later, scoped, once the cheaper phases have told you where they would pay off.
+Defer these on a first pass. They are valuable and rarely urgent, and each adds cost
+without changing your correctness or security verdict. Run them later, scoped, once the
+cheaper phases have shown where they would pay off.
 
-### Lever 4 — Check-in level (and egress, for research)
+### Lever 4. Check-in level, and egress for research
 
-`everything` sets a **check-in level** at Phase 0: *normal* (pause at every phase) or *minimal* (pause only at the consolidated review and always-gated items). *Minimal* reduces the round-trips you mediate but does **not** loosen the always-gated categories — security/auth, secrets, data migrations / destructive ops, and public contract changes still stop for approval regardless of level (code-ops-suite `CONVENTIONS.md §4`). It trades your attention, not safety.
+`everything` sets a check-in level at Phase 0. *Normal* pauses at every phase. *Minimal*
+pauses only at the consolidated review and at always-gated items. *Minimal* reduces the
+round-trips you mediate and does not loosen the always-gated categories. Security and
+authentication, secrets, data migrations, destructive operations, and public contract
+changes still stop for approval at any level (code-ops-suite `CONVENTIONS.md §4`). The
+lever trades your attention, never safety.
 
-For `research-sweep`, the equivalent lever is **egress**. It is local-first by default — documentation lookups read the *installed* version with no query egress. Web research is opt-in, granted only at Phase 0, gated behind a hard checkpoint before any network request, and every request is logged in `EGRESS_MANIFEST.md`. Leaving web egress off keeps a research run both cheaper and fully local.
+For `research-sweep`, the equivalent lever is egress. The plugin is local-first by
+default, and a documentation lookup reads the installed version with no query egress. Web
+research is opt-in, granted only at Phase 0, gated behind a checkpoint before any network
+request, and logged in `EGRESS_MANIFEST.md`. Leaving web egress off keeps a research run
+both cheaper and fully local. See [07-researcher-egress.md](07-researcher-egress.md).
 
 ---
 
-## 2b · Pre-run estimation: set the levers against a number
+## 3 · Pre-run estimation: set the levers against a number
 
-The four levers above are judgment calls, and until now the only mechanical reading of a
-run's cost arrived **after** it — `calibration-metrics.mjs` and
+The four levers are judgment calls. `calibration-metrics.mjs` and
 [`/code-ops-suite:run-cost-audit`](../../../plugins/code-ops-suite/skills/run-cost-audit/SKILL.md)
 both measure a finished run. `scripts/estimate-run-cost.mjs` reads the same evidence
 forward. Run it at Phase 0, before you set the levers:
@@ -117,49 +160,89 @@ node scripts/estimate-run-cost.mjs --runs <vault>/80\ Runs --skill ship [--repo-
 ```
 
 It walks prior run folders, parses their `DISPATCH_LEDGER.md` files with grammar (a) from
-[techniques/artifact-grammars.md](../Techniques/artifact-grammars.md), and prints two things:
+[artifact-grammars.md](../Techniques/artifact-grammars.md), and prints two things:
 
-- a **dispatch-count range** — min, median, and max over the comparable prior runs;
-- a **model-class mix** — how those dispatches split across the `light`/`mid`/`strong`/
-  `frontier` rungs, plus `ambiguous`, `unstamped`, and `unclassified` where the record does
-  not say.
+- a dispatch-count range: the minimum, median, and maximum over comparable prior runs.
+- a model-class mix: how those dispatches split across the `light`, `mid`, `strong`, and `frontier` rungs, plus `ambiguous`, `unstamped`, and `unclassified` where the record does not say.
 
-Read the range as the shape of the run you are about to start, then choose scope with it:
-if the median already sits above the effort you meant to spend, narrow the scope (Lever 2)
-or drop to the read-only track (Lever 1) *before* Phase 1, not at the checkpoint after the
-spend. If the mix is heavy on `strong` for work you expected to be mechanical, the routing
-is the lever, not the scope.
+Read the range as the shape of the run you are about to start, then choose scope against
+it. If the median already sits above the effort you meant to spend, narrow the scope
+(Lever 2) or drop to the read-only track (Lever 1) before Phase 1, not at the checkpoint
+after the spend. If the mix is heavy on `strong` for work you expected to be mechanical,
+the routing is the lever, not the scope.
 
-Three limits, each stated by the tool itself rather than left to the reader:
+The tool states four limits itself rather than leaving them to the reader:
 
-1. **It counts dispatches, not money.** Per-token prices drift between providers and
-   between months, so a dollar figure printed here would age into a confident wrong number.
-   Multiply the range by your own current prices if you want one.
-2. **Fewer than three comparable runs is a guess, and it says so.** A range drawn from one
-   or two observations is a sample, not a distribution; the tool prints a caveat block
-   rather than a quiet number. The count is runs that yielded dispatch rows: a run folder
-   whose ledger has no rows — an aborted run — is excluded from the range and named, never
-   counted as a run that cost zero.
-3. **It learns only from completed contract runs.** A folder carrying `RUN_CONTRACT.json`
-   enters the range only after `RUN_CONTRACT_RESULT.json` records `PASS`. An active or failed
-   contract run is named and excluded, so partial fan-out cannot become the next run's baseline.
-   Legacy run folders without a contract remain usable for backward compatibility.
-4. **It never fails a run.** An absent or empty runs directory prints "no prior runs, no
-   estimate" and exits 0. The estimator is advisory by construction, so adopting it costs
-   nothing.
+1. **It counts dispatches, not money.** Per-token prices drift between providers and between months, so a dollar figure printed here would age into a confident wrong number. Multiply the range by your own current prices if you want one.
+2. **Fewer than three comparable runs is a guess, and it says so.** A range drawn from one or two observations is a sample, not a distribution, so the tool prints a caveat block rather than a quiet number. The count is runs that yielded dispatch rows. A run folder whose ledger has no rows is an aborted run, excluded from the range and named, never counted as a run that cost zero.
+3. **It learns only from completed contract runs.** A folder carrying `RUN_CONTRACT.json` enters the range only after `RUN_CONTRACT_RESULT.json` records `PASS`. An active or failed contract run is named and excluded, so a partial fan-out cannot become the next run's baseline. Legacy run folders without a contract remain usable.
+4. **It never fails a run.** An absent or empty runs directory prints "no prior runs, no estimate" and exits 0. The estimator is advisory by construction, so adopting it costs nothing.
 
-The audit is the data producer and the estimator is the consumer: every run that writes a
-stamped ledger makes the next run's estimate better. That is the whole loop —
-`run-cost-audit` scores the run that finished, and `estimate-run-cost` prices the one about
-to start.
+The audit produces the data and the estimator consumes it. Every run that writes a
+stamped ledger makes the next run's estimate better. `run-cost-audit` scores the run that
+finished, and `estimate-run-cost` prices the one about to start.
 
 ---
 
-## 3 · Let the consolidated checkpoint decide what to fix
+## 4 · Measured cost: session receipts and the four context mechanisms
 
-The cheapest fix run is the one you scope *after* you have seen the findings — not before. Every orchestrator separates **finding** (read-only, cheap-ish) from **fixing** (code-changing, expensive) with a checkpoint in between.
+The levers above bound a run before it starts. Four mechanisms compress what a session
+spends while it runs, and one ledger measures whether they worked. All four are on by
+default, and each has one named off switch. A user or a repository sets a switch in the
+`env` block of a `.claude/settings.json`, and any of `off`, `0`, or `false` turns the
+mechanism off.
 
-`everything` makes this its centerpiece: **Phase 6 — Consolidated review** is the *main go/no-go*. By that point all the assessment and preparation phases have run — map (Phase 1), ground-truth/test-trust (Phase 2), prove (Phase 3), leak-audit (Phase 4), and safety-net (Phase 5, which writes characterization tests but changes no production code) — and produced one prioritized, CONFIRMED-led picture with every register re-validated against current `HEAD`. You approve a remediation **plan** and an automation level there, and only the approved items get the expensive fix phases (Phase 7 onward).
+| Mechanism | What it does | Reach it with | Off switch |
+| --- | --- | --- | --- |
+| Session receipt | Appends one row per session to `~/.claude/code-ops/session-receipts.jsonl`: tokens by class, tool calls, model mix, wall time, and which arms ran | `co context audit receipts` | `CODE_OPS_RECEIPTS` |
+| Output digest | Rewrites an allowlisted Bash command into a `digest.mjs` run, so tool output enters the context compressed and receipted | `co context digest -- <cmd>` | `CODE_OPS_DIGEST` |
+| Symbol index | Answers a structural question with `file:line` anchors instead of a file read, and re-indexes an edited file after every write | `co context query find\|callers\|callees\|blast <symbol>` | `CODE_OPS_INDEX` |
+| Ladder card | Hands an implementer-class subagent the code-economy ladder as a card of at most ten lines | (automatic, at `SubagentStart`) | `CODE_OPS_LADDER_CARD` |
+
+The session receipt is the measurement instrument for the other three. Its row records
+`arms`, meaning which of `CODE_OPS_DIGEST`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_INDEX`
+the session ran under, plus `contextAtEnd`, the tokens the last assistant message carried
+in. `co context audit receipts --by-arm` groups rows by that record and prints per-session
+means, so an arm reads against its control, which is a run with the switches off. Add
+`--all` to read across every project directory, and `--json` for machine-readable output.
+
+The ledger is a home-directory file on purpose, so it can never be committed by accident.
+It sends nothing off the machine and it fails open. Nothing purges on its own. Run
+`co context audit receipts --purge-before <ISO date>` to rewrite the ledger keeping rows
+at or after a date, which reports the count removed.
+
+Read the whole session rather than the ledger with `co context audit`, which parses the
+host's local session transcripts and reports exact token usage by class, context
+characters by tool, Bash output by command family, repeat reads, and the largest results.
+Output is sanitized by default, and `--raw` keeps truncated commands and paths for local
+inspection.
+
+Two further habits cut spend at the source. Read a file's outline before its body with
+`co context skim <file>`, then read `--range A,B`. Check a diff against the code-economy
+ladder with `co scan overbuild --git <range>`, which is advisory on every tell except an
+unrecorded dependency.
+
+For the switch values and the store paths, see
+[INFRASTRUCTURE.md](../../50 Platform/INFRASTRUCTURE.md). For the exact contracts, see
+[CONTRACTS.md](../../35 Contracts and Data/CONTRACTS.md). For the measured baseline and
+the pre-registered comparison, see
+[MEASUREMENTS.md](../../55 Operations/MEASUREMENTS.md).
+
+---
+
+## 5 · Let the consolidated checkpoint decide what to fix
+
+The cheapest fix run is the one you scope after you have seen the findings. Every
+orchestrator separates finding, which is read-only and cheap, from fixing, which changes
+code and is expensive, with a checkpoint in between.
+
+`everything` makes this its centerpiece. Phase 6, the consolidated review, is the main
+go/no-go. By then every assessment and preparation phase has run: map (Phase 1),
+ground-truth and test-trust (Phase 2), prove (Phase 3), leak-audit (Phase 4), and
+safety-net (Phase 5, which writes characterization tests and changes no production code).
+They produce one prioritized, CONFIRMED-led picture with every register re-validated
+against current `HEAD`. You approve a remediation plan and an automation level there, and
+only the approved items reach the expensive fix phases from Phase 7 onward.
 
 ```mermaid
 flowchart LR
@@ -174,44 +257,60 @@ flowchart LR
     class C,D fix
 ```
 
-The practical workflow this enables:
+The workflow this enables:
 
-1. Run the read-only track (Lever 1), scoped to the riskiest subsystem (Lever 2), deep-dives deferred (Lever 3).
-2. Read the register at the consolidated checkpoint. Findings arrive ranked, CONFIRMED-led, each on a track — `NOW-SAFE` / `NEEDS-REVIEW` / `NEEDS-DESIGN` (see [04-registers-and-freshness.md](04-registers-and-freshness.md) and [05-evidence-and-tiers.md](05-evidence-and-tiers.md)).
-3. Approve only the subset worth the spend. The fix phases then run against just that subset, per the automation level — so the most expensive phases are bounded by a decision you made with the evidence in hand.
+1. Run the read-only track (Lever 1), scoped to the riskiest subsystem (Lever 2), with deep-dives deferred (Lever 3).
+2. Read the register at the consolidated checkpoint. Findings arrive ranked and CONFIRMED-led, each on a track: `NOW-SAFE`, `NEEDS-REVIEW`, or `NEEDS-DESIGN`.
+3. Approve only the subset worth the spend. The fix phases then run against that subset alone, per the automation level.
 
-This is also why the registers are kept fresh: a finding fixed earlier in a run is stamped `OBSOLETE-AT <sha>` and never re-shown, so you never pay to re-work something already closed.
-
----
-
-## 4 · Subagents: cheaper context, not free
-
-The orchestrators run an adaptive loop that **fans out parallel subagents** per unit of work (code-ops-suite `CONVENTIONS.md §1`; the same loop appears in rigor `§1`, privacy `§1`, researcher `§1`). Read-only analysis parallelizes freely; code edits are conflict-aware (parallel on disjoint file sets, serial on shared or dependent ones).
-
-Subagents **isolate context** — each specialist works in its own window, so a deep investigation into one subsystem does not crowd out the rest of the run, and breadth sweeps can use a faster model while synthesis and review use a stronger one (rigor `§A`). That isolation is what makes deep, per-subsystem work tractable.
-
-But isolation is **not free**: spinning up a subagent re-establishes its working context, so more agents means more total tokens even when each one is focused. The trade-off:
-
-- **Isolation pays off** when the units of work are genuinely independent and each is large enough that keeping them separate avoids context thrash — e.g. `bug-hunt` going deep per subsystem, or the six privacy leak audits running in parallel.
-- **Isolation costs more than it saves** when the work is small, tightly coupled, or could be one focused pass. Spawning many tiny agents multiplies setup cost for little independence gained.
-
-So narrowing scope (Lever 2) is doubly economical: fewer subsystems means fewer subagents *and* less code per subagent. For the full decision framework on when context isolation is worth the cost, see [techniques/subagent-trade-offs.md](../Techniques/subagent-trade-offs.md). For keeping the spend linear across a long run — durable state on disk, deliberate compaction, and the subagent prompt cache — see [techniques/context-hygiene.md](../Techniques/context-hygiene.md).
+See [04-registers-and-freshness.md](04-registers-and-freshness.md) and
+[05-evidence-and-tiers.md](05-evidence-and-tiers.md) for the tracks and the tiers. Keeping
+the registers fresh is also a cost control. A finding fixed earlier in a run is stamped
+`OBSOLETE-AT <sha>` and never re-shown, so you never pay to re-work something already
+closed.
 
 ---
 
-## 5 · A budgeted run, end to end
+## 6 · Subagents: cheaper context, not free
 
-Putting the levers together for a large, unfamiliar repo on a tight budget:
+The orchestrators run an adaptive loop that fans out parallel subagents per unit of work
+(code-ops-suite `CONVENTIONS.md §1`, and the same loop in rigor `§1`, privacy `§1`, and
+researcher `§1`). Read-only analysis parallelizes freely. Code edits are conflict-aware,
+running in parallel on disjoint file sets and serially on shared or dependent ones.
 
-1. **Don't start with `everything`.** Start with the *one* plugin whose lens matches your goal — `rigor-sweep` for proven correctness, code-ops `full-sweep` for breadth hardening, privacy `full-sweep` only if the repo has anonymity/opsec needs.
-2. **Take the read-only track** (`assess-only` / `audit-only`), **scoped to the riskiest subsystem**, with **deep-dives deferred** and web egress off (research only).
+Subagents isolate context. Each specialist works in its own window, so a deep
+investigation into one subsystem does not crowd out the rest of the run, and a breadth
+sweep can run at a lower tier while synthesis and review stay at a higher one (rigor
+`§A`). That isolation is what makes deep, per-subsystem work tractable.
+
+Isolation is not free. Spinning up a subagent re-establishes its working context, so more
+agents means more total tokens even when each one is focused. The trade-off:
+
+- **Isolation pays off** when the units of work are genuinely independent and each is large enough that keeping them separate avoids context thrash. Examples are `bug-hunt` going deep per subsystem, and the six privacy leak audits running in parallel.
+- **Isolation costs more than it saves** when the work is small, tightly coupled, or could be one focused pass. Spawning many small agents multiplies setup cost for little independence gained.
+
+So narrowing scope (Lever 2) is doubly economical. Fewer subsystems means fewer subagents
+and less code per subagent. For the full decision framework, see
+[subagent-trade-offs.md](../Techniques/subagent-trade-offs.md). For keeping spend linear
+across a long run, see [context-hygiene.md](../Techniques/context-hygiene.md).
+
+---
+
+## 7 · A budgeted run, end to end
+
+Putting the levers together for a large, unfamiliar repository on a tight budget:
+
+1. **Do not start with `everything`.** Start with the one plugin whose lens matches your goal: `rigor-sweep` for proven correctness, code-ops `full-sweep` for breadth hardening, privacy `full-sweep` only if the repository has anonymity or opsec needs.
+2. **Take the read-only track** (`assess-only` or `audit-only`), scoped to the riskiest subsystem, with deep-dives deferred and web egress off.
 3. **Read the register at the checkpoint.** Approve only the subset worth fixing.
-4. **Promote to `full` for that subset only.** Run the fix phases under `gated` (or `auto-safe` for NOW-SAFE items) — always-gated categories still stop for you.
+4. **Promote to `full` for that subset only.** Run the fix phases under `gated`, or `auto-safe` for NOW-SAFE items. Always-gated categories still stop for you.
 5. **Run the deferred deep-dives later, scoped**, only where the assessment showed they would pay off.
-6. **Reach for `everything` only when** you genuinely need all three plugins on a critical repo — and even then, narrow scope at Phase 0 and consider *minimal* check-ins to bound your own time, never the safety gates.
+6. **Reach for `everything` only when** you genuinely need all three plugins on a critical repository. Even then, narrow scope at Phase 0 and consider *minimal* check-ins to bound your own time, never the safety gates.
 
-Every level above a single skill is checkpointed. You can dial depth and check-in frequency down at Phase 0 and stop at any phase boundary — which is why cost is a control you hold, not a fixed price.
+Every level above a single skill is checkpointed. You can lower depth and check-in
+frequency at Phase 0 and stop at any phase boundary, which is why cost is a control you
+hold rather than a fixed price.
 
 ---
 
-*Verified-at: c2b37e9*
+*Verified-at: b0ffede*
