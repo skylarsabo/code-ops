@@ -4,7 +4,7 @@
 //
 //   node scripts/digest.mjs [--cap <lines>] [--head <n>] [--tail <n>] [--line <chars>]
 //                           [--shape auto|<name>] [--store <dir>] [--no-store] [--json]
-//                           [--cwd <dir>] -- <exe> [args...]
+//                           [--cwd <dir>] [--passthrough-below <bytes>] -- <exe> [args...]
 //
 // WHY: the receipted baseline in `code-ops-docs/55 Operations/MEASUREMENTS.md` puts tool results
 // at 77.6% of all context characters. Truncating them saves bytes and hopes nothing important was
@@ -34,8 +34,17 @@
 // `<store>/<ISO date>/<HHMMSS>-<sha8>.txt` and one JSON line is appended to `<store>/DIGEST_RECEIPTS.jsonl`.
 // Store writes FAIL OPEN: an unwritable store prints the digest with `raw -` rather than losing the run.
 //
-// Everything is printed on stdout, including the stderr section, because the digest is one report
-// and its trailer must be the last line a reader sees. `--json` prints one object instead.
+// PASS-THROUGH. A digest costs a trailer, and a trailer on a short output is a net loss: the
+// session measurement in MEASUREMENTS.md found 77 of 84 receipted commands paid more in trailer
+// than they saved. So an output of at most `--passthrough-below` bytes (default 1536), or one
+// the digest cannot make smaller than the raw bytes, is printed exactly as the command wrote
+// it: stdout to stdout, stderr to stderr, no trailer, no raw file, no receipt row. Nothing was
+// elided, so there is nothing to recover and nothing to receipt. `--passthrough-below 0` turns
+// both rules off, and `--json` never passes through, because a tool reading the object needs
+// every field present.
+//
+// Everything else is printed on stdout, including the stderr section, because the digest is one
+// report and its trailer must be the last line a reader sees. `--json` prints one object instead.
 //
 // Exit: the wrapped command's exit code; 2 on usage error; 127 when the executable cannot spawn.
 
@@ -56,7 +65,7 @@ function usage(message) {
   if (message) console.error(`x ${message}`);
   console.error('usage: digest.mjs [--cap <lines>] [--head <n>] [--tail <n>] [--line <chars>]');
   console.error('                  [--shape auto|<name>] [--store <dir>] [--no-store] [--json] [--cwd <dir>]');
-  console.error('                  -- <exe> [args...]');
+  console.error('                  [--passthrough-below <bytes>] -- <exe> [args...]');
   console.error(`shapes: auto, ${Object.keys(SHAPES).join(', ')}`);
   process.exit(2);
 }
@@ -128,7 +137,7 @@ function spawnSpec(exe, args, cwd = process.cwd()) {
 // ---------------------------------------------------------------- arguments
 
 function parse(argv) {
-  const o = { ...DEFAULTS, shape: 'auto', store: null, noStore: false, json: false, cwd: null };
+  const o = { ...DEFAULTS, shape: 'auto', store: null, noStore: false, json: false, cwd: null, passthroughBelow: PASSTHROUGH_BELOW };
   let i = 0;
   const num = (name) => {
     const v = Number(argv[++i]);
@@ -151,7 +160,8 @@ function parse(argv) {
     } else if (a === '--cwd') {
       o.cwd = argv[++i];
       if (!o.cwd || o.cwd.startsWith('--')) usage('--cwd needs a directory');
-    } else if (a === '--no-store') o.noStore = true;
+    } else if (a === '--passthrough-below') o.passthroughBelow = num('--passthrough-below');
+    else if (a === '--no-store') o.noStore = true;
     else if (a === '--json') o.json = true;
     else usage(`unknown argument before '--': ${a}`);
   }
@@ -160,6 +170,10 @@ function parse(argv) {
   if (cmd.length === 0) usage("no command after '--'");
   return { o, cmd };
 }
+
+// An output of at most this many bytes is printed raw. Chosen from the receipt ledger: below it
+// the trailer and the elision hints cost more than the digest saves.
+const PASSTHROUGH_BELOW = 1536;
 
 // ---------------------------------------------------------------- receipt store
 
@@ -179,17 +193,23 @@ function storeDir(o, startDir) {
 // receipt hook, so a direct digest call under that switch stores nothing either.
 const storeOff = () => /^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST_STORE ?? '');
 
-function storeRaw(o, body, ts) {
+// The store is planned before the digest runs, so the elision hints can name the raw path, and
+// written only once the digest has proven it is worth printing.
+function planStore(o, body, ts) {
   if (o.noStore || storeOff()) return null;
+  const dir = storeDir(o, process.cwd());
+  const day = ts.slice(0, 10);
+  const clock = ts.slice(11, 19).replace(/:/g, '');
+  const hash = sha256(body);
+  return { dir, path: join(dir, day, `${clock}-${hash.slice(0, 8)}.txt`), sha256: hash };
+}
+
+function writeStore(plan, body) {
+  if (plan === null) return null;
   try {
-    const dir = storeDir(o, process.cwd());
-    const day = ts.slice(0, 10);
-    const clock = ts.slice(11, 19).replace(/:/g, '');
-    const hash = sha256(body);
-    const target = join(dir, day, `${clock}-${hash.slice(0, 8)}.txt`);
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, body);
-    return { dir, path: target, sha256: hash };
+    mkdirSync(dirname(plan.path), { recursive: true });
+    writeFileSync(plan.path, body);
+    return plan;
   } catch { return null; }
 }
 
@@ -236,26 +256,46 @@ child.on('close', (code, signal) => {
   const SEP = '----- stderr -----';
   const hasErr = stderr !== '';
   const body = hasErr ? `${stdout}${stdout.endsWith('\n') || stdout === '' ? '' : '\n'}${SEP}\n${stderr}` : stdout;
-  const stored = storeRaw(o, body, ts);
-  const rawPath = stored ? stored.path : null;
+
+  // Pass-through: the raw streams, untouched, and nothing stored or receipted.
+  const passThrough = () => {
+    if (stdout !== '') process.stdout.write(stdout);
+    if (stderr !== '') process.stderr.write(stderr);
+    if (signal) console.error(`digest: command killed by ${signal} — reported exit ${exit}`);
+    process.exit(exit);
+  };
+  const passthroughOn = !o.json && o.passthroughBelow > 0; // 0 turns pass-through off
+  if (passthroughOn && body.length <= o.passthroughBelow) return passThrough();
+
+  const plan = planStore(o, body, ts);
 
   // stderr sits after stdout and the separator inside the raw file, so its digest must report
   // file-absolute line numbers or every `sed -n` hint it prints would be wrong.
   const outLines = stdout === '' ? 0 : stdout.split('\n').length - (stdout.endsWith('\n') ? 1 : 0);
   const offset = hasErr ? outLines + 1 : 0;
-  const opts = { cap: o.cap, head: o.head, tail: o.tail, line: o.line, shape, argv: cmd, rawPath, cwd: workdir };
-  const dOut = digestText(stdout, opts);
-  const dErr = hasErr ? digestText(stderr, { ...opts, offset }) : null;
+  const digestBoth = (rawPath) => {
+    const opts = { cap: o.cap, head: o.head, tail: o.tail, line: o.line, shape, argv: cmd, rawPath, cwd: workdir };
+    const dOut = digestText(stdout, opts);
+    const dErr = hasErr ? digestText(stderr, { ...opts, offset }) : null;
+    const printed = [];
+    if (dOut.text !== '') printed.push(dOut.text.replace(/\n$/, ''));
+    if (dErr) { printed.push(SEP); if (dErr.text !== '') printed.push(dErr.text.replace(/\n$/, '')); }
+    const linesIn = dOut.linesIn + (dErr ? dErr.linesIn + 1 : 0);
+    const bodyLines = printed.join('\n');
+    const linesOut = (bodyLines === '' ? 0 : bodyLines.split('\n').length) + 1; // + the trailer
+    const trailer = `[exit ${exit} · ${shape} · ${linesIn} lines → ${linesOut} · raw ${rawPath ?? '-'} · sha256:${(plan ? plan.sha256 : sha256(body)).slice(0, 12)}]`;
+    return { dOut, dErr, linesIn, linesOut, bodyLines, trailer, bytesOut: bodyLines.length + trailer.length + 1 };
+  };
 
-  const printed = [];
-  if (dOut.text !== '') printed.push(dOut.text.replace(/\n$/, ''));
-  if (dErr) { printed.push(SEP); if (dErr.text !== '') printed.push(dErr.text.replace(/\n$/, '')); }
+  let d = digestBoth(plan ? plan.path : null);
+  // A digest that is not smaller than the raw bytes buys nothing: print the raw bytes instead.
+  if (passthroughOn && d.bytesOut >= body.length) return passThrough();
 
-  const linesIn = dOut.linesIn + (dErr ? dErr.linesIn + 1 : 0);
-  const bodyLines = printed.join('\n');
-  const linesOut = (bodyLines === '' ? 0 : bodyLines.split('\n').length) + 1; // + the trailer
-  const digestSha = stored ? stored.sha256 : sha256(body);
-  const trailer = `[exit ${exit} · ${shape} · ${linesIn} lines → ${linesOut} · raw ${rawPath ?? '-'} · sha256:${digestSha.slice(0, 12)}]`;
+  // The store write fails open: without the raw file the hints must not name it.
+  const stored = writeStore(plan, body);
+  if (plan && !stored) d = digestBoth(null);
+  const rawPath = stored ? stored.path : null;
+  const { dOut, dErr, linesIn, linesOut, bodyLines, trailer } = d;
 
   if (stored) {
     appendReceipt(stored.dir, {
@@ -266,7 +306,7 @@ child.on('close', (code, signal) => {
       exit,
       shape,
       bytesIn: body.length,
-      bytesOut: bodyLines.length + trailer.length + 1,
+      bytesOut: d.bytesOut,
       linesIn,
       linesOut,
       sha256: stored.sha256,

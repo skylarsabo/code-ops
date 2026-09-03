@@ -278,7 +278,11 @@ drop or rewrite a protected line. Evidence: `scripts/digest-lib.mjs:26-31`,
 `scripts/digest-lib.mjs:526-559`.
 
 Every elided region prints `[elided N lines: sed -n 'A,Bp' <raw path>]`, or `[elided N lines]`
-under `--no-store`. The ranges ascend, never overlap, and never cover a kept line. The final
+under `--no-store`. The ranges ascend, never overlap, and never cover a kept line. An output of
+at most `--passthrough-below` bytes (default 1536), or one whose digest plus trailer would not be
+smaller than the raw bytes, is printed raw on its own streams with no trailer, no raw file, and no
+receipt row. `--passthrough-below 0` turns both rules off, and `--json` always carries every
+field. Otherwise the final
 printed line is always the trailer
 `[exit <code> · <shape> · <rawLines> lines → <outLines> · raw <path> · sha256:<first 12>]`, with
 `raw -` when nothing was stored. A stderr digest offsets its line numbers past the stdout section,

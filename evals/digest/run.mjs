@@ -130,7 +130,9 @@ for (const f of files) {
 const tmp = mkdtempSync(join(tmpdir(), 'digest-'));
 const store = join(tmp, 'store');
 
-const e3 = run([cli, '--store', store, '--', 'node', '-e', "console.log('a'); console.log('b'); process.exit(3)"]);
+// `--passthrough-below 0` turns pass-through off, so the trailer and receipt contract stays
+// observable on a two-line output.
+const e3 = run([cli, '--store', store, '--passthrough-below', '0', '--', 'node', '-e', "console.log('a'); console.log('b'); process.exit(3)"]);
 expect(e3.status === 3, `the child's exit code must pass through, got ${e3.status}`);
 const trailer = e3.stdout.trim().split('\n').pop();
 const tm = /^\[exit (\d+) · (\S+) · (\d+) lines → (\d+) · raw (.+) · sha256:([0-9a-f]{12})\]$/.exec(trailer || '');
@@ -153,10 +155,42 @@ if (existsSync(ledger)) {
   expect(r.linesIn === 2 && r.bytesIn === 4, `receipt line and byte counts, got ${r.linesIn}/${r.bytesIn}`);
 }
 
-const noStore = run([cli, '--no-store', '--', 'node', '-e', "console.log('x')"]);
+const noStore = run([cli, '--no-store', '--passthrough-below', '0', '--', 'node', '-e', "console.log('x')"]);
 expect(noStore.status === 0, `--no-store should exit with the child's code, got ${noStore.status}`);
 expect(/ · raw - · /.test(noStore.stdout), `--no-store must report no raw path, got ${JSON.stringify(noStore.stdout.trim().split('\n').pop())}`);
 expect(!/sed -n/.test(noStore.stdout), '--no-store must not print an unrecoverable sed hint');
+
+// Pass-through: a short output, or one the digest cannot shrink, arrives raw with no trailer,
+// no raw file, and no receipt row, and the exit code still passes through.
+{
+  const before = existsSync(ledger) ? readFileSync(ledger, 'utf8') : '';
+  const small = run([cli, '--store', store, '--', 'node', '-e', "console.log('a'); console.error('warn'); process.exit(4)"]);
+  expect(small.status === 4, `a passed-through run must keep the child's exit code, got ${small.status}`);
+  expect(small.stdout === 'a\n', `a short output must arrive raw on stdout, got ${JSON.stringify(small.stdout)}`);
+  expect(small.stderr === 'warn\n', `a short stderr must arrive raw on stderr, got ${JSON.stringify(small.stderr)}`);
+  const after = existsSync(ledger) ? readFileSync(ledger, 'utf8') : '';
+  expect(after === before, 'a passed-through run must append no receipt row');
+  const files = readdirSync(store, { recursive: true }).filter((f) => String(f).endsWith('.txt'));
+  expect(files.length === 1, `a passed-through run must store no raw file, store holds ${files.length}`);
+
+  // 1,600 bytes of distinct plain lines: above the byte floor, and the digest keeps every line
+  // at that length, so its output plus trailer is not smaller and the raw bytes win.
+  const flat = run([cli, '--store', store, '--', 'node', '-e', "for (let i=0;i<40;i++) console.log('line ' + i + ' ' + 'q'.repeat(30))"]);
+  expect(flat.status === 0 && !/^\[exit 0 · /m.test(flat.stdout) && flat.stdout.split('\n').length === 41,
+    `a digest that is not smaller than the raw bytes must pass through, got ${JSON.stringify(flat.stdout.slice(-120))}`);
+  expect((existsSync(ledger) ? readFileSync(ledger, 'utf8') : '') === before, 'an ineffective digest must append no receipt row');
+
+  // The same run under --json still returns every field, because a tool reads the object.
+  const asJson = run([cli, '--no-store', '--json', '--', 'node', '-e', "console.log('a')"]);
+  let j = null; try { j = JSON.parse(asJson.stdout); } catch { fails.push('--json on a short output must still print one object'); }
+  if (j) expect(j.stdout === 'a\n' && /^\[exit 0 · /.test(j.trailer), '--json never passes through');
+
+  // Above the floor and compressible: the digest runs, and its trailer is the last line.
+  const big = run([cli, '--store', store, '--', 'node', '-e', "for (let i=0;i<400;i++) console.log('routine line ' + i)"]);
+  expect(big.status === 0 && /^\[exit 0 · plain · 400 lines → /m.test(big.stdout.trim().split('\n').pop()),
+    `a long output must still be digested with a trailer, got ${JSON.stringify(big.stdout.trim().split('\n').pop())}`);
+  expect(big.stdout.length < 400 * 17, 'the digest of a 400-line output must be smaller than the raw bytes');
+}
 
 expect(run([cli, '--no-store', '--', 'a-command-that-does-not-exist-42']).status === 127, 'a missing executable must exit 127');
 const spawnErr = run([cli, '--no-store', '--', 'a-command-that-does-not-exist-42']);

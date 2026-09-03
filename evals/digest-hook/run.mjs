@@ -62,8 +62,9 @@ function rewriteOf(input, value = 'on', script = hook) {
   try { return { status: r.status, out: r.stdout, json: JSON.parse(r.stdout) }; } catch { return { status: r.status, out: r.stdout, json: 'unparsable' }; }
 }
 
-const CONTEXT = 'Output digested by code-ops: elided regions carry a sed hint into the raw file '
-  + 'named in the trailer. Run the original command only if you need the whole output.';
+const CONTEXT = 'Output runs through the code-ops digest: a short output arrives raw, and a long one '
+  + 'arrives compressed, with a sed hint per elided region into the raw file named in the trailer. '
+  + 'Run the original command only if you need the whole output.';
 
 // Every payload the eval uses, rewritten or not, in one place so the off-switch block can
 // replay the whole set.
