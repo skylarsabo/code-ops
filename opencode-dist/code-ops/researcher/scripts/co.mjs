@@ -38,6 +38,7 @@ const TABLE = {
     map: 'repo-map.mjs',
     graph: 'import-graph.mjs',
     audit: 'context-audit.mjs',
+    skim: 'skim.mjs',
   },
   run: {
     preflight: 'preflight.mjs',

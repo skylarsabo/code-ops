@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.2
+- Vendors `skim.mjs` so `<plugin-root>/scripts/skim.mjs <file>` prints a file outline with line ranges, and an operative reads a range instead of the whole file.
+
 ## 0.13.1
 - Vendors `co.mjs` and `cli-lib.mjs` so `<plugin-root>/scripts/co.mjs` resolves in every plugin.
 
