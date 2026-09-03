@@ -714,6 +714,10 @@ const SHARED_PASSAGES = [
     text: 'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.' },
   { id: 'scope-discipline', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
     text: 'A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.' },
+  { id: 'ordered-objective', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: 'The objective is ordered: correctness and the safety floor, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines wins only between candidates equal on the first four.' },
+  { id: 'ladder-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+    text: "Before writing code, climb the ladder: does it need to exist (scope is the request); does it exist here (search before you write); does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory); does it fit inside the owning module (extend before you add a file); extract only on evidence (a second caller, a unit that needs its own test, or a file past the repository's own size norm); then write the minimum edge-case-correct implementation." },
   { id: 'writing-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
     text: 'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.' },
 ];
