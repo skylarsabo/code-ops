@@ -21,9 +21,11 @@
 // an executable that cannot be spawned exits 127.
 //
 // `--cwd <dir>` names the directory the command runs in, so a caller that would otherwise write
-// `cd <dir> && <cmd>` keeps the no-shell contract. That directory is the working directory for
-// the whole run: the spawn, the Windows shim lookup, the in-repository frame test the stack
-// shape uses, the default store slug, and the `cwd` field of the receipt row. A `--cwd` that
+// `cd <dir> && <cmd>` can hand the directory over without a shell. It governs the spawn, the
+// Windows shim lookup, the in-repo frame test the stack shape uses, and the `cwd` field of the
+// receipt row. It does NOT govern the default store slug: the raw output is filed under the
+// directory this process was started in, which is the repository that opted in, so a command
+// aimed at another directory cannot file its output under that directory's slug. A `--cwd` that
 // names no directory exits 2 with usage.
 //
 // Receipt store: `--store`, else `$CODE_OPS_DIGEST_DIR`, else
@@ -176,7 +178,7 @@ function storeDir(o, workdir) {
 function storeRaw(o, workdir, body, ts) {
   if (o.noStore) return null;
   try {
-    const dir = storeDir(o, workdir);
+    const dir = storeDir(o, process.cwd());
     const day = ts.slice(0, 10);
     const clock = ts.slice(11, 19).replace(/:/g, '');
     const hash = sha256(body);

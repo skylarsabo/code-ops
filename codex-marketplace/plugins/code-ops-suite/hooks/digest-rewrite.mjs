@@ -10,7 +10,9 @@
 //   node hooks/digest-rewrite.mjs   (reads the PreToolUse JSON payload on stdin)
 //
 // OPT-IN. The hook does nothing unless `CODE_OPS_DIGEST` is `1`, `on`, or `true`
-// (case-insensitive). A repository opts in through the `env` block of its
+// (case-insensitive). With the switch on, every rewritten command's complete raw output is
+// written under `~/.claude/code-ops/digest/<slug of this directory>/` and kept until the
+// operator deletes it; `CODE_OPS_DIGEST_STORE=off` keeps the compression and writes nothing. A repository opts in through the `env` block of its
 // `.claude/settings.json`, which is the only supported way. Any other value, including unset
 // and `off`, exits 0 before the payload is read.
 //
@@ -49,8 +51,10 @@ const MAX_COMMAND = 2000;
 // positions on one command line.
 const BARE_RE = /^[A-Za-z0-9_./\\:@%+=,~^-]+$/;
 const QUOTED_RE = /^"[^"$`\\\n]*"$/;
-// The `cd` target drops `\` from the bare set: `--cwd` takes it as a path, not as shell input.
-const CD_BARE_RE = /^[A-Za-z0-9_./:@%+=,~^-]+$/;
+// The `cd` target drops `\`, `~`, and a leading `-` from the bare set: `--cwd` takes it as a
+// literal path, so a token the shell would expand (`~`, `~user`) or resolve (`-` for the previous
+// directory) must pass through untouched rather than reach the digest as text.
+const CD_BARE_RE = /^[A-Za-z0-9_./:@%+=,^][A-Za-z0-9_./:@%+=,^-]*$/;
 // Any of these anywhere in the remainder means the shell would do more than run one command.
 const METACHAR_RE = /[|&;<>`$\n\r]/;
 
@@ -73,7 +77,9 @@ const FAMILIES = {
   tsc: null,
   eslint: null,
   ruff: null,
-  sed: (t) => (t[1] ?? '').startsWith('-n'),
+  // `sed -n` reads and prints; an in-place flag anywhere makes it a write, which no digest may
+  // silently run through.
+  sed: (t) => (t[1] ?? '').startsWith('-n') && !t.slice(1).some((a) => /^-i|^--in-place/.test(a) || /^-[a-hj-zA-Z]*i/.test(a)),
   node: (t) => /\.(mjs|js)$/.test(t[1] ?? '') || t[1] === '--test',
 };
 
@@ -151,7 +157,10 @@ function rewrite(command, scriptPath) {
   if (!allowedFamily(tokens)) return null;
 
   const cwd = dir === null ? '' : ` --cwd ${dir.startsWith('"') ? dir : `"${dir}"`}`;
-  return `node "${scriptPath}"${cwd} -- ${tokens.join(' ')}`;
+  // CODE_OPS_DIGEST_STORE=off keeps the compression and writes no raw file and no receipt row;
+  // the elision hints then carry no path and name only the line counts.
+  const store = /^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST_STORE ?? '') ? ' --no-store' : '';
+  return `node "${scriptPath}"${store}${cwd} -- ${tokens.join(' ')}`;
 }
 
 const CONTEXT = 'Output digested by code-ops: elided regions carry a sed hint into the raw file '

@@ -26,7 +26,7 @@
 //   node evals/digest-hook/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +70,8 @@ const CONTEXT = 'Output digested by code-ops: elided regions carry a sed hint in
 const REWRITTEN = [
   ['git diff --stat', null],
   ['cd "C:/x y" && git status --short', '"C:/x y"'],
+  ['cd scripts && ls', '"scripts"'],
+  ['cd ../other && git log --oneline', '"../other"'],
   ['npm test', null],
   ['sed -n 1,40p scripts/digest.mjs', null],
 ];
@@ -83,8 +85,27 @@ const PASSED_THROUGH = [
   'git status; ls',
   'cat <<EOF',
   'cd a && cd b && ls',
+  'cd ~/Documents && git log --oneline -2',
+  'cd ~ && ls',
+  'cd - && ls',
+  'sed -n -i 1p x',
+  'sed -ni 1p x',
+  'sed -n --in-place=.bak 1p x',
   `git diff ${'a'.repeat(2500)}`,
 ];
+
+// ---------------------------------------------------------------- the store switch
+
+// CODE_OPS_DIGEST_STORE=off adds --no-store right after the script path and nothing else changes.
+{
+  const withStore = runHook(payloadFor('git diff --stat'), 'on');
+  const noStore = spawnSync('node', [hook], { input: payloadFor('git diff --stat'), encoding: 'utf8', env: { ...process.env, CODE_OPS_DIGEST: 'on', CODE_OPS_DIGEST_STORE: 'off' } });
+  const a = JSON.parse(withStore.stdout).hookSpecificOutput.updatedInput.command;
+  const b = JSON.parse(noStore.stdout).hookSpecificOutput.updatedInput.command;
+  expect(!a.includes('--no-store'), 'without the store switch the rewrite carries no --no-store');
+  expect(b.includes('" --no-store -- git diff --stat'), `CODE_OPS_DIGEST_STORE=off must insert --no-store after the script path, got ${b}`);
+  expect(b.replace(' --no-store', '') === a, 'the store switch changes nothing but the flag');
+}
 
 // ---------------------------------------------------------------- the off switch
 
@@ -174,7 +195,13 @@ for (const command of PASSED_THROUGH) {
 // own location and passes through when that file is missing.
 const tmp = mkdtempSync(join(tmpdir(), 'digest-hook-'));
 {
-  const mutant = join(root, 'plugins', 'code-ops-suite', 'hooks', '.digest-rewrite-mutant.mjs');
+  // The mutant lives in a temp tree shaped like the plugin (hooks/ beside scripts/), so the
+  // hook's sibling lookup finds a digest.mjs there and the tracked tree stays untouched.
+  const mutantRoot = mkdtempSync(join(tmpdir(), 'digest-hook-mutant-'));
+  mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
+  mkdirSync(join(mutantRoot, 'scripts'), { recursive: true });
+  writeFileSync(join(mutantRoot, 'scripts', 'digest.mjs'), readFileSync(join(root, 'scripts', 'digest.mjs')));
+  const mutant = join(mutantRoot, 'hooks', 'digest-rewrite-mutant.mjs');
   const source = readFileSync(hook, 'utf8');
   const metachar = 'const METACHAR_RE = /[|&;<>`$\\n\\r]/;';
   const bare = String.raw`const BARE_RE = /^[A-Za-z0-9_./\\:@%+=,~^-]+$/;`;
@@ -191,7 +218,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'digest-hook-'));
       expect(runHook(payloadFor('git diff | head'), 'on', mutant).stdout !== '',
         'with the pipe removed from both guards the hook must wrap `git diff | head` — a contract that cannot fail proves nothing');
     } finally {
-      rmSync(mutant, { force: true });
+      rmSync(mutantRoot, { recursive: true, force: true });
     }
   }
 }

@@ -36,8 +36,13 @@ on:
 { "env": { "CODE_OPS_DIGEST": "on" } }
 ```
 
-Nothing else reads the variable, no default anywhere turns it on, and removing the block turns
-it off again. Keeping the switch per repository is what makes the measurement arm possible: one
+Turning it on persists the complete raw output of every rewritten command, in plain text, under
+`~/.claude/code-ops/digest/<slug of the repository>/`, together with a receipt row that records
+the command's arguments as written. Nothing purges that store; delete the directory to purge it.
+`CODE_OPS_DIGEST_STORE=off` beside the switch keeps the compression and writes nothing, at the
+cost of the recovery hints. The store is keyed by the repository that opted in, never by a
+`cd` target inside a command. Nothing else reads the variable, no default anywhere turns it on,
+and removing the block turns it off again. Keeping the switch per repository is what makes the measurement arm possible: one
 checkout runs with the digest and another runs without it, and their session receipts compare.
 Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-15` and
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161`.
