@@ -111,3 +111,21 @@ A row is published here with the arm, the window, the session count, the four pe
 means the rule reads, and the receipt of the `--by-arm` run. Evidence:
 `plugins/code-ops-suite/hooks/session-receipt.mjs:68-71`, `scripts/context-audit.mjs:93-132`,
 and `scripts/transcript-lib.mjs:212`.
+
+## Effort sweep, Workstream D
+
+Effort level names do not carry across model generations, so the routing table in
+`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` is re-derived when the lead model
+changes. The sweep is model-in-the-loop and operator-run. For each judgment-bearing agent
+(`reviewer`, `tracer`, `verifier`, `claim-checker`) copy its definition three times with the host's
+`effort:` frontmatter set to `low`, `medium`, and `high`, run the judgment evals under
+`evals/judgment-matrix.json` once per variant against the same answer keys, and read recall and
+decoy count per variant from the scoring receipts.
+
+The decision rule is fixed before the runs: a dispatch steps down one effort level only where
+recall is equal or higher and the decoy count equal or lower than the current level on two runs;
+review never steps below medium; a level that loses recall on either run is discarded. The
+table's rows are rewritten from the receipts, with the run receipts cited, and the conventions'
+routing sentence is edited in the same commit. The sweep has not been run for the current lead
+model, and the table stands on the previous generation's runs until it is.
+
