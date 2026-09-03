@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "e8642694f279d7ae477d7668ec3ee54223e8ed13",
-      "verifiedDigest": "630037c343cd769cc9132b957b3f4b4aaff098cc8c7eb169e03d5f1769f6c97a"
+      "verifiedAt": "72607afca439a16c89ca204f313390e094de88c2",
+      "verifiedDigest": "0349a2504f81b9b117533b0bd18bbe208cc33966b992f98dd38d29fc3b306f17"
     },
     {
       "slug": "gate-scripts",
@@ -52,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "e8642694f279d7ae477d7668ec3ee54223e8ed13",
-      "verifiedDigest": "47b7cc96656c0831655199b38cb5cb709a4e3c542ded4cda7642cf031516e714"
+      "verifiedAt": "72607afca439a16c89ca204f313390e094de88c2",
+      "verifiedDigest": "341cb004789a3d1cf6fd387c841a598598825a477652d51e33913f8687f97689"
     },
     {
       "slug": "ci-workflows",
@@ -85,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "e8642694f279d7ae477d7668ec3ee54223e8ed13",
-      "verifiedDigest": "066f1087bad3a026af58d23ad768e76623863a75564784768feaaa68bdecc51e"
+      "verifiedAt": "72607afca439a16c89ca204f313390e094de88c2",
+      "verifiedDigest": "c2651347c52b89c0feb5d944fa2292fc674477a5cddfa7b79c2fdfa2384d88b0"
     },
     {
       "slug": "root-contracts",

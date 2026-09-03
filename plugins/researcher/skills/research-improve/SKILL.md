@@ -100,9 +100,9 @@ PROBABLE or CONFIRMED item.
 
 Hand off per `§11`. An improvement goes to `code-ops-suite:remediation` or
 `rigor:fix-verified`. A broad behavior-preserving measured win goes to
-`rigor:improve-measured`. An architectural rework goes to NEEDS-DESIGN for an `adr`. A
-finding is done when its implementer can act without re-researching
-(`§11`). The researcher never makes the change itself.
+`rigor:improve-measured`. An architectural rework goes to NEEDS-DESIGN for a
+`code-ops-suite:adr`. A finding is done when its implementer can act without
+re-researching (`§11`). The researcher never makes the change itself.
 
 ## Validate and publish
 
