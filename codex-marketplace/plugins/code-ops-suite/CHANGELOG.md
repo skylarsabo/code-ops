@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.64.0
+- `context-audit.mjs receipts --purge-before <ISO date>` is the receipt ledger's retention: it rewrites the ledger keeping rows at or after the date, through a scratch file renamed over the original, and reports the count removed. Nothing purges on its own.
+- The digest rewrite contract says how to mirror a read-only allow rule for the wrapped form: pin the script name and the family with a wildcard, never a bare `node` rule.
+
 ## 1.63.0
 - Atlas freshness reaches claim granularity. A claim is a `path:line` citation in a section's prose. `scripts/atlas-check.mjs stamp` records one per citation in `MANIFEST.json` as `{ file, line, anchor }`, with the anchor copied verbatim from the cited line: trimmed, backtick-free, at most 80 characters, and replaced by the `<REDACTED-LINE>` sentinel on a credential-shaped line.
 - `atlas-check.mjs check` prints each section's claim report beneath its freshness verdict, classified by `revalidate-register.mjs` over one temporary register the check deletes when it ends. Two freshness mechanisms become one: the atlas and a findings register cannot disagree about what a drifted citation is. A section citing nothing reports `claims: none`.
