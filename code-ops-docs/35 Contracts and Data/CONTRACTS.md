@@ -161,7 +161,15 @@ must not portably or physically alias the plan or any findings file. Evidence:
 
 The matrix declares the fixture-to-answer-key and fixture-to-skill mapping. Its current
 fixtures cover bug, leak, documentation-drift, normalization, and trap-focused review
-work. Evidence: `evals/judgment-matrix.json:1-50`.
+work. Evidence: `evals/judgment-matrix.json:1-52`.
+
+A fixture may also declare `arms`, a list of model tiers. `register` mode compiles one unit
+per declared tier for that fixture, same skill and same answer key, so the tier is the only
+thing that varies between the resulting registers. Each unit names its tier in the id the
+score receipt is keyed by. The mode requires two distinct model IDs and at least one fixture
+declaring arms. Trend and floor expansions are untouched. Evidence:
+`scripts/judgment-evals.mjs:99-111`, `scripts/judgment-evals.mjs:151-160`, and
+`scripts/judgment-evals.mjs:282-284`.
 
 Hosted CI keeps deterministic validation. `validate.yml` runs the structural gate and
 regression evals, including the local-review and judgment-orchestration fixture evals.
@@ -423,56 +431,24 @@ never reads another repository's index and nothing is committed. The opt-in `Pos
 nothing. Evidence: `scripts/context-query.mjs:97` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
-## Over-build scanner
+## Atlas claims and scope suggestion
 
-`scan-overbuild.mjs --git <range>` reads one diff and the tree at its head through git, never
-the working tree, and reports eight deterministic tells: a burst of small new files, an
-interface with one implementor, a function that forwards its own parameters to one call, a
-package-manifest entry with no decision record in the same diff, a new test file over twice
-its siblings' median, a root config key no file reads, an exported name another file already
-exports, and three consecutive comment lines shaped like code. Only the unrecorded dependency
-blocks: it exits 1 unless `--report-only`, and every other tell is advisory. `--exclude
-<prefix>` drops derived copies from the diff and the tree lookups, and a byte-identical vendored
-copy never counts as a duplicate because it shares the blob. The header states the ceiling: the
-tells are line-shaped heuristics, a hit is a lead, and a clean run proves nothing. Evidence:
-`scripts/scan-overbuild.mjs:11-32`, `scripts/scan-overbuild.mjs:81`,
-`scripts/scan-overbuild.mjs:248`, `scripts/scan-overbuild.mjs:303`, and
-`scripts/scan-overbuild.mjs:344`.
+`atlas-check.mjs check` prints a claim report beneath each section's freshness verdict. A
+claim is a `path:line` citation in the section's prose. Its statuses come from
+`revalidate-register.mjs`, run once over one temporary register the check deletes when it
+ends, so the atlas and a findings register classify a drifted citation identically. A
+section citing nothing reports `claims: none`. The digest verdict and `--gate` keep their
+existing meaning. `--claims-gate` is separate, and exits 1 on any claim the classifier did
+not call FRESH, an unclassifiable one included. Evidence: `scripts/atlas-check.mjs:302-344`,
+`scripts/atlas-check.mjs:544-567`, and `scripts/atlas-check.mjs:698-706`.
 
-`evals/overbuild-garden` scores the scanner the way `hasty-code` scores a skill, with a recall
-bar of 0.9 over eleven planted over-builds and a zero-decoy bar over nine legitimate shapes: a
-sized extraction with two callers, an interface with two implementors, a neighbor-sized test, a
-recorded dependency, a read config key, two wrappers that add behavior, and prose comments. The
-run builds a throwaway repository from `repo/base` and `repo/change`, asserts no unkeyed hit, and
-proves the eval can fail by removing the new-file bound in a temp copy. Evidence:
-`evals/overbuild-garden/run.mjs:16-25` and `evals/overbuild-garden/ANSWER_KEY.json:5`.
-
-## Deferral harvest
-
-`harvest-deferrals.mjs` collects every `deferred(<ceiling>, <upgrade path>)` marker in a comment
-line of a tracked text file into `DEFERRALS_REGISTER.md`, in the item grammar that
-`revalidate-register.mjs` re-greps: id, `File: path:line`, a backticked `Anchor:` that is the
-marker text as written, `Ceiling:`, `Upgrade:`, and `Verified-at:`. In Markdown and HTML only an
-HTML comment counts, because a heading or a bold line starts the same way, and a ceiling that
-starts with `<` is the template, not a marker. The id is derived from the file path and the
-ceiling text, so it survives a line move and changes only when the marker moves file or changes
-ceiling. `--check` re-harvests and exits 1 when the register on disk disagrees, ignoring
-`Verified-at`. The default output lands in `<hub>/98 System/` when exactly one docs hub exists.
-Evidence: `scripts/harvest-deferrals.mjs:62-64`, `scripts/harvest-deferrals.mjs:87-93`, and
-`scripts/harvest-deferrals.mjs:126`.
-
-## Ladder card hook
-
-`hooks/ladder-card.mjs` runs at `SubagentStart` and prints the code-economy ladder as
-`hookSpecificOutput.additionalContext` for an implementer-class agent type only. It does nothing
-unless `CODE_OPS_LADDER_CARD` is `1`, `on`, or `true`. The host contract was read from the
-installed 2.1.257 bundle: the input carries `agent_id` and `agent_type` (offset 183160743, built
-at 190336771), the output schema accepts `additionalContext` (183169362), and the host appends
-that context to the subagent's own messages (188311119). A read-only type, bare or
-plugin-qualified, and any type ending in `explorer` or `reviewer`, gets nothing. The card is at
-most ten lines. Bad JSON, a missing type, or another event name exits 0 with no output, and the
-hook returns no permission decision. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
-`plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
+`atlas-check.mjs scope <slug> --suggest` reads `context-query.mjs blast --json` over the
+section's scoped files and prints the depth-1 importers that the current scope does not
+already cover, as a pathspec list for `add --scope`. It writes nothing. `blast` reports the
+importer direction only, so the suggestion never names what the scope itself imports. A
+missing symbol index exits 1 naming the refresh command rather than building one, and the
+query is capped at 200 scoped files with an explicit advisory. Evidence:
+`scripts/atlas-check.mjs:763-841`.
 
 ## Documentation manifest
 

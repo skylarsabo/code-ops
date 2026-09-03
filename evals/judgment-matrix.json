@@ -5,7 +5,8 @@
       "id": "bug-garden",
       "target": "evals/bug-garden/repo",
       "answerKey": "evals/bug-garden/ANSWER_KEY.json",
-      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
+      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"],
+      "arms": ["strong", "weak"]
     },
     {
       "id": "leak-lab",
