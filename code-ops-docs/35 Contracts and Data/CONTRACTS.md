@@ -200,6 +200,20 @@ stderr, belong to the wrapped script. The direct `node scripts/<name>.mjs` paths
 and unchanged. Evidence: `scripts/co.mjs:20-22`, `scripts/co.mjs:163-183`, and
 `scripts/co.mjs:186-196`.
 
+## File skim
+
+`skim.mjs <file>` prints one header line and an outline, so a reader can request a line
+range instead of a whole file. The header carries the path, line count, byte count, and
+kind. Outline mode prints structure only: Markdown headings with flat section spans, code
+definitions with import and export rows, top-level JSON keys with array lengths, the first
+record's keys for JSONL, and a preview with section markers for unstructured text. Every
+printed name is truncated to 80 characters. An outline longer than `--max` ends with a
+`+N more` line, so truncation is never silent. `--range A,B` prints those lines with
+line-number gutters and nothing else, clamped to the file, with `B` defaulting to `A+40`.
+A binary file prints its header and `binary`. Exit 1 covers a missing or unreadable file
+and a binary file under `--range`; exit 2 covers a bad invocation. Evidence:
+`scripts/skim.mjs:11-20`, `scripts/skim.mjs:112-120`, and `scripts/skim.mjs:234-251`.
+
 ## Documentation manifest
 
 Manifest v1 contains `version`, `hub`, and `domains`. Manifest v2 retains those fields and adds `runs`, `recordCollections`, and `legacyPaths`. Version 2 requires vault standard v4. Version 1 remains valid under standards v3 and v4 when no collection is declared.

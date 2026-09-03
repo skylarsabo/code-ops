@@ -35,3 +35,5 @@ Measurement now has a receipt path of its own. `transcript-lib.mjs` parses the h
 The narration scanner reports mannered prose (metaphor standing in for a literal phrase) as an advisory category beside filler.
 
 One entrypoint now stands over the canonical scripts. `co.mjs` resolves a domain and verb to a sibling script, rewrites the argument list, and imports it. It migrates no logic: every script keeps its own flags, its own exit codes, and its existing direct path. `cli-lib.mjs` ships beside it and holds the flag parser, usage and exit helpers, git wrapper, and file walker that the scripts had each rewritten, but no script consumes it yet. Skills switch to the verb form in a later change.
+
+`skim.mjs` is the read-side economy tool: it prints a file's outline with line numbers, spans, and an announced truncation line, so a reader requests a range through `--range` instead of taking the whole file, and outline mode itself prints names and headings rather than bodies.

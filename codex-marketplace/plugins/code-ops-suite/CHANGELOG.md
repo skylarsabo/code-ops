@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.55.0
+- `scripts/skim.mjs` prints a file's outline — Markdown headings with flat section spans, code definitions with import and export rows, top-level JSON keys with array lengths, JSONL record keys, and a marker preview for unstructured text — so an operative reads `--range A,B` instead of the whole file. Outline mode prints names and headings, never bodies; an outline past `--max` ends with a `+N more` line. `co context skim` reaches it.
+- The "Skim huge files, then deepen" convention now names the tool that does it.
+
 ## 1.54.0
 - The model review gates are opt-in. `ship` asks at its first checkpoint whether to run them, recommends yes only for a high-risk surface or a delegated review, and otherwise ships on the deterministic chain and the lead's own diff read. `local-review-gate` opens with a checkpoint and never starts from another skill's judgment. `pr-split` follows the same rule per branch. The conventions carry the rule as a safety rail.
 
