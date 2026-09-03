@@ -2,7 +2,7 @@
 description: "Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance."
 ---
 
-# VAULT: The Repo's Obsidian Notebook, to One Standard
+# Vault: the repo's Obsidian notebook, to one standard
 
 **Invoked as `/code-ops-suite:vault`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin: the interaction protocol (`§3`), the safety rails (`§4`), the

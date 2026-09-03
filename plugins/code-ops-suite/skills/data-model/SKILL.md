@@ -2,7 +2,7 @@
 description: "Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations."
 ---
 
-# DATA-MODEL: Entities, Relationships, Invariants
+# Data-model: entities, relationships, invariants
 
 **Invoked as `/code-ops-suite:data-model`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)**. For this DOCUMENT-mode skill the

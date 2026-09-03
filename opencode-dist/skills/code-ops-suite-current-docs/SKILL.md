@@ -3,7 +3,7 @@ name: code-ops-suite-current-docs
 description: "Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory."
 ---
 
-# CURRENT-DOCS: Version-Accurate Library Docs, In-House
+# Current-docs: version-accurate library docs, in-house
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

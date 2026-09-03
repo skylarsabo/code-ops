@@ -3,7 +3,7 @@ name: atlas
 description: "Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See code-ops-docs/40 Engineering/Techniques/atlas.md."
 ---
 
-# ATLAS: The Repo's Durable Cache of Judgment
+# Atlas: the repo's durable cache of judgment
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

@@ -3,7 +3,7 @@ name: doc-alignment
 description: "Use when docs have drifted from code and you want them reconciled into a clean single source of truth."
 ---
 
-# DOCUMENTATION ALIGNMENT: Reconcile Drift, Establish One Source of Truth
+# Documentation alignment: reconcile drift, establish one source of truth
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

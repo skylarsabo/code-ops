@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
-## 1.69.0
+## 1.71.0
 - The plugin README and all 34 skill pages move onto the house writing standard: no em-dashes and no semicolons in prose, one instruction per sentence, active voice, noun-phrase headings, and Done-when sections written as vertical lists rather than semicolon chains. The pinned always-gated clause in `everything` stays byte-identical.
 - The pages that touch the context-economy mechanisms now name them and their off switches. The README gains the `co.mjs` entrypoint and `cli-lib.mjs`, `skim.mjs`, the PreCompact preservation hook, and the session receipts with `context-audit.mjs receipts --by-arm` and `--purge-before`. `full-sweep` names `skim.mjs` and `context-query.mjs` at Phase 0, `run-cost-audit` reads the receipt ledger by arm, and `codebase-audit`, `pr-review`, `normalize`, and `ship` name `co.mjs scan overbuild` as the mechanical floor under the size-and-boundary lens.
 - The README's code-economy bullet reaches the scan domain through `co.mjs scan overbuild` and `co.mjs scan deferrals` instead of the direct script paths.

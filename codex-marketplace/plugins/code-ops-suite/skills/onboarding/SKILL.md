@@ -3,7 +3,7 @@ name: onboarding
 description: "Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor."
 ---
 
-# CODEBASE ONBOARDING: Generate the Orientation Guide
+# Codebase onboarding: generate the orientation guide
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

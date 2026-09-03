@@ -3,7 +3,7 @@ name: code-ops-suite-calibration-run
 description: "Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See code-ops-docs/40 Engineering/Techniques/calibration-protocol.md."
 ---
 
-# CALIBRATION RUN: Standardized Real-Scale Measurement
+# Calibration run: standardized real-scale measurement
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

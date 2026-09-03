@@ -2,7 +2,7 @@
 description: "Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured."
 ---
 
-# PERFORMANCE OPTIMIZATION: Measure, Optimize, Verify
+# Performance optimization: measure, optimize, verify
 
 **Invoked as `/code-ops-suite:performance`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

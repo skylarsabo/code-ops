@@ -2,7 +2,7 @@
 description: "Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory."
 ---
 
-# CURRENT-DOCS: Version-Accurate Library Docs, In-House
+# Current-docs: version-accurate library docs, in-house
 
 **Invoked as `/code-ops-suite:current-docs`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. This skill implements its

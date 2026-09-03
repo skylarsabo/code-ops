@@ -3,7 +3,7 @@ name: full-sweep
 description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything."
 ---
 
-# FULL SWEEP: Run the Whole Suite End-to-End
+# Full sweep: run the whole suite end-to-end
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

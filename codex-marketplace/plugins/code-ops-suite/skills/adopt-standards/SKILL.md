@@ -3,7 +3,7 @@ name: adopt-standards
 description: "Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality."
 ---
 
-# ADOPT STANDARDS: Bootstrap or Maintain the Repo's Standards Contract
+# Adopt standards: bootstrap or maintain the repo's standards contract
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

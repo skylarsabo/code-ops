@@ -2,7 +2,7 @@
 description: "Use when you need to capture the reasons behind a codebase's architecture as decision records, either backfilling load-bearing past decisions or authoring an ADR for a current one."
 ---
 
-# ADR: Architecture Decision Records
+# ADR: architecture decision records
 
 **Invoked as `/code-ops-suite:adr`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and
 especially the **documentation quality standard (`§13`)**.

@@ -3,7 +3,7 @@ name: code-ops-suite-adopt-global-standards
 description: "Use when the user's global ~/.claude/AGENTS.md needs to be created, brought up to the suite's current doctrine, or re-verified after the marketplace's standards moved."
 ---
 
-# ADOPT GLOBAL STANDARDS: Keep the Cross-Repo Contract Current
+# Adopt global standards: keep the cross-repo contract current
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

@@ -3,7 +3,7 @@ name: handoff
 description: "Use when a long run must survive a context limit, session end, or operator change. It captures the run's true state as a verifiable HANDOFF.md, or resumes from one after re-verifying every claim."
 ---
 
-# HANDOFF: State a Fresh Session Can Verify, Not Instructions to Trust
+# Handoff: state a fresh session can verify, not instructions to trust
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

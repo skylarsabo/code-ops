@@ -3,7 +3,7 @@ name: debug
 description: "Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor."
 ---
 
-# DEBUG: Symptom to Root-Cause Fix, Proven
+# Debug: symptom to root-cause fix, proven
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

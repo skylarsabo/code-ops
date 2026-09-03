@@ -3,7 +3,7 @@ name: code-ops-suite-architecture
 description: "Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code."
 ---
 
-# ARCHITECTURE: The System, Explained for a Senior Engineer
+# Architecture: the system, explained for a senior engineer
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

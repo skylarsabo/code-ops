@@ -3,7 +3,7 @@ name: local-review-gate
 description: "Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication."
 ---
 
-# LOCAL REVIEW GATE: Review Before the PR Exists
+# Local review gate: review before the PR exists
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

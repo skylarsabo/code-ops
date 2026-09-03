@@ -2,7 +2,7 @@
 description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything."
 ---
 
-# FULL SWEEP: Run the Whole Suite End-to-End
+# Full sweep: run the whole suite end-to-end
 
 **Invoked as `/code-ops-suite:full-sweep`.** First read the bundled
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`: the operating model, the interaction protocol, the safety

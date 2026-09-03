@@ -3,7 +3,7 @@ name: code-ops-suite-performance
 description: "Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured."
 ---
 
-# PERFORMANCE OPTIMIZATION: Measure, Optimize, Verify
+# Performance optimization: measure, optimize, verify
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

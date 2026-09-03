@@ -2,7 +2,7 @@
 description: "Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review. For an anonymity gate, use privacy-opsec-suite:opsec-pr-gate."
 ---
 
-# PR REVIEW: Rigorous Pre-Merge Review
+# PR review: rigorous pre-merge review
 
 **Invoked as `/code-ops-suite:pr-review`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin. Search the plugin directory for it if needed. It defines the operating

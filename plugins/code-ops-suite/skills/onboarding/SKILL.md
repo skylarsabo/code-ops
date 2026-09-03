@@ -2,7 +2,7 @@
 description: "Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor."
 ---
 
-# CODEBASE ONBOARDING: Generate the Orientation Guide
+# Codebase onboarding: generate the orientation guide
 
 **Invoked as `/code-ops-suite:onboarding`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

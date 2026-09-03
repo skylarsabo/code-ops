@@ -2,7 +2,7 @@
 description: "Use when the user's global ~/.claude/CLAUDE.md needs to be created, brought up to the suite's current doctrine, or re-verified after the marketplace's standards moved."
 ---
 
-# ADOPT GLOBAL STANDARDS: Keep the Cross-Repo Contract Current
+# Adopt global standards: keep the cross-repo contract current
 
 **Invoked as `/code-ops-suite:adopt-global-standards`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory

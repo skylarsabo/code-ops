@@ -2,7 +2,7 @@
 description: "Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps."
 ---
 
-# DEPENDENCY UPGRADE: Safe Supply-Chain Maintenance
+# Dependency upgrade: safe supply-chain maintenance
 
 **Invoked as `/code-ops-suite:dependency-upgrade`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

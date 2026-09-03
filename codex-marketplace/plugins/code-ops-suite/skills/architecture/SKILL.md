@@ -3,7 +3,7 @@ name: architecture
 description: "Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code."
 ---
 
-# ARCHITECTURE: The System, Explained for a Senior Engineer
+# Architecture: the system, explained for a senior engineer
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

@@ -3,7 +3,7 @@ name: calibration-run
 description: "Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See code-ops-docs/40 Engineering/Techniques/calibration-protocol.md."
 ---
 
-# CALIBRATION RUN: Standardized Real-Scale Measurement
+# Calibration run: standardized real-scale measurement
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

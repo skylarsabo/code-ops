@@ -3,7 +3,7 @@ name: code-ops-suite-full-sweep
 description: "Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything."
 ---
 
-# FULL SWEEP: Run the Whole Suite End-to-End
+# Full sweep: run the whole suite end-to-end
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

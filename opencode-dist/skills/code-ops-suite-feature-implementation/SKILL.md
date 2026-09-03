@@ -3,7 +3,7 @@ name: code-ops-suite-feature-implementation
 description: "Use when feature specs already exist and you want them built incrementally. It requires specs as input."
 ---
 
-# FEATURE IMPLEMENTATION: Build the Specified Features
+# Feature implementation: build the specified features
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

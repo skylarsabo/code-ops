@@ -2,7 +2,7 @@
 description: "Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes."
 ---
 
-# CODEBASE AUDIT: Broad Multi-Lens Review
+# Codebase audit: broad multi-lens review
 
 **Invoked as `/code-ops-suite:codebase-audit`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

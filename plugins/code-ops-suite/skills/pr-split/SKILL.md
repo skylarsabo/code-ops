@@ -2,7 +2,7 @@
 description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless."
 ---
 
-# PR-SPLIT: Carve a Big Branch into a Clean, Traceless Stack
+# PR split: carve a big branch into a clean, traceless stack
 
 **Invoked as `/code-ops-suite:pr-split`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails

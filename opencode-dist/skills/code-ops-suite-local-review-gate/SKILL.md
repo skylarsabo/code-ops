@@ -3,7 +3,7 @@ name: code-ops-suite-local-review-gate
 description: "Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication."
 ---
 
-# LOCAL REVIEW GATE: Review Before the PR Exists
+# Local review gate: review before the PR exists
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

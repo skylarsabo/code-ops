@@ -2,7 +2,7 @@
 description: "Use when docs have drifted from code and you want them reconciled into a clean single source of truth."
 ---
 
-# DOCUMENTATION ALIGNMENT: Reconcile Drift, Establish One Source of Truth
+# Documentation alignment: reconcile drift, establish one source of truth
 
 **Invoked as `/code-ops-suite:doc-alignment`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

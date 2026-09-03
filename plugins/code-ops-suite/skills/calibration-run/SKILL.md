@@ -2,7 +2,7 @@
 description: "Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See code-ops-docs/40 Engineering/Techniques/calibration-protocol.md."
 ---
 
-# CALIBRATION RUN: Standardized Real-Scale Measurement
+# Calibration run: standardized real-scale measurement
 
 **Invoked as `/code-ops-suite:calibration-run`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. It defines the operating model,

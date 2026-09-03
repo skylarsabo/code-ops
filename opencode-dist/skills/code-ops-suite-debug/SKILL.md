@@ -3,7 +3,7 @@ name: code-ops-suite-debug
 description: "Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor."
 ---
 
-# DEBUG: Symptom to Root-Cause Fix, Proven
+# Debug: symptom to root-cause fix, proven
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

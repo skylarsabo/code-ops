@@ -2,7 +2,7 @@
 description: "Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See code-ops-docs/40 Engineering/Techniques/atlas.md."
 ---
 
-# ATLAS: The Repo's Durable Cache of Judgment
+# Atlas: the repo's durable cache of judgment
 
 **Invoked as `/code-ops-suite:atlas`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin: the operating model (`§1`), the evidence standard (`§9`), and the

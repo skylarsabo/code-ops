@@ -3,7 +3,7 @@ name: code-ops-suite-repo-docs
 description: "Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub."
 ---
 
-# REPO DOCS: Manifest-Governed Documentation Extraction
+# Repo docs: manifest-governed documentation extraction
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

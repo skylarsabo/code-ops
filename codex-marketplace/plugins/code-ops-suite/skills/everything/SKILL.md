@@ -3,7 +3,7 @@ name: everything
 description: "Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed."
 ---
 
-# EVERYTHING: The Full Pass Across All Three Suites
+# Everything: the full pass across all three suites
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

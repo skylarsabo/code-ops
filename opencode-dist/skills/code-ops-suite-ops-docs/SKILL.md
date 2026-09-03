@@ -3,7 +3,7 @@ name: code-ops-suite-ops-docs
 description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it."
 ---
 
-# OPS-DOCS: The Operator's Runbook
+# Ops-docs: the operator's runbook
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

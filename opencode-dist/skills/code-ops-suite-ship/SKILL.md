@@ -3,7 +3,7 @@ name: code-ops-suite-ship
 description: "Use when you want to implement one change, a feature or a one-off, end to end at high quality, shipped as a clean traceless PR."
 ---
 
-# SHIP: Implement One Change End-to-End, at Full Rigor
+# Ship: implement one change end-to-end, at full rigor
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

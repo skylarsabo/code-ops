@@ -3,7 +3,7 @@ name: code-ops-suite-vault
 description: "Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance."
 ---
 
-# VAULT: The Repo's Obsidian Notebook, to One Standard
+# Vault: the repo's Obsidian notebook, to one standard
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

@@ -3,7 +3,7 @@ name: adopt-global-standards
 description: "Use when the user's global ~/.claude/CLAUDE.md needs to be created, brought up to the suite's current doctrine, or re-verified after the marketplace's standards moved."
 ---
 
-# ADOPT GLOBAL STANDARDS: Keep the Cross-Repo Contract Current
+# Adopt global standards: keep the cross-repo contract current
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

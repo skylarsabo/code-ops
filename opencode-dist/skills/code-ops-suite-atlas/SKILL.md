@@ -3,7 +3,7 @@ name: code-ops-suite-atlas
 description: "Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See code-ops-docs/40 Engineering/Techniques/atlas.md."
 ---
 
-# ATLAS: The Repo's Durable Cache of Judgment
+# Atlas: the repo's durable cache of judgment
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

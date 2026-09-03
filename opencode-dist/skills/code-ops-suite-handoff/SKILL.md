@@ -3,7 +3,7 @@ name: code-ops-suite-handoff
 description: "Use when a long run must survive a context limit, session end, or operator change. It captures the run's true state as a verifiable HANDOFF.md, or resumes from one after re-verifying every claim."
 ---
 
-# HANDOFF: State a Fresh Session Can Verify, Not Instructions to Trust
+# Handoff: state a fresh session can verify, not instructions to trust
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

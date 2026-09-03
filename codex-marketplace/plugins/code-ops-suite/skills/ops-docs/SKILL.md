@@ -3,7 +3,7 @@ name: ops-docs
 description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it."
 ---
 
-# OPS-DOCS: The Operator's Runbook
+# Ops-docs: the operator's runbook
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

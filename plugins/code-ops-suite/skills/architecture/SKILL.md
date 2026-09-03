@@ -2,7 +2,7 @@
 description: "Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code."
 ---
 
-# ARCHITECTURE: The System, Explained for a Senior Engineer
+# Architecture: the system, explained for a senior engineer
 
 **Invoked as `/code-ops-suite:architecture`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`: the operating model, the quality lenses, the

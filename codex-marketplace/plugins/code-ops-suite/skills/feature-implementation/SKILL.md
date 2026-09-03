@@ -3,7 +3,7 @@ name: feature-implementation
 description: "Use when feature specs already exist and you want them built incrementally. It requires specs as input."
 ---
 
-# FEATURE IMPLEMENTATION: Build the Specified Features
+# Feature implementation: build the specified features
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

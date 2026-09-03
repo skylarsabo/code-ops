@@ -3,7 +3,7 @@ name: code-ops-suite-feature-discovery
 description: "Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code."
 ---
 
-# FEATURE DISCOVERY: Find and Specify High-Value Improvements
+# Feature discovery: find and specify high-value improvements
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

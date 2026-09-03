@@ -3,7 +3,7 @@ name: vault
 description: "Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance."
 ---
 
-# VAULT: The Repo's Obsidian Notebook, to One Standard
+# Vault: the repo's Obsidian notebook, to one standard
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

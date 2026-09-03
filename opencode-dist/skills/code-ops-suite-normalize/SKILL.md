@@ -3,7 +3,7 @@ name: code-ops-suite-normalize
 description: "Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. To close divergent implementations of a concept, see rigor:consistency-closure."
 ---
 
-# CODE NORMALIZATION: One Consistent, Professional, Hand-Crafted Codebase
+# Code normalization: one consistent, professional, hand-crafted codebase
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

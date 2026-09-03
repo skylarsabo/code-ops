@@ -2,7 +2,7 @@
 description: "Use when feature specs already exist and you want them built incrementally. It requires specs as input."
 ---
 
-# FEATURE IMPLEMENTATION: Build the Specified Features
+# Feature implementation: build the specified features
 
 **Invoked as `/code-ops-suite:feature-implementation`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

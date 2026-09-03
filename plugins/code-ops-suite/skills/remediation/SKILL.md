@@ -2,7 +2,7 @@
 description: "Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input."
 ---
 
-# REMEDIATION IMPLEMENTATION: Execute the Findings Backlog
+# Remediation implementation: execute the findings backlog
 
 **Invoked as `/code-ops-suite:remediation`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

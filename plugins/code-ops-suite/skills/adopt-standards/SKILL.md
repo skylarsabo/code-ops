@@ -2,7 +2,7 @@
 description: "Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality."
 ---
 
-# ADOPT STANDARDS: Bootstrap or Maintain the Repo's Standards Contract
+# Adopt standards: bootstrap or maintain the repo's standards contract
 
 **Invoked as `/code-ops-suite:adopt-standards`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory

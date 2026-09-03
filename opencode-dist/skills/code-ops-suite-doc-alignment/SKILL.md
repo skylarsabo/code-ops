@@ -3,7 +3,7 @@ name: code-ops-suite-doc-alignment
 description: "Use when docs have drifted from code and you want them reconciled into a clean single source of truth."
 ---
 
-# DOCUMENTATION ALIGNMENT: Reconcile Drift, Establish One Source of Truth
+# Documentation alignment: reconcile drift, establish one source of truth
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

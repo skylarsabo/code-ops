@@ -3,7 +3,7 @@ name: code-ops-suite-conform
 description: "Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back. It assesses the standards contract, the docs vault, the atlas, and doc drift in one pass, then repairs under checkpoint."
 ---
 
-# CONFORM: Assess and Repair Every Standardization Surface
+# Conform: assess and repair every standardization surface
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

@@ -2,7 +2,7 @@
 description: "Use when you want to audit the marketplace's own prose for provider-specific assumptions such as harness mechanics, tool names, and hook semantics that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check, so this skill covers prose only."
 ---
 
-# PROVIDER PARITY AUDIT: Prose Free of Host-Specific Assumptions
+# Provider parity audit: prose free of host-specific assumptions
 
 **Invoked as `/code-ops-suite:provider-parity-audit`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin, and especially the finding and

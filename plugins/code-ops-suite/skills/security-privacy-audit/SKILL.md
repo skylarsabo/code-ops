@@ -2,7 +2,7 @@
 description: "Use when you need an adversarial security and privacy threat assessment of attack surface and deanonymization paths, deeper than the audit's security lens. For anonymity-specific egress, metadata, and fingerprint work, use the privacy-opsec-suite."
 ---
 
-# SECURITY AND PRIVACY AUDIT: Adversarial Threat Assessment
+# Security and privacy audit: adversarial threat assessment
 
 **Invoked as `/code-ops-suite:security-privacy-audit`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

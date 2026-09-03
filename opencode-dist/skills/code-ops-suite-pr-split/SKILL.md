@@ -3,7 +3,7 @@ name: code-ops-suite-pr-split
 description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless."
 ---
 
-# PR-SPLIT: Carve a Big Branch into a Clean, Traceless Stack
+# PR split: carve a big branch into a clean, traceless stack
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

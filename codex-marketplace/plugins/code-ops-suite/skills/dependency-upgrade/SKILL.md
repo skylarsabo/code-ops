@@ -3,7 +3,7 @@ name: dependency-upgrade
 description: "Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps."
 ---
 
-# DEPENDENCY UPGRADE: Safe Supply-Chain Maintenance
+# Dependency upgrade: safe supply-chain maintenance
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

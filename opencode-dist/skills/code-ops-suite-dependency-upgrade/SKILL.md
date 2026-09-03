@@ -3,7 +3,7 @@ name: code-ops-suite-dependency-upgrade
 description: "Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps."
 ---
 
-# DEPENDENCY UPGRADE: Safe Supply-Chain Maintenance
+# Dependency upgrade: safe supply-chain maintenance
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

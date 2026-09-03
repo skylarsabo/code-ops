@@ -3,7 +3,7 @@ name: code-ops-suite-adr
 description: "Use when you need to capture the reasons behind a codebase's architecture as decision records, either backfilling load-bearing past decisions or authoring an ADR for a current one."
 ---
 
-# ADR: Architecture Decision Records
+# ADR: architecture decision records
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

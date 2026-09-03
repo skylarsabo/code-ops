@@ -3,7 +3,7 @@ name: security-privacy-audit
 description: "Use when you need an adversarial security and privacy threat assessment of attack surface and deanonymization paths, deeper than the audit's security lens. For anonymity-specific egress, metadata, and fingerprint work, use the privacy-opsec-suite."
 ---
 
-# SECURITY AND PRIVACY AUDIT: Adversarial Threat Assessment
+# Security and privacy audit: adversarial threat assessment
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

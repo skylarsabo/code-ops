@@ -3,7 +3,7 @@ name: adr
 description: "Use when you need to capture the reasons behind a codebase's architecture as decision records, either backfilling load-bearing past decisions or authoring an ADR for a current one."
 ---
 
-# ADR: Architecture Decision Records
+# ADR: architecture decision records
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

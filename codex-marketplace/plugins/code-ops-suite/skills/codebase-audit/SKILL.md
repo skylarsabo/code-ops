@@ -3,7 +3,7 @@ name: codebase-audit
 description: "Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes."
 ---
 
-# CODEBASE AUDIT: Broad Multi-Lens Review
+# Codebase audit: broad multi-lens review
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

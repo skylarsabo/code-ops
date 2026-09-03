@@ -3,7 +3,7 @@ name: code-ops-suite-remediation
 description: "Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input."
 ---
 
-# REMEDIATION IMPLEMENTATION: Execute the Findings Backlog
+# Remediation implementation: execute the findings backlog
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

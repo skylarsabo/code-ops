@@ -3,7 +3,7 @@ name: pr-split
 description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless."
 ---
 
-# PR-SPLIT: Carve a Big Branch into a Clean, Traceless Stack
+# PR split: carve a big branch into a clean, traceless stack
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

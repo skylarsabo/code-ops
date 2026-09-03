@@ -2,7 +2,7 @@
 description: "Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub."
 ---
 
-# REPO DOCS: Manifest-Governed Documentation Extraction
+# Repo docs: manifest-governed documentation extraction
 
 **Invoked as `/code-ops-suite:repo-docs`.** First read `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`,
 and its orchestration, evidence, and documentation sections.

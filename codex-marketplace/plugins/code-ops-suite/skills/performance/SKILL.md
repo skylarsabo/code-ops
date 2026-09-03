@@ -3,7 +3,7 @@ name: performance
 description: "Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured."
 ---
 
-# PERFORMANCE OPTIMIZATION: Measure, Optimize, Verify
+# Performance optimization: measure, optimize, verify
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

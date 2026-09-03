@@ -3,7 +3,7 @@ name: code-ops-suite-adopt-standards
 description: "Use when a repo's AGENTS.md standards contract needs to be created, brought up to the house style, or re-verified against reality."
 ---
 
-# ADOPT STANDARDS: Bootstrap or Maintain the Repo's Standards Contract
+# Adopt standards: bootstrap or maintain the repo's standards contract
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

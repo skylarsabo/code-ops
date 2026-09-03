@@ -3,7 +3,7 @@ name: provider-parity-audit
 description: "Use when you want to audit the marketplace's own prose for provider-specific assumptions such as harness mechanics, tool names, and hook semantics that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check, so this skill covers prose only."
 ---
 
-# PROVIDER PARITY AUDIT: Prose Free of Host-Specific Assumptions
+# Provider parity audit: prose free of host-specific assumptions
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

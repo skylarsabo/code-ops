@@ -3,7 +3,7 @@ name: code-ops-suite-everything
 description: "Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed."
 ---
 
-# EVERYTHING: The Full Pass Across All Three Suites
+# Everything: the full pass across all three suites
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

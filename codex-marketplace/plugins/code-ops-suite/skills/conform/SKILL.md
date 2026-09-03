@@ -3,7 +3,7 @@ name: conform
 description: "Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back. It assesses the standards contract, the docs vault, the atlas, and doc drift in one pass, then repairs under checkpoint."
 ---
 
-# CONFORM: Assess and Repair Every Standardization Surface
+# Conform: assess and repair every standardization surface
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

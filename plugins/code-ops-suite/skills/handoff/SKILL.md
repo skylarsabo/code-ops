@@ -2,7 +2,7 @@
 description: "Use when a long run must survive a context limit, session end, or operator change. It captures the run's true state as a verifiable HANDOFF.md, or resumes from one after re-verifying every claim."
 ---
 
-# HANDOFF: State a Fresh Session Can Verify, Not Instructions to Trust
+# Handoff: state a fresh session can verify, not instructions to trust
 
 **Invoked as `/code-ops-suite:handoff`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin. It defines the interaction protocol, the safety rails, the evidence

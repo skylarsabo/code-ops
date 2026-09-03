@@ -2,7 +2,7 @@
 description: "Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed."
 ---
 
-# EVERYTHING: The Full Pass Across All Three Suites
+# Everything: the full pass across all three suites
 
 **Invoked as `/code-ops-suite:everything`.** This skill orchestrates every workflow across the
 three code-ops plugins into one exhaustive pipeline. It does not replace the individual skills.

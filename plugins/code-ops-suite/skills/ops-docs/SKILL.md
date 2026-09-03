@@ -2,7 +2,7 @@
 description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it."
 ---
 
-# OPS-DOCS: The Operator's Runbook
+# Ops-docs: the operator's runbook
 
 **Invoked as `/code-ops-suite:ops-docs`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)** and the secret-redaction safety

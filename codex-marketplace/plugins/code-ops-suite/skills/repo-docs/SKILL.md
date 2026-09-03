@@ -3,7 +3,7 @@ name: repo-docs
 description: "Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub."
 ---
 
-# REPO DOCS: Manifest-Governed Documentation Extraction
+# Repo docs: manifest-governed documentation extraction
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

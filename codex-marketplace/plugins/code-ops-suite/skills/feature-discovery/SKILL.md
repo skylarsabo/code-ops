@@ -3,7 +3,7 @@ name: feature-discovery
 description: "Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code."
 ---
 
-# FEATURE DISCOVERY: Find and Specify High-Value Improvements
+# Feature discovery: find and specify high-value improvements
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

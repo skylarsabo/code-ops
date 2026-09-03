@@ -3,7 +3,7 @@ name: test-hardening
 description: "Use when critical paths lack meaningful coverage or tests are flaky. It builds characterization and regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit."
 ---
 
-# TEST HARDENING: Build and Strengthen the Test Suite
+# Test hardening: build and strengthen the test suite
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

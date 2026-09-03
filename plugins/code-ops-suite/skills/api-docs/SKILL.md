@@ -2,7 +2,7 @@
 description: "Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory."
 ---
 
-# API-DOCS: The Interface Reference
+# API docs: the interface reference
 
 **Invoked as `/code-ops-suite:api-docs`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)** this doc obeys. For this

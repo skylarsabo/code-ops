@@ -2,7 +2,7 @@
 description: "Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor."
 ---
 
-# DEBUG: Symptom to Root-Cause Fix, Proven
+# Debug: symptom to root-cause fix, proven
 
 **Invoked as `/code-ops-suite:debug`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails, the

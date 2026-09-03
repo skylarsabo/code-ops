@@ -3,7 +3,7 @@ name: code-ops-suite-test-hardening
 description: "Use when critical paths lack meaningful coverage or tests are flaky. It builds characterization and regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit."
 ---
 
-# TEST HARDENING: Build and Strengthen the Test Suite
+# Test hardening: build and strengthen the test suite
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

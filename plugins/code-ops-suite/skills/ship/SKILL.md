@@ -2,7 +2,7 @@
 description: "Use when you want to implement one change, a feature or a one-off, end to end at high quality, shipped as a clean traceless PR."
 ---
 
-# SHIP: Implement One Change End-to-End, at Full Rigor
+# Ship: implement one change end-to-end, at full rigor
 
 **Invoked as `/code-ops-suite:ship`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails

@@ -2,7 +2,7 @@
 description: "Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication."
 ---
 
-# LOCAL REVIEW GATE: Review Before the PR Exists
+# Local review gate: review before the PR exists
 
 **Invoked as `/code-ops-suite:local-review-gate`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Five sections govern this skill:

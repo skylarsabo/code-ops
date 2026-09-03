@@ -2,7 +2,7 @@
 description: "Use when critical paths lack meaningful coverage or tests are flaky. It builds characterization and regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit."
 ---
 
-# TEST HARDENING: Build and Strengthen the Test Suite
+# Test hardening: build and strengthen the test suite
 
 **Invoked as `/code-ops-suite:test-hardening`.** First read the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for

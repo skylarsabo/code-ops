@@ -3,7 +3,7 @@ name: api-docs
 description: "Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory."
 ---
 
-# API-DOCS: The Interface Reference
+# API docs: the interface reference
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 

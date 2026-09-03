@@ -3,7 +3,7 @@ name: code-ops-suite-onboarding
 description: "Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor."
 ---
 
-# CODEBASE ONBOARDING: Generate the Orientation Guide
+# Codebase onboarding: generate the orientation guide
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 

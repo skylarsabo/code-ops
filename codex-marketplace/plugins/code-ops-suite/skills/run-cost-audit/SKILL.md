@@ -3,7 +3,7 @@ name: run-cost-audit
 description: "Use when you want to audit a completed orchestrated run's cost discipline, covering dispatch counts, artifact sizes, and tier and effort mix, against the suite's own bounded-wave and routing doctrine. It consumes a finished run's artifact folder, not a live one."
 ---
 
-# RUN COST AUDIT: Cost Discipline Over a Completed Run
+# Run cost audit: cost discipline over a completed run
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
