@@ -20,7 +20,7 @@
 //   - a file edited after the index carries a stale banner until refreshed, and
 //     --no-stale-check suppresses it;
 //   - unknown symbols exit 1, bad flags exit 2, --json parses;
-//   - the hook is off by default, re-indexes the edited file when on, and fails open;
+//   - the hook is on by default, silent under off, re-indexes the edited file, and fails open;
 //   - `--provider none` spawns nothing, a missing provider says so on stderr and still indexes,
 //     and a provider definition joins a file only on a line the rules left free.
 
@@ -147,17 +147,17 @@ try {
   const before = readFileSync(indexPath, 'utf8');
   writeFileSync(join(work, 'src', 'other.js'), readFileSync(join(work, 'src', 'other.js'), 'utf8') + '\nexport function added() {\n  return run();\n}\n');
   const payload = JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Edit', cwd: work, tool_input: { file_path: join(work, 'src', 'other.js') }, tool_response: {} });
-  const off = spawnSync('node', [hook], { input: payload, encoding: 'utf8', cwd: work, env });
-  expect(off.status === 0 && off.stdout === '' && readFileSync(indexPath, 'utf8') === before, 'off by default: the hook prints nothing and the index is unchanged');
-  const on = spawnSync('node', [hook], { input: payload, encoding: 'utf8', cwd: work, env: { ...env, CODE_OPS_INDEX: 'on' } });
+  const off = spawnSync('node', [hook], { input: payload, encoding: 'utf8', cwd: work, env: { ...env, CODE_OPS_INDEX: 'off' } });
+  expect(off.status === 0 && off.stdout === '' && readFileSync(indexPath, 'utf8') === before, 'under off the hook prints nothing and the index is unchanged');
+  const on = spawnSync('node', [hook], { input: payload, encoding: 'utf8', cwd: work, env });
   expect(on.status === 0 && on.stdout === '', `with the switch on the hook prints nothing, got ${on.status}/${JSON.stringify(on.stdout)}`);
   const added = qj('find', 'src/other.js:added');
   expect(added.j?.definitions.length === 1 && !added.j.stale.length, `the hook re-indexed the edited file, got ${added.r.stdout}`);
   for (const [name, input] of [['bad JSON', '{'], ['another tool', JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'ls' } })], ['no path', JSON.stringify({ tool_name: 'Write', tool_input: {} })]]) {
-    const r = spawnSync('node', [hook], { input, encoding: 'utf8', cwd: work, env: { ...env, CODE_OPS_INDEX: 'on' } });
+    const r = spawnSync('node', [hook], { input, encoding: 'utf8', cwd: work, env });
     expect(r.status === 0 && r.stdout === '', `${name}: the hook fails open, got ${r.status}/${JSON.stringify(r.stdout)}`);
   }
-  console.log('ok   the refresh hook is off by default, re-indexes on Edit when on, and fails open');
+  console.log('ok   the refresh hook is on by default, silent under off, re-indexes on Edit, and fails open');
 
   // ---------------------------------------------------------------- providers
   const noProvider = qj('refresh', '--provider', 'none');

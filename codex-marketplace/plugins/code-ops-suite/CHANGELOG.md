@@ -3,11 +3,32 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
-## 1.63.0
+## 1.67.0
 - `symbol-lib.mjs` is now the single source of the definition rules and the import extraction for all four readers. `repo-map.mjs` takes its definition table from `CODE` and keeps only the Markdown heading row, and `import-graph.mjs` takes both the extraction and the resolution from `imports()` and walks exactly the extensions `IMPORT_EXTS` names. Map and graph output over this repository is byte-identical to the copies it replaces.
 - `imports()` covers JavaScript, Python, Go, and Rust, and its edge carries `relative` and `dynamic` beside `spec`, `target`, and `names`. So the graph still separates an unresolved path in the tree from a package name, and still notes a non-literal `import(...)` rather than dropping it, while the index sees the same edges.
 - `evals/context-query` gains a Go file and a Rust file whose relative edges `blast` must resolve, pinning the shared extraction from the index side.
 
+## 1.66.0
+- The `scan` domain moves onto `cli-lib.mjs`: `scan-ai-tells.mjs`, `scan-narration.mjs`, `scan-redaction.mjs`, `scan-injection-tells.mjs`, `check-autofix-scope.mjs`, `scan-overbuild.mjs`, and `harvest-deferrals.mjs` drop their hand-rolled argv loops for `parseFlags` and `parseOrDie`. Every flag, positional, exit code, and message stays as it was, and the seven regression evals pass untouched.
+- `parseFlags` gains three opt-in rule keys: `many` for a repeatable flag, `raw` for a flag whose own check must see a smuggled option, and `missing` for the wording a caller already pins.
+- `debug`, `handoff`, `pr-split`, `run-cost-audit`, and `ship` invoke these scripts as `co.mjs scan <verb>` instead of by path. The direct paths still work.
+- `lint-plugins.mjs` resolves a façade reference through co.mjs's verb table, so `co.mjs scan <verb>` carries the same bundling requirement as the direct path, and a verb the table does not carry fails closed.
+
+## 1.65.0
+- The output digest, the index refresh, and the ladder card are on by default. Each hook runs unless its switch (`CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`) holds `off`, `0`, or `false`, which a user or a repository sets in the `env` block of a `.claude/settings.json`. The session receipt records each arm as on unless its switch said off, and the measurement page's control is a run with the switches off.
+- The SessionStart card carries three more lines from the current-model prompting guide: say what you are about to do and close with a recap that stands on its own, only you see a command's output, and the context-economy rules in one line.
+- The workflow gains a macOS job that runs the host-facing evals on the weekly schedule and on demand, never per pull request, because the operator works on Windows and macOS and macOS minutes cost ten Linux minutes.
+
+## 1.64.0
+- `context-audit.mjs receipts --purge-before <ISO date>` is the receipt ledger's retention: it rewrites the ledger keeping rows at or after the date, through a scratch file renamed over the original, and reports the count removed. Nothing purges on its own.
+- The digest rewrite contract says how to mirror a read-only allow rule for the wrapped form: pin the script name and the family with a wildcard, never a bare `node` rule.
+
+## 1.63.0
+- Atlas freshness reaches claim granularity. A claim is a `path:line` citation in a section's prose. `scripts/atlas-check.mjs stamp` records one per citation in `MANIFEST.json` as `{ file, line, anchor }`, with the anchor copied verbatim from the cited line: trimmed, backtick-free, at most 80 characters, and replaced by the `<REDACTED-LINE>` sentinel on a credential-shaped line.
+- `atlas-check.mjs check` prints each section's claim report beneath its freshness verdict, classified by `revalidate-register.mjs` over one temporary register the check deletes when it ends. Two freshness mechanisms become one: the atlas and a findings register cannot disagree about what a drifted citation is. A section citing nothing reports `claims: none`.
+- `--claims-gate` exits 1 on any claim the classifier did not call FRESH, an unclassifiable one included. It is separate from `--gate`, and the digest verdict keeps its existing meaning. A malformed claim fails the manifest closed.
+- `atlas-check.mjs scope <slug> --suggest` prints the depth-1 importers of a section's scope, read from `context-query.mjs blast --json`, as a pathspec list for `add --scope`. It writes nothing and exits 1 when no symbol index exists.
+- `scripts/judgment-evals.mjs` gains `--mode register`. A matrix fixture declares `arms`, a list of model tiers, and the planner compiles one unit per tier against the same skill and answer key, naming the tier in the id the score receipt is keyed by. `evals/judgment-matrix.json` declares the arm on `bug-garden`. Trend and floor expansions are unchanged.
 ## 1.62.0
 - `context-query.mjs refresh --provider ctags|codegraph|none` adds two optional fidelity providers, detected at use and treated as data. With `ctags` an installed Universal Ctags runs over the files about to be parsed and its definitions merge into a file only on a line the line rules left free, each marked `source` and mapped onto the index's own kinds. `codegraph` is detected and reported, not ingested. A provider that is absent prints one line and the line rules stand alone, so a refresh never fails for a missing tool. The index records the providers its definitions came from and `status` prints them.
 - `preflight.mjs` prints `ctags` and `codegraph` as present or absent beside its other capability lines. Neither absence can fail a preflight.

@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "d81e9474a215535ce2bf020020ea25dc60be7a298baba2d21fd1d15d6e81616f"
+      "verifiedAt": "8839ac2218fcc75bc97475c99d851c2cea38074c",
+      "verifiedDigest": "0b98a07ebf1c7f5fd9a48c5a9e0218f9c3f2bdb53115410a14ed7113d9ad2771"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,15 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "fe5bcb50671f25769c383c1f69306f35cf735e7dbe5400c1bdbfbac061dfde8b"
+      "verifiedAt": "8839ac2218fcc75bc97475c99d851c2cea38074c",
+      "verifiedDigest": "40f90d54c5eb3105b80f973a8e7019653f6cf4b73426788d7efb461c5d6f7df9",
+      "claims": [
+        {
+          "file": "scripts/atlas-check.mjs",
+          "line": 306,
+          "anchor": "function classifyClaims(root, sections) {"
+        }
+      ]
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +34,15 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "4e7a33543084494a7c93ace87dedc755986ae5b32d3e7d043a0cadad74feca8a"
+      "verifiedAt": "8839ac2218fcc75bc97475c99d851c2cea38074c",
+      "verifiedDigest": "6aa10faebc924f41d05a134acc499bd4bc18c435484e20eb4bc64805cfc40c03",
+      "claims": [
+        {
+          "file": "scripts/judgment-evals.mjs",
+          "line": 155,
+          "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
+        }
+      ]
     },
     {
       "slug": "codex-render",
@@ -38,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "4fe91b204f8c2c30aa33ef9a1432a11bf36d6d7276886c301298f9c93e4019f2"
+      "verifiedAt": "8839ac2218fcc75bc97475c99d851c2cea38074c",
+      "verifiedDigest": "346aabdc3b19966fb118b343a016193a1fc9cc35ce3e9ed2a0ef295c0b9b1f4c"
     },
     {
       "slug": "ci-workflows",
@@ -47,8 +61,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "53f01b3f7ef968e657e893a7393a505650d09e1c",
-      "verifiedDigest": "5742e5ee57cac3026e21ba90f1d628e422283aff85a7c0946d0ab7452d3358a5"
+      "verifiedAt": "6fc84fa29f37c7506547ec8bad171dc9af36fadc",
+      "verifiedDigest": "53b7e3075065e4a9cf5744114def59975467cf21a34a5ea04ce82334b4046dd5"
     },
     {
       "slug": "docs-doctrine",
@@ -71,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "20077c77422f3d0685770037d51247456216571996ca0c2ed8b479caf0a55340"
+      "verifiedAt": "8839ac2218fcc75bc97475c99d851c2cea38074c",
+      "verifiedDigest": "d0465b27ea72e4d666d9dec62d2be094502164c9bf9ec1c3342612a99ba16f55"
     },
     {
       "slug": "root-contracts",
@@ -86,8 +100,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "4568c3e66869b683b5363fd501b3b2828078e95b",
-      "verifiedDigest": "2f5192f84bd09d15e367bd7a5c0c9ecab212d4101a7640b380e7139570f989a3"
+      "verifiedAt": "3d7d0804da52d756862f9e2bddae746153e0a117",
+      "verifiedDigest": "fafa4b3c1d0a15c7a3e5fbc8721da060fb8b1caf3d7d2681eb4410a9c67b837a"
     },
     {
       "slug": "runtime-toolchain",

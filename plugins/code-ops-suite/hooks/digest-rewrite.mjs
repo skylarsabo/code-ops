@@ -9,10 +9,11 @@
 //
 //   node hooks/digest-rewrite.mjs   (reads the PreToolUse JSON payload on stdin)
 //
-// OPT-IN. The hook does nothing unless `CODE_OPS_DIGEST` is `1`, `on`, or `true`
-// (case-insensitive). With the switch on, every rewritten command's complete raw output is
+// ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_DIGEST` is
+// `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
+// `.claude/settings.json` sets at user or repository scope. With the hook on, every rewritten command's complete raw output is
 // written under `~/.claude/code-ops/digest/<slug of this directory>/` and kept until the
-// operator deletes it; `CODE_OPS_DIGEST_STORE=off` keeps the compression and writes nothing. A repository opts in through the `env` block of its
+// operator deletes it; `CODE_OPS_DIGEST_STORE=off` keeps the compression and writes nothing.
 // `.claude/settings.json`, which is the only supported way. Any other value, including unset
 // and `off`, exits 0 before the payload is read.
 //
@@ -172,7 +173,7 @@ const CONTEXT_NO_STORE = 'Output digested by code-ops with the raw store off: el
   + 'recoverable. Run the original command if you need the whole output.';
 
 function main() {
-  if (!/^(1|on|true)$/i.test(process.env.CODE_OPS_DIGEST ?? '')) return;
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST ?? '')) return;
 
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }

@@ -25,7 +25,12 @@ import {
 } from './context-index-lib.mjs';
 
 const DEFAULT_MATRIX = 'evals/judgment-matrix.json';
-const MODES = ['trend', 'floor'];
+// `register` is the arm mode: a fixture declares which model tiers its register-producing skill
+// runs at, and the planner compiles one unit per declared tier against the same answer key. It
+// leaves the trend and floor expansions untouched, so the registered 2x2 asymmetry is unchanged.
+const MODES = ['trend', 'floor', 'register'];
+const TIERS = ['strong', 'weak'];
+const ARMS = ['skill', 'control', 'register'];
 const EXECUTION_POLICIES = ['available', 'unavailable'];
 const PLAN_VERSION = 1;
 const RECEIPT_VERSION = 1;
@@ -35,7 +40,7 @@ const MAX_FINDINGS_BYTES = 4 * 1024 * 1024;
 
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
 function usage() {
-  die('usage: judgment-evals.mjs plan --root <repo> --mode trend|floor --execution available|unavailable --out <ignored-path> --strong-model <id> [--weak-model <id>] [--matrix <path>]\n'
+  die('usage: judgment-evals.mjs plan --root <repo> --mode trend|floor|register --execution available|unavailable --out <ignored-path> --strong-model <id> [--weak-model <id>] [--matrix <path>]\n'
     + '       judgment-evals.mjs check-plan --root <repo> --plan <path>\n'
     + '       judgment-evals.mjs score --root <repo> --plan <path> --out <ignored-path>\n'
     + '       judgment-evals.mjs check-receipt --root <repo> --plan <path> --receipt <ignored-path>', 2);
@@ -92,11 +97,18 @@ function matrixState(root, path) {
   if (value.version !== 1 || !Array.isArray(value.fixtures) || !value.fixtures.length) throw new Error('judgment matrix is malformed');
   const ids = new Set();
   const fixtures = value.fixtures.map((fixture) => {
-    exactKeys(fixture, ['id', 'target', 'answerKey', 'skillDocs'], `fixture ${fixture?.id || '<unknown>'}`);
+    // `arms` is the only optional field, and it names model tiers, so a fixture that declares none
+    // keeps the exact shape every earlier plan was validated against.
+    const declaresArms = !!fixture && typeof fixture === 'object' && !Array.isArray(fixture) && 'arms' in fixture;
+    exactKeys(fixture, declaresArms ? ['id', 'target', 'answerKey', 'skillDocs', 'arms'] : ['id', 'target', 'answerKey', 'skillDocs'],
+      `fixture ${fixture?.id || '<unknown>'}`);
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(fixture.id || '') || ids.has(fixture.id)
       || !safeRelative(fixture.target) || !safeRelative(fixture.answerKey)
       || !Array.isArray(fixture.skillDocs) || !fixture.skillDocs.length
-      || fixture.skillDocs.some((entry) => !safeRelative(entry))) throw new Error('judgment matrix fixture is malformed');
+      || fixture.skillDocs.some((entry) => !safeRelative(entry))
+      || (declaresArms && (!Array.isArray(fixture.arms) || !fixture.arms.length
+        || fixture.arms.some((tier) => !TIERS.includes(tier))
+        || new Set(fixture.arms).size !== fixture.arms.length))) throw new Error('judgment matrix fixture is malformed');
     ids.add(fixture.id);
     return {
       ...fixture,
@@ -132,12 +144,15 @@ function unitsFor(fixtures, mode, strongModel, weakModel, planFolder) {
       arm,
       rep,
       target: fixture.target,
-      skillDocs: arm === 'skill' ? fixture.skillDocs.map((entry) => entry.path) : [],
+      skillDocs: arm === 'control' ? [] : fixture.skillDocs.map((entry) => entry.path),
       findingsPath: `${planFolder}/findings/${id}.json`,
     });
   };
   for (const fixture of fixtures) {
     if (mode === 'trend') add(fixture, 'strong', strongModel, 'skill', 1);
+    // One unit per declared tier, same skill, same answer key: the arm varies the model tier and
+    // nothing else, which is what makes the two resulting registers comparable.
+    else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture, tier, tier === 'strong' ? strongModel : weakModel, 'register', 1);
     else {
       for (const arm of ['skill', 'control']) add(fixture, 'strong', strongModel, arm, 1);
       for (const arm of ['skill', 'control']) for (const rep of [1, 2, 3]) add(fixture, 'weak', weakModel, arm, rep);
@@ -160,15 +175,15 @@ function validatePlanShape(plan) {
   const ids = new Set();
   for (const unit of plan.units) {
     exactKeys(unit, ['id', 'fixture', 'tier', 'model', 'arm', 'rep', 'target', 'skillDocs', 'findingsPath'], `judgment unit ${unit?.id || '<unknown>'}`);
-    if (!/^[a-z0-9-]+$/.test(unit.id || '') || ids.has(unit.id) || !['strong', 'weak'].includes(unit.tier)
-      || !['skill', 'control'].includes(unit.arm) || ![1, 2, 3].includes(unit.rep)
+    if (!/^[a-z0-9-]+$/.test(unit.id || '') || ids.has(unit.id) || !TIERS.includes(unit.tier)
+      || !ARMS.includes(unit.arm) || ![1, 2, 3].includes(unit.rep)
       || typeof unit.model !== 'string' || !unit.model || !safeRelative(unit.target)
       || !Array.isArray(unit.skillDocs) || unit.skillDocs.some((entry) => !safeRelative(entry))
-      || (unit.arm === 'skill') !== (unit.skillDocs.length > 0) || !safeRelative(unit.findingsPath)) throw new Error('judgment plan unit is malformed');
+      || (unit.arm === 'control') !== (unit.skillDocs.length === 0) || !safeRelative(unit.findingsPath)) throw new Error('judgment plan unit is malformed');
     ids.add(unit.id);
   }
-  if (plan.mode === 'floor' && portableKey(plan.models.strong) === portableKey(plan.models.weak)) {
-    throw new Error('floor mode requires distinct strong and weak model IDs');
+  if (plan.mode !== 'trend' && portableKey(plan.models.strong) === portableKey(plan.models.weak)) {
+    throw new Error(`${plan.mode} mode requires distinct strong and weak model IDs`);
   }
 }
 
@@ -255,15 +270,18 @@ if (command === 'plan') {
   if (!f['--root'] || !f['--mode'] || !f['--execution'] || !f['--out'] || !f['--strong-model']) usage();
   try {
     const root = resolve(f['--root']);
-    if (!MODES.includes(f['--mode'])) throw new Error('mode must be trend or floor');
+    if (!MODES.includes(f['--mode'])) throw new Error(`mode must be one of: ${MODES.join(', ')}`);
     if (!EXECUTION_POLICIES.includes(f['--execution'])) throw new Error('execution must be available or unavailable');
-    if (f['--mode'] === 'floor' && !f['--weak-model']) throw new Error('floor mode requires --weak-model');
-    if (f['--mode'] === 'floor' && portableKey(f['--strong-model']) === portableKey(f['--weak-model'])) {
-      throw new Error('floor mode requires distinct strong and weak model IDs');
+    if (f['--mode'] !== 'trend' && !f['--weak-model']) throw new Error(`${f['--mode']} mode requires --weak-model`);
+    if (f['--mode'] !== 'trend' && portableKey(f['--strong-model']) === portableKey(f['--weak-model'])) {
+      throw new Error(`${f['--mode']} mode requires distinct strong and weak model IDs`);
     }
     if (!clean(root)) throw new Error('commit all tracked and untracked changes before planning judgment evals');
     const out = ignored(root, f['--out'], 'judgment plan output');
     const matrix = matrixState(root, f['--matrix'] || DEFAULT_MATRIX);
+    if (f['--mode'] === 'register' && !matrix.fixtures.some((fixture) => fixture.arms?.length)) {
+      throw new Error('register mode needs at least one matrix fixture declaring arms');
+    }
     const planFolder = out.relative.includes('/') ? out.relative.slice(0, out.relative.lastIndexOf('/')) : '';
     if (!planFolder) throw new Error('judgment plan output must live in an ignored run directory');
     const plan = {
@@ -272,7 +290,7 @@ if (command === 'plan') {
       execution: f['--execution'],
       headSha: gitText(root, ['rev-parse', 'HEAD']),
       matrix,
-      models: { strong: f['--strong-model'], weak: f['--mode'] === 'floor' ? f['--weak-model'] : null },
+      models: { strong: f['--strong-model'], weak: f['--mode'] === 'trend' ? null : f['--weak-model'] },
       units: unitsFor(matrix.fixtures, f['--mode'], f['--strong-model'], f['--weak-model'], planFolder),
       createdAt: new Date().toISOString(),
       planSha256: null,

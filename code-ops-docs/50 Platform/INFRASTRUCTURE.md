@@ -27,13 +27,13 @@ GitHub Actions provides CI. GitHub hosts pull requests, branch protection, and t
 
 Git hooks can regenerate derived host distributions and reject unsafe staging conditions. CI remains the backstop when hooks are missing or bypassed. Evidence: `AGENTS.md:115-117`.
 
-One bundled host hook is opt-in per repository. `digest-rewrite.mjs` stays inert until
-`CODE_OPS_DIGEST` holds `1`, `on`, or `true` in its environment, and a repository sets that in
-the `env` block of its own `.claude/settings.json`, which is the only supported way to turn it
-on:
+Three bundled host hooks are on by default and off per user or repository. `digest-rewrite.mjs`
+runs unless `CODE_OPS_DIGEST` holds `off`, `0`, or `false` in its environment, which the `env`
+block of a `.claude/settings.json` sets at user scope for every repository or at repository
+scope for one:
 
 ```json
-{ "env": { "CODE_OPS_DIGEST": "on" } }
+{ "env": { "CODE_OPS_DIGEST": "off" } }
 ```
 
 Turning it on persists the complete raw output of every rewritten command, in plain text, under
@@ -47,17 +47,17 @@ checkout runs with the digest and another runs without it, and their session rec
 Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-15` and
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161`.
 
-A second opt-in hook, `ladder-card.mjs`, runs at `SubagentStart` and hands an implementer-class
-subagent the code-economy ladder as a card of at most ten lines. It stays inert until
-`CODE_OPS_LADDER_CARD` holds `1`, `on`, or `true` in the same `env` block. It writes nothing to
+A second hook, `ladder-card.mjs`, runs at `SubagentStart` and hands an implementer-class
+subagent the code-economy ladder as a card of at most ten lines. `CODE_OPS_LADDER_CARD` set to
+`off`, `0`, or `false` in the same `env` block silences it. It writes nothing to
 disk and reads nothing but the payload. The card is an experiment arm: Phase 6 of the context and
 code economy note keeps it only if the session receipts show it beats the brief-only control.
 Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:6-10` and
 `plugins/code-ops-suite/hooks/ladder-card.mjs:51`.
 
-A third opt-in hook, `index-refresh.mjs`, runs after every Edit, Write, MultiEdit, and
+A third hook, `index-refresh.mjs`, runs after every Edit, Write, MultiEdit, and
 NotebookEdit and re-indexes the one file changed, so `context-query.mjs` answers from the live
-tree without a daemon. It stays inert until `CODE_OPS_INDEX` holds `1`, `on`, or `true` in the
+tree without a daemon. `CODE_OPS_INDEX` set to `off`, `0`, or `false` silences it in the
 same `env` block. The index lives under `~/.claude/code-ops/index/<slug of the repository>/` or
 `$CODE_OPS_INDEX_DIR`, never in the tree, and holds definitions, call sites, and import edges,
 never file bodies. Delete the directory to purge it. Evidence:

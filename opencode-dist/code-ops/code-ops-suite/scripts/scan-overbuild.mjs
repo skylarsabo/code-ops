@@ -35,27 +35,27 @@
 
 import { execFileSync } from 'node:child_process';
 import { basename, dirname, extname, posix } from 'node:path';
+import { parseOrDie, usage } from './cli-lib.mjs';
 
 const USAGE = 'usage: scan-overbuild.mjs --git <range> [--root <dir>] [--exclude <prefix>]... [--report-only] [--json]';
-const excludes = [];
-let range = null;
-let root = process.cwd();
-let reportOnly = false;
-let json = false;
-const argv = process.argv.slice(2);
-for (let i = 0; i < argv.length; i++) {
-  const a = argv[i];
-  if (a === '--help' || a === '-h') { console.log(USAGE); process.exit(0); }
-  else if (a === '--git') { range = argv[++i]; if (!range || range.startsWith('--')) die('--git needs a range'); }
-  else if (a === '--root') { root = argv[++i]; if (!root || root.startsWith('--')) die('--root needs a directory'); }
-  else if (a === '--exclude') { const v = argv[++i]; if (!v || v.startsWith('--')) die('--exclude needs a path prefix'); excludes.push(v.replace(/\\/g, '/').replace(/\/+$/, '') + '/'); }
-  else if (a === '--report-only') reportOnly = true;
-  else if (a === '--json') json = true;
-  else die(`unknown argument: ${a}`);
-}
-if (!range) die('--git <range> is required');
+const die = (msg) => usage([`x ${msg}`, USAGE], 2);
 
-function die(msg) { console.error(`x ${msg}\n${USAGE}`); process.exit(2); }
+const argv = process.argv.slice(2);
+// `-h` carries one dash, which the shared parser leaves as a positional, so help is answered
+// before the parse; this script takes no positional, so one left over is a typo'd flag.
+if (argv.includes('--help') || argv.includes('-h')) { console.log(USAGE); process.exit(0); }
+const { flags, positional } = parseOrDie(argv, {
+  git: { value: true, missing: 'needs a range' },
+  root: { value: true, default: process.cwd(), missing: 'needs a directory' },
+  exclude: { value: true, many: true, missing: 'needs a path prefix' },
+  'report-only': { value: false },
+  json: { value: false },
+}, USAGE);
+if (positional.length) die(`unknown argument: ${positional[0]}`);
+if (flags.root === '') die('--root needs a directory');
+const { git: range, root, 'report-only': reportOnly = false, json = false } = flags;
+const excludes = flags.exclude.map((v) => v.replace(/\\/g, '/').replace(/\/+$/, '') + '/');
+if (!range) die('--git <range> is required');
 
 function git(args, { ok = [0] } = {}) {
   try {

@@ -18,7 +18,9 @@
 //      orchestrators against their OWN plugin, `everything` across all — and every
 //      qualified `<plugin>:<skill>` reference (in any skill) resolves.
 //   6. Every ${CLAUDE_PLUGIN_ROOT}/scripts/X a skill references is bundled in that
-//      plugin and byte-identical to the canonical scripts/X.
+//      plugin and byte-identical to the canonical scripts/X. A façade reference
+//      (`co.mjs <domain> <verb>`) resolves through co.mjs's verb table to the sibling
+//      script it runs, so it carries the same requirement as the direct path.
 //   7. No skill copy-pastes a 40+ word passage verbatim out of its CONVENTIONS.md.
 //   8. (when code-ops-docs/40 Engineering/Handbook/commands/ exists) every skill has an entry heading
 //      `### `/<plugin>:<skill>`` in code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md AND a qualified
@@ -302,6 +304,24 @@ for (const p of plugins) {
 // Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a plugin-owned prompt,
 // agent, README, or manifest surface must be bundled and byte-identical.
 const SCRIPT_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([\w.-]+\.mjs)/g;
+// A façade reference runs a sibling script, so it is a reference to that script. The verb
+// table is read from the canonical scripts/co.mjs rather than restated here, so a table edit
+// cannot leave this check resolving verbs that no longer exist.
+const FACADE_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/co\.mjs\s+([a-z][a-z-]*)\s+([a-z][a-z-]*)/g;
+const coTable = new Map();
+{
+  const coPath = join(ROOT, 'scripts', 'co.mjs');
+  const source = existsSync(coPath) ? readText(coPath) : '';
+  const start = source.indexOf('const TABLE = {');
+  const block = start === -1 ? '' : source.slice(start, source.indexOf('\n};', start));
+  let domain = null;
+  for (const line of block.split('\n')) {
+    const d = /^ {2}([a-z][a-z-]*): \{$/.exec(line);
+    if (d) { domain = d[1]; continue; }
+    const v = /^ {4}'?([a-z][a-z-]*)'?: (?:'([\w.-]+\.mjs)'|\{ script: '([\w.-]+\.mjs)')/.exec(line);
+    if (domain && v) coTable.set(`${domain} ${v[1]}`, v[2] ?? v[3]);
+  }
+}
 for (const p of plugins) {
   const refd = new Map();
   const bodies = [
@@ -312,9 +332,19 @@ for (const p of plugins) {
     ...walkFiles(join(p.dir, 'agents')),
     ...p.skills.flatMap((s) => walkFiles(join(p.dir, 'skills', s, 'agents'))),
   ];
-  for (const f of bodies) if (existsSync(f)) for (const m of readText(f).matchAll(SCRIPT_REF_RE)) {
-    if (!refd.has(m[1])) refd.set(m[1], new Set());
-    refd.get(m[1]).add(rel(f));
+  for (const f of bodies) if (existsSync(f)) {
+    const text = readText(f);
+    for (const m of text.matchAll(SCRIPT_REF_RE)) {
+      if (!refd.has(m[1])) refd.set(m[1], new Set());
+      refd.get(m[1]).add(rel(f));
+    }
+    for (const m of text.matchAll(FACADE_REF_RE)) {
+      const verb = `${m[1]} ${m[2]}`;
+      const resolved = coTable.get(verb);
+      if (!resolved) { fail(`${p.name}: ${rel(f)} references \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs ${verb}, which is not in the co.mjs verb table`); continue; }
+      if (!refd.has(resolved)) refd.set(resolved, new Set());
+      refd.get(resolved).add(`${rel(f)} (via co.mjs ${verb})`);
+    }
   }
   for (const [name, sources] of refd) {
     const copy = join(p.dir, 'scripts', name);

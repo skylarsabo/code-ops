@@ -241,6 +241,31 @@ jobs:
         run: node scripts/check-plugin-bump.mjs --base "origin/${{ github.base_ref }}"
 
 
+  # The two devices in use are Windows and macOS. Ubuntu and Windows run on every change; macOS
+  # costs ten Linux minutes per minute, so it runs the host-facing evals on the weekly schedule
+  # and on demand only, never per pull request.
+  host-evals-macos:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+      - run: node scripts/lint-plugins.mjs
+      - run: node evals/skim/run.mjs
+      - run: node evals/digest/run.mjs
+      - run: node evals/digest-hook/run.mjs
+      - run: node evals/context-query/run.mjs
+      - run: node evals/context-query-mcp/run.mjs
+      - run: node evals/ladder-card/run.mjs
+      - run: node evals/context-audit/run.mjs
+      - run: node evals/overbuild-garden/run.mjs
+      - run: node evals/deferral-harvest/run.mjs
+      - run: node evals/atlas-check/run.mjs
+
   structural-lint-windows:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -390,7 +415,8 @@ jobs:
           case "$EVENT" in
             pull_request) git fetch -q origin "$BASE_REF"; range="origin/$BASE_REF...HEAD" ;;
             push) case "$BEFORE" in ''|0000000000000000000000000000000000000000) decide true; exit 0 ;; esac; range="$BEFORE..$HEAD_SHA" ;;
-            *) decide true; exit 0 ;;
+            schedule) decide true; exit 0 ;;
+            *) decide false; exit 0 ;;
           esac
           files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
           # The workflow counts only when the changed lines are the record eval's own invocation

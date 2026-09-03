@@ -43,17 +43,13 @@
 
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { basename, extname, join, relative } from 'node:path';
+import { parseOrDie, usage } from './cli-lib.mjs';
 
-const argv = process.argv.slice(2);
-let reportOnly = false;
-const files = [];
-for (const a of argv) {
-  if (a === '--report-only') { reportOnly = true; continue; }
-  // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
-  // otherwise silently scan nothing relevant and report clean.
-  if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
-  files.push(a);
-}
+const USAGE = 'usage: scan-redaction.mjs <file|dir> [...] [--report-only]';
+// An unrecognized --flag never falls through to "treat it as a file" — a typo'd flag would
+// otherwise silently scan nothing relevant and report clean.
+const { flags, positional: files } = parseOrDie(process.argv.slice(2), { 'report-only': { value: false } });
+const reportOnly = flags['report-only'] === true;
 
 // The exact example literals embedded in this file's own header. A scanned artifact that
 // reproduces one verbatim (a guide documenting this scanner) is quoting, not leaking.
@@ -209,7 +205,7 @@ for (const f of files) {
 }
 // A usage error is "no target given at all" — a directory that resolves to zero matching files
 // is a valid, merely-empty target (0 files scanned, clean), not a usage mistake.
-if (files.length === 0) { console.error('usage: scan-redaction.mjs <file|dir> [...] [--report-only]'); process.exit(2); }
+if (files.length === 0) usage(USAGE);
 
 let secretTotal = 0, warnTotal = 0;
 for (const t of targets) {

@@ -9,6 +9,9 @@
 //     valid verbs for its domain instead of a bare refusal;
 //   - a subcommand-driven verb reaches its script with the default subcommand inserted, and
 //     an explicit subcommand still passes through;
+//   - every `scan` verb answers `--help` exactly as its script does — same exit code, same
+//     stdout, same stderr — which is the migration's contract: the scan scripts parse their
+//     flags through cli-lib now, and the façade still changes nothing a caller sees;
 //   - `co.mjs` copied alone into an empty directory reports the missing sibling as
 //     not-bundled with exit 2, which is what a plugin that vendors a partial script set does;
 //   - parseFlags separates flags from positionals and throws UsageError on an unknown flag,
@@ -91,6 +94,28 @@ expect(atlas.stdout === atlasDirect.stdout, 'co atlas check must match atlas-che
 const atlasBadSub = run([co, 'atlas', 'check', 'nosuchsubcommand', '--atlas', atlasDir]);
 expect(atlasBadSub.status === 2, `an explicit subcommand must pass through to atlas-check.mjs, got ${atlasBadSub.status}`);
 
+// The migrated scan domain: `co scan <verb> --help` must be indistinguishable from running the
+// script itself. Three of these verbs print a usage line and exit 0; the other four reject
+// --help as an unknown argument and exit 2. Either way the façade adds nothing, and the shared
+// flag parser kept each script's own wording.
+const SCAN_VERBS = [
+  ['ai-tells', 'scan-ai-tells.mjs'],
+  ['narration', 'scan-narration.mjs'],
+  ['redaction', 'scan-redaction.mjs'],
+  ['injection', 'scan-injection-tells.mjs'],
+  ['autofix', 'check-autofix-scope.mjs'],
+  ['overbuild', 'scan-overbuild.mjs'],
+  ['deferrals', 'harvest-deferrals.mjs'],
+];
+for (const [verb, script] of SCAN_VERBS) {
+  const viaCo = run([co, 'scan', verb, '--help']);
+  const own = run([join(root, 'scripts', script), '--help']);
+  expect(viaCo.status === own.status, `co scan ${verb} --help exit ${viaCo.status} must match ${script} --help exit ${own.status}`);
+  expect(viaCo.stdout === own.stdout, `co scan ${verb} --help stdout must match ${script} byte for byte`);
+  expect(viaCo.stderr === own.stderr, `co scan ${verb} --help stderr must match ${script} byte for byte`);
+  expect(viaCo.status === 0 || viaCo.status === 2, `co scan ${verb} --help must exit 0 or 2, got ${viaCo.status}`);
+}
+
 // co.mjs alone in an empty directory: every verb's script is a missing sibling.
 const lone = mkdtempSync(join(tmpdir(), 'co-lone-'));
 copyFileSync(co, join(lone, 'co.mjs'));
@@ -147,5 +172,6 @@ if (fails.length) {
 }
 console.log('ok   help lists every table domain; a wrapped verb matches the direct call exactly');
 console.log('ok   unknown domain and verb exit 2; an unbundled verb names its missing script');
+console.log('ok   every scan verb answers --help exactly as its own script does');
 console.log('ok   cli-lib parses flags and positionals and throws UsageError on caller error');
 console.log('\nco-facade eval passed');

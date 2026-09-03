@@ -32,7 +32,9 @@ stamped against cannot be invalidated by that tree's commits.
   "sections": [
     { "slug": "<kebab>", "file": "sections/<slug>.md", "scope": ["<glob>"],
       "verifiedAt": "<7-40 char lowercase git sha, or \"unverified\">",
-      "verifiedDigest": "<sha256, optional>" }
+      "verifiedDigest": "<sha256, optional>",
+      "claims": [ { "file": "<repo-relative>", "line": 42,
+                    "anchor": "<verbatim substring, optional>" } ] }
   ]
 }
 ```
@@ -58,6 +60,12 @@ stamped against cannot be invalidated by that tree's commits.
   declarations plus separately framed raw staged-index and raw index-to-worktree tracked state. The
   atlas tree and untracked files are excluded. The digest preserves a trustworthy freshness result
   when a squash or branch deletion makes `verifiedAt` unreachable.
+- `claims` — optional, machine-written. One entry per `path:line` citation in the section's
+  prose, in document order, with an `anchor` copied verbatim from the cited line at stamp
+  time: trimmed, backtick-free, at most 80 characters. A credential-shaped line records the
+  `<REDACTED-LINE>` sentinel instead of its own text, and a line that yields no usable
+  substring records no anchor and is checked for existence only. A malformed entry fails
+  the manifest closed, like every other schema rule here.
 
 The manifest is the only place a stamp or a scope lives. Sections carry no metadata of
 their own, so there is no second copy to drift.
@@ -66,14 +74,15 @@ their own, so there is no second copy to drift.
 
 `scripts/atlas-check.mjs` (vendored into `plugins/code-ops-suite/scripts/`, since it runs
 inside target repos via `${CLAUDE_PLUGIN_ROOT}`; `node:` builtins only). Exit contract
-across all five: `0` clean, `1` violation-or-gated, `2` usage.
+across all six: `0` clean, `1` violation-or-gated, `2` usage.
 
 | Mode | Behavior and exit contract |
 | --- | --- |
 | `init --atlas <dir>` | scaffolds an empty `MANIFEST.json`, `INBOX.md`, and `sections/`; **refuses to overwrite** an existing manifest |
 | `add --atlas <dir> --section <slug> --scope <pathspec> [--scope ...]` | registers a new section: appends a manifest entry pinned to `"unverified"` and writes a `sections/<slug>.md` stub with its title and a charter placeholder. `--scope` is repeatable. Refuses a duplicate slug, a non-kebab slug, a scope using pathspec magic, or an existing prose file. The section is **STALE until stamped** — that is the point: `add` registers the intent, `stamp` asserts the verification |
-| `check --atlas <dir> [--root <repo>] [--gate]` | A matching `verifiedDigest` is FRESH, even when a squash or branch deletion makes `verifiedAt` unreachable. A mismatched or unavailable digest is always STALE. The checker uses `verifiedAt` only for changed-path diagnostics. Legacy sections without a digest retain commit-diff freshness. A dead scope is STALE. The atlas tree stays outside the diff and sweep. Exit 0 is report-only. `--gate` exits 1 on STALE. Malformed manifest data always exits 1. |
-| `stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]` | The default writes `verifiedAt` and `verifiedDigest`. It requires no scoped unstaged changes. It rejects unmerged, assume-unchanged, skip-worktree, and submodule checkout ambiguity. Scoped diffs override `diff.ignoreSubmodules`. `--at` is historical mode. It writes `verifiedAt` and clears `verifiedDigest`. The tool is the only stamp writer. |
+| `check --atlas <dir> [--root <repo>] [--gate] [--claims-gate]` | A matching `verifiedDigest` is FRESH, even when a squash or branch deletion makes `verifiedAt` unreachable. A mismatched or unavailable digest is always STALE. The checker uses `verifiedAt` only for changed-path diagnostics. Legacy sections without a digest retain commit-diff freshness. A dead scope is STALE. The atlas tree stays outside the diff and sweep. Each section's claim report prints beneath its verdict. Exit 0 is report-only. `--gate` exits 1 on STALE. `--claims-gate` exits 1 on any claim the classifier did not call FRESH. Malformed manifest data always exits 1. |
+| `stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]` | The default writes `verifiedAt` and `verifiedDigest`. It requires no scoped unstaged changes. It rejects unmerged, assume-unchanged, skip-worktree, and submodule checkout ambiguity. Scoped diffs override `diff.ignoreSubmodules`. `--at` is historical mode. It writes `verifiedAt` and clears `verifiedDigest`. Both modes rewrite `claims` from the section's current prose. The tool is the only stamp writer. |
+| `scope <slug> --atlas <dir> --suggest [--root <dir>]` | prints the tracked files that import the section's current scope at depth 1, read from `context-query.mjs blast --json`, as a pathspec list for `add --scope`. It writes nothing. A missing symbol index exits 1 naming the refresh command |
 | `inbox --atlas <dir> --note <text> [--root <dir>]` | appends `- <YYYY-MM-DD> <short-sha>: <text>` to `INBOX.md`; one line, refuses empty |
 
 `check` also runs a **coverage sweep**: every tracked top-level path (first path segment
@@ -109,6 +118,40 @@ nobody verified it against, and no check downstream can tell.
 - A default stamp hashes only the exact scoped tracked state. It frames staged-index and
   index-to-worktree state separately. It excludes the atlas and untracked files. Stage scoped work
   before stamping. The tool rejects ambiguous Git index flags instead of guessing.
+
+### Claims
+
+The digest answers a whole-section question: did anything in scope move. A section scoped
+at a whole tree therefore goes STALE on any commit to it, and a reader re-verifies every
+sentence to recover the few that changed. A claim answers the finer question — is *this*
+sentence still true.
+
+A claim is a `path:line` citation in a section's own prose. `stamp` records one per
+citation with an anchor copied from the cited line, and `check` classifies them through
+`revalidate-register.mjs`, the classifier findings registers already use. The statuses are
+that classifier's: FRESH, MOVED, DRIFTED, GONE. Reusing it is the point. Two freshness
+mechanisms become one, and the atlas cannot disagree with a register about what a drifted
+citation is.
+
+The two verdicts are independent, and both directions carry information:
+
+- A FRESH digest with a drifted claim is a **lead, not a proof**. Nothing in scope moved
+  that the digest could see, and a cited line still moved out from under the prose — an
+  edit staged and reverted, a file the scope does not cover, a citation that was wrong
+  when it was written. Re-read that line before using the sentence that cites it.
+- A STALE digest with every claim FRESH is the case the mechanism exists for. The section
+  is out of date as a whole and its cited sentences still hold, so a reader takes those
+  and re-derives only the rest.
+
+`--claims-gate` turns any non-FRESH claim into exit 1. It is opt-in and separate from
+`--gate`, because the two gates answer different questions and a run may want either, both,
+or neither. A claim the classifier could not reach is not FRESH and gates like any other:
+fail-safe, in the same direction as every other ambiguous case here.
+
+A section that cites nothing reports `claims: none`. That is a fact about the section, not
+a failure — judgment prose is not required to carry citations, and a section is not made
+better by inventing them. Citations earn their place where a sentence rests on one exact
+line.
 
 ## Update in the hot session
 
