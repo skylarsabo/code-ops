@@ -1,30 +1,71 @@
 ---
 name: code-ops-suite-feature-discovery
-description: "Use when you want grounded, high-value feature ideas mined from the codebase (not a generic wishlist). Discovery only — writes no code."
+description: "Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code."
 ---
 
-# FEATURE DISCOVERY — Find & Specify High-Value Improvements
+# FEATURE DISCOVERY: Find and Specify High-Value Improvements
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-feature-discovery`, or by the model through the `skill` tool as `code-ops-suite-feature-discovery`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin (search the plugin directory for it if needed) — it defines the operating model, interaction protocol, safety rails, schemas, and quality lenses this skill references by section.
-**Mode:** DISCOVERY · **Produces:** `FEATURE_OPPORTUNITIES.md` (ranked register), top-feature specs (`TOP_FEATURES.md` or `specs/`), `FEATURE_ROADMAP.md`, `EXECUTIVE_SUMMARY.md`.
+**Invoked as `/code-ops-suite-feature-discovery`, or by the model through the `skill` tool as `code-ops-suite-feature-discovery`.** First read the
+`<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
+it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
+quality lenses this skill references by section.
+**Mode:** DISCOVERY · **Produces:** `FEATURE_OPPORTUNITIES.md` as a ranked register, top-feature
+specs in `TOP_FEATURES.md` or `specs/`, `FEATURE_ROADMAP.md`, and `EXECUTIVE_SUMMARY.md`.
 
-Mine the codebase for **high-value, grounded** feature opportunities and specify the best ones — no generic wishlist. Discovery and specification only; no implementation.
+Mine the codebase for **high-value, grounded** feature opportunities, and specify the best ones.
+Produce no generic wishlist. This skill discovers and specifies only, and implements nothing.
 
-## Phase 0 — Understand the product & set direction  *(checkpoint)*
-Dispatch an `explorer` operative to detect the stack and **latent capabilities** (data already present, services/libs that could do more cheaply). Map the **current feature set and main user flows**. Infer product intent and target users from docs and architecture. Harvest **intent signals** — TODOs, disabled flags, stubbed/commented-out endpoints, dead routes, and (if VCS history is available) recurring issue/PR demand.
-> **CHECKPOINT:** present your read of *what the product is, who it's for, where it's headed*, and the richest opportunity areas. Confirm direction, target users, in/out-of-scope, and appetite (quick wins vs. big bets). Proceed within that.
+## Phase 0: the product read and the direction  *(checkpoint)*
 
-## Phase 1 — Adaptive discovery
-Fan out across discovery lenses × product areas; ideas use the idea schema (`CONVENTIONS §7`). Lenses: **latent capability** (often highest-leverage), **half-built/abandoned**, **UX friction/dead-ends** (walk flows with the UI tool if available), **workflow completion**, **power-user/automation**, **onboarding/activation**, **configurability**, **extensibility**, **performance-as-feature**, **accessibility**, **trust/transparency/control**, **category parity & differentiation**. If the system handles personal/sensitive data, evaluate each idea's effect on its **privacy/data-handling posture** and surface any that would weaken it for a developer decision. Deepen rich veins; converge exhausted ones.
+Dispatch an `explorer` operative to detect the stack and the **latent capabilities**, meaning
+data already present and services or libraries that could do more cheaply. Map the **current
+feature set and the main user flows**. Infer the product intent and the target users from the
+docs and the architecture. Harvest **intent signals**: TODOs, disabled flags, stubbed or
+commented-out endpoints, dead routes, and recurring issue or PR demand when version-control
+history is available.
 
-## Phase 2 — Prioritize → spec  *(checkpoint)*
-Score ideas (impact × reach ÷ effort, weighted by confidence; `§8`); tag quick wins and big bets; always define the **smallest valuable slice**.
-> **CHECKPOINT:** present the ranked clusters; the developer picks which get deep specs. Then write a mini-spec per chosen feature: *problem, target users, solution, smallest valuable slice → follow-ons, UX (fits any existing design system), technical approach (leveraging existing architecture), data/privacy implications, effort & sequencing, dependencies/risks, success signals, open questions.*
+> **CHECKPOINT:** present your read of what the product is, who it is for, and where it is headed, plus the richest opportunity areas. Confirm the direction, the target users, what is in and out of scope, and the appetite for quick wins against big bets. Proceed within that.
 
-## Deliverables (dated discovery folder)
-`FEATURE_OPPORTUNITIES.md` (full ranked register, quick wins/big bets tagged), the chosen **mini-specs** (ready to hand to the implementation prompt), `FEATURE_ROADMAP.md` (Now/Next/Later), `EXECUTIVE_SUMMARY.md` (top opportunities, decisions needed, highest-value next build).
+## Phase 1: the adaptive discovery
+
+Fan out across the discovery lenses against the product areas. Ideas use the idea schema
+(`CONVENTIONS §7`). The lenses are latent capability, which is often the highest-leverage,
+half-built or abandoned work, UX friction and dead-ends walked with the UI tool when available,
+workflow completion, power-user automation, onboarding and activation, configurability,
+extensibility, performance as a feature, accessibility, trust and transparency and control, and
+category parity and differentiation. When the system handles personal or sensitive data,
+evaluate each idea's effect on its **privacy and data-handling posture**, and surface any idea
+that would weaken it for a developer decision. Deepen the rich veins, and converge the exhausted
+ones.
+
+## Phase 2: prioritize, then specify  *(checkpoint)*
+
+Score the ideas by impact times reach divided by effort, weighted by confidence (`§8`). Tag the
+quick wins and the big bets. Always define the **smallest valuable slice**.
+
+> **CHECKPOINT:** present the ranked clusters, and the developer picks which ones get deep specs.
+
+Then write a mini-spec per chosen feature, covering the problem, the target users, the solution,
+the smallest valuable slice and its follow-ons, the UX fitted to any existing design system, the
+technical approach leveraging the existing architecture, the data and privacy implications, the
+effort and sequencing, the dependencies and risks, the success signals, and the open questions.
+
+## Deliverables
+
+In a dated discovery folder:
+- `FEATURE_OPPORTUNITIES.md`: the full ranked register, with quick wins and big bets tagged.
+- The chosen **mini-specs**, ready to hand to the implementation prompt.
+- `FEATURE_ROADMAP.md`: Now, Next, and Later.
+- `EXECUTIVE_SUMMARY.md`: the top opportunities, the decisions needed, and the highest-value next build.
 
 ## Done when
-Every product area/flow explored; register deduped, scored, ranked, each idea stamped `Verified-at: <sha>` (`CONVENTIONS §7`); both checkpoints done; mini-specs grounded in the real architecture exist for the chosen set; roadmap + summary consistent; no code changed; a final self-audit for generic filler and unverified capabilities. Present `EXECUTIVE_SUMMARY.md` first, highest-value opportunity at the top.
+
+- Every product area and flow was explored.
+- The register is deduplicated, scored, and ranked, and each idea is stamped `Verified-at: <sha>` (`CONVENTIONS §7`).
+- Both checkpoints are done.
+- Mini-specs grounded in the real architecture exist for the chosen set.
+- The roadmap and the summary are consistent, and no code changed.
+- A final self-audit found no generic filler and no unverified capabilities.
+- `EXECUTIVE_SUMMARY.md` is presented first, with the highest-value opportunity at the top.

@@ -1,24 +1,74 @@
 ---
-description: "Use when you want a rigorous pre-merge review of one PR/diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review; for an anonymity gate, privacy-opsec-suite:opsec-pr-gate."
+description: "Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review. For an anonymity gate, use privacy-opsec-suite:opsec-pr-gate."
 ---
 
-# PR REVIEW — Rigorous Pre-Merge Review
+# PR REVIEW: Rigorous Pre-Merge Review
 
-**Invoked as `/code-ops-suite:pr-review`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin (search the plugin directory for it if needed) — it defines the operating model, interaction protocol, safety rails, schemas, and quality lenses this skill references by section.
-**Mode:** REVIEW · **Produces:** a prioritized review + verdict (as PR comments if a VCS tool is connected, else `REVIEW.md`).
+**Invoked as `/code-ops-suite:pr-review`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
+bundled with this plugin. Search the plugin directory for it if needed. It defines the operating
+model, interaction protocol, safety rails, schemas, and quality lenses this skill references by
+section.
+**Mode:** REVIEW · **Produces:** a prioritized review and a verdict, as PR comments when a
+version-control tool is connected, and otherwise as `REVIEW.md`.
 
-A senior-level review of a *specific change* before merge, held to the relevant quality lenses (`CONVENTIONS §10`). Review-only by default — don't push changes unless asked (then switch to the implementation loop, `§11`).
+Give a senior-level review of one *specific change* before merge, held to the relevant quality
+lenses (`CONVENTIONS §10`). This skill reviews only by default. Do not push changes unless asked,
+and when asked, switch to the implementation loop (`§11`).
 
-## Phase 0 — Understand the change
-Pull the PR/branch/diff and its **intent**: description, linked issue/finding/spec, and the surrounding code context (review the diff *against* the code it changes, not in isolation). Trace the change's **reach** before reviewing it: for changed exported symbols, shared types/schemas, and API/DB contracts, locate the dependents and call sites (fan out explorers), and scale reviewer fan-out and depth to that reach (impact × reach, `§8`) — not just to diff size; a small diff in a shared contract is a large review. For large PRs, fan out parallel reviewers per file-group/concern and synthesize one coherent review.
+## Phase 0: the change and its reach
 
-## Phase 1 — Review against the lenses (scoped to the diff + needed context)
-Apply the relevant lenses (`§10`): **correctness & intricate bugs** (does it do what it claims? edge/error/null cases, races, contract mismatches); **design & modularity** (fits the architecture; no new coupling/duplication; right-sized, not over/under-engineered); **size and boundary** (the smallest change that satisfies the ordered objective; no new file, interface, wrapper, or dependency without the ladder's evidence, `§11`); **performance/efficiency** regressions; **security** introduced; **privacy/data handling** (no new collection/leakage/correlation surface or weakened defaults — treat a regression as blocking, scaled to the system's data sensitivity); **UI/theming/a11y** for UI changes (tokens, all states, parity — verify with the UI tool); **tests** (present, meaningful, cover the change's logic and edge/error paths); **docs** (updated where behavior/contracts changed); **conventions** (matches the repo's style and patterns).
+Pull the PR, branch, or diff and its **intent**: the description, the linked issue or finding or
+spec, and the surrounding code context. Review the diff *against* the code it changes, never in
+isolation.
 
-## Output — the review
-Prioritized, each comment at `file:line` with the issue **and** a concrete suggested change: **Blocking** (bugs, security/privacy regressions, broken contracts, missing critical tests) · **Should-fix** · **Nit** (clearly labeled, low-pressure). Briefly note what's done well. End with an overall **verdict** — *approve / approve-with-nits / request-changes* — and a 2–3 line summary of quality and risk. Surface **blocking** items at the top.
+Trace the change's **reach** before reviewing it. For changed exported symbols, shared types or
+schemas, and API or database contracts, locate the dependents and call sites by fanning out
+explorers. Scale the reviewer fan-out and depth to that reach (impact times reach, `§8`), not to
+the diff size. A small diff in a shared contract is a large review. For a large PR, fan out
+parallel reviewers per file-group or concern, then synthesize one coherent review.
 
-Before any item ships as **Blocking**, put it through **independent refutation** (`CONVENTIONS §7`): hand it to a fresh `reviewer`/`tracer` in refutation mode — one that did *not* raise it — whose only job is to kill it by locating a dominating guard or handler elsewhere (another function, file, or boundary). A refuted item drops or downgrades, citing the guard. Each comment quotes a verbatim **Anchor** of its cited line (`§9`) so the citation is checkable.
+## Phase 1: the lenses, scoped to the diff plus the needed context
+
+Apply the relevant lenses (`§10`):
+- **Correctness and intricate bugs:** does the change do what it claims, across edge, error, and null cases, races, and contract mismatches?
+- **Design and modularity:** does it fit the architecture, without new coupling or duplication, right-sized rather than over- or under-engineered?
+- **Size and boundary:** is it the smallest change that satisfies the ordered objective, with no new file, interface, wrapper, or dependency added without the ladder's evidence (`§11`)?
+- **Performance and efficiency:** does it regress anything?
+- **Security:** does it introduce a weakness?
+- **Privacy and data handling:** does it add collection, leakage, or correlation surface, or weaken a default? Treat a regression as blocking, scaled to the system's data sensitivity.
+- **UI, theming, and accessibility** for UI changes: tokens, all states, and parity, verified with the UI tool.
+- **Tests:** are they present, meaningful, and covering the change's logic and its edge and error paths?
+- **Docs:** are they updated where behavior or contracts changed?
+- **Conventions:** does the change match the repo's style and patterns?
+
+The mechanical floor under the size-and-boundary lens is
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan overbuild --git <range>` over the reviewed range.
+It blocks only on an unrecorded dependency, and its other tells are leads for the lens rather
+than review comments on their own.
+
+## The output: the review
+
+Give a prioritized review. Put each comment at a `file:line` with the issue **and** a concrete
+suggested change, under one of three headings:
+- **Blocking:** bugs, security or privacy regressions, broken contracts, and missing critical tests.
+- **Should-fix.**
+- **Nit:** clearly labeled and low-pressure.
+
+Note briefly what is done well. End with an overall **verdict** of approve, approve-with-nits, or
+request-changes, plus a summary of quality and risk in two or three lines. Surface the blocking
+items at the top.
+
+Before any item ships as **Blocking**, put it through **independent refutation**
+(`CONVENTIONS §7`). Hand it to a fresh `reviewer` or `tracer` operative in refutation mode, one
+that did *not* raise it, whose only job is to kill it by locating a dominating guard or handler
+elsewhere, in another function, file, or boundary. A refuted item drops or downgrades, citing the
+guard. Each comment quotes a verbatim **Anchor** of its cited line (`§9`), so the citation is
+checkable.
 
 ## Done when
-Every changed file reviewed against the applicable lenses; each issue has a location + concrete fix and a priority; UI changes verified; a clear verdict + summary given; blocking items first. If asked to fix rather than flag, switch to the implementation loop.
+
+- Every changed file was reviewed against the applicable lenses.
+- Each issue carries a location, a concrete fix, and a priority.
+- UI changes were verified.
+- A clear verdict and summary were given, with the blocking items first.
+- When asked to fix rather than flag, the run switched to the implementation loop.

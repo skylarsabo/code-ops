@@ -1,5 +1,5 @@
 ---
-description: "Use when dependencies are outdated or have known CVEs and you want safe, staged upgrades verified at each step; never bulk-bumps."
+description: "Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps."
 ---
 
 Use the `code-ops-suite-dependency-upgrade` skill for this task, following it end to end.

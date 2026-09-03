@@ -1,5 +1,5 @@
 ---
-description: "Use when you need current, version-accurate docs for a library or framework before coding against its API — read from the installed version, not memory."
+description: "Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory."
 ---
 
 Use the `code-ops-suite-current-docs` skill for this task, following it end to end.

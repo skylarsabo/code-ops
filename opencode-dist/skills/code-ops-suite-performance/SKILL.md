@@ -1,29 +1,64 @@
 ---
 name: code-ops-suite-performance
-description: "Use when something is measurably slow or you want hot paths optimized with proof; profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured."
+description: "Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured."
 ---
 
-# PERFORMANCE OPTIMIZATION — Measure, Optimize, Verify
+# PERFORMANCE OPTIMIZATION: Measure, Optimize, Verify
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-performance`, or by the model through the `skill` tool as `code-ops-suite-performance`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin (search the plugin directory for it if needed) — it defines the operating model, interaction protocol, safety rails, schemas, and quality lenses this skill references by section.
-**Mode:** IMPLEMENT · **Produces:** optimizations (each commit carries before/after numbers), `PERFORMANCE_REPORT.md`; remaining opportunities → `FINDINGS_REGISTER.md`.
+**Invoked as `/code-ops-suite-performance`, or by the model through the `skill` tool as `code-ops-suite-performance`.** First read the
+`<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
+it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
+quality lenses this skill references by section.
+**Mode:** IMPLEMENT · **Produces:** optimizations, each commit carrying before-and-after numbers,
+plus `PERFORMANCE_REPORT.md`. Remaining opportunities go to `FINDINGS_REGISTER.md`.
 
-A **measurement-driven** pass. **Prime directive: measure first.** Never optimize code not demonstrated to be hot. Every optimization is (1) confirmed hot by profiling, (2) proven faster by a benchmark, and (3) verified behavior-preserving by tests. A tempting-but-cold target is documented as "not worth it — here's the data," not optimized.
+This is a **measurement-driven** pass, and the prime directive is to measure first. Never
+optimize code that has not been demonstrated hot. Every optimization is confirmed hot by
+profiling, proven faster by a benchmark, and verified behavior-preserving by tests. Document a
+tempting but cold target as not worth it, with the data, rather than optimizing it.
 
-## Phase 0 — Baseline  *(checkpoint)*
-Identify the perf-critical paths (user-facing latency, throughput hot loops, memory, bundle size, cold start, build/CI time). Set up repeatable **profiling + benchmarks** and capture **baseline numbers**. Profile under realistic load/data and rank hot spots by actual cost. Ingest any audit perf findings as leads.
-> **CHECKPOINT:** present baseline numbers, profiled hot spots ranked by cost, and a proposed order; confirm priorities and any acceptable-complexity limits.
+## Phase 0: the baseline  *(checkpoint)*
 
-## Phase 1 — Optimize (dispatch an ephemeral implementation operative per hot path, conflict-aware fan-out, `CONVENTIONS §1`)
-Where profiling points: reduce **algorithmic** complexity; fix **data access** (N+1, indexes [with OK], batching, pagination, caching with correct invalidation and bounds — never cache sensitive data in a way that creates a leak); **concurrency** (parallelize, remove blocking); **memory/allocation**; **payload/serialization** size; **frontend** (code-split, trim heavy deps, fix render thrash, optimize assets — measure with the UI tool); **build/CI**. Method per optimization: confirm hot → smallest change → benchmark before/after → tests green → commit with the delta. If a change doesn't move the number, revert it.
+Identify the performance-critical paths: user-facing latency, throughput hot loops, memory,
+bundle size, cold start, and build or CI time. Set up repeatable **profiling and benchmarks**,
+and capture the **baseline numbers**. Profile under realistic load and data, and rank the hot
+spots by actual cost. Ingest any performance findings from an earlier audit as leads.
 
-## Guardrails
-Behavior preservation is non-negotiable (`CONVENTIONS §4`). Never sacrifice correctness, security, or privacy for speed. Don't micro-optimize cold paths or add complexity disproportionate to the gain without sign-off.
+> **CHECKPOINT:** present the baseline numbers, the profiled hot spots ranked by cost, and a proposed order. Confirm the priorities and any acceptable-complexity limits.
+
+## Phase 1: the optimization
+
+Dispatch an ephemeral implementation operative per hot path, with conflict-aware fan-out
+(`CONVENTIONS §1`). Work only where the profiling points, across these targets:
+- **Algorithmic complexity**, reduced.
+- **Data access**: N+1 queries, indexes with approval, batching, pagination, and caching with correct invalidation and bounds. Never cache sensitive data in a way that creates a leak.
+- **Concurrency**: parallelize, and remove blocking.
+- **Memory and allocation.**
+- **Payload and serialization size.**
+- **Frontend**: code-split, trim heavy dependencies, fix render thrash, and optimize assets, measured with the UI tool.
+- **Build and CI time.**
+
+The method per optimization: confirm the path is hot, make the smallest change, benchmark before
+and after, get the tests green, then commit with the delta. When a change does not move the
+number, revert it.
+
+## The guardrails
+
+Behavior preservation is non-negotiable (`CONVENTIONS §4`). Never sacrifice correctness,
+security, or privacy for speed. Do not micro-optimize cold paths. Do not add complexity
+disproportionate to the gain without sign-off.
 
 ## Deliverables
-The optimizations (each with before/after numbers in the message); **`PERFORMANCE_REPORT.md`** (baseline→after per area with the actual measurements, what was optimized and how, what was left and the data showing why, and the reproducible measurement setup); remaining design/behavior-changing opportunities → `FINDINGS_REGISTER.md`.
+
+- The optimizations, each with before-and-after numbers in the commit message.
+- **`PERFORMANCE_REPORT.md`**: the baseline against the after state per area with the actual measurements, what was optimized and how, what was left alone with the data showing why, and the reproducible measurement setup.
+- Remaining design or behavior-changing opportunities, routed to `FINDINGS_REGISTER.md`.
 
 ## Done when
-Every targeted hot path is optimized-with-proof or documented-as-not-worth-it; all changes preserve behavior (tests green) and the security/privacy posture; improvements are measured and reproducible; report complete. Present the report, biggest measured wins first.
+
+- Every targeted hot path is either optimized with proof or documented as not worth it.
+- All changes preserve behavior with tests green, and preserve the security and privacy posture.
+- The improvements are measured and reproducible, and the report is complete.
+- The report is presented with the biggest measured wins first.

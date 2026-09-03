@@ -1,26 +1,60 @@
 ---
 name: feature-implementation
-description: "Use when feature specs already exist and you want them built incrementally. Requires specs as input."
+description: "Use when feature specs already exist and you want them built incrementally. It requires specs as input."
 ---
 
-# FEATURE IMPLEMENTATION — Build the Specified Features
+# FEATURE IMPLEMENTATION: Build the Specified Features
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:feature-implementation`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin (search the plugin directory for it if needed) — it defines the operating model, interaction protocol, safety rails, schemas, and quality lenses this skill references by section.
-**Mode:** IMPLEMENT · **Consumes:** the feature specs + `FEATURE_OPPORTUNITIES.md` + `FEATURE_ROADMAP.md`. · **Produces:** shipped features (branches/PRs, flagged), `BUILD_LOG.md`, an updated register.
+**Invoke in Codex by naming `code-ops-suite:feature-implementation`.** First read the
+`<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
+it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
+quality lenses this skill references by section.
+**Mode:** IMPLEMENT · **Consumes:** the feature specs, `FEATURE_OPPORTUNITIES.md`, and
+`FEATURE_ROADMAP.md` · **Produces:** shipped features as flagged branches or PRs, `BUILD_LOG.md`,
+and an updated register.
 
-Build the specified features efficiently and at high quality — conflict-aware parallel orchestration (`CONVENTIONS §1`), the implementation loop (`§11`), and **incremental delivery** (smallest valuable slice first).
+Build the specified features efficiently and at high quality, through conflict-aware parallel
+orchestration (`CONVENTIONS §1`), the implementation loop (`§11`), and **incremental delivery**
+that ships the smallest valuable slice first.
 
-## Phase 0 — Confirm build set, sequence & specs  *(checkpoint)*
-Read the specs, register, and roadmap. **Re-ground** each chosen feature against current code (the "builds-on" capabilities exist, the technical approach is viable, nothing already shipped it). Draft a build plan honoring dependencies.
-> **CHECKPOINT:** confirm *which* features and in *what order* (roadmap recommends; developer decides), slice boundaries, flag strategy, and PR preference; batch-answer each spec's **open questions** before building the affected part.
+## Phase 0: the build set, the sequence, and the specs  *(checkpoint)*
 
-## Phase 1 — Build (parallel where disjoint, serial where shared)
-Dispatch an ephemeral implementation operative per feature/slice, conflict-aware fan-out (`§1`). Per feature, deliver the **smallest valuable slice first**, then iterate. Run the implementation loop (`§11`); land new features **behind a flag** where it reduces risk. Build **real states**, not stubs (loading/empty/error/success, edge and unhappy paths). Reuse existing services/data/components per the spec's "builds-on" and match conventions. Hold new code to the relevant quality lenses (`§10`), and for UIs use the existing design tokens/components with full state coverage, theme parity, and accessibility (verify with the UI tool). Assert the spec's **acceptance criteria / success signals**. If the system handles sensitive data, re-check the **privacy/data-handling** posture on the *actual implementation*, keeping defaults private; anything that would weaken it stops for a developer decision. Integrate continuously; re-run the suite after each slice.
+Read the specs, the register, and the roadmap. **Re-ground** each chosen feature against current
+code: the capabilities it builds on exist, the technical approach is viable, and nothing already
+shipped it. Draft a build plan honoring the dependencies.
+
+> **CHECKPOINT:** confirm which features to build and in what order. The roadmap recommends and the developer decides. Confirm the slice boundaries, the flag strategy, and the PR preference. Batch-answer each spec's **open questions** before building the affected part.
+
+## Phase 1: the build, parallel where disjoint and serial where shared
+
+Dispatch an ephemeral implementation operative per feature or slice, with conflict-aware fan-out
+(`§1`). Per feature, deliver the **smallest valuable slice first**, then iterate. Run the
+implementation loop (`§11`). Land new features **behind a flag** where that reduces risk. Build
+**real states** rather than stubs, covering loading, empty, error, and success, plus the edge and
+unhappy paths. Reuse the existing services, data, and components per the spec's build-on list,
+and match the repo's conventions. Hold new code to the relevant quality lenses (`§10`). For a UI,
+use the existing design tokens and components with full state coverage, theme parity, and
+accessibility, verified with the UI tool. Assert the spec's **acceptance criteria and success
+signals**. When the system handles sensitive data, re-check the **privacy and data-handling**
+posture on the *actual implementation*, keeping the defaults private. Anything that would weaken
+that posture stops for a developer decision. Integrate continuously, and re-run the suite after
+each slice.
 
 ## Deliverables
-Shipped features (PRs, flagged, tests green, acceptance criteria met); **updated `FEATURE_OPPORTUNITIES.md`** (built items marked); **`BUILD_LOG.md`** (per feature/slice: what was built, files, commit/PR, flag, verification incl. UI checks, decisions, spec divergences); updated docs/feature docs for everything shipped.
+
+- Shipped features as PRs, flagged, with tests green and acceptance criteria met.
+- **An updated `FEATURE_OPPORTUNITIES.md`** with the built items marked.
+- **`BUILD_LOG.md`**, per feature or slice: what was built, the files, the commit or PR, the flag, the verification including UI checks, the decisions, and any divergence from the spec.
+- Updated docs and feature docs for everything shipped.
 
 ## Done when
-Every feature in the agreed set is shipped (slice or full, as agreed), deferred (logged), or blocked on a decision; changes committed/PR'd with green build/tests; each shipped feature meets its acceptance criteria and clears the relevant lenses; register and docs updated; and a **final integration pass** runs the full suite with flags in their intended default state and no cross-feature regressions. The updated FINDINGS_REGISTER.md passes `node <plugin-root>/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root . --consumed <pre-run copy>` — no consumed item vanishes or closes without a pinned terminal form. Present a short summary — shipped (and behind which flags) / deferred / blocked — then the PR list and updated register path.
+
+- Every feature in the agreed set is shipped as a slice or in full as agreed, deferred and logged, or blocked on a decision.
+- Changes are committed or opened as PRs with green build and tests.
+- Each shipped feature meets its acceptance criteria and clears the relevant lenses.
+- The register and the docs are updated.
+- A **final integration pass** ran the full suite with the flags in their intended default state, and found no cross-feature regressions.
+- The updated `FINDINGS_REGISTER.md` passes `node <plugin-root>/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root . --consumed <pre-run copy>`, so no consumed item vanishes or closes without a pinned terminal form.
+- A short summary is presented, naming what shipped and behind which flags, what was deferred, and what is blocked, followed by the PR list and the updated register path.
