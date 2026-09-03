@@ -4,7 +4,7 @@
 //
 //   node scripts/digest.mjs [--cap <lines>] [--head <n>] [--tail <n>] [--line <chars>]
 //                           [--shape auto|<name>] [--store <dir>] [--no-store] [--json]
-//                           -- <exe> [args...]
+//                           [--cwd <dir>] -- <exe> [args...]
 //
 // WHY: the receipted baseline in `code-ops-docs/55 Operations/MEASUREMENTS.md` puts tool results
 // at 77.6% of all context characters. Truncating them saves bytes and hopes nothing important was
@@ -20,6 +20,12 @@
 // failing build still fails the wrapper. `--` is required; a missing one exits 2 with usage, and
 // an executable that cannot be spawned exits 127.
 //
+// `--cwd <dir>` names the directory the command runs in, so a caller that would otherwise write
+// `cd <dir> && <cmd>` keeps the no-shell contract. That directory is the working directory for
+// the whole run: the spawn, the Windows shim lookup, the in-repository frame test the stack
+// shape uses, the default store slug, and the `cwd` field of the receipt row. A `--cwd` that
+// names no directory exits 2 with usage.
+//
 // Receipt store: `--store`, else `$CODE_OPS_DIGEST_DIR`, else
 // `~/.claude/code-ops/digest/<project slug of cwd>/` — a home-directory path by default, so a raw
 // output can never be committed by accident. Raw bytes go to `<store>/<ISO date>/<HHMMSS>-<sha8>.txt`
@@ -32,7 +38,7 @@
 // Exit: the wrapped command's exit code; 2 on usage error; 127 when the executable cannot spawn.
 
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, appendFileSync, existsSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
@@ -47,7 +53,8 @@ const sha256 = (s) => createHash('sha256').update(s).digest('hex');
 function usage(message) {
   if (message) console.error(`x ${message}`);
   console.error('usage: digest.mjs [--cap <lines>] [--head <n>] [--tail <n>] [--line <chars>]');
-  console.error('                  [--shape auto|<name>] [--store <dir>] [--no-store] [--json] -- <exe> [args...]');
+  console.error('                  [--shape auto|<name>] [--store <dir>] [--no-store] [--json] [--cwd <dir>]');
+  console.error('                  -- <exe> [args...]');
   console.error(`shapes: auto, ${Object.keys(SHAPES).join(', ')}`);
   process.exit(2);
 }
@@ -119,7 +126,7 @@ function spawnSpec(exe, args, cwd = process.cwd()) {
 // ---------------------------------------------------------------- arguments
 
 function parse(argv) {
-  const o = { ...DEFAULTS, shape: 'auto', store: null, noStore: false, json: false };
+  const o = { ...DEFAULTS, shape: 'auto', store: null, noStore: false, json: false, cwd: null };
   let i = 0;
   const num = (name) => {
     const v = Number(argv[++i]);
@@ -139,6 +146,9 @@ function parse(argv) {
     } else if (a === '--store') {
       o.store = argv[++i];
       if (!o.store || o.store.startsWith('--')) usage('--store needs a directory');
+    } else if (a === '--cwd') {
+      o.cwd = argv[++i];
+      if (!o.cwd || o.cwd.startsWith('--')) usage('--cwd needs a directory');
     } else if (a === '--no-store') o.noStore = true;
     else if (a === '--json') o.json = true;
     else usage(`unknown argument before '--': ${a}`);
@@ -155,18 +165,18 @@ function parse(argv) {
 // checkout's raw outputs never mix with another's.
 const projectSlug = (cwd) => String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 
-function storeDir(o) {
+function storeDir(o, workdir) {
   if (o.store) return resolve(o.store);
   if (process.env.CODE_OPS_DIGEST_DIR) return resolve(process.env.CODE_OPS_DIGEST_DIR);
-  return join(homedir(), '.claude', 'code-ops', 'digest', projectSlug(process.cwd()));
+  return join(homedir(), '.claude', 'code-ops', 'digest', projectSlug(workdir));
 }
 
 // Returns the raw path and its digest, or null when storing is off or fails. Never throws: an
 // unwritable store loses the recovery hints, not the run.
-function storeRaw(o, body, ts) {
+function storeRaw(o, workdir, body, ts) {
   if (o.noStore) return null;
   try {
-    const dir = storeDir(o);
+    const dir = storeDir(o, workdir);
     const day = ts.slice(0, 10);
     const clock = ts.slice(11, 19).replace(/:/g, '');
     const hash = sha256(body);
@@ -187,11 +197,21 @@ function appendReceipt(dir, row) {
 // ---------------------------------------------------------------- run
 
 const { o, cmd } = parse(process.argv.slice(2));
+
+// One working directory for the whole run. Without --cwd it is this process's own, so the
+// default paths through storeDir, digestText, and the receipt row are unchanged.
+const workdir = o.cwd === null ? process.cwd() : resolve(o.cwd);
+if (o.cwd !== null) {
+  let dirStat = null;
+  try { dirStat = statSync(workdir); } catch { /* reported on the next line */ }
+  if (!dirStat?.isDirectory()) usage(`--cwd needs an existing directory: ${o.cwd}`);
+}
+
 const [exe, ...rest] = cmd;
-const spec = spawnSpec(exe, rest);
+const spec = spawnSpec(exe, rest, workdir);
 
 let child;
-try { child = spawn(spec.file, spec.args, { stdio: ['inherit', 'pipe', 'pipe'], ...spec.options }); }
+try { child = spawn(spec.file, spec.args, { stdio: ['inherit', 'pipe', 'pipe'], cwd: workdir, ...spec.options }); }
 catch (e) { console.error(`digest: cannot spawn ${exe}: ${e.message}`); process.exit(127); }
 child.on('error', (e) => { console.error(`digest: cannot spawn ${exe}: ${e.message}`); process.exit(127); });
 
@@ -210,14 +230,14 @@ child.on('close', (code, signal) => {
   const SEP = '----- stderr -----';
   const hasErr = stderr !== '';
   const body = hasErr ? `${stdout}${stdout.endsWith('\n') || stdout === '' ? '' : '\n'}${SEP}\n${stderr}` : stdout;
-  const stored = storeRaw(o, body, ts);
+  const stored = storeRaw(o, workdir, body, ts);
   const rawPath = stored ? stored.path : null;
 
   // stderr sits after stdout and the separator inside the raw file, so its digest must report
   // file-absolute line numbers or every `sed -n` hint it prints would be wrong.
   const outLines = stdout === '' ? 0 : stdout.split('\n').length - (stdout.endsWith('\n') ? 1 : 0);
   const offset = hasErr ? outLines + 1 : 0;
-  const opts = { cap: o.cap, head: o.head, tail: o.tail, line: o.line, shape, argv: cmd, rawPath, cwd: process.cwd() };
+  const opts = { cap: o.cap, head: o.head, tail: o.tail, line: o.line, shape, argv: cmd, rawPath, cwd: workdir };
   const dOut = digestText(stdout, opts);
   const dErr = hasErr ? digestText(stderr, { ...opts, offset }) : null;
 
@@ -235,7 +255,7 @@ child.on('close', (code, signal) => {
     appendReceipt(stored.dir, {
       v: 1,
       ts,
-      cwd: process.cwd(),
+      cwd: workdir,
       argv: cmd,
       exit,
       shape,

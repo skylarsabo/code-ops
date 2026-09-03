@@ -73,6 +73,7 @@ For **always-on** application (not just inside a skill), add a pointer in your r
 
 ## Loops & automation
 - **Tool-layer traceless gate:** a bundled `PreToolUse` hook (`hooks/hooks.json` + `hooks/enforce-traceless.mjs`) scans a `git commit` / `gh pr create|merge` Bash call for AI/tool trace before it runs and blocks on a hit; CI stays the fail-closed backstop.
+- **Opt-in output digest:** a second bundled `PreToolUse` hook (`hooks/digest-rewrite.mjs`) rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed with a receipt naming the raw file. It is off everywhere until a repository sets `CODE_OPS_DIGEST` to `1`, `on`, or `true` in the `env` block of its `.claude/settings.json`.
 - **Session-start routing card:** a bundled `SessionStart` hook (`hooks/routing-card.mjs`) prints a hard-capped routing card mapping task types to the right skill/orchestrator so the lead defaults into standard operating mode from the first turn.
 - **In-session loop:** run a skill repeatedly toward its "Done when" criteria with the built-in `/loop`.
 - **Before every PR:** run `local-review-gate` against the final committed diff. Keep deterministic tests in hosted CI; publish the local SHA-bound statuses when branch protection requires them.

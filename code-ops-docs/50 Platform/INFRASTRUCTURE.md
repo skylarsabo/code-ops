@@ -27,6 +27,21 @@ GitHub Actions provides CI. GitHub hosts pull requests, branch protection, and t
 
 Git hooks can regenerate derived host distributions and reject unsafe staging conditions. CI remains the backstop when hooks are missing or bypassed. Evidence: `AGENTS.md:115-117`.
 
+One bundled host hook is opt-in per repository. `digest-rewrite.mjs` stays inert until
+`CODE_OPS_DIGEST` holds `1`, `on`, or `true` in its environment, and a repository sets that in
+the `env` block of its own `.claude/settings.json`, which is the only supported way to turn it
+on:
+
+```json
+{ "env": { "CODE_OPS_DIGEST": "on" } }
+```
+
+Nothing else reads the variable, no default anywhere turns it on, and removing the block turns
+it off again. Keeping the switch per repository is what makes the measurement arm possible: one
+checkout runs with the digest and another runs without it, and their session receipts compare.
+Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-15` and
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:161`.
+
 ## Host projections
 
 The first host renderer maps canonical plugin packages into its marketplace projection and manifest. The opencode renderer maps them into `opencode-dist/`, including host-specific commands, agents, and configuration. Evidence: `AGENTS.md:108-117` and `scripts/build-opencode-dist.mjs:475-489`.

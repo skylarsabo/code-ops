@@ -17,7 +17,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "630a5b1b4b55a898aca0f7f697583f721b4ba8a00358ead94bbb6b566b94b91e",
+      "sourceDigest": "142b361bdd883396f50d5189067750f22a1bd70b0c25c568d4549cf8498fe703",
       "contentDigest": "d788e92c39c196ca12bd2f3bb62e1fe7eafccdb5091c7326230f0c36c384ce08"
     },
     {
@@ -29,7 +29,7 @@
         "scripts/**",
         ".claude-plugin/**"
       ],
-      "sourceDigest": "6432e31dea47148698fbdc533550e175c0e10a18d13838fa82537dff523c794e",
+      "sourceDigest": "5f9cfcf729e1b5f6b2469eabe7c21c809b434f9c730d86b385f606bbc065be5d",
       "contentDigest": "9561029564c0966b54d53913a12351a6e75043d39d8bab670f78e651c6bc2bff"
     },
     {
@@ -41,8 +41,8 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "e0a63f66e908547f2b4f897f7f3c711d38897e4c52e0645d77e1b92e37addf8e",
-      "contentDigest": "b524e83c4c465763e0c76419a257217575347b1d4f1b3016594b1e72dcdc3cdc"
+      "sourceDigest": "6e3e4d3f64cdbc1a7ee92b933d2d01fda7449ce5c52f737e1f7ea1adb3b01f6a",
+      "contentDigest": "27cda58bd44730fe787177c3a0629caf7e282d42efe9091824cb3a1520cfb691"
     },
     {
       "id": "data-model",
@@ -53,8 +53,8 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "e0a63f66e908547f2b4f897f7f3c711d38897e4c52e0645d77e1b92e37addf8e",
-      "contentDigest": "33711399bc526276401ae9a9a656877024dbb0f8690390767ec403da39b8cbf4"
+      "sourceDigest": "6e3e4d3f64cdbc1a7ee92b933d2d01fda7449ce5c52f737e1f7ea1adb3b01f6a",
+      "contentDigest": "540663fc211432c61cdfb15abce4740cc1242dd837f16926524dac8e8f323f4d"
     },
     {
       "id": "engineering-standards",
@@ -79,7 +79,7 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "bfcd828b641613c37ed706a53c95cc33be74f8914fbdd47b63bde60446285538",
+      "sourceDigest": "496726a4b10e110bbe2e20ed2e735d6d286921b742873789e06f6d0b1701ac9a",
       "contentDigest": "a983a7732075c18f67875c923673ec7477101ed6cf58cc229e9933ebe4858e01"
     },
     {
@@ -91,7 +91,7 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "e0a63f66e908547f2b4f897f7f3c711d38897e4c52e0645d77e1b92e37addf8e",
+      "sourceDigest": "6e3e4d3f64cdbc1a7ee92b933d2d01fda7449ce5c52f737e1f7ea1adb3b01f6a",
       "contentDigest": "4bc8fd0d7491f956de678ce30304135152c0537f46735a3741a0a25734100154"
     },
     {
@@ -112,7 +112,7 @@
         ".github/workflows/**",
         "scripts/**"
       ],
-      "sourceDigest": "c8d2768d3e7600e381848b2e91437d95deb452a59872d45baa137c04fd1b33ce",
+      "sourceDigest": "01766c0d68448e31751699087b2ecdcd0ea2579d8d33e4becd357e4367a994f2",
       "contentDigest": "401fc8ab942deaf9ba46dc357a683822e073bb0159e9f9e0f8fcfa900224784f"
     },
     {
@@ -124,8 +124,8 @@
         ".claude-plugin/**",
         "scripts/build-*.mjs"
       ],
-      "sourceDigest": "f6e1bf6c5b2c3f67a2114c002bd83a10e1b4adf3d85dbc14ecd7e1fe9d30a2eb",
-      "contentDigest": "0a155c92a1b50eb2cc692ef9d55728cb6669b4d35629e18dff06bc3c92c671bc"
+      "sourceDigest": "0892723c1f174004e8b2844e2cfd0064ade80a57ff814472285d2b704d6a1a89",
+      "contentDigest": "e7714d754e4148c59ef57c5d80c75b92337ff7a8288db1f56930195441644c48"
     },
     {
       "id": "observability",
@@ -135,8 +135,8 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "c8d2768d3e7600e381848b2e91437d95deb452a59872d45baa137c04fd1b33ce",
-      "contentDigest": "ac586bfd27a8aa296f246f3b057c947b84569b8d8a8dc8bde847773dd39d87cd"
+      "sourceDigest": "01766c0d68448e31751699087b2ecdcd0ea2579d8d33e4becd357e4367a994f2",
+      "contentDigest": "f2012c9df216e710813d3d62e8d20e7b1cf1ce338868f1e38053d59393e7fbf6"
     },
     {
       "id": "performance",
@@ -150,7 +150,7 @@
         "evals/record-collections/**",
         ".github/workflows/validate.yml"
       ],
-      "sourceDigest": "45ac7c2c0f4c8f6c9e9d5a845178b9fcd7f0bee18a7d0e6dba8bbe428ff443ff",
+      "sourceDigest": "995be66a8b2b4c3b1b2ef2553c73e57b14e5803d1a879917d99c399c07d0ad30",
       "contentDigest": "82d437873f3d7c490a0f004288958d469006014be53d9a7dd5406dc88cde8536"
     },
     {
@@ -175,7 +175,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "164f8f6cd00c529b1af535c91c9fda33bae9cb0537122ad4d4e2bfd7198d7f46",
+      "sourceDigest": "db6a3258be29de9105fb3fcdaad02a48d67610d555542ad5bbd4cc7e51949d78",
       "contentDigest": "31042490717e5eff0ea7465f014d911ba2cce62e34e21790ed0d6e04d03c76d4"
     },
     {
@@ -186,7 +186,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "164f8f6cd00c529b1af535c91c9fda33bae9cb0537122ad4d4e2bfd7198d7f46",
+      "sourceDigest": "db6a3258be29de9105fb3fcdaad02a48d67610d555542ad5bbd4cc7e51949d78",
       "contentDigest": "dcb139274a72cbc47e81396789886a559176cead1fc9596a46917931de8e20ae"
     },
     {
@@ -196,8 +196,8 @@
       "sources": [
         "**"
       ],
-      "sourceDigest": "4bb177a4ffec65ba7a792e27679207960048485b7ed730dee41e2a36abb7dbea",
-      "contentDigest": "f9d19258df1d2bacb88d0f322aed77b7da553b4d7ae2831c02003d10b7c1c7a0"
+      "sourceDigest": "a43458d64a118b41f256168c9a15609460e691fc45c418665ca00c79ac997bd8",
+      "contentDigest": "bbd3c0bc7bb8edd4a5c54da6cd3fb34b3b8dedd799a8d07e3b07125fa1f34c31"
     }
   ]
 }

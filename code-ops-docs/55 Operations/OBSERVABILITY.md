@@ -62,6 +62,8 @@ A `PreCompact` hook prints what a compaction summary must preserve, and the host
 
 The `SessionEnd` hook `session-receipt.mjs` appends one row per session to a local ledger: exact tokens by class for the main thread and its subagents, tool calls by tool, model mix, and wall time. It prints nothing to the model and fails open on every error. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:1-20`.
 
+The `PreToolUse` hook `digest-rewrite.mjs` changes what a tool result looks like, and only in a repository that opted in. With `CODE_OPS_DIGEST` on, an allowlisted simple Bash command runs under `digest.mjs`, so the result the session sees is the compressed view: kept lines, an `[elided N lines: sed -n 'A,Bp' <raw path>]` marker for each region that went, and a closing trailer naming the exit code, the shape, the line counts before and after, and the raw file's sha256. The whole untouched output stays on disk at that raw path, under `~/.claude/code-ops/digest/<project slug>/<ISO date>/` by default, with one row per run in `DIGEST_RECEIPTS.jsonl` beside it. A command outside the contract arrives exactly as it always did. Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:1-41` and `scripts/digest.mjs:166-195`.
+
 `context-audit.mjs` reads the same transcripts on demand and reports tokens, context characters by tool, Bash output by command family, and repeat reads, sanitized by default. The [measurements reference](MEASUREMENTS.md) owns the baseline rows and the method for adding one. The sanitization contract lives beside the family function. Evidence: `scripts/context-audit.mjs:1-18` and `scripts/transcript-lib.mjs:63-70`.
 
 ## Record-collection signals
