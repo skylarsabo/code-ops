@@ -16,7 +16,7 @@
 //
 // Exit: 0 = every pinned id checked out; 1 = a pin failed; 2 = usage error or fetch failure.
 
-import { PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER } from './model-tiers.mjs';
+import { PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits } from './model-tiers.mjs';
 
 const REGISTRY_URL = 'https://models.dev/api.json';
 const argv = process.argv.slice(2);
@@ -35,8 +35,10 @@ for (const [id, provider] of Object.entries(PROVIDER_TIERS)) {
   if (!provider.label) fail(`${id}: no label`);
   if (!provider.notes) fail(`${id}: no notes — a reader needs to know why the ladder looks like this`);
   for (const tier of TIER_ORDER) {
+    if (tier === 'frontier' && provider.models?.frontier === null) continue; // lead inherits the session model
     if (!provider.models?.[tier]) fail(`${id}: no model pinned for the ${tier} tier`);
   }
+  if (provider.registry === 'cli' && !/^\d{4}-\d{2}-\d{2}$/.test(provider.verifiedAt ?? '')) fail(`${id}: a cli-verified provider needs a verifiedAt date`);
 }
 
 let checked = 0;
@@ -54,12 +56,16 @@ if (FETCH) {
   }
 
   for (const [id, provider] of Object.entries(PROVIDER_TIERS)) {
+    // A provider verified against its host's own model list is not in models.dev; its ids are
+    // checked with `opencode models` on the date the entry records, never fetched here.
+    if (provider.registry === 'cli') { console.log(`  skip ${id}: verified against the host CLI on ${provider.verifiedAt}`); continue; }
     const known = registry[id]?.models;
     if (!known) { fail(`${id}: provider is absent from the registry — check the provider id`); continue; }
     // One id can serve several rungs, so verify the distinct set and report each rung using it.
     const byModel = new Map();
     for (const tier of TIER_ORDER) {
       const model = provider.models[tier];
+      if (model === null) continue;
       if (!byModel.has(model)) byModel.set(model, []);
       byModel.get(model).push(tier);
     }

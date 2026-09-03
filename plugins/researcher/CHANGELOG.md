@@ -2,6 +2,8 @@
 
 ## 0.13.11
 - Documentation sweep: the README and all seven skill pages are rewritten onto the house writing standard, with no em-dashes and no semicolons in prose, and the README gains subagent and context-economy sections naming capability tiers, `co.mjs context skim`, and the suite's default-on hooks with their off switches. No phase, checkpoint, script invocation, or `CONVENTIONS.md` citation changed.
+## 0.13.10
+- `CONVENTIONS.md` and both agent definitions rewritten to the house writing standard: no em-dashes and no semicolons in prose, one instruction per sentence, and headings as noun phrases. Meaning and every section id are unchanged. §1 now names the session mechanisms that are on by default, their off switches, and the fact that none of them reaches a network.
 
 ## 0.13.8
 - Vendored `repo-map.mjs`, `import-graph.mjs`, and `symbol-lib.mjs` refreshed: the map and the graph now read their definition rules and their import extraction from the shared library instead of their own copies. Output is unchanged.
