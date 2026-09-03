@@ -80,7 +80,7 @@
         ".github/workflows/**"
       ],
       "sourceDigest": "e0141417db2354a62dae13929d8b983b56a545f5da0a77b85921602c97338dd4",
-      "contentDigest": "b931f265598f94714975ab339ea065ad7fb67394cbbbae02f208ea8615305e8b"
+      "contentDigest": "42ea4c936f31602403afc16f9a1590c83afc04af48b9777096b72a34cf2f065a"
     },
     {
       "id": "techniques",
@@ -102,7 +102,7 @@
         "plugins/*/skills/**"
       ],
       "sourceDigest": "bd1711905e46d12cc95d4e46a80be1bf26cd278d490d6ee383efdfc377eae9f7",
-      "contentDigest": "b7c239f870953b8e1ccc3a62751b07b47a2d3b5dfd1a32d42a7200cc7d422c66"
+      "contentDigest": "ce2ffeb1731bc88c362144ebd0b0e106861d4289ac5fd4e476f7f68dd626c629"
     },
     {
       "id": "ci-delivery",
