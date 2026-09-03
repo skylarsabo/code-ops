@@ -124,13 +124,13 @@ A digest receipt is one JSON line, version `1`, with `ts`, `cwd`, `argv`, `exit`
 tokens exactly as the caller gave them. `sha256` covers the raw file named by `raw`, which holds
 the command's stdout, then a `----- stderr -----` separator and its stderr when stderr is not
 empty. `linesIn` counts that whole file; `linesOut` counts what the digest printed, including its
-trailer. Evidence: `scripts/digest.mjs:234-249` and `scripts/digest.mjs:210-213`.
+trailer. Evidence: `scripts/digest.mjs:254-269` and `scripts/digest.mjs:230-233`.
 
-The store lives outside the repository, at `~/.claude/code-ops/digest/<project slug of cwd>/`,
+A row's `cwd` is the directory the command ran in, which under `--cwd` is the target the caller named, while the store it is filed under follows the directory the digest started in. The store lives outside the repository, at `~/.claude/code-ops/digest/<project slug of cwd>/`,
 unless `--store` or `$CODE_OPS_DIGEST_DIR` names another directory. Raw files sit under
 `<store>/<ISO date>/`; the ledger is `<store>/DIGEST_RECEIPTS.jsonl`. Both writes fail open, so a
 run whose store is unwritable still prints a correct digest with no raw path. Rows carry the
-working directory and the command, never the output. Evidence: `scripts/digest.mjs:156-185`.
+working directory and the command, never the output. Evidence: `scripts/digest.mjs:166-195`.
 
 ## Retention and sensitivity
 

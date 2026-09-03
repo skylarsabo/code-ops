@@ -193,8 +193,16 @@ plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
 `digest.mjs` spawns the command after `--` directly, with no shell, and captures stdout and
 stderr apart. The child's exit code becomes the digest's exit code on every path, including a
 signal kill. A missing `--` exits 2 with usage. An executable that cannot spawn exits 127 and
-names itself. Evidence: `scripts/digest.mjs:121-150`, `scripts/digest.mjs:194-196`, and
-`scripts/digest.mjs:203-204`.
+names itself. Evidence: `scripts/digest.mjs:128-160`, `scripts/digest.mjs:213-216`, and
+`scripts/digest.mjs:223-224`.
+
+`--cwd <dir>` names the directory the command runs in, so a caller that would otherwise write
+`cd <dir> && <cmd>` keeps the no-shell contract. That directory becomes the working directory
+for the spawn, the Windows shim lookup, the in-repository frame test the stack shape applies,
+the default store slug, and the `cwd` field of the receipt row. Without the flag it is the
+digest's own working directory, so every default path is unchanged. A `--cwd` naming no
+directory exits `2` with usage. Evidence: `scripts/digest.mjs:201-208` and
+`scripts/digest.mjs:213-214`.
 
 One shape is chosen per invocation. The detectors run in a fixed order, and the command tokens
 bias only the cases the detectors leave open. Nine shapes exist: `json`, `diff`, `test`,
@@ -221,13 +229,66 @@ printed line is always the trailer
 `[exit <code> · <shape> · <rawLines> lines → <outLines> · raw <path> · sha256:<first 12>]`, with
 `raw -` when nothing was stored. A stderr digest offsets its line numbers past the stdout section,
 so its recovery hints address the raw file. Evidence: `scripts/digest-lib.mjs:102-108`,
-`scripts/digest.mjs:224-232`, and `scripts/digest.mjs:216-222`.
+`scripts/digest.mjs:244-252`, and `scripts/digest.mjs:236-242`.
 
 Raw bytes go to `--store`, else `$CODE_OPS_DIGEST_DIR`, else
 `~/.claude/code-ops/digest/<project slug of cwd>/`, at `<store>/<ISO date>/<HHMMSS>-<sha8>.txt`.
 The default is a home-directory path, so a raw output is never inside a repository. Store writes
 fail open: an unwritable store prints the digest with `raw -` and keeps going. Evidence:
-`scripts/digest.mjs:156-185`.
+`scripts/digest.mjs:166-195`.
+
+## Digest rewrite hook
+
+`digest-rewrite.mjs` is a `PreToolUse` Bash stage that turns an allowlisted simple command into
+a digest run. It is opt-in and off everywhere. The hook does nothing unless `CODE_OPS_DIGEST`
+holds `1`, `on`, or `true`, compared without regard to case. Any other value, unset and `off`
+among them, exits `0` before the payload is read. A repository opts in through the `env` block
+of its `.claude/settings.json`, and that is the only supported way. Evidence:
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:161` and
+`plugins/code-ops-suite/hooks/hooks.json:5-16`.
+
+The simple-command contract decides every rewrite. The command runs at most 2000 characters.
+One leading `cd <dir> && ` may appear, and it becomes `--cwd <dir>` rather than a shell. What
+follows it carries no `|`, `&`, `;`, `<`, `>`, backtick, `$`, or newline in any position, so no
+pipe, list, redirect, subshell, expansion, or heredoc survives. Every token is bare or one
+double-quoted string holding none of `"`, `$`, backtick, backslash, or newline. The first token
+names a family in the allowlist, under that family's subcommand rule, and a `gh` call carrying
+`--json`, `--jq`, or `--template` is refused because structured output is read by a parser
+rather than a person. A `cd` directory token carries no backslash either, because the hook hands
+it to `--cwd` as a path where a shell would have read an escape. Evidence:
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:46-82`,
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:90-129`, and
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:132-154`.
+
+A command that already runs the digest passes through, so no output is wrapped twice. The
+script path resolves from the hook's own location, and a missing script passes through as well.
+Every pass-through prints nothing at all. Evidence:
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:149-150` and
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:171-175`.
+
+The hook states no permission decision. It returns `updatedInput` carrying the rewritten command
+beside the rest of the tool input, plus one line of `additionalContext` naming where the raw
+output lives. The installed host reassigns the tool input to the hook's `updatedInput` and only
+then runs its permission evaluation, so the operator's own rules judge the rewritten command as
+they judge any other `node` call. That moves the permission key: a rule written for `git`, `gh`,
+or `sed` no longer matches the wrapped form, and a broad `node` allow rule admits it. An operator
+who keeps command-specific deny or ask rules should mirror them for `node` before opting in.
+With `CODE_OPS_DIGEST_STORE=off` the rewrite adds `--no-store`, so the digest keeps its
+compression and its contract but writes no raw file and no receipt row. The default store slug
+follows the directory the digest process started in, never a `--cwd` target. Version `2.1.257` of the host bundle under
+`~/.local/share/claude/versions/` carries `case"hookUpdatedInput":Ie=Cn.updatedInput;break;` at
+byte offset `188975121` and `await xPe($e,e,Ie,o,d,p,n)` at `188978021`, and the function that
+call reaches returns `{decision:await d(n,r,o,p,y),input:r}` for a hook that decided nothing, at
+offset `187458088`. Version `2.1.251` reassigns the same way at offset `186659765`. Because the
+host re-evaluates, no `ask` is needed to put the rewritten command in front of the operator, and
+the hook never returns `allow`. Evidence:
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:177-189` and
+`evals/digest-hook/run.mjs:125-134`.
+
+The hook fails open on every path. Bad JSON, a missing command, another tool, or any thrown
+error exits `0` with no output. It never exits `2`, never blocks a call, and never spawns or
+imports beyond three Node built-ins, because it runs in front of every Bash call. Evidence:
+`plugins/code-ops-suite/hooks/digest-rewrite.mjs:160-191`.
 
 ## Script entrypoint
 
