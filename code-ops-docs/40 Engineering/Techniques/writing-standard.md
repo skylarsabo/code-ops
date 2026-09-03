@@ -66,11 +66,15 @@ Rules serve the principles, not the reverse.
 
 ## Mannered prose
 
-Mannered prose substitutes metaphor and flourish for direct statement: "a dial worth
-turning" for "a parameter worth varying", "earns its keep" for "still matters". The
-phrase displays the writer instead of conveying the idea, and it drags in connotations the
-writer did not choose. When a literal phrase exists, use it. The narration scanner reports
-the common forms as an advisory.
+Remove all mannered prose. Mannered prose substitutes metaphor and flourish for direct
+statement. Instead of "a parameter worth varying," the mannered writer produces "a dial
+worth turning." Instead of "this point still matters," they write "this point earns its
+keep." The phrases exist to display the writer, not to convey the idea, and readers can
+tell. That is why mannered prose irritates: it makes the reader work harder so the writer
+can perform. It is also imprecise. Metaphors drag in connotations the writer did not choose
+and cannot control. The fix is to say what you mean. When a literal phrase is available,
+use it. The narration scanner reports the common
+forms as an advisory, and the operator removes the rest by reading.
 
 ## Formatting
 
