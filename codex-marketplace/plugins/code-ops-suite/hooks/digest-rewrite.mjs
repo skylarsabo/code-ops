@@ -2,7 +2,8 @@
 // PreToolUse hook: opt-in rewrite of a simple Bash command into a digest run, so tool output
 // enters the context compressed and receipted instead of whole.
 //
-// Reads a coding-agent PreToolUse payload from stdin. When the switch is on and the command
+// Reads a coding-agent PreToolUse payload from stdin. The digest itself prints a short output raw
+// (see PASS-THROUGH in scripts/digest.mjs), so the rewrite costs nothing on a small result. When the switch is on and the command
 // meets the simple-command contract below, the hook returns `updatedInput` carrying
 // `node "<plugin>/scripts/digest.mjs" [--cwd "<dir>"] -- <original tokens verbatim>` plus one
 // line of `additionalContext`. Everything else passes through untouched.
@@ -167,8 +168,9 @@ function rewrite(command, scriptPath) {
 }
 
 const STORE_OFF = /^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST_STORE ?? '');
-const CONTEXT = 'Output digested by code-ops: elided regions carry a sed hint into the raw file '
-  + 'named in the trailer. Run the original command only if you need the whole output.';
+const CONTEXT = 'Output runs through the code-ops digest: a short output arrives raw, and a long one '
+  + 'arrives compressed, with a sed hint per elided region into the raw file named in the trailer. '
+  + 'Run the original command only if you need the whole output.';
 const CONTEXT_NO_STORE = 'Output digested by code-ops with the raw store off: elided regions are not '
   + 'recoverable. Run the original command if you need the whole output.';
 

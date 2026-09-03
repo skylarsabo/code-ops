@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.72.0
+- `digest.mjs` passes a short output through raw: an output of at most `--passthrough-below` bytes (default 1536), or one the digest cannot make smaller than the raw bytes, is printed on its own streams with no trailer, no raw file, and no receipt row. `--passthrough-below 0` turns pass-through off and `--json` never passes through. The session measurement of 2026-09-03 found 77 of 84 receipted commands paid more in trailer than they saved, which is what this closes. The digest hook's context line and `evals/digest` pin the new contract.
+
 ## 1.71.0
 - The plugin README and all 34 skill pages move onto the house writing standard: no em-dashes and no semicolons in prose, one instruction per sentence, active voice, noun-phrase headings, and Done-when sections written as vertical lists rather than semicolon chains. The pinned always-gated clause in `everything` stays byte-identical.
 - The pages that touch the context-economy mechanisms now name them and their off switches. The README gains the `co.mjs` entrypoint and `cli-lib.mjs`, `skim.mjs`, the PreCompact preservation hook, and the session receipts with `context-audit.mjs receipts --by-arm` and `--purge-before`. `full-sweep` names `skim.mjs` and `context-query.mjs` at Phase 0, `run-cost-audit` reads the receipt ledger by arm, and `codebase-audit`, `pr-review`, `normalize`, and `ship` name `co.mjs scan overbuild` as the mechanical floor under the size-and-boundary lens.

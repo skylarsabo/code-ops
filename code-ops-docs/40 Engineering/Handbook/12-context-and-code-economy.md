@@ -6,7 +6,7 @@ This chapter is for anyone who runs the suite and wants to know what it does to 
 
 The suite compresses at the source and points instead of pasting. Four mechanisms and one instruction card do that work:
 
-- **Output digest.** Every allowlisted simple Bash command runs through `scripts/digest.mjs`. Its output arrives compressed by shape, with a trailer naming the raw file and its sha256, so a truncated result is a pointer and never a loss. Errors, failures, summaries, and headers are kept by contract.
+- **Output digest.** Every allowlisted simple Bash command runs through `scripts/digest.mjs`. A short output, at most 1,536 bytes, arrives raw. A longer one arrives compressed by shape, with a trailer naming the raw file and its sha256, so a truncated result is a pointer and never a loss. Errors, failures, summaries, and headers are kept by contract.
 - **Symbol index.** `scripts/context-query.mjs` answers a structural question with `file:line` anchors, one-line signatures, and edge lists. A hook re-indexes each file the session edits. Hosts without a Bash tool reach the same index through the `code-ops-query` MCP server.
 - **Ladder card.** An implementer subagent starts with a ten-line card: the ordered objective and the six-rung ladder that decides whether new code needs to exist at all.
 - **Session receipts.** One row per session lands in a home-directory ledger with exact token usage, tool calls, the context resident at session end, and which mechanisms ran. Nothing leaves the machine.
