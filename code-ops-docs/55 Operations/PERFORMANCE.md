@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Performance
@@ -39,11 +39,22 @@ The 2026-08-26 Windows baseline used Node v24.16.0 on x64 with 32 logical CPUs a
 
 The map and graph commands were `node scripts/repo-map.mjs --root . --out NUL` and `node scripts/import-graph.mjs --root . --out NUL` in the clean baseline worktree. Their raw samples in milliseconds were `[300.637, 317.448, 313.255, 308.345, 310.004, 307.945, 323.077]` and `[207.235, 204.457, 181.915, 202.929, 207.366, 197.281, 214.284]`.
 
-The Atlas comparison ran both implementations against the same seven freshly digest-stamped sections in the candidate worktree based on `41c5fc9`. The baseline command loaded `scripts/atlas-check.mjs` from the clean baseline worktree; the candidate command loaded it from the staged candidate and passed the same explicit candidate `--atlas` and `--root` paths. Baseline samples were `[1711.692, 1674.193, 1704.833, 1694.947, 1648.573, 1713.567, 1689.172]`. Candidate samples were `[1297.810, 1268.396, 1253.024, 1256.069, 1315.157, 1244.291, 1264.359]`.
+The Atlas comparison ran both implementations against the same seven freshly digest-stamped sections in the candidate worktree based on `41c5fc9`. The baseline command loaded `scripts/atlas-check.mjs` from the clean baseline worktree. The candidate command loaded it from the staged candidate and passed the same explicit candidate `--atlas` and `--root` paths. Baseline samples were `[1711.692, 1674.193, 1704.833, 1694.947, 1648.573, 1713.567, 1689.172]`. Candidate samples were `[1297.810, 1268.396, 1253.024, 1256.069, 1315.157, 1244.291, 1264.359]`.
 
 Atlas was the dominant exploratory component of a cold context snapshot. Reusing the tracked paths already returned by each digest query and caching repeated immutable revision pins reduced the explicit-root seven-section check used by context snapshots from 44 Git subprocesses to 33. The matched median fell 25.4%. `atlas-check check --stats` exposes the deterministic process count, and its regression eval pins the optimized two-section fixture at 13 calls.
 
 Exploratory measurements also observed a 321.0 ms warm context-snapshot median, a 316.0 ms verification median, one 2,297.3 ms cold snapshot, and one 216.40 s record-collection eval. They are routing leads, not conformance baselines: their raw samples or comparable cold-state preparation were not retained. An unretained CPU profile suggested that record-eval process startup deserves the next investigation. Retain no change there until a separate isolation design preserves every platform case, history shape, failure distinction, and zero-output refusal guarantee.
+
+## Context bytes as a measured path
+
+Agent context bytes are a performance path with their own measurement loop, separate from wall
+time. `context-audit.mjs` reads local session transcripts and reports tokens, context characters
+by tool, and Bash output by command family. `context-audit.mjs receipts --by-arm` reads the
+`SessionEnd` receipt ledger and prints per-session means grouped by the switches each session ran
+under, so one mechanism is compared on and off across two checkouts rather than argued about. The
+[measurements reference](MEASUREMENTS.md) owns the baseline rows and the method for adding one,
+and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) owns the switches that
+define an arm. Evidence: `scripts/context-audit.mjs:1-22` and `scripts/context-audit.mjs:93-132`.
 
 ## Regression policy
 
