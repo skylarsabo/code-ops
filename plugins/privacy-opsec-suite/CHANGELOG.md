@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.19.1
+- Vendors `co.mjs` and `cli-lib.mjs` so `${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs` resolves in every plugin. The implementation line names `LEAK_REGISTER.md` as the follow-up route for a privacy finding.
+
 ## 1.19.0
 - Both operatives batch independent tool calls in one round. Conventions carry the finish-the-turn check and the scope-discipline rule for implementation work.
 

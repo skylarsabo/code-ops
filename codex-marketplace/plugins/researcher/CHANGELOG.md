@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.1
+- Vendors `co.mjs` and `cli-lib.mjs` so `<plugin-root>/scripts/co.mjs` resolves in every plugin.
+
 ## 0.13.0
 - `gatherer` and `claim-checker` batch independent tool calls in one round, verify a name against the installed version or a primary source before reporting on it, and convey sources in indirect speech with at most one short marked quotation. Conventions carry the finish-the-turn check.
 

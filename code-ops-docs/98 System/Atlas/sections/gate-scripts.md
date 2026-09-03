@@ -33,3 +33,5 @@ The traceless scanner distinguishes Unicode emoji presentation from layout glyph
 Measurement now has a receipt path of its own. `transcript-lib.mjs` parses the host's local session transcripts with usage deduplicated by message id and subagent threads summarized apart from the main thread. `context-audit.mjs` is its sanitized CLI, and the `SessionEnd` hook is its ledger writer. None of the three touches the model, the network, or the repository tree; a row without a receipt does not enter the measurements reference.
 
 The narration scanner reports mannered prose (metaphor standing in for a literal phrase) as an advisory category beside filler.
+
+One entrypoint now stands over the canonical scripts. `co.mjs` resolves a domain and verb to a sibling script, rewrites the argument list, and imports it. It migrates no logic: every script keeps its own flags, its own exit codes, and its existing direct path. `cli-lib.mjs` ships beside it and holds the flag parser, usage and exit helpers, git wrapper, and file walker that the scripts had each rewritten, but no script consumes it yet. Skills switch to the verb form in a later change.

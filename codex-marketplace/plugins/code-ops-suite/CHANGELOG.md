@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.53.0
+- `scripts/co.mjs` is one entrypoint over the canonical scripts: `co <domain> <verb> [args...]` resolves the verb to a sibling script through a static table, rewrites `process.argv`, and imports it, so the wrapped script's exit code and output are its own. `co --help` lists every domain and verb; an unknown domain, an unknown verb, or a verb whose script this plugin does not vendor exits 2.
+- `scripts/cli-lib.mjs` collects the flag parser, usage and exit helpers, git wrapper, and file walker that the canonical scripts had rewritten one per file. No script migrates onto it in this release; it ships beside `co.mjs` so the first domain migration is a one-file diff.
+
 ## 1.52.0
 - Doctrine aligned with the current frontier-model prompting guidance: operatives batch independent tool calls in one round, the lead dispatches in the background and continues independent work, every plugin's conventions carry a finish-the-turn check, the implementation loop keeps changes and committed tests to what the task asks, edits are surgical, and a sourcing brief never runs at low effort. Effort level names are declared non-portable across model generations.
 - A `PreCompact` hook prints the six-item preservation instruction, which the host reads as the compaction's custom instructions, and tells the summary to leave redaction markers as they stand. `handoff` keeps the developer's constraints and open promises in their exact words.

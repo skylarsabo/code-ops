@@ -188,6 +188,18 @@ The local judgment gate is independent of Run Contract versions. It stores ignor
 plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
 `scripts/local-review-gate.mjs:48-53` and `scripts/local-review-gate.mjs:248-468`.
 
+## Script entrypoint
+
+`co <domain> <verb> [args...]` resolves one verb to one sibling script through a static
+table and hands it every remaining argument unchanged. A subcommand-driven verb declares
+the subcommand to insert when the caller supplied none, so `co atlas check --atlas <dir>`
+reaches `atlas-check.mjs check`, and an explicit subcommand passes through. The entrypoint
+exits 2 on an unknown domain, an unknown verb, or a verb whose script the running plugin
+does not vendor. `--help` and `--version` exit 0. Every other exit code, and all stdout and
+stderr, belong to the wrapped script. The direct `node scripts/<name>.mjs` paths stay valid
+and unchanged. Evidence: `scripts/co.mjs:20-22`, `scripts/co.mjs:163-183`, and
+`scripts/co.mjs:186-196`.
+
 ## Documentation manifest
 
 Manifest v1 contains `version`, `hub`, and `domains`. Manifest v2 retains those fields and adds `runs`, `recordCollections`, and `legacyPaths`. Version 2 requires vault standard v4. Version 1 remains valid under standards v3 and v4 when no collection is declared.

@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.17.1
+- Vendors `co.mjs` and `cli-lib.mjs` so `${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs` resolves in every plugin.
+
 ## 2.17.0
 - Every operative batches independent tool calls in one round, `tracer` carries the dense-report clause the other agents already had, and `verifier` phrases repro questions as bug questions and strips base64 from quoted output.
 - Conventions carry the finish-the-turn check, and the fix loop keeps changes and committed tests to what the task asks.
