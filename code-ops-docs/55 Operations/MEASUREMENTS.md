@@ -84,22 +84,24 @@ The symbol index (`context-query.mjs`, hook `index-refresh.mjs`, switch `CODE_OP
 
 ## Pre-registered comparison, Phase 6
 
-Every receipt row records which opt-in switches the session ran under, in `arms`, and the
+Every receipt row records which mechanisms the session ran under, in `arms`, each on unless its
+switch said off, and the
 context resident at session end, in `contextAtEnd`. `node scripts/context-audit.mjs receipts
---by-arm` groups rows by that record and prints per-session means, so an arm reads against the
-`none` control on the same directory with the same command. Rows written before the record
-existed group as `unknown` and are not a control.
+--by-arm` groups rows by that record and prints per-session means, so an arm reads against
+sessions run with a mechanism off on the same directory with the same command. Rows written
+before the record existed group as `unknown` and are not a control.
 
-The schedule is one arm at a time on this repository, ten sessions each, in this order: `none`,
-`digest`, `digest+index`, `digest+index+ladderCard`. A session counts when it ends normally and
-lasts over five minutes. The switches live in the ignored `.claude/settings.local.json` of this
-checkout, never in the tracked settings, so the arm is a property of this machine's sessions.
+The mechanisms ship on by default, so the control is a run with switches off. The schedule is
+ten sessions each on this repository, in this order: all three off, digest only, digest and
+index, then the full default. A session counts when it ends normally and lasts over five
+minutes. The off switches live in the ignored `.claude/settings.local.json` of this checkout,
+never in the tracked settings, so the arm is a property of this machine's sessions.
 
 The decision rules are fixed before the rows exist:
 
-- **Digest.** The default flips on when tool-result characters per turn fall by at least a
-  quarter against `none`, total tokens per session do not rise, and every eval stays green. A
-  smaller fall keeps the switch opt-in. A rise in tokens per session removes the hook.
+- **Digest.** The default stays on when tool-result characters per turn fall by at least a
+  quarter against the off run, total tokens per session do not rise, and every eval stays green.
+  A smaller fall flips the default to off. A rise in tokens per session removes the hook.
 - **Index.** The index stays when context at end and tool-result characters per session both
   fall against the preceding arm with tool calls per session not up by more than a tenth. Any
   other outcome removes the refresh hook and keeps the query tool as a plain command.

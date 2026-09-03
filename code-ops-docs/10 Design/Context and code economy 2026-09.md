@@ -192,7 +192,7 @@ The suite's prose was hardened for weak models: sixteen items landed as mechanic
 - Doctrine in briefs, not a per-turn persona. The SubagentStart card is an experiment arm.
 - Zero npm dependencies. Optional external providers are detected at preflight and treated as data.
 - Every mechanism beats the no-mechanism control under `evals/README.md` pre-registration, or it is removed.
-- The digest hook ships opt-in per repository and turns on by default only after Phase 5.
+- The digest hook shipped opt-in per repository through Phase 5. On 2026-09-03 the operator decided the mechanisms ship on by default with a per-user or per-repository off switch, so the suite works out of the box, and Phase 6 measures the default against off runs.
 - Measurement reads local transcripts and receipts. No model tokens, no egress, no hand-entered counts.
 - Own implementations only. Nothing from rtk, ponytail, or codegraph is vendored or wrapped.
 - One entrypoint with shims, migrated by domain. No rewrite in another language before the hot path is measured.

@@ -3,11 +3,11 @@
 // at most ten lines, because SessionStart context never reaches a subagent and the ladder
 // (CONVENTIONS §11 "Size discipline") is what an implementer needs before it writes code.
 //
-// OPT-IN, and an experiment arm. The hook does nothing unless `CODE_OPS_LADDER_CARD` is `1`,
-// `on`, or `true` (case-insensitive) in the hook's environment; a repository sets that in the
-// `env` block of its `.claude/settings.json`. Phase 6 of the context and code economy design
-// note decides from the session receipts whether the card beats the brief-only control, and
-// removes it if it does not.
+// ON BY DEFAULT, OFF PER REPOSITORY OR USER, and a measured arm. The hook does nothing when
+// `CODE_OPS_LADDER_CARD` is `off`, `0`, or `false` (case-insensitive) in its environment, which
+// the `env` block of a `.claude/settings.json` sets at user or repository scope. Phase 6 of the
+// context and code economy design note reads the session receipts for the card against sessions
+// run with it off, and removes it if it does not earn its lines.
 //
 // Host contract (host 2.1.257 bundle): the SubagentStart input carries `agent_id` and
 // `agent_type` (offset 183160743; the input is built at 190336771), and the hook's
@@ -48,7 +48,7 @@ function implementerClass(agentType) {
 }
 
 function main() {
-  if (!/^(1|on|true)$/i.test(process.env.CODE_OPS_LADDER_CARD ?? '')) return;
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_LADDER_CARD ?? '')) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;

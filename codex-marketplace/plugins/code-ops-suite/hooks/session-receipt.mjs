@@ -31,7 +31,7 @@ function ledgerPath() {
 
 // Every caller (stdin end, stdin error, the timer) awaits the same promise, so a late
 // caller can never exit the process while the first is still writing the row.
-const on = (name) => /^(1|on|true)$/i.test(process.env[name] ?? '');
+const on = (name) => !/^(off|0|false)$/i.test(process.env[name] ?? '');
 
 function finish() {
   if (!pending) pending = doFinish();
@@ -66,8 +66,8 @@ async function doFinish() {
       toolCalls: main.toolCalls,
       toolResultChars: main.toolResultCharsTotal,
       contextAtEnd: main.contextAtEnd,
-      // Which opt-in mechanisms this session ran under, read from the same switches the hooks
-      // read, so the ledger can compare an arm against its no-mechanism control.
+      // Which mechanisms this session ran under, read from the same switches the hooks read: on
+      // unless the switch says off, so the ledger can compare an arm against sessions run with it off.
       arms: { digest: on('CODE_OPS_DIGEST'), ladderCard: on('CODE_OPS_LADDER_CARD'), index: on('CODE_OPS_INDEX') },
       files: 1 + subFiles.length,
       skipped: subFiles.length - subs.length,

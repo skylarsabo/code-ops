@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.65.0
+- The output digest, the index refresh, and the ladder card are on by default. Each hook runs unless its switch (`CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`) holds `off`, `0`, or `false`, which a user or a repository sets in the `env` block of a `.claude/settings.json`. The session receipt records each arm as on unless its switch said off, and the measurement page's control is a run with the switches off.
+- The SessionStart card carries three more lines from the current-model prompting guide: say what you are about to do and close with a recap that stands on its own, only you see a command's output, and the context-economy rules in one line.
+- The workflow gains a macOS job that runs the host-facing evals on the weekly schedule and on demand, never per pull request, because the operator works on Windows and macOS and macOS minutes cost ten Linux minutes.
+
 ## 1.64.0
 - `context-audit.mjs receipts --purge-before <ISO date>` is the receipt ledger's retention: it rewrites the ledger keeping rows at or after the date, through a scratch file renamed over the original, and reports the count removed. Nothing purges on its own.
 - The digest rewrite contract says how to mirror a read-only allow rule for the wrapped form: pin the script name and the family with a wildcard, never a bare `node` rule.

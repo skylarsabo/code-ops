@@ -19,6 +19,9 @@ function main() {
     'claim verification -> /researcher:research-verify',
     'everything (broad/multi-domain) -> /code-ops-suite:everything',
     'operatives at the strong tier for judgment work; effort by ambiguity; verdicts stay with the lead',
+    'say in a line what you are about to do, give brief updates while you work, and close with a recap that stands on its own',
+    'only you see a command\'s output; put what the user needs to read in your reply',
+    'context economy: skim before reading, query the symbol index before a map, digest output is on by default, size is a tie-breaker behind correctness, boundaries, performance, and readability',
     'see: code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md and code-ops-docs/40 Engineering/Techniques/dispatch-brief-template.md',
   ];
   console.log(lines.join('\n'));
