@@ -1,35 +1,118 @@
 ---
-description: "Use when you must decide whether to adopt a library or approach (A-vs-B-vs-build) and want a code-grounded fit assessment, migration cost, and a tiered recommendation; writes no code."
+description: "Use when you must decide whether to adopt a library or approach, comparing A against B against building it, and want a code-grounded fit assessment, migration cost, and a tiered recommendation. Writes no code."
 ---
 
-# LIBRARY EVAL — Should We Adopt X? A-vs-B-vs-Build, Grounded
+# Library evaluation: adopt it, build it, or keep the status quo
 
-**Invoked as `/researcher:library-eval`.** First read the bundled `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` — the research-integrity & egress model (`§A`), protocol, rails, evidence/citation discipline, hand-off map, and lenses, referenced by section.
-**Mode:** REVIEW · **Produces:** a comparison + recommendation brief (`LIBRARY_EVAL.md`, per the `§13` documentation standard) plus `EGRESS_MANIFEST.md` if any web source was used. Capabilities are verified against the version, not memory; **never edits code** — evaluates, recommends, hands off (`§11`).
+**Invoked as `/researcher:library-eval`.** First read the bundled
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
+(`§A`), the protocol, the rails, the evidence and citation discipline, the hand-off map, and
+the lenses, referenced by section.
 
-## Phase 0 — Frame the decision  *(checkpoint — egress is opt-in)*
-Pin the **need**, the **candidates** (A vs. B vs. …, plus *build-it-ourselves* and *do-nothing/status-quo* as named options when honest), and the weighted **decision criteria** for this repo — not a generic checklist. Local grounding sources first (`§2`): codebase, VCS history, installed-dependency docs via `${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs` (or the `code-ops-docs` MCP when `code-ops-suite` is installed) — no egress. Mark candidates **installed** (evaluable locally) vs. **web-only**.
-> **CHECKPOINT:** present need, full candidate set (including build and status-quo), weighted criteria, local-vs-web split; confirm scope. **Before any network egress (`§A`, `§3`):** name each external host/URL and why; get explicit opt-in. Approved web requests are recorded with `node ${CLAUDE_PLUGIN_ROOT}/scripts/research-manifest.mjs record ...` (time · tool · host · url · why). Proceed locally while the decision is pending.
+- **Mode:** REVIEW.
+- **Produces:** a comparison and recommendation brief in `LIBRARY_EVAL.md`, on the `§13`
+  documentation standard, plus `EGRESS_MANIFEST.md` when any web source was used.
+- **Rule:** capabilities are verified against the version, never from memory. The skill
+  never edits code. It evaluates, recommends, and hands off (`§11`).
 
-## Phase 1 — Ground in our code (requirements & constraints)
-Dispatch gatherer(s), in parallel over disjoint sub-questions, to derive *our* truth first, citing `file:line`, tiering each claim (`§7`): **requirements** (call sites, data shapes, hot paths, contracts touched) and **constraints** — runtime/language/version, peer-dependency bounds, build/packaging, performance budgets, deployment target, and the **privacy/egress posture** (phones home? bundles telemetry? opens a new outbound path?). Capture any incumbent it would replace and the migration seam. An ungrounded criterion is SPECULATIVE (`§A`).
+## Phase 0. Frame the decision  *(checkpoint, and egress is opt-in)*
 
-## Phase 2 — Gather real capabilities  *(verify against the version, not memory)*
-Never assert from training memory (`§10` source-quality):
-- **Installed candidates:** dispatch a gatherer per candidate, in parallel, to read the **installed version's** docs/types/source via `lib-docs` (or `current-docs` when available) — primary, zero-egress; cite the installed version, not "latest."
-- **Web-only candidates:** only after the Phase 0 opt-in, compose the `deep-research` skill (fan-out search → fetch → adversarial verify) for primary docs, repository, release notes, license. **Record every external request** in the manifest as you go (`§A`). Triangulate — primary over secondary; two independent secondaries beat one (`§7`).
-- **Build-it-ourselves:** scope the minimal implementation against Phase 1 — what we would own, test, maintain.
+Pin the need, the candidates, and the weighted decision criteria for this repository rather
+than a generic checklist. The candidate set includes building it ourselves and keeping the
+status quo, as named options, whenever that is honest. Take the local grounding sources
+first (`§2`): the codebase, version-control history, and installed-dependency documentation
+through `${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs`, or the `code-ops-docs` MCP server when
+`code-ops-suite` is installed. None of that egresses. Mark each candidate as installed,
+meaning evaluable locally, or as web-only.
 
-Pin each capability claim to its source (installed-doc, or external + manifest entry) and tier it; anything unverifiable against the actual version is `UNVERIFIED`, never guessed (`§4`).
+> **CHECKPOINT:** present the need, the full candidate set including build and status quo,
+> the weighted criteria, and the local-versus-web split, then confirm the scope. Before any
+> network egress (`§A`, `§3`), name each external host and URL and the reason, and get
+> explicit opt-in. Record an approved web request with
+> `node ${CLAUDE_PLUGIN_ROOT}/scripts/research-manifest.mjs record ...`, storing the time,
+> the tool, the host, the URL, and the reason. Proceed locally while the decision is pending.
 
-## Phase 3 — Score + disconfirm
-Dispatch a claim-checker per candidate, in parallel, to score it and run the disconfirmation pass (`§A`); weight by value × reach ÷ effort, adjusted for confidence/grounding (`§8`). Cover, cited and tiered: **fit & coverage** (our grounded requirements vs. the generic case; gaps and glue left to us) · **maintenance health** (release cadence, issue/PR signal, bus factor, recency — from its own repository, recorded if external) · **license** (compatibility with ours and our distribution; copyleft/attribution/field-of-use terms are a developer decision) · **supply-chain & egress trust** (transitive weight, install scripts, provenance, telemetry or new outbound paths; deep checks → `privacy-opsec-suite:supply-chain-trust`, not asserted here) · **migration cost** (call-site churn, data/contract migration, test changes, rollout/rollback; smallest adoption slice — one module behind a seam — before any wholesale switch) · **lock-in & reversibility** (proprietary formats, one-way doors, ecosystem capture). Drop or re-tier what doesn't survive: already solved here, incompatible with a hard constraint, or superseded (`§A`).
+## Phase 1. Ground in our code: requirements and constraints
 
-## Phase 4 — Recommendation with trade-offs + smallest slice
-Write the brief (`§13`): lead with the **recommendation in one paragraph** (which option, the decisive trade-off, overall tier CONFIRMED / PROBABLE / SPECULATIVE); then the **comparison table** against the weighted criteria, **grounded fit**, **migration cost** + **smallest adoption slice**, the runner-up and *why not*, **risks/trade-offs accepted**, open questions. Every sentence cited and tiered (`§7`); freshness-stamped with the SHA evaluated against (`§12`, `§13`); done only when the reader could act without re-researching (`§11`).
+Dispatch gatherers, in parallel over disjoint sub-questions, to derive our own truth first,
+citing `file:line` and tiering each claim (`§7`). Cover the requirements, meaning the call
+sites, data shapes, hot paths, and contracts touched. Cover the constraints, meaning the
+runtime, language, and version, the peer-dependency bounds, the build and packaging, the
+performance budgets, the deployment target, and the privacy and egress posture, which asks
+whether the candidate phones home, bundles telemetry, or opens a new outbound path. Capture
+any incumbent it would replace and the migration seam. An ungrounded criterion is
+SPECULATIVE (`§A`).
 
-## Hand-off (researcher proposes; others implement)
-Never edit code here (`§11`): decision + rejected alternatives → `code-ops-suite:adr`; adoption/migration and any version bump → `code-ops-suite:dependency-upgrade`; flagged trust/egress concerns → `privacy-opsec-suite:supply-chain-trust`. State the hand-off target explicitly in the brief.
+## Phase 2. Gather the real capabilities  *(verify against the version, not memory)*
+
+Never assert from training memory (the `§10` source-quality lens):
+
+- **Installed candidates.** Dispatch a gatherer per candidate, in parallel, to read the
+  installed version's documentation, types, and source through `lib-docs`, or through
+  `current-docs` when it is available. That is primary and zero-egress. Cite the installed
+  version rather than the latest.
+- **Web-only candidates.** Only after the Phase 0 opt-in, compose the `deep-research` skill,
+  which fans out to search, fetches, and verifies adversarially, for the primary
+  documentation, the repository, the release notes, and the license. Record every external
+  request in the manifest as you go (`§A`). Triangulate primary over secondary, and two
+  independent secondary sources beat one (`§7`).
+- **Building it ourselves.** Scope the minimal implementation against Phase 1, naming what
+  we would own, test, and maintain.
+
+Pin each capability claim to its source, which is an installed document or an external
+source with a manifest entry, and tier it. Anything unverifiable against the actual version
+is `UNVERIFIED`, never guessed (`§4`).
+
+## Phase 3. Score and disconfirm
+
+Dispatch a claim-checker per candidate, in parallel, to score it and run the disconfirmation
+pass (`§A`). Weight by value multiplied by reach, divided by effort, and adjust for
+confidence and grounding (`§8`). Cover each of the following, cited and tiered:
+
+- **Fit and coverage.** Our grounded requirements against the generic case, naming the gaps
+  and the glue left to us.
+- **Maintenance health.** Release cadence, issue and pull request signal, bus factor, and
+  recency, read from the project's own repository and recorded when the source is external.
+- **License.** Compatibility with ours and with our distribution. Copyleft, attribution, and
+  field-of-use terms are a developer decision.
+- **Supply-chain and egress trust.** Transitive weight, install scripts, provenance, and any
+  telemetry or new outbound path. A deep check goes to
+  `privacy-opsec-suite:supply-chain-trust` rather than being asserted here.
+- **Migration cost.** Call-site churn, data and contract migration, test changes, and
+  rollout and rollback. Name the smallest adoption slice, meaning one module behind a seam,
+  before any wholesale switch.
+- **Lock-in and reversibility.** Proprietary formats, one-way doors, and ecosystem capture.
+
+Drop or re-tier what does not survive: already solved here, incompatible with a hard
+constraint, or superseded (`§A`).
+
+## Phase 4. Recommendation with trade-offs and the smallest slice
+
+Write the brief on the `§13` standard. Lead with the recommendation in one paragraph, naming
+which option, the decisive trade-off, and the overall tier of CONFIRMED, PROBABLE, or
+SPECULATIVE. Then give the comparison table against the weighted criteria, the grounded fit,
+the migration cost with the smallest adoption slice, the runner-up and why it lost, the
+risks and trade-offs accepted, and the open questions. Every sentence is cited and tiered
+(`§7`), and the brief is freshness-stamped with the SHA it was evaluated against (`§12`,
+`§13`). It is done only when the reader could act without re-researching (`§11`).
+
+## Hand-off: the researcher proposes, others implement
+
+Never edit code here (`§11`). The decision and the rejected alternatives go to
+`code-ops-suite:adr`. The adoption, the migration, and any version bump go to
+`code-ops-suite:dependency-upgrade`. A flagged trust or egress concern goes to
+`privacy-opsec-suite:supply-chain-trust`. State the hand-off target explicitly in the brief.
 
 ## Done when
-Decision framed, full candidate set (including build and status-quo) and weighted criteria confirmed; requirements/constraints grounded with `file:line` citations; capabilities verified against the **installed/actual version**, every claim cited and tiered; egress checkpoint honored, every external request recorded via `research-manifest.mjs`, and the brief validated with `node ${CLAUDE_PLUGIN_ROOT}/scripts/research-manifest.mjs validate LIBRARY_EVAL.md` (no un-manifested web citation) before publishing; disconfirmation ran across fit, maintenance, license, supply-chain, migration cost, and lock-in; the brief leads with a tiered recommendation, a comparison, the smallest adoption slice, and explicit hand-off to `code-ops-suite:adr` and `code-ops-suite:dependency-upgrade`; SHA-stamped; no code changed. Present the recommendation paragraph first.
+
+The decision is framed, and the full candidate set, including build and status quo, and the
+weighted criteria are confirmed. The requirements and constraints are grounded with
+`file:line` citations. Capabilities are verified against the installed or actual version,
+and every claim is cited and tiered. The egress checkpoint was honored, every external
+request was recorded through `research-manifest.mjs`, and the brief was validated with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/research-manifest.mjs validate LIBRARY_EVAL.md` before
+publishing, with no un-manifested web citation. Disconfirmation ran across fit, maintenance,
+license, supply chain, migration cost, and lock-in. The brief leads with a tiered
+recommendation, a comparison, and the smallest adoption slice, and it names the explicit
+hand-off to `code-ops-suite:adr` and `code-ops-suite:dependency-upgrade`. It is SHA-stamped,
+and no code changed. Present the recommendation paragraph first.

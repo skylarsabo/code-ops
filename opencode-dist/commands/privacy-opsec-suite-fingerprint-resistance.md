@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to reduce the fingerprinting/uniqueness surface that could re-link anonymous users. Owns identity-fingerprint distinctiveness — NOT traffic timing/size (see traffic-analysis-resistance)."
+description: "Use when you need to reduce the fingerprinting and uniqueness surface that could re-link anonymous users. Owns identity-fingerprint distinctiveness, not traffic timing or size, which traffic-analysis-resistance owns."
 ---
 
 Use the `privacy-opsec-suite-fingerprint-resistance` skill for this task, following it end to end.

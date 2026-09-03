@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.6
+- Documentation sweep: the README and all eleven skill pages are rewritten onto the house writing standard, with no em-dashes and no semicolons in prose, and the README gains a context-economy section naming `co.mjs context skim` and the suite's default-on hooks with their off switches. No phase, checkpoint, script invocation, or `CONVENTIONS.md` citation changed.
+
 ## 2.18.5
 - Vendored `repo-map.mjs`, `import-graph.mjs`, and `symbol-lib.mjs` refreshed: the map and the graph now read their definition rules and their import extraction from the shared library instead of their own copies. Output is unchanged.
 

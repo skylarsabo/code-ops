@@ -1,30 +1,61 @@
 ---
 name: rigor-consistency-closure
-description: "Use when the same concept is implemented divergently and you want it closed for good — one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize."
+description: "Use when the same concept is implemented divergently and you want it closed for good, in one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize."
 ---
 
-# CONSISTENCY CLOSURE — Close It So It Stays Closed
+# Consistency closure: close it so it stays closed
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/rigor/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/rigor-consistency-closure`, or by the model through the `skill` tool as `rigor-consistency-closure`.** First read the bundled `<plugin-root>/CONVENTIONS.md` — it defines the **verification-first methodology** — evidence tiers, the disconfirmation pass, ground-truth-first, root-cause-over-symptom, and the regression guard — plus the operating model, interaction protocol, and safety rails this skill follows.
-**Mode:** IMPLEMENT (closure changes confirmed with you) · **Produces:** `CONSISTENCY_REGISTER.md`, migration diffs, the new enforcement; summary. Follows the closure protocol `§9`.
+**Invoked as `/rigor-consistency-closure`, or by the model through the `skill` tool as `rigor-consistency-closure`.** First read the bundled
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
+(evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
+the regression guard), plus the operating model, the interaction protocol, and the safety
+rails this skill follows.
 
-## Phase 0 — Scope  *(checkpoint)*
-Pick the concept space (e.g. error handling, data access, validation, naming of one idea, API response shape).
+- **Mode:** IMPLEMENT. Every closure change is confirmed with the developer.
+- **Produces:** `CONSISTENCY_REGISTER.md`, the migration diffs, the new enforcement, and a
+  summary.
+- **Protocol:** the closure protocol in `§9`.
 
-## Phase 1 — Inventory the variants
-Dispatch a `tracer` to find **divergent implementations of the same concept**: multiple ways of doing one thing, drifted duplication, inconsistent return/error/null conventions, contract drift across call sites, inconsistent naming for a single idea. Group by concept; show each variant with `file:line`.
+## Phase 0. Scope  *(checkpoint)*
 
-## Phase 2 — Choose the canonical form  *(checkpoint — a real decision)*
-For each group, propose **one canonical form** with rationale (correctness, safety, ergonomics, prevalence).
+Pick the concept space, for example error handling, data access, validation, the naming of
+one idea, or the shape of an API response.
+
+## Phase 1. Inventory the variants
+
+Dispatch a `tracer` to find divergent implementations of one concept: several ways of doing
+one thing, drifted duplication, inconsistent return, error, or null conventions, contract
+drift across call sites, and inconsistent naming for a single idea. Group the variants by
+concept and show each one with its `file:line`.
+
+## Phase 2. Choose the canonical form  *(checkpoint, and a real decision)*
+
+For each group, propose one canonical form with its rationale, weighing correctness, safety,
+ergonomics, and prevalence.
+
 > **CHECKPOINT:** the developer approves the canonical choice per group before any migration.
 
-## Phase 3 — Close and enforce
-Migrate every other site to the canonical form — behavior-preserving, conflict-aware, each migration tested and committed — then **add a mechanical enforcement** (lint rule, codemod/CI check, shared type, or test) so the divergence **cannot recur unnoticed**. Have a `verifier` confirm nothing else regressed (regression guard `§H`).
+## Phase 3. Close and enforce
+
+Migrate every other site to the canonical form. Each migration is behavior-preserving,
+conflict-aware, tested, and committed. Then add a mechanical enforcement, which may be a
+lint rule, a codemod or CI check, a shared type, or a test, so the divergence cannot recur
+unnoticed. Have a `verifier` confirm that nothing else regressed, under the regression guard
+(`§H`).
 
 ## Deliverables
-`CONSISTENCY_REGISTER.md` (concept → canonical form → sites migrated → enforcement added), the diffs, and the enforcement config/rule; a summary of what's now canonical and guarded.
+
+`CONSISTENCY_REGISTER.md` mapping each concept to its canonical form, the sites migrated,
+and the enforcement added. The diffs. The enforcement configuration or rule. A summary of
+what is now canonical and guarded.
 
 ## Done when
-Each inconsistency group has a canonical form, every site is migrated, a working enforcement is in place, and tests are green. "Closed" means recurrence is mechanically prevented. The finished CONSISTENCY_REGISTER.md passes `node <plugin-root>/scripts/revalidate-register.mjs CONSISTENCY_REGISTER.md --root .` with exit 0 — a non-FRESH citation is re-located against the real tree or dropped before the run is done (`§E`).
+
+Each inconsistency group has a canonical form, every site is migrated, a working enforcement
+is in place, and the tests are green. Closed means that recurrence is mechanically
+prevented. The finished `CONSISTENCY_REGISTER.md` passes
+`node <plugin-root>/scripts/revalidate-register.mjs CONSISTENCY_REGISTER.md --root .`
+with exit 0. Before the run is done, re-locate any non-FRESH citation against the real tree
+or drop it (`§E`).

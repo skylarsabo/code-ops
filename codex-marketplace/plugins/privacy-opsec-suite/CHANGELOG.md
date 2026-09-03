@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.6
+- Documentation sweep: the README and all fourteen skill pages are rewritten onto the house writing standard, with no em-dashes and no semicolons in prose, and the README gains a context-economy section naming `co.mjs context skim` and the suite's default-on hooks with their off switches. The subagent entries now name capability tiers instead of model names. No phase, checkpoint, script invocation, or `CONVENTIONS.md` citation changed.
+
 ## 1.20.5
 - Vendored `repo-map.mjs`, `import-graph.mjs`, and `symbol-lib.mjs` refreshed: the map and the graph now read their definition rules and their import extraction from the shared library instead of their own copies. Output is unchanged.
 
