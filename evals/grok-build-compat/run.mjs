@@ -37,9 +37,12 @@ const MANIFEST_PATHS = ['plugin.json', '.grok-plugin/plugin.json', '.claude-plug
 const MAX_PLUGIN_NAME_LEN = 64;
 // src/xai-grok-hooks/src/event.rs — HookEventName variants. An event outside this set is
 // silently dropped by prefilter_unsupported_events(), so a typo costs the gate with no error.
+// SubagentStart was verified against the installed grok 1.0.13 binary, whose event parser
+// accepts it and whose embedded hook-events table lists it beside SubagentStop.
 const SUPPORTED_HOOK_EVENTS = new Set([
   'SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse',
-  'PostToolUseFailure', 'Stop', 'StopFailure', 'Notification', 'SubagentStop', 'PreCompact',
+  'PostToolUseFailure', 'Stop', 'StopFailure', 'Notification', 'SubagentStart', 'SubagentStop',
+  'PreCompact',
 ]);
 
 for (const plugin of pluginNames) {
