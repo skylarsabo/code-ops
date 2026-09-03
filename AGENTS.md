@@ -84,13 +84,14 @@ drifted file and the eval fails at its baseline case rather than where you would
 
 ## Session mechanisms that run under every change
 
-The code-ops-suite plugin ships six hooks, and four of them carry an off switch that
+The code-ops-suite plugin ships seven hooks, and four of them carry an off switch that
 takes `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`: the Bash
 output digest (`hooks/digest-rewrite.mjs`, `CODE_OPS_DIGEST`), the symbol-index refresh
 (`hooks/index-refresh.mjs`, `CODE_OPS_INDEX`), the operative ladder card
 (`hooks/ladder-card.mjs`, `CODE_OPS_LADDER_CARD`), and the session receipt
 (`hooks/session-receipt.mjs`, `CODE_OPS_RECEIPTS`). All four are on by default. The other
-two are the traceless gate (`hooks/enforce-traceless.mjs`) and the compaction preserver
+three are the traceless gate (`hooks/enforce-traceless.mjs`), the session-start routing
+card (`hooks/routing-card.mjs`), and the compaction preserver
 (`hooks/precompact-preserve.mjs`). Expect digested Bash output with a receipt naming the
 raw file, and read `scripts/skim.mjs` and `scripts/context-query.mjs` (or
 `scripts/co.mjs context skim|query`) before reading a large file end-to-end. The switch

@@ -100,8 +100,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "69f652f8c8cd40b45ec86e3b72b4ff543874139b",
-      "verifiedDigest": "aed34efc4b1349abc936fc400203086b0416a0f2a06c9a0f65f0d726c2e2adc1"
+      "verifiedAt": "c822b258a4321f1c5bfcf85e956486220deb26b0",
+      "verifiedDigest": "0ed19ba22a372d146224b97c1ad896da921c3fa079bde3fc62b0a0c8e68f8e77"
     },
     {
       "slug": "runtime-toolchain",

@@ -17,7 +17,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "8e96ba6471b4f21e858b2b4425ec1f21fbbfadef07367730bb98e51eb78810d5",
+      "sourceDigest": "76643548d2dbbd5f63741945c29de1b029708a6be44606f8082bf965fd2be1e8",
       "contentDigest": "d788e92c39c196ca12bd2f3bb62e1fe7eafccdb5091c7326230f0c36c384ce08"
     },
     {
@@ -74,7 +74,7 @@
         "scripts/context-query.mjs",
         "scripts/digest.mjs"
       ],
-      "sourceDigest": "8c51d4326ce0a11d2e2605f6d1b33510cbd002db6c1fe3719d6d71f1f414af76",
+      "sourceDigest": "a9da903d203f7b0b2c79c2c1b9ed47ceee9a33754be7be77c96e77a540ba020e",
       "contentDigest": "b1f1e5736f7c002450b111beff4a61b15ba573d6931533526bb7a0be38cc685c"
     },
     {
@@ -203,8 +203,8 @@
       "sources": [
         "**"
       ],
-      "sourceDigest": "805873f03602a3422424a856eab924aff2816d366ad5dbccaf7c674855769218",
-      "contentDigest": "60edab856b91d381fc7bcfb51b03b806c51c1335a4af32fef308d32fdb01b3fd"
+      "sourceDigest": "1c953fd8bf635bb5bf469f178db88d16a40336141b70ef79a57345d02355267a",
+      "contentDigest": "ca54eaf8d9edf50966dd27f11b9ffe28542932b573f5e4cd85013ddbe3ef6fbd"
     }
   ]
 }
