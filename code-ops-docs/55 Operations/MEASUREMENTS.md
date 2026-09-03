@@ -125,8 +125,8 @@ changes. The sweep is model-in-the-loop and operator-run. For each judgment-bear
 decoy count per variant from the scoring receipts.
 
 The decision rule is fixed before the runs: a dispatch steps down one effort level only where
-recall is equal or higher and the decoy count equal or lower than the current level on two runs;
-review never steps below medium; a level that loses recall on either run is discarded. The
+recall is equal or higher and the decoy count equal or lower than the current level on two runs.
+Review never steps below medium. A level that loses recall on either run is discarded. The
 table's rows are rewritten from the receipts, with the run receipts cited, and the conventions'
 routing sentence is edited in the same commit. The sweep has not been run for the current lead
 model, and the table stands on the previous generation's runs until it is.
