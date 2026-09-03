@@ -128,6 +128,23 @@ try {
   const sameModel = run(['plan', '--root', root, '--mode', 'floor', '--execution', 'unavailable', '--out', 'run/floor/same-model.json', '--strong-model', 'same-model', '--weak-model', 'SAME-MODEL'], root);
   check('floor calibration refuses identical normalized model IDs', sameModel.status !== 0 && sameModel.stderr.includes('distinct strong and weak'), sameModel.stderr);
 
+  // The register arm: one unit per model tier a fixture declares, same skill and same answer key,
+  // so the only thing that varies between the two resulting registers is the tier.
+  mkdirSync(join(root, 'run/register'), { recursive: true });
+  const register = run(['plan', '--root', root, '--mode', 'register', '--execution', 'unavailable', '--out', 'run/register/plan.json', '--strong-model', 'strong-model', '--weak-model', 'weak-model'], root);
+  const registerPlan = register.status === 0 ? JSON.parse(readFileSync(join(root, 'run/register/plan.json'), 'utf8')) : null;
+  check('the register arm compiles one unit per declared tier against the same key', register.status === 0
+    && registerPlan.units.length === 2
+    && registerPlan.units.every((unit) => unit.fixture === 'bug-garden' && unit.arm === 'register' && unit.rep === 1 && unit.skillDocs.length === 1)
+    && registerPlan.units.map((unit) => `${unit.tier}:${unit.model}`).join(' ') === 'strong:strong-model weak:weak-model', register.stderr);
+  check('each register unit names its tier in the id the receipt scores by',
+    registerPlan && registerPlan.units.map((unit) => unit.id).join(' ') === 'bug-garden-strong-register-r1 bug-garden-weak-register-r1',
+    JSON.stringify(registerPlan?.units?.map((unit) => unit.id)));
+  const registerCheck = run(['check-plan', '--root', root, '--plan', 'run/register/plan.json'], root);
+  check('the register plan revalidates against the canonical matrix expansion', registerCheck.status === 0, registerCheck.stderr);
+  const registerNoWeak = run(['plan', '--root', root, '--mode', 'register', '--execution', 'unavailable', '--out', 'run/register/no-weak.json', '--strong-model', 'strong-model'], root);
+  check('the register arm refuses a single model tier', registerNoWeak.status !== 0 && registerNoWeak.stderr.includes('requires --weak-model'), registerNoWeak.stderr);
+
   writeFileSync(join(root, 'drift.txt'), 'new\n'); git(root, ['add', 'drift.txt']); git(root, ['commit', '-m', 'drift']);
   const drift = run(['check-plan', '--root', root, '--plan', planPath], root);
   check('new HEAD invalidates an old judgment plan', drift.status !== 0 && drift.stderr.includes('HEAD drift'), drift.stderr);

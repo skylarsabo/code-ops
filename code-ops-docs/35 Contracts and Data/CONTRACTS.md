@@ -161,7 +161,15 @@ must not portably or physically alias the plan or any findings file. Evidence:
 
 The matrix declares the fixture-to-answer-key and fixture-to-skill mapping. Its current
 fixtures cover bug, leak, documentation-drift, normalization, and trap-focused review
-work. Evidence: `evals/judgment-matrix.json:1-50`.
+work. Evidence: `evals/judgment-matrix.json:1-52`.
+
+A fixture may also declare `arms`, a list of model tiers. `register` mode compiles one unit
+per declared tier for that fixture, same skill and same answer key, so the tier is the only
+thing that varies between the resulting registers. Each unit names its tier in the id the
+score receipt is keyed by. The mode requires two distinct model IDs and at least one fixture
+declaring arms. Trend and floor expansions are untouched. Evidence:
+`scripts/judgment-evals.mjs:99-111`, `scripts/judgment-evals.mjs:151-160`, and
+`scripts/judgment-evals.mjs:282-284`.
 
 Hosted CI keeps deterministic validation. `validate.yml` runs the structural gate and
 regression evals, including the local-review and judgment-orchestration fixture evals.
@@ -397,6 +405,25 @@ never reads another repository's index and nothing is committed. The opt-in `Pos
 `index-refresh.mjs` calls `refresh <file>` after every edit with a five-second budget and prints
 nothing. Evidence: `scripts/context-query.mjs:83` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
+
+## Atlas claims and scope suggestion
+
+`atlas-check.mjs check` prints a claim report beneath each section's freshness verdict. A
+claim is a `path:line` citation in the section's prose. Its statuses come from
+`revalidate-register.mjs`, run once over one temporary register the check deletes when it
+ends, so the atlas and a findings register classify a drifted citation identically. A
+section citing nothing reports `claims: none`. The digest verdict and `--gate` keep their
+existing meaning. `--claims-gate` is separate, and exits 1 on any claim the classifier did
+not call FRESH, an unclassifiable one included. Evidence: `scripts/atlas-check.mjs:302-344`,
+`scripts/atlas-check.mjs:544-567`, and `scripts/atlas-check.mjs:698-706`.
+
+`atlas-check.mjs scope <slug> --suggest` reads `context-query.mjs blast --json` over the
+section's scoped files and prints the depth-1 importers that the current scope does not
+already cover, as a pathspec list for `add --scope`. It writes nothing. `blast` reports the
+importer direction only, so the suggestion never names what the scope itself imports. A
+missing symbol index exits 1 naming the refresh command rather than building one, and the
+query is capped at 200 scoped files with an explicit advisory. Evidence:
+`scripts/atlas-check.mjs:763-841`.
 
 ## Over-build scanner
 

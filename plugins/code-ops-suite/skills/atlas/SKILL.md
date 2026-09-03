@@ -9,7 +9,9 @@ description: "Use when a repo's atlas — its durable, per-repo cache of judgmen
 
 An atlas is what the previous run should have remembered and did not. Every future run pays to re-derive the same understanding of a repo. The atlas banks that understanding so a reader can reuse it. A default stamp records `verifiedAt` and a scope-state `verifiedDigest`. The digest makes freshness survive a squash or deleted branch.
 
-**The tool owns the manifest.** `${CLAUDE_PLUGIN_ROOT}/scripts/atlas-check.mjs` writes every part of it. `add` registers a section. `stamp` is the only sanctioned writer of `verifiedAt` and `verifiedDigest`. Never edit `MANIFEST.json` by hand.
+**The tool owns the manifest.** `${CLAUDE_PLUGIN_ROOT}/scripts/atlas-check.mjs` writes every part of it. `add` registers a section. `stamp` is the only sanctioned writer of `verifiedAt`, `verifiedDigest`, and the `claims` it derives from a section's `path:line` citations. Never edit `MANIFEST.json` by hand.
+
+`check --claims-gate` exits 1 when a citation no longer sits on the code it names, so a section that is fresh as a whole cannot carry a sentence that quietly stopped being true. `scope <slug> --suggest` prints the depth-1 importers of a section's scope as a pathspec list for `add --scope`, so a scope can follow a module boundary instead of a directory name. It writes nothing.
 
 ## The content rule — judgment, not facts
 A section holds what costs a run real time to work out: why the architecture is shaped this way, how a flow crosses files, the invariants a change must not break, the gotchas, and the code that looks wrong but is load-bearing. It holds **no** file inventories, export lists, signatures, or copied evidence bodies. Cite registered evidence by record ID and let its generated index resolve the preserved bytes. Each section opens with a `#` title and a one-line charter naming what it covers and deliberately leaves out.

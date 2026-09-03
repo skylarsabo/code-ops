@@ -107,7 +107,9 @@ The cache can be reused only when its identifier, generator identity, and payloa
 
 ## Atlas data
 
-An Atlas has a `MANIFEST.json` with versioned sections, scope declarations, and freshness state. `atlas-check.mjs` rejects missing or malformed manifests. Evidence: `scripts/atlas-check.mjs:174-224` and `scripts/atlas-check.mjs:301-437`.
+An Atlas has a `MANIFEST.json` with versioned sections, scope declarations, and freshness state. `atlas-check.mjs` rejects missing or malformed manifests. Evidence: `scripts/atlas-check.mjs:350-418` and `scripts/atlas-check.mjs:494-708`.
+
+A section may also carry `claims`, one entry per `path:line` citation in its prose. Each entry has a repository-relative `file`, a positive `line`, and an optional `anchor` copied verbatim from that line at stamp time: backtick-free, at most 80 characters. A credential-shaped line records the `<REDACTED-LINE>` sentinel instead of its own text, and a line yielding no usable substring records no anchor and is checked for existence only. `stamp` is the only writer, and a malformed entry fails the manifest closed. Evidence: `scripts/atlas-check.mjs:255-288` and `scripts/atlas-check.mjs:404-414`.
 
 Only fresh Atlas sections can contribute prose to a context bundle. A stale section contributes metadata, not an authoritative excerpt. Evidence: `scripts/context-bundle.mjs:58-74`.
 
