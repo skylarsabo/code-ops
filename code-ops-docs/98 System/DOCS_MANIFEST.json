@@ -65,9 +65,16 @@
         "CLAUDE.md",
         "scripts/lint-plugins.mjs",
         "scripts/check-no-deps.mjs",
-        "scripts/benchmark-command.mjs"
+        "scripts/benchmark-command.mjs",
+        "plugins/code-ops-suite/CONVENTIONS.md",
+        "plugins/code-ops-suite/hooks/hooks.json",
+        "scripts/scan-overbuild.mjs",
+        "scripts/harvest-deferrals.mjs",
+        "scripts/context-audit.mjs",
+        "scripts/context-query.mjs",
+        "scripts/digest.mjs"
       ],
-      "sourceDigest": "74c892eb750203bb8e1ff38bd60114c113f835fec2f93a78a95e403059a726a6",
+      "sourceDigest": "f9dcf853021ef087b0d1415438c04fabbdb3d637aede9fd099e105eab78cccff",
       "contentDigest": "b1f1e5736f7c002450b111beff4a61b15ba573d6931533526bb7a0be38cc685c"
     },
     {
