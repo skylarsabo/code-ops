@@ -80,7 +80,7 @@
         ".github/workflows/**"
       ],
       "sourceDigest": "e0141417db2354a62dae13929d8b983b56a545f5da0a77b85921602c97338dd4",
-      "contentDigest": "d16fd67270bdd3c2b63f454a96998bedb83a73a29afa86f5532307ab77e84402"
+      "contentDigest": "da5223fe2c48375ec364a4a7215da77fde8c1aab865fe417dfbef7063ed15436"
     },
     {
       "id": "techniques",
@@ -92,7 +92,7 @@
         "evals/**"
       ],
       "sourceDigest": "47544ced7e4c1d04bc6145e609f285a0148de1f8c055c92e66dd0714d13964c7",
-      "contentDigest": "8df110e54856c5d5bb1445e9694cd423d274b00aa02cb645b7c11f1804a01666"
+      "contentDigest": "131cc194a15655603f716a939d732cca06645987fe759f4afeb0a1241da642aa"
     },
     {
       "id": "api-reference",
@@ -102,7 +102,7 @@
         "plugins/*/skills/**"
       ],
       "sourceDigest": "bd1711905e46d12cc95d4e46a80be1bf26cd278d490d6ee383efdfc377eae9f7",
-      "contentDigest": "ce2ffeb1731bc88c362144ebd0b0e106861d4289ac5fd4e476f7f68dd626c629"
+      "contentDigest": "06c11ecbd82815fcd207fd5d07aced2dc9bc25d07486c5546f23d0422068f1ad"
     },
     {
       "id": "ci-delivery",
@@ -197,7 +197,7 @@
         "**"
       ],
       "sourceDigest": "4a9aad08caff08cbeab65be273d2e9a9b397b8ad1273d093808d9209f6360500",
-      "contentDigest": "08fcab787a7a3dcb277481975ac899b853e1daec47dd851311057b61a31a5bbb"
+      "contentDigest": "27c64babcc8128e00882f1214f582ab3a9d71d29d28ef62b475a7da139d25d1a"
     }
   ]
 }
