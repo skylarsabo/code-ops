@@ -108,7 +108,7 @@ provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evid
 
 The `SessionEnd` hook reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default, and the value `off` disables the hook. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:32-81`.
 
-`context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. Evidence: `scripts/context-audit.mjs:77-90`.
+`context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. `--by-arm` groups rows by the switches they ran under and prints per-session means, with pre-record rows as `unknown`. Evidence: `scripts/context-audit.mjs:77-90` and `scripts/context-audit.mjs:93-132`.
 
 The `PreCompact` hook `precompact-preserve.mjs` prints one fixed instruction on stdout naming the six items a compaction summary must keep and the redaction markers it must leave as they stand. The host reads that stdout as the compaction's custom instructions. It reads no stdin, adds no per-turn tokens, and exits `0` on every path. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:15-33`.
 
@@ -424,57 +424,6 @@ importer direction only, so the suggestion never names what the scope itself imp
 missing symbol index exits 1 naming the refresh command rather than building one, and the
 query is capped at 200 scoped files with an explicit advisory. Evidence:
 `scripts/atlas-check.mjs:763-841`.
-
-## Over-build scanner
-
-`scan-overbuild.mjs --git <range>` reads one diff and the tree at its head through git, never
-the working tree, and reports eight deterministic tells: a burst of small new files, an
-interface with one implementor, a function that forwards its own parameters to one call, a
-package-manifest entry with no decision record in the same diff, a new test file over twice
-its siblings' median, a root config key no file reads, an exported name another file already
-exports, and three consecutive comment lines shaped like code. Only the unrecorded dependency
-blocks: it exits 1 unless `--report-only`, and every other tell is advisory. `--exclude
-<prefix>` drops derived copies from the diff and the tree lookups, and a byte-identical vendored
-copy never counts as a duplicate because it shares the blob. The header states the ceiling: the
-tells are line-shaped heuristics, a hit is a lead, and a clean run proves nothing. Evidence:
-`scripts/scan-overbuild.mjs:11-32`, `scripts/scan-overbuild.mjs:81`,
-`scripts/scan-overbuild.mjs:248`, `scripts/scan-overbuild.mjs:303`, and
-`scripts/scan-overbuild.mjs:344`.
-
-`evals/overbuild-garden` scores the scanner the way `hasty-code` scores a skill, with a recall
-bar of 0.9 over eleven planted over-builds and a zero-decoy bar over nine legitimate shapes: a
-sized extraction with two callers, an interface with two implementors, a neighbor-sized test, a
-recorded dependency, a read config key, two wrappers that add behavior, and prose comments. The
-run builds a throwaway repository from `repo/base` and `repo/change`, asserts no unkeyed hit, and
-proves the eval can fail by removing the new-file bound in a temp copy. Evidence:
-`evals/overbuild-garden/run.mjs:16-25` and `evals/overbuild-garden/ANSWER_KEY.json:5`.
-
-## Deferral harvest
-
-`harvest-deferrals.mjs` collects every `deferred(<ceiling>, <upgrade path>)` marker in a comment
-line of a tracked text file into `DEFERRALS_REGISTER.md`, in the item grammar that
-`revalidate-register.mjs` re-greps: id, `File: path:line`, a backticked `Anchor:` that is the
-marker text as written, `Ceiling:`, `Upgrade:`, and `Verified-at:`. In Markdown and HTML only an
-HTML comment counts, because a heading or a bold line starts the same way, and a ceiling that
-starts with `<` is the template, not a marker. The id is derived from the file path and the
-ceiling text, so it survives a line move and changes only when the marker moves file or changes
-ceiling. `--check` re-harvests and exits 1 when the register on disk disagrees, ignoring
-`Verified-at`. The default output lands in `<hub>/98 System/` when exactly one docs hub exists.
-Evidence: `scripts/harvest-deferrals.mjs:62-64`, `scripts/harvest-deferrals.mjs:87-93`, and
-`scripts/harvest-deferrals.mjs:126`.
-
-## Ladder card hook
-
-`hooks/ladder-card.mjs` runs at `SubagentStart` and prints the code-economy ladder as
-`hookSpecificOutput.additionalContext` for an implementer-class agent type only. It does nothing
-unless `CODE_OPS_LADDER_CARD` is `1`, `on`, or `true`. The host contract was read from the
-installed 2.1.257 bundle: the input carries `agent_id` and `agent_type` (offset 183160743, built
-at 190336771), the output schema accepts `additionalContext` (183169362), and the host appends
-that context to the subagent's own messages (188311119). A read-only type, bare or
-plugin-qualified, and any type ending in `explorer` or `reviewer`, gets nothing. The card is at
-most ten lines. Bad JSON, a missing type, or another event name exits 0 with no output, and the
-hook returns no permission decision. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
-`plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
 
 ## Documentation manifest
 

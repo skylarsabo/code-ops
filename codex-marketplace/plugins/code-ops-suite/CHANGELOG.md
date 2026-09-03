@@ -3,12 +3,14 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
-## 1.62.0
+## 1.63.0
 - Atlas freshness reaches claim granularity. A claim is a `path:line` citation in a section's prose. `scripts/atlas-check.mjs stamp` records one per citation in `MANIFEST.json` as `{ file, line, anchor }`, with the anchor copied verbatim from the cited line: trimmed, backtick-free, at most 80 characters, and replaced by the `<REDACTED-LINE>` sentinel on a credential-shaped line.
 - `atlas-check.mjs check` prints each section's claim report beneath its freshness verdict, classified by `revalidate-register.mjs` over one temporary register the check deletes when it ends. Two freshness mechanisms become one: the atlas and a findings register cannot disagree about what a drifted citation is. A section citing nothing reports `claims: none`.
 - `--claims-gate` exits 1 on any claim the classifier did not call FRESH, an unclassifiable one included. It is separate from `--gate`, and the digest verdict keeps its existing meaning. A malformed claim fails the manifest closed.
 - `atlas-check.mjs scope <slug> --suggest` prints the depth-1 importers of a section's scope, read from `context-query.mjs blast --json`, as a pathspec list for `add --scope`. It writes nothing and exits 1 when no symbol index exists.
 - `scripts/judgment-evals.mjs` gains `--mode register`. A matrix fixture declares `arms`, a list of model tiers, and the planner compiles one unit per tier against the same skill and answer key, naming the tier in the id the score receipt is keyed by. `evals/judgment-matrix.json` declares the arm on `bug-garden`. Trend and floor expansions are unchanged.
+## 1.61.0
+- `hooks/session-receipt.mjs` records `arms` (which of `CODE_OPS_DIGEST`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_INDEX` the session ran under) and `contextAtEnd` (the tokens the last assistant message carried in) on every row. `context-audit.mjs receipts --by-arm` groups rows by that record and prints per-session means, so an arm reads against its control. The measurement page pre-registers the schedule and the decision rules.
 
 ## 1.60.0
 - `scripts/context-query.mjs` is the query-able symbol index: `find`, `callers`, `callees`, `blast`, and `explore` answer with `file:line` anchors, one-line signatures, and edge lists over a home-directory index keyed by content sha, never a verbatim dump. A call resolves same-file, then through an imported name (aliases included), then tree-wide as ambiguous, else unresolved, and the ceiling is printed on every edge result. A result touching a file changed since the build carries a stale banner. `explore` stops at `--budget` with `BUDGET_EXCEEDED` and appends bodies only under `--with-source`.

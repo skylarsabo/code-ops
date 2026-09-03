@@ -94,6 +94,8 @@ expect(run([cli, '--nope']).status === 2, 'unknown flag should exit 2');
 const tmp = mkdtempSync(join(tmpdir(), 'ca-hook-'));
 const ledger = join(tmp, 'nested', 'receipts.jsonl');
 const env = { ...process.env, CODE_OPS_RECEIPTS: ledger };
+// The eval must not inherit an arm switch from the operator's own session.
+for (const k of ['CODE_OPS_DIGEST', 'CODE_OPS_LADDER_CARD', 'CODE_OPS_INDEX']) delete env[k];
 const payload = JSON.stringify({ session_id: 'sess-1', transcript_path: mainFile, cwd: root, hook_event_name: 'SessionEnd', reason: 'other' });
 const h1 = run([hook], { input: payload, env });
 expect(h1.status === 0, `hook should exit 0, got ${h1.status}: ${h1.stderr}`);
@@ -109,6 +111,8 @@ if (existsSync(ledger)) {
   expect(r.files === 2 && r.skipped === 0 && r.turns === 6 && r.durationMs === 600000, `row files/skipped/turns/duration, got ${r.files}/${r.skipped}/${r.turns}/${r.durationMs}`);
   expect(r.toolCalls?.Bash === 3 && r.toolCalls?.Read === 2, `row tool calls, got ${JSON.stringify(r.toolCalls)}`);
   expect(!JSON.stringify(r).includes('secret-file'), 'row must not carry file contents or paths from the transcript');
+  expect(r.arms && r.arms.digest === false && r.arms.ladderCard === false && r.arms.index === false, `row records every arm off under a clean environment, got ${JSON.stringify(r.arms)}`);
+  expect(Number.isInteger(r.contextAtEnd) && r.contextAtEnd > 0, `row carries the context resident at session end, got ${r.contextAtEnd}`);
 }
 const h2 = run([hook], { input: 'not json at all', env });
 expect(h2.status === 0, `garbage stdin should exit 0, got ${h2.status}`);
@@ -145,6 +149,23 @@ for (const v of ['off', '0', 'false']) {
 }
 expect(readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === rowsBefore, 'the off switch appends nothing to the real ledger');
 rmSync(offDir, { recursive: true, force: true });
+// Arms: a session under the digest switch records it, and --by-arm reads arms against `none`.
+const hArm = run([hook], { input: payload, env: { ...env, CODE_OPS_DIGEST: 'on' } });
+expect(hArm.status === 0 && hArm.stdout === '', 'the hook stays silent with an arm switch on');
+const armRows = readFileSync(ledger, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+expect(armRows.at(-1)?.arms?.digest === true && armRows.at(-1)?.arms?.index === false, `the digest arm is recorded, got ${JSON.stringify(armRows.at(-1)?.arms)}`);
+const byArm = run([cli, 'receipts', '--ledger', ledger, '--all', '--by-arm', '--json']);
+try {
+  const groups = JSON.parse(byArm.stdout).byArm;
+  const names = groups.map((g) => g.arm).sort();
+  expect(names.join(',') === 'digest,none,unknown', `by-arm groups digest, none, and the pre-switch row as unknown, got ${names.join(',')}`);
+  const digest = groups.find((g) => g.arm === 'digest');
+  const last = armRows.at(-1);
+  const rowTokens = ['main', 'subagents'].reduce((n, k) => n + ['input', 'cacheRead', 'cacheCreate', 'output'].reduce((m, f) => m + (last.tokens?.[k]?.[f] || 0), 0), 0);
+  expect(digest.sessions === 1 && digest.perSession.tokens === rowTokens && digest.perSession.contextAtEnd === last.contextAtEnd, `by-arm reports per-session means from the row, got ${JSON.stringify(digest)}`);
+} catch { fails.push(`receipts --by-arm --json must parse, got ${byArm.stdout.slice(0, 120)}${byArm.stderr.slice(0, 120)}`); }
+const byArmText = run([cli, 'receipts', '--ledger', ledger, '--all', '--by-arm']);
+expect(/\| digest \| 1 \|/.test(byArmText.stdout) && /\| none \| 1 \|/.test(byArmText.stdout), `the text table lists one row per arm, got:\n${byArmText.stdout}`);
 const rcOther = run([cli, 'receipts', '--ledger', ledger, '--cwd', tmp, '--json']);
 expect(rcOther.status === 0 && JSON.parse(rcOther.stdout || '{}').sessions === 0, 'receipts --cwd filters rows to that directory');
 
@@ -159,4 +180,5 @@ if (fails.length) {
 console.log('ok   usage deduplicated by message id; main and subagent threads apart');
 console.log('ok   tool attribution, cd-stripped families, repeat reads, sanitized vs raw labels');
 console.log('ok   SessionEnd receipt hook appends one row, prints nothing, fails open');
+console.log('ok   receipts record the arm switches and the context at end; --by-arm reads arms against none');
 console.log('\ncontext-audit eval passed');
