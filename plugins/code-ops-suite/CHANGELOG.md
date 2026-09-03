@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.60.0
+- `scripts/context-query.mjs` is the query-able symbol index: `find`, `callers`, `callees`, `blast`, and `explore` answer with `file:line` anchors, one-line signatures, and edge lists over a home-directory index keyed by content sha, never a verbatim dump. A call resolves same-file, then through an imported name (aliases included), then tree-wide as ambiguous, else unresolved, and the ceiling is printed on every edge result. A result touching a file changed since the build carries a stale banner. `explore` stops at `--budget` with `BUDGET_EXCEEDED` and appends bodies only under `--with-source`.
+- `scripts/symbol-lib.mjs` holds the definition rules, definition spans, call sites, and import edges. `skim.mjs` now imports its rules from it, so the outline and the index agree.
+- `hooks/index-refresh.mjs` is a third opt-in hook, at `PostToolUse` on Edit, Write, MultiEdit, and NotebookEdit: with `CODE_OPS_INDEX` on it re-indexes the edited file with a five-second budget and prints nothing.
+- `co context query <command>` reaches the tool; `evals/context-query` pins the contract end to end.
+
 ## 1.59.0
 - `scripts/scan-overbuild.mjs --git <range>` is the mechanical floor under the ladder: eight deterministic tells on a diff (a burst of small new files, a one-implementor interface, a pass-through function, an unrecorded dependency, an oversized test file, an unread root config key, a duplicate export, and commented-out code), advisory except the unrecorded dependency, which exits 1. `--exclude <prefix>` drops derived copies, and a byte-identical vendored copy never counts as a duplicate. `evals/overbuild-garden` scores it at a 0.9 recall bar with zero decoys over legitimate extractions and proves the eval can fail.
 - `scripts/harvest-deferrals.mjs` collects `deferred(<ceiling>, <upgrade path>)` markers from comments into `DEFERRALS_REGISTER.md`, in the grammar `revalidate-register.mjs` re-greps, with ids that survive a line move. `--check` reports drift. `evals/deferral-harvest` pins the shape, the decoys, and the ids.

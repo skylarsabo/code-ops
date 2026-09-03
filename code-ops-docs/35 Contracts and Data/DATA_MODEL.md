@@ -133,6 +133,16 @@ unless `--store` or `$CODE_OPS_DIGEST_DIR` names another directory, and `--no-st
 run whose store is unwritable still prints a correct digest with no raw path. Rows carry the
 working directory and the command, never the output. Evidence: `scripts/digest.mjs:166-195`.
 
+## Symbol index
+
+The index is one JSON document, version `1`, with `root`, `excludes`, `builtAt`, `head`, and
+`files`. Each file entry carries `sha` and `size`, a `defs` list of `{name, kind, line, end,
+sig}`, a `calls` list of `{name, line, member, from}`, and an `imports` list of `{spec, target,
+names}` where `names` pairs a local binding with the exported name. A file over 512 KB or holding
+a NUL byte keeps only its `sha`, `size`, and a `skipped` reason. The index holds no file body: a
+signature is one trimmed line capped at 120 characters. Evidence: `scripts/context-query.mjs:94-103`
+and `scripts/symbol-lib.mjs:46-64`.
+
 ## Retention and sensitivity
 
 Run artifacts are repository-local working evidence. Do not put secrets, tokens, or personal data in a contract, cache, bundle, ledger, or documentation record. The repository has no modeled personal-data entity.

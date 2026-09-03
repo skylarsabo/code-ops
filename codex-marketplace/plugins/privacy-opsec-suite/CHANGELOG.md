@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.1
+- Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
+
 ## 1.20.0
 - The implementation loop carries the ordered objective and the code-economy ladder, pinned byte-identically with the code-ops-suite and rigor conventions.
 

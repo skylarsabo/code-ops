@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.1
+- Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
+
 ## 2.18.0
 - The fix loop carries the ordered objective and the code-economy ladder, pinned byte-identically with the code-ops-suite and privacy-opsec-suite conventions.
 

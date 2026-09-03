@@ -40,6 +40,7 @@ const TABLE = {
     audit: 'context-audit.mjs',
     skim: 'skim.mjs',
     digest: 'digest.mjs',
+    query: { script: 'context-query.mjs', sub: 'status' },
   },
   run: {
     preflight: 'preflight.mjs',

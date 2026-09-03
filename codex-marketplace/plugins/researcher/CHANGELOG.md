@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.4
+- Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
+
 ## 0.13.3
 - Vendored `co.mjs` refreshed: its verb table gains `context digest`, whose script only code-ops-suite bundles. No behavior in this plugin changes.
 

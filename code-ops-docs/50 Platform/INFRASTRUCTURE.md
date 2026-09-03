@@ -55,6 +55,15 @@ code economy note keeps it only if the session receipts show it beats the brief-
 Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:6-10` and
 `plugins/code-ops-suite/hooks/ladder-card.mjs:51`.
 
+A third opt-in hook, `index-refresh.mjs`, runs after every Edit, Write, MultiEdit, and
+NotebookEdit and re-indexes the one file changed, so `context-query.mjs` answers from the live
+tree without a daemon. It stays inert until `CODE_OPS_INDEX` holds `1`, `on`, or `true` in the
+same `env` block. The index lives under `~/.claude/code-ops/index/<slug of the repository>/` or
+`$CODE_OPS_INDEX_DIR`, never in the tree, and holds definitions, call sites, and import edges,
+never file bodies. Delete the directory to purge it. Evidence:
+`plugins/code-ops-suite/hooks/index-refresh.mjs:6-11` and
+`plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
+
 ## Host projections
 
 The first host renderer maps canonical plugin packages into its marketplace projection and manifest. The opencode renderer maps them into `opencode-dist/`, including host-specific commands, agents, and configuration. Evidence: `AGENTS.md:108-117` and `scripts/build-opencode-dist.mjs:475-489`.

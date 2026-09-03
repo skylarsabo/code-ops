@@ -78,3 +78,5 @@ Repeat reads: 152 paths were read more than once, 207 extra reads, 1,099,139 cha
 Each mechanism ships behind a per-repo switch. A row is added only with the switch state, the window, the receipt id, and the same `context-audit.mjs` command. The pre-registration protocol in `evals/README.md` names the metric and the stopping rule before the switch flips. The design note `10 Design/Context and code economy 2026-09.md` owns the workstreams these rows measure.
 
 The ladder card (`hooks/ladder-card.mjs`, switch `CODE_OPS_LADDER_CARD`) is the Workstream B arm. Its row compares implementer subagent transcripts with the card against the brief-only control on diff line count, tokens, and the correctness gate, and the card is removed if it does not win.
+
+The symbol index (`context-query.mjs`, hook `index-refresh.mjs`, switch `CODE_OPS_INDEX`) is the Workstream C arm. Its row compares sessions that answer a structural question through the query tool against sessions that read the map, on tool calls, tokens, and the context resident at session end, which is the metric codegraph loses on.
