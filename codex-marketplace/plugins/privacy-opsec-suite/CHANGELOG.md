@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.4
+- Vendored `repo-map.mjs`, `import-graph.mjs`, and `symbol-lib.mjs` refreshed: the map and the graph now read their definition rules and their import extraction from the shared library instead of their own copies. Output is unchanged.
+
 ## 1.20.3
 - Vendored `preflight.mjs` refreshed: it prints `ctags` and `codegraph` as detected capabilities, present or absent, never as a requirement.
 

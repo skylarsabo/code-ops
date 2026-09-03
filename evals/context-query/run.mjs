@@ -13,6 +13,8 @@
 //   - callees lists a body's calls with their resolution and marks builtins unresolved;
 //   - Python relative imports resolve;
 //   - blast lists importers by depth and definitions with caller counts;
+//   - the shared extraction in symbol-lib.mjs resolves a relative Go import and a Rust `mod`
+//     declaration, so blast sees the importer in both;
 //   - explore ranks definitions, then lines, stops at --budget with BUDGET_EXCEEDED, and
 //     --with-source appends bodies within the budget;
 //   - a file edited after the index carries a stale banner until refreshed, and
@@ -58,10 +60,10 @@ try {
 
   // ---------------------------------------------------------------- refresh
   const first = qj('refresh');
-  expect(first.r.status === 0 && first.j?.files === 7 && first.j.parsed === 7, `refresh must index the seven code files, got ${first.r.stdout}${first.r.stderr}`);
+  expect(first.r.status === 0 && first.j?.files === 11 && first.j.parsed === 11, `refresh must index the eleven code files, got ${first.r.stdout}${first.r.stderr}`);
   const again = qj('refresh');
-  expect(again.j?.parsed === 0 && again.j.reused === 7, `a second refresh must reuse every entry, got ${again.r.stdout}`);
-  console.log('ok   refresh indexes seven files and reuses them unchanged');
+  expect(again.j?.parsed === 0 && again.j.reused === 11, `a second refresh must reuse every entry, got ${again.r.stdout}`);
+  console.log('ok   refresh indexes eleven files and reuses them unchanged');
 
   // ---------------------------------------------------------------- find
   const found = qj('find', 'slugify');
@@ -101,6 +103,14 @@ try {
   const notCode = q('blast', 'README.md');
   expect(notCode.status === 1, `blast on a non-code path exits 1, got ${notCode.status}`);
   console.log('ok   blast lists importers by depth and caller counts');
+
+  // The Go and Rust edges the graph generator already read, now read from the same library, so
+  // the index side pins them too.
+  const goBlast = qj('blast', 'go/util.go');
+  expect(goBlast.j?.importers.some((i) => i.file === 'go/main.go' && i.depth === 1), `a relative Go import makes main.go an importer of util.go, got ${goBlast.r.stdout}`);
+  const rsBlast = qj('blast', 'rs/util.rs');
+  expect(rsBlast.j?.importers.some((i) => i.file === 'rs/main.rs' && i.depth === 1), `a Rust mod declaration makes main.rs an importer of util.rs, got ${rsBlast.r.stdout}`);
+  console.log('ok   blast sees the Go and Rust edges the shared extraction resolves');
 
   // ---------------------------------------------------------------- explore
   const wide = qj('explore', 'slug', '--budget', '4000');
@@ -163,7 +173,7 @@ try {
   const version = spawnSync('ctags', ['--version'], { encoding: 'utf8' });
   const realCtags = version.status === 0 && /Universal Ctags/i.test(version.stdout ?? '');
   const withCtags = provider('refresh', '--provider', 'ctags');
-  expect(withCtags.r.status === 0 && withCtags.j?.files === 7, `--provider ctags still indexes every file, got ${withCtags.r.stdout}${withCtags.r.stderr}`);
+  expect(withCtags.r.status === 0 && withCtags.j?.files === 11, `--provider ctags still indexes every file, got ${withCtags.r.stdout}${withCtags.r.stderr}`);
   if (realCtags) {
     expect(/^provider ctags: Universal Ctags/m.test(withCtags.r.stderr) && withCtags.j.providers.includes('ctags'), `an installed ctags is named and recorded, got ${withCtags.r.stderr}`);
   } else {

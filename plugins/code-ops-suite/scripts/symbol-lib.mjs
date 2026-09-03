@@ -1,5 +1,6 @@
-// Dependency-free symbol primitives shared by skim.mjs and context-query.mjs: the per-language
-// definition rules, definition spans, call sites, and import edges for one file's text.
+// Dependency-free symbol primitives shared by repo-map.mjs, import-graph.mjs, skim.mjs, and
+// context-query.mjs: the per-language definition rules, definition spans, call sites, and import
+// edges for one file's text. This file is the single source of all four.
 //
 // Coarse by design, and the ceiling is part of the contract: every rule is a line regex, not a
 // parse. A definition is a line that starts a function, class, or const; its span ends where
@@ -9,9 +10,6 @@
 
 import { posix } from 'node:path';
 
-// The definition regexes of scripts/repo-map.mjs, kept in step with it: repo-map walks the
-// tree at import time, so it cannot be imported for its table alone.
-// deferred(repo-map.mjs and import-graph.mjs keep their own copies of these rules, migrate both onto this library once evals/context-query covers every language they support)
 const JS_DEFS = [
   [/^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/, 'fn'],
   [/^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/, 'class'],
@@ -124,10 +122,26 @@ export function calls(text, ext, defs = definitions(text, ext)) {
   return out;
 }
 
+// Extraction runs over the whole file text, not per line, so a multi-line `import {\n a,\n}
+// from 'x'` is still caught. Every character class below admits a newline on purpose.
 const JS_STATIC = /\bimport\s+([^'"();]*?)\s*from\s+['"]([^'"]+)['"]|\bimport\s+['"]([^'"]+)['"]/g;
-const JS_REQUIRE = /(?:const|let|var)\s+(\{[^}]*\}|[\w$]+)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+const JS_EXPORT_FROM = /\bexport\b[^'"();]*?\bfrom\s+['"]([^'"]+)['"]/g;
+const JS_REQUIRE = /(?:(?:const|let|var)\s+(\{[^}]*\}|[\w$]+)\s*=\s*)?require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+const JS_DYNAMIC = /\bimport\s*\(\s*([\s\S]*?)\s*\)/g;
+const JS_DYNAMIC_LITERAL = /^['"]([^'"]+)['"]$/;
 const PY_FROM = /^\s*from\s+(\.{0,2}[\w.]*)\s+import\s+([^\n#]+)/gm;
-const RESOLVE_EXTS = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'];
+const PY_IMPORT = /^\s*import\s+([\w.]+)/gm;
+const GO_BLOCK = /^\s*import\s*\(([\s\S]*?)^\s*\)/gm;
+const GO_SINGLE = /^\s*import\s+"([^"]+)"/gm;
+const GO_QUOTED = /"([^"]+)"/g;
+const RUST_MOD = /^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;/gm;
+const RUST_USE = /^\s*(?:pub(?:\([^)]*\))?\s+)?use\s+([\w:{}*,\s]+?);/gm;
+const JS_FAMILY = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'];
+const RESOLVE_EXTS = [...JS_FAMILY, '.json'];
+
+// The extensions imports() reads edges from. import-graph.mjs walks exactly these, so the
+// generator's scope and the library's coverage cannot drift apart.
+export const IMPORT_EXTS = [...JS_FAMILY, '.py', '.go', '.rs'];
 
 const names = (clause) => {
   if (!clause) return [];
@@ -139,39 +153,76 @@ const names = (clause) => {
   }).filter(Boolean);
 };
 
-// Import edges for one file: [{ spec, target, names: [{ local, imported }] }], where target is
-// a repository path when the specifier is relative and resolves against `exists`, else null.
+// Import edges for one file: [{ spec, target, names: [{ local, imported }], relative, dynamic }].
+// `target` is a repository path when the specifier resolves against `exists`, else null.
+// `relative` marks a specifier that names a place in this tree, so a caller can tell an
+// unresolved relative path from a package name it was never going to resolve. `dynamic` marks a
+// non-literal `import(...)` argument, whose `spec` is the argument text as written: the edge is
+// listed rather than dropped, because a reader has to know the file loads something.
 export function imports(text, ext, file, exists) {
   const out = [];
+  const dir = posix.dirname(file);
+  const first = (candidates) => candidates.find((c) => exists(c)) ?? null;
+  const edge = (spec, target, edgeNames, relative, dynamic = false) => out.push({ spec, target, names: edgeNames, relative, dynamic });
+
+  // A relative JavaScript specifier lands on itself when it already carries a resolvable
+  // extension, then on the extension appended, then on an index file under it. A bare path is
+  // never a candidate on its own, because a directory of that name is not a file.
   const resolveJs = (spec) => {
     if (!spec.startsWith('.')) return null;
-    const base = posix.normalize(posix.join(posix.dirname(file), spec));
-    const candidates = [base, ...RESOLVE_EXTS.map((e) => base + e), ...RESOLVE_EXTS.map((e) => posix.join(base, `index${e}`))];
-    return candidates.find((c) => exists(c)) ?? null;
+    const base = posix.normalize(posix.join(dir, spec));
+    const candidates = RESOLVE_EXTS.some((e) => base.endsWith(e)) ? [base] : [];
+    for (const e of RESOLVE_EXTS) candidates.push(base + e);
+    for (const e of RESOLVE_EXTS) candidates.push(posix.join(base, `index${e}`));
+    return first(candidates);
   };
-  if (['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'].includes(ext)) {
+  // Leading-dot depth first (one dot is the current package), then `<path>.py` and the package
+  // `__init__.py`. An absolute module resolves the same way, so a module inside the tree is an
+  // edge, while a third-party one simply finds nothing.
+  const resolvePy = (mod) => {
+    if (!mod.startsWith('.')) {
+      const path = mod.split('.').join('/');
+      return first([`${path}.py`, posix.join(path, '__init__.py')]);
+    }
+    const dots = /^\.+/.exec(mod)[0].length;
+    let base = dir;
+    for (let i = 1; i < dots; i++) base = posix.dirname(base);
+    const rest = mod.slice(dots).split('.').filter(Boolean).join('/');
+    if (!rest) return first([posix.join(base, '__init__.py')]);
+    const path = posix.join(base, rest);
+    return first([`${path}.py`, posix.join(path, '__init__.py')]);
+  };
+  // A Go specifier names a package, and only a dot-relative one names a place in this tree. The
+  // coarse rule maps it to the sibling file of that name. A package is a directory, so a
+  // specifier that names one stays unresolved rather than guessing the file inside it.
+  const resolveGo = (spec) => (spec.startsWith('.') ? first([`${posix.normalize(posix.join(dir, spec))}.go`]) : null);
+  // `mod x;` names a sibling source file, the one Rust form worth resolving here. A `use` path
+  // needs crate-root knowledge (src/lib.rs against src/main.rs), so it stays a bare specifier.
+  const resolveRustMod = (name) => first([posix.join(dir, `${name}.rs`), posix.join(dir, name, 'mod.rs')]);
+
+  if (JS_FAMILY.includes(ext)) {
     for (const m of text.matchAll(JS_STATIC)) {
       const spec = m[2] ?? m[3];
-      out.push({ spec, target: resolveJs(spec), names: names(m[1]) });
+      edge(spec, resolveJs(spec), names(m[1]), spec.startsWith('.'));
     }
-    for (const m of text.matchAll(JS_REQUIRE)) out.push({ spec: m[2], target: resolveJs(m[2]), names: names(m[1]) });
+    // A re-export binds no local name, so it carries an edge and no names.
+    for (const m of text.matchAll(JS_EXPORT_FROM)) edge(m[1], resolveJs(m[1]), [], m[1].startsWith('.'));
+    for (const m of text.matchAll(JS_REQUIRE)) edge(m[2], resolveJs(m[2]), names(m[1]), m[2].startsWith('.'));
+    for (const m of text.matchAll(JS_DYNAMIC)) {
+      const arg = m[1].trim();
+      const literal = JS_DYNAMIC_LITERAL.exec(arg);
+      if (literal) edge(literal[1], resolveJs(literal[1]), [], literal[1].startsWith('.'));
+      else edge(arg, null, [], false, true);
+    }
   } else if (ext === '.py') {
-    for (const m of text.matchAll(PY_FROM)) {
-      const mod = m[1];
-      let target = null;
-      if (mod.startsWith('.')) {
-        const up = mod.match(/^\.+/)[0].length - 1;
-        let dir = posix.dirname(file);
-        for (let i = 0; i < up; i++) dir = posix.dirname(dir);
-        const rel = mod.slice(up + 1).split('.').filter(Boolean).join('/');
-        const base = rel ? posix.join(dir, rel) : dir;
-        target = [`${base}.py`, posix.join(base, '__init__.py')].find((c) => exists(c)) ?? null;
-      } else {
-        const base = mod.split('.').join('/');
-        target = [`${base}.py`, posix.join(base, '__init__.py')].find((c) => exists(c)) ?? null;
-      }
-      out.push({ spec: mod, target, names: names(m[2].replace(/[()]/g, '')) });
-    }
+    for (const m of text.matchAll(PY_FROM)) edge(m[1], resolvePy(m[1]), names(m[2].replace(/[()]/g, '')), m[1].startsWith('.'));
+    for (const m of text.matchAll(PY_IMPORT)) edge(m[1], resolvePy(m[1]), [], false);
+  } else if (ext === '.go') {
+    for (const m of text.matchAll(GO_BLOCK)) for (const q of m[1].matchAll(GO_QUOTED)) edge(q[1], resolveGo(q[1]), [], q[1].startsWith('.'));
+    for (const m of text.matchAll(GO_SINGLE)) edge(m[1], resolveGo(m[1]), [], m[1].startsWith('.'));
+  } else if (ext === '.rs') {
+    for (const m of text.matchAll(RUST_MOD)) edge(m[1], resolveRustMod(m[1]), [], true);
+    for (const m of text.matchAll(RUST_USE)) edge(m[1].replace(/\s+/g, ''), null, [], false);
   }
   return out;
 }

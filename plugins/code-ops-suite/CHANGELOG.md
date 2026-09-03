@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.63.0
+- `symbol-lib.mjs` is now the single source of the definition rules and the import extraction for all four readers. `repo-map.mjs` takes its definition table from `CODE` and keeps only the Markdown heading row, and `import-graph.mjs` takes both the extraction and the resolution from `imports()` and walks exactly the extensions `IMPORT_EXTS` names. Map and graph output over this repository is byte-identical to the copies it replaces.
+- `imports()` covers JavaScript, Python, Go, and Rust, and its edge carries `relative` and `dynamic` beside `spec`, `target`, and `names`. So the graph still separates an unresolved path in the tree from a package name, and still notes a non-literal `import(...)` rather than dropping it, while the index sees the same edges.
+- `evals/context-query` gains a Go file and a Rust file whose relative edges `blast` must resolve, pinning the shared extraction from the index side.
+
 ## 1.62.0
 - `context-query.mjs refresh --provider ctags|codegraph|none` adds two optional fidelity providers, detected at use and treated as data. With `ctags` an installed Universal Ctags runs over the files about to be parsed and its definitions merge into a file only on a line the line rules left free, each marked `source` and mapped onto the index's own kinds. `codegraph` is detected and reported, not ingested. A provider that is absent prints one line and the line rules stand alone, so a refresh never fails for a missing tool. The index records the providers its definitions came from and `status` prints them.
 - `preflight.mjs` prints `ctags` and `codegraph` as present or absent beside its other capability lines. Neither absence can fail a preflight.

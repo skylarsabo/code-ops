@@ -381,15 +381,24 @@ within the same budget. `refresh` re-parses only files whose content sha changed
 `scripts/context-query.mjs:266`, and `scripts/context-query.mjs:434`.
 
 The ceiling is printed on every edge result. Definitions, spans, calls, and import edges come
-from the line rules in `symbol-lib.mjs`, which `skim.mjs` shares, so the outline and the index
-agree on what a definition is. A call resolves to the definition of that name in the same file,
+from the line rules in `symbol-lib.mjs`, and that file is the single source of all four readers:
+`repo-map.mjs` takes its definition table from `CODE`, `import-graph.mjs` takes both the
+extraction and the resolution from `imports()` and walks exactly the extensions `IMPORT_EXTS`
+names, `skim.mjs` outlines from the same table, and `context-query.mjs` indexes from it. So the
+map, the graph, the outline, and the index cannot disagree about what a definition or an import
+edge is. An import edge carries `spec`, `target`, `names`, `relative`, and `dynamic`: `relative`
+separates an unresolved path in the tree from a package name that was never going to resolve,
+and `dynamic` marks a non-literal `import(...)` argument, which is listed rather than dropped.
+A call resolves to the definition of that name in the same file,
 else in the file the caller imports that name from (an `as` alias included), else to every
 definition of that name in the tree, marked ambiguous, else unresolved. A dynamic import by
 path, a string-built name, or a type-dispatched call stays ambiguous or unresolved by contract.
 A result that touches a file whose content changed since the index was built carries a stale
-banner, and `--no-stale-check` suppresses the check. Evidence: `scripts/symbol-lib.mjs:47`,
-`scripts/symbol-lib.mjs:97`, `scripts/symbol-lib.mjs:144`, `scripts/context-query.mjs:282`,
-`scripts/context-query.mjs:337`, and `scripts/context-query.mjs:358`.
+banner, and `--no-stale-check` suppresses the check. Evidence: `scripts/symbol-lib.mjs:45`,
+`scripts/symbol-lib.mjs:95`, `scripts/symbol-lib.mjs:144`, `scripts/symbol-lib.mjs:162`,
+`scripts/repo-map.mjs:39`, `scripts/import-graph.mjs:44`, `scripts/import-graph.mjs:74`,
+`scripts/skim.mjs:132`, `scripts/context-query.mjs:282`, `scripts/context-query.mjs:337`, and
+`scripts/context-query.mjs:358`.
 
 Two optional providers raise fidelity, and both are data rather than a requirement.
 `refresh --provider ctags|codegraph|none` defaults to `none`, and nothing is spawned unless the
