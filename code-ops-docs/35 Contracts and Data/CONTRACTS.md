@@ -398,6 +398,57 @@ never reads another repository's index and nothing is committed. The opt-in `Pos
 nothing. Evidence: `scripts/context-query.mjs:83` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
+## Over-build scanner
+
+`scan-overbuild.mjs --git <range>` reads one diff and the tree at its head through git, never
+the working tree, and reports eight deterministic tells: a burst of small new files, an
+interface with one implementor, a function that forwards its own parameters to one call, a
+package-manifest entry with no decision record in the same diff, a new test file over twice
+its siblings' median, a root config key no file reads, an exported name another file already
+exports, and three consecutive comment lines shaped like code. Only the unrecorded dependency
+blocks: it exits 1 unless `--report-only`, and every other tell is advisory. `--exclude
+<prefix>` drops derived copies from the diff and the tree lookups, and a byte-identical vendored
+copy never counts as a duplicate because it shares the blob. The header states the ceiling: the
+tells are line-shaped heuristics, a hit is a lead, and a clean run proves nothing. Evidence:
+`scripts/scan-overbuild.mjs:11-32`, `scripts/scan-overbuild.mjs:81`,
+`scripts/scan-overbuild.mjs:248`, `scripts/scan-overbuild.mjs:303`, and
+`scripts/scan-overbuild.mjs:344`.
+
+`evals/overbuild-garden` scores the scanner the way `hasty-code` scores a skill, with a recall
+bar of 0.9 over eleven planted over-builds and a zero-decoy bar over nine legitimate shapes: a
+sized extraction with two callers, an interface with two implementors, a neighbor-sized test, a
+recorded dependency, a read config key, two wrappers that add behavior, and prose comments. The
+run builds a throwaway repository from `repo/base` and `repo/change`, asserts no unkeyed hit, and
+proves the eval can fail by removing the new-file bound in a temp copy. Evidence:
+`evals/overbuild-garden/run.mjs:16-25` and `evals/overbuild-garden/ANSWER_KEY.json:5`.
+
+## Deferral harvest
+
+`harvest-deferrals.mjs` collects every `deferred(<ceiling>, <upgrade path>)` marker in a comment
+line of a tracked text file into `DEFERRALS_REGISTER.md`, in the item grammar that
+`revalidate-register.mjs` re-greps: id, `File: path:line`, a backticked `Anchor:` that is the
+marker text as written, `Ceiling:`, `Upgrade:`, and `Verified-at:`. In Markdown and HTML only an
+HTML comment counts, because a heading or a bold line starts the same way, and a ceiling that
+starts with `<` is the template, not a marker. The id is derived from the file path and the
+ceiling text, so it survives a line move and changes only when the marker moves file or changes
+ceiling. `--check` re-harvests and exits 1 when the register on disk disagrees, ignoring
+`Verified-at`. The default output lands in `<hub>/98 System/` when exactly one docs hub exists.
+Evidence: `scripts/harvest-deferrals.mjs:62-64`, `scripts/harvest-deferrals.mjs:87-93`, and
+`scripts/harvest-deferrals.mjs:126`.
+
+## Ladder card hook
+
+`hooks/ladder-card.mjs` runs at `SubagentStart` and prints the code-economy ladder as
+`hookSpecificOutput.additionalContext` for an implementer-class agent type only. It does nothing
+unless `CODE_OPS_LADDER_CARD` is `1`, `on`, or `true`. The host contract was read from the
+installed 2.1.257 bundle: the input carries `agent_id` and `agent_type` (offset 183160743, built
+at 190336771), the output schema accepts `additionalContext` (183169362), and the host appends
+that context to the subagent's own messages (188311119). A read-only type, bare or
+plugin-qualified, and any type ending in `explorer` or `reviewer`, gets nothing. The card is at
+most ten lines. Bad JSON, a missing type, or another event name exits 0 with no output, and the
+hook returns no permission decision. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
+`plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
+
 ## Documentation manifest
 
 Manifest v1 contains `version`, `hub`, and `domains`. Manifest v2 retains those fields and adds `runs`, `recordCollections`, and `legacyPaths`. Version 2 requires vault standard v4. Version 1 remains valid under standards v3 and v4 when no collection is declared.
