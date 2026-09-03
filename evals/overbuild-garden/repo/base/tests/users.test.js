@@ -1,0 +1,21 @@
+import assert from 'node:assert';
+import { fetchUser } from '../src/users.js';
+
+assert.ok(typeof fetchUser === 'function', 'case 0');
+assert.ok(typeof fetchUser === 'function', 'case 1');
+assert.ok(typeof fetchUser === 'function', 'case 2');
+assert.ok(typeof fetchUser === 'function', 'case 3');
+assert.ok(typeof fetchUser === 'function', 'case 4');
+assert.ok(typeof fetchUser === 'function', 'case 5');
+assert.ok(typeof fetchUser === 'function', 'case 6');
+assert.ok(typeof fetchUser === 'function', 'case 7');
+assert.ok(typeof fetchUser === 'function', 'case 8');
+assert.ok(typeof fetchUser === 'function', 'case 9');
+assert.ok(typeof fetchUser === 'function', 'case 10');
+assert.ok(typeof fetchUser === 'function', 'case 11');
+assert.ok(typeof fetchUser === 'function', 'case 12');
+assert.ok(typeof fetchUser === 'function', 'case 13');
+assert.ok(typeof fetchUser === 'function', 'case 14');
+assert.ok(typeof fetchUser === 'function', 'case 15');
+assert.ok(typeof fetchUser === 'function', 'case 16');
+assert.ok(typeof fetchUser === 'function', 'case 17');

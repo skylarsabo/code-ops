@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.59.0
+- `scripts/scan-overbuild.mjs --git <range>` is the mechanical floor under the ladder: eight deterministic tells on a diff (a burst of small new files, a one-implementor interface, a pass-through function, an unrecorded dependency, an oversized test file, an unread root config key, a duplicate export, and commented-out code), advisory except the unrecorded dependency, which exits 1. `--exclude <prefix>` drops derived copies, and a byte-identical vendored copy never counts as a duplicate. `evals/overbuild-garden` scores it at a 0.9 recall bar with zero decoys over legitimate extractions and proves the eval can fail.
+- `scripts/harvest-deferrals.mjs` collects `deferred(<ceiling>, <upgrade path>)` markers from comments into `DEFERRALS_REGISTER.md`, in the grammar `revalidate-register.mjs` re-greps, with ids that survive a line move. `--check` reports drift. `evals/deferral-harvest` pins the shape, the decoys, and the ids.
+- `hooks/ladder-card.mjs` is a second opt-in hook, at `SubagentStart`: with `CODE_OPS_LADDER_CARD` on it hands an implementer-class subagent the ladder as a ten-line card and stays silent for every read-only type. The host field it reads was verified against the installed bundle. It is an experiment arm decided in Phase 6.
+- `co scan overbuild` and `co scan deferrals` reach the two scripts.
+
 ## 1.58.0
 - The implementation loop carries the code-economy ladder: the objective is ordered (correctness and the safety floor, module boundaries, measured performance, readability, then size), and a change climbs six rungs before new code is written. Both sentences are pinned byte-identically across the code-ops-suite, rigor, and privacy-opsec-suite conventions. A deliberate simplification is marked `deferred(<ceiling>, <upgrade path>)`.
 - `pr-review` and the quality lenses gain a size-and-boundary lens, `normalize` rule F extracts only on the ladder's evidence, and the dispatch brief template carries a `Size discipline:` line for implementer briefs.
