@@ -3,9 +3,9 @@
 // tool just changed, so `context-query.mjs` answers from the live tree without a daemon and a
 // query never carries a stale banner for a file this session edited.
 //
-// OPT-IN. The hook does nothing unless `CODE_OPS_INDEX` is `1`, `on`, or `true`
-// (case-insensitive) in the hook's environment; a repository sets that in the `env` block of
-// its `.claude/settings.json`. With the switch on, the hook runs
+// ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_INDEX` is
+// `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
+// `.claude/settings.json` sets at user or repository scope. With the hook on, it runs
 // `node <plugin>/scripts/context-query.mjs refresh <file>` with a five-second budget, in the
 // tool's own working directory, and prints nothing. The index lives under
 // `~/.claude/code-ops/index/<project slug>/` (or `$CODE_OPS_INDEX_DIR`), never in the tree.
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
 function main() {
-  if (!/^(1|on|true)$/i.test(process.env.CODE_OPS_INDEX ?? '')) return;
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_INDEX ?? '')) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;

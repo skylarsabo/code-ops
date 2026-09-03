@@ -4,8 +4,9 @@
 //
 //   node scripts/atlas-check.mjs init  --atlas <dir>
 //   node scripts/atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]
-//   node scripts/atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--stats]
+//   node scripts/atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--claims-gate] [--stats]
 //   node scripts/atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]
+//   node scripts/atlas-check.mjs scope <slug> --atlas <dir> --suggest [--root <dir>]
 //   node scripts/atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]
 //
 // WHY: a written-down understanding of a repo is only worth reading if you can tell,
@@ -22,7 +23,18 @@
 //   { "version": 1,
 //     "sections": [ { "slug": "<kebab>", "file": "sections/<slug>.md",
 //                     "scope": ["<git pathspec>", ...], "verifiedAt": "<sha>",
-//                     "verifiedDigest": "<optional sha256>" } ] }
+//                     "verifiedDigest": "<optional sha256>",
+//                     "claims": [ { "file": "<repo-relative>", "line": <n>,
+//                                   "anchor": "<optional verbatim substring>" } ] } ] }
+//
+// CLAIMS: the digest answers "did anything in scope move", which is a whole-section verdict. A
+// claim answers the finer question the reader actually has — "is THIS sentence still true" — so a
+// section whose scope moved keeps the claims that did not. A claim is a `path:line` citation in
+// the section's own prose; `stamp` records one per citation with an anchor copied verbatim from
+// the cited line, and `check` classifies them through revalidate-register.mjs, the register
+// classifier, rather than a second one of its own. Two freshness mechanisms become one.
+// The digest verdict is unchanged by any of this: the claim report is printed beneath it, and
+// only the opt-in `--claims-gate` turns a non-FRESH claim into exit 1.
 //
 // `verifiedAt` is lowercase hex, 7-40 chars, or the single placeholder 'unverified' that `add`
 // writes for a section nobody has stamped yet. Anything else — HEAD, @, a branch, a tag — is a
@@ -51,15 +63,19 @@
 // MATCHES A TRACKED FILE UNDER is reported "unmapped" — advisory only, even under --gate,
 // because an unmapped path is a scoping todo, not a trust violation.
 //
-// Exit: 0 clean (check without --gate is always 0 unless the manifest is malformed);
-//       1 violation-or-gated (malformed manifest, refused write, unknown slug/sha, or
-//         --gate with at least one STALE section);
+// Exit: 0 clean (check without --gate or --claims-gate is always 0 unless the manifest is
+//         malformed);
+//       1 violation-or-gated (malformed manifest, refused write, unknown slug/sha, a scope
+//         suggestion with no symbol index, --gate with at least one STALE section, or
+//         --claims-gate with at least one claim the register classifier did not call FRESH);
 //       2 usage error (unknown subcommand, unknown flag, missing/blank flag value).
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, appendFileSync, realpathSync } from 'node:fs';
-import { resolve, join, sep, relative, isAbsolute } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, statSync, appendFileSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve, join, sep, relative, isAbsolute, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // A stamp is an immutable object name, never a ref. See the moving-ref note in the header.
@@ -69,11 +85,30 @@ const MAX_LISTED_PATHS = 10;
 const INBOX_HEADER = '# Atlas inbox\n\n'
   + 'Append-only dated observations. Fold them into their sections, then clear the folded lines.\n\n';
 
+// ---- claims ---------------------------------------------------------------
+// The citation grammar is the register's own (revalidate-register.mjs REF_RE): a path whose last
+// segment carries a known code or documentation extension, a colon, then a line number. A range
+// citation (`file.mjs:10-20`) claims its first line, exactly as a register reads one. A path
+// containing a space is outside the grammar in both tools and is therefore not a claim.
+const CLAIM_REF_RE = /\b((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
+const MAX_ANCHOR = 80;
+// The register's sentinel for an anchor that may not be written down. It downgrades that item to a
+// line-existence check instead of forcing a secret substring into the manifest.
+const REDACTED_ANCHOR = '<REDACTED-LINE>';
+// Deliberately broad, and fail-safe in the only direction that matters: a false positive costs one
+// claim its DRIFTED check, while a false negative would copy a credential into a tracked file.
+const SECRET_LINE_RE = /(?:api[_-]?key|secret|passw(?:or)?d|token|credential|private[_-]?key)\s*[:=]\s*\S|-----BEGIN [A-Z ]*PRIVATE KEY-----/i;
+// One item per claim, in the grammar revalidate-register.mjs parses. The status line it prints per
+// item is `  ok FRESH     ATL-001  — <notes>`; the two flags and the em dash are its own format.
+const CLAIM_STATUS_RE = /^\s+(?:ok|!!)\s+([A-Z-]+)\s+(ATL-\d{3,})\s*(?:—\s*(.*))?$/;
+const CLAIM_FRESH = 'FRESH';
+
 function usage() {
   console.error('usage: atlas-check.mjs init  --atlas <dir>');
   console.error('       atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]');
-  console.error('       atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--stats]');
+  console.error('       atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--claims-gate] [--stats]');
   console.error('       atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]');
+  console.error('       atlas-check.mjs scope <slug> --atlas <dir> --suggest [--root <dir>]');
   console.error('       atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]');
   process.exit(2);
 }
@@ -206,6 +241,107 @@ function atlasExclusion(root, atlasDir) {
   return { atlasRel, exclude: (atlasRel === '' || atlasRel === '..' || atlasRel.startsWith('../') || isAbsolute(atlasRel)) ? [] : [`:(exclude)${atlasRel}`] };
 }
 
+// ---------------------------------------------------------------- claims
+
+const here = dirname(fileURLToPath(import.meta.url));
+const readLineAt = (abs, lineNo) => {
+  try { return readFileSync(abs, 'utf8').split('\n')[lineNo - 1] ?? null; } catch { return null; }
+};
+
+// The anchor a stamp records for one claim: a verbatim substring of the cited line, trimmed,
+// backtick-free, and at most 80 characters. Every step keeps the result a contiguous substring of
+// the line, so the register's DRIFTED test stays a plain `includes`. Backticks are excluded
+// because the register delimits an anchor with them. Returns null when the line yields nothing.
+function anchorFor(lineText) {
+  if (lineText === null) return null;
+  const raw = lineText.replace(/\r$/, '');
+  if (SECRET_LINE_RE.test(raw)) return REDACTED_ANCHOR;
+  let text = raw.trim();
+  if (text.includes('`')) text = text.split('`').map((part) => part.trim()).sort((a, b) => b.length - a.length)[0] ?? '';
+  text = text.slice(0, MAX_ANCHOR).trimEnd();
+  return text === '' ? null : text;
+}
+
+// Every citation in a section's prose, in document order, deduplicated by `file:line`. A citation
+// that escapes the repo root is dropped: it is not a claim ABOUT this repo, and resolving it would
+// read a path outside the tree the atlas is stamped against.
+function claimsFor(root, atlasDir, section) {
+  let prose;
+  try { prose = readFileSync(resolve(atlasDir, section.file), 'utf8'); } catch { return null; }
+  const out = [];
+  const seen = new Set();
+  for (const m of prose.matchAll(CLAIM_REF_RE)) {
+    const file = m[1].replace(/\\/g, '/');
+    const line = Number(m[2]);
+    const key = `${file}:${line}`;
+    if (!Number.isSafeInteger(line) || line < 1 || seen.has(key)) continue;
+    seen.add(key);
+    const abs = resolve(root, file);
+    if (abs !== root && !abs.startsWith(root + sep)) continue;
+    const claim = { file, line };
+    const anchor = anchorFor(readLineAt(abs, line));
+    if (anchor !== null) claim.anchor = anchor;
+    out.push(claim);
+  }
+  return out;
+}
+
+function renderClaimRegister(items) {
+  const lines = ['# Atlas claims', '',
+    'Generated by atlas-check.mjs for one `check` run and deleted when it ends. Never commit it.', ''];
+  for (const item of items) {
+    lines.push(`### ${item.id}`);
+    lines.push(`File: \`${item.claim.file}:${item.claim.line}\``);
+    if (item.claim.anchor !== undefined) lines.push(`Anchor: \`${item.claim.anchor}\``);
+    lines.push(`Verified-at: ${item.verifiedAt}`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+// Classify every section's claims through the register classifier, in one child process over one
+// temporary register. Reusing revalidate-register.mjs is the point: the atlas and a findings
+// register cannot then disagree about what a drifted citation is. Returns a status per item id;
+// an item the classifier did not report stays 'unchecked', which is not FRESH and therefore gates.
+function classifyClaims(root, sections) {
+  const items = [];
+  for (const s of sections)
+    for (const claim of s.claims ?? [])
+      items.push({ id: `ATL-${String(items.length + 1).padStart(3, '0')}`, slug: s.slug, claim, verifiedAt: String(s.verifiedAt).slice(0, 7) });
+  if (items.length === 0) return { items, statuses: new Map(), error: null };
+  const script = join(here, 'revalidate-register.mjs');
+  if (!existsSync(script)) return { items, statuses: new Map(), error: `revalidate-register.mjs is not beside ${here}` };
+  let dir = null;
+  try {
+    dir = mkdtempSync(join(tmpdir(), 'atlas-claims-'));
+    const registerPath = join(dir, 'ATLAS_CLAIMS.md');
+    writeFileSync(registerPath, renderClaimRegister(items));
+    let out;
+    try {
+      out = execFileSync(process.execPath, [script, registerPath, '--root', root, '--report-only'],
+        { encoding: 'utf8', timeout: 120000, maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+      // --report-only exits 0 on findings, so a non-zero exit is the classifier itself failing.
+      return { items, statuses: new Map(), error: (e.stderr ? String(e.stderr) : e.message).trim().split('\n')[0] };
+    }
+    const statuses = new Map();
+    for (const line of lines(out)) {
+      const m = CLAIM_STATUS_RE.exec(line);
+      if (!m) continue;
+      // The classifier's `Verified-at != HEAD` line is an advisory about the SECTION's pin, which
+      // the section verdict above already reports. Drop it so the claim detail carries only what
+      // is specific to the claim.
+      const note = (m[3] ?? '').split('; ').filter((n) => !/^Verified-at \S+ != HEAD /.test(n)).join('; ');
+      statuses.set(m[2], { status: m[1], note });
+    }
+    return { items, statuses, error: null };
+  } catch (e) {
+    return { items, statuses: new Map(), error: e.message };
+  } finally {
+    if (dir) { try { rmSync(dir, { recursive: true, force: true, maxRetries: 3 }); } catch { /* scratch dir */ } }
+  }
+}
+
 // ---------------------------------------------------------------- manifest
 
 // Loads and schema-validates MANIFEST.json. Returns { manifest, violations } — violations is a
@@ -261,6 +397,22 @@ function loadManifest(atlasDir) {
     else if (s.verifiedAt !== UNVERIFIED && !SHA_RE.test(s.verifiedAt))
       violations.push(`${at}.verifiedAt ${JSON.stringify(s.verifiedAt)} is not a commit sha — it must be lowercase hex, 7-40 chars, or the placeholder '${UNVERIFIED}'. A moving ref (HEAD, @, a branch, a tag) resolves afresh on every run, so a section pinned to one can never be reported stale`);
     if ('verifiedDigest' in s && (typeof s.verifiedDigest !== 'string' || !/^[0-9a-f]{64}$/.test(s.verifiedDigest))) violations.push(`${at}.verifiedDigest must be a lowercase SHA-256 digest`);
+
+    // Claims are fail-CLOSED like the rest of the schema: a malformed claim list is a manifest that
+    // cannot be read, not a section that has aged out. `anchor` is optional — a cited line that
+    // yields no usable substring is checked for existence only, exactly as an anchorless register
+    // item is.
+    if ('claims' in s) {
+      if (!Array.isArray(s.claims)) violations.push(`${at}.claims must be an array`);
+      else s.claims.forEach((c, j) => {
+        const cat = `${at}.claims[${j}]`;
+        if (c === null || typeof c !== 'object' || Array.isArray(c)) { violations.push(`${cat} must be an object`); return; }
+        if (typeof c.file !== 'string' || c.file.trim() === '') violations.push(`${cat}.file must be a non-empty repo-relative path`);
+        if (!Number.isSafeInteger(c.line) || c.line < 1) violations.push(`${cat}.line must be a positive integer`);
+        if ('anchor' in c && (typeof c.anchor !== 'string' || c.anchor === '' || c.anchor.length > MAX_ANCHOR || /[`\r\n]/.test(c.anchor)))
+          violations.push(`${cat}.anchor must be a backtick-free single line of at most ${MAX_ANCHOR} characters`);
+      });
+    }
   });
   return { path, manifest, violations };
 }
@@ -341,8 +493,9 @@ function cmdAdd(args) {
 
 function cmdCheck(args) {
   const gate = args.includes('--gate');
+  const claimsGate = args.includes('--claims-gate');
   const stats = args.includes('--stats');
-  const rest = args.filter((a) => a !== '--gate' && a !== '--stats');
+  const rest = args.filter((a) => a !== '--gate' && a !== '--claims-gate' && a !== '--stats');
   const f = parseFlags(rest, new Set(['--atlas', '--root']));
   if (!('--atlas' in f)) { console.error('x check needs --atlas'); usage(); }
   const atlasDir = atlasDirOf(f);
@@ -379,7 +532,43 @@ function cmdCheck(args) {
 
   let stale = 0;
   const pinCache = new Map();
-  for (const [idx, s] of manifest.sections.entries()) {
+  // One classifier run for every claim in the manifest, before the section loop, so the report
+  // beneath each section verdict costs one child process for the whole check rather than one per
+  // section.
+  const claimReport = classifyClaims(root, manifest.sections);
+  const claimIds = new Map();
+  for (const item of claimReport.items) claimIds.set(`${item.slug}\0${item.claim.file}:${item.claim.line}`, item.id);
+  let claimsTotal = 0;
+  let claimsUnfresh = 0;
+
+  // Prints one section's claim report beneath its freshness verdict. A section citing nothing
+  // prints `claims: none`: it makes no claim a reader could check, which is a fact about the
+  // section, not a failure.
+  const reportClaims = (s) => {
+    const claims = s.claims ?? [];
+    if (claims.length === 0) { console.log(`      claims: none`); return; }
+    const counts = { fresh: 0, moved: 0, drifted: 0, gone: 0, other: 0 };
+    const offenders = [];
+    for (const claim of claims) {
+      claimsTotal++;
+      const id = claimIds.get(`${s.slug}\0${claim.file}:${claim.line}`);
+      const found = id ? claimReport.statuses.get(id) : undefined;
+      const status = claimReport.error ? 'UNCHECKED' : (found?.status ?? 'UNCHECKED');
+      const bucket = { FRESH: 'fresh', MOVED: 'moved', DRIFTED: 'drifted', GONE: 'gone' }[status] ?? 'other';
+      counts[bucket]++;
+      if (status === CLAIM_FRESH) continue;
+      claimsUnfresh++;
+      const note = claimReport.error ?? found?.note ?? 'the classifier reported no status for this claim';
+      offenders.push(`        !!  ${status}  ${claim.file}:${claim.line}${note ? `  — ${note}` : ''}`);
+    }
+    const other = counts.other ? `, ${counts.other} other` : '';
+    console.log(`      claims: ${counts.fresh} fresh, ${counts.moved} moved, ${counts.drifted} drifted, ${counts.gone} gone${other}`);
+    for (const line of offenders) console.log(line);
+  };
+
+  // The freshness verdict for one section. Extracted from the loop body unchanged except that its
+  // early exits became returns, so every verdict path is followed by the same claim report.
+  const reportSection = (s, idx) => {
     // Fail CLOSED on a hex-named ref, for the same reason the shape rule rejects `HEAD`: this is
     // a manifest whose pin lies, not a stamp that has aged out. The shape rule and this
     // resolution rule are separate and both load-bearing — `main` is caught by shape,
@@ -389,7 +578,7 @@ function cmdCheck(args) {
     if (s.verifiedAt === UNVERIFIED) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — never stamped ('${UNVERIFIED}'): write the prose, verify it, then stamp`);
-      continue;
+      return;
     }
     if (!pinCache.has(s.verifiedAt)) pinCache.set(s.verifiedAt, resolvePin(root, s.verifiedAt));
     const { sha: pinned, movingRef } = pinCache.get(s.verifiedAt);
@@ -403,7 +592,7 @@ function cmdCheck(args) {
     if (!pinned && !digestMatches) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — verifiedAt '${s.verifiedAt}' does not resolve to a commit in this repo (re-verify and re-stamp)`);
-      continue;
+      return;
     }
     // A scope matching zero tracked files can never produce a diff hit, so it would report FRESH
     // forever on a claim nobody can invalidate. Catch it before the diff verdict and call it what
@@ -423,14 +612,14 @@ function cmdCheck(args) {
         console.log(`  !!  STALE  ${s.slug}  — scope matches only the atlas directory ('${atlasRel}'), which is excluded from freshness tracking: the atlas does not describe itself; re-scope it at the code`);
       else
         console.log(`  !!  STALE  ${s.slug}  — scope matches no tracked file (dead scope: a typo or a moved tree; re-scope and re-stamp)`);
-      continue;
+      return;
     }
     // `<pinned> --` (no `..HEAD`) diffs the pin against the WORKING TREE, so an uncommitted edit
     // to a scoped tracked file reads STALE too — the fail-safe direction. Untracked files are
     // outside any diff and stay invisible until they are added.
     if (digestMatches) {
       console.log(`  ok  FRESH  ${s.slug}  (verified digest ${s.verifiedDigest.slice(0, 7)}; scope: ${s.scope.join(', ')})`);
-      continue;
+      return;
     }
     if (s.verifiedDigest) {
       stale++;
@@ -440,29 +629,34 @@ function cmdCheck(args) {
         const shown = hits.slice(0, MAX_LISTED_PATHS).join(', '); const more = hits.length > MAX_LISTED_PATHS ? `, +${hits.length - MAX_LISTED_PATHS} more` : '';
         console.log(`  !!  STALE  ${s.slug}  — ${hits.length} scoped path(s) changed since ${pinned.slice(0, 7)}: ${shown}${more}`);
       } else console.log(`  !!  STALE  ${s.slug}  — scoped tracked-state digest changed and verifiedAt '${s.verifiedAt}' does not resolve`);
-      continue;
+      return;
     }
     if (!pinned) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — scoped tracked-state digest changed and verifiedAt '${s.verifiedAt}' does not resolve (re-verify and re-stamp)`);
-      continue;
+      return;
     }
     const baseline = pinned;
     const d = git(['diff', '--ignore-submodules=none', '--name-only', baseline, '--', ...s.scope, ...excludeAtlas], root);
     if (!d.ok) {
       stale++;
       console.log(`  !!  STALE  ${s.slug}  — cannot diff since ${baseline.slice(0, 7)}: ${d.err.trim().split('\n')[0]}`);
-      continue;
+      return;
     }
     const hits = lines(d.out);
     if (hits.length === 0) {
       console.log(`  ok  FRESH  ${s.slug}  (verified at ${baseline.slice(0, 7)}; scope: ${s.scope.join(', ')})`);
-      continue;
+      return;
     }
     stale++;
     const shown = hits.slice(0, MAX_LISTED_PATHS);
     const more = hits.length > shown.length ? `, +${hits.length - shown.length} more` : '';
     console.log(`  !!  STALE  ${s.slug}  — ${hits.length} scoped path(s) changed since ${baseline.slice(0, 7)}: ${shown.join(', ')}${more}`);
+  };
+
+  for (const [idx, s] of manifest.sections.entries()) {
+    reportSection(s, idx);
+    reportClaims(s);
   }
 
   // ---- coverage sweep (advisory, even under --gate) --------------------------
@@ -499,11 +693,17 @@ function cmdCheck(args) {
   // The summary must not claim coverage a skipped sweep never established.
   const unmappedCell = sweepRan ? `${unmapped.length} unmapped` : 'unmapped unknown (sweep skipped)';
   console.log(`\n${manifest.sections.length} section(s), ${stale} stale, ${unmappedCell}.`);
+  if (claimsTotal) console.log(`${claimsTotal} claim(s), ${claimsUnfresh} needing re-verification.`);
   if (stats) console.log(`git subprocesses: ${gitCallCount}`);
-  if (stale && gate) {
+  // Two independent gates. `--gate` still owns the section verdict and its meaning is unchanged;
+  // `--claims-gate` owns the finer question and fires on any claim the register classifier did not
+  // call FRESH, an unclassifiable one included.
+  const gated = (stale && gate) || (claimsUnfresh && claimsGate);
+  if (stale && gate)
     console.error('--gate: stale section(s) present — re-derive and re-stamp them, or treat their claims as leads, not facts.');
-    process.exit(1);
-  }
+  if (claimsUnfresh && claimsGate)
+    console.error(`--claims-gate: ${claimsUnfresh} claim(s) no longer sit on the code they cite — re-read those lines and re-stamp the section.`);
+  if (gated) process.exit(1);
 }
 
 // ---------------------------------------------------------------- stamp
@@ -547,9 +747,97 @@ function cmdStamp(args) {
     if (!digestState) { console.error('x cannot calculate scoped tracked-state digest; refusing to stamp'); process.exit(1); }
     target.verifiedDigest = digestState.digest;
   } else delete target.verifiedDigest;
+  // Claims are recorded in both modes. They describe the section's prose against the CURRENT tree,
+  // which is what `check` re-classifies, so a historical `--at` pin does not change what a claim
+  // means — only what the section's digest asserts.
+  const claims = claimsFor(root, atlasDir, target);
+  if (claims === null) { console.error(`x cannot read section prose at ${resolve(atlasDir, target.file)}; refusing to stamp`); process.exit(1); }
+  if (claims.length) target.claims = claims; else delete target.claims;
   try { writeFileSync(path, JSON.stringify(manifest, null, 2) + '\n'); }
   catch (e) { console.error(`x cannot write ${path}: ${e.message}`); process.exit(1); }
-  console.log(`(atlas) stamped ${target.slug}: ${String(before).slice(0, 7)} -> ${sha.slice(0, 7)}`);
+  console.log(`(atlas) stamped ${target.slug}: ${String(before).slice(0, 7)} -> ${sha.slice(0, 7)} (${claims.length} claim(s))`);
+}
+
+// ---------------------------------------------------------------- scope
+
+// How many scoped files one suggestion queries. Each one costs a child process that loads the
+// symbol index, so a scope covering a whole tree is bounded rather than left to run for minutes.
+const MAX_SCOPE_BLAST = 200;
+
+// Derives a section's neighbors from the symbol index's import edges, so a scope can be drawn at a
+// module boundary instead of at whatever directory a hand typed. It reads `context-query.mjs blast
+// --json` and writes nothing: the output is a pathspec list for the operator to pass to
+// `add --scope`.
+//
+// Ceiling: `blast --json` reports the IMPORTER direction only (scripts/context-query.mjs, case
+// 'blast'), so a suggestion names the files that import the scope, not the ones the scope imports.
+// Depth is 1, because a file two hops out is a neighboring section rather than a wider scope.
+function cmdScope(args) {
+  const rest = args.filter((a) => a !== '--suggest');
+  const suggest = args.includes('--suggest');
+  const slug = rest[0] !== undefined && !rest[0].startsWith('--') ? rest.shift() : null;
+  const f = parseFlags(rest, new Set(['--atlas', '--root']));
+  if (!('--atlas' in f)) { console.error('x scope needs --atlas'); usage(); }
+  if (slug === null) { console.error('x scope needs a section slug'); usage(); }
+  if (!suggest) { console.error('x scope needs --suggest — suggesting is its only mode, and it never writes'); usage(); }
+  const atlasDir = atlasDirOf(f);
+  const root = repoRootOf(atlasDir, f['--root']);
+
+  const { manifest, violations } = loadManifest(atlasDir);
+  if (violations.length) reportViolations(violations);
+  const target = manifest.sections.find((s) => s.slug === slug);
+  if (!target) {
+    const known = manifest.sections.map((s) => s.slug).join(', ') || '(none)';
+    console.error(`x unknown section slug: ${slug} — known slugs: ${known}`);
+    process.exit(1);
+  }
+
+  const query = join(here, 'context-query.mjs');
+  if (!existsSync(query)) { console.error(`x context-query.mjs is not beside ${here}`); process.exit(1); }
+  const ask = (queryArgs) => {
+    try {
+      return { ok: true, out: execFileSync(process.execPath, [query, ...queryArgs, '--root', root, '--json', '--no-stale-check'],
+        { cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }) };
+    } catch { return { ok: false, out: '' }; }
+  };
+  // `status` is the one query command that does NOT build an index on demand, so it is the honest
+  // test for "is there an index". Building one here would hide the operator's real state behind a
+  // slow side effect they did not ask for.
+  if (!ask(['status']).ok) {
+    console.error('x no symbol index for this repo — run `node scripts/context-query.mjs refresh` first, then re-run this suggestion');
+    process.exit(1);
+  }
+
+  const scoped = git(['ls-files', '--', ...target.scope, ...atlasExclusion(root, atlasDir).exclude], root);
+  if (!scoped.ok) { console.error(`x cannot list the scope of '${slug}': ${scoped.err.trim().split('\n')[0]}`); process.exit(1); }
+  const files = lines(scoped.out);
+  const inScope = new Set(files);
+  const queried = files.slice(0, MAX_SCOPE_BLAST);
+  const neighbors = new Map();
+  for (const file of queried) {
+    const r = ask(['blast', file, '--depth', '1']);
+    if (!r.ok) continue; // not an indexed code file — the index covers code, a scope covers anything
+    let data;
+    try { data = JSON.parse(r.out); } catch { continue; }
+    for (const importer of data.importers ?? []) {
+      if (typeof importer?.file !== 'string' || inScope.has(importer.file)) continue;
+      if (!neighbors.has(importer.file)) neighbors.set(importer.file, new Set());
+      neighbors.get(importer.file).add(file);
+    }
+  }
+
+  console.log(`# atlas scope suggestion for ${slug}  (current scope: ${target.scope.join(', ')})`);
+  console.log(`  ${files.length} tracked file(s) in scope; ${queried.length} queried for import edges at depth 1`);
+  if (queried.length < files.length)
+    console.log(`  advisory: capped at ${MAX_SCOPE_BLAST} scoped file(s) — narrow the scope for a complete answer`);
+  const suggested = [...neighbors.keys()].sort();
+  for (const p of suggested) {
+    const via = [...neighbors.get(p)].sort();
+    const shown = via.slice(0, 3).join(', ');
+    console.log(`  ${p}  (imports ${shown}${via.length > 3 ? `, +${via.length - 3} more` : ''})`);
+  }
+  console.log(`\n${suggested.length} neighbor(s) outside the current scope. Pass them to \`add --scope\`:`);
+  console.log(suggested.length ? `  ${suggested.map((p) => `--scope ${p}`).join(' ')}` : '  (none — the scope already covers every depth-1 importer)');
 }
 
 // ---------------------------------------------------------------- inbox
@@ -596,5 +884,6 @@ if (argv[0] === 'init') cmdInit(argv.slice(1));
 else if (argv[0] === 'add') cmdAdd(argv.slice(1));
 else if (argv[0] === 'check') cmdCheck(argv.slice(1));
 else if (argv[0] === 'stamp') cmdStamp(argv.slice(1));
+else if (argv[0] === 'scope') cmdScope(argv.slice(1));
 else if (argv[0] === 'inbox') cmdInbox(argv.slice(1));
 else usage();

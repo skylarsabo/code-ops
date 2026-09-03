@@ -6,6 +6,11 @@
 //   node scripts/context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>]
 //                                  [--top N] [--json] [--raw] [--out <file>]
 //   node scripts/context-audit.mjs receipts [--ledger <file>] [--json] [--cwd <dir> | --all] [--by-arm]
+//   node scripts/context-audit.mjs receipts --purge-before <ISO date> [--ledger <file>] [--json]
+//
+// --purge-before rewrites the ledger keeping only rows whose `ts` is at or after the date, so the
+// operator owns retention: nothing purges on its own, and the command reports what it removed.
+// Rows the reader would skip (bad JSON, another version) are dropped by the rewrite too.
 //
 // Default transcript dir: `~/.claude/projects/<slug of --cwd or the current directory>`.
 // Default ledger: $CODE_OPS_RECEIPTS or `~/.claude/code-ops/session-receipts.jsonl`.
@@ -16,7 +21,7 @@
 //
 // Exit: 0 = report written; 1 = no transcripts found; 2 = bad invocation.
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { defaultTranscriptDir, summarizeDirectory, renderMarkdown, mergeSummaries, emptySummary, USAGE_FIELDS } from './transcript-lib.mjs';
@@ -24,13 +29,14 @@ import { defaultTranscriptDir, summarizeDirectory, renderMarkdown, mergeSummarie
 function usage() {
   console.error('usage: context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>] [--top N] [--json] [--raw] [--out <file>]');
   console.error('       context-audit.mjs receipts [--ledger <file>] [--cwd <dir> | --all] [--json] [--by-arm]');
+  console.error('       context-audit.mjs receipts --purge-before <ISO date> [--ledger <file>] [--json]');
   process.exit(2);
 }
 
 const argv = process.argv.slice(2);
 const mode = argv[0] === 'receipts' ? 'receipts' : 'transcripts';
 if (mode === 'receipts') argv.shift();
-const opt = { transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false, byArm: false };
+const opt = { transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false, byArm: false, purgeBefore: null };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const need = () => { const v = argv[++i]; if (v === undefined || v.startsWith('--')) usage(); return v; };
@@ -44,6 +50,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--ledger') opt.ledger = need();
   else if (a === '--all') opt.all = true;
   else if (a === '--by-arm') opt.byArm = true;
+  else if (a === '--purge-before') { opt.purgeBefore = need(); if (!Number.isFinite(Date.parse(opt.purgeBefore))) usage(); }
   else usage();
 }
 if (opt.since && !Number.isFinite(Date.parse(opt.since))) usage();
@@ -84,6 +91,18 @@ const rows = [];
 for (const line of readFileSync(ledger, 'utf8').split('\n')) {
   if (!line.trim()) continue;
   try { const r = JSON.parse(line); if (r && typeof r === 'object' && r.v === 1) rows.push(r); } catch { /* skip */ }
+}
+if (opt.purgeBefore) {
+  const cutoff = Date.parse(opt.purgeBefore);
+  const kept = rows.filter((r) => Number.isFinite(Date.parse(r.ts)) && Date.parse(r.ts) >= cutoff);
+  const removed = rows.length - kept.length;
+  // Write beside the ledger, then rename over it, so a crash mid-write never leaves a torn file.
+  const tmp = `${ledger}.purge-${process.pid}`;
+  writeFileSync(tmp, kept.map((r) => JSON.stringify(r)).join('\n') + (kept.length ? '\n' : ''));
+  renameSync(tmp, ledger);
+  if (opt.json) emit(JSON.stringify({ v: 1, ledger, purgeBefore: opt.purgeBefore, removed, kept: kept.length }, null, 2));
+  else emit(`ok purged ${removed} row(s) before ${opt.purgeBefore} from ${ledger}; ${kept.length} row(s) kept`);
+  process.exit(0);
 }
 const wanted = opt.all ? null : resolve(opt.cwd).replace(/\\/g, '/').toLowerCase();
 const mine = rows.filter((r) => !wanted || String(r.cwd || '').replace(/\\/g, '/').toLowerCase() === wanted);

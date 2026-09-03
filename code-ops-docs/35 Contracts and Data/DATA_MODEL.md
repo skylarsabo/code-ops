@@ -107,7 +107,9 @@ The cache can be reused only when its identifier, generator identity, and payloa
 
 ## Atlas data
 
-An Atlas has a `MANIFEST.json` with versioned sections, scope declarations, and freshness state. `atlas-check.mjs` rejects missing or malformed manifests. Evidence: `scripts/atlas-check.mjs:174-224` and `scripts/atlas-check.mjs:301-437`.
+An Atlas has a `MANIFEST.json` with versioned sections, scope declarations, and freshness state. `atlas-check.mjs` rejects missing or malformed manifests. Evidence: `scripts/atlas-check.mjs:350-418` and `scripts/atlas-check.mjs:494-708`.
+
+A section may also carry `claims`, one entry per `path:line` citation in its prose. Each entry has a repository-relative `file`, a positive `line`, and an optional `anchor` copied verbatim from that line at stamp time: backtick-free, at most 80 characters. A credential-shaped line records the `<REDACTED-LINE>` sentinel instead of its own text, and a line yielding no usable substring records no anchor and is checked for existence only. `stamp` is the only writer, and a malformed entry fails the manifest closed. Evidence: `scripts/atlas-check.mjs:255-288` and `scripts/atlas-check.mjs:404-414`.
 
 Only fresh Atlas sections can contribute prose to a context bundle. A stale section contributes metadata, not an authoritative excerpt. Evidence: `scripts/context-bundle.mjs:58-74`.
 
@@ -115,7 +117,7 @@ Only fresh Atlas sections can contribute prose to a context bundle. A stale sect
 
 A session receipt is one JSON line, version `1`, with `ts`, `sessionId`, `cwd`, `reason`, `durationMs`, `models`, `turns`, `toolCalls`, `toolResultChars`, `contextAtEnd` (the tokens the last assistant message carried in), `arms` (`digest`, `ladderCard`, and `index`, each a boolean read from the same switch the hook reads), `files`, `skipped`, and `tokens` split into `main` and `subagents`, each with `input`, `cacheRead`, `cacheCreate`, `output`, `thinking`, and `total`. Usage is deduplicated by message id because the host writes one assistant message as several transcript lines that repeat the same usage block. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:54-68` and `scripts/transcript-lib.mjs:141-156`.
 
-The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so by default it is never inside a repository. Setting `CODE_OPS_RECEIPTS=off` disables the hook. Rows carry the working directory path and no transcript content.
+The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so by default it is never inside a repository. Nothing purges it on its own: `context-audit.mjs receipts --purge-before <ISO date>` rewrites it keeping rows at or after the date and reports the count removed, so retention is one operator command with a receipt. Setting `CODE_OPS_RECEIPTS=off` disables the hook. Rows carry the working directory path and no transcript content.
 
 ## Digest receipts
 

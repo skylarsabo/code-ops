@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "396318c85edcaa8a805f038b584f9f69a0b0d4b5e5a324759020fcd328566a4b"
+      "verifiedAt": "0996972acb206ae857c5273c924cb7ea909e013c",
+      "verifiedDigest": "fbce16e4af235d2db274812f294eba116cd7e5721a5c6497af54ec65b828f024"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,15 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "5a086266783d88e1a8f5aa7352fe37f9ac161fea04aae4f19e059785c71c7dca"
+      "verifiedAt": "0996972acb206ae857c5273c924cb7ea909e013c",
+      "verifiedDigest": "481a8aef5ca94c378e33c805a31e1fd9b881b0e7820df43062ec2993c47c5ba4",
+      "claims": [
+        {
+          "file": "scripts/atlas-check.mjs",
+          "line": 306,
+          "anchor": "function classifyClaims(root, sections) {"
+        }
+      ]
     },
     {
       "slug": "evals-and-calibration",
@@ -27,8 +34,15 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "510ff674a37323b76ad9aef51ff0e740ca4cd8569e4f5fda602ce323241304c0"
+      "verifiedAt": "0996972acb206ae857c5273c924cb7ea909e013c",
+      "verifiedDigest": "1dfd0a937ac73c23b00159c59cb363ea9aa777f9b286b44398bf1dd61e8166af",
+      "claims": [
+        {
+          "file": "scripts/judgment-evals.mjs",
+          "line": 155,
+          "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
+        }
+      ]
     },
     {
       "slug": "codex-render",
@@ -38,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "665111f3e6e4f377d4e71b1dea6811194952a92839b6f2bdfc95034416300af4"
+      "verifiedAt": "0996972acb206ae857c5273c924cb7ea909e013c",
+      "verifiedDigest": "0ff902dd05c38cd3e71a9da141a7b23b5cbcf9f0478170ea758d18146e1eeaba"
     },
     {
       "slug": "ci-workflows",
@@ -47,8 +61,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "53f01b3f7ef968e657e893a7393a505650d09e1c",
-      "verifiedDigest": "5742e5ee57cac3026e21ba90f1d628e422283aff85a7c0946d0ab7452d3358a5"
+      "verifiedAt": "0996972acb206ae857c5273c924cb7ea909e013c",
+      "verifiedDigest": "3525c8e45eaa01ad49d1c399d1bcddb9a107f2b0fc8f9e5b9e356f5d3b999f22"
     },
     {
       "slug": "docs-doctrine",
@@ -71,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "fc0e21a1687ced21ee55e60842df112bc39ca193",
-      "verifiedDigest": "f768e5354369deaa73037782824fa5a4732da4361387c64c4c7a551e9a479be7"
+      "verifiedAt": "0996972acb206ae857c5273c924cb7ea909e013c",
+      "verifiedDigest": "ac30ab9c192ed1f521f7d7a28e7086ff5c018e594ad5110a1f996b01b5be11a0"
     },
     {
       "slug": "root-contracts",
