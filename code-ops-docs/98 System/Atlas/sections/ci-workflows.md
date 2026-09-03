@@ -25,3 +25,5 @@ floor workflows are absent. Consumer GitHub review examples remain opt-in integr
 credentials, events, and status policy belong to the adopter.
 
 Both legs run the context-audit regression, which exercises the transcript parser and the `SessionEnd` receipt hook against a synthetic fixture, so path and stdin handling for the hook are proven on Windows before merge.
+
+The model review gates became opt-in on 2026-09-03: `ship` asks at its first checkpoint, the local gate opens with its own checkpoint, and branch protection on `main` must require only the deterministic checks, so unreviewed changes merge on hosted CI alone while reviewed ones still carry SHA-bound statuses.

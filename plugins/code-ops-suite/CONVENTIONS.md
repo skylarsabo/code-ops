@@ -49,6 +49,7 @@ Default: **when unsure, ask — don't guess.** Calibrate to be consultative, not
 - **Detect the shell/OS**; don't assume bash. Use cross-platform or shell-native commands accordingly.
 - **Stay in-repo.** No exfiltration; don't reach into unrelated systems.
 - **Never fabricate** paths, symbols, APIs, or facts — mark anything unconfirmed `UNVERIFIED` with what's needed to confirm.
+- **Model review gates are opt-in.** Deep review and the OpSec gate run only when the operator asks or a brief names them, for high-risk surfaces or explicitly delegated review. A skill never starts them by default. The deterministic chain and the lead's own read of the diff are the review every change gets.
 - **Ask before destructive/irreversible actions:** data deletion/migrations, history rewrites, permission/access changes, dependency major-version bumps, anything touching auth or network egress.
 
 **Automation level (set once at the start; default `gated`).** Governs every code-changing step:

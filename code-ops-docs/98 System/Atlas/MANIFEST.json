@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "506dd80b91f58de2d74222aa6dd53acc5e3ec8ea",
-      "verifiedDigest": "08c1c6a7a0527c106540fe51bbbd78f5a3dd6b53bc252c28b1d359073a5b96e0"
+      "verifiedAt": "4568c3e66869b683b5363fd501b3b2828078e95b",
+      "verifiedDigest": "40df917d0c60cf0a0134e17cb04fa8572e603d56fd89ec3d9d9c710d598212ae"
     },
     {
       "slug": "gate-scripts",
@@ -38,8 +38,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "506dd80b91f58de2d74222aa6dd53acc5e3ec8ea",
-      "verifiedDigest": "5e1deea632179eecb6394ec52570e4343d334b9a41ed23f3a93caea22699a29c"
+      "verifiedAt": "4568c3e66869b683b5363fd501b3b2828078e95b",
+      "verifiedDigest": "2582a0d5116abf4a33ddd87ac5be791e819e80b85c5a649534ae1d74cc2d4594"
     },
     {
       "slug": "ci-workflows",
@@ -71,8 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "0715e433f99a09f6f6e9fc388057f233e2c6276d",
-      "verifiedDigest": "1e04daf808b96e1e0d2ff7db36af9e9a78d6199f169c211eeac864d6c88f52a0"
+      "verifiedAt": "4568c3e66869b683b5363fd501b3b2828078e95b",
+      "verifiedDigest": "8e94fcfd0827f3633a4f6197078aaf64edd9a265fb724f915abbeb8fd1137e56"
     },
     {
       "slug": "root-contracts",
@@ -86,8 +86,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "39c4e8266ae219723cebfc46406bbf273c924d2e",
-      "verifiedDigest": "45b238732992674c8c938f8ffe923635bc7c1dbabc0c32682d0dc58986a8ba52"
+      "verifiedAt": "4568c3e66869b683b5363fd501b3b2828078e95b",
+      "verifiedDigest": "2f5192f84bd09d15e367bd7a5c0c9ecab212d4101a7640b380e7139570f989a3"
     },
     {
       "slug": "runtime-toolchain",

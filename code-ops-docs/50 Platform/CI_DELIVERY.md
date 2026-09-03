@@ -30,7 +30,9 @@ The v4 gate chain keeps responsibilities separate. The manifest gate owns domain
 
 ## Pull-request gates
 
-Model-driven deep review and OpSec review run locally before a pull request. A local Codex
+Model-driven deep review and OpSec review run locally before a pull request only when the
+operator opts in, for high-risk surfaces or delegated review; the deterministic chain and the
+lead's own diff read cover every other change. A local Codex
 automation may run the same review and weekly judgment trend or floor-calibration work. The
 local gate binds the base SHA, HEAD SHA, binary-diff digest, changed paths, reviewer identity,
 strong-or-frontier tier, report digest, and hash-chained receipts. It rejects a dirty or
@@ -40,7 +42,9 @@ Evidence: `scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:
 and `scripts/local-review-gate.mjs:357-450`.
 
 `local-review-gate.mjs publish` can publish verified local receipts as commit statuses. Status
-publication is optional. It does not make GitHub the review executor. Evidence:
+publication is optional. Branch protection on `main` must require only the deterministic
+checks, because a required model-review status would block every change the operator chose not
+to review. It does not make GitHub the review executor. Evidence:
 `scripts/local-review-gate.mjs:274-344` and `scripts/local-review-gate.mjs:441-468`.
 
 GitHub `validate` is the required hosted merge gate. It runs deterministic lint, rendering,

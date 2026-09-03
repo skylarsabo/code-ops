@@ -8,6 +8,8 @@ description: "Use when deep review, OpSec review, or judgment evals should run l
 
 **Mode:** REVIEW. **Consumes:** one clean, committed feature branch and its target base. **Produces:** two ignored review reports, a SHA-bound plan, a hash-chained receipt set, and optional GitHub commit statuses. **Requires** `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate` for the PR track. The judgment-eval track instead consumes `evals/judgment-matrix.json` and dispatches the plan's read-only units.
 
+**Opt-in only.** This skill spends two strong-tier reviewer runs per head, and a fix costs both again. It never runs by default from another skill or on the lead's own judgment. It runs when the operator asks for it, when a brief names it, or when `ship` recorded a yes at its Phase 0 checkpoint for a high-risk surface. The first act of Track A is a checkpoint that restates the base, the head, the changed-path count, and which gates will run (both by default; the operator may name one), and waits for a yes.
+
 ## Track A — pre-PR gate
 
 ### Phase 0 — deterministic floor
