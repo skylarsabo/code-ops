@@ -1,144 +1,226 @@
-# Ship a Verified Fix
+# Ship a verified fix
 
-> A narrative walkthrough of taking **one** change — a feature or a one-off — from intent to a clean, proven, trace-free pull request with [`/code-ops-suite:ship`](../40 Engineering/Handbook/commands/code-ops-suite.md). This is the single-change counterpart to the broad orchestrators; where [`everything`](the-everything-pass.md) sweeps a whole repo, `ship` drives exactly one change end to end at full rigor.
+This guide walks one change from intent to a clean, proven, trace-free pull request with
+[`/code-ops-suite:ship`](../40 Engineering/Handbook/commands/code-ops-suite.md).
+Read it when you have exactly one feature or one-off to land and you want the whole
+rigor path in view. For a whole-repo sweep read [the everything pass](the-everything-pass.md) instead.
 
-## Exec summary (stop here if you just want the shape)
+## What ship is for
 
-You have one change to make and you want it *done* — not "the code compiles," but design-checked, proven with a test that failed before and passes after, privacy-clean, and landed as a PR that reads like you wrote it. That is what `ship` is for.
+You have one change to make and you want it finished: design-checked, proven by a test that
+failed before and passes after, privacy-clean, and landed as a pull request that reads like you
+wrote it.
 
-`ship` is an **orchestrator** in the code-ops-suite plugin (the SPINE). It does not invent its own rigor; it **composes** the verification layer (`rigor`) and, when the change touches anonymity surfaces, the anonymity track (`privacy-opsec-suite`). It runs six phases, pausing at the checkpoints that carry a decision:
+`ship` is an orchestrator in the code-ops-suite plugin, the spine. It does not invent its own
+rigor. It composes the verification layer (`rigor`) and, when the change touches an anonymity
+surface, the anonymity track (`privacy-opsec-suite`). It runs six phases and pauses at the
+checkpoints that carry a decision:
 
 | Phase | What happens | Composes | Checkpoint? |
 |------|--------------|----------|-------------|
 | 0 · Scope & design-check | Detect stack, take a baseline, size the change, set the automation level | [`rigor:ground-truth`](../40 Engineering/Handbook/commands/rigor.md) | Yes |
 | 1 · Safety net | Pin current behavior where coverage is thin | [`rigor:safety-net`](../40 Engineering/Handbook/commands/rigor.md) | Conditional |
-| 2 · Implement | The smallest correct change, matching repo conventions | implementation loop (`CONVENTIONS §11`) | — |
-| 3 · Prove | Failing→passing test; suite + regression guard green | regression guard (`rigor §H`) | — |
-| 4 · Privacy gate | Block any new leak/egress/identifier; fail-closed preserved | [`privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Conditional |
-| 5 · Finish traceless | Clean PR or stack, scrubbed of tool trace, scanner green | [`pr-split`](../40 Engineering/Handbook/commands/code-ops-suite.md) + [`authorship-hygiene`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Yes (before push) |
+| 2 · Implement | The smallest correct change, matching repo conventions | implementation loop (`CONVENTIONS §11`) | No |
+| 3 · Prove | Failing-then-passing test, suite and regression guard green | regression guard (`rigor §H`) | No |
+| 4 · Privacy gate | Block any new leak, egress, or identifier, fail-closed preserved | [`privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Conditional |
+| 5 · Finish traceless | Clean PR or stack, scrubbed of tool trace, scanner green | [`pr-split`](../40 Engineering/Handbook/commands/code-ops-suite.md) plus [`authorship-hygiene`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) | Yes (before push) |
 
-Two hard rules to remember before you read further:
+Two hard rules govern the run:
 
-1. **`ship` requires `rigor`.** The proof phases are not optional decoration — they are the point. Without `rigor` installed, the orchestrator has no safety-net, regression guard, or verification layer to compose. The privacy phase, by contrast, runs *only* if `privacy-opsec-suite` is installed **and** the change touches a privacy surface.
-2. **`ship` never auto-merges.** Even on the most permissive automation level, the work lands as a commit/PR for a human to merge. "Done" means *shippable*, not *shipped past you*.
+1. `ship` requires `rigor`. Without it the orchestrator has no safety net, regression guard, or verification layer to compose.
+2. `ship` never auto-merges. At every automation level the work lands as a commit or pull request for a person to merge.
 
-Everything below is the same six phases at depth, told as one developer carrying one change through them.
-
----
+The privacy phase is different. It runs only when `privacy-opsec-suite` is installed and the
+change touches a privacy surface.
 
 ## The walkthrough
 
-Take a concrete intent: *"the export endpoint drops the last row when the result set is an exact multiple of the page size."* A real bug, narrow, with a clear owner. We invoke:
+Take a concrete intent: the export endpoint drops the last row when the result set is an exact
+multiple of the page size. The bug is real, narrow, and has a clear owner. Invoke:
 
 ```
 /code-ops-suite:ship
 ```
 
-and hand it that intent (a ticket, a request, or a one-line description all work — `ship` consumes an *intent*, per its SKILL).
+and hand it that intent. A ticket, a request, or a one-line description all work, because `ship`
+consumes an intent.
 
-### Phase 0 — Scope & design-check *(checkpoint)*
+### Phase 0 · Scope and design check (checkpoint)
 
-The first thing `ship` does is **not** write code. It establishes ground truth. It detects the stack, then runs [`/rigor:ground-truth`](../40 Engineering/Handbook/commands/rigor.md) to capture the factual baseline — build/typecheck, lint, the test suite with a coverage map, and any static analysis — recorded as facts in `GROUND_TRUTH.md`, with a **blind-spot list** of modules that have little or no coverage. This is the "ground-truth-first" rule of the shared backbone: you measure the world before you change it, so later you can prove *what your change did* rather than guessing.
+The first thing `ship` does is not write code. It establishes ground truth. It detects the stack,
+then runs [`/rigor:ground-truth`](../40 Engineering/Handbook/commands/rigor.md) to capture the
+factual baseline: build, typecheck, lint, the test suite with a coverage map, and any static
+analysis. It records those facts in `GROUND_TRUTH.md` with a blind-spot list of modules that have
+little or no coverage. Measuring the world before changing it is what later lets you prove what
+your change did.
 
-It then learns the repo's own conventions (so the change reads native, not imposed) and **sizes the change**. This is the fork in the road:
+It then learns the repository's conventions so the change reads native, and it sizes the change.
+Sizing is the fork in the road:
 
-- A **one-off** — our missing-row fix — proceeds. It is small, local, and the intent is unambiguous.
-- A **feature** does not proceed silently. `ship` confirms the approach first: it presents numbered options with a recommendation and a default (the interaction protocol from `CONVENTIONS §3`), and waits. You don't discover the design after it's built.
+- A one-off, like the missing-row fix, proceeds, because it is small, local, and unambiguous.
+- A feature does not proceed silently, because `ship` presents numbered options with a recommendation and a default, then waits.
 
-Finally, Phase 0 sets the **automation level** (`CONVENTIONS §4`) for the whole run and confirms which composed plugins are actually installed (a preflight; it notes anything missing rather than failing late):
+Phase 0 also sets the automation level (`CONVENTIONS §4`) for the whole run and confirms which
+composed plugins are installed:
 
-- `gated` *(default)* — pause for approval at each change/closure batch.
-- `auto-safe` *(recommended ceiling)* — auto-apply only NOW-SAFE items (on a branch, test-backed, behavior-preserving, trivially revertible); still pause for NEEDS-REVIEW, NEEDS-DESIGN, and the **always-gated** categories.
-- `auto-all` — *not recommended.*
+- `gated` (default) pauses for approval at each change or closure batch.
+- `auto-safe` (recommended ceiling) auto-applies only NOW-SAFE items and still pauses for NEEDS-REVIEW, NEEDS-DESIGN, and the always-gated categories.
+- `auto-all` is not recommended.
 
-The **always-gated** categories hold regardless of level: security/auth changes, secret handling, data migrations or destructive operations, and public API/contract changes. These are the backbone's non-negotiables — they never auto-apply, and nothing ever auto-merges.
+The always-gated categories hold at every level: security and auth changes, secret handling, data
+migrations or destructive operations, and public API or contract changes. They never auto-apply,
+and nothing ever auto-merges.
 
-> **Checkpoint — what you decide here:** the automation level, and (for a feature) the approach. For our one-off, the only real gate is "yes, this is a one-off; proceed at `gated`."
+> **Checkpoint.** You decide the automation level and, for a feature, the approach. For a one-off the only real gate is confirming that it is a one-off.
 
-### Phase 1 — Safety net *(conditional)*
+### Phase 1 · Safety net (conditional)
 
-This phase fires only if the change touches code with **thin coverage** — and Phase 0's blind-spot list is exactly how `ship` knows. Our export endpoint, it turns out, has happy-path tests but nothing exercising the page-boundary math. That is a blind spot.
+This phase fires only when the change touches code with thin coverage, and Phase 0's blind-spot
+list is how `ship` knows. Suppose the export endpoint has happy-path tests but nothing exercising
+the page-boundary math. That gap is a blind spot.
 
-So `ship` runs [`/rigor:safety-net`](../40 Engineering/Handbook/commands/rigor.md), which writes **characterization tests** that lock the *current observable behavior* of the target — including its current quirks, because the job here is to pin behavior, not to assert correctness — and runs them **green against the current code**. Critically, if `safety-net` notices the very bug you're about to fix, it does **not** fix it; it records it in `FINDINGS_REGISTER.md` as a candidate and leaves the fix for Phase 2/3. The net's purpose is to give the regression guard (Phase 3) something concrete to protect, so your change can be proven *behavior-preserving everywhere except where you intended to change behavior.*
+So `ship` runs [`/rigor:safety-net`](../40 Engineering/Handbook/commands/rigor.md). It writes
+characterization tests that lock the current observable behavior of the target, quirks included,
+because the job is to pin behavior rather than assert correctness. It runs them green against the
+current code. If `safety-net` notices the very bug you are about to fix, it does not fix it. It
+records the bug in `FINDINGS_REGISTER.md` as a candidate and leaves the fix to Phases 2 and 3. The
+net gives the regression guard something concrete to protect.
 
-If the target already had solid coverage, `ship` skips this phase. Scale every phase to the change — a one-off in well-tested code is a light pass.
+If the target already had solid coverage, `ship` skips this phase. Scale every phase to the change.
 
-### Phase 2 — Implement
+### Phase 2 · Implementation
 
-Now code gets written, through the shared **implementation loop** (`CONVENTIONS §11`): re-validate the item against current code, plan the smallest correct change, confirm if anything is ambiguous, implement while matching existing conventions and upholding the relevant quality lenses (`§10`), and *don't trade one issue for another.*
+Now code gets written, through the shared implementation loop (`CONVENTIONS §11`). Re-validate the
+item against current code, plan the smallest correct change, confirm anything ambiguous, then
+implement while matching existing conventions and upholding the quality lenses (`§10`).
 
-For our bug that means fixing the off-by-one at the page boundary — at its root, not by clamping the output downstream. For a feature it would mean shipping the **smallest valuable slice first**, behind a flag if the slice isn't yet complete. The discipline is the same either way: minimal, native, behavior-preserving except where the intent is to change behavior.
+For this bug that means fixing the off-by-one at the page boundary, at its root, rather than
+clamping the output downstream. For a feature it would mean shipping the smallest valuable slice
+first, behind a flag when the slice is incomplete.
 
-### Phase 3 — Prove
-
-This is the phase that makes the change *done* rather than *written*. The rule, verbatim from the skill: **a change without a test that demonstrates it is not done.**
-
-Three things must be true to leave this phase:
-
-1. **A test that fails before and passes after.** It encodes the exact defect (the last row at an exact page multiple) and is the durable proof the bug is gone.
-2. **The full suite is green** — your change broke nothing visible.
-3. **The regression guard is green** (`rigor §H`). The guard maintains a growing **proof set** — every repro, characterization, and regression test produced during the run — and re-runs *all of it* plus the suite after the change. A change that breaks any prior proof or a previously-green test is **rejected and reworked.** You **never weaken a proof to make a change pass.** Those characterization tests from Phase 1 are in this proof set, which is how "behavior-preserving where intended" gets *enforced* rather than merely claimed.
-
-### Phase 4 — Privacy gate *(conditional)*
-
-This phase runs only when **both** conditions hold: `privacy-opsec-suite` is installed, **and** the change touches a privacy surface — egress, logging, identifiers, or a default. Our row-fix touches none of those, so for this particular change `ship` skips it. But it is worth knowing what would happen if it didn't.
-
-Suppose the fix had added a log line including the exporting user's ID, or a retry that opened a new outbound request. Then `ship` runs the anonymity track's pre-merge gate ([`/privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md)), which treats as **BLOCKING** any new egress path or fail-closed bypass, any new log line touching PII/identifiers/IPs, any new identifier or fingerprint vector, any new correlation surface, any phone-home dependency, or any weakened (less-anonymous) default. Any anonymity regression is surfaced as **blocking** — it does not become an advisory note you can wave through. This is the ANONYMITY TRACK doing its one job: *no new leak ships.*
-
-### Phase 5 — Finish traceless *(checkpoint before push)*
-
-The change is correct and proven. Now it has to *land*, and land clean. `ship` finishes through the **traceless** path:
-
-- If the work warrants a stack of small PRs, it runs [`/code-ops-suite:pr-split`](../40 Engineering/Handbook/commands/code-ops-suite.md) to carve the branch into independently-green PRs.
-- Otherwise it ships a single PR, scrubbed by [`/privacy-opsec-suite:authorship-hygiene`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) — three surfaces: **L1** attribution/tool metadata (mechanical), **L2** prose voice on commits and PR descriptions (matched to your history), and **L3** code-idiom blend-in (behavior-preserving).
-
-The mechanical floor under both is the bundled scanner, run **fail-closed**:
+The code-economy ladder governs how much code the change is allowed to add. Ask in order whether
+the code needs to exist, whether it exists here already, whether the standard library or an
+installed dependency does it, and whether it fits inside the owning module. Extract a new file only
+on evidence. Mark a deliberate simplification with a `deferred(<ceiling>, <upgrade path>)` comment.
+The mechanical floor under the ladder is the over-build scanner:
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-ai-tells.mjs <commit-range-or-pr-body-file>
+node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan overbuild --git <range>
 ```
 
-It flags attribution trailers (`Co-Authored-By:`, "Generated with/by …"), tool/assistant markers, emoji, em-dash density over a threshold, assistant-prose tells ("Notably,", "Importantly,", "Here's what I"/"Here's what we" — the regex requires a first-person pronoun after the phrase: `here's what (i|we)\b`, "In summary,"), and the `## Test plan` boilerplate — and it **exits non-zero on any hit**, so it can gate a push. The push is aborted if the trace can't be cleaned. (If `privacy-opsec-suite` isn't installed, `ship` runs this same bundled script directly as the gate — the floor is the same either way.)
+It is advisory except for an unrecorded dependency. `co scan deferrals` collects every
+`deferred(...)` marker into a register. Both verbs resolve only inside `code-ops-suite`, which
+bundles `scan-overbuild.mjs` and `harvest-deferrals.mjs`.
 
-> **Checkpoint — the last human gate:** under `gated` the run pauses before the outward-facing push; `auto-safe`/full-auto proceed after one abortable dry-run summary. Either way **nothing is auto-merged.** You get the summary and the PR link(s), and you click merge.
+### Phase 3 · Proof
 
----
+This phase is what makes the change done rather than written. The rule from the skill is that a
+change without a test that demonstrates it is not done.
 
-## What "done" means
+Three things must be true to leave the phase:
 
-Straight from the skill's own *Done when* — a change has shipped when **all** of these hold:
+1. A test fails before and passes after, encoding the exact defect at the page boundary.
+2. The full suite is green, so the change broke nothing visible.
+3. The regression guard is green (`rigor §H`).
 
-- implemented at the **smallest correct scope**;
-- **proven** — a failing→passing test, with the full suite *and* the regression guard green;
-- **behavior-preserving** everywhere except where the change intended otherwise;
-- **privacy posture intact** (if the privacy phase applied);
-- **docs updated** so the change creates no drift;
-- shipped as a **clean, trace-free** PR or stack with the AI-tells scanner green — and **nothing auto-merged.**
+The guard maintains a growing proof set of every repro, characterization, and regression test the
+run produced. It re-runs all of that plus the suite after the change. A change that breaks a prior
+proof or a previously-green test is rejected and reworked. Never weaken a proof to make a change
+pass. The Phase 1 characterization tests sit in this proof set, which is how behavior preservation
+gets enforced instead of claimed.
 
-`ship` then presents a summary, the PR link(s), and anything left for your decision.
+### Phase 4 · Privacy gate (conditional)
 
-## Where this sits in the four-plugin model
+This phase runs only when both conditions hold: `privacy-opsec-suite` is installed, and the change
+touches a privacy surface (egress, logging, identifiers, or a default). The row fix touches none of
+those, so `ship` skips it here.
+
+Suppose instead the fix had added a log line carrying the exporting user's ID, or a retry that
+opened a new outbound request. Then `ship` runs the anonymity track's pre-merge gate,
+[`/privacy-opsec-suite:opsec-pr-gate`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md).
+That gate treats six things as blocking: a new egress path or fail-closed bypass, a new log line
+touching PII, identifiers, or IPs, a new identifier or fingerprint vector, a new correlation
+surface, a phone-home dependency, and any weakened default. An anonymity regression is blocking
+rather than advisory.
+
+### Phase 5 · Traceless finish (checkpoint before push)
+
+The change is correct and proven. Now it has to land, and land clean.
+
+- If the work warrants a stack of small pull requests, `ship` runs [`/code-ops-suite:pr-split`](../40 Engineering/Handbook/commands/code-ops-suite.md) to carve the branch into independently-green pull requests.
+- Otherwise it ships a single pull request, scrubbed by [`/privacy-opsec-suite:authorship-hygiene`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md) across attribution metadata, prose voice, and code idiom.
+
+The mechanical floor under both is the bundled scanner, run fail-closed:
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan ai-tells <commit-range-or-pr-body-file>
+```
+
+The verb resolves to `scan-ai-tells.mjs`, which both `code-ops-suite` and `privacy-opsec-suite`
+bundle. It flags attribution trailers such as `Co-Authored-By:` and "Generated with", tool and
+assistant markers, emoji, em-dash density over a threshold, assistant-prose tells, and the
+`## Test plan` boilerplate. It exits non-zero on any hit, so it can gate a push. The push aborts
+when the trace cannot be cleaned. If `privacy-opsec-suite` is absent, `ship` runs the same scanner
+directly and the floor is unchanged.
+
+> **Checkpoint.** Under `gated` the run pauses before the outward-facing push. Under `auto-safe` it proceeds after one abortable dry-run summary. Nothing is auto-merged either way.
+
+## Context and code economy during the run
+
+Every phase above reads code, and the suite compresses that reading at the source. Four mechanisms
+carry it, each on by default and each switched off with `off`, `0`, or `false` in the `env` block
+of a `.claude/settings.json`:
+
+- `CODE_OPS_DIGEST` rewrites long Bash output into a digest plus a receipt naming the raw file, so a truncated result stays a pointer.
+- `CODE_OPS_INDEX` refreshes the symbol index after an edit, so `co context query find|callers|callees|blast <symbol>` answers with `file:line` anchors instead of a map dump.
+- `CODE_OPS_LADDER_CARD` prints the code-economy ladder to an implementing operative at dispatch.
+- `CODE_OPS_RECEIPTS` writes session receipts to a home-directory ledger that never leaves the machine.
+
+Prefer `co context skim <file>` over reading a large file whole, then read the range the outline
+names. Prefer `co context query` over grepping for a definition or a call site. For the exact
+contracts see [Contracts](../35 Contracts and Data/CONTRACTS.md), for the switches see
+[Infrastructure](../50 Platform/INFRASTRUCTURE.md), and for the measured effect see
+[Measurements](../55 Operations/MEASUREMENTS.md).
+
+## Definition of done
+
+From the skill's own *Done when*, a change has shipped when all of these hold:
+
+- implemented at the smallest correct scope
+- proven by a failing-then-passing test, with the full suite and the regression guard green
+- behavior-preserving everywhere except where the change intended otherwise
+- privacy posture intact, when the privacy phase applied
+- docs updated so the change creates no drift
+- shipped as a clean, trace-free pull request or stack with the scanner green, and nothing auto-merged
+
+`ship` then presents a summary, the pull request links, and anything left for your decision.
+
+## Place in the four-plugin model
 
 ```mermaid
 flowchart LR
   intent([Intent: one change]) --> ship["code-ops-suite:ship<br/>(SPINE / orchestrator)"]
   ship -->|baseline + proof| rigor["rigor<br/>ground-truth · safety-net<br/>regression guard §H"]
   ship -->|leak gate, if applicable| opsec["privacy-opsec-suite<br/>opsec-pr-gate"]
-  ship -->|traceless finish| finish["pr-split + authorship-hygiene<br/>scan-ai-tells (fail-closed)"]
-  finish --> pr([Clean PR / stack — you merge])
+  ship -->|traceless finish| finish["pr-split + authorship-hygiene<br/>co scan ai-tells (fail-closed)"]
+  finish --> pr([Clean PR / stack, you merge])
 ```
 
-- **code-ops-suite (the SPINE)** owns `ship` itself — broad engineering plus the orchestrators.
-- **rigor (the VERIFICATION layer)** supplies the baseline, the safety net, and the regression guard. `ship` *requires* it.
-- **privacy-opsec-suite (the ANONYMITY TRACK)** supplies the leak gate, used only when a privacy surface is touched.
-- The shared backbone runs through all of it: developer-in-the-loop checkpoints, evidence at `file:line`, behavior preservation, registers as the single source of truth, and the gated/auto-safe/auto-all ladder with its always-gated categories.
+- code-ops-suite, the spine, owns `ship` itself alongside broad engineering and the orchestrators.
+- rigor, the verification layer, supplies the baseline, the safety net, and the regression guard. `ship` requires it.
+- privacy-opsec-suite, the anonymity track, supplies the leak gate, used only when a privacy surface is touched.
+
+The shared backbone runs through all of it: developer-in-the-loop checkpoints, evidence at
+`file:line`, behavior preservation, registers as the single source of truth, and the automation
+ladder with its always-gated categories.
 
 ## See also
 
-- [Audit a risky subsystem](audit-a-risky-subsystem.md) — the `rigor` journey when you're *investigating* rather than shipping one known change.
-- [The everything pass](the-everything-pass.md) — the whole-repo superset orchestrator, checkpoint by checkpoint.
-- [Orchestrators](../40 Engineering/Handbook/03-orchestrators.md) — when to reach for `ship` vs `everything` vs `debug`.
-- [Evidence and tiers](../40 Engineering/Handbook/05-evidence-and-tiers.md) — CONFIRMED / PROBABLE / SPECULATIVE and the disconfirmation pass that underwrite "proven."
-- [Choosing an automation level](../40 Engineering/Techniques/choosing-an-automation-level.md) — picking `gated` vs `auto-safe` for a run.
+- [Audit a risky subsystem](audit-a-risky-subsystem.md) for the `rigor` journey when you are investigating rather than shipping one known change.
+- [The everything pass](the-everything-pass.md) for the whole-repo superset orchestrator, checkpoint by checkpoint.
+- [Debug: symptom to root cause](debug-symptom-to-root-cause.md) for the path that starts from a live bug.
+- [Orchestrators](../40 Engineering/Handbook/03-orchestrators.md) for choosing between `ship`, `everything`, and `debug`.
+- [Evidence and tiers](../40 Engineering/Handbook/05-evidence-and-tiers.md) for CONFIRMED, PROBABLE, and SPECULATIVE.
+- [Choosing an automation level](../40 Engineering/Techniques/choosing-an-automation-level.md) for picking `gated` against `auto-safe`.
 
-*Verified-at: c2b37e9*
+*Verified-at: b0ffede*
