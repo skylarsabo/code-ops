@@ -90,6 +90,14 @@ if (process.platform === 'win32') {
   } catch { /* unset is fine */ }
 }
 
+// ---- optional index providers --------------------------------------------------------
+// Reported as data, never as a requirement: context-query.mjs spawns one only when
+// `--provider` names it, and an absent provider costs the index fidelity, not a run. So an
+// absence is printed here and never joins `errors`.
+console.log('optional index providers (data, not requirements):');
+for (const provider of ['ctags', 'codegraph']) console.log(`  ${provider.padEnd(9)} ${has(provider) ? 'present' : 'absent'}`);
+console.log('  context-query.mjs refresh --provider <name> uses one; without it the line rules stand alone.');
+
 // ---- tier-floor manifest ------------------------------------------------------------
 // Agent floors are declared in each agent's own frontmatter, so the files beside this
 // script are the source of truth wherever it runs — vendored into a plugin

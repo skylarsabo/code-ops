@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.3
+- Vendored `preflight.mjs` refreshed: it prints `ctags` and `codegraph` as detected capabilities, present or absent, never as a requirement.
+
 ## 2.18.2
 - Vendors `symbol-lib.mjs` beside `skim.mjs`, which now imports its definition rules from it.
 

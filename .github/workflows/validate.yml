@@ -197,8 +197,10 @@ jobs:
         run: node evals/deferral-harvest/run.mjs
       - name: Ladder card hook eval (opt-in switch + implementer filter)
         run: node evals/ladder-card/run.mjs
-      - name: Context query eval (symbol index, call edges, stale banner, refresh hook)
+      - name: Context query eval (symbol index, call edges, stale banner, refresh hook, providers)
         run: node evals/context-query/run.mjs
+      - name: Context query MCP eval (stdio server, two tools, JSON-RPC errors)
+        run: node evals/context-query-mcp/run.mjs
 
       - name: Calibration-metrics regression eval
         run: node evals/calibration-metrics/run.mjs
@@ -297,8 +299,10 @@ jobs:
         run: node evals/deferral-harvest/run.mjs
       - name: Ladder card hook eval (opt-in switch + implementer filter)
         run: node evals/ladder-card/run.mjs
-      - name: Context query eval (symbol index, call edges, stale banner, refresh hook)
+      - name: Context query eval (symbol index, call edges, stale banner, refresh hook, providers)
         run: node evals/context-query/run.mjs
+      - name: Context query MCP eval (stdio server, two tools, JSON-RPC errors)
+        run: node evals/context-query-mcp/run.mjs
 
       - name: Documentation manifest freshness
         run: node scripts/docs-manifest.mjs check

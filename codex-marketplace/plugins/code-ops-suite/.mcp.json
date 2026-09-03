@@ -6,6 +6,13 @@
         "./scripts/lib-docs-mcp.mjs"
       ],
       "cwd": "."
+    },
+    "code-ops-query": {
+      "command": "node",
+      "args": [
+        "./scripts/context-query-mcp.mjs"
+      ],
+      "cwd": "."
     }
   }
 }
