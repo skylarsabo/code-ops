@@ -1,16 +1,20 @@
 ---
 type: reference
 status: current
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Data Model
+
+This page names every record the repository writes, its identity, and what it binds. Read it
+when you need a field name, an identifier format, or the retention rule for a local store.
+The [contracts reference](CONTRACTS.md) owns the commands and gates that produce these records.
 
 ## Repository data
 
 The marketplace stores text, JSON, and Markdown artifacts in Git. It has no application database, service-owned persistence layer, or runtime migration directory. This is a repository inspection finding, not a claim about downstream projects.
 
-Canonical package metadata is JSON in `plugins/*/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. Generated marketplace metadata is a projection of that source. Evidence: `AGENTS.md:108-117`.
+Canonical package metadata is JSON in `plugins/*/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. Generated marketplace metadata is a projection of that source. Evidence: `AGENTS.md:94-101`.
 
 ## Orchestration records
 
@@ -87,7 +91,7 @@ data model. Evidence:
 
 A judgment-eval plan stores its mode, execution policy, current head, matrix receipt,
 selected model IDs, generated units, creation time, and digest. Each worker unit names a
-fixture, tier, arm, replication, target, skill documents, and ignored findings path; it does
+fixture, tier, arm, replication, target, skill documents, and ignored findings path. A unit does
 not expose the answer key. Ambiguous Git index flags invalidate planning and replay. Ignored
 authority paths reject linked components or portable aliases to tracked Git paths. A score
 output cannot physically alias the plan or a findings file. A score receipt stores the plan,
@@ -117,7 +121,7 @@ Only fresh Atlas sections can contribute prose to a context bundle. A stale sect
 
 A session receipt is one JSON line, version `1`, with `ts`, `sessionId`, `cwd`, `reason`, `durationMs`, `models`, `turns`, `toolCalls`, `toolResultChars`, `contextAtEnd` (the tokens the last assistant message carried in), `arms` (`digest`, `ladderCard`, and `index`, each a boolean read from the same switch the hook reads), `files`, `skipped`, and `tokens` split into `main` and `subagents`, each with `input`, `cacheRead`, `cacheCreate`, `output`, `thinking`, and `total`. Usage is deduplicated by message id because the host writes one assistant message as several transcript lines that repeat the same usage block. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:54-68` and `scripts/transcript-lib.mjs:141-156`.
 
-The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so by default it is never inside a repository. Nothing purges it on its own: `context-audit.mjs receipts --purge-before <ISO date>` rewrites it keeping rows at or after the date and reports the count removed, so retention is one operator command with a receipt. Setting `CODE_OPS_RECEIPTS=off` disables the hook. Rows carry the working directory path and no transcript content.
+The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so by default it is never inside a repository. Nothing purges it on its own: `context-audit.mjs receipts --purge-before <ISO date>` rewrites it keeping rows at or after the date and reports the count removed, so retention is one operator command with a receipt. Setting `CODE_OPS_RECEIPTS` to `off`, `0`, or `false` disables the hook. Rows carry the working directory path and no transcript content.
 
 ## Digest receipts
 
@@ -125,13 +129,13 @@ A digest receipt is one JSON line, version `1`, with `ts`, `cwd`, `argv`, `exit`
 `bytesIn`, `bytesOut`, `linesIn`, `linesOut`, `sha256`, and `raw`. `argv` holds the command
 tokens exactly as the caller gave them. `sha256` covers the raw file named by `raw`, which holds
 the command's stdout, then a `----- stderr -----` separator and its stderr when stderr is not
-empty. `linesIn` counts that whole file; `linesOut` counts what the digest printed, including its
+empty. `linesIn` counts that whole file, and `linesOut` counts what the digest printed, including its
 trailer. Evidence: `scripts/digest.mjs:254-269` and `scripts/digest.mjs:230-233`.
 
 A row's `cwd` is the directory the command ran in, which under `--cwd` is the target the caller named, while the store it is filed under follows the directory the digest started in. The store lives outside the repository, at `~/.claude/code-ops/digest/<project slug of cwd>/`,
 unless `--store` or `$CODE_OPS_DIGEST_DIR` names another directory, and `--no-store` or
 `CODE_OPS_DIGEST_STORE=off` outranks both and stores nothing. Raw files sit under
-`<store>/<ISO date>/`; the ledger is `<store>/DIGEST_RECEIPTS.jsonl`. Both writes fail open, so a
+`<store>/<ISO date>/`, and the ledger is `<store>/DIGEST_RECEIPTS.jsonl`. Both writes fail open, so a
 run whose store is unwritable still prints a correct digest with no raw path. Rows carry the
 working directory and the command, never the output. Evidence: `scripts/digest.mjs:166-195`.
 
@@ -161,7 +165,7 @@ Run artifacts are repository-local working evidence. Do not put secrets, tokens,
 | Curation event | Sequence and event digest | None after merge; corrections append replacement state. |
 | Semantic index | Generator version and semantic digest | Rendering may change without changing semantics. |
 
-The ID namespace hashes the collection UUID and normalized Git-index path. Collection labels do not affect identity. A split creates a new UUID for future records; a presentation merge preserves original namespaces.
+The ID namespace hashes the collection UUID and normalized Git-index path. Collection labels do not affect identity. A split creates a new UUID for future records, and a presentation merge preserves original namespaces.
 
 Inventory v3 keeps one `authorityBatches` array. The singular `adoptionReview` remains genesis evidence and supports v2 migration. It is not a second growing chain.
 
@@ -183,11 +187,11 @@ Collection classification has an independent version. Version 1 uses one glob pa
 
 An adoption history profile stores:
 
-- exact-path admission and content-baseline commits;
-- lineage bounds in `firstRelevantCommit` and `lastRelevantCommit`;
-- content-transition and prior-incarnation counts;
-- current SHA-256; and
-- `historyDigest`.
+- exact-path admission and content-baseline commits
+- lineage bounds in `firstRelevantCommit` and `lastRelevantCommit`
+- content-transition and prior-incarnation counts
+- current SHA-256
+- `historyDigest`
 
 The digest uses SHA-256 content identities and paths instead of Git object IDs. Admission stays anchored to the current path. Readiness also follows earlier promoted paths. Every review plan binds the profile to `HEAD` and the manifest digest. An incremental review plan also binds current authority state.
 

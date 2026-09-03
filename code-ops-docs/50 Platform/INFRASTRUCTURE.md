@@ -1,10 +1,14 @@
 ---
 type: reference
 status: current
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Infrastructure
+
+This page owns the runtime environment: the Node version, the repository's own CI and hook
+infrastructure, the bundled host hooks and their switches, and the operational limits. Look
+here first for the name of a switch or the path of a local store.
 
 ## Runtime
 
@@ -19,59 +23,77 @@ before writing raw provenance. Evidence: `scripts/host-capabilities.mjs:1-79` an
 
 The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:96-136`, `205-218`, and `253-292`.
 
-There is no application server, managed database, container image, Terraform root, or cloud-runtime configuration in the current repository. This is an inspected repository boundary, not a statement about hosts that install the marketplace.
+There is no application server, managed database, container image, Terraform root, or cloud-runtime configuration in the current repository. That is an inspected repository boundary, not a statement about hosts that install the marketplace.
 
 ## Repository infrastructure
 
 GitHub Actions provides CI. GitHub hosts pull requests, branch protection, and the marketplace repository. `.github/actions-lock.json` owns the reviewed action identities, immutable SHAs, provenance, permissions, egress, telemetry, and advisory notes. The deterministic checker rejects mutable, unlisted, or drifted action references.
 
-Git hooks can regenerate derived host distributions and reject unsafe staging conditions. CI remains the backstop when hooks are missing or bypassed. Evidence: `AGENTS.md:115-117`.
+Git hooks can regenerate derived host distributions and reject unsafe staging conditions. CI remains the backstop when hooks are missing or bypassed. Evidence: `AGENTS.md:103-105`.
 
-Three bundled host hooks are on by default and off per user or repository. `digest-rewrite.mjs`
-runs unless `CODE_OPS_DIGEST` holds `off`, `0`, or `false` in its environment, which the `env`
-block of a `.claude/settings.json` sets at user scope for every repository or at repository
-scope for one:
+## Host hook switches
+
+The code-ops-suite package registers seven hooks in `plugins/code-ops-suite/hooks/hooks.json`.
+Every one is on by default and fails open. Four carry an off switch, read from the `env` block
+of a `.claude/settings.json` at user scope for every repository or at repository scope for one:
 
 ```json
 { "env": { "CODE_OPS_DIGEST": "off" } }
 ```
 
-Turning it on persists the complete raw output of every rewritten command, in plain text, under
-`~/.claude/code-ops/digest/<slug of the repository>/`, together with a receipt row that records
-the command's arguments as written. Nothing purges that store; delete the directory to purge it.
-`CODE_OPS_DIGEST_STORE=off` beside the switch keeps the compression and writes nothing, at the
-cost of the recovery hints. The store is keyed by the repository that opted in, never by a
-`cd` target inside a command. Nothing else reads the variable, no default anywhere turns it on,
-and removing the block turns it off again. Keeping the switch per repository is what makes the measurement arm possible: one
-checkout runs with the digest and another runs without it, and their session receipts compare.
-Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-15` and
-`plugins/code-ops-suite/hooks/digest-rewrite.mjs:161`.
+| Variable | Value that turns it off | What it governs |
+| --- | --- | --- |
+| `CODE_OPS_DIGEST` | `off`, `0`, or `false` | the `PreToolUse` output digest, `digest-rewrite.mjs` |
+| `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
+| `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
+| `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 
-A second hook, `ladder-card.mjs`, runs at `SubagentStart` and hands an implementer-class
-subagent the code-economy ladder as a card of at most ten lines. `CODE_OPS_LADDER_CARD` set to
-`off`, `0`, or `false` in the same `env` block silences it. It writes nothing to
-disk and reads nothing but the payload. The card is an experiment arm: Phase 6 of the context and
-code economy note keeps it only if the session receipts show it beats the brief-only control.
-Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:6-10` and
-`plugins/code-ops-suite/hooks/ladder-card.mjs:51`.
+Three variables name a path instead of switching a mechanism:
 
-A third hook, `index-refresh.mjs`, runs after every Edit, Write, MultiEdit, and
-NotebookEdit and re-indexes the one file changed, so `context-query.mjs` answers from the live
-tree without a daemon. `CODE_OPS_INDEX` set to `off`, `0`, or `false` silences it in the
-same `env` block. The index lives under `~/.claude/code-ops/index/<slug of the repository>/` or
+| Variable | What it names | Default |
+| --- | --- | --- |
+| `CODE_OPS_DIGEST_DIR` | the digest store root | `~/.claude/code-ops/digest/<project slug>/` |
+| `CODE_OPS_DIGEST_STORE` | set to `off` it keeps the compression and writes no raw file and no receipt row | the store is written |
+| `CODE_OPS_INDEX_DIR` | the symbol-index directory | `~/.claude/code-ops/index/<project slug>/` |
+
+The three hooks with no switch write nothing that a switch could suppress: `enforce-traceless.mjs` at `PreToolUse`, `routing-card.mjs` at `SessionStart`, and `precompact-preserve.mjs` at `PreCompact`. The [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each hook's contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json:1-71`.
+
+## What the local stores hold
+
+Leaving `digest-rewrite.mjs` on persists the complete raw output of every rewritten command, in
+plain text, under `~/.claude/code-ops/digest/<slug of the repository>/`, with a receipt row that
+records the command's arguments as written. Nothing purges that store. Delete the directory to
+purge it. `CODE_OPS_DIGEST_STORE=off` beside the switch keeps the compression and writes nothing,
+at the cost of the recovery hints. The store is keyed by the repository that opted in, never by a
+`cd` target inside a command. Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-16`
+and `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161-176`.
+
+The symbol index lives under `~/.claude/code-ops/index/<slug of the repository>/` or
 `$CODE_OPS_INDEX_DIR`, never in the tree, and holds definitions, call sites, and import edges,
 never file bodies. Delete the directory to purge it. Evidence:
 `plugins/code-ops-suite/hooks/index-refresh.mjs:6-11` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
+The session-receipt ledger is `~/.claude/code-ops/session-receipts.jsonl`, or `$CODE_OPS_RECEIPTS`.
+`context-audit.mjs receipts --purge-before <ISO date>` is the only thing that removes rows, so
+retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`.
+
+Keeping a switch per repository is what makes a measurement arm possible: one checkout runs with
+the mechanism and another runs without it, and their session receipts compare. The
+[measurements reference](../55%20Operations/MEASUREMENTS.md) owns the baseline rows and the
+comparison method. The `ladder-card.mjs` card is an arm of exactly that kind, and it stays only
+if the receipts show it beats the brief-only control. Evidence:
+`plugins/code-ops-suite/hooks/ladder-card.mjs:6-10`.
+
 ## Host projections
 
-The first host renderer maps canonical plugin packages into its marketplace projection and manifest. The opencode renderer maps them into `opencode-dist/`, including host-specific commands, agents, and configuration. Evidence: `AGENTS.md:108-117` and `scripts/build-opencode-dist.mjs:475-489`.
+The first host renderer maps canonical plugin packages into its marketplace projection and manifest. The opencode renderer maps them into `opencode-dist/`, including host-specific commands, agents, and configuration. Evidence: `AGENTS.md:94-101` and `scripts/build-opencode-dist.mjs:475-489`.
 
 ## External dependencies
 
 The repository has no runtime third-party package dependency. Model-driven deep review and
-OpSec review execute locally through Codex, not on this repository's GitHub runner. The local
+OpSec review execute locally, not on this repository's GitHub runner, and the gate names no
+provider: a receipt records whichever reviewer identity ran it. The local
 review gate needs only Git, Node, ignored receipt storage, and an available local reviewer.
 GitHub review examples remain opt-in consumer integrations. Evidence: `scripts/check-no-deps.mjs:24-28`
 and `scripts/local-review-gate.mjs:1-39`.
