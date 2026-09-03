@@ -31,24 +31,25 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { parseOrDie, usage } from './cli-lib.mjs';
 
 const USAGE = 'usage: harvest-deferrals.mjs [--root <dir>] [--out <path>] [--check] [--json]';
-let root = process.cwd();
-let out = null;
-let check = false;
-let json = false;
+const die = (msg) => usage([`x ${msg}`, USAGE], 2);
+
 const argv = process.argv.slice(2);
-for (let i = 0; i < argv.length; i++) {
-  const a = argv[i];
-  if (a === '--help' || a === '-h') { console.log(USAGE); process.exit(0); }
-  else if (a === '--root') { root = argv[++i]; if (!root || root.startsWith('--')) die('--root needs a directory'); }
-  else if (a === '--out') { out = argv[++i]; if (!out || out.startsWith('--')) die('--out needs a path'); }
-  else if (a === '--check') check = true;
-  else if (a === '--json') json = true;
-  else die(`unknown argument: ${a}`);
-}
-root = resolve(root);
-function die(msg) { console.error(`x ${msg}\n${USAGE}`); process.exit(2); }
+// `-h` carries one dash, which the shared parser leaves as a positional, so help is answered
+// before the parse; this script takes no positional, so one left over is a typo'd flag.
+if (argv.includes('--help') || argv.includes('-h')) { console.log(USAGE); process.exit(0); }
+const { flags, positional } = parseOrDie(argv, {
+  root: { value: true, default: process.cwd(), missing: 'needs a directory' },
+  out: { value: true, missing: 'needs a path' },
+  check: { value: false },
+  json: { value: false },
+}, USAGE);
+if (positional.length) die(`unknown argument: ${positional[0]}`);
+if (flags.root === '') die('--root needs a directory');
+const { out = null, check = false, json = false } = flags;
+const root = resolve(flags.root);
 
 function git(args) {
   try { return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 26, stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) {

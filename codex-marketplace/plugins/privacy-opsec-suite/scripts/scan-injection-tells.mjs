@@ -10,9 +10,9 @@
 //
 //   node scripts/scan-injection-tells.mjs <file> [...more] [--fail-on=<categories>]
 //
-// Deliberate syntax exception: --fail-on=<categories> uses inline `=` (unlike every other flag
-// in this suite, which is space-separated `--flag <value>`) because an external caller this
-// script does not own (evals/redaction-scan/run.mjs) already depends on the `=` form.
+// The inline `=` form is what an external caller this script does not own
+// (evals/redaction-scan/run.mjs) already depends on; the shared parser accepts the
+// space-separated `--fail-on <categories>` form too.
 //
 // Categories (all reported; see --fail-on for gating):
 //   ZEROWIDTH  zero-width chars (U+200B-200D, U+FEFF) + bidi controls (U+202A-202E, U+2066-2069).
@@ -36,30 +36,21 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
+import { die, parseOrDie, usage } from './cli-lib.mjs';
 
 const ALL_CATS = ['ZEROWIDTH', 'COMMENT', 'OVERRIDE', 'IMPERATIVE', 'BLOB', 'TOOLCALL'];
+const USAGE = 'usage: scan-injection-tells.mjs <file> [...] [--fail-on=<categories>]';
 
-const argv = process.argv.slice(2);
-const failOnArg = argv.find((a) => a.startsWith('--fail-on='));
+// An unrecognized --flag never falls through to "treat it as a file" — a typo'd flag would
+// otherwise silently scan nothing relevant and report clean.
+const { flags, positional: files } = parseOrDie(process.argv.slice(2), { 'fail-on': { value: true } });
 const failOn = new Set();
-if (failOnArg) {
-  for (const raw of failOnArg.slice('--fail-on='.length).split(',')) {
-    const cat = raw.trim().toUpperCase();
-    if (!cat) continue;
-    if (!ALL_CATS.includes(cat)) {
-      console.error(`x --fail-on: unknown category ${raw} (known: ${ALL_CATS.join(', ')})`);
-      process.exit(2); // fail closed on a malformed gate config rather than gating nothing
-    }
-    failOn.add(cat);
-  }
-}
-const files = [];
-for (const a of argv) {
-  if (a.startsWith('--fail-on=')) continue; // handled above (only the first occurrence is honored)
-  // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
-  // otherwise silently scan nothing relevant and report clean.
-  if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
-  files.push(a);
+for (const raw of (flags['fail-on'] ?? '').split(',')) {
+  const cat = raw.trim().toUpperCase();
+  if (!cat) continue;
+  // fail closed on a malformed gate config rather than gating nothing
+  if (!ALL_CATS.includes(cat)) die(`--fail-on: unknown category ${raw} (known: ${ALL_CATS.join(', ')})`, 2);
+  failOn.add(cat);
 }
 
 // --- ZEROWIDTH: character-level, with the emoji-ZWJ carve-out ---
@@ -144,7 +135,7 @@ for (const f of files) {
   if (!existsSync(f)) { console.error(`x not found: ${f}`); hadError = true; continue; }
   targets.push({ label: basename(f), text: readFileSync(f, 'utf8') });
 }
-if (targets.length === 0 && !hadError) { console.error('usage: scan-injection-tells.mjs <file> [...] [--fail-on=<categories>]'); process.exit(2); }
+if (targets.length === 0 && !hadError) usage(USAGE);
 
 let total = 0;
 const gatedHit = [];

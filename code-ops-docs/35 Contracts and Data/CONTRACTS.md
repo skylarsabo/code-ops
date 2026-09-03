@@ -313,6 +313,14 @@ stderr, belong to the wrapped script. The direct `node scripts/<name>.mjs` paths
 and unchanged. Evidence: `scripts/co.mjs:20-22`, `scripts/co.mjs:163-183`, and
 `scripts/co.mjs:186-196`.
 
+The `scan` domain is migrated onto the shared CLI library, and the skills reach its scripts as
+`co scan <verb>`. Its seven scripts hand `argv` to `parseFlags` in `cli-lib.mjs`. A caller
+error goes through `parseOrDie`, which prints `x <message>` on stderr and exits 2. A flag rule
+declares `many` for a repeatable flag and `raw` for a flag whose own check must see a smuggled
+option. The `missing` key carries the wording a caller already pins, so no flag, exit code, or
+message changed. Evidence: `scripts/cli-lib.mjs:37-46`, `scripts/cli-lib.mjs:110-121`,
+`scripts/check-autofix-scope.mjs:50-57`, and `evals/co-facade/run.mjs:101-117`.
+
 ## File skim
 
 `skim.mjs <file>` prints one header line and an outline, so a reader can request a line
@@ -362,8 +370,8 @@ starts with `<` is the template, not a marker. The id is derived from the file p
 ceiling text, so it survives a line move and changes only when the marker moves file or changes
 ceiling. `--check` re-harvests and exits 1 when the register on disk disagrees, ignoring
 `Verified-at`. The default output lands in `<hub>/98 System/` when exactly one docs hub exists.
-Evidence: `scripts/harvest-deferrals.mjs:62-64`, `scripts/harvest-deferrals.mjs:87-93`, and
-`scripts/harvest-deferrals.mjs:126`.
+Evidence: `scripts/harvest-deferrals.mjs:63-65`, `scripts/harvest-deferrals.mjs:88-94`, and
+`scripts/harvest-deferrals.mjs:127`.
 
 ## Ladder card hook
 

@@ -16,7 +16,7 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/calibration-metrics.mjs --artifacts <run
 
 ## Phase 1 — Assess against doctrine
 - **Bounded-wave discipline (`§1`).** Compare the ledger's per-wave dispatch counts against the "handful of agents at a time" rule; flag any wave that fans out unbounded.
-- **Artifact-size bounds (`§12`).** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-narration.mjs <run folder>/EXECUTIVE_SUMMARY.md <other run summaries>` — a HARD hit is an over-length or narrated artifact, an advisory is a borderline one.
+- **Artifact-size bounds (`§12`).** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan narration <run folder>/EXECUTIVE_SUMMARY.md <other run summaries>` — a HARD hit is an over-length or narrated artifact, an advisory is a borderline one.
 - **Tier/effort mix.** Compare each dispatch's model tier and reasoning effort (from the ledger's brief text or the operative transcripts, where recorded) against the routing table in `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` — flag mechanical work routed above the tier its floor requires, and any judgment-bearing dispatch routed below the strong tier. Under-tiered judgment work is a cost finding, not a saving: price the redispatches and the discarded reports it caused.
 
 ## Phase 1b — Score orchestration discipline
@@ -34,4 +34,4 @@ This scores discipline, not outcome, and it gates nothing: `calibration-metrics.
 Write `COST_AUDIT.md` (≤1 page, `§12` length discipline): the **top 3 cost drivers**, each with a concrete routing or bounding recommendation, each recommendation cited to the `DISPATCH_LEDGER.md` row(s) or artifact evidence that supports it — never a general impression.
 
 ## Done when
-`RUN_CONFORMANCE.md` carries a row for all five checks, each `PASS`, `FAIL`, or `N/A` with the evidence that decided it; `COST_AUDIT.md` is produced; every recommendation cites the ledger row or artifact evidence behind it; and the report itself passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-narration.mjs COST_AUDIT.md` clean. Present the top 3 drivers first.
+`RUN_CONFORMANCE.md` carries a row for all five checks, each `PASS`, `FAIL`, or `N/A` with the evidence that decided it; `COST_AUDIT.md` is produced; every recommendation cites the ledger row or artifact evidence behind it; and the report itself passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan narration COST_AUDIT.md` clean. Present the top 3 drivers first.
