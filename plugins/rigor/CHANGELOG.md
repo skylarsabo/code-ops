@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.4
+- Vendored `check-autofix-scope.mjs` and `cli-lib.mjs` refreshed: the gate parses its flags through the shared library, with every flag, exit code, and message unchanged.
+
 ## 2.18.3
 - Vendored `preflight.mjs` refreshed: it prints `ctags` and `codegraph` as detected capabilities, present or absent, never as a requirement.
 

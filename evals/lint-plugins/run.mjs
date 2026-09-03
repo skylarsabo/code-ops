@@ -382,6 +382,46 @@ No completion heading here on purpose (case 3 mutation).
   check('5e. plugin manifest script reference exits 1', r5e.status === 1);
   check('5e. message names manifest source and missing helper', r5e.all.includes('plugins/rigor/.claude-plugin/plugin.json') && r5e.all.includes('missing-manifest.mjs'));
 
+  // 5f-g. FAÇADE SCRIPT REFERENCES — `co.mjs <domain> <verb>` runs a sibling script, so the
+  // check must resolve the verb through co.mjs's own table and require that script bundled.
+  // Without the resolution the reference reads as "co.mjs is bundled" and the missing verb
+  // script goes unnoticed until the skill runs. The real co.mjs is copied in, since the
+  // resolution is only meaningful against the actual verb table.
+  const REAL_CO = join(REPO, 'scripts', 'co.mjs');
+  const REAL_NARRATION = join(REPO, 'scripts', 'scan-narration.mjs');
+  const withFacade = (label, { bundleVerbScript }) => {
+    const dir = clone(label);
+    copyFileSync(REAL_CO, join(dir, 'scripts', 'co.mjs'));
+    copyFileSync(REAL_CO, join(dir, 'plugins', 'rigor', 'scripts', 'co.mjs'));
+    const declared = [{ name: 'fixture-tool.mjs', plugins: ['rigor'] }, { name: 'co.mjs', plugins: ['rigor'] }];
+    if (bundleVerbScript) {
+      copyFileSync(REAL_NARRATION, join(dir, 'scripts', 'scan-narration.mjs'));
+      copyFileSync(REAL_NARRATION, join(dir, 'plugins', 'rigor', 'scripts', 'scan-narration.mjs'));
+      declared.push({ name: 'scan-narration.mjs', plugins: ['rigor'] });
+    }
+    put(dir, 'scripts/vendored-manifest.mjs', `export const RUNTIME_SCRIPTS = ${JSON.stringify(declared, null, 2)};\n`);
+    put(dir, 'plugins/rigor/agents/tracer.md', `${readIn(dir, 'plugins/rigor/agents/tracer.md')}\nRun \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan narration REPORT.md.\n`);
+    return runLint(dir);
+  };
+
+  const r5f = withFacade('case5f-facade-unbundled-verb', { bundleVerbScript: false });
+  check('5f. a façade reference to an unbundled verb exits 1', r5f.status === 1);
+  check('5f. message names the resolved script and the façade path',
+    r5f.all.includes('scan-narration.mjs but it is not bundled') && r5f.all.includes('via co.mjs scan narration'));
+
+  const r5g = withFacade('case5g-facade-bundled-verb', { bundleVerbScript: true });
+  check('5g. control: the same reference passes once the verb script is bundled', r5g.status === 0);
+
+  // 5h. A FAÇADE REFERENCE TO A VERB THE TABLE DOES NOT CARRY is a typo, not a free pass.
+  const d5h = clone('case5h-facade-unknown-verb');
+  copyFileSync(REAL_CO, join(d5h, 'scripts', 'co.mjs'));
+  copyFileSync(REAL_CO, join(d5h, 'plugins', 'rigor', 'scripts', 'co.mjs'));
+  put(d5h, 'scripts/vendored-manifest.mjs', "export const RUNTIME_SCRIPTS = [\n  { name: 'fixture-tool.mjs', plugins: ['rigor'] },\n  { name: 'co.mjs', plugins: ['rigor'] },\n];\n");
+  put(d5h, 'plugins/rigor/agents/tracer.md', `${readIn(d5h, 'plugins/rigor/agents/tracer.md')}\nRun \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan nosuchverb REPORT.md.\n`);
+  const r5h = runLint(d5h);
+  check('5h. a façade reference to an unknown verb exits 1', r5h.status === 1);
+  check('5h. message names the verb table', r5h.all.includes('not in the co.mjs verb table'));
+
   // 6. ADVISORY NON-GATING — an orphan root script with no evals/ reference is flagged
   // as advisory text but must NEVER fail the run.
   const d6 = clone('case6-advisory-orphan');

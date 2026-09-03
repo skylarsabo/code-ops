@@ -25,39 +25,35 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { die, parseOrDie, usage } from './cli-lib.mjs';
 
-const argv = process.argv.slice(2);
-let reportOnly = false;
-let sawEmdashMax = false, emdashMaxRaw;
-let emdashBaselineRev = null;
-let gitRange = null;
-const files = [];
-for (let i = 0; i < argv.length; i++) {
-  const a = argv[i];
-  if (a === '--report-only') reportOnly = true;
-  else if (a === '--emdash-max') { sawEmdashMax = true; emdashMaxRaw = argv[++i]; }
-  else if (a === '--emdash-baseline-rev') emdashBaselineRev = argv[++i];
-  else if (a === '--git') gitRange = argv[++i]; // option-like values are rejected below, before git runs
-  // An unrecognized --flag must not fall through to "treat it as a file" — a typo'd flag would
-  // otherwise silently scan nothing relevant and report clean.
-  else if (a.startsWith('--')) { console.error(`x unknown argument: ${a}`); process.exit(2); }
-  else files.push(a);
-}
+const USAGE = 'usage: scan-ai-tells.mjs <file> [...] [--git <range>] [--report-only]';
+// An unrecognized --flag never falls through to "treat it as a file" — a typo'd flag would
+// otherwise silently scan nothing relevant and report clean. `raw` on the two value-carrying
+// gate flags keeps their own diagnostics: --emdash-max reports the value it was handed, and
+// --git rejects a smuggled option by name below, before git runs.
+const { flags, positional: files } = parseOrDie(process.argv.slice(2), {
+  'report-only': { value: false },
+  'emdash-max': { value: true, raw: true, missing: 'needs a positive number (got: <missing>)' },
+  'emdash-baseline-rev': { value: true, missing: 'needs a revision' },
+  git: { value: true, raw: true, missing: 'needs a range' },
+});
+const reportOnly = flags['report-only'] === true;
+const emdashBaselineRev = flags['emdash-baseline-rev'];
+const gitRange = flags.git;
 const EMDASH_MAX = (() => {
-  if (!sawEmdashMax) return 3;
-  const n = Number(emdashMaxRaw);
-  if (!Number.isFinite(n) || n < 1) {
-    console.error(`x --emdash-max needs a positive number (got: ${emdashMaxRaw ?? '<missing>'})`);
-    process.exit(2); // fail closed on a malformed gate config rather than silently disabling the check
-  }
+  if (flags['emdash-max'] === undefined) return 3;
+  const n = Number(flags['emdash-max']);
+  // fail closed on a malformed gate config rather than silently disabling the check
+  if (!Number.isFinite(n) || n < 1) die(`--emdash-max needs a positive number (got: ${flags['emdash-max']})`, 2);
   return n;
 })();
 
-if (emdashBaselineRev !== null && (!emdashBaselineRev || emdashBaselineRev.startsWith('-'))) {
-  console.error('x --emdash-baseline-rev needs a revision'); process.exit(2);
+if (emdashBaselineRev !== undefined && (!emdashBaselineRev || emdashBaselineRev.startsWith('-'))) {
+  die('--emdash-baseline-rev needs a revision', 2);
 }
 if (emdashBaselineRev && (files.length !== 1 || gitRange)) {
-  console.error('x --emdash-baseline-rev requires exactly one file target and cannot be combined with --git'); process.exit(2);
+  die('--emdash-baseline-rev requires exactly one file target and cannot be combined with --git', 2);
 }
 
 // Keep topology arrows, box drawing, and ordinary text symbols clean. Bare
@@ -146,11 +142,11 @@ if (gitRange) {
   // SCR-016: also reject option-like tokens (leading '-') so a range value cannot smuggle git options
   // (e.g. --output=<path>); a real rev-range never starts with '-'. A trailing '--' marks end-of-options.
   const rangeTokens = gitRange.split(/\s+/).filter(Boolean);
-  if (rangeTokens.some((t) => t.startsWith('-'))) { console.error(`x --git range must not contain option-like tokens: ${gitRange}`); process.exit(2); }
+  if (rangeTokens.some((t) => t.startsWith('-'))) die(`--git range must not contain option-like tokens: ${gitRange}`, 2);
   try { targets.push({ label: `git ${gitRange}`, text: execFileSync('git', ['log', '--format=%B', ...rangeTokens, '--'], { encoding: 'utf8', timeout: 10000 }) }); }
   catch (e) { console.error(`x git log ${gitRange} failed: ${e.message}`); hadError = true; }
 }
-if (targets.length === 0 && !hadError) { console.error('usage: scan-ai-tells.mjs <file> [...] [--git <range>] [--report-only]'); process.exit(2); }
+if (targets.length === 0 && !hadError) usage(USAGE);
 
 let total = 0;
 for (const t of targets) {
