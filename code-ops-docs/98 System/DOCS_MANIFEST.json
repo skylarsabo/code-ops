@@ -68,7 +68,7 @@
         "scripts/benchmark-command.mjs"
       ],
       "sourceDigest": "74c892eb750203bb8e1ff38bd60114c113f835fec2f93a78a95e403059a726a6",
-      "contentDigest": "8cf2bf8adf88cc16a056f694953d61391b1961dc79cbd33bae560dce5b8ad92d"
+      "contentDigest": "b1f1e5736f7c002450b111beff4a61b15ba573d6931533526bb7a0be38cc685c"
     },
     {
       "id": "handbook",
@@ -92,7 +92,7 @@
         "evals/**"
       ],
       "sourceDigest": "47544ced7e4c1d04bc6145e609f285a0148de1f8c055c92e66dd0714d13964c7",
-      "contentDigest": "131cc194a15655603f716a939d732cca06645987fe759f4afeb0a1241da642aa"
+      "contentDigest": "805bf5160e23594e302f9288de64d2e3c4e77dba8ec6c30d008077fd9da791b0"
     },
     {
       "id": "api-reference",
@@ -197,7 +197,7 @@
         "**"
       ],
       "sourceDigest": "4a9aad08caff08cbeab65be273d2e9a9b397b8ad1273d093808d9209f6360500",
-      "contentDigest": "27c64babcc8128e00882f1214f582ab3a9d71d29d28ef62b475a7da139d25d1a"
+      "contentDigest": "4fba18e387aea591437301cf2732b4faeb886358412c75880a62306545d5bf90"
     }
   ]
 }
