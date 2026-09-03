@@ -76,6 +76,12 @@ review gate needs only Git, Node, ignored receipt storage, and an available loca
 GitHub review examples remain opt-in consumer integrations. Evidence: `scripts/check-no-deps.mjs:24-28`
 and `scripts/local-review-gate.mjs:1-39`.
 
+`ctags` and `codegraph` are optional external tools, not dependencies. `preflight.mjs` prints
+each one as present or absent beside its other capability lines, and their absence never fails a
+preflight. `context-query.mjs` spawns one only when `refresh --provider` names it, and without
+one the index falls back to its own line rules. Evidence: `scripts/preflight.mjs:93-99` and
+`scripts/context-query.mjs:208-213`.
+
 ## Operational limits
 
 The context compiler sets a 30-second timeout for repository-map, import-graph, and Atlas commands. It limits subprocess output to 64 MiB. Evidence: `scripts/context-snapshot.mjs:52-59` and `61-105`.

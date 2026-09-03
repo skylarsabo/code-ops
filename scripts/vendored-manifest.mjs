@@ -70,6 +70,9 @@ export const RUNTIME_SCRIPTS = [
   // context-query.mjs imports it too and ships with the hook that refreshes its index.
   { name: 'symbol-lib.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
   { name: 'context-query.mjs', plugins: ['code-ops-suite'] },
+  // The MCP wrapper spawns context-query.mjs as a SIBLING, so the two ship into the same plugin
+  // scripts/ dir or the manifest's code-ops-query server starts and answers nothing.
+  { name: 'context-query-mcp.mjs', plugins: ['code-ops-suite'] },
   // digest.mjs imports digest-lib.mjs as a SIBLING, so the two ship into the same plugin
   // scripts/ dir or the digest cannot load its detectors.
   { name: 'digest.mjs', plugins: ['code-ops-suite'] },

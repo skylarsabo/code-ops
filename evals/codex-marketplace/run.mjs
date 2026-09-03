@@ -4,7 +4,7 @@
 //
 //   node evals/codex-marketplace/run.mjs   (exit 0 = pass)
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +40,13 @@ for (const plugin of pluginNames) {
 const mcp = JSON.parse(read(join(pluginsDir, 'code-ops-suite', '.mcp.json')));
 expect(mcp.mcpServers?.['code-ops-docs']?.command === 'node', 'code-ops-suite: missing code-ops-docs MCP command');
 expect(mcp.mcpServers?.['code-ops-docs']?.args?.[0] === './scripts/lib-docs-mcp.mjs', 'code-ops-suite: MCP script path is wrong');
+expect(mcp.mcpServers?.['code-ops-query']?.command === 'node', 'code-ops-suite: missing code-ops-query MCP command');
+expect(mcp.mcpServers?.['code-ops-query']?.args?.[0] === './scripts/context-query-mcp.mjs', 'code-ops-suite: query MCP script path is wrong');
+// Each declared server has to reach the rendered package with its script bundled beside it.
+for (const [server, spec] of Object.entries(mcp.mcpServers ?? {})) {
+  const script = join(pluginsDir, 'code-ops-suite', (spec.args ?? [])[0]?.replace(/^\.\//, '') ?? '');
+  expect(existsSync(script), `code-ops-suite: the ${server} server points at ${script}, which is absent`);
+}
 
 const preCommit = read(join(root, '.githooks', 'pre-commit'));
 expect(preCommit.includes('node scripts/build-codex-marketplace.mjs'), 'pre-commit hook does not regenerate the Codex marketplace');

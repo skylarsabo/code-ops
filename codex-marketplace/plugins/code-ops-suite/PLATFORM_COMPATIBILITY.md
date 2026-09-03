@@ -10,6 +10,6 @@ This Codex package is generated from the repository’s canonical Claude package
 - Claude agent `tools` and `model` frontmatter is removed. The root `agents/` files remain role-briefing templates for collaboration subagents.
 - Claude GitHub Action examples are omitted because they are not Codex runtime configuration.
 - The `PreToolUse` traceless-publishing hook is retained as `hooks/hooks.json`. Codex skips plugin hooks until the user reviews and trusts the hook definition.
-- The `code-ops-docs` MCP declaration is translated from Claude’s inline manifest entry to Codex `.mcp.json` with a plugin-root-relative script path.
+- The render moves each MCP declaration from Claude’s inline manifest entry to Codex `.mcp.json` with a plugin-root-relative script path: `code-ops-docs`, `code-ops-query`.
 
 The generated package must continue to pass the Codex plugin validator and marketplace install smoke test.

@@ -26,6 +26,12 @@
       "args": [
         "${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs-mcp.mjs"
       ]
+    },
+    "code-ops-query": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/context-query-mcp.mjs"
+      ]
     }
   }
 }
