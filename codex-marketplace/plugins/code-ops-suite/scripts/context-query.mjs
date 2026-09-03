@@ -21,8 +21,9 @@
 //                             of the top definitions until the budget is spent
 //
 // <symbol> is a name, or `path:name` to pin one definition. Every command auto-refreshes the
-// index when it is missing; `refresh` is for keeping it current after edits, and the opt-in
-// PostToolUse hook `index-refresh.mjs` calls it on every Edit and Write.
+// index when it is missing. `refresh` is for keeping it current after edits, and the
+// PostToolUse hook `index-refresh.mjs` calls it on every Edit and Write. That hook is on by
+// default and does nothing when `CODE_OPS_INDEX` is `off`, `0`, or `false`.
 //
 // Store: `$CODE_OPS_INDEX_DIR/index.json`, else `~/.claude/code-ops/index/<project slug>/`, a
 // home-directory path so the index is never committed. One entry per tracked code file, keyed

@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.70.0
+- `CONVENTIONS.md`, both agent definitions, and the pinned doctrine sentences rewritten to the house writing standard: no em-dashes and no semicolons in prose, one instruction per sentence, and headings as noun phrases. Meaning is unchanged, and every pinned sentence moved in the linter table, the eval mirror, and every listed copy in one commit. `CONVENTIONS.md` §1 and §2 now name the session mechanisms that are on by default and their off switches, and the stale "opt-in" note on the `index-refresh.mjs` hook in `context-query.mjs` is corrected.
+
 ## 1.68.0
 - `scan-overbuild.mjs` writes its tree-grep patterns with POSIX classes, because `git grep -E` on macOS runs the system regex, which has no `\s`, `\w`, or `\b`, so the single-implementor and duplicate-helper tells matched nothing there. The first macOS host-eval run found it.
 
