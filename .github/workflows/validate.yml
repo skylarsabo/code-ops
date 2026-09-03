@@ -178,6 +178,8 @@ jobs:
         run: node evals/scan-narration/run.mjs
       - name: Context audit eval (transcript parser + SessionEnd receipt hook)
         run: node evals/context-audit/run.mjs
+      - name: Script facade eval (co.mjs verb table + cli-lib)
+        run: node evals/co-facade/run.mjs
 
       - name: Calibration-metrics regression eval
         run: node evals/calibration-metrics/run.mjs
@@ -262,6 +264,8 @@ jobs:
         run: node scripts/check-vault-standard.mjs code-ops-docs
       - name: Context audit eval (transcript parser + SessionEnd receipt hook)
         run: node evals/context-audit/run.mjs
+      - name: Script facade eval (co.mjs verb table + cli-lib)
+        run: node evals/co-facade/run.mjs
 
       - name: Documentation manifest freshness
         run: node scripts/docs-manifest.mjs check

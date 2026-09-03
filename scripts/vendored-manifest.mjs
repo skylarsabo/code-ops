@@ -11,6 +11,13 @@
 // pick it up automatically.
 
 export const RUNTIME_SCRIPTS = [
+  // The single entrypoint over every other script here, so `${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs`
+  // resolves in every plugin. It imports no sibling of its own: a plugin vendors only the scripts
+  // its skills use, and co.mjs has to report a verb whose script is absent rather than fail to load.
+  { name: 'co.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
+  // The shared CLI primitives the canonical scripts migrate onto one domain at a time. It ships
+  // beside co.mjs everywhere so the first migration needs no new vendoring.
+  { name: 'cli-lib.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite', 'code-ops-suite'] },
   { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },

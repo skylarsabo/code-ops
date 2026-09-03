@@ -21,6 +21,8 @@ The repository has four behavior-bearing layers:
 
 The two host distributions are rendered from canonical packages. Both renderers expose a `--check` mode that fails on drift. Evidence: `AGENTS.md:108-117` and `scripts/build-opencode-dist.mjs:475-489`.
 
+`scripts/co.mjs` is one entrypoint over the canonical scripts. A static verb table maps `<domain> <verb>` to a sibling script name. The entrypoint rewrites `process.argv` to the argument list the script would have received directly, then imports that sibling. It starts no child process and duplicates no logic. Evidence: `scripts/co.mjs:34-101`, `scripts/co.mjs:186-196`, and `scripts/vendored-manifest.mjs:13-22`.
+
 ## Execution flow
 
 ```text
