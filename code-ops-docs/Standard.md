@@ -1,7 +1,7 @@
 ---
 type: standard
 status: current
-updated: 2026-08-28
+updated: 2026-09-03
 standard-version: 4
 tags:
   - meta
@@ -18,7 +18,7 @@ The shared standard lives at `code-ops-docs/40 Engineering/Techniques/vault-stan
 
 | Folder | Authority |
 | --- | --- |
-| `00 Inbox/` | Unsorted observations; file or delete promptly. |
+| `00 Inbox/` | Unsorted observations. File or delete promptly. |
 | `10 Design/` | Working designs and specifications. |
 | `20 Decisions/` | Working decisions and published ADRs. |
 | `30 Architecture/` | Current system architecture. |
@@ -36,9 +36,13 @@ The shared standard lives at `code-ops-docs/40 Engineering/Techniques/vault-stan
 
 ## Registry and trust
 
-`98 System/DOCS_MANIFEST.json` is the only topic-to-document and topic-to-source registry. It explicitly owns architecture, contracts, data models, engineering standards, API reference, CI and delivery, infrastructure, observability, performance, design system, guides, atlas, and registered record collections. A domain is `current` or `not-applicable`; the latter requires concrete evidence.
+`98 System/DOCS_MANIFEST.json` is the only topic-to-document and topic-to-source registry. It runs at manifest version 2 and owns sixteen domains: decisions, architecture, contracts, data model, engineering standards, handbook, techniques, API reference, CI and delivery, infrastructure, observability, performance, measurements, design system, guides, and atlas. A domain is `current` or `not-applicable`. The `not-applicable` status requires concrete evidence.
 
-Run `node scripts/docs-manifest.mjs check` before trusting the hub. A matching source digest proves that the declared evidence paths have not moved since the document was reviewed. It does not prove coverage beyond those declared paths. Atlas prose is trusted only when `atlas-check.mjs` reports the section FRESH.
+Version 2 also declares `recordCollections`, `legacyPaths`, and explicit `runs.tracking`. This repository registers no record collection today, so `recordCollections` is empty and the record checks have nothing to gate.
+
+Run `node scripts/docs-manifest.mjs check` before trusting the hub. A matching source digest proves that the declared evidence paths have not moved since the document was reviewed. It does not prove coverage beyond those declared paths.
+
+Atlas prose is trusted only when `atlas-check.mjs` reports the section FRESH. Freshness now reaches claim granularity: `atlas-check.mjs stamp` records one claim per `path:line` citation, and `check` classifies each claim through the same rules a findings register uses. Add `--claims-gate` to exit non-zero on any claim the classifier did not call FRESH. [The atlas](40 Engineering/Techniques/atlas.md) owns the trust doctrine.
 
 ## Where new work goes
 
@@ -83,4 +87,4 @@ An adopted `_archive` path freezes in place. Move current authority through cura
 
 ### Code-ops profile
 
-All domain folders listed above are active. `60 Experience/DESIGN_SYSTEM.md` records a manifest-backed not-applicable verdict because this marketplace has no product UI. Published ADRs live in `20 Decisions/ADRs/`. The atlas lives in `98 System/Atlas/`. Record indexes live in `98 System/Records/` when a manifest v2 collection exists. The hub contains both working judgment and shipped reference material; the manifest distinguishes the latter from ordinary notes.
+All domain folders listed above are active. `60 Experience/DESIGN_SYSTEM.md` records a manifest-backed not-applicable verdict because this marketplace has no product UI. Published ADRs live in `20 Decisions/ADRs/`. The atlas lives in `98 System/Atlas/`. Record indexes live in `98 System/Records/` when a manifest v2 collection exists. The hub contains both working judgment and shipped reference material. The manifest is what separates the shipped reference material from an ordinary note.
