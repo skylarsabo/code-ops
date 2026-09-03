@@ -2,8 +2,8 @@
   "name": "garden",
   "version": "1.1.0",
   "dependencies": {
-    "left-pad": "1.3.0",
-    "lodash": "4.17.21",
-    "zod": "3.23.8"
+    "padder-garden": "1.3.0",
+    "unrecorded-garden-widget": "4.17.21",
+    "recorded-garden-schema": "3.23.8"
   }
 }
