@@ -47,8 +47,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "a20b9936e99f2e4fdd2077ec41532761ec848f62",
-      "verifiedDigest": "4f90722af1fe7ecc2c67842832272339e5f9b01fb6b4009d4d088d66fcd249f1"
+      "verifiedAt": "81caa4f55526f7523bd6e007279c99c270583cc5",
+      "verifiedDigest": "3f61262addd26c1af039b7887a14eac7cb01a4d0e45eed7d8a363dc314e9acee"
     },
     {
       "slug": "docs-doctrine",
@@ -71,8 +71,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "a20b9936e99f2e4fdd2077ec41532761ec848f62",
-      "verifiedDigest": "13ed47e4f58d3e04107ecc47d0b8f770531395f4e59485ba8682f597f9a76afd"
+      "verifiedAt": "81caa4f55526f7523bd6e007279c99c270583cc5",
+      "verifiedDigest": "9230ec0ae52c460009a5497bf80489fd8f394cba52eb40819cba8ee9d46a70e0"
     },
     {
       "slug": "root-contracts",

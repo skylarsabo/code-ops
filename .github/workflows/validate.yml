@@ -388,8 +388,11 @@ jobs:
             push) case "$BEFORE" in ''|0000000000000000000000000000000000000000) decide true; exit 0 ;; esac; range="$BEFORE..$HEAD_SHA" ;;
             *) decide true; exit 0 ;;
           esac
-          files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections .github/workflows/validate.yml "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
-          if [ -n "$files" ]; then decide true; else decide false; fi
+          files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
+          # The workflow counts only when the changed lines are the record eval's own invocation
+          # lines, so adding an unrelated eval step does not pay for the Windows run.
+          invocation=$(git diff -U0 "$range" -- .github/workflows/validate.yml 2>/dev/null | grep -E "^[+-][^+-].*(node evals/record-collections/run\.mjs|'scripts/records\.mjs')" || true)
+          if [ -n "$files" ] || [ -n "$invocation" ]; then decide true; else decide false; fi
       - name: Durable record-collection regression eval
         if: steps.records.outputs.changed == 'true'
         run: |
