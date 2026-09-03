@@ -20,7 +20,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER } from './model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
@@ -287,14 +287,15 @@ function modelTiersDoc(agents) {
     'the briefs, the fan-out rules, and the verification bar are identical everywhere, and only',
     'this table changes between providers.',
     '',
-    `Model ids are pinned, verified against the models.dev registry on ${REGISTRY_VERIFIED_AT}.`,
-    'Re-verify with `node scripts/check-model-registry.mjs --fetch` in the source repository.',
+    `Model ids are pinned, verified against the models.dev registry on ${REGISTRY_VERIFIED_AT}, except a`,
+    'provider marked as verified against its host CLI, whose ids come from `opencode models` on the date its',
+    'entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in the source repository.',
     '',
     '## Tier bindings',
     '',
     `| Provider | ${TIER_ORDER.map((tier) => `\`${tier}\``).join(' | ')} |`,
     `| --- | ${TIER_ORDER.map(() => '---').join(' | ')} |`,
-    ...providers.map((p) => `| ${p.label} | ${TIER_ORDER.map((tier) => `\`${p.id}/${p.models[tier]}\``).join(' | ')} |`),
+    ...providers.map((p) => `| ${p.label} | ${TIER_ORDER.map((tier) => (p.models[tier] === null ? 'session model (lead unset)' : `\`${p.id}/${p.models[tier]}\``)).join(' | ')} |`),
     '',
     'Where a provider repeats a model across two rungs, its lineup has no distinct model for',
     'the lower one. The collapse is recorded rather than papered over with an invented tier.',
@@ -309,8 +310,9 @@ function modelTiersDoc(agents) {
     '',
     ...providers.map((p) => `- \`configs/opencode.${p.id}.json\``),
     '',
-    `\`opencode.json\` at the root is a copy of the \`${DEFAULT_PROVIDER}\` one. Merge whichever you want`,
-    'into your own config rather than overwriting a config you already have.',
+    `\`opencode.json\` at the root is a copy of the \`${DEFAULT_PROVIDER}\` one, which costs nothing and leaves the lead`,
+    'unset so it inherits the session model. Merge whichever you want into your own config rather',
+    'than overwriting a config you already have, and keep your own copy out of a refresh.',
     '',
     '## Agent floors',
     '',
@@ -333,7 +335,8 @@ function exampleConfig(agents, providerId) {
   const provider = PROVIDER_TIERS[providerId];
   return {
     $schema: 'https://opencode.ai/config.json',
-    model: `${provider.id}/${provider.models.frontier}`,
+    // No top-level model when the provider leaves the lead unset: the lead inherits the session model.
+    ...(leadInherits(provider) ? {} : { model: `${provider.id}/${provider.models.frontier}` }),
     agent: Object.fromEntries(
       agents.map((agent) => [agent.name, { model: `${provider.id}/${provider.models[agent.tier]}` }]),
     ),
@@ -538,6 +541,7 @@ function validate({ files, skills, agents }) {
   const tiers = files.get('MODEL_TIERS.md');
   for (const provider of Object.values(PROVIDER_TIERS)) {
     for (const tier of TIER_ORDER) {
+      if (provider.models[tier] === null) { expect(tiers.includes('session model (lead unset)'), `MODEL_TIERS.md must say the ${provider.id} lead is unset`); continue; }
       expect(tiers.includes(`\`${provider.id}/${provider.models[tier]}\``), `MODEL_TIERS.md is missing the ${provider.id} binding for ${tier}`);
     }
     // Every provider must be independently usable, or "supports N providers" is a claim the

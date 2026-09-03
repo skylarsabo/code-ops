@@ -8,8 +8,9 @@ models satisfies an agent’s floor. That is what makes the orchestration doctri
 the briefs, the fan-out rules, and the verification bar are identical everywhere, and only
 this table changes between providers.
 
-Model ids are pinned, verified against the models.dev registry on 2026-08-13.
-Re-verify with `node scripts/check-model-registry.mjs --fetch` in the source repository.
+Model ids are pinned, verified against the models.dev registry on 2026-08-13, except a
+provider marked as verified against its host CLI, whose ids come from `opencode models` on the date its
+entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in the source repository.
 
 ## Tier bindings
 
@@ -23,6 +24,7 @@ Re-verify with `node scripts/check-model-registry.mjs --fetch` in the source rep
 | Moonshot AI (Kimi) | `moonshotai/kimi-k2.5` | `moonshotai/kimi-k2.7-code` | `moonshotai/kimi-k3` | `moonshotai/kimi-k3` |
 | DeepSeek | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` |
 | Mistral | `mistral/magistral-small` | `mistral/mistral-medium-latest` | `mistral/magistral-medium-latest` | `mistral/magistral-medium-latest` |
+| OpenCode Zen (free tier) | `opencode/ling-3.0-flash-fin-free` | `opencode/nemotron-3.5-lightning-free` | `opencode/mimo-v2.5-free` | session model (lead unset) |
 
 Where a provider repeats a model across two rungs, its lineup has no distinct model for
 the lower one. The collapse is recorded rather than papered over with an invented tier.
@@ -37,6 +39,7 @@ the lower one. The collapse is recorded rather than papered over with an invente
 - **Moonshot AI (Kimi)** — `kimi-k2.7-code` is the coding-specialized mid rung; `kimi-k3` serves both top rungs.
 - **DeepSeek** — A two-model lineup, so each of its models covers two rungs. The cheapest ladder here by a wide margin.
 - **Mistral** — Only the `magistral` line reasons, so the ladder is built from it wherever a rung needs reasoning.
+- **OpenCode Zen (free tier)** — Zero account cost with the tier routing kept. Ling 3.0 Flash is fast and disciplined on tool-call schemas, so it serves the light rung; Nemotron 3.5 Lightning leads the small-model speed and accuracy trade-off, so it serves mid; MiMo V2.5 carries agentic post-training and near-frontier coding claims, so it serves strong. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.
 
 ## Ready-made configs
 
@@ -50,9 +53,11 @@ One config per provider ships under `configs/`, each binding every agent to its 
 - `configs/opencode.moonshotai.json`
 - `configs/opencode.deepseek.json`
 - `configs/opencode.mistral.json`
+- `configs/opencode.opencode.json`
 
-`opencode.json` at the root is a copy of the `xai` one. Merge whichever you want
-into your own config rather than overwriting a config you already have.
+`opencode.json` at the root is a copy of the `opencode` one, which costs nothing and leaves the lead
+unset so it inherits the session model. Merge whichever you want into your own config rather
+than overwriting a config you already have, and keep your own copy out of a refresh.
 
 ## Agent floors
 

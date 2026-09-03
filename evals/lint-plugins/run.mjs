@@ -73,30 +73,30 @@ const runLint = (dir) => {
 // ---- pinned doctrine text (SHARED_PASSAGES in scripts/lint-plugins.mjs) -----------------
 const PINNED_TEXTS = [
   'The objective is ordered: correctness and the safety floor, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines wins only between candidates equal on the first four.',
-  "Before writing code, climb the ladder: does it need to exist (scope is the request); does it exist here (search before you write); does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory); does it fit inside the owning module (extend before you add a file); extract only on evidence (a second caller, a unit that needs its own test, or a file past the repository's own size norm); then write the minimum edge-case-correct implementation.",
-  "a broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run; do not rely on the platform's concurrency cap as the limiter",
+  "Before writing code, climb the ladder in order: does it need to exist (scope is the request), does it exist here (search before you write), does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory), does it fit inside the owning module (extend before you add a file), and is there evidence to extract (a second caller, a unit that needs its own test, or a file past the repository's own size norm). Then write the minimum edge-case-correct implementation.",
+  "A broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run. Do not rely on the platform's concurrency cap as the limiter",
   'skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end',
-  "take the union of every slice's skipped/traced note — a high-risk area that no slice covered is itself a finding (a coverage gap), not silence",
+  "take the union of every slice's skipped/traced note. A high-risk area that no slice covered is itself a finding (a coverage gap), not silence",
   "read the cited line's immediate neighbors and any referenced ticket/finding id for an explicit by-design / accepted-deferred / KNOWN annotation, or a docstring/comment that matches the observed behavior",
-  'must actively LOCATE the would-be handler — the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement',
+  'must actively LOCATE the would-be handler (the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement)',
   'do not block: auto-scope from the repo, proceed on the safe default',
-  'are deferred and reported, never silently applied — and surface every decision and critical finding in the final report instead of pausing',
-  'stop the fix loop — a cascading cluster is evidence of an architectural problem, not a bug collection',
-  'present options at a checkpoint instead of attempting the next fix; in a headless run, defer the remaining cluster and report it',
-  'For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value); if no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.',
-  'A consumed item ends in exactly one pinned terminal form — `closed-with-proof <commit/PR>`, `deferred-with-reason <reason>`, or `OBSOLETE-AT <sha>` — and never silently disappears',
+  'are deferred and reported, never silently applied. Surface every decision and critical finding in the final report instead of pausing',
+  'stop the fix loop. A cascading cluster is evidence of an architectural problem, not a bug collection',
+  'present options at a checkpoint instead of attempting the next fix. In a headless run, defer the remaining cluster and report it',
+  'For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value). If no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.',
+  'A consumed item ends in exactly one pinned terminal form (`closed-with-proof <commit/PR>`, `deferred-with-reason <reason>`, or `OBSOLETE-AT <sha>`) and never silently disappears',
   'Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it',
   'Pre-filter first, read narrow: at a phase boundary run the checker BEFORE any wholesale register read, then read only the non-FRESH/DRIFTED entries in full',
-  'is NOT re-paneled — the receipts are the verdict; any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline — never the full register',
-  'hand the verified context artifact to every operative brief; operatives consult it first and use search only to go deeper than it reaches, never to re-derive layout or find definitions it already lists',
-  "failed dispatch, not a weak signal — never synthesize around a missing report or fill its gap from the orchestrator's own assumptions",
-  'redispatch once with a tightened, smaller brief; then escalate at the next checkpoint',
-  'The row is written **at dispatch time**, atomically with the dispatch call itself — never a turn earlier or later — because a row written before its dispatch is a phantom indistinguishable from a hung operative',
-  "Every operative report is written to the run's artifact folder in the turn it arrives, before any other work — a report that exists only in the conversation is one blocked turn away from being lost.",
-  'A brief that never reached its operative is indistinguishable in the dispatch record from a completed dispatch until the report is read, so gate every report on shape — expected sections present, non-empty, evidence attached — before its unit counts as covered.',
-  "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript; a finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence",
-  "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics — identical readers repeat one another's misreads, and diversity catches what redundancy cannot.",
-  'On a host that ignores agent `model:` frontmatter the lead acknowledges that printed floor table and routes every dispatch at or above its floor by hand — a below-floor dispatch is a doctrine violation that `run-cost-audit` records as a `tier-routing` FAIL.',
+  'is NOT re-paneled. The receipts are the verdict, and any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline, never the full register',
+  'hand the verified context artifact to every operative brief. Operatives consult it first and use search only to go deeper than it reaches, never to re-derive layout or find definitions it already lists',
+  "failed dispatch, not a weak signal. Never synthesize around a missing report or fill its gap from the orchestrator's own assumptions",
+  'redispatch once with a tightened, smaller brief. Then escalate at the next checkpoint',
+  'The row is written **at dispatch time**, atomically with the dispatch call itself, never a turn earlier or later, because a row written before its dispatch is a phantom indistinguishable from a hung operative',
+  "Every operative report is written to the run's artifact folder in the turn it arrives, before any other work. A report that exists only in the conversation is one blocked turn away from being lost.",
+  'A brief that never reached its operative is indistinguishable in the dispatch record from a completed dispatch until the report is read. Gate every report on shape (expected sections present, non-empty, evidence attached) before its unit counts as covered.',
+  "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript. A finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence",
+  "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics. Identical readers repeat one another's misreads, and diversity catches what redundancy cannot.",
+  'On a host that ignores agent `model:` frontmatter the lead acknowledges that printed floor table and routes every dispatch at or above its floor by hand. A below-floor dispatch is a doctrine violation that `run-cost-audit` records as a `tier-routing` FAIL.',
   'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.',
   'A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.',
   'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.',
@@ -131,11 +131,11 @@ The fixture task is complete${doneRevalidate ? ' and revalidate-register.mjs has
 // eval's baseline starts failing loudly — update these to match, same contract as
 // PINNED_TEXTS/ALWAYS_GATED_TEXT above.
 const AGENT_ESCALATE = 'If the question is ambiguous, return the open question to the orchestrator instead of guessing.';
-const AGENT_REDACT_FULL = 'Redact any secrets/PII to `<REDACTED:reason>`; never reproduce a secret value.';
+const AGENT_REDACT_FULL = 'Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.';
 const AGENT_REDACT_SHORT = 'Redact secrets/PII.';
-const AGENT_DENSE_EVIDENCE = 'Reports must stay dense and evidence-cited — no raw dumps.';
+const AGENT_DENSE_EVIDENCE = 'Reports must stay dense and evidence-cited, with no raw dumps.';
 const AGENT_BATCH = 'Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.';
-const AGENT_TIER_BOUNDARY = "Tier at the evidence you have: label a finding CONFIRMED only when an executed repro or trace appears in your own transcript; a finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.";
+const AGENT_TIER_BOUNDARY = "Tier at the evidence you have: label a finding CONFIRMED only when an executed repro or trace appears in your own transcript. A finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.";
 
 const agentBody = (name, model, texts) => `---
 name: ${name}
