@@ -271,8 +271,11 @@ beside the rest of the tool input, plus one line of `additionalContext` naming w
 output lives. The installed host reassigns the tool input to the hook's `updatedInput` and only
 then runs its permission evaluation, so the operator's own rules judge the rewritten command as
 they judge any other `node` call. That moves the permission key: a rule written for `git`, `gh`,
-or `sed` no longer matches the wrapped form, and a broad `node` allow rule admits it. An operator
-who keeps command-specific deny or ask rules should mirror them for `node` before opting in.
+or `sed` no longer matches the wrapped form, and a broad `node` allow rule admits it. The host
+accepts a wildcard anywhere in a Bash rule, so an operator mirrors a read-only allow rule for the
+wrapped form by pinning the script name and the family, as in `Bash(node "*/scripts/digest.mjs"
+-- git diff *)`, never as a bare `node` rule. An operator who keeps command-specific deny or ask
+rules mirrors them the same way before opting in.
 With `CODE_OPS_DIGEST_STORE=off` the rewrite adds `--no-store`, so the digest keeps its
 compression and its contract but writes no raw file and no receipt row. The default store slug
 follows the directory the digest process started in, never a `--cwd` target. Version `2.1.257` of the host bundle under

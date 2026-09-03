@@ -17,6 +17,7 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
 - `node scripts/context-audit.mjs` summarizes the transcripts for the current directory: exact tokens by class with main and subagent threads apart, context characters by tool, Bash output by command family, repeat reads, and the largest results. Output is sanitized by default. `--json` emits the aggregate a receipt can hash.
 - `hooks/session-receipt.mjs` runs at `SessionEnd` and appends one row per session to `~/.claude/code-ops/session-receipts.jsonl` (or `$CODE_OPS_RECEIPTS`, where `off` disables it). `node scripts/context-audit.mjs receipts` summarizes the ledger.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
+- `node scripts/context-audit.mjs receipts --purge-before <ISO date>` is the ledger's retention: it rewrites the file keeping rows at or after the date and prints what it removed.
 - `evals/context-audit/run.mjs` pins the parser and the hook against a synthetic fixture.
 - `node scripts/digest.mjs -- <cmd>` measures one command's own compressible share: it prints the before-and-after line counts in its trailer and appends `bytesIn`, `bytesOut`, `linesIn`, and `linesOut` to `DIGEST_RECEIPTS.jsonl`. It is not wired to any hook, so a row exists only for a command the operator digested by hand. `evals/digest/run.mjs` reports the per-shape reduction on a fixed corpus and fails when it drops below the recorded floor.
 

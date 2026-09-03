@@ -166,6 +166,18 @@ try {
 } catch { fails.push(`receipts --by-arm --json must parse, got ${byArm.stdout.slice(0, 120)}${byArm.stderr.slice(0, 120)}`); }
 const byArmText = run([cli, 'receipts', '--ledger', ledger, '--all', '--by-arm']);
 expect(/\| digest \| 1 \|/.test(byArmText.stdout) && /\| none \| 1 \|/.test(byArmText.stdout), `the text table lists one row per arm, got:\n${byArmText.stdout}`);
+// Retention: --purge-before rewrites the ledger keeping rows at or after the cutoff.
+const beforePurge = readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length;
+const purge = run([cli, 'receipts', '--ledger', ledger, '--purge-before', '2026-09-01T12:00:00Z', '--json']);
+try {
+  const p = JSON.parse(purge.stdout);
+  expect(purge.status === 0 && p.removed === 1 && p.kept === beforePurge - 1, `purge removes the one row dated before the cutoff, got ${purge.stdout}`);
+} catch { fails.push(`receipts --purge-before --json must parse, got ${purge.stdout.slice(0, 120)}${purge.stderr.slice(0, 120)}`); }
+const afterPurge = readFileSync(ledger, 'utf8').split('\n').filter(Boolean);
+expect(afterPurge.length === beforePurge - 1 && !afterPurge.some((l) => l.includes('"sessionId":"other"')), 'the purged ledger keeps every later row and drops the dated one');
+expect(!existsSync(`${ledger}.purge-${process.pid}`), 'the purge leaves no scratch file beside the ledger');
+const badDate = run([cli, 'receipts', '--ledger', ledger, '--purge-before', 'yesterday']);
+expect(badDate.status === 2, `a non-ISO cutoff exits 2, got ${badDate.status}`);
 const rcOther = run([cli, 'receipts', '--ledger', ledger, '--cwd', tmp, '--json']);
 expect(rcOther.status === 0 && JSON.parse(rcOther.stdout || '{}').sessions === 0, 'receipts --cwd filters rows to that directory');
 
@@ -181,4 +193,5 @@ console.log('ok   usage deduplicated by message id; main and subagent threads ap
 console.log('ok   tool attribution, cd-stripped families, repeat reads, sanitized vs raw labels');
 console.log('ok   SessionEnd receipt hook appends one row, prints nothing, fails open');
 console.log('ok   receipts record the arm switches and the context at end; --by-arm reads arms against none');
+console.log('ok   --purge-before rewrites the ledger by date and reports what it removed');
 console.log('\ncontext-audit eval passed');

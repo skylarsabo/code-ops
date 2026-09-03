@@ -115,7 +115,7 @@ Only fresh Atlas sections can contribute prose to a context bundle. A stale sect
 
 A session receipt is one JSON line, version `1`, with `ts`, `sessionId`, `cwd`, `reason`, `durationMs`, `models`, `turns`, `toolCalls`, `toolResultChars`, `contextAtEnd` (the tokens the last assistant message carried in), `arms` (`digest`, `ladderCard`, and `index`, each a boolean read from the same switch the hook reads), `files`, `skipped`, and `tokens` split into `main` and `subagents`, each with `input`, `cacheRead`, `cacheCreate`, `output`, `thinking`, and `total`. Usage is deduplicated by message id because the host writes one assistant message as several transcript lines that repeat the same usage block. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:54-68` and `scripts/transcript-lib.mjs:141-156`.
 
-The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so by default it is never inside a repository. Setting `CODE_OPS_RECEIPTS=off` disables the hook. Rows carry the working directory path and no transcript content.
+The ledger lives outside the repository, at `~/.claude/code-ops/session-receipts.jsonl` or `$CODE_OPS_RECEIPTS`, so by default it is never inside a repository. Nothing purges it on its own: `context-audit.mjs receipts --purge-before <ISO date>` rewrites it keeping rows at or after the date and reports the count removed, so retention is one operator command with a receipt. Setting `CODE_OPS_RECEIPTS=off` disables the hook. Rows carry the working directory path and no transcript content.
 
 ## Digest receipts
 
