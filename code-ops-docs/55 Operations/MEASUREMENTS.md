@@ -18,6 +18,7 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
 - `hooks/session-receipt.mjs` runs at `SessionEnd` and appends one row per session to `~/.claude/code-ops/session-receipts.jsonl` (or `$CODE_OPS_RECEIPTS`, where `off` disables it). `node scripts/context-audit.mjs receipts` summarizes the ledger.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
 - `evals/context-audit/run.mjs` pins the parser and the hook against a synthetic fixture.
+- `node scripts/digest.mjs -- <cmd>` measures one command's own compressible share: it prints the before-and-after line counts in its trailer and appends `bytesIn`, `bytesOut`, `linesIn`, and `linesOut` to `DIGEST_RECEIPTS.jsonl`. It is not wired to any hook, so a row exists only for a command the operator digested by hand. `evals/digest/run.mjs` reports the per-shape reduction on a fixed corpus and fails when it drops below the recorded floor.
 
 Usage is deduplicated by message id. The host writes one assistant message as several transcript lines that repeat the same usage block, so a naive sum overcounts by more than two to one.
 

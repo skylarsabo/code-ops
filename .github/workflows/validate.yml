@@ -182,6 +182,8 @@ jobs:
         run: node evals/co-facade/run.mjs
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs
+      - name: Output-digest eval (shape detectors + must-keep contract)
+        run: node evals/digest/run.mjs
 
       - name: Calibration-metrics regression eval
         run: node evals/calibration-metrics/run.mjs
@@ -270,6 +272,8 @@ jobs:
         run: node evals/co-facade/run.mjs
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs
+      - name: Output-digest eval (shape detectors + must-keep contract)
+        run: node evals/digest/run.mjs
 
       - name: Documentation manifest freshness
         run: node scripts/docs-manifest.mjs check

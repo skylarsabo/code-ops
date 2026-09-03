@@ -34,6 +34,8 @@ Measurement now has a receipt path of its own. `transcript-lib.mjs` parses the h
 
 The narration scanner reports mannered prose (metaphor standing in for a literal phrase) as an advisory category beside filler.
 
+Command output has a compressor of its own. `digest.mjs` spawns a command, keeps the raw bytes in a home-directory receipt store, and prints a view compressed by output shape rather than by command name. Nine detectors cover diffs, diagnostics, test runs, stack traces, logs, tables, listings, JSON, and an unrecognized fallback that passes through under a line cap. The compression is loss-bounded by contract: the must-keep line set is fixed before any stage runs, and no stage may drop or rewrite a line in it. Every elision prints the exact command that recovers it, and the child's exit code always becomes the digest's. Nothing wires it to a hook yet, so it runs only when an operator invokes it.
+
 One entrypoint now stands over the canonical scripts. `co.mjs` resolves a domain and verb to a sibling script, rewrites the argument list, and imports it. It migrates no logic: every script keeps its own flags, its own exit codes, and its existing direct path. `cli-lib.mjs` ships beside it and holds the flag parser, usage and exit helpers, git wrapper, and file walker that the scripts had each rewritten, but no script consumes it yet. Skills switch to the verb form in a later change.
 
 `skim.mjs` is the read-side economy tool: it prints a file's outline with line numbers, spans, and an announced truncation line, so a reader requests a range through `--range` instead of taking the whole file, and outline mode itself prints names and headings rather than bodies.

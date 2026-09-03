@@ -134,7 +134,7 @@ The guide's tested instructions map onto suite prose as follows. A grep on 2026-
 | Formatting in chat | Add the conditional formatting rule to `writing-standard.md`. |
 | Quoting retrieved sources | Add the one-example pattern to the researcher `CONVENTIONS.md`, `gatherer.md`, and `claim-checker.md`. |
 | Finish the whole task | The "we don't close early" doctrine already aligns. Add the last-paragraph check as one shared passage. |
-| Compaction summaries | Adopt the six-item preservation instruction into the `handoff` template. Add a PreCompact hook that injects it as `additionalContext`. |
+| Compaction summaries | Adopt the six-item preservation instruction into the `handoff` template. Add a PreCompact hook that prints it on stdout, which the host reads as the compaction's custom instructions. |
 | Keep changes and tests to the task | Adopt the block into implementer briefs for `ship`, `feature-implementation`, `fix-verified`, and `remediation`. It is the evidence-backed core of Workstream B. |
 | Search triggering at low effort | Raise `gatherer` and `explorer` to `medium` when the brief is sourcing, or add the verify-the-name nudge. Update the effort doctrine. |
 | Safeguard false positives | Verifier and bug-hunt briefs ask "are there bugs", never "does it compile". The digest strips base64 blobs, which the guide names as a trigger. |

@@ -1,0 +1,256 @@
+{
+  "generatedAt": "2026-09-02T10:00:00.000Z",
+  "counts": {
+    "modules": 412,
+    "edges": 1907,
+    "orphans": 3
+  },
+  "status": "failed to resolve 2 modules",
+  "modules": [
+    {
+      "id": "mod-0",
+      "path": "src/app/module_0.js",
+      "imports": 0,
+      "exports": 0
+    },
+    {
+      "id": "mod-1",
+      "path": "src/app/module_1.js",
+      "imports": 1,
+      "exports": 1
+    },
+    {
+      "id": "mod-2",
+      "path": "src/app/module_2.js",
+      "imports": 2,
+      "exports": 2
+    },
+    {
+      "id": "mod-3",
+      "path": "src/app/module_3.js",
+      "imports": 3,
+      "exports": 3
+    },
+    {
+      "id": "mod-4",
+      "path": "src/app/module_4.js",
+      "imports": 4,
+      "exports": 0
+    },
+    {
+      "id": "mod-5",
+      "path": "src/app/module_5.js",
+      "imports": 5,
+      "exports": 1
+    },
+    {
+      "id": "mod-6",
+      "path": "src/app/module_6.js",
+      "imports": 6,
+      "exports": 2
+    },
+    {
+      "id": "mod-7",
+      "path": "src/app/module_7.js",
+      "imports": 7,
+      "exports": 3
+    },
+    {
+      "id": "mod-8",
+      "path": "src/app/module_8.js",
+      "imports": 8,
+      "exports": 0
+    },
+    {
+      "id": "mod-9",
+      "path": "src/app/module_9.js",
+      "imports": 0,
+      "exports": 1
+    },
+    {
+      "id": "mod-10",
+      "path": "src/app/module_10.js",
+      "imports": 1,
+      "exports": 2
+    },
+    {
+      "id": "mod-11",
+      "path": "src/app/module_11.js",
+      "imports": 2,
+      "exports": 3
+    },
+    {
+      "id": "mod-12",
+      "path": "src/app/module_12.js",
+      "imports": 3,
+      "exports": 0
+    },
+    {
+      "id": "mod-13",
+      "path": "src/app/module_13.js",
+      "imports": 4,
+      "exports": 1
+    },
+    {
+      "id": "mod-14",
+      "path": "src/app/module_14.js",
+      "imports": 5,
+      "exports": 2
+    },
+    {
+      "id": "mod-15",
+      "path": "src/app/module_15.js",
+      "imports": 6,
+      "exports": 3
+    },
+    {
+      "id": "mod-16",
+      "path": "src/app/module_16.js",
+      "imports": 7,
+      "exports": 0
+    },
+    {
+      "id": "mod-17",
+      "path": "src/app/module_17.js",
+      "imports": 8,
+      "exports": 1
+    },
+    {
+      "id": "mod-18",
+      "path": "src/app/module_18.js",
+      "imports": 0,
+      "exports": 2
+    },
+    {
+      "id": "mod-19",
+      "path": "src/app/module_19.js",
+      "imports": 1,
+      "exports": 3
+    },
+    {
+      "id": "mod-20",
+      "path": "src/app/module_20.js",
+      "imports": 2,
+      "exports": 0
+    },
+    {
+      "id": "mod-21",
+      "path": "src/app/module_21.js",
+      "imports": 3,
+      "exports": 1
+    },
+    {
+      "id": "mod-22",
+      "path": "src/app/module_22.js",
+      "imports": 4,
+      "exports": 2
+    },
+    {
+      "id": "mod-23",
+      "path": "src/app/module_23.js",
+      "imports": 5,
+      "exports": 3
+    },
+    {
+      "id": "mod-24",
+      "path": "src/app/module_24.js",
+      "imports": 6,
+      "exports": 0
+    },
+    {
+      "id": "mod-25",
+      "path": "src/app/module_25.js",
+      "imports": 7,
+      "exports": 1
+    },
+    {
+      "id": "mod-26",
+      "path": "src/app/module_26.js",
+      "imports": 8,
+      "exports": 2
+    },
+    {
+      "id": "mod-27",
+      "path": "src/app/module_27.js",
+      "imports": 0,
+      "exports": 3
+    },
+    {
+      "id": "mod-28",
+      "path": "src/app/module_28.js",
+      "imports": 1,
+      "exports": 0
+    },
+    {
+      "id": "mod-29",
+      "path": "src/app/module_29.js",
+      "imports": 2,
+      "exports": 1
+    },
+    {
+      "id": "mod-30",
+      "path": "src/app/module_30.js",
+      "imports": 3,
+      "exports": 2
+    },
+    {
+      "id": "mod-31",
+      "path": "src/app/module_31.js",
+      "imports": 4,
+      "exports": 3
+    },
+    {
+      "id": "mod-32",
+      "path": "src/app/module_32.js",
+      "imports": 5,
+      "exports": 0
+    },
+    {
+      "id": "mod-33",
+      "path": "src/app/module_33.js",
+      "imports": 6,
+      "exports": 1
+    },
+    {
+      "id": "mod-34",
+      "path": "src/app/module_34.js",
+      "imports": 7,
+      "exports": 2
+    },
+    {
+      "id": "mod-35",
+      "path": "src/app/module_35.js",
+      "imports": 8,
+      "exports": 3
+    },
+    {
+      "id": "mod-36",
+      "path": "src/app/module_36.js",
+      "imports": 0,
+      "exports": 0
+    },
+    {
+      "id": "mod-37",
+      "path": "src/app/module_37.js",
+      "imports": 1,
+      "exports": 1
+    },
+    {
+      "id": "mod-38",
+      "path": "src/app/module_38.js",
+      "imports": 2,
+      "exports": 2
+    },
+    {
+      "id": "mod-39",
+      "path": "src/app/module_39.js",
+      "imports": 3,
+      "exports": 3
+    }
+  ],
+  "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+  ]
+}

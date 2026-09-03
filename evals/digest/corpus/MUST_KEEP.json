@@ -1,0 +1,78 @@
+{
+  "note": "Per-fixture expectations for evals/digest/run.mjs. `minLineReduction` and `minByteReduction` are the measured reduction on this corpus minus a margin, so an ordinary tuning change passes and a regression fails. `contains` lines must survive verbatim in the digest. Never lower a floor to make a change pass without recording the measured number in the plugin changelog.",
+  "fixtures": {
+    "diff.txt": {
+      "shape": "diff",
+      "minLineReduction": 0.6,
+      "contains": [
+        "diff --git a/src/lib/format/date.js b/src/lib/format/date.js",
+        "@@ -110,33 +110,33 @@ function region31(input, options) {"
+      ]
+    },
+    "diagnostics.txt": {
+      "shape": "diagnostics",
+      "minLineReduction": 0.65,
+      "contains": [
+        "src/app/handlers/users.py:900:1: E902 cannot read the file, permission denied",
+        "src/app/util/text.py:907:1: E902 cannot read the file, permission denied",
+        "Found 300 diagnostics in 10 files."
+      ]
+    },
+    "test.txt": {
+      "shape": "test",
+      "minLineReduction": 0.65,
+      "contains": [
+        "FAIL src/lib/delta.test.js",
+        "    ✕ keeps the order stable (6 ms)",
+        "    ✕ accepts a custom separator (4 ms)",
+        "Tests:       2 failed, 198 passed, 200 total"
+      ]
+    },
+    "stack.txt": {
+      "shape": "stack",
+      "cwd": "/srv/app",
+      "minLineReduction": 0.8,
+      "contains": [
+        "Error: connection refused while opening the report stream",
+        "    at handler7 (/srv/app/src/report/collect.js:47:11)"
+      ]
+    },
+    "listing.txt": {
+      "shape": "listing",
+      "minLineReduction": 0.65,
+      "contains": ["src/app/views/module_299.js"]
+    },
+    "log.txt": {
+      "shape": "log",
+      "minLineReduction": 0.6,
+      "contains": [
+        "2026-09-02T10:00:13.481Z ERROR [worker-3] queue drain refused by upstream shard 6",
+        "2026-09-02T10:01:14.738Z ERROR [worker-4] queue drain refused by upstream shard 4"
+      ]
+    },
+    "json.txt": {
+      "shape": "json",
+      "minLineReduction": 0.9,
+      "contains": ["  \"status\": \"failed to resolve 2 modules\","]
+    },
+    "table.txt": {
+      "shape": "table",
+      "minLineReduction": 0.6
+    },
+    "plain.txt": {
+      "shape": "plain",
+      "minLineReduction": 0.6
+    },
+    "passthrough.txt": {
+      "shape": "plain",
+      "minLineReduction": 0,
+      "byteIdentical": true
+    },
+    "progress.txt": {
+      "shape": "plain",
+      "minLineReduction": 0,
+      "minByteReduction": 0.45,
+      "stripped": true
+    }
+  }
+}
