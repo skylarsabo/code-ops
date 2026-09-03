@@ -5,7 +5,7 @@ One repository ships four plugins of adaptive, multi-agent engineering workflows
 Installing `code-ops-suite` gives three things with no further configuration:
 
 - **Quality discipline.** Skills and their subagents run audit, proof, review, and ship as checkpointed workflows.
-- **Measured token cost.** Every session appends one local receipt, and three switches cut the context a run carries.
+- **Lower token cost, measured.** Every session appends one local receipt, and the output digest, the symbol index, and the ladder card cut the context a run carries, on by default.
 - **Governed documentation.** The docs vault and the per-repo atlas give a repository one documentation hub.
 
 Add the marketplace once, then install the plugins a project needs:
@@ -163,12 +163,12 @@ Every skill reads its plugin's `CONVENTIONS.md` first. To apply those principles
 
 ### Context and cost switches
 
-Four mechanisms measure or shrink the context a run consumes. Session receipts run with no configuration. The other three stay inert until a repository sets its switch to `1`, `on`, or `true` in the `env` block of `.claude/settings.json`:
+Four mechanisms measure or shrink the context a run consumes, and every one runs with no configuration. A user or a repository turns one off by setting its switch to `off` in the `env` block of a `.claude/settings.json`.
 
 - **Session receipts.** `hooks/session-receipt.mjs` appends one row per session to a home-directory ledger, and `CODE_OPS_RECEIPTS=off` disables it.
-- **Output digest.** `hooks/digest-rewrite.mjs` rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed and receipted. Its switch is `CODE_OPS_DIGEST`.
-- **Symbol index.** `scripts/context-query.mjs` answers a structural question with `file:line` anchors instead of a dump, and `hooks/index-refresh.mjs` re-indexes each edited file. The hook's switch is `CODE_OPS_INDEX`.
-- **Ladder card.** `hooks/ladder-card.mjs` hands an implementer subagent the code-economy ladder as a ten-line card. Its switch is `CODE_OPS_LADDER_CARD`.
+- **Output digest.** `hooks/digest-rewrite.mjs` rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed and receipted. `CODE_OPS_DIGEST=off` disables it.
+- **Symbol index.** `scripts/context-query.mjs` answers a structural question with `file:line` anchors instead of a dump, and `hooks/index-refresh.mjs` re-indexes each edited file. `CODE_OPS_INDEX=off` disables the hook.
+- **Ladder card.** `hooks/ladder-card.mjs` hands an implementer subagent the code-economy ladder as a ten-line card. `CODE_OPS_LADDER_CARD=off` disables it.
 
 Read the receipt ledger with `node scripts/context-audit.mjs receipts`.
 
