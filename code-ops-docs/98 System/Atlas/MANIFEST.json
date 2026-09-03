@@ -85,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "96ad8832965de92abd17b7b5eb248b89c65dfcd6",
-      "verifiedDigest": "3fac304f2ebca9ca52c999fc91740dcc69bbf55a16e96f60121d9c03641f6d55"
+      "verifiedAt": "17095696375aaa4752bfd8ec4f59b6ca2e2be151",
+      "verifiedDigest": "67f9097a17df3afb2e2a73458a7b3fe9abdcf1e9805b8e6715c0e0cb03578855"
     },
     {
       "slug": "root-contracts",
