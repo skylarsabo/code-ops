@@ -1,18 +1,18 @@
 ---
 type: reference
 status: current
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Observability
 
 ## Scope
 
-Code-ops is a repository and marketplace, not a running product service. It has no application telemetry pipeline, metrics backend, trace collector, alert policy, or service-level objective in the current tree. This document records repository observability.
+Code-ops is a repository and marketplace, not a running product service. It has no application telemetry pipeline, metrics backend, trace collector, alert policy, or service-level objective in the current tree. This page records repository observability: which signals exist, what each one proves, and which of them blocks a merge.
 
 ## CI evidence
 
-GitHub Actions is the primary operational signal. The `validate` workflow gives named job and step results for package shape, generated-output drift, dependency policy, vault conformance, and regression evals. Both operating-system jobs run the long-horizon runtime eval. Evidence: `.github/workflows/validate.yml:23-154` and `220-313`.
+GitHub Actions is the primary operational signal. The `validate` workflow gives named job and step results for package shape, generated-output drift, dependency policy, vault conformance, and regression evals. The Ubuntu and Windows jobs both run the long-horizon runtime eval. A third job, `host-evals-macos`, runs the host-facing evals on the weekly schedule and on manual dispatch only, so a macOS-only regression surfaces within a week rather than never. Evidence: `.github/workflows/validate.yml:29-245`, `.github/workflows/validate.yml:244-267`, and `.github/workflows/validate.yml:269-439`.
 
 The local review gate provides separate deep-review and OpSec signals before a pull request.
 Its plan binds base SHA, HEAD SHA, binary diff, and changed paths. Its receipts bind reviewer,
@@ -37,14 +37,14 @@ The long-horizon runtime records a host-capability binding and a hash-chained ch
 Use `run-runtime.mjs metrics --json` to obtain receipt, checkpoint, resume, replan,
 stable-prefix, prompt-cache, and receipt-size metrics. The default view includes only the
 capability-descriptor digest, states, and policy outcomes, not raw host provenance. Elapsed
-time is `UNKNOWN`; the tool does not convert host wall-clock readings into a false
+time is `UNKNOWN`, because the tool does not convert host wall-clock readings into a false
 cross-session measure. Evidence: `scripts/runtime-lib.mjs:352-386` and
 `scripts/run-runtime.mjs:340-358`.
 
 `judgment-evals.mjs` records local judgment trend and floor-calibration plans and scoring
-receipts. The plan and receipt expose whether execution was available; workers receive no answer
-key. Schedule trend weekly through local Codex automation. Run floor calibration locally when
-policy requires it. These are model-quality measurements, not GitHub-hosted merge checks.
+receipts. The plan and receipt expose whether execution was available, and workers receive no answer
+key. Schedule the trend run weekly through local automation. Run floor calibration locally when
+policy requires it. Both are model-quality measurements, not GitHub-hosted merge checks.
 
 ## Atlas freshness
 
@@ -54,17 +54,17 @@ Context bundles include an Atlas excerpt only when the matching section is fresh
 
 ## Performance evidence
 
-The canonical [performance reference](PERFORMANCE.md) owns the measurement protocol, current baseline, retained optimizations, and known hot paths. A context-snapshot cache hit should reuse the content-addressed structural index; a cold run includes repository map, import graph, and Atlas work.
+The canonical [performance reference](PERFORMANCE.md) owns the measurement protocol, current baseline, retained optimizations, and known hot paths. A context-snapshot cache hit should reuse the content-addressed structural index. A cold run includes repository map, import graph, and Atlas work.
 
-## Session receipts
+## Session and tool-output receipts
 
 A `PreCompact` hook prints what a compaction summary must preserve, and the host reads that stdout as the compaction's custom instructions, so a resumed session does not redo work or lose a stated constraint. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:1-11`.
 
-The `SessionEnd` hook `session-receipt.mjs` appends one row per session to a local ledger: exact tokens by class for the main thread and its subagents, tool calls by tool, model mix, and wall time. It prints nothing to the model and fails open on every error. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:1-20`.
+The `SessionEnd` hook `session-receipt.mjs` appends one row per session to a local ledger: exact tokens by class for the main thread and its subagents, tool calls by tool, model mix, wall time, and the switches that session ran under. It is on by default, prints nothing to the model, and fails open on every error. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:1-20`.
 
-The `PreToolUse` hook `digest-rewrite.mjs` changes what a tool result looks like, and only in a repository that opted in. With `CODE_OPS_DIGEST` on, an allowlisted simple Bash command runs under `digest.mjs`, so the result the session sees is the compressed view: kept lines, an `[elided N lines: sed -n 'A,Bp' <raw path>]` marker for each region that went, and a closing trailer naming the exit code, the shape, the line counts before and after, and the raw file's sha256. The whole untouched output stays on disk at that raw path, under `~/.claude/code-ops/digest/<project slug>/<ISO date>/` by default, with one row per run in `DIGEST_RECEIPTS.jsonl` beside it. A command outside the contract arrives exactly as it always did. Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:1-41` and `scripts/digest.mjs:166-195`.
+The `PreToolUse` hook `digest-rewrite.mjs` changes what a tool result looks like, and it is on by default. An allowlisted simple Bash command runs under `digest.mjs`, so the result the session sees is the compressed view: kept lines, an `[elided N lines: sed -n 'A,Bp' <raw path>]` marker for each region that went, and a closing trailer naming the exit code, the shape, the line counts before and after, and the raw file's sha256. The whole untouched output stays on disk at that raw path, under `~/.claude/code-ops/digest/<project slug>/<ISO date>/` by default, with one row per run in `DIGEST_RECEIPTS.jsonl` beside it. A command outside the contract arrives exactly as it always did. The [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) owns the off switch. Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:1-41` and `scripts/digest.mjs:166-195`.
 
-`context-audit.mjs` reads the same transcripts on demand and reports tokens, context characters by tool, Bash output by command family, and repeat reads, sanitized by default. The [measurements reference](MEASUREMENTS.md) owns the baseline rows and the method for adding one. The sanitization contract lives beside the family function. Evidence: `scripts/context-audit.mjs:1-18` and `scripts/transcript-lib.mjs:63-70`.
+`context-audit.mjs` reads the same transcripts on demand and reports tokens, context characters by tool, Bash output by command family, and repeat reads, sanitized by default. `context-audit.mjs receipts --by-arm` reads the ledger instead and prints per-session means grouped by the switches each session ran under, which is how one mechanism's effect is read off two checkouts. The [measurements reference](MEASUREMENTS.md) owns the baseline rows and the method for adding one. The sanitization contract lives beside the family function. Evidence: `scripts/context-audit.mjs:1-18`, `scripts/context-audit.mjs:93-132`, and `scripts/transcript-lib.mjs:63-70`.
 
 ## Record-collection signals
 

@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "96ad8832965de92abd17b7b5eb248b89c65dfcd6",
+      "verifiedAt": "a8041d15e7ffd9fae9fdaa53b5e06f0d232335ec",
       "verifiedDigest": "a52c857d3cf6aeb9546c899a8ac6d3e9ff92d69a1f5629a02ae2d2d64edd18f5"
     },
     {
@@ -52,7 +52,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "96ad8832965de92abd17b7b5eb248b89c65dfcd6",
+      "verifiedAt": "a8041d15e7ffd9fae9fdaa53b5e06f0d232335ec",
       "verifiedDigest": "617b4717a40c7713638179272dbae4198523b5e9376efd8851637179fc1fde24"
     },
     {
@@ -85,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "dbc33adef6908bec15d9b620cbd6762ee28ff0f5",
-      "verifiedDigest": "0030af860b65f1e4a5adeb6c0ac5428c586f4d00acce87a6ece94d9de2fb73af"
+      "verifiedAt": "49f255af6467c4db0f1e7d1e9c420652b4dd4b5d",
+      "verifiedDigest": "20667a9e0f1c56cb6c67f3051da8e5a322b99a835093302de35bb4f22d2e9264"
     },
     {
       "slug": "root-contracts",

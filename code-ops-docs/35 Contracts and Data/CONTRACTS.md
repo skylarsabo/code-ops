@@ -1,10 +1,41 @@
 ---
 type: reference
 status: current
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Contracts
+
+This page states the exact contract of every machine-checked artifact, command, and host hook
+the repository ships. Read it when you need a flag, an exit code, a field name, or a default,
+and cite it rather than restating it. The [data model reference](DATA_MODEL.md) owns the record
+shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) owns the switches.
+
+## Contents
+
+- [Run contract](#run-contract)
+- [Snapshot receipt](#snapshot-receipt)
+- [Context bundle](#context-bundle)
+- [Host capabilities and policy](#host-capabilities-and-policy)
+- [Stable prefix and runtime receipts](#stable-prefix-and-runtime-receipts)
+- [Cache telemetry](#cache-telemetry)
+- [Session receipt hook](#session-receipt-hook)
+- [Routing card and traceless hooks](#routing-card-and-traceless-hooks)
+- [Local judgment gate](#local-judgment-gate)
+- [Judgment evals](#judgment-evals)
+- [Acceptance and result](#acceptance-and-result)
+- [Compatibility](#compatibility)
+- [Output digest](#output-digest)
+- [Digest rewrite hook](#digest-rewrite-hook)
+- [Script entrypoint](#script-entrypoint)
+- [File skim](#file-skim)
+- [Over-build scanner](#over-build-scanner)
+- [Deferral harvest](#deferral-harvest)
+- [Ladder card hook](#ladder-card-hook)
+- [Symbol index and query](#symbol-index-and-query)
+- [Atlas claims and scope suggestion](#atlas-claims-and-scope-suggestion)
+- [Documentation manifest](#documentation-manifest)
+- [Record operations](#record-operations)
 
 ## Run contract
 
@@ -60,7 +91,7 @@ and five named capability states: `promptCaching`, `compaction`, `contextEditing
 Each v3 runtime policy is `off`, `prefer`, `require`, or `require-observable`. `require`
 accepts only controllable or host-managed states. `require-observable` excludes
 managed-unobservable states. `prefer` records `durable-fallback` for unavailable or unknown
-features; `off` records `disabled`. Unsatisfied required policy fails contract validation.
+features, and `off` records `disabled`. Unsatisfied required policy fails contract validation.
 Evidence: `scripts/runtime-lib.mjs:128-147` and `scripts/run-contract.mjs:60-72`.
 
 ## Stable prefix and runtime receipts
@@ -99,18 +130,33 @@ An observation records cache observability as `observed`, `unobservable`, or `un
 It may record `hit`, `miss`, or `write` events and cache-read, cache-write, input, and
 output token counts. Unobservable and unsupported observations cannot carry cache events or
 token metrics. Provider-usage observations must carry at least one metric. The metrics view
-reports normalized totals and event counts plus the minimized capability binding; raw host
+reports normalized totals and event counts plus the minimized capability binding. Raw host
 provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evidence:
 `scripts/runtime-lib.mjs:284-297`, `scripts/runtime-lib.mjs:352-386`, and
 `scripts/run-runtime.mjs:293-317`.
 
 ## Session receipt hook
 
-The `SessionEnd` hook reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default, and the value `off` disables the hook. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:32-81`.
+The `SessionEnd` hook `session-receipt.mjs` is on by default. It reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default, and the value `off`, `0`, or `false` disables the hook. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:32-81`.
 
-`context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. `--by-arm` groups rows by the switches they ran under and prints per-session means, with pre-record rows as `unknown`. Evidence: `scripts/context-audit.mjs:77-90` and `scripts/context-audit.mjs:93-132`.
+`context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. `--by-arm` groups rows by the switches they ran under and prints per-session means, with pre-record rows as `unknown`. `receipts --purge-before <ISO date>` rewrites the ledger keeping only rows whose `ts` is at or later than the given date, and reports what it removed, so retention is one operator command and nothing purges on its own. Evidence: `scripts/context-audit.mjs:8-13`, `scripts/context-audit.mjs:77-90`, and `scripts/context-audit.mjs:93-132`.
 
 The `PreCompact` hook `precompact-preserve.mjs` prints one fixed instruction on stdout naming the six items a compaction summary must keep and the redaction markers it must leave as they stand. The host reads that stdout as the compaction's custom instructions. It reads no stdin, adds no per-turn tokens, and exits `0` on every path. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:15-33`.
+
+## Routing card and traceless hooks
+
+Two bundled hooks carry no environment switch, because neither writes anything and neither
+can be made quieter without losing its point. The `SessionStart` hook `routing-card.mjs`
+prints a fixed card naming the standard routing table, the tier and effort rules, and the
+context-economy defaults. It parses no payload, and any error exits `0` silently. Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs:1-35`.
+
+The `PreToolUse` hook `enforce-traceless.mjs` is the tool-layer backstop for the
+traceless-publishing rule. When the Bash command about to run matches a `git commit` or a `gh
+pr create|merge`, it scans the whole command string with the bundled `scan-ai-tells.mjs` and
+exits `2` on a hit, which blocks the call. Every other path fails open at exit `0`, including a
+scanner failure, because `scan-ai-tells.mjs --git <range>` in CI is the fail-closed backstop.
+The match tolerates a `git -C <dir>` or `git --flag=val` prefix ahead of the subcommand.
+Evidence: `plugins/code-ops-suite/hooks/enforce-traceless.mjs:1-22`.
 
 ## Local judgment gate
 
@@ -141,7 +187,7 @@ validated, but the receipt chain does not provide hardware-backed identity. Evid
 
 `publish` is optional. After a passing local check, it can post one GitHub commit status
 per receipt to the reviewed SHA. It verifies that SHA is remotely available. The caller
-needs GitHub write authority for the status endpoint. A status is supplementary evidence;
+needs GitHub write authority for the status endpoint. A status is supplementary evidence, so
 publication failure does not alter the local pass or fail result. Evidence:
 `scripts/local-review-gate.mjs:274-344` and `scripts/local-review-gate.mjs:441-468`.
 
@@ -250,7 +296,7 @@ fail open: an unwritable store prints the digest with `raw -` and keeps going. E
 `digest-rewrite.mjs` is a `PreToolUse` Bash stage that turns an allowlisted simple command into
 a digest run. It is on by default. The hook does nothing when `CODE_OPS_DIGEST` holds `off`,
 `0`, or `false`, compared without regard to case, and exits `0` before the payload is read in
-that case; unset and every other value leave it on. A user or a repository turns it off through
+that case. An unset variable and every other value leave it on. A user or a repository turns it off through
 the `env` block of a `.claude/settings.json`. Evidence:
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161` and
 `plugins/code-ops-suite/hooks/hooks.json:5-16`.
@@ -313,7 +359,7 @@ stderr, belong to the wrapped script. The direct `node scripts/<name>.mjs` paths
 and unchanged. Evidence: `scripts/co.mjs:20-22`, `scripts/co.mjs:163-183`, and
 `scripts/co.mjs:186-196`.
 
-The `scan` domain is migrated onto the shared CLI library, and the skills reach its scripts as
+The `scan` domain runs on the shared CLI library, and the skills reach its scripts as
 `co scan <verb>`. Its seven scripts hand `argv` to `parseFlags` in `cli-lib.mjs`. A caller
 error goes through `parseOrDie`, which prints `x <message>` on stderr and exits 2. A flag rule
 declares `many` for a repeatable flag and `raw` for a flag whose own check must see a smuggled
@@ -332,7 +378,7 @@ printed name is truncated to 80 characters. An outline longer than `--max` ends 
 `+N more` line, so truncation is never silent. `--range A,B` prints those lines with
 line-number gutters and nothing else, clamped to the file, with `B` defaulting to `A+40`.
 A binary file prints its header and `binary`. Exit 1 covers a missing or unreadable file
-and a binary file under `--range`; exit 2 covers a bad invocation. Evidence:
+and a binary file under `--range`. Exit 2 covers a bad invocation. Evidence:
 `scripts/skim.mjs:11-20`, `scripts/skim.mjs:91-99`, and `scripts/skim.mjs:213-230`.
 
 ## Over-build scanner
@@ -376,8 +422,9 @@ Evidence: `scripts/harvest-deferrals.mjs:63-65`, `scripts/harvest-deferrals.mjs:
 ## Ladder card hook
 
 `hooks/ladder-card.mjs` runs at `SubagentStart` and prints the code-economy ladder as
-`hookSpecificOutput.additionalContext` for an implementer-class agent type only. It does nothing
-when `CODE_OPS_LADDER_CARD` is `off`, `0`, or `false`, and runs otherwise. The host contract was read from the
+`hookSpecificOutput.additionalContext` for an implementer-class agent type only. It is on by
+default. It does nothing when `CODE_OPS_LADDER_CARD` is `off`, `0`, or `false`, set in the `env`
+block of a `.claude/settings.json`, and runs otherwise. The host contract was read from the
 installed 2.1.257 bundle: the input carries `agent_id` and `agent_type` (offset 183160743, built
 at 190336771), the output schema accepts `additionalContext` (183169362), and the host appends
 that context to the subagent's own messages (188311119). A read-only type, bare or
@@ -436,7 +483,7 @@ index records the providers its definitions came from and `status` prints them. 
 a host with no shell reaches them. The server is `code-ops-query` in the plugin manifest's
 `mcpServers`, and it declares two tools: `context_query`, taking a command of `find`, `callers`,
 `callees`, `blast`, `explore`, or `status` with a target and optional `budget`, `fuzzy`, and
-`root`; and `context_refresh`, taking optional `paths` and `root`. Each call spawns the sibling
+`root`, and `context_refresh`, taking optional `paths` and `root`. Each call spawns the sibling
 query script with `--json` and returns its JSON as the tool's text content, so a query that finds
 nothing still answers. A caller's mistake comes back as an Invalid-params error and a failure
 inside the script as an Internal error, never a process exit. Evidence:
@@ -447,8 +494,9 @@ and `evals/context-query-mcp/run.mjs:82-97`.
 The index is a home-directory file, `$CODE_OPS_INDEX_DIR/index.json` or
 `~/.claude/code-ops/index/<project slug>/index.json`, keyed by the repository root, so a query
 never reads another repository's index and nothing is committed. The `PostToolUse` hook
-`index-refresh.mjs`, on unless `CODE_OPS_INDEX` says off, calls `refresh <file>` after every edit with a five-second budget and prints
-nothing. Evidence: `scripts/context-query.mjs:97` and
+`index-refresh.mjs` is on by default. It calls `refresh <file>` after every edit with a
+five-second budget and prints nothing. Setting `CODE_OPS_INDEX` to `off`, `0`, or `false` in the
+`env` block of a `.claude/settings.json` turns it off. Evidence: `scripts/context-query.mjs:97` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
 ## Atlas claims and scope suggestion
@@ -517,13 +565,13 @@ The authority-batch chain never carries curation state. The curation ledger neve
 
 With complete history, post-adoption checks require:
 
-- exact stage-0 Git-index blob bytes, no semantic index-to-worktree divergence, and exact classification;
-- a 32 MiB maximum for each individual collection blob;
-- consistent stored risk labels;
-- current-risk rationale coverage;
-- non-increasing risk counts;
-- exact reviewed-candidate coverage within each applicable batch; and
-- exact-once authority coverage across all immutable objects.
+- exact stage-0 Git-index blob bytes, no semantic index-to-worktree divergence, and exact classification
+- a 32 MiB maximum for each individual collection blob
+- consistent stored risk labels
+- current-risk rationale coverage
+- non-increasing risk counts
+- exact reviewed-candidate coverage within each applicable batch
+- exact-once authority coverage across all immutable objects
 
 Incomplete history warns during ordinary checks. Strict verification treats it as infrastructure failure. Commit rewrites may change locator fields without invalidating authority. `sourceHead` never selects a verification mode. Protected repository review is the trust root for the unkeyed digest.
 
