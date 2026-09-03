@@ -10,6 +10,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # The Windows record-collection eval is path-gated below (it costs about twelve minutes on a
+  # Windows runner against about one on Ubuntu). A weekly full run keeps it exercised on an
+  # unchanged tree, so a platform-side regression cannot hide behind the gate.
+  schedule:
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
@@ -184,7 +189,7 @@ jobs:
         run: node evals/skim/run.mjs
       - name: Output-digest eval (shape detectors + must-keep contract)
         run: node evals/digest/run.mjs
-      - name: Digest-hook eval (opt-in switch + simple-command contract)
+      - name: Digest rewrite hook eval (opt-in switch + simple-command contract)
         run: node evals/digest-hook/run.mjs
 
       - name: Calibration-metrics regression eval
@@ -276,7 +281,7 @@ jobs:
         run: node evals/skim/run.mjs
       - name: Output-digest eval (shape detectors + must-keep contract)
         run: node evals/digest/run.mjs
-      - name: Digest-hook eval (opt-in switch + simple-command contract)
+      - name: Digest rewrite hook eval (opt-in switch + simple-command contract)
         run: node evals/digest-hook/run.mjs
 
       - name: Documentation manifest freshness
@@ -344,7 +349,31 @@ jobs:
       - name: Documentation extraction regression eval
         run: node evals/docs-manifest/run.mjs
 
+      # The record eval dominates this leg (about 754 s of a 960 s job on the measured runs, against
+      # 73 s on Ubuntu). It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
+      # so it runs here only when the range under test touched those inputs, the manifest, the
+      # generated record authority, or this workflow. Ubuntu still runs it on every change, and
+      # the weekly schedule and manual dispatch run it here unconditionally.
+      - name: Detect record-collection inputs
+        id: records
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -e
+          decide() { echo "changed=$1" >> "$GITHUB_OUTPUT"; echo "record-collection inputs changed: $1"; }
+          case "$EVENT" in
+            pull_request) git fetch -q origin "$BASE_REF"; range="origin/$BASE_REF...HEAD" ;;
+            push) case "$BEFORE" in ''|0000000000000000000000000000000000000000) decide true; exit 0 ;; esac; range="$BEFORE..$HEAD_SHA" ;;
+            *) decide true; exit 0 ;;
+          esac
+          files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections .github/workflows/validate.yml "code-ops-docs/98 System/DOCS_MANIFEST.json" "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
+          if [ -n "$files" ]; then decide true; else decide false; fi
       - name: Durable record-collection regression eval
+        if: steps.records.outputs.changed == 'true'
         run: |
           node evals/record-collections/run.mjs
           node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
