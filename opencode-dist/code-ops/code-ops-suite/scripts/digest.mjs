@@ -175,8 +175,12 @@ function storeDir(o, workdir) {
 
 // Returns the raw path and its digest, or null when storing is off or fails. Never throws: an
 // unwritable store loses the recovery hints, not the run.
-function storeRaw(o, workdir, body, ts) {
-  if (o.noStore) return null;
+// CODE_OPS_DIGEST_STORE=off binds the writer itself, the way CODE_OPS_RECEIPTS=off binds the
+// receipt hook, so a direct digest call under that switch stores nothing either.
+const storeOff = () => /^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST_STORE ?? '');
+
+function storeRaw(o, body, ts) {
+  if (o.noStore || storeOff()) return null;
   try {
     const dir = storeDir(o, process.cwd());
     const day = ts.slice(0, 10);
@@ -232,7 +236,7 @@ child.on('close', (code, signal) => {
   const SEP = '----- stderr -----';
   const hasErr = stderr !== '';
   const body = hasErr ? `${stdout}${stdout.endsWith('\n') || stdout === '' ? '' : '\n'}${SEP}\n${stderr}` : stdout;
-  const stored = storeRaw(o, workdir, body, ts);
+  const stored = storeRaw(o, body, ts);
   const rawPath = stored ? stored.path : null;
 
   // stderr sits after stdout and the separator inside the raw file, so its digest must report

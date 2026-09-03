@@ -79,7 +79,9 @@ const FAMILIES = {
   ruff: null,
   // `sed -n` reads and prints; an in-place flag anywhere makes it a write, which no digest may
   // silently run through.
-  sed: (t) => (t[1] ?? '').startsWith('-n') && !t.slice(1).some((a) => /^-i|^--in-place/.test(a) || /^-[a-hj-zA-Z]*i/.test(a)),
+  // GNU sed accepts any unambiguous abbreviation of --in-place (`--i`, `--in-p`), so every option
+  // that starts with `i` after one or two dashes is a write, as is `i` inside a bundle.
+  sed: (t) => (t[1] ?? '').startsWith('-n') && !t.slice(1).some((a) => /^--?i/.test(a) || /^-[a-hj-zA-Z]*i/.test(a)),
   node: (t) => /\.(mjs|js)$/.test(t[1] ?? '') || t[1] === '--test',
 };
 
@@ -165,6 +167,8 @@ function rewrite(command, scriptPath) {
 
 const CONTEXT = 'Output digested by code-ops: elided regions carry a sed hint into the raw file '
   + 'named in the trailer; run the original command only if you need the whole output.';
+const CONTEXT_NO_STORE = 'Output digested by code-ops with the raw store off: elided regions are not '
+  + 'recoverable; run the original command if you need the whole output.';
 
 function main() {
   if (!/^(1|on|true)$/i.test(process.env.CODE_OPS_DIGEST ?? '')) return;
@@ -192,7 +196,7 @@ function main() {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       updatedInput: { ...payload.tool_input, command: rewritten },
-      additionalContext: CONTEXT,
+      additionalContext: rewritten.includes('" --no-store ') ? CONTEXT_NO_STORE : CONTEXT,
     },
   })}\n`);
 }

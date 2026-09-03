@@ -26,7 +26,7 @@
 //   node evals/digest-hook/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -91,6 +91,8 @@ const PASSED_THROUGH = [
   'sed -n -i 1p x',
   'sed -ni 1p x',
   'sed -n --in-place=.bak 1p x',
+  'sed -n --i 1p x',
+  'sed -n --in-p 1p x',
   `git diff ${'a'.repeat(2500)}`,
 ];
 
@@ -105,6 +107,33 @@ const PASSED_THROUGH = [
   expect(!a.includes('--no-store'), 'without the store switch the rewrite carries no --no-store');
   expect(b.includes('" --no-store -- git diff --stat'), `CODE_OPS_DIGEST_STORE=off must insert --no-store after the script path, got ${b}`);
   expect(b.replace(' --no-store', '') === a, 'the store switch changes nothing but the flag');
+  const ctxOff = JSON.parse(noStore.stdout).hookSpecificOutput.additionalContext;
+  const ctxOn = JSON.parse(withStore.stdout).hookSpecificOutput.additionalContext;
+  expect(/not recoverable/.test(ctxOff) && !/sed hint/.test(ctxOff), `with the store off the context must not promise recovery, got ${ctxOff}`);
+  expect(/sed hint/.test(ctxOn), 'with the store on the context names the recovery hint');
+}
+
+// The digest itself honors the store switch, and the default store slug follows the directory
+// the digest started in, never the --cwd target (DR-103 / S-2 / R-1).
+{
+  const home = mkdtempSync(join(tmpdir(), 'digest-home-'));
+  const elsewhere = mkdtempSync(join(tmpdir(), 'digest-elsewhere-'));
+  const digest = join(root, 'scripts', 'digest.mjs');
+  const envHome = { ...process.env, HOME: home, USERPROFILE: home };
+  delete envHome.CODE_OPS_DIGEST_DIR;
+  const slugOf = (p) => String(p).replace(/[^A-Za-z0-9]/g, '-');
+  const r1 = spawnSync('node', [digest, '--json', '--cwd', elsewhere, '--', 'node', '-e', 'console.log(1)'], { cwd: root, encoding: 'utf8', env: envHome });
+  expect(r1.status === 0, `digest --cwd should exit 0, got ${r1.status}: ${r1.stderr}`);
+  try {
+    const j = JSON.parse(r1.stdout);
+    const dir = String(j.receipt && j.receipt.dir).split(/[\\/]/).pop();
+    expect(dir === slugOf(root), `the store slug must follow the starting directory, got ${dir}`);
+    expect(dir !== slugOf(elsewhere), 'the store slug must not follow the --cwd target');
+  } catch { fails.push('digest --json must parse'); }
+  const r2 = spawnSync('node', [digest, '--json', '--store', join(home, 'forced'), '--', 'node', '-e', 'console.log(1)'], { cwd: root, encoding: 'utf8', env: { ...envHome, CODE_OPS_DIGEST_STORE: 'off' } });
+  expect(r2.status === 0 && JSON.parse(r2.stdout || '{}').receipt === null && !existsSync(join(home, 'forced')), 'CODE_OPS_DIGEST_STORE=off must stop the digest itself from storing, even with --store');
+  rmSync(home, { recursive: true, force: true });
+  rmSync(elsewhere, { recursive: true, force: true });
 }
 
 // ---------------------------------------------------------------- the off switch
