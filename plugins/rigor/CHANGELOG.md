@@ -1,5 +1,9 @@
 # Changelog — rigor
 
+## 2.17.0
+- Every operative batches independent tool calls in one round, `tracer` carries the dense-report clause the other agents already had, and `verifier` phrases repro questions as bug questions and strips base64 from quoted output.
+- Conventions carry the finish-the-turn check, and the fix loop keeps changes and committed tests to what the task asks.
+
 ## 2.16.4
 - The shipped deep-review workflow example now pins checkout and the Claude Code action to reviewed immutable commits.
 

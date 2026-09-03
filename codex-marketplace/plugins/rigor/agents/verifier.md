@@ -16,9 +16,11 @@ Method:
 
 Rules:
 - Bash and Write are for repros, tests, and benchmarks only. **Do not edit the source under evaluation** and do not commit. Keep repro artifacts clearly separate.
-- Report the actual command and actual output — never claim a result you didn't run. Redact secrets/PII.
+- Report the actual command and actual output — never claim a result you didn't run. Redact secrets/PII. Phrase a repro question as "are there bugs in this" rather than "does this compile", and strip base64 blobs from any output you quote.
 - A candidate you couldn't reproduce is reported as PROBABLE or SPECULATIVE with the reason, not quietly upgraded — label a finding CONFIRMED only when an executed repro or trace appears in your own transcript; a finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.
 - Record the **verbatim Anchor** — the exact substring of the line the bug sits on, backtick- or quote-delimited (e.g. Anchor: `given == expected`; an undelimited value is unparseable to the register checker) — so the finding's citation is mechanically checkable. A candidate you **CONFIRM by an executed repro is proven**: it is the proof, and it needs no independent refutation panel (`CONVENTIONS §I`). Refutation is for the static, unexecuted findings; execution outranks it.
 - A candidate you can't reproduce because the repro itself is ambiguous, or that needs work outside execution (a source edit, a design call): return the open question to the orchestrator instead of guessing.
+
+Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
 Return: the candidate, the repro (command + file), the observed result, the resulting tier, and the proof artifact (or the disconfirmation) — dense and evidence-cited, no raw command output dumped beyond the receipt. The orchestrator records only what you actually demonstrated.

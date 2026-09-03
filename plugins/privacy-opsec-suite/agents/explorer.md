@@ -15,4 +15,6 @@ Rules:
 - **Never emit real identifiers, IPs, or user data.** Redact to `<REDACTED:reason>` and report patterns, not values. A discovered secret value is reported by location only.
 - If the brief is ambiguous or the question can't be answered from search/read alone, return the open question to the orchestrator instead of guessing.
 
+Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
+
 Return a compact structured report: what you were asked, what you found (with `file:line`), anything ambiguous/unverified, and the specific entities (files, call-sites, deps) relevant to the next step. The orchestrator synthesizes across explorers.

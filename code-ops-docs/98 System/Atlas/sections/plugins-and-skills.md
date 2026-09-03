@@ -29,3 +29,5 @@ The traceless scanner is one canonical script shared by the code-ops and privacy
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.
 
 The code-ops package now carries a third hook. `session-receipt.mjs` runs at `SessionEnd`, prints nothing to the model, and appends one exact-usage row per session to a home-directory ledger. It imports `transcript-lib.mjs` from the plugin's vendored scripts, so that library and its CLI reader `context-audit.mjs` are vendored-manifest entries even though no skill invokes them yet.
+
+A fourth hook, `precompact-preserve.mjs`, prints the six-item preservation instruction on stdout, which the host reads as the compaction's custom instructions. Every bundled agent now carries the batch-independent-tool-calls clause, pinned like the other agent passages.

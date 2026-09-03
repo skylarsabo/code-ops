@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.52.0
+- Doctrine aligned with the current frontier-model prompting guidance: operatives batch independent tool calls in one round, the lead dispatches in the background and continues independent work, every plugin's conventions carry a finish-the-turn check, the implementation loop keeps changes and committed tests to what the task asks, edits are surgical, and a sourcing brief never runs at low effort. Effort level names are declared non-portable across model generations.
+- A `PreCompact` hook prints the six-item preservation instruction, which the host reads as the compaction's custom instructions, and tells the summary to leave redaction markers as they stand. `handoff` keeps the developer's constraints and open promises in their exact words.
+- `session-receipt.mjs` honors `CODE_OPS_RECEIPTS=off`. The context-audit eval now proves `receipts --all` against a second directory, pins the order of the largest results, and covers the off switch. Data-model and observability citations corrected.
+- The narration scanner reports mannered prose as an advisory, and the writing standard gains its definition and a formatting rule.
+
 ## 1.51.0
 - `context-audit.mjs` reads the host's local session transcripts and reports exact token usage by class (input, cache read, cache creation, output, thinking), deduplicated by message id, with main and subagent threads apart. It also reports context characters by tool, Bash output by command family, repeat reads, and the largest results. Output is sanitized by default; `--raw` keeps truncated commands and paths for local inspection.
 - A `SessionEnd` hook appends one receipt row per session to `~/.claude/code-ops/session-receipts.jsonl` (or `$CODE_OPS_RECEIPTS`): tokens by class, tool calls, model mix, and wall time. It prints nothing to the model, sends nothing off the machine, and fails open. `context-audit.mjs receipts` summarizes the ledger.

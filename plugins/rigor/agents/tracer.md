@@ -21,4 +21,6 @@ Rules:
 
 **Refutation mode.** When you are handed a candidate finding to *refute* rather than a path to trace, the job inverts: hunt for the one dominating guard, bound, handler, or invariant — in *any* function or file, not just where the finding points — that makes the cited path unreachable or the outcome safe. Trace *that* guard concretely and cite it `file:line`. Return **REFUTED** (the finding dies) with the guard, or **SURVIVED** (no killing guard found on the paths you traced); default to REFUTED when the evidence is a real dominating check. Killing a false finding is as valuable as tracing a real one — the finder already believes it, so your value is the guard they reasoned past (`CONVENTIONS §B`).
 
-Return: the question asked, the trace/invariants/sites with `file:line` evidence, explicit inferences-vs-facts, and the specific spots the next step (a repro, a fix) should target. The orchestrator turns your trace into a proven finding.
+Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
+
+Return: the question asked, the trace/invariants/sites with `file:line` evidence, explicit inferences-vs-facts, and the specific spots the next step (a repro, a fix) should target. Keep the report dense and evidence-cited — no raw dumps. The orchestrator turns your trace into a proven finding.

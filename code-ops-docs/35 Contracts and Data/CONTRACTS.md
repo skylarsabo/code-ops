@@ -106,9 +106,11 @@ provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evid
 
 ## Session receipt hook
 
-The `SessionEnd` hook reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:32-81`.
+The `SessionEnd` hook reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default, and the value `off` disables the hook. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:32-81`.
 
 `context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. Evidence: `scripts/context-audit.mjs:77-90`.
+
+The `PreCompact` hook `precompact-preserve.mjs` prints one fixed instruction on stdout naming the six items a compaction summary must keep and the redaction markers it must leave as they stand. The host reads that stdout as the compaction's custom instructions. It reads no stdin, adds no per-turn tokens, and exits `0` on every path. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:15-33`.
 
 ## Local judgment gate
 
