@@ -35,7 +35,7 @@ Detect tooling (Prettier/ESLint, Black/Ruff, gofmt, rustfmt, clang-format, etc.)
 - **C. Comment & doc hygiene** (strip the tells; keep terse *why*-comments; standardize doc-comment usage to one rule).
 - **D. Dead code & cruft removal** (unused imports/vars/functions/exports/files, unreachable code; **verify before deleting** anything possibly used dynamically/via config/reflection/build — else ask).
 - **E. Standardize recurring operations** (one canonical pattern for: error handling, logging [no stray prints/emoji/sensitive data], validation, API shapes, data access, config access, async/concurrency, types, module exports, constants).
-- **F. Modularization** — extract duplicated complex logic into one well-named shared module; break up oversized functions/files; clean boundaries; right-size (don't abstract trivial one-offs) — **structural extractions confirmed first**.
+- **F. Modularization** — extract duplicated complex logic into one well-named shared module; break up oversized functions/files; clean boundaries; right-size (don't abstract trivial one-offs) — **structural extractions confirmed first**. Extract only on the ladder's evidence (`§11`): a second caller, a unit that needs its own test, or a file past the repository's own size norm.
 - **G. Method clarity** (single responsibility, early returns over deep nesting, no obscuring cleverness).
 - **H. README/docs** rewritten to concise professional voice.
 - **I. VCS history** — emoji/AI-voiced commit messages are a tell; adopt a convention going forward; rewriting existing history is destructive → developer's decision, not unilateral.

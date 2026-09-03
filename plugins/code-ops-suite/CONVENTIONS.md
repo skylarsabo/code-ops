@@ -122,6 +122,7 @@ Every finding also carries an **Anchor**:
 ## 10 · Quality lenses (shared definitions)
 Prompts reference these by name. Apply the ones relevant to the task and the project.
 - **Modularity & architecture** — coupling/cohesion, dependency direction, leaky abstractions, circular deps, duplication, dead code, unclear boundaries, config sprawl.
+- **Size and boundary** — the change is the smallest that satisfies the ordered objective (§11); no new file, interface, wrapper, or dependency without the ladder's evidence; boundaries unchanged unless the task is a boundary change.
 - **Performance** — algorithmic complexity, N+1/over-fetching, blocking-on-async, missing/incorrect caching, allocations & leaks; for UIs: bundle size, render thrash, asset weight.
 - **Efficiency / resource use** — redundant work, chatty I/O, hot-path logging, unpooled/unclosed resources, slow/redundant CI.
 - **Correctness & intricate bugs** — races/TOCTOU, off-by-one/overflow/rounding, timezone/locale, null/coercion traps, swallowed errors, missing rollback/cleanup, non-idempotent retries, illegal states, contract/serialization mismatches.
@@ -143,6 +144,8 @@ For each unit of work:
 7. **Self-review** against the lenses; fix before committing.
 8. **Commit** atomically, referencing the item ID; open/update a PR per the developer's preference.
 9. **Close the loop** — update the backlog status and update any documentation the change affects (don't create doc drift).
+
+**Size discipline (the ladder):** The objective is ordered: correctness and the safety floor, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines wins only between candidates equal on the first four. Before writing code, climb the ladder: does it need to exist (scope is the request); does it exist here (search before you write); does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory); does it fit inside the owning module (extend before you add a file); extract only on evidence (a second caller, a unit that needs its own test, or a file past the repository's own size norm); then write the minimum edge-case-correct implementation. Never trade algorithmic complexity for brevity on a path `benchmark-command.mjs` has measured hot. Mark a deliberate simplification with a `deferred(<ceiling>, <upgrade path>)` comment; the harvest routes back to it.
 
 **Cascade circuit-breaker:** if three or more fixes in a single run fail verification (step 6) or themselves spawn new confirmed findings, stop the fix loop — a cascading cluster is evidence of an architectural problem, not a bug collection. Reclassify the affected items as **NEEDS-DESIGN** (`§6`), record the cascade chain in the run's log (`IMPLEMENTATION_LOG.md` where the skill produces one), and present options at a checkpoint instead of attempting the next fix; in a headless run, defer the remaining cluster and report it (`§3`).
 

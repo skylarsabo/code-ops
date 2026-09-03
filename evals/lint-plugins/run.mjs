@@ -72,6 +72,8 @@ const runLint = (dir) => {
 
 // ---- pinned doctrine text (SHARED_PASSAGES in scripts/lint-plugins.mjs) -----------------
 const PINNED_TEXTS = [
+  'The objective is ordered: correctness and the safety floor, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines wins only between candidates equal on the first four.',
+  "Before writing code, climb the ladder: does it need to exist (scope is the request); does it exist here (search before you write); does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory); does it fit inside the owning module (extend before you add a file); extract only on evidence (a second caller, a unit that needs its own test, or a file past the repository's own size norm); then write the minimum edge-case-correct implementation.",
   "a broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run; do not rely on the platform's concurrency cap as the limiter",
   'skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end',
   "take the union of every slice's skipped/traced note — a high-risk area that no slice covered is itself a finding (a coverage gap), not silence",

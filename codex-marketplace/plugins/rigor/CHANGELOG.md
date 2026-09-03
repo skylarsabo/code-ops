@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.0
+- The fix loop carries the ordered objective and the code-economy ladder, pinned byte-identically with the code-ops-suite and privacy-opsec-suite conventions.
+
 ## 2.17.3
 - Vendored `co.mjs` refreshed: its verb table gains `context digest`, whose script only code-ops-suite bundles. No behavior in this plugin changes.
 
