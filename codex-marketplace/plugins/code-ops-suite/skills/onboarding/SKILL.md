@@ -1,28 +1,67 @@
 ---
 name: onboarding
-description: "Use when you need a verified, code-grounded orientation guide (with an architecture diagram) for a new contributor."
+description: "Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor."
 ---
 
-# CODEBASE ONBOARDING — Generate the Orientation Guide
+# Codebase onboarding: generate the orientation guide
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:onboarding`.** First read the `<plugin-root>/CONVENTIONS.md` bundled with this plugin (search the plugin directory for it if needed) — it defines the operating model, interaction protocol, safety rails, schemas, and quality lenses this skill references by section. For this DOCUMENT-mode skill the binding sections are §2 (tools/in-house docs lookup), §3 (interaction), §4 (safety rails), §12 (SSOT/registers), and §13 (doc standard) — read those five; the fan-out/fix machinery (§1, §5–§8, §11) does not apply here.
-**Mode:** DOCUMENT · **Produces:** `ONBOARDING.md` (or a small `docs/onboarding/` set) with an architecture diagram, following the documentation quality standard (`§13`).
+**Invoke in Codex by naming `code-ops-suite:onboarding`.** First read the
+`<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
+it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
+quality lenses this skill references by section. For this DOCUMENT-mode skill the binding
+sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safety rails), §12 (SSOT
+and registers), and §13 (doc standard). Read those five. The fan-out and fix machinery (§1, §5 to
+§8, §11) does not apply here.
+**Mode:** DOCUMENT · **Produces:** `ONBOARDING.md`, or a small `docs/onboarding/` set, with an
+architecture diagram, following the documentation quality standard (`§13`).
 
-Produce a high-quality, **code-grounded** orientation guide so a new engineer — or a fresh agent — becomes productive fast. **Code is ground truth** — verify everything; don't just paraphrase existing (possibly drifted) docs, and **run the setup steps** to confirm they work. Flag uncertainties as open questions rather than inventing.
+Produce a high-quality, **code-grounded** orientation guide, so a new engineer or a fresh agent
+becomes productive fast. **Code is ground truth.** Verify everything. Do not paraphrase existing
+docs, which may have drifted, and **run the setup steps** to confirm they work. Flag
+uncertainties as open questions rather than inventing answers.
 
-## Phase 0 — Map the system  *(checkpoint)*
-Dispatch an `explorer` operative to map: stack and runtimes; services/modules and how they fit; data models; main user-facing flows; entry points; build/test/run commands; conventions/patterns; and (if the system handles sensitive data) its data-handling/privacy model. Ingest the reconciled SSOT docs and service map if present (noting any drift for the doc-alignment prompt).
-> **CHECKPOINT:** confirm the audience (new engineer / external contributor / future agent) and emphasis; share the system map and proposed outline; then write it.
+## Phase 0: the system map  *(checkpoint)*
 
-## Phase 1 — Write the guide
-In a sensible reading order: **the mental model** (what the product is, core concepts, the 30-second "how it fits"); **architecture** (services/modules, request/data flow, with a **diagram** matching the real map); **repo tour** (where everything lives); **getting started** (clone→install→configure→run→test, **verified by running it**; redact secret values; note pitfalls); **key flows** (trace 2–3 important flows end-to-end through the actual code); **conventions & standards** (style, patterns, testing approach, "how to add X"); **the data-handling/security rules a contributor must not break** (if applicable); **gotchas & sharp edges** (the non-obvious, the surprising-but-intentional — use history to explain); **glossary**.
+Dispatch an `explorer` operative to map the stack and runtimes, the services and modules and how
+they fit, the data models, the main user-facing flows, the entry points, the build and test and
+run commands, and the conventions and patterns. When the system handles sensitive data, have it
+map the data-handling and privacy model too. Ingest the reconciled SSOT docs and service map when
+present, noting any drift for the doc-alignment prompt.
 
-**Quality bar:** accurate (verified, not invented), genuinely useful (what a newcomer needs to be productive, not an exhaustive dump), concise but complete, skimmable.
+> **CHECKPOINT:** confirm the audience (new engineer, external contributor, or future agent) and the emphasis. Share the system map and the proposed outline, then write the guide.
+
+## Phase 1: the guide
+
+Write the sections in a sensible reading order:
+- **The mental model:** what the product is, the core concepts, and the 30-second account of how it fits together.
+- **Architecture:** the services and modules, the request and data flow, and a **diagram** matching the real map.
+- **Repo tour:** where everything lives.
+- **Getting started:** clone, install, configure, run, and test, **verified by running it**, with secret values redacted and the pitfalls noted.
+- **Key flows:** two or three important flows traced end to end through the actual code.
+- **Conventions and standards:** the style, the patterns, the testing approach, and how to add a new unit of the common kind.
+- **The data-handling and security rules a contributor must not break**, when applicable.
+- **Gotchas and sharp edges:** the non-obvious and the surprising-but-intentional, explained with history.
+- **Glossary.**
+
+**The quality bar.** The guide is accurate because it is verified rather than invented. It is
+genuinely useful, covering what a newcomer needs to be productive rather than dumping everything.
+It is concise but complete, and it is skimmable.
 
 ## Deliverables
-A single **`ONBOARDING.md`** or a small `docs/onboarding/` set — matching the repo's docs convention and placed inside its SSOT structure so it stays maintained. Include the architecture diagram. List open questions for the developer.
+
+A single **`ONBOARDING.md`**, or a small `docs/onboarding/` set, matching the repo's docs
+convention and placed inside its SSOT structure so it stays maintained. Include the architecture
+diagram. List the open questions for the developer.
 
 ## Done when
-A newcomer could (a) understand what the product is and how it's built, (b) get it running from the verified steps, (c) follow the key flows in the code, and (d) know the conventions and the rules they must not break. Everything verified against code; setup steps confirmed; open questions flagged, not invented. Present the guide and note where it lives.
+
+A newcomer could do all four of these from the guide:
+1. Understand what the product is and how it is built.
+2. Get it running from the verified steps.
+3. Follow the key flows in the code.
+4. Know the conventions and the rules they must not break.
+
+And the guide itself is verified against code, its setup steps are confirmed, and its open
+questions are flagged rather than invented. Present the guide and note where it lives.

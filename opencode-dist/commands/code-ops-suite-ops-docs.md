@@ -1,5 +1,5 @@
 ---
-description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate or be on-call for it."
+description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it."
 ---
 
 Use the `code-ops-suite-ops-docs` skill for this task, following it end to end.

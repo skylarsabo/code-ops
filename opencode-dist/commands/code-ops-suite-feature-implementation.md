@@ -1,5 +1,5 @@
 ---
-description: "Use when feature specs already exist and you want them built incrementally. Requires specs as input."
+description: "Use when feature specs already exist and you want them built incrementally. It requires specs as input."
 ---
 
 Use the `code-ops-suite-feature-implementation` skill for this task, following it end to end.
