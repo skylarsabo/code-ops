@@ -26,7 +26,7 @@
 //   node evals/digest-hook/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync, realpathSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -262,7 +262,10 @@ const tmp = mkdtempSync(join(tmpdir(), 'digest-hook-'));
   const probe = spawnSync('node', [cli, '--no-store', '--cwd', tmp, '--', 'node', '-e', 'console.log(process.cwd())'], { encoding: 'utf8', cwd: root });
   expect(probe.status === 0, `the --cwd probe should exit 0, got ${probe.status}: ${probe.stderr}`);
   const printed = probe.stdout.split('\n')[0]?.trim().replaceAll('\\', '/');
-  expect(printed === tmp.replaceAll('\\', '/'), `--cwd must move the child's working directory to ${tmp}, got ${JSON.stringify(printed)}`);
+  // Compare real paths: on macOS the temp directory is a symlink into /private, and the child
+  // reports the resolved form.
+  const real = (p) => { try { return realpathSync.native(p).replaceAll('\\', '/'); } catch { return p; } };
+  expect(real(printed) === real(tmp), `--cwd must move the child's working directory to ${tmp}, got ${JSON.stringify(printed)}`);
   const missing = spawnSync('node', [cli, '--no-store', '--cwd', join(tmp, 'no-such-dir'), '--', 'node', '-e', '1'], { encoding: 'utf8', cwd: root });
   expect(missing.status === 2, `a --cwd naming no directory must exit 2, got ${missing.status}`);
   const bare = spawnSync('node', [cli, '--no-store', '--cwd', '--json', '--', 'node', '-e', '1'], { encoding: 'utf8', cwd: root });

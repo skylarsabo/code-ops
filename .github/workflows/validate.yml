@@ -415,7 +415,8 @@ jobs:
           case "$EVENT" in
             pull_request) git fetch -q origin "$BASE_REF"; range="origin/$BASE_REF...HEAD" ;;
             push) case "$BEFORE" in ''|0000000000000000000000000000000000000000) decide true; exit 0 ;; esac; range="$BEFORE..$HEAD_SHA" ;;
-            *) decide true; exit 0 ;;
+            schedule) decide true; exit 0 ;;
+            *) decide false; exit 0 ;;
           esac
           files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
           # The workflow counts only when the changed lines are the record eval's own invocation

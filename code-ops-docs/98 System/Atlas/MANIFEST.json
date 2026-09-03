@@ -34,8 +34,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "d4f793daa7196c07ff6f796ec39a574b7b423b91",
-      "verifiedDigest": "3d6a30f711fdf3428967429d5a102df566d2ff1b8af7dcccd54eb9956b2d85ac",
+      "verifiedAt": "84ea73f7c9d17ca4f440b150ab3303ccddc66fc6",
+      "verifiedDigest": "bd13b7e7933bb8516ee0a37970ddd55ec9e7b3b196e5831043359f193164e632",
       "claims": [
         {
           "file": "scripts/judgment-evals.mjs",
@@ -61,8 +61,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "d4f793daa7196c07ff6f796ec39a574b7b423b91",
-      "verifiedDigest": "3525c8e45eaa01ad49d1c399d1bcddb9a107f2b0fc8f9e5b9e356f5d3b999f22"
+      "verifiedAt": "84ea73f7c9d17ca4f440b150ab3303ccddc66fc6",
+      "verifiedDigest": "53b7e3075065e4a9cf5744114def59975467cf21a34a5ea04ce82334b4046dd5"
     },
     {
       "slug": "docs-doctrine",
@@ -85,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "d4f793daa7196c07ff6f796ec39a574b7b423b91",
-      "verifiedDigest": "7220ef02d43a6c19bf50b34c16341f6a16b0feefa6a66741564016e7445fd643"
+      "verifiedAt": "84ea73f7c9d17ca4f440b150ab3303ccddc66fc6",
+      "verifiedDigest": "a915527685ca54cf61b17d6f219398767262d40d3c2f5e389799caf29a55d24b"
     },
     {
       "slug": "root-contracts",
