@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_TIERS, TIER_ORDER } from '../../scripts/model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_TIERS, TIER_ORDER, leadInherits } from '../../scripts/model-tiers.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -97,6 +97,7 @@ for (const agent of expectedAgents) {
 const tiers = read(join(dist, 'MODEL_TIERS.md'));
 for (const provider of Object.values(PROVIDER_TIERS)) {
   for (const tier of TIER_ORDER) {
+    if (provider.models[tier] === null) { expect(tiers.includes('session model (lead unset)'), `MODEL_TIERS.md must say the ${provider.id} lead is unset`); continue; }
     expect(tiers.includes(`\`${provider.id}/${provider.models[tier]}\``), `MODEL_TIERS.md is missing the ${provider.id} binding for ${tier}`);
   }
 }
@@ -116,6 +117,9 @@ for (const provider of Object.values(PROVIDER_TIERS)) {
 // The root config is the default provider's copy, so a drifted default is a real regression.
 const config = JSON.parse(read(join(dist, 'opencode.json')));
 const defaults = PROVIDER_TIERS[DEFAULT_PROVIDER];
+if (leadInherits(defaults)) expect(!Object.hasOwn(config, 'model'), 'the default config must carry no top-level model, so the lead inherits the session model');
+else expect(config.model === `${defaults.id}/${defaults.models.frontier}`, 'the default config pins the lead to the frontier rung');
+expect(config.permission?.bash?.['git push *'] === 'ask' && config.permission?.bash?.['gh pr *'] === 'ask', 'the default config keeps the publish-command ask rules');
 for (const agent of expectedAgents) {
   const bound = config.agent?.[agent.name]?.model;
   expect(bound === `${defaults.id}/${defaults.models[agent.tier]}`, `opencode.json binds ${agent.name} to "${bound}", not its ${agent.tier}-tier ${DEFAULT_PROVIDER} model`);

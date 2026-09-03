@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "69f652f8c8cd40b45ec86e3b72b4ff543874139b",
-      "verifiedDigest": "ee34f056ced46b26e654e6f37a9fc07b9361790983cb489cd4f52e3f9e9f5c35"
+      "verifiedAt": "c1ebf7207f21931ef633d9d04452de11e21fedb5",
+      "verifiedDigest": "39864bc98be6a0c727e6159d2101751676381184d0e21e7ec99e0aa58e0461dc"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "69f652f8c8cd40b45ec86e3b72b4ff543874139b",
-      "verifiedDigest": "a95eaf2bc136617fcd36fe48f4a4e6cfb99329424797bd80c9291c30a57be065",
+      "verifiedAt": "c1ebf7207f21931ef633d9d04452de11e21fedb5",
+      "verifiedDigest": "e456e10e54acac5cc7906d7d22f4f62c182fe988efc837e3d62229663fa00d42",
       "claims": [
         {
           "file": "scripts/atlas-check.mjs",
@@ -34,8 +34,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "69f652f8c8cd40b45ec86e3b72b4ff543874139b",
-      "verifiedDigest": "98a7459c415c3f4269d29e3d2032891c1164189a4a3ba4b1dcb03ded1309d799",
+      "verifiedAt": "c1ebf7207f21931ef633d9d04452de11e21fedb5",
+      "verifiedDigest": "9ca0a22fdbcbf88275298ac0a4c2c41b3323659c3922443b95022163bf91234e",
       "claims": [
         {
           "file": "scripts/judgment-evals.mjs",
@@ -52,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "69f652f8c8cd40b45ec86e3b72b4ff543874139b",
-      "verifiedDigest": "d83bb1af01cc4832892dfdac28fab166eb62a5b862fdaa789ce0a0cca73c37d5"
+      "verifiedAt": "c1ebf7207f21931ef633d9d04452de11e21fedb5",
+      "verifiedDigest": "3371ed9fdf96aa2abf1dc4810abc2a9add48a107f682cc69da95f9f417d56d49"
     },
     {
       "slug": "ci-workflows",
@@ -85,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "49f255af6467c4db0f1e7d1e9c420652b4dd4b5d",
-      "verifiedDigest": "20667a9e0f1c56cb6c67f3051da8e5a322b99a835093302de35bb4f22d2e9264"
+      "verifiedAt": "3e02891bd1f6a5ee68730e3d1db2507a5b2befa1",
+      "verifiedDigest": "b9b1dfe5d4ce5dc774f8b8fb88e3b90d4a71e9c523d2dd76e286cbd6821e2784"
     },
     {
       "slug": "root-contracts",
@@ -100,8 +100,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "c822b258a4321f1c5bfcf85e956486220deb26b0",
-      "verifiedDigest": "0ed19ba22a372d146224b97c1ad896da921c3fa079bde3fc62b0a0c8e68f8e77"
+      "verifiedAt": "c1ebf7207f21931ef633d9d04452de11e21fedb5",
+      "verifiedDigest": "2a223abccedad7ae434c83378b053c815f9e25989f45bd659e981ef2909be508"
     },
     {
       "slug": "runtime-toolchain",

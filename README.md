@@ -125,7 +125,7 @@ cp -R opencode-dist/. ~/.config/opencode/        # or .opencode/ for one project
 
 opencode has one flat namespace and no colon in its name grammar, so every name carries a plugin prefix. `/code-ops-suite:ship` becomes `/code-ops-suite-ship`. Each skill is also model-invocable through opencode's `skill` tool under the same name.
 
-`opencode-dist/opencode.json` binds every agent to a model meeting its capability tier, rendered against `xai/grok-4.6`. A ready-made config for each supported provider ships under `opencode-dist/configs/`, covering Anthropic, xAI, OpenAI, Google, Z.AI, Moonshot, DeepSeek, and Mistral. Moving the suite between providers is a config swap, not a rewrite. Merge one into your own config rather than overwriting it. The full tier table lives in `opencode-dist/MODEL_TIERS.md`.
+`opencode-dist/opencode.json` binds every agent to a free OpenCode Zen model meeting its capability tier and leaves the lead unset, so the lead inherits the session model and the install costs nothing. A ready-made config for each supported provider ships under `opencode-dist/configs/`, covering Anthropic, xAI, OpenAI, Google, Z.AI, Moonshot, DeepSeek, and Mistral. Moving the suite between providers is a config swap, not a rewrite. Merge one into your own config rather than overwriting it. The full tier table lives in `opencode-dist/MODEL_TIERS.md`.
 
 The traceless-publishing gate ships as `opencode-dist/plugins/code-ops-traceless.js`, ported from the Claude hook to opencode's `tool.execute.before` hook. It resolves its scanner through the distribution layout, so keep the directories together. The repository CI gate stays the fail-closed backstop.
 

@@ -121,11 +121,33 @@ export const PROVIDER_TIERS = {
     },
     notes: 'Only the `magistral` line reasons, so the ladder is built from it wherever a rung needs reasoning.',
   },
+  opencode: {
+    id: 'opencode',
+    label: 'OpenCode Zen (free tier)',
+    // Ids come from `opencode models`, the host's own list, because models.dev does not carry
+    // the Zen catalogue. `registry: 'cli'` tells the checker to verify them there, and
+    // `frontier: null` leaves the lead unset so it inherits the operator's session model.
+    registry: 'cli',
+    verifiedAt: '2026-09-03',
+    models: {
+      light: 'ling-3.0-flash-fin-free',
+      mid: 'nemotron-3.5-lightning-free',
+      strong: 'mimo-v2.5-free',
+      frontier: null,
+    },
+    notes: 'Zero account cost with the tier routing kept. Ling 3.0 Flash is fast and disciplined on tool-call schemas, so it serves the light rung; Nemotron 3.5 Lightning leads the small-model speed and accuracy trade-off, so it serves mid; MiMo V2.5 carries agentic post-training and near-frontier coding claims, so it serves strong. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.',
+  },
 };
 
-// The provider the tracked example config binds to. Not the reference ladder — that is
-// always `anthropic`, because agent frontmatter aliases resolve against it.
-export const DEFAULT_PROVIDER = 'xai';
+// A provider whose `frontier` is null renders no top-level `model`, so the lead inherits the
+// session model. Every other rung must still name a model.
+export const leadInherits = (provider) => provider.models.frontier === null;
+
+// The provider the tracked example config binds to: the free ladder, so a fresh install costs
+// nothing and keeps the tier routing. Not the reference ladder, which is always `anthropic`,
+// because agent frontmatter aliases resolve against it. Every other provider's config ships
+// beside it under `configs/`.
+export const DEFAULT_PROVIDER = 'opencode';
 
 // Calibration runs record their orchestration as free-form kebab model-class slugs
 // (`opus-5`, `gpt-5-6-sol-xhigh`). Attributing those to a provider is what lets the
@@ -139,6 +161,7 @@ export const DEFAULT_PROVIDER = 'xai';
 const PROVIDER_SLUG_PATTERNS = [
   ['anthropic', /^(claude|opus|sonnet|haiku|fable)\b/],
   ['xai', /^grok\b/],
+  ['opencode', /^(ling|mimo|nemotron|muse)\b/],
   ['openai', /^(gpt|codex|o[0-9])\b/],
   ['google', /^gemini\b/],
   ['zai', /^glm\b/],
