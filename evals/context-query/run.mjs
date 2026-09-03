@@ -167,8 +167,10 @@ try {
   if (realCtags) {
     expect(/^provider ctags: Universal Ctags/m.test(withCtags.r.stderr) && withCtags.j.providers.includes('ctags'), `an installed ctags is named and recorded, got ${withCtags.r.stderr}`);
   } else {
-    expect(/^provider ctags: not installed, line rules only$/m.test(withCtags.r.stderr), `an absent ctags says so and proceeds, got ${JSON.stringify(withCtags.r.stderr)}`);
-    console.log('note ctags is not installed here — the shim leg below proves the merge where the platform allows a shim');
+    // A machine may carry no ctags at all or a ctags that is not Universal Ctags (a Windows
+    // runner ships one); either way the tool names the case and the rules stand alone.
+    expect(/^provider ctags: (not installed|not Universal Ctags), line rules only$/m.test(withCtags.r.stderr) && !withCtags.j.providers.includes('ctags'), `an absent or foreign ctags says so and proceeds without recording a provider, got ${JSON.stringify(withCtags.r.stderr)}`);
+    console.log('note no Universal Ctags here — the shim leg below proves the merge where the platform allows a shim');
   }
   const merged = JSON.parse(readFileSync(join(providerStore, 'index.json'), 'utf8'));
   for (const [file, entry] of Object.entries(merged.files)) {
