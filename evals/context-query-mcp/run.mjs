@@ -71,10 +71,10 @@ try {
   console.log('ok   initialize and tools/list answer the contract');
 
   // ---------------------------------------------------------------- the tools answer
-  expect(payload(replies.get(3))?.files === 7, `context_refresh indexes the fixture, got ${JSON.stringify(replies.get(3))}`);
+  expect(payload(replies.get(3))?.files === 11, `context_refresh indexes the fixture, got ${JSON.stringify(replies.get(3))}`);
   const found = payload(replies.get(4));
   expect(found?.definitions?.length === 2 && found.definitions.every((d) => d.name === 'slugify'), `find returns the query script's JSON, got ${JSON.stringify(replies.get(4))}`);
-  expect(payload(replies.get(5))?.files === 7, `status answers without a target, got ${JSON.stringify(replies.get(5))}`);
+  expect(payload(replies.get(5))?.files === 11, `status answers without a target, got ${JSON.stringify(replies.get(5))}`);
   expect(payload(replies.get(6))?.truncated === true, `explore honours the budget, got ${JSON.stringify(replies.get(6))}`);
   console.log('ok   context_query and context_refresh return the query script\'s JSON');
 

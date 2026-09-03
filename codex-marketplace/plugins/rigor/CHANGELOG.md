@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.5
+- Vendored `repo-map.mjs`, `import-graph.mjs`, and `symbol-lib.mjs` refreshed: the map and the graph now read their definition rules and their import extraction from the shared library instead of their own copies. Output is unchanged.
+
 ## 2.18.4
 - Vendored `check-autofix-scope.mjs` and `cli-lib.mjs` refreshed: the gate parses its flags through the shared library, with every flag, exit code, and message unchanged.
 

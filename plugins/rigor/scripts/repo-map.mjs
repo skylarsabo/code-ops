@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, extname } from 'node:path';
+import { CODE } from './symbol-lib.mjs';
 
 const argv = process.argv.slice(2);
 let root = '.', out = null, maxKb = 512;
@@ -31,26 +32,11 @@ root = resolve(root);
 out = out ? resolve(out) : join(root, 'REPO_MAP.md');
 
 const MAX_DEFS_PER_FILE = 40;
-// Top-level definition regexes by extension family. Anchored to line start (or
-// shallow indent for java/cs members); deliberately coarse — a map, not a parser.
-const JS = [
-  [/^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/, 'fn'],
-  [/^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/, 'class'],
-  [/^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=/, 'const'],
-];
-const RULES = {
-  '.js': JS, '.mjs': JS, '.cjs': JS, '.jsx': JS, '.ts': JS, '.tsx': JS,
-  '.py': [[/^(?:async\s+)?def\s+(\w+)/, 'def'], [/^class\s+(\w+)/, 'class']],
-  '.go': [[/^func\s+(?:\([^)]*\)\s*)?(\w+)/, 'func'], [/^type\s+(\w+)/, 'type']],
-  '.rs': [
-    [/^(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)/, 'fn'],
-    [/^(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|trait)\s+(\w+)/, 'type'],
-    [/^impl(?:<[^>]*>)?\s+([\w:]+)/, 'impl'],
-  ],
-  '.java': [[/^\s{0,4}(?:public|protected|private)?\s*(?:abstract\s+|static\s+|final\s+|sealed\s+)*(?:class|interface|record|enum)\s+(\w+)/, 'type']],
-  '.cs': [[/^\s{0,4}(?:public|internal|protected|private)?\s*(?:abstract\s+|static\s+|sealed\s+|partial\s+)*(?:class|interface|record|struct|enum)\s+(\w+)/, 'type']],
-  '.md': [[/^(#{1,2})\s+(.+)/, 'h']],
-};
+// The code definition rules come from symbol-lib.mjs, so the map, the graph, the outline, and
+// the index all call the same line a definition. A Markdown heading is a landmark rather than a
+// definition, so it stays here: the map is the only reader that wants one.
+const MD_RULES = [[/^(#{1,2})\s+(.+)/, 'h']];
+const rulesFor = (ext) => (ext === '.md' ? MD_RULES : CODE[ext]?.defs);
 
 let files;
 try {
@@ -77,7 +63,7 @@ for (const f of files.sort()) {
   let text = buf.toString('utf8');
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const fileLines = text.split('\n');
-  const rules = RULES[extname(f).toLowerCase()];
+  const rules = rulesFor(extname(f).toLowerCase());
   lines.push(`${f} (${fileLines.length} lines)`);
   scanned++;
   if (!rules) continue;
