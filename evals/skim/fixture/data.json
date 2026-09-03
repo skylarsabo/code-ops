@@ -1,0 +1,10 @@
+{
+  "name": "skim-fixture",
+  "version": 1,
+  "tags": ["alpha", "beta", "gamma"],
+  "nested": {
+    "inner": "value",
+    "innerList": [1, 2]
+  },
+  "empty": []
+}

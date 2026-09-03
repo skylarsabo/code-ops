@@ -63,4 +63,7 @@ export const RUNTIME_SCRIPTS = [
   // as ../scripts/transcript-lib.mjs, and context-audit.mjs is its CLI reader.
   { name: 'transcript-lib.mjs', plugins: ['code-ops-suite'] },
   { name: 'context-audit.mjs', plugins: ['code-ops-suite'] },
+  // Every plugin's operatives read files, and the read-side outline is what keeps a large
+  // file from entering a context whole, so skim.mjs ships wherever briefs are executed.
+  { name: 'skim.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'] },
 ];

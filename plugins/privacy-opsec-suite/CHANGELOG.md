@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.19.2
+- Vendors `skim.mjs` so `${CLAUDE_PLUGIN_ROOT}/scripts/skim.mjs <file>` prints a file outline with line ranges, and an operative reads a range instead of the whole file.
+
 ## 1.19.1
 - Vendors `co.mjs` and `cli-lib.mjs` so `${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs` resolves in every plugin. The implementation line names `LEAK_REGISTER.md` as the follow-up route for a privacy finding.
 
