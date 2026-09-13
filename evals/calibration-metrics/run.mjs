@@ -176,9 +176,9 @@ try {
   // ---- q. phase markers: which model LED each stretch of the run --------------
   const q = run(['--artifacts', join(HERE, 'phase-ledger')]);
   check('q. phase-marked ledger exits 0', q.status === 0, q.stdout + q.stderr);
-  check('q. lead model reported per phase', /lead model by phase: Scan=claude-fable-5, Fix=claude-opus-5/.test(q.stdout), q.stdout);
+  check('q. lead model reported per phase', /lead model by phase: Scan=claude-fable-5-1, Fix=claude-opus-5/.test(q.stdout), q.stdout);
   check('q. rows attributed to the phase they follow', /dispatches by phase: Scan 2, Fix 1/.test(q.stdout), q.stdout);
-  check('q. a mid-run lead change is advised (report-only)', /advisory: lead model changed mid-run \(claude-fable-5 -> claude-opus-5\)/.test(q.stdout), q.stdout);
+  check('q. a mid-run lead change is advised (report-only)', /advisory: lead model changed mid-run \(claude-fable-5-1 -> claude-opus-5\)/.test(q.stdout), q.stdout);
   check('q. a ledger with no phase markers reports nothing new', !/lead model by phase/.test(a.stdout), a.stdout);
 
   // ---- r. --json emits the prose numbers machine-readably ---------------------
@@ -224,8 +224,8 @@ try {
   check('r. --json on the phase-ledger fixture exits 0', rph.status === 0, rph.stdout + rph.stderr);
   let ph = null;
   try { ph = JSON.parse(readFileSync(phJson, 'utf8')); } catch (e) { ph = { parseError: String(e.message) }; }
-  check('r. ledger.phases matches the prose phase lines (Scan=claude-fable-5, 2 rows)',
-    ph?.ledger?.phases?.[0]?.title === 'Scan' && ph?.ledger?.phases?.[0]?.lead === 'claude-fable-5' && ph?.ledger?.phases?.[0]?.rows === 2, JSON.stringify(ph?.ledger?.phases));
+  check('r. ledger.phases matches the prose phase lines (Scan=claude-fable-5-1, 2 rows)',
+    ph?.ledger?.phases?.[0]?.title === 'Scan' && ph?.ledger?.phases?.[0]?.lead === 'claude-fable-5-1' && ph?.ledger?.phases?.[0]?.rows === 2, JSON.stringify(ph?.ledger?.phases));
 
   const rBoth = run(['--artifacts', artifactsDir, '--json', join(jsonDir, 'both.json'), '--out', join(jsonDir, 'both.txt')]);
   check('r. --json and --out combine', rBoth.status === 0 && /6 dispatch\(es\)/.test(readFileSync(join(jsonDir, 'both.txt'), 'utf8')), rBoth.stdout + rBoth.stderr);
