@@ -8,6 +8,8 @@ Both deterministic legs run Node 24 from the repository `.node-version` file. Th
 
 The validation matrix now includes run-contract, context snapshot, context bundle, worker-brief, and documentation-manifest regressions. The Linux leg also executes the complete answer-key drift loop and real calibration-store validation. The Windows leg remains a deliberate portability subset, not a duplicate of every Linux check. Its 20-minute ceiling accommodates the expanded record-regression workload and bounded hosted-runner variation without reducing coverage.
 
+Both operating-system legs run the attack-chain graph regression. This pins path and case semantics as well as orchestration policy before merge, including distinct exploit-family fan-out, collision and resumption tracing, full-chain success proof, and independent validation.
+
 Both validation legs run the durable record-collection regression and invoke `records check` for every collection declared by the live manifest. Their checkout requests full history and disables partial filtering. A `legacyPaths` exemption cannot exist without a collection-backed CI verifier. That configuration keeps missing checkout history distinct from genuine evidence loss and makes platform-specific path behavior visible before merge.
 
 Model-driven deep review and OpSec review run locally before a pull request. The local gate

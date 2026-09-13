@@ -4,6 +4,8 @@ Charter: repository-root instructions, discovery metadata, ignore policy, and to
 
 `CLAUDE.md` and `AGENTS.md` are byte-identical host contracts. They put unenforced safety rules first, then describe model routing, acceptance ownership, generated-output boundaries, documentation authority, and required gates. A change to either contract must update the other in the same commit.
 
+The routing contract keeps a substantive run under one frontier lead and delegates independent bounded work to strong-tier operatives below it. The lead continuously synthesizes, challenges assumptions, launches neglected hypotheses, redirects the graph, and retains the final verdict; premium frontier peers remain exceptional bounded specialists rather than ordinary fan-out.
+
 The root contract keeps model review gates opt-in and rare. The deterministic chain and the lead's diff read apply to every change. Exact-SHA deep-review and OpSec receipts apply only when the operator requests them or the brief names a high-risk surface. Hosted Actions retain deterministic checks, and any new commit or updated base invalidates an existing local-review boundary.
 
 The documentation clause names the hub as the sole authored authority and the manifest as its registry. It also recognizes manifest-v2 record collections as immutable governed evidence, routing collection verification to the shared records engine instead of inviting direct edits at historical paths.
