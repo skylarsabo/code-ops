@@ -7,7 +7,9 @@ description: "Use when you need a deep, diagram-rich architecture reference for 
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-architecture`, or by the model through the `skill` tool as `code-ops-suite-architecture`.** First read the
+**Invoked as `/code-ops-suite-architecture`, or by the model through the `skill` tool as `code-ops-suite-architecture`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md`: the operating model, the quality lenses, the
 **documentation quality standard (`§13`)** this doc obeys, and the SSOT and freshness rules
 (`§12`). For this DOCUMENT-mode skill the binding sections are §2 (tools and in-house docs

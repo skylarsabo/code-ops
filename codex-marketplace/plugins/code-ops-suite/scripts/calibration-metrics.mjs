@@ -332,14 +332,14 @@ function summarizeRefutation(text) {
 // zero parsed rows raises the shape-drift warning instead of reporting a silent zero.
 //
 // (d) CONFORMANCE_REPORT.md: | surface | verdict | checker | evidence |  — written by
-// /code-ops-suite:conform Phase A. `surface` is an open kebab slug so a profile can add a
+// code-ops-suite:conform Phase A. `surface` is an open kebab slug so a profile can add a
 // surface without editing this parser; `verdict` is the closed four-value set, because UNKNOWN
 // (a checker that could not run) must never be recorded as CONFORMANT.
 const CONFORMANCE_ROW_RE = /^\|\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*([A-Za-z]+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|$/;
 const CONFORMANCE_VERDICTS = ['CONFORMANT', 'DRIFTED', 'ABSENT', 'UNKNOWN'];
 
 // (e) RUN_CONFORMANCE.md: | check | result | evidence |  — written by
-// /code-ops-suite:run-cost-audit over a completed run. `N/A` is a distinct result from PASS: a
+// code-ops-suite:run-cost-audit over a completed run. `N/A` is a distinct result from PASS: a
 // rule the run could not violate is not a rule it obeyed.
 const RUN_CONFORMANCE_ROW_RE = /^\|\s*([a-z0-9]+(?:-[a-z0-9]+)*)\s*\|\s*([A-Za-z]+(?:\/[A-Za-z]+)?)\s*\|\s*([^|]*?)\s*\|$/;
 const RUN_CONFORMANCE_RESULTS = ['PASS', 'FAIL', 'N/A'];

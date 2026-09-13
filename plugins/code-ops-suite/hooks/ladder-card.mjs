@@ -48,6 +48,9 @@ function implementerClass(agentType) {
 }
 
 function main() {
+  // Grok executes this event as a passive hook and discards stdout. Its instruction files
+  // carry the same ladder, so avoid paying for output the host cannot consume.
+  if (process.env.GROK_PLUGIN_ROOT) return;
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_LADDER_CARD ?? '')) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }

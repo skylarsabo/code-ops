@@ -1,13 +1,15 @@
 ---
 name: rigor-deep-review
-description: "Use when you want a PR or diff reviewed at the verification bar, blocking only on CONFIRMED defects and regressions. The high-rigor counterpart to code-ops-suite:pr-review."
+description: "Use when you want a PR or diff reviewed at the verification bar, blocking only on CONFIRMED defects and regressions. The high-rigor counterpart to /code-ops-suite-pr-review."
 ---
 
 # Deep review: the verification bar, applied to a change
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/rigor/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/rigor-deep-review`, or by the model through the `skill` tool as `rigor-deep-review`.** First read the bundled
+**Invoked as `/rigor-deep-review`, or by the model through the `skill` tool as `rigor-deep-review`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety

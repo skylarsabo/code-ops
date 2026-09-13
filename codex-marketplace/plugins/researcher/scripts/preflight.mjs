@@ -99,8 +99,8 @@ for (const provider of ['ctags', 'codegraph']) console.log(`  ${provider.padEnd(
 console.log('  context-query.mjs refresh --provider <name> uses one; without it the line rules stand alone.');
 
 // ---- tier-floor manifest ------------------------------------------------------------
-// Agent floors are declared in each agent's own frontmatter, so the files beside this
-// script are the source of truth wherever it runs — vendored into a plugin
+// Agent floors come from native agent frontmatter or a rendered model-floors.json carrier,
+// so the files beside this script are the source of truth wherever it runs — vendored into a plugin
 // (<plugin>/scripts/preflight.mjs, agents at ../agents) or canonical in this repo
 // (scripts/preflight.mjs, agents under ../plugins/*/agents).
 const SELF_DIR = dirname(fileURLToPath(import.meta.url));
@@ -123,6 +123,18 @@ function agentDirs() {
 function tierFloors() {
   const rows = [];
   for (const [plugin, dir] of agentDirs()) {
+    const manifest = join(dir, 'model-floors.json');
+    if (existsSync(manifest)) {
+      try {
+        const value = JSON.parse(readFileSync(manifest, 'utf8'));
+        if (value.version === 1 && Array.isArray(value.roles)) {
+          for (const role of value.roles) if (typeof role.name === 'string' && typeof role.minimumTier === 'string') {
+            rows.push({ agent: `${plugin}/${role.name}`, floor: role.minimumTier });
+          }
+          continue;
+        }
+      } catch { /* fall through to frontmatter */ }
+    }
     for (const file of readdirSync(dir).sort()) {
       if (!file.endsWith('.md')) continue;
       let text;
@@ -141,13 +153,13 @@ function tierFloors() {
 }
 
 const floors = tierFloors();
-console.log('tier floors (agent frontmatter — route every dispatch at or above its floor):');
+console.log('tier floors (agent contract — route every dispatch at or above its floor):');
 if (floors.length === 0) {
   console.log('  (no bundled agent definitions beside this script — floors unknown here)');
 } else {
   const width = Math.max(...floors.map((r) => r.agent.length));
   for (const r of floors) console.log(`  ${r.agent.padEnd(width)}  ${r.floor}`);
-  console.log('  On a host that ignores agent model: frontmatter, the lead routes these by hand;');
+  console.log('  On a host that ignores agent model metadata, the lead routes these by hand;');
   console.log("  a below-floor dispatch FAILs run-cost-audit's tier-routing check.");
 }
 

@@ -7,7 +7,9 @@ description: "Use when privacy promises, the threat model, or opsec runbooks hav
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/privacy-opsec-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/privacy-opsec-suite-privacy-doc-alignment`, or by the model through the `skill` tool as `privacy-opsec-suite-privacy-doc-alignment`.** First read the bundled
+**Invoked as `/privacy-opsec-suite-privacy-doc-alignment`, or by the model through the `skill` tool as `privacy-opsec-suite-privacy-doc-alignment`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill

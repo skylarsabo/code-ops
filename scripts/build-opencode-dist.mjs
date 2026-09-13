@@ -18,13 +18,26 @@
 // throws and exits non-zero before either mode writes or compares anything.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, relative, resolve, sep } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
-const OUTPUT_ROOT = resolve(ROOT, 'opencode-dist');
+// The test harness renders into a disposable directory under evals/ so it can prove the
+// complete package without mutating the tracked distribution. Production invocations keep
+// using opencode-dist/. Do not point this outside the repository: writeOutput removes its
+// target before rebuilding it.
+const OUTPUT_OVERRIDE = process.env.CODE_OPS_OPENCODE_OUTPUT_ROOT;
+const OUTPUT_ROOT = resolve(OUTPUT_OVERRIDE ?? resolve(ROOT, 'opencode-dist'));
+if (OUTPUT_OVERRIDE) {
+  const evalRoot = resolve(ROOT, 'evals', 'opencode-dist');
+  const rel = relative(evalRoot, OUTPUT_ROOT);
+  if (!rel || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`) || !rel.split(sep)[0].startsWith('.render-')) {
+    throw new Error('CODE_OPS_OPENCODE_OUTPUT_ROOT must be a .render-* child of evals/opencode-dist');
+  }
+}
 const CLAUDE_MARKETPLACE_PATH = resolve(ROOT, '.claude-plugin', 'marketplace.json');
 
 // Plugin order is the marketplace order; the renderer validates membership against it.
@@ -35,7 +48,12 @@ const PORTABLE_ROOT = '<plugin-root>';
 // opencode's skill-name grammar. A name that cannot satisfy it is never discoverable.
 const OPENCODE_NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const OPENCODE_NAME_MAX = 64;
-const KNOWN_COMMANDS = /\/(code-ops-suite|privacy-opsec-suite|rigor|researcher):([a-z0-9-]+)/g;
+// Canonical skill prose uses both `/plugin:skill` and bare `plugin:skill` references.
+// OpenCode accepts neither colon form, so rewrite both rather than leaving an uncallable
+// reference behind in a rendered skill.
+const KNOWN_SKILL_REFS = /(^|[^a-z0-9-])\/?(code-ops-suite|privacy-opsec-suite|rigor|researcher):([a-z0-9-]+)\b/gm;
+const RESIDUAL_SKILL_REF = /\b(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):[a-z0-9-]+\b/;
+const CLAUDE_CONTRACT_SENTINEL = '__CODE_OPS_CLAUDE_CONTRACT__';
 const CHECK = process.argv.includes('--check');
 
 if (process.argv.slice(2).some((arg) => arg !== '--check')) {
@@ -96,13 +114,36 @@ function assertDiscoverableName(name, what) {
   if (name.length > OPENCODE_NAME_MAX) throw new Error(`${what}: "${name}" is ${name.length} characters, over opencode's ${OPENCODE_NAME_MAX}-character limit`);
 }
 
-function portableText(contents) {
-  return contents
+function portableText(contents, { preserveClaudeContract = false, preservePairedContracts = false } = {}) {
+  let guarded = contents;
+  if (preserveClaudeContract) guarded = guarded.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL);
+  else if (preservePairedContracts) {
+    guarded = guarded.split('\n').map((line) => line.includes('CLAUDE.md') && line.includes('AGENTS.md')
+      ? line.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL)
+      : line).join('\n');
+  }
+  return guarded
     .replaceAll(ROOT_TOKEN, PORTABLE_ROOT)
     .replaceAll('CLAUDE.md', 'AGENTS.md')
     .replaceAll('Claude Code', 'opencode')
-    // Claude slash spelling -> opencode's command spelling (no colons in command names).
-    .replace(KNOWN_COMMANDS, (_match, plugin, skill) => `/${qualify(plugin, skill)}`);
+    // Claude spellings -> OpenCode's command spelling (no colons in command names).
+    .replace(KNOWN_SKILL_REFS, (_match, prefix, plugin, skill) => `${prefix}/${qualify(plugin, skill)}`)
+    .replaceAll(CLAUDE_CONTRACT_SENTINEL, 'CLAUDE.md');
+}
+
+function routingCardText() {
+  return portableText(execFileSync(process.execPath, [sourcePath('code-ops-suite', 'hooks', 'routing-card.mjs')], { encoding: 'utf8' }).trim());
+}
+
+function transformConventions(contents) {
+  const portable = portableText(contents);
+  return portable.replace(
+    /^\*\*Context economy runs under the session, not under a skill\.\*\*.*$/m,
+    '**OpenCode runtime limits.** This distribution runs traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches. The host API exposes no equivalent subagent-start ladder card or session-end transcript receipt.',
+  ).replace(
+    /^Where `code-ops-suite` is installed beside this plugin, its (?:supported )?session mechanisms run under the same session[.:].*$/m,
+    '**OpenCode sibling runtime.** Where `code-ops-suite` is installed beside this plugin, its OpenCode adapters provide digest rewrite, symbol-index refresh, routing guidance, and compaction preservation. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches; routing and compaction have no off switch. The host API exposes no operative ladder card or session receipt. The adapters remain local and make no network request.',
+  );
 }
 
 function parseFrontmatter(contents, path) {
@@ -144,9 +185,14 @@ function transformSkill(pluginName, slug, contents, path) {
     `**opencode path rule:** Resolve \`${PORTABLE_ROOT}\` as \`code-ops/${pluginName}/\` inside your opencode config directory (the directory holding this plugin's \`CONVENTIONS.md\`); use it for every bundled script or reference path.`,
     '',
     `**Invoked as \`/${name}\`, or by the model through the \`skill\` tool as \`${name}\`.**`,
+    '',
+    '**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host.',
   ].join('\n');
 
-  const transformed = portableText(body.replace(marker, rule));
+  const transformed = portableText(body.replace(marker, rule), {
+    preserveClaudeContract: pluginName === 'code-ops-suite' && slug === 'adopt-global-standards',
+    preservePairedContracts: pluginName === 'code-ops-suite' && slug === 'adopt-standards',
+  });
   return ['---', `name: ${name}`, `description: ${yamlString(description)}`, '---', transformed].join('\n');
 }
 
@@ -184,9 +230,29 @@ function transformAgent(pluginName, contents, path) {
     ...permissionsForTools(tools),
     '---',
     '',
-    `> **Required capability tier: \`${tier}\`.** Bind this agent to a model that meets it — see \`MODEL_TIERS.md\` for the per-provider bindings. opencode has no per-plugin model floor, so this line is the floor's only carrier on this host; the gate that enforces it lives in the source repository.`,
+    `> **Required capability tier: \`${tier}\`.** Bind this agent to a model that meets it — see \`MODEL_TIERS.md\` for the per-provider bindings. The generated model-floor plugin blocks a known below-floor or unclassified provider/model binding for this agent.`,
     '',
     portableText(body).trim(),
+    '',
+  ].join('\n');
+}
+
+// The canonical preflight script deliberately reads `name` and `model` from nearby agent
+// frontmatter. OpenCode discovers operative agents only from its top-level agents/ directory,
+// so carry a small, non-discoverable manifest beside each vendored preflight script as well.
+// This keeps the portable preflight's existing tier report useful without exposing Claude
+// frontmatter to the OpenCode agent loader.
+function floorCarrierAgent(contents, path) {
+  const { header } = parseFrontmatter(contents, path);
+  const name = fieldValue(header, 'name', path);
+  const model = fieldValue(header, 'model', path);
+  return [
+    '---',
+    `name: ${name}`,
+    `model: ${model}`,
+    '---',
+    '',
+    'Generated tier-floor carrier for the vendored preflight script. Not an OpenCode agent.',
     '',
   ].join('\n');
 }
@@ -269,6 +335,108 @@ export const CodeOpsTraceless = async () => ({
           'part of a compound command, run the commit as its own command.',
       );
     }
+  },
+});
+`;
+}
+
+// OpenCode's installed plugin types expose `chat.params` with the selected agent and the
+// resolved `{ providerID, id }` model. That is the one point where a declared agent floor can
+// be checked before an operative runs. Keep the model table generated from model-tiers.mjs so
+// the check and every ready-made provider config have one source of truth.
+function modelFloorPlugin(agents, routingCard) {
+  const required = Object.fromEntries(agents.map((agent) => [agent.name, agent.tier]));
+  const rank = Object.fromEntries(TIER_ORDER.map((tier, index) => [tier, index]));
+  const knownModels = {};
+  for (const provider of Object.values(PROVIDER_TIERS)) {
+    const models = {};
+    for (const tier of TIER_ORDER) {
+      const model = provider.models[tier];
+      if (model === null) continue;
+      // A provider can reuse one model across rungs. It satisfies the highest rung carrying
+      // that id, not merely the first rung that happened to mention it.
+      if (models[model] === undefined || rank[tier] > rank[models[model]]) models[model] = tier;
+    }
+    knownModels[provider.id] = models;
+  }
+
+  return `// OpenCode runtime adapters, generated from the canonical code-ops contracts.
+//
+// The plugin API exposes chat.params after the host resolves an agent and model but before
+// the request reaches the provider. Throwing here blocks a known below-floor or unclassified
+// binding. Unknown models fail closed: accepting them would turn a declared floor into prose.
+
+import { spawnSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const REQUIRED = ${JSON.stringify(required, null, 2)};
+const RANK = ${JSON.stringify(rank, null, 2)};
+const KNOWN_MODELS = ${JSON.stringify(knownModels, null, 2)};
+const ROUTING_CARD = ${JSON.stringify(routingCard)};
+const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url));
+const SUITE_ROOT = join(PLUGIN_DIR, '..', 'code-ops', 'code-ops-suite');
+const DIGEST_HOOK = join(SUITE_ROOT, 'hooks', 'digest-rewrite.mjs');
+const QUERY = join(SUITE_ROOT, 'scripts', 'context-query.mjs');
+const COMPACTION_CONTEXT = [
+  'Compaction summary: the next context continues this work without redoing it or being told the constraints again. Preserve, in this order:',
+  '(1) every problem met and how each was handled or resolved;',
+  '(2) every option raised, tried, or set aside, and why;',
+  '(3) everything asked for, decided, agreed, ruled out, or established as a preference, constraint, or boundary, in the words used;',
+  '(4) exactly where things stand now: what is covered, settled, or complete;',
+  '(5) everything still open, unresolved, promised, or expected next;',
+  '(6) names, numbers, dates, paths, commit ids, register ids, links, and exact wording that would be hard to reconstruct.',
+  "Keep what the developer said, asked for, or established close to their own words. Condense the assistant's own reasoning to its conclusions and outputs. Be complete on the six items even at the cost of length, and concise on everything else.",
+  'Keep every <REDACTED:reason> marker as it stands and never restore a redacted value.',
+  'Run artifacts on disk (registers, ledgers, receipts, HANDOFF.md) remain the authority; name their paths rather than restating their contents.',
+].join('\\n');
+
+export const CodeOpsModelFloors = async ({ directory = process.cwd() } = {}) => ({
+  config: async (config) => {
+    config.mcp ??= {};
+    config.mcp['code-ops-docs'] ??= { type: 'local', command: ['node', join(SUITE_ROOT, 'scripts', 'lib-docs-mcp.mjs')], enabled: true };
+    config.mcp['code-ops-query'] ??= { type: 'local', command: ['node', join(SUITE_ROOT, 'scripts', 'context-query-mcp.mjs')], enabled: true };
+  },
+  'chat.params': async (input) => {
+    const required = REQUIRED[input?.agent];
+    if (!required) return;
+    const provider = input?.model?.providerID;
+    const model = input?.model?.id;
+    const actual = typeof provider === 'string' && typeof model === 'string'
+      ? KNOWN_MODELS[provider]?.[model]
+      : undefined;
+    if (actual === undefined || RANK[actual] < RANK[required]) {
+      const selected = typeof provider === 'string' && typeof model === 'string'
+        ? \`${'${provider}'}/${'${model}'}\`
+        : 'an unresolved model';
+      throw new Error(
+        \`Model-floor gate: agent "${'${input?.agent}'}" requires ${'${required}'}, but ${'${selected}'} is ${'${actual ?? "not in the verified tier table"}'}. Choose a listed ${'${required}'}-or-higher binding from MODEL_TIERS.md.\`,
+      );
+    }
+  },
+  'tool.execute.before': async (input, output) => {
+    if (input?.tool !== 'bash') return;
+    const run = spawnSync('node', [DIGEST_HOOK], {
+      cwd: directory, encoding: 'utf8', timeout: 2000,
+      input: JSON.stringify({ toolName: 'bash', input: output?.args, cwd: directory }),
+    });
+    if (run.status !== 0 || !run.stdout.trim()) return;
+    try {
+      const updated = JSON.parse(run.stdout).hookSpecificOutput?.updatedInput;
+      if (updated && typeof updated === 'object') output.args = updated;
+    } catch { /* canonical hook is fail-open */ }
+  },
+  event: async ({ event }) => {
+    if (event?.type !== 'file.edited' || /^(off|0|false)$/i.test(process.env.CODE_OPS_INDEX ?? '')) return;
+    const file = event.properties?.file;
+    if (typeof file !== 'string' || !file) return;
+    spawnSync('node', [QUERY, 'refresh', file], { cwd: directory, timeout: 5000, stdio: 'ignore' });
+  },
+  'experimental.chat.system.transform': async (_input, output) => {
+    output.system.push(ROUTING_CARD);
+  },
+  'experimental.session.compacting': async (_input, output) => {
+    output.context.push(COMPACTION_CONTEXT);
   },
 });
 `;
@@ -382,8 +550,10 @@ function generatedReadme(skills, agents) {
     `- \`skills/\` — ${skills.length} skills, discovered by the model through opencode's \`skill\` tool.`,
     `- \`commands/\` — ${skills.length} slash commands, one per skill, for user invocation.`,
     `- \`agents/\` — ${agents.length} subagents, with their Claude tool allowlists translated to opencode permissions.`,
-    '- `code-ops/` — per-plugin `CONVENTIONS.md` and the runtime scripts the skills invoke.',
-    '- `plugins/` — the traceless-publishing gate, ported to an opencode plugin hook.',
+    '- `code-ops/` — per-plugin `CONVENTIONS.md`, runtime scripts, and non-discoverable',
+    '  tier-floor carriers for the vendored preflight scripts.',
+    '- `plugins/` — the traceless-publishing gate and model-floor gate, ported to opencode',
+    '  plugin hooks.',
     '- `opencode.json` — an example config binding every agent to its tier. Merge it into',
     '  your own config rather than overwriting one you already have.',
     '',
@@ -422,16 +592,25 @@ function compatibilityNotes() {
     '  renders `edit: deny`, and one without `Bash` renders `bash: deny`, so read-only',
     '  operatives stay read-only. `webfetch` is denied for every agent, matching the suite’s',
     '  local-first egress stance.',
-    '- **Agent `model:` becomes a stated capability tier.** opencode resolves models per',
-    '  provider, so a hardcoded Anthropic alias would not bind. Each agent states its',
-    '  required tier and `MODEL_TIERS.md` gives the per-provider model for it. The',
-    '  lint-enforced floor lives in the source repository; this host carries the tier as',
-    '  documentation, not as a gate.',
+    '- **Agent `model:` becomes a portable capability-floor gate.** Each agent states its',
+    '  required tier, every ready-made provider config binds it to that tier, and the',
+    '  `chat.params` plugin hook blocks a known below-floor or unclassified binding before',
+    '  the provider request. `MODEL_TIERS.md` is the verified allowlist for that check.',
     '- **The traceless hook is ported, not copied.** Claude’s `PreToolUse` hook is a',
     '  stdin/exit-code contract; the opencode plugin subscribes to `tool.execute.before` and',
     '  throws to block. Same policy, same fail-open-on-infrastructure-error stance.',
-    '- **The `code-ops-docs` MCP server is not bundled.** opencode configures MCP servers in',
-    '  `opencode.json` rather than per plugin; add it there if you want it.',
+    '- **Digest rewrite and index refresh are ported.** OpenCode exposes mutable',
+    '  `tool.execute.before` arguments and typed `file.edited` events. The adapters call the',
+    '  canonical bundled digest and context-query scripts and preserve their off switches.',
+    '- **Routing guidance and pre-compaction preservation are ported.** OpenCode exposes',
+    '  `experimental.chat.system.transform` and',
+    '  `experimental.session.compacting`, so the generated runtime plugin appends the',
+    '  canonical preservation instruction to the compaction prompt.',
+    '- **Ladder cards and session receipts are intentionally unavailable here.** The installed',
+    '  plugin types expose no subagent-start callback or session-end transcript path.',
+    '- **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin',
+    '  derives their absolute local commands from its own module URL and adds typed local MCP',
+    '  entries without overwriting operator-defined entries.',
     '- **Claude GitHub Action examples are omitted** because they are not opencode runtime',
     '  configuration.',
     '',
@@ -479,18 +658,25 @@ function buildExpectedFiles() {
         const contents = readText(file);
         const header = parseFrontmatter(contents, file).header;
         const name = qualify(pluginName, fieldValue(header, 'name', file));
-        agents.push({ name, tier: CLAUDE_ALIAS_TIER[fieldValue(header, 'model', file)] });
+        const alias = fieldValue(header, 'model', file);
+        const tier = CLAUDE_ALIAS_TIER[alias];
+        agents.push({ name, tier, plugin: pluginName, sourceName: fieldValue(header, 'name', file), alias });
         add(`agents/${name}.md`, transformAgent(pluginName, contents, file));
+        add(`code-ops/${pluginName}/agents/${file.split(sep).at(-1)}`, floorCarrierAgent(contents, file));
       }
+      const roles = agents.filter((agent) => agent.plugin === pluginName).map((agent) => ({ name: agent.sourceName, sourceModel: agent.alias, minimumTier: agent.tier }));
+      add(`code-ops/${pluginName}/agents/model-floors.json`, `${JSON.stringify({ version: 1, roles }, null, 2)}\n`);
     }
 
-    add(`code-ops/${pluginName}/CONVENTIONS.md`, portableText(readText(sourcePath(pluginName, 'CONVENTIONS.md'))));
+    add(`code-ops/${pluginName}/CONVENTIONS.md`, transformConventions(readText(sourcePath(pluginName, 'CONVENTIONS.md'))));
     for (const file of walkFiles(sourcePath(pluginName, 'scripts'))) {
       add(`code-ops/${pluginName}/scripts/${toPosix(relative(sourcePath(pluginName, 'scripts'), file))}`, readText(file));
     }
+    if (pluginName === 'code-ops-suite') add('code-ops/code-ops-suite/hooks/digest-rewrite.mjs', readText(sourcePath(pluginName, 'hooks', 'digest-rewrite.mjs')));
   }
 
   add('plugins/code-ops-traceless.js', tracelessPlugin());
+  add('plugins/code-ops-model-floors.js', modelFloorPlugin(agents, routingCardText()));
   add('MODEL_TIERS.md', modelTiersDoc(agents));
   add('PLATFORM_COMPATIBILITY.md', compatibilityNotes());
   add('README.md', generatedReadme(skills, agents));
@@ -519,6 +705,8 @@ function validate({ files, skills, agents }) {
     expect(!contents.includes(ROOT_TOKEN), `${path} retains the Claude plugin-root token`);
     expect(contents.includes(PORTABLE_ROOT), `${path} did not translate the plugin root token`);
     expect(!/`\/[a-z-]+:[a-z-]+`/.test(contents), `${path} retains a Claude colon-spelled slash command`);
+    expect(!RESIDUAL_SKILL_REF.test(contents), `${path} retains an uncallable bare Claude skill reference`);
+    expect(contents.includes('**OpenCode runtime note:**'), `${path} does not classify unsupported canonical hooks`);
     const command = `commands/${skill.name}.md`;
     expect(files.has(command), `${command} is missing`);
     expect(files.get(command).includes(`\`${skill.name}\` skill`), `${command} does not name its skill`);
@@ -534,6 +722,11 @@ function validate({ files, skills, agents }) {
     expect(!/^model:/m.test(contents), `${path} retains a Claude-only model alias`);
     expect(contents.includes(`Required capability tier: \`${agent.tier}\``), `${path} does not state its capability tier`);
     expect(!contents.includes(ROOT_TOKEN), `${path} retains the Claude plugin-root token`);
+    const carrier = `code-ops/${agent.plugin}/agents/${agent.sourceName}.md`;
+    const carrierText = files.get(carrier);
+    expect(carrierText !== undefined, `${carrier} is missing for the vendored preflight`);
+    expect(carrierText?.includes(`name: ${agent.sourceName}`), `${carrier} does not carry the source agent name`);
+    expect(carrierText?.includes(`model: ${agent.alias}`), `${carrier} does not carry the source model floor`);
   }
 
   const plugin = files.get('plugins/code-ops-traceless.js');
@@ -541,6 +734,28 @@ function validate({ files, skills, agents }) {
   expect(plugin.includes("input?.tool !== 'bash'"), 'the traceless plugin does not gate the bash tool');
   expect(plugin.includes('throw new Error('), 'the traceless plugin cannot block a call');
   expect(files.has('code-ops/code-ops-suite/scripts/scan-ai-tells.mjs'), 'the traceless plugin has no scanner to resolve');
+
+  const floors = files.get('plugins/code-ops-model-floors.js');
+  expect(floors?.includes("'chat.params'"), 'the model-floor plugin does not subscribe to chat.params');
+  expect(floors?.includes("'experimental.session.compacting'"), 'the model-floor plugin does not port compaction preservation');
+  for (const agent of agents) {
+    expect(floors?.includes(JSON.stringify(agent.name)), `the model-floor plugin does not know ${agent.name}`);
+  }
+
+  const conventions = files.get('code-ops/code-ops-suite/CONVENTIONS.md');
+  expect(conventions?.includes('**OpenCode runtime limits.**'), 'OpenCode conventions do not classify unavailable hook mechanics');
+  expect(!conventions?.includes('Four mechanisms ship with this plugin and are on by default'), 'OpenCode conventions still claim unavailable hooks run by default');
+  expect(conventions?.includes('`CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches'), 'OpenCode conventions omit the runtime switch location');
+  for (const pluginName of ['privacy-opsec-suite', 'researcher', 'rigor']) {
+    const sibling = files.get(`code-ops/${pluginName}/CONVENTIONS.md`);
+    expect(sibling?.includes('**OpenCode sibling runtime.**'), `${pluginName} conventions retain the Claude sibling-runtime claim`);
+    expect(sibling?.includes('routing and compaction have no off switch'), `${pluginName} conventions overstate OpenCode runtime switches`);
+    expect(!sibling?.includes('.claude/settings.json'), `${pluginName} conventions retain the Claude settings location`);
+  }
+  const adoptGlobal = files.get('skills/code-ops-suite-adopt-global-standards/SKILL.md');
+  const adoptRepo = files.get('skills/code-ops-suite-adopt-standards/SKILL.md');
+  expect(adoptGlobal?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed host-specific contract paths');
+  expect(adoptRepo?.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted parity modes');
 
   const config = JSON.parse(files.get('opencode.json'));
   for (const agent of agents) {

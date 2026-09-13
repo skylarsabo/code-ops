@@ -53,6 +53,9 @@ const TABLE = {
     cost: 'estimate-run-cost.mjs',
     bench: 'benchmark-command.mjs',
   },
+  security: {
+    chains: 'attack-chain-graph.mjs',
+  },
   scan: {
     'ai-tells': 'scan-ai-tells.mjs',
     narration: 'scan-narration.mjs',

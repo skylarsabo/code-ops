@@ -46,7 +46,11 @@ These mechanisms compress the run rather than the codebase. Each is a script the
 | Read what a session cost, by arm | `co context audit receipts --by-arm` |
 | Check that the atlas prose still cites live code | `co atlas check --atlas <dir> --claims-gate` |
 
-The output digest, the symbol-index refresh, and the ladder card run as hooks and are on by default. Each stops when its switch (`CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`) holds `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`. The session receipt obeys `CODE_OPS_RECEIPTS` the same way.
+The output digest, symbol-index refresh, ladder card, and session receipt run by default where
+the host exposes their event contract. Claude and Codex support all four. Installed Grok 1.0.13
+supports digest, index, and receipt; instruction files carry its ladder. OpenCode supports
+digest and index but has no ladder or receipt callback. Their switches are `CODE_OPS_DIGEST`,
+`CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_RECEIPTS`.
 
 ## Map of this handbook
 

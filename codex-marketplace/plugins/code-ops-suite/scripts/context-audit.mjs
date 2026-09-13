@@ -12,8 +12,8 @@
 // operator owns retention: nothing purges on its own, and the command reports what it removed.
 // Rows the reader would skip (bad JSON, another version) are dropped by the rewrite too.
 //
-// Default transcript dir: `~/.claude/projects/<slug of --cwd or the current directory>`.
-// Default ledger: $CODE_OPS_RECEIPTS or `~/.claude/code-ops/session-receipts.jsonl`.
+// Default transcript dir: `~/.codex/projects/<slug of --cwd or the current directory>`.
+// Default ledger: $CODE_OPS_RECEIPTS or `~/.codex/code-ops/session-receipts.jsonl`.
 //
 // Output is sanitized by default (tool names, command families, file extensions). `--raw`
 // keeps truncated commands and paths and is meant for local inspection, never for a
@@ -36,7 +36,7 @@ function usage() {
 const argv = process.argv.slice(2);
 const mode = argv[0] === 'receipts' ? 'receipts' : 'transcripts';
 if (mode === 'receipts') argv.shift();
-const opt = { host: 'claude', transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false, byArm: false, purgeBefore: null };
+const opt = { host: 'codex', transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false, byArm: false, purgeBefore: null };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const need = () => { const v = argv[++i]; if (v === undefined || v.startsWith('--')) usage(); return v; };
@@ -85,7 +85,7 @@ if (mode === 'transcripts') {
 }
 
 // receipts mode — summarize the SessionEnd ledger written by the session-receipt hook.
-const ledger = resolve(opt.ledger || process.env.CODE_OPS_RECEIPTS || join(homedir(), '.claude', 'code-ops', 'session-receipts.jsonl'));
+const ledger = resolve(opt.ledger || process.env.CODE_OPS_RECEIPTS || join(homedir(), '.codex', 'code-ops', 'session-receipts.jsonl'));
 if (!existsSync(ledger)) {
   console.error(`  x no receipt ledger at ${ledger}`);
   process.exit(1);

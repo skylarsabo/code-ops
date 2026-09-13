@@ -40,7 +40,10 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
 - **Gate and consistency**: `pr-review` (rigorous pre-merge review), `normalize` (one consistent professional style repo-wide, behavior-preserving), `pr-split` (carve a big branch into a clean stack of small green PRs, composing `privacy-opsec-suite:authorship-hygiene`, fail-closed), `local-review-gate` (the opt-in local deep-review and opsec gate with exact-SHA receipts).
 - **Docs and knowledge**: `adopt-standards` and `adopt-global-standards` (maintain repo and user contracts), `doc-alignment` (reconcile doc drift), `repo-docs` (refresh the manifest-owned hub), `onboarding` (verified orientation), `current-docs` (version-accurate dependency docs), `handoff` (capture or resume verifiable run state), `atlas` (durable judgment cache), `vault` (create, migrate, or check the documentation vault), and `conform` (assess and repair the complete standard).
 - **Documentation generators** (Mode: DOCUMENT): `architecture`, `api-docs`, `data-model`, `adr`, `ops-docs`.
-- **Meta and suite self-audit**: `calibration-run` (standardized real-scale calibration, one-way sanitized channel), `run-cost-audit` (audits a completed run's cost discipline), `provider-parity-audit` (audits the suite's own prose for provider-specific assumptions).
+- **Meta and suite self-audit**: `calibration-run` (standardized real-scale calibration,
+  one-way sanitized channel), `run-cost-audit` (audits a completed run's cost discipline), and
+  `provider-parity-audit` (audits hooks, agents, skills, scripts, settings, renderers, generated
+  distributions, documentation, and installed-host evidence across all four supported hosts).
 - **Orchestrators**: `full-sweep` (the whole suite end to end, intra-plugin), `everything` (the cross-plugin superset across all three engineering and anonymity plugins), `ship` (one change at full rigor), `debug` (symptom to proven root-cause fix).
 
 It fans work out to two bundled subagents: `explorer` (read-only, parallel investigation) and `reviewer` (strong-tier, parallel review). Neither ever edits.

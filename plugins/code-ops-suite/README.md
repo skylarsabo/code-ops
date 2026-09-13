@@ -50,7 +50,10 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 **Suite self-audit**
 - `calibration-run`: standardized real-scale calibration of the suite against a target repo, isolated and assess-only. It ends in a validated sanitized note appended to `evals/CALIBRATION_TABLE.md`. The channel is one-way, so target internals never cross back.
 - `run-cost-audit`: audits a completed run's cost discipline (dispatch counts, artifact sizes, tier and effort mix) against the suite's own bounded-wave and routing doctrine (`COST_AUDIT.md`).
-- `provider-parity-audit`: audits the marketplace's own prose for provider-specific assumptions the mechanical Codex render cannot catch, then classifies and registers each hit.
+- `provider-parity-audit`: audits hooks, agents, skills, scripts, settings, manifests,
+  documentation, both generated distributions, and installed-host evidence across Claude,
+  Codex, Grok, and OpenCode. It records supported native behavior, renderer translations,
+  fallbacks, intentional API gaps, unverified surfaces, and broken parity.
 
 **Documentation generation** (Mode: DOCUMENT, code-grounded and Mermaid-diagram docs per `CONVENTIONS §13`)
 - `architecture`: deep architecture reference. It covers C4 structure (context, container, component), critical-path sequence flows, cross-cutting concerns, and key decisions.
@@ -90,9 +93,9 @@ To apply the conventions always, not only inside a skill, add a pointer in your 
 
 ## Loops and automation
 
-Each mechanism below is on unless its named switch says otherwise. Set a switch to `off`, `0`,
-or `false` in the `env` block of a `.claude/settings.json`, at the user or the repository
-level. `code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns the full switch list.
+Each mechanism below is on where the host exposes its event contract unless its named switch
+says otherwise. Set a switch to `off`, `0`, or `false` in the host environment.
+`code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns the full switch list and host matrix.
 
 - **Tool-layer traceless gate:** a bundled `PreToolUse` hook (`hooks/hooks.json` plus `hooks/enforce-traceless.mjs`) scans a `git commit` or `gh pr create|merge` Bash call for AI and tool trace before it runs, and blocks on a hit. CI stays the fail-closed backstop.
 - **Output digest, on by default:** a second bundled `PreToolUse` hook (`hooks/digest-rewrite.mjs`) rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed with a receipt naming the raw file. `CODE_OPS_DIGEST=off` turns it off, and `CODE_OPS_DIGEST_STORE=off` keeps the compression while writing no raw file.
@@ -101,8 +104,11 @@ level. `code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns the full switch list.
 - **Query-able symbol index:** `scripts/context-query.mjs find|callers|callees|blast|explore` answers a structural question with `file:line` anchors and edge lists, rather than a map or a verbatim dump, over a home-directory index keyed by content sha. A `PostToolUse` hook (`hooks/index-refresh.mjs`, off with `CODE_OPS_INDEX=off`) re-indexes each edited file. `skim.mjs` shares the definition rules through `symbol-lib.mjs`. `refresh --provider ctags|codegraph` merges an installed provider's definitions when one is present, and says so when one is not. The `code-ops-query` MCP server (`scripts/context-query-mcp.mjs`) offers the same queries as the tools `context_query` and `context_refresh`, so a host with no shell reaches them.
 - **One entrypoint over the scripts:** `scripts/co.mjs <domain> <verb> [args...]` resolves a verb to the canonical script beside it and passes the arguments through unchanged. `co --help` lists every domain and verb in one screen. The scan domain reaches the gates as `co scan ai-tells`, `co scan narration`, `co scan redaction`, `co scan overbuild`, and `co scan deferrals`. `scripts/cli-lib.mjs` is the shared flag parser under those scripts.
 - **Session-start routing card:** a bundled `SessionStart` hook (`hooks/routing-card.mjs`) prints a hard-capped routing card mapping task types to the right skill or orchestrator, so the lead defaults into standard operating mode from the first turn.
-- **Compaction preservation:** a bundled `PreCompact` hook (`hooks/precompact-preserve.mjs`) hands the host the six items a compaction summary must keep, so a compacted session resumes without redoing work or losing a stated constraint.
+- **Enforced orchestration:** version 4 `RUN_CONTRACT.json` plans require a frontier lead, at least two lower-tier operatives, a real parallel wave, explicit independent-validation links, and nonempty operative artifacts before finalization.
+- **Security attack-chain graph:** `scripts/co.mjs security chains check|report --campaign ATTACK_CAMPAIGN.json --contract RUN_CONTRACT.json --ledger DISPATCH_LEDGER.md --root .` checks exploit-family diversity, hash-bound implementation evidence, actual dispatch records, terminal path states, independent validators, and realistic privilege-to-impact closure. Add `--final` only for strict all-unit closure. Its report traces convergent guards, primitives, and sinks to terminal nodes and ranks open chains for the next out-of-band validator.
+- **Compaction restoration:** the `SessionStart` routing hook detects a supported post-compaction start and adds the durable-state restore instruction for Claude and Codex. Grok passive session output cannot inject it, so its instruction files and durable run artifacts remain authoritative. The OpenCode port appends the instruction through its native compaction callback.
 - **Session receipts:** a bundled `SessionEnd` hook (`hooks/session-receipt.mjs`) appends one row per session to a home-directory ledger, which never leaves the machine. Each row records which mechanisms were on. `scripts/context-audit.mjs receipts --by-arm` groups the rows by that arm so a measurement has a control, and `receipts --purge-before <ISO date>` is the retention command. `CODE_OPS_RECEIPTS=off` turns the receipts off, and any other value names the ledger path. `code-ops-docs/55 Operations/MEASUREMENTS.md` owns the measurement method.
+- **Host-qualified behavior:** Claude and trusted Codex hooks consume routing and ladder context. Installed Grok 1.0.13 consumes digest rewrites, runs index and receipt side effects, and ignores passive routing and ladder stdout; the paired instruction files carry that doctrine instead. OpenCode ports digest, index, routing, and compaction, but its current API has no ladder or transcript-receipt callback.
 - **In-session loop:** run a skill repeatedly toward its "Done when" criteria with the built-in `/loop`.
 - **Before every PR:** run `local-review-gate` against the final committed diff when the operator opted in. Keep deterministic tests in hosted CI, and publish the local SHA-bound statuses when branch protection requires them.
 - **Recurring maintenance:** put `dependency-upgrade` and `security-privacy-audit` on a schedule with Routines (`/schedule`).

@@ -161,13 +161,19 @@ A register is not a one-shot report. It is a live backlog with stable IDs (`PERF
 
 ## 7 · What runs without you asking
 
-Installing `code-ops-suite` also installs hooks that compress the run itself. Three of them are on by default, and each stops when its switch holds `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`:
+Installing `code-ops-suite` also installs host-qualified context mechanisms. Three are on by
+default where the host exposes their event contract, and each stops when its switch holds
+`off`, `0`, or `false` in the canonical environment:
 
 - **The output digest** (`CODE_OPS_DIGEST`) rewrites an allowlisted shell command into a `digest.mjs` run, so a long result enters the context compressed with a receipt naming the raw file.
 - **The symbol-index refresh** (`CODE_OPS_INDEX`) re-indexes a file you just edited, so `co context query` keeps answering from current code.
 - **The ladder card** (`CODE_OPS_LADDER_CARD`) hands an implementer-class subagent the code-economy ladder and stays silent for read-only subagents.
 
-Two more hooks need no switch to be useful. A `SessionEnd` receipt appends one row per session to `~/.claude/code-ops/session-receipts.jsonl`, prints nothing to the model, and sends nothing off the machine. Set `CODE_OPS_RECEIPTS=off` to stop it, or point it at another path. A `PreCompact` hook prints the preservation instruction the host reads as the compaction's custom instructions, so a long run survives compaction with its constraints intact.
+A supported-host `SessionEnd` receipt appends one normalized row to a home-directory ledger,
+prints nothing to the model, and sends nothing off the machine. Set `CODE_OPS_RECEIPTS=off` to
+stop it, or point it at another path. No `PreCompact` command is registered. Claude and Codex
+receive a durable-state restore instruction on `SessionStart source=compact`; Grok relies on
+the instruction files, and OpenCode uses its native compaction port.
 
 Read [12-context-and-code-economy.md](12-context-and-code-economy.md) for what each mechanism does, [../../50 Platform/INFRASTRUCTURE.md](../../50 Platform/INFRASTRUCTURE.md) for the full switch list, and [../../55 Operations/MEASUREMENTS.md](../../55 Operations/MEASUREMENTS.md) for what they measure.
 

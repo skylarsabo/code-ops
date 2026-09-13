@@ -7,13 +7,15 @@ description: "Use when you have one big branch you want carved into a clean, rev
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-pr-split`, or by the model through the `skill` tool as `code-ops-suite-pr-split`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoked as `/code-ops-suite-pr-split`, or by the model through the `skill` tool as `code-ops-suite-pr-split`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails
 including the automation-level ladder (`§4`), and the implementation loop (`§11`) this skill
 follows.
 **Mode:** IMPLEMENT. **Consumes:** the current branch, compared against its trunk. **Produces:** a
 stack of small, independently-green PRs, opened with trace-free, voice-matched metadata.
-**Composes:** `privacy-opsec-suite:authorship-hygiene` and `code-ops-suite:local-review-gate`,
+**Composes:** `/privacy-opsec-suite-authorship-hygiene` and `/code-ops-suite-local-review-gate`,
 both fail-closed, before any push.
 
 ## Phase 0: the scope and the baseline  *(checkpoint)*
@@ -44,7 +46,7 @@ Keep a growing record, so a later PR cannot silently break an earlier one.
 
 ## Phase 3: the trace scrub  *(fail-closed)*
 
-Run `privacy-opsec-suite:authorship-hygiene` over the whole stack, covering L1 metadata, L2 prose
+Run `/privacy-opsec-suite-authorship-hygiene` over the whole stack, covering L1 metadata, L2 prose
 voice, and L3 code-idiom blend-in. It runs `scan-ai-tells.mjs` fail-closed. When
 `privacy-opsec-suite` is not installed, run the bundled
 `<plugin-root>/scripts/co.mjs scan ai-tells` directly as the mechanical floor. **Abort
@@ -53,7 +55,7 @@ the push when the trace cannot be cleaned.**
 ## Phase 4: local review and publication
 
 For each final stacked branch, run the deterministic gate chain and read the diff. Run
-`code-ops-suite:local-review-gate` against its exact parent and committed HEAD only when the
+`/code-ops-suite-local-review-gate` against its exact parent and committed HEAD only when the
 operator opted in for that branch. A fix then invalidates that branch's receipts, and every
 descendant whose base or diff moved.
 

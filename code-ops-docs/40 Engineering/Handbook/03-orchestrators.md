@@ -33,7 +33,14 @@ The differences are *which* skills get chained, in *what* order, and *what prere
 
 ### What runs underneath every orchestrator
 
-Four bundled hooks compress the run itself, independent of which orchestrator you pick. The output digest (`CODE_OPS_DIGEST`), the symbol-index refresh (`CODE_OPS_INDEX`), and the ladder card (`CODE_OPS_LADDER_CARD`) are on by default, and each stops when its switch holds `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`. A `SessionEnd` receipt records what the session cost and obeys `CODE_OPS_RECEIPTS` the same way. Read [12-context-and-code-economy.md](12-context-and-code-economy.md) for the mechanisms, [../../50 Platform/INFRASTRUCTURE.md](../../50 Platform/INFRASTRUCTURE.md) for the switch list, and [../../55 Operations/MEASUREMENTS.md](../../55 Operations/MEASUREMENTS.md) for the numbers.
+Four bundled context mechanisms run independently of the chosen orchestrator where the host
+exposes their event contract. Claude and Codex support digest, index, ladder card, and receipt.
+Installed Grok 1.0.13 supports digest, index, and receipt, while instruction files carry the
+ladder. OpenCode ports digest and index but has no ladder or receipt callback. The switches are
+`CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_RECEIPTS`. Read
+[12-context-and-code-economy.md](12-context-and-code-economy.md) for the mechanisms,
+[../../50 Platform/INFRASTRUCTURE.md](../../50 Platform/INFRASTRUCTURE.md) for the host matrix,
+and [../../55 Operations/MEASUREMENTS.md](../../55 Operations/MEASUREMENTS.md) for the evidence.
 
 ---
 

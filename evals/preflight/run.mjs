@@ -72,7 +72,7 @@ try {
   // Run from the canonical scripts/ dir, the script scans ../plugins/*/agents and prints one
   // `<plugin>/<agent>  <floor>` row per bundled agent, plus the routing rule the lead follows.
   const h = run([]);
-  check('h. prints the tier-floor header', h.stdout.includes('tier floors (agent frontmatter — route every dispatch at or above its floor):'));
+  check('h. prints the tier-floor header', h.stdout.includes('tier floors (agent contract — route every dispatch at or above its floor):'));
   check('h. rows are `<plugin>/<agent>  <floor>`', /^ {2}rigor\/verifier {2,}opus$/m.test(h.stdout));
   check('h. lists every bundled agent', ['code-ops-suite/explorer', 'code-ops-suite/reviewer', 'privacy-opsec-suite/explorer', 'privacy-opsec-suite/privacy-reviewer', 'researcher/claim-checker', 'researcher/gatherer', 'rigor/tracer', 'rigor/verifier'].every((a) => h.stdout.includes(a)));
   check('h. names the measurement backstop', h.stdout.includes("run-cost-audit's tier-routing check"));

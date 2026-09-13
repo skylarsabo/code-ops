@@ -33,8 +33,14 @@ export const LEDGER_HEADER = '| id | role | brief | expected artifact | status |
 
 export function replayDispatchJournal(text) {
   const expected = new Map();
+  const activeActor = new Map();
   const violations = [];
   const events = [];
+  const transitionAllowed = (from, to) => {
+    if (from === 'reported') return false;
+    if (from === 'failed') return to === 'redispatched';
+    return ['reported', 'failed', 'redispatched'].includes(to);
+  };
   text.split('\n').forEach((raw, index) => {
     const line = raw.replace(/\r$/, '').trim();
     if (!line) return;
@@ -49,12 +55,22 @@ export function replayDispatchJournal(text) {
     }
     if (entry.op === 'add') {
       if (typeof entry.id !== 'string' || !/^D-\d+$/.test(entry.id) || entry.status !== 'dispatched') { violations.push(`${at}: malformed add entry: ${line.slice(0, 100)}`); return; }
+      if ('actorId' in entry && (typeof entry.actorId !== 'string' || !/^\S{1,200}$/u.test(entry.actorId))) { violations.push(`${at}: malformed add actorId: ${line.slice(0, 100)}`); return; }
       if (expected.has(entry.id)) { violations.push(`${at}: duplicate add for ${entry.id}`); return; }
-      expected.set(entry.id, entry.status); events.push(entry); return;
+      expected.set(entry.id, entry.status);
+      activeActor.set(entry.id, entry.actorId || null);
+      events.push(entry); return;
     }
     if (entry.op === 'update') {
       if (typeof entry.id !== 'string' || !/^D-\d+$/.test(entry.id) || !LEDGER_STATUSES.includes(entry.to)) { violations.push(`${at}: malformed update entry: ${line.slice(0, 100)}`); return; }
+      if ('actorId' in entry && (typeof entry.actorId !== 'string' || !/^\S{1,200}$/u.test(entry.actorId))) { violations.push(`${at}: malformed update actorId: ${line.slice(0, 100)}`); return; }
       if (!expected.has(entry.id)) { violations.push(`${at}: update for ${entry.id}, which was never added`); return; }
+      const from = expected.get(entry.id);
+      if (!transitionAllowed(from, entry.to)) { violations.push(`${at}: invalid transition ${from} -> ${entry.to} for ${entry.id}`); return; }
+      if (entry.to === 'redispatched') activeActor.set(entry.id, entry.actorId || null);
+      else if (entry.actorId && activeActor.get(entry.id) && entry.actorId !== activeActor.get(entry.id)) {
+        violations.push(`${at}: outcome actorId for ${entry.id} differs from its active dispatch`); return;
+      }
       expected.set(entry.id, entry.to); events.push(entry); return;
     }
     violations.push(`${at}: unknown journal op: ${line.slice(0, 100)}`);

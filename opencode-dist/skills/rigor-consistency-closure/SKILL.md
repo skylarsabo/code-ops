@@ -1,13 +1,15 @@
 ---
 name: rigor-consistency-closure
-description: "Use when the same concept is implemented divergently and you want it closed for good, in one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize."
+description: "Use when the same concept is implemented divergently and you want it closed for good, in one canonical form, mechanically enforced. For whole-repo style normalization, see /code-ops-suite-normalize."
 ---
 
 # Consistency closure: close it so it stays closed
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/rigor/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/rigor-consistency-closure`, or by the model through the `skill` tool as `rigor-consistency-closure`.** First read the bundled
+**Invoked as `/rigor-consistency-closure`, or by the model through the `skill` tool as `rigor-consistency-closure`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety

@@ -4,7 +4,7 @@
 // scan-ai-tells.mjs (which scans commit/PR text, not run artifacts).
 //
 // WHY: the doctrine that a lead's report is a compact synthesis, not a narrated transcript
-// (CLAUDE.md "lead's reports are compact syntheses"; suite CONVENTIONS §12 "Length discipline
+// (AGENTS.md "lead's reports are compact syntheses"; suite CONVENTIONS §12 "Length discipline
 // for run summaries") had no mechanical backstop — only a reviewer's eye. This catches the
 // mechanical half: length, first-person play-by-play, wholesale register restatement, filler.
 //

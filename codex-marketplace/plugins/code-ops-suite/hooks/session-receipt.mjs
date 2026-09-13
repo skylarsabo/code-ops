@@ -7,7 +7,7 @@
 // session turns every ordinary run into a measurement, at zero model cost, so a mechanism's
 // before-and-after arms come from normal work on the same repository.
 //
-// Ledger: $CODE_OPS_RECEIPTS, else `~/.claude/code-ops/session-receipts.jsonl` — a home-dir
+// Ledger: $CODE_OPS_RECEIPTS, else `~/.codex/code-ops/session-receipts.jsonl` — a home-dir
 // file on purpose, so it can never be committed by accident. `CODE_OPS_RECEIPTS=off` (or `0`,
 // `false`) disables the hook. Read the ledger with `node scripts/context-audit.mjs receipts`.
 //
@@ -26,7 +26,7 @@ let input = '';
 let pending = null;
 
 function ledgerPath() {
-  return process.env.CODE_OPS_RECEIPTS || join(homedir(), '.claude', 'code-ops', 'session-receipts.jsonl');
+  return process.env.CODE_OPS_RECEIPTS || join(homedir(), '.codex', 'code-ops', 'session-receipts.jsonl');
 }
 
 // Every caller (stdin end, stdin error, the timer) awaits the same promise, so a late
@@ -42,11 +42,13 @@ async function doFinish() {
   try {
     if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECEIPTS || '')) return;
     const payload = JSON.parse(input.replace(/^\uFEFF/, ''));
-    const transcript = typeof payload?.transcript_path === 'string' ? payload.transcript_path : '';
+    const transcriptValue = payload?.transcript_path ?? payload?.transcriptPath ?? payload?.transcript?.path;
+    const transcript = typeof transcriptValue === 'string' ? transcriptValue : '';
     if (!transcript || !existsSync(transcript)) return;
     const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
     const lib = await import(pathToFileURL(libPath).href);
-    const main = lib.summarizeTranscript(readFileSync(transcript, 'utf8'), { top: 0 });
+    const measuredTranscript = lib.measurementTranscriptFor(transcript);
+    const main = lib.summarizeTranscript(readFileSync(measuredTranscript, 'utf8'), { top: 0 });
     const subFiles = lib.subagentFilesFor(transcript);
     const subs = [];
     for (const f of subFiles) {
@@ -57,7 +59,7 @@ async function doFinish() {
     const row = {
       v: 1,
       ts: new Date().toISOString(),
-      sessionId: typeof payload.session_id === 'string' ? payload.session_id : null,
+      sessionId: typeof (payload.session_id ?? payload.sessionId) === 'string' ? (payload.session_id ?? payload.sessionId) : null,
       cwd: typeof payload.cwd === 'string' ? payload.cwd : process.cwd(),
       reason: typeof payload.reason === 'string' ? payload.reason : null,
       durationMs: main.durationMs,
@@ -68,7 +70,7 @@ async function doFinish() {
       contextAtEnd: main.contextAtEnd,
       // Which mechanisms this session ran under, read from the same switches the hooks read: on
       // unless the switch says off, so the ledger can compare an arm against sessions run with it off.
-      arms: { digest: on('CODE_OPS_DIGEST'), ladderCard: on('CODE_OPS_LADDER_CARD'), index: on('CODE_OPS_INDEX') },
+      arms: { digest: on('CODE_OPS_DIGEST'), ladderCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_LADDER_CARD'), index: on('CODE_OPS_INDEX') },
       files: 1 + subFiles.length,
       skipped: subFiles.length - subs.length,
       tokens: { main: strip(main.usage), subagents: strip(sub.usage) },

@@ -1,21 +1,32 @@
 ---
 type: reference
 status: current
-updated: 2026-09-02
+updated: 2026-09-13
 ---
 
 # Measurements
 
 ## Contract
 
-Every number here comes from a local receipt, never from an estimate or a hand-entered note. The sources are the host's own session transcripts, which carry exact per-message token usage, and the SessionEnd receipt ledger the suite writes from them. Reading either costs no model tokens and nothing leaves the machine. A row without a receipt does not enter this page.
+Every number here comes from a local receipt, never from an estimate or a hand-entered note.
+The source and granularity are host-qualified: Claude exposes per-message transcript usage,
+Codex exposes response usage in peer rollouts, and installed Grok 1.0.13 exposes cumulative
+per-prompt snapshots in `updates.jsonl`. OpenCode has no automatic transcript receipt. Reading
+supported local records costs no model tokens and nothing leaves the machine. A row without a
+receipt does not enter this page.
 
 Numbers age. Treat a row as true for the window it names and re-run the audit before acting on it.
 
 ## Instruments
 
-- `node scripts/context-audit.mjs` summarizes Claude transcripts for the current directory. `--host codex` adapts current local Codex session usage into the same normalized categories and filters by working directory unless `--all` is present. Output is sanitized by default. `--json` emits the aggregate a receipt can hash.
-- `hooks/session-receipt.mjs` runs at `SessionEnd` and appends one row per session to `~/.claude/code-ops/session-receipts.jsonl` (or `$CODE_OPS_RECEIPTS`, where `off` disables it). `node scripts/context-audit.mjs receipts` summarizes the ledger.
+- `node scripts/context-audit.mjs` summarizes Claude transcripts for the current directory.
+  `--host codex` adapts Codex response usage and follows child rollout `parent_thread_id`
+  links. Grok receipts normalize cumulative snapshots from `updates.jsonl`. Output is
+  sanitized by default. `--json` emits the aggregate a receipt can hash.
+- `hooks/session-receipt.mjs` runs at `SessionEnd` on Claude, Codex, and installed Grok
+  1.0.13. It appends one normalized row to the host-specific home ledger or
+  `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false`.
+  OpenCode has no corresponding callback.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
 - `node scripts/context-audit.mjs receipts --purge-before <ISO date>` is the ledger's retention: it rewrites the file keeping rows at or after the date and prints what it removed.
 - `evals/context-audit/run.mjs` pins the parser and the hook against a synthetic fixture.
@@ -23,7 +34,12 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
 
 Usage is deduplicated by message id. The host writes one assistant message as several transcript lines that repeat the same usage block, so a naive sum overcounts by more than two to one.
 
-The `context-bundle view` regression fixture is 1,482 bytes against a 1,987-byte canonical bundle, a 25.4% byte reduction. This is compiler-fixture evidence only. It is not yet evidence of provider-token reduction, cache improvement, or dollar savings. Those claims require attributed runtime observations from a controlled run.
+The `context-bundle view` regression fixture is 1,482 bytes against a 1,987-byte canonical
+bundle, a 25.4% byte reduction. This is compiler-fixture evidence only. Hook evals likewise
+prove exact output shape and side effects, not a live external model turn. Neither is evidence
+of provider-token reduction, cache improvement, causal workflow improvement, or dollar
+savings. Those claims require attributed observations from pre-registered, matched on/off
+controls on the same host.
 
 ## Baseline: this repository, 2026-06-23 to 2026-09-02
 
@@ -78,9 +94,16 @@ Repeat reads: 152 paths were read more than once, 207 extra reads, 1,099,139 cha
 
 ## Method for the next rows
 
-Each mechanism ships behind a per-repo switch. A row is added only with the switch state, the window, the receipt id, and the same `context-audit.mjs` command. The pre-registration protocol in `evals/README.md` names the metric and the stopping rule before the switch flips. The design note `10 Design/Context and code economy 2026-09.md` owns the workstreams these rows measure.
+Each mechanism ships behind a per-repo switch where the host supports it. A row is added only
+with the host and version, switch state, window, receipt id, and the same audit command. The
+pre-registration protocol in `evals/README.md` names the metric and stopping rule before a
+switch flips. No causal-control run has completed for the current cross-host mechanisms, so
+their token-optimization and workflow-effect claims remain pending.
 
-The ladder card (`hooks/ladder-card.mjs`, switch `CODE_OPS_LADDER_CARD`) is the Workstream B arm. Its row compares implementer subagent transcripts with the card against the brief-only control on diff line count, tokens, and the correctness gate, and the card is removed if it does not win.
+The ladder card (`hooks/ladder-card.mjs`, switch `CODE_OPS_LADDER_CARD`) is a Claude and Codex
+arm. Its row compares implementer operative transcripts with the card against the brief-only
+control on diff line count, tokens, and the correctness gate. Grok carries the ladder in its
+instruction files and records this arm false. OpenCode has no ladder arm.
 
 The symbol index (`context-query.mjs`, hook `index-refresh.mjs`, switch `CODE_OPS_INDEX`) is the Workstream C arm. Its row compares sessions that answer a structural question through the query tool against sessions that read the map, on tool calls, tokens, and the context resident at session end, which is the metric codegraph loses on.
 

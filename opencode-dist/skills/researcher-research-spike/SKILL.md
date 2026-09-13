@@ -7,7 +7,9 @@ description: "Use when a task, feature, or plan needs a code-grounded design bri
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/researcher/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/researcher-research-spike`, or by the model through the `skill` tool as `researcher-research-spike`.** First read the bundled
+**Invoked as `/researcher-research-spike`, or by the model through the `skill` tool as `researcher-research-spike`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
@@ -98,9 +100,9 @@ manifest.
 ## Hand-off
 
 The brief is the terminal output, not a diff (`§11`). Map it to an implementer. The build
-goes to `code-ops-suite:feature-implementation` or `code-ops-suite:ship`. A step-by-step
+goes to `/code-ops-suite-feature-implementation` or `/code-ops-suite-ship`. A step-by-step
 plan, when one is needed first, goes to a writing-plans step. An architectural decision worth
-recording goes to `code-ops-suite:adr`. The skill is done only when that implementer can act
+recording goes to `/code-ops-suite-adr`. The skill is done only when that implementer can act
 without re-researching (`§11`).
 
 ## Done when

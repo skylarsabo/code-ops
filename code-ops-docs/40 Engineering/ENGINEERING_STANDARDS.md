@@ -49,11 +49,20 @@ Climb the ladder before writing code. Ask whether the code needs to exist, wheth
 
 ## Context economy
 
-Four context mechanisms ship with the suite and run unless a switch turns them off. The output digest compresses Bash results through `scripts/digest.mjs`. The symbol index answers structural questions through `scripts/context-query.mjs` instead of a whole-file read. The `SubagentStart` card hands an implementer the size ladder. The session receipt records one row per session for `scripts/context-audit.mjs`. Evidence: `plugins/code-ops-suite/hooks/hooks.json:1-70`.
+Four context mechanisms ship with the suite and run where the host exposes their event
+contracts. The digest and index have ports on all four hosts. Claude and Codex also support the
+ladder card and session receipt. Installed Grok 1.0.13 supports the receipt but carries the
+ladder through instruction files. OpenCode has no ladder or transcript-receipt callback.
+Evidence: `plugins/code-ops-suite/hooks/hooks.json` and
+`code-ops-docs/50 Platform/INFRASTRUCTURE.md`.
 
 Read a file's outline with `node scripts/skim.mjs <file>` before reading its body, then read a range. Reach every domain through the `node scripts/co.mjs <domain> <verb>` entrypoint when a skill names one.
 
-Each switch is `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, or `CODE_OPS_RECEIPTS`, and each holds `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`. [Infrastructure](../50 Platform/INFRASTRUCTURE.md) owns the switches and their defaults. [Measurements](../55 Operations/MEASUREMENTS.md) owns the arms and the decision rules.
+Each switch is `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, or
+`CODE_OPS_RECEIPTS`, and each holds `off`, `0`, or `false` in the canonical environment.
+Rendered hosts use their documented process environment. [Infrastructure](../50 Platform/INFRASTRUCTURE.md)
+owns the switches and their defaults. [Measurements](../55 Operations/MEASUREMENTS.md) owns
+the host-qualified arms and decision rules.
 
 ## Agent orchestration
 

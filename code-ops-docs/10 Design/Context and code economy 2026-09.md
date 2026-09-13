@@ -138,7 +138,7 @@ The guide's tested instructions map onto suite prose as follows. A grep on 2026-
 | Formatting in chat | Add the conditional formatting rule to `writing-standard.md`. |
 | Quoting retrieved sources | Add the one-example pattern to the researcher `CONVENTIONS.md`, `gatherer.md`, and `claim-checker.md`. |
 | Finish the whole task | The "we don't close early" doctrine already aligns. Add the last-paragraph check as one shared passage. |
-| Compaction summaries | Adopt the six-item preservation instruction into the `handoff` template. Add a PreCompact hook that prints it on stdout, which the host reads as the compaction's custom instructions. |
+| Compaction summaries | Adopt the six-item preservation instruction into durable run artifacts. The original `PreCompact` stdout proposal was invalid: Claude and Codex ignore it. The implemented fallback injects a restore card at `SessionStart source=compact`; Grok relies on instruction files and OpenCode uses its native compaction port. |
 | Keep changes and tests to the task | Adopt the block into implementer briefs for `ship`, `feature-implementation`, `fix-verified`, and `remediation`. It is the evidence-backed core of Workstream B. |
 | Search triggering at low effort | Raise `gatherer` and `explorer` to `medium` when the brief is sourcing, or add the verify-the-name nudge. Update the effort doctrine. |
 | Safeguard false positives | Verifier and bug-hunt briefs ask "are there bugs", never "does it compile". The digest strips base64 blobs, which the guide names as a trigger. |
@@ -184,7 +184,7 @@ The suite's prose was hardened for weak models: sixteen items landed as mechanic
 1. **Two registers, one truth.** Each `CONVENTIONS.md` keeps its rules once and marks which passages are scaffolding for the weak floor. The routing card and briefs load the compact register for models above the floor and the full register below it, decided by `model-tiers.mjs` and the floor table, never by guesswork.
 2. **Measured, not assumed.** The judgment evals already run per model tier and arm. Adding the register as an arm shows whether strong-model quality holds when the scaffolding is withheld. If it does not, the scaffolding stays.
 3. **Orchestration as code where the host allows it.** The orchestrator skills are prose pipelines. On a host with a deterministic workflow tool, a compiled workflow script per orchestrator runs the same phases with fewer orchestration tokens and a replayable run id. The prose stays the portable fallback, so provider parity holds.
-4. **Background by default.** Operatives run in the background and the lead continues independent work, per the guide. `dispatch-ledger.mjs` records the overlap so the wall-time gain is measured.
+4. **Background by default.** Operatives run in the background and the lead continues independent work, per the guide. `dispatch-ledger.mjs` records overlap, and supported session receipts record wall time for later controlled comparison.
 
 ## Key decisions
 
@@ -225,7 +225,7 @@ The suite's prose was hardened for weak models: sixteen items landed as mechanic
 Each PR passes the full gate chain, bumps the plugin version, and carries a changelog entry. Each ships as a stack of small PRs where the slice allows.
 
 1. **Phase 0, measure.** `context-audit.mjs` reading exact transcript usage, the `SessionEnd` receipt hook, and `MEASUREMENTS.md` with the baseline row. The effort-sweep plan as a calibration arm. One PR.
-2. **Phase 1, doctrine and façade.** Workstream D prose edits, the `tracer.md` density clause, the PreCompact hook, and the `co.mjs` façade with `cli-lib.mjs` and shims. Two PRs.
+2. **Phase 1, doctrine and façade.** Workstream D prose edits, the `tracer.md` density clause, durable compaction recovery, and the `co.mjs` façade with `cli-lib.mjs` and shims. Two PRs. The proposed `PreCompact` stdout hook was later removed when provider contracts disproved it.
 3. **Phase 2, digest.** `digest.mjs` with the first shapes, the must-keep eval corpus, receipt integration, `skim.mjs`, and the opt-in PreToolUse stage for simple commands. Two PRs.
 4. **Phase 3, code economy.** The ladder passage, `scan-overbuild.mjs`, the `overbuild-garden` fixture, the review lens, the deferral harvest, and the SubagentStart card as an experiment arm. Two PRs.
 5. **Phase 4, index.** `context-query.mjs` with call edges and the refresh hook, then providers and the MCP wrapper. Two PRs.
@@ -236,7 +236,7 @@ Each PR passes the full gate chain, bumps the plugin version, and carries a chan
 
 Suite state on 2026-09-02, from the explorer pass (paths relative to the repository root):
 
-- `plugins/code-ops-suite/hooks/hooks.json` wires only PreToolUse (Bash) and SessionStart. No PostToolUse, SubagentStart, or PreCompact hook exists in any plugin (GAP-1).
+- At this 2026-09-02 snapshot, `plugins/code-ops-suite/hooks/hooks.json` wired only PreToolUse (Bash) and SessionStart; no PostToolUse or SubagentStart hook existed (GAP-1). A later `PreCompact` stdout experiment was removed because supported hosts do not consume that output as summary instructions.
 - `plugins/code-ops-suite/hooks/enforce-traceless.mjs` reads the command and exits 0 or 2. It never emits `updatedInput` (GAP-2).
 - `plugins/code-ops-suite/skills/normalize/SKILL.md:38` carries the only sentence balancing size against modularity (GAP-3). No script measures produced code (GAP-4).
 - `scripts/calibration-graph.mjs` holds the only per-run token figures, hand-entered from a note field (GAP-5).

@@ -29,6 +29,15 @@ function readStdin() {
   }
 }
 
+function commandInput(payload) {
+  const name = String(payload?.tool_name ?? payload?.toolName ?? payload?.tool?.name ?? '').toLowerCase();
+  if (!['bash', 'shell', 'exec_command', 'functions.exec_command', 'run_terminal_command'].some((tool) => name === tool || name.endsWith(`.${tool}`))) return null;
+  const input = payload?.tool_input ?? payload?.toolInput ?? payload?.input;
+  if (!input || typeof input !== 'object') return null;
+  const command = input.command ?? input.cmd;
+  return typeof command === 'string' ? command : null;
+}
+
 function main() {
   const raw = readStdin();
   let payload;
@@ -37,9 +46,8 @@ function main() {
   } catch {
     return 0; // malformed input, defensive fail-open
   }
-  if (payload?.tool_name !== 'Bash') return 0;
-  const command = payload?.tool_input?.command;
-  if (typeof command !== 'string') return 0;
+  const command = commandInput(payload);
+  if (command === null) return 0;
 
   if (!GATED_RE.test(command)) return 0; // fast path: no fs/spawn for the common case
 

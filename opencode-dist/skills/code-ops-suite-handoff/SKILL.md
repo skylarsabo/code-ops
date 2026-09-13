@@ -7,7 +7,9 @@ description: "Use when a long run must survive a context limit, session end, or 
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-handoff`, or by the model through the `skill` tool as `code-ops-suite-handoff`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoked as `/code-ops-suite-handoff`, or by the model through the `skill` tool as `code-ops-suite-handoff`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin. It defines the interaction protocol, the safety rails, the evidence
 standard, and the shared-artifact conventions this skill extends to session state.
 **Mode:** DOCUMENT · **Produces and consumes:** `HANDOFF.md` in the run's dated artifact folder

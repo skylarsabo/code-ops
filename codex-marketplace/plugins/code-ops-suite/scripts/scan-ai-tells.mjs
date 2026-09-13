@@ -11,7 +11,7 @@
 // Scans commit-message / PR-body TEXT (not code idioms — that's the skill's judgment job)
 // for the giveaways that mark a commit/PR as AI/tool-authored:
 //   TRAILER    attribution trailers (Co-Authored-By: Claude/..., "Generated with/by ...", 🤖)
-//   TOOL       tool/assistant markers (Claude Code, Cursor, Copilot, "as an AI language model", ...)
+//   TOOL       tool/assistant markers (Codex, Cursor, Copilot, "as an AI language model", ...)
 //   EMOJI      any emoji (most devs' commit/PR text has none)
 //   EMDASH     em-dash (—) density at/over a threshold (default 3)
 //   PHRASE     assistant-prose tells (Notably, / Importantly, / Here's what / In summary,)

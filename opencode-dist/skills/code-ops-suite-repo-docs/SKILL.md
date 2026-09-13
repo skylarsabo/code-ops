@@ -7,7 +7,9 @@ description: "Use when repository documentation must be extracted, refreshed, or
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-repo-docs`, or by the model through the `skill` tool as `code-ops-suite-repo-docs`.** First read `<plugin-root>/CONVENTIONS.md`,
+**Invoked as `/code-ops-suite-repo-docs`, or by the model through the `skill` tool as `code-ops-suite-repo-docs`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read `<plugin-root>/CONVENTIONS.md`,
 and its orchestration, evidence, and documentation sections.
 **Mode:** DOCUMENT · **Produces:** updated manifest-owned documents, an extraction plan, and
 freshness proof.

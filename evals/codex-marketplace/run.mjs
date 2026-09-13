@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CLAUDE_ALIAS_TIER } from '../../scripts/model-tiers.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -35,6 +36,31 @@ for (const plugin of pluginNames) {
     expect(policy.includes('allow_implicit_invocation: true'), `${plugin}/${skill}: invocation policy missing or stale`);
     expect(!policy.includes('allow_implicit_invocation: false'), `${plugin}/${skill}: stale manual-only policy leaked into openai.yaml`);
   }
+
+  const sourceAgentsDir = join(sourcePluginsDir, plugin, 'agents');
+  if (existsSync(sourceAgentsDir)) {
+    const sourceFloors = readdirSync(sourceAgentsDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+      .map((entry) => {
+        const text = read(join(sourceAgentsDir, entry.name));
+        const name = text.match(/^name:[ \t]*(\S+)/m)?.[1];
+        const sourceModel = text.match(/^model:[ \t]*(\S+)/m)?.[1];
+        return { name, sourceModel, minimumTier: CLAUDE_ALIAS_TIER[sourceModel] };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const floorPath = join(pluginsDir, plugin, 'agents', 'model-floors.json');
+    expect(existsSync(floorPath), `${plugin}: generated agent floor contract is missing`);
+    if (existsSync(floorPath)) {
+      const floors = JSON.parse(read(floorPath));
+      expect(floors.version === 1, `${plugin}: agent floor contract has the wrong version`);
+      expect(JSON.stringify(floors.roles) === JSON.stringify(sourceFloors), `${plugin}: agent floor contract diverged from canonical agents`);
+    }
+    for (const agent of sourceFloors) {
+      const rendered = read(join(pluginsDir, plugin, 'agents', `${agent.name}.md`));
+      expect(!/^model:/m.test(rendered) && !/^tools:/m.test(rendered), `${plugin}/${agent.name}: Claude-only agent controls leaked`);
+      expect(rendered.includes('agents/model-floors.json') && rendered.includes(`\`${agent.minimumTier}\``), `${plugin}/${agent.name}: role brief does not direct the lead to its floor contract`);
+    }
+  }
 }
 
 const mcp = JSON.parse(read(join(pluginsDir, 'code-ops-suite', '.mcp.json')));
@@ -61,16 +87,52 @@ expect(hookInstaller.includes("git(['config', '--get', 'core.hooksPath'])"), 'ho
 
 const hook = join(pluginsDir, 'code-ops-suite', 'hooks', 'enforce-traceless.mjs');
 const blocked = run(hook, JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git commit -m "Generated with Codex"' } }));
+const blockedExec = run(hook, JSON.stringify({ toolName: 'functions.exec_command', input: { cmd: 'git commit -m "Generated with Codex"' } }));
 const allowed = run(hook, JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git status --short' } }));
 expect(blocked.status === 2, `traceless hook should block a Codex-shaped traced commit payload, got ${blocked.status}`);
+expect(blockedExec.status === 2, `traceless hook should block a Codex exec_command payload, got ${blockedExec.status}`);
 expect(allowed.status === 0, `traceless hook should allow a Codex-shaped safe payload, got ${allowed.status}`);
 const hookManifest = JSON.parse(read(join(pluginsDir, 'code-ops-suite', 'hooks', 'hooks.json')));
+for (const event of ['PreToolUse', 'PostToolUse']) {
+  expect((hookManifest.hooks?.[event] ?? []).every((group) => !('matcher' in group)), `${event} retains a Claude-only tool matcher`);
+}
 const sessionEndTimeouts = (hookManifest.hooks?.SessionEnd ?? []).flatMap((group) => group.hooks ?? []).map((entry) => entry.timeout);
 expect(sessionEndTimeouts.length > 0 && sessionEndTimeouts.every((timeout) => timeout <= 3), `Codex SessionEnd timeout exceeds the desktop ceiling: ${sessionEndTimeouts.join(', ')}`);
+
+const routingCard = read(join(pluginsDir, 'code-ops-suite', 'hooks', 'routing-card.mjs'));
+expect(!/\/(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/.test(routingCard), 'routing card retains Claude slash-command syntax');
+expect(routingCard.includes('code-ops-suite:debug'), 'routing card does not name the Codex workflow syntax');
+expect(routingCard.includes('privacy-opsec-suite:full-sweep'), 'routing card does not name a valid privacy workflow');
+
+const portableFiles = [
+  ...pluginNames.map((plugin) => join(pluginsDir, plugin, 'CONVENTIONS.md')),
+  ...readdirSync(join(pluginsDir, 'code-ops-suite', 'hooks')).filter((file) => file.endsWith('.mjs')).map((file) => join(pluginsDir, 'code-ops-suite', 'hooks', file)),
+  ...['context-audit.mjs', 'context-query.mjs', 'digest.mjs', 'transcript-lib.mjs'].map((file) => join(pluginsDir, 'code-ops-suite', 'scripts', file)),
+];
+for (const file of portableFiles) {
+  const text = read(file);
+  if (!file.endsWith('transcript-lib.mjs')) {
+    expect(!text.includes('~/.claude/') && !text.includes('.claude/settings.json'), `${file}: retains a Claude-only storage or settings assumption`);
+  }
+  expect(!text.includes('its the host environment') && !text.includes('the host environment sets') && !text.includes('the host environment environment'), `${file}: contains malformed host-environment prose`);
+}
+expect(read(join(pluginsDir, 'code-ops-suite', 'hooks', 'session-receipt.mjs')).includes("'.codex'"), 'session receipt does not use Codex storage by default');
+
+const contextAudit = read(join(pluginsDir, 'code-ops-suite', 'scripts', 'context-audit.mjs'));
+const transcriptLib = read(join(pluginsDir, 'code-ops-suite', 'scripts', 'transcript-lib.mjs'));
+expect(contextAudit.includes("const opt = { host: 'codex'"), 'context audit does not default to the Codex host');
+expect(transcriptLib.includes("join(homedir(), '.claude', 'projects'"), 'transcript library corrupted its explicit Claude transcript branch');
+expect(transcriptLib.includes("join(homedir(), '.codex')"), 'transcript library lost its explicit Codex transcript branch');
+
+const adoptGlobal = read(join(pluginsDir, 'code-ops-suite', 'skills', 'adopt-global-standards', 'SKILL.md'));
+const adoptRepo = read(join(pluginsDir, 'code-ops-suite', 'skills', 'adopt-standards', 'SKILL.md'));
+expect(adoptGlobal.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'global-standards render collapsed the three host-specific contract paths');
+expect(adoptRepo.includes('`CLAUDE.md` and `AGENTS.md`'), 'repo-standards render collapsed the accepted two-file parity modes');
+expect(adoptRepo.includes('Claude reads the global pair under `~/.claude/`') && adoptRepo.includes('Codex reads `~/.codex/AGENTS.md`'), 'repo-standards render collapsed the distinct global contract homes');
 
 if (fails.length) {
   console.error('FAIL — Codex marketplace eval:');
   for (const failure of fails) console.error('  x ' + failure);
   process.exit(1);
 }
-console.log('PASS — Codex marketplace: skill parity, model-invocable policies, MCP declaration, and Codex-shaped hook payload all hold.');
+console.log('PASS — Codex marketplace: skill, agent-floor, portable-runtime, MCP, and hook payload checks hold.');

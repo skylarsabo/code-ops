@@ -70,7 +70,7 @@ Write or update `AGENTS.md` in this exact section order:
   Codex reads `~/.codex/AGENTS.md`. Model roles, truthful reporting, token economy, context
   hygiene, and other cross-repo rules stay global. Repository contracts contain only facts,
   commands, gates, and local exceptions.
-- **Keep `AGENTS.md` and `AGENTS.md` in one of two accepted parity modes:** a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one mode and keep it. A pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
+- **Keep `CLAUDE.md` and `AGENTS.md` in one of two accepted parity modes:** a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one mode and keep it. A pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
 - **Make relative dates absolute.** Write "verify by 2026-08-01", never "next month".
 - **Keep the prose terse and imperative, the commands copy-paste-ready, and the facts project-specific.** No filler, and no generic engineering advice a competent agent already knows.
 

@@ -108,6 +108,24 @@ for (const plugin of pluginNames) {
   }
 }
 
+// Grok accepts these passive events but ignores their stdout. The canonical hooks detect
+// the adapter and emit nothing; CLAUDE.md/AGENTS.md carry the equivalent doctrine.
+for (const [name, input] of [
+  ['routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup' })],
+  ['ladder-card.mjs', JSON.stringify({ hook_event_name: 'SubagentStart', agent_type: 'implementer' })],
+]) {
+  const result = spawnSync('node', [join(pluginsDir, 'code-ops-suite', 'hooks', name)], {
+    input, encoding: 'utf8', env: { ...process.env, GROK_PLUGIN_ROOT: join(pluginsDir, 'code-ops-suite') },
+  });
+  expect(result.status === 0 && result.stdout === '', `${name}: Grok passive hook must emit no ignored stdout`);
+}
+const compactResume = spawnSync('node', [join(pluginsDir, 'code-ops-suite', 'hooks', 'routing-card.mjs')], {
+  input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact' }), encoding: 'utf8',
+  env: Object.fromEntries(Object.entries(process.env).filter(([key]) => key !== 'GROK_PLUGIN_ROOT')),
+});
+expect(compactResume.status === 0 && /compaction resume: restore decisions, constraints/.test(compactResume.stdout),
+  'Claude/Codex compact SessionStart must inject the durable-state restore instruction');
+
 // 6. The skills reference bundled scripts through ${CLAUDE_PLUGIN_ROOT}, which Grok Build
 //    substitutes in plugin agent bodies (src/discovery.rs, substitute_plugin_vars). A skill
 //    that switched to a Claude-only spelling would break the path on this host.

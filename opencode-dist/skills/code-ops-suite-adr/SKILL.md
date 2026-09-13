@@ -7,7 +7,9 @@ description: "Use when you need to capture the reasons behind a codebase's archi
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-adr`, or by the model through the `skill` tool as `code-ops-suite-adr`.** First read the `<plugin-root>/CONVENTIONS.md`, and
+**Invoked as `/code-ops-suite-adr`, or by the model through the `skill` tool as `code-ops-suite-adr`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`, and
 especially the **documentation quality standard (`§13`)**.
 **Mode:** DOCUMENT. **Produces:** numbered ADRs in `code-ops-docs/20 Decisions/ADRs/`. Match an
 existing ADR convention when the repo already has one.

@@ -19,7 +19,7 @@ import { readFileSync, existsSync, mkdtempSync, rmSync, appendFileSync, mkdirSyn
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { summarizeTranscript, mergeSummaries, normalizeUsage } from '../../scripts/transcript-lib.mjs';
+import { summarizeTranscript, mergeSummaries, normalizeUsage, subagentFilesFor, measurementTranscriptFor } from '../../scripts/transcript-lib.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -71,6 +71,23 @@ const partial = summarizeTranscript(jsonl([
 ]));
 expect(partial.normalizedUsage.input === 40 && partial.normalizedUsage.cacheRead === 50
   && partial.normalizedUsage.total === 130, 'Codex partial-response maxima apply before subtracting cached categories');
+const grokUsage = (inputTokens, cachedReadTokens, cacheCreationTokens, outputTokens, reasoningTokens, modelCalls) => ({
+  inputTokens, cachedReadTokens, cacheCreationTokens, outputTokens, reasoningTokens,
+  totalTokens: inputTokens + outputTokens, modelCalls,
+  modelUsage: { 'grok-model-a': { inputTokens, cachedReadTokens, cacheCreationTokens, outputTokens, reasoningTokens, totalTokens: inputTokens + outputTokens, modelCalls } },
+});
+const grok = summarizeTranscript(jsonl([
+  { timestamp: 1000, method: '_x.ai/session/update', params: { sessionId: 'g1', update: { sessionUpdate: 'turn_completed', prompt_id: 'p1', usage: grokUsage(100, 70, 10, 10, 4, 1) } } },
+  { timestamp: 1001, method: '_x.ai/session/update', params: { sessionId: 'g1', update: { sessionUpdate: 'turn_completed', prompt_id: 'p1', usage: grokUsage(150, 100, 10, 20, 6, 2) } } },
+  { timestamp: 1002, method: '_x.ai/session/update', params: { sessionId: 'g1', update: { sessionUpdate: 'turn_completed', prompt_id: 'p2', usage: grokUsage(50, 20, 0, 10, 2, 1) } } },
+]));
+expect(grok.normalizedUsage.input === 70 && grok.normalizedUsage.cacheRead === 120
+  && grok.normalizedUsage.cacheCreate === 10 && grok.normalizedUsage.output === 30
+  && grok.normalizedUsage.thinking === 8 && grok.normalizedUsage.total === 230,
+`Grok cumulative snapshots deduplicate per prompt: ${JSON.stringify(grok.normalizedUsage)}`);
+expect(grok.usageByModel['grok-model-a']?.total === 230 && grok.models['grok-model-a'] === 3
+  && grok.hosts.grok === 2 && grok.contextAtEnd === 50 && grok.durationMs === 2000,
+`Grok model, prompt, context, and numeric timestamp accounting: ${JSON.stringify(grok)}`);
 const noTelemetry = summarizeTranscript(jsonl([{ type: 'response_item', payload: { type: 'message', id: 'no-usage', role: 'assistant', content: [] } }]));
 expect(noTelemetry.normalizedUsage.total === 'UNKNOWN', 'Codex assistant without usage telemetry is UNKNOWN');
 const merged = mergeSummaries([cx, summarizeTranscript(jsonl([{ type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: { input_tokens: 100, cached_input_tokens: 40, output_tokens: 20, total_tokens: 120 } } } }]))]);
@@ -90,6 +107,20 @@ const codexAll = run([cli, '--host', 'codex', '--transcripts', codexDir, '--all'
 expect(codexAll.status === 0 && JSON.parse(codexAll.stdout || '{}').files === 2, 'Codex CLI --all explicitly includes other projects');
 expect(run([cli, '--host', 'unsupported']).status === 2, 'unsupported host exits 2');
 rmSync(codexDir, { recursive: true, force: true });
+
+// Codex stores child rollouts beside the parent, linked by session_meta parent_thread_id.
+const codexLinkDir = mkdtempSync(join(tmpdir(), 'ca-codex-links-'));
+const linkedUsage = (id, parent, n) => jsonl([
+  { type: 'session_meta', payload: { id, ...(parent ? { parent_thread_id: parent, source: { subagent: { thread_spawn: { parent_thread_id: parent } } } } : {}) } },
+  { type: 'token_usage_record', payload: { response_id: `r-${id}`, usage: codexUsage(n, 0, 0, 1, 0) } },
+]);
+const codexParent = join(codexLinkDir, 'parent.jsonl');
+appendFileSync(codexParent, linkedUsage('parent', null, 10));
+appendFileSync(join(codexLinkDir, 'child.jsonl'), linkedUsage('child', 'parent', 20));
+appendFileSync(join(codexLinkDir, 'grandchild.jsonl'), linkedUsage('grandchild', 'child', 30));
+appendFileSync(join(codexLinkDir, 'unrelated.jsonl'), linkedUsage('unrelated', null, 40));
+expect(subagentFilesFor(codexParent).map((f) => f.split(/[\\/]/).at(-1)).join(',') === 'child.jsonl,grandchild.jsonl',
+  `Codex child graph includes descendants only: ${JSON.stringify(subagentFilesFor(codexParent))}`);
 
 // Library-level assertions through the CLI's --json view.
 const j = run([cli, '--transcripts', fixture, '--json']);
@@ -184,6 +215,32 @@ if (existsSync(ledger)) {
   const n = readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length;
   expect(n === 1, `garbage and missing must not append rows, ledger has ${n}`);
 }
+const camelLedger = join(tmp, 'camel', 'receipts.jsonl');
+const camel = run([hook], { input: JSON.stringify({ sessionId: 'codex-session', transcriptPath: mainFile, cwd: root }), env: { ...env, CODE_OPS_RECEIPTS: camelLedger } });
+expect(camel.status === 0 && existsSync(camelLedger) && JSON.parse(readFileSync(camelLedger, 'utf8')).sessionId === 'codex-session', 'Codex camel-case session payload appends a receipt');
+const codexLedger = join(tmp, 'codex', 'receipts.jsonl');
+const codexReceipt = run([hook], { input: JSON.stringify({ sessionId: 'codex-parent', transcriptPath: codexParent, cwd: root }), env: { ...env, CODE_OPS_RECEIPTS: codexLedger } });
+const codexRow = existsSync(codexLedger) ? JSON.parse(readFileSync(codexLedger, 'utf8')) : {};
+expect(codexReceipt.status === 0 && codexRow.files === 3 && codexRow.tokens?.main?.total === 11
+  && codexRow.tokens?.subagents?.total === 52,
+  `Codex receipt follows child and grandchild rollouts: ${JSON.stringify(codexRow)}`);
+const grokDir = mkdtempSync(join(tmpdir(), 'ca-grok-hook-'));
+const grokChat = join(grokDir, 'chat_history.jsonl');
+const grokUpdates = join(grokDir, 'updates.jsonl');
+appendFileSync(grokChat, '{}\n');
+appendFileSync(grokUpdates, jsonl([
+  { timestamp: 1000, params: { sessionId: 'g1', update: { prompt_id: 'p1', usage: grokUsage(100, 70, 10, 10, 4, 1) } } },
+  { timestamp: 1001, params: { sessionId: 'g1', update: { prompt_id: 'p1', usage: grokUsage(150, 100, 10, 20, 6, 2) } } },
+]));
+expect(measurementTranscriptFor(grokChat) === grokUpdates, 'Grok chat transcript resolves its sibling usage stream');
+const grokLedger = join(tmp, 'grok', 'receipts.jsonl');
+const grokReceipt = run([hook], { input: JSON.stringify({ session_id: 'grok-session', transcript_path: grokChat, cwd: root }),
+  env: { ...env, CODE_OPS_RECEIPTS: grokLedger, GROK_PLUGIN_ROOT: join(root, 'plugins', 'code-ops-suite') } });
+const grokRow = existsSync(grokLedger) ? JSON.parse(readFileSync(grokLedger, 'utf8')) : {};
+expect(grokReceipt.status === 0 && grokRow.tokens?.main?.total === 170 && grokRow.models?.['grok-model-a'] === 2
+  && grokRow.arms?.ladderCard === false,
+  `Grok receipt reads deduplicated updates and records the unavailable ladder arm: ${JSON.stringify(grokRow)}`);
+rmSync(grokDir, { recursive: true, force: true });
 
 // receipts mode reads the ledger back.
 const rc = run([cli, 'receipts', '--ledger', ledger, '--cwd', root, '--json']);
@@ -245,6 +302,7 @@ expect(rcOther.status === 0 && JSON.parse(rcOther.stdout || '{}').sessions === 0
 
 rmSync(tmp, { recursive: true, force: true });
 rmSync(empty, { recursive: true, force: true });
+rmSync(codexLinkDir, { recursive: true, force: true });
 
 if (fails.length) {
   for (const f of fails) console.error(`  x ${f}`);

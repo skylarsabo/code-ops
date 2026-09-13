@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Pre-run cost ESTIMATOR for the code-ops suite — the forward-looking half of the cost
-// machinery whose backward-looking half is /code-ops-suite:run-cost-audit.
+// machinery whose backward-looking half is code-ops-suite:run-cost-audit.
 //
 //   node scripts/estimate-run-cost.mjs --runs <dir> [--skill <name>] [--model <id>]
 //                                      [--root <repo> --prices <snapshot.json>]
@@ -221,7 +221,7 @@ function loadPrices(path) {
 }
 
 function usageForRun(run, root) {
-  const receipt = run.contract?.version === 3 && run.contract.runtime?.receipts;
+  const receipt = run.contract?.version >= 3 && run.contract.runtime?.receipts;
   if (!receipt || typeof receipt !== 'string') return null;
   const rootPath = resolve(root);
   const path = resolve(rootPath, receipt);

@@ -153,6 +153,18 @@ try {
   expect(on.status === 0 && on.stdout === '', `with the switch on the hook prints nothing, got ${on.status}/${JSON.stringify(on.stdout)}`);
   const added = qj('find', 'src/other.js:added');
   expect(added.j?.definitions.length === 1 && !added.j.stale.length, `the hook re-indexed the edited file, got ${added.r.stdout}`);
+  writeFileSync(join(work, 'src', 'other.js'), 'export const hookAdded = 2;\nexport const patchAdded = 3;\n');
+  const patchPayload = JSON.stringify({ toolName: 'functions.apply_patch', cwd: work, input: { patch: `*** Begin Patch\n*** Update File: ${join(work, 'src', 'other.js')}\n*** End Patch` } });
+  const patched = spawnSync('node', [hook], { input: patchPayload, encoding: 'utf8', cwd: work, env });
+  const patchAdded = qj('find', 'patchAdded');
+  expect(patched.status === 0 && patchAdded.j?.definitions.length === 1 && !patchAdded.j.stale.length, 'Codex apply_patch payload re-indexes each named file');
+  writeFileSync(join(work, 'src', 'other.js'), 'export const grokAdded = 4;\n');
+  const grokPayload = JSON.stringify({ hookEventName: 'post_tool_use', toolName: 'search_replace', cwd: work,
+    toolInput: { file_path: join(work, 'src', 'other.js'), old_string: 'x', new_string: 'y' }, toolResult: {} });
+  const grokIndexed = spawnSync('node', [hook], { input: grokPayload, encoding: 'utf8', cwd: work, env: { ...env, GROK_PLUGIN_ROOT: root } });
+  const grokAdded = qj('find', 'grokAdded');
+  expect(grokIndexed.status === 0 && grokIndexed.stdout === '' && grokAdded.j?.definitions.length === 1 && !grokAdded.j.stale.length,
+    'Grok search_replace PostToolUse silently re-indexes its file');
   for (const [name, input] of [['bad JSON', '{'], ['another tool', JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'ls' } })], ['no path', JSON.stringify({ tool_name: 'Write', tool_input: {} })]]) {
     const r = spawnSync('node', [hook], { input, encoding: 'utf8', cwd: work, env });
     expect(r.status === 0 && r.stdout === '', `${name}: the hook fails open, got ${r.status}/${JSON.stringify(r.stdout)}`);

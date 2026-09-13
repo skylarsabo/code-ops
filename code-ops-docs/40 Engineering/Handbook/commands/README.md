@@ -126,7 +126,7 @@ which routes each plugin set supports, see
 | **Run the rigor pipeline end-to-end** | `/rigor:rigor-sweep` (orchestrator) | rigor | Start with `assess-only` to get proven findings before changing anything. |
 | **Calibrate the suite against a real repo** | `/code-ops-suite:calibration-run` | code-ops-suite | **Optional:** `rigor`: needed only when `rigor:rigor-sweep` is the mechanism under calibration. Isolated, assess-only; only a sanitized note crosses back into `evals/CALIBRATION_TABLE.md`. |
 | **Audit a completed run's cost discipline** | `/code-ops-suite:run-cost-audit` | code-ops-suite | Dispatch counts, artifact sizes, tier/effort mix vs. the suite's own routing doctrine → `COST_AUDIT.md`. |
-| **Audit the suite's prose for provider-specific assumptions** | `/code-ops-suite:provider-parity-audit` | code-ops-suite | Prose only. The mechanical Codex render is already covered by `build-codex-marketplace.mjs --check`. |
+| **Audit provider parity across every suite surface** | `/code-ops-suite:provider-parity-audit` | code-ops-suite | Classifies canonical behavior, both renderers, generated distributions, installed Grok evidence, fallbacks, and API gaps across Claude, Codex, Grok, and OpenCode. |
 | **Keep judgment off hosted CI** | `/code-ops-suite:local-review-gate` before PR creation | code-ops-suite + rigor + privacy | Run both judgment gates locally and leave deterministic lint, build, and tests in CI. The shipped action examples remain an opt-in portability fallback. |
 | **Scrub AI/tooling trace before publishing** | `/privacy-opsec-suite:authorship-hygiene` | privacy-opsec-suite | Metadata, prose voice, code idiom (bundled `scan-ai-tells.mjs`); fail-closed before publish. |
 
@@ -153,10 +153,12 @@ them for you.
 | **Read what a session cost** | `co context audit receipts` | Summarizes the session-receipt ledger. Add `--by-arm` to compare an on-by-default mechanism against its control, and `--purge-before <ISO date>` to trim the ledger. |
 | **Check that an atlas section's claims still hold** | `co atlas check --atlas <dir> --claims-gate` | Classifies every `path:line` citation in a section's prose. Exits 1 on any claim the classifier did not call FRESH. |
 
-The digest, the symbol index, and the ladder card also run as hooks, on by default, each
-with one off switch (`CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`). The
-session receipt runs at `SessionEnd` with the switch `CODE_OPS_RECEIPTS`. Set any of them
-to `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`. See
+The digest, symbol index, ladder card, and session receipt run by default where the host
+supports their event contracts. Claude and Codex support all four; installed Grok 1.0.13
+supports digest, index, and receipt; OpenCode has no ladder or receipt callback. Their switches
+are `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_RECEIPTS`.
+Set any of them to `off`, `0`, or `false` in the canonical environment; rendered hosts use
+their documented process environment. See
 [09-cost-and-scoping.md](../09-cost-and-scoping.md) for how to read the cost these
 mechanisms move, and [INFRASTRUCTURE.md](../../../50 Platform/INFRASTRUCTURE.md) for the
 switches themselves.

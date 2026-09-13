@@ -90,7 +90,7 @@ function loadCurrent(root, contractArgument) {
   const contractPath = resolveInput(root, contractArgument, 'contract path');
   runCheck(RUN_CONTRACT, ['check', '--contract', contractPath.absolute, '--root', root], 'run contract check');
   const contract = readJson(contractPath.absolute);
-  if (contract.version !== 3 || !contract.runtime) throw new Error('long-horizon runtime requires a version 3 run contract');
+  if (contract.version < 3 || !contract.runtime) throw new Error('long-horizon runtime requires a version 3 or newer run contract');
   const bound = runtimeBinding(root, contractPath.absolute, contract);
   const runtimePath = { relative: contract.runtime.receipts, absolute: checkedPath(root, contract.runtime.receipts) };
   return { contract, contractPath, runtimePath, ...bound };
@@ -193,8 +193,11 @@ function buildReferences(root, current, f) {
   portableUnique(artifacts, 'artifact references');
   const acceptance = f['--acceptance'] ? fileReference(root, f['--acceptance'], 'acceptance path') : null;
   if (acceptance) parseAcceptance(checkedPath(root, acceptance.path), current.contract);
+  const ledger = checkLedger(root, f['--ledger']);
+  if (current.contract.version === 4) runCheck(RUN_CONTRACT, ['reconcile', '--root', root,
+    '--contract', current.contractPath.absolute, '--ledger', checkedPath(root, ledger.path), '--strict'], 'dispatch reconciliation');
   return {
-    ledger: checkLedger(root, f['--ledger']),
+    ledger,
     acceptance,
     handoff: f['--handoff'] ? fileReference(root, f['--handoff'], 'handoff path') : null,
     bundles,
@@ -212,6 +215,8 @@ function verifyReferences(root, current, references) {
   if (references.ledger) {
     const actual = checkLedger(root, references.ledger.path);
     if (!same(actual, references.ledger)) throw new Error(`dispatch ledger drift: ${references.ledger.path}`);
+    if (current.contract.version === 4) runCheck(RUN_CONTRACT, ['reconcile', '--root', root,
+      '--contract', current.contractPath.absolute, '--ledger', checkedPath(root, references.ledger.path), '--strict'], 'dispatch reconciliation');
   }
   if (references.acceptance) {
     verifyFileReference(root, references.acceptance, 'acceptance ledger');
@@ -243,7 +248,7 @@ function receiptFlags(args) {
 function runtimeStatus(root, contractArgument, limit) {
   const contractPath = resolveInput(root, contractArgument, 'contract path');
   const contract = readJson(contractPath.absolute);
-  if (contract.version !== 3 || !safeRelative(contract.runtime?.receipts)) throw new Error('status requires a version 3 runtime contract');
+  if (contract.version < 3 || !safeRelative(contract.runtime?.receipts)) throw new Error('status requires a version 3 or newer runtime contract');
   const snapshotPath = resolveInput(root, resolve(dirname(contractPath.absolute), contract.context.snapshot), 'snapshot path').relative;
   const { replayed } = loadChain(checkedPath(root, contract.runtime.receipts));
   const checkpoint = replayed.latestCheckpoint;
@@ -461,7 +466,7 @@ if (command === 'init') {
     const root = resolve(f['--root']);
     const contractPath = resolveInput(root, f['--contract'], 'contract path');
     const contract = readJson(contractPath.absolute);
-    if (contract.version !== 3 || !safeRelative(contract.runtime?.receipts)) throw new Error('metrics require a version 3 runtime contract');
+    if (contract.version < 3 || !safeRelative(contract.runtime?.receipts)) throw new Error('metrics require a version 3 or newer runtime contract');
     const runtimePath = checkedPath(root, contract.runtime.receipts);
     const { text, replayed } = loadChain(runtimePath);
     const metrics = runtimeMetrics(replayed, text);

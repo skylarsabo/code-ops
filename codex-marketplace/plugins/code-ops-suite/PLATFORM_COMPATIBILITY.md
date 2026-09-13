@@ -7,7 +7,7 @@ This Codex package is generated from the repository’s canonical Claude package
 - Claude skills are model-invocable (the harness routes slash input through the Skill tool, so there is no manual-only mode); Codex requires a skill `name`. This render strips any legacy `disable-model-invocation` field the source may still carry and writes `skills/<skill>/agents/openai.yaml` with `policy.allow_implicit_invocation: true` to mirror that policy.
 - `${CLAUDE_PLUGIN_ROOT}` becomes `<plugin-root>` in instructional prose. Codex resolves bundled runtime paths from the installed plugin root.
 - Claude slash-command spelling becomes the Codex named-workflow spelling, for example `code-ops-suite:codebase-audit`.
-- Claude agent `tools` and `model` frontmatter is removed. The root `agents/` files remain role-briefing templates for collaboration subagents.
+- Claude agent `tools` and `model` frontmatter is removed because Codex does not use it for these role briefs. `agents/model-floors.json` preserves each source alias and canonical minimum tier for runtime routing checks.
 - Claude GitHub Action examples are omitted because they are not Codex runtime configuration.
 - The `PreToolUse` traceless-publishing hook is retained as `hooks/hooks.json`. Codex skips plugin hooks until the user reviews and trusts the hook definition.
 - The Codex render caps every `SessionEnd` command timeout at 3 seconds, which matches the desktop host ceiling. The canonical Claude hook timeout is unchanged.

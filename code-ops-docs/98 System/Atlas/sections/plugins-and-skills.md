@@ -4,7 +4,7 @@ Charter: canonical plugin packages and marketplace registration. Excludes genera
 
 The four packages under `plugins/` are the sole authored runtime surface. Each skill reads its plugin `CONVENTIONS.md`; shared doctrine stays there rather than being duplicated into skills. Structural lint makes that boundary mechanical through section references, copied-prose limits, model floors, handbook parity, and plugin version checks.
 
-`code-ops-suite` is the integration package. It owns repository scripts, hooks, the documentation MCP surface, the bounded run-contract/context compiler, the long-horizon runtime, and the `repo-docs` orchestrator. Its local-review gate composes rigor and privacy judgment before a pull request while leaving hosted CI deterministic. The other packages divide review depth, privacy posture, and research discovery. Cross-plugin orchestration is deliberately narrow: `everything` and `local-review-gate` are cross-suite entry points, while per-plugin sweeps stay within their package. Multi-phase sweep skills may consume the suite's version 3 runtime for checkpoint and resume continuity without transferring authority between packages.
+`code-ops-suite` is the integration package. It owns repository scripts, hooks, the documentation MCP surface, the bounded run-contract/context compiler, the long-horizon runtime, and the `repo-docs` orchestrator. Its local-review gate composes rigor and privacy judgment before a pull request while leaving hosted CI deterministic. The other packages divide review depth, privacy posture, and research discovery. Cross-plugin orchestration is deliberately narrow: `everything` and `local-review-gate` are cross-suite entry points, while per-plugin sweeps stay within their package. Every new substantive run uses Run Contract v4; versions 1 through 3 remain readable for replay only.
 
 Vendoring is closed in both directions. Every declared runtime copy must match its root source, and every plugin-local `.mjs` copy must be declared. References from skills, agents, READMEs, and plugin metadata must resolve to a bundled canonical helper. That prevents an unused-looking stale helper or a newly referenced missing helper from escaping the normal forward manifest walk. A façade reference resolves through the `co.mjs` verb table to the script it runs, so it carries the same requirement as the direct path, and a verb the table does not carry fails closed.
 
@@ -14,7 +14,7 @@ Atlas default stamps are content-addressed independently of branch topology. The
 
 Plugin changes have three coupled outputs: the canonical package, host projections, and marketplace metadata. A new runtime script must enter the vendored manifest when skills reference it. A new skill also changes the plugin README, root count, handbook command reference, and router. Do not patch a generated host copy to solve a canonical-package defect.
 
-The 34-skill code-ops package now carries `local-review-gate`. Its exact-SHA plan, two independent reviewer receipts, remote-ref verification, and optional commit-status publication form the pre-PR judgment boundary. It rejects ambiguous Git index flags before worktree inspection. Run Contract v3 binds only minimized capability evidence into its chain and rejects linked or non-regular stable-prefix sources. One judgment matrix drives local weekly trend and explicit floor calibration. Worker units omit answer-key paths and record whether execution was available. Judgment plans, findings, and receipts reject linked components, and scoring rejects physical authority aliases before writing.
+The 34-skill code-ops package now carries `local-review-gate`. Its exact-SHA plan, two independent reviewer receipts, remote-ref verification, and optional commit-status publication form the pre-PR judgment boundary. It rejects ambiguous Git index flags before worktree inspection. Run Contract v4 inherits minimized capability evidence and rejects linked or non-regular stable-prefix sources while enforcing the lead-and-operatives work graph. One judgment matrix drives local weekly trend and explicit floor calibration. Worker units omit answer-key paths and record whether execution was available. Judgment plans, findings, and receipts reject linked components, and scoring rejects physical authority aliases before writing.
 
 Shipped GitHub workflow examples are governed dependency surfaces, not illustrative exceptions. They use the same reviewed immutable action pins as the repository workflows, and a plugin patch release carries any example-only dependency refresh through marketplace parity and both host projections.
 
@@ -28,20 +28,34 @@ The traceless scanner is one canonical script shared by the code-ops and privacy
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.
 
-The code-ops package now carries a third hook. `session-receipt.mjs` runs at `SessionEnd`, prints nothing to the model, and appends one exact-usage row per session to a home-directory ledger. It imports `transcript-lib.mjs` from the plugin's vendored scripts, so that library and its CLI reader `context-audit.mjs` are vendored-manifest entries even though no skill invokes them yet.
+The canonical package registers six hook commands across five events. `session-receipt.mjs`
+runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
+Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex
+follows peer rollout `parent_thread_id` links, and Grok reads cumulative `updates.jsonl`
+snapshots with its unavailable ladder arm false. OpenCode has no transcript callback.
 
-A fourth hook, `precompact-preserve.mjs`, prints the six-item preservation instruction on stdout, which the host reads as the compaction's custom instructions. Every bundled agent now carries the batch-independent-tool-calls clause, pinned like the other agent passages.
+There is no `PreCompact` command because Claude and Codex ignore plain stdout from that event.
+Their `SessionStart source=compact` path supplies a post-compaction durable-state restore
+instruction. Grok ignores passive routing and ladder stdout, so paired instruction files carry
+that doctrine. OpenCode uses its native compaction port.
 
 `local-review-gate` is opt-in. `ship` and `pr-split` run the deterministic chain and the lead's diff read on every change and start the model gates only on an operator yes recorded at the checkpoint; the conventions carry the rule as a safety rail.
 
-A fifth hook, `digest-rewrite.mjs`, is on by default and off per user or repository. It runs as a second `PreToolUse` Bash stage behind the traceless gate and rewrites an allowlisted simple command into a `digest.mjs` run through `updatedInput`, returning no permission decision because the host re-evaluates permissions against the rewritten command. It is off in every repository until that repository sets `CODE_OPS_DIGEST` in its own settings, and that per-repository switch is the measurement arm the context and code economy design note asks for: turning it on in one checkout and leaving it off in another makes the session receipts comparable.
+`digest-rewrite.mjs` is on by default and off per user or repository. It runs as a second
+`PreToolUse` stage behind the traceless gate and rewrites an allowlisted simple command through
+`updatedInput`, returning no permission decision. Claude, Codex, and installed Grok 1.0.13
+accept the projected shape. An on/off comparison is descriptive until a pre-registered matched
+control holds host, version, model, work, and stopping rule fixed.
 
 The implementation loops in the code-ops-suite, rigor, and privacy-opsec-suite conventions carry the code-economy ladder: an ordered objective with size last, and six rungs a change climbs before new code is written. Both sentences are pinned through `SHARED_PASSAGES`. A size-and-boundary lens joins the quality lenses and `pr-review`, `normalize` rule F extracts only on the ladder's evidence, and a deliberate simplification is marked `deferred(<ceiling>, <upgrade path>)` for a later harvest.
 
-The ladder has a mechanical floor. `scan-overbuild.mjs` reports eight over-build tells on a git range and blocks only on a package entry with no decision record; `evals/overbuild-garden` scores it against planted over-builds and decoy extractions. `harvest-deferrals.mjs` turns `deferred(...)` markers into a register with stable ids. A sixth hook, `ladder-card.mjs`, also on by default: at `SubagentStart` it hands an implementer-class subagent the ladder as a ten-line card, as an experiment arm Phase 6 decides.
+The ladder has a mechanical floor. `scan-overbuild.mjs` reports eight over-build tells on a git range and blocks only on a package entry with no decision record; `evals/overbuild-garden` scores it against planted over-builds and decoy extractions. `harvest-deferrals.mjs` turns `deferred(...)` markers into a register with stable ids. `ladder-card.mjs` is on by default for Claude and Codex implementer operatives. Grok and OpenCode rely on their instruction files because neither exposes a usable ladder-card callback.
 
 The index is query-able. `context-query.mjs` answers find, callers, callees, blast, and explore with anchors and edge lists over a home-directory index, prints its ceiling on every edge result, and carries a stale banner for a file changed since the build. `symbol-lib.mjs` is the single source for definitions, spans, call sites, and import edges across the map, graph, skim, and query readers. The index-refresh hook is on by default, with an explicit environment switch.
 
 Run contracts can bind explicit per-unit token budgets and a bounded premium frontier specialist without promoting that model into ordinary fan-out. Acceptance parsing is shared with runtime status, so partial acceptance survives checkpoints while finalization retains the blocking verdict. Worker briefs and context views are complete, byte-bounded artifacts with receipts; overflow fails without truncating or replacing prior output.
 
-Measurement closes the loop. Each session receipt records the mechanisms it ran under, on unless a switch said off, and the context resident at session end, and `context-audit.mjs receipts --by-arm` reads an arm against its control. The measurement page pre-registers the schedule and the decision rules for the digest default, the index, and the card.
+Measurement instruments the loop. Each supported-host receipt records the mechanisms that can
+run there and the context resident at session end. `context-audit.mjs receipts --by-arm` groups
+that evidence, but causal token or workflow claims remain pending until a pre-registered matched
+control is complete.

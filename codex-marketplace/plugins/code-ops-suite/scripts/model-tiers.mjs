@@ -14,7 +14,7 @@
 //     with the opencode distribution.
 //
 // Adding a provider means adding one PROVIDER_TIERS entry. Agent frontmatter keeps using
-// Anthropic aliases, because Claude Code reads that field directly; the canonical rung is
+// Anthropic aliases, because Codex reads that field directly; the canonical rung is
 // what travels to other hosts.
 
 // The canonical capability rungs, weakest first. `light` names the rung the doctrine

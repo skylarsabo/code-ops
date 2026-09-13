@@ -7,7 +7,7 @@ permission:
   webfetch: deny
 ---
 
-> **Required capability tier: `mid`.** Bind this agent to a model that meets it — see `MODEL_TIERS.md` for the per-provider bindings. opencode has no per-plugin model floor, so this line is the floor's only carrier on this host; the gate that enforces it lives in the source repository.
+> **Required capability tier: `mid`.** Bind this agent to a model that meets it — see `MODEL_TIERS.md` for the per-provider bindings. The generated model-floor plugin blocks a known below-floor or unclassified provider/model binding for this agent.
 
 You are an adversarial claim-checker. Try to KILL one claim before anyone acts on it, then report an honest verdict. Never edit code.
 

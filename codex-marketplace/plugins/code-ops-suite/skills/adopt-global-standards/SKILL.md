@@ -15,11 +15,11 @@ sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safet
 (SSOT and registers), §13 (doc standard), and §14 (writing standard). Read those six. The
 fan-out and fix machinery (§1, §5 to §8, §11) does not apply here.
 **Mode:** DOCUMENT · **Produces:** the host-specific global contracts at
-`~/.claude/AGENTS.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`, written or updated
+`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`, written or updated
 in place, plus a drift report at the pre-write checkpoint. The Claude pair is byte-identical.
 The Codex contract may differ by explicit host behavior.
 
-The repo-level counterpart is `adopt-standards`, which keeps one repo's `AGENTS.md` truthful.
+The repo-level counterpart is `adopt-standards`, which keeps one repo's `CLAUDE.md` truthful.
 **This skill keeps the other half of the split honest.** The global file carries cross-repo
 doctrine only, and that doctrine drifts every time the marketplace's SSOT pages move. The
 marketplace is ground truth. The global file is a cache of it, and a stale cache silently
@@ -80,7 +80,7 @@ proportionate testing. Keep provider API mechanics in runtime adapters and docum
 not in prompt doctrine. Never require the Claude and Codex global contracts to be identical.
 
 **Cross-cutting rules, applied throughout:**
-- **Nothing repo-specific.** A build command, a gate chain, a directory layout, or a project gotcha belongs in that repo's `AGENTS.md`. That rule mirrors the no-duplication rule `adopt-standards` applies from the repo side. Between the two, each fact lives in exactly one place.
+- **Nothing repo-specific.** A build command, a gate chain, a directory layout, or a project gotcha belongs in that repo's `CLAUDE.md`. That rule mirrors the no-duplication rule `adopt-standards` applies from the repo side. Between the two, each fact lives in exactly one place.
 - **Promote, do not absorb.** Propose LOCAL-DOCTRINE worth sharing to the marketplace, against the SSOT page that should own it. Preserve its meaning in the global contract until promotion; consolidation may replace repeated prose with one canonical statement.
 - **Every rule names its enforcement:** the script, hook, or CI gate that checks it, or an honest aspirational marking.
 - **Relative dates become absolute.**

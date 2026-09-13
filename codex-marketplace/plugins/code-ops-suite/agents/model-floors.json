@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "name": "explorer",
+      "sourceModel": "haiku",
+      "minimumTier": "light"
+    },
+    {
+      "name": "reviewer",
+      "sourceModel": "opus",
+      "minimumTier": "strong"
+    }
+  ]
+}

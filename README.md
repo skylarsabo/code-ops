@@ -5,7 +5,7 @@ One repository ships four plugins of adaptive, multi-agent engineering workflows
 Installing `code-ops-suite` gives three things with no further configuration:
 
 - **Quality discipline.** Skills and their subagents run audit, proof, review, and ship as checkpointed workflows.
-- **Lower token cost, measured.** Every session appends one local receipt, and the output digest, the symbol index, and the ladder card cut the context a run carries, on by default.
+- **Token use, measured honestly.** Supported hosts append local receipts, and the output digest, symbol index, and ladder card are designed to reduce carried context. Their defaults remain subject to the pre-registered control-arm test; fixture byte savings are not presented as provider-token or dollar savings.
 - **Governed documentation.** The docs vault and the per-repo atlas give a repository one documentation hub.
 
 Add the marketplace once, then install the plugins a project needs:
@@ -142,6 +142,11 @@ In Claude Code, invoke a workflow as a namespaced slash command:
 
 In Codex, name the same workflow in your request, for example `Use code-ops-suite:codebase-audit on this repo.` The generated policy sets `allow_implicit_invocation: true` for each skill, mirroring how Claude skills are model-invocable. Codex may therefore route a matching request to a skill implicitly. Most workflows open with a short scoping checkpoint. They then run an adaptive multi-agent loop and check in with you on the decisions that matter.
 
+Use `code-ops-suite:provider-parity-audit` to verify the marketplace across Claude, Codex,
+installed Grok, and OpenCode. It checks canonical hooks, agents, skills, scripts, settings,
+manifests, both renderers, generated distributions, native Grok validation, and documented host
+API limits. It distinguishes tested output shapes from an actually executed external model turn.
+
 Each plugin reads its bundled `CONVENTIONS.md` first, which holds the shared operating model, the interaction protocol, the safety rails, the schemas, and the quality lenses. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-merges.
 
 ### Order of a full pass
@@ -163,7 +168,9 @@ Every skill reads its plugin's `CONVENTIONS.md` first. To apply those principles
 
 ### Context and cost switches
 
-Four mechanisms measure or shrink the context a run consumes, and every one runs with no configuration. A user or a repository turns one off by setting its switch to `off` in the `env` block of a `.claude/settings.json`.
+Four mechanisms measure or shrink the context a run consumes. Each runs without configuration
+where the host exposes its event contract. A user or repository turns one off by setting its
+switch to `off` in the host environment.
 
 - **Session receipts.** `hooks/session-receipt.mjs` appends one row per session to a home-directory ledger, and `CODE_OPS_RECEIPTS=off` disables it.
 - **Output digest.** `hooks/digest-rewrite.mjs` rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed and receipted. `CODE_OPS_DIGEST=off` disables it.
@@ -171,6 +178,13 @@ Four mechanisms measure or shrink the context a run consumes, and every one runs
 - **Ladder card.** `hooks/ladder-card.mjs` hands an implementer subagent the code-economy ladder as a ten-line card. `CODE_OPS_LADDER_CARD=off` disables it.
 
 Read the receipt ledger with `node scripts/context-audit.mjs receipts`.
+
+Those names are portable outcomes, not identical host APIs. Claude and trusted Codex plugin
+hooks run all four mechanisms. Installed Grok 1.0.13 runs digest, index, and receipt hooks, while
+its passive session and subagent hook output is ignored, so `CLAUDE.md` or `AGENTS.md` carries
+routing and ladder doctrine there. OpenCode ports digest, index, routing, and compaction through
+its plugin API, but its current lifecycle API exposes neither the ladder event nor a transcript
+receipt callback. The generated compatibility files state these limits beside each distribution.
 
 ## Verify and maintain
 

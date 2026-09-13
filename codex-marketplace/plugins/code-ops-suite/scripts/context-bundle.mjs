@@ -45,7 +45,7 @@ function flags(args, known) {
 }
 function loadBinding(root, contractPath, unitId) {
   const contract = readJson(contractPath);
-  if (![2, 3].includes(contract.version) || !contract.context) throw new Error('context bundles require a version 2 or 3 run contract');
+  if (![2, 3, 4].includes(contract.version) || !contract.context) throw new Error('context bundles require a version 2, 3, or 4 run contract');
   const unit = contract.units?.find((candidate) => candidate.id === unitId);
   if (!unit) throw new Error(`unknown contract unit ${unitId}`);
   const receiptPath = resolve(dirname(contractPath), contract.context.snapshot);

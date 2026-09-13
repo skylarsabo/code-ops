@@ -25,7 +25,7 @@
 // PostToolUse hook `index-refresh.mjs` calls it on every Edit and Write. That hook is on by
 // default and does nothing when `CODE_OPS_INDEX` is `off`, `0`, or `false`.
 //
-// Store: `$CODE_OPS_INDEX_DIR/index.json`, else `~/.claude/code-ops/index/<project slug>/`, a
+// Store: `$CODE_OPS_INDEX_DIR/index.json`, else `~/.codex/code-ops/index/<project slug>/`, a
 // home-directory path so the index is never committed. One entry per tracked code file, keyed
 // by content sha, so a refresh re-parses only what changed.
 //
@@ -95,7 +95,7 @@ const real = (p) => { try { return realpathSync.native(p); } catch { return p; }
 const root = real(resolve(o.root ?? git(process.cwd(), ['rev-parse', '--show-toplevel']).trim()));
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 const projectSlug = (p) => String(p).replace(/[^A-Za-z0-9]/g, '-');
-const storeDir = process.env.CODE_OPS_INDEX_DIR ? resolve(process.env.CODE_OPS_INDEX_DIR) : join(homedir(), '.claude', 'code-ops', 'index', projectSlug(root));
+const storeDir = process.env.CODE_OPS_INDEX_DIR ? resolve(process.env.CODE_OPS_INDEX_DIR) : join(homedir(), '.codex', 'code-ops', 'index', projectSlug(root));
 const indexPath = join(storeDir, 'index.json');
 const toPosix = (p) => p.replace(/\\/g, '/');
 

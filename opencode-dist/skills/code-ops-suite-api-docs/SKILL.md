@@ -7,7 +7,9 @@ description: "Use when you need an accurate API or interface reference for a cod
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-api-docs`, or by the model through the `skill` tool as `code-ops-suite-api-docs`.** First read the `<plugin-root>/CONVENTIONS.md`,
+**Invoked as `/code-ops-suite-api-docs`, or by the model through the `skill` tool as `code-ops-suite-api-docs`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)** this doc obeys. For this
 DOCUMENT-mode skill the binding sections are §2 (tools and in-house docs lookup), §3
 (interaction), §4 (safety rails), §12 (SSOT and registers), and §13 (doc standard). Read those

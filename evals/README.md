@@ -7,13 +7,24 @@ Two kinds, by what can be checked deterministically:
 ## 1. Automated regression evals (run in CI)
 Pure-Node assertions, no model in the loop. They guard mechanical behaviors the suite depends on.
 
-All thirty-four `run.mjs` suites and the MCP smoke eval are wired into `.github/workflows/validate.yml`.
+All 48 `run.mjs` suites and the MCP smoke eval are wired into `.github/workflows/validate.yml`.
 
 - **`register-staleness/`** — the highest-signal test: it pins the one behavior the field actually lost (a register re-listing items already fixed in code). It seeds a register with a mix of fresh / moved / already-fixed / no-reference items against a fixture repo and asserts `scripts/revalidate-register.mjs` classifies each correctly and fails closed on stale entries. It also exercises the **verbatim-anchor gate**: seeded anchored items assert a `DRIFTED` classification when an anchor no longer sits on its cited line, plus the unparseable-anchor advisory for an undelimited `Anchor:` value. Run: `node evals/register-staleness/run.mjs` (exit 0 = pass).
 - **`ai-tells/`** — asserts `scripts/scan-ai-tells.mjs` flags a dirty PR body across every category (TRAILER, TOOL, EMOJI, EMDASH, PHRASE, BOILERPLATE) and fails closed, while staying silent on a clean body that contains decoys. Run: `node evals/ai-tells/run.mjs`.
-- **`codex-marketplace/`** — asserts the generated native Codex packages retain all source skills, explicit manual-invocation policy, the code-ops MCP declaration, and Codex-shaped traceless-hook behavior. Run: `node evals/codex-marketplace/run.mjs`.
-- **`opencode-dist/`** — pins the generated opencode distribution and its command, agent, and helper surfaces. Run: `node evals/opencode-dist/run.mjs`.
-- **`grok-build-compat/`** — pins Grok Build compatibility across the generated marketplace surface. Run: `node evals/grok-build-compat/run.mjs`.
+- **`codex-marketplace/`** — asserts the generated native Codex packages retain all source
+  skills, manual-invocation policy, MCP declaration, payload-adapted hooks, compact-resume
+  restore card, and child-rollout receipt behavior. Run: `node
+  evals/codex-marketplace/run.mjs`.
+- **`opencode-dist/`** — pins the generated OpenCode commands, agents, traceless/model-floor
+  gate, digest, index, routing, compaction, and MCP surfaces. Its compatibility assertions also
+  preserve the explicit absence of ladder and transcript-receipt callbacks. Run: `node
+  evals/opencode-dist/run.mjs`.
+- **`grok-build-compat/`** — pins installed Grok 1.0.13 command-hook shapes: digest
+  `updatedInput`, index and receipt side effects, `updates.jsonl` usage parsing, silent passive
+  routing/ladder hooks, and a false ladder receipt arm. The local runtime guide is
+  `~/.grok/docs/user-guide/10-hooks.md`. These are exact-output-shape and side-effect tests, not
+  evidence that this change ran a fresh live external model turn. Run: `node
+  evals/grok-build-compat/run.mjs`.
 - **`lib-docs/run.mjs`** — builds a throwaway `node_modules` fixture and asserts `scripts/lib-docs.mjs` resolves the installed version, returns the topic-matched README section + type exports, rejects a traversal-shaped name, and makes **no** network call under `noFetch` (a stubbed fetch is asserted uncalled). Run: `node evals/lib-docs/run.mjs`.
 - **`lib-docs/mcp-smoke.mjs`** — drives `scripts/lib-docs-mcp.mjs` over stdio JSON-RPC (initialize → tools/list → tools/call) against a fixture and asserts the protocol and tool responses. Run: `node evals/lib-docs/mcp-smoke.mjs`.
 - **`research-manifest/`** — pins the researcher plugin's egress-disclosure gate: a recorded request validates clean, an artifact citing an **unrecorded** web source fails closed, and a local-only artifact (no web citations) passes. Run: `node evals/research-manifest/run.mjs`.
@@ -30,6 +41,7 @@ All thirty-four `run.mjs` suites and the MCP smoke eval are wired into `.github/
 - **`doc-citations/`** — pins `scripts/check-doc-citations.mjs`: line citations remain range- and fence-aware; recognized commit fields must contain complete object-format-aware IDs that resolve unambiguously to commits in `HEAD` history. Missing, malformed, overlong, unreachable, and shallow-history cases fail with distinct results, while fenced examples and third-party `@` pins remain outside the grammar. Run: `node evals/doc-citations/run.mjs`.
 - **`dispatch-ledger/`** — pins `scripts/dispatch-ledger.mjs`, the DISPATCH_LEDGER.md mechanization: `add` creates the header + a sequential `D-NNN` row and rejects a brief over 10 words, `update` allows `dispatched`/`redispatched` -> any outcome and `failed` -> `redispatched` but rejects an unknown id or a change out of the terminal `reported` state, and `check` validates row shape/id ordering/status values (fail-closed) while reporting a dangling `dispatched` row as an advisory (exit 0) unless `--strict` promotes it to a failure. Run: `node evals/dispatch-ledger/run.mjs`.
 - **`run-contract/`** — pins contract schema, model/effort routing, dependency and write-scope safety, plan-to-ledger reconciliation, acceptance authority, and fail-closed finalization. Run: `node evals/run-contract/run.mjs`.
+- **`attack-chain-graph/`** — pins security campaign diversity, terminal hypothesis states, direct implementation inspection, independent validation, realistic privilege-to-impact closure, reverse collision tracing, and ranked open-chain work. Run: `node evals/attack-chain-graph/run.mjs`.
 - **`run-runtime/`** — pins explicit host capability states, Run Contract v3 runtime policy, bounded stable-prefix compilation, hash-chained checkpoint/replan/resume receipts, drift refusal, cache telemetry, path containment, and cross-platform execution. Run: `node evals/run-runtime/run.mjs`.
 - **`context-snapshot/`** — pins exact visible-state identity, content-addressed index reuse, tracked and untracked delta handling, privacy-safe receipts, and fail-closed drift. Run: `node evals/context-snapshot/run.mjs`.
 - **`context-bundle/`** — pins scoped repo-map selection, direct import blast radius, contract binding, explicit broad-context and byte-budget failures, and stale-snapshot refusal. Run: `node evals/context-bundle/run.mjs`.
@@ -52,7 +64,10 @@ These measure skill *quality* and can't be a pure assertion — they need a skil
 
 - **Recall** — did the skill find the planted real issues?
 - **Precision / false-positive rate** — did it stay quiet on the planted **decoys** (intentional non-issues: already-handled paths, dead code, intentional patterns)? FP rate is the suite's whole differentiator, so decoys are mandatory.
-- **Baseline** — run each fixture **with** and **without** the skill (3+ reps each; record variance). An improvement that needs the token cost has to beat the no-skill control.
+- **Baseline** — run each fixture **with** and **without** the skill (3+ reps each; record
+  variance). Hold host, host version, model, work, and stopping rule fixed. An improvement that
+  needs the token cost has to beat the no-skill control. No cross-host mechanism comparison is
+  causal until that matched control completes.
 
 **Measurement protocol — pre-register before running.** Every model-in-the-loop *comparison or calibration* — a with/without-skill fixture comparison or a real-scale calibration, i.e. any run that tests a hypothesis — fills this in **before** the first scored run, and every calibration report — including a sanitized calibration note — opens with the filled block. (The scheduled weekly runner below tracks a trend and tests no hypothesis; it is out of scope.) Pre-registered asymmetry (declared before any run following the three 2026-07-06 snapshots): the strong arm runs n=1 per cell as a sanity control — 126 consecutive strong read-only cells measured constant-zero tier inflation, so its variance budget moves to the weak arm, which keeps n=3.
 

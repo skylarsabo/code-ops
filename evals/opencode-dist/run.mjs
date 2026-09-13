@@ -5,7 +5,7 @@
 //
 //   node evals/opencode-dist/run.mjs   (exit 0 = pass)
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -13,7 +13,31 @@ import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIE
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
-const dist = join(root, 'opencode-dist');
+// Render into a disposable in-repository directory. This tests the complete current renderer
+// while leaving the tracked opencode-dist/ artifact untouched; the normal drift check owns
+// that artifact separately.
+const dist = mkdtempSync(join(here, '.render-'));
+process.on('exit', () => { try { rmSync(dist, { recursive: true, force: true }); } catch { /* best effort */ } });
+const render = spawnSync(process.execPath, [join(root, 'scripts', 'build-opencode-dist.mjs')], {
+  encoding: 'utf8',
+  env: { ...process.env, CODE_OPS_OPENCODE_OUTPUT_ROOT: dist },
+});
+if (render.status !== 0) {
+  throw new Error(`opencode renderer failed in the disposable eval output: ${(render.stderr || render.stdout || '').trim()}`);
+}
+const renderedCheck = spawnSync(process.execPath, [join(root, 'scripts', 'build-opencode-dist.mjs'), '--check'], {
+  encoding: 'utf8',
+  env: { ...process.env, CODE_OPS_OPENCODE_OUTPUT_ROOT: dist },
+});
+if (renderedCheck.status !== 0) {
+  throw new Error(`disposable opencode distribution drifted immediately after rendering: ${(renderedCheck.stderr || renderedCheck.stdout || '').trim()}`);
+}
+const unsafeRender = spawnSync(process.execPath, [join(root, 'scripts', 'build-opencode-dist.mjs')], {
+  encoding: 'utf8', env: { ...process.env, CODE_OPS_OPENCODE_OUTPUT_ROOT: root },
+});
+if (unsafeRender.status === 0 || !/must be a \.render-\*/.test(`${unsafeRender.stderr}${unsafeRender.stdout}`)) {
+  throw new Error('opencode renderer accepted a destructive output override outside its eval scratch root');
+}
 const sourcePluginsDir = join(root, 'plugins');
 const pluginNames = ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'];
 const read = (path) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
@@ -42,7 +66,7 @@ for (const plugin of pluginNames) {
     const alias = header.match(/^model:[ \t]*(\S+)/m)[1];
     // Keep the source path rather than reconstructing it: agent names contain hyphens
     // (`privacy-reviewer`), so splitting the prefixed name back apart is ambiguous.
-    expectedAgents.push({ name: `${plugin}-${name}`, tier: CLAUDE_ALIAS_TIER[alias], alias, sourcePath });
+    expectedAgents.push({ name: `${plugin}-${name}`, sourceName: name, tier: CLAUDE_ALIAS_TIER[alias], alias, sourcePath });
   }
 }
 expectedSkills.sort();
@@ -65,7 +89,9 @@ for (const name of renderedSkills) {
   expect(text.startsWith(`---\nname: ${name}\n`), `${name}: SKILL.md does not declare its opencode name`);
   expect(!text.includes('${CLAUDE_PLUGIN_ROOT}'), `${name}: Claude plugin-root token leaked`);
   expect(!/`\/[a-z-]+:[a-z-]+`/.test(text), `${name}: Claude colon-spelled slash command leaked`);
+  expect(!/\b(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):[a-z0-9-]+\b/.test(text), `${name}: bare Claude skill reference leaked`);
   expect(text.includes('opencode path rule:'), `${name}: missing the plugin-root resolution rule`);
+  expect(text.includes('**OpenCode runtime note:**'), `${name}: does not classify unsupported canonical hooks`);
 
   const commandPath = join(dist, 'commands', `${name}.md`);
   expect(existsSync(commandPath), `${name}: no matching slash command was generated`);
@@ -93,7 +119,26 @@ for (const agent of expectedAgents) {
   const canRunShell = /\bBash\b/.test(sourceTools);
   expect(text.includes(`edit: ${canEdit ? 'allow' : 'deny'}`), `${agent.name}: edit permission does not match its source tool allowlist`);
   expect(text.includes(`bash: ${canRunShell ? 'allow' : 'deny'}`), `${agent.name}: bash permission does not match its source tool allowlist`);
+
+  // Agent names can contain hyphens, so derive the carrier from the source path instead of
+  // splitting the rendered name. It is deliberately outside top-level agents/ discovery.
+  const sourcePlugin = agent.sourcePath.split(/[\\/]/).at(-3);
+  const carrier = join(dist, 'code-ops', sourcePlugin, 'agents', agent.sourcePath.split(/[\\/]/).at(-1));
+  expect(existsSync(carrier), `${agent.name}: vendored preflight floor carrier is missing`);
+  if (existsSync(carrier)) {
+    const floor = read(carrier);
+    expect(floor.includes(`name: ${agent.sourceName}`), `${agent.name}: floor carrier has the wrong source name`);
+    expect(floor.includes(`model: ${agent.alias}`), `${agent.name}: floor carrier has the wrong source model alias`);
+  }
 }
+
+// The canonical preflight is vendored unchanged. Its existing report must now see the carrier
+// rather than printing that floors are unknown in the rendered layout.
+const preflight = spawnSync(process.execPath, [join(dist, 'code-ops', 'code-ops-suite', 'scripts', 'preflight.mjs')], { encoding: 'utf8' });
+expect(preflight.status === 0, `rendered preflight should pass, got ${preflight.status}: ${(preflight.stderr || '').trim()}`);
+expect(!preflight.stdout.includes('floors unknown here'), 'rendered preflight cannot see its agent-floor carriers');
+expect(preflight.stdout.includes('code-ops-suite/explorer'), 'rendered preflight does not report code-ops-suite agent floors');
+expect(preflight.stdout.includes('strong') && !/\b(?:opus|sonnet|haiku)\b/.test(preflight.stdout), 'rendered preflight reports Claude aliases instead of portable tiers');
 
 // ---- 4. tier bindings are complete and every agent is bound --------------------
 const tiers = read(join(dist, 'MODEL_TIERS.md'));
@@ -134,7 +179,85 @@ for (const agent of expectedAgents) {
   expect(bound === `${defaults.id}/${defaults.models[agent.tier]}`, `opencode.json binds ${agent.name} to "${bound}", not its ${agent.tier}-tier ${DEFAULT_PROVIDER} model`);
 }
 
-// ---- 5. the ported traceless plugin actually blocks -----------------------------
+// ---- 5. model floors and compaction preservation use verified plugin hooks -------
+const floorPluginPath = join(dist, 'plugins', 'code-ops-model-floors.js');
+expect(existsSync(floorPluginPath), 'the model-floor plugin was not rendered');
+const floorPluginText = readFileSync(floorPluginPath, 'utf8');
+expect(floorPluginText.includes('/privacy-opsec-suite-full-sweep'), 'the routing card does not name a valid OpenCode privacy workflow');
+expect(!floorPluginText.includes('/privacy-opsec-suite skills'), 'the routing card retains an invalid generic privacy route');
+expect(existsSync(join(dist, 'code-ops', 'code-ops-suite', 'hooks', 'digest-rewrite.mjs')), 'the canonical digest adapter hook was not rendered');
+const strongAgent = expectedAgents.find((agent) => agent.tier === 'strong');
+const anthropic = PROVIDER_TIERS.anthropic;
+if (!strongAgent || anthropic.models.light === null || anthropic.models.strong === null) {
+  fails.push('fixture drift: need an Anthropic strong agent and distinct model rungs for the floor probe');
+} else {
+  const indexDir = join(dist, '.index-probe');
+  const floorProbe = `
+import { CodeOpsModelFloors } from ${JSON.stringify(pathToFileURL(floorPluginPath).href)};
+import { existsSync } from 'node:fs';
+const hooks = await CodeOpsModelFloors({ directory: ${JSON.stringify(root)} });
+const run = async (model) => {
+  try {
+    await hooks['chat.params']({ agent: ${JSON.stringify(strongAgent.name)}, model }, {});
+    return 'allowed';
+  } catch { return 'blocked'; }
+};
+const compaction = { context: [] };
+await hooks['experimental.session.compacting']({}, compaction);
+const system = { system: [] };
+await hooks['experimental.chat.system.transform']({}, system);
+const digest = { args: { command: 'git diff --stat' } };
+await hooks['tool.execute.before']({ tool: 'bash' }, digest);
+await hooks.event({ event: { type: 'file.edited', properties: { file: ${JSON.stringify(join(root, 'scripts', 'co.mjs'))} } } });
+const config = {};
+await hooks.config(config);
+console.log(JSON.stringify({
+  belowFloor: await run({ providerID: 'anthropic', id: ${JSON.stringify(anthropic.models.light)} }),
+  atFloor: await run({ providerID: 'anthropic', id: ${JSON.stringify(anthropic.models.strong)} }),
+  unknown: await run({ providerID: 'unknown', id: 'unknown' }),
+  preserved: compaction.context.some((line) => line.includes('Compaction summary:')),
+  routed: system.system.some((line) => line.includes('code-ops standard operating mode')),
+  digested: digest.args.command.includes('digest.mjs'),
+  indexed: existsSync(${JSON.stringify(indexDir)}),
+  mcp: Object.keys(config.mcp ?? {}).sort(),
+}));
+`;
+  const floorResult = spawnSync(process.execPath, ['--input-type=module', '-e', floorProbe], { encoding: 'utf8', env: { ...process.env, CODE_OPS_DIGEST: 'on', CODE_OPS_INDEX_DIR: indexDir } });
+  if (floorResult.status !== 0) {
+    fails.push(`model-floor plugin probe failed to run: ${(floorResult.stderr || '').trim().split('\n').slice(-3).join(' ')}`);
+  } else {
+    const verdicts = JSON.parse(floorResult.stdout.trim().split('\n').pop());
+    expect(verdicts.belowFloor === 'blocked', `model-floor plugin should block a below-floor binding, got ${verdicts.belowFloor}`);
+    expect(verdicts.atFloor === 'allowed', `model-floor plugin should allow an at-floor binding, got ${verdicts.atFloor}`);
+    expect(verdicts.unknown === 'blocked', `model-floor plugin should block an unclassified binding, got ${verdicts.unknown}`);
+    expect(verdicts.preserved === true, 'model-floor plugin did not append compaction preservation context');
+    expect(verdicts.routed === true, 'OpenCode runtime plugin did not inject routing guidance');
+    expect(verdicts.digested === true, 'OpenCode runtime plugin did not apply the canonical digest rewrite');
+    expect(verdicts.indexed === true, 'OpenCode runtime plugin did not refresh the edited-file index');
+    expect(JSON.stringify(verdicts.mcp) === JSON.stringify(['code-ops-docs', 'code-ops-query']), `OpenCode runtime plugin did not auto-configure both MCP servers: ${JSON.stringify(verdicts.mcp)}`);
+  }
+}
+
+const conventions = read(join(dist, 'code-ops', 'code-ops-suite', 'CONVENTIONS.md'));
+expect(conventions.includes('**OpenCode runtime limits.**'), 'OpenCode conventions do not classify unavailable hook mechanics');
+expect(!conventions.includes('Four mechanisms ship with this plugin and are on by default'), 'OpenCode conventions still claim unavailable hooks run by default');
+expect(conventions.includes('`CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches'), 'OpenCode conventions do not identify the actual switch location');
+for (const plugin of ['privacy-opsec-suite', 'researcher', 'rigor']) {
+  const sibling = read(join(dist, 'code-ops', plugin, 'CONVENTIONS.md'));
+  expect(sibling.includes('**OpenCode sibling runtime.**'), `${plugin} conventions retain the Claude sibling-runtime claim`);
+  expect(sibling.includes('routing and compaction have no off switch'), `${plugin} conventions overstate OpenCode runtime switches`);
+  expect(sibling.includes('no operative ladder card or session receipt'), `${plugin} conventions claim unavailable OpenCode lifecycle hooks`);
+  expect(!sibling.includes('.claude/settings.json'), `${plugin} conventions retain the Claude settings location`);
+}
+const openCodeAdoptGlobal = read(join(dist, 'skills', 'code-ops-suite-adopt-global-standards', 'SKILL.md'));
+const openCodeAdoptRepo = read(join(dist, 'skills', 'code-ops-suite-adopt-standards', 'SKILL.md'));
+expect(openCodeAdoptGlobal.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed the three host-specific contract paths');
+expect(openCodeAdoptRepo.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted two-file parity modes');
+const compatibility = read(join(dist, 'PLATFORM_COMPATIBILITY.md'));
+expect(compatibility.includes('are auto-configured'), 'OpenCode compatibility notes do not describe MCP auto-configuration');
+expect(compatibility.includes('intentionally unavailable here'), 'OpenCode compatibility notes do not classify unsupported hook mechanics');
+
+// ---- 6. the ported traceless plugin actually blocks -----------------------------
 // The Claude hook is exercised by evals/codex-marketplace; this port has a different
 // contract (throw vs exit 2), so it needs its own behavioral proof rather than a text match.
 const pluginPath = join(dist, 'plugins', 'code-ops-traceless.js');
@@ -166,14 +289,14 @@ if (result.status !== 0) {
   expect(verdicts.otherTool === 'allowed', `traceless plugin should only gate the bash tool, got ${verdicts.otherTool}`);
 }
 
-// ---- 6. the registry checker holds the table it validates ----------------------
+// ---- 7. the registry checker holds the table it validates ----------------------
 // Offline shape mode only. The --fetch mode resolves ids against models.dev and is opt-in
 // by design, so an eval must never invoke it: a third-party outage would fail this repo.
 const registryCheck = spawnSync(process.execPath, [join(root, 'scripts', 'check-model-registry.mjs')], { encoding: 'utf8' });
 expect(registryCheck.status === 0, `check-model-registry.mjs (offline) should pass, got ${registryCheck.status}: ${(registryCheck.stderr || '').trim()}`);
 expect(/every tier pinned/.test(registryCheck.stdout), 'check-model-registry.mjs did not confirm every tier is pinned');
 
-// ---- 7. the renderer is wired where drift would otherwise go unnoticed ----------
+// ---- 8. the renderer is wired where drift would otherwise go unnoticed ----------
 const preCommit = read(join(root, '.githooks', 'pre-commit'));
 expect(preCommit.includes('node scripts/build-opencode-dist.mjs'), 'pre-commit hook does not regenerate the opencode distribution');
 expect(preCommit.includes('opencode-dist'), 'pre-commit hook does not stage the opencode distribution');
@@ -185,4 +308,4 @@ if (fails.length) {
   for (const failure of fails) console.error('  x ' + failure);
   process.exit(1);
 }
-console.log(`PASS — opencode distribution: ${renderedSkills.length} skills, ${expectedAgents.length} agents, prefix collisions resolved, permissions and tiers translated, ported traceless gate blocks.`);
+console.log(`PASS — opencode distribution: ${renderedSkills.length} skills, ${expectedAgents.length} agents, prefix collisions resolved, permissions translated, model floors enforced, and supported hooks ported.`);

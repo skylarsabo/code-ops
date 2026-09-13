@@ -7,15 +7,17 @@ description: "Use when you want to implement one change, a feature or a one-off,
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-ship`, or by the model through the `skill` tool as `code-ops-suite-ship`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoked as `/code-ops-suite-ship`, or by the model through the `skill` tool as `code-ops-suite-ship`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails
 including the automation-level ladder (`§4`), the quality lenses (`§10`), and the implementation
 loop (`§11`) this skill follows.
 **Mode:** IMPLEMENT. **Consumes:** an intent, meaning a ticket, a request, or a spec.
 **Produces:** the change, proven and shipped as a clean, traceless PR or stack. **Composes,** when
 installed: `rigor` for the safety net, the proof, and the regression guard,
-`privacy-opsec-suite` for the leak gate, and `code-ops-suite:pr-split` plus
-`privacy-opsec-suite:authorship-hygiene` for the traceless finish. **Requires `rigor`.** The
+`privacy-opsec-suite` for the leak gate, and `/code-ops-suite-pr-split` plus
+`/privacy-opsec-suite-authorship-hygiene` for the traceless finish. **Requires `rigor`.** The
 privacy phase runs only when `privacy-opsec-suite` is installed and the change touches a privacy
 surface.
 
@@ -80,14 +82,14 @@ findings enter `FINDINGS_REGISTER.md`. Surface any anonymity regression as block
 Commit the final intended diff. Run the deterministic gate chain and read the diff yourself. That
 read is the review every change gets.
 
-Only when the Phase 0 answer was yes, run `code-ops-suite:local-review-gate` before the PR exists.
+Only when the Phase 0 answer was yes, run `/code-ops-suite-local-review-gate` before the PR exists.
 Its exact-SHA plan composes both local review roles, records both reports, and refuses stale or
 incomplete receipt coverage. A fix changes HEAD and requires both reviews again. Never start the
 model gates on your own judgment. A change that turns out to touch a high-risk surface goes back
 to the operator with the recommendation, not straight into review.
 
-Ship the work as a clean PR. Use `code-ops-suite:pr-split` when it warrants a stack, and
-otherwise a single PR scrubbed by `privacy-opsec-suite:authorship-hygiene`. `scan-ai-tells`
+Ship the work as a clean PR. Use `/code-ops-suite-pr-split` when it warrants a stack, and
+otherwise a single PR scrubbed by `/privacy-opsec-suite-authorship-hygiene`. `scan-ai-tells`
 passes fail-closed before push. When `privacy-opsec-suite` is not installed, run the bundled
 `<plugin-root>/scripts/co.mjs scan ai-tells` over the commit and PR text directly as the
 gate. Push the branch, publish the local receipt statuses for that exact SHA when the gates ran,

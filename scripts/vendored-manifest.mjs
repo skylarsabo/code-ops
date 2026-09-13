@@ -35,6 +35,7 @@ export const RUNTIME_SCRIPTS = [
   { name: 'dispatch-ledger.mjs', plugins: ['code-ops-suite'] },
   { name: 'estimate-run-cost.mjs', plugins: ['code-ops-suite'] },
   { name: 'run-contract.mjs', plugins: ['code-ops-suite'] },
+  { name: 'attack-chain-graph.mjs', plugins: ['code-ops-suite'] },
   { name: 'context-snapshot.mjs', plugins: ['code-ops-suite'] },
   { name: 'context-bundle.mjs', plugins: ['code-ops-suite'] },
   { name: 'worker-brief.mjs', plugins: ['code-ops-suite'] },

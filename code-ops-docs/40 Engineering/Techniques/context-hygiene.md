@@ -21,7 +21,7 @@ rebuilt approximation of a register is not the register. The suite already leans
 rule: registers are the SSOT
 ([04 · Registers and freshness](../Handbook/04-registers-and-freshness.md)), the dispatch
 ledger makes a hung subagent visible as a dangling entry, and
-`RUN_RUNTIME_RECEIPTS.jsonl` replays a version 3 runtime boundary that the transcript can
+`RUN_RUNTIME_RECEIPTS.jsonl` replays the runtime boundary inherited by version 4 that the transcript can
 no longer show.
 
 The test is simple. If the session ended now, could the next one continue from the files
@@ -47,10 +47,12 @@ When compaction is unavoidable, replace the whole history with one summary plus 
 turn and replay nothing else. Cache reads are cheap on current models, so a later
 compaction point often costs less than an early one.
 
-## What the summary must keep
+## What durable state must keep
 
-The `PreCompact` hook `precompact-preserve.mjs` hands the host the compaction's custom
-instructions, so the summary keeps six items:
+No supported canonical hook can guarantee what a compaction summary keeps. Claude and Codex
+ignore plain `PreCompact` stdout, so the package registers no command for that event. Their
+`SessionStart source=compact` path instead reminds the resumed context to reconstruct these six
+items from durable state:
 
 1. Every problem met, and how each was handled or resolved.
 2. Every option raised, tried, or set aside, and why.
@@ -59,10 +61,10 @@ instructions, so the summary keeps six items:
 5. Everything still open, unresolved, promised, or expected next.
 6. Names, numbers, dates, paths, commit ids, register ids, and links that resist reconstruction.
 
-The hook prints its text to standard output, because the host reads a `PreCompact` hook's
-raw output as those instructions. It fails open, so an error costs the instruction and
-never the compaction. The instruction also pins two rules: keep every `<REDACTED:reason>`
-marker as it stands, and name a run artifact's path rather than restating its contents.
+This is post-compaction recovery, not proof that the summary preserved the items. Grok ignores
+passive `SessionStart` stdout, so its paired instruction files and durable run artifacts carry
+the rule. OpenCode uses its native compaction port. Keep every `<REDACTED:reason>` marker as it
+stands, and name a run artifact's path rather than restating its contents.
 
 ## Treat acceleration as optional
 
@@ -70,7 +72,7 @@ A live subagent or host may retain reusable context. Batch known follow-ups whil
 state is available. Do not rely on retention, duration, or a cache hit without host
 evidence. A fresh session must reconstruct the run from durable artifacts alone.
 
-For a version 3 run, declare host capabilities before fan-out. Use a stable prefix only
+For a version 4 run, declare host capabilities before fan-out. Use a stable prefix only
 when the host can inject the exact emitted payload. Record observed cache events in the
 runtime receipt chain. Do not treat a prefix, cache, compaction, or host memory as state.
 
@@ -80,11 +82,12 @@ outranks it.
 
 ## Measuring a session instead of estimating it
 
-The `SessionEnd` hook `session-receipt.mjs` appends one row per session to a local
-ledger: token usage by class, tool calls, tool-result volume, model mix, wall time, and
-the mechanisms the session ran under. The ledger is `~/.claude/code-ops/session-receipts.jsonl`,
-or `$CODE_OPS_RECEIPTS`. It sits in the home directory so it can never be committed by
-accident, and nothing leaves the machine.
+The `SessionEnd` hook `session-receipt.mjs` appends one normalized row on supported hosts.
+Claude reads nested subagent transcripts. Codex follows peer rollout `parent_thread_id` links.
+Installed Grok 1.0.13 reads cumulative usage from `updates.jsonl` and records the unavailable
+ladder arm false. OpenCode has no transcript callback. The ledger sits in the host's home
+directory or `$CODE_OPS_RECEIPTS`, so it cannot be committed by accident, and nothing leaves
+the machine.
 
 The hook is on by default. To silence it, set `CODE_OPS_RECEIPTS` to `off`, `0`, or
 `false` in the `env` block of a `.claude/settings.json`. Read the ledger with these
@@ -96,9 +99,9 @@ commands:
   later rows.
 
 Nothing purges on its own, so retention is the operator's decision, and the purge reports
-what it removed. Each row records three arms: the output digest, the ladder card, and the
-symbol index. One checkout running with a mechanism and another running without it
-therefore compare directly, which is how
+what it removed. Each row records the supported digest, ladder-card, and symbol-index arms. A
+grouped ledger is descriptive evidence. Attribute an effect only after a pre-registered
+matched control holds host, version, model, work, and stopping rule fixed. That is how
 [MEASUREMENTS.md](../../55%20Operations/MEASUREMENTS.md) gets its rows. The receipt
 contract lives in [CONTRACTS.md](../../35%20Contracts%20and%20Data/CONTRACTS.md), and the
 switches live in [INFRASTRUCTURE.md](../../50%20Platform/INFRASTRUCTURE.md).
@@ -111,7 +114,7 @@ extractive or abstractive, because a summary drops the detail the next decision 
 cannot say which detail it dropped.
 
 `/code-ops-suite:handoff` captures a run's true state as a verifiable `HANDOFF.md` and
-re-verifies every claim before a resume acts on it. A version 3 resume also replays its
+re-verifies every claim before a resume acts on it. A version 4 resume also replays its
 receipt chain, verifies the current binding, and reuses the latest checkpoint references.
 
 ## Related

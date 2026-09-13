@@ -7,7 +7,9 @@ description: "Use when you have a bug symptom and want it driven from reproducti
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-debug`, or by the model through the `skill` tool as `code-ops-suite-debug`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoked as `/code-ops-suite-debug`, or by the model through the `skill` tool as `code-ops-suite-debug`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails, the
 quality lenses, and the implementation loop this skill follows.
 **Mode:** IMPLEMENT. **Consumes:** a symptom, meaning an error, a stack trace, or a wrong
@@ -46,7 +48,7 @@ mandatory.
 
 ## Phase 3: the fix, with proof
 
-Run the `rigor:fix-verified` loop. The repro now passes, the suite is green, and the regression
+Run the `/rigor-fix-verified` loop. The repro now passes, the suite is green, and the regression
 guard holds. Sweep for **siblings**, meaning other sites of the same cause, and add an
 enforcement so the class cannot recur. When the fix keeps cascading into new findings, the
 **cascade circuit-breaker** (`CONVENTIONS §11`) stops the loop and escalates as NEEDS-DESIGN.
@@ -63,8 +65,8 @@ enter `FINDINGS_REGISTER.md`, with fail-closed behavior preserved.
 
 ## Phase 5: the traceless finish
 
-Ship the fix as a clean PR scrubbed by `privacy-opsec-suite:authorship-hygiene`. Use
-`code-ops-suite:pr-split` when the fix is multi-part. `scan-ai-tells` passes fail-closed before
+Ship the fix as a clean PR scrubbed by `/privacy-opsec-suite-authorship-hygiene`. Use
+`/code-ops-suite-pr-split` when the fix is multi-part. `scan-ai-tells` passes fail-closed before
 push. When `privacy-opsec-suite` is not installed, run the bundled
 `<plugin-root>/scripts/co.mjs scan ai-tells` directly as the gate. **Never auto-merge.**
 

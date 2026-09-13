@@ -7,7 +7,9 @@ description: "Use when the user's Claude or Codex global standards contract need
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-adopt-global-standards`, or by the model through the `skill` tool as `code-ops-suite-adopt-global-standards`.** First read the
+**Invoked as `/code-ops-suite-adopt-global-standards`, or by the model through the `skill` tool as `code-ops-suite-adopt-global-standards`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory
 for it if needed. It defines the operating model, interaction protocol, safety rails, schemas,
 and quality lenses this skill references by section. For this DOCUMENT-mode skill the binding
@@ -15,11 +17,11 @@ sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safet
 (SSOT and registers), §13 (doc standard), and §14 (writing standard). Read those six. The
 fan-out and fix machinery (§1, §5 to §8, §11) does not apply here.
 **Mode:** DOCUMENT · **Produces:** the host-specific global contracts at
-`~/.claude/AGENTS.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`, written or updated
+`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`, written or updated
 in place, plus a drift report at the pre-write checkpoint. The Claude pair is byte-identical.
 The Codex contract may differ by explicit host behavior.
 
-The repo-level counterpart is `adopt-standards`, which keeps one repo's `AGENTS.md` truthful.
+The repo-level counterpart is `adopt-standards`, which keeps one repo's `CLAUDE.md` truthful.
 **This skill keeps the other half of the split honest.** The global file carries cross-repo
 doctrine only, and that doctrine drifts every time the marketplace's SSOT pages move. The
 marketplace is ground truth. The global file is a cache of it, and a stale cache silently
@@ -80,7 +82,7 @@ proportionate testing. Keep provider API mechanics in runtime adapters and docum
 not in prompt doctrine. Never require the Claude and Codex global contracts to be identical.
 
 **Cross-cutting rules, applied throughout:**
-- **Nothing repo-specific.** A build command, a gate chain, a directory layout, or a project gotcha belongs in that repo's `AGENTS.md`. That rule mirrors the no-duplication rule `adopt-standards` applies from the repo side. Between the two, each fact lives in exactly one place.
+- **Nothing repo-specific.** A build command, a gate chain, a directory layout, or a project gotcha belongs in that repo's `CLAUDE.md`. That rule mirrors the no-duplication rule `adopt-standards` applies from the repo side. Between the two, each fact lives in exactly one place.
 - **Promote, do not absorb.** Propose LOCAL-DOCTRINE worth sharing to the marketplace, against the SSOT page that should own it. Preserve its meaning in the global contract until promotion; consolidation may replace repeated prose with one canonical statement.
 - **Every rule names its enforcement:** the script, hook, or CI gate that checks it, or an honest aspirational marking.
 - **Relative dates become absolute.**

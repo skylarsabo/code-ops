@@ -22,6 +22,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CLAUDE_ALIAS_TIER } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
@@ -89,6 +90,8 @@ const KNOWN_COMMANDS = /\/(code-ops-suite|privacy-opsec-suite|rigor|researcher):
 const ROOT_TOKEN = '${CLAUDE_PLUGIN_ROOT}';
 const CODEX_ROOT_TOKEN = '${PLUGIN_ROOT}';
 const CODEX_SESSION_END_TIMEOUT_SECONDS = 3;
+const CLAUDE_CONTRACT_SENTINEL = '__CODE_OPS_CLAUDE_CONTRACT__';
+const CLAUDE_HOME_SENTINEL = '__CODE_OPS_CLAUDE_HOME__';
 const CHECK = process.argv.includes('--check');
 
 if (process.argv.slice(2).some((arg) => arg !== '--check')) {
@@ -137,12 +140,40 @@ function walkFiles(root) {
   return files;
 }
 
-function portableText(contents) {
-  return contents
+function portableText(contents, { preserveClaudeContract = false, preservePairedContracts = false, preserveClaudeHome = false } = {}) {
+  let guarded = contents;
+  if (preserveClaudeContract) guarded = guarded.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL);
+  else if (preservePairedContracts) {
+    guarded = guarded.split('\n').map((line) => line.includes('CLAUDE.md') && line.includes('AGENTS.md')
+      ? line.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL)
+      : line).join('\n');
+  }
+  if (preserveClaudeHome) guarded = guarded.replaceAll('~/.claude/', CLAUDE_HOME_SENTINEL);
+
+  return guarded
     .replaceAll(ROOT_TOKEN, '<plugin-root>')
     .replaceAll('CLAUDE.md', 'AGENTS.md')
     .replaceAll('Claude Code', 'Codex')
-    .replace(KNOWN_COMMANDS, '$1:$2');
+    .replaceAll('~/.claude/', '~/.codex/')
+    .replace(/the `env` block of (?:a|its)\s*`\.claude\/settings\.json`/g, 'the host environment')
+    .replaceAll('environment block of a `.claude/settings.json`', 'host environment')
+    .replaceAll('`.claude/settings.json`, which is the only supported way', 'the host environment')
+    .replaceAll('`.claude/settings.json`', 'the host environment')
+    .replaceAll('the canonical the host environment environment', 'the host environment')
+    .replaceAll('the host environment sets', 'the host environment supplies')
+    .replace(KNOWN_COMMANDS, '$1:$2')
+    .replaceAll(CLAUDE_CONTRACT_SENTINEL, 'CLAUDE.md')
+    .replaceAll(CLAUDE_HOME_SENTINEL, '~/.claude/');
+}
+
+function portableRuntimeText(contents, file = '') {
+  let portable = portableText(contents);
+  const name = file.split(/[\\/]/).at(-1);
+  // transcript-lib owns an explicit Claude/Codex branch. Rewriting both literals makes
+  // `--host claude` point at Codex storage, so only host-local defaults are translated.
+  if (name !== 'transcript-lib.mjs') portable = portable.replaceAll("'.claude'", "'.codex'");
+  if (name === 'context-audit.mjs') portable = portable.replace("host: 'claude'", "host: 'codex'");
+  return portable;
 }
 
 function parseSkill(contents, path) {
@@ -185,13 +216,31 @@ function transformSkill(pluginName, slug, contents, path) {
     marker,
     `**Codex path rule:** Resolve \`<plugin-root>\` as the installed root of this plugin (the directory containing \`CONVENTIONS.md\`); use it for every bundled script or reference path.\n\n**Invoke in Codex by naming \`${command}\`.**`,
   );
-  transformed = portableText(transformed);
+  const crossHostStandards = pluginName === 'code-ops-suite' && (slug === 'adopt-global-standards' || slug === 'adopt-standards');
+  transformed = portableText(transformed, {
+    preserveClaudeContract: slug === 'adopt-global-standards',
+    preservePairedContracts: slug === 'adopt-standards',
+    preserveClaudeHome: crossHostStandards,
+  });
   return `---\nname: ${slug}\n${keptHeader.join('\n')}\n---\n${transformed}`;
+}
+
+function agentFloor(contents, path) {
+  const match = contents.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!match) throw new Error(`${path}: expected YAML frontmatter bounded by ---`);
+  const name = match[1].match(/^name:[ \t]*(\S+)/m)?.[1];
+  const sourceModel = match[1].match(/^model:[ \t]*(\S+)/m)?.[1];
+  const minimumTier = CLAUDE_ALIAS_TIER[sourceModel];
+  if (!name || !sourceModel || !minimumTier) {
+    throw new Error(`${path}: agent needs a name and a model with a known tier`);
+  }
+  return { name, sourceModel, minimumTier };
 }
 
 function transformAgent(contents, path) {
   const match = contents.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (!match) throw new Error(`${path}: expected YAML frontmatter bounded by ---`);
+  const floor = agentFloor(contents, path);
   const header = match[1].split('\n').filter((line) => !/^(tools|model):/.test(line)).map(portableText);
   const body = portableText(match[2]);
   return [
@@ -199,10 +248,17 @@ function transformAgent(contents, path) {
     ...header,
     '---',
     '',
-    '> Codex role contract: this file is a briefing template for a collaboration subagent; it is not auto-discovered as a Claude agent. The lead chooses available model/runtime routing.',
+    `> Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads \`agents/model-floors.json\` and routes \`${floor.name}\` at or above its \`${floor.minimumTier}\` floor.`,
     '',
     body,
   ].join('\n');
+}
+
+function agentFloors(sourceAgents) {
+  return walkFiles(sourceAgents)
+    .filter((file) => file.endsWith('.md'))
+    .map((file) => agentFloor(readText(file), file))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function skillAgentYaml(pluginName, slug, description) {
@@ -239,7 +295,7 @@ function generatedReadme(spec, manifest, skills) {
     '',
     '- The complete workflow text and conventions are rendered from `plugins/' + spec.name + '/` in the source repository.',
     '- Claude-specific GitHub Action examples are intentionally not bundled here.',
-    '- Root-level `agents/*.md` files are collaboration-subagent briefing templates; Codex does not auto-discover them as Claude agents.',
+    '- Root-level `agents/*.md` files are collaboration-subagent briefing templates. Their machine-readable minimum tiers are in `agents/model-floors.json`; the lead selects a supported runtime model before dispatch.',
   ];
   if (spec.mcp) lines.push(`- The package bundles optional, plugin-scoped MCP servers: ${mcpNames(manifest)}.`);
   if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
@@ -260,7 +316,7 @@ function compatibilityNotes(spec, sourceManifest) {
     '- Claude skills are model-invocable (the harness routes slash input through the Skill tool, so there is no manual-only mode); Codex requires a skill `name`. This render strips any legacy `disable-model-invocation` field the source may still carry and writes `skills/<skill>/agents/openai.yaml` with `policy.allow_implicit_invocation: true` to mirror that policy.',
     '- `${CLAUDE_PLUGIN_ROOT}` becomes `<plugin-root>` in instructional prose. Codex resolves bundled runtime paths from the installed plugin root.',
     '- Claude slash-command spelling becomes the Codex named-workflow spelling, for example `code-ops-suite:codebase-audit`.',
-    '- Claude agent `tools` and `model` frontmatter is removed. The root `agents/` files remain role-briefing templates for collaboration subagents.',
+    '- Claude agent `tools` and `model` frontmatter is removed because Codex does not use it for these role briefs. `agents/model-floors.json` preserves each source alias and canonical minimum tier for runtime routing checks.',
     '- Claude GitHub Action examples are omitted because they are not Codex runtime configuration.',
   ];
   if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
@@ -273,9 +329,14 @@ function compatibilityNotes(spec, sourceManifest) {
 }
 
 function transformCodexHook(contents, file) {
-  const rewritten = contents.replaceAll(ROOT_TOKEN, CODEX_ROOT_TOKEN);
+  const rewritten = portableRuntimeText(contents.replaceAll(ROOT_TOKEN, CODEX_ROOT_TOKEN), file);
   if (file.split(/[\\/]/).at(-1) !== 'hooks.json') return rewritten;
   const manifest = JSON.parse(rewritten);
+  // Codex tool names are not Claude's Bash/Edit vocabulary. Run the lightweight adapters
+  // for every pre/post tool event and let each script filter the normalized payload.
+  for (const event of ['PreToolUse', 'PostToolUse']) {
+    for (const group of manifest.hooks?.[event] ?? []) delete group.matcher;
+  }
   for (const group of manifest.hooks?.SessionEnd ?? []) {
     for (const hook of group.hooks ?? []) {
       if (typeof hook.timeout === 'number' && hook.timeout > CODEX_SESSION_END_TIMEOUT_SECONDS) {
@@ -409,10 +470,13 @@ function buildExpectedFiles() {
     add(`${base}/PLATFORM_COMPATIBILITY.md`, compatibilityNotes(spec, sourceManifest));
     add(`${base}/CONVENTIONS.md`, portableText(readText(sourcePath(spec.name, 'CONVENTIONS.md'))));
     add(`${base}/CHANGELOG.md`, portableText(readText(sourcePath(spec.name, 'CHANGELOG.md'))).replace('`.claude-plugin/plugin.json` and the matching entry in the marketplace.', 'the source plugin manifest and matching marketplace entries.'));
-    addSourceTree(sourcePath(spec.name, 'scripts'), `${base}/scripts`);
+    addSourceTree(sourcePath(spec.name, 'scripts'), `${base}/scripts`, portableRuntimeText);
 
     const sourceAgents = sourcePath(spec.name, 'agents');
-    if (existsSync(sourceAgents)) addSourceTree(sourceAgents, `${base}/agents`, transformAgent);
+    if (existsSync(sourceAgents)) {
+      addSourceTree(sourceAgents, `${base}/agents`, transformAgent);
+      add(`${base}/agents/model-floors.json`, JSON.stringify({ version: 1, roles: agentFloors(sourceAgents) }, null, 2) + '\n');
+    }
 
     const sourceHooks = sourcePath(spec.name, 'hooks');
     if (existsSync(sourceHooks)) {
@@ -498,12 +562,35 @@ function validateExpectedFiles(expected) {
         }
       }
     }
+    if (existsSync(sourcePath(spec.name, 'agents'))) {
+      const floorPath = `${base}/agents/model-floors.json`;
+      expect(expected.has(floorPath), `${floorPath} is missing`);
+      const floors = JSON.parse(expected.get(floorPath));
+      expect(floors.version === 1 && Array.isArray(floors.roles), `${floorPath} has an invalid schema`);
+      const sourceFloors = agentFloors(sourcePath(spec.name, 'agents'));
+      expect(JSON.stringify(floors.roles) === JSON.stringify(sourceFloors), `${floorPath} does not match canonical agent floors`);
+    }
   }
   for (const [path, contents] of expected) {
     if (/(?:\/SKILL\.md|\/agents\/[^/]+\.md|\/CONVENTIONS\.md)$/.test(path)) {
       expect(!contents.includes(ROOT_TOKEN), `${path} retains the Claude plugin-root token`);
     }
+    if (/^(?:plugins\/[^/]+\/(?:CONVENTIONS\.md|hooks\/|scripts\/))/.test(path)
+      && !path.endsWith('/scripts/transcript-lib.mjs')) {
+      expect(!contents.includes('~/.claude/'), `${path} retains a Claude-only home path`);
+      expect(!contents.includes('.claude/settings.json'), `${path} retains a Claude-only settings path`);
+    }
   }
+  const suiteBase = 'plugins/code-ops-suite';
+  const contextAudit = expected.get(`${suiteBase}/scripts/context-audit.mjs`);
+  const transcriptLib = expected.get(`${suiteBase}/scripts/transcript-lib.mjs`);
+  expect(contextAudit?.includes("const opt = { host: 'codex'"), 'Codex context audit does not default to the Codex host');
+  expect(transcriptLib?.includes("join(homedir(), '.claude', 'projects'"), 'Codex transcript library corrupted its explicit Claude branch');
+  expect(transcriptLib?.includes("join(homedir(), '.codex')"), 'Codex transcript library lost its explicit Codex branch');
+  const adoptGlobal = expected.get(`${suiteBase}/skills/adopt-global-standards/SKILL.md`);
+  const adoptRepo = expected.get(`${suiteBase}/skills/adopt-standards/SKILL.md`);
+  expect(adoptGlobal?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'Codex global-standards render collapsed host-specific contract paths');
+  expect(adoptRepo?.includes('`CLAUDE.md` and `AGENTS.md`'), 'Codex repo-standards render collapsed the accepted parity modes');
   const marketplace = makeMarketplace();
   expect(marketplace.plugins.length === PLUGINS.length, 'marketplace plugin count does not match renderer registry');
   for (const entry of marketplace.plugins) {

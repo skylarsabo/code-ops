@@ -7,15 +7,17 @@ description: "Use when deep review, OpSec review, or judgment evals should run l
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-local-review-gate`, or by the model through the `skill` tool as `code-ops-suite-local-review-gate`.** First read the
+**Invoked as `/code-ops-suite-local-review-gate`, or by the model through the `skill` tool as `code-ops-suite-local-review-gate`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Five sections govern this skill:
 the operating model (`§1`), evidence and refutation (`§7`), artifact safety (`§9`), the quality
 lenses (`§10`), and the run ledgers (`§12`).
 
 **Mode:** REVIEW. **Consumes:** one clean, committed feature branch and its target base.
 **Produces:** two ignored review reports, a SHA-bound plan, a hash-chained receipt set, and
-optional GitHub commit statuses. **Requires** `rigor:deep-review` and
-`privacy-opsec-suite:opsec-pr-gate` for the PR track. The judgment-eval track instead consumes
+optional GitHub commit statuses. **Requires** `/rigor-deep-review` and
+`/privacy-opsec-suite-opsec-pr-gate` for the PR track. The judgment-eval track instead consumes
 `evals/judgment-matrix.json` and dispatches the plan's read-only units.
 
 **Opt-in only.** This skill spends two strong-tier reviewer runs per head, and a fix costs both
@@ -51,8 +53,8 @@ new plan and new reports.
 Dispatch two independent strong-tier, high-effort reviewers against the exact plan. Give them
 distinct reviewer IDs, because the receipt replay rejects one identity claiming both gates.
 
-1. `rigor:deep-review` traces the changed behavior, attempts reproduction, and blocks only on `CONFIRMED` defects or regressions after refutation.
-2. `privacy-opsec-suite:opsec-pr-gate` checks only new leak, egress, identifier, fingerprint, correlation, or weakened-default risk.
+1. `/rigor-deep-review` traces the changed behavior, attempts reproduction, and blocks only on `CONFIRMED` defects or regressions after refutation.
+2. `/privacy-opsec-suite-opsec-pr-gate` checks only new leak, egress, identifier, fingerprint, correlation, or weakened-default risk.
 
 Each reviewer writes one dense Markdown report in the ignored run folder. The report names the
 reviewed base and HEAD, the verdict, the confirmed count, the blocking count, the evidence, the

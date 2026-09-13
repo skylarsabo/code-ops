@@ -3,7 +3,7 @@ name: privacy-reviewer
 description: Deep reviewer that evaluates a diff, file, or file-group against the anonymity and opsec model. Delegate parallel review of large changes or audit slices, and it returns prioritized findings and flags anonymity regressions as blocking. It analyses and may run read-only checks, and it never edits code.
 ---
 
-> Codex role contract: this file is a briefing template for a collaboration subagent; it is not auto-discovered as a Claude agent. The lead chooses available model/runtime routing.
+> Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `privacy-reviewer` at or above its `strong` floor.
 
 
 You review a precisely-scoped slice against the plugin's anonymity and OpSec model (`CONVENTIONS.md`, §A and §9). You do not edit code.

@@ -421,20 +421,66 @@ export function scopeMatches(scope, path) {
   return scope.some((entry) => pathMatchesGlob(entry, path));
 }
 
+function globTokens(pattern) {
+  const tokens = [];
+  const value = pattern.normalize('NFC').toLowerCase();
+  for (let index = 0; index < value.length; index++) {
+    if (value[index] === '*' && value[index + 1] === '*') { tokens.push('**'); index++; }
+    else tokens.push(value[index]);
+  }
+  return tokens;
+}
+
+function globPatternsIntersect(left, right) {
+  const patterns = [globTokens(left), globTokens(right)];
+  const closure = (tokens, seed) => {
+    const closed = new Set(seed); const pending = [...seed];
+    while (pending.length) {
+      const at = pending.pop();
+      if ((tokens[at] === '*' || tokens[at] === '**') && !closed.has(at + 1)) { closed.add(at + 1); pending.push(at + 1); }
+    }
+    return closed;
+  };
+  const advance = (tokens, state, char) => {
+    const next = new Set();
+    for (const at of state) {
+      const token = tokens[at];
+      if (token === '**' || (token === '*' && char !== '/')) next.add(at);
+      else if (token === '?' ? char !== '/' : token === char) next.add(at + 1);
+    }
+    return closure(tokens, next);
+  };
+  const literals = new Set(patterns.flat().filter((token) => token !== '*' && token !== '**' && token !== '?'));
+  let other = '\ue000';
+  while (literals.has(other) || other === '/') other = String.fromCodePoint(other.codePointAt(0) + 1);
+  const alphabet = [...literals, '/', other];
+  const start = patterns.map((tokens) => closure(tokens, new Set([0])));
+  const key = (states) => states.map((state) => [...state].sort((a, b) => a - b).join(',')).join('|');
+  const pending = [start]; const seen = new Set([key(start)]);
+  while (pending.length) {
+    const states = pending.shift();
+    if (states.every((state, index) => state.has(patterns[index].length))) return true;
+    for (const char of alphabet) {
+      const next = patterns.map((tokens, index) => advance(tokens, states[index], char));
+      if (next.some((state) => state.size === 0)) continue;
+      const id = key(next); if (!seen.has(id)) { seen.add(id); pending.push(next); }
+    }
+  }
+  return false;
+}
+
 export function scopesIntersect(left, right) {
   return left.some((a) => right.some((b) => {
     const aGlob = /[*?]/.test(a); const bGlob = /[*?]/.test(b);
     const globIntersectsLiteral = (glob, literal) => {
       if (pathMatchesGlob(glob, literal)) return true;
-      const prefix = glob.normalize('NFC').toLowerCase().split(/[?*]/, 1)[0].replace(/\/$/, '');
-      const target = literal.normalize('NFC').toLowerCase();
-      return (prefix && (prefix === target || prefix.startsWith(`${target}/`))) || (!prefix && glob.includes('/'));
+      return globPatternsIntersect(glob, `${literal.replace(/\/$/, '')}/**`);
     };
     if (aGlob && !bGlob) return globIntersectsLiteral(a, b);
     if (bGlob && !aGlob) return globIntersectsLiteral(b, a);
     const aa = a.normalize('NFC').toLowerCase().split(/[?*]/, 1)[0].replace(/\/$/, '');
     const bb = b.normalize('NFC').toLowerCase().split(/[?*]/, 1)[0].replace(/\/$/, '');
-    if (aGlob && bGlob) return aa.startsWith(bb) || bb.startsWith(aa);
+    if (aGlob && bGlob) return globPatternsIntersect(a, b);
     return a === '**' || b === '**' || aa === bb || aa.startsWith(`${bb}/`) || bb.startsWith(`${aa}/`);
   }));
 }

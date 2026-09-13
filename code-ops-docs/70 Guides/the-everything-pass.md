@@ -79,8 +79,9 @@ every phase leans on the compression mechanisms. Each is on by default and switc
 - `CODE_OPS_LADDER_CARD` gives every implementing operative the code-economy ladder at dispatch.
 - `CODE_OPS_RECEIPTS` writes session receipts to a home-directory ledger that never leaves the machine, and `co context audit receipts --by-arm` groups them by which mechanisms were armed.
 
-Prefer `co context skim <file>` over reading a large file whole. A PreCompact hook preserves the
-run's durable state when the context fills. For the contracts see
+Prefer `co context skim <file>` over reading a large file whole. Durable run artifacts preserve
+state. Claude and Codex receive a post-compaction restore card; no hook can guarantee the
+summary retained state. For the contracts see
 [Contracts](../35 Contracts and Data/CONTRACTS.md), for the switches see
 [Infrastructure](../50 Platform/INFRASTRUCTURE.md), and for the measured effect see
 [Measurements](../55 Operations/MEASUREMENTS.md).

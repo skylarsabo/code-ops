@@ -1,13 +1,15 @@
 ---
 name: researcher-research-ideate
-description: "Use when you want net-new, honestly novel feature or direction ideas grounded in our code plus its domain and opt-in external trends. Writes no code. For ideas mined from the codebase alone, use code-ops-suite:feature-discovery."
+description: "Use when you want net-new, honestly novel feature or direction ideas grounded in our code plus its domain and opt-in external trends. Writes no code. For ideas mined from the codebase alone, use /code-ops-suite-feature-discovery."
 ---
 
 # Research ideate: net-new directions, grounded and feasibility-checked
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/researcher/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/researcher-research-ideate`, or by the model through the `skill` tool as `researcher-research-ideate`.** First read the bundled
+**Invoked as `/researcher-research-ideate`, or by the model through the `skill` tool as `researcher-research-ideate`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
@@ -18,7 +20,7 @@ section.
 
 The outside view, meaning prior art, adjacent products, ecosystem trends, and capabilities
 our dependencies already ship, becomes net-new ideas that fit our code.
-`code-ops-suite:feature-discovery` mines the codebase alone, and this skill looks beyond the
+`/code-ops-suite-feature-discovery` mines the codebase alone, and this skill looks beyond the
 repository. Every idea is cited and tiered (`§7`), grounded (`§A`), feasibility-checked, and
 cut to its smallest slice. The skill proposes and hands off (`§11`), and writes no code
 (`§4`).
@@ -112,10 +114,10 @@ that proves the idea. Rank by value multiplied by reach, divided by effort, and 
 tier and grounding (`§8`). Tag the quick wins against the big bets, and lead with a ranked
 top-N.
 
-Hand off per `§11`. An actionable idea goes to `code-ops-suite:feature-discovery` to be
-specified into the backlog, or to `code-ops-suite:feature-implementation` to build a
+Hand off per `§11`. An actionable idea goes to `/code-ops-suite-feature-discovery` to be
+specified into the backlog, or to `/code-ops-suite-feature-implementation` to build a
 well-scoped slice. A direction with real architectural trade-offs goes to
-`code-ops-suite:adr`.
+`/code-ops-suite-adr`.
 
 > **CHECKPOINT.** Present the ranked register top first. Confirm which ideas are handed off,
 > and to which skill. Surface the final egress manifest one last time.

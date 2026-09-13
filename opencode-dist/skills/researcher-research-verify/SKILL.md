@@ -7,7 +7,9 @@ description: "Use when a claim, recommendation, or draft research artifact needs
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/researcher/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/researcher-research-verify`, or by the model through the `skill` tool as `researcher-research-verify`.** First read the bundled
+**Invoked as `/researcher-research-verify`, or by the model through the `skill` tool as `researcher-research-verify`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
@@ -104,8 +106,8 @@ clear-with-changes, or blocked. List the UNSUPPORTED and undisclosed-egress item
 Stamp each verdict `Verified-at: <sha>` (`§6`). Map every actionable issue to its hand-off
 (`§11`): a correction goes back to the originating skill, meaning `research-spike`,
 `research-improve`, `research-ideate`, or `library-eval`. A code issue goes to
-`code-ops-suite:remediation` or `rigor:fix-verified`. A measurement gap goes to
-`rigor:improve-measured`. This skill proposes and gates. It never edits the artifact or the
+`/code-ops-suite-remediation` or `/rigor-fix-verified`. A measurement gap goes to
+`/rigor-improve-measured`. This skill proposes and gates. It never edits the artifact or the
 code.
 
 ## Done when

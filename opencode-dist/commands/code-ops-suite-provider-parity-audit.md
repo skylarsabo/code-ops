@@ -1,5 +1,5 @@
 ---
-description: "Use when you want to audit the marketplace's own prose for provider-specific assumptions such as harness mechanics, tool names, and hook semantics that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check, so this skill covers prose only."
+description: "Use when the marketplace must be audited across Claude, Codex, installed Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, generated projections, and documentation."
 ---
 
 Use the `code-ops-suite-provider-parity-audit` skill for this task, following it end to end.

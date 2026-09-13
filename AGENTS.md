@@ -34,9 +34,13 @@ to break silently.
 
 The user-wide contract owns general model behavior. This repository adds only these
 deltas: `scripts/model-tiers.mjs` owns provider bindings, `AGENT_MODEL_FLOORS` owns agent
-floors, and premium frontier models handle bounded exceptional decisions rather than
-ordinary fan-out. Judgment-bearing work stays at the strong tier or above. Effort follows
-ambiguity, never low for review and never highest for breadth.
+floors, and a substantive run uses a frontier lead with ordinary judgment-bearing
+operatives at the strong tier. Delegate every independently briefable unit and launch at
+least two disjoint units in parallel when the graph permits. The lead owns synthesis,
+reprioritization, final verdicts, and acceptance; it records why any genuinely trivial or
+indivisible step stayed inline. Premium frontier peers handle only bounded exceptional
+architecture, refutation, mathematics, or synthesis decisions. Effort follows ambiguity,
+never low for review and never highest for breadth.
 
 Operative reports remain evidence, not acceptance. The lead reads the relevant diff,
 checks the required gates, and issues verdicts at the highest tier present. Lead reports
@@ -71,8 +75,8 @@ drifted file and the eval fails at its baseline case rather than where you would
 
 ## Session mechanisms that run under every change
 
-Seven plugin hooks provide traceless publishing, routing, compaction preservation, output
-digests, index refresh, ladder guidance, and session receipts. The last four named
+Six plugin hook commands across five events provide traceless publishing, routing with
+compaction restoration, output digests, index refresh, ladder guidance, and session receipts. The last four named
 mechanisms are on by default and have documented environment switches. Use
 `scripts/co.mjs context skim|query` before loading large files or maps. The switch names,
 contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
@@ -83,7 +87,7 @@ contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
 Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check && node scripts/build-opencode-dist.mjs --check`, the first structural steps of the CI gate in `.github/workflows/validate.yml`. That workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
 --check`. The `register-staleness` eval has no answer key, so run `node evals/register-staleness/run.mjs`.
 
-When delegation is useful, a verifier or mechanical worker runs the gate chain and returns
+For substantive changes, a verifier or mechanical worker runs the gate chain and returns
 only the verdict plus a failing excerpt. The lead owns acceptance and repeats a gate only
 to settle a disputed result.
 

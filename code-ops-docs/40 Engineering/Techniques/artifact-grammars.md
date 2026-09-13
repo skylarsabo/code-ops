@@ -325,18 +325,21 @@ lead.
 
 `RUN_CONTRACT.json` is the run's versioned intent and work graph. Generate it after Phase 0,
 then run `scripts/run-contract.mjs check` before fan-out. Version 2 is the bounded-run
-contract. Version 3 adds runtime state for multi-phase or resumable runs. Its top-level
+contract. Version 3 adds runtime state for multi-phase or resumable runs. Version 4 adds
+mechanically enforced orchestrator and operative separation. Its top-level
 fields are:
 
 ```
 version · revision · runId · head · objective · nonGoals · lead · quality · budget
-sharedContext · replanOn · units · context (versions 2 and 3) · runtime (version 3 only)
+sharedContext · replanOn · units · context (versions 2 through 4) · runtime (versions 3 and 4)
+orchestration (version 4 only)
 ```
 
 Quality is a vector of named dimensions and stable `Q-NNN` criteria. Each criterion names
 its oracle, required proof, blocking state, and acceptance owner. A unit has a stable
 `D-NNN`, phase and wave, lens, read and write mode, role, work kind, resolved model and
 tier, effort, short brief, scope, artifact, dependencies, and linked criteria.
+Version 4 units also declare `validates` and `independentOf` relationships.
 
 The compiler rejects unknown keys, stale HEADs, invalid routing, dependency cycles,
 overlapping same-wave writes, undeclared criteria, and budgets smaller than the graph.
@@ -353,6 +356,11 @@ descriptor, receipt chain, stable-prefix paths and byte cap, and one policy per 
 `HOST_CAPABILITIES.json` records host, provider, model, observation source, timestamp, and
 states for prompt caching, compaction, context editing, host memory, and task budget. Do not
 infer those states from the model name. A required unavailable capability fails validation.
+
+Version 4 retains the version 3 bindings and requires `lead-and-operatives` mode. Its lead
+is frontier tier. It plans at least two operatives, demonstrates a parallel wave of at least
+two units, keeps ordinary operatives below the lead tier, and makes validators depend on a
+role-independent discovery unit. Finalization refuses missing or empty operative artifacts.
 
 `RUN_RUNTIME_RECEIPTS.jsonl` is a hash-chained sequence of `init`, `checkpoint`, `resume`,
 `replan`, and optional observation receipts. Each runtime binding includes contract,

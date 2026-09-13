@@ -7,7 +7,9 @@ description: "Use when you want code-grounded research run end-to-end as one dev
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/researcher/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/researcher-research-sweep`, or by the model through the `skill` tool as `researcher-research-sweep`.** First read the bundled
+**Invoked as `/researcher-research-sweep`, or by the model through the `skill` tool as `researcher-research-sweep`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the modes (`§5`), the schema and tiers (`§6`, `§7`), the priority rule (`§8`), the
 lenses (`§10`), the hand-off map (`§11`), and the single-source-of-truth rules (`§12`).
@@ -64,7 +66,8 @@ and line counts, so a brief reads one range instead of the whole file.
 ## Runtime continuity when available
 
 For a multi-phase resumable run with `code-ops-suite` installed, locate its scripts directory
-as `<runtime scripts>` and compile a version 3 run contract. Record observed host capabilities,
+as `<runtime scripts>` and compile a version 4 run contract. Declare the frontier lead,
+lower-tier parallel work operatives, and independent validation for every work unit. Record observed host capabilities,
 the exact context snapshot, verified unit bundles, and bounded runtime policy. Run
 `node <runtime scripts>/run-contract.mjs check --root . --contract <contract>`, then initialize
 the receipt chain once with `node <runtime scripts>/run-runtime.mjs init --root . --contract <contract>`.
@@ -78,7 +81,7 @@ session, read `run-runtime.mjs status` with root and contract first, then append
 continuing. Scope, context, or runtime drift requires the next contract revision, refreshed
 affected bundles, and replan with the checkpoint reference flags.
 
-Without the installed runtime or a version 3 contract, retain artifact checkpoints and handoff
+Without the installed runtime or a version 4 contract, retain artifact checkpoints and handoff
 verification. State that runtime verification is unavailable; never infer host capabilities.
 
 ## Phase 1: ground in our code  *(local, zero egress)*
@@ -132,12 +135,12 @@ grounding (`§8`). For each one, give the concrete recommendation, the smallest 
 slice, the trade-offs, and the hand-off target. Never write "consider maybe" (`§9`).
 
 Map each item to an implementer (`§11`). A grounded improvement goes to
-`code-ops-suite:remediation` or `rigor:fix-verified`. A feature or idea goes to
-`code-ops-suite:feature-discovery`, `code-ops-suite:feature-implementation`, or
-`code-ops-suite:ship`. An adopt-or-replace choice, or a load-bearing design decision, goes to
-`code-ops-suite:adr`. Measured performance work goes to `rigor:improve-measured`. A
-dependency or CVE action goes to `code-ops-suite:dependency-upgrade` or
-`privacy-opsec-suite:supply-chain-trust`.
+`/code-ops-suite-remediation` or `/rigor-fix-verified`. A feature or idea goes to
+`/code-ops-suite-feature-discovery`, `/code-ops-suite-feature-implementation`, or
+`/code-ops-suite-ship`. An adopt-or-replace choice, or a load-bearing design decision, goes to
+`/code-ops-suite-adr`. Measured performance work goes to `/rigor-improve-measured`. A
+dependency or CVE action goes to `/code-ops-suite-dependency-upgrade` or
+`/privacy-opsec-suite-supply-chain-trust`.
 
 Each design brief meets `§13` and is concrete enough that its implementer can act without
 re-researching (`§11`). The researcher never edits code (`§A`, `§4`).

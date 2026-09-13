@@ -235,6 +235,32 @@ try {
   check('q. check exits 0 on a journaled ledger', q.status === 0, q.stdout + q.stderr);
   check('q. check reports the journal as verified', /journal: verified\./.test(q.stdout), q.stdout);
 
+  const actorLedger = join(dir, 'ACTOR_LEDGER.md');
+  const qa1 = run(['add', '--ledger', actorLedger, '--role', 'explorer', '--brief', 'map actor provenance', '--artifact', 'ACTOR.md', '--model', 'claude-sonnet-5', '--actor-id', 'session-123/agent-7']);
+  check('q. actor-aware add exits 0', qa1.status === 0, qa1.stderr);
+  const qaJournal = readFileSync(actorLedger + '.journal.jsonl', 'utf8');
+  check('q. actor-aware add journals the opaque host actor id', /"actorId":"session-123\/agent-7"/.test(qaJournal), qaJournal);
+  const qa2 = run(['add', '--ledger', join(dir, 'BAD_ACTOR_LEDGER.md'), '--role', 'explorer', '--brief', 'map actor provenance', '--artifact', 'ACTOR.md', '--model', 'claude-sonnet-5', '--actor-id', 'two actors']);
+  check('q. whitespace-bearing actor id is rejected', qa2.status === 1, qa2.stderr);
+  const actorMismatch = join(dir, 'ACTOR_MISMATCH_LEDGER.md');
+  run(['add', '--ledger', actorMismatch, '--role', 'explorer', '--brief', 'map actor provenance', '--artifact', 'ACTOR.md', '--model', 'claude-sonnet-5', '--actor-id', 'agent-a']);
+  const mismatchBefore = readFileSync(actorMismatch + '.journal.jsonl', 'utf8');
+  const qa3 = run(['update', '--ledger', actorMismatch, '--id', 'D-001', '--status', 'reported', '--actor-id', 'agent-b']);
+  check('q. outcome actor must match the active dispatch', qa3.status === 1 && /differs from its active dispatch/.test(qa3.stderr), qa3.stderr);
+  check('q. rejected actor mismatch leaves journal unchanged', readFileSync(actorMismatch + '.journal.jsonl', 'utf8') === mismatchBefore, readFileSync(actorMismatch + '.journal.jsonl', 'utf8'));
+  const retryLedger = join(dir, 'ACTOR_RETRY_LEDGER.md');
+  run(['add', '--ledger', retryLedger, '--role', 'explorer', '--brief', 'map retry provenance', '--artifact', 'RETRY.md', '--model', 'claude-sonnet-5', '--actor-id', 'agent-a']);
+  run(['update', '--ledger', retryLedger, '--id', 'D-001', '--status', 'failed', '--actor-id', 'agent-a']);
+  const qa4 = run(['update', '--ledger', retryLedger, '--id', 'D-001', '--status', 'redispatched', '--actor-id', 'agent-b']);
+  const qa5 = run(['update', '--ledger', retryLedger, '--id', 'D-001', '--status', 'reported', '--actor-id', 'agent-b']);
+  check('q. redispatch may bind a new actor and preserves continuity', qa4.status === 0 && qa5.status === 0, qa4.stderr + qa5.stderr);
+  const identityText = [
+    join(REPO, 'scripts', 'dispatch-ledger.mjs'),
+    join(REPO, 'scripts', 'run-contract.mjs'),
+    join(REPO, 'plugins', 'code-ops-suite', 'skills', 'security-privacy-audit', 'SKILL.md'),
+  ].map((file) => readFileSync(file, 'utf8')).join('\n');
+  check('q. actorId is not described as proof of actual identity', !/actorId[\s\S]{0,100}prov(?:e|es|en) actual actor identity/i.test(identityText), identityText.match(/actorId[\s\S]{0,140}/i)?.[0]);
+
   // q2. premium specialists remain explicit and cost-visible instead of silently
   // collapsing into an ordinary default rung.
   const astraLedger = join(dir, 'ASTRA_LEDGER.md');
@@ -298,6 +324,12 @@ try {
   const w = run(['check', '--ledger', badJournal]);
   check('w. malformed journal line exits 1', w.status === 1, w.stdout + w.stderr);
   check('w. malformed journal line is named with its line number', /!! JOURNAL\s+J4: unparseable journal line/.test(w.stdout), w.stdout);
+  const illegalLedger = seedJournaled('ILLEGAL_TRANSITION_LEDGER.md');
+  run(['update', '--ledger', illegalLedger, '--id', 'D-002', '--status', 'reported']);
+  writeFileSync(illegalLedger + '.journal.jsonl', readFileSync(illegalLedger + '.journal.jsonl', 'utf8')
+    + '{"op":"update","id":"D-002","to":"redispatched","actorId":"agent-c"}\n');
+  const x = run(['check', '--ledger', illegalLedger]);
+  check('x. replay rejects a transition out of reported', x.status === 1 && /invalid transition reported -> redispatched/.test(x.stdout), x.stdout + x.stderr);
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }

@@ -7,7 +7,9 @@ description: "Use when you need current, version-accurate docs for a library or 
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-current-docs`, or by the model through the `skill` tool as `code-ops-suite-current-docs`.** First read the
+**Invoked as `/code-ops-suite-current-docs`, or by the model through the `skill` tool as `code-ops-suite-current-docs`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. This skill implements its
 documentation and reference lookup capability (`§2`) in-house: local-first, with no third-party
 indexer and no query egress.

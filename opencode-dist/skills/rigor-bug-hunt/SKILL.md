@@ -7,7 +7,9 @@ description: "Use when you want REAL bugs found and proven, not a list of guesse
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/rigor/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/rigor-bug-hunt`, or by the model through the `skill` tool as `rigor-bug-hunt`.** First read the bundled
+**Invoked as `/rigor-bug-hunt`, or by the model through the `skill` tool as `rigor-bug-hunt`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety

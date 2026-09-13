@@ -32,10 +32,11 @@ Two read-side mechanisms serve the same budget and are on by default. `skim.mjs`
 outline so the next read is a line range rather than a whole file.
 `node <plugin-root>/scripts/context-query.mjs find|callers|callees|blast|explore`
 answers a structural question with `file:line` anchors, over a home-directory index that a
-`PostToolUse` hook refreshes on each edit. Turn the index off with `CODE_OPS_INDEX=off` in the
-environment block of a `.claude/settings.json`.
+supported post-edit mechanism refreshes on each edit. Turn the index off with
+`CODE_OPS_INDEX=off` in the host environment.
 `code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns the
-switch list, and `code-ops-docs/55 Operations/MEASUREMENTS.md` owns what these mechanisms save.
+switch list. `code-ops-docs/55 Operations/MEASUREMENTS.md` owns their evidence and pending
+control results.
 
 Dispatch an explorer operative to detect the stack and size from a compiled context bundle, then
 confirm with me:
@@ -49,25 +50,24 @@ registers forward fresh.** Before any phase consumes a finding, re-validate it a
 HEAD (`§12`). Mark a finding fixed earlier in the run `OBSOLETE-AT <sha>`, and never re-show it.
 **Surface any critical finding to me immediately, in any phase.**
 
-For a bounded substantive run, compile the agreed scope into a version 2
-`<run folder>/RUN_CONTRACT.json` before Phase 1. Bind it to the snapshot ID, and declare the
-bundle and Atlas excerpt budgets. Define the vector-valued quality criteria, the bounded waves,
-the dependency edges, the disjoint write scopes, the routing, the shared context, and the
-dispatch limits. Run `run-contract.mjs check`. Then compile and verify one context bundle per
-unit with `context-bundle.mjs`. A `BROAD_CONTEXT_REQUIRED` or `BUDGET_EXCEEDED` marker, or
-context drift, triggers a contract revision. Never truncate a bundle, and never reuse a stale
-one.
+For every substantive run, compile the agreed scope into a version 4
+`<run folder>/RUN_CONTRACT.json` before Phase 1. Bind it to the snapshot ID. Declare the
+frontier lead, lower-tier work operatives, a parallel work wave, and independent validation of
+each work unit. Define the vector-valued quality criteria, bounded waves, dependency edges,
+disjoint write scopes, routing, shared context, dispatch limits, bundle budget, and Atlas excerpt
+budget. Run `run-contract.mjs check`. Then compile and verify one context bundle per unit with
+`context-bundle.mjs`. A `BROAD_CONTEXT_REQUIRED` or `BUDGET_EXCEEDED` marker, or context drift,
+triggers a contract revision. Never truncate a bundle, and never reuse a stale one.
 
-For a multi-phase or resumable substantive run, compile version 3 instead. Declare the observed
-host capabilities in `<run folder>/HOST_CAPABILITIES.json` with `host-capabilities.mjs init`. Do
-not infer them from the model. Declare the runtime policy,
+Declare the observed host capabilities in `<run folder>/HOST_CAPABILITIES.json` with
+`host-capabilities.mjs init`. Do not infer them from the model. Declare the runtime policy,
 `<run folder>/RUN_RUNTIME_RECEIPTS.jsonl`, and a byte-bounded stable prefix. Run
 `run-contract.mjs check`, then `run-runtime.mjs init`. Emit the stable prefix only when the host
 can inject it exactly. A cache is an acceleration, never run state. Record only observed cache
 activity with `run-runtime.mjs observe`.
 
-At each later phase boundary, reconcile the contract against `DISPATCH_LEDGER.md`. For version 3,
-checkpoint the ledger and the completed artifacts with `run-runtime.mjs checkpoint`. Replan after
+At each later phase boundary, reconcile the contract against `DISPATCH_LEDGER.md` and its
+dispatch journal. Checkpoint the ledger and completed artifacts with `run-runtime.mjs checkpoint`. Replan after
 a scope, context, or runtime-binding change: increment the revision, refresh the affected
 bundles, validate the next contract, then append `run-runtime.mjs replan`. Otherwise validate the
 receipt chain and append `run-runtime.mjs resume` before the next phase. At completion, record

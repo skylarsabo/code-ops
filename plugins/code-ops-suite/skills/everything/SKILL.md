@@ -61,11 +61,12 @@ Then set up the run:
 
 ## Runtime continuity across phases
 
-For this multi-phase run, use a version 3 `RUN_CONTRACT.json` with an exact context snapshot,
-verified unit bundles, an observed host-capability descriptor, and bounded runtime policy.
+For this multi-phase substantive run, use a version 4 `RUN_CONTRACT.json` with an exact context
+snapshot, verified unit bundles, a frontier lead, lower-tier parallel work operatives,
+independent validation for each work unit, an observed host-capability descriptor, and bounded runtime policy.
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/run-contract.mjs check --root . --contract <contract>`,
 then `node ${CLAUDE_PLUGIN_ROOT}/scripts/run-runtime.mjs init --root . --contract <contract>`
-once. An existing version 1 or 2 contract keeps its artifact checkpoints until explicitly replanned.
+once. An existing version 1, 2, or 3 contract remains replayable but cannot start new substantive work without an explicit version 4 replan.
 
 At each phase boundary, reconcile the dispatch ledger and checkpoint with
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/run-runtime.mjs checkpoint --root . --contract <contract> --ledger <ledger>`.

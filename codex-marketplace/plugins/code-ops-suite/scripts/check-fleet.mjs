@@ -57,7 +57,7 @@ const VAULT_CHECKER = join(HERE, 'check-vault-standard.mjs');
 const MANIFEST_VERSION = 1;
 const MEMBER_KEYS = new Set(['path', 'profile', 'roles']);
 const CONSENT_PHRASE = 'fleet member: yes';
-const CONTRACT_FILES = ['CLAUDE.md', 'AGENTS.md'];
+const CONTRACT_FILES = ['AGENTS.md', 'AGENTS.md'];
 // A pointer file is short by construction: it names the substantive contract as required
 // reading and stops. The cap is generous enough for a real pointer and far below any
 // substantive contract, so a pair that has genuinely DRIFTED cannot pass as a pointer pair.
@@ -376,7 +376,7 @@ function parityMode(found) {
   const other = found[otherName];
   // A pointer is a file that is SUBSTANTIALLY nothing but the pointer, which takes three
   // tests, not one length cap. Length alone would call any short file a pointer, and a
-  // substantive contract that happens to be short and to open by naming its twin — "`CLAUDE.md`
+  // substantive contract that happens to be short and to open by naming its twin — "`AGENTS.md`
   // is a generated copy of this file; this is required reading" — would be read as a stub and
   // reported DRIFTED. So: short, saying the named file is binding, naming it in its first
   // paragraph rather than in passing, and carrying no heading of its own AT ANY DEPTH. A

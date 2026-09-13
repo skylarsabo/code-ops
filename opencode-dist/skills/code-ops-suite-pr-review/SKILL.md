@@ -1,13 +1,15 @@
 ---
 name: code-ops-suite-pr-review
-description: "Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review. For an anonymity gate, use privacy-opsec-suite:opsec-pr-gate."
+description: "Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use /rigor-deep-review. For an anonymity gate, use /privacy-opsec-suite-opsec-pr-gate."
 ---
 
 # PR review: rigorous pre-merge review
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-pr-review`, or by the model through the `skill` tool as `code-ops-suite-pr-review`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoked as `/code-ops-suite-pr-review`, or by the model through the `skill` tool as `code-ops-suite-pr-review`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin. Search the plugin directory for it if needed. It defines the operating
 model, interaction protocol, safety rails, schemas, and quality lenses this skill references by
 section.

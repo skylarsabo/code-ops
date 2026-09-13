@@ -20,8 +20,14 @@ counts as finishing. Read it before starting substantive work in any repository.
 
 ## The tier and effort rule
 
-Set tier by quality, not by price. Judgment-bearing operative work runs at the strong
-tier whatever tier the lead runs at. Tracing, review, verification, and any
+Every substantive route has a frontier-tier orchestrator. It delegates every independently
+briefable unit, launches at least two disjoint units in parallel when the work graph permits,
+and keeps root work to synthesis, challenge, reprioritization, redirection, integration, and
+acceptance. Inline execution is limited to a genuinely trivial or indivisible step, with the
+reason stated in the run record.
+
+Set operative tier by quality, not by price. Judgment-bearing operative work runs one tier
+below the lead at the strong tier. Tracing, review, verification, and any
 implementation carrying an open question all count as judgment-bearing. A shallow or
 failed operative report costs a redispatch round trip plus the lead's attention, which
 is dearer than the strong tier's price premium. Only mechanical, low-ambiguity work
@@ -34,6 +40,11 @@ highest tier present in the session. Tier and effort partially substitute for on
 another, so a stronger model at medium approximates a mid model at high. See
 [subagent-trade-offs.md](../Techniques/subagent-trade-offs.md) for the table backing this
 rule and for the floor values themselves.
+
+Every new substantive orchestrated run uses Run Contract version 4. It makes the frontier
+lead, lower-tier operatives, disjoint parallel wave, independent validation, and operative
+evidence mechanical. Versions 1 through 3 remain readable for replay and historical
+verification only; do not author a new run against them.
 
 ## The ordered objective and the code-economy ladder
 
@@ -67,6 +78,12 @@ This rule binds hardest on research fronts, where nothing external tells you the
 is answered. It also binds on review loops. Converged means the reviewer finds nothing on
 a fresh pass, not that the operator tired of the loop. A loop that stops while findings
 are still arriving has been abandoned, not closed.
+
+Parallel discovery also resists premature convergence. Give distinct operatives distinct
+hypotheses or families, record failed and exhausted paths, and launch a neglected path when
+all active work clusters around one promising explanation. A finder does not validate its
+own concrete result; an independent operative receives the evidence packet and attempts to
+disprove it before the lead accepts it.
 
 Deferring is legitimate. Record a deferral with the reason and the route back: the
 artifact to resume from, and the condition that reopens it. A deferral carrying neither

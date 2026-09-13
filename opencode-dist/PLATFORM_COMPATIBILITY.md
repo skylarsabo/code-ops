@@ -19,15 +19,24 @@ Rebuild it with `node scripts/build-opencode-dist.mjs`; CI uses `--check` to pre
   renders `edit: deny`, and one without `Bash` renders `bash: deny`, so read-only
   operatives stay read-only. `webfetch` is denied for every agent, matching the suite’s
   local-first egress stance.
-- **Agent `model:` becomes a stated capability tier.** opencode resolves models per
-  provider, so a hardcoded Anthropic alias would not bind. Each agent states its
-  required tier and `MODEL_TIERS.md` gives the per-provider model for it. The
-  lint-enforced floor lives in the source repository; this host carries the tier as
-  documentation, not as a gate.
+- **Agent `model:` becomes a portable capability-floor gate.** Each agent states its
+  required tier, every ready-made provider config binds it to that tier, and the
+  `chat.params` plugin hook blocks a known below-floor or unclassified binding before
+  the provider request. `MODEL_TIERS.md` is the verified allowlist for that check.
 - **The traceless hook is ported, not copied.** Claude’s `PreToolUse` hook is a
   stdin/exit-code contract; the opencode plugin subscribes to `tool.execute.before` and
   throws to block. Same policy, same fail-open-on-infrastructure-error stance.
-- **The `code-ops-docs` MCP server is not bundled.** opencode configures MCP servers in
-  `opencode.json` rather than per plugin; add it there if you want it.
+- **Digest rewrite and index refresh are ported.** OpenCode exposes mutable
+  `tool.execute.before` arguments and typed `file.edited` events. The adapters call the
+  canonical bundled digest and context-query scripts and preserve their off switches.
+- **Routing guidance and pre-compaction preservation are ported.** OpenCode exposes
+  `experimental.chat.system.transform` and
+  `experimental.session.compacting`, so the generated runtime plugin appends the
+  canonical preservation instruction to the compaction prompt.
+- **Ladder cards and session receipts are intentionally unavailable here.** The installed
+  plugin types expose no subagent-start callback or session-end transcript path.
+- **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin
+  derives their absolute local commands from its own module URL and adds typed local MCP
+  entries without overwriting operator-defined entries.
 - **Claude GitHub Action examples are omitted** because they are not opencode runtime
   configuration.

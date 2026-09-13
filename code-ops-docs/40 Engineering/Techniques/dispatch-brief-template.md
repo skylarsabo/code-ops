@@ -1,6 +1,6 @@
 # Dispatch brief template
 
-Every subagent the orchestrator spawns gets a brief carrying the same nine fields. A
+Every subagent the orchestrator spawns gets a brief carrying the same ten fields. A
 missing field is the usual cause of a subagent guessing instead of escalating, or of two
 subagents clobbering one file. This page holds the fill-in skeleton, one line per agent
 kind, and a worked example.
@@ -23,12 +23,14 @@ Size discipline: <implementer briefs only: correctness and the safety floor, the
 Escalation: <what counts as blocked or ambiguous for this task, and that it must escalate
   rather than guess>
 Constraints: <do-not-touch list; no commits unless this brief explicitly says so>
+Independence: <unit ids this operative validates but did not discover; empty for discovery>
 ```
 
 Objective and Scope bound the work. Context points at orientation material instead of
 re-explaining the codebase. Expected return sets the report shape, so the orchestrator
 merges reports without re-deriving their structure. Escalation and Constraints keep a
-subagent from improvising past what it was asked. The lead dispatches in the background
+subagent from improvising past what it was asked. Independence separates validation from
+discovery. The lead dispatches in the background
 and continues independent work, and it waits only when the next step depends on the result.
 
 For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file.

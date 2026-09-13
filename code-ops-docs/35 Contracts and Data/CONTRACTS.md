@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-03
+updated: 2026-09-13
 ---
 
 # Contracts
@@ -40,10 +40,10 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 ## Run contract
 
 `RUN_CONTRACT.json` is the machine-checked plan for an orchestrated run.
-`run-contract.mjs` supports versions 1, 2, and 3. Version 2 adds a required context
+`run-contract.mjs` supports versions 1 through 4. Version 2 adds a required context
 binding. Version 3 adds a required runtime binding and `runtime-drift` to the canonical
-replan triggers. Evidence: `scripts/run-contract.mjs:11-27` and
-`scripts/run-contract.mjs:75-114`.
+replan triggers. Version 4 adds the enforced lead-and-operatives policy. Evidence:
+`scripts/run-contract.mjs`.
 
 Each contract declares these top-level concerns:
 
@@ -53,8 +53,29 @@ Each contract declares these top-level concerns:
 - `context` binds version 2 work to a snapshot, bundle location, untracked-file policy, and byte budgets.
 - `runtime` binds version 3 work to host-capability evidence, runtime receipts, a stable
   prompt prefix, a prefix byte budget, and one policy per capability.
+- `orchestration` binds version 4 work to a frontier lead, at least two operatives, and a
+  parallel wave of at least two disjoint units.
 
-The validator requires the lead to use a strong-or-frontier model at high effort. Execution, judgment, and review units have separate tier and effort floors. Evidence: `scripts/run-contract.mjs:84-125`.
+The version 4 validator requires a frontier lead and routes every operative below that
+tier. Judgment stays at the strong tier. A review or refutation unit names both the unit it
+validates and the role-independent relationship. Finalization also requires each planned
+operative artifact to exist and contain evidence. Earlier contract versions retain their
+original compatibility rules for replay only. Every newly authored substantive run uses
+version 4; versions 1 through 3 are historical inputs, not new-run templates. Evidence:
+`scripts/run-contract.mjs`.
+
+Security campaigns use a separate `ATTACK_CAMPAIGN.json` contract. It declares distinct
+exploit families, launches, directed entry-to-sink hypotheses, direct inspection evidence,
+independent validators, and `OPEN`, `BLOCKED`, `EXHAUSTED`, or `CLOSED` state. The compiler
+rejects history, changelog, CVE-database, and patched-diff discovery shortcuts. A closed
+chain must carry hash-bound execution and validator receipts, survive independent validation,
+and prove the configured starting privilege to impact goal in a common deployment. Campaign
+run evidence binds the contract's dispatch ledger, journal, and reported artifacts. Normal
+checks admit in-progress planned units; `--final` requires strict all-unit reconciliation.
+Its report reverse-indexes convergent guards,
+primitives, and sinks, traces each collision to its terminal node, and ranks open chains for
+out-of-band validation. This attack graph is not the run contract's same-wave write-scope
+collision check. Evidence: `scripts/attack-chain-graph.mjs`.
 
 ## Snapshot receipt
 
@@ -140,18 +161,37 @@ provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evid
 
 ## Session receipt hook
 
-The `SessionEnd` hook `session-receipt.mjs` is on by default. It reads `transcript_path` from the host payload, summarizes the main transcript and its `subagents/*.jsonl` siblings, and appends one receipt row. It writes nothing to stdout, exits `0` on bad stdin, a missing transcript, or an unwritable ledger, and finishes on a short timer when stdin never closes. Its ledger path is `$CODE_OPS_RECEIPTS`, else the home-directory default, and the value `off`, `0`, or `false` disables the hook. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:32-81`.
+The `SessionEnd` hook `session-receipt.mjs` is on by default on hosts that expose a transcript
+callback. Claude summarizes the main transcript and its `subagents/*.jsonl` siblings. Codex
+reads peer rollouts and follows `session_meta.payload.parent_thread_id` to include descendants.
+Installed Grok 1.0.13 reads cumulative per-prompt usage from the session's `updates.jsonl`;
+its receipt records `arms.ladderCard=false`. OpenCode has no transcript callback, so no
+automatic receipt is claimed there. The hook writes nothing to stdout, exits `0` on bad input,
+missing evidence, or an unwritable ledger, and finishes on a bounded timer. Its ledger path is
+`$CODE_OPS_RECEIPTS`, else the host-specific home default. `off`, `0`, or `false` disables it.
+Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs` and
+`scripts/transcript-lib.mjs`.
 
 `context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. `--by-arm` groups rows by the switches they ran under and prints per-session means, with pre-record rows as `unknown`. `receipts --purge-before <ISO date>` rewrites the ledger keeping only rows whose `ts` is at or later than the given date, and reports what it removed, so retention is one operator command and nothing purges on its own. Evidence: `scripts/context-audit.mjs:8-13`, `scripts/context-audit.mjs:77-90`, and `scripts/context-audit.mjs:93-132`.
 
-The `PreCompact` hook `precompact-preserve.mjs` prints one fixed instruction on stdout naming the six items a compaction summary must keep and the redaction markers it must leave as they stand. The host reads that stdout as the compaction's custom instructions. It reads no stdin, adds no per-turn tokens, and exits `0` on every path. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:15-33`.
+The package registers no `PreCompact` command. Claude and Codex ignore plain stdout from that
+event, so `routing-card.mjs` handles `SessionStart` with `source=compact` and adds a
+post-compaction instruction to restore decisions, constraints, evidence, blockers, open work,
+and exact identifiers from durable state. This is recovery after compaction, not a claim that a
+hook changed the summary. Grok ignores passive `SessionStart` stdout and therefore gets no
+hook-injected restore card. OpenCode uses its native compaction port. Evidence:
+`plugins/code-ops-suite/hooks/hooks.json`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
+and the generated host compatibility files.
 
 ## Routing card and traceless hooks
 
-Two bundled hooks carry no environment switch, because neither writes anything and neither
-can be made quieter without losing its point. The `SessionStart` hook `routing-card.mjs`
-prints a fixed card naming the standard routing table, the tier and effort rules, and the
-context-economy defaults. It parses no payload, and any error exits `0` silently. Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs:1-35`.
+Two bundled hooks carry no environment switch. On Claude and Codex, the `SessionStart` hook
+`routing-card.mjs` prints a fixed card naming the standard routing table, tier and effort
+rules, and context-economy defaults. It parses the start source so a compact resume receives
+the restore instruction above. On Grok it emits nothing because passive hook stdout is ignored;
+the paired instruction files carry the routing doctrine. Any error exits `0` silently.
+Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs` and
+`evals/grok-build-compat/run.mjs`.
 
 The `PreToolUse` hook `enforce-traceless.mjs` is the tool-layer backstop for the
 traceless-publishing rule. When the Bash command about to run matches a `git commit` or a `gh
@@ -300,11 +340,13 @@ fail open: an unwritable store prints the digest with `raw -` and keeps going. E
 
 ## Digest rewrite hook
 
-`digest-rewrite.mjs` is a `PreToolUse` Bash stage that turns an allowlisted simple command into
-a digest run. It is on by default. The hook does nothing when `CODE_OPS_DIGEST` holds `off`,
+`digest-rewrite.mjs` is a `PreToolUse` command stage that turns an allowlisted simple shell
+command into a digest run. It is on by default. The hook does nothing when `CODE_OPS_DIGEST` holds `off`,
 `0`, or `false`, compared without regard to case, and exits `0` before the payload is read in
 that case. An unset variable and every other value leave it on. A user or a repository turns it off through
-the `env` block of a `.claude/settings.json`. Evidence:
+the canonical `.claude/settings.json` environment; rendered hosts use their documented process
+environment. Installed Grok 1.0.13 accepts the same `hookSpecificOutput.updatedInput` shape.
+Evidence:
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161` and
 `plugins/code-ops-suite/hooks/hooks.json:5-16`.
 
@@ -428,16 +470,19 @@ Evidence: `scripts/harvest-deferrals.mjs:63-65`, `scripts/harvest-deferrals.mjs:
 
 ## Ladder card hook
 
-`hooks/ladder-card.mjs` runs at `SubagentStart` and prints the code-economy ladder as
+`hooks/ladder-card.mjs` runs at `SubagentStart` on Claude and Codex and prints the code-economy ladder as
 `hookSpecificOutput.additionalContext` for an implementer-class agent type only. It is on by
-default. It does nothing when `CODE_OPS_LADDER_CARD` is `off`, `0`, or `false`, set in the `env`
-block of a `.claude/settings.json`, and runs otherwise. The host contract was read from the
+default. It does nothing when `CODE_OPS_LADDER_CARD` is `off`, `0`, or `false`, set in the
+canonical environment; rendered hosts use their documented process environment. The Claude
+host contract was read from the
 installed 2.1.257 bundle: the input carries `agent_id` and `agent_type` (offset 183160743, built
 at 190336771), the output schema accepts `additionalContext` (183169362), and the host appends
 that context to the subagent's own messages (188311119). A read-only type, bare or
 plugin-qualified, and any type ending in `explorer` or `reviewer`, gets nothing. The card is at
 most ten lines. Bad JSON, a missing type, or another event name exits 0 with no output, and the
-hook returns no permission decision. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
+hook returns no permission decision. On installed Grok 1.0.13 it emits nothing because passive
+`SubagentStart` stdout is ignored; `CLAUDE.md` and `AGENTS.md` carry the same ladder doctrine.
+OpenCode has no typed subagent-start callback. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
 `plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
 
 ## Symbol index and query
@@ -503,7 +548,8 @@ The index is a home-directory file, `$CODE_OPS_INDEX_DIR/index.json` or
 never reads another repository's index and nothing is committed. The `PostToolUse` hook
 `index-refresh.mjs` is on by default. It calls `refresh <file>` after every edit with a
 five-second budget and prints nothing. Setting `CODE_OPS_INDEX` to `off`, `0`, or `false` in the
-`env` block of a `.claude/settings.json` turns it off. Evidence: `scripts/context-query.mjs:97` and
+canonical environment turns it off; rendered hosts use their documented process environment.
+Evidence: `scripts/context-query.mjs:97` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
 ## Atlas claims and scope suggestion

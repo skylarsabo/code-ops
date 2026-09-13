@@ -7,7 +7,9 @@ description: "Use when a commit, PR, or branch must carry no AI or tooling trace
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/privacy-opsec-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/privacy-opsec-suite-authorship-hygiene`, or by the model through the `skill` tool as `privacy-opsec-suite-authorship-hygiene`.** First read the bundled
+**Invoked as `/privacy-opsec-suite-authorship-hygiene`, or by the model through the `skill` tool as `privacy-opsec-suite-authorship-hygiene`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It defines the anonymity and OpSec model (`§A`),
 including the tooling-trace non-negotiable, plus the interaction protocol, the safety rails,
 and the lenses this skill follows.
@@ -62,8 +64,8 @@ over-defensive scaffolding where the neighbors are terser.
 - **Stay behavior-preserving.** The suite stays green. Anything that could change behavior
   is surfaced rather than applied.
 - **Delegate rather than duplicate.** Send a repository-wide single style to
-  `code-ops-suite:normalize`, and divergent implementations of one concept to
-  `rigor:consistency-closure`. L3 only makes this diff indistinguishable from its neighbors.
+  `/code-ops-suite-normalize`, and divergent implementations of one concept to
+  `/rigor-consistency-closure`. L3 only makes this diff indistinguishable from its neighbors.
 
 ## The fail-closed gate
 

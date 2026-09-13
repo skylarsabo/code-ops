@@ -1,15 +1,30 @@
 # Context and code economy
 
-This chapter is for anyone who runs the suite and wants to know what it does to token cost, code size, and output quality without being asked. It names each mechanism, what it costs, how to read its effect, and how to turn it off. Every mechanism runs on install. Nothing here needs configuration.
+This chapter is for anyone who runs the suite and wants to know what it can measure about
+token cost, code size, and output quality. It names each mechanism, the hosts that can run it,
+and how to turn it off. A mechanism runs on install only where the host exposes its event
+contract.
 
 ## What a session gets on install
 
 The suite compresses at the source and points instead of pasting. Four mechanisms and one instruction card do that work:
 
-- **Output digest.** Every allowlisted simple Bash command runs through `scripts/digest.mjs`. A short output, at most 1,536 bytes, arrives raw. A longer one arrives compressed by shape, with a trailer naming the raw file and its sha256, so a truncated result is a pointer and never a loss. Errors, failures, summaries, and headers are kept by contract.
+- **Output digest.** Every allowlisted simple shell command runs through `scripts/digest.mjs` on
+  hosts with mutable pre-tool input. A short output, at most 1,536 bytes, arrives raw. A longer
+  one arrives compressed by shape, with a trailer naming the raw file and its sha256. Errors,
+  failures, summaries, and headers are kept by contract.
 - **Symbol index.** `scripts/context-query.mjs` answers a structural question with `file:line` anchors, one-line signatures, and edge lists. A hook re-indexes each file the session edits. Hosts without a Bash tool reach the same index through the `code-ops-query` MCP server.
-- **Ladder card.** An implementer subagent starts with a ten-line card: the ordered objective and the six-rung ladder that decides whether new code needs to exist at all.
-- **Session receipts.** One row per session lands in a home-directory ledger with exact token usage, tool calls, the context resident at session end, and which mechanisms ran. Nothing leaves the machine.
+- **Ladder card.** Claude and Codex implementer operatives start with a compact ladder card.
+  Grok and OpenCode rely on their instruction files because neither has a usable ladder-card
+  callback.
+- **Session receipts.** Claude, Codex, and installed Grok 1.0.13 write a normalized local row.
+  Codex follows child rollout links; Grok reads cumulative `updates.jsonl` usage and records the
+  ladder arm false. OpenCode has no automatic transcript receipt.
+
+There is no `PreCompact` stdout mechanism. Claude and Codex receive a durable-state restore
+instruction on `SessionStart source=compact`, after compaction. Grok passive stdout is ignored,
+and OpenCode uses its native compaction port.
+
 - **Session card.** The routing card printed at session start carries the progress-update rule, the output-visibility rule, and the economy rules in one line each.
 
 ## The ordered objective and the ladder
@@ -49,7 +64,8 @@ Every command above also resolves through `scripts/co.mjs`, the one entrypoint, 
 
 ## Switching a mechanism off
 
-Each mechanism reads one switch. Set it to `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`, at user scope for every repository or at repository scope for one:
+Each mechanism reads one switch. Set it to `off`, `0`, or `false` in the canonical
+`.claude/settings.json` environment. Rendered hosts use their documented process environment:
 
 | Mechanism | Switch |
 | --- | --- |
@@ -67,7 +83,11 @@ The digest keeps every rewritten command's raw output under `~/.claude/code-ops/
 
 ## Reading the effect
 
-The measurement is receipts, not estimates. Each receipt row records which mechanisms the session ran under, on unless a switch said off. `context-audit.mjs receipts --by-arm` groups rows by that record and prints per-session means: tokens, cache reads, tool-result characters per turn, context at end, and tool calls. An arm reads against sessions run with a mechanism off on the same directory. The schedule, the sample size, and the decision rules for keeping or removing each mechanism are pre-registered on the measurement page, so the numbers decide and not the author.
+The measurement is host-qualified receipts, not estimates. Each receipt row records which
+supported mechanisms the session ran under. `context-audit.mjs receipts --by-arm` groups rows
+and prints per-session means, but a grouping alone is not causal evidence. Attribute an effect
+only after a pre-registered matched control holds host, version, model, work, sample size, and
+stopping rule fixed. That cross-host causal-control work remains pending.
 
 ## Where the detail lives
 

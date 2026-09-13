@@ -7,7 +7,9 @@ description: "Use when you want to know what changed in OUR stack that we should
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/researcher/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/researcher-ecosystem-watch`, or by the model through the `skill` tool as `researcher-ecosystem-watch`.** First read the bundled
+**Invoked as `/researcher-ecosystem-watch`, or by the model through the `skill` tool as `researcher-ecosystem-watch`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
@@ -81,12 +83,12 @@ the external source with its manifest line, a `Verified-at: <sha>` stamp, and th
 meaning the `file:line` we run. Rank by value multiplied by reach, divided by effort, and
 weighted by tier and grounding (`§8`), with security first.
 
-Hand off per `§11`. CVEs and upgrades go to `code-ops-suite:dependency-upgrade`. Egress,
+Hand off per `§11`. CVEs and upgrades go to `/code-ops-suite-dependency-upgrade`. Egress,
 telemetry, provenance, and integrity concerns go to
-`privacy-opsec-suite:supply-chain-trust`. Adoptable capabilities go to
-`code-ops-suite:feature-discovery` or `code-ops-suite:feature-implementation`. A forced
+`/privacy-opsec-suite-supply-chain-trust`. Adoptable capabilities go to
+`/code-ops-suite-feature-discovery` or `/code-ops-suite-feature-implementation`. A forced
 architectural choice, such as migrating off an end-of-life runtime, goes to
-`code-ops-suite:adr`.
+`/code-ops-suite-adr`.
 
 Before publishing, run
 `node <plugin-root>/scripts/revalidate-register.mjs ECOSYSTEM_WATCH.md --root <repo>`

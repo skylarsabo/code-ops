@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "name": "tracer",
+      "sourceModel": "opus",
+      "minimumTier": "strong"
+    },
+    {
+      "name": "verifier",
+      "sourceModel": "opus",
+      "minimumTier": "strong"
+    }
+  ]
+}

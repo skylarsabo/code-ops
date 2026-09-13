@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-03
+updated: 2026-09-13
 ---
 
 # Infrastructure
@@ -35,11 +35,12 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers seven hooks in `plugins/code-ops-suite/hooks/hooks.json`.
-Every one is on by default. Six fail open on every path. The traceless guard intentionally
+The code-ops-suite package registers six commands across five events in
+`plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
+the required event contract. Five fail open on every path. The traceless guard intentionally
 blocks a publishing command when it detects a trace and fails open on infrastructure errors.
-Four hooks carry an off switch, read from the `env` block
-of a `.claude/settings.json` at user scope for every repository or at repository scope for one:
+Four commands carry an off switch, read from the canonical `.claude/settings.json`
+environment. Rendered hosts use their documented process environment:
 
 ```json
 { "env": { "CODE_OPS_DIGEST": "off" } }
@@ -63,7 +64,13 @@ Two variables name a storage path:
 
 `CODE_OPS_DIGEST_STORE=off` keeps compression enabled while disabling raw-output and receipt storage.
 
-The three hooks with no switch write nothing that a switch could suppress: `enforce-traceless.mjs` at `PreToolUse`, `routing-card.mjs` at `SessionStart`, and `precompact-preserve.mjs` at `PreCompact`. The [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each hook's contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json:1-71`.
+The two commands with no switch are `enforce-traceless.mjs` at `PreToolUse` and
+`routing-card.mjs` at `SessionStart`. There is no `PreCompact` command. Claude and Codex
+instead receive a durable-state restore instruction on `SessionStart source=compact`; this
+runs after compaction and does not alter the summary that was already produced. The
+[contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each command's
+contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json` and
+`plugins/code-ops-suite/hooks/routing-card.mjs`.
 
 ## What the local stores hold
 
@@ -85,7 +92,12 @@ The session-receipt ledger is `~/.claude/code-ops/session-receipts.jsonl`, or `$
 `context-audit.mjs receipts --purge-before <ISO date>` is the only thing that removes rows, so
 retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`.
 
-`context-audit.mjs --host codex` reads local Codex session JSONL, filters to the current directory unless `--all` is present, and normalizes current response usage into input, cache-read, cache-write, output, and reasoning categories. It prefers response-scoped usage records and retains a legacy cumulative fallback as `UNKNOWN` model attribution. The report omits tool arguments and working-directory values unless raw output was explicitly requested.
+`context-audit.mjs --host codex` reads local Codex session JSONL, filters to the current
+directory unless `--all` is present, and normalizes current response usage. A receipt follows
+child rollout `parent_thread_id` links rather than assuming Claude's nested directory layout.
+For installed Grok 1.0.13, the receipt parser reads cumulative per-prompt snapshots from the
+session's `updates.jsonl` and records `ladderCard=false`. The report omits tool arguments and
+working-directory values unless raw output was explicitly requested.
 
 Keeping a switch per repository is what makes a measurement arm possible: one checkout runs with
 the mechanism and another runs without it, and their session receipts compare. The
@@ -96,7 +108,30 @@ if the receipts show it beats the brief-only control. Evidence:
 
 ## Host projections
 
-The first host renderer maps canonical plugin packages into its marketplace projection and manifest. The opencode renderer maps them into `opencode-dist/`, including host-specific commands, agents, and configuration. Evidence: `AGENTS.md:94-101` and `scripts/build-opencode-dist.mjs:475-489`.
+Claude and Grok consume the canonical packages. Codex and OpenCode consume deterministic
+host projections. Parity means equivalent behavior through each host's supported API, not
+byte-identical packaging.
+
+| Capability | Claude | Grok | Codex | OpenCode |
+| --- | --- | --- | --- | --- |
+| Skills and scripts | Native | Native package | Rendered | Rendered |
+| Operative floors | Native agent metadata | Preflight with collapsed model ladder | `model-floors.json` plus role brief | `chat.params` gate plus preflight carrier |
+| Publishing gate | `PreToolUse` | Canonical command hook | Payload-adapted hook | `tool.execute.before` port |
+| Digest and index | Native hooks | `updatedInput` digest and `PostToolUse` index side effect | Payload-adapted hooks | Mutable tool arguments and `file.edited` port |
+| Routing and compaction | Session context and `source=compact` restore | Instruction files only; passive stdout unavailable | Projected session context and restore | System-transform and compaction ports |
+| Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
+| Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Unavailable: no typed subagent-start callback |
+| Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Unavailable: no transcript callback |
+
+The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
+the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,
+blocks unknown or below-floor operative models, and derives local MCP paths from the plugin
+module. Its compatibility page names the two host gaps instead of claiming nonexistent
+hooks. The Grok behavior above is local runtime evidence from installed version 1.0.13 and
+`~/.grok/docs/user-guide/10-hooks.md`. The deterministic evals prove accepted output shapes
+and side effects; they do not claim that a fresh live external model turn was run during this
+change. Evidence: `scripts/build-codex-marketplace.mjs`,
+`scripts/build-opencode-dist.mjs`, and `evals/grok-build-compat/run.mjs`.
 
 ## External dependencies
 

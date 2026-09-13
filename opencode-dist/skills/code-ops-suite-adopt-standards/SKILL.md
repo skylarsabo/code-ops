@@ -7,7 +7,9 @@ description: "Use when a repo's AGENTS.md standards contract needs to be created
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-adopt-standards`, or by the model through the `skill` tool as `code-ops-suite-adopt-standards`.** First read the
+**Invoked as `/code-ops-suite-adopt-standards`, or by the model through the `skill` tool as `code-ops-suite-adopt-standards`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory
 for it if needed. It defines the operating model, interaction protocol, safety rails, schemas,
 and quality lenses this skill references by section. For this DOCUMENT-mode skill the binding
@@ -70,7 +72,7 @@ Write or update `AGENTS.md` in this exact section order:
   Codex reads `~/.codex/AGENTS.md`. Model roles, truthful reporting, token economy, context
   hygiene, and other cross-repo rules stay global. Repository contracts contain only facts,
   commands, gates, and local exceptions.
-- **Keep `AGENTS.md` and `AGENTS.md` in one of two accepted parity modes:** a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one mode and keep it. A pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
+- **Keep `CLAUDE.md` and `AGENTS.md` in one of two accepted parity modes:** a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one mode and keep it. A pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
 - **Make relative dates absolute.** Write "verify by 2026-08-01", never "next month".
 - **Keep the prose terse and imperative, the commands copy-paste-ready, and the facts project-specific.** No filler, and no generic engineering advice a competent agent already knows.
 

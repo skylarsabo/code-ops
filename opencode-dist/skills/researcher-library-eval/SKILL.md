@@ -7,7 +7,9 @@ description: "Use when you must decide whether to adopt a library or approach, c
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/researcher/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/researcher-library-eval`, or by the model through the `skill` tool as `researcher-library-eval`.** First read the bundled
+**Invoked as `/researcher-library-eval`, or by the model through the `skill` tool as `researcher-library-eval`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the evidence and citation discipline, the hand-off map, and
 the lenses, referenced by section.
@@ -80,7 +82,7 @@ confidence and grounding (`§8`). Cover each of the following, cited and tiered:
   field-of-use terms are a developer decision.
 - **Supply-chain and egress trust.** Transitive weight, install scripts, provenance, and any
   telemetry or new outbound path. A deep check goes to
-  `privacy-opsec-suite:supply-chain-trust` rather than being asserted here.
+  `/privacy-opsec-suite-supply-chain-trust` rather than being asserted here.
 - **Migration cost.** Call-site churn, data and contract migration, test changes, and
   rollout and rollback. Name the smallest adoption slice, meaning one module behind a seam,
   before any wholesale switch.
@@ -102,9 +104,9 @@ risks and trade-offs accepted, and the open questions. Every sentence is cited a
 ## Hand-off: the researcher proposes, others implement
 
 Never edit code here (`§11`). The decision and the rejected alternatives go to
-`code-ops-suite:adr`. The adoption, the migration, and any version bump go to
-`code-ops-suite:dependency-upgrade`. A flagged trust or egress concern goes to
-`privacy-opsec-suite:supply-chain-trust`. State the hand-off target explicitly in the brief.
+`/code-ops-suite-adr`. The adoption, the migration, and any version bump go to
+`/code-ops-suite-dependency-upgrade`. A flagged trust or egress concern goes to
+`/privacy-opsec-suite-supply-chain-trust`. State the hand-off target explicitly in the brief.
 
 ## Done when
 
@@ -117,5 +119,5 @@ request was recorded through `research-manifest.mjs`, and the brief was validate
 publishing, with no un-manifested web citation. Disconfirmation ran across fit, maintenance,
 license, supply chain, migration cost, and lock-in. The brief leads with a tiered
 recommendation, a comparison, and the smallest adoption slice, and it names the explicit
-hand-off to `code-ops-suite:adr` and `code-ops-suite:dependency-upgrade`. It is SHA-stamped,
+hand-off to `/code-ops-suite-adr` and `/code-ops-suite-dependency-upgrade`. It is SHA-stamped,
 and no code changed. Present the recommendation paragraph first.

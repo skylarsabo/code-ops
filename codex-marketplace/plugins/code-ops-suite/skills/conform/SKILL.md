@@ -38,7 +38,7 @@ and doc alignment reconciles what the first three surfaces reference.
 | 2 | Documentation hub | `<repo>-docs/` exists; vault and manifest checks exit 0; manifest-v2 collections also pass `records check` | `code-ops-suite:vault` in the mode Phase B detects |
 | 3 | Atlas | `code-ops-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `code-ops-suite:atlas` |
 | 4 | Doc alignment | Only when surfaces 1-3 surfaced drift signals: a contract, vault note, or repo doc referencing something the others contradict or no longer carry | `code-ops-suite:doc-alignment` |
-| 5 | Global contract *(optional, ask first)* | The user's global `~/.claude/AGENTS.md` carries a marketplace stamp current with this checkout | `code-ops-suite:adopt-global-standards` |
+| 5 | Global contract *(optional, ask first)* | The user's global `~/.codex/AGENTS.md` carries a marketplace stamp current with this checkout | `code-ops-suite:adopt-global-standards` |
 
 Record each surface as CONFORMANT, DRIFTED, or ABSENT, with the checker output that decided it.
 A surface whose checker could not run is UNKNOWN, never CONFORMANT, because a check that did not

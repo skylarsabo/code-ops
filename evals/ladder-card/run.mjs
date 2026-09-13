@@ -31,6 +31,9 @@ function runHook(input, sw) {
   if (sw !== undefined) env.CODE_OPS_LADDER_CARD = sw;
   return spawnSync('node', [hook], { input, encoding: 'utf8', env });
 }
+function runGrokHook(input) {
+  return spawnSync('node', [hook], { input, encoding: 'utf8', env: { ...process.env, GROK_PLUGIN_ROOT: root } });
+}
 const payload = (type, extra = {}) => JSON.stringify({ hook_event_name: 'SubagentStart', agent_id: 'a1', agent_type: type, ...extra });
 
 const IMPLEMENTERS = ['general-purpose', 'mech', 'claude', 'implementer', 'my-team:builder', 'code-ops-suite:fixer'];
@@ -82,6 +85,9 @@ for (const t of READ_ONLY) {
   expect(r.status === 0 && r.stdout === '', `read-only ${t} must get nothing, got ${r.status}/${JSON.stringify(r.stdout)}`);
 }
 console.log(`ok   ${READ_ONLY.length} read-only types get nothing with the switch on`);
+const grokPassive = runGrokHook(payload('implementer'));
+expect(grokPassive.status === 0 && grokPassive.stdout === '', 'Grok passive SubagentStart emits no ignored card output');
+console.log('ok   Grok passive-hook adapter emits no ignored card output');
 
 // ---------------------------------------------------------------- fail open
 const cases = [

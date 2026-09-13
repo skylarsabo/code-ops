@@ -36,7 +36,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `performance` — Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured.
 - `pr-review` — Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review. For an anonymity gate, use privacy-opsec-suite:opsec-pr-gate.
 - `pr-split` — Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless.
-- `provider-parity-audit` — Use when you want to audit the marketplace's own prose for provider-specific assumptions such as harness mechanics, tool names, and hook semantics that would mislead a reader on a different host. The mechanical render layer is already covered by build-codex-marketplace.mjs --check, so this skill covers prose only.
+- `provider-parity-audit` — Use when the marketplace must be audited across Claude, Codex, installed Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, generated projections, and documentation.
 - `remediation` — Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input.
 - `repo-docs` — Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub.
 - `run-cost-audit` — Use when you want to audit a completed orchestrated run's cost discipline, covering dispatch counts, artifact sizes, and tier and effort mix, against the suite's own bounded-wave and routing doctrine. It consumes a finished run's artifact folder, not a live one.
@@ -49,7 +49,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 
 - The complete workflow text and conventions are rendered from `plugins/code-ops-suite/` in the source repository.
 - Claude-specific GitHub Action examples are intentionally not bundled here.
-- Root-level `agents/*.md` files are collaboration-subagent briefing templates; Codex does not auto-discover them as Claude agents.
+- Root-level `agents/*.md` files are collaboration-subagent briefing templates. Their machine-readable minimum tiers are in `agents/model-floors.json`; the lead selects a supported runtime model before dispatch.
 - The package bundles optional, plugin-scoped MCP servers: `code-ops-docs`, `code-ops-query`.
 - The traceless-publishing hook is bundled. Codex requires the user to review and trust plugin hooks before they run.
 

@@ -221,7 +221,7 @@ function loadPrices(path) {
 }
 
 function usageForRun(run, root) {
-  const receipt = run.contract?.version === 3 && run.contract.runtime?.receipts;
+  const receipt = run.contract?.version >= 3 && run.contract.runtime?.receipts;
   if (!receipt || typeof receipt !== 'string') return null;
   const rootPath = resolve(root);
   const path = resolve(rootPath, receipt);

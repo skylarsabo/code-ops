@@ -19,7 +19,18 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+const EDIT_TOOLS = new Set(['edit', 'write', 'search_replace', 'multiedit', 'notebookedit', 'apply_patch', 'functions.apply_patch']);
+
+function editedFiles(payload) {
+  const name = String(payload?.tool_name ?? payload?.toolName ?? payload?.tool?.name ?? '').toLowerCase();
+  if (![...EDIT_TOOLS].some((tool) => name === tool || name.endsWith(`.${tool}`))) return [];
+  const input = payload?.tool_input ?? payload?.toolInput ?? payload?.input;
+  const direct = input?.file_path ?? input?.filePath ?? input?.notebook_path ?? input?.path;
+  if (typeof direct === 'string' && direct.trim()) return [direct];
+  const patch = input?.patch ?? input?.input;
+  if (typeof patch !== 'string') return [];
+  return [...patch.matchAll(/^\*\*\* (?:Add|Update) File: (.+)$/gm)].map((match) => match[1].trim());
+}
 
 function main() {
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_INDEX ?? '')) return;
@@ -27,13 +38,12 @@ function main() {
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
   try { payload = JSON.parse(raw.replace(/^\uFEFF/, '')); } catch { return; }
-  if (!EDIT_TOOLS.has(payload?.tool_name)) return;
-  const file = payload?.tool_input?.file_path ?? payload?.tool_input?.notebook_path;
-  if (typeof file !== 'string' || !file.trim()) return;
+  const files = [...new Set(editedFiles(payload))];
+  if (!files.length) return;
   const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'context-query.mjs');
   if (!existsSync(script)) return;
   const cwd = typeof payload.cwd === 'string' && existsSync(payload.cwd) ? payload.cwd : process.cwd();
-  spawnSync(process.execPath, [script, 'refresh', file], { cwd, timeout: 5000, stdio: 'ignore' });
+  for (const file of files) spawnSync(process.execPath, [script, 'refresh', file], { cwd, timeout: 5000, stdio: 'ignore' });
 }
 
 try { main(); } catch { /* fail open */ }

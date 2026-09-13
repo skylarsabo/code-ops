@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-03
+updated: 2026-09-13
 ---
 
 # Observability
@@ -58,13 +58,29 @@ The canonical [performance reference](PERFORMANCE.md) owns the measurement proto
 
 ## Session and tool-output receipts
 
-A `PreCompact` hook prints what a compaction summary must preserve, and the host reads that stdout as the compaction's custom instructions, so a resumed session does not redo work or lose a stated constraint. Evidence: `plugins/code-ops-suite/hooks/precompact-preserve.mjs:1-11`.
+There is no `PreCompact` command. Claude and Codex ignore plain stdout from that event, so
+their `SessionStart source=compact` path supplies a post-compaction restore instruction from
+`routing-card.mjs`. That signal asks the new context to rebuild decisions, constraints,
+evidence, blockers, open work, and exact identifiers from durable state; it does not prove the
+preceding summary preserved them. Grok passive `SessionStart` stdout is unavailable, and
+OpenCode uses its native compaction port. Evidence:
+`plugins/code-ops-suite/hooks/hooks.json` and
+`plugins/code-ops-suite/hooks/routing-card.mjs`.
 
-The `SessionEnd` hook `session-receipt.mjs` appends one row per session to a local ledger: exact tokens by class for the main thread and its subagents, tool calls by tool, model mix, wall time, and the switches that session ran under. It is on by default, prints nothing to the model, and fails open on every error. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:1-20`.
+The `SessionEnd` hook `session-receipt.mjs` appends one normalized row on supported hosts.
+Claude finds nested subagent transcripts. Codex follows peer rollout `parent_thread_id` links.
+Installed Grok 1.0.13 parses cumulative usage from `updates.jsonl` and records its unavailable
+ladder arm false. OpenCode has no transcript callback. The hook prints nothing to the model and
+fails open on every error. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs` and
+`scripts/transcript-lib.mjs`.
 
 The `PreToolUse` hook `digest-rewrite.mjs` changes what a tool result looks like, and it is on by default. An allowlisted simple Bash command runs under `digest.mjs`, so the result the session sees is the compressed view: kept lines, an `[elided N lines: sed -n 'A,Bp' <raw path>]` marker for each region that went, and a closing trailer naming the exit code, the shape, the line counts before and after, and the raw file's sha256. The whole untouched output stays on disk at that raw path, under `~/.claude/code-ops/digest/<project slug>/<ISO date>/` by default, with one row per run in `DIGEST_RECEIPTS.jsonl` beside it. A command outside the contract arrives exactly as it always did. The [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) owns the off switch. Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:1-41` and `scripts/digest.mjs:166-195`.
 
-`context-audit.mjs` reads the same transcripts on demand and reports tokens, context characters by tool, Bash output by command family, and repeat reads, sanitized by default. `context-audit.mjs receipts --by-arm` reads the ledger instead and prints per-session means grouped by the switches each session ran under, which is how one mechanism's effect is read off two checkouts. The [measurements reference](MEASUREMENTS.md) owns the baseline rows and the method for adding one. The sanitization contract lives beside the family function. Evidence: `scripts/context-audit.mjs:1-18`, `scripts/context-audit.mjs:93-132`, and `scripts/transcript-lib.mjs:63-70`.
+`context-audit.mjs` reads supported host records on demand and reports normalized usage,
+sanitized by default. `receipts --by-arm` groups recorded sessions by switches. That grouping
+is descriptive until a pre-registered matched control holds host, model, work, and stopping
+rule fixed. The [measurements reference](MEASUREMENTS.md) owns the baseline rows and the causal
+claim boundary. Evidence: `scripts/context-audit.mjs` and `scripts/transcript-lib.mjs`.
 
 ## Record-collection signals
 

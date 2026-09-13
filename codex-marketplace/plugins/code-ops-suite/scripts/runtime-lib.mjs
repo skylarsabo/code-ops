@@ -192,7 +192,7 @@ export function verifyRuntimeConfig(root, runtime) {
 }
 
 export function runtimeBinding(root, contractPath, contract) {
-  if (contract.version !== 3 || !contract.runtime || !contract.context) throw new Error('runtime binding requires a version 3 run contract');
+  if (contract.version < 3 || !contract.runtime || !contract.context) throw new Error('runtime binding requires a version 3 or newer run contract');
   const contractRelative = repoRelative(root, resolve(contractPath));
   const contractAbsolute = checkedPath(root, contractRelative);
   const verified = verifyRuntimeConfig(root, contract.runtime);

@@ -7,7 +7,9 @@ description: "Use when you want the most exhaustive end-to-end pass across all t
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/code-ops-suite/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/code-ops-suite-everything`, or by the model through the `skill` tool as `code-ops-suite-everything`.** This skill orchestrates every workflow across the
+**Invoked as `/code-ops-suite-everything`, or by the model through the `skill` tool as `code-ops-suite-everything`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. This skill orchestrates every workflow across the
 three code-ops plugins into one exhaustive pipeline. It does not replace the individual skills.
 It runs them in the right order, deduplicated, carrying every register and a growing **proof
 set** forward, and checking in at phase boundaries.
@@ -64,11 +66,12 @@ Then set up the run:
 
 ## Runtime continuity across phases
 
-For this multi-phase run, use a version 3 `RUN_CONTRACT.json` with an exact context snapshot,
-verified unit bundles, an observed host-capability descriptor, and bounded runtime policy.
+For this multi-phase substantive run, use a version 4 `RUN_CONTRACT.json` with an exact context
+snapshot, verified unit bundles, a frontier lead, lower-tier parallel work operatives,
+independent validation for each work unit, an observed host-capability descriptor, and bounded runtime policy.
 Run `node <plugin-root>/scripts/run-contract.mjs check --root . --contract <contract>`,
 then `node <plugin-root>/scripts/run-runtime.mjs init --root . --contract <contract>`
-once. An existing version 1 or 2 contract keeps its artifact checkpoints until explicitly replanned.
+once. An existing version 1, 2, or 3 contract remains replayable but cannot start new substantive work without an explicit version 4 replan.
 
 At each phase boundary, reconcile the dispatch ledger and checkpoint with
 `node <plugin-root>/scripts/run-runtime.mjs checkpoint --root . --contract <contract> --ledger <ledger>`.
@@ -148,7 +151,7 @@ proven, fixed, closed, improved, and documented, with **CONFIRMED separated from
 SPECULATIVE**, plus the coverage map and anything still awaiting a decision.
 
 When shipping, carve the remediation diff into a clean, independently-green stack with
-`pr-split`, then commit each final diff. Then run `code-ops-suite:local-review-gate` before its
+`pr-split`, then commit each final diff. Then run `/code-ops-suite-local-review-gate` before its
 PR exists. That gate composes the deep and OpSec reviews locally and binds their reports to each
 exact SHA. `authorship-hygiene` stays fail-closed, so the commits and PRs carry no AI or tooling
 trace. Never auto-merge.

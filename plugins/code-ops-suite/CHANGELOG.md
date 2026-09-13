@@ -3,6 +3,15 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.74.0
+- Substantive runs now use an enforced frontier-lead and strong-operative graph. Version 4 run contracts require multiple operatives, a real parallel wave, lower-tier operative routing, explicit independent-validation relationships, and nonempty operative artifacts before finalization.
+- Security campaigns declare distinct exploit families and terminal hypothesis states. The new attack-chain compiler bans history and advisory shortcuts, requires direct implementation evidence and realistic privilege-to-impact closure, traces reverse collisions to terminal nodes, and ranks open chains for independent validation.
+- Hook payload adapters accept Claude and Codex command, edit, and session shapes. Codex projections preserve machine-readable agent floors and host-native settings and storage prose, while OpenCode projections translate portable skill references and expose only capabilities backed by its runtime API.
+- Provider-parity repairs stop claiming ignored passive-hook output, restore Codex child-rollout accounting, parse Grok usage updates, preserve cross-host standards paths during rendering, and keep read-only operatives within their declared tools. Regression coverage now includes every `co.mjs` domain and the digest hook's context overhead.
+- `provider-parity-audit` now covers Claude, Codex, installed Grok, and OpenCode across hooks,
+  agents, skills, scripts, settings, manifests, both renderers, generated distributions, and
+  documented API gaps. It separates output-shape probes from live external-turn evidence.
+
 ## 1.73.0
 - Orchestrated runs gain partial acceptance, bounded runtime status, per-unit token envelopes, and attributed model and reasoning-token observations. These controls preserve continuity across compaction and make overruns visible without expanding worker context.
 - Context bundles can compile verified unit views, and `worker-brief.mjs` builds deterministic two-part briefs with separate invariant, unit, and total byte limits. It fails instead of truncating, rejects portable path aliases that could overwrite an input, and verifies both source and output hashes before reuse.

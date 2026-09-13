@@ -7,7 +7,9 @@ description: "Use when you want grounded, external-best-practice improvements pr
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/researcher/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/researcher-research-improve`, or by the model through the `skill` tool as `researcher-research-improve`.** First read the bundled
+**Invoked as `/researcher-research-improve`, or by the model through the `skill` tool as `researcher-research-improve`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
@@ -81,7 +83,7 @@ evidence:
   privacy and egress posture. A proposal that adds a new outbound path is itself an egress
   concern, so flag it rather than assume it.
 - **Is it worth it?** Weigh the concrete value against the effort and the blast radius. A
-  measured performance claim is out of scope, so hand it to `rigor:improve-measured` and
+  measured performance claim is out of scope, so hand it to `/rigor-improve-measured` and
   never assert a speedup.
 
 Dispatch a claim-checker per candidate, in parallel, to gate the survivors adversarially.
@@ -101,10 +103,10 @@ NOW-SAFE, NEEDS-REVIEW, or NEEDS-DESIGN (`§6`). Rank by value multiplied by rea
 effort, and weighted by tier and grounding (`§8`). A SPECULATIVE item ranks below any
 PROBABLE or CONFIRMED item.
 
-Hand off per `§11`. An improvement goes to `code-ops-suite:remediation` or
-`rigor:fix-verified`. A broad behavior-preserving measured win goes to
-`rigor:improve-measured`. An architectural rework goes to NEEDS-DESIGN for a
-`code-ops-suite:adr`. A finding is done when its implementer can act without
+Hand off per `§11`. An improvement goes to `/code-ops-suite-remediation` or
+`/rigor-fix-verified`. A broad behavior-preserving measured win goes to
+`/rigor-improve-measured`. An architectural rework goes to NEEDS-DESIGN for a
+`/code-ops-suite-adr`. A finding is done when its implementer can act without
 re-researching (`§11`). The researcher never makes the change itself.
 
 ## Validate and publish

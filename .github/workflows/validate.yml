@@ -155,6 +155,9 @@ jobs:
       - name: Run-contract regression eval
         run: node evals/run-contract/run.mjs
 
+      - name: Attack-chain graph regression eval
+        run: node evals/attack-chain-graph/run.mjs
+
       - name: Long-horizon runtime regression eval
         run: node evals/run-runtime/run.mjs
 
@@ -378,6 +381,9 @@ jobs:
 
       - name: Run-contract regression eval
         run: node evals/run-contract/run.mjs
+
+      - name: Attack-chain graph regression eval
+        run: node evals/attack-chain-graph/run.mjs
 
       - name: Long-horizon runtime regression eval
         run: node evals/run-runtime/run.mjs

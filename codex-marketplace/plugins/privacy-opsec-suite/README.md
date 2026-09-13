@@ -29,6 +29,6 @@ Name a workflow in Codex as `privacy-opsec-suite:<skill>`. Every generated skill
 
 - The complete workflow text and conventions are rendered from `plugins/privacy-opsec-suite/` in the source repository.
 - Claude-specific GitHub Action examples are intentionally not bundled here.
-- Root-level `agents/*.md` files are collaboration-subagent briefing templates; Codex does not auto-discover them as Claude agents.
+- Root-level `agents/*.md` files are collaboration-subagent briefing templates. Their machine-readable minimum tiers are in `agents/model-floors.json`; the lead selects a supported runtime model before dispatch.
 
 For source history and release notes, see the generated `CHANGELOG.md` and the repository root.

@@ -66,7 +66,7 @@ freshness check.
 **Meta and suite self-audit**
 - [`calibration-run`](#code-ops-suitecalibration-run): standardized real-scale calibration on a one-way sanitized channel
 - [`run-cost-audit`](#code-ops-suiterun-cost-audit): audit a completed run's cost discipline
-- [`provider-parity-audit`](#code-ops-suiteprovider-parity-audit): audit the suite's own prose for provider-specific assumptions
+- [`provider-parity-audit`](#code-ops-suiteprovider-parity-audit): audit every suite surface across Claude, Codex, Grok, and OpenCode
 
 **Orchestrators**
 - [`full-sweep`](#code-ops-suitefull-sweep): the whole suite end to end (intra-plugin)
@@ -95,10 +95,19 @@ pointer, not a second contract.
 - `co scan overbuild --git <range>` reads one diff and its head tree through git and reports eight over-build tells. Only an unrecorded dependency blocks, and every other tell is advisory.
 - `co scan deferrals` collects every `deferred(<ceiling>, <upgrade path>)` marker in a tracked text file into `DEFERRALS_REGISTER.md`. `--check` re-harvests and exits 1 when the register on disk disagrees.
 - `co context audit` summarizes where a session's context went. `co context audit receipts` reads the session-receipt ledger back, `--by-arm` groups sessions by the switches they ran under, and `--purge-before <ISO date>` trims old rows.
-- The `SessionEnd` hook `session-receipt.mjs` appends one receipt row per session to a home-directory ledger, which never leaves the machine. Its switch is `CODE_OPS_RECEIPTS`, and it also names the ledger path.
-- The `SubagentStart` hook `ladder-card.mjs` prints the code-economy ladder to an implementer-class subagent, in at most ten lines. It is on by default, and its switch is `CODE_OPS_LADDER_CARD`.
-- The `PreCompact` hook `precompact-preserve.mjs` prints the fixed instruction naming what a compaction summary must keep. It reads no stdin and adds no per-turn tokens.
-- The `PreToolUse` hook `enforce-traceless.mjs` blocks a flagged `git commit` or `gh pr create` at the tool layer, and the `SessionStart` hook `routing-card.mjs` prints the routing card.
+- The `SessionEnd` hook `session-receipt.mjs` appends one normalized receipt on Claude,
+  Codex, and installed Grok 1.0.13. Codex follows child `parent_thread_id` links; Grok reads
+  cumulative `updates.jsonl` usage and records the ladder arm false. OpenCode has no automatic
+  transcript callback. The switch is `CODE_OPS_RECEIPTS`, and it may name the ledger path.
+- The `SubagentStart` hook `ladder-card.mjs` prints the code-economy ladder on Claude and
+  Codex. Grok passive stdout is ignored, so its instruction files carry the doctrine. OpenCode
+  has no typed subagent-start callback. The switch is `CODE_OPS_LADDER_CARD`.
+- No `PreCompact` command is registered. Claude and Codex get a durable-state restore
+  instruction on `SessionStart source=compact`, after compaction. OpenCode uses its native
+  compaction port; Grok has no hook-injected equivalent.
+- The `PreToolUse` hook `enforce-traceless.mjs` blocks a flagged `git commit` or `gh pr create`
+  at the tool layer. `routing-card.mjs` supplies session context on Claude and Codex, while
+  paired instruction files carry the same routing doctrine on Grok.
 
 ---
 
@@ -963,22 +972,33 @@ standalone.
 ### `/code-ops-suite:provider-parity-audit`
 **Mode:** ASSESS
 
-**How it works.** Three phases:
+**How it works.** Five phases:
 
-- **Phase 0** dispatches an `explorer` operative to inventory provider-coupled prose across `plugins/*/skills/*/SKILL.md`, every plugin's `CONVENTIONS.md`, and the documentation hub. That covers named harness mechanics, literal tool names, and host-specific invocation phrasing, returned as `file:line` hits rather than rewritten files.
-- **Phase 1** classifies each hit as reconciled in the derived Codex render and therefore not a finding, as needing generic rewording, or as intentionally provider-specific with the reason documented.
-- **Phase 2** writes the needs-rewording hits into `FINDINGS_REGISTER.md` in the finding schema (`§7`), tracked NOW-SAFE or NEEDS-REVIEW. Intentionally provider-specific hits are recorded as accepted-as-is, so a later pass does not re-flag them.
+- **Phase 0** binds the repository revision, host and plugin versions, contracts, settings, and
+  full scope. The scope includes canonical hooks, agents, skills, scripts, manifests,
+  documentation, both renderers, and generated host trees.
+- **Phase 1** runs both renderer checks, both distribution evals, and the Grok compatibility
+  eval. When Grok is installed, it also records `grok --version`, direct plugin validation, and
+  the installed hook guide as local runtime evidence.
+- **Phase 2** traces every capability separately through Claude, Codex, Grok, and OpenCode. A
+  row records its host, surface, outcome, mechanism, evidence, and state.
+- **Phase 3** classifies each row as host-neutral, renderer-reconciled, native-host compatible,
+  a documented fallback, an intentional API gap, needing generic rewording, or broken parity.
+- **Phase 4** writes actionable and unverified critical items into `FINDINGS_REGISTER.md` and
+  independently challenges every concrete broken-parity claim.
 
-**Why it's useful.** `build-codex-marketplace.mjs --check` already guarantees the mechanical
-render is correct. This command checks the prose that quietly assumes only one host exists,
-which the render check cannot see.
+**Why it's useful.** A renderer check proves one generated tree matches its renderer. It does
+not prove native Grok hook behavior, OpenCode API coverage, settings portability, script paths,
+or that documentation describes a limitation honestly. This audit binds those distinct forms
+of evidence without treating an exact-output probe as a live external model turn.
 
-**When to use it.** Run it periodically, or after a batch of skill and doc edits, to keep the
-marketplace's prose honestly cross-host. Do not expect it to touch the derived Codex render,
-which is the build script's job.
+**When to use it.** Run it after hook, renderer, agent, settings, or cross-host workflow changes,
+and periodically against installed host versions. It is assess-only: generated trees are
+evidence, never edit targets.
 
-**Prerequisites and hand-offs.** It has no prerequisites. It feeds `FINDINGS_REGISTER.md` to
-`remediation` for the needs-rewording items.
+**Prerequisites and hand-offs.** Claude is the canonical package shape. Missing Codex, Grok, or
+OpenCode binaries are recorded `UNAVAILABLE`, not silently passed. The audit feeds
+`FINDINGS_REGISTER.md` to `remediation` for approved repairs.
 
 ---
 

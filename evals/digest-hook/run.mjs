@@ -15,7 +15,8 @@
 //   - garbage stdin exits 0 with no output, so the hook can never cost a tool call;
 //   - the permission branch is asserted explicitly: the installed host re-runs its permission
 //     evaluation against `updatedInput`, so the hook returns NO `permissionDecision`;
-//   - `additionalContext` is present, and identical, on every rewrite;
+//   - `additionalContext` is present, and identical, on every rewrite, including commands whose
+//     eventual result is small enough to pass through raw;
 //   - the mutation control: a copy of the hook with the pipe removed from both the
 //     metacharacter guard and the bare-token charset wraps `git diff | head`, so the contract
 //     is proven able to fail, while removing it from one guard alone changes nothing, which is
@@ -62,9 +63,23 @@ function rewriteOf(input, value = 'on', script = hook) {
   try { return { status: r.status, out: r.stdout, json: JSON.parse(r.stdout) }; } catch { return { status: r.status, out: r.stdout, json: 'unparsable' }; }
 }
 
+const codexPayloadFor = (command) => JSON.stringify({
+  toolName: 'functions.exec_command',
+  input: { cmd: command, description: 'fixture' },
+});
+
 const CONTEXT = 'Output runs through the code-ops digest: a short output arrives raw, and a long one '
   + 'arrives compressed, with a sed hint per elided region into the raw file named in the trailer. '
   + 'Run the original command only if you need the whole output.';
+
+const codexRewrite = rewriteOf(codexPayloadFor('git diff --stat'));
+expect(typeof codexRewrite.json?.hookSpecificOutput?.updatedInput?.cmd === 'string', 'Codex exec_command payload keeps its cmd field when rewritten');
+const grokRewrite = rewriteOf(JSON.stringify({
+  hookEventName: 'pre_tool_use', toolName: 'run_terminal_command',
+  toolInput: { command: 'git diff --stat', description: 'fixture' },
+}));
+expect(typeof grokRewrite.json?.hookSpecificOutput?.updatedInput?.command === 'string',
+  'Grok run_terminal_command payload keeps its command field when rewritten');
 
 // Every payload the eval uses, rewritten or not, in one place so the off-switch block can
 // replay the whole set.

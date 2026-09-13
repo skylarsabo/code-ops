@@ -7,7 +7,9 @@ description: "Use when you want the whole rigor suite run end-to-end as a checkp
 
 **opencode path rule:** Resolve `<plugin-root>` as `code-ops/rigor/` inside your opencode config directory (the directory holding this plugin's `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoked as `/rigor-rigor-sweep`, or by the model through the `skill` tool as `rigor-rigor-sweep`.** First read the bundled
+**Invoked as `/rigor-rigor-sweep`, or by the model through the `skill` tool as `rigor-rigor-sweep`.**
+
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
@@ -38,7 +40,8 @@ and line counts, so a brief can then read one range instead of the whole file.
 ## Runtime continuity when available
 
 For a multi-phase resumable run with `code-ops-suite` installed, locate its scripts directory
-as `<runtime scripts>` and compile a version 3 run contract. Record observed host capabilities,
+as `<runtime scripts>` and compile a version 4 run contract. Declare the frontier lead,
+lower-tier parallel work operatives, and independent validation for every work unit. Record observed host capabilities,
 the exact context snapshot, verified unit bundles, and bounded runtime policy. Run
 `node <runtime scripts>/run-contract.mjs check --root . --contract <contract>`, then initialize
 the receipt chain once with `node <runtime scripts>/run-runtime.mjs init --root . --contract <contract>`.
@@ -51,7 +54,7 @@ session, read `run-runtime.mjs status` with root and contract first, then append
 continuing. Scope, context, or runtime drift requires the next contract revision, refreshed
 affected bundles, and replan with the checkpoint reference flags.
 
-Without the installed runtime or a version 3 contract, retain artifact checkpoints and handoff
+Without the installed runtime or a version 4 contract, retain artifact checkpoints and handoff
 verification. State that runtime verification is unavailable; never infer host capabilities.
 
 ## Phase 1: ground truth

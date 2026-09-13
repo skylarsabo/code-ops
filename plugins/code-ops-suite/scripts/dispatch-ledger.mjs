@@ -3,8 +3,8 @@
 // convention (CONVENTIONS.md §12: "Standard filenames"; row grammar pinned in
 // scripts/revalidate-register.mjs's --dispatch-ledger comment).
 //
-//   node scripts/dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m>
-//   node scripts/dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s>
+//   node scripts/dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <id>]
+//   node scripts/dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <id>]
 //   node scripts/dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>
 //   node scripts/dispatch-ledger.mjs check --ledger <path> [--strict]
 //
@@ -82,8 +82,8 @@ const PHASE_RE = /^> phase: (.+) · lead@(\S+)$/;
 const PHASE_PREFIX = '> phase:';
 
 function usage() {
-  console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m>');
-  console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s>');
+  console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <host-session-or-agent-id>]');
+  console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <host-session-or-agent-id>]');
   console.error('       dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>');
   console.error('       dispatch-ledger.mjs check --ledger <path> [--strict]');
   process.exit(2);
@@ -152,6 +152,17 @@ function wordCount(s) {
   return s.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// `actorId` records the host/session agent identifier supplied by the caller. It supports
+// continuity and separation checks inside one ledger; it is not cryptographic identity proof.
+function actorId(value) {
+  if (value === undefined) return null;
+  if (!/^\S{1,200}$/u.test(value)) {
+    console.error('x --actor-id must be a whitespace-free host session or agent id of at most 200 characters');
+    process.exit(1);
+  }
+  return value;
+}
+
 // Splits a `role@model` cell on its LAST '@', so a role name that itself carries '@'
 // (unlikely, but not impossible) cannot misparse the model. A cell with no '@', or one whose
 // model half is blank, is an unstamped dispatch: `{ role, model: null }`, never a guess.
@@ -204,7 +215,16 @@ function journalPathFor(ledgerPath) {
 function journalAppend(ledgerPath, entry, mayCreate) {
   const jp = journalPathFor(ledgerPath);
   if (!existsSync(jp) && !mayCreate) return;
-  try { appendFileSync(jp, JSON.stringify(entry) + '\n'); }
+  const rendered = JSON.stringify(entry) + '\n';
+  try {
+    const prior = existsSync(jp) ? readFileSync(jp, 'utf8') : '';
+    const proposed = replayDispatchJournal(prior + rendered);
+    if (proposed.violations.length) {
+      console.error(`x refusing invalid dispatch journal event: ${proposed.violations.at(-1)}`);
+      process.exit(1);
+    }
+    appendFileSync(jp, rendered);
+  }
   catch (e) { console.error(`x cannot write dispatch journal ${jp}: ${e.message}`); process.exit(2); }
 }
 
@@ -214,7 +234,7 @@ function journalAppend(ledgerPath, entry, mayCreate) {
 // ---------------------------------------------------------------- add
 
 function cmdAdd(args) {
-  const f = parseFlags(args, new Set(['--ledger', '--role', '--brief', '--artifact', '--model']));
+  const f = parseFlags(args, new Set(['--ledger', '--role', '--brief', '--artifact', '--model', '--actor-id']));
   for (const req of ['--ledger', '--role', '--brief', '--artifact'])
     if (!(req in f)) { console.error(`x add needs ${req}`); usage(); }
   if (!('--model' in f)) {
@@ -239,7 +259,8 @@ function cmdAdd(args) {
   const role = `${f['--role']}@${f['--model']}`;
   const row = `| ${id} | ${role} | ${f['--brief']} | ${f['--artifact']} | dispatched |\n`;
   const body = (text === null ? HEADER : (text.endsWith('\n') ? text : text + '\n')) + row;
-  journalAppend(path, { op: 'add', id, status: 'dispatched' }, text === null);
+  const recordedActorId = actorId(f['--actor-id']);
+  journalAppend(path, { op: 'add', id, status: 'dispatched', ...(recordedActorId ? { actorId: recordedActorId } : {}) }, text === null);
   writeFileSync(path, body);
   console.log(`(dispatch-ledger) ${id} dispatched -> ${f['--ledger']}`);
 }
@@ -295,7 +316,7 @@ function transitionAllowed(from, to) {
 }
 
 function cmdUpdate(args) {
-  const f = parseFlags(args, new Set(['--ledger', '--id', '--status']));
+  const f = parseFlags(args, new Set(['--ledger', '--id', '--status', '--actor-id']));
   for (const req of ['--ledger', '--id', '--status'])
     if (!(req in f)) { console.error(`x update needs ${req}`); usage(); }
   if (!STATUSES.includes(f['--status'])) {
@@ -322,7 +343,8 @@ function cmdUpdate(args) {
   const updated = original.replace(/\|\s*[^|]*\s*\|$/, `| ${f['--status']} |`);
   lines[target.line - 1] = updated;
   // `update` never creates a journal — only the command that creates the ledger may.
-  journalAppend(path, { op: 'update', id: f['--id'], to: f['--status'] }, false);
+  const recordedActorId = actorId(f['--actor-id']);
+  journalAppend(path, { op: 'update', id: f['--id'], to: f['--status'], ...(recordedActorId ? { actorId: recordedActorId } : {}) }, false);
   writeFileSync(path, lines.join('\n'));
   console.log(`(dispatch-ledger) ${f['--id']} ${target.status} -> ${f['--status']}`);
 }

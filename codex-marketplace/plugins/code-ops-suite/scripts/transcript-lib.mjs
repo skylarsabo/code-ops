@@ -11,9 +11,11 @@
 //   - One assistant message is written as SEVERAL lines (one per content block), each
 //     repeating the same `message.id` and `usage`. Usage is deduplicated by message id, taking
 //     the per-field maximum across the duplicates (the last chunk carries the final counts).
-//   - Subagent transcripts live beside the session file: `<dir>/<sessionId>/subagents/*.jsonl`,
-//     and their lines carry `isSidechain: true`. They are summarized separately from the main
-//     thread because operative cost is the number the tiering doctrine needs.
+//   - Claude subagent transcripts live under `<session>/subagents/`. Codex stores every
+//     rollout as a peer JSONL and links children through `parent_thread_id`; both layouts are
+//     resolved without relying on filenames.
+//   - Grok writes cumulative usage snapshots per prompt to `updates.jsonl`. Repeated snapshots
+//     are collapsed by prompt id before prompts are summed.
 //   - Tool results are attributed to the tool by `tool_use_id` → the earlier `tool_use` block
 //     in the same file; a result whose call lives in another file lands in the `?` bucket.
 //   - `messages.user` counts human turns only; tool-result carrier lines are excluded.
@@ -22,8 +24,8 @@
 // subcommand), and file extensions — never paths, arguments, or content. `raw: true` keeps a
 // truncated command / path for local inspection only.
 
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { join, extname, basename } from 'node:path';
+import { readFileSync, readdirSync, existsSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { join, extname, basename, dirname } from 'node:path';
 import { homedir } from 'node:os';
 
 export const USAGE_FIELDS = ['input', 'cacheRead', 'cacheCreate', 'output', 'thinking'];
@@ -51,6 +53,40 @@ export function normalizeUsage(u, host = 'claude') {
   return { input, cacheRead, cacheCreate, output, thinking,
     total: host === 'codex' ? typeof codexTotal === 'number' ? codexTotal : tokenCount(u.total_tokens)
       : tokenSum(input, cacheRead, cacheCreate, output) };
+}
+
+function normalizeGrokUsage(u) {
+  if (!u || typeof u !== 'object') return null;
+  const reportedInput = tokenCount(u.inputTokens);
+  const cacheRead = tokenCount(u.cachedReadTokens);
+  const cacheCreate = tokenCount(u.cacheCreationTokens);
+  const output = tokenCount(u.outputTokens);
+  const thinking = tokenCount(u.reasoningTokens);
+  const input = typeof reportedInput === 'number' && typeof cacheRead === 'number'
+    && typeof cacheCreate === 'number' && reportedInput >= cacheRead + cacheCreate
+    ? reportedInput - cacheRead - cacheCreate : UNKNOWN;
+  const reportedTotal = tokenCount(u.totalTokens);
+  return {
+    input, cacheRead, cacheCreate, output, thinking,
+    total: typeof reportedTotal === 'number' ? reportedTotal : tokenSum(reportedInput, output),
+  };
+}
+
+const GROK_USAGE_FIELDS = ['inputTokens', 'cachedReadTokens', 'cacheCreationTokens', 'outputTokens', 'reasoningTokens', 'totalTokens', 'modelCalls', 'numTurns'];
+
+function mergeGrokSnapshot(into, from) {
+  for (const key of GROK_USAGE_FIELDS) {
+    const n = tokenCount(from?.[key]);
+    if (typeof n === 'number') into[key] = Math.max(typeof into[key] === 'number' ? into[key] : 0, n);
+  }
+  if (from?.modelUsage && typeof from.modelUsage === 'object') {
+    into.modelUsage ??= {};
+    for (const [model, usage] of Object.entries(from.modelUsage)) {
+      if (!usage || typeof usage !== 'object') continue;
+      into.modelUsage[model] ??= {};
+      mergeGrokSnapshot(into.modelUsage[model], usage);
+    }
+  }
 }
 
 export function addNormalizedUsage(into, u) {
@@ -161,9 +197,10 @@ export function summarizeTranscript(text, opts = {}) {
   const normalizedById = new Map();
   const modelById = new Map();
   const codexResponses = new Map();
+  const grokPrompts = new Map();
   const codexMessageIds = new Set();
   const modelsByTurn = new Map();
-  let codexCumulative = null, codexLast = null;
+  let codexCumulative = null, codexLast = null, grokLast = null;
   const toolById = new Map();
   const readsByPath = new Map();
   const readResultsByPath = new Map();
@@ -175,12 +212,25 @@ export function summarizeTranscript(text, opts = {}) {
     if (!o || typeof o !== 'object') continue;
     s.lines++;
     if (o.isSidechain === true) s.sidechain = true;
-    const ts = typeof o.timestamp === 'string' ? Date.parse(o.timestamp) : NaN;
+    const ts = typeof o.timestamp === 'string' ? Date.parse(o.timestamp)
+      : typeof o.timestamp === 'number' && Number.isFinite(o.timestamp)
+        ? (o.timestamp < 1e12 ? o.timestamp * 1000 : o.timestamp) : NaN;
     if (Number.isFinite(ts)) {
       if (first === null || ts < first) first = ts;
       if (last === null || ts > last) last = ts;
     }
     let msg = o.message;
+    const grokUpdate = o.params?.update;
+    if (grokUpdate?.usage && typeof grokUpdate.usage === 'object') {
+      const id = typeof grokUpdate.prompt_id === 'string' ? grokUpdate.prompt_id
+        : typeof o.params?.sessionId === 'string' ? `${o.params.sessionId}:unkeyed` : `line-${s.lines}`;
+      const usage = grokPrompts.get(id) || {};
+      mergeGrokSnapshot(usage, grokUpdate.usage);
+      grokPrompts.set(id, usage);
+      grokLast = grokUpdate.usage;
+      bump(s.hosts, 'grok', 0);
+      continue;
+    }
     if (o.type === 'session_meta') {
       bump(s.hosts, 'codex', 0);
       if (o.payload?.source?.subagent || o.payload?.thread_source?.subagent) s.sidechain = true;
@@ -320,6 +370,20 @@ export function summarizeTranscript(text, opts = {}) {
     if (!s.usageByModel[key]) s.usageByModel[key] = emptyUsage();
     addNormalizedUsage(s.usageByModel[key], u);
   };
+  const grokUsage = emptyUsage();
+  for (const usage of grokPrompts.values()) {
+    const perModel = usage.modelUsage && Object.entries(usage.modelUsage);
+    if (perModel?.length) {
+      for (const [model, raw] of perModel) {
+        const u = normalizeGrokUsage(raw);
+        if (u) { account(u, model); addNormalizedUsage(grokUsage, u); }
+        bump(s.models, model, typeof raw.modelCalls === 'number' ? raw.modelCalls : 1);
+      }
+    } else {
+      const u = normalizeGrokUsage(usage);
+      if (u) { account(u, UNKNOWN); addNormalizedUsage(grokUsage, u); }
+    }
+  }
   for (const [id, u] of normalizedById) {
     u.total = tokenSum(u.input, u.cacheRead, u.cacheCreate, u.output);
     account(u, modelById.get(id));
@@ -338,11 +402,18 @@ export function summarizeTranscript(text, opts = {}) {
     addUsage(s.usage, Object.fromEntries(USAGE_FIELDS.map((k) => [k, typeof u[k] === 'number' ? u[k] : 0])));
     if (typeof u.total === 'number') s.usage.total = tokenSum(...[...usageById.values()].map((v) => v.input + v.cacheRead + v.cacheCreate + v.output), u.total);
   }
+  if (grokPrompts.size) {
+    const priorTotal = s.usage.total;
+    addUsage(s.usage, Object.fromEntries(USAGE_FIELDS.map((k) => [k, typeof grokUsage[k] === 'number' ? grokUsage[k] : 0])));
+    s.usage.total = tokenSum(priorTotal, grokUsage.total);
+  }
   const lastUsage = [...usageById.values()].pop();
   s.contextAtEnd = lastUsage ? lastUsage.input + lastUsage.cacheRead + lastUsage.cacheCreate : 0;
   if (codexLast) s.contextAtEnd = tokenCount(codexLast.input_tokens);
+  if (grokLast) s.contextAtEnd = tokenCount(grokLast.inputTokens);
   if ('claude' in s.hosts) s.hosts.claude = usageById.size;
   if ('codex' in s.hosts) s.hosts.codex = codexResponses.size;
+  if ('grok' in s.hosts) s.hosts.grok = grokPrompts.size;
   for (const n of readsByPath.values()) if (n > 1) s.repeatReads.paths++;
   s.largest.sort((a, c) => c.chars - a.chars);
   s.largest.length = Math.min(s.largest.length, top);
@@ -392,7 +463,7 @@ export function mergeSummaries(list, opts = {}) {
   return m;
 }
 
-// Host convention: `~/.claude/projects/<cwd with every non-alphanumeric byte replaced by "-">`.
+// Host convention: `~/.codex/projects/<cwd with every non-alphanumeric byte replaced by "-">`.
 export function projectSlug(cwd) {
   return String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 }
@@ -402,11 +473,64 @@ export function defaultTranscriptDir(cwd = process.cwd(), host = 'claude') {
     : join(homedir(), '.claude', 'projects', projectSlug(cwd));
 }
 
-// The subagent transcripts that belong to one session file: `<dir>/<sessionId>/subagents/*.jsonl`.
+function codexSessionLink(file) {
+  let fd;
+  try {
+    fd = openSync(file, 'r');
+    const chunks = [];
+    let total = 0, newline = -1;
+    while (total < 8 * 1024 * 1024 && newline < 0) {
+      const chunk = Buffer.allocUnsafe(Math.min(65536, 8 * 1024 * 1024 - total));
+      const n = readSync(fd, chunk, 0, chunk.length, null);
+      if (!n) break;
+      const part = chunk.subarray(0, n);
+      newline = part.indexOf(10);
+      chunks.push(newline < 0 ? part : part.subarray(0, newline));
+      total += newline < 0 ? n : newline;
+    }
+    const row = JSON.parse(Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, ''));
+    if (row?.type !== 'session_meta') return null;
+    const payload = row.payload || {};
+    const parent = payload.parent_thread_id ?? payload.source?.subagent?.thread_spawn?.parent_thread_id
+      ?? payload.thread_source?.subagent?.thread_spawn?.parent_thread_id;
+    return { id: typeof payload.id === 'string' ? payload.id : null, parent: typeof parent === 'string' ? parent : null };
+  } catch { /* not a readable Codex transcript */ }
+  finally { if (fd !== undefined) try { closeSync(fd); } catch { /* already closed */ } }
+  return null;
+}
+
+// The subagent transcripts that belong to one session. Claude uses a nested directory;
+// Codex writes peer rollouts and links the complete descendant graph by thread id.
 export function subagentFilesFor(sessionFile) {
   const dir = join(sessionFile.replace(/\.jsonl$/i, ''), 'subagents');
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((f) => f.endsWith('.jsonl')).map((f) => join(dir, f)).sort();
+  if (existsSync(dir)) return readdirSync(dir).filter((f) => f.endsWith('.jsonl')).map((f) => join(dir, f)).sort();
+  const root = codexSessionLink(sessionFile);
+  if (!root?.id) return [];
+  const links = [];
+  for (const name of readdirSync(dirname(sessionFile))) {
+    if (!name.endsWith('.jsonl')) continue;
+    const file = join(dirname(sessionFile), name);
+    if (file === sessionFile) continue;
+    const link = codexSessionLink(file);
+    if (link?.id && link.parent) links.push({ ...link, file });
+  }
+  const descendants = [], pending = [root.id], seen = new Set([root.id]);
+  while (pending.length) {
+    const parent = pending.shift();
+    for (const link of links) {
+      if (link.parent !== parent || seen.has(link.id)) continue;
+      seen.add(link.id);
+      descendants.push(link.file);
+      pending.push(link.id);
+    }
+  }
+  return descendants.sort();
+}
+
+// Grok's hook transcript path names chat_history.jsonl; exact usage lives beside it.
+export function measurementTranscriptFor(sessionFile) {
+  const updates = join(dirname(sessionFile), 'updates.jsonl');
+  return /chat_history\.jsonl$/i.test(sessionFile) && existsSync(updates) ? updates : sessionFile;
 }
 
 // Summarize every session in a transcript directory: main threads and their subagents apart.

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// PreToolUse hook: opt-in rewrite of a simple Bash command into a digest run, so tool output
+// PreToolUse hook: on-by-default rewrite of a simple shell command into a digest run, so tool output
 // enters the context compressed and receipted instead of whole.
 //
 // Reads a coding-agent PreToolUse payload from stdin. The digest itself prints a short output raw
-// (see PASS-THROUGH in scripts/digest.mjs), so the rewrite costs nothing on a small result. When the switch is on and the command
+// (see PASS-THROUGH in scripts/digest.mjs). A small result stays raw, but the rewrite still adds
+// its command wrapper and one line of context. When the switch is on and the command
 // meets the simple-command contract below, the hook returns `updatedInput` carrying
 // `node "<plugin>/scripts/digest.mjs" [--cwd "<dir>"] -- <original tokens verbatim>` plus one
 // line of `additionalContext`. Everything else passes through untouched.
@@ -11,12 +12,11 @@
 //   node hooks/digest-rewrite.mjs   (reads the PreToolUse JSON payload on stdin)
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_DIGEST` is
-// `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
-// `.claude/settings.json` sets at user or repository scope. With the hook on, every rewritten command's complete raw output is
-// written under `~/.claude/code-ops/digest/<slug of this directory>/` and kept until the
+// `off`, `0`, or `false` (case-insensitive) in its environment. The host supplies these switches
+// through its documented process-environment configuration. With the hook on, every rewritten command's complete raw output is
+// written under `~/.codex/code-ops/digest/<slug of this directory>/` and kept until the
 // operator deletes it; `CODE_OPS_DIGEST_STORE=off` keeps the compression and writes nothing.
-// `.claude/settings.json`, which is the only supported way. Any other value, including unset
-// and `off`, exits 0 before the payload is read.
+// Any value other than `off`, `0`, or `false`, including unset, keeps the hook on.
 //
 // SIMPLE-COMMAND CONTRACT. A rewrite happens only when every one of these holds:
 //   - the command is at most 2000 characters;
@@ -181,9 +181,13 @@ function main() {
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
   try { payload = JSON.parse(raw.replace(/^\uFEFF/, '')); } catch { return; }
-  if (payload?.tool_name !== 'Bash') return;
-  const command = payload?.tool_input?.command;
-  if (typeof command !== 'string') return;
+  const name = String(payload?.tool_name ?? payload?.toolName ?? payload?.tool?.name ?? '').toLowerCase();
+  if (!['bash', 'shell', 'exec_command', 'functions.exec_command', 'run_terminal_command'].some((tool) => name === tool || name.endsWith(`.${tool}`))) return;
+  const toolInput = payload?.tool_input ?? payload?.toolInput ?? payload?.input;
+  if (!toolInput || typeof toolInput !== 'object') return;
+  const commandKey = typeof toolInput.command === 'string' ? 'command' : typeof toolInput.cmd === 'string' ? 'cmd' : null;
+  if (!commandKey) return;
+  const command = toolInput[commandKey];
 
   // Resolved from this file, the way enforce-traceless.mjs resolves the scanner. Forward slashes
   // so the quoted path carries no backslash for the shell to read as an escape.
@@ -199,7 +203,7 @@ function main() {
   writeSync(1, `${JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
-      updatedInput: { ...payload.tool_input, command: rewritten },
+      updatedInput: { ...toolInput, [commandKey]: rewritten },
       additionalContext: STORE_OFF ? CONTEXT_NO_STORE : CONTEXT,
     },
   })}\n`);

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-03
+updated: 2026-09-13
 ---
 
 # Architecture
@@ -46,7 +46,25 @@ The `validate` workflow runs on pull requests, on pushes to `main`, on a weekly 
 
 ## Host hooks
 
-Seven hooks ship with the code-ops-suite package and register in `plugins/code-ops-suite/hooks/hooks.json`. Two run at `PreToolUse` on Bash: `enforce-traceless.mjs` blocks a `git commit` or `gh pr create|merge` whose command string carries an AI or tooling trace, and `digest-rewrite.mjs` reruns an allowlisted simple command under `scripts/digest.mjs` so the session sees a compressed result. `index-refresh.mjs` runs at `PostToolUse` after `Edit`, `Write`, `MultiEdit`, and `NotebookEdit`, and re-indexes the one file that changed. `routing-card.mjs` runs at `SessionStart` and prints the routing card. `session-receipt.mjs` runs at `SessionEnd` and appends one measurement row. `ladder-card.mjs` runs at `SubagentStart` and hands an implementer-class subagent the code-economy ladder. `precompact-preserve.mjs` runs at `PreCompact` and states what a compaction summary must keep. Every hook is on by default. Six fail open on every path. `enforce-traceless.mjs` exits `2` when it detects a publishing trace, which intentionally blocks the command, and fails open on infrastructure errors. Four hooks carry an off switch, set in the `env` block of a `.claude/settings.json`: `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_RECEIPTS`. The [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) owns the switches and their storage, and the [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each hook's contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json:1-71`.
+The canonical manifest registers six commands across five events. Two commands run at
+`PreToolUse`: `enforce-traceless.mjs` blocks publishing commands that carry an attribution
+trace, and `digest-rewrite.mjs` wraps an allowlisted command with `digest.mjs` through the
+host's input-rewrite contract. `index-refresh.mjs` runs after supported edit tools.
+`routing-card.mjs`, `session-receipt.mjs`, and `ladder-card.mjs` run at `SessionStart`,
+`SessionEnd`, and `SubagentStart`. There is no `PreCompact` command: Claude and Codex ignore
+plain `PreCompact` stdout, so their `SessionStart` projection adds a durable-state restore
+instruction when `source=compact` instead.
+
+Host parity is capability-based. Claude and Codex consume routing and ladder context. The
+installed Grok 1.0.13 command-hook contract consumes the digest `updatedInput` and runs the
+index and receipt side effects, but passive routing and ladder stdout is unavailable; paired
+`CLAUDE.md` and `AGENTS.md` files carry that doctrine. OpenCode ports traceless publishing,
+model floors, digest, index, routing, compaction, and the documentation MCP, but its current
+plugin API has no ladder or transcript-receipt callback. The [infrastructure
+reference](../50%20Platform/INFRASTRUCTURE.md) owns this matrix and the switches. The
+[contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns exact payload and
+failure behavior. Evidence: `plugins/code-ops-suite/hooks/hooks.json`,
+`plugins/code-ops-suite/hooks/routing-card.mjs`, and the generated host compatibility files.
 
 ## Symbol index and query server
 
@@ -58,13 +76,36 @@ The atlas is the repository's durable cache of code-grounded judgment. `scripts/
 
 ## Measurement loop
 
-The suite measures its own context spend from local transcripts, with no model in the loop and no egress. The `SessionEnd` hook `session-receipt.mjs` appends one row per session to `~/.claude/code-ops/session-receipts.jsonl`, or to `$CODE_OPS_RECEIPTS`, carrying tokens by class for the main thread and its subagents, tool calls, model mix, wall time, and an `arms` object recording which switches that session ran under. `scripts/context-audit.mjs` reads the same transcripts on demand and reports tokens, context characters by tool, and Bash output by command family, sanitized by default. `context-audit.mjs receipts --by-arm` groups the ledger by those switches and prints per-session means, which is how an on-and-off comparison is read. `receipts --purge-before <ISO date>` is the only thing that removes rows, so retention stays one operator command. The [measurements reference](../55%20Operations/MEASUREMENTS.md) owns the baseline rows and the method for adding one. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs:1-20` and `scripts/context-audit.mjs:1-22`.
+The suite measures context spend from local host records, with no model in the parser and no
+egress. Claude receipts follow the transcript's `subagents/` directory. Codex receipts find
+child rollouts through `parent_thread_id`. Grok receipts normalize cumulative usage snapshots
+from the session's `updates.jsonl`; its ladder arm is always false because the host ignores
+passive ladder output. OpenCode has no automatic session receipt. `context-audit.mjs
+receipts --by-arm` groups recorded sessions, but an arm comparison becomes a causal claim only
+after a pre-registered matched control run. The [measurements
+reference](../55%20Operations/MEASUREMENTS.md) owns the host-qualified instruments and claim
+boundary. Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs` and
+`scripts/transcript-lib.mjs`.
 
 ## Planned agent work
 
-`scripts/run-contract.mjs` validates a bounded run contract before reconciliation, acceptance recording, or finalization. A contract declares quality criteria, model routing, dispatch limits, write scopes, dependencies, and replan triggers. Evidence: `scripts/run-contract.mjs:10-24`, `scripts/run-contract.mjs:55-140`, and `scripts/run-contract.mjs:203-223`.
+`scripts/run-contract.mjs` validates a bounded run contract before reconciliation,
+acceptance recording, or finalization. Version 4 also enforces a frontier orchestrator,
+multiple lower-tier operatives, a real parallel wave, explicit independent validation, and
+nonempty operative artifacts. Evidence: `scripts/run-contract.mjs`.
 
-The contract rejects concurrent write scopes or artifacts that overlap in one wave. It also rejects duplicate non-review work with the same phase, lens, and scope. Evidence: `scripts/run-contract.mjs:126-137`.
+Version 4 is mandatory for every new substantive run. Versions 1 through 3 remain readable
+only for replay and historical verification; they are not valid templates for new work. The
+contract rejects concurrent write scopes or artifacts that overlap in one wave. It also
+rejects duplicate non-review work with the same phase, lens, and scope. Evidence:
+`scripts/run-contract.mjs`.
+
+`scripts/attack-chain-graph.mjs` owns the separate security hypothesis graph. It binds each
+campaign to the run contract, dispatch ledger, journal, and hash-matched operative artifacts.
+Ordinary checks permit in-progress planned units, while `--final` requires strict all-unit
+reconciliation. The graph enforces family diversity and realistic chain closure, then reverses
+shared locations and traces them to terminal impact or an open chain. Evidence:
+`scripts/attack-chain-graph.mjs`.
 
 The dispatch ledger records planned work and state transitions. A failed dispatch can move only to `redispatched`. A reported dispatch is terminal. Evidence: `scripts/dispatch-ledger.mjs:323-326`.
 

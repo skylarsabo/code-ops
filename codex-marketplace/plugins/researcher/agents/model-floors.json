@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "name": "claim-checker",
+      "sourceModel": "sonnet",
+      "minimumTier": "mid"
+    },
+    {
+      "name": "gatherer",
+      "sourceModel": "haiku",
+      "minimumTier": "light"
+    }
+  ]
+}

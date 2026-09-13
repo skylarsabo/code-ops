@@ -21,8 +21,10 @@ The layout is deliberate. `plugins/code-ops-traceless.js` resolves its scanner t
 - `skills/` — 66 skills, discovered by the model through opencode's `skill` tool.
 - `commands/` — 66 slash commands, one per skill, for user invocation.
 - `agents/` — 8 subagents, with their Claude tool allowlists translated to opencode permissions.
-- `code-ops/` — per-plugin `CONVENTIONS.md` and the runtime scripts the skills invoke.
-- `plugins/` — the traceless-publishing gate, ported to an opencode plugin hook.
+- `code-ops/` — per-plugin `CONVENTIONS.md`, runtime scripts, and non-discoverable
+  tier-floor carriers for the vendored preflight scripts.
+- `plugins/` — the traceless-publishing gate and model-floor gate, ported to opencode
+  plugin hooks.
 - `opencode.json` — an example config binding every agent to its tier. Merge it into
   your own config rather than overwriting one you already have.
 
