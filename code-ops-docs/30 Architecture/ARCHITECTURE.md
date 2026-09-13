@@ -62,7 +62,7 @@ The suite measures its own context spend from local transcripts, with no model i
 
 ## Planned agent work
 
-`scripts/run-contract.mjs` validates a bounded run contract before reconciliation, acceptance recording, or finalization. A contract declares quality criteria, model routing, dispatch limits, write scopes, dependencies, and replan triggers. Evidence: `scripts/run-contract.mjs:10-24`, `scripts/run-contract.mjs:55-140`, and `scripts/run-contract.mjs:209-230`.
+`scripts/run-contract.mjs` validates a bounded run contract before reconciliation, acceptance recording, or finalization. A contract declares quality criteria, model routing, dispatch limits, write scopes, dependencies, and replan triggers. Evidence: `scripts/run-contract.mjs:10-24`, `scripts/run-contract.mjs:55-140`, and `scripts/run-contract.mjs:203-223`.
 
 The contract rejects concurrent write scopes or artifacts that overlap in one wave. It also rejects duplicate non-review work with the same phase, lens, and scope. Evidence: `scripts/run-contract.mjs:126-137`.
 

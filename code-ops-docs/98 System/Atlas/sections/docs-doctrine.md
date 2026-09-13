@@ -24,4 +24,4 @@ Admission review has two time domains. Before admission, any bound Git, manifest
 
 The hub now owns a measurements reference under `55 Operations/`, registered as its own manifest domain over the transcript library, the audit CLI, the receipt hook, and their eval. Its rows come from local receipts only. The design note under `10 Design/` that motivates them proposes and never binds.
 
-The writing standard defines mannered prose and a formatting rule. Context hygiene now requires an append-only history, turn-scoped reminders, and whole-history replacement at compaction, with the compaction point set later because cache reads are cheap.
+The writing standard defines mannered prose and a formatting rule. Context hygiene requires append-only history, turn-scoped reminders, and whole-history replacement at compaction, with the compaction point set later because cache reads are cheap. Global standards guidance keeps stable provider-neutral doctrine shared while allowing small, explicit Claude and Codex host deltas. Repository contracts retain only local facts, commands, gates, and exceptions.

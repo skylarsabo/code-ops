@@ -22,7 +22,7 @@ and feature-tip evidence before status publication. Evidence:
 
 ## Durable records
 
-An orchestrated run records its plan in `RUN_CONTRACT.json`, work state in `DISPATCH_LEDGER.md`, acceptance in `ACCEPTANCE_LEDGER.md`, and successful completion in `RUN_CONTRACT_RESULT.json`. Evidence: `scripts/run-contract.mjs:221-241`.
+An orchestrated run records its plan in `RUN_CONTRACT.json`, work state in `DISPATCH_LEDGER.md`, acceptance in `ACCEPTANCE_LEDGER.md`, and successful completion in `RUN_CONTRACT_RESULT.json`. Evidence: `scripts/run-contract.mjs:203-223`.
 
 The dispatch ledger stores a JSONL journal beside the Markdown table. The checker replays journal entries and detects malformed history, state drift, and retry-limit violations. Evidence: `scripts/dispatch-ledger.mjs:192-243` and `scripts/dispatch-ledger.mjs:379-429`.
 
