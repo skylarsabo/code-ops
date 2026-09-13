@@ -36,6 +36,7 @@ const FILE_REFERENCE_KEYS = new Set(['path', 'sha256']);
 const LEDGER_REFERENCE_KEYS = new Set(['path', 'sha256', 'journalPath', 'journalSha256']);
 const BUNDLE_REFERENCE_KEYS = new Set(['unitId', 'path', 'bundleId', 'sha256']);
 const OBSERVATION_KEYS = new Set(['observability', 'cacheEvents', 'source', 'cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens']);
+const OPTIONAL_OBSERVATION_KEYS = ['unitId', 'model', 'reasoningTokens'];
 const RECEIPT_KINDS = new Set(['init', 'checkpoint', 'resume', 'replan', 'observation']);
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const GIT_OID_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -282,15 +283,18 @@ function validateReferences(value, errors) {
 }
 
 function validateObservation(value, errors) {
-  if (!exact(value, OBSERVATION_KEYS, 'runtime observation', errors)) return;
+  const keys = new Set([...OBSERVATION_KEYS, ...OPTIONAL_OBSERVATION_KEYS.filter((key) => isObject(value) && key in value)]);
+  if (!exact(value, keys, 'runtime observation', errors)) return;
+  if ('unitId' in value && value.unitId !== null && !/^D-\d{3}$/.test(value.unitId)) errors.push('runtime observation unitId must be null or D-NNN');
+  if ('model' in value && value.model !== null && !cleanLabel(value.model)) errors.push('runtime observation model must be null or printable model identity');
   if (!CACHE_OBSERVABILITY.includes(value.observability) || !OBSERVATION_SOURCES.includes(value.source)) errors.push('runtime observation observability or source is invalid');
   const cacheEventsValid = Array.isArray(value.cacheEvents) && new Set(value.cacheEvents).size === value.cacheEvents.length
     && value.cacheEvents.every((event) => CACHE_EVENTS.includes(event));
   if (!cacheEventsValid) errors.push('runtime observation cacheEvents must be a unique supported array');
-  for (const key of ['cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens']) {
-    if (value[key] !== null && (!Number.isInteger(value[key]) || value[key] < 0)) errors.push(`runtime observation ${key} must be null or a nonnegative integer`);
+  for (const key of ['cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens', ...('reasoningTokens' in value ? ['reasoningTokens'] : [])]) {
+    if (value[key] !== null && (!Number.isSafeInteger(value[key]) || value[key] < 0)) errors.push(`runtime observation ${key} must be null or a nonnegative safe integer`);
   }
-  const metrics = ['cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens'].filter((key) => value[key] !== null);
+  const metrics = ['cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens', 'reasoningTokens'].filter((key) => value[key] != null);
   if (['unobservable', 'unsupported'].includes(value.observability) && (metrics.length || (Array.isArray(value.cacheEvents) && value.cacheEvents.length))) errors.push(`${value.observability} cache observations cannot carry cache events or token metrics`);
   if (value.observability === 'observed' && value.source === 'provider-usage' && metrics.length === 0) errors.push('provider-usage observation requires token metrics');
 }

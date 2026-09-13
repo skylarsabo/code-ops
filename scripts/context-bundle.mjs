@@ -14,6 +14,7 @@ import {
   readJson,
   repoRelative,
   safeRelative,
+  samePathTarget,
   scopeMatches,
   scopesIntersect,
   sha256,
@@ -28,7 +29,8 @@ const COMPILER_SHA256 = sha256(readFileSync(fileURLToPath(import.meta.url)));
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
 function usage() {
   die('usage: context-bundle.mjs build --root <repo> --contract <file> --unit <D-NNN> --cache <dir> --out <file> [--previous <receipt> --delta <file>]\n'
-    + '       context-bundle.mjs verify --root <repo> --contract <file> --unit <D-NNN> --bundle <file>', 2);
+    + '       context-bundle.mjs verify --root <repo> --contract <file> --unit <D-NNN> --bundle <file>\n'
+    + '       context-bundle.mjs view --root <repo> --contract <file> --unit <D-NNN> --bundle <file> --out <file> --max-bytes <integer>', 2);
 }
 function flags(args, known) {
   const out = {};
@@ -197,9 +199,10 @@ if (command === 'build') {
     atomicWrite(out, rendered);
     console.log(`ok context bundle ${unit.id} ${bundle.bundleId}`);
   } catch (error) { die(error.message); }
-} else if (command === 'verify') {
-  const f = flags(process.argv.slice(3), new Set(['--root', '--contract', '--unit', '--bundle']));
+} else if (command === 'verify' || command === 'view') {
+  const f = flags(process.argv.slice(3), new Set(['--root', '--contract', '--unit', '--bundle', ...(command === 'view' ? ['--out', '--max-bytes'] : [])]));
   if (!f['--root'] || !f['--contract'] || !f['--unit'] || !f['--bundle']) usage();
+  if (command === 'view' && (!f['--out'] || !/^[1-9][0-9]*$/.test(f['--max-bytes'] || '') || !Number.isSafeInteger(Number(f['--max-bytes'])))) usage();
   try {
     const root = resolve(f['--root']);
     const { contract, receipt } = loadBinding(root, resolve(f['--contract']), f['--unit']);
@@ -211,6 +214,30 @@ if (command === 'build') {
     if (bundle.compiler?.contextBundleSha256 !== COMPILER_SHA256) throw new Error('context bundle compiler drift; rebuild the bundle');
     if (!/^[0-9a-f]{64}$/.test(bundle.bundleId || '') || digestJson(normalizeBundle(bundle)) !== bundle.bundleId) throw new Error('context bundle digest is invalid');
     if (Buffer.byteLength(readFileSync(bundlePath)) > contract.context.maxBundleBytes) throw new Error('context bundle exceeds maxBundleBytes');
+    if (command === 'view') {
+      const out = resolve(f['--out']);
+      if ([bundlePath, resolve(f['--contract']), resolve(dirname(resolve(f['--contract'])), contract.context.snapshot)]
+        .some((input) => samePathTarget(out, input))) throw new Error('worker view must not overwrite its binding inputs');
+      // Each indexed path occurs once; columns preserve all file metadata and graph edges.
+      const files = new Map(bundle.context.files.map(({ path, ...metadata }) => [path, metadata]));
+      const paths = [...new Set([...files.keys(), ...Object.keys(bundle.context.importGraph)])].sort();
+      const { files: ignoredFiles, importGraph: ignoredGraph, ...context } = bundle.context;
+      const view = {
+        version: 1, format: 'worker-context-view',
+        canonical: { path: bundlePath, sha256: sha256(readFileSync(bundlePath)), bundleId: bundle.bundleId },
+        binding: { runId: bundle.runId, contractRevision: bundle.contractRevision, unitId: bundle.unitId, snapshotId: bundle.snapshotId, compiler: bundle.compiler },
+        scope: bundle.scope, completeness: bundle.completeness,
+        columns: ['path', 'fileMetadata', 'importEdges'],
+        rows: paths.map((path) => [path, files.get(path) ?? null, bundle.context.importGraph[path] ?? null]),
+        context,
+      };
+      const rendered = `${JSON.stringify(view)}\n`;
+      const actualBytes = Buffer.byteLength(rendered);
+      if (actualBytes > Number(f['--max-bytes'])) throw new Error(`worker view exceeds max-bytes: ${actualBytes} > ${f['--max-bytes']}; no output written`);
+      atomicWrite(out, rendered);
+      console.log(`ok worker view ${bundle.unitId} ${actualBytes} bytes ${sha256(rendered)}`);
+      process.exit(0);
+    }
     console.log(`ok context bundle ${bundle.unitId}`);
   } catch (error) { die(error.message); }
 } else usage();

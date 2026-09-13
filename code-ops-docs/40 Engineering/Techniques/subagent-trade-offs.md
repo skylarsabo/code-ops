@@ -42,6 +42,11 @@ Three anti-patterns follow from the table:
 
 Effort and tier partially substitute, and the substitution is provider-agnostic: a stronger model at medium effort approximates a mid model at high effort. That substitution buys speed. It never licenses a down-tier for work whose output a verdict rests on.
 
+Premium frontier specialists sit outside the default ladder binding. Use one only for a
+bounded, unusually difficult architecture, independent-refutation, or cross-domain-synthesis
+decision. Give the specialist narrow context and a stopping criterion. Keep ordinary judgment
+on the strong tier, and keep acceptance with the highest-tier lead.
+
 ### Which model satisfies a tier
 
 The rungs above are provider-agnostic, so a host running a non-Anthropic model still needs to know which of its models clears a floor. `scripts/model-tiers.mjs` is the single source of truth for that binding. Both the lint gate and the opencode renderer read it, so the doctrine and the gate cannot describe different ladders. `light` names the mechanical, execution-only rung below `mid`, which the routing table always used and never named.
@@ -53,12 +58,25 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 | OpenAI (GPT) | `gpt-5.6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-5.6-sol` |
 | Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `glm-5` | `glm-5.1` | `glm-5.2` | `glm-5.2` |
-| Moonshot AI (Kimi) | `kimi-k2.5` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` |
+| Moonshot AI (Kimi) | `kimi-k2.6` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` |
 | DeepSeek | `deepseek-v4-flash` | `deepseek-v4-flash` | `deepseek-v4-pro` | `deepseek-v4-pro` |
 | Mistral | `magistral-small` | `mistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` |
 | OpenCode Zen (free tier) | `ling-3.0-flash-fin-free` | `nemotron-3.5-lightning-free` | `mimo-v2.5-free` | unset, the lead inherits the session model |
 
-The binding table is what makes the rest of the doctrine portable. The briefs, the fan-out rules, the disconfirmation pass, and the verification bar are identical on every provider. Only the bindings change. Adding a provider takes one `PROVIDER_TIERS` entry in `scripts/model-tiers.mjs` plus one `PROVIDER_SLUG_PATTERNS` line.
+OpenAI also exposes `gpt-6-astra` as an explicit frontier specialist. It does not replace
+Sol in the ready-made configuration. OpenAI's rates verified on 2026-09-13 price Astra input
+and output tokens at 2.5 times Sol, while both expose the same context window. Use Astra only
+when the bounded decision justifies that premium. The binding and selected use remain visible
+in the run contract and dispatch ledger. See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
+
+The Anthropic `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
+so the runtime controls effort and the instruction files do not imitate a reasoning trace.
+Keep the reusable instruction prefix stable, append task-specific turns, and avoid rewriting
+earlier messages. This preserves valid thinking blocks and maximizes cache reuse. Do not force
+a tool call for this model; let the agent select a tool when the task needs one. See the
+[Fable 5.1 overview](https://platform.claude.com/docs/en/models/fable-5-1/overview).
+
+The binding table is what makes the rest of the doctrine portable. The briefs, the fan-out rules, the disconfirmation pass, and the verification bar are identical on every provider. Only the bindings change. Adding a provider takes one `PROVIDER_TIERS` entry in `scripts/model-tiers.mjs` plus one `PROVIDER_SLUG_PATTERNS` line. Premium alternatives live in `PROVIDER_SPECIALISTS`, so generated defaults remain cost-disciplined.
 
 Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is the exception, because it is flat by choice: `grok-4.6` never routes work below its floor, and running one model removes tier as a variable. The OpenAI split follows this repository's own calibration evidence rather than price, because runs R-007 and R-008 recorded `gpt-5-6-sol-xhigh` leading `gpt-5-6-terra-xhigh` operatives.
 

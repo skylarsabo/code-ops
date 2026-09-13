@@ -2,7 +2,9 @@
 // Pre-run cost ESTIMATOR for the code-ops suite — the forward-looking half of the cost
 // machinery whose backward-looking half is /code-ops-suite:run-cost-audit.
 //
-//   node scripts/estimate-run-cost.mjs --runs <dir> [--skill <name>] [--repo-size <mb>] [--json <path>]
+//   node scripts/estimate-run-cost.mjs --runs <dir> [--skill <name>] [--model <id>]
+//                                      [--root <repo> --prices <snapshot.json>]
+//                                      [--repo-size <mb>] [--json <path>]
 //
 // WHY: code-ops-docs/40 Engineering/Handbook/09-cost-and-scoping.md says cost is a control you hold, set at Phase 0 —
 // but every mechanical reading the suite produced arrived AFTER the run, when the budget was
@@ -12,10 +14,9 @@
 // prior runs, read with the same grammar their writer used (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md
 // grammar (a)).
 //
-// WHAT IT DOES NOT DO: no token-price math. Per-token prices drift between providers and
-// between months, so a dollar figure printed here would age into a confident wrong number. The
-// estimate is a DISPATCH COUNT RANGE and a MODEL-CLASS MIX, and it says exactly that. Multiply
-// by your own current prices if you want money.
+// PRICE DISCIPLINE: no built-in prices. With --root and --prices, the script joins finalized
+// runtime receipts to an operator-supplied dated price snapshot. Without both, it reports only
+// the dispatch range, model-class mix, and any observed token usage.
 //
 // n < 3 is a GUESS, and says so: a range drawn from one or two prior runs is a sample, not a
 // distribution. The caveat block is printed loudly rather than folded into a footnote, because
@@ -26,9 +27,11 @@
 // history would make adopting it a risk; it is advisory by construction. 2 on a usage error.
 
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from 'node:fs';
-import { resolve, join, basename } from 'node:path';
+import { resolve, join, basename, relative, isAbsolute } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
 import { LEDGER_ROW_RE, LEDGER_STATUSES } from './ledger-grammar.mjs';
+import { replayRuntimeReceipts } from './runtime-lib.mjs';
+import { sha256 } from './context-index-lib.mjs';
 
 // Grammar (a) comes from scripts/ledger-grammar.mjs, shared with the writer
 // (dispatch-ledger.mjs) and the post-run scorer (calibration-metrics.mjs).
@@ -38,11 +41,11 @@ const MIN_COMPARABLE = 3;
 
 function usage(message) {
   if (message) console.error(`x ${message}`);
-  console.error('usage: estimate-run-cost.mjs --runs <dir> [--skill <name>] [--repo-size <mb>] [--json <path>]');
+  console.error('usage: estimate-run-cost.mjs --runs <dir> [--skill <name>] [--model <id>] [--root <repo> --prices <snapshot.json>] [--repo-size <mb>] [--json <path>]');
   process.exit(2);
 }
 
-const KNOWN = new Set(['--runs', '--skill', '--repo-size', '--json']);
+const KNOWN = new Set(['--runs', '--skill', '--model', '--root', '--prices', '--repo-size', '--json']);
 const flags = {};
 {
   const argv = process.argv.slice(2);
@@ -55,6 +58,7 @@ const flags = {};
   }
 }
 if (!('--runs' in flags)) usage('--runs <dir> is required');
+if ('--prices' in flags && !('--root' in flags)) usage('--prices requires --root so runtime receipt paths are unambiguous');
 // Number.isFinite, not just `>= 0`: `Number('Infinity') >= 0` is true, and an accepted
 // `Infinity` would be echoed back in the recorded-not-applied note as if it were a size.
 {
@@ -100,6 +104,7 @@ function readRun(ledgerPath) {
   let dispatches = 0;
   let malformed = 0;
   const byClass = new Map();
+  const models = new Set();
   for (const raw of text.split('\n')) {
     const line = raw.replace(/\r$/, '').trim();
     if (!line.startsWith('|')) continue;
@@ -112,6 +117,7 @@ function readRun(ledgerPath) {
     dispatches++;
     const at = role.lastIndexOf('@');
     const stamped = at === -1 ? '' : role.slice(at + 1).trim();
+    if (stamped) models.add(stamped);
     const cls = stamped ? modelClassOf(stamped) : 'unstamped';
     byClass.set(cls, (byClass.get(cls) ?? 0) + 1);
   }
@@ -119,10 +125,14 @@ function readRun(ledgerPath) {
   const contractPath = join(folder, 'RUN_CONTRACT.json');
   const resultPath = join(folder, 'RUN_CONTRACT_RESULT.json');
   const contractBacked = existsSync(contractPath);
+  let contract = null;
+  let contractSha256 = null;
   let finalized = !contractBacked;
   if (contractBacked && existsSync(resultPath)) {
     try {
-      const contract = JSON.parse(readFileSync(contractPath, 'utf8'));
+      const contractBytes = readFileSync(contractPath);
+      contract = JSON.parse(contractBytes);
+      contractSha256 = sha256(contractBytes);
       const result = JSON.parse(readFileSync(resultPath, 'utf8'));
       finalized = result.status === 'PASS'
         && result.version === 1
@@ -135,7 +145,10 @@ function readRun(ledgerPath) {
       finalized = false;
     }
   }
-  return { folder, label: basename(folder), dispatches, malformed, byClass, contractBacked, finalized };
+  if (contractBacked && contract === null) {
+    try { const contractBytes = readFileSync(contractPath); contract = JSON.parse(contractBytes); contractSha256 = sha256(contractBytes); } catch { /* lifecycle caveat handles it */ }
+  }
+  return { folder, label: basename(folder), dispatches, malformed, byClass, models, contract, contractSha256, contractBacked, finalized };
 }
 
 // A run is comparable to a named skill when the skill's name appears in its folder label. Run
@@ -168,16 +181,70 @@ if (!dirPresent) {
 
 let comparable = allRuns;
 let basis = `all ${allRuns.length} prior run(s)`;
-let fellBack = false;
+let skillFilterFellBack = false;
+let modelFilterEmpty = false;
 if (allRuns.length && '--skill' in flags) {
   const matched = allRuns.filter((r) => matchesSkill(r, flags['--skill']));
   if (matched.length) {
     comparable = matched;
     basis = `${matched.length} prior run(s) whose folder names carry "${flags['--skill']}"`;
   } else {
-    fellBack = true;
+    skillFilterFellBack = true;
     basis = `all ${allRuns.length} prior run(s) — none carry "${flags['--skill']}" in their folder name`;
   }
+}
+if (allRuns.length && '--model' in flags) {
+  const matched = comparable.filter((run) => run.models.has(flags['--model']));
+  if (matched.length) {
+    comparable = matched;
+    basis += `; ${matched.length} use model "${flags['--model']}"`;
+  } else {
+    comparable = [];
+    modelFilterEmpty = true;
+    basis += `; none use model "${flags['--model']}"`;
+  }
+}
+
+function loadPrices(path) {
+  let value;
+  try { value = JSON.parse(readFileSync(resolve(path), 'utf8')); }
+  catch (error) { usage(`cannot read price snapshot: ${error.message}`); }
+  if (!value || Array.isArray(value) || value.version !== 1 || typeof value.currency !== 'string'
+    || !/^\d{4}-\d{2}-\d{2}$/.test(value.effectiveAt || '') || !value.perMillionTokens
+    || Array.isArray(value.perMillionTokens) || typeof value.perMillionTokens !== 'object') usage('price snapshot must be version 1 with currency, effectiveAt, and perMillionTokens');
+  for (const [model, rates] of Object.entries(value.perMillionTokens)) {
+    if (!model || !rates || Array.isArray(rates) || typeof rates !== 'object'
+      || Object.keys(rates).sort().join(',') !== 'cacheRead,cacheWrite,input,output'
+      || Object.values(rates).some((rate) => !Number.isFinite(rate) || rate < 0)) usage(`price snapshot has invalid rates for ${model}`);
+  }
+  return value;
+}
+
+function usageForRun(run, root) {
+  const receipt = run.contract?.version === 3 && run.contract.runtime?.receipts;
+  if (!receipt || typeof receipt !== 'string') return null;
+  const rootPath = resolve(root);
+  const path = resolve(rootPath, receipt);
+  const rel = relative(rootPath, path);
+  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(path)) return null;
+  let replayed;
+  try { replayed = replayRuntimeReceipts(readFileSync(path, 'utf8')); } catch { return null; }
+  const binding = replayed.activeBinding;
+  if (!binding || binding.runId !== run.contract.runId || binding.contractRevision !== run.contract.revision
+    || binding.head !== run.contract.head || binding.contractSha256 !== run.contractSha256) return null;
+  const byModel = new Map();
+  for (const event of replayed.events) {
+    const observation = event.observation;
+    if (!observation || observation.observability !== 'observed' || !observation.model) continue;
+    if (!byModel.has(observation.model)) byModel.set(observation.model, { observations: 0, input: 0, cacheRead: 0, cacheWrite: 0, output: 0, reasoning: 0, unknown: new Set() });
+    const usage = byModel.get(observation.model);
+    usage.observations++;
+    for (const [field, key] of [['inputTokens', 'input'], ['cacheReadInputTokens', 'cacheRead'], ['cacheWriteInputTokens', 'cacheWrite'], ['outputTokens', 'output'], ['reasoningTokens', 'reasoning']]) {
+      if (Number.isSafeInteger(observation[field])) usage[key] += observation[field];
+      else usage.unknown.add(key);
+    }
+  }
+  return byModel.size ? byModel : null;
 }
 
 function stats(values) {
@@ -190,6 +257,7 @@ function stats(values) {
 const machine = {
   runsDir,
   skill: flags['--skill'] ?? null,
+  model: flags['--model'] ?? null,
   repoSizeMb: '--repo-size' in flags ? Number(flags['--repo-size']) : null,
   priorRuns: allRuns.length,
   comparableRuns: comparable.length,
@@ -199,9 +267,12 @@ const machine = {
   emptyLedgerRuns: 0,
   inProgressRuns: 0,
   depthCappedDirs: cappedAt.length,
-  skillFilterFellBack: fellBack,
+  skillFilterFellBack,
+  modelFilterEmpty,
   estimate: null,
   modelClassMix: null,
+  actualUsage: null,
+  actualCost: null,
   caveats: [],
 };
 
@@ -251,6 +322,63 @@ if (usable.length) {
   }
 }
 
+if (usable.length && '--root' in flags) {
+  const aggregate = new Map();
+  let runsWithUsage = 0;
+  for (const run of usable) {
+    const byModel = usageForRun(run, flags['--root']);
+    if (!byModel) continue;
+    runsWithUsage++;
+    for (const [model, usage] of byModel) {
+      if (!aggregate.has(model)) aggregate.set(model, { observations: 0, input: 0, cacheRead: 0, cacheWrite: 0, output: 0, reasoning: 0, unknown: new Set() });
+      const total = aggregate.get(model);
+      total.observations += usage.observations;
+      for (const key of ['input', 'cacheRead', 'cacheWrite', 'output', 'reasoning']) total[key] += usage[key];
+      for (const key of usage.unknown) total.unknown.add(key);
+    }
+  }
+  const modelUsage = Object.fromEntries([...aggregate].sort(([left], [right]) => left.localeCompare(right)).map(([model, usage]) => [model, {
+    observations: usage.observations,
+    ...Object.fromEntries(['input', 'cacheRead', 'cacheWrite', 'output', 'reasoning'].map((key) => [key, usage.unknown.has(key) ? 'UNKNOWN' : usage[key]])),
+  }]));
+  machine.actualUsage = { runsWithUsage, comparableRuns: usable.length, models: modelUsage };
+  p();
+  p(`  observed token usage: ${runsWithUsage}/${usable.length} comparable run(s) carry attributable runtime receipts`);
+  for (const [model, usage] of Object.entries(modelUsage)) {
+    p(`    ${model}: input ${usage.input}, cache-read ${usage.cacheRead}, cache-write ${usage.cacheWrite}, output ${usage.output}, reasoning-subset ${usage.reasoning}`);
+  }
+  if (runsWithUsage < usable.length) {
+    machine.caveats.push(`${usable.length - runsWithUsage} comparable run(s) have no attributable runtime usage`);
+  }
+  if ('--prices' in flags) {
+    const prices = loadPrices(flags['--prices']);
+    const byModel = {};
+    let total = 0;
+    let complete = runsWithUsage === usable.length && usable.length > 0;
+    for (const [model, usage] of Object.entries(modelUsage)) {
+      const rates = prices.perMillionTokens[model];
+      const keys = ['input', 'cacheRead', 'cacheWrite', 'output'];
+      if (!rates || keys.some((key) => !Number.isFinite(usage[key]))) {
+        byModel[model] = 'UNKNOWN'; complete = false; continue;
+      }
+      const cost = keys.reduce((sum, key) => sum + usage[key] * rates[key] / 1_000_000, 0);
+      byModel[model] = Number(cost.toFixed(6)); total += cost;
+    }
+    machine.actualCost = {
+      currency: prices.currency,
+      effectiveAt: prices.effectiveAt,
+      scope: 'attributed-runtime-observations-only',
+      comparableRunCoverageComplete: runsWithUsage === usable.length && usable.length > 0,
+      byModel,
+      attributedObservedSubtotal: !runsWithUsage ? null : complete ? Number(total.toFixed(6)) : 'UNKNOWN',
+    };
+    p(`  attributed observed cost at operator snapshot ${prices.effectiveAt} (${prices.currency}): ${machine.actualCost.attributedObservedSubtotal}`);
+    for (const [model, cost] of Object.entries(byModel)) p(`    ${model}: ${cost}`);
+    p('  this subtotal covers attributed runtime observations, not a provider invoice or proof that every call was observed.');
+    p('  reasoning tokens are reported for control only and are already included in output pricing.');
+  }
+}
+
 if (comparable.length) {
   // ---- caveats: every reason this number is weaker than it looks, stated where it is read.
   // The n<3 guard counts runs that yielded rows, not run folders.
@@ -280,7 +408,7 @@ if (comparable.length) {
     p('     from history so partial work cannot train the next run\'s estimate:');
     for (const r of inProgress) p(`       ${r.label}`);
   }
-  if (fellBack) {
+  if (skillFilterFellBack) {
     machine.caveats.push(`no run folder matched "${flags['--skill']}" — the estimate covers every prior run`);
     p();
     p(`  !! CAVEAT — no prior run folder names "${flags['--skill']}". The range above mixes every`);
@@ -294,6 +422,13 @@ if (comparable.length) {
     p('     dispatch counts are floors, not counts. Check them against grammar (a) in');
     p('     code-ops-docs/40 Engineering/Techniques/artifact-grammars.md.');
   }
+}
+
+if (modelFilterEmpty) {
+  machine.caveats.push(`no comparable run used model "${flags['--model']}" — no model-specific estimate is available`);
+  p();
+  p(`  !! CAVEAT — no comparable prior run used model "${flags['--model']}".`);
+  p('     No model-specific range or observed-cost estimate is reported.');
 }
 
 // A bounded sweep says what it dropped. Reported outside the comparable block, because the
@@ -318,9 +453,9 @@ if ('--repo-size' in flags) {
 }
 
 p();
-p('  This estimator counts DISPATCHES and their model-class mix. It does no token-price math:');
-p('  per-token prices drift between providers and between months, so a figure printed here');
-p('  would age into a confident wrong number. Multiply by your own current prices.');
+p('  The forward estimate remains a DISPATCH range and model-class mix. Runtime token and cost');
+p('  totals are historical observations only. Price math runs solely from an explicit dated');
+p('  operator snapshot, because built-in prices would age into a confident wrong number.');
 
 const text = out.join('\n') + '\n';
 process.stdout.write(text);

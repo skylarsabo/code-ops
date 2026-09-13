@@ -31,9 +31,11 @@
 
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
+import { join, resolve, dirname, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { receiptSha256 } from '../../scripts/runtime-lib.mjs';
+import { sha256 } from '../../scripts/context-index-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -158,10 +160,10 @@ try {
     /--repo-size 40 MB is recorded and NOT applied/.test(j.stdout), j.stdout);
   check('j. the range is unchanged by it', /dispatch-count range: min 2, median 3, max 4/.test(j.stdout), j.stdout);
 
-  // ---- no token-price math, anywhere ------------------------------------------
+  // ---- no built-in token-price math -------------------------------------------
   check('k. the output carries no currency or per-token figure', !/[$€£]|per 1M|cost: \d/.test(a.stdout), a.stdout);
-  check('k. and says why it counts dispatches instead',
-    /It does no token-price math/.test(a.stdout), a.stdout);
+  check('k. and requires an explicit dated operator snapshot for price math',
+    /Price math runs solely from an explicit dated\s+operator snapshot/.test(a.stdout), a.stdout);
 
   // ---- --json emits the same numbers ------------------------------------------
   const jsonPath = join(work, 'estimate.json');
@@ -228,6 +230,66 @@ try {
   check('r. the machine shape separates live contracts from usable history',
     rj?.priorRuns === 5 && rj?.comparableRuns === 5 && rj?.usableRuns === 3
     && rj?.inProgressRuns === 2, JSON.stringify(rj));
+
+  // ---- attributed runtime usage and operator-supplied prices -----------------
+  const priced = join(work, 'priced'); mkdirSync(priced, { recursive: true });
+  const pricedRun = seedRun(priced, '2026-08-20 ship astra', [
+    'D-001 | reviewer@gpt-6-astra | refute architecture | REVIEW.md | reported',
+  ]);
+  const receiptRel = relative(work, join(pricedRun, 'RUN_RUNTIME_RECEIPTS.jsonl')).replace(/\\/g, '/');
+  const pricedHead = 'a'.repeat(40);
+  const pricedContract = { version: 3, runId: 'priced', revision: 1, head: pricedHead, runtime: { receipts: receiptRel } };
+  const pricedContractBytes = Buffer.from(JSON.stringify(pricedContract));
+  writeFileSync(join(pricedRun, 'RUN_CONTRACT.json'), pricedContractBytes);
+  writeFileSync(join(pricedRun, 'RUN_CONTRACT_RESULT.json'), JSON.stringify({ version: 1, runId: 'priced', revision: 1, head: pricedHead, status: 'PASS' }));
+  const binding = { runId: 'priced', contractRevision: 1, contractSha256: sha256(pricedContractBytes), head: pricedHead, snapshotId: '2'.repeat(64), snapshotReceiptSha256: '3'.repeat(64),
+    hostCapabilities: { sha256: '4'.repeat(64), states: { promptCaching: 'managed-observable', compaction: 'managed-observable', contextEditing: 'unsupported', hostMemory: 'unsupported', taskBudget: 'unsupported' }, outcomes: { promptCaching: 'available', compaction: 'available', contextEditing: 'durable-fallback', hostMemory: 'durable-fallback', taskBudget: 'durable-fallback' } },
+    stablePrefix: { sha256: '5'.repeat(64), bytes: 1, entries: [{ path: 'CLAUDE.md', sha256: '6'.repeat(64), bytes: 1 }] } };
+  const emptyRefs = { ledger: null, acceptance: null, handoff: null, bundles: [], artifacts: [] };
+  const init = { version: 1, sequence: 1, kind: 'init', recordedAt: '2026-08-20T00:00:00.000Z', previousReceiptSha256: null, binding, references: emptyRefs, observation: null, receiptSha256: null };
+  init.receiptSha256 = receiptSha256(init);
+  const observation = { observability: 'observed', cacheEvents: ['hit', 'write'], source: 'provider-usage', cacheReadInputTokens: 1_000_000, cacheWriteInputTokens: 1_000_000, inputTokens: 1_000_000, outputTokens: 1_000_000, unitId: 'D-001', model: 'gpt-6-astra', reasoningTokens: 500_000 };
+  const observed = { version: 1, sequence: 2, kind: 'observation', recordedAt: '2026-08-20T00:01:00.000Z', previousReceiptSha256: init.receiptSha256, binding, references: emptyRefs, observation, receiptSha256: null };
+  observed.receiptSha256 = receiptSha256(observed);
+  writeFileSync(join(work, receiptRel), `${JSON.stringify(init)}\n${JSON.stringify(observed)}\n`);
+  const prices = join(work, 'prices.json');
+  writeFileSync(prices, JSON.stringify({ version: 1, currency: 'USD', effectiveAt: '2026-08-20', perMillionTokens: { 'gpt-6-astra': { input: 10, cacheRead: 1, cacheWrite: 10, output: 50 } } }));
+  const pricedJson = join(work, 'priced.json');
+  const pricedResult = run(['--runs', priced, '--root', work, '--prices', prices, '--json', pricedJson]);
+  const pricedMachine = JSON.parse(readFileSync(pricedJson, 'utf8'));
+  check('s. attributed runtime usage is reported by model', pricedResult.status === 0
+    && pricedMachine.actualUsage?.models?.['gpt-6-astra']?.reasoning === 500_000, pricedResult.stdout + pricedResult.stderr);
+  check('s. dated operator prices produce an attributed subtotal without double-billing reasoning', pricedMachine.actualCost?.attributedObservedSubtotal === 71
+    && pricedMachine.actualCost?.scope === 'attributed-runtime-observations-only'
+    && /not a provider invoice/.test(pricedResult.stdout)
+    && /reasoning tokens are reported for control only/.test(pricedResult.stdout), JSON.stringify(pricedMachine.actualCost));
+  check('s. a price snapshot without root fails closed', run(['--runs', priced, '--prices', prices]).status === 2);
+  const noUsageJson = join(work, 'no-usage-price.json');
+  const noUsagePrice = run(['--runs', runs, '--root', work, '--prices', prices, '--json', noUsageJson]);
+  const noUsageMachine = JSON.parse(readFileSync(noUsageJson, 'utf8'));
+  check('s. missing usage coverage cannot become a numeric zero cost', noUsagePrice.status === 0
+    && noUsageMachine.actualCost?.comparableRunCoverageComplete === false
+    && noUsageMachine.actualCost?.attributedObservedSubtotal === null, JSON.stringify(noUsageMachine.actualCost));
+  const foreign = join(work, 'foreign'); mkdirSync(foreign, { recursive: true });
+  const foreignRun = seedRun(foreign, '2026-08-21 ship astra foreign', [
+    'D-001 | reviewer@gpt-6-astra | refute architecture | REVIEW.md | reported',
+  ]);
+  const foreignContract = { version: 3, runId: 'foreign', revision: 1, head: pricedHead, runtime: { receipts: receiptRel } };
+  writeFileSync(join(foreignRun, 'RUN_CONTRACT.json'), JSON.stringify(foreignContract));
+  writeFileSync(join(foreignRun, 'RUN_CONTRACT_RESULT.json'), JSON.stringify({ version: 1, runId: 'foreign', revision: 1, head: pricedHead, status: 'PASS' }));
+  const foreignJson = join(work, 'foreign.json');
+  const foreignResult = run(['--runs', foreign, '--root', work, '--prices', prices, '--json', foreignJson]);
+  const foreignMachine = JSON.parse(readFileSync(foreignJson, 'utf8'));
+  check('s. a valid receipt chain from another contract is not attributed', foreignResult.status === 0
+    && foreignMachine.actualUsage?.runsWithUsage === 0
+    && foreignMachine.actualCost?.attributedObservedSubtotal === null, JSON.stringify(foreignMachine));
+  const absentModelJson = join(work, 'absent-model.json');
+  const absentModel = run(['--runs', priced, '--model', 'not-observed', '--json', absentModelJson]);
+  const absentModelMachine = JSON.parse(readFileSync(absentModelJson, 'utf8'));
+  check('s. an unmatched model filter does not fall back to unrelated runs', absentModel.status === 0
+    && absentModelMachine.comparableRuns === 0 && absentModelMachine.modelFilterEmpty === true
+    && absentModelMachine.estimate === null && /No model-specific range/.test(absentModel.stdout),
+  absentModel.stdout + absentModel.stderr);
 
   // ---- a zero-row ledger is excluded from the basis, not counted as a 0-cost run ----
   // The fixture is exactly what `dispatch-ledger.mjs phase` writes for a run that opened a

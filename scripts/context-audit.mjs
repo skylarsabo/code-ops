@@ -27,7 +27,7 @@ import { homedir } from 'node:os';
 import { defaultTranscriptDir, summarizeDirectory, renderMarkdown, mergeSummaries, emptySummary, USAGE_FIELDS } from './transcript-lib.mjs';
 
 function usage() {
-  console.error('usage: context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>] [--top N] [--json] [--raw] [--out <file>]');
+  console.error('usage: context-audit.mjs [--host claude|codex] [--transcripts <dir>] [--cwd <dir> | --all] [--since <ISO>] [--top N] [--json] [--raw] [--out <file>]');
   console.error('       context-audit.mjs receipts [--ledger <file>] [--cwd <dir> | --all] [--json] [--by-arm]');
   console.error('       context-audit.mjs receipts --purge-before <ISO date> [--ledger <file>] [--json]');
   process.exit(2);
@@ -36,11 +36,12 @@ function usage() {
 const argv = process.argv.slice(2);
 const mode = argv[0] === 'receipts' ? 'receipts' : 'transcripts';
 if (mode === 'receipts') argv.shift();
-const opt = { transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false, byArm: false, purgeBefore: null };
+const opt = { host: 'claude', transcripts: null, cwd: process.cwd(), since: null, top: 15, json: false, raw: false, out: null, ledger: null, all: false, byArm: false, purgeBefore: null };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const need = () => { const v = argv[++i]; if (v === undefined || v.startsWith('--')) usage(); return v; };
   if (a === '--transcripts') opt.transcripts = need();
+  else if (a === '--host') { opt.host = need(); if (!['claude', 'codex'].includes(opt.host)) usage(); }
   else if (a === '--cwd') opt.cwd = need();
   else if (a === '--since') opt.since = need();
   else if (a === '--top') { opt.top = Number(need()); if (!Number.isInteger(opt.top) || opt.top < 0) usage(); }
@@ -61,8 +62,9 @@ function emit(text) {
 }
 
 if (mode === 'transcripts') {
-  const dir = resolve(opt.transcripts || defaultTranscriptDir(resolve(opt.cwd)));
-  const agg = summarizeDirectory(dir, { top: opt.top, raw: opt.raw, since: opt.since });
+  const dir = resolve(opt.transcripts || defaultTranscriptDir(resolve(opt.cwd), opt.host));
+  const agg = summarizeDirectory(dir, { top: opt.top, raw: opt.raw, since: opt.since, host: opt.host,
+    cwd: opt.host === 'codex' && !opt.all ? resolve(opt.cwd) : null });
   if (agg.files === 0) {
     console.error(`  x no transcripts under ${dir}`);
     process.exit(1);
@@ -70,6 +72,7 @@ if (mode === 'transcripts') {
   if (opt.json) {
     const pick = (s) => ({
       files: s.files, sessions: s.sessions, messages: s.messages, models: s.models, usage: s.usage,
+      normalizedUsage: s.normalizedUsage, usageByModel: s.usageByModel, hosts: s.hosts, contextAtEnd: s.contextAtEnd,
       toolCalls: s.toolCalls, toolResults: s.toolResults, toolResultChars: s.toolResultChars,
       toolResultCharsTotal: s.toolResultCharsTotal, textChars: s.textChars, bashFamilies: s.bashFamilies,
       repeatReads: s.repeatReads, largest: s.largest, firstTs: s.firstTs, lastTs: s.lastTs,

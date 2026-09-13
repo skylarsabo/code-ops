@@ -31,6 +31,8 @@ merges reports without re-deriving their structure. Escalation and Constraints k
 subagent from improvising past what it was asked. The lead dispatches in the background
 and continues independent work, and it waits only when the next step depends on the result.
 
+For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file.
+
 ## What the Context line points at
 
 Name a query, never a pasted map. `scripts/context-query.mjs` answers a structural

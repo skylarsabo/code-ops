@@ -46,7 +46,7 @@ The `validate` workflow runs on pull requests, on pushes to `main`, on a weekly 
 
 ## Host hooks
 
-Seven hooks ship with the code-ops-suite package and register in `plugins/code-ops-suite/hooks/hooks.json`. Two run at `PreToolUse` on Bash: `enforce-traceless.mjs` blocks a `git commit` or `gh pr create|merge` whose command string carries an AI or tooling trace, and `digest-rewrite.mjs` reruns an allowlisted simple command under `scripts/digest.mjs` so the session sees a compressed result. `index-refresh.mjs` runs at `PostToolUse` after `Edit`, `Write`, `MultiEdit`, and `NotebookEdit`, and re-indexes the one file that changed. `routing-card.mjs` runs at `SessionStart` and prints the routing card. `session-receipt.mjs` runs at `SessionEnd` and appends one measurement row. `ladder-card.mjs` runs at `SubagentStart` and hands an implementer-class subagent the code-economy ladder. `precompact-preserve.mjs` runs at `PreCompact` and states what a compaction summary must keep. Every hook is on by default and fails open. Four carry an off switch, set in the `env` block of a `.claude/settings.json`: `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_RECEIPTS`. The [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) owns the switches and their storage, and the [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each hook's contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json:1-71`.
+Seven hooks ship with the code-ops-suite package and register in `plugins/code-ops-suite/hooks/hooks.json`. Two run at `PreToolUse` on Bash: `enforce-traceless.mjs` blocks a `git commit` or `gh pr create|merge` whose command string carries an AI or tooling trace, and `digest-rewrite.mjs` reruns an allowlisted simple command under `scripts/digest.mjs` so the session sees a compressed result. `index-refresh.mjs` runs at `PostToolUse` after `Edit`, `Write`, `MultiEdit`, and `NotebookEdit`, and re-indexes the one file that changed. `routing-card.mjs` runs at `SessionStart` and prints the routing card. `session-receipt.mjs` runs at `SessionEnd` and appends one measurement row. `ladder-card.mjs` runs at `SubagentStart` and hands an implementer-class subagent the code-economy ladder. `precompact-preserve.mjs` runs at `PreCompact` and states what a compaction summary must keep. Every hook is on by default. Six fail open on every path. `enforce-traceless.mjs` exits `2` when it detects a publishing trace, which intentionally blocks the command, and fails open on infrastructure errors. Four hooks carry an off switch, set in the `env` block of a `.claude/settings.json`: `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, and `CODE_OPS_RECEIPTS`. The [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) owns the switches and their storage, and the [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each hook's contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json:1-71`.
 
 ## Symbol index and query server
 
@@ -73,6 +73,8 @@ The dispatch ledger records planned work and state transitions. A failed dispatc
 The context compiler separates an exact repository snapshot from a per-unit bundle. A snapshot hashes visible Git state and generator identities, then reuses a content-addressed structural cache. Evidence: `scripts/context-index-lib.mjs:135-195` and `scripts/context-snapshot.mjs:72-124`.
 
 A bundle selects files in the unit scope, direct import neighbors, visible changes, and freshness-gated Atlas excerpts. It fails with a marker when scope is broad or the byte budget is exceeded. Evidence: `scripts/context-bundle.mjs:52-83` and `scripts/context-bundle.mjs:85-164`.
+
+The dispatch path verifies the canonical bundle, projects a deterministic unit view, then frames stable invariants before unit-specific files. `worker-brief.mjs` binds source and output digests under separate prefix, unit, and total limits. A breach fails before dispatch, so context economy cannot silently remove evidence.
 
 ## Long-horizon runtime
 
@@ -107,6 +109,8 @@ Receipt replay verifies contiguous sequence numbers, predecessor digests, receip
 binding stability, checkpoint requirements, and resume replay. The receipt chain is the runtime
 continuity record. Source code remains authoritative for behavior. Evidence:
 `scripts/runtime-lib.mjs:310-358`.
+
+The runtime exposes a bounded, read-only status projection for continuation after compaction or operator transfer. Partial acceptance may be checkpointed, but final acceptance remains fail-closed on every blocking criterion. Unit-attributed observations connect actual token use to optional contract envelopes and surface overruns without replaying the full receipt chain.
 
 ## Local judgment before a pull request
 

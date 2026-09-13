@@ -34,7 +34,21 @@ Redact secrets and PII (`§4`), because a handoff travels further than a registe
 `node <plugin-root>/scripts/co.mjs scan redaction HANDOFF.md` before handing it over. It
 is the mechanical floor under that rule.
 
+When the run has a version 3 contract, record its path and runtime receipt path in the handoff.
+After writing and scanning `HANDOFF.md`, append
+`node <plugin-root>/scripts/run-runtime.mjs checkpoint --root . --contract <contract> --ledger <dispatch ledger> --handoff <handoff>`.
+Include `--acceptance <ledger>` when present and repeated artifact or bundle flags for evidence
+the successor must retain. Do not rewrite the handoff after binding its bytes to the checkpoint.
+Partial acceptance belongs in the checkpoint; completion is not required to hand off.
+
 ## Resume: verify, then continue
+
+For a version 3 contract, first read
+`node <plugin-root>/scripts/run-runtime.mjs status --root . --contract <contract>`.
+Its bounded pointers identify pending dispatches, unresolved criteria, and drift. Then run
+`run-runtime.mjs resume --root . --contract <contract>` to verify the checkpoint and append a
+resume receipt. Drift requires a revised contract and `run-runtime.mjs replan`, never a bypass.
+Version 1 or 2 runs continue through the artifact verification below.
 
 Treat every claim in the handoff as **context to verify against the tree, not fact to trust.**
 Run `node <plugin-root>/scripts/revalidate-register.mjs <register> --root .` on every

@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.9
+- `rigor-sweep` uses the v3 run contract when the runtime is available, records partial acceptance at checkpoints, and resumes from bounded runtime status instead of replaying prior prose.
+
 ## 2.18.8
 - Documentation sweep: the README and all eleven skill pages are rewritten onto the house writing standard, with no em-dashes and no semicolons in prose, and the README gains a context-economy section naming `co.mjs context skim` and the suite's default-on hooks with their off switches. No phase, checkpoint, script invocation, or `CONVENTIONS.md` citation changed.
 ## 2.18.7

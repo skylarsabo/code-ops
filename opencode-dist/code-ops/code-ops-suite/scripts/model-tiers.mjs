@@ -42,7 +42,7 @@ export const CLAUDE_ALIAS_TIER = {
 //
 // Adding a provider is one entry here plus one PROVIDER_SLUG_PATTERNS line. Nothing else in
 // the suite hardcodes a model name.
-export const REGISTRY_VERIFIED_AT = '2026-08-13';
+export const REGISTRY_VERIFIED_AT = '2026-09-13';
 
 export const PROVIDER_TIERS = {
   anthropic: {
@@ -53,9 +53,9 @@ export const PROVIDER_TIERS = {
       light: 'claude-haiku-4-5-20251001',
       mid: 'claude-sonnet-5',
       strong: 'claude-opus-5',
-      frontier: 'claude-fable-5',
+      frontier: 'claude-fable-5-1',
     },
-    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. `frontier` is a lead-only tier; no bundled agent declares it as a floor.',
+    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. `frontier` binds to Fable 5.1 and remains lead-only; no bundled agent declares it as a floor.',
   },
   xai: {
     id: 'xai',
@@ -96,8 +96,8 @@ export const PROVIDER_TIERS = {
   moonshotai: {
     id: 'moonshotai',
     label: 'Moonshot AI (Kimi)',
-    models: { light: 'kimi-k2.5', mid: 'kimi-k2.7-code', strong: 'kimi-k3', frontier: 'kimi-k3' },
-    notes: '`kimi-k2.7-code` is the coding-specialized mid rung; `kimi-k3` serves both top rungs.',
+    models: { light: 'kimi-k2.6', mid: 'kimi-k2.7-code', strong: 'kimi-k3', frontier: 'kimi-k3' },
+    notes: '`kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves both top rungs.',
   },
   deepseek: {
     id: 'deepseek',
@@ -138,6 +138,29 @@ export const PROVIDER_TIERS = {
     notes: 'Zero account cost with the tier routing kept. Ling 3.0 Flash is fast and disciplined on tool-call schemas, so it serves the light rung; Nemotron 3.5 Lightning leads the small-model speed and accuracy trade-off, so it serves mid; MiMo V2.5 carries agentic post-training and near-frontier coding claims, so it serves strong. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.',
   },
 };
+
+// Premium alternatives do not replace a provider's cost-disciplined default ladder.
+// A run selects one explicitly for a bounded specialist unit, and the contract records
+// that choice. This keeps a generated provider config from spending the premium on every
+// lead turn while still letting the capability and acceptance gates recognize the model.
+export const PROVIDER_SPECIALISTS = {
+  openai: [
+    {
+      name: 'astra',
+      model: 'gpt-6-astra',
+      tier: 'frontier',
+      uses: ['difficult architecture', 'independent refutation', 'cross-domain synthesis'],
+      verifiedAt: '2026-09-13',
+      notes: 'Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.',
+    },
+  ],
+};
+
+export function modelSupportsTier(modelId, tier) {
+  if (typeof modelId !== 'string' || !TIER_ORDER.includes(tier)) return false;
+  return Object.values(PROVIDER_TIERS).some((provider) => provider.models[tier] === modelId)
+    || Object.values(PROVIDER_SPECIALISTS).flat().some((entry) => entry.model === modelId && entry.tier === tier);
+}
 
 // A provider whose `frontier` is null renders no top-level `model`, so the lead inherits the
 // session model. Every other rung must still name a model.
@@ -195,6 +218,12 @@ const RUNGS_BY_MODEL_ID = (() => {
       index.get(id).add(tier);
     }
   }
+  for (const specialists of Object.values(PROVIDER_SPECIALISTS)) {
+    for (const specialist of specialists) {
+      if (!index.has(specialist.model)) index.set(specialist.model, new Set());
+      index.get(specialist.model).add(specialist.tier);
+    }
+  }
   return index;
 })();
 
@@ -217,6 +246,15 @@ export function modelClassOf(modelId) {
   const rungs = RUNGS_BY_MODEL_ID.get(modelId.trim());
   if (!rungs) return 'unclassified';
   return rungs.size === 1 ? [...rungs][0] : 'ambiguous';
+}
+
+// Authorization needs the highest rung a model can serve. Reporting keeps returning
+// `ambiguous` for collapsed ladders, because one id still carries no unique class signal.
+export function modelRankOf(modelId) {
+  if (typeof modelId !== 'string') return undefined;
+  const rungs = RUNGS_BY_MODEL_ID.get(modelId.trim());
+  if (!rungs?.size) return undefined;
+  return Math.max(...[...rungs].map((tier) => TIER_RANK[tier]));
 }
 
 // The rank an agent frontmatter alias resolves to, or undefined when the alias is unknown.

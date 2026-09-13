@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_TIERS, TIER_ORDER, leadInherits } from '../../scripts/model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, TIER_ORDER, leadInherits } from '../../scripts/model-tiers.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -19,6 +19,8 @@ const pluginNames = ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'research
 const read = (path) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const fails = [];
 const expect = (condition, message) => { if (!condition) fails.push(message); };
+
+expect(PROVIDER_TIERS.anthropic.models.frontier === 'claude-fable-5-1', 'Anthropic frontier must bind to Fable 5.1');
 
 // opencode's own name grammar; a name that fails it is silently undiscoverable.
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -101,6 +103,11 @@ for (const provider of Object.values(PROVIDER_TIERS)) {
     expect(tiers.includes(`\`${provider.id}/${provider.models[tier]}\``), `MODEL_TIERS.md is missing the ${provider.id} binding for ${tier}`);
   }
 }
+for (const [providerId, specialists] of Object.entries(PROVIDER_SPECIALISTS)) {
+  for (const specialist of specialists) {
+    expect(tiers.includes(`\`${providerId}/${specialist.model}\``), `MODEL_TIERS.md is missing the ${providerId}/${specialist.name} specialist`);
+  }
+}
 // Every provider must be independently usable, or "portable across providers" is a claim
 // the package does not back. A reader on any listed provider needs a config they can copy
 // with every agent already bound to a model that meets its floor.
@@ -109,6 +116,8 @@ for (const provider of Object.values(PROVIDER_TIERS)) {
   expect(existsSync(path), `configs/opencode.${provider.id}.json is missing`);
   if (!existsSync(path)) continue;
   const perProvider = JSON.parse(read(path));
+  if (leadInherits(provider)) expect(!Object.hasOwn(perProvider, 'model'), `${provider.id}: inherited lead must stay unset`);
+  else expect(perProvider.model === `${provider.id}/${provider.models.frontier}`, `${provider.id}: lead does not use its default frontier binding`);
   for (const agent of expectedAgents) {
     const bound = perProvider.agent?.[agent.name]?.model;
     expect(bound === `${provider.id}/${provider.models[agent.tier]}`, `${provider.id}: binds ${agent.name} to "${bound}", not its ${agent.tier}-tier model`);

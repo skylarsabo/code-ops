@@ -235,6 +235,15 @@ try {
   check('q. check exits 0 on a journaled ledger', q.status === 0, q.stdout + q.stderr);
   check('q. check reports the journal as verified', /journal: verified\./.test(q.stdout), q.stdout);
 
+  // q2. premium specialists remain explicit and cost-visible instead of silently
+  // collapsing into an ordinary default rung.
+  const astraLedger = join(dir, 'ASTRA_LEDGER.md');
+  run(['add', '--ledger', astraLedger, '--role', 'reviewer', '--brief', 'refute the hard architecture claim', '--artifact', 'ASTRA_REVIEW.md', '--model', 'gpt-6-astra']);
+  run(['update', '--ledger', astraLedger, '--id', 'D-001', '--status', 'reported']);
+  const q2 = run(['check', '--ledger', astraLedger]);
+  check('q2. Astra ledger exits 0', q2.status === 0, q2.stdout + q2.stderr);
+  check('q2. Astra is reported as frontier cost', /model-class mix: frontier 1/.test(q2.stdout), q2.stdout);
+
   // r. THE L-013 REGRESSION CASE: a schema-perfect row minted straight at `reported` by a direct
   // artifact edit — no dispatch call behind it. Snapshot-indistinguishable from a real dispatch;
   // only the journal can tell them apart, and it must fail closed WITHOUT --strict.

@@ -15,10 +15,11 @@
 //   node evals/context-audit/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, existsSync, mkdtempSync, rmSync, appendFileSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, rmSync, appendFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { summarizeTranscript, mergeSummaries, normalizeUsage } from '../../scripts/transcript-lib.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -30,6 +31,65 @@ const mainFile = join(fixture, 'sess-1.jsonl');
 const fails = [];
 const expect = (cond, msg) => { if (!cond) fails.push(msg); };
 const run = (args, opts = {}) => spawnSync('node', args, { encoding: 'utf8', ...opts });
+
+const jsonl = (rows) => rows.map((r) => JSON.stringify(r)).join('\n');
+const codexUsage = (input, read, write, output, thinking) => ({ input_tokens: input, cached_input_tokens: read,
+  cache_write_input_tokens: write, output_tokens: output, reasoning_output_tokens: thinking, total_tokens: input + output });
+const codexRows = [
+  { type: 'session_meta', payload: { cwd: root } },
+  { type: 'turn_context', payload: { turn_id: 't1', model: 'codex-model-a' } },
+  { type: 'response_item', payload: { type: 'message', id: 'm1', role: 'user', content: [{ type: 'input_text', text: 'request' }] } },
+  { type: 'response_item', payload: { type: 'function_call', call_id: 'call1', name: 'exec_command', arguments: '{"cmd":"rg PRIVATEPATTERN"}' } },
+  { type: 'response_item', payload: { type: 'function_call_output', call_id: 'call1', output: 'tool result' } },
+  { type: 'response_item', payload: { type: 'message', id: 'm2', role: 'assistant', content: [{ type: 'output_text', text: 'answer' }] } },
+  { type: 'token_usage_record', payload: { response_id: 'r1', turn_id: 't1', usage: codexUsage(100, 40, 10, 20, 5) } },
+  { type: 'token_usage_record', payload: { response_id: 'r1', turn_id: 't1', usage: codexUsage(100, 40, 10, 20, 5) } },
+  { type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: codexUsage(100, 40, 10, 20, 5), last_token_usage: codexUsage(100, 40, 10, 20, 5) } } },
+  { type: 'turn_context', payload: { turn_id: 't2', model: 'codex-model-b' } },
+  { type: 'token_usage_record', payload: { response_id: 'r2', turn_id: 't2', usage: codexUsage(200, 100, 20, 30, 8) } },
+  { type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: codexUsage(300, 140, 30, 50, 13), last_token_usage: codexUsage(200, 100, 20, 30, 8) } } },
+];
+const cx = summarizeTranscript(jsonl(codexRows));
+expect(cx.normalizedUsage.input === 130 && cx.normalizedUsage.cacheRead === 140 && cx.normalizedUsage.cacheCreate === 30
+  && cx.normalizedUsage.total === 350 && cx.normalizedUsage.thinking === 13, `Codex response dedup and disjoint input: ${JSON.stringify(cx.normalizedUsage)}`);
+expect(cx.usageByModel['codex-model-a']?.total === 120 && cx.usageByModel['codex-model-b']?.total === 230, 'Codex model attribution joins turn_id');
+expect(cx.messages.user === 1 && cx.messages.assistant === 1 && cx.toolCalls.exec_command === 1
+  && cx.toolResultChars.exec_command === 11 && cx.textChars.assistant === 6 && cx.contextAtEnd === 200, 'Codex content and tool attribution');
+expect(!JSON.stringify(cx.largest).includes('PRIVATEPATTERN'), 'Codex sanitized labels exclude tool arguments');
+const legacyRows = codexRows.filter((r) => r.type !== 'token_usage_record');
+legacyRows.push(legacyRows.at(-1));
+const legacy = summarizeTranscript(jsonl(legacyRows));
+expect(legacy.normalizedUsage.total === 350 && legacy.usageByModel.UNKNOWN?.total === 350,
+  'Codex cumulative counters dedup without inventing per-model attribution');
+const absent = normalizeUsage({ input_tokens: 100, cached_input_tokens: 40, output_tokens: 20, total_tokens: 120 }, 'codex');
+expect(absent.input === 'UNKNOWN' && absent.cacheCreate === 'UNKNOWN' && absent.thinking === 'UNKNOWN'
+  && absent.total === 120, 'missing Codex categories UNKNOWN, independently reported total retained');
+expect(normalizeUsage({ input_tokens: -1, output_tokens: 0 }).input === 'UNKNOWN', 'invalid telemetry is UNKNOWN');
+const partial = summarizeTranscript(jsonl([
+  { type: 'token_usage_record', payload: { response_id: 'partial', usage: codexUsage(100, 40, 10, 20, 5) } },
+  { type: 'token_usage_record', payload: { response_id: 'partial', usage: codexUsage(100, 50, 10, 30, 8) } },
+]));
+expect(partial.normalizedUsage.input === 40 && partial.normalizedUsage.cacheRead === 50
+  && partial.normalizedUsage.total === 130, 'Codex partial-response maxima apply before subtracting cached categories');
+const noTelemetry = summarizeTranscript(jsonl([{ type: 'response_item', payload: { type: 'message', id: 'no-usage', role: 'assistant', content: [] } }]));
+expect(noTelemetry.normalizedUsage.total === 'UNKNOWN', 'Codex assistant without usage telemetry is UNKNOWN');
+const merged = mergeSummaries([cx, summarizeTranscript(jsonl([{ type: 'event_msg', payload: { type: 'token_count', info: { total_token_usage: { input_tokens: 100, cached_input_tokens: 40, output_tokens: 20, total_tokens: 120 } } } }]))]);
+expect(merged.normalizedUsage.total === 470 && merged.normalizedUsage.thinking === 'UNKNOWN', 'merged normalized totals retain UNKNOWN categories');
+const codexDir = mkdtempSync(join(tmpdir(), 'ca-codex-'));
+const dated = join(codexDir, '2026', '09', '01');
+mkdirSync(dated, { recursive: true });
+appendFileSync(join(dated, 'one.jsonl'), jsonl(codexRows));
+appendFileSync(join(dated, 'other.jsonl'), jsonl([{ type: 'session_meta', payload: { cwd: codexDir } }, ...codexRows.slice(1)]));
+const codexCli = run([cli, '--host', 'codex', '--transcripts', codexDir, '--cwd', root, '--json']);
+try {
+  const c = JSON.parse(codexCli.stdout);
+  expect(codexCli.status === 0 && c.files === 1 && c.all.normalizedUsage.total === 350, 'Codex CLI discovers date directories and filters by session metadata cwd');
+  expect(!codexCli.stdout.includes(root) && !codexCli.stdout.includes('PRIVATEPATTERN'), 'Codex CLI omits cwd and tool arguments');
+} catch { fails.push('Codex CLI JSON must parse'); }
+const codexAll = run([cli, '--host', 'codex', '--transcripts', codexDir, '--all', '--json']);
+expect(codexAll.status === 0 && JSON.parse(codexAll.stdout || '{}').files === 2, 'Codex CLI --all explicitly includes other projects');
+expect(run([cli, '--host', 'unsupported']).status === 2, 'unsupported host exits 2');
+rmSync(codexDir, { recursive: true, force: true });
 
 // Library-level assertions through the CLI's --json view.
 const j = run([cli, '--transcripts', fixture, '--json']);
@@ -47,6 +107,8 @@ if (agg) {
   expect(m.usage.output === 107, `main output max(40,60)+20+20+1+1+5 = 107, got ${m.usage.output}`);
   expect(m.usage.thinking === 10, `main thinking 10 once, got ${m.usage.thinking}`);
   expect(m.usage.total === 212 + 2402 + 200 + 107, `main total, got ${m.usage.total}`);
+  expect(m.normalizedUsage.total === m.usage.total && m.normalizedUsage.thinking === 'UNKNOWN', 'Claude normalized totals match legacy; absent thinking telemetry stays UNKNOWN');
+  expect(m.usageByModel['model-x']?.total === 1330 && m.usageByModel['model-y']?.total === 1591, 'Claude per-model usage deduplicates streamed chunks');
   expect(s.usage.input === 7 && s.usage.cacheCreate === 11 && s.usage.cacheRead === 13 && s.usage.output === 3, `subagent usage 7/11/13/3, got ${JSON.stringify(s.usage)}`);
   expect(a.usage.input === 219, `all input = 212 + 7, got ${a.usage.input}`);
   expect(m.models['model-x'] === 2 && m.models['model-y'] === 4, `main model mix x:2 y:4, got ${JSON.stringify(m.models)}`);

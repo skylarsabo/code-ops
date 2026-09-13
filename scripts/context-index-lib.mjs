@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const CONTEXT_INDEX_VERSION = 1;
@@ -64,6 +64,19 @@ export function samePhysicalFile(first, second) {
   const secondStat = statSync(second, { bigint: true });
   return portableKey(realpathSync.native(first)) === portableKey(realpathSync.native(second))
     || (firstStat.dev === secondStat.dev && firstStat.ino === secondStat.ino);
+}
+
+export function samePathTarget(first, second) {
+  const left = resolve(first);
+  const right = resolve(second);
+  if (portableKey(left) === portableKey(right)) return true;
+  if (existsSync(left) && existsSync(right) && samePhysicalFile(left, right)) return true;
+  const key = (value) => {
+    const parent = dirname(value);
+    const canonicalParent = existsSync(parent) ? realpathSync.native(parent) : resolve(parent);
+    return portableKey(resolve(canonicalParent, basename(value)));
+  };
+  return key(left) === key(right);
 }
 
 export function assertNoAmbiguousIndexFlags(root) {

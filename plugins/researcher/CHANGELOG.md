@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.13
+- `research-sweep` uses the v3 run contract when the runtime is available, records partial acceptance at checkpoints, and resumes from bounded runtime status instead of replaying prior prose.
+
 ## 0.13.12
 - `ecosystem-watch` and `research-improve` name their hand-off targets in qualified form (`code-ops-suite:feature-discovery`, `code-ops-suite:feature-implementation`, `code-ops-suite:adr`), with the four matching edge rows added to the skill-composition map.
 

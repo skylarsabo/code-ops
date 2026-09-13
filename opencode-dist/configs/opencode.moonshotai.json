@@ -3,13 +3,13 @@
   "model": "moonshotai/kimi-k3",
   "agent": {
     "code-ops-suite-explorer": {
-      "model": "moonshotai/kimi-k2.5"
+      "model": "moonshotai/kimi-k2.6"
     },
     "code-ops-suite-reviewer": {
       "model": "moonshotai/kimi-k3"
     },
     "privacy-opsec-suite-explorer": {
-      "model": "moonshotai/kimi-k2.5"
+      "model": "moonshotai/kimi-k2.6"
     },
     "privacy-opsec-suite-privacy-reviewer": {
       "model": "moonshotai/kimi-k3"
@@ -24,7 +24,7 @@
       "model": "moonshotai/kimi-k2.7-code"
     },
     "researcher-gatherer": {
-      "model": "moonshotai/kimi-k2.5"
+      "model": "moonshotai/kimi-k2.6"
     }
   },
   "permission": {

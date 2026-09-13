@@ -502,8 +502,7 @@ The house style is fixed. `## Never (no gate will save you)` comes first and car
 repo-specific, backstop-free rules. `## Before declaring any change done` carries the verified
 command chain mirroring CI, noting any unenforced convention. Post-edit chores follow when the
 repo has them. `## Invariants the gates will catch` follows. A local-only or gitignored docs
-note follows when it applies. It never duplicates the user's global `~/.claude/CLAUDE.md`
-doctrine.
+  note follows when it applies. It never duplicates the user-wide Claude or Codex contracts.
 
 **Why it's useful.** It keeps a repo's standards contract mechanically true rather than
 aspirational. The commands it lists actually run, the gates it claims actually gate, and the
@@ -523,11 +522,11 @@ the rest of the docs, because `adopt-standards` owns the standards contract spec
 
 **How it works.** Five phases:
 
-- **Phase 0** (checkpoint) resolves both sides, the global `~/.claude/CLAUDE.md` and the marketplace checkout it caches. It detects BOOTSTRAP, meaning no global file or one carrying no suite doctrine, against MAINTAIN. It states both paths and the marketplace commit being verified against.
+- **Phase 0** (checkpoint) resolves the Claude global pair, the Codex global `AGENTS.md`, and the marketplace checkout they cache. It detects BOOTSTRAP against MAINTAIN and states every path plus the marketplace commit being verified.
 - **Phase 1** builds the current-doctrine baseline by reading the SSOT pages themselves, anchoring each claim to `file:line`. It reads `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md` for the routing table, the tier and effort rule, and the declared exception. It reads `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and `AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs` for the enforced floors. It reads `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and the `CONVENTIONS.md` §7 and §9 schemas for the reporting standard.
 - **Phase 2** classifies every divergence into one of five buckets. CONTRADICTS means the global file states a rule the SSOT now states differently, which is worse than silence because sessions follow it. STALE and MISSING are what they say. REPO-LOCAL means repo facts leaked upward, and they are handed back to `adopt-standards`. LOCAL-DOCTRINE means cross-repo rules the file already carries that no SSOT page states, which are kept, never pruned, and listed as candidates to promote into the marketplace. Line citations are swept mechanically.
 - **Phase 3** checkpoints with the classified drift and the exact proposed edit before any write. It names every removal with the bucket justifying it, and it refuses to touch settings, hooks, permissions, or keybindings.
-- **Phase 4** writes additively. The four global sections are the floor, and every existing section survives unless it was classified CONTRADICTS or REPO-LOCAL. It then stamps the marketplace commit verified against, so the next run computes drift from the log.
+- **Phase 4** preserves surviving meaning while consolidating repeated prose. It writes a small provider-neutral core plus deliberate Claude and Codex host deltas. The Claude pair remains byte-identical; the Codex file may differ. The run records the marketplace revision without forcing transient revision text into every prompt.
 
 **Why it's useful.** The global contract is a cache of the marketplace's doctrine, and a stale
 cache mis-routes every session in every repo, silently. An inverted tier rule down-tiers work

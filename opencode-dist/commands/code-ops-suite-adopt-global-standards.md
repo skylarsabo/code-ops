@@ -1,5 +1,5 @@
 ---
-description: "Use when the user's global ~/.claude/AGENTS.md needs to be created, brought up to the suite's current doctrine, or re-verified after the marketplace's standards moved."
+description: "Use when the user's Claude or Codex global standards contract needs to be created, aligned to current doctrine, or re-verified after the marketplace moves."
 ---
 
 Use the `code-ops-suite-adopt-global-standards` skill for this task, following it end to end.

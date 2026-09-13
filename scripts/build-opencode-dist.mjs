@@ -20,7 +20,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits } from './model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
@@ -303,6 +303,14 @@ function modelTiersDoc(agents) {
     '## Provider notes',
     '',
     ...providers.map((p) => `- **${p.label}** — ${p.notes}`),
+    '',
+    '## Premium specialists',
+    '',
+    'Specialists are explicit bounded alternatives. They never replace a ready-made config’s',
+    'default lead or operative binding:',
+    '',
+    ...Object.entries(PROVIDER_SPECIALISTS).flatMap(([providerId, specialists]) => specialists.map((specialist) =>
+      `- \`${providerId}/${specialist.model}\` — \`${specialist.tier}\` for ${specialist.uses.join(', ')}. ${specialist.notes}`)),
     '',
     '## Ready-made configs',
     '',

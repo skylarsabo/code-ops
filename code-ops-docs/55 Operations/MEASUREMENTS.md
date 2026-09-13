@@ -14,7 +14,7 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
 
 ## Instruments
 
-- `node scripts/context-audit.mjs` summarizes the transcripts for the current directory: exact tokens by class with main and subagent threads apart, context characters by tool, Bash output by command family, repeat reads, and the largest results. Output is sanitized by default. `--json` emits the aggregate a receipt can hash.
+- `node scripts/context-audit.mjs` summarizes Claude transcripts for the current directory. `--host codex` adapts current local Codex session usage into the same normalized categories and filters by working directory unless `--all` is present. Output is sanitized by default. `--json` emits the aggregate a receipt can hash.
 - `hooks/session-receipt.mjs` runs at `SessionEnd` and appends one row per session to `~/.claude/code-ops/session-receipts.jsonl` (or `$CODE_OPS_RECEIPTS`, where `off` disables it). `node scripts/context-audit.mjs receipts` summarizes the ledger.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
 - `node scripts/context-audit.mjs receipts --purge-before <ISO date>` is the ledger's retention: it rewrites the file keeping rows at or after the date and prints what it removed.
@@ -22,6 +22,8 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
 - `node scripts/digest.mjs -- <cmd>` measures one command's own compressible share: it prints the before-and-after line counts in its trailer and appends `bytesIn`, `bytesOut`, `linesIn`, and `linesOut` to `DIGEST_RECEIPTS.jsonl`. The `PreToolUse` digest hook runs it for every allowlisted simple command, so the ledger fills on its own. A row exists only for a command the digest shrank: an output of at most 1,536 bytes, or one the digest cannot make smaller, passes through raw with no row, because the session measurement of 2026-09-03 found 77 of 84 receipted commands paid more in trailer than they saved. `evals/digest/run.mjs` reports the per-shape reduction on a fixed corpus and fails when it drops below the recorded floor.
 
 Usage is deduplicated by message id. The host writes one assistant message as several transcript lines that repeat the same usage block, so a naive sum overcounts by more than two to one.
+
+The `context-bundle view` regression fixture is 1,482 bytes against a 1,987-byte canonical bundle, a 25.4% byte reduction. This is compiler-fixture evidence only. It is not yet evidence of provider-token reduction, cache improvement, or dollar savings. Those claims require attributed runtime observations from a controlled run.
 
 ## Baseline: this repository, 2026-06-23 to 2026-09-02
 
@@ -130,4 +132,3 @@ Review never steps below medium. A level that loses recall on either run is disc
 table's rows are rewritten from the receipts, with the run receipts cited, and the conventions'
 routing sentence is edited in the same commit. The sweep has not been run for the current lead
 model, and the table stands on the previous generation's runs until it is.
-

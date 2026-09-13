@@ -23,6 +23,8 @@ before writing raw provenance. Evidence: `scripts/host-capabilities.mjs:1-79` an
 
 The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:96-136`, `205-218`, and `253-292`.
 
+The read-only `run-runtime.mjs status` surface bounds its event output and reports checkpoint, pending-dispatch, partial-acceptance, drift, and token-budget state. Context delivery is also bounded twice: `context-bundle.mjs view` produces a verified unit projection, and `worker-brief.mjs` enforces separate invariant, unit, and total byte limits with a source-bound receipt.
+
 There is no application server, managed database, container image, Terraform root, or cloud-runtime configuration in the current repository. That is an inspected repository boundary, not a statement about hosts that install the marketplace.
 
 ## Repository infrastructure
@@ -34,7 +36,9 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 ## Host hook switches
 
 The code-ops-suite package registers seven hooks in `plugins/code-ops-suite/hooks/hooks.json`.
-Every one is on by default and fails open. Four carry an off switch, read from the `env` block
+Every one is on by default. Six fail open on every path. The traceless guard intentionally
+blocks a publishing command when it detects a trace and fails open on infrastructure errors.
+Four hooks carry an off switch, read from the `env` block
 of a `.claude/settings.json` at user scope for every repository or at repository scope for one:
 
 ```json
@@ -48,13 +52,16 @@ of a `.claude/settings.json` at user scope for every repository or at repository
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 
-Three variables name a path instead of switching a mechanism:
+Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
+
+Two variables name a storage path:
 
 | Variable | What it names | Default |
 | --- | --- | --- |
 | `CODE_OPS_DIGEST_DIR` | the digest store root | `~/.claude/code-ops/digest/<project slug>/` |
-| `CODE_OPS_DIGEST_STORE` | set to `off` it keeps the compression and writes no raw file and no receipt row | the store is written |
 | `CODE_OPS_INDEX_DIR` | the symbol-index directory | `~/.claude/code-ops/index/<project slug>/` |
+
+`CODE_OPS_DIGEST_STORE=off` keeps compression enabled while disabling raw-output and receipt storage.
 
 The three hooks with no switch write nothing that a switch could suppress: `enforce-traceless.mjs` at `PreToolUse`, `routing-card.mjs` at `SessionStart`, and `precompact-preserve.mjs` at `PreCompact`. The [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each hook's contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json:1-71`.
 
@@ -77,6 +84,8 @@ never file bodies. Delete the directory to purge it. Evidence:
 The session-receipt ledger is `~/.claude/code-ops/session-receipts.jsonl`, or `$CODE_OPS_RECEIPTS`.
 `context-audit.mjs receipts --purge-before <ISO date>` is the only thing that removes rows, so
 retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`.
+
+`context-audit.mjs --host codex` reads local Codex session JSONL, filters to the current directory unless `--all` is present, and normalizes current response usage into input, cache-read, cache-write, output, and reasoning categories. It prefers response-scoped usage records and retains a legacy cumulative fallback as `UNKNOWN` model attribution. The report omits tool arguments and working-directory values unless raw output was explicitly requested.
 
 Keeping a switch per repository is what makes a measurement arm possible: one checkout runs with
 the mechanism and another runs without it, and their session receipts compare. The

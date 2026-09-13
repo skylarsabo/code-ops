@@ -62,6 +62,25 @@ Then set up the run:
 - **Surface any CONFIRMED critical finding immediately.**
 - Always work on a branch, and **never auto-merge.** Even fully automatic fixes land as commits or PRs for review.
 
+## Runtime continuity across phases
+
+For this multi-phase run, use a version 3 `RUN_CONTRACT.json` with an exact context snapshot,
+verified unit bundles, an observed host-capability descriptor, and bounded runtime policy.
+Run `node <plugin-root>/scripts/run-contract.mjs check --root . --contract <contract>`,
+then `node <plugin-root>/scripts/run-runtime.mjs init --root . --contract <contract>`
+once. An existing version 1 or 2 contract keeps its artifact checkpoints until explicitly replanned.
+
+At each phase boundary, reconcile the dispatch ledger and checkpoint with
+`node <plugin-root>/scripts/run-runtime.mjs checkpoint --root . --contract <contract> --ledger <ledger>`.
+Include `--acceptance <ledger>` when acceptance exists, `--handoff <file>` when written,
+and repeated `--artifact <file>` and `--bundle <file>` for retained evidence. Partial acceptance
+is valid state; every blocking criterion still requires PASS at finalization.
+
+On resumption, read `run-runtime.mjs status --root . --contract <contract>` first, then run
+`run-runtime.mjs resume --root . --contract <contract>` before continuing. Any scope, context,
+or runtime drift requires the next contract revision, refreshed affected bundles, and
+`run-runtime.mjs replan` with the same reference flags. A cache never substitutes for receipts.
+
 ## Phase 1: the map  *(code-ops-suite)*
 
 `doc-alignment` → `codebase-audit` → `security-privacy-audit`. The phase produces an accurate map

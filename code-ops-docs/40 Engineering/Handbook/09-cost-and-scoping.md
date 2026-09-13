@@ -156,7 +156,7 @@ both measure a finished run. `scripts/estimate-run-cost.mjs` reads the same evid
 forward. Run it at Phase 0, before you set the levers:
 
 ```
-node scripts/estimate-run-cost.mjs --runs <vault>/80\ Runs --skill ship [--repo-size 40]
+node scripts/estimate-run-cost.mjs --runs <vault>/80\ Runs --skill ship [--model gpt-6-astra] [--repo-size 40]
 ```
 
 It walks prior run folders, parses their `DISPATCH_LEDGER.md` files with grammar (a) from
@@ -173,7 +173,7 @@ the routing is the lever, not the scope.
 
 The tool states four limits itself rather than leaving them to the reader:
 
-1. **It counts dispatches, not money.** Per-token prices drift between providers and between months, so a dollar figure printed here would age into a confident wrong number. Multiply the range by your own current prices if you want one.
+1. **It carries no built-in prices.** Finalized v3 runtime receipts can supply observed usage by model. Add `--root <repo> --prices <dated-snapshot.json>` to value that usage with an operator-owned snapshot. The chain must match the finalized contract identity and digest. The result is an attributed observed subtotal, not a provider invoice or proof that every call was observed. Missing usage coverage never becomes numeric zero. Reasoning remains visible for control but is not double-billed on top of output. An unmatched `--model` reports no model-specific estimate instead of falling back to unrelated runs.
 2. **Fewer than three comparable runs is a guess, and it says so.** A range drawn from one or two observations is a sample, not a distribution, so the tool prints a caveat block rather than a quiet number. The count is runs that yielded dispatch rows. A run folder whose ledger has no rows is an aborted run, excluded from the range and named, never counted as a run that cost zero.
 3. **It learns only from completed contract runs.** A folder carrying `RUN_CONTRACT.json` enters the range only after `RUN_CONTRACT_RESULT.json` records `PASS`. An active or failed contract run is named and excluded, so a partial fan-out cannot become the next run's baseline. Legacy run folders without a contract remain usable.
 4. **It never fails a run.** An absent or empty runs directory prints "no prior runs, no estimate" and exits 0. The estimator is advisory by construction, so adopting it costs nothing.
@@ -181,6 +181,8 @@ The tool states four limits itself rather than leaving them to the reader:
 The audit produces the data and the estimator consumes it. Every run that writes a
 stamped ledger makes the next run's estimate better. `run-cost-audit` scores the run that
 finished, and `estimate-run-cost` prices the one about to start.
+
+For a resumable run, place positive `input`, `output`, and `reasoning` caps in each unit's optional `tokenBudget`. Attribute provider observations with `run-runtime.mjs observe --unit D-NNN --model <id>`. `run-runtime.mjs status` reports observed totals and overruns without loading the receipt history into the model context. A cap is a control signal, not proof that a provider enforced it.
 
 ---
 

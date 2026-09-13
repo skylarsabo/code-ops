@@ -16,7 +16,7 @@
 //
 // Exit: 0 = every pinned id checked out; 1 = a pin failed; 2 = usage error or fetch failure.
 
-import { PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits } from './model-tiers.mjs';
+import { PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER } from './model-tiers.mjs';
 
 const REGISTRY_URL = 'https://models.dev/api.json';
 const argv = process.argv.slice(2);
@@ -39,6 +39,11 @@ for (const [id, provider] of Object.entries(PROVIDER_TIERS)) {
     if (!provider.models?.[tier]) fail(`${id}: no model pinned for the ${tier} tier`);
   }
   if (provider.registry === 'cli' && !/^\d{4}-\d{2}-\d{2}$/.test(provider.verifiedAt ?? '')) fail(`${id}: a cli-verified provider needs a verifiedAt date`);
+  for (const specialist of PROVIDER_SPECIALISTS[id] ?? []) {
+    if (!specialist.name || !specialist.model || !TIER_ORDER.includes(specialist.tier)) fail(`${id}: specialist has an invalid name, model, or tier`);
+    if (!Array.isArray(specialist.uses) || specialist.uses.length === 0 || !specialist.notes) fail(`${id}/${specialist.name || 'specialist'}: needs uses and notes`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(specialist.verifiedAt ?? '')) fail(`${id}/${specialist.name || 'specialist'}: needs a verifiedAt date`);
+  }
 }
 
 let checked = 0;
@@ -68,6 +73,10 @@ if (FETCH) {
       if (model === null) continue;
       if (!byModel.has(model)) byModel.set(model, []);
       byModel.get(model).push(tier);
+    }
+    for (const specialist of PROVIDER_SPECIALISTS[id] ?? []) {
+      if (!byModel.has(specialist.model)) byModel.set(specialist.model, []);
+      byModel.get(specialist.model).push(`specialist:${specialist.name}`);
     }
     for (const [model, tiers] of byModel) {
       checked++;

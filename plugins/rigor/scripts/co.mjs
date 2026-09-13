@@ -35,6 +35,7 @@ const TABLE = {
   context: {
     snapshot: 'context-snapshot.mjs',
     bundle: 'context-bundle.mjs',
+    brief: 'worker-brief.mjs',
     map: 'repo-map.mjs',
     graph: 'import-graph.mjs',
     audit: 'context-audit.mjs',

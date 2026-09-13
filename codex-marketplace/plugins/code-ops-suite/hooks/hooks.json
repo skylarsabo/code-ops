@@ -42,7 +42,7 @@
           {
             "type": "command",
             "command": "node \"${PLUGIN_ROOT}/hooks/session-receipt.mjs\"",
-            "timeout": 20
+            "timeout": 3
           }
         ]
       }

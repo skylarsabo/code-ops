@@ -64,6 +64,9 @@ const blocked = run(hook, JSON.stringify({ tool_name: 'Bash', tool_input: { comm
 const allowed = run(hook, JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git status --short' } }));
 expect(blocked.status === 2, `traceless hook should block a Codex-shaped traced commit payload, got ${blocked.status}`);
 expect(allowed.status === 0, `traceless hook should allow a Codex-shaped safe payload, got ${allowed.status}`);
+const hookManifest = JSON.parse(read(join(pluginsDir, 'code-ops-suite', 'hooks', 'hooks.json')));
+const sessionEndTimeouts = (hookManifest.hooks?.SessionEnd ?? []).flatMap((group) => group.hooks ?? []).map((entry) => entry.timeout);
+expect(sessionEndTimeouts.length > 0 && sessionEndTimeouts.every((timeout) => timeout <= 3), `Codex SessionEnd timeout exceeds the desktop ceiling: ${sessionEndTimeouts.join(', ')}`);
 
 if (fails.length) {
   console.error('FAIL — Codex marketplace eval:');

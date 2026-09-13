@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.73.0
+- Orchestrated runs gain partial acceptance, bounded runtime status, per-unit token envelopes, and attributed model and reasoning-token observations. These controls preserve continuity across compaction and make overruns visible without expanding worker context.
+- Context bundles can compile verified unit views, and `worker-brief.mjs` builds deterministic two-part briefs with separate invariant, unit, and total byte limits. It fails instead of truncating, rejects portable path aliases that could overwrite an input, and verifies both source and output hashes before reuse.
+- Context auditing normalizes Claude and Codex usage into provider-neutral categories. The cost estimator binds each runtime receipt chain to its finalized contract and can apply a dated operator-supplied price snapshot. It reports only an attributed observed subtotal, never a provider-invoice total, and refuses unrelated model history.
+- The Anthropic frontier binding advances to Fable 5.1. Interaction doctrine now favors safe action over unnecessary clarification, while preserving checkpoints for consequential decisions and new authority.
+- Global-standard adoption now maintains Claude's byte-identical global pair and Codex's host-specific `AGENTS.md` as separate contracts. It consolidates repeated prose while preserving rule meaning, preventing future refreshes from recreating cross-host drift.
+
+## 1.72.1
+- Astra is an explicit premium frontier specialist for bounded architecture, refutation, and cross-domain synthesis. Sol remains the ready-made OpenAI lead, so ordinary runs do not inherit Astra's 2.5-times token price. Shared model capability and rank helpers admit the specialist without misclassifying repeated-rung models during acceptance.
+- The Codex renderer caps its projected `SessionEnd` timeout at the desktop host's three-second ceiling while preserving the canonical Claude timeout. A renderer regression pins the host-specific transform.
+- Hook documentation distinguishes the intentional traceless-publishing block from the six fail-open hooks and corrects the storage-variable taxonomy.
+- The Moonshot light tier advances from the retired `kimi-k2.5` registry id to `kimi-k2.6`; every non-CLI provider pin resolves in the 2026-09-13 models.dev snapshot.
+
 ## 1.72.0
 - `digest.mjs` passes a short output through raw: an output of at most `--passthrough-below` bytes (default 1536), or one the digest cannot make smaller than the raw bytes, is printed on its own streams with no trailer, no raw file, and no receipt row. `--passthrough-below 0` turns pass-through off and `--json` never passes through. The session measurement of 2026-09-03 found 77 of 84 receipted commands paid more in trailer than they saved, which is what this closes. The digest hook's context line and `evals/digest` pin the new contract.
 

@@ -32,30 +32,17 @@ to break silently.
 
 ## Model roles
 
-The global Model-roles doctrine applies: the lead plans, delegates, and reviews, and
-operatives implement and escalate rather than guess. Routing is quality-first, not
-price-first. Every judgment-bearing dispatch runs at the strong tier whatever tier the
-lead is on, because a shallow or failed operative report costs a redispatch round-trip
-plus the lead's attention, and that exceeds the strong tier's price premium. Only
-mechanical, low-ambiguity work (mech-class transcription and breadth scans) drops a tier,
-and never below an agent's lint-enforced floor. Effort is unchanged: it routes by
-ambiguity, never low on review, and never xhigh on breadth. The tier ladder itself lives
-in `scripts/model-tiers.mjs`, and the per-agent floors in `AGENT_MODEL_FLOORS`.
+The user-wide contract owns general model behavior. This repository adds only these
+deltas: `scripts/model-tiers.mjs` owns provider bindings, `AGENT_MODEL_FLOORS` owns agent
+floors, and premium frontier models handle bounded exceptional decisions rather than
+ordinary fan-out. Judgment-bearing work stays at the strong tier or above. Effort follows
+ambiguity, never low for review and never highest for breadth.
 
-Repo-specific deltas: the lead reviews the diff and the gates itself before reporting
-done, so operative self-reports are not acceptance. Rigor and verification judgments
-(verdicts, CONFIRMED labels, acceptance) are issued by the highest-tier model present,
-never down-tiered. `mech` and `mech-review` are user-level agents defined outside this
-repo.
-
-The lead's reports are compact syntheses: outcome first, evidence pointers, and no
-restatement of operative transcripts. Run artifacts such as `EXECUTIVE_SUMMARY.md` cap
-at roughly one page, with detail living in the registers.
-
-These live-session behavioral rules, the lead reviewing diffs and gates itself and
-operative self-reports not being acceptance, are intentionally outside the mechanical
-gate layer. The routing card, dispatch ledger, and narration scan are advisories that
-surface drift, not gates that prevent it.
+Operative reports remain evidence, not acceptance. The lead reads the relevant diff,
+checks the required gates, and issues verdicts at the highest tier present. Lead reports
+state the outcome and evidence without repeating transcripts. Keep executive summaries to
+roughly one page and put detail in the registers. The routing card, dispatch ledger, and
+narration scan are advisories rather than enforcement gates.
 
 ## One contract, two filenames
 
@@ -84,29 +71,21 @@ drifted file and the eval fails at its baseline case rather than where you would
 
 ## Session mechanisms that run under every change
 
-The code-ops-suite plugin ships seven hooks, and four of them carry an off switch that
-takes `off`, `0`, or `false` in the `env` block of a `.claude/settings.json`: the Bash
-output digest (`hooks/digest-rewrite.mjs`, `CODE_OPS_DIGEST`), the symbol-index refresh
-(`hooks/index-refresh.mjs`, `CODE_OPS_INDEX`), the operative ladder card
-(`hooks/ladder-card.mjs`, `CODE_OPS_LADDER_CARD`), and the session receipt
-(`hooks/session-receipt.mjs`, `CODE_OPS_RECEIPTS`). All four are on by default. The other
-three are the traceless gate (`hooks/enforce-traceless.mjs`), the session-start routing
-card (`hooks/routing-card.mjs`), and the compaction preserver
-(`hooks/precompact-preserve.mjs`). Expect digested Bash output with a receipt naming the
-raw file, and read `scripts/skim.mjs` and `scripts/context-query.mjs` (or
-`scripts/co.mjs context skim|query`) before reading a large file end-to-end. The switch
-names and defaults are documented in `code-ops-docs/50 Platform/INFRASTRUCTURE.md`, the
-contracts in `code-ops-docs/35 Contracts and Data/CONTRACTS.md`, and the measured effect
-in `code-ops-docs/55 Operations/MEASUREMENTS.md`.
+Seven plugin hooks provide traceless publishing, routing, compaction preservation, output
+digests, index refresh, ladder guidance, and session receipts. The last four named
+mechanisms are on by default and have documented environment switches. Use
+`scripts/co.mjs context skim|query` before loading large files or maps. The switch names,
+contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
+`MEASUREMENTS.md` under `code-ops-docs/`.
 
 ## Before declaring any change done
 
 Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check && node scripts/build-opencode-dist.mjs --check`, the first structural steps of the CI gate in `.github/workflows/validate.yml`. That workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
 --check`. The `register-staleness` eval has no answer key, so run `node evals/register-staleness/run.mjs`.
 
-The gate chain is run by a verifier or mech operative that returns only the verdict plus
-the failing excerpt. The lead reads the result and re-runs a gate itself only to settle
-a disputed outcome.
+When delegation is useful, a verifier or mechanical worker runs the gate chain and returns
+only the verdict plus a failing excerpt. The lead owns acceptance and repeats a gate only
+to settle a disputed result.
 
 ## After editing anything under `plugins/<name>/`
 
@@ -119,9 +98,9 @@ hand-edited. Scripts under `plugins/*/scripts/` are vendored
 byte-identical copies of `scripts/`, so edit the canonical root file and re-copy. Lint
 enforces parity.
 
-Install `node scripts/install-git-hooks.mjs` once per checkout. Its tracked pre-commit hook
-regenerates and stages only the derived Codex and opencode paths, while refusing unstaged or
-untracked renderer inputs. CI still rejects drift when hooks are absent or bypassed.
+Install `node scripts/install-git-hooks.mjs` once per checkout. Its pre-commit hook
+regenerates only derived host paths and refuses dirty renderer inputs. CI still rejects
+drift when the hook is absent or bypassed.
 
 Adding or removing a skill also requires updating the plugin README's skill list and
 `(N skills)` count, the matching count in root `README.md`, and handbook entries in both

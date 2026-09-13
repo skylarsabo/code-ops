@@ -49,7 +49,7 @@ Each contract declares these top-level concerns:
 
 - `quality` defines ordered criteria, proof, oracle, owner, and blocking status.
 - `budget` limits dispatches, concurrent work, and retries per unit.
-- `units` define scope, artifact, dependencies, routing, and quality criteria.
+- `units` define scope, artifact, dependencies, routing, quality criteria, and an optional positive input, output, and reasoning token envelope.
 - `context` binds version 2 work to a snapshot, bundle location, untracked-file policy, and byte budgets.
 - `runtime` binds version 3 work to host-capability evidence, runtime receipts, a stable
   prompt prefix, a prefix byte budget, and one policy per capability.
@@ -78,6 +78,8 @@ contract revision, work unit, snapshot, compiler digest, and bounded contents. R
 receipts reference a verified bundle by unit ID, bundle ID, path, and file digest.
 Evidence: `scripts/context-bundle.mjs:44-54`, `scripts/context-bundle.mjs:160-214`, and
 `scripts/run-runtime.mjs:177-183`.
+
+`context-bundle.mjs view` first verifies the canonical bundle, then emits a smaller deterministic unit view. The view preserves the bundle identity, contract and snapshot bindings, completeness markers, omissions, and dependency edges. It fails on a byte-budget breach and never truncates. `worker-brief.mjs build` then frames invariant files before unit files under separate prefix, unit, and total byte limits. Its receipt binds the compiler, every source, both sections, and the final payload. Both tools reject portable path aliases that could overwrite an input or collapse two outputs onto one physical target. `worker-brief.mjs verify` rejects source, compiler, receipt, or payload drift before dispatch. Evidence: `scripts/context-bundle.mjs` and `scripts/worker-brief.mjs`.
 
 ## Host capabilities and policy
 
@@ -124,11 +126,12 @@ references. Verification rejects any binding or referenced-file drift. Evidence:
 `scripts/run-runtime.mjs:159-169`, `scripts/run-runtime.mjs:200-217`, and
 `scripts/run-runtime.mjs:253-329`.
 
+Checkpoint, resume, replan, and verification accept a partial acceptance ledger when every recorded actor and criterion is valid. Finalization still requires every blocking criterion to pass. `run-runtime.mjs status` emits a bounded view of the latest checkpoint, pending dispatches, acceptance coverage, drift categories, read pointers, observed token totals, and per-unit overruns. It does not mutate the receipt chain.
+
 ## Cache telemetry
 
 An observation records cache observability as `observed`, `unobservable`, or `unsupported`.
-It may record `hit`, `miss`, or `write` events and cache-read, cache-write, input, and
-output token counts. Unobservable and unsupported observations cannot carry cache events or
+It may record `hit`, `miss`, or `write` events, a unit and model attribution, and cache-read, cache-write, input, output, and reasoning token counts. Reasoning is an output subset and is not added to output again. Unobservable and unsupported observations cannot carry cache events or
 token metrics. Provider-usage observations must carry at least one metric. The metrics view
 reports normalized totals and event counts plus the minimized capability binding. Raw host
 provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evidence:

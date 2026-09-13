@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileStablePrefix, replayRuntimeReceipts } from '../../scripts/runtime-lib.mjs';
+import { ACCEPT_HEADER } from '../../scripts/acceptance-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -34,7 +35,7 @@ function check(name, pass, detail = '') {
 
 function run(script, args, cwd) {
   const result = spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' });
-  return { status: result.status ?? 1, out: `${result.stdout || ''}${result.stderr || ''}` };
+  return { status: result.status ?? 1, stdout: result.stdout || '', out: `${result.stdout || ''}${result.stderr || ''}` };
 }
 
 function git(root, args) {
@@ -63,6 +64,7 @@ const capabilityPath = join(runDir, 'HOST_CAPABILITIES.json');
 const runtimePath = join(runDir, 'RUN_RUNTIME_RECEIPTS.jsonl');
 const snapshotPath = join(runDir, 'CONTEXT_SNAPSHOT.json');
 const ledgerPath = join(runDir, 'DISPATCH_LEDGER.md');
+const acceptancePath = join(runDir, 'ACCEPTANCE_LEDGER.md');
 
 function writeContract(revision, head, snapshotId, overrides = {}) {
   const runtime = {
@@ -97,7 +99,7 @@ function writeContract(revision, head, snapshotId, overrides = {}) {
     units: [{
       id: 'D-001', phase: 'map', wave: 1, lens: 'runtime', mode: 'read', role: 'gatherer', kind: 'judgment',
       model: 'gpt-5.6-terra', tier: 'strong', effort: 'medium', brief: 'map runtime state', scope: ['CLAUDE.md'],
-      artifact: 'run/REPORT.md', dependsOn: [], qualityCriteria: ['Q-001'],
+      artifact: 'run/REPORT.md', dependsOn: [], qualityCriteria: ['Q-001'], tokenBudget: { input: 1000, output: 90, reasoning: 30 },
     }],
     context: {
       snapshot: 'CONTEXT_SNAPSHOT.json', snapshotId, bundleDir: 'bundles', untrackedPolicy: 'exclude',
@@ -215,6 +217,14 @@ try {
 
   r = run(RUNTIME, ['init', '--root', root, '--contract', contractPath], root);
   check('runtime chain initializes', r.status === 0 && /sequence 1/.test(r.out), r.out);
+  const initializedChain = readFileSync(runtimePath, 'utf8');
+  r = run(RUNTIME, ['status', '--root', root, '--contract', contractPath, '--limit', '1', '--json'], root);
+  const initialStatus = r.status === 0 ? JSON.parse(r.stdout) : null;
+  check('status bounds pointers and reports planned work without mutating', initialStatus?.checkpoint === null
+    && initialStatus?.pendingDispatches?.items[0]?.status === 'planned'
+    && initialStatus?.acceptance?.unresolved?.items[0]?.verdict === 'MISSING'
+    && initialStatus?.readPointers?.items.length === 1 && initialStatus?.readPointers?.omitted === 4
+    && readFileSync(runtimePath, 'utf8') === initializedChain, r.out);
   r = run(RUNTIME, ['prefix', '--root', root, '--contract', contractPath], root);
   check('stable prefix emits exact bounded payload', r.status === 0 && /Stable instructions/.test(r.out) && /CODE-OPS-STABLE-PREFIX 1/.test(r.out), r.out);
 
@@ -223,17 +233,79 @@ try {
   check('fixture dispatch records', r.status === 0, r.out);
   r = run(LEDGER, ['update', '--ledger', ledgerPath, '--id', 'D-001', '--status', 'reported'], root);
   check('fixture dispatch reports', r.status === 0, r.out);
-  r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/DISPATCH_LEDGER.md', '--artifact', 'run/REPORT.md'], root);
-  check('clean checkpoint appends', r.status === 0 && /sequence 2/.test(r.out), r.out);
+  const checkpointArgs = ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/DISPATCH_LEDGER.md', '--artifact', 'run/REPORT.md', '--acceptance', 'run/ACCEPTANCE_LEDGER.md'];
+  for (const [name, content, pattern] of [
+    ['header', 'invalid\n', /invalid header/],
+    ['unknown criterion', `${ACCEPT_HEADER}| Q-002 | 1 | PASS | evidence | tool | |\n`, /unknown criterion/],
+    ['attempt gap', `${ACCEPT_HEADER}| Q-001 | 2 | PASS | evidence | tool | |\n`, /attempt sequence/],
+    ['empty proof', `${ACCEPT_HEADER}| Q-001 | 1 | PASS | | tool | |\n`, /empty proof/],
+    ['wrong owner', `${ACCEPT_HEADER}| Q-001 | 1 | PASS | evidence | user | |\n`, /actor does not match/],
+  ]) {
+    writeFileSync(acceptancePath, content);
+    r = run(RUNTIME, checkpointArgs, root);
+    check(`checkpoint rejects acceptance ${name} without appending`, r.status === 1 && pattern.test(r.out)
+      && readFileSync(runtimePath, 'utf8') === initializedChain, r.out);
+  }
+  const partialAcceptance = `${ACCEPT_HEADER}| Q-001 | 1 | UNKNOWN | pending tool execution | tool | |\n`;
+  writeFileSync(acceptancePath, partialAcceptance);
+  r = run(RUNTIME, checkpointArgs, root);
+  check('checkpoint accepts incomplete acceptance state', r.status === 0 && /sequence 2/.test(r.out), r.out);
   r = run(RUNTIME, ['resume', '--root', root, '--contract', contractPath], root);
   check('resume revalidates and appends', r.status === 0 && /sequence 3/.test(r.out), r.out);
   r = run(RUNTIME, [
     'observe', '--root', root, '--contract', contractPath, '--observability', 'observed', '--cache-event', 'hit', '--cache-event', 'write', '--source', 'provider-usage',
     '--cache-read-input-tokens', '1200', '--cache-write-input-tokens', '400', '--input-tokens', '1600', '--output-tokens', '100',
+    '--unit', 'D-001', '--model', 'gpt-5.6-terra', '--reasoning-tokens', '40',
   ], root);
   check('provider cache telemetry appends', r.status === 0 && /sequence 4/.test(r.out), r.out);
+  const attributedObservation = replayRuntimeReceipts(readFileSync(runtimePath, 'utf8')).events.at(-1).observation;
+  check('observation preserves actual unit model and reasoning usage', attributedObservation.unitId === 'D-001'
+    && attributedObservation.model === 'gpt-5.6-terra' && attributedObservation.reasoningTokens === 40);
+  r = run(RUNTIME, ['observe', '--root', root, '--contract', contractPath, '--observability', 'observed', '--source', 'provider-usage', '--input-tokens', '1', '--unit', 'D-999'], root);
+  check('observation rejects attribution to an unknown unit', r.status === 1 && /not in the current contract/.test(r.out), r.out);
+  r = run(RUNTIME, ['status', '--root', root, '--contract', contractPath, '--json'], root);
+  const cleanStatus = r.status === 0 ? JSON.parse(r.stdout) : null;
+  check('status verifies checkpoint with partial acceptance coverage', cleanStatus?.checkpoint?.verified
+    && cleanStatus?.pendingDispatches?.total === 0 && cleanStatus?.acceptance?.unresolved?.items[0]?.verdict === 'UNKNOWN'
+    && cleanStatus?.tokenBudgets?.overruns?.items[0]?.unitId === 'D-001'
+    && cleanStatus?.tokenBudgets?.overruns?.items[0]?.exceeded?.includes('input')
+    && cleanStatus?.tokenBudgets?.overruns?.items[0]?.exceeded?.includes('output')
+    && cleanStatus?.tokenBudgets?.overruns?.items[0]?.exceeded?.includes('reasoning'), r.out);
+  const savedContract = readFileSync(contractPath);
+  const savedLedger = readFileSync(ledgerPath);
+  const savedJournal = readFileSync(`${ledgerPath}.journal.jsonl`);
+  const expandedContract = JSON.parse(savedContract);
+  expandedContract.budget.maxDispatches = 2;
+  expandedContract.units.push({ ...expandedContract.units[0], id: 'D-002', phase: 'trace', wave: 2,
+    brief: 'trace pending runtime state', artifact: 'run/PENDING.md', dependsOn: ['D-001'] });
+  writeFileSync(contractPath, `${JSON.stringify(expandedContract, null, 2)}\n`);
+  r = run(LEDGER, ['add', '--ledger', ledgerPath, '--role', 'gatherer', '--brief', 'trace pending runtime state', '--artifact', 'run/PENDING.md', '--model', 'gpt-5.6-terra'], root);
+  check('fixture adds an in-flight dispatch after checkpoint', r.status === 0, r.out);
+  const inFlightChain = readFileSync(runtimePath, 'utf8');
+  r = run(RUNTIME, ['status', '--root', root, '--contract', contractPath, '--json'], root);
+  const pendingStatus = r.status === 0 ? JSON.parse(r.stdout) : null;
+  check('status reads current in-flight dispatches despite checkpoint drift', pendingStatus?.pendingDispatches?.total === 1
+    && pendingStatus?.pendingDispatches?.items[0]?.unitId === 'D-002'
+    && pendingStatus?.pendingDispatches?.items[0]?.status === 'dispatched'
+    && pendingStatus?.drift?.items.some((item) => item.category === 'dispatch-ledger-changed')
+    && readFileSync(runtimePath, 'utf8') === inFlightChain, r.out);
+  writeFileSync(contractPath, savedContract);
+  writeFileSync(ledgerPath, savedLedger);
+  writeFileSync(`${ledgerPath}.journal.jsonl`, savedJournal);
+  writeFileSync(acceptancePath, `${partialAcceptance}| Q-001 | 2 | N/A | not applicable claim | tool | deferred |\n`);
+  r = run(RUNTIME, ['status', '--root', root, '--contract', contractPath, '--json'], root);
+  const naStatus = r.status === 0 ? JSON.parse(r.stdout) : null;
+  check('status keeps blocking N/A unresolved while reporting current coverage', naStatus?.acceptance?.valid
+    && naStatus?.acceptance?.unresolved?.items[0]?.verdict === 'N/A'
+    && naStatus?.drift?.items.some((item) => item.category === 'acceptance-changed'), r.out);
+  rmSync(acceptancePath);
+  r = run(RUNTIME, ['status', '--root', root, '--contract', contractPath, '--json'], root);
+  const missingAcceptanceStatus = r.status === 0 ? JSON.parse(r.stdout) : null;
+  check('status marks a missing checkpoint acceptance ledger invalid', missingAcceptanceStatus?.acceptance?.valid === false
+    && missingAcceptanceStatus?.acceptance?.unresolved?.items[0]?.verdict === 'UNKNOWN', r.out);
+  writeFileSync(acceptancePath, partialAcceptance);
   r = run(RUNTIME, ['metrics', '--root', root, '--contract', contractPath, '--json'], root);
-  const metrics = r.status === 0 ? JSON.parse(r.out) : null;
+  const metrics = r.status === 0 ? JSON.parse(r.stdout) : null;
   check('metrics preserve combined cache events and totals', metrics?.promptCache?.cacheReadInputTokens === 1200
     && metrics?.promptCache?.cacheWriteInputTokens === 400 && metrics?.promptCache?.events?.hit === 1
     && metrics?.promptCache?.events?.write === 1 && metrics?.resumes === 1 && metrics?.checkpoints === 1, r.out);
@@ -247,14 +319,47 @@ try {
     'observe', '--root', root, '--contract', contractPath, '--observability', 'unobservable', '--source', 'operator', '--input-tokens', '1',
   ], root);
   check('unobservable cache receipt rejects invented metrics', r.status === 1 && /cannot carry/.test(r.out), r.out);
+  r = run(RUNTIME, ['observe', '--root', root, '--contract', contractPath, '--observability', 'unobservable', '--source', 'operator', '--reasoning-tokens', '1'], root);
+  check('unobservable receipt also rejects invented reasoning metrics', r.status === 1 && /cannot carry/.test(r.out), r.out);
 
   const reportBytes = readFileSync(join(runDir, 'REPORT.md'));
   writeFileSync(join(runDir, 'REPORT.md'), '# Report\n\nChanged.\n');
   r = run(RUNTIME, ['resume', '--root', root, '--contract', contractPath], root);
   check('resume refuses checkpoint artifact drift', r.status === 1 && /artifact drift/.test(r.out), r.out);
+  r = run(RUNTIME, ['status', '--root', root, '--contract', contractPath, '--json'], root);
+  const driftStatus = r.status === 0 ? JSON.parse(r.stdout) : null;
+  check('status reports artifact drift as a bounded pointer', driftStatus?.checkpoint?.verified === false
+    && driftStatus?.drift?.items.some((item) => item.category === 'artifact' && item.path === 'run/REPORT.md')
+    && !r.out.includes('Changed.'), r.out);
   writeFileSync(join(runDir, 'REPORT.md'), reportBytes);
 
   const goodChain = readFileSync(runtimePath, 'utf8');
+  const legacyObservations = goodChain.trimEnd().split('\n').map((line) => JSON.parse(line));
+  for (const event of legacyObservations) if (event.observation) {
+    delete event.observation.unitId; delete event.observation.model; delete event.observation.reasoningTokens;
+  }
+  for (const [index, event] of legacyObservations.entries()) {
+    event.previousReceiptSha256 = index ? legacyObservations[index - 1].receiptSha256 : null;
+    event.receiptSha256 = receiptDigest(event);
+  }
+  let legacyReplays = false;
+  try { replayRuntimeReceipts(`${legacyObservations.map((entry) => JSON.stringify(entry)).join('\n')}\n`); legacyReplays = true; } catch {}
+  check('legacy observation schema still replays', legacyReplays);
+  writeFileSync(acceptancePath, `${ACCEPT_HEADER}| Q-001 | 1 | PASS | evidence | user | |\n`);
+  const invalidAcceptanceChain = goodChain.trimEnd().split('\n').map((line) => JSON.parse(line));
+  const invalidAcceptanceDigest = createHash('sha256').update(readFileSync(acceptancePath)).digest('hex');
+  for (const [index, event] of invalidAcceptanceChain.entries()) {
+    if (event.references.acceptance) event.references.acceptance.sha256 = invalidAcceptanceDigest;
+    event.previousReceiptSha256 = index ? invalidAcceptanceChain[index - 1].receiptSha256 : null;
+    event.receiptSha256 = receiptDigest(event);
+  }
+  const invalidAcceptanceText = `${invalidAcceptanceChain.map((entry) => JSON.stringify(entry)).join('\n')}\n`;
+  writeFileSync(runtimePath, invalidAcceptanceText);
+  r = run(RUNTIME, ['resume', '--root', root, '--contract', contractPath], root);
+  check('resume validates acceptance semantics beyond matching hashes', r.status === 1 && /actor does not match/.test(r.out)
+    && readFileSync(runtimePath, 'utf8') === invalidAcceptanceText, r.out);
+  writeFileSync(runtimePath, goodChain);
+  writeFileSync(acceptancePath, partialAcceptance);
   const firstReceipt = JSON.parse(goodChain.split('\n')[0]);
   const rejectsInvalidOidLength = [39, 41, 63, 65].every((length) => {
     const invalid = structuredClone(firstReceipt);
@@ -305,6 +410,11 @@ try {
   check('replanned snapshot prepares', r.status === 0, r.out);
   const secondSnapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
   writeContract(2, git(root, ['rev-parse', 'HEAD']), secondSnapshot.snapshotId);
+  writeFileSync(acceptancePath, `${ACCEPT_HEADER}| Q-001 | 2 | UNKNOWN | pending | tool | |\n`);
+  r = run(RUNTIME, ['replan', '--root', root, '--contract', contractPath, '--ledger', 'run/DISPATCH_LEDGER.md', '--acceptance', 'run/ACCEPTANCE_LEDGER.md'], root);
+  check('replan rejects malformed partial acceptance without appending', r.status === 1 && /attempt sequence/.test(r.out)
+    && readFileSync(runtimePath, 'utf8') === goodChain, r.out);
+  writeFileSync(acceptancePath, partialAcceptance);
   r = run(RUNTIME, ['replan', '--root', root, '--contract', contractPath, '--ledger', 'run/DISPATCH_LEDGER.md', '--artifact', 'run/REPORT.md'], root);
   check('next contract revision appends a replan', r.status === 0 && /sequence 5/.test(r.out), r.out);
   r = run(RUNTIME, ['verify', '--root', root, '--contract', contractPath], root);

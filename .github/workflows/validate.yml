@@ -167,6 +167,7 @@ jobs:
         run: |
           node evals/context-snapshot/run.mjs
           node evals/context-bundle/run.mjs
+          node evals/worker-brief/run.mjs
 
       - name: Documentation extraction regression eval
         run: node evals/docs-manifest/run.mjs

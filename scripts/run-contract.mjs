@@ -3,10 +3,11 @@
 import { appendFileSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { PROVIDER_TIERS, TIER_ORDER, TIER_RANK } from './model-tiers.mjs';
+import { TIER_ORDER, TIER_RANK, modelRankOf, modelSupportsTier } from './model-tiers.mjs';
 import { LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-grammar.mjs';
 import { scopesIntersect, verifySnapshotReceipt } from './context-index-lib.mjs';
 import { validateRuntimeConfig, verifyRuntimeConfig } from './runtime-lib.mjs';
+import { ACCEPT_HEADER, actorError, parseAcceptance as readAcceptance } from './acceptance-lib.mjs';
 
 const TOP_V1 = ['version', 'revision', 'runId', 'head', 'objective', 'nonGoals', 'lead', 'quality', 'budget', 'sharedContext', 'replanOn', 'units'];
 const TOP_V2 = new Set([...TOP_V1, 'context']);
@@ -16,7 +17,9 @@ const LEAD = new Set(['model', 'tier', 'effort']);
 const QUALITY = new Set(['dimensions', 'criteria']);
 const CRITERION = new Set(['id', 'dimension', 'description', 'oracle', 'proof', 'blocking', 'owner']);
 const BUDGET = new Set(['maxDispatches', 'maxParallel', 'maxRetriesPerUnit']);
-const UNIT = new Set(['id', 'phase', 'wave', 'lens', 'mode', 'role', 'kind', 'model', 'tier', 'effort', 'brief', 'scope', 'artifact', 'dependsOn', 'qualityCriteria']);
+const UNIT = new Set(['id', 'phase', 'wave', 'lens', 'mode', 'role', 'kind', 'model', 'tier', 'effort', 'brief', 'scope', 'artifact', 'dependsOn', 'qualityCriteria', 'tokenBudget']);
+const OPTIONAL_UNIT = new Set(['tokenBudget']);
+const TOKEN_BUDGET = new Set(['input', 'output', 'reasoning']);
 const DIMENSIONS = new Set(['correctness', 'evidence', 'coverage', 'security', 'privacy', 'usability', 'performance', 'documentation', 'efficiency', 'maintainability']);
 const ORACLES = new Set(['command', 'receipt', 'review', 'artifact']);
 const OWNERS = new Set(['lead', 'reviewer', 'tool', 'user']);
@@ -25,7 +28,6 @@ const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh']);
 const REPLAN = ['scope-change', 'new-dependency', 'failed-dispatch', 'quality-gate-failure'];
 const REPLAN_V2 = [...REPLAN, 'context-drift'];
 const REPLAN_V3 = [...REPLAN_V2, 'runtime-drift'];
-const ACCEPT_HEADER = '| criterion | attempt | verdict | proof | accepted by | reason |\n| --- | --- | --- | --- | --- | --- |\n';
 
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
 function usage() { die('usage: run-contract.mjs check --contract <path> [--root <dir>]\n       run-contract.mjs reconcile --contract <path> --ledger <path> [--strict] [--root <dir>]\n       run-contract.mjs record --contract <path> --acceptance <path> --criterion Q-NNN --verdict PASS|FAIL|UNKNOWN|N/A --proof <text> --actor <role@model|tool|user> [--reason <text>]\n       run-contract.mjs finalize --contract <path> --acceptance <path> --dispatch-ledger <path> --result <path> [--root <dir>]', 2); }
@@ -41,10 +43,10 @@ function flags(args, known, booleans = new Set()) {
   }
   return out;
 }
-function exact(value, keys, label, errors) {
+function exact(value, keys, label, errors, optional = new Set()) {
   if (!value || Array.isArray(value) || typeof value !== 'object') { errors.push(`${label} must be an object`); return; }
   for (const key of Object.keys(value)) if (!keys.has(key)) errors.push(`${label} has unknown key ${key}`);
-  for (const key of keys) if (!(key in value)) errors.push(`${label} is missing ${key}`);
+  for (const key of keys) if (!optional.has(key) && !(key in value)) errors.push(`${label} is missing ${key}`);
 }
 function safePath(value) {
   return typeof value === 'string' && value.length > 0 && value !== '.' && !isAbsolute(value) && !value.includes('\\') && !value.split('/').includes('..') && !value.startsWith('./') && !value.endsWith('/') && !value.includes('//') && value.split('/').every((part) => part === part.trim() && !part.endsWith('.'));
@@ -52,7 +54,7 @@ function safePath(value) {
 function portablePath(value) { return value.normalize('NFC').toLowerCase(); }
 function scopeKey(scope) { return scope.map(portablePath).sort().join('\0'); }
 function words(value) { return value.trim().split(/\s+/).filter(Boolean).length; }
-function tierFor(model, declared) { return Object.values(PROVIDER_TIERS).some((provider) => provider.models[declared] === model); }
+function tierFor(model, declared) { return modelSupportsTier(model, declared); }
 function gitHead(root) { try { return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch { return null; } }
 function readJson(path) { try { return JSON.parse(readFileSync(path, 'utf8')); } catch (error) { die(`cannot parse ${path}: ${error.message}`); } }
 function loadContract(path, root) { const contract = readJson(path); const errors = validate(contract, root); if (errors.length) die(`contract invalid:\n${errors.map((x) => `  - ${x}`).join('\n')}`); verifyContext(contract, path, root); return contract; }
@@ -116,7 +118,7 @@ function validate(c, root) {
   if (!Array.isArray(c.units) || !c.units.length) errors.push('units must be nonempty');
   if (c.units?.length > c.budget?.maxDispatches) errors.push('units exceed maxDispatches');
   (c.units || []).forEach((unit, index) => {
-    exact(unit, UNIT, `unit ${index + 1}`, errors);
+    exact(unit, UNIT, `unit ${index + 1}`, errors, OPTIONAL_UNIT);
     const expected = `D-${String(index + 1).padStart(3, '0')}`;
     if (unit.id !== expected || unitIds.has(unit.id)) errors.push(`unit ${index + 1} must be ${expected}`); unitIds.add(unit.id); byId.set(unit.id, unit);
     if (!Number.isInteger(unit.wave) || unit.wave < 1 || typeof unit.phase !== 'string' || !unit.phase || typeof unit.lens !== 'string' || !unit.lens) errors.push(`${unit.id || expected} needs phase, lens, positive wave`);
@@ -127,6 +129,10 @@ function validate(c, root) {
     if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || unit.effort !== 'high')) errors.push(`${unit.id || expected} violates review routing floor`);
     if (['breadth', 'mechanical'].includes(unit.kind) && ['high', 'xhigh'].includes(unit.effort)) errors.push(`${unit.id || expected} violates breadth/mechanical effort ceiling`);
     if (typeof unit.role !== 'string' || !unit.role || typeof unit.brief !== 'string' || !unit.brief.trim() || words(unit.brief) > 10) errors.push(`${unit.id || expected} needs role and a brief of at most ten words`);
+    if (unit.tokenBudget !== undefined) {
+      exact(unit.tokenBudget, TOKEN_BUDGET, `${unit.id || expected} tokenBudget`, errors);
+      for (const key of TOKEN_BUDGET) if (!Number.isSafeInteger(unit.tokenBudget?.[key]) || unit.tokenBudget[key] < 1) errors.push(`${unit.id || expected} tokenBudget.${key} must be a positive safe integer`);
+    }
     if (!Array.isArray(unit.scope) || !unit.scope.length || unit.scope.some((x) => !safePath(x)) || !safePath(unit.artifact)) errors.push(`${unit.id || expected} needs safe scope and artifact paths`);
     if (Array.isArray(unit.scope) && new Set(unit.scope.map(portablePath)).size !== unit.scope.length) errors.push(`${unit.id || expected} repeats a scope path`);
     if (!Array.isArray(unit.dependsOn) || !Array.isArray(unit.qualityCriteria) || !unit.qualityCriteria.length || unit.qualityCriteria.some((x) => !criterionIds.has(x))) errors.push(`${unit.id || expected} has invalid dependencies or quality criteria`);
@@ -185,33 +191,9 @@ function reconcile(contract, ledgerPath, strict) {
   return { errors, warnings, rows };
 }
 function printReconciliation(result) { for (const warning of result.warnings) console.log(`! ${warning}`); if (result.errors.length) die(`reconciliation failed:\n${result.errors.map((x) => `  - ${x}`).join('\n')}`); console.log(`ok reconciliation: ${result.rows.length} ledger row(s)`); }
-function actorError(criterion, actor) {
-  if (criterion.owner === 'tool' && actor !== 'tool') return 'actor does not match criterion owner';
-  if (criterion.owner === 'user' && actor !== 'user') return 'actor does not match criterion owner';
-  if (['lead', 'reviewer'].includes(criterion.owner)) {
-    const match = actor.match(/^([^@]+)@(.+)$/);
-    const rank = match && Object.values(PROVIDER_TIERS).map((provider) => Object.entries(provider.models).find(([, model]) => model === match[2])?.[0]).filter(Boolean).map((tier) => TIER_RANK[tier]).sort((a, b) => b - a)[0];
-    if (!match || match[1] !== criterion.owner || !Number.isInteger(rank) || rank < TIER_RANK.strong) return 'actor must be owner@strong-or-better-model';
-  }
-  return null;
-}
 function parseAcceptance(path, contract) {
-  if (!existsSync(path)) return [];
-  const text = readFileSync(path, 'utf8');
-  if (!text.startsWith(ACCEPT_HEADER)) die(`acceptance ledger has invalid header: ${path}`);
-  const rows = []; const attempts = new Map(); const criteria = new Map(contract.quality.criteria.map((x) => [x.id, x]));
-  text.slice(ACCEPT_HEADER.length).split(/\r?\n/).forEach((line, index) => {
-    if (!line) return;
-    const cells = line.split('|').slice(1, -1).map((x) => x.trim());
-    if (!line.startsWith('|') || !line.endsWith('|') || cells.length !== 6 || !/^Q-\d{3}$/.test(cells[0]) || !/^\d+$/.test(cells[1]) || !['PASS', 'FAIL', 'UNKNOWN', 'N/A'].includes(cells[2])) die(`acceptance ledger has malformed row ${index + 3}`);
-    const row = { criterion: cells[0], attempt: Number(cells[1]), verdict: cells[2], proof: cells[3], actor: cells[4], reason: cells[5] };
-    const criterion = criteria.get(row.criterion); if (!criterion) die(`acceptance ledger row ${index + 3} names unknown criterion ${row.criterion}`);
-    const expected = (attempts.get(row.criterion) || 0) + 1; if (row.attempt !== expected) die(`acceptance ledger row ${index + 3} breaks attempt sequence for ${row.criterion}`); attempts.set(row.criterion, row.attempt);
-    if (!row.proof) die(`acceptance ledger row ${index + 3} has empty proof`);
-    const actorProblem = actorError(criterion, row.actor); if (actorProblem) die(`acceptance ledger row ${index + 3}: ${actorProblem}`);
-    rows.push(row);
-  });
-  return rows;
+  try { return readAcceptance(path, contract); }
+  catch (error) { die(error.message); }
 }
 function cleanCell(value) { return value.replace(/[|\r\n]/g, ' ').trim(); }
 function atomicWrite(path, contents) { const temp = `${path}.tmp-${process.pid}`; writeFileSync(temp, contents); renameSync(temp, path); }

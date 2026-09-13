@@ -58,6 +58,26 @@ and line counts, so a brief reads one range instead of the whole file.
 > request will be disclosed in `EGRESS_MANIFEST.md`. No web request happens before you
 > approve. Keep local gathering moving while a decision is pending (`§3`).
 
+## Runtime continuity when available
+
+For a multi-phase resumable run with `code-ops-suite` installed, locate its scripts directory
+as `<runtime scripts>` and compile a version 3 run contract. Record observed host capabilities,
+the exact context snapshot, verified unit bundles, and bounded runtime policy. Run
+`node <runtime scripts>/run-contract.mjs check --root . --contract <contract>`, then initialize
+the receipt chain once with `node <runtime scripts>/run-runtime.mjs init --root . --contract <contract>`.
+
+At phase boundaries, reconcile the dispatch ledger and run
+`node <runtime scripts>/run-runtime.mjs checkpoint --root . --contract <contract> --ledger <ledger>`.
+Include acceptance, handoff, bundle, and artifact paths with their reference flags when present,
+including `EGRESS_MANIFEST.md` as an artifact. This local continuity step adds no egress authority.
+Partial acceptance is valid; blocking criteria require PASS only at finalization. On a new
+session, read `run-runtime.mjs status` with root and contract first, then append resume before
+continuing. Scope, context, or runtime drift requires the next contract revision, refreshed
+affected bundles, and replan with the checkpoint reference flags.
+
+Without the installed runtime or a version 3 contract, retain artifact checkpoints and handoff
+verification. State that runtime verification is unavailable; never infer host capabilities.
+
 ## Phase 1: ground in our code  *(local, zero egress)*
 
 Establish the grounding baseline every later phase ties back to (the `§A` grounding rule).

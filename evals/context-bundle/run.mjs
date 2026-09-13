@@ -37,7 +37,33 @@ try {
   check('bundle includes scope and direct dependency only', result.status === 0 && bundle.context.files.some((file) => file.path === 'src/a.js') && bundle.context.files.some((file) => file.path === 'src/b.js') && !bundle.context.files.some((file) => file.path === 'other/c.js'), result.out);
   check('bundle actualBytes equals its final serialized byte length', bundle.actualBytes === Buffer.byteLength(readFileSync(out)), JSON.stringify({ actualBytes: bundle.actualBytes }));
   check('fresh atlas output includes a bounded excerpt', bundle.context.atlas[0]?.verdict === 'FRESH' && bundle.context.atlas[0]?.excerpt === 'fresh atlas excerpt\n', JSON.stringify(bundle.context.atlas));
+  const viewPath = join(runDir, 'bundles', 'D-001.view.json');
+  const viewArgs = ['view', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--bundle', out, '--out', viewPath, '--max-bytes', '20000'];
+  result = run(bundleScript, viewArgs);
+  const viewBytes = readFileSync(viewPath); const view = JSON.parse(viewBytes);
+  const restoredFiles = view.rows.filter((row) => row[1] !== null).map(([path, metadata]) => ({ path, ...metadata }));
+  const restoredGraph = Object.fromEntries(view.rows.filter((row) => row[2] !== null).map(([path, , edges]) => [path, edges]));
+  check('compact view preserves all metadata, edges and completeness', result.status === 0 && JSON.stringify(restoredFiles) === JSON.stringify(bundle.context.files)
+    && JSON.stringify(restoredGraph) === JSON.stringify(bundle.context.importGraph) && JSON.stringify(view.completeness) === JSON.stringify(bundle.completeness)
+    && JSON.stringify(view.context.atlas) === JSON.stringify(bundle.context.atlas) && view.canonical.bundleId === bundle.bundleId, result.out);
+  check(`compact view reduces fixture bytes (${viewBytes.length} vs ${readFileSync(out).length})`, viewBytes.length < readFileSync(out).length);
+  result = run(bundleScript, viewArgs);
+  check('compact view repeats byte identically', result.status === 0 && readFileSync(viewPath).equals(viewBytes), result.out);
+  const bundleBytes = readFileSync(out); const caseAliasViewArgs = viewArgs.slice();
+  caseAliasViewArgs[caseAliasViewArgs.indexOf('--out') + 1] = out.toUpperCase();
+  result = run(bundleScript, caseAliasViewArgs);
+  check('compact view portable alias cannot overwrite a binding input', result.status === 1
+    && /must not overwrite/.test(result.out) && readFileSync(out).equals(bundleBytes), result.out);
+  const oversizedViewArgs = viewArgs.slice(); oversizedViewArgs[oversizedViewArgs.length - 1] = '1';
+  result = run(bundleScript, oversizedViewArgs);
+  check('compact view overflow preserves previous output', result.status === 1 && /exceeds max-bytes/.test(result.out) && readFileSync(viewPath).equals(viewBytes), result.out);
+  const tamperedBundle = { ...bundle, status: 'OTHER' }; writeFileSync(out, JSON.stringify(tamperedBundle));
+  result = run(bundleScript, viewArgs);
+  check('compact view requires canonical verification', result.status === 1 && /not READY/.test(result.out), result.out);
+  writeFileSync(out, `${JSON.stringify(bundle, null, 2)}\n`);
   base.context.maxAtlasExcerptBytes = 1; writeFileSync(contractPath, `${JSON.stringify(base, null, 2)}\n`); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out]); const overflowAtlas = JSON.parse(readFileSync(out, 'utf8')); check('fresh atlas excerpt respects its independent budget', result.status === 0 && overflowAtlas.context.atlas[0]?.verdict === 'FRESH' && overflowAtlas.context.atlas[0]?.excerpt === null, result.out); base.context.maxAtlasExcerptBytes = 1000; writeFileSync(contractPath, `${JSON.stringify(base, null, 2)}\n`);
+  result = run(bundleScript, viewArgs); const omittedView = JSON.parse(readFileSync(viewPath, 'utf8'));
+  check('compact view retains explicit atlas omission reasons', result.status === 0 && omittedView.context.atlas[0]?.excerpt === null && omittedView.context.atlas[0]?.omitted === overflowAtlas.context.atlas[0]?.omitted, result.out);
   const previousPath = join(runDir, 'PREVIOUS_SNAPSHOT.json'); writeFileSync(previousPath, JSON.stringify(snapshot)); const deltaPath = join(runDir, 'CONTEXT_DELTA.json'); result = run(snapshotScript, ['delta', '--from', previousPath, '--to', snapshotPath, '--out', deltaPath]); const forged = JSON.parse(readFileSync(deltaPath, 'utf8')); forged.payload = 'must-not-pass'; writeFileSync(deltaPath, JSON.stringify(forged)); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out, '--previous', previousPath, '--delta', deltaPath]); check('schema-valid forged delta fails closed', result.status === 1 && /delta does not match/.test(result.out), result.out);
   result = run(snapshotScript, ['delta', '--from', previousPath, '--to', snapshotPath, '--out', deltaPath]); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out, '--previous', previousPath, '--delta', deltaPath]); const deltaBundle = JSON.parse(readFileSync(out, 'utf8')); check('bound delta emits no arbitrary records outside scope', result.status === 0 && deltaBundle.context.delta.relevant.length === 0 && !JSON.stringify(deltaBundle.context.delta).includes('payload'), result.out);
   const forgedReceipt = { ...snapshot, state: { ...snapshot.state, staged: [{ status: 'A', path: 'src/a.js' }] } }; const forgedBoundDelta = JSON.parse(readFileSync(deltaPath, 'utf8')); forgedBoundDelta.changed.staged = forgedReceipt.state.staged; writeFileSync(snapshotPath, JSON.stringify(forgedReceipt)); writeFileSync(deltaPath, JSON.stringify(forgedBoundDelta)); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out, '--previous', previousPath, '--delta', deltaPath]); check('tampered receipt state cannot authorize fabricated delta', result.status === 1 && /self-inconsistent/.test(result.out), result.out); writeFileSync(snapshotPath, JSON.stringify(snapshot));

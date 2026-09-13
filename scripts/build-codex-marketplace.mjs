@@ -88,6 +88,7 @@ const PLUGINS = [
 const KNOWN_COMMANDS = /\/(code-ops-suite|privacy-opsec-suite|rigor|researcher):([a-z0-9-]+)/g;
 const ROOT_TOKEN = '${CLAUDE_PLUGIN_ROOT}';
 const CODEX_ROOT_TOKEN = '${PLUGIN_ROOT}';
+const CODEX_SESSION_END_TIMEOUT_SECONDS = 3;
 const CHECK = process.argv.includes('--check');
 
 if (process.argv.slice(2).some((arg) => arg !== '--check')) {
@@ -264,10 +265,25 @@ function compatibilityNotes(spec, sourceManifest) {
   ];
   if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
     lines.push('- The `PreToolUse` traceless-publishing hook is retained as `hooks/hooks.json`. Codex skips plugin hooks until the user reviews and trusts the hook definition.');
+    lines.push(`- The Codex render caps every \`SessionEnd\` command timeout at ${CODEX_SESSION_END_TIMEOUT_SECONDS} seconds, which matches the desktop host ceiling. The canonical Claude hook timeout is unchanged.`);
   }
   if (spec.mcp) lines.push(`- The render moves each MCP declaration from Claude’s inline manifest entry to Codex \`.mcp.json\` with a plugin-root-relative script path: ${mcpNames(sourceManifest)}.`);
   lines.push('', 'The generated package must continue to pass the Codex plugin validator and marketplace install smoke test.', '');
   return lines.join('\n');
+}
+
+function transformCodexHook(contents, file) {
+  const rewritten = contents.replaceAll(ROOT_TOKEN, CODEX_ROOT_TOKEN);
+  if (file.split(/[\\/]/).at(-1) !== 'hooks.json') return rewritten;
+  const manifest = JSON.parse(rewritten);
+  for (const group of manifest.hooks?.SessionEnd ?? []) {
+    for (const hook of group.hooks ?? []) {
+      if (typeof hook.timeout === 'number' && hook.timeout > CODEX_SESSION_END_TIMEOUT_SECONDS) {
+        hook.timeout = CODEX_SESSION_END_TIMEOUT_SECONDS;
+      }
+    }
+  }
+  return JSON.stringify(manifest, null, 2) + '\n';
 }
 
 function createManifest(spec, sourceManifest) {
@@ -400,7 +416,7 @@ function buildExpectedFiles() {
 
     const sourceHooks = sourcePath(spec.name, 'hooks');
     if (existsSync(sourceHooks)) {
-      addSourceTree(sourceHooks, `${base}/hooks`, (contents) => contents.replaceAll(ROOT_TOKEN, CODEX_ROOT_TOKEN));
+      addSourceTree(sourceHooks, `${base}/hooks`, transformCodexHook);
     }
     if (spec.mcp) add(`${base}/.mcp.json`, JSON.stringify(createMcpConfig(sourceManifest), null, 2) + '\n');
   }
@@ -475,6 +491,12 @@ function validateExpectedFiles(expected) {
       const hookPath = `${base}/hooks/hooks.json`;
       expect(expected.has(hookPath), `${hookPath} is missing`);
       expect(expected.get(hookPath).includes(CODEX_ROOT_TOKEN), `${hookPath} does not use PLUGIN_ROOT`);
+      const hookManifest = JSON.parse(expected.get(hookPath));
+      for (const group of hookManifest.hooks?.SessionEnd ?? []) {
+        for (const hook of group.hooks ?? []) {
+          expect(hook.timeout <= CODEX_SESSION_END_TIMEOUT_SECONDS, `${hookPath} exceeds the Codex SessionEnd timeout ceiling`);
+        }
+      }
     }
   }
   for (const [path, contents] of expected) {

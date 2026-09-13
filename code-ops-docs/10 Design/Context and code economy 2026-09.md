@@ -10,7 +10,7 @@ tags:
 
 # Context and code economy 2026-09
 
-Source: an ad-hoc research pipeline run on 2026-09-02 (one explorer over the suite, web reads of the three upstream repositories and the Fable 5.1 prompting guide, and a transcript measurement over this repository's own sessions). No existing skill fit a four-source comparative brief, so the pipeline was hand-assembled and is declared here. This note proposes. Nothing in it is committed work.
+Source: an ad-hoc research pipeline run on 2026-09-02 (one explorer over the suite, web reads of the three upstream repositories and the Fable 5.1 prompting guide, and a transcript measurement over this repository's own sessions). No existing skill fit a four-source comparative brief, so the pipeline was hand-assembled and is declared here. The workstreams remain the design record; the implementation-status section states what has landed in the current worktree.
 
 Verified-at: a9105a8 (2026-09-02)
 
@@ -26,6 +26,10 @@ Three open-source tools and one vendor guide each attack a cost the suite alread
 | Fable 5.1 prompting guide | Behavior drift on the current model | Doctrine written against Opus-era behavior. Some guidance is present, some is absent. |
 
 The plan keeps every upstream idea that survives contact with the suite's rules (zero npm dependencies, fail-loud never silent truncation, receipts over narration, quality-first tiering) and rejects the parts that would degrade quality. Four workstreams share one measurement spine, and each mechanism must beat the no-mechanism control under the pre-registration protocol in `evals/README.md` or it is removed.
+
+## Implementation status, 2026-09-13
+
+The runtime now carries bounded status, partial acceptance, per-unit token envelopes, and model-attributed observations. The context compiler now emits verified unit views and deterministic two-part worker briefs. Context auditing normalizes Claude and Codex usage, and the estimator can apply a dated operator price snapshot to finalized runtime receipts. These mechanisms establish controls and measurement. Only the unit-view fixture has a current reduction result, and that result is bytes rather than provider tokens or cost.
 
 One reading of the request: "make this our own while increasing token costs" is read as decreasing token costs. Every workstream below lowers cost or is dropped.
 
