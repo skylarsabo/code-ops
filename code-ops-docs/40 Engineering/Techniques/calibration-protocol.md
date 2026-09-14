@@ -326,6 +326,13 @@ by tier, because a tier survives a model generation and a model name does not. T
   operative-tier premium buys independently of the lead tier. It is context for the gap, not
   a candidate for adoption.
 
+Arms (b) and (c) declare a `calibration` block in their version 4 `RUN_CONTRACT.json`, as
+`{"arm": "b", "track": "assess-only"}` or its arm (c) equivalent. The block waives the
+frontier-lead rule for a strong lead and changes no other rule. `run-contract.mjs` rejects
+the block when the arm is not `b` or `c`, the track is not `assess-only`, or the lead is not
+strong. It also rejects any unit in write mode and any unit artifact inside an assessed
+scope. Arm (a) runs a frontier lead and declares no block.
+
 Axes, fixed in advance: CONFIRMED per 100k operative tokens, refutation survival rate,
 failed-dispatch and redispatch rates from the run's `DISPATCH_LEDGER.md`, atlas falsified
 count, CONFIRMED labels re-tiered on review, and total operative tokens. The operator sets
