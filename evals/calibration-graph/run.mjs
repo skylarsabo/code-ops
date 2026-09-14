@@ -4,9 +4,9 @@
 //
 //   GREEN PATHS on the REAL store: `validate` exits 0; `render --check` exits 0 (so a
 //   hand-edited or stale table is caught in CI); the five queries return the current
-//   graph's expected answers — open is the twenty-three lessons R-005 through R-008 and R-010 landed with
-//   nothing mechanical on them yet (so `open --gate` exits 1), deferred is exactly L-003/L-004, L-012
-//   and L-020 are the two lessons fixed with nothing mechanical holding them, the thirteen recurrent
+//   graph's expected answers — open is the twenty lessons R-005 through R-008 and R-010 landed with
+//   nothing mechanical on them yet (so `open --gate` exits 1), deferred is exactly L-003/L-004, L-012,
+//   L-020 and L-050 are the three lessons fixed with nothing mechanical holding them, the thirteen recurrent
 //   lessons are L-001 (3 runs), L-002 (2), L-005 (2), L-013 (3), L-019 (2), L-020 (3),
 //   L-021 (2), L-022 (2), L-026 (2), L-027 (3), L-028 (4), L-029 (2) and L-034 (2) — the last five still OPEN
 //   and L-020 UNENFORCED, so six are RED and `recurrent --gate` exits 1 — and `trend` prints one line per run grouped by target class and track.
@@ -125,7 +125,7 @@ try {
   // ---- a. REAL store: validate + render --check are green ----------------------
   const a = run(['validate']);
   check('a. validate exits 0 on the real store', a.status === 0, a.stdout + a.stderr);
-  check('a. validate reports 10 runs / 50 lessons / 77 edges', /10 run\(s\), 50 lesson\(s\), 77 edge\(s\)/.test(a.stdout), a.stdout);
+  check('a. validate reports 10 runs / 50 lessons / 83 edges', /10 run\(s\), 50 lesson\(s\), 83 edge\(s\)/.test(a.stdout), a.stdout);
   check('a. validate reports 0 violations', /\n0 violation\(s\)\./.test(a.stdout), a.stdout);
 
   const b = run(['render', '--check']);
@@ -148,13 +148,15 @@ try {
   // ---- c. queries match the backfilled graph ----------------------------------
   const qOpen = run(['query', 'open']);
   check('c. open exits 0', qOpen.status === 0, qOpen.stdout + qOpen.stderr);
-  check('c. open is the twenty-three lessons R-005 through R-008 and R-010 landed, each RED',
+  check('c. open is the twenty lessons R-005 through R-008 and R-010 landed, each RED',
     /RED\s+L-025\s+\S/.test(qOpen.stdout) && /RED\s+L-030\s+\S/.test(qOpen.stdout)
     && /RED\s+L-031\s+\S/.test(qOpen.stdout) && /RED\s+L-036\s+\S/.test(qOpen.stdout)
     && /RED\s+L-037\s+\S/.test(qOpen.stdout) && /RED\s+L-038\s+\S/.test(qOpen.stdout)
     && /RED\s+L-039\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-043\s+\S/.test(qOpen.stdout) && /RED\s+L-050\s+\S/.test(qOpen.stdout)
-    && /\n23 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+    && /RED\s+L-044\s+\S/.test(qOpen.stdout) && /RED\s+L-049\s+\S/.test(qOpen.stdout)
+    && /\n20 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+  check('c. the R-010 lessons fixed by PR-140, PR-141 and PR-143 are no longer open',
+    !/\bL-043\b/.test(qOpen.stdout) && !/\bL-045\b/.test(qOpen.stdout) && !/\bL-050\b/.test(qOpen.stdout), qOpen.stdout);
   const qOpenGate = run(['query', 'open', '--gate']);
   check('c. open --gate exits 1 while those lessons are unaddressed', qOpenGate.status === 1, qOpenGate.stdout + qOpenGate.stderr);
   // The lessons R-004 landed are closed by COMMIT: fixes, not PRs — the status the additive
@@ -179,9 +181,16 @@ try {
 
   const qUn = run(['query', 'unenforced']);
   check('c. unenforced exits 0 without --gate', qUn.status === 0, qUn.stdout + qUn.stderr);
-  check('c. L-012 and L-020 are the two fixed lessons with nothing mechanical holding them',
+  check('c. L-012, L-020 and L-050 are the three fixed lessons with nothing mechanical holding them',
     /RED\s+L-012[^\n]*fixed-in PR-45/.test(qUn.stdout) && /RED\s+L-020[^\n]*fixed-in COMMIT:314cc77/.test(qUn.stdout)
-    && /\n2 unenforced lesson\(s\)\./.test(qUn.stdout), qUn.stdout);
+    && /RED\s+L-050[^\n]*fixed-in PR-141/.test(qUn.stdout)
+    && /\n3 unenforced lesson\(s\)\./.test(qUn.stdout), qUn.stdout);
+  // L-050's report-file shape is gated, but its lesson is the lead-tier token cost, which no gate
+  // can measure. The store records that as a fix plus a deferred note, so it stays UNENFORCED.
+  const qL50 = run(['query', 'lesson', 'L-050']);
+  check('c. L-050 is UNENFORCED: fixed in PR-141 with a deferred note and no enforced-by',
+    qL50.status === 0 && /fixed-in\s+PR-141/.test(qL50.stdout) && /deferred\s+deferred\s+—\s+\S/.test(qL50.stdout)
+    && !/enforced-by/.test(qL50.stdout) && /derived status: UNENFORCED/.test(qL50.stdout), qL50.stdout + qL50.stderr);
   const qUnGate = run(['query', 'unenforced', '--gate']);
   check('c. --gate promotes a RED line to exit 1', qUnGate.status === 1, qUnGate.stdout + qUnGate.stderr);
 
@@ -223,7 +232,11 @@ try {
   check('c. verified lessons are excluded from the worklist',
     !/\bL-002\b/.test(qUnv.stdout) && !/\bL-007\b/.test(qUnv.stdout) && !/\bL-008\b/.test(qUnv.stdout)
     && !/\bL-001\b/.test(qUnv.stdout) && !/\bL-012\b/.test(qUnv.stdout), qUnv.stdout);
-  check('c. unverified reports both halves of the ratio', /\n7 unverified fix\(es\); 17 lesson\(s\) confirmed by a later run\./.test(qUnv.stdout), qUnv.stdout);
+  check('c. the R-010 fixes are listed until a later run confirms them',
+    /L-043\s+ENFORCED\s+\(fixed-in PR-143, 1 gate\(s\)\)/.test(qUnv.stdout)
+    && /L-045\s+ENFORCED\s+\(fixed-in PR-140, 1 gate\(s\)\)/.test(qUnv.stdout)
+    && /RED\s+L-050\s+UNENFORCED\s+\(fixed-in PR-141, nothing mechanical\)/.test(qUnv.stdout), qUnv.stdout);
+  check('c. unverified reports both halves of the ratio', /\n10 unverified fix\(es\); 17 lesson\(s\) confirmed by a later run\./.test(qUnv.stdout), qUnv.stdout);
   check('c. an unverified, unenforced fix fails --gate', run(['query', 'unverified', '--gate']).status === 1);
 
   const qRec = run(['query', 'recurrent']);

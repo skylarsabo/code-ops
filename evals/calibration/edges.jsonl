@@ -75,3 +75,9 @@
 {"from":"L-022","rel":"verified-in","to":"R-010","note":"every report shape-gated before its unit counted as covered"}
 {"from":"L-023","rel":"verified-in","to":"R-010","note":"note written to template severity shape passed the validator"}
 {"from":"L-024","rel":"verified-in","to":"R-010","note":"four lens-distinct panels, three materially re-characterized their findings"}
+{"from":"L-043","rel":"fixed-in","to":"PR-143"}
+{"from":"L-043","rel":"enforced-by","to":"EVAL:evals/run-contract/run.mjs"}
+{"from":"L-045","rel":"fixed-in","to":"PR-140"}
+{"from":"L-045","rel":"enforced-by","to":"EVAL:evals/script-guards/run.mjs"}
+{"from":"L-050","rel":"fixed-in","to":"PR-141"}
+{"from":"L-050","rel":"deferred","to":"deferred","note":"the dispatch-ledger report shape gate and the report-persistence and report-shape-gate pins hold the report file, not the lesson; no gate can measure whether the lead stopped re-emitting report bodies, so only a later run can confirm the token saving"}
