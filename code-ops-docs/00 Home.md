@@ -19,7 +19,6 @@ This is the map of the code-ops documentation hub. Start here.
 | Understand what the suite does to token cost and code size without configuration | [Context and code economy](40%20Engineering/Handbook/12-context-and-code-economy.md) |
 | Know how the lead, operatives, and checkpoints work | [Standard operating mode](40%20Engineering/Handbook/11-standard-operating-mode.md) |
 | Write anything for this repository | [Writing standard](40%20Engineering/Techniques/writing-standard.md) |
-| Write or review code for any repository | [Code standard](40%20Engineering/Techniques/code-standard.md) |
 | Check what a script or hook promises, with evidence | [Contracts](35%20Contracts%20and%20Data/CONTRACTS.md) |
 | Turn a mechanism off or see what it writes to disk | [Infrastructure](50%20Platform/INFRASTRUCTURE.md) |
 | Read the measured cost of the suite | [Measurements](55%20Operations/MEASUREMENTS.md) |
