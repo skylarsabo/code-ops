@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.16
+- The pinned report-persistence passage now has an operative with a write tool write its report to the path its brief names and return only a pointer, while a read-only operative still returns its report inline for the lead to persist. The pinned shape-gate passage now fails a missing, empty, or malformed report file exactly as it fails a malformed inline report.
+
 ## 0.13.15
 - `revalidate-register` now reads citations with bracketed route segments such as `[id]` and `[...slug]` and route groups such as `(auth)` as the full path, instead of reporting an in-repo file as escaping root. A register item citation inside backticks may also carry spaces in its path. Refutation receipts now read their cited path and line correctly, so a valid REFUTED receipt passes and a traversal citation still fails confinement.
 
