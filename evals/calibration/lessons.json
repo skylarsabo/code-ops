@@ -292,5 +292,61 @@
     "title": "one commit that widens a scan in one direction and narrows it in another opens a silent bypass, so each direction needs its own eval case in the same commit",
     "statement": "one commit that widens a scan in one direction and narrows it in another opens a silent bypass, so each direction needs its own eval case in the same commit",
     "firstSeen": "R-009"
+  },
+  {
+    "id": "L-043",
+    "class": "suite",
+    "title": "The version 4 run contract compiler refuses any lead below the frontier tier and the security campaign checker requires that contract, so a strong-tier lead can compile neither and the protocol's own pre-registered strong-lead experiment arms cannot run under the current suite",
+    "statement": "The version 4 run contract compiler refuses any lead below the frontier tier and the security campaign checker requires that contract, so a strong-tier lead can compile neither and the protocol's own pre-registered strong-lead experiment arms cannot run under the current suite",
+    "firstSeen": "R-010"
+  },
+  {
+    "id": "L-044",
+    "class": "instrument",
+    "title": "The host capabilities writer requires a git-ignored output while the placement check expects run artifacts in the vault's tracked runs folder, so version 4 runtime artifacts cannot sit beside the run they describe in a vault-tracked repository",
+    "statement": "The host capabilities writer requires a git-ignored output while the placement check expects run artifacts in the vault's tracked runs folder, so version 4 runtime artifacts cannot sit beside the run they describe in a vault-tracked repository",
+    "firstSeen": "R-010"
+  },
+  {
+    "id": "L-045",
+    "class": "instrument",
+    "title": "The anchor revalidator's reference grammar admits no square brackets or spaces in path segments, so framework dynamic-route paths read as escaping the root and spaced paths read as gone, flagging most of a register whose anchors a lead exact check found all fresh",
+    "statement": "The anchor revalidator's reference grammar admits no square brackets or spaces in path segments, so framework dynamic-route paths read as escaping the root and spaced paths read as gone, flagging most of a register whose anchors a lead exact check found all fresh",
+    "firstSeen": "R-010"
+  },
+  {
+    "id": "L-046",
+    "class": "instrument",
+    "title": "An atlas section can assert facts about paths outside its own declared scope, so its freshness digest cannot detect their falsification",
+    "statement": "An atlas section can assert facts about paths outside its own declared scope, so its freshness digest cannot detect their falsification; a section read fresh while its route-module counts were wrong because the routes and their guard test lay outside the scope",
+    "firstSeen": "R-010"
+  },
+  {
+    "id": "L-047",
+    "class": "protocol",
+    "title": "The executed-repro panel exemption is only as strong as the repro's mock boundary",
+    "statement": "The executed-repro panel exemption is only as strong as the repro's mock boundary; of two confirmed highs whose repros mocked the database and dispatch layers, an intent-lens panel cut one by two severity levels, so a mock-bounded repro should not exempt a high from refutation",
+    "firstSeen": "R-010"
+  },
+  {
+    "id": "L-048",
+    "class": "protocol",
+    "title": "Operative-started background test runners can outlive the reported dispatch, and neither the ledger nor the report shape gate reveals it",
+    "statement": "Operative-started background test runners can outlive the reported dispatch, and neither the ledger nor the report shape gate reveals it; two finished reviewers left runners alive for over fifteen minutes, found only because one mentioned it",
+    "firstSeen": "R-010"
+  },
+  {
+    "id": "L-049",
+    "class": "protocol",
+    "title": "On a target with uncommitted work the run must isolate committed state, and the only snapshot that keeps the atlas leg working is a detached worktree on a short path, because the atlas checker needs git and deep paths exceed the platform path limit",
+    "statement": "On a target with uncommitted work the run must isolate committed state, and the only snapshot that keeps the atlas leg working is a detached worktree on a short path, because the atlas checker needs git and deep paths exceed the platform path limit; the skill gives no isolation guidance",
+    "firstSeen": "R-010"
+  },
+  {
+    "id": "L-050",
+    "class": "instrument",
+    "title": "The host's background operative output was not machine-extractable, so persist-on-landing forced the lead to re-emit every operative report, roughly doubling report-sized tokens at the lead tier",
+    "statement": "The host's background operative output was not machine-extractable, so persist-on-landing forced the lead to re-emit every operative report, roughly doubling report-sized tokens at the lead tier; operatives should write their own report files and return a pointer",
+    "firstSeen": "R-010"
   }
 ]

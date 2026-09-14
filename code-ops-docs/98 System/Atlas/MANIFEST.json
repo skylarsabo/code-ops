@@ -34,8 +34,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "0ea9b95e000db4716c8f4875fd929c8c8c0b58ca",
-      "verifiedDigest": "072ae2d9f0ca250405297f75747d6fe97a6ee7f0c98e6fbb803e666f51b06f09",
+      "verifiedAt": "42aed079fc0b0eec080486e570ef808e20ebe570",
+      "verifiedDigest": "7ee2b6e3c36685b604952f4bbb45a70da261205c349b0bf31b32e5fd35cac891",
       "claims": [
         {
           "file": "scripts/judgment-evals.mjs",

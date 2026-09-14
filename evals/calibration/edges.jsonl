@@ -61,3 +61,17 @@
 {"from":"L-042","rel":"fixed-in","to":"PR-64"}
 {"from":"L-042","rel":"enforced-by","to":"EVAL:evals/lint-plugins/run.mjs"}
 {"from":"L-042","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#composition-map-parity"}
+{"from":"L-001","rel":"verified-in","to":"R-010","note":"per-entry register budget held on a 74-entry register with no hard hits"}
+{"from":"L-005","rel":"verified-in","to":"R-010","note":"every ledger row and phase marker carried the resolved model"}
+{"from":"L-010","rel":"verified-in","to":"R-010","note":"entry-position matching held with finding ids cited throughout evidence prose"}
+{"from":"L-011","rel":"verified-in","to":"R-010","note":"sibling warning fired on a real entry-shaped line in lead notes"}
+{"from":"L-012","rel":"verified-in","to":"R-010","note":"operatives reached confirmed by executing repros outside the target under assess-only"}
+{"from":"L-013","rel":"verified-in","to":"R-010","note":"ledger written only by the generator, journal verified, zero dangling rows"}
+{"from":"L-014","rel":"verified-in","to":"R-010","note":"covered negatives counted separately from findings across all slices"}
+{"from":"L-015","rel":"verified-in","to":"R-010","note":"covered-negative lines after entries were not attributed to the final entry"}
+{"from":"L-016","rel":"verified-in","to":"R-010","note":"refutation log with an explanatory preamble parsed every receipt with none unparseable"}
+{"from":"L-018","rel":"verified-in","to":"R-010","note":"metrics output inside the run folder did not trip its own sibling warning"}
+{"from":"L-021","rel":"verified-in","to":"R-010","note":"every operative report persisted in the turn it landed"}
+{"from":"L-022","rel":"verified-in","to":"R-010","note":"every report shape-gated before its unit counted as covered"}
+{"from":"L-023","rel":"verified-in","to":"R-010","note":"note written to template severity shape passed the validator"}
+{"from":"L-024","rel":"verified-in","to":"R-010","note":"four lens-distinct panels, three materially re-characterized their findings"}
