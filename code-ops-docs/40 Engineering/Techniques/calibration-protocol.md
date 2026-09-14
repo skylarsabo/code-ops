@@ -334,6 +334,11 @@ the block when the arm is not `b` or `c`, the track is not `assess-only`, or the
 strong. It also rejects any unit in write mode and any unit artifact inside an assessed
 scope. Arm (a) runs a frontier lead and declares no block.
 
+Arms (b) and (c) compare strong and frontier leads, so they measure a gap only where
+`scripts/model-tiers.mjs` binds the two tiers to different models. On a provider whose
+strong and frontier tiers bind the same model, a strong-lead arm runs the frontier model,
+and its row cannot answer the question.
+
 Axes, fixed in advance: CONFIRMED per 100k operative tokens, refutation survival rate,
 failed-dispatch and redispatch rates from the run's `DISPATCH_LEDGER.md`, atlas falsified
 count, CONFIRMED labels re-tiered on review, and total operative tokens. The operator sets
