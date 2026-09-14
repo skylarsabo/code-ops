@@ -330,6 +330,52 @@ try {
     + '{"op":"update","id":"D-002","to":"redispatched","actorId":"agent-c"}\n');
   const x = run(['check', '--ledger', illegalLedger]);
   check('x. replay rejects a transition out of reported', x.status === 1 && /invalid transition reported -> redispatched/.test(x.stdout), x.stdout + x.stderr);
+
+  // y. L-050 report-file shape gate: an operative that wrote its own report returns a pointer, and
+  // `update --status reported --report <path>` gates that file before the row turns terminal. A
+  // missing, empty, or section-less file is a failed dispatch exactly like a malformed inline
+  // report: exit 1, and neither the row nor the journal changes.
+  const reportLedger = join(dir, 'REPORT_LEDGER.md');
+  for (let i = 0; i < 6; i++)
+    run(['add', '--ledger', reportLedger, '--role', 'reviewer', '--brief', `review slice ${i + 1}`, '--artifact', `reports/D-00${i + 1}.md`, '--model', 'claude-opus-5']);
+  const good = join(dir, 'GOOD_REPORT.md');
+  writeFileSync(good, '# Report D-001\n\n## Verdict\n\nPASS: no blocking findings.\n\n## Evidence\n\n### Commands\n\n```\n# not a heading\nnode check.mjs  (exit 0)\n```\n\n- src/a.mjs:12 guard present\n');
+  const ya = run(['update', '--ledger', reportLedger, '--id', 'D-001', '--status', 'reported', '--report', good, '--sections', 'Verdict,Evidence']);
+  check('y. a well-formed report file passes the gate (exit 0)', ya.status === 0, ya.stderr);
+  check('y. passing report marks the row reported', /\|\s*D-001\s*\|[^\n]*\|\s*reported\s*\|/.test(readFileSync(reportLedger, 'utf8')), readFileSync(reportLedger, 'utf8'));
+  const yb = run(['update', '--ledger', reportLedger, '--id', 'D-002', '--status', 'reported', '--report', good]);
+  check('y. --report without --sections checks presence only (exit 0)', yb.status === 0, yb.stderr);
+
+  const ledgerBefore = readFileSync(reportLedger, 'utf8');
+  const journalBefore = readFileSync(reportLedger + '.journal.jsonl', 'utf8');
+  const unchanged = () => readFileSync(reportLedger, 'utf8') === ledgerBefore
+    && readFileSync(reportLedger + '.journal.jsonl', 'utf8') === journalBefore;
+  const yc = run(['update', '--ledger', reportLedger, '--id', 'D-003', '--status', 'reported', '--report', join(dir, 'NO_SUCH_REPORT.md')]);
+  check('y. a missing report file exits 1', yc.status === 1 && /report file missing/.test(yc.stderr), yc.stderr);
+  check('y. a missing report file leaves the ledger and journal unchanged', unchanged());
+  const emptyReport = join(dir, 'EMPTY_REPORT.md');
+  writeFileSync(emptyReport, '  \n\n');
+  const yd = run(['update', '--ledger', reportLedger, '--id', 'D-003', '--status', 'reported', '--report', emptyReport]);
+  check('y. a whitespace-only report file exits 1', yd.status === 1 && /report file empty/.test(yd.stderr), yd.stderr);
+  const noSection = join(dir, 'NO_SECTION_REPORT.md');
+  writeFileSync(noSection, '## Verdict\n\nPASS\n');
+  const ye = run(['update', '--ledger', reportLedger, '--id', 'D-004', '--status', 'reported', '--report', noSection, '--sections', 'Verdict,Evidence']);
+  check('y. a report missing a required section exits 1', ye.status === 1 && /report section missing: Evidence/.test(ye.stderr), ye.stderr);
+  const hollow = join(dir, 'HOLLOW_REPORT.md');
+  writeFileSync(hollow, '## Verdict\n\nPASS\n\n## Evidence\n\n### Commands\n\n## Skipped\n\nnone\n');
+  const yf = run(['update', '--ledger', reportLedger, '--id', 'D-005', '--status', 'reported', '--report', hollow, '--sections', 'Verdict,Evidence']);
+  check('y. a section holding only subheadings counts as empty (exit 1)', yf.status === 1 && /report section empty: Evidence/.test(yf.stderr), yf.stderr);
+  const fencedOnly = join(dir, 'FENCED_REPORT.md');
+  writeFileSync(fencedOnly, '## Verdict\n\nPASS\n\n```\n## Evidence\nnot a real section\n```\n');
+  const yg = run(['update', '--ledger', reportLedger, '--id', 'D-006', '--status', 'reported', '--report', fencedOnly, '--sections', 'Evidence']);
+  check('y. a heading inside a code fence does not satisfy a section (exit 1)', yg.status === 1 && /report section missing: Evidence/.test(yg.stderr), yg.stderr);
+  check('y. every rejected report left the ledger and journal unchanged', unchanged());
+  const yh = run(['update', '--ledger', reportLedger, '--id', 'D-003', '--status', 'failed', '--report', good]);
+  check('y. --report on a non-reported status is a usage error (exit 2)', yh.status === 2, yh.stderr);
+  const yi = run(['update', '--ledger', reportLedger, '--id', 'D-003', '--status', 'reported', '--sections', 'Verdict']);
+  check('y. --sections without --report is a usage error (exit 2)', yi.status === 2, yi.stderr);
+  const yj = run(['check', '--ledger', reportLedger]);
+  check('y. the ledger still checks clean after the rejections', yj.status === 0 && /journal: verified\./.test(yj.stdout), yj.stdout + yj.stderr);
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }

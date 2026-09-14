@@ -1,6 +1,6 @@
 # Dispatch brief template
 
-Every subagent the orchestrator spawns gets a brief carrying the same ten fields. A
+Every subagent the orchestrator spawns gets a brief carrying the same eleven fields. A
 missing field is the usual cause of a subagent guessing instead of escalating, or of two
 subagents clobbering one file. This page holds the fill-in skeleton, one line per agent
 kind, and a worked example.
@@ -16,6 +16,9 @@ Effort: <default per agent-kind routing (see subagent-trade-offs.md); override o
 Expected return:
   - sections + finding tiers (CONFIRMED / PROBABLE / SPECULATIVE)
   - dense, file:line cited, no raw dumps
+Report path: <exact file inside the run folder, e.g. `80 Runs/<date slug>/reports/D-NNN-<role>.md`.
+  With a write tool: write the full report there, then return only the path, a one-line verdict,
+  and counts. Without one: return the full report inline>
 Batching: request every independent item in one tool round; wait only on true dependencies
 Size discipline: <implementer briefs only: correctness and the safety floor, then boundaries, then
   measured performance, then readability, then size; mark a deliberate simplification
@@ -28,12 +31,29 @@ Independence: <unit ids this operative validates but did not discover; empty for
 
 Objective and Scope bound the work. Context points at orientation material instead of
 re-explaining the codebase. Expected return sets the report shape, so the orchestrator
-merges reports without re-deriving their structure. Escalation and Constraints keep a
+merges reports without re-deriving their structure. Report path puts the report on disk
+without the lead re-emitting it. Escalation and Constraints keep a
 subagent from improvising past what it was asked. Independence separates validation from
 discovery. The lead dispatches in the background
 and continues independent work, and it waits only when the next step depends on the result.
 
 For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file.
+
+## Where the report lands
+
+Calibration lesson L-050 found that a lead re-emitting each report to persist it doubled the
+report tokens at the most expensive tier. The Report path field removes that cost. The rule
+itself lives in each plugin's `CONVENTIONS.md` under "Persist reports as they land".
+
+- **Operative with a write tool** (verifier, mech, general-purpose): write the full report to
+  the named path. Return a pointer of three lines at most: the path, a one-line verdict, and
+  counts such as findings per tier.
+- **Operative without a write tool** (explorer, tracer, reviewer, gatherer, claim-checker):
+  return the full report inline. The lead writes it to the named path in the turn it arrives.
+- **The lead, either way:** gate the file before the unit counts as covered. In code-ops-suite,
+  run `dispatch-ledger.mjs update --status reported --report <path> --sections <names>`. A
+  missing, empty, or section-less file fails the gate, and the row stays unreported. The lead
+  opens the body only when synthesis needs it.
 
 ## What the Context line points at
 
@@ -93,6 +113,8 @@ Context: repo map §"net" section; run `co context query callers withRetry` for 
 Effort: medium (default for verifier-shaped execution)
 Expected return: CONFIRMED/PROBABLE/SPECULATIVE verdict, file:line evidence, one
   paragraph max, no pasted source.
+Report path: 80 Runs/2026-09-14 retry-audit/reports/D-004-verifier.md (write it, then
+  return the path, the verdict, and the command count)
 Escalation: if the swallow looks intentional (a comment or test asserts it), stop
   and report that instead of guessing at intent.
 Constraints: do not edit retry.ts; no commits.
