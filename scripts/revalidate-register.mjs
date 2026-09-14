@@ -418,7 +418,10 @@ for (const file of files) {
           else {
             const refuted = lines.filter((l) => /\bREFUTED\b/.test(l));
             for (const l of refuted) {
-              const ref = l.match(REF_RE);
+              // REF_RE is global, so String#match would return bare match strings with no captures.
+              // Take the first match, and restore its ../, ./ or / prefix as the item-ref path does (SEC-004).
+              const rm = l.matchAll(REF_RE).next().value;
+              const ref = rm && [rm[0], (l.slice(0, rm.index).match(/(?:\.{0,2}\/)+$/)?.[0] ?? '') + rm[1], rm[2]];
               const anc = l.match(ANCHOR_RE);
               const val = anc && (anc[1] ?? anc[2] ?? anc[3]);
               const abs = ref && resolve(root, ref[1]);
