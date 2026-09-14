@@ -124,7 +124,17 @@ const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', '
 // file:line where the filename ends in a known code/doc extension — prevents matching version
 // strings (v1.2.3:4), host:port (h.io:8080) and IP:port (1.1.1.1:53) as references. The
 // directory part is matched segment-by-segment so the path quantifiers cannot overlap (no ReDoS).
-const REF_RE = /\b((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
+// L-045: a segment unit is a path char, a bracketed route param ([id], [...slug], [[...opt]]), or a
+// parenthesized route group ((auth)). Each unit starts on a distinct char and brackets close before
+// the next unit, so the units cannot overlap either. A citation may start on a [ or ( unit only at a
+// token start, optionally after a ../, ./ or / prefix that the SEC-004 restore below puts back; a
+// [ or ( inside a path is never a fresh start, which keeps retries on a long path from multiplying.
+const REF_RE = /(?:\b|(?<=(?:^|[^\w.\/[\])-])(?:\.{0,2}\/)*)(?=[[(]))((?:(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\/)*(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
+// L-045: a backtick-delimited citation may carry spaces in a path segment (`docs/My Folder/guide.md:3`).
+// Unquoted prose never gets this reading. Inside backticks a space is still ambiguous with a command
+// (`node scripts/x.mjs:3`), so the item-ref extraction takes the spaced reading only when it names a
+// real file or escapes root. Segments exclude / so their quantifiers cannot overlap (no ReDoS).
+const SPACED_REF_RE = /`((?:[^`\n/]+\/)*[^`\n/]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)`/gi;
 const VERIFIED_RE = /Verified-at:\s*([0-9a-f]{7,40}|HEAD)\b/i;
 // An optional per-item `Anchor:` — a verbatim substring of the cited line (CONVENTIONS §9/§E), delimited
 // by backticks or quotes so it can contain spaces/punctuation. When present, the cited line must still
@@ -290,7 +300,16 @@ for (const file of files) {
     const block = text.slice(ids[i].index, ids[i + 1]?.index ?? text.length);
     const cur = items.get(id) ?? { refs: [], verifiedAt: null, anchor: null, anchorUnparsed: false, block: '' };
     cur.block += block;
+    const spaced = [];
+    for (const m of block.matchAll(SPACED_REF_RE)) {
+      if (!/\s/.test(m[1])) continue; // no space: REF_RE already reads the whole path
+      const abs = resolve(root, m[1]);
+      const escapes = abs !== root && !abs.startsWith(root + sep);
+      if (escapes || (existsSync(abs) && statSync(abs).isFile())) spaced.push({ start: m.index, end: m.index + m[0].length, path: m[1], line: Number(m[2]) });
+    }
+    for (const s of spaced) cur.refs.push({ path: s.path, line: s.line });
     for (const m of block.matchAll(REF_RE)) {
+      if (spaced.some((s) => m.index > s.start && m.index < s.end)) continue; // a tail of a spaced ref
       // SEC-004 (fix): REF_RE's leading \b drops a path-traversal/absolute prefix (../, ./, /),
       // which would silently re-root an escaping citation inside the repo and report it FRESH.
       // Restore the prefix so the confinement check below classifies it AMBIGUOUS instead.
