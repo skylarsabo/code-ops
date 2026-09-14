@@ -129,11 +129,14 @@ const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', '
 // the next unit, so the units cannot overlap either. A citation may start on a [ or ( unit only at a
 // token start, optionally after a ../, ./ or / prefix that the SEC-004 restore below puts back; a
 // [ or ( inside a path is never a fresh start, which keeps retries on a long path from multiplying.
-const REF_RE = /(?:\b|(?<=(?:^|[^\w.\/[\])-])(?:\.{0,2}\/)*)(?=[[(]))((?:(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\/)*(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
+// The [ or ( lookahead runs before the lookbehind, so the lookbehind scans back only at those two
+// chars and a long / or ./ run adds no per-position backward scan.
+const REF_RE = /(?:\b|(?=[[(])(?<=(?:^|[^\w.\/[\])-])(?:\.{0,2}\/)*))((?:(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\/)*(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
 // L-045: a backtick-delimited citation may carry spaces in a path segment (`docs/My Folder/guide.md:3`).
 // Unquoted prose never gets this reading. Inside backticks a space is still ambiguous with a command
-// (`node scripts/x.mjs:3`), so the item-ref extraction takes the spaced reading only when it names a
-// real file or escapes root. Segments exclude / so their quantifiers cannot overlap (no ReDoS).
+// (`node scripts/x.mjs:3`), so the item-ref extraction takes the spaced reading only when it escapes
+// root, or when no segment is . or .. and it names a real file. Refutation receipts do not take it.
+// Segments exclude / so their quantifiers cannot overlap (no ReDoS).
 const SPACED_REF_RE = /`((?:[^`\n/]+\/)*[^`\n/]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)`/gi;
 const VERIFIED_RE = /Verified-at:\s*([0-9a-f]{7,40}|HEAD)\b/i;
 // An optional per-item `Anchor:` — a verbatim substring of the cited line (CONVENTIONS §9/§E), delimited
@@ -305,7 +308,11 @@ for (const file of files) {
       if (!/\s/.test(m[1])) continue; // no space: REF_RE already reads the whole path
       const abs = resolve(root, m[1]);
       const escapes = abs !== root && !abs.startsWith(root + sep);
-      if (escapes || (existsSync(abs) && statSync(abs).isFile())) spaced.push({ start: m.index, end: m.index + m[0].length, path: m[1], line: Number(m[2]) });
+      // resolve() collapses . and .. lexically, even through a segment that does not exist, so a
+      // candidate that stays in root is taken only when no raw segment is . or .. and a real file
+      // backs it. Otherwise REF_RE's own matches, with their SEC-004 restore, classify the line.
+      const dotSegment = m[1].split(/[\\/]/).some((seg) => seg === '.' || seg === '..');
+      if (escapes || (!dotSegment && existsSync(abs) && statSync(abs).isFile())) spaced.push({ start: m.index, end: m.index + m[0].length, path: m[1], line: Number(m[2]) });
     }
     for (const s of spaced) cur.refs.push({ path: s.path, line: s.line });
     for (const m of block.matchAll(REF_RE)) {

@@ -168,20 +168,27 @@ try {
     ['BUG-465', '../[id]/page.tsx:1', 'AMBIGUOUS', 'L-045 reject traversal before a bracket segment'],
     ['BUG-466', '`../My Folder/x.md:3`', 'AMBIGUOUS', 'L-045 reject traversal in a spaced backticked path'],
     ['BUG-467', 'v1.2.3:4 and h.io:8080 and 1.1.1.1:53', 'NO-REF', 'L-045 reject version, host:port, IP:port'],
+    // SH-01: resolve() collapses the nonexistent "x.ts:1 q" segment and the root's own basename leads
+    // back in, so the spaced reading names a real in-root file. It must not swallow the escaping ref.
+    ['BUG-468', '`../x.ts:1 q/../r45/docs/My Folder/guide.md:3`', 'AMBIGUOUS', 'L-045 spaced reading cannot swallow an escaping ref (SH-01)'],
+    ['BUG-469', '`docs/My Folder/../My Folder/guide.md:3`', null, 'L-045 in-root spaced path with a .. segment stays fail-closed'],
   ];
   const reg45 = join(work, 'reg45.md');
   writeFileSync(reg45, cases45.map(([id, loc]) => `## ${id}\nLocation: ${loc}\n`).join('\n'));
   const out45 = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg45, '--root', r45, '--report-only']).out;
   for (const [id, , want, name] of cases45) {
     const line = out45.split('\n').find((l) => new RegExp(`\\b${id}\\b`).test(l)) || '';
-    check(name, new RegExp(`\\b${want}\\s+${id}\\b`).test(line));
+    // A null expectation accepts any gating status; it only forbids a FRESH that would hide the item.
+    check(name, want ? new RegExp(`\\b${want}\\s+${id}\\b`).test(line) : /^\s*!!\s/.test(line) && !/FRESH/.test(line));
   }
 
   // L-045 — the widened grammar keeps its non-overlapping structure: long bracket, group, slash, and
-  // backtick runs with no valid citation finish fast instead of backtracking without bound.
+  // backtick runs with no valid citation finish fast instead of backtracking without bound. The bare
+  // / and ./ runs pin the lookbehind ordering, which once scanned back from every position.
   const reg45p = join(work, 'reg45p.md');
   writeFileSync(reg45p, ['## BUG-470', `Location: ${'[[a]/'.repeat(20000)}x.ts`, `Location: ${'(a)/'.repeat(20000)}x`,
-    `Location: ${'[a'.repeat(20000)}.ts:1`, `Location: \`${'a /'.repeat(20000)}.ts:1`, `Location: ${'a/'.repeat(5000)}x`, ''].join('\n'));
+    `Location: ${'[a'.repeat(20000)}.ts:1`, `Location: \`${'a /'.repeat(20000)}.ts:1`, `Location: ${'a/'.repeat(5000)}x`,
+    `Location: ${'/'.repeat(80000)}`, `Location: ${'./'.repeat(40000)}`, ''].join('\n'));
   const t45 = Date.now();
   runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg45p, '--root', r45, '--report-only']);
   check('L-045 pathological path input completes under 5s', Date.now() - t45 < 5000);

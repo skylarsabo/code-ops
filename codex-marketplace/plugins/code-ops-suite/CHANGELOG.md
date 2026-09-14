@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 ## 1.74.1
-- `revalidate-register` now reads citations with bracketed route segments such as `[id]` and `[...slug]`, route groups such as `(auth)`, and spaced paths inside backticks as the full path, instead of reporting an in-repo file as escaping root. Refutation receipts now read their cited path and line correctly, so a valid REFUTED receipt passes and a traversal citation still fails confinement.
+- `revalidate-register` now reads citations with bracketed route segments such as `[id]` and `[...slug]` and route groups such as `(auth)` as the full path, instead of reporting an in-repo file as escaping root. A register item citation inside backticks may also carry spaces in its path. Refutation receipts now read their cited path and line correctly, so a valid REFUTED receipt passes and a traversal citation still fails confinement.
 
 ## 1.74.0
 - Substantive runs now use an enforced frontier-lead and strong-operative graph. Version 4 run contracts require multiple operatives, a real parallel wave, lower-tier operative routing, explicit independent-validation relationships, and nonempty operative artifacts before finalization.
