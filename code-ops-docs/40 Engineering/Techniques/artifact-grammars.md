@@ -332,7 +332,7 @@ fields are:
 ```
 version · revision · runId · head · objective · nonGoals · lead · quality · budget
 sharedContext · replanOn · units · context (versions 2 through 4) · runtime (versions 3 and 4)
-orchestration (version 4 only)
+orchestration (version 4 only) · calibration (optional, version 4 only)
 ```
 
 Quality is a vector of named dimensions and stable `Q-NNN` criteria. Each criterion names
@@ -361,6 +361,10 @@ Version 4 retains the version 3 bindings and requires `lead-and-operatives` mode
 is frontier tier. It plans at least two operatives, demonstrates a parallel wave of at least
 two units, keeps ordinary operatives below the lead tier, and makes validators depend on a
 role-independent discovery unit. Finalization refuses missing or empty operative artifacts.
+The optional `calibration` block, `{"arm": "b" | "c", "track": "assess-only"}`, admits a
+strong lead for the pre-registered calibration arms. It requires read-mode units whose
+artifacts fall outside every unit scope. Units may then run at the lead tier but never
+above it, and every other routing floor still applies.
 
 `RUN_RUNTIME_RECEIPTS.jsonl` is a hash-chained sequence of `init`, `checkpoint`, `resume`,
 `replan`, and optional observation receipts. Each runtime binding includes contract,

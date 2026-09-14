@@ -12,7 +12,10 @@ import { ACCEPT_HEADER, actorError, parseAcceptance as readAcceptance } from './
 const TOP_V1 = ['version', 'revision', 'runId', 'head', 'objective', 'nonGoals', 'lead', 'quality', 'budget', 'sharedContext', 'replanOn', 'units'];
 const TOP_V2 = new Set([...TOP_V1, 'context']);
 const TOP_V3 = new Set([...TOP_V2, 'runtime']);
-const TOP_V4 = new Set([...TOP_V3, 'orchestration']);
+const TOP_V4 = new Set([...TOP_V3, 'orchestration', 'calibration']);
+const OPTIONAL_TOP_V4 = new Set(['calibration']);
+const CALIBRATION = new Set(['arm', 'track']);
+const CALIBRATION_ARMS = new Set(['b', 'c']);
 const CONTEXT = new Set(['snapshot', 'snapshotId', 'bundleDir', 'untrackedPolicy', 'maxBundleBytes', 'maxAtlasExcerptBytes']);
 const LEAD = new Set(['model', 'tier', 'effort']);
 const QUALITY = new Set(['dimensions', 'criteria']);
@@ -81,7 +84,7 @@ function verifyContext(contract, contractPath, root) {
 function validate(c, root) {
   const errors = [];
   if (!c || Array.isArray(c) || typeof c !== 'object') return ['contract must be an object'];
-  exact(c, c.version === 1 ? new Set(TOP_V1) : c.version === 2 ? TOP_V2 : c.version === 3 ? TOP_V3 : TOP_V4, 'contract', errors);
+  exact(c, c.version === 1 ? new Set(TOP_V1) : c.version === 2 ? TOP_V2 : c.version === 3 ? TOP_V3 : TOP_V4, 'contract', errors, OPTIONAL_TOP_V4);
   if (![1, 2, 3, 4].includes(c.version)) errors.push('version must be 1, 2, 3, or 4');
   if (c.version === 1 && ('context' in c || 'runtime' in c)) errors.push('version 1 must not contain context or runtime');
   if (c.version === 2 && 'runtime' in c) errors.push('version 2 must not contain runtime');
@@ -101,7 +104,25 @@ function validate(c, root) {
   exact(c.lead, LEAD, 'lead', errors);
   if (!TIER_ORDER.includes(c.lead?.tier) || TIER_RANK[c.lead?.tier] < TIER_RANK.strong || !tierFor(c.lead?.model, c.lead?.tier)) errors.push('lead model must support declared strong or frontier tier');
   if (c.lead?.effort !== 'high') errors.push('lead effort must be high');
-  if (c.version === 4 && c.lead?.tier !== 'frontier') errors.push('version 4 requires a frontier lead');
+  let calibrated = false;
+  if (c.version === 4 && 'calibration' in c) {
+    // The pre-registered calibration arms b and c run a strong lead on the assess-only track.
+    // A valid block waives the frontier-lead rule and lets units run at, never above, the
+    // lead tier, only for read-mode units whose artifacts land outside every assessed scope.
+    const before = errors.length;
+    exact(c.calibration, CALIBRATION, 'calibration', errors);
+    if (!CALIBRATION_ARMS.has(c.calibration?.arm)) errors.push('calibration.arm must be b or c');
+    if (c.calibration?.track !== 'assess-only') errors.push('calibration.track must be assess-only');
+    if (c.lead?.tier !== 'strong') errors.push('calibration requires a strong lead; a frontier lead declares no calibration block');
+    const units = Array.isArray(c.units) ? c.units : [];
+    const scopes = units.flatMap((unit) => Array.isArray(unit?.scope) ? unit.scope.filter(safePath) : []);
+    units.forEach((unit, index) => {
+      const label = unit?.id || `D-${String(index + 1).padStart(3, '0')}`;
+      if (unit?.mode !== 'read') errors.push(`${label} must use read mode on the assess-only calibration track`);
+      if (safePath(unit?.artifact) && scopesIntersect([unit.artifact], scopes)) errors.push(`${label} artifact must stay outside every assessed scope on the assess-only calibration track`);
+    });
+    calibrated = errors.length === before;
+  } else if (c.version === 4 && c.lead?.tier !== 'frontier') errors.push('version 4 requires a frontier lead');
   exact(c.quality, QUALITY, 'quality', errors);
   if (!Array.isArray(c.quality?.dimensions) || !c.quality.dimensions.length || new Set(c.quality.dimensions).size !== c.quality.dimensions.length || c.quality.dimensions.some((x) => !DIMENSIONS.has(x))) errors.push('quality dimensions must be unique supported dimensions');
   const criterionIds = new Set();
@@ -136,7 +157,8 @@ function validate(c, root) {
     if (!Number.isInteger(unit.wave) || unit.wave < 1 || typeof unit.phase !== 'string' || !unit.phase || typeof unit.lens !== 'string' || !unit.lens) errors.push(`${unit.id || expected} needs phase, lens, positive wave`);
     if (!['read', 'write'].includes(unit.mode) || !KINDS.has(unit.kind) || !EFFORTS.has(unit.effort) || !TIER_ORDER.includes(unit.tier) || !tierFor(unit.model, unit.tier)) errors.push(`${unit.id || expected} has invalid routing fields`);
     const rank = TIER_RANK[unit.tier];
-    if (c.version === 4 && rank >= TIER_RANK[c.lead?.tier]) errors.push(`${unit.id || expected} must run below the lead tier`);
+    if (calibrated) { if (rank > TIER_RANK[c.lead.tier]) errors.push(`${unit.id || expected} must not run above the lead tier`); }
+    else if (c.version === 4 && rank >= TIER_RANK[c.lead?.tier]) errors.push(`${unit.id || expected} must run below the lead tier`);
     if (unit.kind === 'execution' && (rank < TIER_RANK.mid || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates execution routing floor`);
     if (unit.kind === 'judgment' && (rank < TIER_RANK.strong || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates judgment routing floor`);
     if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || unit.effort !== 'high')) errors.push(`${unit.id || expected} violates review routing floor`);

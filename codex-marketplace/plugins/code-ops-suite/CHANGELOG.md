@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.77.0
+- Version 4 contracts accept an optional `calibration` block for arms (b) and (c) that requires a strong lead, read-mode units, and artifacts outside every scope. Under a valid block, units may run at the lead tier but never above it.
+
 ## 1.76.0
 - New pinned `CONVENTIONS.md` §15, Code standard. It carries the house code standard's core clause: design every change first, write the smallest correct solution, abstract only on evidence, measure before micro-optimizing, comment reasons, verify in proportion to risk, and never repeat an unchanged check.
 
