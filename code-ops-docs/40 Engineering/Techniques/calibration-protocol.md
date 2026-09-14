@@ -327,8 +327,9 @@ by tier, because a tier survives a model generation and a model name does not. T
   a candidate for adoption.
 
 Arms (b) and (c) declare a `calibration` block in their version 4 `RUN_CONTRACT.json`, as
-`{"arm": "b", "track": "assess-only"}` or its arm (c) equivalent. The block waives the
-frontier-lead rule for a strong lead and changes no other rule. `run-contract.mjs` rejects
+`{"arm": "b", "track": "assess-only"}` or its arm (c) equivalent. The block admits a
+strong lead, and it lets units run at the lead tier but never above it. It changes no other
+routing rule. `run-contract.mjs` rejects
 the block when the arm is not `b` or `c`, the track is not `assess-only`, or the lead is not
 strong. It also rejects any unit in write mode and any unit artifact inside an assessed
 scope. Arm (a) runs a frontier lead and declares no block.

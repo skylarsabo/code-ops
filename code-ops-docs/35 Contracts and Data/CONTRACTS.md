@@ -65,8 +65,8 @@ version 4; versions 1 through 3 are historical inputs, not new-run templates. Ev
 `scripts/run-contract.mjs`.
 
 A version 4 contract may carry an optional `calibration` block with exactly `arm` and
-`track`. It exists for the pre-registered calibration arms (b) and (c) and waives only the
-frontier-lead rule. The validator requires arm `b` or `c`, track `assess-only`, and a strong
+`track`. It exists for the pre-registered calibration arms (b) and (c). A valid block waives the
+frontier-lead rule and lets a unit run at the lead tier, never above it. The validator requires arm `b` or `c`, track `assess-only`, and a strong
 lead. Every unit must use read mode, and no unit artifact may fall inside any unit scope.
 Earlier versions reject the key. Evidence: `scripts/run-contract.mjs`.
 
