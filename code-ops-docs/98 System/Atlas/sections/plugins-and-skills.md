@@ -64,3 +64,4 @@ run there and the context resident at session end. `context-audit.mjs receipts -
 that evidence, but causal token or workflow claims remain pending until a pre-registered matched
 control is complete.
 Report persistence is pinned across all four conventions. An operative with a write tool writes its report to the path its brief names and returns only a pointer, and a read-only operative returns its report inline for the lead to persist. A missing, empty, or malformed report file fails the pinned shape gate exactly as a malformed inline report does.
+Each of the four conventions now ends with a pinned Code standard section holding one core clause. The section carries no hub path because the packages ship to repositories without this hub; the full rules and their backstops live in the hub's code-standard technique page.

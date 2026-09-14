@@ -2,7 +2,7 @@
 
 Charter: repository-root instructions, discovery metadata, ignore policy, and top-level orientation. Excludes canonical plugin doctrine and hub records.
 
-`CLAUDE.md` and `AGENTS.md` are byte-identical host contracts. They put unenforced safety rules first, then describe model routing, acceptance ownership, generated-output boundaries, documentation authority, and required gates. A change to either contract must update the other in the same commit.
+`CLAUDE.md` and `AGENTS.md` are byte-identical host contracts. They put unenforced safety rules first, then describe model routing, acceptance ownership, generated-output boundaries, documentation authority, and required gates. A change to either contract must update the other in the same commit. The writing-standard and code-standard sections each name their hub technique page as the single source and the pin lists that keep the four conventions copies identical.
 
 The routing contract keeps a substantive run under one frontier lead and delegates independent bounded work to strong-tier operatives below it. The lead continuously synthesizes, challenges assumptions, launches neglected hypotheses, redirects the graph, and retains the final verdict; premium frontier peers remain exceptional bounded specialists rather than ordinary fan-out.
 

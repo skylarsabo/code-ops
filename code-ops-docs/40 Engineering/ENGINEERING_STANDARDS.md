@@ -39,6 +39,8 @@ Extract shared work when it removes measured duplication or closes behavioral dr
 
 The vendor manifest declares the runtime script set. Evidence: `scripts/vendored-manifest.mjs:13-33`.
 
+The [code standard](Techniques/code-standard.md) owns the general rule: efficient by design, optimized only by measurement.
+
 ## Size discipline
 
 The objective is ordered. Correctness and the safety floor come first, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines decides only between candidates that tie on the first four. Evidence: `plugins/code-ops-suite/CONVENTIONS.md:148`.
@@ -46,6 +48,8 @@ The objective is ordered. Correctness and the safety floor come first, then modu
 Climb the ladder before writing code. Ask whether the code needs to exist, whether it exists here already, whether the standard library or an installed dependency does it, and whether it fits inside the owning module. Extract only on evidence: a second caller, a unit that needs its own test, or a file past the repository's own size norm. Mark a deliberate simplification with a `deferred(<ceiling>, <upgrade path>)` comment.
 
 `node scripts/scan-overbuild.mjs --git <range>` is the mechanical floor under the ladder. It reports eight deterministic tells on a diff and exits non-zero only on an unrecorded dependency. `node scripts/harvest-deferrals.mjs` collects the `deferred(...)` markers into `DEFERRALS_REGISTER.md`, and `--check` reports drift. Both are reachable as `node scripts/co.mjs scan overbuild` and `node scripts/co.mjs scan deferrals`. Evidence: `scripts/scan-overbuild.mjs:1-40` and `scripts/harvest-deferrals.mjs:1-30`.
+
+The [code standard](Techniques/code-standard.md) indexes these size rules with the rest of the code rules and their backstops.
 
 ## Context economy
 

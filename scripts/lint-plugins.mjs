@@ -750,6 +750,8 @@ const SHARED_PASSAGES = [
     text: "Before writing code, climb the ladder in order: does it need to exist (scope is the request), does it exist here (search before you write), does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory), does it fit inside the owning module (extend before you add a file), and is there evidence to extract (a second caller, a unit that needs its own test, or a file past the repository's own size norm). Then write the minimum edge-case-correct implementation." },
   { id: 'writing-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
     text: 'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.' },
+  { id: 'code-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+    text: "Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed." },
 ];
 
 // Same drift gate as SHARED_PASSAGES, but for the operative agent definitions

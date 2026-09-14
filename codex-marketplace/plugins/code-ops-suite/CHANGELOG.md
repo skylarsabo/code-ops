@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.76.0
+- New pinned `CONVENTIONS.md` §15, Code standard. It carries the house code standard's core clause: design every change first, write the smallest correct solution, abstract only on evidence, measure before micro-optimizing, comment reasons, verify in proportion to risk, and never repeat an unchanged check.
+
 ## 1.75.0
 - An operative with a write tool now writes its report to the path its brief names and returns only a pointer, so the lead no longer re-emits report bodies; a read-only operative still returns its report inline for the lead to persist. `dispatch-ledger.mjs update --status reported` gains `--report` and `--sections`, which refuse a missing, empty, or section-less report file and leave the row and journal unchanged.
 

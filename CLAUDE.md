@@ -73,6 +73,14 @@ The core clause is pinned byte-identically across all four `CONVENTIONS.md` file
 `evals/lint-plugins/run.mjs`. Edit every copy in one commit, or lint fails closed on the
 drifted file and the eval fails at its baseline case rather than where you would look.
 
+## Code standard
+
+Every code change follows the house code standard in
+`code-ops-docs/40 Engineering/Techniques/code-standard.md`, which is the single source of
+truth for it. Its core clause is pinned byte-identically across all four `CONVENTIONS.md`
+files by `code-standard-core` in `SHARED_PASSAGES`, mirrored in `PINNED_TEXTS`. Edit every
+copy in one commit.
+
 ## Session mechanisms that run under every change
 
 Six plugin hook commands across five events provide traceless publishing, routing with
