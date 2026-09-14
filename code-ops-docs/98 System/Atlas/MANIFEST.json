@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "0ea9b95e000db4716c8f4875fd929c8c8c0b58ca",
-      "verifiedDigest": "8eaf8a3244f90c5fb79baa0a4566e0f32d0469d2ccd74ccf26668965717f71a3"
+      "verifiedAt": "360da873cbb37d4f3e09201d02b2fb1a0b851c4b",
+      "verifiedDigest": "afe6326fd50312af57ac9273ddebbac1a69c4e51879ef82b34ed7cc8f31cc46d"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "0ea9b95e000db4716c8f4875fd929c8c8c0b58ca",
-      "verifiedDigest": "687419090488ee0065b27e13c272be21a2584b884d2b4b77f59c4d4386dcb3f9",
+      "verifiedAt": "360da873cbb37d4f3e09201d02b2fb1a0b851c4b",
+      "verifiedDigest": "f247c831626fff0f3e09d02f9895bf58b38e9d7b5ae03c247e55fea2fad7348a",
       "claims": [
         {
           "file": "scripts/atlas-check.mjs",
@@ -34,8 +34,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "42aed079fc0b0eec080486e570ef808e20ebe570",
-      "verifiedDigest": "7ee2b6e3c36685b604952f4bbb45a70da261205c349b0bf31b32e5fd35cac891",
+      "verifiedAt": "360da873cbb37d4f3e09201d02b2fb1a0b851c4b",
+      "verifiedDigest": "77d02cc7eec3eacf4581bf1b5d1156aff925452252d90ad26e8784b1237130f9",
       "claims": [
         {
           "file": "scripts/judgment-evals.mjs",
@@ -52,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "0ea9b95e000db4716c8f4875fd929c8c8c0b58ca",
-      "verifiedDigest": "038f85c4220ef2c0fcbb6c9e90704d8627853386d16ef802ac194e7bcb43e843"
+      "verifiedAt": "360da873cbb37d4f3e09201d02b2fb1a0b851c4b",
+      "verifiedDigest": "43bb4a1fec336f2e5d766939768286f2762ad8973fe2710751af8db631e0df1e"
     },
     {
       "slug": "ci-workflows",
