@@ -63,3 +63,4 @@ Measurement instruments the loop. Each supported-host receipt records the mechan
 run there and the context resident at session end. `context-audit.mjs receipts --by-arm` groups
 that evidence, but causal token or workflow claims remain pending until a pre-registered matched
 control is complete.
+Report persistence is pinned across all four conventions. An operative with a write tool writes its report to the path its brief names and returns only a pointer, and a read-only operative returns its report inline for the lead to persist. A missing, empty, or malformed report file fails the pinned shape gate exactly as a malformed inline report does.

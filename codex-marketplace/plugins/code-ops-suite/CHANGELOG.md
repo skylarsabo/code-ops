@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.75.0
+- An operative with a write tool now writes its report to the path its brief names and returns only a pointer, so the lead no longer re-emits report bodies; a read-only operative still returns its report inline for the lead to persist. `dispatch-ledger.mjs update --status reported` gains `--report` and `--sections`, which refuse a missing, empty, or section-less report file and leave the row and journal unchanged.
+
 ## 1.74.1
 - `revalidate-register` now reads citations with bracketed route segments such as `[id]` and `[...slug]` and route groups such as `(auth)` as the full path, instead of reporting an in-repo file as escaping root. A register item citation inside backticks may also carry spaces in its path. Refutation receipts now read their cited path and line correctly, so a valid REFUTED receipt passes and a traversal citation still fails confinement.
 

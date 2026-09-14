@@ -4,7 +4,7 @@
 // scripts/revalidate-register.mjs's --dispatch-ledger comment).
 //
 //   node scripts/dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <id>]
-//   node scripts/dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <id>]
+//   node scripts/dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <id>] [--report <path> [--sections <a,b>]]
 //   node scripts/dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>
 //   node scripts/dispatch-ledger.mjs check --ledger <path> [--strict]
 //
@@ -57,15 +57,22 @@
 // a false phantom), and `update` never creates one. `check` on an unjournaled ledger with rows
 // is an ADVISORY (phantom rows simply undetectable there), promoted by --strict.
 //
+// WHY --report on `update --status reported` (calibration lesson L-050): an operative that has a
+// write tool writes its own report to the path its brief names and returns a pointer. `--report`
+// gates that file before the row turns terminal: missing, empty, or lacking a non-empty heading
+// for every `--sections` name is a rejection, and the row keeps its prior status. The flag is
+// optional so an inline report the lead persisted itself can use it too, and so legacy callers
+// keep working; it never relaxes any other update rule.
+//
 // Exit: add/update/phase -> 0 on success, 1 on a validation rejection (bad brief length,
-// missing/unresolvable --model, unknown id, invalid transition, a phase title carrying the
-// marker's own delimiters), 2 on a usage error.
+// missing/unresolvable --model, unknown id, invalid transition, a report file that fails the
+// shape gate, a phase title carrying the marker's own delimiters), 2 on a usage error.
 // check -> 0 (schema clean; any dangling/unstamped rows and an absent journal are printed as
 // advisories), 1 on a schema violation, on a journal violation (phantom row, out-of-band status
 // edit, journaled row missing from the ledger, unreadable journal line), or (with --strict) on a
 // dangling `dispatched` row, an unstamped row, or an unjournaled ledger too. 2 on a usage error.
 
-import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
 import { LEDGER_HEADER, LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-grammar.mjs';
@@ -83,7 +90,7 @@ const PHASE_PREFIX = '> phase:';
 
 function usage() {
   console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <host-session-or-agent-id>]');
-  console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <host-session-or-agent-id>]');
+  console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <host-session-or-agent-id>] [--report <path> [--sections <a,b>]]');
   console.error('       dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>');
   console.error('       dispatch-ledger.mjs check --ledger <path> [--strict]');
   process.exit(2);
@@ -315,13 +322,65 @@ function transitionAllowed(from, to) {
   return ['reported', 'failed', 'redispatched'].includes(to);
 }
 
+// Report-file shape gate for `update --status reported --report <path> [--sections a,b]`.
+// WHY (calibration lesson L-050): an operative with a write tool writes its own report file and
+// returns only a pointer, so the lead no longer re-emits the body to persist it. The pointer is
+// only as good as the file behind it: a missing, empty, or section-less file is the same failed
+// dispatch a malformed inline report is, and it must not flip the row to the terminal `reported`.
+// Returns a list of problems; an empty list means the file passed. Evidence quality stays the
+// lead's judgment: this gate checks presence and structure, never whether a citation is true.
+function reportShapeProblems(reportPath, sectionList) {
+  const abs = resolve(reportPath);
+  if (!existsSync(abs) || !statSync(abs).isFile()) return [`report file missing: ${reportPath}`];
+  let text;
+  try { text = readFileSync(abs, 'utf8'); }
+  catch (e) { return [`report file unreadable: ${reportPath}: ${e.message}`]; }
+  if (text.trim() === '') return [`report file empty: ${reportPath}`];
+  const lines = text.split('\n').map((l) => l.replace(/\r$/, ''));
+  // Heading lines inside a fenced block (a shell comment, say) are body text, not structure.
+  const headings = [];
+  let fenced = false;
+  lines.forEach((l, idx) => {
+    if (/^\s*(```|~~~)/.test(l)) { fenced = !fenced; return; }
+    if (fenced) return;
+    const m = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l);
+    if (m) headings.push({ level: m[1].length, title: m[2].toLowerCase(), idx });
+  });
+  const problems = [];
+  for (const name of sectionList) {
+    const want = name.toLowerCase();
+    const h = headings.find((x) => x.title === want || x.title.startsWith(`${want} `) || x.title.startsWith(`${want}:`));
+    if (!h) { problems.push(`report section missing: ${name}`); continue; }
+    // A section's body runs to the next heading at the same or a higher level; subheadings belong
+    // to it. A body that is only blank lines or subheading lines carries nothing.
+    const end = headings.find((x) => x.idx > h.idx && x.level <= h.level)?.idx ?? lines.length;
+    const nested = new Set(headings.map((x) => x.idx));
+    const body = lines.slice(h.idx + 1, end).filter((l, i) => l.trim() !== '' && !nested.has(h.idx + 1 + i));
+    if (!body.length) problems.push(`report section empty: ${name}`);
+  }
+  return problems;
+}
+
 function cmdUpdate(args) {
-  const f = parseFlags(args, new Set(['--ledger', '--id', '--status', '--actor-id']));
+  const f = parseFlags(args, new Set(['--ledger', '--id', '--status', '--actor-id', '--report', '--sections']));
   for (const req of ['--ledger', '--id', '--status'])
     if (!(req in f)) { console.error(`x update needs ${req}`); usage(); }
   if (!STATUSES.includes(f['--status'])) {
     console.error(`x --status must be one of: ${STATUSES.join(', ')}`);
     process.exit(1);
+  }
+  if ('--report' in f && f['--status'] !== 'reported') {
+    console.error('x --report applies only to --status reported');
+    usage();
+  }
+  if ('--sections' in f && !('--report' in f)) {
+    console.error('x --sections needs --report');
+    usage();
+  }
+  const sectionList = '--sections' in f ? f['--sections'].split(',').map((s) => s.trim()).filter(Boolean) : [];
+  if ('--sections' in f && !sectionList.length) {
+    console.error('x --sections needs at least one section name');
+    usage();
   }
   const path = resolve(f['--ledger']);
   const text = readLedger(path);
@@ -337,6 +396,13 @@ function cmdUpdate(args) {
     console.error(`x invalid transition ${target.status} -> ${f['--status']} for ${f['--id']}`
       + (target.status === 'reported' ? ' (reported is terminal)' : ''));
     process.exit(1);
+  }
+  if ('--report' in f) {
+    const problems = reportShapeProblems(f['--report'], sectionList);
+    if (problems.length) {
+      console.error(`x ${f['--id']} report fails the shape gate — the row stays '${target.status}'; mark it failed and redispatch:\n  ${problems.join('\n  ')}`);
+      process.exit(1);
+    }
   }
   const lines = text.split('\n');
   const original = lines[target.line - 1];
