@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.15
+- `revalidate-register` now reads citations with bracketed route segments such as `[id]` and `[...slug]` and route groups such as `(auth)` as the full path, instead of reporting an in-repo file as escaping root. A register item citation inside backticks may also carry spaces in its path. Refutation receipts now read their cited path and line correctly, so a valid REFUTED receipt passes and a traversal citation still fails confinement.
+
 ## 0.13.14
 - Substantive workflows inherit the enforced lead-and-operative work graph, portable tier-floor carriers, and host-specific runtime capability disclosures. The read-only gatherer now uses only its declared search and read tools.
 

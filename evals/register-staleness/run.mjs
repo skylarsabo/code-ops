@@ -133,6 +133,28 @@ const rfProse = spawnSync('node', [checker, join(sdir, 'rreg.md'), '--root', sdi
 expect(rfProse.status === 1 && ((rfProse.stdout || '') + rfProse.stderr).includes('no refutation-log line'),
   `a prose-only log leaves the high item unreceipted and must fail closed, got ${rfProse.status}`);
 
+// ---- a REFUTED receipt is checked against its own file:line + anchor ----------------
+// The receipt citation must be read with its capture groups: a valid killing-guard citation passes,
+// a wrong anchor fails, and a traversal citation fails confinement even when a same-named file
+// exists in the repo (the SEC-004 prefix restore applies to receipts as it does to item refs).
+writeFileSync(join(sdir, 'x.ts'), 'auth token check\n');
+writeFileSync(join(sdir, 'qreg.md'), [
+  '# refuted-receipt fixture', '',
+  'QBUG-301 · high item, refuted by its panel', 'Tier: SPECULATIVE', 'Severity: high', 'Location: code.mjs:2', 'Anchor: `auth token`',
+  'Verified-at: HEAD', 'Disconfirmation: callers checked', 'Refutation: independent — refuted', 'Track: NEEDS-REVIEW', 'Proof: `node code.mjs`', '',
+].join('\n'));
+const receipt = (name, cite, anchor) => {
+  writeFileSync(join(sdir, name), `# Refutation log\n\nQBUG-301 · r1 · REFUTED · reviewerB · killed by the guard at ${cite} Anchor: \`${anchor}\`\n`);
+  const q = spawnSync('node', [checker, join(sdir, 'qreg.md'), '--root', sdir, '--strict', '--profile', 'finding-rigor', '--refutation-log', join(sdir, name)], { encoding: 'utf8' });
+  return { status: q.status, out: (q.stdout || '') + (q.stderr || '') };
+};
+const qGood = receipt('qlog-good.md', 'code.mjs:2', 'auth token');
+expect(qGood.status === 0, `a REFUTED receipt with an in-repo file:line and matching anchor should pass, got ${qGood.status}: ${qGood.out.split('\n').find((l) => l.includes('QBUG-301')) || qGood.out}`);
+const qWrong = receipt('qlog-wrong.md', 'code.mjs:2', 'no such guard');
+expect(qWrong.status === 1 && qWrong.out.includes('re-greppable'), `a REFUTED receipt whose anchor is not on the cited line should fail, got ${qWrong.status}`);
+const qEsc = receipt('qlog-escape.md', '../x.ts:1', 'auth token');
+expect(qEsc.status === 1 && qEsc.out.includes('re-greppable'), `a REFUTED receipt citing ../x.ts:1 should fail confinement, got ${qEsc.status}`);
+
 if (fails.length) {
   console.error('FAIL — register-staleness eval:');
   for (const f of fails) console.error('  x ' + f);

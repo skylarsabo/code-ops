@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
+## 1.74.1
+- `revalidate-register` now reads citations with bracketed route segments such as `[id]` and `[...slug]` and route groups such as `(auth)` as the full path, instead of reporting an in-repo file as escaping root. A register item citation inside backticks may also carry spaces in its path. Refutation receipts now read their cited path and line correctly, so a valid REFUTED receipt passes and a traversal citation still fails confinement.
+
 ## 1.74.0
 - Substantive runs now use an enforced frontier-lead and strong-operative graph. Version 4 run contracts require multiple operatives, a real parallel wave, lower-tier operative routing, explicit independent-validation relationships, and nonempty operative artifacts before finalization.
 - Security campaigns declare distinct exploit families and terminal hypothesis states. The new attack-chain compiler bans history and advisory shortcuts, requires direct implementation evidence and realistic privilege-to-impact closure, traces reverse collisions to terminal nodes, and ranks open chains for independent validation.

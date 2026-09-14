@@ -143,6 +143,56 @@ try {
   const r15 = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg15, '--root', work]);
   check('SCR-015 slug-style ID recognized + gates', /BUG-042/.test(r15.out) && r15.code !== 0);
 
+  // L-045 — framework route segments ([id], [...slug], [[...opt]], (auth)) and backtick-delimited
+  // spaced paths resolve as the whole path. Before the fix the bracket and group citations matched
+  // only their tail, gained a restored "/" prefix, and read as escaping root (AMBIGUOUS). The spaced
+  // tail "Folder/guide.md" is deliberately ambiguous by name here, so only the full path reads FRESH.
+  const r45 = join(work, 'r45');
+  for (const p of ['app/users/[id]/page.tsx', 'app/(auth)/login/route.ts', 'pages/posts/[...slug].tsx',
+    'app/[[...opt]]/page.tsx', 'docs/My Folder/guide.md', 'a/Folder/guide.md', 'b/Folder/guide.md', 'scripts/x.mjs']) {
+    mkdirSync(dirname(join(r45, p)), { recursive: true });
+    writeFileSync(join(r45, p), 'l\n'.repeat(20));
+  }
+  const cases45 = [
+    ['BUG-451', 'app/users/[id]/page.tsx:12', 'FRESH', 'L-045 accept unquoted [id] segment'],
+    ['BUG-452', 'app/(auth)/login/route.ts:8', 'FRESH', 'L-045 accept unquoted (auth) group'],
+    ['BUG-453', '`pages/posts/[...slug].tsx:2`', 'FRESH', 'L-045 accept backticked [...slug] filename'],
+    ['BUG-454', '`app/[[...opt]]/page.tsx:2`', 'FRESH', 'L-045 accept backticked [[...opt]] segment'],
+    ['BUG-455', '`docs/My Folder/guide.md:3`', 'FRESH', 'L-045 accept spaced path in backticks'],
+    ['BUG-456', '(see `app/(auth)/login/route.ts:8`)', 'FRESH', 'L-045 accept group citation inside prose parens'],
+    ['BUG-457', '`node scripts/x.mjs:3`', 'FRESH', 'L-045 backticked command keeps its path reading'],
+    ['BUG-461', 'docs/My Folder/guide.md:3', 'AMBIGUOUS', 'L-045 unquoted prose is not greedy across spaces'],
+    ['BUG-462', '../x.ts:1', 'AMBIGUOUS', 'L-045 reject ../ traversal'],
+    ['BUG-463', './../x.ts:1', 'AMBIGUOUS', 'L-045 reject ./../ traversal'],
+    ['BUG-464', '/etc/x.ts:1', 'AMBIGUOUS', 'L-045 reject absolute path'],
+    ['BUG-465', '../[id]/page.tsx:1', 'AMBIGUOUS', 'L-045 reject traversal before a bracket segment'],
+    ['BUG-466', '`../My Folder/x.md:3`', 'AMBIGUOUS', 'L-045 reject traversal in a spaced backticked path'],
+    ['BUG-467', 'v1.2.3:4 and h.io:8080 and 1.1.1.1:53', 'NO-REF', 'L-045 reject version, host:port, IP:port'],
+    // SH-01: resolve() collapses the nonexistent "x.ts:1 q" segment and the root's own basename leads
+    // back in, so the spaced reading names a real in-root file. It must not swallow the escaping ref.
+    ['BUG-468', '`../x.ts:1 q/../r45/docs/My Folder/guide.md:3`', 'AMBIGUOUS', 'L-045 spaced reading cannot swallow an escaping ref (SH-01)'],
+    ['BUG-469', '`docs/My Folder/../My Folder/guide.md:3`', null, 'L-045 in-root spaced path with a .. segment stays fail-closed'],
+  ];
+  const reg45 = join(work, 'reg45.md');
+  writeFileSync(reg45, cases45.map(([id, loc]) => `## ${id}\nLocation: ${loc}\n`).join('\n'));
+  const out45 = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg45, '--root', r45, '--report-only']).out;
+  for (const [id, , want, name] of cases45) {
+    const line = out45.split('\n').find((l) => new RegExp(`\\b${id}\\b`).test(l)) || '';
+    // A null expectation accepts any gating status; it only forbids a FRESH that would hide the item.
+    check(name, want ? new RegExp(`\\b${want}\\s+${id}\\b`).test(line) : /^\s*!!\s/.test(line) && !/FRESH/.test(line));
+  }
+
+  // L-045 — the widened grammar keeps its non-overlapping structure: long bracket, group, slash, and
+  // backtick runs with no valid citation finish fast instead of backtracking without bound. The bare
+  // / and ./ runs pin the lookbehind ordering, which once scanned back from every position.
+  const reg45p = join(work, 'reg45p.md');
+  writeFileSync(reg45p, ['## BUG-470', `Location: ${'[[a]/'.repeat(20000)}x.ts`, `Location: ${'(a)/'.repeat(20000)}x`,
+    `Location: ${'[a'.repeat(20000)}.ts:1`, `Location: \`${'a /'.repeat(20000)}.ts:1`, `Location: ${'a/'.repeat(5000)}x`,
+    `Location: ${'/'.repeat(80000)}`, `Location: ${'./'.repeat(40000)}`, ''].join('\n'));
+  const t45 = Date.now();
+  runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg45p, '--root', r45, '--report-only']);
+  check('L-045 pathological path input completes under 5s', Date.now() - t45 < 5000);
+
   // SCR-018 — a root-level third-party import is caught by the whole-repo scan
   const sb = join(work, 'sb');
   mkdirSync(join(sb, 'scripts'), { recursive: true });
