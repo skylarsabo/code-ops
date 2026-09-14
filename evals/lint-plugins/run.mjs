@@ -100,6 +100,7 @@ const PINNED_TEXTS = [
   'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.',
   'A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.',
   'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.',
+  "Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed.",
 ];
 const ALWAYS_GATED_TEXT = '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge';
 const DOCTRINE_BLOB = [...PINNED_TEXTS, ALWAYS_GATED_TEXT].join('\n\n');

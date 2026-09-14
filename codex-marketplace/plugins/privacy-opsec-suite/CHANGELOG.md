@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.13
+- New pinned `CONVENTIONS.md` §13, Code standard. It carries the house code standard's core clause: design every change first, write the smallest correct solution, abstract only on evidence, measure before micro-optimizing, comment reasons, verify in proportion to risk, and never repeat an unchanged check.
+
 ## 1.20.12
 - The pinned report-persistence passage now has an operative with a write tool write its report to the path its brief names and return only a pointer, while a read-only operative still returns its report inline for the lead to persist. The pinned shape-gate passage now fails a missing, empty, or malformed report file exactly as it fails a malformed inline report.
 
