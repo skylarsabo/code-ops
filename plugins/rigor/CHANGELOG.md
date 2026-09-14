@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.11
+- `revalidate-register` now reads citations with bracketed route segments such as `[id]` and `[...slug]`, route groups such as `(auth)`, and spaced paths inside backticks as the full path, instead of reporting an in-repo file as escaping root. Refutation receipts now read their cited path and line correctly, so a valid REFUTED receipt passes and a traversal citation still fails confinement.
+
 ## 2.18.10
 - Substantive workflows inherit the enforced lead-and-operative work graph, portable tier-floor carriers, and host-specific runtime capability disclosures. The read-only tracer now uses only its declared search and read tools.
 
