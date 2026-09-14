@@ -1,0 +1,73 @@
+{
+  "id": "R-010",
+  "date": "2026-09-14",
+  "suite": {
+    "code-ops-suite": "1.74.0"
+  },
+  "target": {
+    "label": "mid-size TypeScript SaaS web application (payments, background jobs, third-party data acquisition, public scoring surface)",
+    "class": "mid-size-typescript-saas-web-app",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 74,
+    "confirmed": 28,
+    "refutation": {
+      "paneled": 4,
+      "survived": 4,
+      "reproExempt": 25,
+      "panelEligible": 4
+    },
+    "severity": {
+      "critical": 0,
+      "high": 4,
+      "medium": 18,
+      "low": 35,
+      "nit": 17
+    }
+  },
+  "tokens": {
+    "operative": 2592111,
+    "dispatches": 21
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 164,
+    "slicesSwept": 12,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 11,
+    "fresh": 11,
+    "refreshed": 0,
+    "falsified": 1
+  },
+  "config": {
+    "lead": "opus-5",
+    "operatives": "opus-5"
+  },
+  "host": "claude-code",
+  "lessons": [
+    "L-020",
+    "L-027",
+    "L-034",
+    "L-043",
+    "L-044",
+    "L-045",
+    "L-046",
+    "L-047",
+    "L-048",
+    "L-049",
+    "L-050"
+  ],
+  "notes": "Fourth run against this target class and the first on suite 1.74.0, under the identical configuration of the 2026-08-09 row (strong lead over strong operatives), so the suite version is what moved. Deltas: dispatches 22 to 21, findings 126 to 74, CONFIRMED 49 to 28 (ratio 0.39 to 0.38), covered negatives 176 to 164, highs 24 to 4, paneled 18 of 18 to 4 of 4 with survival 0.89 to 1.00, operative tokens roughly 2.98M to 2.59M, CONFIRMED per 100k 1.65 to 1.08; atlas 11 sections all consumed fresh with 1 falsified. First run in the store to carry a host line. **The suite’s version 4 orchestration machinery cannot run under the protocol’s own strong-lead configuration (L-043)**: the run contract compiler refuses any lead below frontier and the security campaign checker requires that contract, so the pre-registered strong-lead arms are unrunnable. Runtime artifacts must be git-ignored while placement expects the tracked vault runs folder (L-044). The anchor revalidator flagged 20 of the first 30 entries while a lead exact check found every anchor fresh: its path grammar admits no square brackets or spaces (L-045) and bare-filename masking recurred (L-027). An atlas section read fresh while wrong about counts evidenced by paths outside its own scope (L-046). **Panels again refined more than they killed (L-034)**: of four highs, one was promoted to confirmed on a panelist-built execution probe stronger than the finder’s, one had its cost corrected downward by half, and one mock-bounded confirmed high was cut two severity levels by an intent-lens panel, so a mock-bounded repro should not exempt a high (L-047). The operative tier rule held for single findings but recurred at chain level (L-020). Finished reviewers left test runners alive unseen by ledger or shape gate (L-048). A dirty target forced a committed-state worktree snapshot on a short path, with no skill guidance (L-049). Unparseable host background output forced the lead to re-emit every report (L-050). Fourteen prior fixes observed holding and recorded as verified-in edges."
+}
