@@ -201,11 +201,14 @@ Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs` and
 
 The `PreToolUse` hook `enforce-traceless.mjs` is the tool-layer backstop for the
 traceless-publishing rule. When the Bash command about to run matches a `git commit` or a `gh
-pr create|merge`, it scans the whole command string with the bundled `scan-ai-tells.mjs` and
-exits `2` on a hit, which blocks the call. Every other path fails open at exit `0`, including a
-scanner failure, because `scan-ai-tells.mjs --git <range>` in CI is the fail-closed backstop.
+pr create|merge`, it runs the bundled `scan-ai-tells.mjs --command`. That mode scans the raw
+command string and, on separate lines, each message, trailer, title, and body argument value
+the command would publish, including heredoc bodies. Any scanner exit other than `0` makes the
+hook exit `2`, which blocks the call. A scanner that cannot spawn fails open at exit `0`. The
+fail-closed backstop is the `Traceless publishing (PR commits, title, body)` step in
+`.github/workflows/validate.yml`, which scans every pull request's commits, title, and body.
 The match tolerates a `git -C <dir>` or `git --flag=val` prefix ahead of the subcommand.
-Evidence: `plugins/code-ops-suite/hooks/enforce-traceless.mjs:1-22`.
+Evidence: `plugins/code-ops-suite/hooks/enforce-traceless.mjs:1-23`.
 
 ## Local judgment gate
 

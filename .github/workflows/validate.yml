@@ -244,6 +244,21 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/check-plugin-bump.mjs --base "origin/${{ github.base_ref }}"
 
+      # The fail-closed backstop behind the enforce-traceless tool hook. The range is exactly
+      # the PR's commits (base tip to PR head, not the synthetic merge commit), and the
+      # title and body travel through env, never interpolated into the script.
+      - name: Traceless publishing (PR commits, title, body)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          pr_text="$RUNNER_TEMP/pr-title-body.md"
+          node -e 'require("node:fs").writeFileSync(process.argv[1], `${process.env.PR_TITLE}\n\n${process.env.PR_BODY}\n`)' "$pr_text"
+          node scripts/scan-ai-tells.mjs --git "$BASE_SHA..$HEAD_SHA" "$pr_text"
+
 
   # The two devices in use are Windows and macOS. Ubuntu and Windows run on every change; macOS
   # costs ten Linux minutes per minute, so it runs the host-facing evals on the weekly schedule
