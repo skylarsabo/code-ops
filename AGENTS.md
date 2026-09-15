@@ -13,9 +13,10 @@ to break silently.
 - **Traceless publishing on ALL paths.** No AI or tool attribution trailers, emoji, or
   assistant-voice prose in commit messages or PR bodies, including direct commits that
   bypass the ship skill. Self-gate: `node scripts/scan-ai-tells.mjs <files...>` (or
-  `--git <range>`). The code-ops-suite `PreToolUse` hook (`enforce-traceless`) also
-  blocks a flagged `git commit` or `gh pr create|merge` at the tool layer, scanning the
-  command and each message, trailer, title, and body value it would publish. The CI step
+  `--git <range>`). The code-ops-suite `enforce-traceless` hook (`PreToolUse`, or
+  `tool.execute.before` on OpenCode) also blocks a flagged `git commit` or
+  `gh pr create|merge` at the tool layer, scanning the command and each message, trailer,
+  title, and body value it would publish. The CI step
   "Traceless publishing (PR commits, title, body)" is the fail-closed backstop.
 - **Model review gates are opt-in, and rare.** The deterministic gate chain and the lead's
   own read of the final diff run on every change. `code-ops-suite:local-review-gate` (deep
@@ -57,6 +58,9 @@ reads `CLAUDE.md`, Codex reads `AGENTS.md`, opencode reads `AGENTS.md` and falls
 ships both files, opencode never reads `CLAUDE.md` here, so anything living in only one
 copy is invisible to whichever hosts read the other.
 
+Skill ids here use the colon form, such as `code-ops-suite:repo-docs`. OpenCode calls the
+same skills by hyphenated names, such as `code-ops-suite-repo-docs`.
+
 Edit `CLAUDE.md`, then copy it over `AGENTS.md` in the same commit. Lint pins them
 byte-identically and fails closed on a divergence.
 
@@ -90,6 +94,11 @@ mechanisms are on by default and have documented environment switches. Use
 `scripts/co.mjs context skim|query` before loading large files or maps. The switch names,
 contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
 `MEASUREMENTS.md` under `code-ops-docs/`.
+
+Host coverage differs, and `INFRASTRUCTURE.md` holds the per-host table. Claude and Codex
+run all six commands. Grok prints nothing for the routing and ladder cards, so that guidance
+reaches it through instruction files only. OpenCode ports publishing, routing, compaction,
+digest, and index as plugin events, and has no ladder card or session receipt.
 
 ## Before declaring any change done
 
