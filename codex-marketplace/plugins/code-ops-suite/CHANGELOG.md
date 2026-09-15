@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.77.4
+- `run-contract.mjs` now rejects a calibration block whose lead model serves both the strong and frontier rungs, because such an arm runs the frontier model and cannot measure a strong-versus-frontier gap. The error names the model.
+- The generated tier page now states that version 4 run contracts require a frontier lead, that a calibration block is the only exception, and that contracts take bare model ids.
+- The calibration protocol states that a point release keeps its family class name in the `config:` line while it serves the same rung.
+
 ## 1.77.3
 - The pinned report-persistence passage now states that a brief's report path governs over any default reporting instruction in an agent definition.
 - The `reviewer` and `explorer` bodies name the shell, search, and file-read tools by capability instead of by host tool name.
