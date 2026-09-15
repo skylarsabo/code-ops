@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.15
+- The vendored `revalidate-register.mjs` now reads a citation whose first segment starts with a dot, such as `.github/workflows/validate.yml:1`, as the whole path instead of dropping the dot and reporting AMBIGUOUS.
+
 ## 2.18.14
 - The pinned report-persistence passage now states that a brief's report path governs over any default reporting instruction in an agent definition.
 - The `verifier` writes its full report to a report path its brief names and returns only a pointer, and otherwise returns the report inline. It still never edits the source under evaluation.

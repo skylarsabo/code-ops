@@ -3,6 +3,9 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.77.5
+- The vendored `revalidate-register.mjs` now reads a citation whose first segment starts with a dot, such as `.github/workflows/validate.yml:1`, as the whole path instead of dropping the dot and reporting AMBIGUOUS.
+
 ## 1.77.4
 - `run-contract.mjs` now rejects a calibration block whose lead model serves both the strong and frontier rungs, because such an arm runs the frontier model and cannot measure a strong-versus-frontier gap. The error names the model.
 - The generated tier page now states that version 4 run contracts require a frontier lead, that a calibration block is the only exception, and that contracts take bare model ids.
