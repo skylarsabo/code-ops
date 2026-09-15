@@ -131,7 +131,9 @@ const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', '
 // [ or ( inside a path is never a fresh start, which keeps retries on a long path from multiplying.
 // The [ or ( lookahead runs before the lookbehind, so the lookbehind scans back only at those two
 // chars and a long / or ./ run adds no per-position backward scan.
-const REF_RE = /(?:\b|(?=[[(])(?<=(?:^|[^\w.\/[\])-])(?:\.{0,2}\/)*))((?:(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\/)*(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
+// PAR-013: a citation may also start on a . that opens a dot-led segment (.github/x.yml:1), with the
+// same token-start lookbehind. A . before . or / fails the \w lookahead, so traversal is unchanged.
+const REF_RE = /(?:\b|(?=\.\w)(?<=^|[^\w.\/[\])-])|(?=[[(])(?<=(?:^|[^\w.\/[\])-])(?:\.{0,2}\/)*))((?:(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\/)*(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
 // L-045: a backtick-delimited citation may carry spaces in a path segment (`docs/My Folder/guide.md:3`).
 // Unquoted prose never gets this reading. Inside backticks a space is still ambiguous with a command
 // (`node scripts/x.mjs:3`), so the item-ref extraction takes the spaced reading only when it escapes
