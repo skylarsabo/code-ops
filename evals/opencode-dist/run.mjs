@@ -9,6 +9,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { COMMAND_CASES } from '../ai-tells/command-cases.mjs';
 import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, TIER_ORDER, leadInherits } from '../../scripts/model-tiers.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -275,7 +276,9 @@ const out = {
   clean: await run('git commit -m "Wait out a busy git index lock"'),
   ungated: await run('git status --short'),
   otherTool: await run('git commit -m "Generated with Claude Code"', 'read'),
+  cases: [],
 };
+for (const command of ${JSON.stringify(COMMAND_CASES.map((entry) => entry.command))}) out.cases.push(await run(command));
 console.log(JSON.stringify(out));
 `;
 const result = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { encoding: 'utf8' });
@@ -287,6 +290,10 @@ if (result.status !== 0) {
   expect(verdicts.clean === 'allowed', `traceless plugin should allow a clean commit, got ${verdicts.clean}`);
   expect(verdicts.ungated === 'allowed', `traceless plugin should ignore a non-publishing command, got ${verdicts.ungated}`);
   expect(verdicts.otherTool === 'allowed', `traceless plugin should only gate the bash tool, got ${verdicts.otherTool}`);
+  COMMAND_CASES.forEach(({ name, blocked }, index) => {
+    const want = blocked ? 'blocked' : 'allowed';
+    expect(verdicts.cases[index] === want, `traceless plugin should have ${want} ${name}, got ${verdicts.cases[index]}`);
+  });
 }
 
 // ---- 7. the registry checker holds the table it validates ----------------------

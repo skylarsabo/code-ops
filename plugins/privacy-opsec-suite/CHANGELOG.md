@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.14
+- The vendored `scan-ai-tells.mjs` gains a `--command <file>` mode. It scans a shell command string and, as a second target, each message, trailer, title, body, and field value that `git commit`, `gh pr create|edit|merge`, or `gh api` would publish, each on its own line. File and `--git` scans are unchanged.
+
 ## 1.20.13
 - New pinned `CONVENTIONS.md` §13, Code standard. It carries the house code standard's core clause: design every change first, write the smallest correct solution, abstract only on evidence, measure before micro-optimizing, comment reasons, verify in proportion to risk, and never repeat an unchanged check.
 

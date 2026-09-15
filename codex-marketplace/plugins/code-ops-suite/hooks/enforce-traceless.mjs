@@ -2,11 +2,12 @@
 // PreToolUse hook: tool-layer backstop for the traceless-publishing rule.
 //
 // Reads a coding-agent PreToolUse payload from stdin. When the Bash command about to
-// run is a commit or PR-open/-merge, the full command string is scanned with the
-// bundled scan-ai-tells.mjs for AI/tooling trace before the tool call is allowed to
-// proceed. A hit blocks the call (exit 2); everything else, including any scanner
-// infra failure, fails open (exit 0), because CI (`scan-ai-tells.mjs --git <range>`)
-// is the fail-closed backstop this hook only shortens the feedback loop for.
+// run is a commit or PR-open/-merge, the bundled scan-ai-tells.mjs scans it in --command
+// mode before the tool call proceeds: the raw command string, and each message, trailer,
+// title, and body argument value the command would publish, on its own line. A scanner
+// exit other than 0 blocks the call (exit 2). A scanner that cannot spawn fails open
+// (exit 0), because the "Traceless publishing (PR commits, title, body)" step of
+// .github/workflows/validate.yml is the fail-closed backstop on every pull request.
 //
 //   node hooks/enforce-traceless.mjs   (reads the PreToolUse JSON payload on stdin)
 
@@ -55,7 +56,7 @@ function main() {
   const tmpFile = join(tmpdir(), `traceless-hook-${randomUUID()}.txt`);
   try {
     writeFileSync(tmpFile, command, 'utf8');
-    execFileSync(process.execPath, [scannerPath, tmpFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync(process.execPath, [scannerPath, '--command', tmpFile], { stdio: ['ignore', 'pipe', 'pipe'] });
     return 0; // scanner exited 0, clean
   } catch (e) {
     if (typeof e.status === 'number') {

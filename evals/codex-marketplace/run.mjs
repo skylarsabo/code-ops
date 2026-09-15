@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLAUDE_ALIAS_TIER } from '../../scripts/model-tiers.mjs';
+import { COMMAND_CASES } from '../ai-tells/command-cases.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -92,6 +93,10 @@ const allowed = run(hook, JSON.stringify({ tool_name: 'Bash', tool_input: { comm
 expect(blocked.status === 2, `traceless hook should block a Codex-shaped traced commit payload, got ${blocked.status}`);
 expect(blockedExec.status === 2, `traceless hook should block a Codex exec_command payload, got ${blockedExec.status}`);
 expect(allowed.status === 0, `traceless hook should allow a Codex-shaped safe payload, got ${allowed.status}`);
+for (const { name, command, blocked: shouldBlock } of COMMAND_CASES) {
+  const { status } = run(hook, JSON.stringify({ tool_name: 'Bash', tool_input: { command } }));
+  expect(status === (shouldBlock ? 2 : 0), `traceless hook should ${shouldBlock ? 'block' : 'allow'} ${name}, got ${status}`);
+}
 const hookManifest = JSON.parse(read(join(pluginsDir, 'code-ops-suite', 'hooks', 'hooks.json')));
 for (const event of ['PreToolUse', 'PostToolUse']) {
   expect((hookManifest.hooks?.[event] ?? []).every((group) => !('matcher' in group)), `${event} retains a Claude-only tool matcher`);
