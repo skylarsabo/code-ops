@@ -1,5 +1,9 @@
 # Changelog — researcher
 
+## 0.13.20
+- The conventions link the writing standard and the switch list as documents in the code-ops repository, and the README links the handbook and measurement pages the same way.
+- The vendored `skim.mjs` usage line names no repository path.
+
 ## 0.13.19
 - The vendored `revalidate-register.mjs` now reads a citation whose first segment starts with a dot, such as `.github/workflows/validate.yml:1`, as the whole path instead of dropping the dot and reporting AMBIGUOUS.
 
