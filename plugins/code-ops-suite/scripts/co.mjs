@@ -75,6 +75,7 @@ const TABLE = {
     proofs: 'check-proof-integrity.mjs',
     links: 'check-doc-links.mjs',
     citations: 'check-doc-citations.mjs',
+    handoff: 'check-handoff.mjs',
   },
   docs: {
     manifest: 'docs-manifest.mjs',

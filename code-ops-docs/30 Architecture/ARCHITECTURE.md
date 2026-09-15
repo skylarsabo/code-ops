@@ -46,21 +46,24 @@ The `validate` workflow runs on pull requests, on pushes to `main`, on a weekly 
 
 ## Host hooks
 
-The canonical manifest registers six commands across five events. Two commands run at
+The canonical manifest registers seven commands across six events. Two commands run at
 `PreToolUse`: `enforce-traceless.mjs` blocks publishing commands that carry an attribution
 trace, and `digest-rewrite.mjs` wraps an allowlisted command with `digest.mjs` through the
 host's input-rewrite contract. `index-refresh.mjs` runs after supported edit tools.
-`routing-card.mjs`, `session-receipt.mjs`, and `ladder-card.mjs` run at `SessionStart`,
-`SessionEnd`, and `SubagentStart`. There is no `PreCompact` command: Claude and Codex ignore
-plain `PreCompact` stdout, so their `SessionStart` projection adds a durable-state restore
-instruction when `source=compact` instead.
+`handoff-card.mjs` runs at `UserPromptSubmit`, once per operator prompt, and nudges toward
+`/code-ops-suite:handoff` once resident context crosses 200,000 tokens and again every further
+200,000-token band. `routing-card.mjs`, `session-receipt.mjs`, and `ladder-card.mjs` run at
+`SessionStart`, `SessionEnd`, and `SubagentStart`. There is no `PreCompact` command: Claude and
+Codex ignore plain `PreCompact` stdout, so their `SessionStart` projection adds a durable-state
+restore instruction when `source=compact` instead.
 
-Host parity is capability-based. Claude and Codex consume routing and ladder context. The
-installed Grok 1.0.13 command-hook contract consumes the digest `updatedInput` and runs the
-index and receipt side effects, but passive routing and ladder stdout is unavailable; paired
-`CLAUDE.md` and `AGENTS.md` files carry that doctrine. OpenCode ports traceless publishing,
-model floors, digest, index, routing, compaction, and the documentation MCP, but its current
-plugin API has no ladder or transcript-receipt callback. The [infrastructure
+Host parity is capability-based. Claude and Codex consume routing, ladder, and handoff-card
+context. The installed Grok 1.0.13 command-hook contract consumes the digest `updatedInput` and
+runs the index and receipt side effects, but passive routing, ladder, and handoff-card stdout is
+unavailable; paired `CLAUDE.md` and `AGENTS.md` files carry that doctrine. OpenCode ports
+traceless publishing, model floors, digest, index, routing, compaction, and the documentation
+MCP, but its current plugin API has no ladder, transcript-receipt, or handoff-card callback: it
+carries no transcript or token-usage data to compute the metric from. The [infrastructure
 reference](../50%20Platform/INFRASTRUCTURE.md) owns this matrix and the switches. The
 [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns exact payload and
 failure behavior. Evidence: `plugins/code-ops-suite/hooks/hooks.json`,

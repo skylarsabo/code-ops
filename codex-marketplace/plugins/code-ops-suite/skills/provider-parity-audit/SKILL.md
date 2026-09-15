@@ -36,6 +36,29 @@ Dispatch disjoint inventory units when the graph permits: canonical behavior, Co
 OpenCode projection, and installed Grok evidence. Each unit returns only `file:line` evidence,
 commands run, unavailable surfaces, and confidence.
 
+### Changed-files mode
+
+Add `--since <sha>` to scope a follow-up audit to what changed, instead of re-inventorying
+everything:
+
+```
+code-ops-suite:provider-parity-audit --since <sha>
+```
+
+When `<sha>` is not an ancestor of HEAD, or the prior `FINDINGS_REGISTER.md` is missing, run the
+full audit instead. Record why. Otherwise:
+
+- Scope is `git diff --name-only <sha>..HEAD` intersected with the scope list above, plus every
+  changed canonical file's generated projections. A changed renderer puts all of its projections
+  in scope.
+- A host's prior capability profile carries forward only when its installed version and its
+  renderer are unchanged since `<sha>`. Otherwise, re-profile that host.
+- The prior register's accepted gaps and fallbacks carry forward. Re-verify its open items with
+  `node <plugin-root>/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .`.
+- Phase 1's mechanical checks still run in full, because they are cheap and deterministic ground
+  truth.
+- The register records the scope mode, the base sha, and every carried-forward profile.
+
 ## Phase 1: establish mechanical ground truth
 
 Run both renderer checks and their focused evals:
@@ -118,9 +141,10 @@ against the host contract, wrapper, generated output, and focused eval before ac
 
 ## Done when
 
-- Claude, Codex, installed Grok, and OpenCode each have an explicit capability profile.
-- Every in-scope hook, agent, skill, script family, settings contract, renderer, and documented
-  workflow has a classification or a named coverage gap.
+- Claude, Codex, installed Grok, and OpenCode each have an explicit capability profile, fresh or
+  named as carried forward.
+- Every hook, agent, skill, script family, settings contract, renderer, and documented workflow
+  in the bound scope, full or `--since`, has a classification or a named coverage gap.
 - Both renderer checks, both generated-distribution evals, and the Grok compatibility eval have
   a recorded verdict.
 - Installed Grok validation and guide evidence are recorded when available; absence is

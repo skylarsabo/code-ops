@@ -58,7 +58,7 @@
 // An Anchor of `<REDACTED-LINE>` skips the DRIFTED comparison (line-existence only, advisory)
 // so the anchor rule never forces a secret substring into the register.
 
-import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, isAbsolute, join, sep, basename } from 'node:path';
 
@@ -99,6 +99,10 @@ if (files.length === 0 && !ledgerPath) {
 }
 if (strict && !profile) { console.error('x --strict needs --profile <finding|finding-rigor|leak|research|idea>'); process.exit(2); }
 root = resolve(root);
+// PAR-003: root itself may be reached through a symlink (a tmp mount, e.g.), so realpath it once
+// up front — a citation's real target is compared against this, not the literal `root` string.
+let rootReal = root;
+try { rootReal = realpathSync(root); } catch { /* root may not exist yet under --report-only tooling */ }
 
 // Strict-mode schema profiles: the labeled fields every item block must carry, per register type.
 const PROFILES = {
@@ -148,6 +152,36 @@ const VERIFIED_RE = /Verified-at:\s*([0-9a-f]{7,40}|HEAD)\b/i;
 // the report below, never a silent fall-back to plain line-existence checking.
 const ANCHOR_RE = /Anchor:\s*(?:`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)')/i;
 
+// PAR-003 (fix): restore what REF_RE's leading boundary dropped before a match, so the
+// confinement check downstream classifies every escaping form AMBIGUOUS, never FRESH — a
+// forward-slash traversal (../, ./, /), one followed by a dot-led/dash-led segment (../.foo,
+// ../-foo), a backslash-separated traversal (..\, .\, \), or a drive letter (C:\, C:/). Backslash
+// and drive-letter forms are flagged directly (`escaping: true`) instead of folded into the
+// restored path text: REF_RE's char class matches neither `\` nor `:`, so nothing survives for
+// `resolve()` to reject, and `resolve()`'s own backslash handling is win32-only — a citation
+// must classify the same on every host, not only on Windows. Both the backward scan and the
+// FWD_PREFIX_RE match run against a PATH_SCAN_MAX-bounded tail window, never the full preceding
+// block — a real traversal prefix is a handful of characters, but `before` can be the whole item
+// block, and a `$`-anchored regex retried from every earlier start position over an unbounded
+// string is its own quadratic trap (a prior fix already had to remove one for the same reason —
+// see L-045 in evals/script-guards).
+const PATH_SCAN_MAX = 4096;
+const FWD_PREFIX_RE = /(?:\.{0,2}\/)+[.-]?$/;
+function restoreCitationPrefix(before, matched) {
+  const window = before.length > PATH_SCAN_MAX ? before.slice(before.length - PATH_SCAN_MAX) : before;
+  let escaping = false;
+  let i = window.length - 1;
+  for (; i >= 0; i--) {
+    const c = window[i];
+    if (c === '\\' || (c === ':' && /[A-Za-z]/.test(window[i - 1] ?? ''))) { escaping = true; break; }
+    if (!/[\w.\-\\/:]/.test(c)) break; // left the path-shaped run immediately before the match
+  }
+  // A path-shaped run longer than the window hides its start, so fail closed rather than FRESH.
+  if (i < 0 && window.length < before.length) escaping = true;
+  const fwd = window.match(FWD_PREFIX_RE);
+  return { path: (fwd ? fwd[0] : '') + matched, escaping };
+}
+
 function isItemId(id, after, afterNext) {
   if (ID_IGNORE.has(id.split('-')[0].toUpperCase())) return false;
   // SCR-015: only a digit after the trailing '-' marks a longer numeric token (CVE-2021-44228);
@@ -194,6 +228,18 @@ function readLineAt(absPath, lineNo) {
     const line = readFileSync(absPath, 'utf8').split('\n')[lineNo - 1];
     return line ?? null;
   } catch { return null; }
+}
+
+// PAR-003 (fix): the literal-path confinement check only rules out an escaping path STRING — a
+// citation may still name a real in-root path that is itself a symlink or junction pointing
+// outside root, and a plain existsSync/statSync (used below) follows it silently. Resolve the
+// real filesystem path once links are followed and require it under root's own real path too
+// (root may itself be reached through a symlink), so an escaping target can't read FRESH just
+// because a same-named in-root link points at it.
+function realpathContained(absPath) {
+  let real;
+  try { real = realpathSync(absPath); } catch { return true; } // unreadable — let the caller's own existsSync gate it
+  return real === rootReal || real.startsWith(rootReal + sep);
 }
 
 // Walk the repo once (excluding .git/node_modules) so a bare-filename ref (cited without its
@@ -319,11 +365,11 @@ for (const file of files) {
     for (const s of spaced) cur.refs.push({ path: s.path, line: s.line });
     for (const m of block.matchAll(REF_RE)) {
       if (spaced.some((s) => m.index > s.start && m.index < s.end)) continue; // a tail of a spaced ref
-      // SEC-004 (fix): REF_RE's leading \b drops a path-traversal/absolute prefix (../, ./, /),
-      // which would silently re-root an escaping citation inside the repo and report it FRESH.
-      // Restore the prefix so the confinement check below classifies it AMBIGUOUS instead.
-      const esc = block.slice(0, m.index).match(/(?:\.{0,2}\/)+$/);
-      cur.refs.push({ path: (esc ? esc[0] : '') + m[1], line: Number(m[2]) });
+      // SEC-004/PAR-003 (fix): see restoreCitationPrefix — restores a dropped forward-slash
+      // prefix and flags a backslash/drive-letter one directly, so the confinement check below
+      // classifies every escaping form AMBIGUOUS instead of FRESH.
+      const restored = restoreCitationPrefix(block.slice(0, m.index), m[1]);
+      cur.refs.push({ path: restored.path, line: Number(m[2]), escaping: restored.escaping });
     }
     const v = block.match(VERIFIED_RE);
     if (v && !cur.verifiedAt) cur.verifiedAt = v[1];
@@ -344,6 +390,14 @@ for (const file of files) {
       status = 'NO-REF';
     } else {
       for (const r of item.refs) {
+        // PAR-003: a backslash-separated or drive-letter prefix was detected directly (see
+        // restoreCitationPrefix) rather than folded into `r.path` — resolve() cannot be trusted
+        // to reject it identically on every host, so it gates here before resolve() even runs.
+        if (r.escaping) {
+          status = escalate(status, 'AMBIGUOUS');
+          notes.push(`${r.path} escapes root — not checked`);
+          continue;
+        }
         const abs = resolve(root, r.path);
         if (abs !== root && !abs.startsWith(root + sep)) { // SEC-004: refuse to stat paths escaping root
           status = escalate(status, 'AMBIGUOUS');
@@ -352,6 +406,11 @@ for (const file of files) {
         }
         let target = null; // the resolved file whose cited line we can anchor-check (null if line is out of range)
         if (existsSync(abs) && statSync(abs).isFile()) {
+          if (!realpathContained(abs)) { // PAR-003: an in-root symlink/junction may target outside root
+            status = escalate(status, 'AMBIGUOUS');
+            notes.push(`${r.path} resolves outside root via symlink — not checked`);
+            continue;
+          }
           const lc = lineCount(abs);
           if (lc >= 0 && r.line > lc) { status = escalate(status, 'MOVED'); notes.push(`${r.path}:${r.line} > ${lc} lines`); }
           else target = abs;
@@ -428,13 +487,14 @@ for (const file of files) {
             const refuted = lines.filter((l) => /\bREFUTED\b/.test(l));
             for (const l of refuted) {
               // REF_RE is global, so String#match would return bare match strings with no captures.
-              // Take the first match, and restore its ../, ./ or / prefix as the item-ref path does (SEC-004).
+              // Take the first match, and restore its prefix as the item-ref path does (SEC-004/PAR-003).
               const rm = l.matchAll(REF_RE).next().value;
-              const ref = rm && [rm[0], (l.slice(0, rm.index).match(/(?:\.{0,2}\/)+$/)?.[0] ?? '') + rm[1], rm[2]];
+              const restored = rm && restoreCitationPrefix(l.slice(0, rm.index), rm[1]);
+              const ref = rm && [rm[0], restored.path, rm[2]];
               const anc = l.match(ANCHOR_RE);
               const val = anc && (anc[1] ?? anc[2] ?? anc[3]);
-              const abs = ref && resolve(root, ref[1]);
-              const ok = ref && val && abs && (abs === root || abs.startsWith(root + sep)) && (readLineAt(abs, Number(ref[2])) ?? '').includes(val);
+              const abs = ref && !restored.escaping && resolve(root, ref[1]);
+              const ok = ref && val && abs && (abs === root || abs.startsWith(root + sep)) && realpathContained(abs) && (readLineAt(abs, Number(ref[2])) ?? '').includes(val);
               if (!ok) { schemaFail = true; notes.push('REFUTED verdict without a re-greppable file:line + anchor for the killing guard'); break; }
             }
             if (refuted.length > lines.length / 2 && !/\bTier\b[^\n]*\bSPECULATIVE\b/i.test(item.block)) {

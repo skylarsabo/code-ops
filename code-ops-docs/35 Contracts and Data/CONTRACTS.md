@@ -32,6 +32,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Over-build scanner](#over-build-scanner)
 - [Deferral harvest](#deferral-harvest)
 - [Ladder card hook](#ladder-card-hook)
+- [Handoff card hook](#handoff-card-hook)
 - [Symbol index and query](#symbol-index-and-query)
 - [Atlas claims and scope suggestion](#atlas-claims-and-scope-suggestion)
 - [Documentation manifest](#documentation-manifest)
@@ -494,6 +495,50 @@ hook returns no permission decision. On installed Grok 1.0.13 it emits nothing b
 `SubagentStart` stdout is ignored; `CLAUDE.md` and `AGENTS.md` carry the same ladder doctrine.
 OpenCode has no typed subagent-start callback. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
 `plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
+
+## Handoff card hook
+
+`hooks/handoff-card.mjs` runs at `UserPromptSubmit` on Claude and Codex and, SPECULATIVE pending
+calibration, nudges the operator and the lead once resident context crosses 200,000 tokens and
+again every further 200,000-token band. It is on by default. It does nothing when
+`CODE_OPS_HANDOFF_CARD` is `off`, `0`, or `false`, set in the canonical environment; rendered
+hosts use their documented process environment. No other switch exists. The Claude host contract
+was confirmed against `docs.claude.com/en/docs/claude-code/hooks-guide`: `UserPromptSubmit`
+fires once per prompt, before Claude processes it, with no matcher support, carrying
+`session_id` and `transcript_path` on stdin alongside every other common hook field. Output
+carries `systemMessage` (shown to the operator, a top-level field common to most events) and
+`hookSpecificOutput.additionalContext` (added to the model's context), which the hook sets to
+the same text. The hook never returns `permissionDecision` and never exits 2, because that exit
+code blocks and erases the prompt on this event; a nudge is advisory only. Evidence:
+`plugins/code-ops-suite/hooks/handoff-card.mjs:1-38` and
+`plugins/code-ops-suite/hooks/hooks.json`.
+
+The context metric is the last assistant turn's usage record — input plus cache-read plus
+cache-creation tokens — read from only the last 256 KiB of the transcript, never the whole file,
+reusing `normalizeUsage` and `projectSlug` from `scripts/transcript-lib.mjs` for the token math
+and the storage-path convention. A small per-session marker at `<host home>/code-ops/handoff/
+<project slug>/<session id>.json` records the highest band already nudged
+(`band = floor(context / 200000)`); the hook nudges again only on a higher band, and re-arms
+(clears the marker) once context falls back under 200,000, which a compaction typically causes.
+Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:40-91`.
+
+Codex documents an equivalent `UserPromptSubmit` event (OpenAI's `developers.openai.com/codex/hooks`,
+confirmed live at `learn.chatgpt.com/docs/hooks`) carrying `session_id` and `prompt` on stdin,
+with the same `hookSpecificOutput.additionalContext` output contract this plugin already uses
+for its other Codex-projected hooks; its documented event-specific field list does not include
+`transcript_path`, so a Codex payload that omits it degrades silently to no nudge, the same as a
+missing transcript file. Installed Grok 1.0.13 is treated as a passive event here, matching
+`routing-card.mjs` and `ladder-card.mjs`: the hook emits nothing when `GROK_PLUGIN_ROOT` is set,
+and `CLAUDE.md`/`AGENTS.md` carry the doctrine instead. OpenCode's plugin API has no transcript
+or usage-bearing callback — the same gap `session-receipt.mjs` documents — so this hook is not
+ported there; its nearest hook, `chat.message`, fires per submitted message and can inject a
+context `Part`, but carries no usage or token data to compute the metric from. Evidence:
+`code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
+`code-ops-docs/35 Contracts and Data/CONTRACTS.md#session-receipt-hook`.
+
+The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
+`transcript_path`, a missing or unreadable transcript file, a tail window with no assistant
+usage, or any thrown error exits 0 with no output. Evidence: `evals/handoff-card/run.mjs`.
 
 ## Symbol index and query
 

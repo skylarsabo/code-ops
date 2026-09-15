@@ -288,6 +288,7 @@ const HOOK_PURPOSES = new Map([
   ['routing-card.mjs', 'prints the routing card at session start and a restore instruction after compaction'],
   ['session-receipt.mjs', 'appends a local session receipt row with token usage, tool calls, and model mix'],
   ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
+  ['handoff-card.mjs', 'nudges the operator and the lead to hand off once resident context crosses 200,000 tokens, and again every further 200,000'],
 ]);
 
 function bundledHooks(pluginName) {

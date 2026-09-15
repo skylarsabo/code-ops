@@ -1,5 +1,10 @@
 # Changelog — researcher
 
+## 0.13.21
+- The vendored `revalidate-register.mjs` reads a backslash traversal, a backslash drive letter, a traversal before a dot-led or dash-led segment, an in-root symlink to an outside target, and an escaping prefix longer than its scan window as AMBIGUOUS instead of FRESH.
+- The vendored `co.mjs` lists the `check handoff` verb, which resolves where `code-ops-suite` ships its checker.
+- `CONVENTIONS.md` names the `code-ops-suite` handoff card among the session mechanisms.
+
 ## 0.13.20
 - The conventions link the writing standard and the switch list as documents in the code-ops repository, and the README links the handbook and measurement pages the same way.
 - The vendored `skim.mjs` usage line names no repository path.

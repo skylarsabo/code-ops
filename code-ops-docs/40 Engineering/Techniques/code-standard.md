@@ -102,6 +102,13 @@ fix-and-verify pass, and continue a review-fix-review loop only on new evidence.
 edits so one gate run covers them. The §11 cascade circuit-breaker owns the stop after repeated
 failed fixes.
 
+Start each phase — fix, integrate, rework — with a fresh operative, briefed at the changed files
+and the prior report path. Never send a finished operative new work. A resumed operative
+re-reads its whole history every turn, and one measured run reached about 4.1 million
+token-equivalents across fix, rework, and two integrations. This cap does not reach
+dispatch-ledger recovery. Resuming a hung or failed unit within the same phase stays allowed
+there.
+
 ## What backs each rule
 
 A rule is mechanically backed when a script reports a violation without a reader. Review holds
@@ -118,7 +125,7 @@ every other rule: the lead's read of the final diff on every change, plus the le
 | 7. Comments | `scan-overbuild.mjs` COMMENTED-CODE, advisory. | Narration, density, and stale comments. |
 | 8. No slop | `scan-overbuild.mjs` COMMENTED-CODE and DUPLICATE-HELPER, advisory. | Every other tell in the `normalize` list. |
 | 9. Proportionate verification | `scan-overbuild.mjs` TEST-BLOAT, advisory. | Distinct, non-tautological tests, and review depth against risk. |
-| 10. No repeated work | `atlas-check.mjs` reports section freshness. `local-review-gate` receipts bind an exact SHA, and a new commit voids them. | Whether a re-run had a changed input or a disputed result. |
+| 10. No repeated work | `atlas-check.mjs` reports section freshness. `local-review-gate` receipts bind an exact SHA, and a new commit voids them. | Whether a re-run had a changed input or a disputed result, and whether each phase started a fresh operative. |
 
 Only NEW-DEPENDENCY blocks. Every other scanner tell is a lead for review, and a clean scan is not
 proof of a right-sized change. The [scanner header](../../../scripts/scan-overbuild.mjs) states its

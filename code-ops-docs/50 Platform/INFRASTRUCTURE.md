@@ -35,11 +35,11 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers six commands across five events in
+The code-ops-suite package registers seven commands across six events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
-the required event contract. Five fail open on every path. The traceless guard intentionally
+the required event contract. Six fail open on every path. The traceless guard intentionally
 blocks a publishing command when it detects a trace and fails open on infrastructure errors.
-Four commands carry an off switch, read from the canonical `.claude/settings.json`
+Five commands carry an off switch, read from the canonical `.claude/settings.json`
 environment. Rendered hosts use their documented process environment:
 
 ```json
@@ -52,6 +52,7 @@ environment. Rendered hosts use their documented process environment:
 | `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
+| `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs` |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
 
@@ -95,6 +96,11 @@ The session-receipt ledger is `<host home>/code-ops/session-receipts.jsonl`, or 
 `context-audit.mjs receipts --purge-before <ISO date>` is the only thing that removes rows, so
 retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`.
 
+The handoff-card marker store is `<host home>/code-ops/handoff/<project slug>/<session id>.json`,
+one small file per session holding the highest 200,000-token band already nudged. It has no
+override variable and nothing purges it automatically; delete the directory to purge it.
+Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:79-92`.
+
 `context-audit.mjs --host codex` reads local Codex session JSONL, filters to the current
 directory unless `--all` is present, and normalizes current response usage. A receipt follows
 child rollout `parent_thread_id` links rather than assuming Claude's nested directory layout.
@@ -125,6 +131,7 @@ byte-identical packaging.
 | Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Unavailable: no typed subagent-start callback |
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Unavailable: no transcript callback |
+| Handoff card | Native | Instruction files only; passive stdout unavailable | Projected hook; silent if the payload omits `transcript_path` | Unavailable: no transcript or usage callback |
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
 the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,

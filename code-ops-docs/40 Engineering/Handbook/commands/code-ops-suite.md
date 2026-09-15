@@ -795,19 +795,29 @@ afterward.
 Write applies when a long run is near a context limit, ending, or changing hands. It captures
 the run's true state as `HANDOFF.md` in the dated artifact folder: the goal and the state of
 play (phases complete, in flight, and not started, the automation level, and the operator
-steering), every register and artifact path stamped `Verified-at: <sha>`, the decisions made
-with the options rejected, the traps and dead ends (approaches that failed, and mistakes the
-successor will be tempted to repeat), and the in-flight boundaries with `file:line` pointers
-each carrying a verbatim Anchor. Before handing over, run `co scan redaction HANDOFF.md`. That
-is the mechanical floor under the secrets rule, because a handoff travels further than a
-register. The rule throughout is state, not instructions. Describe what is true, such as "the
-leak gate is implemented, the register sweep is not started", and never what to do next.
+steering, with merged-PR history as one `base..head` range rather than a per-PR list), every
+register and artifact path stamped `Verified-at: <sha>`, the decisions made with the options
+rejected, the traps and dead ends (approaches that failed, and mistakes the successor will be
+tempted to repeat), the in-flight boundaries with `file:line` pointers each carrying a verbatim
+Anchor, the open items and unanswered operator decisions (one line each, ordered by priority,
+carrying `Owner: agent` or `Owner: operator`, `Done when: <an observable check>`, and a
+pointer), the operator's authority grants in their exact words with scope (none of it carries
+into the resumed session until re-granted), and any analysis, measurement, or proposal the next
+session needs, written to a run-folder file and pointed at rather than kept only in the
+conversation. The file never restates what `git log`, a register, or a report already holds,
+and it stays at or under the size cap `check-handoff.mjs` enforces (about 6 KB), with detail
+pushed into the pointed-at files. Before handing over, run `co scan redaction HANDOFF.md` and
+`co check handoff HANDOFF.md`. Those are the mechanical floor under the secrets rule and under
+the file's required shape, because a handoff travels further than a register. The rule
+throughout is state, not instructions. Describe what is true, such as "the leak gate is
+implemented, the register sweep is not started", and never what to do next.
 
 Resume treats every claim as context to verify rather than fact to trust. It runs
 `revalidate-register.mjs` on every named register and checks the anchored pointers, where a
 `DRIFTED` pointer is stale state. It re-runs the deterministic baseline when the tree moved,
 then re-plans from what verified, surfacing contradictions at a checkpoint instead of silently
-re-deciding.
+re-deciding. It then presents the open items to the operator and asks them to re-grant any
+authority the handoff recorded before publishing, merging, or another consequential action.
 
 **Why it's useful.** Registers carry findings across phases, but nothing else carried
 decisions, rejected approaches, and in-flight boundaries across a context limit. That is the
@@ -976,7 +986,10 @@ standalone.
 
 - **Phase 0** binds the repository revision, host and plugin versions, contracts, settings, and
   full scope. The scope includes canonical hooks, agents, skills, scripts, manifests,
-  documentation, both renderers, and generated host trees.
+  documentation, both renderers, and generated host trees. `--since <sha>` narrows Phase 0 to
+  files changed since that sha, plus their generated projections. It carries forward any host
+  profile or accepted register item still current. It falls back to the full scope when the
+  prior register is missing, or `<sha>` is not an ancestor of HEAD.
 - **Phase 1** runs both renderer checks, both distribution evals, and the Grok compatibility
   eval. When Grok is installed, it also records `grok --version`, direct plugin validation, and
   the installed hook guide as local runtime evidence.

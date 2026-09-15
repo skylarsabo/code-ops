@@ -1,5 +1,10 @@
 # Changelog — rigor
 
+## 2.18.17
+- The vendored `revalidate-register.mjs` reads a backslash traversal, a backslash drive letter, a traversal before a dot-led or dash-led segment, an in-root symlink to an outside target, and an escaping prefix longer than its scan window as AMBIGUOUS instead of FRESH.
+- The vendored `co.mjs` lists the `check handoff` verb, which resolves where `code-ops-suite` ships its checker.
+- `CONVENTIONS.md` names the `code-ops-suite` handoff card among the session mechanisms.
+
 ## 2.18.16
 - The plugin now bundles the artifact grammars as `reference/artifact-grammars.md`, and `CONVENTIONS.md` cites that copy for the register and ledger grammars.
 - The conventions link the writing standard and the switch list as documents in the code-ops repository, and the README links the handbook and measurement pages the same way.

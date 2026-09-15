@@ -139,6 +139,33 @@ means the rule reads, and the receipt of the `--by-arm` run. Evidence:
 `plugins/code-ops-suite/hooks/session-receipt.mjs:68-71`, `scripts/context-audit.mjs:93-132`,
 and `scripts/transcript-lib.mjs:212`.
 
+## Pre-registered: handoff-card threshold
+
+`hooks/handoff-card.mjs` (switch `CODE_OPS_HANDOFF_CARD`) nudges toward `/code-ops-suite:handoff`
+once a session's resident context, read from the last assistant turn's usage record, crosses
+200,000 tokens, and again every further 200,000-token band. That threshold and band width are
+**SPECULATIVE**: chosen from the baseline's own resident-context evidence (this repository's
+`main` thread averaged 986,553,451 cache-read tokens across 3,139 assistant messages, so a
+per-turn context in the hundreds of thousands is ordinary, not exceptional) rather than from a
+matched on/off comparison. This row pre-registers the metric and the decision rule before any
+such comparison exists, per the protocol the ladder-card and index rows above already follow.
+
+**Metric.** Once `hooks/session-receipt.mjs` is extended to record it (not yet done), each
+session receipt's `arms` object would carry `handoffCard: true|false` the way it already carries
+`digest`, `ladderCard`, and `index`, and the row would carry the highest band the marker file
+reached during the session, alongside the existing `contextAtEnd` field the hook itself computes
+independently. Until that extension lands, the only evidence available is the marker files
+themselves and operator report.
+
+**Decision rule, fixed before any row exists.** The threshold stays at 200,000 when sessions
+that received at least one nudge show a higher share of turns starting a `/code-ops-suite:handoff`
+within one further band than sessions with the switch off, with no rise in sessions abandoned
+mid-task. A threshold that fires too late (operators already past a natural workstream boundary
+before the first nudge) lowers it one band; a threshold that fires with no natural boundary
+nearby (nudges the same session repeatedly with no handoff opportunity) raises it. Any outcome
+that shows the card firing but changing no operator behavior removes the hook, the same rule
+the ladder card and index rows use.
+
 ## Effort sweep, Workstream D
 
 Effort level names do not carry across model generations, so the routing table in
