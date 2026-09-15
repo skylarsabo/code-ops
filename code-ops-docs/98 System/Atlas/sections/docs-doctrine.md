@@ -12,6 +12,8 @@ Citation validation reads current and not-applicable manifest targets instead of
 
 Linked hub collections expose explicit Markdown index notes; bare directories are not navigation targets. Local Markdown fragments name real headings rather than decorative labels. The house writing standard remains one authority in `40 Engineering/Techniques/writing-standard.md`, with mechanically pinned core clauses where host packages require local copies. The house code standard follows the same shape: `40 Engineering/Techniques/code-standard.md` is its single source, and `ENGINEERING_STANDARDS.md` points its performance and size sections there.
 
+Six technique pages are also execution specs: artifact grammars, atlas, calibration protocol, fleet standard, subagent trade-offs, and vault standard. Each ships byte-identical inside the plugins whose skills run against it, so the hub page stays the single source and an edit there must be re-synced before lint passes. Because those copies reach other repositories, the atlas page places the atlas at `<repo>-docs/98 System/Atlas/` and falls back to `<repo-root>/atlas/` only when a repository has no `<repo>-docs/` hub.
+
 Atlas doctrine distinguishes a portable content digest from its diagnostic commit stamp. The default workflow stages scoped changes before stamping. Historical `--at` stamps intentionally remain commit-only, and legacy manifests migrate on their next verified refresh.
 
 This section deliberately scopes substantive domain folders and documentation scripts rather than the hub root. Manifest digest updates and Atlas bookkeeping therefore do not invalidate the record by themselves. A source or canonical-document change still does.
