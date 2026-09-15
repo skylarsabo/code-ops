@@ -182,13 +182,35 @@ try {
     check(name, want ? new RegExp(`\\b${want}\\s+${id}\\b`).test(line) : /^\s*!!\s/.test(line) && !/FRESH/.test(line));
   }
 
+  // PAR-013 — a dot-led first segment starts the citation. Before the fix the match began after the
+  // dot, named github/workflows/validate.yml and hidden/x.ts, and read AMBIGUOUS through the
+  // same-name decoys. A dot after a word character stays inside the path it already belonged to.
+  const r13 = join(work, 'r13');
+  for (const p of ['.github/workflows/validate.yml', 'other/validate.yml', '.hidden/x.ts', 'y/x.ts', 'config.github/x.yml']) {
+    mkdirSync(dirname(join(r13, p)), { recursive: true });
+    writeFileSync(join(r13, p), 'l\n'.repeat(5));
+  }
+  const cases13 = [
+    ['BUG-131', '.github/workflows/validate.yml:1', 'FRESH', 'PAR-013 accept dot-led .github citation'],
+    ['BUG-132', 'see .hidden/x.ts:3', 'FRESH', 'PAR-013 accept dot-led hidden directory'],
+    ['BUG-133', 'config.github/x.yml:1', 'FRESH', 'PAR-013 dot after a word char keeps its path'],
+  ];
+  const reg13 = join(work, 'reg13.md');
+  writeFileSync(reg13, cases13.map(([id, loc]) => `## ${id}\nLocation: ${loc}\n`).join('\n'));
+  const out13 = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg13, '--root', r13, '--report-only']).out;
+  for (const [id, , want, name] of cases13) {
+    const line = out13.split('\n').find((l) => new RegExp(`\\b${id}\\b`).test(l)) || '';
+    check(name, new RegExp(`\\b${want}\\s+${id}\\b`).test(line));
+  }
+
   // L-045 — the widened grammar keeps its non-overlapping structure: long bracket, group, slash, and
   // backtick runs with no valid citation finish fast instead of backtracking without bound. The bare
-  // / and ./ runs pin the lookbehind ordering, which once scanned back from every position.
+  // / and ./ runs pin the lookbehind ordering, which once scanned back from every position. PAR-013: the
+  // .a run is sized like the a/ run, and the spaced .a run tries the dot-led start at every dot.
   const reg45p = join(work, 'reg45p.md');
   writeFileSync(reg45p, ['## BUG-470', `Location: ${'[[a]/'.repeat(20000)}x.ts`, `Location: ${'(a)/'.repeat(20000)}x`,
     `Location: ${'[a'.repeat(20000)}.ts:1`, `Location: \`${'a /'.repeat(20000)}.ts:1`, `Location: ${'a/'.repeat(5000)}x`,
-    `Location: ${'/'.repeat(80000)}`, `Location: ${'./'.repeat(40000)}`, ''].join('\n'));
+    `Location: ${'/'.repeat(80000)}`, `Location: ${'./'.repeat(40000)}`, `Location: ${'.a'.repeat(5000)}`, `Location: ${' .a'.repeat(40000)}`, ''].join('\n'));
   const t45 = Date.now();
   runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg45p, '--root', r45, '--report-only']);
   check('L-045 pathological path input completes under 5s', Date.now() - t45 < 5000);

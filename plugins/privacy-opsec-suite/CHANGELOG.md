@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.16
+- The vendored `revalidate-register.mjs` now reads a citation whose first segment starts with a dot, such as `.github/workflows/validate.yml:1`, as the whole path instead of dropping the dot and reporting AMBIGUOUS.
+
 ## 1.20.15
 - The pinned report-persistence passage now states that a brief's report path governs over any default reporting instruction in an agent definition.
 - The `privacy-reviewer` and `explorer` bodies name the shell, search, and file-read tools by capability instead of by host tool name, and the generated role contract header states each role's write capability.
