@@ -3,6 +3,13 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.79.0
+- New `hooks/handoff-card.mjs` runs at `UserPromptSubmit` and is on by default, off with `CODE_OPS_HANDOFF_CARD`. It reads only the transcript tail. When resident context crosses a 200,000-token band, it suggests a handoff once per band and re-arms after compaction. Claude and Codex run it, Grok ignores its output, and OpenCode has no equivalent event. The threshold is pre-registered in `MEASUREMENTS.md` as uncalibrated.
+- The `handoff` skill adds three sections. Open items carry an owner and a done-when check, Authority records grants that do not carry into the resumed session, and Carried context points at files that hold conversation-only analysis. A handoff no longer restates git history, and it stays under a 6 KB cap. Resume asks the operator to re-grant authority before publishing.
+- New `check-handoff.mjs`, reachable as `co.mjs check handoff`, fails a handoff with a missing section, an item without an owner or done-when check, an imperative item, or a size over the cap.
+- `provider-parity-audit` accepts `--since <sha>` to scope a follow-up audit to changed surfaces and their projections, and it carries forward unchanged host profiles.
+- The vendored `revalidate-register.mjs` reads a backslash traversal, a backslash drive letter, a traversal before a dot-led or dash-led segment, an in-root symlink to an outside target, and an escaping prefix longer than its scan window as AMBIGUOUS instead of FRESH.
+
 ## 1.78.0
 - The plugin now bundles six execution specs under `reference/`: artifact grammars, the atlas technique, the calibration protocol, the fleet standard, the subagent trade-offs routing table, and the vault standard. They are byte-identical copies of the hub pages, and both host packages carry them.
 - Skills that fill or check those specs read the bundled copy. Other hub pages are linked as documents in the code-ops repository, and target-repository atlas and ADR paths name the `<repo>-docs/` hub.

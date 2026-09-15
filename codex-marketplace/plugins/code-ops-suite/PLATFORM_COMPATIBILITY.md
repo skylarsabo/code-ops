@@ -9,10 +9,11 @@ This Codex package is generated from the canonical Claude package in the code-op
 - Claude slash-command spelling becomes the Codex named-workflow spelling, for example `code-ops-suite:codebase-audit`.
 - Claude agent `tools` and `model` frontmatter is removed because Codex does not use it for these role briefs. `agents/model-floors.json` preserves each source alias and canonical minimum tier for runtime routing checks.
 - Claude GitHub Action examples are omitted because they are not Codex runtime configuration.
-- `hooks/hooks.json` retains 6 hook commands on 5 events. Codex skips plugin hooks until the user reviews and trusts the hook definition.
+- `hooks/hooks.json` retains 7 hook commands on 6 events. Codex skips plugin hooks until the user reviews and trusts the hook definition.
   - `PreToolUse` `enforce-traceless.mjs`: blocks a commit or pull-request command whose published text carries attribution traces.
   - `PreToolUse` `digest-rewrite.mjs`: routes a simple shell command through the output digest so long output arrives compressed.
   - `PostToolUse` `index-refresh.mjs`: re-indexes a file right after a tool edits it, so context queries read the live tree.
+  - `UserPromptSubmit` `handoff-card.mjs`: nudges the operator and the lead to hand off once resident context crosses 200,000 tokens, and again every further 200,000.
   - `SessionStart` `routing-card.mjs`: prints the routing card at session start and a restore instruction after compaction.
   - `SessionEnd` `session-receipt.mjs`: appends a local session receipt row with token usage, tool calls, and model mix.
   - `SubagentStart` `ladder-card.mjs`: hands an implementer subagent the code-economy ladder card.

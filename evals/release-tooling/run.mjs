@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Regression eval for the plugin release-tooling scripts:
 //   scripts/sync-vendored.mjs, scripts/vendored-manifest.mjs,
-//   scripts/bump-plugin-version.mjs, scripts/check-plugin-bump.mjs
+//   scripts/bump-plugin-version.mjs, scripts/check-plugin-bump.mjs,
+//   scripts/integrate-branch.mjs (its pure, git-free exports only — see section 1f)
 //
 //   node evals/release-tooling/run.mjs   (exit 0 = pass)
 //
@@ -329,6 +330,130 @@ try {
       check('check-plugin-bump: version bump + real changelog bullet exits 0', rH.status === 0);
       check('check-plugin-bump: real changelog bullet reports OK', rH.stdout.includes('OK'));
     }
+  }
+
+  // ================================================================================
+  // 1f. integrate-branch.mjs — pure, git-free exports only (parseWorkflowJobSteps,
+  // classifyStep, selectSteps, pluginNeedsBump). Everything else in that script shells out
+  // to git and to the real gate/build scripts, which is what its --dry-run smoke run
+  // (invoked directly, not through this eval) exercises instead.
+  // ================================================================================
+  {
+    const mod = await import(pathToFileURL(join(SCRIPTS_DIR, 'integrate-branch.mjs')).href);
+
+    // A small fixture in the exact shape parseWorkflowJobSteps expects: two jobs, so job-block
+    // truncation at the next 2-space key is exercised, plus one of each step shape it handles.
+    const fixtureYaml = [
+      'jobs:',
+      '  structural-lint:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - uses: actions/checkout@deadbeef',
+      '        with:',
+      '          fetch-depth: 0',
+      '',
+      '      - name: Plain node step',
+      '        run: node scripts/lint-plugins.mjs',
+      '',
+      '      - name: Eval-dir step',
+      '        run: node evals/example-dir/run.mjs',
+      '',
+      '      - name: Block eval-dir step',
+      '        run: |',
+      '          node evals/other-dir/run.mjs',
+      '          node evals/other-dir/second.mjs',
+      '',
+      '      - name: Shell construct step',
+      '        run: |',
+      '          for f in evals/*/ANSWER_KEY.json; do',
+      '            node evals/score.mjs "$f" --check',
+      '          done',
+      '',
+      '      - name: Guarded step (PR only)',
+      '        if: github.event_name == \'pull_request\'',
+      '        run: node scripts/check-plugin-bump.mjs --base "origin/main"',
+      '',
+      '      - name: Env step',
+      '        env:',
+      '          FOO: bar',
+      '        run: node scripts/scan-ai-tells.mjs',
+      '  other-job:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - name: Not in the first job',
+      '        run: node scripts/lint-plugins.mjs',
+    ].join('\n');
+
+    const steps = mod.parseWorkflowJobSteps(fixtureYaml, 'structural-lint');
+    check('integrate-branch: parseWorkflowJobSteps finds every named run: step in the job, and none past its boundary', steps.length === 6 && steps.every((s) => s.name !== 'Not in the first job'));
+    check('integrate-branch: single-line run: is captured verbatim', steps[0].run === 'node scripts/lint-plugins.mjs');
+    check('integrate-branch: block run: joins its lines with a newline', steps[2].run === 'node evals/other-dir/run.mjs\nnode evals/other-dir/second.mjs');
+    check('integrate-branch: if: guard is detected', steps[4].hasIf === true && steps[0].hasIf === false);
+    check('integrate-branch: env: block is detected', steps[5].hasEnv === true && steps[0].hasEnv === false);
+
+    check('integrate-branch: classifyStep accepts a plain node step', mod.classifyStep(steps[0]).runnable === true);
+    check('integrate-branch: classifyStep rejects an if:-guarded step', mod.classifyStep(steps[4]).runnable === false && /if: guard/.test(mod.classifyStep(steps[4]).reason));
+    check('integrate-branch: classifyStep rejects an env: step', mod.classifyStep(steps[5]).runnable === false && /env\/secrets/.test(mod.classifyStep(steps[5]).reason));
+    check('integrate-branch: classifyStep rejects a shell-construct step', mod.classifyStep(steps[3]).runnable === false && /shell\/non-node/.test(mod.classifyStep(steps[3]).reason));
+
+    // Case: a changed file under evals/<dir>/ selects that dir's step.
+    {
+      const { selected, skipped } = mod.selectSteps({
+        steps, changedPaths: ['evals/example-dir/fixture.json'], full: false, evalDirRefersToScript: () => false,
+      });
+      check('integrate-branch: a changed file under evals/<dir>/ selects that dir\'s step', selected.some((s) => s.step.name === 'Eval-dir step'));
+      check('integrate-branch: an unrelated runnable step stays skipped', skipped.some((s) => s.step.name === 'Plain node step'));
+    }
+
+    // Case: a changed scripts/<name>.mjs selects the evals/<dir>/ step(s) that reference its
+    // basename, via the injected (git-free) evalDirRefersToScript lookup.
+    {
+      const { selected } = mod.selectSteps({
+        steps, changedPaths: ['scripts/lint-plugins.mjs'], full: false,
+        evalDirRefersToScript: (dir, basename) => dir === 'other-dir' && basename === 'lint-plugins.mjs',
+      });
+      check('integrate-branch: a changed script selects the evals/<dir>/ step that references it', selected.some((s) => s.step.name === 'Block eval-dir step'));
+      check('integrate-branch: it does not select an evals/<dir>/ step the lookup does not confirm', !selected.some((s) => s.step.name === 'Eval-dir step'));
+    }
+
+    // Case: a changed module outside scripts/ (a hook) selects its eval, but a changed run.mjs
+    // never matches by basename, because every eval has one.
+    {
+      const lookup = (dir, basename) => dir === 'other-dir' && ['ladder-card.mjs', 'run.mjs'].includes(basename);
+      const hook = mod.selectSteps({ steps, changedPaths: ['plugins/code-ops-suite/hooks/ladder-card.mjs'], full: false, evalDirRefersToScript: lookup });
+      check('integrate-branch: a changed hook module selects the evals/<dir>/ step that references it', hook.selected.some((s) => s.step.name === 'Block eval-dir step'));
+      const runner = mod.selectSteps({ steps, changedPaths: ['evals/unrelated/run.mjs'], full: false, evalDirRefersToScript: lookup });
+      check('integrate-branch: a changed run.mjs does not select another eval by basename', !runner.selected.some((s) => s.step.name === 'Block eval-dir step'));
+    }
+
+    // Case: an unrelated change selects nothing from the workflow steps (the structural chain,
+    // which integrate-branch.mjs always runs regardless of selection, lives outside this pure
+    // function and is exercised by the --dry-run smoke run instead).
+    {
+      const { selected } = mod.selectSteps({
+        steps, changedPaths: ['README.md'], full: false, evalDirRefersToScript: () => false,
+      });
+      check('integrate-branch: an unrelated change selects no workflow step', selected.length === 0);
+    }
+
+    // Case: --full selects every runnable step regardless of the changed set, but still skips
+    // an if:-guarded, env:-needing, or shell-construct step.
+    {
+      const { selected, skipped } = mod.selectSteps({
+        steps, changedPaths: [], full: true, evalDirRefersToScript: () => false,
+      });
+      check('integrate-branch: --full selects every runnable step', selected.length === 3 && selected.every((s) => s.reason === '--full'));
+      check('integrate-branch: --full still skips a guarded/shell-construct/env step', skipped.length === 3);
+    }
+
+    // Case: bump-detection idempotence. Before a bump the base and current versions are equal;
+    // after one the current version has moved, so a second pass over the same plan never
+    // reports the plugin as needing another bump. A brand-new plugin (absent at base) and an
+    // unreadable current plugin.json are the two edge rules the same function encodes.
+    check('integrate-branch: pluginNeedsBump is true when the version has not moved since base', mod.pluginNeedsBump('1.2.3', '1.2.3') === true);
+    check('integrate-branch: pluginNeedsBump is false once the version has moved (idempotent re-run)', mod.pluginNeedsBump('1.2.3', '1.3.0') === false);
+    check('integrate-branch: pluginNeedsBump treats a plugin absent at base as already differing', mod.pluginNeedsBump(null, '1.0.0') === false);
+    check('integrate-branch: pluginNeedsBump returns null when the current version cannot be read', mod.pluginNeedsBump('1.2.3', null) === null);
   }
 } finally {
   rmSync(work, { recursive: true, force: true });

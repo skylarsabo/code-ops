@@ -84,6 +84,9 @@ export const RUNTIME_SCRIPTS = [
   // overbuild` and `co scan deferrals` reach them from the suite's skills.
   { name: 'scan-overbuild.mjs', plugins: ['code-ops-suite'] },
   { name: 'harvest-deferrals.mjs', plugins: ['code-ops-suite'] },
+  // The structural floor under the handoff skill's write contract; only code-ops-suite ships
+  // the handoff skill, so no other plugin needs this copy.
+  { name: 'check-handoff.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.

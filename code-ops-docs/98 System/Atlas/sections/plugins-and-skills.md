@@ -4,7 +4,7 @@ Charter: canonical plugin packages and marketplace registration. Excludes genera
 
 The four packages under `plugins/` are the sole authored runtime surface. Each skill reads its plugin `CONVENTIONS.md`; shared doctrine stays there rather than being duplicated into skills. Structural lint makes that boundary mechanical through section references, copied-prose limits, model floors, handbook parity, and plugin version checks.
 
-Provider parity is behavioral rather than byte-identical. The provider-parity audit now inventories Claude, Codex, installed Grok, and OpenCode across contracts, agents, skills, scripts, hooks, settings, renderers, and runtime evidence. It distinguishes deterministic adapter proof from a live external model turn and records each host API gap instead of treating an absent callback as implemented.
+Provider parity is behavioral rather than byte-identical. The provider-parity audit now inventories Claude, Codex, installed Grok, and OpenCode across contracts, agents, skills, scripts, hooks, settings, renderers, and runtime evidence. It distinguishes deterministic adapter proof from a live external model turn and records each host API gap instead of treating an absent callback as implemented. A `--since <sha>` run narrows that inventory to changed surfaces and their projections, and carries forward a host profile only while that host's version and renderer are unchanged.
 
 `code-ops-suite` is the integration package. It owns repository scripts, hooks, the documentation MCP surface, the bounded run-contract/context compiler, the long-horizon runtime, and the `repo-docs` orchestrator. Its local-review gate composes rigor and privacy judgment before a pull request while leaving hosted CI deterministic. The other packages divide review depth, privacy posture, and research discovery. Cross-plugin orchestration is deliberately narrow: `everything` and `local-review-gate` are cross-suite entry points, while per-plugin sweeps stay within their package. Every new substantive run uses Run Contract v4; versions 1 through 3 remain readable for replay only.
 
@@ -34,7 +34,10 @@ The traceless scanner is one canonical script shared by the code-ops and privacy
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.
 
-The canonical package registers six hook commands across five events. `session-receipt.mjs`
+The canonical package registers seven hook commands across six events. `handoff-card.mjs` runs
+at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and suggests a handoff
+once per 200,000-token context band; Grok ignores its stdout and OpenCode has no equivalent.
+`session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
 Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex
 follows peer rollout `parent_thread_id` links, and Grok reads cumulative `updates.jsonl`

@@ -10,7 +10,7 @@
 import { safeFetchUrl, findTypes, readCapped } from '../../scripts/lib-docs.mjs';
 import { findThirdPartySpecs } from '../../scripts/check-no-deps.mjs';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSync, symlinkSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -210,10 +210,65 @@ try {
   const reg45p = join(work, 'reg45p.md');
   writeFileSync(reg45p, ['## BUG-470', `Location: ${'[[a]/'.repeat(20000)}x.ts`, `Location: ${'(a)/'.repeat(20000)}x`,
     `Location: ${'[a'.repeat(20000)}.ts:1`, `Location: \`${'a /'.repeat(20000)}.ts:1`, `Location: ${'a/'.repeat(5000)}x`,
-    `Location: ${'/'.repeat(80000)}`, `Location: ${'./'.repeat(40000)}`, `Location: ${'.a'.repeat(5000)}`, `Location: ${' .a'.repeat(40000)}`, ''].join('\n'));
+    `Location: ${'/'.repeat(80000)}`, `Location: ${'./'.repeat(40000)}`, `Location: ${'.a'.repeat(5000)}`, `Location: ${' .a'.repeat(40000)}`,
+    // PAR-003: a long run just ahead of a real citation, once with the escaping char (backslash)
+    // first so the backward scan exits on its first step, once with none so it runs its full
+    // PATH_SCAN_MAX-bounded walk without ever finding one — bounded either way, not O(block length).
+    `Location: ${'\\'.repeat(20000)}x.ts:1`, `Location: ${'/'.repeat(20000)}x.ts:1`, ''].join('\n'));
   const t45 = Date.now();
   runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg45p, '--root', r45, '--report-only']);
   check('L-045 pathological path input completes under 5s', Date.now() - t45 < 5000);
+
+  // PAR-003 — the SEC-004 prefix restore only recovered a forward-slash traversal prefix. A
+  // backslash traversal, a backslash drive-letter citation, or a forward-slash traversal followed
+  // by a dot-led or dash-led segment dropped their whole escaping prefix (REF_RE's char class
+  // matches neither `\` nor `:`, and a dot/dash right after `/` can't open a fresh match per
+  // PAR-013's own lookbehind) and read FRESH against a same-named in-root decoy. Each must read
+  // AMBIGUOUS exactly like a plain `../` traversal (SCR-003) does, on every host, not only
+  // Windows — the fix detects them directly rather than leaning on resolve()'s win32-only
+  // backslash handling. The control proves a genuine in-root citation still reads FRESH.
+  const rPar = join(work, 'rpar');
+  mkdirSync(rPar, { recursive: true });
+  writeFileSync(join(rPar, 'evil.js'), 'l\n'.repeat(20)); // same-named in-root decoy target
+  const casesPar = [
+    ['PARBUG-001', String.raw`..\x\evil.js:10`, 'AMBIGUOUS', 'PAR-003 reject backslash traversal'],
+    ['PARBUG-002', String.raw`C:\x\evil.js:10`, 'AMBIGUOUS', 'PAR-003 reject drive-letter (backslash) citation'],
+    ['PARBUG-003', '../.foo/evil.js:10', 'AMBIGUOUS', 'PAR-003 reject traversal + dot-led segment'],
+    ['PARBUG-004', '../-foo/evil.js:10', 'AMBIGUOUS', 'PAR-003 reject traversal + dash-led segment'],
+    ['PARBUG-005', 'evil.js:1', 'FRESH', 'PAR-003 control: in-root citation stays FRESH'],
+    ['PARBUG-007', '..\\' + './'.repeat(2100) + 'evil.js:1', 'AMBIGUOUS', 'PAR-003 reject an escaping prefix longer than the scan window'],
+  ];
+  const regPar = join(work, 'regpar.md');
+  writeFileSync(regPar, casesPar.map(([id, loc]) => `## ${id}\nLocation: ${loc}\n`).join('\n'));
+  const outPar = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), regPar, '--root', rPar, '--report-only']).out;
+  for (const [id, , want, name] of casesPar) {
+    const line = outPar.split('\n').find((l) => new RegExp(`\\b${id}\\b`).test(l)) || '';
+    check(name, new RegExp(`\\b${want}\\s+${id}\\b`).test(line));
+  }
+
+  // PAR-003 — a symlink or junction inside root that targets outside root: the literal-path
+  // confinement check passes (the citation names a real in-root path), and a plain
+  // existsSync/statSync follows the link, so the item read FRESH through the escaping target.
+  // Creating a symlink needs privilege this Windows runner may not grant by default — skip ONLY
+  // there, and only after confirming the failure is a permission error; a non-Windows host (or a
+  // Windows host that actually has the privilege) must run the real check, never pass vacuously.
+  const rSym = join(work, 'rsym');
+  mkdirSync(rSym, { recursive: true });
+  writeFileSync(join(work, 'secret-outside.js'), 's\n'.repeat(20));
+  let symlinkErr = null;
+  try { symlinkSync(join(work, 'secret-outside.js'), join(rSym, 'link.js'), 'file'); }
+  catch (e) { symlinkErr = e; }
+  if (!symlinkErr) {
+    const regSym = join(work, 'regsym.md');
+    writeFileSync(regSym, '## PARBUG-006\nLocation: link.js:1\n');
+    const outSym = runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), regSym, '--root', rSym, '--report-only']).out;
+    const lineSym = outSym.split('\n').find((l) => /PARBUG-006/.test(l)) || '';
+    check('PAR-003 reject symlink resolving outside root', /\bAMBIGUOUS\s+PARBUG-006\b/.test(lineSym));
+  } else if (process.platform === 'win32') {
+    console.log(`skip  PAR-003 symlink escape (no privilege on win32: ${symlinkErr.code})`);
+  } else {
+    check(`PAR-003 symlink escape must execute on ${process.platform} CI, not skip (${symlinkErr.code})`, false);
+  }
 
   // SCR-018 — a root-level third-party import is caught by the whole-repo scan
   const sb = join(work, 'sb');

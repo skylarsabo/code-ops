@@ -88,17 +88,20 @@ copy in one commit.
 
 ## Session mechanisms that run under every change
 
-Six plugin hook commands across five events provide traceless publishing, routing with
-compaction restoration, output digests, index refresh, ladder guidance, and session receipts. The last four named
-mechanisms are on by default and have documented environment switches. Use
+Seven plugin hook commands across six events provide traceless publishing, routing with
+compaction restoration, output digests, index refresh, ladder guidance, session receipts, and
+a context-size handoff nudge. The last five named mechanisms are on by default and have
+documented environment switches. Use
 `scripts/co.mjs context skim|query` before loading large files or maps. The switch names,
 contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
 `MEASUREMENTS.md` under `code-ops-docs/`.
 
 Host coverage differs, and `INFRASTRUCTURE.md` holds the per-host table. Claude and Codex
-register all six commands. Grok prints nothing for the routing and ladder cards, so that guidance
-reaches it through instruction files only. OpenCode ports publishing, routing, compaction,
-digest, and index as plugin events, and has no ladder card or session receipt.
+register all seven commands. Grok prints nothing for the routing, ladder, and handoff cards.
+Instruction files carry the routing and ladder guidance there, and the handoff nudge has no Grok
+substitute. OpenCode ports publishing, routing,
+compaction, digest, and index as plugin events, and has no ladder card, session receipt, or
+handoff nudge.
 
 ## Before declaring any change done
 
@@ -123,6 +126,11 @@ enforces parity.
 Install `node scripts/install-git-hooks.mjs` once per checkout. Its pre-commit hook
 regenerates only derived host paths and refuses dirty renderer inputs. CI still rejects
 drift when the hook is absent or bypassed.
+
+`node scripts/integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]...`
+runs this section's mechanical steps — the version bump, the two regenerations, the
+documentation-manifest sync, and the applicable CI gates — in one pass, so a helper only has
+to supply the judgment call (which bump, whether a stale atlas section still holds).
 
 Adding or removing a skill also requires updating the plugin README's skill list and
 `(N skills)` count, the matching count in root `README.md`, and handbook entries in both
