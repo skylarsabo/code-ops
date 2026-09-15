@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "9a30eccbd6f13496da595ba357d02d43403150c6",
-      "verifiedDigest": "d075ee2f0540303794cfaf3448a77a88cc8b9bd8aad5212afb496b6ecc1451a1"
+      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
+      "verifiedDigest": "5b48ac9a5796359ee1fcdd094adbf8b6258139c14824aa90bdc1418579b775ad"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "9cf65783c3527cb44435f659f4a347b14ff68a3b",
-      "verifiedDigest": "3482e121d0105e2ec52bb511a441e6ced6b057c9b17b5a4bc99c6929d5ce2ae3",
+      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
+      "verifiedDigest": "b275f117d8bca7d44204b821b5c42fb03eedad466afd6b3033bd916d78fa50e6",
       "claims": [
         {
           "file": "scripts/atlas-check.mjs",
@@ -34,8 +34,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "9cf65783c3527cb44435f659f4a347b14ff68a3b",
-      "verifiedDigest": "f3e55f22a29c6b08a9a3039a52231c8e1dafcd0681e60b102f279ed65ecaa652",
+      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
+      "verifiedDigest": "4cffa1bb6d2f70966638e5a120773bf4d9ce9a8e49f11f6f8965d6db3398da36",
       "claims": [
         {
           "file": "scripts/judgment-evals.mjs",
@@ -52,8 +52,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "9a30eccbd6f13496da595ba357d02d43403150c6",
-      "verifiedDigest": "7193aef874b27c1755c2fde7d41cfe7d72caffc67dc9c4792b34fbedf78f02f3"
+      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
+      "verifiedDigest": "277e99351c28322efcd7c5c5e80b81ab3860ec30f74e88221a69056038d6c50d"
     },
     {
       "slug": "ci-workflows",
@@ -61,8 +61,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "5d3732f7c011b8f04bc942b50ee80729eefc4d0d",
-      "verifiedDigest": "3621fa3a48a67a61785ea598a139479099a0ffef5d66e51b4964d51d721ddfba"
+      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
+      "verifiedDigest": "bfe7dbebc770c107e52095e118f1e5b1dcd9b5ccbe918448b668ade6a64970e2"
     },
     {
       "slug": "docs-doctrine",
@@ -85,8 +85,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "9a30eccbd6f13496da595ba357d02d43403150c6",
-      "verifiedDigest": "d6667d84b7489ccf5cb5a6f895a9ab0b0b3cb1812d87d716ca605c7a9d1a2262"
+      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
+      "verifiedDigest": "d4c6bd6250885d1ddc597d84d9998654b110c822c5c62556dc54aaf7c84b264e"
     },
     {
       "slug": "root-contracts",
@@ -100,8 +100,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "8c013a97397d8dc1fb8188e3469057db1f5d8f7d",
-      "verifiedDigest": "7141741e657e965bc38e54c208a4f08aac9579ea40e02dba22e9b10d7741e1c6"
+      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
+      "verifiedDigest": "2161da0e6c483667776112f25ab2e2c31c9a25578a40b2b1926bc4267f0bb587"
     },
     {
       "slug": "runtime-toolchain",
