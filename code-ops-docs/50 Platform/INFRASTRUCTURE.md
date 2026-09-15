@@ -59,8 +59,11 @@ Two variables name a storage path:
 
 | Variable | What it names | Default |
 | --- | --- | --- |
-| `CODE_OPS_DIGEST_DIR` | the digest store root | `~/.claude/code-ops/digest/<project slug>/` |
-| `CODE_OPS_INDEX_DIR` | the symbol-index directory | `~/.claude/code-ops/index/<project slug>/` |
+| `CODE_OPS_DIGEST_DIR` | the digest store root | `<host home>/code-ops/digest/<project slug>/` |
+| `CODE_OPS_INDEX_DIR` | the symbol-index directory | `<host home>/code-ops/index/<project slug>/` |
+
+`<host home>` is `~/.codex` under the Codex projection and `~/.claude` on every other host.
+Evidence: `codex-marketplace/plugins/code-ops-suite/hooks/session-receipt.mjs:29`.
 
 `CODE_OPS_DIGEST_STORE=off` keeps compression enabled while disabling raw-output and receipt storage.
 
@@ -75,20 +78,20 @@ contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json` and
 ## What the local stores hold
 
 Leaving `digest-rewrite.mjs` on persists the complete raw output of every rewritten command, in
-plain text, under `~/.claude/code-ops/digest/<slug of the repository>/`, with a receipt row that
+plain text, under `<host home>/code-ops/digest/<slug of the repository>/`, with a receipt row that
 records the command's arguments as written. Nothing purges that store. Delete the directory to
 purge it. `CODE_OPS_DIGEST_STORE=off` beside the switch keeps the compression and writes nothing,
 at the cost of the recovery hints. The store is keyed by the repository that opted in, never by a
 `cd` target inside a command. Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-16`
 and `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161-176`.
 
-The symbol index lives under `~/.claude/code-ops/index/<slug of the repository>/` or
+The symbol index lives under `<host home>/code-ops/index/<slug of the repository>/` or
 `$CODE_OPS_INDEX_DIR`, never in the tree, and holds definitions, call sites, and import edges,
 never file bodies. Delete the directory to purge it. Evidence:
 `plugins/code-ops-suite/hooks/index-refresh.mjs:6-11` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
-The session-receipt ledger is `~/.claude/code-ops/session-receipts.jsonl`, or `$CODE_OPS_RECEIPTS`.
+The session-receipt ledger is `<host home>/code-ops/session-receipts.jsonl`, or `$CODE_OPS_RECEIPTS`.
 `context-audit.mjs receipts --purge-before <ISO date>` is the only thing that removes rows, so
 retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`.
 

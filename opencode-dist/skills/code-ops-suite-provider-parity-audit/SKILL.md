@@ -50,8 +50,9 @@ node evals/opencode-dist/run.mjs
 ```
 
 Run `node evals/grok-build-compat/run.mjs`. When the installed Grok binary is available, also
-run `grok --version`, `grok plugin validate .`, and `grok plugin validate` for each canonical
-plugin directory.
+run `grok --version` and `grok plugin validate` for each canonical plugin directory. Skip the
+repository root. It holds a marketplace index, so the validator finds no manifest and passes
+without checking anything.
 
 Read the installed Grok hook guide at `~/.grok/docs/user-guide/10-hooks.md` and record its
 runtime version. Validate command-hook output shapes and side effects directly, but distinguish
