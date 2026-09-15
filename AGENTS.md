@@ -14,8 +14,9 @@ to break silently.
   assistant-voice prose in commit messages or PR bodies, including direct commits that
   bypass the ship skill. Self-gate: `node scripts/scan-ai-tells.mjs <files...>` (or
   `--git <range>`). The code-ops-suite `PreToolUse` hook (`enforce-traceless`) also
-  blocks a flagged `git commit` or `gh pr create|merge` at the tool layer. CI stays the
-  fail-closed backstop.
+  blocks a flagged `git commit` or `gh pr create|merge` at the tool layer, scanning the
+  command and each message, trailer, title, and body value it would publish. The CI step
+  "Traceless publishing (PR commits, title, body)" is the fail-closed backstop.
 - **Model review gates are opt-in, and rare.** The deterministic gate chain and the lead's
   own read of the final diff run on every change. `code-ops-suite:local-review-gate` (deep
   review plus the OpSec gate) runs only when the operator says so at the checkpoint or a

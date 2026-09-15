@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.77.1
+- The `enforce-traceless` hook now blocks an attribution trailer passed as a second `-m` value, a `--message=` or `--trailer` value, or an inline `gh pr create --body`. It runs the vendored `scan-ai-tells.mjs` in its new `--command` mode, which scans the raw command plus each message, trailer, title, body, and field value that `git commit`, `gh pr create|edit|merge`, or `gh api` would publish, each on its own line. Heredoc detection is unchanged, and a trailer phrase outside a published argument still passes.
+- The hook header now names its real fail-closed backstop: the new `Traceless publishing (PR commits, title, body)` CI step, which scans every pull request's commits, title, and body.
+
 ## 1.77.0
 - Version 4 contracts accept an optional `calibration` block for arms (b) and (c) that requires a strong lead, read-mode units, and artifacts outside every scope. Under a valid block, units may run at the lead tier but never above it.
 

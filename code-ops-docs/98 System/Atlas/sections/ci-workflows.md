@@ -26,6 +26,8 @@ pushed `main` ref, or manual dispatch. The former deep-review, OpSec, scheduled 
 floor workflows are absent. Consumer GitHub review examples remain opt-in integrations whose
 credentials, events, and status policy belong to the adopter.
 
+The Ubuntu leg's `Traceless publishing (PR commits, title, body)` step runs on pull requests only. It scans exactly the PR's commits, from `pull_request.base.sha` to `pull_request.head.sha`, not the synthetic merge commit. The title and body reach a temp file through `env`, never through script interpolation. Any hit or scanner error fails the job, which makes it the fail-closed backstop the tool-layer traceless hook relies on.
+
 Both legs run the context-audit regression, which exercises the transcript parser and the `SessionEnd` receipt hook against a synthetic fixture, so path and stdin handling for the hook are proven on Windows before merge.
 
 The model review gates became opt-in on 2026-09-03: `ship` asks at its first checkpoint, the local gate opens with its own checkpoint, and branch protection on `main` must require only the deterministic checks, so unreviewed changes merge on hosted CI alone while reviewed ones still carry SHA-bound statuses.

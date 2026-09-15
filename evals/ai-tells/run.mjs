@@ -10,6 +10,7 @@ import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { COMMAND_CASES } from './command-cases.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const scanner = resolve(here, '..', '..', 'scripts', 'scan-ai-tells.mjs');
@@ -39,6 +40,19 @@ copyFileSync(historyTarget, copiedTarget);
 
 const fails = [];
 const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+
+// --command: a published argument value is scanned as its own line block, and a phrase
+// outside any published argument is not.
+const commandFile = join(historyRepo, 'command.txt');
+for (const { name, command, blocked } of COMMAND_CASES) {
+  writeFileSync(commandFile, command);
+  const status = run(['--command', commandFile]).status;
+  expect(status === (blocked ? 1 : 0), `--command should ${blocked ? 'block' : 'allow'} ${name}, got exit ${status}`);
+}
+// File mode keeps the line-start anchor, so prose that names the trailer mid-line stays clean.
+const trailerProse = join(historyRepo, 'trailer-prose.md');
+writeFileSync(trailerProse, 'The hook blocks a Co-authored-by: Claude trailer in any published value.\n');
+expect(run([trailerProse]).status === 0, 'file-mode prose naming the trailer mid-line should stay clean');
 
 // Dirty: report-only to read categories, then gated to confirm fail-closed.
 const d = run([dirty, '--report-only']);

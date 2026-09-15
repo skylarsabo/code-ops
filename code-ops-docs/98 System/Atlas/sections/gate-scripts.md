@@ -34,6 +34,8 @@ All authority writers share a clone-wide lock under Git's common directory. Writ
 
 The traceless scanner distinguishes Unicode emoji presentation from layout glyphs. Its optional single-file dash baseline reads the same tracked path at an ancestor commit and measures only introduced density. The ordinary absolute threshold remains the default, arbitrary baseline files are rejected, and every hard tell still reads the full current text.
 
+The scanner's `--command` mode lexes a shell command into simple commands, including quotes, ANSI-C strings, command substitutions, and heredocs. Only `git commit`, `gh pr create|edit|merge`, and `gh api` segments contribute published values, so a phrase in another segment or a non-message argument stays clean. The raw command is still scanned, and the verdict is the union. The `enforce-traceless` hook and its OpenCode port both use this mode; they block on any nonzero scanner exit and fail open only when the scanner cannot spawn, because the PR traceless CI step is fail closed.
+
 Measurement has a host-qualified receipt path. Claude deduplicates transcript usage and nested
 subagents. Codex follows peer rollout `parent_thread_id` links. Installed Grok 1.0.13
 normalizes cumulative usage from `updates.jsonl` and records its unavailable ladder arm false.
