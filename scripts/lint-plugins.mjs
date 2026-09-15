@@ -1121,7 +1121,9 @@ if (mp?.name === 'code-ops') {
   const HUB_RE = new RegExp(`${GUARD}code-ops-docs/(?=[\\w .-])`, 'g');
   const CMD_RE = new RegExp(`${GUARD}node\\s+(?:scripts|evals)/[\\w./-]+`, 'g');
   const CITE_RE = new RegExp(`${GUARD}((?:scripts|evals|\\.github)/(?:[\\w.-]+/)*[\\w-]+\\.[A-Za-z]\\w*)`, 'g');
-  const PLUGIN_ROOT_RE = /(\$\{CLAUDE_PLUGIN_ROOT\}|\$\{PLUGIN_ROOT\}|<plugin-root>)\/([^\s`'")\]]+)/g;
+  // A backslash ends the path: a JSON-escaped quote (`\"`) must not join it, because POSIX keeps
+  // a trailing backslash in the file name while Windows drops it as a separator.
+  const PLUGIN_ROOT_RE = /(\$\{CLAUDE_PLUGIN_ROOT\}|\$\{PLUGIN_ROOT\}|<plugin-root>)\/([^\s`'"\\)\]]+)/g;
   const PLACEHOLDER_RE = /[<>*{}$]|\.\.\./;
   // A reference is legitimate where the text says it runs in the code-ops repository: in the
   // same Markdown block, on the same line of code or data, or through a file-level marker on a

@@ -751,6 +751,15 @@ No completion heading here on purpose (case 3 mutation).
   const r13k = withVendoredReference('case13k-reference-drift', '# Fixture spec\n\nThe fixture grammar, edited in the copy.\n');
   check('13k. a drifted vendored reference exits 1', r13k.status === 1);
   check('13k. message names the drifted copy', r13k.all.includes('rigor: reference/fixture-spec.md has drifted from the canonical'));
+
+  // 13l/13m. A JSON-escaped quote after a plugin-root path is not part of the path. The captured
+  // path must end before the backslash on every platform, so a shipped file resolves on POSIX too.
+  const r13l = runLint(withBugHuntText('case13l-root-escaped-quote-missing', 'The hook entry reads "node \\"${CLAUDE_PLUGIN_ROOT}/docs/missing-guide.md\\"".'));
+  check('13l. an escaped-quote plugin-root path to a missing file exits 1', r13l.status === 1);
+  check('13l. the reported path stops before the escaped quote', r13l.all.includes('root reference "${CLAUDE_PLUGIN_ROOT}/docs/missing-guide.md" names a file this plugin does not ship'));
+  const d13m = withBugHuntText('case13m-root-escaped-quote-resolves', 'The hook entry reads "node \\"${CLAUDE_PLUGIN_ROOT}/docs/guide.md\\"".');
+  put(d13m, 'plugins/rigor/docs/guide.md', '# Fixture guide\n');
+  check('13m. an escaped-quote plugin-root path to a shipped file exits 0', runLint(d13m).status === 0);
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
