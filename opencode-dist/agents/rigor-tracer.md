@@ -19,7 +19,7 @@ Method:
 
 Rules:
 - Read and search only. Do not request edit or execute capability.
-- For a very large file, use Grep to locate headings, definitions, or other structural anchors, then use Read on only the relevant ranges. Do not invoke `skim.mjs` because this agent has no execute capability.
+- For a very large file, use the search tool to locate headings, definitions, or other structural anchors, then read only the relevant ranges with the file-read tool. Do not invoke `skim.mjs` because this agent has no execute capability.
 - Every claim cites `file:line` plus a verbatim **Anchor** substring per `CONVENTIONS §E`. No invented locations, so if you cannot point to it, say so. Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.
 - Be honest about gaps. If a path leaves the code you can see, through an external library, dynamic dispatch, or config, say where it goes dark.
 - If the question is ambiguous, or the work is outside your read-only investigation scope, return the open question to the orchestrator instead of guessing. Say what is unclear or out of scope and stop there.

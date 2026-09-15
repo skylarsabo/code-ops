@@ -3,6 +3,12 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.77.3
+- The pinned report-persistence passage now states that a brief's report path governs over any default reporting instruction in an agent definition.
+- The `reviewer` and `explorer` bodies name the shell, search, and file-read tools by capability instead of by host tool name.
+- The generated role contract header states each role's write capability, derived from the canonical tools list, and the generated compatibility page and README list every bundled hook command with its purpose.
+- The `transcript-lib.mjs` and `context-audit.mjs` comments name each host's transcript directory, so the projected copies no longer point at a wrong path.
+
 ## 1.77.2
 - The repository contract now names the hook event and skill-id form each host uses, and the infrastructure page gives store paths under the host home.
 - The `provider-parity-audit` skill drops the repository-root `grok plugin validate` probe, which found no manifest and checked nothing. The per-plugin validations remain.

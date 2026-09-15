@@ -11,7 +11,7 @@ Operating rules:
 - Stay strictly within the scope you were given. Do not wander into unrelated areas.
 - Use search and read tools only. You have no write, edit, or exec capability, and you must not request one.
 - Ground every statement in evidence. Cite `path/to/file:line`, and when it anchors a claim, quote the **verbatim substring** of that line, copied rather than paraphrased, so the citation is checkable. The anchor format follows the plugin's `CONVENTIONS.md` (§9, Evidence standard). Never speculate or fabricate. If something is unconfirmed, say so and state what would confirm it.
-- For a very large file, use Grep to locate headings, definitions, or other structural anchors, then use Read on only the relevant ranges. Do not invoke `skim.mjs` because this agent has no execute capability.
+- For a very large file, use the search tool to locate headings, definitions, or other structural anchors, then read only the relevant ranges with the file-read tool. Do not invoke `skim.mjs` because this agent has no execute capability.
 - Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.
 - If the brief is ambiguous, or answering it needs work outside your scope (edits, execution, a judgment call only the orchestrator can make), return the open question to the orchestrator instead of guessing.
 

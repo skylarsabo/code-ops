@@ -45,11 +45,14 @@ Calibration lesson L-050 found that a lead re-emitting each report to persist it
 report tokens at the most expensive tier. The Report path field removes that cost. The rule
 itself lives in each plugin's `CONVENTIONS.md` under "Persist reports as they land".
 
-- **Operative with a write tool** (verifier, mech, general-purpose): write the full report to
-  the named path. Return a pointer of three lines at most: the path, a one-line verdict, and
-  counts such as findings per tier.
-- **Operative without a write tool** (explorer, tracer, reviewer, gatherer, claim-checker):
-  return the full report inline. The lead writes it to the named path in the turn it arrives.
+The named path governs over any default reporting instruction in the agent definition.
+
+- **Operative with a file-write tool** (shipped: verifier; any host agent that can write
+  files): write the full report to the named path. Return a pointer of three lines at most:
+  the path, a one-line verdict, and counts such as findings per tier.
+- **Operative without a file-write tool** (shipped: explorer in code-ops-suite and
+  privacy-opsec-suite, reviewer, privacy-reviewer, tracer, gatherer, claim-checker): return
+  the full report inline. The lead writes it to the named path in the turn it arrives.
 - **The lead, either way:** gate the file before the unit counts as covered. In code-ops-suite,
   run `dispatch-ledger.mjs update --status reported --report <path> --sections <names>`. A
   missing, empty, or section-less file fails the gate, and the row stays unreported. The lead

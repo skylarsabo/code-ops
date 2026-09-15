@@ -241,6 +241,12 @@ function transformAgent(contents, path) {
   const match = contents.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (!match) throw new Error(`${path}: expected YAML frontmatter bounded by ---`);
   const floor = agentFloor(contents, path);
+  // The tools line is stripped below, so the header restates the one capability a brief
+  // depends on: whether the role writes its own report file or returns it inline.
+  const tools = match[1].match(/^tools:[ \t]*(.*)$/m)?.[1] ?? '';
+  const writeCapability = /\b(?:Write|Edit|MultiEdit|NotebookEdit)\b/.test(tools)
+    ? 'This role may write files only for its report and repro artifacts.'
+    : 'This role is read-only: return the report inline.';
   const header = match[1].split('\n').filter((line) => !/^(tools|model):/.test(line)).map(portableText);
   const body = portableText(match[2]);
   return [
@@ -248,7 +254,7 @@ function transformAgent(contents, path) {
     ...header,
     '---',
     '',
-    `> Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads \`agents/model-floors.json\` and routes \`${floor.name}\` at or above its \`${floor.minimumTier}\` floor.`,
+    `> Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads \`agents/model-floors.json\` and routes \`${floor.name}\` at or above its \`${floor.minimumTier}\` floor. ${writeCapability}`,
     '',
     body,
   ].join('\n');
@@ -272,6 +278,31 @@ function skillAgentYaml(pluginName, slug, description) {
     '',
   ].join('\n');
 }
+
+// One short purpose per bundled hook script. A hook script missing here fails the build, so
+// a new hook cannot ship with an undocumented purpose on the compatibility page.
+const HOOK_PURPOSES = new Map([
+  ['enforce-traceless.mjs', 'blocks a commit or pull-request command whose published text carries attribution traces'],
+  ['digest-rewrite.mjs', 'routes a simple shell command through the output digest so long output arrives compressed'],
+  ['index-refresh.mjs', 're-indexes a file right after a tool edits it, so context queries read the live tree'],
+  ['routing-card.mjs', 'prints the routing card at session start and a restore instruction after compaction'],
+  ['session-receipt.mjs', 'appends a local session receipt row with token usage, tool calls, and model mix'],
+  ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
+]);
+
+function bundledHooks(pluginName) {
+  const manifest = JSON.parse(readText(sourcePath(pluginName, 'hooks', 'hooks.json')));
+  return Object.entries(manifest.hooks ?? {}).flatMap(([event, groups]) => groups
+    .flatMap((group) => group.hooks ?? [])
+    .map((hook) => {
+      const script = hook.command?.match(/hooks\/([\w.-]+\.mjs)/)?.[1];
+      const purpose = HOOK_PURPOSES.get(script);
+      if (!purpose) throw new Error(`${pluginName}/hooks/hooks.json: no documented purpose for hook command ${hook.command}`);
+      return { event, script, purpose };
+    }));
+}
+
+const hookLine = (hook) => `\`${hook.event}\` \`${hook.script}\`: ${hook.purpose}.`;
 
 const mcpNames = (manifest) => Object.keys(manifest.mcpServers ?? {}).map((name) => `\`${name}\``).join(', ');
 
@@ -299,7 +330,9 @@ function generatedReadme(spec, manifest, skills) {
   ];
   if (spec.mcp) lines.push(`- The package bundles optional, plugin-scoped MCP servers: ${mcpNames(manifest)}.`);
   if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
-    lines.push('- The traceless-publishing hook is bundled. Codex requires the user to review and trust plugin hooks before they run.');
+    const hooks = bundledHooks(spec.name);
+    lines.push(`- The package bundles ${hooks.length} hook commands. Codex requires the user to review and trust plugin hooks before they run.`);
+    lines.push(...hooks.map((hook) => `  - ${hookLine(hook)}`));
   }
   lines.push('', 'For source history and release notes, see the generated `CHANGELOG.md` and the repository root.', '');
   return lines.join('\n');
@@ -320,7 +353,10 @@ function compatibilityNotes(spec, sourceManifest) {
     '- Claude GitHub Action examples are omitted because they are not Codex runtime configuration.',
   ];
   if (existsSync(sourcePath(spec.name, 'hooks', 'hooks.json'))) {
-    lines.push('- The `PreToolUse` traceless-publishing hook is retained as `hooks/hooks.json`. Codex skips plugin hooks until the user reviews and trusts the hook definition.');
+    const hooks = bundledHooks(spec.name);
+    const events = new Set(hooks.map((hook) => hook.event));
+    lines.push(`- \`hooks/hooks.json\` retains ${hooks.length} hook commands on ${events.size} events. Codex skips plugin hooks until the user reviews and trusts the hook definition.`);
+    lines.push(...hooks.map((hook) => `  - ${hookLine(hook)}`));
     lines.push(`- The Codex render caps every \`SessionEnd\` command timeout at ${CODEX_SESSION_END_TIMEOUT_SECONDS} seconds, which matches the desktop host ceiling. The canonical Claude hook timeout is unchanged.`);
   }
   if (spec.mcp) lines.push(`- The render moves each MCP declaration from Claude’s inline manifest entry to Codex \`.mcp.json\` with a plugin-root-relative script path: ${mcpNames(sourceManifest)}.`);

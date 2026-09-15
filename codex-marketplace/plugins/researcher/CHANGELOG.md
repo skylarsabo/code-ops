@@ -1,5 +1,9 @@
 # Changelog — researcher
 
+## 0.13.18
+- The pinned report-persistence passage now states that a brief's report path governs over any default reporting instruction in an agent definition.
+- The `gatherer` body names the search and file-read tools by capability instead of by host tool name, and the generated role contract header states each role's write capability.
+
 ## 0.13.17
 - New pinned `CONVENTIONS.md` §15, Code standard. It carries the house code standard's core clause: design every change first, write the smallest correct solution, abstract only on evidence, measure before micro-optimizing, comment reasons, verify in proportion to risk, and never repeat an unchanged check.
 
