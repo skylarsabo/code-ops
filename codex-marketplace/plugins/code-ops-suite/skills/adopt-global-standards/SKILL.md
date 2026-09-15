@@ -28,17 +28,18 @@ mis-routes every session in every repo.
 ## Phase 0: the mode and the marketplace HEAD  *(checkpoint)*
 
 Resolve all three global paths and the marketplace checkout they cache. The marketplace is
-the code-ops repo. Take its path from an existing contract's SSOT pointer, or ask. Pick
+the code-ops repo. Take its path from an existing contract's SSOT pointer, or ask, and call that
+checkout root `<marketplace>`. Pick
 **BOOTSTRAP** when no host contract exists or none carries suite doctrine. Pick **MAINTAIN**
 otherwise. State the mode, all resolved paths, and the marketplace HEAD before going on.
 
 ## Phase 1: the current-doctrine baseline
 
 Read the SSOT pages themselves. Never restate doctrine from memory or from the global file
-under audit. The load-bearing sources:
-- `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md`: the task-type routing table, the tier and effort rule, and the declared exception. This page is the SSOT for all three.
-- `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and the `AGENT_MODEL_FLOORS` map in `scripts/lint-plugins.mjs`: the lint-enforced floors no tier rule may contradict.
-- `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and each plugin's `CONVENTIONS.md` §7 and §9: the artifact schemas, the evidence bar, and the tier vocabulary the global reporting standard names.
+under audit. The load-bearing sources, each under the `<marketplace>` checkout Phase 0 resolved:
+- `<marketplace>/code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md`: the task-type routing table, the tier and effort rule, and the declared exception. This page is the SSOT for all three.
+- `<marketplace>/code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and the `AGENT_MODEL_FLOORS` map in `<marketplace>/scripts/lint-plugins.mjs`: the lint-enforced floors no tier rule may contradict.
+- `<marketplace>/code-ops-docs/40 Engineering/Techniques/writing-standard.md` and each plugin's `CONVENTIONS.md` §7 and §9: the artifact schemas, the evidence bar, and the tier vocabulary the global reporting standard names.
 - The traceless-publishing mechanisms behind the version-control rules: name the script or hook that actually checks, not the intention.
 
 Record each baseline claim with the `file:line` it came from. An unanchored baseline claim

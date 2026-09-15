@@ -12,8 +12,8 @@ description: "Use when the marketplace must be audited across Claude, Codex, ins
 **OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin, especially the finding and fix
 tracks (`§6`) and finding schema (`§7`).
-**Mode:** ASSESS · **Consumes:** canonical plugins, both generated host distributions,
-repository and global contracts, host settings, evals, and installed-host evidence ·
+**Mode:** ASSESS · **Runs in:** the code-ops repository · **Consumes:** canonical plugins, both
+generated host distributions, repository and global contracts, host settings, evals, and installed-host evidence ·
 **Produces:** `FINDINGS_REGISTER.md`.
 
 Parity means an equivalent documented outcome through each host's supported API. It does not

@@ -112,8 +112,10 @@ const put = (root, relPath, content) => {
   writeFileSync(full, content);
 };
 
+// Fixture descriptions name no repository-root path: check 24 reports a shipped citation of a
+// file the plugin does not bundle, and a fixture plugin bundles no eval.
 const skillBody = (title, { doneRevalidate = true, extra = '' } = {}) => `---
-description: "Fixture skill for the lint-plugins regression eval (evals/lint-plugins/run.mjs)."
+description: "Fixture skill for the lint-plugins regression eval."
 ---
 
 # ${title} (FIXTURE)
@@ -140,7 +142,7 @@ const AGENT_TIER_BOUNDARY = "Tier at the evidence you have: label a finding CONF
 
 const agentBody = (name, model, texts) => `---
 name: ${name}
-description: "Fixture agent for the lint-plugins regression eval (evals/lint-plugins/run.mjs)."
+description: "Fixture agent for the lint-plugins regression eval."
 tools: Read, Grep, Glob
 model: ${model}
 ---
@@ -324,7 +326,7 @@ try {
   // so this legitimately trips two independent checks; both fail messages cite "Done when").
   const d3 = clone('case3-done-when');
   put(d3, 'plugins/rigor/skills/bug-hunt/SKILL.md', `---
-description: "Fixture skill for the lint-plugins regression eval (evals/lint-plugins/run.mjs)."
+description: "Fixture skill for the lint-plugins regression eval."
 ---
 
 # BUG HUNT (FIXTURE)
@@ -668,6 +670,96 @@ No completion heading here on purpose (case 3 mutation).
     r12h.status === 0);
   check('12h. no out-of-section guard fired',
     !r12h.all.includes('edge-shaped row outside the edges section'));
+
+  // 13. SHIPPED REFERENCES (check 24) — shipped plugin text must not name a path that exists
+  // only in a code-ops checkout. Each failing case has a passing partner that changes one thing,
+  // so a case proves the rule's discrimination rather than a broken fixture.
+  const BUG_HUNT = 'plugins/rigor/skills/bug-hunt/SKILL.md';
+  const withBugHuntText = (label, extra) => {
+    const dir = clone(label);
+    put(dir, BUG_HUNT, skillBody('BUG HUNT', { extra: `\n${extra}\n` }));
+    return dir;
+  };
+
+  // 13a/13b. An unmarked hub path fails; the same path in a block that names the code-ops
+  // repository passes.
+  const r13a = runLint(withBugHuntText('case13a-hub-unmarked', 'Read `code-ops-docs/40 Engineering/Handbook/README.md` first.'));
+  check('13a. an unmarked hub path exits 1', r13a.status === 1);
+  check('13a. message is check 24\'s hub report', r13a.all.includes('check 24 [claude] plugins/rigor/skills/bug-hunt/SKILL.md') && r13a.all.includes('hub reference "code-ops-docs/40 Engineering/Handbook/README.md"'));
+  const r13b = runLint(withBugHuntText('case13b-hub-marked', 'Read `code-ops-docs/40 Engineering/Handbook/README.md` in the code-ops repository.'));
+  check('13b. the same hub path under a code-ops repository marker exits 0', r13b.status === 0);
+
+  // 13c. A marker in a different block does not cover the path.
+  const r13c = runLint(withBugHuntText('case13c-hub-marker-other-block', 'This skill ships with the code-ops repository.\n\nRead `code-ops-docs/40 Engineering/Handbook/README.md` first.'));
+  check('13c. a marker in another paragraph does not cover the path, exit 1', r13c.status === 1 && r13c.all.includes('hub reference'));
+
+  // 13d/13e. A plugin-root path to a file the plugin does not ship fails; it passes once the
+  // file ships.
+  const ROOT_REF = 'Follow `${CLAUDE_PLUGIN_ROOT}/reference/guide.md`.';
+  const r13d = runLint(withBugHuntText('case13d-root-missing', ROOT_REF));
+  check('13d. a missing plugin-root file exits 1', r13d.status === 1);
+  check('13d. message is check 24\'s root report', r13d.all.includes('root reference "${CLAUDE_PLUGIN_ROOT}/reference/guide.md" names a file this plugin does not ship'));
+  const d13e = withBugHuntText('case13e-root-resolves', ROOT_REF.replace('reference/guide.md', 'docs/guide.md'));
+  put(d13e, 'plugins/rigor/docs/guide.md', '# Fixture guide\n');
+  const r13e = runLint(d13e);
+  check('13e. a plugin-root path to a shipped file exits 0', r13e.status === 0);
+
+  // 13f/13g. A file-level marker on the Mode line exempts its file. The same words on another
+  // line do not, so the exemption cannot spread by accident.
+  const REPO_COMMAND = 'Run this first:\n\n```text\nnode scripts/build-codex-marketplace.mjs --check\n```';
+  const r13f = runLint(withBugHuntText('case13f-file-marker', `**Mode:** ASSESS · **Runs in:** the code-ops repository · **Produces:** a fixture report.\n\n${REPO_COMMAND}`));
+  check('13f. a Mode-line file marker exempts the file, exit 0', r13f.status === 0);
+  const r13g = runLint(withBugHuntText('case13g-file-marker-off-mode-line', `**Mode:** ASSESS · **Produces:** a fixture report.\n\n**Runs in:** the code-ops repositories list.\n\n${REPO_COMMAND}`));
+  check('13g. the marker words off the Mode line do not exempt the file, exit 1', r13g.status === 1 && r13g.all.includes('cmd reference "node scripts/build-codex-marketplace.mjs"'));
+
+  // 13h. Source comments never reach a user, so a comment line passes; the same text printed
+  // by the script fails.
+  const d13h = clone('case13h-code-comment-vs-printed');
+  put(d13h, 'plugins/rigor/scripts/fixture-tool.mjs', "// Fixture runtime script for evals/lint-plugins/run.mjs (vendored-script parity check).\nexport const FIXTURE_TOOL = true;\n// usage: node scripts/fixture-tool.mjs\n");
+  put(d13h, 'scripts/fixture-tool.mjs', "// Fixture runtime script for evals/lint-plugins/run.mjs (vendored-script parity check).\nexport const FIXTURE_TOOL = true;\n// usage: node scripts/fixture-tool.mjs\n");
+  check('13h. a repository command in a source comment exits 0', runLint(d13h).status === 0);
+  const printed = "// Fixture runtime script for evals/lint-plugins/run.mjs (vendored-script parity check).\nexport const FIXTURE_TOOL = 'usage: node scripts/fixture-tool.mjs';\n";
+  put(d13h, 'plugins/rigor/scripts/fixture-tool.mjs', printed);
+  put(d13h, 'scripts/fixture-tool.mjs', printed);
+  const r13h = runLint(d13h);
+  check('13h. the same command printed by the script exits 1', r13h.status === 1 && r13h.all.includes('check 24 [claude] plugins/rigor/scripts/fixture-tool.mjs:2: cmd reference'));
+
+  // 13i. Both host projections take the same scan, so a renderer cannot author a gap.
+  const d13i = clone('case13i-projections');
+  put(d13i, 'codex-marketplace/plugins/rigor/README.md', '# rigor for Codex\n\nRebuild it with `node scripts/build-codex-marketplace.mjs`.\n');
+  put(d13i, 'opencode-dist/MODEL_TIERS.md', '# Model tiers\n\nGenerated by `scripts/build-opencode-dist.mjs`.\n');
+  const r13i = runLint(d13i);
+  check('13i. an unmarked projection reference exits 1', r13i.status === 1);
+  check('13i. the Codex projection is scanned', r13i.all.includes('check 24 [codex] codex-marketplace/plugins/rigor/README.md:3: cmd reference'));
+  check('13i. the OpenCode projection is scanned', r13i.all.includes('check 24 [opencode] opencode-dist/MODEL_TIERS.md:3: cite reference "scripts/build-opencode-dist.mjs"'));
+
+  // 13j/13k. A vendored reference copy stays byte-identical to its hub page.
+  const withVendoredReference = (label, copyText) => {
+    const dir = clone(label);
+    const spec = '# Fixture spec\n\nThe fixture grammar.\n';
+    put(dir, 'code-ops-docs/40 Engineering/Techniques/fixture-spec.md', spec);
+    put(dir, 'plugins/rigor/reference/fixture-spec.md', copyText ?? spec);
+    put(dir, 'scripts/vendored-manifest.mjs', [
+      "export const RUNTIME_SCRIPTS = [\n  { name: 'fixture-tool.mjs', plugins: ['rigor'] },\n];",
+      "export const REFERENCE_SOURCE_DIR = 'code-ops-docs/40 Engineering/Techniques';",
+      "export const VENDORED_REFERENCES = [\n  { name: 'fixture-spec.md', plugins: ['rigor'] },\n];",
+      '',
+    ].join('\n'));
+    return runLint(dir);
+  };
+  check('13j. a byte-identical vendored reference exits 0', withVendoredReference('case13j-reference-parity').status === 0);
+  const r13k = withVendoredReference('case13k-reference-drift', '# Fixture spec\n\nThe fixture grammar, edited in the copy.\n');
+  check('13k. a drifted vendored reference exits 1', r13k.status === 1);
+  check('13k. message names the drifted copy', r13k.all.includes('rigor: reference/fixture-spec.md has drifted from the canonical'));
+
+  // 13l/13m. A JSON-escaped quote after a plugin-root path is not part of the path. The captured
+  // path must end before the backslash on every platform, so a shipped file resolves on POSIX too.
+  const r13l = runLint(withBugHuntText('case13l-root-escaped-quote-missing', 'The hook entry reads "node \\"${CLAUDE_PLUGIN_ROOT}/docs/missing-guide.md\\"".'));
+  check('13l. an escaped-quote plugin-root path to a missing file exits 1', r13l.status === 1);
+  check('13l. the reported path stops before the escaped quote', r13l.all.includes('root reference "${CLAUDE_PLUGIN_ROOT}/docs/missing-guide.md" names a file this plugin does not ship'));
+  const d13m = withBugHuntText('case13m-root-escaped-quote-resolves', 'The hook entry reads "node \\"${CLAUDE_PLUGIN_ROOT}/docs/guide.md\\"".');
+  put(d13m, 'plugins/rigor/docs/guide.md', '# Fixture guide\n');
+  check('13m. an escaped-quote plugin-root path to a shipped file exits 0', runLint(d13m).status === 0);
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

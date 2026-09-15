@@ -1,6 +1,6 @@
 ---
 name: calibration-run
-description: "Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See code-ops-docs/40 Engineering/Techniques/calibration-protocol.md."
+description: "Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See its bundled calibration protocol reference."
 ---
 
 # Calibration run: standardized real-scale measurement
@@ -10,12 +10,13 @@ description: "Use when you want a standardized real-scale calibration run of the
 **Invoke in Codex by naming `code-ops-suite:calibration-run`.** First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. It defines the operating model,
 the safety rails, and the evidence standard this skill extends to run measurement. Then read
-`code-ops-docs/40 Engineering/Techniques/calibration-protocol.md` for the one-way channel rule,
+`<plugin-root>/reference/calibration-protocol.md` for the one-way channel rule,
 the metric table, and the sanitized-note template this skill fills in.
 **Mode:** ASSESS · **Consumes:** a target repo, real-scale rather than a toy fixture ·
-**Produces:** a validated sanitized calibration note, an ingested run document under
-`evals/calibration/`, and the re-rendered `evals/CALIBRATION_TABLE.md`. Nothing else leaves the
-isolated session.
+**Produces:** a validated sanitized calibration note, plus two records in the code-ops repository:
+an ingested run document under `evals/calibration/` and the re-rendered
+[`evals/CALIBRATION_TABLE.md`](https://github.com/skylarsabo/code-ops/blob/main/evals/CALIBRATION_TABLE.md).
+Nothing else leaves the isolated session.
 
 A calibration run measures the suite against a real codebase without letting that codebase's
 internals leak back here. The channel is **one-way**. Only the sanitized note crosses back,
@@ -27,7 +28,7 @@ Confirm four things before any fan-out:
 1. The target repo.
 2. That this session's context is **fresh and isolated**, with no other repo's state bleeding in.
 3. That the run is **assess-only**, so the target takes no code changes.
-4. The one-way channel rule, per `code-ops-docs/40 Engineering/Techniques/calibration-protocol.md`. Only the sanitized note returns.
+4. The one-way channel rule, per `<plugin-root>/reference/calibration-protocol.md`. Only the sanitized note returns.
 
 Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>`. A FAIL stops
 the run before any fan-out.
@@ -58,7 +59,7 @@ than its output, and Phase 4 records what you observed.
 Then run the atlas leg. Run
 `node <plugin-root>/scripts/atlas-check.mjs check --atlas <target atlas dir>` when the
 target keeps an atlas, and `init` one when it does not
-(`code-ops-docs/40 Engineering/Techniques/atlas.md`). Carry each section's FRESH or STALE state
+(`<plugin-root>/reference/atlas.md`). Carry each section's FRESH or STALE state
 into every sweep brief beside the repo-map pointer. Refresh the STALE sections during the run
 rather than after it. Record four counts as you go: sections, consumed FRESH, refreshed, and
 **falsified**. A falsified section is one whose claim the sweep disproved, which is a false
@@ -80,7 +81,7 @@ This call always exits 0. It reports what it found and never gates.
 ## Phase 3: the sanitized note  *(fail-closed)*
 
 Fill the sanitized-note template
-(`code-ops-docs/40 Engineering/Techniques/calibration-protocol.md`) from the extracted metrics:
+(`<plugin-root>/reference/calibration-protocol.md`) from the extracted metrics:
 counts and deltas against the prior table row, plus the lessons learned. Include zero paths,
 code, or URLs from the target.
 
@@ -92,8 +93,8 @@ line carrying Phase 0's lead and operative model classes, with every lead class 
 order when Phase 0 recorded a handover, and the operatives half always a single class. Add a
 `lesson:` line per lesson: `lesson: recur L-NNN` for one already in the store, and
 `lesson: new <instrument|suite|protocol> — <statement>` otherwise. Those two shapes are the
-parser's literal grammar at `scripts/calibration-graph.mjs`, punctuation included, so copy them
-exactly. The Machine block is line-based prose, never fenced.
+parser's literal grammar, punctuation included, so copy them exactly. The parser is
+[`scripts/calibration-graph.mjs`](https://github.com/skylarsabo/code-ops/blob/main/scripts/calibration-graph.mjs) in the code-ops repository. The Machine block is line-based prose, never fenced.
 
 Each falsified section earns its own `lesson:` line. Use `instrument` when the atlas workflow
 produced the false claim, and `protocol` when the doctrine around consuming it did. Counts cross
@@ -111,16 +112,17 @@ Back in the code-ops repo, from its root, run three commands in order:
 2. `node scripts/calibration-graph.mjs render` regenerates `evals/CALIBRATION_TABLE.md`, a derived view that is never hand-edited.
 3. `node scripts/calibration-graph.mjs validate` fails closed on a broken schema, id, or edge endpoint.
 
-See `code-ops-docs/40 Engineering/Techniques/calibration-graph.md` for the store's shape.
+See [`calibration-graph.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/calibration-graph.md)
+in the code-ops repository for the store's shape.
 
-Then close the Phase 1 worklist. Append a `verified-in` edge to `evals/calibration/edges.jsonl`
-for each unverified lesson this run was actually in a position to observe holding. Never append
+Then close the Phase 1 worklist in the code-ops repository. Append a `verified-in` edge to
+`evals/calibration/edges.jsonl` for each unverified lesson this run was actually in a position to observe holding. Never append
 one for a lesson whose code path the run did not touch, because a speculative edge retires the
 lesson from the worklist without evidence. A lesson that recurred instead belongs in the run's
 `lessons` array, never in a `verified-in` edge. Recurrence and verification are opposite
 findings.
 
-Then sync the eval. `evals/calibration-graph/run.mjs` runs against the real store and hardcodes
+Then sync the eval in the code-ops repository. `evals/calibration-graph/run.mjs` runs against the real store and hardcodes
 its answers, so an ingest is always a two-file change: the store plus that eval. Update its
 expectations by hand and run `node evals/calibration-graph/run.mjs` until it exits 0. Skipping
 this step passes every other gate and fails only in CI.
@@ -130,6 +132,6 @@ this step passes every other gate and fails only in CI.
 - The sanitized note passes `--validate-note`, with the Machine block included, carrying the `atlas:` line whenever the run had an atlas leg, and the `config:` and `host:` lines always.
 - Every prior fix the run was in a position to observe carries a `verified-in` edge or an explicit recurrence, never silence.
 - Every STALE section the run touched is refreshed, or left STALE with an inbox note, and never stamped to clear the report.
-- The run is ingested into `evals/calibration/`, the table is re-rendered from it, `calibration-graph.mjs validate` passes, and `evals/calibration-graph/run.mjs` passes against the updated store.
+- The run is ingested into `evals/calibration/` in the code-ops repository, the table is re-rendered from it, `calibration-graph.mjs validate` passes, and `evals/calibration-graph/run.mjs` passes against the updated store.
 - Nothing from the target's internals, meaning no path, code, or URL, appears anywhere outside the isolated session.
 - The sanitized note and the rendered table row are presented.

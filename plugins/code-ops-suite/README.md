@@ -7,8 +7,8 @@ request. Each workflow runs a dynamic, conflict-aware multi-agent loop and check
 at the decisions that matter. Shared rules live once in `CONVENTIONS.md`, which every skill
 reads first.
 
-New to the suite? Read the handbook at `code-ops-docs/40 Engineering/Handbook/` (from the repo
-root).
+New to the suite? Read the [handbook](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/README.md)
+in the code-ops repository.
 
 ## Skills
 
@@ -43,12 +43,12 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `repo-docs`: extracts and refreshes only the affected documentation domains from one manifest-owned documentation hub.
 - `onboarding`: generates a verified, code-grounded orientation guide with an architecture diagram.
 - `current-docs`: current, version-accurate docs for a library, read from the version installed in this project. It is local-first with no third-party indexer. The same capability ships as the `code-ops-docs` MCP server (`resolve-library` and `get-docs`) and is the `CONVENTIONS §2` documentation-lookup default suite-wide.
-- `atlas`: builds, refreshes, or consolidates the repo's atlas (`code-ops-docs/98 System/Atlas/`), a durable cache of judgment about the codebase. Per-section freshness is decided mechanically against the diff since each section's stamp.
+- `atlas`: builds, refreshes, or consolidates the repo's atlas (`<repo>-docs/98 System/Atlas/`), a durable cache of judgment about the codebase. Per-section freshness is decided mechanically against the diff since each section's stamp.
 - `vault`: scaffolds, migrates, or checks the repo's `<repo>-docs/` Obsidian vault against the one layout standard. `check-vault-standard.mjs` decides conformance fail-closed.
 - `handoff`: captures a long run's true state as a verifiable `HANDOFF.md` before a context limit or session end, or resumes from one after re-verifying every claim against the tree.
 
 **Suite self-audit**
-- `calibration-run`: standardized real-scale calibration of the suite against a target repo, isolated and assess-only. It ends in a validated sanitized note appended to `evals/CALIBRATION_TABLE.md`. The channel is one-way, so target internals never cross back.
+- `calibration-run`: standardized real-scale calibration of the suite against a target repo, isolated and assess-only. It ends in a validated sanitized note appended to [`CALIBRATION_TABLE.md`](https://github.com/skylarsabo/code-ops/blob/main/evals/CALIBRATION_TABLE.md) in the code-ops repository. The channel is one-way, so target internals never cross back.
 - `run-cost-audit`: audits a completed run's cost discipline (dispatch counts, artifact sizes, tier and effort mix) against the suite's own bounded-wave and routing doctrine (`COST_AUDIT.md`).
 - `provider-parity-audit`: audits hooks, agents, skills, scripts, settings, manifests,
   documentation, both generated distributions, and installed-host evidence across Claude,
@@ -95,7 +95,7 @@ To apply the conventions always, not only inside a skill, add a pointer in your 
 
 Each mechanism below is on where the host exposes its event contract unless its named switch
 says otherwise. Set a switch to `off`, `0`, or `false` in the host environment.
-`code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns the full switch list and host matrix.
+[`INFRASTRUCTURE.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/50%20Platform/INFRASTRUCTURE.md) in the code-ops repository owns the full switch list and host matrix.
 
 - **Tool-layer traceless gate:** a bundled `PreToolUse` hook (`hooks/hooks.json` plus `hooks/enforce-traceless.mjs`) scans a `git commit` or `gh pr create|merge` Bash call for AI and tool trace before it runs, and blocks on a hit. CI stays the fail-closed backstop.
 - **Output digest, on by default:** a second bundled `PreToolUse` hook (`hooks/digest-rewrite.mjs`) rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed with a receipt naming the raw file. `CODE_OPS_DIGEST=off` turns it off, and `CODE_OPS_DIGEST_STORE=off` keeps the compression while writing no raw file.
@@ -107,7 +107,7 @@ says otherwise. Set a switch to `off`, `0`, or `false` in the host environment.
 - **Enforced orchestration:** version 4 `RUN_CONTRACT.json` plans require a frontier lead, at least two lower-tier operatives, a real parallel wave, explicit independent-validation links, and nonempty operative artifacts before finalization.
 - **Security attack-chain graph:** `scripts/co.mjs security chains check|report --campaign ATTACK_CAMPAIGN.json --contract RUN_CONTRACT.json --ledger DISPATCH_LEDGER.md --root .` checks exploit-family diversity, hash-bound implementation evidence, actual dispatch records, terminal path states, independent validators, and realistic privilege-to-impact closure. Add `--final` only for strict all-unit closure. Its report traces convergent guards, primitives, and sinks to terminal nodes and ranks open chains for the next out-of-band validator.
 - **Compaction restoration:** the `SessionStart` routing hook detects a supported post-compaction start and adds the durable-state restore instruction for Claude and Codex. Grok passive session output cannot inject it, so its instruction files and durable run artifacts remain authoritative. The OpenCode port appends the instruction through its native compaction callback.
-- **Session receipts:** a bundled `SessionEnd` hook (`hooks/session-receipt.mjs`) appends one row per session to a home-directory ledger, which never leaves the machine. Each row records which mechanisms were on. `scripts/context-audit.mjs receipts --by-arm` groups the rows by that arm so a measurement has a control, and `receipts --purge-before <ISO date>` is the retention command. `CODE_OPS_RECEIPTS=off` turns the receipts off, and any other value names the ledger path. `code-ops-docs/55 Operations/MEASUREMENTS.md` owns the measurement method.
+- **Session receipts:** a bundled `SessionEnd` hook (`hooks/session-receipt.mjs`) appends one row per session to a home-directory ledger, which never leaves the machine. Each row records which mechanisms were on. `scripts/context-audit.mjs receipts --by-arm` groups the rows by that arm so a measurement has a control, and `receipts --purge-before <ISO date>` is the retention command. `CODE_OPS_RECEIPTS=off` turns the receipts off, and any other value names the ledger path. [`MEASUREMENTS.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/55%20Operations/MEASUREMENTS.md) in the code-ops repository owns the measurement method.
 - **Host-qualified behavior:** Claude and trusted Codex hooks consume routing and ladder context. Installed Grok 1.0.13 consumes digest rewrites, runs index and receipt side effects, and ignores passive routing and ladder stdout; the paired instruction files carry that doctrine instead. OpenCode ports digest, index, routing, and compaction, but its current API has no ladder or transcript-receipt callback.
 - **In-session loop:** run a skill repeatedly toward its "Done when" criteria with the built-in `/loop`.
 - **Before every PR:** run `local-review-gate` against the final committed diff when the operator opted in. Keep deterministic tests in hosted CI, and publish the local SHA-bound statuses when branch protection requires them.

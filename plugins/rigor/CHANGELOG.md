@@ -1,5 +1,10 @@
 # Changelog — rigor
 
+## 2.18.16
+- The plugin now bundles the artifact grammars as `reference/artifact-grammars.md`, and `CONVENTIONS.md` cites that copy for the register and ledger grammars.
+- The conventions link the writing standard and the switch list as documents in the code-ops repository, and the README links the handbook and measurement pages the same way.
+- The vendored `run-proof.mjs` writes a plugin-relative replay command into `RUN_RECEIPTS.md`, and the vendored `skim.mjs` usage line names no repository path.
+
 ## 2.18.15
 - The vendored `revalidate-register.mjs` now reads a citation whose first segment starts with a dot, such as `.github/workflows/validate.yml:1`, as the whole path instead of dropping the dot and reporting AMBIGUOUS.
 

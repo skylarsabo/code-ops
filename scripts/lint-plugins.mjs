@@ -73,16 +73,25 @@
 //  23. This marketplace keeps its Node SSOT, action lock, update-bot config, checker, and both
 //      platform invocations present. Removing the policy and its call sites cannot disable the
 //      supply-chain gate silently.
+//  24. Shipped references resolve outside a code-ops checkout. Every VENDORED_REFERENCES hub
+//      page ships byte-identical in plugins/<plugin>/reference/ for each plugin that lists it,
+//      and no undeclared file sits in a reference/ directory. Across plugins/*/, and the Codex
+//      and OpenCode projections when present, no shipped text names a hub path, a repository-root
+//      command, or a missing repository-root file unless a code-ops repository marker covers
+//      it, and every plugin-root path names a file the plugin ships.
 //
 // It does NOT judge prose quality — that's the human's job.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RUNTIME_SCRIPTS } from './vendored-manifest.mjs';
+// A namespace import, because a manifest without vendored references exports no
+// VENDORED_REFERENCES, and a named import of a missing export fails to load.
+import * as vendoredManifest from './vendored-manifest.mjs';
 import { CLAUDE_ALIAS_TIER, TIER_RANK } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const { RUNTIME_SCRIPTS } = vendoredManifest;
 const errors = [];
 const warnings = [];
 const fail = (m) => errors.push(m);
@@ -1073,6 +1082,149 @@ if (mp?.name === 'code-ops') {
         const [from, to] = key.split('>');
         fail(`${rel(compPath)}:${ln}: edge row "${from}" -> "${to}" matches no qualified reference in any SKILL.md`);
       }
+    }
+  }
+}
+
+// ---- 24. shipped references resolve outside a code-ops checkout -------------
+// (check name: `shipped-reference-integrity`)
+// An installed plugin cannot read the documentation hub, so a spec a skill executes against
+// ships inside the plugin as a vendored copy. The hub page stays the source of truth, and the
+// copy is derived, so it must stay byte-identical, the same contract as check 6 for scripts.
+{
+  const sourceDir = vendoredManifest.REFERENCE_SOURCE_DIR ?? '';
+  const references = vendoredManifest.VENDORED_REFERENCES ?? [];
+  for (const ref of references) for (const pn of ref.plugins) if (!pluginByName.has(pn)) fail(`VENDORED_REFERENCES lists unknown plugin "${pn}" for ${ref.name}`);
+  for (const ref of references) {
+    const canonical = join(ROOT, ...sourceDir.split('/'), ref.name);
+    if (!existsSync(canonical)) { fail(`missing canonical ${sourceDir}/${ref.name} for VENDORED_REFERENCES`); continue; }
+    const canon = readFileSync(canonical, 'utf8');
+    for (const p of plugins) {
+      if (!ref.plugins.includes(p.name)) continue;
+      const copy = join(p.dir, 'reference', ref.name);
+      if (!existsSync(copy)) fail(`${p.name}: missing vendored reference/${ref.name} — run node scripts/sync-vendored.mjs`);
+      else if (readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: reference/${ref.name} has drifted from the canonical ${sourceDir}/${ref.name} — edit the hub page, then run node scripts/sync-vendored.mjs`);
+    }
+  }
+  for (const p of plugins) {
+    for (const file of walkFiles(join(p.dir, 'reference'))) {
+      const name = rel(file).slice(rel(join(p.dir, 'reference')).length + 1);
+      const declared = references.some((ref) => ref.name === name && ref.plugins.includes(p.name));
+      if (!declared) fail(`${p.name}: reference/${name} is not declared for this plugin in VENDORED_REFERENCES`);
+    }
+  }
+
+  // Tokens that name a code-ops checkout path. The lookbehind skips a token that continues a
+  // longer path or URL (`<marketplace>/code-ops-docs/`, `.../blob/main/scripts/x.mjs`) or follows
+  // a placeholder root (`<runtime scripts>/`, `${CLAUDE_PLUGIN_ROOT}/`).
+  const GUARD = String.raw`(?<![\w/>}$.-])`;
+  const HUB_RE = new RegExp(`${GUARD}code-ops-docs/(?=[\\w .-])`, 'g');
+  const CMD_RE = new RegExp(`${GUARD}node\\s+(?:scripts|evals)/[\\w./-]+`, 'g');
+  const CITE_RE = new RegExp(`${GUARD}((?:scripts|evals|\\.github)/(?:[\\w.-]+/)*[\\w-]+\\.[A-Za-z]\\w*)`, 'g');
+  // A backslash ends the path: a JSON-escaped quote (`\"`) must not join it, because POSIX keeps
+  // a trailing backslash in the file name while Windows drops it as a separator.
+  const PLUGIN_ROOT_RE = /(\$\{CLAUDE_PLUGIN_ROOT\}|\$\{PLUGIN_ROOT\}|<plugin-root>)\/([^\s`'"\\)\]]+)/g;
+  const PLACEHOLDER_RE = /[<>*{}$]|\.\.\./;
+  // A reference is legitimate where the text says it runs in the code-ops repository: in the
+  // same Markdown block, on the same line of code or data, or through a file-level marker on a
+  // skill's Mode line for a skill whose whole subject is this repository.
+  const MARKER_RE = /\bcode-ops repo(?:sitory)?\b|github\.com\/skylarsabo\/code-ops\b/i;
+  const FILE_MARKER_RE = /^\*\*Mode:\*\*.*\*\*Runs in:\*\* the code-ops repository\b/m;
+  const SCANNED_RE = /\.(md|mjs|js|json|ya?ml|toml)$/;
+  const CODE_RE = /\.(mjs|js)$/;
+  const UNREACHABLE = 'resolves only inside a code-ops checkout — link it "in the code-ops repository", ship it under the plugin root, or mark the passage';
+
+  // Markdown blocks: a blank line, a heading, or a `---` rule ends a block, and each frontmatter
+  // line is a block of its own. A fence joins the paragraph directly above it, and a blank line
+  // inside a fence does not end the block. Each line maps to the text of its block.
+  const markdownBlocks = (lines) => {
+    const blockOf = new Array(lines.length);
+    let start = 0;
+    let inFence = false;
+    const close = (end) => {
+      const text = lines.slice(start, end).join('\n');
+      for (let k = start; k < end; k++) blockOf[k] = text;
+    };
+    let i = 0;
+    const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
+    for (; i <= frontmatterEnd; i++) blockOf[i] = lines[i];
+    start = i;
+    for (; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^\s*(```|~~~)/.test(line)) {
+        if (!inFence && !(i > start && lines[i - 1].trim() !== '')) { close(i); start = i; }
+        inFence = !inFence;
+        continue;
+      }
+      if (inFence) continue;
+      if (line.trim() === '' || /^#{1,6}\s/.test(line) || line === '---') {
+        close(i);
+        blockOf[i] = line;
+        start = i + 1;
+      }
+    }
+    close(lines.length);
+    return blockOf;
+  };
+
+  const scanShipped = (surface, file, pluginDir) => {
+    const text = readText(file);
+    const markdown = file.endsWith('.md');
+    if (markdown && FILE_MARKER_RE.test(text)) return;
+    const code = CODE_RE.test(file);
+    const lines = text.split(/\r?\n/);
+    const scopes = markdown ? markdownBlocks(lines) : lines;
+    const report = (i, kind, token, why) => fail(`check 24 [${surface}] ${rel(file)}:${i + 1}: ${kind} reference "${token}" ${why}`);
+    lines.forEach((line, i) => {
+      if (code && /^\s*(\/\/|\/\*|\*)/.test(line)) return; // a source comment never reaches a user
+      if (MARKER_RE.test(scopes[i] ?? line)) return;
+      for (const m of line.matchAll(HUB_RE)) report(i, 'hub', line.slice(m.index).split(/[`'")\]]/)[0].slice(0, 90), UNREACHABLE);
+      for (const m of line.matchAll(CMD_RE)) report(i, 'cmd', m[0], UNREACHABLE);
+      if (!code) {
+        for (const m of line.matchAll(CITE_RE)) {
+          if (PLACEHOLDER_RE.test(m[1]) || /node\s+$/.test(line.slice(0, m.index))) continue;
+          if (pluginDir && existsSync(join(pluginDir, ...m[1].split('/')))) continue; // a plugin-relative name of a bundled file
+          report(i, 'cite', m[1], UNREACHABLE);
+        }
+      }
+      if (!pluginDir) return;
+      for (const m of line.matchAll(PLUGIN_ROOT_RE)) {
+        const path = m[2].replace(/[.,;:]+$/, '');
+        if (PLACEHOLDER_RE.test(path)) continue;
+        if (!existsSync(join(pluginDir, ...path.split('/')))) report(i, 'root', `${m[1]}/${path}`, 'names a file this plugin does not ship');
+      }
+    });
+  };
+
+  // Vendored reference/ copies are held to byte parity with their hub page above. They document
+  // this repository in its own terms, so the pattern scan does not read them.
+  const isShipped = (file, base) => {
+    const inside = rel(file).slice(rel(base).length + 1);
+    return SCANNED_RE.test(file) && !/(^|\/)CHANGELOG\.md$/.test(inside) && !inside.startsWith('reference/');
+  };
+  for (const p of plugins) {
+    for (const file of walkFiles(p.dir)) if (isShipped(file, p.dir)) scanShipped('claude', file, p.dir);
+  }
+  const codexPlugins = join(ROOT, 'codex-marketplace', 'plugins');
+  if (existsSync(codexPlugins)) for (const p of plugins) {
+    const base = join(codexPlugins, p.name);
+    for (const file of walkFiles(base)) if (isShipped(file, base)) scanShipped('codex', file, base);
+  }
+  const opencodeDist = join(ROOT, 'opencode-dist');
+  if (existsSync(opencodeDist)) {
+    // OpenCode flattens skills, agents, and commands into `<plugin>-<name>` entries, so the
+    // longest plugin-name prefix decides which plugin root a reference resolves against. A file
+    // no plugin owns still takes the hub, command, and citation scan.
+    const byLength = [...plugins].sort((a, b) => b.name.length - a.name.length);
+    for (const file of walkFiles(opencodeDist)) {
+      const inside = rel(file).slice(rel(opencodeDist).length + 1);
+      const [top, entry = '', next = ''] = inside.split('/');
+      let owner = null;
+      if (top === 'code-ops') owner = plugins.find((p) => p.name === entry) ?? null;
+      else if (['skills', 'agents', 'commands'].includes(top)) owner = byLength.find((p) => entry.startsWith(`${p.name}-`)) ?? null;
+      if (top === 'code-ops' && next === 'reference') continue;
+      if (!SCANNED_RE.test(file) || /(^|\/)CHANGELOG\.md$/.test(inside)) continue;
+      scanShipped('opencode', file, owner ? join(opencodeDist, 'code-ops', owner.name) : null);
     }
   }
 }

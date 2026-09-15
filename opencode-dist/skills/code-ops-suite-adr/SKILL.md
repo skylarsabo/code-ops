@@ -11,7 +11,7 @@ description: "Use when you need to capture the reasons behind a codebase's archi
 
 **OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`, and
 especially the **documentation quality standard (`§13`)**.
-**Mode:** DOCUMENT. **Produces:** numbered ADRs in `code-ops-docs/20 Decisions/ADRs/`. Match an
+**Mode:** DOCUMENT. **Produces:** numbered ADRs in `<repo>-docs/20 Decisions/ADRs/`. Match an
 existing ADR convention when the repo already has one.
 
 ## The two modes, confirmed at the start
@@ -38,7 +38,7 @@ the decision. Write one ADR per choice, and keep it to that decision.
 
 ## The assembly, per `§13`
 
-Maintain a `code-ops-docs/20 Decisions/ADRs/README.md` index. For a backfill, rank by how
+Maintain a `<repo>-docs/20 Decisions/ADRs/README.md` index. For a backfill, rank by how
 load-bearing each decision is, and surface the riskiest and most-questioned first. Mark
 reconstructed rationale `UNVERIFIED` where the history is silent.
 

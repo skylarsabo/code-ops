@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-atlas
-description: "Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See code-ops-docs/40 Engineering/Techniques/atlas.md."
+description: "Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See its bundled atlas reference."
 ---
 
 # Atlas: the repo's durable cache of judgment
@@ -13,11 +13,11 @@ description: "Use when a repo's atlas needs to be created, refreshed after the c
 bundled with this plugin: the operating model (`§1`), the evidence standard (`§9`), and the
 single-source-of-truth conventions (`§12`) that this skill extends from one run's artifacts to a
 durable artifact the repo keeps. Then read
-`code-ops-docs/40 Engineering/Techniques/atlas.md` for the manifest schema, the checker's
+`<plugin-root>/reference/atlas.md` for the manifest schema, the checker's
 modes, and the trust doctrine.
 **Mode:** DOCUMENT · **Consumes:** the target repo and its existing atlas, when it has one ·
-**Produces:** `code-ops-docs/98 System/Atlas/`, falling back to `atlas/` when the repo has no
-docs directory, holding `MANIFEST.json`, `INBOX.md`, and one `sections/` file per section.
+**Produces:** `<repo>-docs/98 System/Atlas/`, falling back to `atlas/` when the repo has no
+`<repo>-docs/` hub, holding `MANIFEST.json`, `INBOX.md`, and one `sections/` file per section.
 
 An atlas is what the previous run should have remembered and did not. Every future run pays to
 re-derive the same understanding of a repo. The atlas banks that understanding so a reader can

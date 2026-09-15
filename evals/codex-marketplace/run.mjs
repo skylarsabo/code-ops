@@ -133,8 +133,32 @@ expect(!/\/(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/.test(routin
 expect(routingCard.includes('code-ops-suite:debug'), 'routing card does not name the Codex workflow syntax');
 expect(routingCard.includes('privacy-opsec-suite:full-sweep'), 'routing card does not name a valid privacy workflow');
 
+// Skills cite vendored execution specs at <plugin-root>/reference/, so each canonical spec must
+// reach the package. Only lines naming a host-specific token may differ from the canonical text.
+const HOST_SPECIFIC_LINE = /\$\{CLAUDE_PLUGIN_ROOT\}|CLAUDE\.md|Claude Code|\.claude\b|(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/;
+const referenceFiles = [];
+for (const plugin of pluginNames) {
+  const sourceReference = join(sourcePluginsDir, plugin, 'reference');
+  const renderedReference = join(pluginsDir, plugin, 'reference');
+  const specs = existsSync(sourceReference) ? readdirSync(sourceReference).filter((file) => file.endsWith('.md')).sort() : [];
+  const rendered = existsSync(renderedReference) ? readdirSync(renderedReference).filter((file) => file.endsWith('.md')).sort() : [];
+  expect(JSON.stringify(rendered) === JSON.stringify(specs), `${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canonical [${specs.join(', ')}]`);
+  for (const spec of specs.filter((file) => rendered.includes(file))) {
+    const source = read(join(sourceReference, spec)).replace(/\r\n/g, '\n').split('\n');
+    const text = read(join(renderedReference, spec)).replace(/\r\n/g, '\n');
+    referenceFiles.push(join(renderedReference, spec));
+    expect(!text.includes('${CLAUDE_PLUGIN_ROOT}'), `${plugin}/reference/${spec}: Claude plugin-root token leaked`);
+    if (source.some((line) => line.includes('${CLAUDE_PLUGIN_ROOT}'))) expect(text.includes('<plugin-root>'), `${plugin}/reference/${spec}: plugin-root token was dropped rather than translated`);
+    const lines = text.split('\n');
+    expect(lines.length === source.length, `${plugin}/reference/${spec}: line count diverged from canonical`);
+    const drifted = source.findIndex((line, index) => !HOST_SPECIFIC_LINE.test(line) && lines[index] !== line);
+    expect(drifted === -1, `${plugin}/reference/${spec}: line ${drifted + 1} diverged from canonical without a host token`);
+  }
+}
+
 const portableFiles = [
   ...pluginNames.map((plugin) => join(pluginsDir, plugin, 'CONVENTIONS.md')),
+  ...referenceFiles,
   ...readdirSync(join(pluginsDir, 'code-ops-suite', 'hooks')).filter((file) => file.endsWith('.mjs')).map((file) => join(pluginsDir, 'code-ops-suite', 'hooks', file)),
   ...['context-audit.mjs', 'context-query.mjs', 'digest.mjs', 'transcript-lib.mjs'].map((file) => join(pluginsDir, 'code-ops-suite', 'scripts', file)),
 ];

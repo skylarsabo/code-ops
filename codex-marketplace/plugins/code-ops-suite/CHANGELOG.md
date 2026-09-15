@@ -3,6 +3,13 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.78.0
+- The plugin now bundles six execution specs under `reference/`: artifact grammars, the atlas technique, the calibration protocol, the fleet standard, the subagent trade-offs routing table, and the vault standard. They are byte-identical copies of the hub pages, and both host packages carry them.
+- Skills that fill or check those specs read the bundled copy. Other hub pages are linked as documents in the code-ops repository, and target-repository atlas and ADR paths name the `<repo>-docs/` hub.
+- `check-vault-standard.mjs` points a stale `Standard.md` at the bundled vault standard. `atlas-check.mjs`, `calibration-metrics.mjs`, `estimate-run-cost.mjs`, `run-proof.mjs`, and `skim.mjs` print plugin-relative paths instead of repository-root commands.
+- `provider-parity-audit` declares that it runs in the code-ops repository. `local-review-gate` Track B documents `--matrix` for a matrix tracked in another repository.
+- Lint check 24 fails when shipped text names a path that resolves only inside a code-ops checkout, or when a bundled reference drifts from its hub page.
+
 ## 1.77.5
 - The vendored `revalidate-register.mjs` now reads a citation whose first segment starts with a dot, such as `.github/workflows/validate.yml:1`, as the whole path instead of dropping the dot and reporting AMBIGUOUS.
 

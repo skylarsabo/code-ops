@@ -30,7 +30,7 @@ const trunc = (s) => {
 };
 const usage = (message) => {
   console.error(`x ${message}`);
-  console.error('usage: node scripts/skim.mjs <file> [--range A,B] [--defs] [--max <n>] [--json]');
+  console.error('usage: skim.mjs <file> [--range A,B] [--defs] [--max <n>] [--json]');
   process.exit(2);
 };
 

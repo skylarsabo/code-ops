@@ -29,7 +29,7 @@ function main() {
     'say in a line what you are about to do, give brief updates while you work, and close with a recap that stands on its own',
     'only you see a command\'s output; put what the user needs to read in your reply',
     'context economy: skim before reading, query the symbol index before a map, digest output is on by default, size is a tie-breaker behind correctness, boundaries, performance, and readability',
-    'see: code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md and code-ops-docs/40 Engineering/Techniques/dispatch-brief-template.md',
+    'see: in the code-ops repository, https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/11-standard-operating-mode.md and https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/dispatch-brief-template.md',
   ];
   if (payload?.source === 'compact') {
     lines.push('compaction resume: restore decisions, constraints, completed and open work, exact identifiers, and named durable artifacts before continuing; never restore redacted values');

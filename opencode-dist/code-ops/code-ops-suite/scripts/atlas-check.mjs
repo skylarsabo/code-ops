@@ -804,7 +804,7 @@ function cmdScope(args) {
   // test for "is there an index". Building one here would hide the operator's real state behind a
   // slow side effect they did not ask for.
   if (!ask(['status']).ok) {
-    console.error('x no symbol index for this repo — run `node scripts/context-query.mjs refresh` first, then re-run this suggestion');
+    console.error(`x no symbol index for this repo — run \`node ${query} refresh\` first, then re-run this suggestion`);
     process.exit(1);
   }
 

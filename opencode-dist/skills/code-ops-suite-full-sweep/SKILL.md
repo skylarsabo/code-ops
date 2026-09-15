@@ -36,9 +36,11 @@ outline so the next read is a line range rather than a whole file.
 answers a structural question with `file:line` anchors, over a home-directory index that a
 supported post-edit mechanism refreshes on each edit. Turn the index off with
 `CODE_OPS_INDEX=off` in the host environment.
-`code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns the
-switch list. `code-ops-docs/55 Operations/MEASUREMENTS.md` owns their evidence and pending
-control results.
+In the code-ops repository,
+[`INFRASTRUCTURE.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/50%20Platform/INFRASTRUCTURE.md)
+owns the switch list, and
+[`MEASUREMENTS.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/55%20Operations/MEASUREMENTS.md)
+owns their evidence and pending control results.
 
 Dispatch an explorer operative to detect the stack and size from a compiled context bundle, then
 confirm with me:
