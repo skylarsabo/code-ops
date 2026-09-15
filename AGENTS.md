@@ -96,7 +96,7 @@ contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
 `MEASUREMENTS.md` under `code-ops-docs/`.
 
 Host coverage differs, and `INFRASTRUCTURE.md` holds the per-host table. Claude and Codex
-run all six commands. Grok prints nothing for the routing and ladder cards, so that guidance
+register all six commands. Grok prints nothing for the routing and ladder cards, so that guidance
 reaches it through instruction files only. OpenCode ports publishing, routing, compaction,
 digest, and index as plugin events, and has no ladder card or session receipt.
 
