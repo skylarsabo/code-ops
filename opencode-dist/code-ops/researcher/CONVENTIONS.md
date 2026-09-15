@@ -86,7 +86,7 @@ Write to the house writing standard: one term per concept, active voice, one ins
 
 Clarity outranks conformance. When a rule would obscure meaning, break it and say why.
 
-Full reference: `code-ops-docs/40 Engineering/Techniques/writing-standard.md`.
+Full reference: [`writing-standard.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/writing-standard.md) in the code-ops repository.
 
 ## 15 · Code standard
 Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed.

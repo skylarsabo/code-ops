@@ -1,7 +1,7 @@
 # Platform compatibility
 
-This opencode package is generated from the repository’s canonical Claude package.
-Rebuild it with `node scripts/build-opencode-dist.mjs`; CI uses `--check` to prevent drift.
+This opencode package is generated from the canonical Claude package in the code-ops repository.
+Rebuild it there with `node scripts/build-opencode-dist.mjs`; CI uses `--check` to prevent drift.
 
 ## Deliberate host transforms
 

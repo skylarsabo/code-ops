@@ -38,7 +38,7 @@ and doc alignment reconciles what the first three surfaces reference.
 | --- | --- | --- | --- |
 | 1 | Repo standards contract | The contract pair exists, matches one accepted parity mode (byte-identical, or a pointer file naming the contract as required reading), and carries the routing section | `/code-ops-suite-adopt-standards` |
 | 2 | Documentation hub | `<repo>-docs/` exists; vault and manifest checks exit 0; manifest-v2 collections also pass `records check` | `/code-ops-suite-vault` in the mode Phase B detects |
-| 3 | Atlas | `code-ops-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `/code-ops-suite-atlas` |
+| 3 | Atlas | `<repo>-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `/code-ops-suite-atlas` |
 | 4 | Doc alignment | Only when surfaces 1-3 surfaced drift signals: a contract, vault note, or repo doc referencing something the others contradict or no longer carry | `/code-ops-suite-doc-alignment` |
 | 5 | Global contract *(optional, ask first)* | The user's global `~/.claude/AGENTS.md` carries a marketplace stamp current with this checkout | `/code-ops-suite-adopt-global-standards` |
 
@@ -47,7 +47,7 @@ A surface whose checker could not run is UNKNOWN, never CONFORMANT, because a ch
 execute proves nothing (`§7`).
 
 Write those verdicts as the per-surface table row of the `CONFORMANCE_REPORT.md` grammar in
-`code-ops-docs/40 Engineering/Techniques/artifact-grammars.md`, carrying the surface, the
+`<plugin-root>/reference/artifact-grammars.md`, carrying the surface, the
 verdict, the checker command, and the evidence pointer. `calibration-metrics.mjs` reads that
 shape back, so a report written in prose instead makes this run's drift invisible to the trend
 rather than merely awkward to read.
@@ -93,7 +93,7 @@ List anything still DRIFTED or ABSENT with the reason it was deferred.
 ## Fleet mode: many repos, one standard
 
 Fleet mode turns on when the run is handed a `FLEET.json`, or when one sits at the invocation
-root. `code-ops-docs/40 Engineering/Techniques/fleet-standard.md` defines the layout, the
+root. `<plugin-root>/reference/fleet-standard.md` defines the layout, the
 manifest schema, and the consent rule. Everything above still holds. A fleet run is the per-repo
 run performed member by member, under one report.
 
@@ -101,7 +101,7 @@ run performed member by member, under one report.
 phrase `fleet member: yes` on a line of its own, in a `## Fleet` section of its own standards
 contract. A repo that only discusses the phrase, fenced as an example or quoted inline in a
 written refusal, has not consented. The parsing rules in
-`code-ops-docs/40 Engineering/Techniques/fleet-standard.md` are the specification of that
+`<plugin-root>/reference/fleet-standard.md` are the specification of that
 format. Where a markdown renderer displays a contract differently, the specification governs
 enrollment, and the divergence is a documentation issue rather than a checker bug. Three rules
 follow, and none of them bends:

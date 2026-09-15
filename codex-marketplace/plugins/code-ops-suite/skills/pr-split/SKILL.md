@@ -62,10 +62,10 @@ Then open the PR through `gh` against its parent. **Never auto-merge.** Never fo
 existing remote branch without confirmation. Per the automation level, `gated` pauses before the
 push, while `auto-safe` and full automatic execution proceed after one abortable dry-run summary.
 
-Merging the stack once it is up is a developer action, not this skill's. See
-`code-ops-docs/40 Engineering/Handbook/10-recovery-and-troubleshooting.md` §6, from the repo
-root, for the retarget-before-delete order and the CONFLICTING-tip reconciliation once a parent
-PR merges.
+Merging the stack once it is up is a developer action, not this skill's. See section 6 of
+[`10-recovery-and-troubleshooting.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/10-recovery-and-troubleshooting.md)
+in the code-ops repository for the retarget-before-delete order and the CONFLICTING-tip
+reconciliation once a parent PR merges.
 
 ## The safety rails, the full-automatic floor
 

@@ -18,7 +18,8 @@ It is also the **data producer** for the forward-looking half of the same loop. 
 ledger it reads back is what
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/estimate-run-cost.mjs --runs <runs dir> --skill <name>` uses
 at the next run's Phase 0, to estimate a dispatch-count range and a model-class mix before the
-budget is spent. See `code-ops-docs/40 Engineering/Handbook/09-cost-and-scoping.md`.
+budget is spent. See the cost levers in the code-ops repository:
+[`09-cost-and-scoping.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/09-cost-and-scoping.md).
 
 ## Phase 0: the collection
 
@@ -31,24 +32,27 @@ for the dispatch, redispatch, and failure rates, and for any dangling rows.
 The session receipt ledger is the second source, and it is machine-recorded rather than authored.
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/context-audit.mjs receipts --by-arm` groups the sessions by
 which context mechanisms were on, so a cost comparison has a control rather than an impression.
-`code-ops-docs/55 Operations/MEASUREMENTS.md` owns the measurement method, and
-`code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns the switches those arms record.
+In the code-ops repository,
+[`MEASUREMENTS.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/55%20Operations/MEASUREMENTS.md)
+owns the measurement method, and
+[`INFRASTRUCTURE.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/50%20Platform/INFRASTRUCTURE.md)
+owns the switches those arms record.
 
 ## Phase 1: the assessment against doctrine
 
 - **Bounded-wave discipline (`§1`).** Compare the ledger's per-wave dispatch counts against the handful-of-agents-at-a-time rule, and flag any wave that fanned out unbounded.
 - **Artifact-size bounds (`§12`).** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan narration <run folder>/EXECUTIVE_SUMMARY.md <other run summaries>`. A HARD hit is an over-length or narrated artifact, and an advisory is a borderline one.
-- **Tier and effort mix.** Compare each dispatch's model tier and reasoning effort, taken from the ledger's brief text or the operative transcripts where recorded, against the routing table in `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`. Flag mechanical work routed above the tier its floor requires, and any judgment-bearing dispatch routed below the strong tier. Under-tiered judgment work is a cost finding, not a saving, so price the redispatches and the discarded reports it caused.
+- **Tier and effort mix.** Compare each dispatch's model tier and reasoning effort, taken from the ledger's brief text or the operative transcripts where recorded, against the routing table in `${CLAUDE_PLUGIN_ROOT}/reference/subagent-trade-offs.md`. Flag mechanical work routed above the tier its floor requires, and any judgment-bearing dispatch routed below the strong tier. Under-tiered judgment work is a cost finding, not a saving, so price the redispatches and the discarded reports it caused.
 
 ## Phase 1b: the orchestration-discipline score
 
 Write `RUN_CONFORMANCE.md` in the check-row grammar of
-`code-ops-docs/40 Engineering/Techniques/artifact-grammars.md`, carrying a check slug, a verdict
+`${CLAUDE_PLUGIN_ROOT}/reference/artifact-grammars.md`, carrying a check slug, a verdict
 of `PASS`, `FAIL`, or `N/A`, and the evidence. Score only what the artifacts decide mechanically.
 A rule this run could not violate is `N/A`, never a quiet PASS. There are five checks:
 - `ledger-coverage`: every dispatched agent has a ledger row, cross-checked against the `DISPATCH_LEDGER.md` grammar on the same page.
 - `no-dangling`: no row is left `dispatched` with no reported, failed, or redispatched successor.
-- `tier-routing`: judgment-bearing roles ran at the strong tier, and mech-class work sat at or above its lint-enforced floor (`AGENT_MODEL_FLOORS`, mirrored in `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`).
+- `tier-routing`: judgment-bearing roles ran at the strong tier, and mech-class work sat at or above its lint-enforced floor (`AGENT_MODEL_FLOORS`, mirrored in `${CLAUDE_PLUGIN_ROOT}/reference/subagent-trade-offs.md`).
 - `effort-routing`: no low reasoning effort on a review dispatch, and no xhigh on a breadth sweep.
 - `artifact-placement`: dated artifacts landed in the vault's `80 Runs/YYYY-MM-DD slug/` when the target repo carries a vault (`§12`). It is `N/A` when the repo carries none.
 

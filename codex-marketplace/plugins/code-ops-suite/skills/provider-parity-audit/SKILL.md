@@ -10,8 +10,8 @@ description: "Use when the marketplace must be audited across Claude, Codex, ins
 **Invoke in Codex by naming `code-ops-suite:provider-parity-audit`.** First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin, especially the finding and fix
 tracks (`§6`) and finding schema (`§7`).
-**Mode:** ASSESS · **Consumes:** canonical plugins, both generated host distributions,
-repository and global contracts, host settings, evals, and installed-host evidence ·
+**Mode:** ASSESS · **Runs in:** the code-ops repository · **Consumes:** canonical plugins, both
+generated host distributions, repository and global contracts, host settings, evals, and installed-host evidence ·
 **Produces:** `FINDINGS_REGISTER.md`.
 
 Parity means an equivalent documented outcome through each host's supported API. It does not

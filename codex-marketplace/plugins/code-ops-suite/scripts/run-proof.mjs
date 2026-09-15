@@ -210,7 +210,7 @@ function cmdRecord(args) {
     if (text === null) {
       text = '# Run receipts\n\n'
         + 'Append-only execution ledger written by scripts/run-proof.mjs. Each row is a receipt\n'
-        + 'for a real run; replay with: node scripts/run-proof.mjs verify <this file>\n\n'
+        + 'for a real run; replay with: node <plugin-root>/scripts/run-proof.mjs verify <this file>\n\n'
         + '| id | recorded (UTC) | head | exit | sha256(output) | command |\n'
         + '| --- | --- | --- | --- | --- | --- |\n';
     }

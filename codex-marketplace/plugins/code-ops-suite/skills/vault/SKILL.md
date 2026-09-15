@@ -10,8 +10,8 @@ description: "Use when a repo needs its Obsidian docs vault created, an existing
 **Invoke in Codex by naming `code-ops-suite:vault`.** First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the interaction protocol (`§3`), the safety rails (`§4`), the
 single-source-of-truth conventions (`§12`) that decide where a run's artifacts land, and the doc
-standard (`§13`). Then read `code-ops-docs/40 Engineering/Techniques/vault-standard.md`, which is
-the source of truth for the layout, the profiles, and the promotion rule.
+standard (`§13`). Then read `<plugin-root>/reference/vault-standard.md`, the bundled
+copy of the vault standard, which defines the layout, the profiles, and the promotion rule.
 **Mode:** DOCUMENT · **Consumes:** the target repo and its existing docs tree or vault, when it
 has one · **Produces:** `<repo>-docs/`, holding the numbered folders, `Standard.md`,
 `00 Home.md`, `README.md`, and the templates.

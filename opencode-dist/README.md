@@ -1,8 +1,8 @@
 # Generated opencode distribution
 
-This directory is generated from the canonical packages under `../plugins/` by
-`node scripts/build-opencode-dist.mjs`. Do not edit files here directly; change the
-source package and rerun the renderer.
+This directory is generated in the code-ops repository (https://github.com/skylarsabo/code-ops)
+from the canonical packages under `../plugins/` by `node scripts/build-opencode-dist.mjs`.
+Do not edit files here directly; change the source package and rerun the renderer.
 
 ## Install
 

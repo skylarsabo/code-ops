@@ -1,6 +1,6 @@
 # Platform compatibility
 
-This Codex package is generated from the repository’s canonical Claude package. Rebuild it with `node scripts/build-codex-marketplace.mjs`; CI uses `--check` to prevent drift.
+This Codex package is generated from the canonical Claude package in the code-ops repository (https://github.com/skylarsabo/code-ops). Rebuild it there with `node scripts/build-codex-marketplace.mjs`; CI uses `--check` to prevent drift.
 
 ## Deliberate host transforms
 

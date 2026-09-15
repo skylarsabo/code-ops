@@ -96,7 +96,7 @@ gate. Push the branch, publish the local receipt statuses for that exact SHA whe
 and only then open the PR. Hosted CI runs deterministic checks only, and is the required merge
 gate. **Never auto-merge.**
 
-When the repo carries an atlas (`code-ops-docs/98 System/Atlas/MANIFEST.json`, or
+When the repo carries an atlas (`<repo>-docs/98 System/Atlas/MANIFEST.json`, or
 `atlas/MANIFEST.json`), close the loop on it here. Run
 `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>`. For any section
 this change turned STALE, refresh and stamp it **in this session**. The rationale behind the diff

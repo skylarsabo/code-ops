@@ -58,7 +58,7 @@ Write or update `CLAUDE.md` in this exact section order:
 3. **Post-edit chores** (derived-artifact regeneration, version bumps, parity updates) follow, when the repo has them.
 4. **`## Invariants the gates will catch`** names what lint and CI mechanically enforce, so the reader knows what they cannot get wrong without a tool catching it.
 5. **A local-only or gitignored docs note** follows, when the repo has scratch or non-tracked doc locations that doc-alignment and staleness sweeps should skip.
-6. **A documentation section** follows, when the repo carries a `<repo>-docs/` Obsidian vault or adopts one in this run. Route the reader to that vault's `Standard.md` routing table for where new design notes, decisions, and run artifacts go, rather than restating the layout here. The vault standard is `code-ops-docs/40 Engineering/Techniques/vault-standard.md`, and `/code-ops-suite:vault` scaffolds, migrates, and checks one.
+6. **A documentation section** follows, when the repo carries a `<repo>-docs/` Obsidian vault or adopts one in this run. Route the reader to that vault's `Standard.md` routing table for where new design notes, decisions, and run artifacts go, rather than restating the layout here. The vault standard is `${CLAUDE_PLUGIN_ROOT}/reference/vault-standard.md`, and `/code-ops-suite:vault` scaffolds, migrates, and checks one.
 
 **Cross-cutting rules, applied throughout:**
 - **Verify every command written.** Run it, or cite the CI or script `file:line` that defines it. Never invent one. When the repo has no build, test, or lint infrastructure for a category, state that honestly rather than filling the gap.

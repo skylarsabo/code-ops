@@ -9,8 +9,8 @@ model as the central, non-negotiable constraint. `CONVENTIONS.md` section A defi
 **Stance:** defensive privacy engineering. Protect the anonymity of your system's own users,
 and find and fix the leaks in your own code. Anonymous by default, fail-closed.
 
-New to the suite? Read the handbook at `code-ops-docs/40 Engineering/Handbook/` from the
-repository root.
+New to the suite? Read the [handbook](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/README.md)
+in the code-ops repository.
 
 ## Skills
 
@@ -128,8 +128,9 @@ largest avoidable cost in a run. Two bundled scripts cut it:
 The suite ships further context mechanisms, on by default, in `code-ops-suite`: a
 `PreToolUse` output digest, a `SubagentStart` ladder card, and a symbol index refreshed by a
 `PostToolUse` hook. Each is turned off with `off`, `0`, or `false` in the `env` block of a
-`.claude/settings.json`. `code-ops-docs/50 Platform/INFRASTRUCTURE.md` owns those switches,
-and `code-ops-docs/55 Operations/MEASUREMENTS.md` owns what they measure.
+`.claude/settings.json`. In the code-ops repository,
+[`INFRASTRUCTURE.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/50%20Platform/INFRASTRUCTURE.md) owns those switches, and
+[`MEASUREMENTS.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/55%20Operations/MEASUREMENTS.md) owns what they measure.
 
 ## Notes
 

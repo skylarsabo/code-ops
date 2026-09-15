@@ -17,8 +17,9 @@ lenses (`§10`), and the run ledgers (`§12`).
 **Mode:** REVIEW. **Consumes:** one clean, committed feature branch and its target base.
 **Produces:** two ignored review reports, a SHA-bound plan, a hash-chained receipt set, and
 optional GitHub commit statuses. **Requires** `/rigor-deep-review` and
-`/privacy-opsec-suite-opsec-pr-gate` for the PR track. The judgment-eval track instead consumes
-`evals/judgment-matrix.json` and dispatches the plan's read-only units.
+`/privacy-opsec-suite-opsec-pr-gate` for the PR track. The judgment-eval track instead consumes a
+tracked fixture matrix and dispatches the plan's read-only units. Its default matrix,
+`evals/judgment-matrix.json`, exists only in the code-ops repository.
 
 **Opt-in only.** This skill spends two strong-tier reviewer runs per head, and a fix costs both
 again. It never runs by default from another skill, and never on the lead's own judgment. It runs
@@ -98,13 +99,15 @@ after publication. Hosted CI remains responsible for the deterministic checks. N
 
 ## Track B: the local judgment evals
 
-Compile a provider-neutral plan from the one tracked fixture matrix:
+Compile a provider-neutral plan from one tracked fixture matrix. The default matrix is
+`evals/judgment-matrix.json`, which exists only in the code-ops repository. In another repository,
+pass `--matrix <path>` naming a version 1 matrix tracked in that repository:
 
 ```bash
 node <plugin-root>/scripts/judgment-evals.mjs plan \
   --root <repo> --mode <trend|floor> --execution <available|unavailable> \
   --out <ignored-run-folder>/plan.json \
-  --strong-model <stable-model-id> [--weak-model <stable-model-id>]
+  --strong-model <stable-model-id> [--weak-model <stable-model-id>] [--matrix <tracked-path>]
 ```
 
 Keep the full plan lead-only, because its matrix binding contains answer-key paths. Dispatch only

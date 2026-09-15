@@ -480,7 +480,7 @@ function runMetrics(dir, outPath, jsonPath) {
   const warnZeroParse = (name, text) => {
     if (text.trim() === '') return; // genuinely empty is not shape drift
     p(`  !! WARNING: ${name} is present and non-empty but yielded 0 parsed items — check its`
-      + ' shape against code-ops-docs/40 Engineering/Techniques/artifact-grammars.md before assuming there is nothing to report.');
+      + ' shape against reference/artifact-grammars.md in the code-ops-suite plugin before assuming there is nothing to report.');
   };
 
   p(`# calibration-metrics — ${dir}`);
@@ -657,7 +657,7 @@ function runMetrics(dir, outPath, jsonPath) {
       // its own is findings written outside the register: every metric above misses them.
       if (!METRIC_ARTIFACTS.has(f.toUpperCase()) && entries.length)
         p(`  !! WARNING: ${f} carries ${entries.length} register-shaped entry(ies) that are NOT counted in`
-          + ' the metrics above — findings must live in FINDINGS_REGISTER.md (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md).');
+          + ' the metrics above — findings must live in FINDINGS_REGISTER.md (reference/artifact-grammars.md in the code-ops-suite plugin).');
     }
   }
 
@@ -779,7 +779,7 @@ function validateMachineBlock(text) {
     hits.push({
       line: 1, cat: 'MACHINE-BLOCK',
       snippet: 'no "## Machine block" section — the sanitized-note template requires one'
-        + ' (code-ops-docs/40 Engineering/Techniques/calibration-protocol.md); a note without it cannot be ingested.',
+        + ' (reference/calibration-protocol.md in the code-ops-suite plugin); a note without it cannot be ingested.',
     });
     return hits;
   }

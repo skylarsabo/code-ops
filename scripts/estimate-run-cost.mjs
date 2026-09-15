@@ -389,7 +389,8 @@ if (comparable.length) {
     p(`     Drawn from ${usable.length} comparable run(s). A range needs at least ${MIN_COMPARABLE}`);
     p('     to be a distribution rather than a sample; below that the min and the max are');
     p('     two observations, and the median is one of them. Read it as an order of');
-    p('     magnitude, and scope the run on the levers in code-ops-docs/40 Engineering/Handbook/09-cost-and-scoping.md');
+    p('     magnitude, and scope the run on the cost levers in the code-ops repository,');
+    p('     https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/09-cost-and-scoping.md,');
     p('     rather than on this line.');
   }
   if (emptyLedgers.length) {
@@ -420,7 +421,7 @@ if (comparable.length) {
     p();
     p(`  !! CAVEAT — ${withMalformed.length} comparable run(s) carry unparseable ledger rows; their`);
     p('     dispatch counts are floors, not counts. Check them against grammar (a) in');
-    p('     code-ops-docs/40 Engineering/Techniques/artifact-grammars.md.');
+    p('     reference/artifact-grammars.md in the code-ops-suite plugin.');
   }
 }
 
