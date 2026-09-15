@@ -463,7 +463,8 @@ export function mergeSummaries(list, opts = {}) {
   return m;
 }
 
-// Host convention: `~/.codex/projects/<cwd with every non-alphanumeric byte replaced by "-">`.
+// Claude host layout: `<home>/.claude/projects/<cwd with every non-alphanumeric byte replaced by "-">`.
+// Only the Claude branch uses this slug. The Codex branch reads `$CODEX_HOME/sessions`.
 export function projectSlug(cwd) {
   return String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 }

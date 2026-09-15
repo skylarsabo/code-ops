@@ -60,9 +60,33 @@ for (const plugin of pluginNames) {
       const rendered = read(join(pluginsDir, plugin, 'agents', `${agent.name}.md`));
       expect(!/^model:/m.test(rendered) && !/^tools:/m.test(rendered), `${plugin}/${agent.name}: Claude-only agent controls leaked`);
       expect(rendered.includes('agents/model-floors.json') && rendered.includes(`\`${agent.minimumTier}\``), `${plugin}/${agent.name}: role brief does not direct the lead to its floor contract`);
+      expect(!/\b(?:Bash|Write) (?:is|and|are)\b/.test(rendered), `${plugin}/${agent.name}: role brief names a stripped Claude tool`);
     }
   }
 }
+
+// The tools line is stripped, so the role contract header must carry write capability.
+const WRITER = 'This role may write files only for its report and repro artifacts.';
+const READ_ONLY = 'This role is read-only: return the report inline.';
+const verifierBrief = read(join(pluginsDir, 'rigor', 'agents', 'verifier.md'));
+expect(verifierBrief.includes(WRITER) && !verifierBrief.includes(READ_ONLY), 'rigor/verifier: role contract does not state its report-file write capability');
+for (const [plugin, role] of [['code-ops-suite', 'explorer'], ['privacy-opsec-suite', 'privacy-reviewer']]) {
+  const brief = read(join(pluginsDir, plugin, 'agents', `${role}.md`));
+  expect(brief.includes(READ_ONLY) && !brief.includes(WRITER), `${plugin}/${role}: role contract does not state it is read-only`);
+}
+
+// The compatibility page and README list every bundled hook command, not only the traceless one.
+const renderedHooks = JSON.parse(read(join(pluginsDir, 'code-ops-suite', 'hooks', 'hooks.json'))).hooks ?? {};
+const hookScripts = Object.values(renderedHooks).flat().flatMap((group) => group.hooks ?? [])
+  .map((entry) => entry.command.match(/hooks\/([\w.-]+\.mjs)/)?.[1]);
+const compatPage = read(join(pluginsDir, 'code-ops-suite', 'PLATFORM_COMPATIBILITY.md'));
+const suiteReadme = read(join(pluginsDir, 'code-ops-suite', 'README.md'));
+expect(compatPage.includes(`retains ${hookScripts.length} hook commands on ${Object.keys(renderedHooks).length} events`), 'compatibility page misstates the bundled hook count');
+for (const script of hookScripts) {
+  expect(compatPage.includes(`\`${script}\`: `), `compatibility page omits the ${script} hook`);
+  expect(suiteReadme.includes(`\`${script}\`: `), `README omits the ${script} hook`);
+}
+expect(compatPage.includes('reviews and trusts') && suiteReadme.includes('review and trust'), 'hook trust step is missing');
 
 const mcp = JSON.parse(read(join(pluginsDir, 'code-ops-suite', '.mcp.json')));
 expect(mcp.mcpServers?.['code-ops-docs']?.command === 'node', 'code-ops-suite: missing code-ops-docs MCP command');

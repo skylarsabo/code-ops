@@ -12,7 +12,9 @@
 // operator owns retention: nothing purges on its own, and the command reports what it removed.
 // Rows the reader would skip (bad JSON, another version) are dropped by the rewrite too.
 //
-// Default transcript dir: `~/.codex/projects/<slug of --cwd or the current directory>`.
+// Default host: the host this copy ships for. `--host` overrides it.
+// Default transcript dir: for `--host claude`, `<home>/.claude/projects/<slug of --cwd or the current
+// directory>`; for `--host codex`, `$CODEX_HOME/sessions` (default `<home>/.codex/sessions`).
 // Default ledger: $CODE_OPS_RECEIPTS or `~/.codex/code-ops/session-receipts.jsonl`.
 //
 // Output is sanitized by default (tool names, command families, file extensions). `--raw`
