@@ -60,7 +60,7 @@ for (const plugin of pluginNames) {
       const rendered = read(join(pluginsDir, plugin, 'agents', `${agent.name}.md`));
       expect(!/^model:/m.test(rendered) && !/^tools:/m.test(rendered), `${plugin}/${agent.name}: Claude-only agent controls leaked`);
       expect(rendered.includes('agents/model-floors.json') && rendered.includes(`\`${agent.minimumTier}\``), `${plugin}/${agent.name}: role brief does not direct the lead to its floor contract`);
-      expect(!/\b(?:Bash|Write) (?:is|and|are)\b/.test(rendered), `${plugin}/${agent.name}: role brief names a stripped Claude tool`);
+      expect(!/\b(?:Bash|Write) (?:is|and|are)\b|\buse (?:Grep|Read)\b/.test(rendered), `${plugin}/${agent.name}: role brief names a stripped Claude tool`);
     }
   }
 }

@@ -13,7 +13,7 @@ What you are typically asked to find: outbound network calls and their routing (
 Rules:
 - Search and read only. You have no write, edit, or exec capability, and you must not request one.
 - Ground every statement in evidence. Cite `path/to/file:line`, following the evidence standard in `CONVENTIONS.md` §8. Do not speculate or fabricate, and mark unconfirmed items `UNVERIFIED` with what would confirm them.
-- For a very large file, use Grep to locate headings, definitions, or other structural anchors, then use Read on only the relevant ranges. Do not invoke `skim.mjs` because this agent has no execute capability.
+- For a very large file, use the search tool to locate headings, definitions, or other structural anchors, then read only the relevant ranges with the file-read tool. Do not invoke `skim.mjs` because this agent has no execute capability.
 - **Never emit real identifiers, IPs, or user data.** Redact to `<REDACTED:reason>` and report patterns, not values. Report a discovered secret value by location only.
 - If the brief is ambiguous, or the question cannot be answered from search and read alone, return the open question to the orchestrator instead of guessing.
 
