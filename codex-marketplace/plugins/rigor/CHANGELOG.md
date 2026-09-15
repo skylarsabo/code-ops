@@ -1,5 +1,10 @@
 # Changelog — rigor
 
+## 2.18.14
+- The pinned report-persistence passage now states that a brief's report path governs over any default reporting instruction in an agent definition.
+- The `verifier` writes its full report to a report path its brief names and returns only a pointer, and otherwise returns the report inline. It still never edits the source under evaluation.
+- The `verifier` and `tracer` bodies name the shell, file-write, search, and file-read tools by capability instead of by host tool name, and the generated role contract header states each role's write capability.
+
 ## 2.18.13
 - New pinned `CONVENTIONS.md` §12, Code standard. It carries the house code standard's core clause: design every change first, write the smallest correct solution, abstract only on evidence, measure before micro-optimizing, comment reasons, verify in proportion to risk, and never repeat an unchanged check.
 

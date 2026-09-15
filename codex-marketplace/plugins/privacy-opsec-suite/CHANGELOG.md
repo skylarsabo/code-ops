@@ -1,5 +1,9 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.15
+- The pinned report-persistence passage now states that a brief's report path governs over any default reporting instruction in an agent definition.
+- The `privacy-reviewer` and `explorer` bodies name the shell, search, and file-read tools by capability instead of by host tool name, and the generated role contract header states each role's write capability.
+
 ## 1.20.14
 - The vendored `scan-ai-tells.mjs` gains a `--command <file>` mode. It scans a shell command string and, as a second target, each message, trailer, title, body, and field value that `git commit`, `gh pr create|edit|merge`, or `gh api` would publish, each on its own line. File and `--git` scans are unchanged.
 
