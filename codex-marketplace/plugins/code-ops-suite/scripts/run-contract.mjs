@@ -109,11 +109,14 @@ function validate(c, root) {
     // The pre-registered calibration arms b and c run a strong lead on the assess-only track.
     // A valid block waives the frontier-lead rule and lets units run at, never above, the
     // lead tier, only for read-mode units whose artifacts land outside every assessed scope.
+    // A lead model that also serves the frontier rung runs the frontier model, so the arm
+    // could not measure the strong-versus-frontier gap it exists to measure.
     const before = errors.length;
     exact(c.calibration, CALIBRATION, 'calibration', errors);
     if (!CALIBRATION_ARMS.has(c.calibration?.arm)) errors.push('calibration.arm must be b or c');
     if (c.calibration?.track !== 'assess-only') errors.push('calibration.track must be assess-only');
     if (c.lead?.tier !== 'strong') errors.push('calibration requires a strong lead; a frontier lead declares no calibration block');
+    else if (modelSupportsTier(c.lead.model, 'strong') && modelSupportsTier(c.lead.model, 'frontier')) errors.push(`calibration arm needs a lead model distinct from the frontier model; ${c.lead.model} serves both`);
     const units = Array.isArray(c.units) ? c.units : [];
     const scopes = units.flatMap((unit) => Array.isArray(unit?.scope) ? unit.scope.filter(safePath) : []);
     units.forEach((unit, index) => {

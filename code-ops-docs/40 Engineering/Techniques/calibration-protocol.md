@@ -337,7 +337,9 @@ scope. Arm (a) runs a frontier lead and declares no block.
 Arms (b) and (c) compare strong and frontier leads, so they measure a gap only where
 `scripts/model-tiers.mjs` binds the two tiers to different models. On a provider whose
 strong and frontier tiers bind the same model, a strong-lead arm runs the frontier model,
-and its row cannot answer the question.
+and its row cannot answer the question. The validator enforces this caveat. It rejects the
+block when the lead model also serves the frontier rung in any ladder, and it names that
+model in the error.
 
 Axes, fixed in advance: CONFIRMED per 100k operative tokens, refutation survival rate,
 failed-dispatch and redispatch rates from the run's `DISPATCH_LEDGER.md`, atlas falsified

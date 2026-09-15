@@ -362,7 +362,9 @@ is frontier tier. It plans at least two operatives, demonstrates a parallel wave
 two units, keeps ordinary operatives below the lead tier, and makes validators depend on a
 role-independent discovery unit. Finalization refuses missing or empty operative artifacts.
 The optional `calibration` block, `{"arm": "b" | "c", "track": "assess-only"}`, admits a
-strong lead for the pre-registered calibration arms. It requires read-mode units whose
+strong lead for the pre-registered calibration arms. A lead model that also serves the
+frontier rung fails validation, since that arm cannot measure a strong-versus-frontier gap.
+It requires read-mode units whose
 artifacts fall outside every unit scope. Units may then run at the lead tier but never
 above it, and every other routing floor still applies.
 
