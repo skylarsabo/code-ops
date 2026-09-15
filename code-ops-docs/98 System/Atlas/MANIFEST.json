@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "9a30eccbd6f13496da595ba357d02d43403150c6",
-      "verifiedDigest": "2baf78d524fbafe767a616cce64018f2e4ee1bcbdaf80bd3fd22a0fef52909eb",
+      "verifiedAt": "9cf65783c3527cb44435f659f4a347b14ff68a3b",
+      "verifiedDigest": "3482e121d0105e2ec52bb511a441e6ced6b057c9b17b5a4bc99c6929d5ce2ae3",
       "claims": [
         {
           "file": "scripts/atlas-check.mjs",
@@ -34,8 +34,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "9a30eccbd6f13496da595ba357d02d43403150c6",
-      "verifiedDigest": "98e02f187e51ae3b9f259bbedead6cc75743e4748093dce2b305e636b9c2c0ad",
+      "verifiedAt": "9cf65783c3527cb44435f659f4a347b14ff68a3b",
+      "verifiedDigest": "f3e55f22a29c6b08a9a3039a52231c8e1dafcd0681e60b102f279ed65ecaa652",
       "claims": [
         {
           "file": "scripts/judgment-evals.mjs",
