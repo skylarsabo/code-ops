@@ -203,6 +203,10 @@ guessed lead class would silently mis-group a comparison. Model classes are publ
 vocabulary, so the line adds no leak surface, and no version string, endpoint, or session
 id crosses on it.
 
+A point release keeps its family's class name while it serves the same rung, so Fable 5.1
+records as `fable-5`, and one class never splits across two slugs. The grammar accepts
+`fable-5-1` and rejects `fable-5.1`, so this rule, not the validator, holds the name.
+
 A lead that changed mid-run records every lead class in order, plus-separated, as in
 `config: lead fable-5+opus-5; operatives opus-5`, rather than omitting the field. A
 handover after a safety-classifier interruption left the session to be recovered under
@@ -337,7 +341,9 @@ scope. Arm (a) runs a frontier lead and declares no block.
 Arms (b) and (c) compare strong and frontier leads, so they measure a gap only where
 `scripts/model-tiers.mjs` binds the two tiers to different models. On a provider whose
 strong and frontier tiers bind the same model, a strong-lead arm runs the frontier model,
-and its row cannot answer the question.
+and its row cannot answer the question. The validator enforces this caveat. It rejects the
+block when the lead model also serves the frontier rung in any ladder, and it names that
+model in the error.
 
 Axes, fixed in advance: CONFIRMED per 100k operative tokens, refutation survival rate,
 failed-dispatch and redispatch rates from the run's `DISPATCH_LEDGER.md`, atlas falsified

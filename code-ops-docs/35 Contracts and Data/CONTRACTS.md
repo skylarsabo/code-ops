@@ -67,7 +67,8 @@ version 4; versions 1 through 3 are historical inputs, not new-run templates. Ev
 A version 4 contract may carry an optional `calibration` block with exactly `arm` and
 `track`. It exists for the pre-registered calibration arms (b) and (c). A valid block waives the
 frontier-lead rule and lets a unit run at the lead tier, never above it. The validator requires arm `b` or `c`, track `assess-only`, and a strong
-lead. Every unit must use read mode, and no unit artifact may fall inside any unit scope.
+lead. It rejects the block when the lead model also serves the frontier rung, since that
+arm cannot measure a strong-versus-frontier gap. Every unit must use read mode, and no unit artifact may fall inside any unit scope.
 Earlier versions reject the key. Evidence: `scripts/run-contract.mjs`.
 
 Security campaigns use a separate `ATTACK_CAMPAIGN.json` contract. It declares distinct

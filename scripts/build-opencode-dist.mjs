@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits } from './model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits, modelSupportsTier } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
@@ -491,6 +491,7 @@ function modelTiersDoc(agents) {
     'unset so it inherits the session model. Merge whichever you want into your own config rather',
     'than overwriting a config you already have, and keep your own copy out of a refresh.',
     '',
+    ...runContractSection(),
     '## Agent floors',
     '',
     'Each bundled agent states its required tier in its own file. For reference:',
@@ -506,6 +507,34 @@ function modelTiersDoc(agents) {
     '',
   ];
   return lines.join('\n');
+}
+
+// Run contracts take bare model ids and a version 4 contract needs a frontier lead, which the
+// default ladder does not bind. Both facts are derived from the tier table, so the section
+// cannot name a provider or model the validator would judge differently.
+function runContractSection() {
+  const fallback = PROVIDER_TIERS[DEFAULT_PROVIDER];
+  const strong = fallback.models.strong;
+  const collapsed = Object.values(PROVIDER_TIERS)
+    .filter((p) => modelSupportsTier(p.models.strong, 'frontier'))
+    .map((p) => p.label);
+  return [
+    '## Run contracts',
+    '',
+    '`run-contract.mjs` requires a `frontier` lead in every version 4 `RUN_CONTRACT.json`.',
+    leadInherits(fallback)
+      ? `The \`${DEFAULT_PROVIDER}\` ladder leaves the lead unset and binds no frontier model. Its contracts need a session model that another provider binds to \`frontier\`.`
+      : `The \`${DEFAULT_PROVIDER}\` ladder binds \`${fallback.models.frontier}\` to \`frontier\`.`,
+    '',
+    'A `calibration` block is the only exception. It serves calibration arms (b) and (c) on the',
+    `assess-only track, and it admits a \`strong\` lead such as \`${strong}\`. The validator rejects`,
+    'the block when the lead model also serves the `frontier` rung, because that arm cannot',
+    `measure a strong-versus-frontier gap. That rules out a strong lead from: ${collapsed.join(', ')}.`,
+    '',
+    `Contracts take bare model ids. Write \`${strong}\`, not \`${fallback.id}/${strong}\`. The`,
+    'provider-prefixed form in the table above and in `opencode.json` fails the tier check.',
+    '',
+  ];
 }
 
 function exampleConfig(agents, providerId) {

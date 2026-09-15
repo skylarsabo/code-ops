@@ -149,6 +149,22 @@ for (const provider of Object.values(PROVIDER_TIERS)) {
     expect(tiers.includes(`\`${provider.id}/${provider.models[tier]}\``), `MODEL_TIERS.md is missing the ${provider.id} binding for ${tier}`);
   }
 }
+// Version 4 run contracts need a frontier lead, which the default ladder does not bind, and
+// they take bare ids. An operator following only the generated docs must learn both rules.
+{
+  const fallback = PROVIDER_TIERS[DEFAULT_PROVIDER];
+  const strong = fallback.models.strong;
+  const section = tiers.split('## Run contracts')[1]?.split('\n## ')[0] ?? '';
+  expect(section.length > 0, 'MODEL_TIERS.md is missing the Run contracts section');
+  expect(section.includes('requires a `frontier` lead in every version 4 `RUN_CONTRACT.json`'), 'MODEL_TIERS.md does not state the version 4 frontier-lead requirement');
+  expect(section.includes('A `calibration` block is the only exception') && section.includes(`\`${strong}\``), 'MODEL_TIERS.md does not describe the calibration-block exception');
+  expect(section.includes('rejects') && section.includes('also serves the `frontier` rung'), 'MODEL_TIERS.md does not state the calibration rejection where strong equals frontier');
+  for (const provider of Object.values(PROVIDER_TIERS)) {
+    const collapsed = provider.models.strong !== null && provider.models.strong === provider.models.frontier;
+    if (collapsed) expect(section.includes(provider.label), `MODEL_TIERS.md does not list ${provider.id} among ladders that cannot run a calibration strong lead`);
+  }
+  expect(section.includes(`Write \`${strong}\`, not \`${fallback.id}/${strong}\``), 'MODEL_TIERS.md does not state the bare model id rule for contracts');
+}
 for (const [providerId, specialists] of Object.entries(PROVIDER_SPECIALISTS)) {
   for (const specialist of specialists) {
     expect(tiers.includes(`\`${providerId}/${specialist.model}\``), `MODEL_TIERS.md is missing the ${providerId}/${specialist.name} specialist`);

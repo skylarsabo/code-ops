@@ -66,6 +66,19 @@ One config per provider ships under `configs/`, each binding every agent to its 
 unset so it inherits the session model. Merge whichever you want into your own config rather
 than overwriting a config you already have, and keep your own copy out of a refresh.
 
+## Run contracts
+
+`run-contract.mjs` requires a `frontier` lead in every version 4 `RUN_CONTRACT.json`.
+The `opencode` ladder leaves the lead unset and binds no frontier model. Its contracts need a session model that another provider binds to `frontier`.
+
+A `calibration` block is the only exception. It serves calibration arms (b) and (c) on the
+assess-only track, and it admits a `strong` lead such as `mimo-v2.5-free`. The validator rejects
+the block when the lead model also serves the `frontier` rung, because that arm cannot
+measure a strong-versus-frontier gap. That rules out a strong lead from: xAI (Grok), Google (Gemini), Z.AI (GLM), Moonshot AI (Kimi), DeepSeek, Mistral.
+
+Contracts take bare model ids. Write `mimo-v2.5-free`, not `opencode/mimo-v2.5-free`. The
+provider-prefixed form in the table above and in `opencode.json` fails the tier check.
+
 ## Agent floors
 
 Each bundled agent states its required tier in its own file. For reference:
