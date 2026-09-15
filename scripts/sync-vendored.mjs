@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Sync vendored runtime scripts: copies each scripts/vendored-manifest.mjs entry from the
 // canonical scripts/<name> over every plugins/<plugin>/scripts/<name> it lists, byte-identical.
-// scripts/lint-plugins.mjs enforces the same manifest as a CI gate (check 6); this script is
+// It copies each VENDORED_REFERENCES hub page into plugins/<plugin>/reference/<name> the same way.
+// scripts/lint-plugins.mjs enforces the same manifest as a CI gate (checks 6 and 24); this script is
 // what actually performs the copy — the pre-commit hook runs it when a manifest-listed
 // canonical script is staged.
 //
@@ -13,9 +14,16 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RUNTIME_SCRIPTS } from './vendored-manifest.mjs';
+// A namespace import, because a manifest that predates vendored references exports no
+// VENDORED_REFERENCES, and a named import of a missing export fails to load.
+import * as manifest from './vendored-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const referenceSourceDir = manifest.REFERENCE_SOURCE_DIR ?? '';
+const COPIES = [
+  ...manifest.RUNTIME_SCRIPTS.map((entry) => ({ entry, source: join(ROOT, 'scripts', entry.name), subdir: 'scripts' })),
+  ...(manifest.VENDORED_REFERENCES ?? []).map((entry) => ({ entry, source: join(ROOT, ...referenceSourceDir.split('/'), entry.name), subdir: 'reference' })),
+];
 const rel = (p) => p.slice(ROOT.length + 1).replaceAll('\\', '/');
 
 const args = process.argv.slice(2);
@@ -29,16 +37,15 @@ let synced = 0;
 let current = 0;
 let issue = false;
 
-for (const entry of RUNTIME_SCRIPTS) {
-  const canonicalPath = join(ROOT, 'scripts', entry.name);
+for (const { entry, source: canonicalPath, subdir } of COPIES) {
   if (!existsSync(canonicalPath)) {
-    console.error(`x missing canonical scripts/${entry.name}`);
+    console.error(`x missing canonical ${rel(canonicalPath)}`);
     issue = true;
     continue;
   }
   const canon = readFileSync(canonicalPath, 'utf8');
   for (const pluginName of entry.plugins) {
-    const targetDir = join(ROOT, 'plugins', pluginName, 'scripts');
+    const targetDir = join(ROOT, 'plugins', pluginName, subdir);
     const targetPath = join(targetDir, entry.name);
     const existing = existsSync(targetPath) ? readFileSync(targetPath, 'utf8') : null;
     if (existing === canon) {

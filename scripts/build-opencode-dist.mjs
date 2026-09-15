@@ -580,8 +580,8 @@ function generatedReadme(skills, agents) {
     `- \`skills/\` — ${skills.length} skills, discovered by the model through opencode's \`skill\` tool.`,
     `- \`commands/\` — ${skills.length} slash commands, one per skill, for user invocation.`,
     `- \`agents/\` — ${agents.length} subagents, with their Claude tool allowlists translated to opencode permissions.`,
-    '- `code-ops/` — per-plugin `CONVENTIONS.md`, runtime scripts, and non-discoverable',
-    '  tier-floor carriers for the vendored preflight scripts.',
+    '- `code-ops/` — per-plugin `CONVENTIONS.md`, reference specs that skills cite, runtime',
+    '  scripts, and non-discoverable tier-floor carriers for the vendored preflight scripts.',
     '- `plugins/` — the traceless-publishing gate and model-floor gate, ported to opencode',
     '  plugin hooks.',
     '- `opencode.json` — an example config binding every agent to its tier. Merge it into',
@@ -699,6 +699,11 @@ function buildExpectedFiles() {
     }
 
     add(`code-ops/${pluginName}/CONVENTIONS.md`, transformConventions(readText(sourcePath(pluginName, 'CONVENTIONS.md'))));
+    // Skills cite vendored execution specs under reference/. They take the skill-text transform,
+    // not transformConventions, which rewrites paragraphs that exist only in CONVENTIONS.md.
+    for (const file of walkFiles(sourcePath(pluginName, 'reference'))) {
+      add(`code-ops/${pluginName}/reference/${toPosix(relative(sourcePath(pluginName, 'reference'), file))}`, portableText(readText(file)));
+    }
     for (const file of walkFiles(sourcePath(pluginName, 'scripts'))) {
       add(`code-ops/${pluginName}/scripts/${toPosix(relative(sourcePath(pluginName, 'scripts'), file))}`, readText(file));
     }
@@ -757,6 +762,16 @@ function validate({ files, skills, agents }) {
     expect(carrierText !== undefined, `${carrier} is missing for the vendored preflight`);
     expect(carrierText?.includes(`name: ${agent.sourceName}`), `${carrier} does not carry the source agent name`);
     expect(carrierText?.includes(`model: ${agent.alias}`), `${carrier} does not carry the source model floor`);
+  }
+
+  for (const pluginName of PLUGIN_NAMES) {
+    for (const file of walkFiles(sourcePath(pluginName, 'reference'))) {
+      const path = `code-ops/${pluginName}/reference/${toPosix(relative(sourcePath(pluginName, 'reference'), file))}`;
+      const contents = files.get(path);
+      expect(contents !== undefined, `${path} is missing`);
+      expect(!contents?.includes(ROOT_TOKEN), `${path} retains the Claude plugin-root token`);
+      expect(!RESIDUAL_SKILL_REF.test(contents ?? ''), `${path} retains an uncallable bare Claude skill reference`);
+    }
   }
 
   const plugin = files.get('plugins/code-ops-traceless.js');

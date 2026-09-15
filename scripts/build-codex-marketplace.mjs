@@ -507,6 +507,8 @@ function buildExpectedFiles() {
     add(`${base}/CONVENTIONS.md`, portableText(readText(sourcePath(spec.name, 'CONVENTIONS.md'))));
     add(`${base}/CHANGELOG.md`, portableText(readText(sourcePath(spec.name, 'CHANGELOG.md'))).replace('`.claude-plugin/plugin.json` and the matching entry in the marketplace.', 'the source plugin manifest and matching marketplace entries.'));
     addSourceTree(sourcePath(spec.name, 'scripts'), `${base}/scripts`, portableRuntimeText);
+    // Skills cite vendored execution specs under reference/, so they carry CONVENTIONS.md's transform.
+    addSourceTree(sourcePath(spec.name, 'reference'), `${base}/reference`, (text) => portableText(text));
 
     const sourceAgents = sourcePath(spec.name, 'agents');
     if (existsSync(sourceAgents)) {
@@ -608,10 +610,10 @@ function validateExpectedFiles(expected) {
     }
   }
   for (const [path, contents] of expected) {
-    if (/(?:\/SKILL\.md|\/agents\/[^/]+\.md|\/CONVENTIONS\.md)$/.test(path)) {
+    if (/(?:\/SKILL\.md|\/agents\/[^/]+\.md|\/CONVENTIONS\.md|\/reference\/.+\.md)$/.test(path)) {
       expect(!contents.includes(ROOT_TOKEN), `${path} retains the Claude plugin-root token`);
     }
-    if (/^(?:plugins\/[^/]+\/(?:CONVENTIONS\.md|hooks\/|scripts\/))/.test(path)
+    if (/^(?:plugins\/[^/]+\/(?:CONVENTIONS\.md|reference\/|hooks\/|scripts\/))/.test(path)
       && !path.endsWith('/scripts/transcript-lib.mjs')) {
       expect(!contents.includes('~/.claude/'), `${path} retains a Claude-only home path`);
       expect(!contents.includes('.claude/settings.json'), `${path} retains a Claude-only settings path`);

@@ -5,7 +5,7 @@
 //
 //   node evals/opencode-dist/run.mjs   (exit 0 = pass)
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -266,6 +266,42 @@ for (const plugin of ['privacy-opsec-suite', 'researcher', 'rigor']) {
   expect(sibling.includes('no operative ladder card or session receipt'), `${plugin} conventions claim unavailable OpenCode lifecycle hooks`);
   expect(!sibling.includes('.claude/settings.json'), `${plugin} conventions retain the Claude settings location`);
 }
+// Skills cite vendored execution specs at <plugin-root>/reference/, which resolves to
+// code-ops/<plugin>/reference/. Only lines naming a host-specific token may differ from canonical.
+const HOST_SPECIFIC_LINE = /\$\{CLAUDE_PLUGIN_ROOT\}|CLAUDE\.md|Claude Code|(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/;
+const referenceSpecs = [];
+for (const plugin of pluginNames) {
+  const sourceReference = join(sourcePluginsDir, plugin, 'reference');
+  const renderedReference = join(dist, 'code-ops', plugin, 'reference');
+  const specs = existsSync(sourceReference) ? readdirSync(sourceReference).filter((file) => file.endsWith('.md')).sort() : [];
+  const rendered = existsSync(renderedReference) ? readdirSync(renderedReference).filter((file) => file.endsWith('.md')).sort() : [];
+  expect(JSON.stringify(rendered) === JSON.stringify(specs), `${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canonical [${specs.join(', ')}]`);
+  for (const spec of specs.filter((file) => rendered.includes(file))) {
+    const source = read(join(sourceReference, spec)).split('\n');
+    const text = read(join(renderedReference, spec));
+    referenceSpecs.push({ plugin, spec, path: join(renderedReference, spec), text });
+    expect(!text.includes('${CLAUDE_PLUGIN_ROOT}'), `${plugin}/reference/${spec}: Claude plugin-root token leaked`);
+    if (source.some((line) => line.includes('${CLAUDE_PLUGIN_ROOT}'))) expect(text.includes('<plugin-root>'), `${plugin}/reference/${spec}: plugin-root token was dropped rather than translated`);
+    expect(!/\b(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):[a-z0-9-]+\b/.test(text), `${plugin}/reference/${spec}: bare Claude skill reference leaked`);
+    const lines = text.split('\n');
+    expect(lines.length === source.length, `${plugin}/reference/${spec}: line count diverged from canonical`);
+    const drifted = source.findIndex((line, index) => !HOST_SPECIFIC_LINE.test(line) && lines[index] !== line);
+    expect(drifted === -1, `${plugin}/reference/${spec}: line ${drifted + 1} diverged from canonical without a host token`);
+  }
+}
+expect(referenceSpecs.length > 0, 'fixture drift: no canonical reference specs exist to project');
+// Negative direction: a projection missing one reference spec must fail the drift check.
+if (referenceSpecs.length > 0) {
+  const { plugin, spec, path, text } = referenceSpecs[0];
+  unlinkSync(path);
+  const missingCheck = spawnSync(process.execPath, [join(root, 'scripts', 'build-opencode-dist.mjs'), '--check'], {
+    encoding: 'utf8',
+    env: { ...process.env, CODE_OPS_OPENCODE_OUTPUT_ROOT: dist },
+  });
+  writeFileSync(path, text, 'utf8');
+  expect(missingCheck.status === 1 && `${missingCheck.stderr}`.includes(`missing generated file: opencode-dist/code-ops/${plugin}/reference/${spec}`), `--check did not detect a missing code-ops/${plugin}/reference/${spec} (exit ${missingCheck.status})`);
+}
+
 const openCodeAdoptGlobal = read(join(dist, 'skills', 'code-ops-suite-adopt-global-standards', 'SKILL.md'));
 const openCodeAdoptRepo = read(join(dist, 'skills', 'code-ops-suite-adopt-standards', 'SKILL.md'));
 expect(openCodeAdoptGlobal.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed the three host-specific contract paths');

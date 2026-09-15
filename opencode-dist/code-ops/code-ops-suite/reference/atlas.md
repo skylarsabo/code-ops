@@ -14,7 +14,7 @@ anyway, and an incautious one trusts prose written against a tree that has since
 The atlas banks that understanding as a durable artifact. It is the first concrete piece
 of the movement graph, the per-repo context manifest named in
 [calibration-graph.md](calibration-graph.md). The workflow that writes it is
-`/code-ops-suite:atlas`.
+`/code-ops-suite-atlas`.
 
 ## Layout
 
@@ -80,7 +80,7 @@ their own, so there is no second copy to drift.
 ## Checker modes
 
 `scripts/atlas-check.mjs` is vendored into `plugins/code-ops-suite/scripts/`, because it
-runs inside target repos through `${CLAUDE_PLUGIN_ROOT}`, and it uses `node:` builtins
+runs inside target repos through `<plugin-root>`, and it uses `node:` builtins
 only. Reach the `check` mode as `co atlas check`, which inserts the `check` subcommand when
 the caller supplies none. The exit contract across all six modes is `0` clean, `1`
 violation or gated, and `2` usage.
@@ -164,7 +164,7 @@ line.
 ## Update in the hot session
 
 A section is refreshed by the change that invalidated it, in the session that made the
-change. That is why `/code-ops-suite:ship` runs `check` in its closing phase. The rationale
+change. That is why `/code-ops-suite-ship` runs `check` in its closing phase. The rationale
 behind a diff is available for about as long as the session that produced it. A week later
 the same author is reconstructing it from the diff like anyone else. Deferring the atlas
 update to a docs pass converts free knowledge into expensive knowledge.

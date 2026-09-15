@@ -220,7 +220,7 @@ if (!existsSync(standardPath)) {
     if (!Number.isFinite(v))
       fail(`Standard.md frontmatter has \`standard-version: ${fm['standard-version']}\`, which is not a number — the version must be an integer this checker can compare against ${MIN_STANDARD_VERSION}`);
     else if (v < MIN_STANDARD_VERSION)
-      fail(`Standard.md claims \`standard-version: ${v}\`, below the current standard-version ${MIN_STANDARD_VERSION} — re-copy the body from code-ops-docs/40 Engineering/Techniques/vault-standard.md, re-append the profile, and bump the stamp`);
+      fail(`Standard.md claims \`standard-version: ${v}\`, below the current standard-version ${MIN_STANDARD_VERSION} — re-copy the body from reference/vault-standard.md bundled with the code-ops-suite plugin, re-append the profile, and bump the stamp`);
     else if (docsManifestVersion === 2 && v < 4)
       fail('Standard.md must claim `standard-version: 4` or newer when DOCS_MANIFEST.json uses version 2');
   }

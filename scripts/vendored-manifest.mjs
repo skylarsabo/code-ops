@@ -85,3 +85,17 @@ export const RUNTIME_SCRIPTS = [
   { name: 'scan-overbuild.mjs', plugins: ['code-ops-suite'] },
   { name: 'harvest-deferrals.mjs', plugins: ['code-ops-suite'] },
 ];
+
+// Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.
+// A skill fills or checks these pages at runtime, and an installed plugin cannot reach the hub,
+// so each ships byte-identical inside every plugin whose skills execute against it. The hub page
+// under REFERENCE_SOURCE_DIR stays the source of truth; lint check 24 fails on drift.
+export const REFERENCE_SOURCE_DIR = 'code-ops-docs/40 Engineering/Techniques';
+export const VENDORED_REFERENCES = [
+  { name: 'artifact-grammars.md', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite'] },
+  { name: 'atlas.md', plugins: ['code-ops-suite'] },
+  { name: 'calibration-protocol.md', plugins: ['code-ops-suite'] },
+  { name: 'fleet-standard.md', plugins: ['code-ops-suite'] },
+  { name: 'subagent-trade-offs.md', plugins: ['code-ops-suite'] },
+  { name: 'vault-standard.md', plugins: ['code-ops-suite'] },
+];

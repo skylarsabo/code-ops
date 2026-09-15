@@ -73,16 +73,22 @@
 //  23. This marketplace keeps its Node SSOT, action lock, update-bot config, checker, and both
 //      platform invocations present. Removing the policy and its call sites cannot disable the
 //      supply-chain gate silently.
+//  24. Shipped references resolve outside a code-ops checkout. Every VENDORED_REFERENCES hub
+//      page ships byte-identical in plugins/<plugin>/reference/ for each plugin that lists it,
+//      and no undeclared file sits in a reference/ directory.
 //
 // It does NOT judge prose quality — that's the human's job.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RUNTIME_SCRIPTS } from './vendored-manifest.mjs';
+// A namespace import, because a manifest without vendored references exports no
+// VENDORED_REFERENCES, and a named import of a missing export fails to load.
+import * as vendoredManifest from './vendored-manifest.mjs';
 import { CLAUDE_ALIAS_TIER, TIER_RANK } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const { RUNTIME_SCRIPTS } = vendoredManifest;
 const errors = [];
 const warnings = [];
 const fail = (m) => errors.push(m);
@@ -1073,6 +1079,35 @@ if (mp?.name === 'code-ops') {
         const [from, to] = key.split('>');
         fail(`${rel(compPath)}:${ln}: edge row "${from}" -> "${to}" matches no qualified reference in any SKILL.md`);
       }
+    }
+  }
+}
+
+// ---- 24. shipped references resolve outside a code-ops checkout -------------
+// (check name: `shipped-reference-integrity`)
+// An installed plugin cannot read the documentation hub, so a spec a skill executes against
+// ships inside the plugin as a vendored copy. The hub page stays the source of truth, and the
+// copy is derived, so it must stay byte-identical, the same contract as check 6 for scripts.
+{
+  const sourceDir = vendoredManifest.REFERENCE_SOURCE_DIR ?? '';
+  const references = vendoredManifest.VENDORED_REFERENCES ?? [];
+  for (const ref of references) for (const pn of ref.plugins) if (!pluginByName.has(pn)) fail(`VENDORED_REFERENCES lists unknown plugin "${pn}" for ${ref.name}`);
+  for (const ref of references) {
+    const canonical = join(ROOT, ...sourceDir.split('/'), ref.name);
+    if (!existsSync(canonical)) { fail(`missing canonical ${sourceDir}/${ref.name} for VENDORED_REFERENCES`); continue; }
+    const canon = readFileSync(canonical, 'utf8');
+    for (const p of plugins) {
+      if (!ref.plugins.includes(p.name)) continue;
+      const copy = join(p.dir, 'reference', ref.name);
+      if (!existsSync(copy)) fail(`${p.name}: missing vendored reference/${ref.name} — run node scripts/sync-vendored.mjs`);
+      else if (readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: reference/${ref.name} has drifted from the canonical ${sourceDir}/${ref.name} — edit the hub page, then run node scripts/sync-vendored.mjs`);
+    }
+  }
+  for (const p of plugins) {
+    for (const file of walkFiles(join(p.dir, 'reference'))) {
+      const name = rel(file).slice(rel(join(p.dir, 'reference')).length + 1);
+      const declared = references.some((ref) => ref.name === name && ref.plugins.includes(p.name));
+      if (!declared) fail(`${p.name}: reference/${name} is not declared for this plugin in VENDORED_REFERENCES`);
     }
   }
 }
