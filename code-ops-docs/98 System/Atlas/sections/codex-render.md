@@ -12,7 +12,7 @@ The rendered vault workflow includes genesis and incremental review-plan handoff
 
 Both host projections carry the runtime helpers inherited by Run Contract v4, shared acceptance parser, worker-brief compiler, bounded context view, portable-path, linked-component, regular-index, and hidden-index guards, local review publisher, judgment planner/scorer, and `local-review-gate` skill from canonical source. Renderer checks prove those scripts and skill instructions remain current; neither host projection owns an alternate review or runtime policy. Provider configurations keep cost-disciplined default ladders while allowing an explicitly selected premium frontier specialist for one bounded unit.
 
-Generated agent-floor records make the lead and operative tiers machine-readable in both projections. Host adapters normalize their own payload and result shapes, while the canonical policy still requires the highest-tier lead to synthesize, challenge, redirect, and accept lower-tier operative evidence.
+Generated agent-floor records make the lead and operative tiers machine-readable in both projections. The Codex projection strips agent tool declarations, so each role contract header states the role's write capability from the canonical tools list, and the compatibility page lists every bundled hook command with its purpose. Host adapters normalize their own payload and result shapes, while the canonical policy still requires the highest-tier lead to synthesize, challenge, redirect, and accept lower-tier operative evidence.
 
 The Codex projection carries the session receipt and follows child rollouts through
 `parent_thread_id`. It also projects the compact-resume routing card because plain
