@@ -145,13 +145,25 @@ try {
 
   // L-045 — framework route segments ([id], [...slug], [[...opt]], (auth)) and backtick-delimited
   // spaced paths resolve as the whole path. Before the fix the bracket and group citations matched
-  // only their tail, gained a restored "/" prefix, and read as escaping root (AMBIGUOUS). The spaced
-  // tail "Folder/guide.md" is deliberately ambiguous by name here, so only the full path reads FRESH.
+  // only their tail, gained a restored "/" prefix, and read as escaping root (AMBIGUOUS). The
+  // fixture below carries two kinds of same-tail decoy on purpose: `a/Folder/guide.md` and
+  // `b/Folder/guide.md` make the bare tail "Folder/guide.md" ambiguous BY NAME (>1 file matches,
+  // used by the SH-01/dot-segment shadowing cases), while a literal top-level `Folder/guide.md` (1
+  // line, L-045) makes the bare tail exist DIRECTLY but too short — the widen must not stop there.
   const r45 = join(work, 'r45');
   for (const p of ['app/users/[id]/page.tsx', 'app/(auth)/login/route.ts', 'pages/posts/[...slug].tsx',
-    'app/[[...opt]]/page.tsx', 'docs/My Folder/guide.md', 'a/Folder/guide.md', 'b/Folder/guide.md', 'scripts/x.mjs']) {
+    'app/[[...opt]]/page.tsx', 'docs/My Folder/guide.md', 'a/Folder/guide.md', 'b/Folder/guide.md', 'scripts/x.mjs',
+    'other/nested/My Room/notes.md', '40 Engineering/My Folder/guide.md']) {
     mkdirSync(dirname(join(r45, p)), { recursive: true });
     writeFileSync(join(r45, p), 'l\n'.repeat(20));
+  }
+  // L-045: a same-tail decoy that also exists, one file shorter than the real spaced target — the
+  // widen must prefer the longest real extension (the target), never stop at a shorter real file
+  // just because it happens to exist too. Each decoy's line count is picked below its citations'
+  // line, so picking the decoy reads MOVED instead of FRESH — the check has teeth.
+  for (const [p, n] of [['Folder/guide.md', 1], ['Room/notes.md', 1], ['Engineering/My Folder/guide.md', 6]]) {
+    mkdirSync(dirname(join(r45, p)), { recursive: true });
+    writeFileSync(join(r45, p), 'l\n'.repeat(n));
   }
   const cases45 = [
     ['BUG-451', 'app/users/[id]/page.tsx:12', 'FRESH', 'L-045 accept unquoted [id] segment'],
@@ -161,7 +173,14 @@ try {
     ['BUG-455', '`docs/My Folder/guide.md:3`', 'FRESH', 'L-045 accept spaced path in backticks'],
     ['BUG-456', '(see `app/(auth)/login/route.ts:8`)', 'FRESH', 'L-045 accept group citation inside prose parens'],
     ['BUG-457', '`node scripts/x.mjs:3`', 'FRESH', 'L-045 backticked command keeps its path reading'],
-    ['BUG-461', 'docs/My Folder/guide.md:3', 'AMBIGUOUS', 'L-045 unquoted prose is not greedy across spaces'],
+    // R-011 (was AMBIGUOUS, "L-045 unquoted prose is not greedy across spaces"): R-011's sanitized
+    // calibration note reported this exact shape — a spaced document name cited unquoted in prose —
+    // still reading as gone against a real vault. widenSpacedPath now gives unquoted prose the same
+    // backward-widened reading backticks already had, so this is a deliberate, evidenced widening of
+    // the assertion below, not a loosened gate: BUG-462..469 (traversal, absolute, and the SH-01/
+    // dot-segment shadowing cases) still hold, proving the widen stays fail-closed on every escaping
+    // or ambiguous shape it was ever asked to reject.
+    ['BUG-461', 'docs/My Folder/guide.md:3', 'FRESH', 'L-045/R-011 accept unquoted spaced path in prose'],
     ['BUG-462', '../x.ts:1', 'AMBIGUOUS', 'L-045 reject ../ traversal'],
     ['BUG-463', './../x.ts:1', 'AMBIGUOUS', 'L-045 reject ./../ traversal'],
     ['BUG-464', '/etc/x.ts:1', 'AMBIGUOUS', 'L-045 reject absolute path'],
@@ -172,6 +191,43 @@ try {
     // back in, so the spaced reading names a real in-root file. It must not swallow the escaping ref.
     ['BUG-468', '`../x.ts:1 q/../r45/docs/My Folder/guide.md:3`', 'AMBIGUOUS', 'L-045 spaced reading cannot swallow an escaping ref (SH-01)'],
     ['BUG-469', '`docs/My Folder/../My Folder/guide.md:3`', null, 'L-045 in-root spaced path with a .. segment stays fail-closed'],
+    // R-011 acceptance shapes: the same spaced target read through evidence prose, a Location field
+    // already covered by BUG-461, a markdown link target, bold, quotes, and trailing punctuation.
+    ['BUG-471', 'Evidence: see docs/My Folder/guide.md:3 for the pattern.', 'FRESH', 'R-011 accept unquoted evidence prose'],
+    ['BUG-472', '[guide](docs/My Folder/guide.md:3)', 'FRESH', 'R-011 accept markdown link target (raw space)'],
+    ['BUG-473', '**docs/My Folder/guide.md:3**', 'FRESH', 'R-011 accept bold-wrapped spaced path'],
+    ['BUG-474', '"docs/My Folder/guide.md:3"', 'FRESH', 'R-011 accept quoted spaced path'],
+    ['BUG-475', 'docs/My Folder/guide.md:3, confirms it.', 'FRESH', 'R-011 accept spaced path followed by punctuation'],
+    // %20 is left unwidened on purpose: decoding percent-escapes is a distinct concern from the
+    // space-token widening this lesson covers, and the un-decoded tail still fails closed (AMBIGUOUS
+    // via the bare-basename fallback below), never FRESH.
+    ['BUG-476', '[guide](docs/My%20Folder/guide.md:3)', 'AMBIGUOUS', 'R-011 %20 link target stays unwidened (out of scope)'],
+    ['BUG-477', 'run node scripts/x.mjs:3 to see it.', 'FRESH', 'R-011 unquoted command-shaped text keeps its direct path reading'],
+    // The PR-140 SH-01 shadowing probe, unquoted (the widening's new surface) — must still not
+    // swallow the escaping ../x.ts:1 ref into the safe-looking spaced tail.
+    ['BUG-478', '../x.ts:1 q/../r45/docs/My Folder/guide.md:3', 'AMBIGUOUS', 'R-011 unquoted SH-01 shadow stays AMBIGUOUS'],
+    // A contrived probe: a stray space right after a bare ../ must not let a nearer, shorter cut
+    // silently drop the traversal marker and resolve only the text after it.
+    ['BUG-479', '../ docs/My Folder/guide.md:3', 'AMBIGUOUS', 'R-011 traversal marker survives a stray space before the widened text'],
+    // L-045 (fix, was a bare-tail-decoy tradeoff before widening ran unconditionally): a spaced
+    // path whose bare tail also exists elsewhere as a shorter, unrelated file (`Room/notes.md`, 1
+    // line) must still resolve to the full, real target (`other/nested/My Room/notes.md`, 20 lines).
+    // Line 15 is out of range for the 1-line decoy, so a regression back to the literal-tail-first
+    // order would read MOVED here, not FRESH.
+    ['BUG-480', 'other/nested/My Room/notes.md:15', 'FRESH', 'L-045/R-011 full path wins over a same-tail decoy'],
+    // L-045: the widen used to run only when the literal tail did not already exist, and tried the
+    // shortest extension first — so a short decoy at the literal tail (`Folder/guide.md`, 1 line)
+    // was taken directly and read MOVED against the citation's real line, instead of widening to the
+    // full, real spaced target (`docs/My Folder/guide.md`, 20 lines). Widening now always runs first
+    // and tries the longest extension first, so the full path wins in both the backticked and the
+    // unquoted form. Line 15 is out of range for the 1-line decoy, so a regression reads MOVED here.
+    ['BUG-901', '`docs/My Folder/guide.md:15`', 'FRESH', 'L-045 backticked spaced path beats a shorter same-tail decoy'],
+    ['BUG-902', 'docs/My Folder/guide.md:15', 'FRESH', 'L-045 unquoted spaced path beats a shorter same-tail decoy'],
+    // L-045: two real nested extensions of the same tail — `Engineering/My Folder/guide.md` (6
+    // lines) and the full `40 Engineering/My Folder/guide.md` (20 lines) — the longest candidate is
+    // tried first, so the full path wins even though a shorter real file is also reachable. Line 15
+    // is out of range for the 6-line file, so picking it instead would read MOVED, not FRESH.
+    ['BUG-903', '`40 Engineering/My Folder/guide.md:15`', 'FRESH', 'L-045 longest widened extension wins over a shorter real nested extension'],
   ];
   const reg45 = join(work, 'reg45.md');
   writeFileSync(reg45, cases45.map(([id, loc]) => `## ${id}\nLocation: ${loc}\n`).join('\n'));
@@ -207,6 +263,10 @@ try {
   // backtick runs with no valid citation finish fast instead of backtracking without bound. The bare
   // / and ./ runs pin the lookbehind ordering, which once scanned back from every position. PAR-013: the
   // .a run is sized like the a/ run, and the spaced .a run tries the dot-led start at every dot.
+  // R-011: widenSpacedPath bounds itself two ways — WIDEN_SCAN_MAX caps the backward char scan per
+  // failing match, and WIDEN_MAX_WORDS caps the existsSync attempts, so neither a very long
+  // single-token run nor a very long run of one-char "words" ahead of a failing match turns into an
+  // unbounded scan or an unbounded number of filesystem calls.
   const reg45p = join(work, 'reg45p.md');
   writeFileSync(reg45p, ['## BUG-470', `Location: ${'[[a]/'.repeat(20000)}x.ts`, `Location: ${'(a)/'.repeat(20000)}x`,
     `Location: ${'[a'.repeat(20000)}.ts:1`, `Location: \`${'a /'.repeat(20000)}.ts:1`, `Location: ${'a/'.repeat(5000)}x`,
@@ -214,7 +274,13 @@ try {
     // PAR-003: a long run just ahead of a real citation, once with the escaping char (backslash)
     // first so the backward scan exits on its first step, once with none so it runs its full
     // PATH_SCAN_MAX-bounded walk without ever finding one — bounded either way, not O(block length).
-    `Location: ${'\\'.repeat(20000)}x.ts:1`, `Location: ${'/'.repeat(20000)}x.ts:1`, ''].join('\n'));
+    `Location: ${'\\'.repeat(20000)}x.ts:1`, `Location: ${'/'.repeat(20000)}x.ts:1`,
+    // R-011: a long run of one-char space-separated "words" ahead of a failing match (stresses
+    // WIDEN_MAX_WORDS), and one very long single unbroken token ahead of a failing match (stresses
+    // WIDEN_SCAN_MAX) — both repeated many times over.
+    ...Array.from({ length: 4000 }, (_, i) => `Location: ${'w '.repeat(50)}missing${i}.ts:1`),
+    ...Array.from({ length: 4000 }, (_, i) => `Location: ${'w'.repeat(4000)}missing${i}.ts:1`),
+    ''].join('\n'));
   const t45 = Date.now();
   runNode([join(REPO, 'scripts', 'revalidate-register.mjs'), reg45p, '--root', r45, '--report-only']);
   check('L-045 pathological path input completes under 5s', Date.now() - t45 < 5000);

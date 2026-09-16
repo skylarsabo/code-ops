@@ -1,5 +1,9 @@
 # Changelog — rigor
 
+## 2.18.18
+- The vendored `revalidate-register.mjs` reads a register citation whose path carries spaces in unquoted prose, a Location field, a markdown link target, bold, or quotes. The longest space-joined extension that names a real in-root file wins over a shorter tail, so a same-named file elsewhere no longer captures the citation. Escaping, traversal, and dot-segment forms still read AMBIGUOUS.
+- The bundled `reference/artifact-grammars.md` states that a version 4 contract-bound `add` records `runId` in the dispatch journal, and that replay rejects a journal mixing bound and unbound adds.
+
 ## 2.18.17
 - The vendored `revalidate-register.mjs` reads a backslash traversal, a backslash drive letter, a traversal before a dot-led or dash-led segment, an in-root symlink to an outside target, and an escaping prefix longer than its scan window as AMBIGUOUS instead of FRESH.
 - The vendored `co.mjs` lists the `check handoff` verb, which resolves where `code-ops-suite` ships its checker.

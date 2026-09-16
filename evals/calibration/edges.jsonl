@@ -81,3 +81,15 @@
 {"from":"L-045","rel":"enforced-by","to":"EVAL:evals/script-guards/run.mjs"}
 {"from":"L-050","rel":"fixed-in","to":"PR-141"}
 {"from":"L-050","rel":"deferred","to":"deferred","note":"the dispatch-ledger report shape gate and the report-persistence and report-shape-gate pins hold the report file, not the lesson; no gate can measure whether the lead stopped re-emitting report bodies, so only a later run can confirm the token saving"}
+{"from":"L-009","rel":"verified-in","to":"R-011","note":"register parsed exactly the merged entry count with zero unparseable although entries cite sibling IDs mid-line"}
+{"from":"L-017","rel":"verified-in","to":"R-011","note":"the not-counted warning fired on per-slice and per-panel reports inside subdirectories"}
+{"from":"L-020","rel":"verified-in","to":"R-011","note":"three independent panels over 29 fix-driving findings demoted no CONFIRMED label as static reasoning and promoted one PROBABLE on execution"}
+{"from":"L-043","rel":"verified-in","to":"R-011","note":"a strong-lead version 4 contract compiled under the arm-b calibration block and drove the whole run"}
+{"from":"L-050","rel":"verified-in","to":"R-011","note":"every operative wrote its own report file and returned a pointer, so the lead re-emitted no report bodies"}
+{"from":"L-053","rel":"fixed-in","to":"PR-152"}
+{"from":"L-053","rel":"enforced-by","to":"EVAL:evals/dispatch-ledger/run.mjs"}
+{"from":"L-054","rel":"fixed-in","to":"PR-152"}
+{"from":"L-054","rel":"enforced-by","to":"EVAL:evals/dispatch-ledger/run.mjs"}
+{"from":"L-055","rel":"fixed-in","to":"PR-152"}
+{"from":"L-055","rel":"enforced-by","to":"EVAL:evals/run-runtime/run.mjs"}
+{"from":"L-045","rel":"fixed-in","to":"PR-152"}

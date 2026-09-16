@@ -56,6 +56,10 @@ export function replayDispatchJournal(text) {
     if (entry.op === 'add') {
       if (typeof entry.id !== 'string' || !/^D-\d+$/.test(entry.id) || entry.status !== 'dispatched') { violations.push(`${at}: malformed add entry: ${line.slice(0, 100)}`); return; }
       if ('actorId' in entry && (typeof entry.actorId !== 'string' || !/^\S{1,200}$/u.test(entry.actorId))) { violations.push(`${at}: malformed add actorId: ${line.slice(0, 100)}`); return; }
+      // `runId` marks the add as bound to a version 4 contract run (dispatch-ledger.mjs `add
+      // --contract`, calibration lessons L-053/L-054); optional, kebab-case like the contract's
+      // own runId when present.
+      if ('runId' in entry && (typeof entry.runId !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.runId))) { violations.push(`${at}: malformed add runId: ${line.slice(0, 100)}`); return; }
       if (expected.has(entry.id)) { violations.push(`${at}: duplicate add for ${entry.id}`); return; }
       expected.set(entry.id, entry.status);
       activeActor.set(entry.id, entry.actorId || null);
@@ -75,5 +79,14 @@ export function replayDispatchJournal(text) {
     }
     violations.push(`${at}: unknown journal op: ${line.slice(0, 100)}`);
   });
+  // A version 4 binding (calibration lessons L-053/L-054) stamps `runId` on every add event
+  // once a ledger commits to a contract run — a journal straddling bound and unbound adds, or
+  // naming more than one run, cannot be trusted to say which run a dispatch belongs to.
+  const addEvents = events.filter((e) => e.op === 'add');
+  const boundAdds = addEvents.filter((e) => e.runId);
+  const unboundAdds = addEvents.filter((e) => !e.runId);
+  if (boundAdds.length && unboundAdds.length) violations.push('dispatch journal mixes runId-bound and unbound add events');
+  const runIds = new Set(boundAdds.map((e) => e.runId));
+  if (runIds.size > 1) violations.push(`dispatch journal add events carry different runIds: ${[...runIds].sort().join(', ')}`);
   return { expected, violations, events };
 }
