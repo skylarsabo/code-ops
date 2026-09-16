@@ -86,7 +86,9 @@ Run `codebase-audit` for the broad lenses, then `security-privacy-audit` for the
 pass. Findings carry an **evidence tier** (CONFIRMED, PROBABLE, or SPECULATIVE) plus a
 disconfirmation pass (`§7`), and apply the **multi-boundary control-coverage** lens (`§10`). A
 control verified at one entry point but not at every reachable one is itself a finding. Merge the
-results into `FINDINGS_REGISTER.md`, each entry stamped `Verified-at <sha>`. *Checkpoint:* review
+results into `FINDINGS_REGISTER.md`, each entry stamped `Verified-at <sha>`. A finding you file
+yourself takes the reserved `LEAD-` prefix, numbered from `LEAD-001`, so it cannot collide with a
+slice's own id. *Checkpoint:* review
 the ranked, CONFIRMED-led findings and the biggest risks, then decide what to fix.
 
 Before merging, gate each explorer or reviewer subagent's report on shape. An explorer owes an

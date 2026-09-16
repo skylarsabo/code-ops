@@ -176,6 +176,7 @@ calibration run's 47-finding register failed on its last entry, for lines it did
 | --- | --- | --- |
 | `BUG-003` at line start | yes | 3-char letter prefix, hyphen, 3 digits, entry-heading position |
 | `### FND-A12` | yes | optional single uppercase round-letter `A` before the serial |
+| `LEAD-001` | yes | the reserved lead-authored prefix, an ordinary ID to every consumer |
 | `F-001` | no | single-letter prefix; the grammar needs two or more prefix characters |
 | `BUG-b3` | no | lowercase round letter; the round-letter slot is uppercase only |
 | `BUG-12A` | no | letter *after* the serial; the ID must end at the digits |
@@ -184,6 +185,15 @@ calibration run's 47-finding register failed on its last entry, for lines it did
 The last two rows are the pair that bit a real calibration run from opposite sides. The
 lettered IDs the run actually used went silently invisible, while ID-shaped tags in prose
 were counted as entries.
+
+### Lead-authored IDs
+
+The `LEAD-` prefix is reserved for findings the lead files itself. An operative slice never
+mints a `LEAD-` ID, whatever its own prefix scheme. The lead numbers its findings from
+`LEAD-001` in filing order. The grammar already admits the form, because it asks only for a
+prefix of two or more uppercase alphanumerics. Nothing mints IDs at merge time, so without
+the reservation a lead-filed finding and a discovery slice's finding can claim one ID and
+the merged register silently loses one of them.
 
 ### Covered negatives
 
@@ -243,14 +253,26 @@ middot-delimited (CONVENTIONS `§7`):
 ```
 SEC-003 · r1 · SURVIVED · reviewer · searched: caller chain + middleware
 BUG-007 · r2 · REFUTED · reviewer · src/api/limits.ts:88 · Anchor: `clamp(size, MAX)`
+BUG-008 · r2 · REFUTED · reviewer · src/api/limits.ts:91 · Anchor: ``clamp(`size`, MAX)``
 ```
 
 The fields are item ID, panel round, verdict (`SURVIVED|REFUTED`), panelist role, and
 evidence. Evidence is the search trail for `SURVIVED`. For `REFUTED` it is a re-greppable
-`file:line` plus a backtick-delimited or quote-delimited `Anchor`, so
-`revalidate-register.mjs --refutation-log` can confirm the killing guard still exists. A
-line that opens with an item ID and carries neither verdict token is unparseable, not
-silently skipped.
+`file:line` plus a delimited `Anchor`, so `revalidate-register.mjs --refutation-log` can
+confirm the killing guard still exists. A line that opens with an item ID and carries
+neither verdict token is unparseable, not silently skipped.
+
+### Anchor delimiters
+
+An `Anchor` value carries one of four delimiters, in the order the checker tries them:
+doubled backticks, a single backtick, a double quote, or a single quote. The doubled form is
+CommonMark's own escape, and it is the only one that can carry a backtick inside the anchor,
+as the third receipt above shows. A doubled span drops one leading and one trailing space
+when it has both, exactly as CommonMark drops them, so the padding never joins the compared
+substring. A backslash is not an escape here, because an anchor is copied verbatim from its
+line and many real lines carry backslashes. An undelimited value is unparseable, and the
+checker reports that instead of degrading the `DRIFTED` gate to plain line existence. The
+same four delimiters apply to a register entry's own `Anchor` field in (b).
 
 Receipt position mirrors the entry-heading position of (b). The ID must sit at the start of
 the line. A line that cites findings mid-sentence, such as "the panel read BUG-001 as a
@@ -350,7 +372,9 @@ Learning may revise the contract, and then `revision` increases and `replanOn` s
 Actual dispatches never silently rewrite intent.
 
 Version 2 binds `context.snapshot`, `snapshotId`, `bundleDir`, `untrackedPolicy`,
-`maxBundleBytes`, and `maxAtlasExcerptBytes`. `context-drift` joins the canonical replan
+`maxBundleBytes`, and `maxAtlasExcerptBytes`. The optional `maxScopeShare`, a number above 0
+and at most 1, raises the 0.25 share of the repository index one unit may hold; raising it is a
+slice-design decision the lead records in the contract. `context-drift` joins the canonical replan
 triggers. A snapshot or bundle that does not match the current visible state fails before
 dispatch.
 

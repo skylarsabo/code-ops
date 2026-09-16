@@ -38,7 +38,10 @@ belongs in the pointed-at files, never inline.
 Redact secrets and PII (`§4`), because a handoff travels further than a register. Run
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan redaction HANDOFF.md` and
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs check handoff HANDOFF.md` before handing it over. They
-are the mechanical floor under redaction and under this section's shape.
+are the mechanical floor under redaction and under this section's shape. The handoff check also
+resolves every anchored `file:line` pointer against the tree and prints one status each. It fails
+on a pointer whose file is gone or whose anchor is nowhere in that file, and warns when the anchor
+has only moved to another line. Pass `--strict-anchors` to fail on a moved pointer too.
 
 When the run has a version 3 contract, record its path and runtime receipt path in the handoff.
 After writing and scanning `HANDOFF.md`, append
@@ -58,9 +61,11 @@ Version 1 or 2 runs continue through the artifact verification below.
 
 Treat every claim in the handoff as **context to verify against the tree, not fact to trust.**
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs <register> --root .` on every
-register the handoff names, and re-triage the non-FRESH items (`§12`). Check the anchored
-pointers. A `DRIFTED` pointer marks stale state, not an instruction. Re-run the deterministic
-baseline when the tree moved.
+register the handoff names, and re-triage the non-FRESH items (`§12`). Run
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs check handoff HANDOFF.md` for the mechanical anchor
+check over the handoff's own pointers, then read what it reports. A `DRIFTED` pointer marks stale
+state, not an instruction, and a `MOVED` one names the line the anchor sits on now. Re-run the
+deterministic baseline when the tree moved.
 
 Then re-plan from what verified. The traps-and-dead-ends section prunes the search space.
 Recorded decisions carry forward unless current code contradicts them. Surface a contradiction at

@@ -31,6 +31,9 @@ fails closed on a path, code fence, URL, or email in the note. Reach the script 
   one is a lead. Refresh the STALE sections during the run, in the session that has the
   context, rather than deferring them. If the target keeps no atlas, `init` one as part of
   the run, since the sweep has just derived the understanding the atlas exists to bank.
+  `init` writes `MANIFEST.json` into the target, so on a target whose formatter or linter
+  scans JSON, add the atlas folder to that tool's ignore list or point `--atlas` under an
+  already-ignored runs folder. An assess-only run leaves no lint error in a file it created.
 - **Falsified sections are findings about the instrument.** A section is falsified when the
   sweep disproves one of its claims, not merely when the code moved under it, which is
   ordinary staleness. A falsified section means a run was handed a false premise, so it

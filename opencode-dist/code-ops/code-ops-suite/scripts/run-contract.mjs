@@ -16,7 +16,8 @@ const TOP_V4 = new Set([...TOP_V3, 'orchestration', 'calibration']);
 const OPTIONAL_TOP_V4 = new Set(['calibration']);
 const CALIBRATION = new Set(['arm', 'track']);
 const CALIBRATION_ARMS = new Set(['b', 'c']);
-const CONTEXT = new Set(['snapshot', 'snapshotId', 'bundleDir', 'untrackedPolicy', 'maxBundleBytes', 'maxAtlasExcerptBytes']);
+const CONTEXT = new Set(['snapshot', 'snapshotId', 'bundleDir', 'untrackedPolicy', 'maxBundleBytes', 'maxAtlasExcerptBytes', 'maxScopeShare']);
+const OPTIONAL_CONTEXT = new Set(['maxScopeShare']);
 const LEAD = new Set(['model', 'tier', 'effort']);
 const QUALITY = new Set(['dimensions', 'criteria']);
 const CRITERION = new Set(['id', 'dimension', 'description', 'oracle', 'proof', 'blocking', 'owner']);
@@ -74,7 +75,12 @@ function verifyContext(contract, contractPath, root) {
     if (receipt.snapshotId !== contract.context.snapshotId) die('context snapshot ID does not match receipt');
     if (receipt.state?.untracked?.policy !== contract.context.untrackedPolicy) die('context untrackedPolicy does not match receipt');
     verifySnapshotReceipt(root, receipt);
-  } catch (error) { die(error.message.includes('context snapshot drift') ? error.message : `context snapshot drift; prepare a new receipt, increment contract revision, and re-bundle affected units`); }
+    // WHY (calibration lesson L-057): rewriting every failure into snapshot drift told an
+    // operator to prepare a new receipt for faults a new receipt cannot clear, including
+    // generator drift, atlas drift, an unsupported untracked entry, a symlink escape, and a
+    // git timeout or maxBuffer overflow on a large monorepo. Only an identifier mismatch is
+    // drift; every other cause keeps its own message and says so.
+  } catch (error) { die(error.message.includes('context snapshot drift') ? error.message : `${error.message}; this is not context snapshot drift, so a new receipt will not clear it`); }
   if (contract.version >= 3) {
     try { verifyRuntimeConfig(root, contract.runtime); }
     catch (error) { die(error.message); }
@@ -89,11 +95,16 @@ function validate(c, root) {
   if (c.version === 1 && ('context' in c || 'runtime' in c)) errors.push('version 1 must not contain context or runtime');
   if (c.version === 2 && 'runtime' in c) errors.push('version 2 must not contain runtime');
   if (c.version >= 2) {
-    exact(c.context, CONTEXT, 'context', errors);
+    exact(c.context, CONTEXT, 'context', errors, OPTIONAL_CONTEXT);
     if (!safePath(c.context?.snapshot) || !safePath(c.context?.bundleDir)) errors.push('context snapshot and bundleDir must be safe relative paths');
     if (!/^[0-9a-f]{64}$/.test(c.context?.snapshotId || '')) errors.push('context.snapshotId must be lowercase SHA-256');
     if (!['metadata', 'exclude', 'allowlist'].includes(c.context?.untrackedPolicy)) errors.push('context.untrackedPolicy is invalid');
     for (const key of ['maxBundleBytes', 'maxAtlasExcerptBytes']) if (!Number.isInteger(c.context?.[key]) || c.context[key] < 1) errors.push(`context.${key} must be a positive integer`);
+    // WHY (calibration lesson L-060): the share of the repository a unit may hold was a
+    // literal in context-bundle.mjs, so a unit whose honest slice ran wider than a quarter of
+    // the files had no contract-level way to say so. Raising it is a slice-design decision the
+    // lead records here; the recursive-glob and risky-prefix triggers ignore it.
+    if ('maxScopeShare' in (c.context || {}) && (typeof c.context.maxScopeShare !== 'number' || !Number.isFinite(c.context.maxScopeShare) || c.context.maxScopeShare <= 0 || c.context.maxScopeShare > 1)) errors.push('context.maxScopeShare must be a number greater than 0 and at most 1');
   }
   if (c.version >= 3) errors.push(...validateRuntimeConfig(c.runtime));
   if (!Number.isInteger(c.revision) || c.revision < 1) errors.push('revision must be a positive integer');
@@ -210,7 +221,26 @@ function validate(c, root) {
     }
     for (const target of unit.validates || []) if (!(unit.independentOf || []).includes(target)) errors.push(`${unit.id} must declare independentOf for validated unit ${target}`);
   }
+  // WHY (calibration lesson L-063): doctrine already seats a refutation panel at an odd
+  // number of at least three lenses, and nothing enforced it. An even panel deadlocks, and
+  // repeated lenses buy seats without buying independence. One refutation unit is not a panel
+  // and stays legal. Legacy versions are replay-only, so the rule lands in the version 4 block.
   if (c.version === 4) {
+    const panels = new Map();
+    for (const unit of c.units || []) {
+      if (unit.kind !== 'refutation') continue;
+      for (const target of unit.validates || []) {
+        if (!panels.has(target)) panels.set(target, []);
+        panels.get(target).push(unit);
+      }
+    }
+    for (const [target, seats] of panels) {
+      if (seats.length < 2) continue;
+      if (seats.length % 2 === 0) errors.push(`${target} refutation panel has ${seats.length} seats; a panel seats an odd number of at least three lenses`);
+      const seen = new Set(); const repeated = new Set();
+      for (const seat of seats) { if (seen.has(seat.lens)) repeated.add(seat.lens); else seen.add(seat.lens); }
+      for (const lens of repeated) errors.push(`${target} refutation panel repeats lens ${lens}`);
+    }
     const validated = new Set((c.units || []).flatMap((unit) => unit.validates || []));
     for (const unit of c.units || []) if (!['review', 'refutation'].includes(unit.kind) && !validated.has(unit.id)) errors.push(`${unit.id} lacks an independent review or refutation unit`);
   }

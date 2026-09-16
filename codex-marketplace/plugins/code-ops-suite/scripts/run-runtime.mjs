@@ -17,6 +17,7 @@ import {
   atomicWrite,
   checkedPath,
   digestJson,
+  git,
   readJson,
   repoRelative,
   safeRelative,
@@ -86,11 +87,29 @@ function runCheck(script, args, label) {
   }
 }
 
+// WHY (calibration lesson L-057): every runtime command re-reads the repository snapshot, so
+// a runtime output on a Git-visible path moves the snapshot id the run is bound to and the
+// next command refuses. runtime-lib already holds the capability descriptor and the receipt
+// chain to ignored paths; the snapshot receipt, the bundle directory, and the dispatch ledger
+// are written just as often and need the same floor.
+function requireIgnoredPath(root, path, label) {
+  try { git(root, ['check-ignore', '-q', '--', path]); }
+  catch { throw new Error(`${label} must use a repository-ignored path`); }
+}
+
+function isIgnored(root, path) {
+  try { git(root, ['check-ignore', '-q', '--', path]); return true; }
+  catch { return false; }
+}
+
 function loadCurrent(root, contractArgument) {
   const contractPath = resolveInput(root, contractArgument, 'contract path');
   runCheck(RUN_CONTRACT, ['check', '--contract', contractPath.absolute, '--root', root], 'run contract check');
   const contract = readJson(contractPath.absolute);
   if (contract.version < 3 || !contract.runtime) throw new Error('long-horizon runtime requires a version 3 or newer run contract');
+  const snapshotRelative = repoRelative(root, resolve(dirname(contractPath.absolute), contract.context.snapshot));
+  requireIgnoredPath(root, snapshotRelative, 'context.snapshot');
+  requireIgnoredPath(root, repoRelative(root, resolve(root, contract.context.bundleDir)), 'context.bundleDir');
   const bound = runtimeBinding(root, contractPath.absolute, contract);
   const runtimePath = { relative: contract.runtime.receipts, absolute: checkedPath(root, contract.runtime.receipts) };
   return { contract, contractPath, runtimePath, ...bound };
@@ -161,6 +180,7 @@ function fileReference(root, argument, label) {
 
 function checkLedger(root, argument, strict = true) {
   const ledger = resolveInput(root, argument, 'ledger path');
+  requireIgnoredPath(root, ledger.relative, 'dispatch ledger');
   runCheck(DISPATCH_LEDGER, ['check', '--ledger', ledger.absolute, ...(strict ? ['--strict'] : [])], 'dispatch ledger check');
   const journalAbsolute = `${ledger.absolute}.journal.jsonl`;
   const journalRelative = `${ledger.relative}.journal.jsonl`;
@@ -354,6 +374,11 @@ if (command === 'init') {
       atomicWrite(current.runtimePath.absolute, rendered);
       return created;
     });
+    // The contract itself stays a safe relative path, because an operator may well want it
+    // tracked, but a Git-visible contract does move the snapshot id every time it is edited.
+    if (!isIgnored(root, current.contractPath.relative)) {
+      console.log(`advisory ${current.contractPath.relative} is visible to Git; every contract revision then changes the snapshot id this run is bound to`);
+    }
     console.log(`ok runtime ${current.contract.runId} sequence ${event.sequence}`);
   } catch (error) { die(error.message); }
 } else if (command === 'checkpoint') {

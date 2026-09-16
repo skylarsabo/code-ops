@@ -73,6 +73,11 @@ try {
   check('later READY build clears stale empty-scope marker', result.status === 0 && !existsSync(`${out}.EMPTY_SCOPE`) && existsSync(out), result.out);
   base.units[0].scope = ['src']; writeFileSync(contractPath, `${JSON.stringify(base, null, 2)}\n`); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out]);
   check('broad scope fails with explicit marker', result.status === 1 && existsSync(`${out}.BROAD_CONTEXT_REQUIRED`), result.out);
+  base.context.maxScopeShare = 0.9; writeFileSync(contractPath, `${JSON.stringify(base, null, 2)}\n`); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out]);
+  check('a raised maxScopeShare lets the same scope build READY', result.status === 0 && !existsSync(`${out}.BROAD_CONTEXT_REQUIRED`) && JSON.parse(readFileSync(out, 'utf8')).status === 'READY', result.out);
+  base.context.maxScopeShare = 1.5; writeFileSync(contractPath, `${JSON.stringify(base, null, 2)}\n`); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out]);
+  check('an out-of-range maxScopeShare fails the bundle closed', result.status === 1 && /maxScopeShare/.test(result.out), result.out);
+  delete base.context.maxScopeShare;
   base.units[0].scope = ['src/a.js']; base.context.maxBundleBytes = 250; writeFileSync(contractPath, `${JSON.stringify(base, null, 2)}\n`); result = run(bundleScript, ['build', '--root', root, '--contract', contractPath, '--unit', 'D-001', '--cache', cache, '--out', out]);
   check('byte overflow fails instead of truncating', result.status === 1 && existsSync(`${out}.BUDGET_EXCEEDED`), result.out);
   writeFileSync(join(root, 'src', 'a.js'), "import { b } from './b.js';\nexport const a = b + 1;\n"); result = run(snapshotScript, ['verify', '--root', root, '--snapshot', snapshotPath]); check('snapshot drift fails verification', result.status === 1, result.out);

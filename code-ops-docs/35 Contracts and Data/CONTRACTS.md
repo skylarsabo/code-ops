@@ -102,6 +102,8 @@ The snapshot command can generate a delta only when it receives both a previous 
 
 The bundle never silently falls back to broad context. It writes `BROAD_CONTEXT_REQUIRED` for high-risk or oversized scope. It writes `BUDGET_EXCEEDED` when the rendered bundle exceeds `maxBundleBytes`. Evidence: `scripts/context-bundle.mjs:52-55` and `scripts/context-bundle.mjs:117-162`.
 
+The share of the repository index one unit may hold defaults to 0.25. The optional contract field `context.maxScopeShare` moves that share anywhere above 0 and up to 1, and a raised share is a slice-design decision the lead records in the contract. The recursive-glob and risky-prefix triggers ignore it, so a security or migration scope still refuses. Evidence: `scripts/context-bundle.mjs:60-73` and `scripts/run-contract.mjs:103-107`.
+
 Context bundles support both v2 and v3 contracts. A bundle still binds its run ID,
 contract revision, work unit, snapshot, compiler digest, and bounded contents. Runtime
 receipts reference a verified bundle by unit ID, bundle ID, path, and file digest.

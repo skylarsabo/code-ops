@@ -102,7 +102,7 @@ function writeContract(revision, head, snapshotId, overrides = {}) {
       artifact: 'run/REPORT.md', dependsOn: [], qualityCriteria: ['Q-001'], tokenBudget: { input: 1000, output: 90, reasoning: 30 },
     }],
     context: {
-      snapshot: 'CONTEXT_SNAPSHOT.json', snapshotId, bundleDir: 'bundles', untrackedPolicy: 'exclude',
+      snapshot: 'CONTEXT_SNAPSHOT.json', snapshotId, bundleDir: 'run/bundles', untrackedPolicy: 'exclude',
       maxBundleBytes: 65536, maxAtlasExcerptBytes: 8192,
     },
     runtime,
@@ -334,6 +334,39 @@ try {
   check('required unavailable capability fails closed', r.status === 1 && /promptCaching/.test(r.out), r.out);
   writeFileSync(capabilityPath, capabilityBytes);
   writeContract(1, required.head, firstSnapshot.snapshotId);
+
+  const visibleBundles = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId);
+  visibleBundles.context.bundleDir = 'bundles';
+  writeFileSync(contractPath, `${JSON.stringify(visibleBundles, null, 2)}\n`);
+  r = run(RUNTIME, ['init', '--root', root, '--contract', contractPath], root);
+  check('runtime init refuses a Git-visible bundle directory', r.status === 1
+    && /context\.bundleDir must use a repository-ignored path/.test(r.out) && !existsSync(runtimePath), r.out);
+  const visibleContractPath = join(root, 'VISIBLE_RUN_CONTRACT.json');
+  const visibleSnapshotPath = join(root, 'VISIBLE_SNAPSHOT.json');
+  const snapshotBytes = readFileSync(snapshotPath);
+  writeFileSync(visibleSnapshotPath, snapshotBytes);
+  const visibleSnapshot = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId);
+  visibleSnapshot.context.snapshot = 'VISIBLE_SNAPSHOT.json';
+  writeFileSync(visibleContractPath, `${JSON.stringify(visibleSnapshot, null, 2)}\n`);
+  r = run(RUNTIME, ['init', '--root', root, '--contract', visibleContractPath], root);
+  check('runtime init refuses a Git-visible snapshot receipt', r.status === 1
+    && /context\.snapshot must use a repository-ignored path/.test(r.out) && !existsSync(runtimePath), r.out);
+  rmSync(visibleContractPath, { force: true });
+  rmSync(visibleSnapshotPath, { force: true });
+  writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId);
+
+  const tamperedSnapshot = JSON.parse(snapshotBytes.toString('utf8'));
+  tamperedSnapshot.state.staged = [{ status: 'A', path: 'source.txt' }];
+  writeFileSync(snapshotPath, `${JSON.stringify(tamperedSnapshot, null, 2)}\n`);
+  r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
+  check('a self-inconsistent receipt is not reported as context snapshot drift', r.status === 1
+    && /self-inconsistent/.test(r.out) && /not context snapshot drift/.test(r.out), r.out);
+  writeFileSync(snapshotPath, snapshotBytes);
+  writeFileSync(join(root, 'source.txt'), 'two\n');
+  r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
+  check('a tracked edit is still reported as context snapshot drift', r.status === 1
+    && /context snapshot drift; prepare a new receipt/.test(r.out), r.out);
+  writeFileSync(join(root, 'source.txt'), 'one\n');
 
   r = run(RUNTIME, ['init', '--root', root, '--contract', contractPath], root);
   check('runtime chain initializes', r.status === 0 && /sequence 1/.test(r.out), r.out);

@@ -18,6 +18,9 @@ export const RUNTIME_SCRIPTS = [
   // The shared CLI primitives the canonical scripts migrate onto one domain at a time. It ships
   // beside co.mjs everywhere so the first migration needs no new vendoring.
   { name: 'cli-lib.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
+  // The shared citation resolver. revalidate-register.mjs imports it as a SIBLING, and so does
+  // check-handoff.mjs, so it ships wherever either of them does: all four plugins.
+  { name: 'citation-lib.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite', 'code-ops-suite'] },
   { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },

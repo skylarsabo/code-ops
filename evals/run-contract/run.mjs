@@ -56,6 +56,21 @@ try {
   const calibrationExtra = calibration(); calibrationExtra.calibration.lead = 'strong'; save(calibrationExtra); r = run(['check', '--contract', path, '--root', REPO]); check('calibration unknown sub-key fails closed', r.status === 1 && /calibration has unknown key lead/.test(r.out), r.out);
   const calibrationMissing = calibration(); delete calibrationMissing.calibration.track; save(calibrationMissing); r = run(['check', '--contract', path, '--root', REPO]); check('calibration missing track fails closed', r.status === 1 && /calibration is missing track/.test(r.out), r.out);
   const frontierBlock = calibration(); frontierBlock.lead = { model: 'gpt-5.6-sol', tier: 'frontier', effort: 'high' }; save(frontierBlock); r = run(['check', '--contract', path, '--root', REPO]); check('calibration block with a frontier lead fails closed', r.status === 1 && /calibration requires a strong lead/.test(r.out), r.out);
+  const share = calibration(); share.context.maxScopeShare = 0.9; save(share); r = run(['check', '--contract', path, '--root', REPO]); check('an in-range maxScopeShare compiles', r.status === 1 && compiles(r.out), r.out);
+  const shareOutOfRange = calibration(); shareOutOfRange.context.maxScopeShare = 1.5; save(shareOutOfRange); r = run(['check', '--contract', path, '--root', REPO]); check('an out-of-range maxScopeShare fails closed', r.status === 1 && /context\.maxScopeShare must be a number/.test(r.out), r.out);
+  const shareNotNumber = calibration(); shareNotNumber.context.maxScopeShare = '0.5'; save(shareNotNumber); r = run(['check', '--contract', path, '--root', REPO]); check('a non-number maxScopeShare fails closed', r.status === 1 && /context\.maxScopeShare must be a number/.test(r.out), r.out);
+  const shareUnknownKey = calibration(); shareUnknownKey.context.maxScopeSharing = 0.9; save(shareUnknownKey); r = run(['check', '--contract', path, '--root', REPO]); check('an optional context key does not admit unknown context keys', r.status === 1 && /context has unknown key maxScopeSharing/.test(r.out), r.out);
+  const panel = (lenses) => {
+    const base = calibration();
+    const seats = lenses.map((lens, index) => ({ ...calibrationUnit(`D-00${4 + index}`, 2, 'refutation', ['scripts'], ['D-001']), lens }));
+    base.units = [base.units[0], base.units[1], { ...base.units[2], dependsOn: ['D-002'], validates: ['D-002'], independentOf: ['D-002'] }, ...seats];
+    base.budget = { maxDispatches: base.units.length, maxParallel: seats.length + 1, maxRetriesPerUnit: 1 };
+    return base;
+  };
+  save(panel(['refutation-scope'])); r = run(['check', '--contract', path, '--root', REPO]); check('one refutation unit is not a panel and compiles', r.status === 1 && compiles(r.out), r.out);
+  save(panel(['refutation-scope', 'refutation-oracle'])); r = run(['check', '--contract', path, '--root', REPO]); check('an even refutation panel fails closed', r.status === 1 && /D-001 refutation panel has 2 seats; a panel seats an odd number of at least three lenses/.test(r.out), r.out);
+  save(panel(['refutation-scope', 'refutation-oracle', 'refutation-evidence'])); r = run(['check', '--contract', path, '--root', REPO]); check('an odd refutation panel of distinct lenses compiles', r.status === 1 && compiles(r.out), r.out);
+  save(panel(['refutation-scope', 'refutation-oracle', 'refutation-scope'])); r = run(['check', '--contract', path, '--root', REPO]); check('a refutation panel that repeats a lens fails closed', r.status === 1 && /D-001 refutation panel repeats lens refutation-scope/.test(r.out), r.out);
   const v3Block = { ...policyMismatch, version: 3, runtime: calibration().runtime, replanOn: calibration().replanOn, calibration: { arm: 'b', track: 'assess-only' } }; save(v3Block); r = run(['check', '--contract', path, '--root', REPO]); check('calibration block on a v3 contract fails closed', r.status === 1 && /contract has unknown key calibration/.test(r.out), r.out);
   save(contract()); rows(); r = run(['reconcile', '--contract', path, '--ledger', ledger, '--root', REPO, '--strict']); check('strict matching reported ledger passes', r.status === 0, r.out);
   r = run(['reconcile', '--contract', path, '--ledger', ledger, '--root', REPO, '--in-flight']); check('in-flight reconcile passes a fully reported non-v4 ledger', r.status === 0, r.out);
