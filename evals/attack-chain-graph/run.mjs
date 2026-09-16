@@ -32,10 +32,10 @@ const units = [unit('D-001', 1, 'family-explorer', 'judgment'), unit('D-002', 1,
 const unitArtifacts = units.map((item) => ({ unit: item.id, reference: writeArtifact(`${item.id}.md`, `reported artifact ${item.id}\n`) }));
 writeFileSync(ledgerPath, `| id | role | brief | expected artifact | status |\n| --- | --- | --- | --- | --- |\n${units.map((item) => `| ${item.id} | ${item.role}@${item.model} | ${item.brief} | ${item.artifact} | reported |`).join('\n')}\n`);
 const journal = [
-  { op: 'add', id: 'D-001', status: 'dispatched', actorId: 'actor-input' }, { op: 'add', id: 'D-002', status: 'dispatched', actorId: 'actor-auth' },
+  { op: 'add', id: 'D-001', status: 'dispatched', runId: 'attack-chain-eval', actorId: 'actor-input' }, { op: 'add', id: 'D-002', status: 'dispatched', runId: 'attack-chain-eval', actorId: 'actor-auth' },
   { op: 'update', id: 'D-001', to: 'reported', actorId: 'actor-input' }, { op: 'update', id: 'D-002', to: 'reported', actorId: 'actor-auth' },
-  { op: 'add', id: 'D-003', status: 'dispatched', actorId: 'actor-input-validator' }, { op: 'update', id: 'D-003', to: 'reported', actorId: 'actor-input-validator' },
-  { op: 'add', id: 'D-004', status: 'dispatched', actorId: 'actor-auth-validator' }, { op: 'update', id: 'D-004', to: 'reported', actorId: 'actor-auth-validator' },
+  { op: 'add', id: 'D-003', status: 'dispatched', runId: 'attack-chain-eval', actorId: 'actor-input-validator' }, { op: 'update', id: 'D-003', to: 'reported', actorId: 'actor-input-validator' },
+  { op: 'add', id: 'D-004', status: 'dispatched', runId: 'attack-chain-eval', actorId: 'actor-auth-validator' }, { op: 'update', id: 'D-004', to: 'reported', actorId: 'actor-auth-validator' },
 ];
 const journalText = `${journal.map((item) => JSON.stringify(item)).join('\n')}\n`;
 writeFileSync(`${ledgerPath}.journal.jsonl`, journalText);
@@ -72,7 +72,7 @@ const campaign = () => structuredClone({
 try {
   save(campaign()); let result = run(); check('canonical contract-bound campaign checks', result.status === 0, result.out);
   result = run('check', ['--final']); check('final mode requires and accepts strict all-unit reconciliation', result.status === 0, result.out);
-  const partialJournal = journal.slice(0, 4).concat([{ op: 'add', id: 'D-003', status: 'dispatched', actorId: 'actor-input-validator' }, { op: 'add', id: 'D-004', status: 'dispatched', actorId: 'actor-auth-validator' }]);
+  const partialJournal = journal.slice(0, 4).concat([{ op: 'add', id: 'D-003', status: 'dispatched', runId: 'attack-chain-eval', actorId: 'actor-input-validator' }, { op: 'add', id: 'D-004', status: 'dispatched', runId: 'attack-chain-eval', actorId: 'actor-auth-validator' }]);
   writeFileSync(ledgerPath, `| id | role | brief | expected artifact | status |\n| --- | --- | --- | --- | --- |\n${units.map((item, index) => `| ${item.id} | ${item.role}@${item.model} | ${item.brief} | ${item.artifact} | ${index < 2 ? 'reported' : 'dispatched'} |`).join('\n')}\n`); writeFileSync(`${ledgerPath}.journal.jsonl`, `${partialJournal.map((item) => JSON.stringify(item)).join('\n')}\n`);
   const partial = campaign(); partial.hypotheses[1] = chain('H-AUTH-001', 'auth'); partial.runEvidence = { ledger: { path: rel(ledgerPath), sha256: sha(readFileSync(ledgerPath)) }, journal: { path: rel(`${ledgerPath}.journal.jsonl`), sha256: sha(readFileSync(`${ledgerPath}.journal.jsonl`)) }, artifacts: structuredClone(unitArtifacts.slice(0, 2)) }; save(partial); result = run(); check('in-progress campaign permits dispatched validators without final artifacts', result.status === 0, result.out); result = run('check', ['--final']); check('in-progress campaign cannot claim final closure', result.status !== 0, result.out);
   const fabricatedJournal = partialJournal.filter((event) => event.id !== 'D-004'); const fabricatedLedger = readFileSync(ledgerPath, 'utf8').split(/\r?\n/).filter((line) => !/^\| D-004 /.test(line)).join('\n'); writeFileSync(ledgerPath, fabricatedLedger); writeFileSync(`${ledgerPath}.journal.jsonl`, `${fabricatedJournal.map((item) => JSON.stringify(item)).join('\n')}\n`); partial.runEvidence.ledger = { path: rel(ledgerPath), sha256: sha(readFileSync(ledgerPath)) }; partial.runEvidence.journal = { path: rel(`${ledgerPath}.journal.jsonl`), sha256: sha(readFileSync(`${ledgerPath}.journal.jsonl`)) }; save(partial); result = run(); check('fabricated binding without an actual launch fails closed', result.status === 1 && /campaign binding D-004 lacks an actual ledger row/.test(result.out), result.out);

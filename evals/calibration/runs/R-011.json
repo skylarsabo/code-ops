@@ -1,0 +1,74 @@
+{
+  "id": "R-011",
+  "date": "2026-09-15",
+  "suite": {
+    "code-ops-suite": "1.79.0"
+  },
+  "target": {
+    "label": "mid-size TypeScript SaaS web application (payments, background jobs, third-party data acquisition, public scoring surface)",
+    "class": "mid-size-typescript-saas-web-app",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 60,
+    "confirmed": 31,
+    "refutation": {
+      "paneled": 29,
+      "survived": 29,
+      "reproExempt": 0,
+      "panelEligible": 29
+    },
+    "severity": {
+      "critical": 0,
+      "high": 5,
+      "medium": 16,
+      "low": 35,
+      "nit": 4
+    }
+  },
+  "tokens": {
+    "operative": 3569308,
+    "dispatches": 15
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 163,
+    "slicesSwept": 12,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 11,
+    "fresh": 11,
+    "refreshed": 0,
+    "falsified": 3
+  },
+  "config": {
+    "lead": "opus-5",
+    "operatives": "opus-5"
+  },
+  "host": "claude-code",
+  "lessons": [
+    "L-027",
+    "L-034",
+    "L-044",
+    "L-045",
+    "L-046",
+    "L-049",
+    "L-051",
+    "L-052",
+    "L-053",
+    "L-054",
+    "L-055",
+    "L-056"
+  ],
+  "notes": "Fifth run against this target class and the first on suite 1.79.0, on the same committed tree and under the identical configuration of the 2026-09-14 row (strong lead over strong operatives, same harness), so the suite version is what moved. Deltas: dispatches 21 to 15, findings 74 to 60, CONFIRMED 28 to 31 (ratio 0.38 to 0.52), nits 17 to 4, highs 4 to 5, operative tokens roughly 2.59M to 3.57M, CONFIRMED per 100k 1.08 to 0.87, covered negatives 164 to 163, paneled 4 of 4 with 25 repro-exempt to 29 of 29 eligible with none exempt, survival 1.00 both runs; atlas falsified 1 to 3 of 11; first conformance snapshot at drift 3 of 5; orchestration discipline 4 of 5 with artifact placement failing. **Orchestration bookkeeping against the version 4 contract was this run’s dominant cost**: the ledger add command mints serial ids instead of contract unit ids, forcing two re-key revisions (L-053); it accepts a missing actor id that strict reconciliation rejects only at finalization, so the contract cannot finalize (L-054); replan and checkpoint demand a fully reported graph, so no mid-run revision bound and the receipt chain can never catch up (L-055). **Panels refined rather than killed (L-034)**: every medium and high was paneled, all 29 survived, eight severities fell and one PROBABLE was promoted on execution; no CONFIRMED label was demoted as static reasoning, so the L-020 fix held. The atlas stamped three sections fresh whose in-scope claims were false when written (L-051, L-052), the auth section still carries its out-of-scope route counts (L-046), and the unmapped count checks only top-level folders (L-056). The anchor revalidator still resolves prose basenames and prose file-and-line mentions (L-027) and reads spaced document names in prose as gone (L-045) while the lead exact check found all 60 fresh. Host capabilities again forced artifacts out of the tracked vault runs folder (L-044). A lead premise carried from a pre-snapshot dirty-tree atlas check was rejected by its operative (L-049). Five prior fixes observed holding and recorded as verified-in edges."
+}

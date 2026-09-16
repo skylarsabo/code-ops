@@ -212,8 +212,12 @@ try {
   r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', v4Acceptance, '--dispatch-ledger', v4Ledger, '--result', v4Result, '--root', root], root);
   check('version 4 finalization rejects a hand-written reported ledger without a journal', r.status === 1 && /requires a dispatch journal/.test(r.out) && !existsSync(v4Result), r.out);
   rmSync(v4Ledger, { force: true });
-  const addV4 = (role, brief, artifact, actor) => run(LEDGER, ['add', '--ledger', v4Ledger, '--role', role, '--brief', brief, '--artifact', artifact, '--model', 'gpt-5.6-terra', '--actor-id', actor], root);
+  const addV4 = (unitId, role, brief, artifact, actor) => run(LEDGER, ['add', '--ledger', v4Ledger, '--role', role, '--brief', brief, '--artifact', artifact, '--model', 'gpt-5.6-terra', '--actor-id', actor, '--contract', contractPath, '--unit', unitId], root);
   const addLegacyV4 = (role, brief, artifact) => run(LEDGER, ['add', '--ledger', v4Ledger, '--role', role, '--brief', brief, '--artifact', artifact, '--model', 'gpt-5.6-terra'], root);
+  // Unbound but with a real actor id: dispatch-ledger.mjs's own --contract path now refuses to
+  // reuse an actor across units at add time, so the actor-reuse fixture below must dispatch
+  // outside that binding to still reach run-contract.mjs's own independent distinct-actor check.
+  const addV4Unbound = (role, brief, artifact, actor) => run(LEDGER, ['add', '--ledger', v4Ledger, '--role', role, '--brief', brief, '--artifact', artifact, '--model', 'gpt-5.6-terra', '--actor-id', actor], root);
   const reportV4 = (id) => run(LEDGER, ['update', '--ledger', v4Ledger, '--id', id, '--status', 'reported'], root);
   addLegacyV4('gatherer', 'map runtime state', 'run/REPORT.md');
   addLegacyV4('tracer', 'trace runtime boundaries', 'run/TRACE.md');
@@ -223,34 +227,34 @@ try {
   check('version 4 rejects a legacy journal with no actor identities', r.status === 1 && /lacks actorId/.test(r.out) && !existsSync(v4Result), r.out);
   rmSync(v4Ledger, { force: true });
   rmSync(`${v4Ledger}.journal.jsonl`, { force: true });
-  addV4('gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer');
-  addV4('tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer');
+  addV4('D-001', 'gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer');
+  addV4('D-002', 'tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer');
   reportV4('D-001'); reportV4('D-002');
-  addV4('reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
+  addV4('D-003', 'reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
   r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', v4Acceptance, '--dispatch-ledger', v4Ledger, '--result', v4Result, '--root', root], root);
   check('version 4 finalization still rejects a missing operative artifact', r.status === 1 && /D-003/.test(r.out) && !existsSync(v4Result), r.out);
   writeFileSync(join(runDir, 'REVIEW.md'), '# Review\n');
   rmSync(v4Ledger, { force: true });
   rmSync(`${v4Ledger}.journal.jsonl`, { force: true });
-  addV4('gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer'); reportV4('D-001');
-  addV4('tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer'); reportV4('D-002');
-  addV4('reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
+  addV4('D-001', 'gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer'); reportV4('D-001');
+  addV4('D-002', 'tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer'); reportV4('D-002');
+  addV4('D-003', 'reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
   r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', v4Acceptance, '--dispatch-ledger', v4Ledger, '--result', v4Result, '--root', root], root);
   check('version 4 rejects serialized work presented as parallel', r.status === 1 && /records at most 1 overlapping active work intervals/.test(r.out) && !existsSync(v4Result), r.out);
   rmSync(v4Ledger, { force: true });
   rmSync(`${v4Ledger}.journal.jsonl`, { force: true });
-  addV4('gatherer', 'map runtime state', 'run/REPORT.md', 'agent-reused');
-  addV4('tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-reused');
+  addV4Unbound('gatherer', 'map runtime state', 'run/REPORT.md', 'agent-reused');
+  addV4Unbound('tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-reused');
   reportV4('D-001'); reportV4('D-002');
-  addV4('reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
+  addV4Unbound('reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
   r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', v4Acceptance, '--dispatch-ledger', v4Ledger, '--result', v4Result, '--root', root], root);
   check('version 4 rejects distinct declared roles backed by one actor', r.status === 1 && /dispatch actors must be distinct/.test(r.out) && !existsSync(v4Result), r.out);
   rmSync(v4Ledger, { force: true });
   rmSync(`${v4Ledger}.journal.jsonl`, { force: true });
-  addV4('gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer');
-  addV4('tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer');
+  addV4('D-001', 'gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer');
+  addV4('D-002', 'tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer');
   reportV4('D-001'); reportV4('D-002');
-  addV4('reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
+  addV4('D-003', 'reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
   const dependencyEvents = readFileSync(`${v4Ledger}.journal.jsonl`, 'utf8').trim().split('\n').map(JSON.parse);
   const reviewerAdd = dependencyEvents.find((event) => event.op === 'add' && event.id === 'D-003');
   writeFileSync(`${v4Ledger}.journal.jsonl`, `${[reviewerAdd, ...dependencyEvents.filter((event) => event !== reviewerAdd)].map(JSON.stringify).join('\n')}\n`);
@@ -258,10 +262,10 @@ try {
   check('version 4 rejects validator dispatch before dependencies report', r.status === 1 && /activates D-003 before dependency D-001 is reported/.test(r.out) && !existsSync(v4Result), r.out);
   rmSync(v4Ledger, { force: true });
   rmSync(`${v4Ledger}.journal.jsonl`, { force: true });
-  addV4('gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer');
-  addV4('tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer');
+  addV4('D-001', 'gatherer', 'map runtime state', 'run/REPORT.md', 'agent-gatherer');
+  addV4('D-002', 'tracer', 'trace runtime boundaries', 'run/TRACE.md', 'agent-tracer');
   reportV4('D-001'); reportV4('D-002');
-  addV4('reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
+  addV4('D-003', 'reviewer', 'review runtime evidence', 'run/REVIEW.md', 'agent-reviewer'); reportV4('D-003');
   r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', v4Acceptance, '--dispatch-ledger', v4Ledger, '--result', v4Result, '--root', root], root);
   check('version 4 finalization requires recorded overlapping work intervals and artifacts', r.status === 0 && existsSync(v4Result), r.out);
   orchestrated.units[1].tier = 'frontier';
@@ -554,6 +558,137 @@ try {
     r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/DISPATCH_LEDGER.md', '--artifact', 'run/escape/secret.txt'], root);
     check('symlink escape artifact is rejected', r.status === 1 && /escapes root/.test(r.out), r.out);
   } else console.log('ok  symlink escape artifact is rejected (platform could not create fixture link)');
+
+  // ---- L-055: a two-wave version 4 run must bind mid-run contract revisions -------------
+  // Its own dispatch ledger, journal, and runtime receipts, so none of the prior single-wave
+  // fixture state above interferes with the wave-2-still-open scenarios below.
+  const l055Ledger = join(runDir, 'L055_DISPATCH_LEDGER.md');
+  const l055Journal = `${l055Ledger}.journal.jsonl`;
+  const l055Receipts = join(runDir, 'L055_RUNTIME_RECEIPTS.jsonl');
+  const l055Result = join(runDir, 'L055_RESULT.json');
+  const l055Base = writeContract(1, git(root, ['rev-parse', 'HEAD']), secondSnapshot.snapshotId, {
+    runtime: { receipts: 'run/L055_RUNTIME_RECEIPTS.jsonl' },
+  });
+  const l055 = structuredClone(l055Base);
+  l055.version = 4;
+  l055.budget = { maxDispatches: 3, maxParallel: 2, maxRetriesPerUnit: 1 };
+  l055.orchestration = { mode: 'lead-and-operatives', minOperatives: 2, minParallel: 2 };
+  l055.units[0].validates = [];
+  l055.units[0].independentOf = [];
+  l055.units[0].artifact = 'run/L055_REPORT.md';
+  l055.units.push({
+    ...l055.units[0], id: 'D-002', lens: 'runtime-boundaries-l055', role: 'tracer',
+    brief: 'trace runtime boundaries', scope: ['source.txt'], artifact: 'run/L055_TRACE.md',
+  });
+  l055.units.push({
+    ...l055.units[0], id: 'D-003', phase: 'review', wave: 2, lens: 'independent-review-l055',
+    role: 'reviewer', kind: 'review', effort: 'high', brief: 'review runtime evidence',
+    artifact: 'run/L055_REVIEW.md', dependsOn: ['D-001', 'D-002'], validates: ['D-001', 'D-002'],
+    independentOf: ['D-001', 'D-002'],
+  });
+  writeFileSync(contractPath, `${JSON.stringify(l055, null, 2)}\n`);
+  r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
+  check('L-055 two-wave v4 contract validates', r.status === 0, r.out);
+
+  r = run(RUNTIME, ['init', '--root', root, '--contract', contractPath], root);
+  check('L-055 runtime chain initializes', r.status === 0 && /sequence 1/.test(r.out), r.out);
+
+  const addL055 = (unitId, role, brief, artifact, actor) => run(LEDGER, ['add', '--ledger', l055Ledger, '--role', role, '--brief', brief, '--artifact', artifact, '--model', 'gpt-5.6-terra', '--actor-id', actor, '--contract', contractPath, '--unit', unitId], root);
+  const reportL055 = (id) => run(LEDGER, ['update', '--ledger', l055Ledger, '--id', id, '--status', 'reported'], root);
+  addL055('D-001', 'gatherer', 'map runtime state', 'run/L055_REPORT.md', 'agent-l055-gatherer');
+  addL055('D-002', 'tracer', 'trace runtime boundaries', 'run/L055_TRACE.md', 'agent-l055-tracer');
+  reportL055('D-001'); reportL055('D-002');
+
+  r = run(CONTRACT, ['reconcile', '--contract', contractPath, '--ledger', l055Ledger, '--root', root, '--strict'], root);
+  check('strict reconcile refuses wave 2 before it is dispatched', r.status === 1, r.out);
+  r = run(CONTRACT, ['reconcile', '--contract', contractPath, '--ledger', l055Ledger, '--root', root, '--in-flight'], root);
+  check('in-flight reconcile tolerates wave 2 still planned', r.status === 0, r.out);
+  r = run(CONTRACT, ['reconcile', '--contract', contractPath, '--ledger', l055Ledger, '--root', root, '--in-flight', '--strict'], root);
+  check('reconcile rejects --in-flight combined with --strict', r.status === 2, r.out);
+
+  r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/L055_DISPATCH_LEDGER.md'], root);
+  check('mid-run checkpoint appends despite an unreported planned unit', r.status === 0 && /sequence 2/.test(r.out), r.out);
+  r = run(RUNTIME, ['resume', '--root', root, '--contract', contractPath], root);
+  check('resume replays the in-flight checkpoint', r.status === 0 && /sequence 3/.test(r.out), r.out);
+  r = run(RUNTIME, ['verify', '--root', root, '--contract', contractPath], root);
+  check('verify accepts the in-flight chain', r.status === 0, r.out);
+
+  const l055Rev2 = { ...l055, revision: 2 };
+  writeFileSync(contractPath, `${JSON.stringify(l055Rev2, null, 2)}\n`);
+  r = run(RUNTIME, ['replan', '--root', root, '--contract', contractPath, '--ledger', 'run/L055_DISPATCH_LEDGER.md'], root);
+  check('mid-run replan binds the next revision despite unreported wave 2', r.status === 0 && /sequence 4/.test(r.out), r.out);
+
+  r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', join(runDir, 'L055_ACCEPTANCE_LEDGER.md'), '--dispatch-ledger', l055Ledger, '--result', l055Result, '--root', root], root);
+  check('finalize still refuses the same partial dispatch state', r.status === 1 && !existsSync(l055Result), r.out);
+
+  const l055GoodChain = readFileSync(l055Receipts, 'utf8');
+  const readJournal = () => readFileSync(l055Journal, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  const writeJournal = (events) => writeFileSync(l055Journal, `${events.map((event) => JSON.stringify(event)).join('\n')}\n`);
+  const checkpointL055 = () => run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/L055_DISPATCH_LEDGER.md'], root);
+
+  const l055SavedJournal = readJournal();
+  writeJournal(l055SavedJournal.map((event) => (event.op === 'add' && event.id === 'D-001')
+    ? { op: event.op, id: event.id, status: event.status, ...(event.runId ? { runId: event.runId } : {}) } : event));
+  r = checkpointL055();
+  check('in-flight rejects an activation lacking actorId without appending', r.status === 1 && /lacks actorId/.test(r.out)
+    && readFileSync(l055Receipts, 'utf8') === l055GoodChain, r.out);
+  writeJournal(l055SavedJournal);
+
+  const d001ActorId = l055SavedJournal.find((event) => event.op === 'add' && event.id === 'D-001').actorId;
+  writeJournal(l055SavedJournal.map((event) => (event.op === 'add' && event.id === 'D-002') ? { ...event, actorId: d001ActorId } : event));
+  r = checkpointL055();
+  check('in-flight rejects an actor reused across units without appending', r.status === 1 && /reused across/.test(r.out)
+    && readFileSync(l055Receipts, 'utf8') === l055GoodChain, r.out);
+  writeJournal(l055SavedJournal);
+
+  addL055('D-003', 'reviewer', 'review runtime evidence', 'run/L055_REVIEW.md', 'agent-l055-reviewer');
+  reportL055('D-003');
+  const withD003Journal = readJournal();
+  const reviewerAddL055 = withD003Journal.find((event) => event.op === 'add' && event.id === 'D-003');
+  writeJournal([reviewerAddL055, ...withD003Journal.filter((event) => event !== reviewerAddL055)]);
+  r = checkpointL055();
+  check('in-flight rejects a dispatch before its dependency reports without appending', r.status === 1
+    && /activates D-003 before dependency D-001 is reported/.test(r.out) && readFileSync(l055Receipts, 'utf8') === l055GoodChain, r.out);
+  writeJournal(withD003Journal);
+
+  const skipRevision = { ...l055Rev2, revision: 4 };
+  writeFileSync(contractPath, `${JSON.stringify(skipRevision, null, 2)}\n`);
+  r = run(RUNTIME, ['replan', '--root', root, '--contract', contractPath, '--ledger', 'run/L055_DISPATCH_LEDGER.md'], root);
+  check('replan refuses a skipped revision and names the bound and required revisions', r.status === 1
+    && /bound to revision 2/.test(r.out) && /presented revision 4/.test(r.out) && /renumber the current contract to revision 3/.test(r.out)
+    && readFileSync(l055Receipts, 'utf8') === l055GoodChain, r.out);
+
+  // ---- L-053: reconcile must require the ledger's own contract binding, not just an actor --
+  // The skip-revision case above left contractPath at a revision the runtime chain never bound;
+  // restore it to the revision the chain is actually bound to before checkpointing again.
+  writeFileSync(contractPath, `${JSON.stringify(l055Rev2, null, 2)}\n`);
+  const l055UnboundLedger = join(runDir, 'L055_UNBOUND_LEDGER.md');
+  const addUnboundL055 = (role, brief, artifact, actor) => run(LEDGER, ['add', '--ledger', l055UnboundLedger, '--role', role, '--brief', brief, '--artifact', artifact, '--model', 'gpt-5.6-terra', '--actor-id', actor], root);
+  addUnboundL055('gatherer', 'map runtime state', 'run/L055_REPORT.md', 'agent-l055-unbound-gatherer');
+  addUnboundL055('tracer', 'trace runtime boundaries', 'run/L055_TRACE.md', 'agent-l055-unbound-tracer');
+  run(LEDGER, ['update', '--ledger', l055UnboundLedger, '--id', 'D-001', '--status', 'reported'], root);
+  run(LEDGER, ['update', '--ledger', l055UnboundLedger, '--id', 'D-002', '--status', 'reported'], root);
+
+  r = run(CONTRACT, ['reconcile', '--contract', contractPath, '--ledger', l055UnboundLedger, '--root', root, '--in-flight'], root);
+  check('in-flight refuses a real actor id dispatched without --contract binding', r.status === 1
+    && /dispatch journal add for D-001 is not bound to contract run runtime-eval; dispatch with dispatch-ledger\.mjs add --contract --unit/.test(r.out), r.out);
+
+  const l055UnboundResult = join(runDir, 'L055_UNBOUND_RESULT.json');
+  r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', join(runDir, 'L055_UNBOUND_ACCEPTANCE.md'), '--dispatch-ledger', l055UnboundLedger, '--result', l055UnboundResult, '--root', root], root);
+  check('finalize refuses the same unbound ledger with the binding message', r.status === 1
+    && /is not bound to contract run runtime-eval/.test(r.out) && !existsSync(l055UnboundResult), r.out);
+
+  const beforeUnboundCheckpoint = readFileSync(l055Receipts, 'utf8');
+  r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/L055_UNBOUND_LEDGER.md'], root);
+  check('checkpoint refuses an unbound ledger and appends nothing', r.status === 1
+    && /is not bound to contract run runtime-eval/.test(r.out) && readFileSync(l055Receipts, 'utf8') === beforeUnboundCheckpoint, r.out);
+
+  const foreignRunJournal = withD003Journal.map((event) => (event.op === 'add' && event.id === 'D-002') ? { ...event, runId: 'some-other-run' } : event);
+  writeJournal(foreignRunJournal);
+  r = run(CONTRACT, ['reconcile', '--contract', contractPath, '--ledger', l055Ledger, '--root', root, '--in-flight'], root);
+  check('in-flight rejects a journal add naming a foreign contract run', r.status === 1
+    && /dispatch journal add for D-002 names run some-other-run, not contract run runtime-eval/.test(r.out), r.out);
+  writeJournal(withD003Journal);
 } finally {
   rmSync(outer, { recursive: true, force: true });
 }

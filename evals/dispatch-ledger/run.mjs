@@ -376,6 +376,141 @@ try {
   check('y. --sections without --report is a usage error (exit 2)', yi.status === 2, yi.stderr);
   const yj = run(['check', '--ledger', reportLedger]);
   check('y. the ledger still checks clean after the rejections', yj.status === 0 && /journal: verified\./.test(yj.stdout), yj.stdout + yj.stderr);
+
+  // ---- z. L-053/L-054: `add --contract <path> --unit <D-NNN>` keys the row by the contract's
+  // unit id (never nextId), checks the row against the unit exactly, and — for a version 4
+  // contract — requires and binds an actor. A minimal fixture (version, runId, units[{id, role,
+  // model, brief, artifact}]) is all `add` reads; run-contract.mjs owns full contract validation.
+  const writeContract = (name, overrides = {}) => {
+    const p = join(dir, name);
+    const contract = {
+      version: 4,
+      runId: 'calib-run-1',
+      units: [
+        { id: 'D-001', role: 'explorer', model: 'claude-sonnet-5', brief: 'map the payment lane', artifact: 'MAP.md' },
+        { id: 'D-002', role: 'reviewer', model: 'claude-opus-5', brief: 'review the payment diff', artifact: 'REVIEW.md' },
+      ],
+      ...overrides,
+    };
+    writeFileSync(p, JSON.stringify(contract, null, 2));
+    return p;
+  };
+  const contractPath = writeContract('contract.json');
+
+  // z1. dispatching D-002 before D-001 keys the row D-002 — the id comes from the contract unit,
+  // never the ledger's own nextId sequence.
+  const contractLedger = join(dir, 'CONTRACT_LEDGER.md');
+  const z1 = run(['add', '--ledger', contractLedger, '--role', 'reviewer', '--brief', 'review the payment diff', '--artifact', 'REVIEW.md', '--model', 'claude-opus-5', '--contract', contractPath, '--unit', 'D-002', '--actor-id', 'agent-a']);
+  check('z1. contract add for D-002 exits 0 though dispatched first', z1.status === 0, z1.stderr);
+  const textZ1 = readFileSync(contractLedger, 'utf8');
+  check('z1. row is keyed D-002, not a sequential D-001', /\|\s*D-002\s*\|\s*reviewer@claude-opus-5\s*\|/.test(textZ1), textZ1);
+  check('z1. no D-001 row was minted', !textZ1.includes('D-001'), textZ1);
+
+  // z2. a field that does not match the contract unit is refused, naming the differing field.
+  const mismatchLedger = join(dir, 'CONTRACT_MISMATCH_LEDGER.md');
+  const z2 = run(['add', '--ledger', mismatchLedger, '--role', 'explorer', '--brief', 'map the wrong lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath, '--unit', 'D-001', '--actor-id', 'agent-b']);
+  check('z2. a brief mismatch vs the contract unit exits 1', z2.status === 1 && /brief/.test(z2.stderr) && /differ/.test(z2.stderr), z2.stderr);
+  check('z2. no ledger was created on refusal', !existsSync(mismatchLedger));
+
+  // z3. an unknown unit id is refused.
+  const unknownLedger = join(dir, 'CONTRACT_UNKNOWN_LEDGER.md');
+  const z3 = run(['add', '--ledger', unknownLedger, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath, '--unit', 'D-999', '--actor-id', 'agent-c']);
+  check('z3. an unknown contract unit exits 1', z3.status === 1 && /D-999/.test(z3.stderr), z3.stderr);
+  check('z3. no ledger was created on refusal', !existsSync(unknownLedger));
+
+  // z4. version 4 dispatch without --actor-id is refused.
+  const noActorLedger = join(dir, 'CONTRACT_NOACTOR_LEDGER.md');
+  const z4 = run(['add', '--ledger', noActorLedger, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath, '--unit', 'D-001']);
+  check('z4. a version 4 contract add without --actor-id exits 1', z4.status === 1 && /actor/i.test(z4.stderr), z4.stderr);
+  check('z4. no ledger was created on refusal', !existsSync(noActorLedger));
+
+  // z5. an actor already bound to a different unit is refused — caught at append time, not only
+  // at finalization (the L-054 hazard).
+  const reuseLedger = join(dir, 'CONTRACT_REUSE_LEDGER.md');
+  const z5seed = run(['add', '--ledger', reuseLedger, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath, '--unit', 'D-001', '--actor-id', 'agent-x']);
+  check('z5. seed contract add exits 0', z5seed.status === 0, z5seed.stderr);
+  const reuseLedgerBefore = readFileSync(reuseLedger, 'utf8');
+  const reuseJournalBefore = readFileSync(reuseLedger + '.journal.jsonl', 'utf8');
+  const z5 = run(['add', '--ledger', reuseLedger, '--role', 'reviewer', '--brief', 'review the payment diff', '--artifact', 'REVIEW.md', '--model', 'claude-opus-5', '--contract', contractPath, '--unit', 'D-002', '--actor-id', 'agent-x']);
+  check('z5. reusing the same actor across units exits 1', z5.status === 1 && /agent-x/.test(z5.stderr) && /D-001/.test(z5.stderr), z5.stderr);
+  check('z5. ledger unchanged after the actor-reuse refusal', readFileSync(reuseLedger, 'utf8') === reuseLedgerBefore);
+  check('z5. journal unchanged after the actor-reuse refusal', readFileSync(reuseLedger + '.journal.jsonl', 'utf8') === reuseJournalBefore);
+
+  // z6. redispatching on a bound journal without --actor-id is refused.
+  const z6seed = run(['update', '--ledger', reuseLedger, '--id', 'D-001', '--status', 'failed', '--actor-id', 'agent-x']);
+  check('z6. seed failed transition exits 0', z6seed.status === 0, z6seed.stderr);
+  const z6Before = readFileSync(reuseLedger, 'utf8');
+  const z6JournalBefore = readFileSync(reuseLedger + '.journal.jsonl', 'utf8');
+  const z6 = run(['update', '--ledger', reuseLedger, '--id', 'D-001', '--status', 'redispatched']);
+  check('z6. redispatch on a bound journal without --actor-id exits 1', z6.status === 1 && /actor/i.test(z6.stderr), z6.stderr);
+  check('z6. ledger unchanged after the missing-actor refusal', readFileSync(reuseLedger, 'utf8') === z6Before);
+  check('z6. journal unchanged after the missing-actor refusal', readFileSync(reuseLedger + '.journal.jsonl', 'utf8') === z6JournalBefore);
+
+  // z7. an unbound `add` (no --contract) on a ledger already bound to a contract run is refused.
+  const z7Before = readFileSync(reuseLedger, 'utf8');
+  const z7JournalBefore = readFileSync(reuseLedger + '.journal.jsonl', 'utf8');
+  const z7 = run(['add', '--ledger', reuseLedger, '--role', 'mech', '--brief', 'patch the payment retry', '--artifact', 'PATCH.diff', '--model', 'claude-haiku-5']);
+  check('z7. an unbound add on a bound ledger exits 1', z7.status === 1 && /calib-run-1/.test(z7.stderr), z7.stderr);
+  check('z7. ledger unchanged after the stickiness refusal', readFileSync(reuseLedger, 'utf8') === z7Before);
+  check('z7. journal unchanged after the stickiness refusal', readFileSync(reuseLedger + '.journal.jsonl', 'utf8') === z7JournalBefore);
+
+  // z8. `add --contract` naming a different runId than the ledger is already bound to is refused.
+  const otherContractPath = writeContract('other-contract.json', { runId: 'other-run-9' });
+  const z8Before = readFileSync(reuseLedger, 'utf8');
+  const z8JournalBefore = readFileSync(reuseLedger + '.journal.jsonl', 'utf8');
+  const z8 = run(['add', '--ledger', reuseLedger, '--role', 'reviewer', '--brief', 'review the payment diff', '--artifact', 'REVIEW.md', '--model', 'claude-opus-5', '--contract', otherContractPath, '--unit', 'D-002', '--actor-id', 'agent-y']);
+  check('z8. a contract with a different runId exits 1', z8.status === 1 && /other-run-9/.test(z8.stderr) && /calib-run-1/.test(z8.stderr), z8.stderr);
+  check('z8. ledger unchanged after the runId-mismatch refusal', readFileSync(reuseLedger, 'utf8') === z8Before);
+  check('z8. journal unchanged after the runId-mismatch refusal', readFileSync(reuseLedger + '.journal.jsonl', 'utf8') === z8JournalBefore);
+
+  // z9. a version 4 `--contract` add must start a binding on a fresh ledger — refused against an
+  // existing ledger written by unbound (non-contract) adds.
+  const preExisting = join(dir, 'PRE_EXISTING_LEDGER.md');
+  const z9seed = run(['add', '--ledger', preExisting, '--role', 'explorer', '--brief', 'map something else', '--artifact', 'X.md', '--model', 'claude-sonnet-5']);
+  check('z9. seed unbound add exits 0', z9seed.status === 0, z9seed.stderr);
+  const z9Before = readFileSync(preExisting, 'utf8');
+  const z9JournalBefore = readFileSync(preExisting + '.journal.jsonl', 'utf8');
+  const z9 = run(['add', '--ledger', preExisting, '--role', 'reviewer', '--brief', 'review the payment diff', '--artifact', 'REVIEW.md', '--model', 'claude-opus-5', '--contract', contractPath, '--unit', 'D-002', '--actor-id', 'agent-z']);
+  check('z9. a version 4 contract add on an existing unbound ledger exits 1', z9.status === 1 && /fresh ledger/.test(z9.stderr), z9.stderr);
+  check('z9. ledger unchanged after the freshness refusal', readFileSync(preExisting, 'utf8') === z9Before);
+  check('z9. journal unchanged after the freshness refusal', readFileSync(preExisting + '.journal.jsonl', 'utf8') === z9JournalBefore);
+
+  // z10. --unit without --contract, and --contract without --unit, are usage errors (exit 2).
+  const usageLedgerA = join(dir, 'USAGE_LEDGER_A.md');
+  const z10a = run(['add', '--ledger', usageLedgerA, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--unit', 'D-001']);
+  check('z10. --unit without --contract exits 2', z10a.status === 2, z10a.stderr);
+  check('z10. no ledger was created', !existsSync(usageLedgerA));
+  const usageLedgerB = join(dir, 'USAGE_LEDGER_B.md');
+  const z10b = run(['add', '--ledger', usageLedgerB, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath]);
+  check('z10. --contract without --unit exits 2', z10b.status === 2, z10b.stderr);
+  check('z10. no ledger was created', !existsSync(usageLedgerB));
+
+  // z11. `check` reports a violation for a hand-written journal mixing bound and unbound adds —
+  // the runId-bound/unbound consistency rule lives in ledger-grammar.mjs's replayDispatchJournal,
+  // shared by every consumer.
+  const mixedLedger = join(dir, 'MIXED_JOURNAL_LEDGER.md');
+  writeFileSync(mixedLedger, [
+    '| id | role | brief | expected artifact | status |',
+    '| --- | --- | --- | --- | --- |',
+    '| D-001 | explorer@claude-sonnet-5 | map the payment lane | MAP.md | dispatched |',
+    '| D-002 | reviewer@claude-opus-5 | review the payment diff | REVIEW.md | dispatched |',
+  ].join('\n') + '\n');
+  writeFileSync(mixedLedger + '.journal.jsonl', [
+    JSON.stringify({ op: 'add', id: 'D-001', status: 'dispatched', actorId: 'agent-a', runId: 'calib-run-1' }),
+    JSON.stringify({ op: 'add', id: 'D-002', status: 'dispatched' }),
+  ].join('\n') + '\n');
+  const z11 = run(['check', '--ledger', mixedLedger]);
+  check('z11. check flags a journal mixing bound and unbound adds', z11.status === 1 && /mixes/.test(z11.stdout + z11.stderr), z11.stdout + z11.stderr);
+
+  // z12. a bound ledger passes `check --strict` once every row reports.
+  const strictBound = join(dir, 'STRICT_BOUND_LEDGER.md');
+  const z12a = run(['add', '--ledger', strictBound, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath, '--unit', 'D-001', '--actor-id', 'agent-p']);
+  const z12b = run(['add', '--ledger', strictBound, '--role', 'reviewer', '--brief', 'review the payment diff', '--artifact', 'REVIEW.md', '--model', 'claude-opus-5', '--contract', contractPath, '--unit', 'D-002', '--actor-id', 'agent-q']);
+  check('z12. both contract adds exit 0', z12a.status === 0 && z12b.status === 0, z12a.stderr + z12b.stderr);
+  run(['update', '--ledger', strictBound, '--id', 'D-001', '--status', 'reported']);
+  run(['update', '--ledger', strictBound, '--id', 'D-002', '--status', 'reported']);
+  const z12 = run(['check', '--ledger', strictBound, '--strict']);
+  check('z12. a bound ledger passes check --strict once all rows report', z12.status === 0, z12.stdout + z12.stderr);
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }

@@ -36,7 +36,7 @@ const REPLAN_V2 = [...REPLAN, 'context-drift'];
 const REPLAN_V3 = [...REPLAN_V2, 'runtime-drift'];
 
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
-function usage() { die('usage: run-contract.mjs check --contract <path> [--root <dir>]\n       run-contract.mjs reconcile --contract <path> --ledger <path> [--strict] [--root <dir>]\n       run-contract.mjs record --contract <path> --acceptance <path> --criterion Q-NNN --verdict PASS|FAIL|UNKNOWN|N/A --proof <text> --actor <role@model|tool|user> [--reason <text>]\n       run-contract.mjs finalize --contract <path> --acceptance <path> --dispatch-ledger <path> --result <path> [--root <dir>]', 2); }
+function usage() { die('usage: run-contract.mjs check --contract <path> [--root <dir>]\n       run-contract.mjs reconcile --contract <path> --ledger <path> [--strict | --in-flight] [--root <dir>]\n       run-contract.mjs record --contract <path> --acceptance <path> --criterion Q-NNN --verdict PASS|FAIL|UNKNOWN|N/A --proof <text> --actor <role@model|tool|user> [--reason <text>]\n       run-contract.mjs finalize --contract <path> --acceptance <path> --dispatch-ledger <path> --result <path> [--root <dir>]', 2); }
 function flags(args, known, booleans = new Set()) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
@@ -228,7 +228,69 @@ function parseLedger(path) {
   });
   return { rows, malformed };
 }
-function reconcile(contract, ledgerPath, strict) {
+// WHY (calibration lesson L-055): a version 4 dispatch journal accrues permanent violations
+// (a missing actor, a reused actor, an early activation, a non-independent validator, a
+// duplicate known actor) the instant they occur, so both a mid-run checkpoint and a final
+// reconciliation must catch them. Only two checks are inherently end-of-run: whether every
+// planned unit ever got an actor, and whether the widest recorded overlap met
+// orchestration.minParallel — both require the complete journal to decide. One walk computes
+// the shared, always-decidable violations plus the running actor/overlap state final needs.
+function walkDispatchJournal(contract, journal) {
+  const errors = [];
+  const workById = new Map(contract.units.filter((unit) => !isValidator(unit)).map((unit) => [unit.id, unit]));
+  const allById = new Map(contract.units.map((unit) => [unit.id, unit]));
+  const activeByWave = new Map(); const actorByUnit = new Map(); const unitByActor = new Map(); const statusByUnit = new Map();
+  let widestOverlap = 0;
+  for (const event of journal.events) {
+    // WHY (calibration lesson L-053): dispatch-ledger.mjs add --contract stamps the add event's
+    // runId, but nothing stopped a lead from skipping --contract altogether — an unbound add
+    // still dispatches, still journals, and only mis-keys a row the moment units go out of
+    // contract order. ledger-grammar.mjs's replay already refuses a journal that straddles
+    // bound and unbound adds or names more than one run; this is the other half, verified here
+    // rather than there because only reconcile holds the contract this journal is reconciled
+    // against — every add must actually name THIS run, not merely agree with its own siblings.
+    if (event.op === 'add') {
+      if (!event.runId) errors.push(`dispatch journal add for ${event.id} is not bound to contract run ${contract.runId}; dispatch with dispatch-ledger.mjs add --contract --unit`);
+      else if (event.runId !== contract.runId) errors.push(`dispatch journal add for ${event.id} names run ${event.runId}, not contract run ${contract.runId}`);
+    }
+    const nextStatus = event.op === 'add' ? event.status : event.to;
+    if (['dispatched', 'redispatched'].includes(nextStatus)) {
+      if (!event.actorId) errors.push(`dispatch journal activation for ${event.id} lacks actorId`);
+      else {
+        const priorUnit = unitByActor.get(event.actorId);
+        if (priorUnit && priorUnit !== event.id) errors.push(`dispatch actor ${event.actorId} is reused across ${priorUnit} and ${event.id}`);
+        unitByActor.set(event.actorId, event.id);
+        actorByUnit.set(event.id, event.actorId);
+      }
+      const unit = allById.get(event.id);
+      for (const dependency of unit?.dependsOn || []) if (statusByUnit.get(dependency) !== 'reported') {
+        errors.push(`dispatch journal activates ${event.id} before dependency ${dependency} is reported`);
+      }
+    }
+    statusByUnit.set(event.id, nextStatus);
+    const unit = workById.get(event.id);
+    if (!unit) continue;
+    if (!activeByWave.has(unit.wave)) activeByWave.set(unit.wave, new Map());
+    const active = activeByWave.get(unit.wave);
+    if (['dispatched', 'redispatched'].includes(nextStatus)) active.set(unit.id, event.actorId || null);
+    else if (['reported', 'failed'].includes(nextStatus)) active.delete(unit.id);
+    widestOverlap = Math.max(widestOverlap, new Set([...active.values()].filter(Boolean)).size);
+  }
+  const actors = [...actorByUnit.values()];
+  if (new Set(actors).size !== actors.length) errors.push('version 4 dispatch actors must be distinct across work and validation units');
+  for (const validator of contract.units.filter(isValidator)) for (const target of validator.validates || []) {
+    if (actorByUnit.get(validator.id) && actorByUnit.get(validator.id) === actorByUnit.get(target)) errors.push(`${validator.id} actor is not independent from validated unit ${target}`);
+  }
+  return { errors, actorByUnit, widestOverlap };
+}
+// WHY (calibration lesson L-055): reconcile has three modes, not a boolean. `plan` (the
+// pre-existing non-strict default) tolerates unreported and unrepresented units. `in-flight`
+// adds the version 4 journal's permanent violations so a checkpoint or replan mid-run cannot
+// bind a corrupt dispatch history, but still tolerates rows not yet reported, planned units
+// with no row, units with no actor yet, and the minParallel overlap check — each decidable
+// only once the run finishes. `final` keeps every existing strict outcome unchanged.
+function reconcile(contract, ledgerPath, mode) {
+  const final = mode === 'final';
   const { rows, malformed } = parseLedger(ledgerPath); const errors = []; const warnings = []; const byId = new Map(contract.units.map((x) => [x.id, x])); const seen = new Set();
   if (malformed.length) errors.push(`malformed ledger rows at ${malformed.join(', ')}`);
   for (const row of rows) {
@@ -238,9 +300,9 @@ function reconcile(contract, ledgerPath, strict) {
     if (row.brief !== unit.brief) errors.push(`${row.id} brief differs from contract`);
     if (row.artifact !== unit.artifact) errors.push(`${row.id} artifact differs from contract`);
     if (!LEDGER_STATUSES.includes(row.status)) errors.push(`${row.id} has unknown status ${row.status}`);
-    if (strict && row.status !== 'reported') errors.push(`${row.id} is not reported`);
+    if (final && row.status !== 'reported') errors.push(`${row.id} is not reported`);
   }
-  for (const unit of contract.units) if (!seen.has(unit.id)) (strict ? errors : warnings).push(`missing planned ledger row ${unit.id}`);
+  for (const unit of contract.units) if (!seen.has(unit.id)) (final ? errors : warnings).push(`missing planned ledger row ${unit.id}`);
   const journalPath = `${ledgerPath}.journal.jsonl`;
   let journal = null;
   if (existsSync(journalPath)) {
@@ -257,44 +319,15 @@ function reconcile(contract, ledgerPath, strict) {
       for (const [id, status] of replayed.expected) if (rowById.get(id)?.status !== status) errors.push(`dispatch journal status for ${id} differs from ledger`);
     }
   }
-  if (strict && contract.version === 4) {
-    if (!journal) errors.push('version 4 finalization requires a dispatch journal');
+  if (mode !== 'plan' && contract.version === 4) {
+    if (!journal) errors.push(`version 4 ${final ? 'finalization' : 'in-flight reconciliation'} requires a dispatch journal`);
     else {
-      const workById = new Map(contract.units.filter((unit) => !isValidator(unit)).map((unit) => [unit.id, unit]));
-      const allById = new Map(contract.units.map((unit) => [unit.id, unit]));
-      const activeByWave = new Map(); const actorByUnit = new Map(); const unitByActor = new Map(); const statusByUnit = new Map();
-      let widestOverlap = 0;
-      for (const event of journal.events) {
-        const nextStatus = event.op === 'add' ? event.status : event.to;
-        if (['dispatched', 'redispatched'].includes(nextStatus)) {
-          if (!event.actorId) errors.push(`dispatch journal activation for ${event.id} lacks actorId`);
-          else {
-            const priorUnit = unitByActor.get(event.actorId);
-            if (priorUnit && priorUnit !== event.id) errors.push(`dispatch actor ${event.actorId} is reused across ${priorUnit} and ${event.id}`);
-            unitByActor.set(event.actorId, event.id);
-            actorByUnit.set(event.id, event.actorId);
-          }
-          const unit = allById.get(event.id);
-          for (const dependency of unit?.dependsOn || []) if (statusByUnit.get(dependency) !== 'reported') {
-            errors.push(`dispatch journal activates ${event.id} before dependency ${dependency} is reported`);
-          }
-        }
-        statusByUnit.set(event.id, nextStatus);
-        const unit = workById.get(event.id);
-        if (!unit) continue;
-        if (!activeByWave.has(unit.wave)) activeByWave.set(unit.wave, new Map());
-        const active = activeByWave.get(unit.wave);
-        if (['dispatched', 'redispatched'].includes(nextStatus)) active.set(unit.id, event.actorId || null);
-        else if (['reported', 'failed'].includes(nextStatus)) active.delete(unit.id);
-        widestOverlap = Math.max(widestOverlap, new Set([...active.values()].filter(Boolean)).size);
+      const walked = walkDispatchJournal(contract, journal);
+      errors.push(...walked.errors);
+      if (final) {
+        for (const unit of contract.units) if (!walked.actorByUnit.has(unit.id)) errors.push(`dispatch journal does not identify the actor for ${unit.id}`);
+        if (walked.widestOverlap < contract.orchestration.minParallel) errors.push(`dispatch journal records at most ${walked.widestOverlap} overlapping active work intervals; orchestration.minParallel is ${contract.orchestration.minParallel}`);
       }
-      for (const unit of contract.units) if (!actorByUnit.has(unit.id)) errors.push(`dispatch journal does not identify the actor for ${unit.id}`);
-      const actors = [...actorByUnit.values()];
-      if (new Set(actors).size !== actors.length) errors.push('version 4 dispatch actors must be distinct across work and validation units');
-      for (const validator of contract.units.filter(isValidator)) for (const target of validator.validates || []) {
-        if (actorByUnit.get(validator.id) && actorByUnit.get(validator.id) === actorByUnit.get(target)) errors.push(`${validator.id} actor is not independent from validated unit ${target}`);
-      }
-      if (widestOverlap < contract.orchestration.minParallel) errors.push(`dispatch journal records at most ${widestOverlap} overlapping active work intervals; orchestration.minParallel is ${contract.orchestration.minParallel}`);
     }
   }
   return { errors, warnings, rows, journal };
@@ -313,8 +346,9 @@ if (command === 'check') {
   const f = flags(process.argv.slice(3), new Set(['--contract', '--root'])); if (!f['--contract']) usage();
   const root = resolve(f['--root'] || process.cwd()); const contract = loadContract(resolve(f['--contract']), root); console.log(`ok contract ${contract.runId} revision ${contract.revision}`);
 } else if (command === 'reconcile') {
-  const f = flags(process.argv.slice(3), new Set(['--contract', '--ledger', '--root', '--strict']), new Set(['--strict'])); if (!f['--contract'] || !f['--ledger']) usage();
-  const root = resolve(f['--root'] || process.cwd()); printReconciliation(reconcile(loadContract(resolve(f['--contract']), root), resolve(f['--ledger']), Boolean(f['--strict'])));
+  const f = flags(process.argv.slice(3), new Set(['--contract', '--ledger', '--root', '--strict', '--in-flight']), new Set(['--strict', '--in-flight'])); if (!f['--contract'] || !f['--ledger']) usage();
+  if (f['--strict'] && f['--in-flight']) usage();
+  const root = resolve(f['--root'] || process.cwd()); printReconciliation(reconcile(loadContract(resolve(f['--contract']), root), resolve(f['--ledger']), f['--strict'] ? 'final' : f['--in-flight'] ? 'in-flight' : 'plan'));
 } else if (command === 'record') {
   const f = flags(process.argv.slice(3), new Set(['--contract', '--acceptance', '--criterion', '--verdict', '--proof', '--actor', '--reason', '--root'])); if (!f['--contract'] || !f['--acceptance'] || !f['--criterion'] || !f['--verdict'] || !f['--proof'] || !f['--actor']) usage();
   const root = resolve(f['--root'] || process.cwd()); const contract = loadContract(resolve(f['--contract']), root); const criterion = contract.quality.criteria.find((x) => x.id === f['--criterion']); if (!criterion) die(`unknown criterion ${f['--criterion']}`); if (!['PASS', 'FAIL', 'UNKNOWN', 'N/A'].includes(f['--verdict'])) die('invalid verdict');
@@ -325,7 +359,7 @@ if (command === 'check') {
   appendFileSync(acceptance, `| ${criterion.id} | ${attempt} | ${f['--verdict']} | ${cleanCell(f['--proof'])} | ${cleanCell(actor)} | ${cleanCell(f['--reason'] || '')} |\n`); console.log(`ok recorded ${criterion.id} attempt ${attempt}`);
 } else if (command === 'finalize') {
   const f = flags(process.argv.slice(3), new Set(['--contract', '--acceptance', '--dispatch-ledger', '--result', '--root'])); if (!f['--contract'] || !f['--acceptance'] || !f['--dispatch-ledger'] || !f['--result']) usage();
-  const root = resolve(f['--root'] || process.cwd()); const contract = loadContract(resolve(f['--contract']), root); const resultPath = resolve(f['--result']); if (existsSync(resultPath)) die(`result already exists: ${resultPath}`); const reconciled = reconcile(contract, resolve(f['--dispatch-ledger']), true); if (reconciled.errors.length) die(`cannot finalize:\n${reconciled.errors.map((x) => `  - ${x}`).join('\n')}`);
+  const root = resolve(f['--root'] || process.cwd()); const contract = loadContract(resolve(f['--contract']), root); const resultPath = resolve(f['--result']); if (existsSync(resultPath)) die(`result already exists: ${resultPath}`); const reconciled = reconcile(contract, resolve(f['--dispatch-ledger']), 'final'); if (reconciled.errors.length) die(`cannot finalize:\n${reconciled.errors.map((x) => `  - ${x}`).join('\n')}`);
   if (contract.version === 4) {
     const missing = contract.units.filter((unit) => {
       const artifact = resolve(root, unit.artifact);

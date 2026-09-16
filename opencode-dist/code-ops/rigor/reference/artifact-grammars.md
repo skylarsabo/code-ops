@@ -98,6 +98,9 @@ not a silent one.
 `dispatch-ledger.mjs` also maintains a write journal beside the ledger,
 `DISPATCH_LEDGER.md.journal.jsonl`, holding one JSONL entry per `add`, `update`, or `phase`,
 appended at write time. `check` replays it to catch phantom rows.
+An `add` made with `--contract` and `--unit` under a version 4 contract records `runId` in its
+entry. Every add in one journal carries the same `runId`, or none does. Replay rejects a
+journal that mixes the two.
 `calibration-metrics.mjs` replays it for a second reason. A row's `status` cell holds only
 the final status, so a unit that failed and was then retried reads as `redispatched` alone.
 Failed rate and redispatch rate were therefore mutually exclusive for one unit, and the pair

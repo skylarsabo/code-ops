@@ -3,6 +3,15 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+## 1.80.0
+- `dispatch-ledger.mjs add` accepts `--contract <path> --unit <D-NNN>`. The row takes the contract unit id instead of the next serial id, and its role, model, brief, and artifact must match the unit. Under a version 4 contract, `add` requires `--actor-id`, refuses an actor already bound to another unit, and binds the journal to the contract run. A bound ledger refuses an unbound `add`, and a bound `update --status redispatched` requires an actor.
+- `run-contract.mjs reconcile` accepts `--in-flight`. It rejects the version 4 journal violations that are permanent once they occur, and admits planned units that have not reported. `run-runtime.mjs` checkpoint, replan, resume, and verify use it instead of `--strict`, so a multi-wave run can bind a mid-run contract revision. Finalization stays strict.
+- Version 4 in-flight and final reconciliation reject a journal add that is not bound to the contract run.
+- A replan that skips a revision names the bound and required revisions, and states that bundles pin the contract revision.
+- `CONVENTIONS.md` directs version 4 dispatch through `add --contract --unit`.
+- The bundled `reference/artifact-grammars.md` states that a version 4 contract-bound `add` records `runId` in the dispatch journal, and that replay rejects a journal mixing bound and unbound adds.
+- The vendored `revalidate-register.mjs` reads a register citation whose path carries spaces in unquoted prose, a Location field, a markdown link target, bold, or quotes. The longest space-joined extension that names a real in-root file wins over a shorter tail, so a same-named file elsewhere no longer captures the citation. Escaping, traversal, and dot-segment forms still read AMBIGUOUS.
+
 ## 1.79.0
 - New `hooks/handoff-card.mjs` runs at `UserPromptSubmit` and is on by default, off with `CODE_OPS_HANDOFF_CARD`. It reads only the transcript tail. When resident context crosses a 200,000-token band, it suggests a handoff once per band and re-arms after compaction. Claude and Codex run it, Grok ignores its output, and OpenCode has no equivalent event. The threshold is pre-registered in `MEASUREMENTS.md` as uncalibrated.
 - The `handoff` skill adds three sections. Open items carry an owner and a done-when check, Authority records grants that do not carry into the resumed session, and Carried context points at files that hold conversation-only analysis. A handoff no longer restates git history, and it stays under a 6 KB cap. Resume asks the operator to re-grant authority before publishing.

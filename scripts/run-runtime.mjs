@@ -194,8 +194,12 @@ function buildReferences(root, current, f) {
   const acceptance = f['--acceptance'] ? fileReference(root, f['--acceptance'], 'acceptance path') : null;
   if (acceptance) parseAcceptance(checkedPath(root, acceptance.path), current.contract);
   const ledger = checkLedger(root, f['--ledger']);
+  // WHY --in-flight, not --strict (calibration lesson L-055): a mid-run checkpoint or replan
+  // binds a version 4 contract before every planned unit has reported, so a strict reconcile
+  // (which demands every row reported) would refuse every wave but the last. In-flight still
+  // catches every dispatch-journal violation that is permanent once it occurs.
   if (current.contract.version === 4) runCheck(RUN_CONTRACT, ['reconcile', '--root', root,
-    '--contract', current.contractPath.absolute, '--ledger', checkedPath(root, ledger.path), '--strict'], 'dispatch reconciliation');
+    '--contract', current.contractPath.absolute, '--ledger', checkedPath(root, ledger.path), '--in-flight'], 'dispatch reconciliation');
   return {
     ledger,
     acceptance,
@@ -215,8 +219,11 @@ function verifyReferences(root, current, references) {
   if (references.ledger) {
     const actual = checkLedger(root, references.ledger.path);
     if (!same(actual, references.ledger)) throw new Error(`dispatch ledger drift: ${references.ledger.path}`);
+    // WHY --in-flight (calibration lesson L-055): resume and verify replay a checkpoint that
+    // may itself be mid-run, so this reconcile shares buildReferences' tolerance for unreported
+    // planned units while still holding the journal to every permanent version 4 violation.
     if (current.contract.version === 4) runCheck(RUN_CONTRACT, ['reconcile', '--root', root,
-      '--contract', current.contractPath.absolute, '--ledger', checkedPath(root, references.ledger.path), '--strict'], 'dispatch reconciliation');
+      '--contract', current.contractPath.absolute, '--ledger', checkedPath(root, references.ledger.path), '--in-flight'], 'dispatch reconciliation');
   }
   if (references.acceptance) {
     verifyFileReference(root, references.acceptance, 'acceptance ledger');
@@ -382,7 +389,17 @@ if (command === 'init') {
     const current = loadCurrent(root, f['--contract']);
     const event = appendReceipt(current.runtimePath.absolute, (replayed) => {
       if (current.binding.runId !== replayed.activeBinding.runId || current.binding.contractRevision !== replayed.activeBinding.contractRevision + 1) {
-        throw new Error('replan requires the same runId and exactly the next contract revision');
+        // WHY (calibration lesson L-055): the chain audits every intervening revision, so a
+        // skip-ahead replan is refused rather than widened into a gap. Name the bound and
+        // required revisions so the operator can recover: renumber the current contract down
+        // to the required revision and replan once per revision, in order, until it reaches
+        // the drafted revision. Context bundles embed the contract revision they were built
+        // under (context-bundle.mjs), so omit --bundle on the catch-up replans, or rebuild the
+        // bundle at each intermediate revision before passing it.
+        const bound = replayed.activeBinding.contractRevision; const required = bound + 1;
+        const recovery = current.binding.runId !== replayed.activeBinding.runId ? ''
+          : `; renumber the current contract to revision ${required} and replan once per revision, in order, until it reaches the drafted revision (bundle references are pinned to contract.revision, so omit --bundle on catch-up replans or rebuild the bundle at each intermediate revision)`;
+        throw new Error(`replan requires the same runId and exactly the next contract revision; runtime is bound to revision ${bound}, this replan presented revision ${current.binding.contractRevision}${recovery}`);
       }
       const references = buildReferences(root, current, f);
       return newReceipt('replan', current.binding, references, null, replayed);

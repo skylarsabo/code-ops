@@ -64,13 +64,34 @@
 // optional so an inline report the lead persisted itself can use it too, and so legacy callers
 // keep working; it never relaxes any other update rule.
 //
+// WHY --contract/--unit on `add` (calibration lessons L-053, L-054): `add` used to mint the
+// next serial id itself and to treat --actor-id as always optional. Against a version 4 run
+// contract that mis-keys rows the moment units dispatch out of contract order — the row for
+// D-002 lands under whatever id `add` guessed next, not the id the contract actually planned —
+// and it let a missing actor slip past append time, since only `run-contract.mjs reconcile`
+// (in-flight at a checkpoint, strict at finalization) enforces one actor per activation, by
+// which point the append-only journal can no longer be corrected. `--contract <path>` + `--unit <D-NNN>` names the unit
+// `add` is dispatching (run-contract.mjs alone still owns full contract validation; this file
+// trusts it and checks only that the named unit exists and that the row about to be written
+// matches it exactly), stamps the unit id as the row id — never `nextId` — and, for a version 4
+// contract, requires --actor-id up front and refuses an actor already bound to a different unit.
+// The first such add on a ledger BINDS it to that contract's runId (recorded in the journal);
+// every later add on that ledger must stay on the same run, and a bound journal's `update
+// --status redispatched` inherits the same actor requirement.
+//
 // Exit: add/update/phase -> 0 on success, 1 on a validation rejection (bad brief length,
 // missing/unresolvable --model, unknown id, invalid transition, a report file that fails the
-// shape gate, a phase title carrying the marker's own delimiters), 2 on a usage error.
+// shape gate, a phase title carrying the marker's own delimiters, a --contract unit that is
+// unknown or whose row would not match it exactly, a duplicate contract-unit dispatch, a
+// version 4 dispatch or bound redispatch missing --actor-id or reusing one across units, a
+// --contract add that breaks the ledger's runId binding, or a version 4 --contract add that
+// tries to start a binding on an already-written but unbound ledger), 2 on a usage error
+// (including --contract without --unit, or --unit without --contract).
 // check -> 0 (schema clean; any dangling/unstamped rows and an absent journal are printed as
 // advisories), 1 on a schema violation, on a journal violation (phantom row, out-of-band status
-// edit, journaled row missing from the ledger, unreadable journal line), or (with --strict) on a
-// dangling `dispatched` row, an unstamped row, or an unjournaled ledger too. 2 on a usage error.
+// edit, journaled row missing from the ledger, unreadable journal line, a journal mixing
+// runId-bound and unbound add events, or one naming more than one runId), or (with --strict) on
+// a dangling `dispatched` row, an unstamped row, or an unjournaled ledger too. 2 on a usage error.
 
 import { readFileSync, writeFileSync, appendFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -89,7 +110,7 @@ const PHASE_RE = /^> phase: (.+) · lead@(\S+)$/;
 const PHASE_PREFIX = '> phase:';
 
 function usage() {
-  console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <host-session-or-agent-id>]');
+  console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <host-session-or-agent-id>] [--contract <path> --unit <D-NNN>]');
   console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <host-session-or-agent-id>] [--report <path> [--sections <a,b>]]');
   console.error('       dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>');
   console.error('       dispatch-ledger.mjs check --ledger <path> [--strict]');
@@ -238,15 +259,54 @@ function journalAppend(ledgerPath, entry, mayCreate) {
 // Replays the journal into the final status each id should carry. Returns
 // { expected: Map<id, status>, violations: string[] } — violations are fail-closed: a line that
 // cannot be read is a journal that cannot be trusted to prove anything.
+// ---------------------------------------------------------------- contract binding (L-053/L-054)
+
+// Reads and MINIMALLY shape-checks a run contract — enough to find the named unit, never a
+// substitute for scripts/run-contract.mjs's own validation (this file deliberately does not
+// import it: importing would run its CLI, and re-validating the whole contract here would be
+// policing a check run-contract.mjs already owns).
+function loadContractUnit(contractPath, unitId) {
+  let raw;
+  try { raw = readFileSync(resolve(contractPath), 'utf8'); }
+  catch (e) { console.error(`x cannot read contract ${contractPath}: ${e.message}`); process.exit(1); }
+  let contract;
+  try { contract = JSON.parse(raw); }
+  catch (e) { console.error(`x cannot parse contract ${contractPath}: ${e.message}`); process.exit(1); }
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)
+    || !Number.isInteger(contract.version) || typeof contract.runId !== 'string' || !Array.isArray(contract.units)) {
+    console.error(`x ${contractPath} is not a run contract (needs an object with integer version, string runId, and array units — run-contract.mjs owns full validation)`);
+    process.exit(1);
+  }
+  const unit = contract.units.find((u) => u && typeof u === 'object' && u.id === unitId);
+  if (!unit) { console.error(`x contract ${contractPath} has no unit ${unitId}`); process.exit(1); }
+  return { contract, unit };
+}
+
+// An actor already bound to a DIFFERENT unit by an activation event (`add`, or `update` to
+// `redispatched`) elsewhere in the journal — the L-054 hazard is otherwise caught only at
+// `run-contract.mjs reconcile --strict` finalization, after the journal can no longer be fixed.
+// Returns the conflicting unit id, or null.
+function actorBoundToOtherUnit(events, wantActorId, id) {
+  for (const e of events) {
+    const activating = e.op === 'add' || (e.op === 'update' && e.to === 'redispatched');
+    if (activating && e.actorId === wantActorId && e.id !== id) return e.id;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------- add
 
 function cmdAdd(args) {
-  const f = parseFlags(args, new Set(['--ledger', '--role', '--brief', '--artifact', '--model', '--actor-id']));
+  const f = parseFlags(args, new Set(['--ledger', '--role', '--brief', '--artifact', '--model', '--actor-id', '--contract', '--unit']));
   for (const req of ['--ledger', '--role', '--brief', '--artifact'])
     if (!(req in f)) { console.error(`x add needs ${req}`); usage(); }
   if (!('--model' in f)) {
     console.error('x add needs --model <resolved-model-id> — without it, the tier a dispatch actually ran on cannot be reconstructed after the fact (calibration finding: silent tier substitution goes invisible)');
     process.exit(1);
+  }
+  if (('--contract' in f) !== ('--unit' in f)) {
+    console.error('x --contract and --unit must be given together');
+    usage();
   }
   if (wordCount(f['--brief']) > 10) {
     console.error(`x brief exceeds 10 words (${wordCount(f['--brief'])}): ${JSON.stringify(f['--brief'])}`);
@@ -262,12 +322,86 @@ function cmdAdd(args) {
     }
   }
   const { rows } = text === null ? { rows: [] } : parseRows(text);
-  const id = nextId(rows);
+
+  // L-053/L-054: read the journal's binding state before deciding this add's id and legality. A
+  // ledger binds to a contract run the first time a version 4 `--contract` add stamps a runId
+  // into the journal (see the header WHY paragraph); every add after that must stay on the same
+  // run, or name --contract to extend it.
+  const jPath = journalPathFor(path);
+  const priorJournalText = existsSync(jPath) ? readFileSync(jPath, 'utf8') : null;
+  const priorJournal = priorJournalText !== null ? replayDispatchJournal(priorJournalText) : null;
+  const boundRunId = priorJournal
+    ? [...new Set(priorJournal.events.filter((e) => e.op === 'add' && e.runId).map((e) => e.runId))][0]
+    : undefined;
+
+  if (boundRunId && !('--contract' in f)) {
+    console.error(`x ledger is bound to contract run '${boundRunId}' — pass --contract and --unit to keep dispatching against it`);
+    process.exit(1);
+  }
+
+  let id;
+  let contract = null;
+  if ('--contract' in f) {
+    let unit;
+    ({ contract, unit } = loadContractUnit(f['--contract'], f['--unit']));
+    if (boundRunId && contract.runId !== boundRunId) {
+      console.error(`x contract runId '${contract.runId}' differs from the ledger's bound run '${boundRunId}'`);
+      process.exit(1);
+    }
+    const fields = [
+      ['role', f['--role'], unit.role],
+      ['model', f['--model'], unit.model],
+      ['brief', f['--brief'], unit.brief],
+      ['artifact', f['--artifact'], unit.artifact],
+    ];
+    const mismatches = fields.filter(([, given, want]) => given !== want).map(([name]) => name);
+    if (mismatches.length) {
+      console.error(`x ${f['--unit']} ${mismatches.join(', ')} differ${mismatches.length === 1 ? 's' : ''} from the contract unit — dispatch the row exactly as contracted, or fix the contract`);
+      process.exit(1);
+    }
+    id = unit.id;
+    const dupRow = rows.some((r) => r.id === id);
+    const dupJournal = priorJournal ? priorJournal.expected.has(id) : false;
+    if (dupRow || dupJournal) {
+      console.error(`x ${id} is already dispatched — retry via 'update --ledger ${f['--ledger']} --id ${id} --status redispatched'`);
+      process.exit(1);
+    }
+    if (contract.version === 4) {
+      if (!('--actor-id' in f)) {
+        console.error('x --actor-id is required to dispatch against a version 4 contract — strict reconciliation (run-contract.mjs reconcile) rejects an activation with no actor, and the append-only journal cannot be corrected after the fact');
+        process.exit(1);
+      }
+      if (text !== null) {
+        if (priorJournal === null) {
+          console.error(`x a version 4 binding must start on a fresh ledger — ${f['--ledger']} already exists with no dispatch journal`);
+          process.exit(1);
+        }
+        const hasUnbound = priorJournal.events.some((e) => e.op === 'add' && !e.runId);
+        if (hasUnbound) {
+          console.error(`x a version 4 binding must start on a fresh ledger — ${f['--ledger']}'s dispatch journal already has unbound add events`);
+          process.exit(1);
+        }
+      }
+      const conflict = priorJournal ? actorBoundToOtherUnit(priorJournal.events, f['--actor-id'], id) : null;
+      if (conflict) {
+        console.error(`x --actor-id ${f['--actor-id']} is already bound to ${conflict} — an actor may not be reused across units`);
+        process.exit(1);
+      }
+    }
+  } else {
+    id = nextId(rows);
+  }
+
   const role = `${f['--role']}@${f['--model']}`;
   const row = `| ${id} | ${role} | ${f['--brief']} | ${f['--artifact']} | dispatched |\n`;
   const body = (text === null ? HEADER : (text.endsWith('\n') ? text : text + '\n')) + row;
   const recordedActorId = actorId(f['--actor-id']);
-  journalAppend(path, { op: 'add', id, status: 'dispatched', ...(recordedActorId ? { actorId: recordedActorId } : {}) }, text === null);
+  const journalEntry = {
+    op: 'add', id, status: 'dispatched',
+    ...(recordedActorId ? { actorId: recordedActorId } : {}),
+    ...(contract && contract.version === 4 ? { runId: contract.runId } : {}),
+  };
+  journalAppend(path, journalEntry, text === null);
   writeFileSync(path, body);
   console.log(`(dispatch-ledger) ${id} dispatched -> ${f['--ledger']}`);
 }
@@ -396,6 +530,26 @@ function cmdUpdate(args) {
     console.error(`x invalid transition ${target.status} -> ${f['--status']} for ${f['--id']}`
       + (target.status === 'reported' ? ' (reported is terminal)' : ''));
     process.exit(1);
+  }
+  // L-054: a redispatch on a journal bound to a version 4 contract run must name the new actor,
+  // and must not silently rebind an actor already active on a different unit — the same rule
+  // `add` enforces on the activating dispatch (see the header WHY paragraph).
+  if (f['--status'] === 'redispatched') {
+    const jPath = journalPathFor(path);
+    const priorJournalText = existsSync(jPath) ? readFileSync(jPath, 'utf8') : null;
+    const priorJournal = priorJournalText !== null ? replayDispatchJournal(priorJournalText) : null;
+    const bound = priorJournal ? priorJournal.events.some((e) => e.op === 'add' && e.runId) : false;
+    if (bound) {
+      if (!('--actor-id' in f)) {
+        console.error(`x ${f['--id']} redispatch on a bound journal requires --actor-id`);
+        process.exit(1);
+      }
+      const conflict = actorBoundToOtherUnit(priorJournal.events, f['--actor-id'], f['--id']);
+      if (conflict) {
+        console.error(`x --actor-id ${f['--actor-id']} is already bound to ${conflict} — an actor may not be reused across units`);
+        process.exit(1);
+      }
+    }
   }
   if ('--report' in f) {
     const problems = reportShapeProblems(f['--report'], sectionList);

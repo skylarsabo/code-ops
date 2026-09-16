@@ -138,12 +138,73 @@ const ID_IGNORE = new Set(['RFC', 'ISO', 'CVE', 'CWE', 'CAPEC', 'GHSA', 'UTF', '
 // PAR-013: a citation may also start on a . that opens a dot-led segment (.github/x.yml:1), with the
 // same token-start lookbehind. A . before . or / fails the \w lookahead, so traversal is unchanged.
 const REF_RE = /(?:\b|(?=\.\w)(?<=^|[^\w.\/[\])-])|(?=[[(])(?<=(?:^|[^\w.\/[\])-])(?:\.{0,2}\/)*))((?:(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\/)*(?:[\w.-]|\[\[?[\w.-]+\]\]?|\([\w.-]+\))+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
-// L-045: a backtick-delimited citation may carry spaces in a path segment (`docs/My Folder/guide.md:3`).
-// Unquoted prose never gets this reading. Inside backticks a space is still ambiguous with a command
-// (`node scripts/x.mjs:3`), so the item-ref extraction takes the spaced reading only when it escapes
-// root, or when no segment is . or .. and it names a real file. Refutation receipts do not take it.
-// Segments exclude / so their quantifiers cannot overlap (no ReDoS).
-const SPACED_REF_RE = /`((?:[^`\n/]+\/)*[^`\n/]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)`/gi;
+// L-045/R-011: R-011's sanitized calibration note reported the revalidator still reads a spaced
+// document name as gone in prose (a vault with spaced folder names, e.g.
+// `40 Engineering/Techniques/some-doc.md`), even though PR-140 already gave the backtick-delimited
+// form a spaced reading. widenSpacedPath below extends that reading to ANY ordinary REF_RE match —
+// unquoted prose, a Location field, a markdown link target, bold, or quotes — item citations only;
+// the REFUTED-line legs further down still reject a spaced form, unchanged from PR-140.
+//
+// L-045 (fix): widening used to run only when REF_RE's own literal tail did not already exist,
+// and it tried the shortest extension first. PR-140's backtick reading took the WHOLE backticked
+// span ahead of any tail match, so `docs/My Folder/guide.md:3` never even looked at a same-named
+// decoy at `Folder/guide.md`. The narrower, shortest-first widen regressed that: a short decoy that
+// happens to exist made the literal tail "direct", skipped widening altogether, and read MOVED (or
+// a wrong FRESH) against the decoy instead of the real, longer path the citation actually names.
+// Widening now always runs first for a non-escaping match, and tries the LONGEST extension first —
+// the literal text contains the whole scanned window, so the longest candidate that names a real
+// in-root file is the most faithful reading. Only when no widened candidate resolves does the
+// unwidened literal tail get its turn (the pre-widening behavior, now a fallback rather than a gate).
+const WIDEN_ALLOWED_RE = /[\w.\-/ ]/; // backward-scan charset: word chars, ., -, /, and a single space
+const WIDEN_SCAN_MAX = 256; // bounds the backward char scan per match (linear, not quadratic)
+const WIDEN_MAX_WORDS = 8;  // bounds the existsSync attempts per match (nearest space positions kept)
+// Extend a REF_RE match's path backward across space-separated prose words, trying the LONGEST
+// extension first — L-045. Accepts a candidate only when it names a real in-root file and carries
+// no raw `.` or `..` segment — the same fail-closed rule PR-140 used for the backtick spaced
+// reading, so the PR-140 shadowing case (`../x.ts:1 q/../R/docs/My Folder/guide.md:3`, L-045 in
+// evals/script-guards) still falls through to the unwidened literal path and reads AMBIGUOUS, not
+// FRESH. A traversal-looking prefix (../, ./, or a bare /) at the scanned window's own start gets
+// exactly one attempt — the whole window — so a shorter cut can never silently drop it and resolve
+// only the text after it (FWD_PREFIX_RE below matches the same shape).
+function widenSpacedPath(before, root, matchedPath) {
+  const window = before.length > WIDEN_SCAN_MAX ? before.slice(before.length - WIDEN_SCAN_MAX) : before;
+  let start = window.length;
+  while (start > 0 && WIDEN_ALLOWED_RE.test(window[start - 1])) start--;
+  const raw = window.slice(start).replace(/^ +/, '');
+  if (!raw) return null;
+  const safeHit = (prefix) => {
+    if (!prefix) return null;
+    const candidate = prefix + matchedPath;
+    if (candidate.split(/[\\/]/).some((seg) => seg === '.' || seg === '..')) return null;
+    const abs = resolve(root, candidate);
+    if (abs !== root && !abs.startsWith(root + sep)) return null;
+    return existsSync(abs) && statSync(abs).isFile() ? candidate : null;
+  };
+  if (/^(?:\.{0,2}\/)/.test(raw)) {
+    const hit = safeHit(raw);
+    if (hit) return hit;
+  } else {
+    // L-045: collect at most WIDEN_MAX_WORDS space positions nearest the match, then try
+    // candidates from the whole scanned window down to the nearest single word — the longest real
+    // file wins, so a full `docs/My Folder/guide.md` beats a shorter decoy `Folder/guide.md` that
+    // also happens to exist.
+    const cuts = [];
+    for (let i = raw.length - 1; i >= 0 && cuts.length < WIDEN_MAX_WORDS; i--) if (raw[i] === ' ') cuts.push(i);
+    cuts.reverse(); // farthest (longest candidate) first, nearest (shortest) last
+    for (const prefix of [raw, ...cuts.map((i) => raw.slice(i + 1))]) {
+      const hit = safeHit(prefix);
+      if (hit) return hit;
+    }
+  }
+  // No safe in-root real file at any width. As PR-140 did for the backtick spaced reading, still
+  // surface the full extension when it genuinely escapes root (not merely lexically collapsed back
+  // in via a raw . or .. segment — the SH-01 shadowing trick) — the confinement check below then
+  // flags it AMBIGUOUS with its real extent instead of leaving an unwidened tail to read GONE or,
+  // worse, FRESH against an unrelated decoy of the same short name.
+  const full = raw + matchedPath;
+  const fullAbs = resolve(root, full);
+  return fullAbs !== root && !fullAbs.startsWith(root + sep) ? full : null;
+}
 const VERIFIED_RE = /Verified-at:\s*([0-9a-f]{7,40}|HEAD)\b/i;
 // An optional per-item `Anchor:` — a verbatim substring of the cited line (CONVENTIONS §9/§E), delimited
 // by backticks or quotes so it can contain spaces/punctuation. When present, the cited line must still
@@ -351,25 +412,24 @@ for (const file of files) {
     const block = text.slice(ids[i].index, ids[i + 1]?.index ?? text.length);
     const cur = items.get(id) ?? { refs: [], verifiedAt: null, anchor: null, anchorUnparsed: false, block: '' };
     cur.block += block;
-    const spaced = [];
-    for (const m of block.matchAll(SPACED_REF_RE)) {
-      if (!/\s/.test(m[1])) continue; // no space: REF_RE already reads the whole path
-      const abs = resolve(root, m[1]);
-      const escapes = abs !== root && !abs.startsWith(root + sep);
-      // resolve() collapses . and .. lexically, even through a segment that does not exist, so a
-      // candidate that stays in root is taken only when no raw segment is . or .. and a real file
-      // backs it. Otherwise REF_RE's own matches, with their SEC-004 restore, classify the line.
-      const dotSegment = m[1].split(/[\\/]/).some((seg) => seg === '.' || seg === '..');
-      if (escapes || (!dotSegment && existsSync(abs) && statSync(abs).isFile())) spaced.push({ start: m.index, end: m.index + m[0].length, path: m[1], line: Number(m[2]) });
-    }
-    for (const s of spaced) cur.refs.push({ path: s.path, line: s.line });
     for (const m of block.matchAll(REF_RE)) {
-      if (spaced.some((s) => m.index > s.start && m.index < s.end)) continue; // a tail of a spaced ref
       // SEC-004/PAR-003 (fix): see restoreCitationPrefix — restores a dropped forward-slash
       // prefix and flags a backslash/drive-letter one directly, so the confinement check below
       // classifies every escaping form AMBIGUOUS instead of FRESH.
       const restored = restoreCitationPrefix(block.slice(0, m.index), m[1]);
-      cur.refs.push({ path: restored.path, line: Number(m[2]), escaping: restored.escaping });
+      let path = restored.path;
+      // L-045/R-011: every non-escaping match gets a widen attempt (see widenSpacedPath)
+      // BEFORE the unwidened literal tail is used — PR-140's backtick reading always preferred the
+      // whole spaced span over the tail, and the widen must too, or a short decoy that happens to
+      // exist at the literal tail wins over the real, longer path the citation names (L-045). An
+      // already-escaping match is never widened, so a traversal ref keeps reading AMBIGUOUS.
+      if (!restored.escaping) {
+        const widened = widenSpacedPath(block.slice(0, m.index), root, m[1]);
+        if (widened) path = widened;
+        // else: keep the literal tail as restored above — resolved directly below if it exists, or
+        // by bare name (BUG-008) if not.
+      }
+      cur.refs.push({ path, line: Number(m[2]), escaping: restored.escaping });
     }
     const v = block.match(VERIFIED_RE);
     if (v && !cur.verifiedAt) cur.verifiedAt = v[1];
