@@ -1,0 +1,73 @@
+{
+  "id": "R-012",
+  "date": "2026-09-15",
+  "suite": {
+    "code-ops-suite": "1.79.0"
+  },
+  "target": {
+    "label": "large TypeScript monorepo, real-time telephony platform with a payment lane, chat-bot operator surface, and infrastructure-as-code",
+    "class": "ts-monorepo-telephony",
+    "control": true
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 76,
+    "confirmed": 12,
+    "refutation": {
+      "paneled": 4,
+      "survived": 4,
+      "reproExempt": 1,
+      "panelEligible": 5
+    },
+    "severity": {
+      "critical": 0,
+      "high": 1,
+      "medium": 34,
+      "low": 28,
+      "nit": 13
+    }
+  },
+  "tokens": {
+    "operative": 2352637,
+    "dispatches": 15
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 133,
+    "slicesSwept": 9,
+    "slicesUnswept": 0
+  },
+  "atlas": {
+    "sections": 9,
+    "fresh": 7,
+    "refreshed": 1,
+    "falsified": 1
+  },
+  "config": {
+    "lead": "fable-5",
+    "operatives": "opus-5"
+  },
+  "host": "claude-code",
+  "lessons": [
+    "L-055",
+    "L-027",
+    "L-057",
+    "L-058",
+    "L-059",
+    "L-060",
+    "L-061",
+    "L-062",
+    "L-063",
+    "L-064",
+    "L-065"
+  ],
+  "notes": "The strict revalidator matched severity words anywhere on the composite severity line, so every finding whose confidence or risk field said high or low read as load-bearing or deflated until severity was moved to its own line. The anchor grammar has no escape for a backtick inside a backtick-delimited anchor. The bundle compiler refused four of ten discovery slices as too broad, and bundling did not reduce per-unit spend at this slice size. The atlas writer's manifest fails the target's formatter. A lead-filed finding collided with a discovery unit's id because nothing mints ids at merge time."
+}

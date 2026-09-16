@@ -348,5 +348,110 @@
     "title": "The host's background operative output was not machine-extractable, so persist-on-landing forced the lead to re-emit every operative report, roughly doubling report-sized tokens at the lead tier",
     "statement": "The host's background operative output was not machine-extractable, so persist-on-landing forced the lead to re-emit every operative report, roughly doubling report-sized tokens at the lead tier; operatives should write their own report files and return a pointer",
     "firstSeen": "R-010"
+  },
+  {
+    "id": "L-051",
+    "class": "instrument",
+    "title": "An atlas exclusivity claim was false when stamped, and freshness certifies only an unchanged scope digest, never the claims, so a claim that was never true survives every freshness check",
+    "statement": "An atlas exclusivity claim was false when stamped, and freshness certifies only an unchanged scope digest, never the claims, so a claim that was never true survives every freshness check.",
+    "firstSeen": "R-011"
+  },
+  {
+    "id": "L-052",
+    "class": "instrument",
+    "title": "An atlas module-wide generalization was stamped over a module already containing a counterexample and cited a line beyond its file's length, because atlas authoring has no claim-level check against sibling code or cited line ranges",
+    "statement": "An atlas module-wide generalization was stamped over a module already containing a counterexample and cited a line beyond its file's length, because atlas authoring has no claim-level check against sibling code or cited line ranges.",
+    "firstSeen": "R-011"
+  },
+  {
+    "id": "L-053",
+    "class": "instrument",
+    "title": "The dispatch ledger add command mints the next serial id and ignores the contract unit id, so dispatching units out of contract order silently mis-keys rows against a version 4 contract and forces re-key revisions",
+    "statement": "The dispatch ledger add command mints the next serial id and ignores the contract unit id, so dispatching units out of contract order silently mis-keys rows against a version 4 contract and forces re-key revisions.",
+    "firstSeen": "R-011"
+  },
+  {
+    "id": "L-054",
+    "class": "instrument",
+    "title": "The dispatch ledger add command accepts a missing actor id that version 4 strict reconciliation later rejects, so the omission surfaces only at finalization, after the append-only journal can no longer be corrected",
+    "statement": "The dispatch ledger add command accepts a missing actor id that version 4 strict reconciliation later rejects, so the omission surfaces only at finalization, after the append-only journal can no longer be corrected.",
+    "firstSeen": "R-011"
+  },
+  {
+    "id": "L-055",
+    "class": "instrument",
+    "title": "Runtime replan and checkpoint run strict reconciliation, which fails on every planned unit not yet reported, so a multi-wave version 4 run cannot bind any mid-run contract revision, and once revisions accumulate the receipt chain can never catch up because replan accepts only the next revision",
+    "statement": "Runtime replan and checkpoint run strict reconciliation, which fails on every planned unit not yet reported, so a multi-wave version 4 run cannot bind any mid-run contract revision, and once revisions accumulate the receipt chain can never catch up because replan accepts only the next revision.",
+    "firstSeen": "R-011"
+  },
+  {
+    "id": "L-056",
+    "class": "instrument",
+    "title": "The atlas checker reports zero unmapped paths by testing only top-level folders, so tracked source, test, and script files matching no section scope, including whole feature modules, stay invisible to the freshness gate",
+    "statement": "The atlas checker reports zero unmapped paths by testing only top-level folders, so tracked source, test, and script files matching no section scope, including whole feature modules, stay invisible to the freshness gate.",
+    "firstSeen": "R-011"
+  },
+  {
+    "id": "L-057",
+    "class": "instrument",
+    "title": "The runtime's context-snapshot verification reports drift on an unchanged tracked tree, so checkpoint, replan and resume all refuse and the runtime chain stays init-only for the whole run",
+    "statement": "The runtime's context-snapshot verification reports drift on an unchanged tracked tree, so checkpoint, replan and resume all refuse and the runtime chain stays init-only for the whole run.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-058",
+    "class": "instrument",
+    "title": "The strict revalidator matches critical, high, low and medium anywhere on the severity line, so the composite line's confidence and risk-if-fixed fields make every finding read as load-bearing or deflated until severity sits on its own line",
+    "statement": "The strict revalidator matches critical, high, low and medium anywhere on the severity line, so the composite line's confidence and risk-if-fixed fields make every finding read as load-bearing or deflated until severity sits on its own line.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-059",
+    "class": "instrument",
+    "title": "The anchor grammar has no escape for a backtick inside a backtick-delimited anchor, so a reviewer quoting a source line that contains one produces an anchor the checker reads as a literal backslash",
+    "statement": "The anchor grammar has no escape for a backtick inside a backtick-delimited anchor, so a reviewer quoting a source line that contains one produces an anchor the checker reads as a literal backslash.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-060",
+    "class": "instrument",
+    "title": "The unit bundle compiler refuses discovery slices above a size ceiling as needing broad context, so the ceiling rather than the slice design decides which operatives get a bounded view, and bundled units did not cost less than unbundled ones at this slice size",
+    "statement": "The unit bundle compiler refuses discovery slices above a size ceiling as needing broad context, so the ceiling rather than the slice design decides which operatives get a bounded view, and bundled units did not cost less than unbundled ones at this slice size.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-061",
+    "class": "instrument",
+    "title": "The atlas writer emits a manifest the target's formatter rejects, so an assess-only run leaves a lint error in an untracked file it created",
+    "statement": "The atlas writer emits a manifest the target's formatter rejects, so an assess-only run leaves a lint error in an untracked file it created.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-062",
+    "class": "instrument",
+    "title": "The handoff checker validates shape but not anchors, so an off-by-one line pointer passes and is caught only by the resuming lead's manual pass",
+    "statement": "The handoff checker validates shape but not anchors, so an off-by-one line pointer passes and is caught only by the resuming lead's manual pass.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-063",
+    "class": "protocol",
+    "title": "A four-lens refutation panel tied two-two on two of four findings and the lead resolved both on the merits, so the contract generator should pin the panel seat count to an odd number as the doctrine already requires",
+    "statement": "A four-lens refutation panel tied two-two on two of four findings and the lead resolved both on the merits, so the contract generator should pin the panel seat count to an odd number as the doctrine already requires.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-064",
+    "class": "protocol",
+    "title": "A lead-filed finding collided with a discovery unit's id because the register merge mints nothing, so lead-authored findings need a reserved id range or a mint step before merge",
+    "statement": "A lead-filed finding collided with a discovery unit's id because the register merge mints nothing, so lead-authored findings need a reserved id range or a mint step before merge.",
+    "firstSeen": "R-012"
+  },
+  {
+    "id": "L-065",
+    "class": "protocol",
+    "title": "A fresh atlas section stated that two discovery regexes disagreed when they were identical and the real seam was elsewhere, so an atlas claim that compares two code sites must cite both by line when it is written",
+    "statement": "A fresh atlas section stated that two discovery regexes disagreed when they were identical and the real seam was elsewhere, so an atlas claim that compares two code sites must cite both by line when it is written.",
+    "firstSeen": "R-012"
   }
 ]
