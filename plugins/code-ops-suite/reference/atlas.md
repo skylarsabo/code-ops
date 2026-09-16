@@ -30,6 +30,12 @@ repository that is `code-ops-docs/`. Fallback: `<repo-root>/atlas/` when the rep
 the repo it describes and is checked in with it. A cache outside the tree it is stamped
 against cannot be invalidated by that tree's commits.
 
+The atlas writer creates `MANIFEST.json`, so on a target whose formatter or linter scans JSON
+the lead either adds the atlas folder to that tool's ignore list or, in an assess-only run,
+passes `--atlas` pointing under an already-ignored runs folder. The writer preserves the indent
+and the end-of-line a manifest already carries, which covers a rewrite but not the first write.
+An assess-only run leaves no lint error in a file it created.
+
 ## Manifest schema
 
 ```json
@@ -155,6 +161,13 @@ The two verdicts are independent, and both directions carry information:
 `--gate`, because the two gates answer different questions and a run may want either, both,
 or neither. A claim the classifier could not reach is not FRESH and gates like any other,
 fail-safe, in the same direction as every other ambiguous case here.
+
+A sentence comparing two code sites cites both by `path:line`. Claims are derived, never
+authored, so one citation registers one claim and leaves the other half of the comparison
+unanchored: nothing notices when it drifts. Citing both sides registers two claims, and either
+half drifting gates the section. `check` prints an advisory, `!! uncited comparison`, for a
+comparison carrying fewer than two citations. It is a prose reminder, not a gate, and it moves
+no exit code.
 
 A section that cites nothing reports `claims: none`. That is a fact about the section, not
 a failure. Judgment prose is not required to carry citations, and a section is not made

@@ -213,12 +213,18 @@ function untrackedState(root, policy, allowlist) {
       throw new Error(`unsupported untracked entry: ${path}`);
     }
   }
-  const allowed = policy === 'allowlist'
+  // WHY (calibration lesson L-057): an operator who chose exclude or allowlist declared the
+  // filtered-out files to be outside the run's context, so they must not decide its identity.
+  // Folding every untracked file into the identity made each new scratch file, including the
+  // runtime's own artifacts, drift the snapshot id on a large monorepo. The receipt still
+  // records how many untracked files the working tree carries, because that count is
+  // evidence, and stableVisibleState keeps it out of the hashed projection.
+  const allowed = policy === 'metadata' ? all : policy === 'allowlist'
     ? all.filter((entry) => allowlist.some((prefix) => entry.path === prefix || entry.path.startsWith(`${prefix}/`)))
-    : all;
+    : [];
   const receiptEntries = policy === 'metadata' || policy === 'allowlist' ? allowed : [];
   return {
-    identity: { policy, count: all.length, digest: digestJson(all) },
+    identity: { policy, count: allowed.length, digest: digestJson(allowed) },
     receipt: {
       policy,
       count: all.length,
@@ -227,6 +233,22 @@ function untrackedState(root, policy, allowlist) {
       ...(policy === 'allowlist' ? { excludedCount: all.length - allowed.length } : {}),
     },
   };
+}
+
+// The hashed projection of the visible state. Under the default metadata policy it is the
+// recorded state itself. Under exclude or allowlist it replaces the total untracked count
+// with the count the policy admits and drops excludedCount, so the receipt keeps both
+// numbers while the snapshot id follows only the admitted set (calibration lesson L-057).
+function stableVisibleState(state) {
+  const untracked = state?.untracked;
+  if (!untracked || untracked.policy === 'metadata') return state;
+  const projected = { ...untracked, count: (untracked.entries || []).length };
+  delete projected.excludedCount;
+  return { ...state, untracked: projected };
+}
+
+export function visibleStateDigest(state) {
+  return digestJson(stableVisibleState(state));
 }
 
 export function generatorIdentity(scriptDir = SCRIPT_DIR) {
@@ -268,7 +290,7 @@ export function collectState(root, policy = 'metadata', allowlist = [], atlasCon
     untracked: untracked.identity,
     ignoredPolicy: 'excluded',
     atlas: atlasConfig,
-    visibleStateSha256: digestJson(visibleState),
+    visibleStateSha256: visibleStateDigest(visibleState),
   };
   return {
     identity,
@@ -283,7 +305,7 @@ export function snapshotIdFor(state, generator) {
 
 export function assertSnapshotSelfConsistency(receipt) {
   if (!receipt || receipt.version !== 1 || !receipt.identity || !receipt.generator?.digests
-    || receipt.identity.visibleStateSha256 !== digestJson(receipt.state)
+    || receipt.identity.visibleStateSha256 !== visibleStateDigest(receipt.state)
     || snapshotIdFor({ identity: receipt.identity }, receipt.generator.digests) !== receipt.snapshotId) {
     throw new Error('context snapshot receipt is self-inconsistent');
   }

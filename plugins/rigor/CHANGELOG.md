@@ -1,5 +1,12 @@
 # Changelog — rigor
 
+## 2.18.19
+- **TODO** — describe the change.
+
+## 2.18.19
+- The vendored `revalidate-register.mjs` reads the Severity field value alone, so a composite line such as `Severity: medium · Confidence: high` no longer reads as load-bearing and deflated at once. Its anchor grammar accepts a doubled-backtick span, so an anchor copied from a line that contains a backtick parses; a backslash is still not an escape. The resolver it shares with the handoff checker ships beside it as `citation-lib.mjs`.
+- The bundled `reference/artifact-grammars.md` reserves the `LEAD-` prefix for lead-authored findings, because nothing mints ids at merge time and a lead-filed finding collided with a slice id, and documents the optional `context.maxScopeShare` contract field.
+
 ## 2.18.18
 - The vendored `revalidate-register.mjs` reads a register citation whose path carries spaces in unquoted prose, a Location field, a markdown link target, bold, or quotes. The longest space-joined extension that names a real in-root file wins over a shorter tail, so a same-named file elsewhere no longer captures the citation. Escaping, traversal, and dot-segment forms still read AMBIGUOUS.
 - The bundled `reference/artifact-grammars.md` states that a version 4 contract-bound `add` records `runId` in the dispatch journal, and that replay rejects a journal mixing bound and unbound adds.

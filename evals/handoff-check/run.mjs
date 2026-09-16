@@ -18,7 +18,9 @@ const checker = join(REPO, 'scripts', 'check-handoff.mjs');
 
 const fails = [];
 const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
-const run = (args) => spawnSync('node', [checker, ...args], { encoding: 'utf8' });
+// Every run binds an explicit --root, because the L-062 pointer check resolves citations against
+// a tree and a cwd-relative default would make these assertions depend on where CI invoked node.
+const run = (args, root = REPO) => spawnSync('node', [checker, ...args, '--root', root], { encoding: 'utf8' });
 const outOf = (r) => (r.stdout || '') + (r.stderr || '');
 
 // A conformant Open items bullet, held in one place so every fixture below mutates a single
@@ -33,7 +35,11 @@ const BASE_SECTIONS = {
 
 // Builds a full, otherwise-conformant HANDOFF.md from the three variable sections above, so a
 // test case swaps in exactly one broken section and leaves every other check clean.
-function buildHandoff({ authority = BASE_SECTIONS.authority, openItems = BASE_SECTIONS.openItems, carriedContext = BASE_SECTIONS.carriedContext, filler = '' } = {}) {
+// The one anchored pointer the base fixture carries. It names this checker's own second line, so
+// the conformant case exercises the L-062 resolution against a file that really exists.
+const BASE_POINTER = '- Nothing in flight. Pointer: scripts/check-handoff.mjs:2 · Anchor: `HANDOFF.md structural checker`';
+
+function buildHandoff({ authority = BASE_SECTIONS.authority, openItems = BASE_SECTIONS.openItems, carriedContext = BASE_SECTIONS.carriedContext, inFlight = BASE_POINTER, filler = '' } = {}) {
   return [
     '# HANDOFF: check-handoff eval fixture',
     '',
@@ -57,7 +63,7 @@ function buildHandoff({ authority = BASE_SECTIONS.authority, openItems = BASE_SE
     '',
     '## In-flight boundaries',
     '',
-    '- Nothing in flight. Pointer: scripts/check-handoff.mjs:1 · Anchor: `HANDOFF.md structural checker`',
+    inFlight,
     '',
     openItems,
     authority,
@@ -113,6 +119,42 @@ const rNoArgs = run([]);
 check('no argument exits 2', rNoArgs.status === 2);
 const rMissingFile = run([join(work, 'does-not-exist.md')]);
 check('missing file exits 2', rMissingFile.status === 2);
+
+// === L-062: anchored pointers resolve against the working tree ===
+// Shape alone proved nothing about a pointer. These four fixtures share one target file, so each
+// case differs from the passing one in exactly the pointer it carries.
+writeFileSync(join(work, 'target.mjs'), 'const first = 1;\nconst guard = clamp(size, MAX);\nconst third = 3;\n');
+const pointed = (pointer) => write(`ptr-${Buffer.from(pointer).toString('hex').slice(0, 12)}.md`, buildHandoff({ inFlight: `- Nothing in flight. Pointer: ${pointer}` }));
+const anchored = (cite, anchor) => pointed(`${cite} · Anchor: \`${anchor}\``);
+
+const rExact = run([anchored('target.mjs:2', 'clamp(size, MAX)')], work);
+check('a pointer whose anchor sits on the cited line exits 0', rExact.status === 0);
+check('the resolving pointer reports FRESH', /FRESH\s+target\.mjs:2/.test(outOf(rExact)));
+
+const offByOne = anchored('target.mjs:3', 'clamp(size, MAX)');
+const rMoved = run([offByOne], work);
+check('an off-by-one pointer reports MOVED', /MOVED\s+target\.mjs:3.*anchor now on line 2/.test(outOf(rMoved)));
+check('a MOVED pointer is a warning by default (exit 0)', rMoved.status === 0);
+const rMovedStrict = run([offByOne, '--strict-anchors'], work);
+check('a MOVED pointer fails under --strict-anchors', rMovedStrict.status === 1);
+check('the --strict-anchors failure names the pointer', /pointer MOVED: target\.mjs:3/.test(outOf(rMovedStrict)));
+
+const rDrifted = run([anchored('target.mjs:2', 'no such guard')], work);
+check('an anchor absent from the file reports DRIFTED', /DRIFTED\s+target\.mjs:2/.test(outOf(rDrifted)));
+check('a DRIFTED pointer fails closed', rDrifted.status === 1);
+
+const rGone = run([anchored('vanished.mjs:2', 'clamp(size, MAX)')], work);
+check('a pointer into a missing file reports GONE', /GONE\s+vanished\.mjs:2/.test(outOf(rGone)));
+check('a GONE pointer fails closed', rGone.status === 1);
+
+// A doubled-backtick anchor (L-059) carries a backtick of its own and still resolves.
+writeFileSync(join(work, 'tick.mjs'), 'const label = `${name} shard`;\n');
+const rTick = run([pointed('tick.mjs:1 · Anchor: ``const label = `${name} shard`;``')], work);
+check('a doubled-backtick anchor containing a backtick resolves FRESH', rTick.status === 0 && /FRESH\s+tick\.mjs:1/.test(outOf(rTick)));
+
+// The Verified-at advisory never gates. It needs a git root, so it is asserted on the
+// repository-rooted conformant run, whose fixture sha is not this repository's HEAD.
+check('a stale Verified-at sha is an advisory, not a violation', rGood.status === 0 && /advisory: Verified-at abc1234/.test(outOf(rGood)));
 
 rmSync(work, { recursive: true, force: true });
 

@@ -1,5 +1,11 @@
 # Changelog — researcher
 
+## 0.13.23
+- **TODO** — describe the change.
+
+## 0.13.23
+- The vendored `revalidate-register.mjs` reads the Severity field value alone, so a composite line such as `Severity: medium · Confidence: high` no longer reads as load-bearing and deflated at once. Its anchor grammar accepts a doubled-backtick span, so an anchor copied from a line that contains a backtick parses; a backslash is still not an escape. The resolver it shares with the handoff checker ships beside it as `citation-lib.mjs`.
+
 ## 0.13.22
 - The vendored `revalidate-register.mjs` reads a register citation whose path carries spaces in unquoted prose, a Location field, a markdown link target, bold, or quotes. The longest space-joined extension that names a real in-root file wins over a shorter tail, so a same-named file elsewhere no longer captures the citation. Escaping, traversal, and dot-segment forms still read AMBIGUOUS.
 

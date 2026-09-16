@@ -127,7 +127,7 @@ try {
   // ---- a. REAL store: validate + render --check are green ----------------------
   const a = run(['validate']);
   check('a. validate exits 0 on the real store', a.status === 0, a.stdout + a.stderr);
-  check('a. validate reports 12 runs / 65 lessons / 95 edges', /12 run\(s\), 65 lesson\(s\), 95 edge\(s\)/.test(a.stdout), a.stdout);
+  check('a. validate reports 12 runs / 65 lessons / 114 edges', /12 run\(s\), 65 lesson\(s\), 114 edge\(s\)/.test(a.stdout), a.stdout);
   check('a. validate reports 0 violations', /\n0 violation\(s\)\./.test(a.stdout), a.stdout);
 
   const b = run(['render', '--check']);
@@ -157,9 +157,10 @@ try {
     && /RED\s+L-039\s+\S/.test(qOpen.stdout)
     && /RED\s+L-044\s+\S/.test(qOpen.stdout) && /RED\s+L-049\s+\S/.test(qOpen.stdout)
     && /RED\s+L-051\s+\S/.test(qOpen.stdout) && /RED\s+L-056\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-057\s+\S/.test(qOpen.stdout) && /RED\s+L-058\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-063\s+\S/.test(qOpen.stdout) && /RED\s+L-065\s+\S/.test(qOpen.stdout)
-    && /\n32 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+    && /\n23 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+  check('c. the R-012 lessons fixed by PR-153 are no longer open',
+    !/\bL-057\b/.test(qOpen.stdout) && !/\bL-058\b/.test(qOpen.stdout) && !/\bL-063\b/.test(qOpen.stdout)
+    && !/\bL-065\b/.test(qOpen.stdout), qOpen.stdout);
   check('c. the R-010 lessons fixed by PR-140, PR-141 and PR-143 are no longer open',
     !/\bL-043\b/.test(qOpen.stdout) && !/\bL-045\b/.test(qOpen.stdout) && !/\bL-050\b/.test(qOpen.stdout), qOpen.stdout);
   check('c. the R-011 orchestration lessons fixed by PR-152 are no longer open',
@@ -248,7 +249,11 @@ try {
     /L-053\s+ENFORCED\s+\(fixed-in PR-152, 1 gate\(s\)\)/.test(qUnv.stdout)
     && /L-054\s+ENFORCED\s+\(fixed-in PR-152, 1 gate\(s\)\)/.test(qUnv.stdout)
     && /L-055\s+ENFORCED\s+\(fixed-in PR-152, 1 gate\(s\)\)/.test(qUnv.stdout), qUnv.stdout);
-  check('c. unverified reports both halves of the ratio', /\n8 unverified fix\(es\); 22 lesson\(s\) confirmed by a later run\./.test(qUnv.stdout), qUnv.stdout);
+  check('c. the R-012 instrument fixes are listed, gated, until a later run confirms them',
+    /L-057\s+ENFORCED\s+\(fixed-in PR-153, 2 gate\(s\)\)/.test(qUnv.stdout)
+    && /L-062\s+ENFORCED\s+\(fixed-in PR-153, 1 gate\(s\)\)/.test(qUnv.stdout)
+    && /L-065\s+ENFORCED\s+\(fixed-in PR-153, 1 gate\(s\)\)/.test(qUnv.stdout), qUnv.stdout);
+  check('c. unverified reports both halves of the ratio', /\n17 unverified fix\(es\); 22 lesson\(s\) confirmed by a later run\./.test(qUnv.stdout), qUnv.stdout);
   check('c. with no RED line, unverified --gate exits 0 on the real store', run(['query', 'unverified', '--gate']).status === 0);
   {
     const { store } = scratchStore();

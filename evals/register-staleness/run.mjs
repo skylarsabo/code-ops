@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Register-staleness regression eval — pins the one behavior the field lost
 // (a register re-listing already-fixed items). Asserts revalidate-register.mjs
-// classifies a seeded mixed-freshness register correctly and fails closed.
+// classifies a seeded mixed-freshness register correctly and fails closed. It exercises
+// scripts/citation-lib.mjs through that script, which is the shared citation resolver
+// (evals/handoff-check/run.mjs exercises the same library through check-handoff.mjs).
 //
 //   node evals/register-staleness/run.mjs   (exit 0 = pass)
 
@@ -155,10 +157,66 @@ expect(qWrong.status === 1 && qWrong.out.includes('re-greppable'), `a REFUTED re
 const qEsc = receipt('qlog-escape.md', '../x.ts:1', 'auth token');
 expect(qEsc.status === 1 && qEsc.out.includes('re-greppable'), `a REFUTED receipt citing ../x.ts:1 should fail confinement, got ${qEsc.status}`);
 
+// ---- L-058: the Severity FIELD value decides the strict legs, not the rest of the line --------
+// A composite line (`Severity: medium · Confidence: high · Risk if fixed: low`) used to read as
+// load-bearing AND deflated at once, because each leg scanned the whole line. CMP-001 is a medium
+// finding on a sensitive lens: it owes no panel receipt. CMP-002 is a high one whose line also
+// carries the words medium and low: it stays load-bearing and is not treated as deflated.
+writeFileSync(join(sdir, 'clog.md'), '# Refutation log\n\nCMP-002 · r1 · SURVIVED · reviewerA · searched: caller chain + middleware\n');
+writeFileSync(join(sdir, 'creg.md'), [
+  '# composite-severity fixture', '',
+  'CMP-001 · composite severity line, sub-high', 'Tier: PROBABLE', '- Severity: medium · Confidence: high · Risk if fixed: low',
+  'Lens: security', 'Location: code.mjs:2', 'Anchor: `auth token`', 'Verified-at: HEAD',
+  'Disconfirmation: callers checked', 'Refutation: independent — survived', 'Track: NEEDS-REVIEW',
+  'Proof: `node code.mjs`', 'Panel-exempt: medium-severity note on a read-only path', '',
+  'CMP-002 · composite severity line, load-bearing', 'Tier: PROBABLE', '- Severity: high · Confidence: medium · Risk if fixed: low',
+  'Lens: security', 'Location: code.mjs:2', 'Anchor: `auth token`', 'Verified-at: HEAD',
+  'Disconfirmation: callers checked', 'Refutation: independent — survived', 'Track: NEEDS-REVIEW',
+  'Proof: `node code.mjs`', '',
+].join('\n'));
+const cmp = spawnSync('node', [checker, join(sdir, 'creg.md'), '--root', sdir, '--strict', '--profile', 'finding-rigor', '--refutation-log', join(sdir, 'clog.md')], { encoding: 'utf8' });
+const cmpOut = (cmp.stdout || '') + (cmp.stderr || '');
+const cmpLine = (id) => cmpOut.split('\n').find((l) => l.includes(id)) || '';
+expect(!cmpLine('CMP-001').includes('refutation-log'), `a medium finding on a composite line owes no panel receipt, got: ${cmpLine('CMP-001')}`);
+expect(!cmpLine('CMP-002').includes('Panel-exempt'), `a high finding on a composite line is not deflated, got: ${cmpLine('CMP-002')}`);
+expect(cmp.status === 0, `the composite-severity fixture should pass strict, got exit ${cmp.status}: ${cmpOut}`);
+
+// ---- L-059: a doubled-backtick anchor carries a backtick of its own ---------------------------
+// CommonMark's own escape for a code span containing a backtick. A backslash is NOT an escape
+// here, so an anchor copied verbatim from a line carrying a backslash is unaffected.
+writeFileSync(join(sdir, 'tick.mjs'), 'const label = `x` + y;\n');
+writeFileSync(join(sdir, 'treg.md'), [
+  '# doubled-backtick fixture', '',
+  'TBUG-001 · anchor with an inner backtick', 'Location: tick.mjs:1', 'Anchor: ``const label = `x` + y;``', '',
+  'TBUG-002 · doubled-backtick anchor that drifted', 'Location: tick.mjs:1', 'Anchor: ``no such `guard` here``', '',
+  'TBUG-003 · ordinary single-backtick anchor', 'Location: tick.mjs:1', 'Anchor: `const label`', '',
+].join('\n'));
+const tk = spawnSync('node', [checker, join(sdir, 'treg.md'), '--root', sdir, '--report-only'], { encoding: 'utf8' });
+const tkOut = (tk.stdout || '') + (tk.stderr || '');
+const tkLine = (id) => tkOut.split('\n').find((l) => l.includes(id)) || '';
+// Matched on the status column, because the unparseable-anchor advisory itself names DRIFTED.
+expect(/FRESH\s+TBUG-001\b/.test(tkOut), `a doubled-backtick anchor matching its line should be FRESH, got: ${tkLine('TBUG-001')}`);
+expect(!tkLine('TBUG-001').includes('unparseable'), `a doubled-backtick anchor must parse, got: ${tkLine('TBUG-001')}`);
+expect(/DRIFTED\s+TBUG-002\b/.test(tkOut), `a doubled-backtick anchor absent from its line should be DRIFTED, got: ${tkLine('TBUG-002')}`);
+expect(!tkLine('TBUG-002').includes('unparseable'), `the drifted doubled-backtick anchor must parse too, got: ${tkLine('TBUG-002')}`);
+expect(/FRESH\s+TBUG-003\b/.test(tkOut), `a single-backtick anchor should still be FRESH, got: ${tkLine('TBUG-003')}`);
+
+// ---- L-064: a LEAD- prefixed finding is an ordinary item ---------------------------------------
+// The lead mints its own findings under the reserved LEAD- prefix so they cannot collide with a
+// discovery slice's ids. The grammar already admits it: two or more uppercase prefix characters.
+writeFileSync(join(sdir, 'lreg.md'), [
+  '# lead-authored fixture', '',
+  'LEAD-001 · lead-filed finding', 'Location: code.mjs:2', 'Anchor: `auth token`', '',
+].join('\n'));
+const ld = spawnSync('node', [checker, join(sdir, 'lreg.md'), '--root', sdir], { encoding: 'utf8' });
+const ldOut = (ld.stdout || '') + (ld.stderr || '');
+expect(ld.status === 0 && /FRESH\s+LEAD-001\b/.test(ldOut), `LEAD-001 should parse and revalidate like any other id, got exit ${ld.status}: ${ldOut}`);
+expect(/\b1 item\(s\)/.test(ldOut), `the lead fixture should report exactly 1 item, got: ${ldOut}`);
+
 if (fails.length) {
   console.error('FAIL — register-staleness eval:');
   for (const f of fails) console.error('  x ' + f);
   console.error('\n--- checker output ---\n' + out);
   process.exit(1);
 }
-console.log('PASS — register-staleness eval: FRESH/MOVED/DRIFTED/GONE/NO-REF classified correctly (incl. the verbatim-anchor gate + the unparseable-anchor advisory); stale register fails closed; strict schema/proof/Panel-exempt gate, consumed-mode terminal states, and the redacted-anchor carve-out all hold; refutation receipts are keyed at line start, so prose citing a finding is never a verdict.');
+console.log('PASS — register-staleness eval: FRESH/MOVED/DRIFTED/GONE/NO-REF classified correctly (incl. the verbatim-anchor gate + the unparseable-anchor advisory); stale register fails closed; strict schema/proof/Panel-exempt gate, consumed-mode terminal states, and the redacted-anchor carve-out all hold; refutation receipts are keyed at line start, so prose citing a finding is never a verdict; the strict legs read the Severity field value rather than the rest of a composite line; a doubled-backtick anchor carries an inner backtick; a LEAD- finding parses like any other id.');

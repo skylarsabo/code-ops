@@ -36,8 +36,11 @@ A section holds what costs a run real time to work out: why the architecture is 
 how a flow crosses files, the invariants a change must not break, the gotchas, and the code that
 looks wrong but is load-bearing. It holds **no** file inventories, export lists, signatures, or
 copied evidence bodies. Cite registered evidence by record ID, and let its generated index
-resolve the preserved bytes. Open each section with a `#` title and a one-line charter naming
-what the section covers and what it deliberately leaves out.
+resolve the preserved bytes. A sentence comparing two code sites cites both by `path:line`, so
+the pair registers as two claims and either half drifting gates the section. `check` prints an
+`!! uncited comparison` advisory when a comparison carries fewer than two citations. Open each
+section with a `#` title and a one-line charter naming what the section covers and what it
+deliberately leaves out.
 
 ## Phase 0: the atlas state  *(checkpoint on INIT only)*
 
@@ -54,6 +57,10 @@ nothing that is already correct.
 Run the checker's `init` subcommand to scaffold the manifest, the inbox, and the sections
 directory. It refuses to overwrite an existing manifest, so an accidental INIT over a live atlas
 cannot destroy it.
+
+`init` creates `MANIFEST.json`. On a target whose formatter or linter scans JSON, add the atlas
+folder to that tool's ignore list first, or, in an assess-only run, pass `--atlas` pointing under
+an already-ignored runs folder. An assess-only run leaves no lint error in a file it created.
 
 Then design the sectioning yourself. That design is the judgment call the whole artifact rests
 on. Aim for **4-10 sections**. Make each one a coherent area a reader would want explained,

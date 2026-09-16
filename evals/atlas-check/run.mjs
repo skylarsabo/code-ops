@@ -675,6 +675,65 @@ try {
   check('y. a backtick in an anchor is MALFORMED (the register delimits anchors with backticks)',
     y9.status === 1 && /!!\s+MALFORMED\s+sections\[0\]\.claims\[0\]\.anchor/.test(y9.out), y9.out);
 
+  // ============================================================ AA. manifest style preservation
+  // A target repo's formatter or linter may own JSON style, and the atlas writer creates the
+  // manifest, so a rewrite lands in the style the file already carries rather than imposing one.
+  const ST = newRepo('style');
+  put(ST, 'src/app.js', 'export const app = 1;\n');
+  commit(ST, 'init');
+  const atlasST = join(ST, 'docs', 'atlas');
+  run(['init', '--atlas', atlasST]);
+  const stInit = readFileSync(join(atlasST, 'MANIFEST.json'), 'utf8');
+  check('aa. a fresh init writes two-space indent, LF, and exactly one trailing newline',
+    stInit === '{\n  "version": 1,\n  "sections": []\n}\n', JSON.stringify(stInit));
+  run(['add', '--atlas', atlasST, '--section', 'core', '--scope', 'src/**']);
+  put(ST, 'docs/atlas/sections/core.md', '# Core\n\nCharter: the src tree.\n\nThe constant lives at src/app.js:1.\n');
+  commit(ST, 'atlas');
+  // Re-style the manifest the way a four-space CRLF formatter would leave it.
+  writeFileSync(join(atlasST, 'MANIFEST.json'),
+    JSON.stringify(JSON.parse(readFileSync(join(atlasST, 'MANIFEST.json'), 'utf8')), null, 4).replace(/\n/g, '\r\n') + '\r\n');
+  const l1 = run(['stamp', '--atlas', atlasST, '--section', 'core', '--root', ST], ST);
+  check('aa. stamp over a four-space CRLF manifest exits 0', l1.status === 0, l1.out);
+  const stAfter = readFileSync(join(atlasST, 'MANIFEST.json'), 'utf8');
+  check('aa. stamp preserves the four-space indent', /\r\n {4}"version": 1,/.test(stAfter), JSON.stringify(stAfter.slice(0, 160)));
+  check('aa. stamp preserves CRLF and leaves no lone LF behind', !/(?<!\r)\n/.test(stAfter), JSON.stringify(stAfter.slice(0, 240)));
+  check('aa. the restyled manifest still parses and carries the new stamp',
+    /^[0-9a-f]{7,40}$/.test(JSON.parse(stAfter).sections[0].verifiedAt), stAfter);
+
+  // ============================================================ AB. uncited comparison advisory
+  // A sentence comparing two code sites is only checkable when both sides are cited: one
+  // citation registers one claim, and the uncited half can drift with nothing to notice.
+  // Advisory only: it changes no verdict and no exit code.
+  const UC = newRepo('uncited');
+  put(UC, 'src/a.js', 'export const a = 1;\n');
+  put(UC, 'src/b.js', 'export const b = 1;\n');
+  commit(UC, 'init');
+  const atlasUC = join(UC, 'docs', 'atlas');
+  run(['init', '--atlas', atlasUC]);
+  run(['add', '--atlas', atlasUC, '--section', 'core', '--scope', 'src/**']);
+  const ucProse = (body) => put(UC, 'docs/atlas/sections/core.md', `# Core\n\nCharter: the src tree.\n\n${body}\n`);
+
+  ucProse('The two guards are identical, at src/a.js:1.');
+  const m1 = run(['check', '--atlas', atlasUC]);
+  check('ab. a comparison carrying one citation prints the advisory under its section',
+    /!! uncited comparison: The two guards are identical, at src\/a\.js:1\./.test(m1.out), m1.out);
+  check('ab. the summary line counts it', /1 uncited comparison\(s\)\./.test(m1.out), m1.out);
+  check('ab. the advisory alone still exits 0', m1.status === 0, m1.out);
+  check('ab. --claims-gate is unmoved by the advisory',
+    run(['check', '--atlas', atlasUC, '--claims-gate']).status === 0);
+
+  ucProse('The two guards are identical, at src/a.js:1 and src/b.js:1.');
+  const m2 = run(['check', '--atlas', atlasUC]);
+  check('ab. the same sentence citing both sites prints nothing', !/uncited comparison/.test(m2.out), m2.out);
+
+  ucProse('The two copies ship byte-identical, at src/a.js:1.');
+  const m4 = run(['check', '--atlas', atlasUC]);
+  check('ab. a byte-identical parity statement is not a comparison of two sites', !/uncited comparison/.test(m4.out), m4.out);
+
+  ucProse('```\nThe two guards are identical, at src/a.js:1.\n```');
+  const m3 = run(['check', '--atlas', atlasUC]);
+  check('ab. a comparison cue inside a fenced block prints nothing', !/uncited comparison/.test(m3.out), m3.out);
+
   // ============================================================ K. graph-derived scope suggestion
   const SC = newRepo('scope-suggest');
   put(SC, 'lib/core.js', 'export const core = 1;\n');

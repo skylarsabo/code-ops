@@ -2,7 +2,7 @@
 // HANDOFF.md structural checker: the mechanical floor under the handoff skill's write
 // contract (plugins/code-ops-suite/skills/handoff/SKILL.md).
 //
-//   node scripts/check-handoff.mjs <HANDOFF.md>
+//   node scripts/check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors]
 //
 // WHY: a handoff whose Open items carry no owner, whose Authority section is missing, or that
 // grew past what a fresh session reads before acting degrades unnoticed until a resumed
@@ -24,14 +24,33 @@
 //   5. No "## Open items" bullet opens with an imperative verb, from a small documented list.
 //      The write contract states what is true, never what the next session should do. This is
 //      a first-word heuristic, not a grammar check, so it can both over- and under-flag.
+//   6. L-062: every `path:line · Anchor: <delimited text>` pointer RESOLVES against the working
+//      tree, through the same resolver the register gate uses (citation-lib.mjs). Shape alone
+//      proved nothing: a handoff could point a resumed session at a line that had moved, drifted,
+//      or vanished and still pass. One status prints per pointer. `GONE` (the file is missing),
+//      `DRIFTED` (the anchor is nowhere in the file) and `AMBIGUOUS` (the pointer escapes root or
+//      matches several files) fail closed. `MOVED` (the anchor sits on a different line of the
+//      same file) is a warning by default, because the successor can still find the code, and a
+//      violation under `--strict-anchors`. An `Anchor:` of `<REDACTED-LINE>` is checked for line
+//      existence only, exactly as the register gate treats it.
+//
+// Advisory (never gating): a `Verified-at:` sha that is not the current HEAD, so a resumed
+// session re-verifies before trusting the handoff's claims.
 //
 // Exit: 0 = conformant; 1 = at least one violation (listed on stderr); 2 = usage error.
+// Pointer statuses and advisories print on stderr, so stdout carries only the one-line verdict.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { parseOrDie, usage } from './cli-lib.mjs';
+import { parseOrDie, usage, git } from './cli-lib.mjs';
+// Imported by relative specifier: check-handoff.mjs ships vendored into
+// plugins/code-ops-suite/scripts/, and the library ships beside it.
+import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLineAt } from './citation-lib.mjs';
 
-const USAGE = 'usage: check-handoff.mjs <HANDOFF.md>';
-const { positional } = parseOrDie(process.argv.slice(2), {}, USAGE);
+const USAGE = 'usage: check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors]';
+const { flags, positional } = parseOrDie(process.argv.slice(2), {
+  root: { value: true, default: '.', missing: 'needs a path' },
+  'strict-anchors': { value: false },
+}, USAGE);
 if (positional.length !== 1) usage(USAGE);
 const [target] = positional;
 if (!existsSync(target)) usage([`x not found: ${target}`, USAGE]);
@@ -113,6 +132,54 @@ if (openSection) {
     }
   }
 }
+
+// ---- 6. anchored pointers resolve against the working tree ----
+// The pointer sits before its own `Anchor:` label (artifact-grammars section (b)), so only the
+// text ahead of the label is scanned for citations. A file:line inside the anchor's own quoted
+// substring is part of the anchor, never a second pointer.
+const resolver = createResolver(flags.root);
+const strictAnchors = flags['strict-anchors'] === true;
+const statuses = [];
+for (const raw of text.split('\n')) {
+  const line = raw.replace(/\r$/, '');
+  const labelled = ANCHOR_RE.exec(line);
+  if (!labelled) continue;
+  const anchor = anchorValue(labelled);
+  const refs = extractRefs(line.slice(0, labelled.index), resolver.root);
+  if (refs.length === 0) {
+    statuses.push({ status: 'NO-REF', where: line.trim().slice(0, 70), note: 'an anchor with no file:line pointer beside it' });
+    continue;
+  }
+  for (const ref of refs) {
+    const where = `${ref.path}:${ref.line}`;
+    const { status, note, target: file } = resolveRef(resolver, ref);
+    if (status !== 'FRESH' || !file) { statuses.push({ status, where, note }); continue; }
+    if (anchor === '<REDACTED-LINE>') { statuses.push({ status, where, note: 'redacted anchor — line-existence check only' }); continue; }
+    const cited = readLineAt(file, ref.line);
+    if (cited != null && cited.includes(anchor)) { statuses.push({ status: 'FRESH', where, note: null }); continue; }
+    // The anchor is not on the cited line. Somewhere else in the same file means the pointer's
+    // line number went stale while the code it names survived, which a successor can still
+    // follow, so that is MOVED. Nowhere in the file means the code itself changed: DRIFTED.
+    const at = readFileSync(file, 'utf8').split('\n').findIndex((l) => l.includes(anchor));
+    if (at >= 0) statuses.push({ status: 'MOVED', where, note: `anchor now on line ${at + 1}` });
+    else statuses.push({ status: 'DRIFTED', where, note: `anchor ${JSON.stringify(anchor)} is not in the file` });
+  }
+}
+// NO-REF is reported and never gates: an `Anchor:` written in the handoff's own prose, with no
+// pointer beside it, is a writing slip rather than a stale claim about the tree.
+const GATING = new Set(['GONE', 'DRIFTED', 'AMBIGUOUS']);
+for (const s of statuses) {
+  console.error(`  ${s.status.padEnd(9)} ${s.where}${s.note ? '  — ' + s.note : ''}`);
+  if (GATING.has(s.status) || (s.status === 'MOVED' && strictAnchors))
+    violations.push(`pointer ${s.status}: ${s.where}${s.note ? ' — ' + s.note : ''}`);
+}
+
+// ---- advisory: the handoff's Verified-at sha is not the current HEAD ----
+const stamped = text.match(/^Verified-at:\s*([0-9a-f]{7,40})\b/im);
+let headSha = null;
+try { headSha = git(['rev-parse', '--short', 'HEAD'], { cwd: resolver.root }); } catch { /* not a git repo */ }
+if (stamped && headSha && !stamped[1].startsWith(headSha) && !headSha.startsWith(stamped[1]))
+  console.error(`  advisory: Verified-at ${stamped[1]} != HEAD ${headSha}: re-verify the handoff's claims before acting on them`);
 
 if (violations.length) {
   console.error(`x ${target}: ${violations.length} violation(s)`);

@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
+
+## 1.81.0
+- `check-handoff.mjs` resolves every `path:line · Anchor:` pointer against the working tree through the resolver it now shares with the register gate in `citation-lib.mjs`, and prints one status per pointer. GONE, DRIFTED, and AMBIGUOUS fail closed. MOVED warns, or fails under `--strict-anchors`. A `Verified-at` sha that is not HEAD is an advisory, and `--root` makes the check independent of the working directory.
+- `revalidate-register.mjs` reads the Severity field value alone, so a composite line such as `Severity: medium · Confidence: high` no longer reads as load-bearing and deflated at once. The anchor grammar accepts a doubled-backtick span, so an anchor copied from a line that contains a backtick parses. A backslash is still not an escape.
+- The artifact grammar reserves the `LEAD-` prefix for lead-authored findings, and the `full-sweep` merge step says so, because nothing mints ids at merge time and a lead-filed finding collided with a slice id.
+- A context snapshot under the `exclude` or `allowlist` untracked policy derives its identity from the files the policy admits, so a new untracked file no longer moves the snapshot id. The receipt still records how many untracked files the tree carries. The default `metadata` policy is unchanged.
+- `run-runtime.mjs` requires `context.snapshot`, `context.bundleDir`, and the dispatch ledger to sit on repository-ignored paths, as the capability descriptor and receipt chain already did, and `init` prints an advisory when the contract itself is visible to Git.
+- `run-contract.mjs` reports only an identifier mismatch as context snapshot drift. Generator drift, atlas drift, an unsupported untracked entry, a symlink escape, and a git timeout keep their own message and say that a new receipt will not clear them.
+- A version 2 or newer contract accepts the optional `context.maxScopeShare`, a number above 0 and at most 1 that raises the 0.25 share of the repository index one unit may hold. The recursive-glob and risky-prefix triggers ignore it, and an oversized bundle still refuses rather than truncating.
+- A version 4 contract refuses a refutation panel with an even number of seats, or one that repeats a lens across seats. A single refutation unit on a target is not a panel.
+- `atlas-check.mjs` preserves a manifest's own indent and end-of-line on every rewrite, and the atlas skill, the atlas reference, and the calibration protocol tell a run to ignore or relocate the atlas folder on a target whose formatter scans JSON.
+- `atlas-check.mjs check` prints an advisory for a sentence that compares two code sites while citing fewer than two of them and counts it in the summary line. No exit code changes. The atlas skill and reference require a comparison to cite both sites so the pair registers as two claims.
+
 ## 1.80.0
 - `dispatch-ledger.mjs add` accepts `--contract <path> --unit <D-NNN>`. The row takes the contract unit id instead of the next serial id, and its role, model, brief, and artifact must match the unit. Under a version 4 contract, `add` requires `--actor-id`, refuses an actor already bound to another unit, and binds the journal to the contract run. A bound ledger refuses an unbound `add`, and a bound `update --status redispatched` requires an actor.
 - `run-contract.mjs reconcile` accepts `--in-flight`. It rejects the version 4 journal violations that are permanent once they occur, and admits planned units that have not reported. `run-runtime.mjs` checkpoint, replan, resume, and verify use it instead of `--strict`, so a multi-wave run can bind a mid-run contract revision. Finalization stays strict.

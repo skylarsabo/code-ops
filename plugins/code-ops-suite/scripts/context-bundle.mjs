@@ -48,6 +48,7 @@ function loadBinding(root, contractPath, unitId) {
   if (![2, 3, 4].includes(contract.version) || !contract.context) throw new Error('context bundles require a version 2, 3, or 4 run contract');
   const unit = contract.units?.find((candidate) => candidate.id === unitId);
   if (!unit) throw new Error(`unknown contract unit ${unitId}`);
+  scopeShare(contract);
   const receiptPath = resolve(dirname(contractPath), contract.context.snapshot);
   const receipt = readJson(receiptPath);
   if (receipt.snapshotId !== contract.context.snapshotId) throw new Error('context snapshot ID does not match contract');
@@ -56,10 +57,20 @@ function loadBinding(root, contractPath, unitId) {
   return { contract, unit, receipt, receiptPath };
 }
 function markerPath(out, name) { return `${out}.${name}`; }
-function broadScope(scope, totalFiles, scopedFiles) {
+function broadScope(scope, totalFiles, scopedFiles, maxScopeShare) {
   const risky = /^(?:\.github|migrations?|schema|security|privacy)(?:\/|$)/i;
   return scope.includes('**') || scope.some((entry) => risky.test(entry.replace(/\/\*\*$/, '')))
-    || (totalFiles > 0 && scopedFiles / totalFiles > 0.25);
+    || (totalFiles > 0 && scopedFiles / totalFiles > maxScopeShare);
+}
+// The share a unit may hold before the bundle refuses, default 0.25 (calibration lesson
+// L-060). The contract may raise it through context.maxScopeShare; the recursive-glob and
+// risky-prefix triggers above stay absolute, so security and migration scopes still refuse.
+function scopeShare(contract) {
+  const value = contract.context.maxScopeShare ?? 0.25;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > 1) {
+    throw new Error('context.maxScopeShare must be a number greater than 0 and at most 1');
+  }
+  return value;
 }
 function atlasSections(root, meta, scope, maxBytes) {
   if (meta.atlas?.status !== 'available' || !meta.atlas.path) return [];
@@ -141,7 +152,7 @@ if (command === 'build') {
       writeFailure(out, 'EMPTY_SCOPE', { version: 1, unitId: unit.id, scope: unit.scope, reason: 'scope matches no indexed repository paths' });
       die(`context bundle scope is empty for ${unit.id}`);
     }
-    if (broadScope(unit.scope, repoMap.files.length, scoped.length)) {
+    if (broadScope(unit.scope, repoMap.files.length, scoped.length, scopeShare(contract))) {
       writeFailure(out, 'BROAD_CONTEXT_REQUIRED', { version: 1, unitId: unit.id, scope: unit.scope, reason: 'scope requires the full repository index' });
       die(`broad context required for ${unit.id}`);
     }
