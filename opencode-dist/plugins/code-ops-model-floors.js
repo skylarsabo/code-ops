@@ -65,9 +65,7 @@ const KNOWN_MODELS = {
     "magistral-medium-latest": "frontier"
   },
   "opencode": {
-    "ling-3.0-flash-fin-free": "light",
-    "nemotron-3.5-lightning-free": "mid",
-    "mimo-v2.5-free": "strong"
+    "muse-spark-1.3-contributor-free": "strong"
   }
 };
 const ROUTING_CARD = "code-ops standard operating mode\ndebug a bug -> /code-ops-suite-debug\nship a feature/change -> /code-ops-suite-ship\naudit/quality sweep -> /code-ops-suite-full-sweep or /rigor-rigor-sweep\nprivacy/leak concern -> /privacy-opsec-suite-full-sweep\nlibrary/dependency decision -> /researcher-library-eval\nclaim verification -> /researcher-research-verify\neverything (broad/multi-domain) -> /code-ops-suite-everything\nsubstantive work -> frontier orchestrator plus strong operatives; delegate every independently briefable unit and launch at least two disjoint units in parallel when possible\nthe root continuously synthesizes, challenges assumptions, reprioritizes, and redirects; inline busy work requires a stated trivial-or-indivisible exception\npremium frontier peers only for the hardest bounded architecture, refutation, or synthesis; verdicts and acceptance stay with the lead\nsay in a line what you are about to do, give brief updates while you work, and close with a recap that stands on its own\nonly you see a command's output; put what the user needs to read in your reply\ncontext economy: skim before reading, query the symbol index before a map, digest output is on by default, size is a tie-breaker behind correctness, boundaries, performance, and readability\nsee: in the code-ops repository, https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/11-standard-operating-mode.md and https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/dispatch-brief-template.md";

@@ -61,7 +61,7 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 | Moonshot AI (Kimi) | `kimi-k2.6` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` |
 | DeepSeek | `deepseek-v4-flash` | `deepseek-v4-flash` | `deepseek-v4-pro` | `deepseek-v4-pro` |
 | Mistral | `magistral-small` | `mistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` |
-| OpenCode Zen (free tier) | `ling-3.0-flash-fin-free` | `nemotron-3.5-lightning-free` | `mimo-v2.5-free` | unset, the lead inherits the session model |
+| OpenCode Zen (free tier) | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | unset, the lead inherits the session model |
 
 OpenAI also exposes `gpt-6-astra` as an explicit frontier specialist. It does not replace
 Sol in the ready-made configuration. OpenAI's rates verified on 2026-09-13 price Astra input
@@ -78,11 +78,11 @@ a tool call for this model; let the agent select a tool when the task needs one.
 
 The binding table is what makes the rest of the doctrine portable. The briefs, the fan-out rules, the disconfirmation pass, and the verification bar are identical on every provider. Only the bindings change. Adding a provider takes one `PROVIDER_TIERS` entry in `scripts/model-tiers.mjs` plus one `PROVIDER_SLUG_PATTERNS` line. Premium alternatives live in `PROVIDER_SPECIALISTS`, so generated defaults remain cost-disciplined.
 
-Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is the exception, because it is flat by choice: `grok-4.6` never routes work below its floor, and running one model removes tier as a variable. The OpenAI split follows this repository's own calibration evidence rather than price, because runs R-007 and R-008 recorded `gpt-5-6-sol-xhigh` leading `gpt-5-6-terra-xhigh` operatives.
+Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is flat by choice: `grok-4.6` never routes work below its floor, and running one model removes tier as a variable. The OpenCode Zen operatives are flat by the same choice: `muse-spark-1.3-contributor-free` never routes operative work below its floor, and the lead stays unset. The OpenAI split follows this repository's own calibration evidence rather than price, because runs R-007 and R-008 recorded `gpt-5-6-sol-xhigh` leading `gpt-5-6-terra-xhigh` operatives.
 
 Effort remains variable on every provider, because the major providers expose the same low, medium, high, and xhigh scale.
 
-The OpenCode Zen row is the free ladder and the default the opencode renderer ships. It binds each agent to a free model that clears its floor and leaves the lead unset, so the lead inherits whatever session model the operator chose, and a fresh install costs nothing. Its ids are verified against the host's own `opencode models` list, because models.dev does not carry the Zen catalogue. Free-tier rate limits show as 429s under a wide fan-out. Shrink the wave before blaming the ladder.
+The OpenCode Zen row is the free ladder and the default the opencode renderer ships. It binds every operative agent to `muse-spark-1.3-contributor-free`, a single model that clears every floor, and leaves the lead unset, so the lead inherits whatever session model the operator chose, and a fresh install costs nothing. Its id is verified against the host's own `opencode models` list, because models.dev does not carry the Zen catalogue. Free-tier rate limits show as 429s under a wide fan-out. Shrink the wave before blaming the ladder.
 
 Model ids are pinned, not fetched, so the renderer and the gate stay offline and deterministic. `REGISTRY_VERIFIED_AT` in `scripts/model-tiers.mjs` records when they were last checked. Re-verify them against the models.dev registry that opencode itself resolves through:
 

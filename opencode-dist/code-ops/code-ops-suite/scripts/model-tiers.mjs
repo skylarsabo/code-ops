@@ -128,14 +128,14 @@ export const PROVIDER_TIERS = {
     // the Zen catalogue. `registry: 'cli'` tells the checker to verify them there, and
     // `frontier: null` leaves the lead unset so it inherits the operator's session model.
     registry: 'cli',
-    verifiedAt: '2026-09-03',
+    verifiedAt: '2026-09-17',
     models: {
-      light: 'ling-3.0-flash-fin-free',
-      mid: 'nemotron-3.5-lightning-free',
-      strong: 'mimo-v2.5-free',
+      light: 'muse-spark-1.3-contributor-free',
+      mid: 'muse-spark-1.3-contributor-free',
+      strong: 'muse-spark-1.3-contributor-free',
       frontier: null,
     },
-    notes: 'Zero account cost with the tier routing kept. Ling 3.0 Flash is fast and disciplined on tool-call schemas, so it serves the light rung; Nemotron 3.5 Lightning leads the small-model speed and accuracy trade-off, so it serves mid; MiMo V2.5 carries agentic post-training and near-frontier coding claims, so it serves strong. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.',
+    notes: 'Zero account cost with a single operative model. Light, mid, and strong all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.',
   },
 };
 

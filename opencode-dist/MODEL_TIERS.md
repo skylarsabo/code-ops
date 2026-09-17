@@ -24,7 +24,7 @@ entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in
 | Moonshot AI (Kimi) | `moonshotai/kimi-k2.6` | `moonshotai/kimi-k2.7-code` | `moonshotai/kimi-k3` | `moonshotai/kimi-k3` |
 | DeepSeek | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` |
 | Mistral | `mistral/magistral-small` | `mistral/mistral-medium-latest` | `mistral/magistral-medium-latest` | `mistral/magistral-medium-latest` |
-| OpenCode Zen (free tier) | `opencode/ling-3.0-flash-fin-free` | `opencode/nemotron-3.5-lightning-free` | `opencode/mimo-v2.5-free` | session model (lead unset) |
+| OpenCode Zen (free tier) | `opencode/muse-spark-1.3-contributor-free` | `opencode/muse-spark-1.3-contributor-free` | `opencode/muse-spark-1.3-contributor-free` | session model (lead unset) |
 
 Where a provider repeats a model across two rungs, its lineup has no distinct model for
 the lower one. The collapse is recorded rather than papered over with an invented tier.
@@ -39,7 +39,7 @@ the lower one. The collapse is recorded rather than papered over with an invente
 - **Moonshot AI (Kimi)** — `kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves both top rungs.
 - **DeepSeek** — A two-model lineup, so each of its models covers two rungs. The cheapest ladder here by a wide margin.
 - **Mistral** — Only the `magistral` line reasons, so the ladder is built from it wherever a rung needs reasoning.
-- **OpenCode Zen (free tier)** — Zero account cost with the tier routing kept. Ling 3.0 Flash is fast and disciplined on tool-call schemas, so it serves the light rung; Nemotron 3.5 Lightning leads the small-model speed and accuracy trade-off, so it serves mid; MiMo V2.5 carries agentic post-training and near-frontier coding claims, so it serves strong. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.
+- **OpenCode Zen (free tier)** — Zero account cost with a single operative model. Light, mid, and strong all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.
 
 ## Premium specialists
 
@@ -72,11 +72,11 @@ than overwriting a config you already have, and keep your own copy out of a refr
 The `opencode` ladder leaves the lead unset and binds no frontier model. Its contracts need a session model that another provider binds to `frontier`.
 
 A `calibration` block is the only exception. It serves calibration arms (b) and (c) on the
-assess-only track, and it admits a `strong` lead such as `mimo-v2.5-free`. The validator rejects
+assess-only track, and it admits a `strong` lead such as `muse-spark-1.3-contributor-free`. The validator rejects
 the block when the lead model also serves the `frontier` rung, because that arm cannot
 measure a strong-versus-frontier gap. That rules out a strong lead from: xAI (Grok), Google (Gemini), Z.AI (GLM), Moonshot AI (Kimi), DeepSeek, Mistral.
 
-Contracts take bare model ids. Write `mimo-v2.5-free`, not `opencode/mimo-v2.5-free`. The
+Contracts take bare model ids. Write `muse-spark-1.3-contributor-free`, not `opencode/muse-spark-1.3-contributor-free`. The
 provider-prefixed form in the table above and in `opencode.json` fails the tier check.
 
 ## Agent floors

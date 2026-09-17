@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.82.0
+- The OpenCode Zen free ladder binds every operative rung to `muse-spark-1.3-contributor-free`: light, mid, and strong share one model, so no operative dispatch routes below its floor. The lead stays unset and inherits the session model. The rendered `opencode-dist/opencode.json` binds every agent to that model with no top-level `model`. The routing table names the flat operatives beside the flat xAI row.
+- The `opencode` provider pin is verified against the host `opencode models` list on 2026-09-17.
+
 ## 1.81.0
 - `check-handoff.mjs` resolves every `path:line · Anchor:` pointer against the working tree through the resolver it now shares with the register gate in `citation-lib.mjs`, and prints one status per pointer. GONE, DRIFTED, and AMBIGUOUS fail closed. MOVED warns, or fails under `--strict-anchors`. A `Verified-at` sha that is not HEAD is an advisory, and `--root` makes the check independent of the working directory.
 - `revalidate-register.mjs` reads the Severity field value alone, so a composite line such as `Severity: medium · Confidence: high` no longer reads as load-bearing and deflated at once. The anchor grammar accepts a doubled-backtick span, so an anchor copied from a line that contains a backtick parses. A backslash is still not an escape.
