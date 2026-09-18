@@ -242,11 +242,14 @@ function transformAgent(contents, path) {
   if (!match) throw new Error(`${path}: expected YAML frontmatter bounded by ---`);
   const floor = agentFloor(contents, path);
   // The tools line is stripped below, so the header restates the one capability a brief
-  // depends on: whether the role writes its own report file or returns it inline.
+  // depends on: whether the role edits source, writes only its own report file, or returns
+  // the report inline.
   const tools = match[1].match(/^tools:[ \t]*(.*)$/m)?.[1] ?? '';
-  const writeCapability = /\b(?:Write|Edit|MultiEdit|NotebookEdit)\b/.test(tools)
-    ? 'This role may write files only for its report and repro artifacts.'
-    : 'This role is read-only: return the report inline.';
+  const writeCapability = /\b(?:Edit|MultiEdit|NotebookEdit)\b/.test(tools)
+    ? 'This role edits files only inside the Scope its brief names, and writes its report to the path the brief names.'
+    : /\bWrite\b/.test(tools)
+      ? 'This role may write files only for its report and repro artifacts.'
+      : 'This role is read-only: return the report inline.';
   const header = match[1].split('\n').filter((line) => !/^(tools|model):/.test(line)).map(portableText);
   const body = portableText(match[2]);
   return [

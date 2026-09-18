@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "fcff9bd889a3d39f926cb2ae9bcbef1eb3eb2bbe",
-      "verifiedDigest": "bb4e12a444e87bae616a393ffa42d74e8e14ba3e57dfca9e9c581d8b9784b169"
+      "verifiedAt": "0363923b42af372d29e0f5b0426fcd342b41801d",
+      "verifiedDigest": "100fd408cdd67ce9c26544cd0b275f8426a1e524319cd427abd15c5ba1369e92"
     },
     {
       "slug": "gate-scripts",
@@ -18,13 +18,33 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "fcff9bd889a3d39f926cb2ae9bcbef1eb3eb2bbe",
-      "verifiedDigest": "b58991350c6baf671f6c9950910605e25daf60f21657acde61161abac5f82a7d",
+      "verifiedAt": "0363923b42af372d29e0f5b0426fcd342b41801d",
+      "verifiedDigest": "3a7d753717e6bf9fea4707a9ebb0c3b13088b45930754f1d53448be909ceead3",
       "claims": [
+        {
+          "file": "scripts/citation-lib.mjs",
+          "line": 137,
+          "anchor": "export function restoreCitationPrefix(before, matched) {"
+        },
+        {
+          "file": "scripts/check-handoff.mjs",
+          "line": 47,
+          "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
+        },
         {
           "file": "scripts/atlas-check.mjs",
           "line": 306,
           "anchor": "let fenced = false;"
+        },
+        {
+          "file": "scripts/symbol-lib.mjs",
+          "line": 45,
+          "anchor": "export function definitions(text, ext) {"
+        },
+        {
+          "file": "scripts/context-query.mjs",
+          "line": 54,
+          "anchor": "import { calls, definitions, imports, isCodeExt } from './symbol-lib.mjs';"
         }
       ]
     },
@@ -34,9 +54,19 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "fcff9bd889a3d39f926cb2ae9bcbef1eb3eb2bbe",
-      "verifiedDigest": "7e2c72fd908c4c56d0946c7363bbef2e5fc9678b5af3691623e0e720992030c6",
+      "verifiedAt": "0363923b42af372d29e0f5b0426fcd342b41801d",
+      "verifiedDigest": "9e13f72aafa2151dd7584ab1b9d140a57aa94286c18085948b5464de7c3766da",
       "claims": [
+        {
+          "file": "evals/codex-marketplace/run.mjs",
+          "line": 148,
+          "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
+        },
+        {
+          "file": "evals/opencode-dist/run.mjs",
+          "line": 278,
+          "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
+        },
         {
           "file": "scripts/judgment-evals.mjs",
           "line": 155,
@@ -52,8 +82,20 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "fcff9bd889a3d39f926cb2ae9bcbef1eb3eb2bbe",
-      "verifiedDigest": "9e5bfd85752c11d34995cf7cddf2bb2c5b466131792ffca8c15ba3650b103e75"
+      "verifiedAt": "0363923b42af372d29e0f5b0426fcd342b41801d",
+      "verifiedDigest": "6538e5b0edd08043821e32ed5581f700310d5b81b35f8f0a09051c696b37ad0d",
+      "claims": [
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 513,
+          "anchor": "addSourceTree(sourcePath(spec.name, 'scripts'),"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 515,
+          "anchor": "addSourceTree(sourcePath(spec.name, 'reference'),"
+        }
+      ]
     },
     {
       "slug": "ci-workflows",
@@ -85,8 +127,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "fcff9bd889a3d39f926cb2ae9bcbef1eb3eb2bbe",
-      "verifiedDigest": "86eccc15da4eef16d4d1fbd5839074c82ee776f49e602c6b29b52b22ad2f3411"
+      "verifiedAt": "0363923b42af372d29e0f5b0426fcd342b41801d",
+      "verifiedDigest": "a397eeac4794044403341dbece799ac0dbc2c6471a662af414115a80554e824e"
     },
     {
       "slug": "root-contracts",
@@ -100,8 +142,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
-      "verifiedDigest": "2161da0e6c483667776112f25ab2e2c31c9a25578a40b2b1926bc4267f0bb587"
+      "verifiedAt": "0363923b42af372d29e0f5b0426fcd342b41801d",
+      "verifiedDigest": "b0e5553051cff704f357cea2638f45c7b762bd7e49036c8d2a471c6052489eef"
     },
     {
       "slug": "runtime-toolchain",

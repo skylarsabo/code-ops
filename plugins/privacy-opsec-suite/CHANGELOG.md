@@ -1,7 +1,7 @@
 # Changelog — privacy-opsec-suite
 
-## 1.20.20
-- **TODO** — describe the change.
+## 1.20.21
+- The changelog no longer carries a duplicated `1.20.20` heading with a leftover placeholder bullet from the version bump script.
 
 ## 1.20.20
 - The vendored `revalidate-register.mjs` reads the Severity field value alone, so a composite line such as `Severity: medium · Confidence: high` no longer reads as load-bearing and deflated at once. Its anchor grammar accepts a doubled-backtick span, so an anchor copied from a line that contains a backtick parses; a backslash is still not an escape. The resolver it shares with the handoff checker ships beside it as `citation-lib.mjs`.
