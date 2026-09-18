@@ -285,7 +285,7 @@ code-ops/
 ├── evals/                                # regression and judgment eval harness
 ├── code-ops-docs/                        # the documentation hub and Obsidian vault
 └── plugins/
-    ├── code-ops-suite/                   # 34 skills, explorer + reviewer, hooks/
+    ├── code-ops-suite/                   # 34 skills, explorer + reviewer + implementer, hooks/
     ├── privacy-opsec-suite/              # 14 skills, explorer + privacy-reviewer
     ├── rigor/                            # 11 skills, tracer + verifier
     └── researcher/                       # 7 skills, gatherer + claim-checker

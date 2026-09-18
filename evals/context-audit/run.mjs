@@ -10,7 +10,10 @@
 //   - a non-JSON line is skipped, never fatal; sanitized output carries no fixture path,
 //     `--raw` does; `--json` parses;
 //   - the hook appends exactly one v1 row to $CODE_OPS_RECEIPTS with the same token totals,
-//     and exits 0 with no row on garbage stdin or a missing transcript.
+//     and exits 0 with no row on garbage stdin or a missing transcript;
+//   - context shape (fixture-shape): per-turn context bands, the first and max context of a
+//     thread, a cache-rewrite turn, the agent type read from a sibling `.meta.json` (a malformed
+//     one reads as `unknown`), the three rendered sections, and `--all` across project directories.
 //
 //   node evals/context-audit/run.mjs   (exit 0 = pass)
 
@@ -175,6 +178,69 @@ expect(/Read \*\.ts/.test(md.stdout), 'sanitized Read label keeps only the exten
 const raw = run([cli, '--transcripts', fixture, '--raw']);
 expect(raw.status === 0 && raw.stdout.includes('secret-file.ts'), '--raw keeps the path');
 
+// Context shape: per-turn context, bands, cache rewrites, and the agent-type table.
+const shapeFixture = join(here, 'fixture-shape');
+const shapeJson = run([cli, '--transcripts', shapeFixture, '--json']);
+expect(shapeJson.status === 0, `shape fixture --json should exit 0, got ${shapeJson.status}: ${shapeJson.stderr}`);
+let shape = null;
+try { shape = JSON.parse(shapeJson.stdout); } catch { fails.push('shape fixture --json must parse'); }
+if (shape) {
+  const m = shape.main, s = shape.subagents;
+  expect(m.turns === 3 && m.contextFirst === 50000 && m.contextMax === 210000,
+    `main context shape 3/50000/210000, got ${m.turns}/${m.contextFirst}/${m.contextMax}`);
+  expect(m.threads.length === 1 && m.threads[0].inputSide === 380000,
+    `merged main keeps one thread carrying 380000 input-side tokens, got ${JSON.stringify(m.threads)}`);
+  const bandsOf = (x) => x.contextBands.map((b) => `${b.turns}:${b.tokens}`).join(',');
+  expect(bandsOf(m) === '1:50000,0:0,1:120000,0:0,1:210000,0:0',
+    `main turns land in the 0-60K, 100K-150K, and 200K-300K bands, got ${bandsOf(m)}`);
+  expect(m.cacheRewrites.turns === 1 && m.cacheRewrites.tokens === 79000,
+    `one non-first turn recreates over half of a context above 40K, got ${JSON.stringify(m.cacheRewrites)}`);
+  expect(s.threads.length === 2 && s.turns === 3 && bandsOf(s) === '2:40000,1:70000,0:0,0:0,0:0,0:0',
+    `subagent threads merge their bands, got ${s.threads.length}/${s.turns}/${bandsOf(s)}`);
+  expect(s.cacheRewrites.turns === 0, `no subagent turn qualifies as a rewrite, got ${JSON.stringify(s.cacheRewrites)}`);
+  const verifier = shape.byAgentType['verifier / model-sub'];
+  expect(verifier?.threads === 1 && verifier?.turns === 2 && verifier?.medianContextFirst === 30000
+    && verifier?.medianContextMax === 70000 && verifier?.inputSide === 100000,
+    `the sibling meta file names the agent type, got ${JSON.stringify(shape.byAgentType)}`);
+  expect(shape.byAgentType['unknown / model-other']?.inputSide === 10000,
+    `a malformed meta file reads as agent type unknown, got ${JSON.stringify(Object.keys(shape.byAgentType))}`);
+}
+const shapeMd = run([cli, '--transcripts', shapeFixture]);
+expect(/## Context shape/.test(shapeMd.stdout) && /## Spend by context band/.test(shapeMd.stdout)
+  && /## Subagents by agent type/.test(shapeMd.stdout), 'markdown carries the three context-shape sections');
+expect(shapeMd.stdout.indexOf('## Context shape') > shapeMd.stdout.indexOf('## Exact tokens')
+  && shapeMd.stdout.indexOf('## Context shape') < shapeMd.stdout.indexOf('## Context bytes by source'),
+  'the context-shape sections follow the exact-tokens table');
+expect(/\| 100K-150K \| 1 \| 120,000 \|/.test(shapeMd.stdout), `the band table lists the 100K-150K turn, got:\n${shapeMd.stdout}`);
+expect(/Full cache rewrites .*main 1 turn\(s\), 79,000 tokens/.test(shapeMd.stdout), 'the rewrite line reports main turns and tokens');
+expect(/\| verifier \/ model-sub \| 1 \| 2 \| 30,000 \| 70,000 \| 100,000 \|/.test(shapeMd.stdout),
+  `the agent-type table is sorted by input-side tokens, got:\n${shapeMd.stdout}`);
+
+// `--all` without `--transcripts`: every project under the host's transcript root, merged.
+const homeDir = mkdtempSync(join(tmpdir(), 'ca-home-'));
+const projectRoot = join(homeDir, '.claude', 'projects');
+for (const slug of ['C--proj-a', 'C--proj-b']) {
+  mkdirSync(join(projectRoot, slug), { recursive: true });
+  appendFileSync(join(projectRoot, slug, 'sess-shape.jsonl'), readFileSync(join(shapeFixture, 'sess-shape.jsonl'), 'utf8'));
+}
+const homeEnv = { ...process.env, HOME: homeDir, USERPROFILE: homeDir };
+const allJson = run([cli, '--all', '--json'], { env: homeEnv });
+try {
+  const a = JSON.parse(allJson.stdout);
+  expect(allJson.status === 0 && a.files === 2 && a.main.turns === 6 && a.main.threads.length === 2,
+    `--all merges every project directory, got ${allJson.stdout.slice(0, 200)}`);
+  expect(a.projects.length === 2 && a.projects.every((p) => p.mainInputSide === 380000),
+    `--all reports per-project input-side totals, got ${JSON.stringify(a.projects)}`);
+} catch { fails.push(`--all --json must parse, got ${allJson.stdout.slice(0, 120)}${allJson.stderr.slice(0, 120)}`); }
+const allMd = run([cli, '--all'], { env: homeEnv });
+expect(/## Projects/.test(allMd.stdout) && /\| project-1 \| 380,000 \|/.test(allMd.stdout) && !/C--proj-/.test(allMd.stdout),
+  `--all renders the per-project totals table without path-derived slugs, got:\n${allMd.stdout.slice(-400)}`);
+const allRaw = run([cli, '--all', '--raw'], { env: homeEnv });
+expect(/\| C--proj-[ab] \| 380,000 \|/.test(allRaw.stdout), `--all --raw names the project slugs, got:\n${allRaw.stdout.slice(-400)}`);
+const allSince = run([cli, '--all', '--since', '2026-09-03T00:00:00Z'], { env: homeEnv });
+expect(allSince.status === 1, `--since still filters per file by its last timestamp, got ${allSince.status}`);
+rmSync(homeDir, { recursive: true, force: true });
+
 // Empty dir → exit 1.
 const empty = mkdtempSync(join(tmpdir(), 'ca-empty-'));
 const e = run([cli, '--transcripts', empty]);
@@ -314,4 +380,5 @@ console.log('ok   tool attribution, cd-stripped families, repeat reads, sanitize
 console.log('ok   SessionEnd receipt hook appends one row, prints nothing, fails open');
 console.log('ok   receipts record the arm switches and the context at end; --by-arm reads arms against none');
 console.log('ok   --purge-before rewrites the ledger by date and reports what it removed');
+console.log('ok   context shape: per-turn bands, cache rewrites, agent types, and --all across projects');
 console.log('\ncontext-audit eval passed');

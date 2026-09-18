@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.83.0
+- The `implementer` agent ships for build, fix, and refactor units, with tools `Read, Edit, Write, Bash, Grep, Glob` and an `opus` floor in `AGENT_MODEL_FLOORS`. A transcript audit on 2026-09-18 measured general-purpose operatives starting each turn near 57,000 tokens against 18,000 to 24,000 for restricted-tool agents, and those operatives carried 787 million of one day's tokens.
+- The conventions, the routing card, and `subagent-trade-offs.md` state that a dispatch costs resident context multiplied by turn count. They route build work to the `implementer`, keep breadth agents at their declared tier, and require a round budget in each brief.
+- The dispatch brief template gains a Round budget field, 40 tool rounds unless stated. An operative past its budget checkpoints to its Report path and returns, and the lead continues the unit in a fresh operative.
+- The handoff card nudges at 150,000 tokens of resident context and every further 150,000-token band, down from 200,000, because 71% of lead input-side tokens were spent above 200,000. `MEASUREMENTS.md` records the amendment, and the value stays SPECULATIVE.
+- `context-audit.mjs` reports context shape per thread, spend by context band, cache rewrites, and subagents by agent type, and `--all` merges every project under the host transcript root.
+
 ## 1.82.0
 - The OpenCode Zen free ladder binds every operative rung to `muse-spark-1.3-contributor-free`: light, mid, and strong share one model, so no operative dispatch routes below its floor. The lead stays unset and inherits the session model. The rendered `opencode-dist/opencode.json` binds every agent to that model with no top-level `model`. The routing table names the flat operatives beside the flat xAI row.
 - The `opencode` provider pin is verified against the host `opencode models` list on 2026-09-17.

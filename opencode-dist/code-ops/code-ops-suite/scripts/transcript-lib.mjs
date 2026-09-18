@@ -31,6 +31,33 @@ import { homedir } from 'node:os';
 export const USAGE_FIELDS = ['input', 'cacheRead', 'cacheCreate', 'output', 'thinking'];
 export const UNKNOWN = 'UNKNOWN';
 
+// Context shape: what a turn carried IN (input + cache read + cache creation). Spend follows the
+// resident context, not the reply, so the band a turn sits in is the unit that predicts cost.
+// Lower edges in tokens; the last band is open-ended.
+export const CONTEXT_BAND_EDGES = [0, 60000, 100000, 150000, 200000, 300000];
+export const CONTEXT_BAND_LABELS = CONTEXT_BAND_EDGES.map((edge, i) => i === CONTEXT_BAND_EDGES.length - 1
+  ? `${edge / 1000}K+` : `${edge / 1000}K-${CONTEXT_BAND_EDGES[i + 1] / 1000}K`);
+// A turn that recreates more than half of a large context paid for a cache miss it could reuse.
+const REWRITE_SHARE = 0.5, REWRITE_FLOOR = 40000;
+
+export function contextBandIndex(ctx) {
+  let i = 0;
+  while (i + 1 < CONTEXT_BAND_EDGES.length && ctx >= CONTEXT_BAND_EDGES[i + 1]) i++;
+  return i;
+}
+
+const emptyBands = () => CONTEXT_BAND_EDGES.map(() => ({ turns: 0, tokens: 0 }));
+
+// Tokens a thread carried in across every usage-bearing turn — the band table's own total.
+export const inputSideOf = (s) => (s.contextBands || []).reduce((n, b) => n + (b.tokens || 0), 0);
+
+// Nearest-rank percentile over a numeric sample; 0 for an empty sample.
+export function percentile(values, q) {
+  const a = values.filter((n) => typeof n === 'number').sort((x, y) => x - y);
+  return a.length ? a[Math.min(a.length - 1, Math.max(0, Math.floor(q * (a.length - 1))))] : 0;
+}
+export const median = (values) => percentile(values, 0.5);
+
 const emptyUsage = () => ({ input: 0, cacheRead: 0, cacheCreate: 0, output: 0, thinking: 0, total: 0 });
 
 const tokenCount = (n) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? n : UNKNOWN;
@@ -183,6 +210,13 @@ export function emptySummary() {
     // Tokens the last assistant message carried in: the context resident at session end, which
     // is the cost a verbatim payload leaves behind and the metric the query index targets.
     contextAtEnd: 0,
+    // Context shape. `turns` counts usage-bearing assistant turns after dedup; `contextBands`
+    // is one {turns, tokens} entry per CONTEXT_BAND_EDGES band. A host that reports no
+    // per-turn usage leaves contextFirst / contextMax UNKNOWN and every counter at zero.
+    contextFirst: 0, contextMax: 0, turns: 0,
+    contextBands: emptyBands(), cacheRewrites: { turns: 0, tokens: 0 },
+    // Filled by mergeSummaries: one entry per merged thread, so medians survive the merge.
+    threads: [],
   };
 }
 
@@ -407,6 +441,26 @@ export function summarizeTranscript(text, opts = {}) {
     addUsage(s.usage, Object.fromEntries(USAGE_FIELDS.map((k) => [k, typeof grokUsage[k] === 'number' ? grokUsage[k] : 0])));
     s.usage.total = tokenSum(priorTotal, grokUsage.total);
   }
+  // Context shape, over the SAME dedup identity as the token totals (usageById, per-field max),
+  // in transcript order. Only the Claude branch reports per-turn context; other hosts stay UNKNOWN.
+  for (const u of usageById.values()) {
+    const ctx = u.input + u.cacheRead + u.cacheCreate;
+    if (!ctx) continue;
+    if (!s.turns) s.contextFirst = ctx;
+    s.contextMax = Math.max(s.contextMax, ctx);
+    s.turns++;
+    const band = s.contextBands[contextBandIndex(ctx)];
+    band.turns++;
+    band.tokens += ctx;
+    if (s.turns > 1 && u.cacheCreate > REWRITE_SHARE * ctx && ctx > REWRITE_FLOOR) {
+      s.cacheRewrites.turns++;
+      s.cacheRewrites.tokens += u.cacheCreate;
+    }
+  }
+  if (!s.turns && (codexResponses.size || codexCumulative || grokPrompts.size || codexMessageIds.size)) {
+    s.contextFirst = UNKNOWN;
+    s.contextMax = UNKNOWN;
+  }
   const lastUsage = [...usageById.values()].pop();
   s.contextAtEnd = lastUsage ? lastUsage.input + lastUsage.cacheRead + lastUsage.cacheCreate : 0;
   if (codexLast) s.contextAtEnd = tokenCount(codexLast.input_tokens);
@@ -453,11 +507,24 @@ export function mergeSummaries(list, opts = {}) {
     m.durationMs += s.durationMs;
     m.contextAtEnd = typeof m.contextAtEnd === 'number' && typeof s.contextAtEnd === 'number'
       ? Math.max(m.contextAtEnd, s.contextAtEnd) : UNKNOWN;
+    m.turns += s.turns || 0;
+    for (let i = 0; i < m.contextBands.length; i++) {
+      m.contextBands[i].turns += s.contextBands?.[i]?.turns || 0;
+      m.contextBands[i].tokens += s.contextBands?.[i]?.tokens || 0;
+    }
+    m.cacheRewrites.turns += s.cacheRewrites?.turns || 0;
+    m.cacheRewrites.tokens += s.cacheRewrites?.tokens || 0;
+    // An already-merged summary carries its thread list; a single transcript contributes itself.
+    if (s.threads?.length) m.threads.push(...s.threads);
+    else if (s.turns > 0) m.threads.push({ contextFirst: s.contextFirst, contextMax: s.contextMax, turns: s.turns, inputSide: inputSideOf(s) });
     if (s.firstTs) { const t = Date.parse(s.firstTs); if (first === null || t < first) first = t; }
     if (s.lastTs) { const t = Date.parse(s.lastTs); if (last === null || t > last) last = t; }
   }
   m.largest.sort((a, c) => c.chars - a.chars);
   m.largest.length = Math.min(m.largest.length, top);
+  // Across a merge, first context is the earliest thread's and max is the widest thread's.
+  m.contextFirst = m.threads.length ? m.threads[0].contextFirst : 0;
+  m.contextMax = m.threads.reduce((n, t) => Math.max(n, typeof t.contextMax === 'number' ? t.contextMax : 0), 0);
   m.firstTs = first === null ? null : new Date(first).toISOString();
   m.lastTs = last === null ? null : new Date(last).toISOString();
   return m;
@@ -534,9 +601,22 @@ export function measurementTranscriptFor(sessionFile) {
   return /chat_history\.jsonl$/i.test(sessionFile) && existsSync(updates) ? updates : sessionFile;
 }
 
+// The agent type a subagent thread ran under, from the `<thread>.meta.json` the host writes
+// beside the JSONL. A missing or malformed file is `unknown`, never fatal. The type is a
+// registry label (`verifier`, `mech`), so it is safe to publish next to counts.
+function agentTypeOf(sessionFile) {
+  try {
+    const meta = JSON.parse(readFileSync(sessionFile.replace(/\.jsonl$/i, '.meta.json'), 'utf8'));
+    const type = meta?.agentType;
+    return typeof type === 'string' && type.trim() ? type.trim() : 'unknown';
+  } catch { return 'unknown'; }
+}
+
+const dominantModel = (s) => Object.entries(s.models).sort((a, b) => b[1] - a[1])[0]?.[0] || UNKNOWN;
+
 // Summarize every session in a transcript directory: main threads and their subagents apart.
 export function summarizeDirectory(dir, opts = {}) {
-  const out = { dir, files: 0, main: null, subagents: null, all: null, sessions: [] };
+  const out = { dir, files: 0, main: null, subagents: null, all: null, sessions: [], byAgentType: {} };
   if (!existsSync(dir) || !statSync(dir).isDirectory()) return out;
   const find = (d) => readdirSync(d, { withFileTypes: true }).flatMap((entry) => {
     const path = join(d, entry.name);
@@ -564,7 +644,18 @@ export function summarizeDirectory(dir, opts = {}) {
     (s.sidechain ? subSums : mainSums).push(s);
     const subs = [];
     for (const sf of subagentFilesFor(f)) {
-      try { subs.push(summarizeTranscript(readFileSync(sf, 'utf8'), opts)); out.files++; } catch { /* skip */ }
+      let sub;
+      try { sub = summarizeTranscript(readFileSync(sf, 'utf8'), opts); } catch { continue; }
+      subs.push(sub);
+      out.files++;
+      if (!sub.turns) continue;
+      const key = `${agentTypeOf(sf)} / ${dominantModel(sub)}`;
+      const b = out.byAgentType[key] ??= { key, threads: 0, turns: 0, first: [], max: [], inputSide: 0 };
+      b.threads++;
+      b.turns += sub.turns;
+      b.first.push(sub.contextFirst);
+      b.max.push(sub.contextMax);
+      b.inputSide += inputSideOf(sub);
     }
     subSums.push(...subs);
     out.sessions.push({ file: basename(f), main: s, subagents: mergeSummaries(subs, opts) });
@@ -572,6 +663,32 @@ export function summarizeDirectory(dir, opts = {}) {
   out.main = mergeSummaries(mainSums, opts);
   out.subagents = mergeSummaries(subSums, opts);
   out.all = mergeSummaries([...mainSums, ...subSums], opts);
+  for (const [key, b] of Object.entries(out.byAgentType)) {
+    out.byAgentType[key] = { key, threads: b.threads, turns: b.turns,
+      medianContextFirst: median(b.first), medianContextMax: median(b.max), inputSide: b.inputSide,
+      first: b.first, max: b.max };
+  }
+  return out;
+}
+
+// Merge the per-agent-type tables of several directories (one per project under `--all`).
+export function mergeAgentTypes(tables) {
+  const out = {};
+  for (const table of tables) {
+    for (const [key, b] of Object.entries(table || {})) {
+      const m = out[key] ??= { key, threads: 0, turns: 0, medianContextFirst: 0, medianContextMax: 0, inputSide: 0, first: [], max: [] };
+      m.threads += b.threads;
+      m.turns += b.turns;
+      m.inputSide += b.inputSide;
+      m.first.push(...(b.first || []));
+      m.max.push(...(b.max || []));
+    }
+  }
+  // Medians do not sum, so each group's median is recomputed over every contributing thread.
+  for (const m of Object.values(out)) {
+    m.medianContextFirst = median(m.first);
+    m.medianContextMax = median(m.max);
+  }
   return out;
 }
 
@@ -596,6 +713,39 @@ export function renderMarkdown(agg, opts = {}) {
   for (const [name, s] of [['main', main], ['subagents', subagents], ['all', all]]) {
     const u = s.normalizedUsage;
     L.push(`| ${name} | ${fmt(s.messages.assistant)} | ${fmt(u.input)} | ${fmt(u.cacheRead)} | ${fmt(u.cacheCreate)} | ${fmt(u.output)} | ${fmt(u.thinking)} | ${fmt(u.total)} |`);
+  }
+  L.push('');
+  L.push('## Context shape');
+  L.push('');
+  L.push('Context is what a turn carried in (input + cache read + cache creation), per deduplicated turn.');
+  L.push('');
+  L.push('| Thread | Threads | Turns | First p10 | First p50 | First p90 | Max p10 | Max p50 | Max p90 |');
+  L.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
+  for (const [name, s] of [['main', main], ['subagents', subagents]]) {
+    const firsts = (s.threads || []).map((t) => t.contextFirst);
+    const maxes = (s.threads || []).map((t) => t.contextMax);
+    L.push(`| ${name} | ${fmt((s.threads || []).length)} | ${fmt(s.turns)} | ${fmt(percentile(firsts, 0.1))} | ${fmt(percentile(firsts, 0.5))} | ${fmt(percentile(firsts, 0.9))} | ${fmt(percentile(maxes, 0.1))} | ${fmt(percentile(maxes, 0.5))} | ${fmt(percentile(maxes, 0.9))} |`);
+  }
+  L.push('');
+  L.push('## Spend by context band');
+  L.push('');
+  L.push('| Band | Main turns | Main tokens | Main share | Subagent turns | Subagent tokens | Subagent share |');
+  L.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: |');
+  const mainSide = inputSideOf(main), subSide = inputSideOf(subagents);
+  CONTEXT_BAND_LABELS.forEach((label, i) => {
+    const mb = main.contextBands?.[i] || { turns: 0, tokens: 0 };
+    const sb = subagents.contextBands?.[i] || { turns: 0, tokens: 0 };
+    L.push(`| ${label} | ${fmt(mb.turns)} | ${fmt(mb.tokens)} | ${pct(mb.tokens, mainSide)} | ${fmt(sb.turns)} | ${fmt(sb.tokens)} | ${pct(sb.tokens, subSide)} |`);
+  });
+  L.push('');
+  L.push(`Full cache rewrites (over half of a context above ${fmt(REWRITE_FLOOR)} tokens recreated): main ${fmt(main.cacheRewrites?.turns)} turn(s), ${fmt(main.cacheRewrites?.tokens)} tokens; subagents ${fmt(subagents.cacheRewrites?.turns)} turn(s), ${fmt(subagents.cacheRewrites?.tokens)} tokens.`);
+  L.push('');
+  L.push('## Subagents by agent type');
+  L.push('');
+  L.push('| Type / model | Threads | Turns | Median first | Median max | Input-side tokens |');
+  L.push('| --- | ---: | ---: | ---: | ---: | ---: |');
+  for (const b of Object.values(agg.byAgentType || {}).sort((a, c) => c.inputSide - a.inputSide)) {
+    L.push(`| ${b.key} | ${fmt(b.threads)} | ${fmt(b.turns)} | ${fmt(b.medianContextFirst)} | ${fmt(b.medianContextMax)} | ${fmt(b.inputSide)} |`);
   }
   L.push('');
   L.push('## Context bytes by source (characters, all threads)');
@@ -638,5 +788,13 @@ export function renderMarkdown(agg, opts = {}) {
   L.push('| ---: | --- |');
   for (const r of all.largest.slice(0, top)) L.push(`| ${fmt(r.chars)} | ${r.label} |`);
   L.push('');
+  if (agg.projects) {
+    L.push('## Projects');
+    L.push('');
+    L.push('| Project | Main input-side | Subagent input-side |');
+    L.push('| --- | ---: | ---: |');
+    for (const p of agg.projects) L.push(`| ${p.slug} | ${fmt(p.mainInputSide)} | ${fmt(p.subagentInputSide)} |`);
+    L.push('');
+  }
   return L.join('\n');
 }

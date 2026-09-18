@@ -1,6 +1,6 @@
 # Dispatch brief template
 
-Every subagent the orchestrator spawns gets a brief carrying the same eleven fields. A
+Every subagent the orchestrator spawns gets a brief carrying the same twelve fields. A
 missing field is the usual cause of a subagent guessing instead of escalating, or of two
 subagents clobbering one file. This page holds the fill-in skeleton, one line per agent
 kind, and a worked example.
@@ -20,6 +20,8 @@ Report path: <exact file inside the run folder, e.g. `80 Runs/<date slug>/report
   With a write tool: write the full report there, then return only the path, a one-line verdict,
   and counts. Without one: return the full report inline>
 Batching: request every independent item in one tool round; wait only on true dependencies
+Round budget: <tool rounds this unit should finish inside, 40 unless stated; past it the operative
+  checkpoints done, remaining, and the exact next action to the Report path, then returns>
 Size discipline: <implementer briefs only: correctness and the safety floor, then boundaries, then
   measured performance, then readability, then size; mark a deliberate simplification
   deferred(<ceiling>, <upgrade path>)>
@@ -34,7 +36,9 @@ re-explaining the codebase. Expected return sets the report shape, so the orches
 merges reports without re-deriving their structure. Report path puts the report on disk
 without the lead re-emitting it. Escalation and Constraints keep a
 subagent from improvising past what it was asked. Independence separates validation from
-discovery. The lead dispatches in the background
+discovery. Round budget caps the context one operative accumulates, because every turn
+re-reads all of it. The lead continues a checkpointed unit in a fresh operative, and splits a
+unit that needs a second continuation. The lead dispatches in the background
 and continues independent work, and it waits only when the next step depends on the result.
 
 For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file.
@@ -47,7 +51,7 @@ itself lives in each plugin's `CONVENTIONS.md` under "Persist reports as they la
 
 The named path governs over any default reporting instruction in the agent definition.
 
-- **Operative with a file-write tool** (shipped: verifier; any host agent that can write
+- **Operative with a file-write tool** (shipped: verifier and implementer; any host agent that can write
   files): write the full report to the named path. Return a pointer of three lines at most:
   the path, a one-line verdict, and counts such as findings per tier.
 - **Operative without a file-write tool** (shipped: explorer in code-ops-suite and
@@ -87,6 +91,9 @@ the `env` block of a `.claude/settings.json`. The index contract lives in
   as the receipt, never a claimed result.
 - **gatherer and claim-checker**: research one claim or source against the codebase and its
   history. Never reach the network directly.
+- **implementer**: one bounded build, fix, or refactor unit with a disjoint Scope. Use it
+  instead of a general-purpose agent, whose full tool surface costs about 35,000 more tokens
+  on every turn. Name the verification commands and the Round budget.
 - **mech**: an exact edit spec with no ambiguity to resolve. Transcribe the diff as briefed
   and report what changed.
 
@@ -118,6 +125,7 @@ Expected return: CONFIRMED/PROBABLE/SPECULATIVE verdict, file:line evidence, one
   paragraph max, no pasted source.
 Report path: 80 Runs/2026-09-14 retry-audit/reports/D-004-verifier.md (write it, then
   return the path, the verdict, and the command count)
+Round budget: 15 tool rounds
 Escalation: if the swallow looks intentional (a comment or test asserts it), stop
   and report that instead of guessing at intent.
 Constraints: do not edit retry.ts; no commits.

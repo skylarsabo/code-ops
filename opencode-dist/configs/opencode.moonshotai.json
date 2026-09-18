@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "moonshotai/kimi-k2.6"
     },
+    "code-ops-suite-implementer": {
+      "model": "moonshotai/kimi-k3"
+    },
     "code-ops-suite-reviewer": {
       "model": "moonshotai/kimi-k3"
     },

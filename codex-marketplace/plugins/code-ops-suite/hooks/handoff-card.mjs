@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// UserPromptSubmit hook: once a session's resident context crosses 200,000 tokens, and again
-// every further 200,000-token band, tells the operator and the lead to hand off at the next
+// UserPromptSubmit hook: once a session's resident context crosses 150,000 tokens, and again
+// every further 150,000-token band, tells the operator and the lead to hand off at the next
 // workstream boundary with code-ops-suite:handoff instead of paying full price on every turn.
-// SPECULATIVE: the 200k threshold and the 200k band width are not yet calibrated against
-// session receipts. See the "Handoff card" pre-registration in MEASUREMENTS.md.
+// The threshold moved from 200k to 150k on 2026-09-18, when a transcript audit found 71% of
+// lead input-side tokens spent above 200k. The exact value stays SPECULATIVE until session
+// receipts calibrate it. See the "Handoff card" pre-registration in MEASUREMENTS.md.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
 // is `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
@@ -19,8 +20,8 @@
 //
 // ONCE PER CROSSING. A small per-session marker under `<host home>/code-ops/handoff/<project
 // slug>/<session id>.json` remembers the highest band already nudged, where
-// `band = floor(context / 200000)`. The hook nudges again only when the band goes up, and
-// re-arms (clears the marker) once context falls back under 200,000 tokens, which a
+// `band = floor(context / 150000)`. The hook nudges again only when the band goes up, and
+// re-arms (clears the marker) once context falls back under 150,000 tokens, which a
 // compaction typically causes.
 //
 // HOST COVERAGE. Claude and Codex both document `UserPromptSubmit` with `session_id` on stdin;
@@ -41,7 +42,7 @@ import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const THRESHOLD = 200_000;
+const THRESHOLD = 150_000;
 const TAIL_BYTES = 256 * 1024;
 
 // The last TAIL_BYTES of the file, with a possibly-truncated leading partial line dropped.

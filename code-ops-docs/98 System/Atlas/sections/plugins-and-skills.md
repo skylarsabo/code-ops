@@ -36,7 +36,7 @@ Vault migration must make irreversible judgment durable. The skill plans genesis
 
 The canonical package registers seven hook commands across six events. `handoff-card.mjs` runs
 at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and suggests a handoff
-once per 200,000-token context band; Grok ignores its stdout and OpenCode has no equivalent.
+once per 150,000-token context band; Grok ignores its stdout and OpenCode has no equivalent.
 `session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
 Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex

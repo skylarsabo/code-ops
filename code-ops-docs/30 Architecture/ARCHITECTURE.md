@@ -51,8 +51,8 @@ The canonical manifest registers seven commands across six events. Two commands 
 trace, and `digest-rewrite.mjs` wraps an allowlisted command with `digest.mjs` through the
 host's input-rewrite contract. `index-refresh.mjs` runs after supported edit tools.
 `handoff-card.mjs` runs at `UserPromptSubmit`, once per operator prompt, and nudges toward
-`/code-ops-suite:handoff` once resident context crosses 200,000 tokens and again every further
-200,000-token band. `routing-card.mjs`, `session-receipt.mjs`, and `ladder-card.mjs` run at
+`/code-ops-suite:handoff` once resident context crosses 150,000 tokens and again every further
+150,000-token band. `routing-card.mjs`, `session-receipt.mjs`, and `ladder-card.mjs` run at
 `SessionStart`, `SessionEnd`, and `SubagentStart`. There is no `PreCompact` command: Claude and
 Codex ignore plain `PreCompact` stdout, so their `SessionStart` projection adds a durable-state
 restore instruction when `source=compact` instead.

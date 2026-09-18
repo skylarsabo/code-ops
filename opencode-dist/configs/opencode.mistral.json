@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "mistral/magistral-small"
     },
+    "code-ops-suite-implementer": {
+      "model": "mistral/magistral-medium-latest"
+    },
     "code-ops-suite-reviewer": {
       "model": "mistral/magistral-medium-latest"
     },

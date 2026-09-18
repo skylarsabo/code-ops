@@ -71,9 +71,10 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 
 ## Subagents
 
-The skills fan work out to two bundled subagents, and spawn ephemeral ones as needed:
+The skills fan work out to three bundled subagents, and spawn ephemeral ones as needed:
 - `explorer`: read-only, fast tier, for parallel codebase investigation (structure, call-sites, flow). It never edits.
 - `reviewer`: strong tier, for parallel review of diffs and file-groups. It returns prioritized findings and never edits.
+- `implementer`: strong tier, for one bounded build, fix, or refactor unit. Its narrow tool surface starts each turn far below a general-purpose agent, and it never commits unless the brief grants it.
 
 Subagents are not free, because each one isolates context from the main agent. The skills use
 them where isolation genuinely helps, such as parallel exploration and sandboxed review, rather

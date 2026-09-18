@@ -6,12 +6,12 @@ The skills in this suite rarely do their work in a single thread. A task with in
 
 ## The short version
 
-A subagent is a worker the orchestrator spawns with a precise question and a minimal toolset. It runs in an isolated context and hands back a tight, evidence-cited report. The orchestrator merges those reports. The suite ships eight subagents, and they split into two kinds:
+A subagent is a worker the orchestrator spawns with a precise question and a minimal toolset. It runs in an isolated context and hands back a tight, evidence-cited report. The orchestrator merges those reports. The suite ships nine subagents, and they split into two kinds:
 
 | Kind | Agents | Tools | Fan-out rule |
 | --- | --- | --- | --- |
 | **Read-only** — investigate, never change anything | code-ops `explorer`, rigor `tracer`, privacy-opsec `explorer`, researcher `gatherer`, researcher `claim-checker`, code-ops `reviewer`, privacy-opsec `privacy-reviewer` | `Read, Grep, Glob` (the two reviewers add `Bash` for read-only checks) | Parallelize freely over disjoint areas. |
-| **Write / execute** — produce artifacts or run code | rigor `verifier` | `Read, Grep, Glob, Bash, Write` | Used carefully, on disjoint files, and never editing the source under evaluation. |
+| **Write / execute** — produce artifacts or run code | rigor `verifier`, code-ops `implementer` | `Read, Grep, Glob, Bash, Write` (the `implementer` adds `Edit`) | Used carefully, on disjoint files. The `verifier` never edits the source under evaluation, and the `implementer` edits only inside its brief's Scope. |
 
 One rule governs all of them, and it lives in code-ops-suite [`CONVENTIONS.md` §1](../../../plugins/code-ops-suite/CONVENTIONS.md). **Read-only analysis parallelizes freely. Anything that edits code runs in parallel only on disjoint file sets, and the orchestrator serializes work that touches shared files or dependency edges.** Every subagent grounds its report in `file:line` evidence ([§9](../../../plugins/code-ops-suite/CONVENTIONS.md)). The orchestrator keeps developer-in-the-loop control, so the subagents report and the orchestrator decides.
 
@@ -28,7 +28,8 @@ verdict rests on its output, and never route below an agent's lint-enforced floo
 | Task shape | Route to | Effort | Why |
 | --- | --- | --- | --- |
 | Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`, `mech`) — the one place the strong-tier default gives way, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis, and at least medium when the brief asks the operative to source or verify a name, because low effort answers from memory) | No judgment call to get wrong; cheapest tier that can do the read. |
-| Moderate judgment (single-claim research, one candidate finding, execution-only work) | `sonnet`-floor agents (`claim-checker`, `verifier`, implementer) — the mid tier is the floor here, not the target: run them strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test; `verifier` executes only, judgment stays with the lead. |
+| Moderate judgment (single-claim research, one candidate finding, execution-only work) | `sonnet`-floor agents (`claim-checker`, `verifier`) — the mid tier is the floor here, not the target: run them strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test; `verifier` executes only, judgment stays with the lead. |
+| Scoped implementation (build, fix, or refactor one bounded unit) | code-ops `implementer` (`opus` floor), never a general-purpose agent | medium | The narrow tool surface starts each turn near 20,000 tokens, against near 57,000 for a general-purpose agent. See [What a dispatch costs](#what-a-dispatch-costs). |
 | High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | `opus`-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | `reviewer`/`privacy-reviewer` high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
 | Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The lead, at the highest tier present in the session | high; xhigh only for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop and is never down-tiered for this. |
 
@@ -142,9 +143,21 @@ Because none of these write, the orchestrator can run four code-ops `explorer`s 
 
 ---
 
-## The writing agent
+## What a dispatch costs
 
-One agent in the suite can write files and run arbitrary commands: **rigor `verifier`** (model: `opus`, tools `Read, Grep, Glob, Bash, Write`). It exists so that **CONFIRMED** means something. Given one candidate finding, it writes the smallest repro that would fail if the bug is real, runs it, observes the actual output, and assigns the tier accordingly. [The disconfirmation pass](disconfirmation-pass.md) covers that loop.
+An operative re-reads its whole context on every turn, so a dispatch costs its resident context multiplied by its turn count. Tool-result volume is second-order. A cross-project transcript audit on 2026-09-18 measured about 1.04 billion input-side tokens in one day. Subagents carried 80% of them, and tool results were under 1% of the total. [MEASUREMENTS.md](../../55%20Operations/MEASUREMENTS.md) holds the full table. Three rules follow.
+
+- **Pick the narrowest agent that can do the unit.** A general-purpose agent started each turn at about 57,000 tokens, because it inherits every host tool schema. The suite's restricted-tool agents started at 18,000 to 24,000. General-purpose operatives carried 787 million of the day's tokens. Dispatch the `implementer` for build work, and never a general-purpose agent where a shipped agent fits.
+- **Bound the unit.** 63% of operative spend ran above 150,000 tokens of context. Size a unit to finish inside about 40 tool rounds, and name that budget in the brief. An operative that passes it writes a checkpoint and returns, and the lead continues the unit in a fresh operative from that checkpoint. A unit that needs a second continuation was scoped too large, so split it.
+- **Leave the agent's own tier alone for breadth.** An `explorer` or `gatherer` dispatch runs at the tier its definition declares. Pass a model override only when the brief demands cross-file synthesis. Prefer the suite `explorer` over a host's built-in exploration agent, which inherits the lead's model.
+
+---
+
+## The writing agents
+
+Two agents in the suite can write files and run arbitrary commands. **code-ops `implementer`** (model: `opus`, tools `Read, Edit, Write, Bash, Grep, Glob`) builds one bounded unit from a brief. It edits only inside the brief's Scope, never commits unless the brief grants it, and checkpoints to its Report path when it passes its round budget. Dispatch it for every build, fix, or refactor unit. A general-purpose agent loads the host's whole tool surface into every turn, and [What a dispatch costs](#what-a-dispatch-costs) gives the measured difference.
+
+The other is **rigor `verifier`** (model: `opus`, tools `Read, Grep, Glob, Bash, Write`). It exists so that **CONFIRMED** means something. Given one candidate finding, it writes the smallest repro that would fail if the bug is real, runs it, observes the actual output, and assigns the tier accordingly. [The disconfirmation pass](disconfirmation-pass.md) covers that loop.
 
 The `opus` floor here is a deliberate decision, not a token-saving candidate. A wrong CONFIRMED poisons every downstream consumer of the register (`AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs`), so nothing depends on this agent being cheap.
 
@@ -154,7 +167,7 @@ Hard rules in the agent definition fence its extra power:
 - **It reports only what it actually ran:** the real command and the real output, never a claimed result. A candidate it could not reproduce is reported as PROBABLE or SPECULATIVE, never quietly upgraded.
 - **It records every run.** Each repro, mutation, and benchmark runs through `node <plugin-root>/scripts/run-proof.mjs record -- <cmd>`, which leaves a replayable receipt in `RUN_RECEIPTS.md`. A claimed result with no receipt is narration, not proof.
 
-So even the one writing agent is write-isolated from the code being judged. When a skill needs several verifiers, the fan-out rule from [§1](../../../plugins/code-ops-suite/CONVENTIONS.md) applies in full. Give each verifier a **disjoint** repro target so the artifacts cannot collide, and serialize anything that would touch a shared file.
+So the `verifier` is write-isolated from the code being judged. When a skill needs several verifiers, the fan-out rule from [§1](../../../plugins/code-ops-suite/CONVENTIONS.md) applies in full. Give each verifier a **disjoint** repro target so the artifacts cannot collide, and serialize anything that would touch a shared file.
 
 ---
 

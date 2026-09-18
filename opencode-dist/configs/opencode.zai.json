@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "zai/glm-5"
     },
+    "code-ops-suite-implementer": {
+      "model": "zai/glm-5.2"
+    },
     "code-ops-suite-reviewer": {
       "model": "zai/glm-5.2"
     },

@@ -3,14 +3,14 @@
 // UserPromptSubmit context-size nudge. It pins the contract the hook promises:
 //   - on by default: without CODE_OPS_HANDOFF_CARD a crossing transcript prints once, and off,
 //     0, or false silences it for the same fixture;
-//   - below 200,000 tokens of resident context (input + cache-read + cache-creation on the last
+//   - below 150,000 tokens of resident context (input + cache-read + cache-creation on the last
 //     assistant usage record), the hook is silent and writes no marker;
-//   - crossing 200,000 prints exactly one JSON line, naming the approximate token count and
+//   - crossing 150,000 prints exactly one JSON line, naming the approximate token count and
 //     pointing at /code-ops-suite:handoff, on both systemMessage and hookSpecificOutput's
 //     additionalContext, with hookEventName UserPromptSubmit and no permissionDecision;
-//   - a second prompt in the same 200k band stays silent;
-//   - crossing into the next 200k band prints again;
-//   - falling back under 200,000 re-arms: the next crossing prints again;
+//   - a second prompt in the same 150k band stays silent;
+//   - crossing into the next 150k band prints again;
+//   - falling back under 150,000 re-arms: the next crossing prints again;
 //   - fail open: bad JSON, no hook_event_name match, a missing transcript file, a missing
 //     session_id, and empty stdin all exit 0 with no output;
 //   - Grok's passive-hook adapter emits nothing, matching routing-card.mjs and ladder-card.mjs.
@@ -81,19 +81,19 @@ function parseOut(r) {
   const dir = mkdtempSync(join(tmpdir(), 'handoff-transcript-'));
   const sessionId = 'sess-sequence';
 
-  // Below 200,000: silent, no output.
-  let transcript = writeTranscript(dir, assistantLine(150_000));
+  // Below 150,000: silent, no output.
+  let transcript = writeTranscript(dir, assistantLine(140_000));
   let r = runHook(payloadFor({ transcript, sessionId }), { home });
   expect(r.status === 0 && r.stdout === '', `below threshold must be silent, got ${r.status}/${JSON.stringify(r.stdout)}`);
 
-  // Crossing 200,000 (band 1): prints once.
-  transcript = writeTranscript(dir, assistantLine(250_000));
+  // Crossing 150,000 (band 1): prints once.
+  transcript = writeTranscript(dir, assistantLine(160_000));
   r = runHook(payloadFor({ transcript, sessionId }), { home });
   let out = parseOut(r);
   expect(r.status === 0 && out && out !== 'unparsable', `crossing must print one parsable JSON line, got ${r.status}/${JSON.stringify(r.stdout)}`);
   if (out && out !== 'unparsable') {
     expect(typeof out.systemMessage === 'string' && out.systemMessage.includes('/code-ops-suite:handoff'), 'systemMessage must name /code-ops-suite:handoff');
-    expect(out.systemMessage.includes('251,000') || out.systemMessage.includes('250,000'), `systemMessage must name the approximate token count, got ${out.systemMessage}`);
+    expect(out.systemMessage.includes('161,000') || out.systemMessage.includes('160,000'), `systemMessage must name the approximate token count, got ${out.systemMessage}`);
     expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(out.systemMessage), 'the message must carry no emoji');
     const hso = out.hookSpecificOutput || {};
     expect(hso.hookEventName === 'UserPromptSubmit', `hookEventName must be UserPromptSubmit, got ${hso.hookEventName}`);
@@ -102,30 +102,30 @@ function parseOut(r) {
   }
 
   // Same band, a later prompt: silent.
-  transcript = writeTranscript(dir, assistantLine(255_000));
+  transcript = writeTranscript(dir, assistantLine(165_000));
   r = runHook(payloadFor({ transcript, sessionId }), { home });
   expect(r.status === 0 && r.stdout === '', `same band must stay silent, got ${r.status}/${JSON.stringify(r.stdout)}`);
 
   // Next band (2): prints again.
-  transcript = writeTranscript(dir, assistantLine(450_000));
+  transcript = writeTranscript(dir, assistantLine(310_000));
   r = runHook(payloadFor({ transcript, sessionId }), { home });
   out = parseOut(r);
   expect(r.status === 0 && out && out !== 'unparsable', `the next band must print again, got ${r.status}/${JSON.stringify(r.stdout)}`);
 
-  // Falls back under 200,000: silent, and re-arms.
+  // Falls back under 150,000: silent, and re-arms.
   transcript = writeTranscript(dir, assistantLine(50_000));
   r = runHook(payloadFor({ transcript, sessionId }), { home });
   expect(r.status === 0 && r.stdout === '', `dropping under the threshold must stay silent, got ${r.status}/${JSON.stringify(r.stdout)}`);
 
-  // Crossing 200,000 again after the drop: prints once more.
-  transcript = writeTranscript(dir, assistantLine(210_000));
+  // Crossing 150,000 again after the drop: prints once more.
+  transcript = writeTranscript(dir, assistantLine(155_000));
   r = runHook(payloadFor({ transcript, sessionId }), { home });
   out = parseOut(r);
   expect(r.status === 0 && out && out !== 'unparsable', `re-armed crossing must print again, got ${r.status}/${JSON.stringify(r.stdout)}`);
 
   rmSync(dir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   crossing prints once, the same band stays silent, the next band prints, and dropping below 200,000 re-arms it');
+  console.log('ok   crossing prints once, the same band stays silent, the next band prints, and dropping below 150,000 re-arms it');
 }
 
 // ---------------------------------------------------------------- the off switch

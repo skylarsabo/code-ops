@@ -86,6 +86,7 @@ Each bundled agent states its required tier in its own file. For reference:
 | Agent | Required tier |
 | --- | --- |
 | `code-ops-suite-explorer` | `light` |
+| `code-ops-suite-implementer` | `strong` |
 | `code-ops-suite-reviewer` | `strong` |
 | `privacy-opsec-suite-explorer` | `light` |
 | `privacy-opsec-suite-privacy-reviewer` | `strong` |

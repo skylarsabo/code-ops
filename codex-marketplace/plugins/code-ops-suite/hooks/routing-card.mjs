@@ -25,6 +25,7 @@ function main() {
     'everything (broad/multi-domain) -> code-ops-suite:everything',
     'substantive work -> frontier orchestrator plus strong operatives; delegate every independently briefable unit and launch at least two disjoint units in parallel when possible',
     'the root continuously synthesizes, challenges assumptions, reprioritizes, and redirects; inline busy work requires a stated trivial-or-indivisible exception',
+    'a dispatch costs context times turns: use the narrowest shipped agent (code-ops-suite:implementer for build work, never general-purpose), name a round budget in the brief, keep breadth agents at their declared tier, and batch independent tool calls',
     'premium frontier peers only for the hardest bounded architecture, refutation, or synthesis; verdicts and acceptance stay with the lead',
     'say in a line what you are about to do, give brief updates while you work, and close with a recap that stands on its own',
     'only you see a command\'s output; put what the user needs to read in your reply',

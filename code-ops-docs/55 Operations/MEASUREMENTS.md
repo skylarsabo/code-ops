@@ -23,6 +23,9 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
   `--host codex` adapts Codex response usage and follows child rollout `parent_thread_id`
   links. Grok receipts normalize cumulative snapshots from `updates.jsonl`. Output is
   sanitized by default. `--json` emits the aggregate a receipt can hash.
+  The report carries context shape per thread, spend by context band, cache rewrites, and
+  subagents by agent type. `--all` merges every project under the host transcript root and ranks
+  projects as `project-N`; `--raw` names them.
 - `hooks/session-receipt.mjs` runs at `SessionEnd` on Claude, Codex, and installed Grok
   1.0.13. It appends one normalized row to the host-specific home ledger or
   `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false`.
@@ -139,11 +142,53 @@ means the rule reads, and the receipt of the `--by-arm` run. Evidence:
 `plugins/code-ops-suite/hooks/session-receipt.mjs:68-71`, `scripts/context-audit.mjs:93-132`,
 and `scripts/transcript-lib.mjs:212`.
 
+## Cross-project spend audit, 2026-09-18
+
+**CONFIRMED** from host usage records. Scope: every Claude transcript under the host's project
+root with a turn on or after 2026-09-17, which is 14 lead threads and 113 subagent threads,
+mostly from one other repository's implementation runs. Context per turn is input plus
+cache-read plus cache-creation tokens, deduplicated by message identity. The report carries
+counts only and quotes nothing from those repositories.
+
+| Thread kind | Threads | Turns | Input-side tokens | First-turn context, median | Peak context, median | Peak, 90th percentile |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Lead | 14 | 953 | 207M | 73K | 259K | 410K |
+| Subagent | 113 | 5,470 | 836M | 57K | 122K | 239K |
+
+| Context band | Lead share | Subagent share |
+| --- | ---: | ---: |
+| under 100K | 4% | 14% |
+| 100K to 150K | 8% | 22% |
+| 150K to 200K | 16% | 22% |
+| 200K to 300K | 43% | 27% |
+| over 300K | 28% | 14% |
+
+| Agent type and tier | Threads | Turns | First-turn context, median | Input-side tokens |
+| --- | ---: | ---: | ---: | ---: |
+| general-purpose, strong | 73 | 4,779 | 57K | 787M |
+| host exploration agent, strong | 23 | 433 | 32K | 32M |
+| general-purpose, frontier | 7 | 219 | 57K | 28M |
+| suite `explorer`, strong | 10 | 153 | 18K | 11M |
+| `mech`, mid | 3 | 89 | 24K | 4M |
+
+Three readings follow. Spend is resident context multiplied by turn count: tool results
+totalled about 4.5 million tokens, under 1% of the input side, so each resident token was
+re-read about 200 times. Caching was healthy, with 41 turns that rewrote more than half their
+context. A general-purpose operative starts 33,000 to 39,000 tokens above a restricted-tool
+agent on every turn, because it inherits every host tool schema.
+
+These numbers drove the `implementer` agent, the brief's Round budget field, and the handoff
+threshold amendment below. They are one day from one operator, so they size the levers and do
+not prove the fixes. **Pre-registered check:** the next audit of comparable runs, using
+`context-audit.mjs --all`, should show implementation operatives with a median first-turn
+context under 30,000 and a median peak under 150,000. If the first holds and the second does
+not, the Round budget is not binding and needs a mechanical backstop.
+
 ## Pre-registered: handoff-card threshold
 
 `hooks/handoff-card.mjs` (switch `CODE_OPS_HANDOFF_CARD`) nudges toward `/code-ops-suite:handoff`
 once a session's resident context, read from the last assistant turn's usage record, crosses
-200,000 tokens, and again every further 200,000-token band. That threshold and band width are
+150,000 tokens, and again every further 150,000-token band. That threshold and band width are
 **SPECULATIVE**: chosen from the baseline's own resident-context evidence (this repository's
 `main` thread averaged 986,553,451 cache-read tokens across 3,139 assistant messages, so a
 per-turn context in the hundreds of thousands is ordinary, not exceptional) rather than from a
@@ -157,7 +202,15 @@ reached during the session, alongside the existing `contextAtEnd` field the hook
 independently. Until that extension lands, the only evidence available is the marker files
 themselves and operator report.
 
-**Decision rule, fixed before any row exists.** The threshold stays at 200,000 when sessions
+**Amendment, 2026-09-18.** The threshold started at 200,000. The cross-project audit below found
+71% of lead input-side tokens spent above 200,000, a median lead peak of 259,000, and a 90th
+percentile of 410,000. Leads were far past the first nudge before any handoff, which is the
+rule's "fires too late" outcome, so the threshold and band width moved to 150,000. This is
+transcript evidence, not the matched on/off comparison the rule names, so the value stays
+**SPECULATIVE**. The audit cannot show whether a nudged lead handed off, and the rule's removal
+clause still applies once receipts record that.
+
+**Decision rule, fixed before any row exists.** The threshold stays where it is when sessions
 that received at least one nudge show a higher share of turns starting a `/code-ops-suite:handoff`
 within one further band than sessions with the switch off, with no rise in sessions abandoned
 mid-task. A threshold that fires too late (operators already past a natural workstream boundary

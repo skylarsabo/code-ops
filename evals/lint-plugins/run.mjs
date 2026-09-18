@@ -207,6 +207,7 @@ function buildBaseline(root) {
   }));
   put(root, 'plugins/code-ops-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL]));
   put(root, 'plugins/code-ops-suite/agents/reviewer.md', agentBody('reviewer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
+  put(root, 'plugins/code-ops-suite/agents/implementer.md', agentBody('implementer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
 
   // -- rigor: bug-hunt, quality-scan, consistency-closure (all PRODUCER_SELFCHECK) --
   put(root, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify({ name: 'rigor', version: '0.1.0', description: 'fixture rigor plugin' }, null, 2));

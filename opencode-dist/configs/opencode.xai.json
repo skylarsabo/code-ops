@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "xai/grok-4.6"
     },
+    "code-ops-suite-implementer": {
+      "model": "xai/grok-4.6"
+    },
     "code-ops-suite-reviewer": {
       "model": "xai/grok-4.6"
     },

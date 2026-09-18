@@ -7,6 +7,11 @@
       "minimumTier": "light"
     },
     {
+      "name": "implementer",
+      "sourceModel": "opus",
+      "minimumTier": "strong"
+    },
+    {
       "name": "reviewer",
       "sourceModel": "opus",
       "minimumTier": "strong"

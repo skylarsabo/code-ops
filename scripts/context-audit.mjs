@@ -3,7 +3,7 @@
 // transcripts (exact per-message usage, tool-result volume, model mix) and the SessionEnd
 // receipt ledger. No model in the loop, no egress, no estimates.
 //
-//   node scripts/context-audit.mjs [--transcripts <dir>] [--cwd <dir>] [--since <ISO>]
+//   node scripts/context-audit.mjs [--transcripts <dir>] [--cwd <dir> | --all] [--since <ISO>]
 //                                  [--top N] [--json] [--raw] [--out <file>]
 //   node scripts/context-audit.mjs receipts [--ledger <file>] [--json] [--cwd <dir> | --all] [--by-arm]
 //   node scripts/context-audit.mjs receipts --purge-before <ISO date> [--ledger <file>] [--json]
@@ -15,6 +15,9 @@
 // Default host: the host this copy ships for. `--host` overrides it.
 // Default transcript dir: for `--host claude`, `<home>/.claude/projects/<slug of --cwd or the current
 // directory>`; for `--host codex`, `$CODEX_HOME/sessions` (default `<home>/.codex/sessions`).
+// `--all` without `--transcripts` widens the transcript report to every project directory under
+// that host's transcript root: one merged report plus a per-project totals table. `--since` still
+// filters per file by its last timestamp. `receipts --all` is unchanged (every ledger row).
 // Default ledger: $CODE_OPS_RECEIPTS or `~/.claude/code-ops/session-receipts.jsonl`.
 //
 // Output is sanitized by default (tool names, command families, file extensions). `--raw`
@@ -23,10 +26,10 @@
 //
 // Exit: 0 = report written; 1 = no transcripts found; 2 = bad invocation.
 
-import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, renameSync, readdirSync } from 'node:fs';
+import { resolve, join, dirname, basename } from 'node:path';
 import { homedir } from 'node:os';
-import { defaultTranscriptDir, summarizeDirectory, renderMarkdown, mergeSummaries, emptySummary, USAGE_FIELDS } from './transcript-lib.mjs';
+import { defaultTranscriptDir, summarizeDirectory, renderMarkdown, mergeSummaries, mergeAgentTypes, inputSideOf, emptySummary, USAGE_FIELDS } from './transcript-lib.mjs';
 
 function usage() {
   console.error('usage: context-audit.mjs [--host claude|codex] [--transcripts <dir>] [--cwd <dir> | --all] [--since <ISO>] [--top N] [--json] [--raw] [--out <file>]');
@@ -58,6 +61,32 @@ for (let i = 0; i < argv.length; i++) {
 }
 if (opt.since && !Number.isFinite(Date.parse(opt.since))) usage();
 
+// Every project directory under a transcript root, merged into one aggregate plus per-project
+// input-side totals. A directory that reads as empty (or that `--since` filters away) is skipped.
+function summarizeProjects(root, sumOpts) {
+  const out = { dir: root, files: 0, main: null, subagents: null, all: null, sessions: [], byAgentType: {}, projects: [] };
+  let entries = [];
+  try { entries = readdirSync(root, { withFileTypes: true }).filter((e) => e.isDirectory()); } catch { return out; }
+  const mains = [], subs = [], tables = [];
+  for (const entry of entries) {
+    const one = summarizeDirectory(join(root, entry.name), sumOpts);
+    if (one.files === 0) continue;
+    out.files += one.files;
+    mains.push(one.main);
+    subs.push(one.subagents);
+    tables.push(one.byAgentType);
+    out.projects.push({ slug: basename(entry.name), mainInputSide: inputSideOf(one.main), subagentInputSide: inputSideOf(one.subagents) });
+  }
+  out.main = mergeSummaries(mains, sumOpts);
+  out.subagents = mergeSummaries(subs, sumOpts);
+  out.all = mergeSummaries([...mains, ...subs], sumOpts);
+  out.byAgentType = mergeAgentTypes(tables);
+  out.projects.sort((a, b) => (b.mainInputSide + b.subagentInputSide) - (a.mainInputSide + a.subagentInputSide));
+  // A slug is derived from a filesystem path, so sanitized output ranks projects without naming them.
+  if (!sumOpts.raw) out.projects.forEach((p, i) => { p.slug = `project-${i + 1}`; });
+  return out;
+}
+
 function emit(text) {
   if (opt.out) writeFileSync(resolve(opt.out), text.endsWith('\n') ? text : text + '\n');
   else process.stdout.write(text.endsWith('\n') ? text : text + '\n');
@@ -65,10 +94,14 @@ function emit(text) {
 
 if (mode === 'transcripts') {
   const dir = resolve(opt.transcripts || defaultTranscriptDir(resolve(opt.cwd), opt.host));
-  const agg = summarizeDirectory(dir, { top: opt.top, raw: opt.raw, since: opt.since, host: opt.host,
-    cwd: opt.host === 'codex' && !opt.all ? resolve(opt.cwd) : null });
+  const sumOpts = { top: opt.top, raw: opt.raw, since: opt.since, host: opt.host,
+    cwd: opt.host === 'codex' && !opt.all ? resolve(opt.cwd) : null };
+  // `--all` for the Claude host: every project directory under the transcript root, merged.
+  // The Codex root already holds every project's rollouts, so its `--all` only drops the cwd filter.
+  const wide = opt.all && !opt.transcripts && opt.host !== 'codex';
+  const agg = wide ? summarizeProjects(dirname(dir), sumOpts) : summarizeDirectory(dir, sumOpts);
   if (agg.files === 0) {
-    console.error(`  x no transcripts under ${dir}`);
+    console.error(`  x no transcripts under ${wide ? dirname(dir) : dir}`);
     process.exit(1);
   }
   if (opt.json) {
@@ -78,8 +111,12 @@ if (mode === 'transcripts') {
       toolCalls: s.toolCalls, toolResults: s.toolResults, toolResultChars: s.toolResultChars,
       toolResultCharsTotal: s.toolResultCharsTotal, textChars: s.textChars, bashFamilies: s.bashFamilies,
       repeatReads: s.repeatReads, largest: s.largest, firstTs: s.firstTs, lastTs: s.lastTs,
+      contextFirst: s.contextFirst, contextMax: s.contextMax, turns: s.turns,
+      contextBands: s.contextBands, cacheRewrites: s.cacheRewrites, threads: s.threads,
     });
-    emit(JSON.stringify({ v: 1, dir: opt.raw ? dir : undefined, files: agg.files, main: pick(agg.main), subagents: pick(agg.subagents), all: pick(agg.all) }, null, 2));
+    emit(JSON.stringify({ v: 1, dir: opt.raw ? dir : undefined, files: agg.files, main: pick(agg.main),
+      subagents: pick(agg.subagents), all: pick(agg.all), byAgentType: agg.byAgentType,
+      projects: agg.projects }, null, 2));
   } else {
     emit(renderMarkdown(agg, { top: opt.top }));
   }

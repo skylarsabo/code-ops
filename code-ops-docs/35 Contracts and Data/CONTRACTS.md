@@ -501,8 +501,8 @@ OpenCode has no typed subagent-start callback. Evidence: `plugins/code-ops-suite
 ## Handoff card hook
 
 `hooks/handoff-card.mjs` runs at `UserPromptSubmit` on Claude and Codex and, SPECULATIVE pending
-calibration, nudges the operator and the lead once resident context crosses 200,000 tokens and
-again every further 200,000-token band. It is on by default. It does nothing when
+calibration, nudges the operator and the lead once resident context crosses 150,000 tokens and
+again every further 150,000-token band. It is on by default. It does nothing when
 `CODE_OPS_HANDOFF_CARD` is `off`, `0`, or `false`, set in the canonical environment; rendered
 hosts use their documented process environment. No other switch exists. The Claude host contract
 was confirmed against `docs.claude.com/en/docs/claude-code/hooks-guide`: `UserPromptSubmit`
@@ -520,8 +520,8 @@ cache-creation tokens — read from only the last 256 KiB of the transcript, nev
 reusing `normalizeUsage` and `projectSlug` from `scripts/transcript-lib.mjs` for the token math
 and the storage-path convention. A small per-session marker at `<host home>/code-ops/handoff/
 <project slug>/<session id>.json` records the highest band already nudged
-(`band = floor(context / 200000)`); the hook nudges again only on a higher band, and re-arms
-(clears the marker) once context falls back under 200,000, which a compaction typically causes.
+(`band = floor(context / 150000)`); the hook nudges again only on a higher band, and re-arms
+(clears the marker) once context falls back under 150,000, which a compaction typically causes.
 Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:40-91`.
 
 Codex documents an equivalent `UserPromptSubmit` event (OpenAI's `developers.openai.com/codex/hooks`,

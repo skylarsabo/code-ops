@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "google/gemini-3.1-flash-lite"
     },
+    "code-ops-suite-implementer": {
+      "model": "google/gemini-3.1-pro-preview"
+    },
     "code-ops-suite-reviewer": {
       "model": "google/gemini-3.1-pro-preview"
     },

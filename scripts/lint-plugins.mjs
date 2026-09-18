@@ -632,6 +632,7 @@ const AGENT_MODEL_FLOORS = {
   'rigor/verifier': 'opus',
   'rigor/tracer': 'opus',
   'code-ops-suite/reviewer': 'opus',
+  'code-ops-suite/implementer': 'opus',
   'privacy-opsec-suite/privacy-reviewer': 'opus',
   'researcher/claim-checker': 'sonnet',
   'code-ops-suite/explorer': 'haiku',
@@ -770,7 +771,7 @@ const SHARED_PASSAGES = [
 const AGENTS = (...paths) => paths;
 const AGENT_SHARED_PASSAGES = [
   { id: 'agent-escalate-dont-guess', files: AGENTS(
-      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md',
+      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
       'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
       'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
@@ -780,14 +781,14 @@ const AGENT_SHARED_PASSAGES = [
       'plugins/researcher/agents/gatherer.md', 'plugins/rigor/agents/tracer.md'),
     text: 'Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.' },
   { id: 'agent-redact-secrets-short', files: AGENTS(
-      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/rigor/agents/verifier.md'),
+      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/rigor/agents/verifier.md'),
     text: 'Redact secrets/PII.' },
   { id: 'agent-dense-evidence-cited', files: AGENTS(
-      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md', 'plugins/rigor/agents/tracer.md'),
     text: 'dense and evidence-cited' },
   { id: 'agent-batch-tool-calls', files: AGENTS(
-      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md',
+      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
       'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
       'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),

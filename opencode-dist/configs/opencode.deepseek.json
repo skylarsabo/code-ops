@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "deepseek/deepseek-v4-flash"
     },
+    "code-ops-suite-implementer": {
+      "model": "deepseek/deepseek-v4-pro"
+    },
     "code-ops-suite-reviewer": {
       "model": "deepseek/deepseek-v4-pro"
     },

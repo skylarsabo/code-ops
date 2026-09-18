@@ -97,7 +97,7 @@ The session-receipt ledger is `<host home>/code-ops/session-receipts.jsonl`, or 
 retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`.
 
 The handoff-card marker store is `<host home>/code-ops/handoff/<project slug>/<session id>.json`,
-one small file per session holding the highest 200,000-token band already nudged. It has no
+one small file per session holding the highest 150,000-token band already nudged. It has no
 override variable and nothing purges it automatically; delete the directory to purge it.
 Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:79-92`.
 

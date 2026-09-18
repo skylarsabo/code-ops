@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "openai/gpt-5.6-luna"
     },
+    "code-ops-suite-implementer": {
+      "model": "openai/gpt-5.6-terra"
+    },
     "code-ops-suite-reviewer": {
       "model": "openai/gpt-5.6-terra"
     },

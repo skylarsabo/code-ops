@@ -5,6 +5,9 @@
     "code-ops-suite-explorer": {
       "model": "anthropic/claude-haiku-4-5-20251001"
     },
+    "code-ops-suite-implementer": {
+      "model": "anthropic/claude-opus-5"
+    },
     "code-ops-suite-reviewer": {
       "model": "anthropic/claude-opus-5"
     },
