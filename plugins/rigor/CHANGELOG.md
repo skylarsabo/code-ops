@@ -1,7 +1,7 @@
 # Changelog — rigor
 
-## 2.18.19
-- **TODO** — describe the change.
+## 2.18.20
+- The changelog no longer carries a duplicated `2.18.19` heading or the leftover placeholder bullets from the version bump script.
 
 ## 2.18.19
 - The vendored `revalidate-register.mjs` reads the Severity field value alone, so a composite line such as `Severity: medium · Confidence: high` no longer reads as load-bearing and deflated at once. Its anchor grammar accepts a doubled-backtick span, so an anchor copied from a line that contains a backtick parses; a backslash is still not an escape. The resolver it shares with the handoff checker ships beside it as `citation-lib.mjs`.
@@ -127,7 +127,6 @@ All notable changes to this plugin are documented here. Versions track
 
 ## 2.13.1
 - **`bug-hunt` Phase 1/2 name the `tracer`** for invariant extraction and the control/data-flow trace, matching the executor-naming already used in the orchestrators' Phase 0.
-- **TODO** — describe the change.
 
 ## 2.13.0
 - **`tracer` and `verifier` doctrine clauses pinned against drift** (`SHARED_PASSAGES` extended to `plugins/*/agents/*.md` in `scripts/lint-plugins.mjs`) — escalate-don't-guess, secret redaction, and dense/evidence-cited-report wording normalized across all eight operative agent files and gated so a partial edit fails lint.

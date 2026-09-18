@@ -70,6 +70,9 @@ const WRITER = 'This role may write files only for its report and repro artifact
 const READ_ONLY = 'This role is read-only: return the report inline.';
 const verifierBrief = read(join(pluginsDir, 'rigor', 'agents', 'verifier.md'));
 expect(verifierBrief.includes(WRITER) && !verifierBrief.includes(READ_ONLY), 'rigor/verifier: role contract does not state its report-file write capability');
+const EDITOR = 'This role edits files only inside the Scope its brief names, and writes its report to the path the brief names.';
+const implementerBrief = read(join(pluginsDir, 'code-ops-suite', 'agents', 'implementer.md'));
+expect(implementerBrief.includes(EDITOR) && !implementerBrief.includes(WRITER) && !implementerBrief.includes(READ_ONLY), 'code-ops-suite/implementer: role contract does not state its scoped edit capability');
 for (const [plugin, role] of [['code-ops-suite', 'explorer'], ['privacy-opsec-suite', 'privacy-reviewer']]) {
   const brief = read(join(pluginsDir, plugin, 'agents', `${role}.md`));
   expect(brief.includes(READ_ONLY) && !brief.includes(WRITER), `${plugin}/${role}: role contract does not state it is read-only`);

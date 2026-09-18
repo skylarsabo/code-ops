@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.83.1
+- The Codex render states that a role holding an edit tool edits only inside its brief's Scope. It told the `implementer` that it may write only report and repro files, which contradicted the agent's own definition.
+- The changelog no longer carries two leftover placeholder bullets from the version bump script, so `integrate-branch.mjs` stops reporting a pending changelog item on a clean tree.
+
 ## 1.83.0
 - The `implementer` agent ships for build, fix, and refactor units, with tools `Read, Edit, Write, Bash, Grep, Glob` and an `opus` floor in `AGENT_MODEL_FLOORS`. A transcript audit on 2026-09-18 measured general-purpose operatives starting each turn near 57,000 tokens against 18,000 to 24,000 for restricted-tool agents, and those operatives carried 787 million of one day's tokens.
 - The conventions, the routing card, and `subagent-trade-offs.md` state that a dispatch costs resident context multiplied by turn count. They route build work to the `implementer`, keep breadth agents at their declared tier, and require a round budget in each brief.
@@ -465,7 +469,6 @@ All notable changes to this plugin are documented here. Versions track
 
 ## 1.22.1
 - **`architecture` and `codebase-audit` Phase 0 name an `explorer` dispatch** for stack detection/inventory, handing its summary onward — matching the executor-naming already used in the orchestrators' Phase 0.
-- **TODO** — describe the change.
 
 ## 1.22.0
 - **`CONVENTIONS.md` §1 gains a reasoning-effort routing rule** — effort follows ambiguity the same way tier does (low for mechanical/breadth, medium for execution/scoped implementation and flow tracing, high for review and the lead, xhigh reserved for disputed verdicts and critical CONFIRMED calls), cross-referencing `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` for the full table instead of duplicating it.

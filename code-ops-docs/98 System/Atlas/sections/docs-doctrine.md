@@ -24,7 +24,7 @@ ADR 0006 defines the receipted long-horizon runtime: stable prompt prefixes are 
 
 Admission review has two time domains. Before admission, any bound Git, manifest, candidate, generated-authority, or batch-head change invalidates the plan. Review plans stay at repository-relative ignored paths. The reviewed current path anchors identity, and the matching content commit supplies the citation baseline. After admission, locator-only repair cannot change authority membership or increase reviewed risk counts. Checkout-only transformations never change evidence identity.
 
-The hub now owns a measurements reference under `55 Operations/`, registered as its own manifest domain over the transcript library, the audit CLI, the receipt hook, and their eval. Its rows come from local receipts only. The design note under `10 Design/` that motivates them proposes and never binds.
+The hub now owns a measurements reference under `55 Operations/`, registered as its own manifest domain over the transcript library, the audit CLI, the receipt hook, and their eval. Its rows come from local host transcripts and receipts only, and a cross-project row counts threads without naming or quoting the repositories behind them. The design note under `10 Design/` that motivates them proposes and never binds.
 
 Provider doctrine defines one portable outcome across Claude, Codex, installed Grok, and OpenCode while preserving host-native mechanics. Capability matrices name unsupported callbacks explicitly, and measurement prose separates synthetic adapter proof, installed-runtime observation, and live external-turn evidence.
 
