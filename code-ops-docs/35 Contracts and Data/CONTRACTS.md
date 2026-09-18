@@ -175,7 +175,9 @@ The `SessionEnd` hook `session-receipt.mjs` is on by default on hosts that expos
 callback. Claude summarizes the main transcript and its `subagents/*.jsonl` siblings. Codex
 reads peer rollouts and follows `session_meta.payload.parent_thread_id` to include descendants.
 Installed Grok 1.0.13 reads cumulative per-prompt usage from the session's `updates.jsonl`;
-its receipt records `arms.ladderCard=false`. OpenCode has no transcript callback, so no
+its receipt records `arms.ladderCard=false` and `arms.handoffCard=false`. Every receipt also
+carries `handoff`, the highest band the session's handoff marker reached and whether the
+transcript shows a `/code-ops-suite:handoff` call. OpenCode has no transcript callback, so no
 automatic receipt is claimed there. The hook writes nothing to stdout, exits `0` on bad input,
 missing evidence, or an unwritable ledger, and finishes on a bounded timer. Its ledger path is
 `$CODE_OPS_RECEIPTS`, else the host-specific home default. `off`, `0`, or `false` disables it.
@@ -517,12 +519,14 @@ code blocks and erases the prompt on this event; a nudge is advisory only. Evide
 
 The context metric is the last assistant turn's usage record — input plus cache-read plus
 cache-creation tokens — read from only the last 256 KiB of the transcript, never the whole file,
-reusing `normalizeUsage` and `projectSlug` from `scripts/transcript-lib.mjs` for the token math
-and the storage-path convention. A small per-session marker at `<host home>/code-ops/handoff/
-<project slug>/<session id>.json` records the highest band already nudged
-(`band = floor(context / 150000)`); the hook nudges again only on a higher band, and re-arms
-(clears the marker) once context falls back under 150,000, which a compaction typically causes.
-Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:40-91`.
+reusing `normalizeUsage`, `handoffMarkerPath`, and `handoffPeakBand` from
+`scripts/transcript-lib.mjs` for the token math and the storage-path convention. A small
+per-session marker at `<host home>/code-ops/handoff/<project slug>/<session id>.json` records the
+band already nudged (`band = floor(context / 150000)`) and `peak`, the highest band the session
+ever reached; the hook nudges again only on a higher band, and re-arms (sets the band to 0, never
+the peak) once context falls back under 150,000, which a compaction typically causes. The session
+receipt reads the peak. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:40-91` and
+`scripts/transcript-lib.mjs:539-555`.
 
 Codex documents an equivalent `UserPromptSubmit` event (OpenAI's `developers.openai.com/codex/hooks`,
 confirmed live at `learn.chatgpt.com/docs/hooks`) carrying `session_id` and `prompt` on stdin,

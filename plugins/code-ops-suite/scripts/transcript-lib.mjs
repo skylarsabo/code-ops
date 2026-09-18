@@ -536,6 +536,24 @@ export function projectSlug(cwd) {
   return String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 }
 
+// Handoff marker store, shared by the two hooks that touch it: `hooks/handoff-card.mjs` writes
+// one marker per session and `hooks/session-receipt.mjs` reads it back into the receipt row.
+// Path: `<home>/.claude/code-ops/handoff/<project slug>/<session slug>.json`; body
+// `{ v: 1, band, peak, ts }`, where `band` is the live band the card compares against and `peak`
+// is the highest band the session ever reached, which a re-arm must not lower.
+export function handoffMarkerPath(cwd, sessionId, home = homedir()) {
+  return join(home, '.claude', 'code-ops', 'handoff', projectSlug(cwd), `${projectSlug(sessionId)}.json`);
+}
+
+// The highest band a marker records, or 0 for a missing, unreadable, or malformed marker. A
+// marker written before `peak` existed reports its `band`.
+export function handoffPeakBand(path) {
+  try {
+    const m = JSON.parse(readFileSync(path, 'utf8'));
+    return Math.max(0, Number(m.peak) || 0, Number(m.band) || 0);
+  } catch { return 0; }
+}
+
 export function defaultTranscriptDir(cwd = process.cwd(), host = 'claude') {
   return host === 'codex' ? join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'sessions')
     : join(homedir(), '.claude', 'projects', projectSlug(cwd));

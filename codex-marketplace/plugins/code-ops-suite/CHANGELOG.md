@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 1.84.0
+- Every session receipt records the handoff card as an arm, read from `CODE_OPS_HANDOFF_CARD` the way the digest, ladder, and index arms are read. Grok rows record it off, matching the hook's own host coverage.
+- A receipt also carries `handoff`: the highest band the session's marker file reached, and whether the transcript shows the operator running `code-ops-suite:handoff` after the first prompt. A first-prompt command is a resume, and a quoted marker is not a run, so neither counts. Only the two values are stored, never transcript text, and any failure leaves band 0 with the hook still exiting 0.
+- The handoff marker keeps a `peak` field, so a re-arm after a compaction lowers the live band without hiding that the session was nudged. `handoffMarkerPath` and `handoffPeakBand` in `transcript-lib.mjs` are the one definition both hooks read.
+- `context-audit.mjs receipts --by-arm` groups by the handoff arm too and reports, per arm, how many sessions were nudged and how many of those handed off, which is the ratio the pre-registered decision rule reads. A row written before these fields existed still aggregates and counts in neither figure.
+
 ## 1.83.1
 - The Codex render states that a role holding an edit tool edits only inside its brief's Scope. It told the `implementer` that it may write only report and repro files, which contradicted the agent's own definition.
 - The changelog no longer carries two leftover placeholder bullets from the version bump script, so `integrate-branch.mjs` stops reporting a pending changelog item on a clean tree.
