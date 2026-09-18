@@ -15,7 +15,9 @@
 // stdin may never close on some Windows shells, so a short timer finishes with what arrived.
 //
 // Row shape (v: 1): { v, ts, sessionId, cwd, reason, durationMs, models, turns, toolCalls,
-//   toolResultChars, files, skipped, tokens: { main: {...}, subagents: {...} } }
+//   toolResultChars, contextAtEnd, arms, handoff: { band, invoked }, files, skipped,
+//   tokens: { main: {...}, subagents: {...} } }. Fields are added without a version bump:
+//   every reader tolerates an unknown key and treats a missing one as absent.
 
 import { readFileSync, appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -33,6 +35,31 @@ function ledgerPath() {
 // caller can never exit the process while the first is still writing the row.
 const on = (name) => !/^(off|0|false)$/i.test(process.env[name] ?? '');
 
+const HANDOFF_COMMAND_RE = /<command-name>\s*\code-ops-suite:handoff\s*<\/command-name>/;
+
+// True when the operator ran the handoff command after the session's first prompt. Only an
+// operator prompt that opens with a host command tag counts: the same marker quoted inside a
+// tool call or a tool result is conversation about the command, not a run of it. The first
+// prompt is skipped because a handoff command there resumes an earlier session, and the
+// decision rule reads whether this session handed off.
+function handoffInvoked(text) {
+  let prompts = 0;
+  for (const line of text.split('\n')) {
+    if (!line.includes('"user"')) continue;
+    let o;
+    try { o = JSON.parse(line); } catch { continue; }
+    if (o?.type !== 'user' || o.isMeta) continue;
+    const c = o.message?.content;
+    const prompt = typeof c === 'string' ? c
+      : Array.isArray(c) && !c.some((b) => b?.type === 'tool_result') ? c.map((b) => (b?.type === 'text' ? b.text : '')).join('')
+        : null;
+    if (prompt === null) continue;
+    prompts++;
+    if (prompts > 1 && prompt.trimStart().startsWith('<command-') && HANDOFF_COMMAND_RE.test(prompt)) return true;
+  }
+  return false;
+}
+
 function finish() {
   if (!pending) pending = doFinish();
   return pending;
@@ -48,7 +75,8 @@ async function doFinish() {
     const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
     const lib = await import(pathToFileURL(libPath).href);
     const measuredTranscript = lib.measurementTranscriptFor(transcript);
-    const main = lib.summarizeTranscript(readFileSync(measuredTranscript, 'utf8'), { top: 0 });
+    const mainText = readFileSync(measuredTranscript, 'utf8');
+    const main = lib.summarizeTranscript(mainText, { top: 0 });
     const subFiles = lib.subagentFilesFor(transcript);
     const subs = [];
     for (const f of subFiles) {
@@ -56,11 +84,20 @@ async function doFinish() {
     }
     const sub = lib.mergeSummaries(subs, { top: 0 });
     const strip = (u) => ({ input: u.input, cacheRead: u.cacheRead, cacheCreate: u.cacheCreate, output: u.output, thinking: u.thinking, total: u.total });
+    const sessionId = typeof (payload.session_id ?? payload.sessionId) === 'string' ? (payload.session_id ?? payload.sessionId) : null;
+    const cwd = typeof payload.cwd === 'string' ? payload.cwd : process.cwd();
+    // The handoff-card outcome: how far the session's context climbed, and whether the operator
+    // answered a nudge by running the command. Only the two summary values are stored, never
+    // transcript text. A missing or unreadable marker reads as band 0, like any other fail-open path.
+    const handoff = {
+      band: sessionId ? lib.handoffPeakBand(lib.handoffMarkerPath(cwd, sessionId, homedir())) : 0,
+      invoked: handoffInvoked(mainText),
+    };
     const row = {
       v: 1,
       ts: new Date().toISOString(),
-      sessionId: typeof (payload.session_id ?? payload.sessionId) === 'string' ? (payload.session_id ?? payload.sessionId) : null,
-      cwd: typeof payload.cwd === 'string' ? payload.cwd : process.cwd(),
+      sessionId,
+      cwd,
       reason: typeof payload.reason === 'string' ? payload.reason : null,
       durationMs: main.durationMs,
       models: main.models,
@@ -70,7 +107,9 @@ async function doFinish() {
       contextAtEnd: main.contextAtEnd,
       // Which mechanisms this session ran under, read from the same switches the hooks read: on
       // unless the switch says off, so the ledger can compare an arm against sessions run with it off.
-      arms: { digest: on('CODE_OPS_DIGEST'), ladderCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_LADDER_CARD'), index: on('CODE_OPS_INDEX') },
+      arms: { digest: on('CODE_OPS_DIGEST'), ladderCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_LADDER_CARD'), index: on('CODE_OPS_INDEX'),
+        handoffCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_HANDOFF_CARD') },
+      handoff,
       files: 1 + subFiles.length,
       skipped: subFiles.length - subs.length,
       tokens: { main: strip(main.usage), subagents: strip(sub.usage) },

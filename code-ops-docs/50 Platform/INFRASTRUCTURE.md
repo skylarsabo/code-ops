@@ -97,15 +97,19 @@ The session-receipt ledger is `<host home>/code-ops/session-receipts.jsonl`, or 
 retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`.
 
 The handoff-card marker store is `<host home>/code-ops/handoff/<project slug>/<session id>.json`,
-one small file per session holding the highest 150,000-token band already nudged. It has no
-override variable and nothing purges it automatically; delete the directory to purge it.
-Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:79-92`.
+one small file per session holding the 150,000-token band already nudged and the highest band the
+session reached. It has no override variable and nothing purges it automatically; delete the
+directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:79-92` and
+`scripts/transcript-lib.mjs:539-555`.
 
 `context-audit.mjs --host codex` reads local Codex session JSONL, filters to the current
 directory unless `--all` is present, and normalizes current response usage. A receipt follows
 child rollout `parent_thread_id` links rather than assuming Claude's nested directory layout.
 For installed Grok 1.0.13, the receipt parser reads cumulative per-prompt snapshots from the
-session's `updates.jsonl` and records `ladderCard=false`. The report omits tool arguments and
+session's `updates.jsonl` and records `ladderCard=false` and `handoffCard=false`. Every receipt
+also records the handoff band the session reached and whether the operator ran
+`/code-ops-suite:handoff`, so `receipts --by-arm` reads the handoff card against its own control.
+The report omits tool arguments and
 working-directory values unless raw output was explicitly requested.
 
 Keeping a switch per repository is what makes a measurement arm possible: one checkout runs with

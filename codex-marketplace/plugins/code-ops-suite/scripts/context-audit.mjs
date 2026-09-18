@@ -160,9 +160,18 @@ if (opt.byArm) {
   const groups = new Map();
   for (const r of mine) {
     const key = armKey(r);
-    if (!groups.has(key)) groups.set(key, { arm: key, sessions: 0, durationMs: 0, tokens: 0, input: 0, cacheRead: 0, output: 0, toolResultChars: 0, contextAtEnd: 0, turns: 0, toolCalls: 0 });
+    if (!groups.has(key)) groups.set(key, { arm: key, sessions: 0, durationMs: 0, tokens: 0, input: 0, cacheRead: 0, output: 0, toolResultChars: 0, contextAtEnd: 0, turns: 0, toolCalls: 0, handoffKnown: 0, handoffNudged: 0, handoffInvoked: 0 });
     const g = groups.get(key);
     g.sessions++;
+    // Handoff-card outcome. A row written before the hook recorded it has no `handoff` object and
+    // counts in neither denominator, so an old ledger still aggregates.
+    if (r.handoff && typeof r.handoff === 'object') {
+      g.handoffKnown++;
+      if ((Number(r.handoff.band) || 0) >= 1) {
+        g.handoffNudged++;
+        if (r.handoff.invoked === true) g.handoffInvoked++;
+      }
+    }
     g.durationMs += Number(r.durationMs) || 0;
     for (const scope of ['main', 'subagents']) {
       const u = r.tokens?.[scope];
@@ -177,7 +186,8 @@ if (opt.byArm) {
   }
   const arms = [...groups.values()].sort((a, b) => a.arm.localeCompare(b.arm));
   const per = (g, k) => (g.sessions ? g[k] / g.sessions : 0);
-  const means = arms.map((g) => ({ arm: g.arm, sessions: g.sessions, perSession: {
+  const means = arms.map((g) => ({ arm: g.arm, sessions: g.sessions,
+    handoff: { known: g.handoffKnown, nudged: g.handoffNudged, invoked: g.handoffInvoked }, perSession: {
     minutes: per(g, 'durationMs') / 60000, tokens: per(g, 'tokens'), input: per(g, 'input'), cacheRead: per(g, 'cacheRead'), output: per(g, 'output'),
     toolResultChars: per(g, 'toolResultChars'), contextAtEnd: per(g, 'contextAtEnd'), turns: per(g, 'turns'), toolCalls: per(g, 'toolCalls'),
     toolResultCharsPerTurn: per(g, 'turns') ? per(g, 'toolResultChars') / per(g, 'turns') : 0 } }));
@@ -185,9 +195,10 @@ if (opt.byArm) {
   else {
     const f = (n, d = 0) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: d });
     const L = ['# Session receipts by arm', '', 'Per-session means. An arm reads against `none` on the same directory; `unknown` rows predate the switch record.', '',
-      '| Arm | Sessions | Minutes | Tokens | Cache read | Output | Tool-result chars | Per turn | Context at end | Tool calls |',
-      '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'];
-    for (const m of means) L.push(`| ${m.arm} | ${m.sessions} | ${f(m.perSession.minutes, 1)} | ${f(m.perSession.tokens)} | ${f(m.perSession.cacheRead)} | ${f(m.perSession.output)} | ${f(m.perSession.toolResultChars)} | ${f(m.perSession.toolResultCharsPerTurn)} | ${f(m.perSession.contextAtEnd)} | ${f(m.perSession.toolCalls)} |`);
+      'Nudged counts sessions whose handoff band reached 1; handed off counts those that then ran the command. Rows written before the receipt carried the field are absent from both.', '',
+      '| Arm | Sessions | Minutes | Tokens | Cache read | Output | Tool-result chars | Per turn | Context at end | Tool calls | Nudged | Handed off |',
+      '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'];
+    for (const m of means) L.push(`| ${m.arm} | ${m.sessions} | ${f(m.perSession.minutes, 1)} | ${f(m.perSession.tokens)} | ${f(m.perSession.cacheRead)} | ${f(m.perSession.output)} | ${f(m.perSession.toolResultChars)} | ${f(m.perSession.toolResultCharsPerTurn)} | ${f(m.perSession.contextAtEnd)} | ${f(m.perSession.toolCalls)} | ${m.handoff.nudged} | ${m.handoff.invoked} |`);
     emit(L.join('\n'));
   }
   process.exit(0);

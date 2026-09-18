@@ -10,7 +10,8 @@
 //     additionalContext, with hookEventName UserPromptSubmit and no permissionDecision;
 //   - a second prompt in the same 150k band stays silent;
 //   - crossing into the next 150k band prints again;
-//   - falling back under 150,000 re-arms: the next crossing prints again;
+//   - falling back under 150,000 re-arms: the next crossing prints again, and the marker keeps
+//     the highest band reached in `peak`, which the session receipt reads;
 //   - fail open: bad JSON, no hook_event_name match, a missing transcript file, a missing
 //     session_id, and empty stdin all exit 0 with no output;
 //   - Grok's passive-hook adapter emits nothing, matching routing-card.mjs and ladder-card.mjs.
@@ -18,10 +19,11 @@
 //   node evals/handoff-card/run.mjs
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { handoffMarkerPath, handoffPeakBand } from '../../scripts/transcript-lib.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -116,6 +118,13 @@ function parseOut(r) {
   transcript = writeTranscript(dir, assistantLine(50_000));
   r = runHook(payloadFor({ transcript, sessionId }), { home });
   expect(r.status === 0 && r.stdout === '', `dropping under the threshold must stay silent, got ${r.status}/${JSON.stringify(r.stdout)}`);
+
+  // The re-arm lowers the live band but never the peak, which is what the session receipt reads.
+  const marker = handoffMarkerPath('C:/fixture-project', sessionId, home);
+  const stored = JSON.parse(readFileSync(marker, 'utf8'));
+  expect(stored.band === 0 && stored.peak === 2, `the re-armed marker keeps the highest band reached, got ${JSON.stringify(stored)}`);
+  expect(handoffPeakBand(marker) === 2, `handoffPeakBand reads the peak, got ${handoffPeakBand(marker)}`);
+  expect(handoffPeakBand(join(dir, 'no-such-marker.json')) === 0, 'a missing marker reads as band 0');
 
   // Crossing 150,000 again after the drop: prints once more.
   transcript = writeTranscript(dir, assistantLine(155_000));

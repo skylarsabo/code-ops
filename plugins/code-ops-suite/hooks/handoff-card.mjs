@@ -90,17 +90,17 @@ function lastContextSize(text, normalizeUsage) {
   return null;
 }
 
-function markerPath(cwd, sessionId, home, projectSlug) {
-  return join(home, '.claude', 'code-ops', 'handoff', projectSlug(cwd), `${projectSlug(sessionId)}.json`);
-}
-
+// The marker's live band, which a re-arm resets to 0. `handoffPeakBand` (transcript-lib.mjs)
+// reads the other field, the highest band the session ever reached.
 function lastBand(path) {
   try { return Math.max(0, Number(JSON.parse(readFileSync(path, 'utf8')).band) || 0); } catch { return 0; }
 }
 
-function writeBand(path, band) {
+// `peak` only ever rises, so a session that compacted back under the threshold still tells the
+// receipt it was nudged. Evidence: the handoff-card row in MEASUREMENTS.md.
+function writeBand(path, band, peak) {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify({ v: 1, band, ts: new Date().toISOString() }));
+  writeFileSync(path, JSON.stringify({ v: 1, band, peak: Math.max(peak, band), ts: new Date().toISOString() }));
 }
 
 async function main() {
@@ -117,21 +117,22 @@ async function main() {
   if (!existsSync(transcript)) return;
 
   const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
-  const { normalizeUsage, projectSlug } = await import(pathToFileURL(libPath).href);
+  const { normalizeUsage, handoffMarkerPath, handoffPeakBand } = await import(pathToFileURL(libPath).href);
   const context = lastContextSize(readTail(transcript), normalizeUsage);
   if (typeof context !== 'number') return;
 
   const band = Math.floor(context / THRESHOLD);
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
-  const marker = markerPath(cwd, sessionId, homedir(), projectSlug);
+  const marker = handoffMarkerPath(cwd, sessionId, homedir());
   const seen = lastBand(marker);
+  const peak = handoffPeakBand(marker);
 
   if (band === 0) {
-    if (seen !== 0) writeBand(marker, 0); // re-armed: context fell back under the threshold
+    if (seen !== 0) writeBand(marker, 0, peak); // re-armed: context fell back under the threshold
     return;
   }
   if (band <= seen) return;
-  writeBand(marker, band);
+  writeBand(marker, band, peak);
 
   const approx = Math.round(context / 10_000) * 10_000;
   const message = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context, and every `

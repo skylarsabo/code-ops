@@ -28,7 +28,8 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
   projects as `project-N`; `--raw` names them.
 - `hooks/session-receipt.mjs` runs at `SessionEnd` on Claude, Codex, and installed Grok
   1.0.13. It appends one normalized row to the host-specific home ledger or
-  `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false`.
+  `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false` and
+  `handoffCard=false`.
   OpenCode has no corresponding callback.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
 - `node scripts/context-audit.mjs receipts --purge-before <ISO date>` is the ledger's retention: it rewrites the file keeping rows at or after the date and prints what it removed.
@@ -195,20 +196,26 @@ per-turn context in the hundreds of thousands is ordinary, not exceptional) rath
 matched on/off comparison. This row pre-registers the metric and the decision rule before any
 such comparison exists, per the protocol the ladder-card and index rows above already follow.
 
-**Metric.** Once `hooks/session-receipt.mjs` is extended to record it (not yet done), each
-session receipt's `arms` object would carry `handoffCard: true|false` the way it already carries
-`digest`, `ladderCard`, and `index`, and the row would carry the highest band the marker file
-reached during the session, alongside the existing `contextAtEnd` field the hook itself computes
-independently. Until that extension lands, the only evidence available is the marker files
-themselves and operator report.
+**Metric.** Each session receipt's `arms` object carries `handoffCard: true|false` the way it
+carries `digest`, `ladderCard`, and `index`. The row also carries `handoff`, with `band`, the
+highest band the session's marker file reached, and `invoked`, true when the session's transcript
+shows the operator running `/code-ops-suite:handoff` after the first prompt. A command in the first
+prompt resumes an earlier session, and the marker quoted in a tool call is not a run, so neither
+counts. A re-arm lowers the marker's live band but
+never its peak, so a session that compacted back under the threshold still reports that it was
+nudged. `context-audit.mjs receipts --by-arm` reports per arm how many sessions were nudged and
+how many of those handed off, which is the ratio the decision rule reads. Rows written before the
+hook recorded these fields count in neither figure. Evidence:
+`plugins/code-ops-suite/hooks/session-receipt.mjs:64-87` and `scripts/context-audit.mjs:159-201`.
 
 **Amendment, 2026-09-18.** The threshold started at 200,000. The cross-project audit below found
 71% of lead input-side tokens spent above 200,000, a median lead peak of 259,000, and a 90th
 percentile of 410,000. Leads were far past the first nudge before any handoff, which is the
 rule's "fires too late" outcome, so the threshold and band width moved to 150,000. This is
 transcript evidence, not the matched on/off comparison the rule names, so the value stays
-**SPECULATIVE**. The audit cannot show whether a nudged lead handed off, and the rule's removal
-clause still applies once receipts record that.
+**SPECULATIVE**. The audit cannot show whether a nudged lead handed off. Receipts now record
+that, so the comparison starts from the rows written after this change, and the rule's removal
+clause applies once enough of them exist.
 
 **Decision rule, fixed before any row exists.** The threshold stays where it is when sessions
 that received at least one nudge show a higher share of turns starting a `/code-ops-suite:handoff`
