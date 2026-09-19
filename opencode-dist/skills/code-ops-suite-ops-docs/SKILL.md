@@ -9,7 +9,7 @@ description: "Use when you need an operational runbook for a codebase, written f
 
 **Invoked as `/code-ops-suite-ops-docs`, or by the model through the `skill` tool as `code-ops-suite-ops-docs`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`,
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)** and the secret-redaction safety
 rail (`§4`). For this DOCUMENT-mode skill the binding sections are §2 (tools and in-house docs
 lookup), §3 (interaction), §4 (safety rails), §12 (SSOT and registers), and §13 (doc standard).

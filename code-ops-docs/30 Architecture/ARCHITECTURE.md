@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-13
+updated: 2026-09-18
 ---
 
 # Architecture
@@ -46,14 +46,16 @@ The `validate` workflow runs on pull requests, on pushes to `main`, on a weekly 
 
 ## Host hooks
 
-The canonical manifest registers seven commands across six events. Two commands run at
+The canonical manifest registers eight commands across six events. Three commands run at
 `PreToolUse`: `enforce-traceless.mjs` blocks publishing commands that carry an attribution
-trace, and `digest-rewrite.mjs` wraps an allowlisted command with `digest.mjs` through the
-host's input-rewrite contract. `index-refresh.mjs` runs after supported edit tools.
+trace, `digest-rewrite.mjs` wraps an allowlisted command with `digest.mjs` through the
+host's input-rewrite contract, and `dispatch-guard.mjs` holds a subagent to its brief's Round
+budget and advises the lead's own dispatch. `index-refresh.mjs` runs after supported edit tools.
 `handoff-card.mjs` runs at `UserPromptSubmit`, once per operator prompt, and nudges toward
 `/code-ops-suite:handoff` once resident context crosses 150,000 tokens and again every further
 150,000-token band. `routing-card.mjs`, `session-receipt.mjs`, and `ladder-card.mjs` run at
-`SessionStart`, `SessionEnd`, and `SubagentStart`. There is no `PreCompact` command: Claude and
+`SessionStart`, `SessionEnd`, and `SubagentStart`. On a fresh session the routing card also names
+the newest pending handoff, so a written handoff reaches the next session. There is no `PreCompact` command: Claude and
 Codex ignore plain `PreCompact` stdout, so their `SessionStart` projection adds a durable-state
 restore instruction when `source=compact` instead.
 
@@ -62,8 +64,10 @@ context. The installed Grok 1.0.13 command-hook contract consumes the digest `up
 runs the index and receipt side effects, but passive routing, ladder, and handoff-card stdout is
 unavailable; paired `CLAUDE.md` and `AGENTS.md` files carry that doctrine. OpenCode ports
 traceless publishing, model floors, digest, index, routing, compaction, and the documentation
-MCP, but its current plugin API has no ladder, transcript-receipt, or handoff-card callback: it
-carries no transcript or token-usage data to compute the metric from. The [infrastructure
+MCP, but its current plugin API has no ladder, transcript-receipt, handoff-card, or dispatch-guard
+callback: it carries no transcript or token-usage data to compute the metric from, and no
+pre-tool-call agent identity. Its routing card ships as text baked at build time, so it carries no
+pending-handoff line either. The [infrastructure
 reference](../50%20Platform/INFRASTRUCTURE.md) owns this matrix and the switches. The
 [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns exact payload and
 failure behavior. Evidence: `plugins/code-ops-suite/hooks/hooks.json`,

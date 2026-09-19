@@ -9,7 +9,7 @@ description: "Use when you want to audit a completed orchestrated run's cost dis
 
 **Invoked as `/code-ops-suite-run-cost-audit`, or by the model through the `skill` tool as `code-ops-suite-run-cost-audit`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin, and specifically the
 bounded-wave fan-out rule and the model and effort routing (`§1`), plus the artifact-size length
 discipline (`§12`) this skill audits against.

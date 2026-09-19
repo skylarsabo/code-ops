@@ -13,6 +13,14 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/digest-rewrite.mjs\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dispatch-guard.mjs\""
+          }
+        ]
       }
     ],
     "PostToolUse": [

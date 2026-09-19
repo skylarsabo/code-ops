@@ -24,18 +24,24 @@ Describe what **is true**, never what the next session should do. Write "the lea
 implemented, and the register sweep is not started", not "implement the sweep next". A plan
 re-derived from verified state beats one inherited on trust. Never restate what `git log`, a
 register, or a report already holds. Point at a revision range or a path instead. A merged-PR
-history is one `base..head` range plus any notable exception, never a per-PR list. Write these
-sections, each held to the evidence standard (`§9`):
-- **Goal and state of play:** the run's objective, which phases are complete, in flight, or not started, the automation level in force, and any steering the operator gave (`§3`).
+history is one `base..head` range plus any notable exception, never a per-PR list.
+
+The first six sections answer what an operator asks a resumed session: what was worked on, what
+was found, what is in progress, what is left, and what the scope and constraints are. Write the
+sections in this order, each held to the evidence standard (`§9`):
+- **Goal and state of play:** the run's objective, which phases are complete, in flight, or not started, the automation level in force, and any steering the operator gave (`§3`). Carry a `Request:` line holding the operator's original request verbatim. The checker fails when that line is absent or empty.
+- **Scope and constraints:** the repository, the branch, the areas in scope, the areas explicitly out of scope, and the operator's constraints and preferences in their exact words.
+- **Work completed:** what was worked on and finished, as revision ranges and paths. One `base..head` range plus notable exceptions, never a per-commit list.
+- **Key findings:** what the run learned that the next session would otherwise re-derive. One line each, carrying a confidence label of `CONFIRMED`, `PROBABLE`, or `SPECULATIVE` and a pointer to its evidence. The checker fails a finding with no label.
+- **In-flight boundaries:** branch names, uncommitted work, the exact done-against-not-done line, and the load-bearing `file:line` pointers, each carrying a verbatim **Anchor** (`§9`) so the successor can check them mechanically. This is the in-progress section.
+- **Open items:** every open item and every operator decision still awaiting an answer, ordered by priority. This is the left-to-do section. State each as one line of current state, never an instruction, carrying `Owner: agent` or `Owner: operator`, `Done when: <an observable check>`, and a pointer to its evidence. For example: "PAR-003 fix: not started · Owner: agent · Done when: register item closed-with-proof · Pointer: path:line". An unanswered operator decision is an item with `Owner: operator`.
 - **Registers and artifacts:** the path of every register, log, and report the run produced, each stamped `Verified-at: <sha>` (`§12`). Point at the evidence, and never re-paste what a register, a report, or `git log` already holds.
 - **Decisions made:** each one with its reason and the options rejected. Decisions and rejected approaches are the most valuable and least recoverable session state.
 - **Traps and dead ends:** the approaches already tried that FAILED, and the things the next session will be tempted to do wrong. This section is what saves the successor from repeating expensive mistakes.
-- **In-flight boundaries:** branch names, uncommitted work, the exact done-against-not-done line, and the load-bearing `file:line` pointers, each carrying a verbatim **Anchor** (`§9`) so the successor can check them mechanically.
-- **Open items:** every open item and every operator decision still awaiting an answer, ordered by priority. State each as one line of current state, never an instruction, carrying `Owner: agent` or `Owner: operator`, `Done when: <an observable check>`, and a pointer to its evidence. For example: "PAR-003 fix: not started · Owner: agent · Done when: register item closed-with-proof · Pointer: path:line". An unanswered operator decision is an item with `Owner: operator`.
 - **Authority:** the operator's grants, in their exact words, with scope. State that none of them carries into the resumed session until the operator re-grants it there.
 - **Carried context:** every analysis, measurement, or proposal from the conversation that the next session needs, written to a file in the run folder and pointed at here. The conversation is not a durable store. Point at a session receipt or `context-audit` output for the measured session cost, when one exists, instead of re-deriving the number.
 
-Keep `HANDOFF.md` at or under the size cap `check-handoff.mjs` enforces (about 6 KB). Detail
+Keep `HANDOFF.md` at or under the size cap `check-handoff.mjs` enforces (about 8 KB). Detail
 belongs in the pointed-at files, never inline.
 
 Redact secrets and PII (`§4`), because a handoff travels further than a register. Run
@@ -52,6 +58,12 @@ After writing and scanning `HANDOFF.md`, append
 Include `--acceptance <ledger>` when present and repeated artifact or bundle flags for evidence
 the successor must retain. Do not rewrite the handoff after binding its bytes to the checkpoint.
 Partial acceptance belongs in the checkpoint; completion is not required to hand off.
+
+Close the Write by telling the operator in one sentence that the next session also finds the
+handoff by itself, because the SessionStart routing card names the newest unconsumed `HANDOFF.md`
+in the run folders. Then end the reply with exactly one paste-ready line, and nothing after it:
+
+`code-ops-suite:handoff resume "<path to HANDOFF.md>"`
 
 ## Resume: verify, then continue
 
@@ -74,6 +86,16 @@ Then re-plan from what verified. The traps-and-dead-ends section prunes the sear
 Recorded decisions carry forward unless current code contradicts them. Surface a contradiction at
 a checkpoint (`§3`) instead of silently re-deciding.
 
+Once verification finishes, run
+`node <plugin-root>/scripts/co.mjs check handoff HANDOFF.md --consume`. That writes
+`HANDOFF.consumed` beside the file, and only on a passing check, so later sessions stop being
+offered a handoff this one already picked up.
+
+Open the reply to the operator with a recap under five headings: work completed, key findings, in
+progress, left to do, and project scope and constraints. Mark every claim in it **verified**,
+**moved**, or **drifted** against the current tree. The recap is what saves the operator from
+re-explaining the run.
+
 Present the Open items to the operator once re-planning finishes. Authority the handoff recorded
 does not carry into this session. Ask the operator to re-grant the scope it names before any
 publishing, merge, or other consequential action (`§3`, `§4`).
@@ -81,11 +103,14 @@ publishing, merge, or other consequential action (`§3`, `§4`).
 ## Done when
 
 For a **Write**:
-- `HANDOFF.md` states the goal, the decisions with their rejected alternatives, the developer's constraints and preferences in their exact words, the traps and dead ends, the in-flight boundaries with anchored `file:line` pointers, the open items each carrying an owner and an observable done-when check, the authority grants and their expiry, and every register path with a `Verified-at` stamp.
+- `HANDOFF.md` states the goal with the operator's request verbatim, the scope and constraints in their exact words, the work completed as revision ranges and paths, the key findings each with a confidence label, the in-flight boundaries with anchored `file:line` pointers, the open items each carrying an owner and an observable done-when check, the decisions with their rejected alternatives, the traps and dead ends, the authority grants and their expiry, and every register path with a `Verified-at` stamp.
 - The file is state throughout, with no instructions and nothing secret.
 - `node <plugin-root>/scripts/co.mjs check handoff HANDOFF.md` passes, beside the redaction scan above.
+- The reply ends with the one paste-ready resume line and says the next session also finds the handoff by itself.
 
 For a **Resume**:
 - Every consumed claim was re-verified against the current tree, with the registers revalidated and the anchors checked, before any work continued.
 - Contradictions were surfaced rather than silently resolved.
+- The reply opens with the five-heading recap, every claim marked verified, moved, or drifted.
+- `HANDOFF.consumed` exists beside the file, written by the passing `--consume` check.
 - The Open items were presented, and the operator re-granted any authority the handoff recorded before it was used.

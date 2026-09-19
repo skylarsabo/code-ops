@@ -9,7 +9,7 @@ description: "Use when you need to prove no traffic escapes the proxy or Tor. Ow
 
 **Invoked as `/privacy-opsec-suite-tor-egress-audit`, or by the model through the `skill` tool as `privacy-opsec-suite-tor-egress-audit`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill

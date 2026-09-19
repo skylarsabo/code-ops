@@ -9,7 +9,7 @@ description: "Use when you want to implement one change, a feature or a one-off,
 
 **Invoked as `/code-ops-suite-ship`, or by the model through the `skill` tool as `code-ops-suite-ship`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails
 including the automation-level ladder (`§4`), the quality lenses (`§10`), and the implementation
 loop (`§11`) this skill follows.

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-13
+updated: 2026-09-18
 ---
 
 # Infrastructure
@@ -35,12 +35,15 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers seven commands across six events in
+The code-ops-suite package registers eight commands across six events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
-the required event contract. Six fail open on every path. The traceless guard intentionally
+the required event contract. Seven fail open on every path. The traceless guard intentionally
 blocks a publishing command when it detects a trace and fails open on infrastructure errors.
-Five commands carry an off switch, read from the canonical `.claude/settings.json`
-environment. Rendered hosts use their documented process environment:
+The dispatch guard is the one other command that can deny a tool call, and it denies only a
+subagent that has spent three times its round budget.
+Six commands carry an off switch, read from the canonical `.claude/settings.json`
+environment, and a seventh variable governs only the routing card's pending-handoff line.
+Rendered hosts use their documented process environment:
 
 ```json
 { "env": { "CODE_OPS_DIGEST": "off" } }
@@ -53,8 +56,28 @@ environment. Rendered hosts use their documented process environment:
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs` |
+| `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
+| `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter and dispatch advisories, `dispatch-guard.mjs` |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
+
+`CODE_OPS_DISPATCH_GUARD=warn` is the one middle setting: it keeps every advisory and lifts only
+the hard stop. `CODE_OPS_ROUND_BUDGET` overrides the guard's 40-round default and takes a positive
+integer only. The guard injects one line at the budget and at every further 20 rounds, telling the
+operative to checkpoint to its report and return. At three times the budget it denies further tool
+calls with the same instruction. It counts and denies only inside a subagent, which the host marks
+by an `agent_id` in the hook payload, so a main-thread tool call is never denied. On the lead's own
+dispatch it adds at most three advisory clauses: a `model` override that replaces the agent's
+declared tier, a wide-surface or context-inheriting agent type, and a brief carrying no Round
+budget. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs:64-76` and
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:111-161`.
+
+On a fresh session, `source` of `startup` or `clear`, the routing card ends with one line naming
+the newest pending handoff. Discovery reads two bounded directory levels, the dated run folders
+under each `<repo>-docs/80 Runs/` and under the repository's own `80 Runs/`, never a recursive
+walk. Pending means the run folder holds no `HANDOFF.consumed` beside its `HANDOFF.md` and that
+file's mtime falls inside 14 days. Evidence:
+`plugins/code-ops-suite/hooks/routing-card.mjs:22-65`.
 
 Two variables name a storage path:
 
@@ -68,8 +91,8 @@ Evidence: `codex-marketplace/plugins/code-ops-suite/hooks/session-receipt.mjs:29
 
 `CODE_OPS_DIGEST_STORE=off` keeps compression enabled while disabling raw-output and receipt storage.
 
-The two commands with no switch are `enforce-traceless.mjs` at `PreToolUse` and
-`routing-card.mjs` at `SessionStart`. There is no `PreCompact` command. Claude and Codex
+The one command with no switch is `enforce-traceless.mjs` at `PreToolUse`. The routing card
+itself has none either; only its pending-handoff line does. There is no `PreCompact` command. Claude and Codex
 instead receive a durable-state restore instruction on `SessionStart source=compact`; this
 runs after compaction and does not alter the summary that was already produced. The
 [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each command's
@@ -102,13 +125,23 @@ session reached. It has no override variable and nothing purges it automatically
 directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:79-92` and
 `scripts/transcript-lib.mjs:539-555`.
 
+The dispatch-guard counter store is `<host home>/code-ops/dispatch/<project slug>/<agent id
+slug>.rounds`, one file per subagent whose byte length is that subagent's round count. It has no
+override variable and nothing purges it automatically; delete the directory to purge it. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:44-54` and
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:78-92`.
+
 `context-audit.mjs --host codex` reads local Codex session JSONL, filters to the current
 directory unless `--all` is present, and normalizes current response usage. A receipt follows
 child rollout `parent_thread_id` links rather than assuming Claude's nested directory layout.
 For installed Grok 1.0.13, the receipt parser reads cumulative per-prompt snapshots from the
-session's `updates.jsonl` and records `ladderCard=false` and `handoffCard=false`. Every receipt
+session's `updates.jsonl` and records `ladderCard=false`, `handoffCard=false`, and
+`handoffPickup=false`. Every receipt
 also records the handoff band the session reached and whether the operator ran
 `/code-ops-suite:handoff`, so `receipts --by-arm` reads the handoff card against its own control.
+The `arms` object also carries `handoffPickup` and `dispatchGuard`, each read from its own switch.
+A `CODE_OPS_DISPATCH_GUARD` of `warn` records `dispatchGuard=true`, because every advisory still
+runs and only the hard stop is lifted.
 The report omits tool arguments and
 working-directory values unless raw output was explicitly requested.
 
@@ -136,11 +169,13 @@ byte-identical packaging.
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Unavailable: no typed subagent-start callback |
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Unavailable: no transcript callback |
 | Handoff card | Native | Instruction files only; passive stdout unavailable | Projected hook; silent if the payload omits `transcript_path` | Unavailable: no transcript or usage callback |
+| Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Unavailable: the routing card ships as text baked at build time |
+| Dispatch guard | Native | Registered; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id` | Unavailable: no pre-tool-call agent identity |
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
 the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,
 blocks unknown or below-floor operative models, and derives local MCP paths from the plugin
-module. Its compatibility page names the two host gaps instead of claiming nonexistent
+module. Its compatibility page names each host gap instead of claiming nonexistent
 hooks. The Grok behavior above is local runtime evidence from installed version 1.0.13 and
 `~/.grok/docs/user-guide/10-hooks.md`. The deterministic evals prove accepted output shapes
 and side effects; they do not claim that a fresh live external model turn was run during this

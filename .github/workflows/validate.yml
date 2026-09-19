@@ -206,6 +206,8 @@ jobs:
         run: node evals/ladder-card/run.mjs
       - name: Handoff card hook eval (opt-in switch + context-band threshold)
         run: node evals/handoff-card/run.mjs
+      - name: Dispatch guard hook eval (round budget + dispatch advisories)
+        run: node evals/dispatch-guard/run.mjs
       - name: Context query eval (symbol index, call edges, stale banner, refresh hook, providers)
         run: node evals/context-query/run.mjs
       - name: Context query MCP eval (stdio server, two tools, JSON-RPC errors)
@@ -286,6 +288,7 @@ jobs:
       - run: node evals/context-query-mcp/run.mjs
       - run: node evals/ladder-card/run.mjs
       - run: node evals/handoff-card/run.mjs
+      - run: node evals/dispatch-guard/run.mjs
       - run: node evals/context-audit/run.mjs
       - run: node evals/overbuild-garden/run.mjs
       - run: node evals/deferral-harvest/run.mjs
@@ -351,6 +354,8 @@ jobs:
         run: node evals/ladder-card/run.mjs
       - name: Handoff card hook eval (opt-in switch + context-band threshold)
         run: node evals/handoff-card/run.mjs
+      - name: Dispatch guard hook eval (round budget + dispatch advisories)
+        run: node evals/dispatch-guard/run.mjs
       - name: Context query eval (symbol index, call edges, stale banner, refresh hook, providers)
         run: node evals/context-query/run.mjs
       - name: Context query MCP eval (stdio server, two tools, JSON-RPC errors)

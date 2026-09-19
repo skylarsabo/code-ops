@@ -9,7 +9,7 @@ description: "Use when you want the most exhaustive end-to-end pass across all t
 
 **Invoked as `/code-ops-suite-everything`, or by the model through the `skill` tool as `code-ops-suite-everything`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. This skill orchestrates every workflow across the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. This skill orchestrates every workflow across the
 three code-ops plugins into one exhaustive pipeline. It does not replace the individual skills.
 It runs them in the right order, deduplicated, carrying every register and a growing **proof
 set** forward, and checking in at phase boundaries.

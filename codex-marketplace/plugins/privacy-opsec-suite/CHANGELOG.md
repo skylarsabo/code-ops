@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.22
+- The sibling-runtime paragraph names the dispatch guard beside the digest, index refresh, ladder card, receipt, and handoff card, so the list matches what `code-ops-suite` now registers.
+
 ## 1.20.21
 - The changelog no longer carries a duplicated `1.20.20` heading with a leftover placeholder bullet from the version bump script.
 
