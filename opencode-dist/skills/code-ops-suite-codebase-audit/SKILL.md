@@ -9,7 +9,7 @@ description: "Use when you want a broad, multi-lens review of an unfamiliar or d
 
 **Invoked as `/code-ops-suite-codebase-audit`, or by the model through the `skill` tool as `code-ops-suite-codebase-audit`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
 quality lenses this skill references by section.

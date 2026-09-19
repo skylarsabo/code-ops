@@ -88,20 +88,23 @@ copy in one commit.
 
 ## Session mechanisms that run under every change
 
-Seven plugin hook commands across six events provide traceless publishing, routing with
-compaction restoration, output digests, index refresh, ladder guidance, session receipts, and
-a context-size handoff nudge. The last five named mechanisms are on by default and have
+Eight plugin hook commands across six events provide traceless publishing, routing with
+compaction restoration and pending-handoff pickup, output digests, index refresh, ladder
+guidance, session receipts, a context-size handoff nudge, and a dispatch guard that binds the
+brief's Round budget. The last six named mechanisms are on by default and have
 documented environment switches. Use
 `scripts/co.mjs context skim|query` before loading large files or maps. The switch names,
 contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
 `MEASUREMENTS.md` under `code-ops-docs/`.
 
 Host coverage differs, and `INFRASTRUCTURE.md` holds the per-host table. Claude and Codex
-register all seven commands. Grok prints nothing for the routing, ladder, and handoff cards.
+register all eight commands. Grok prints nothing for the routing, ladder, and handoff cards.
 Instruction files carry the routing and ladder guidance there, and the handoff nudge has no Grok
-substitute. OpenCode ports publishing, routing,
-compaction, digest, and index as plugin events, and has no ladder card, session receipt, or
-handoff nudge.
+substitute. The dispatch guard counts a subagent's rounds only where the hook payload carries an
+`agent_id`, so its round counter is inert on a host that omits that field, and its dispatch
+advisories still run. OpenCode ports publishing, routing,
+compaction, digest, and index as plugin events, and has no ladder card, session receipt,
+handoff nudge, dispatch guard, or pending-handoff line.
 
 ## Before declaring any change done
 

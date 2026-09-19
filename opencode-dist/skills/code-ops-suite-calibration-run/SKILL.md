@@ -9,7 +9,7 @@ description: "Use when you want a standardized real-scale calibration run of the
 
 **Invoked as `/code-ops-suite-calibration-run`, or by the model through the `skill` tool as `code-ops-suite-calibration-run`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. It defines the operating model,
 the safety rails, and the evidence standard this skill extends to run measurement. Then read
 `<plugin-root>/reference/calibration-protocol.md` for the one-way channel rule,

@@ -14,12 +14,17 @@
 //     the highest band reached in `peak`, which the session receipt reads;
 //   - fail open: bad JSON, no hook_event_name match, a missing transcript file, a missing
 //     session_id, and empty stdin all exit 0 with no output;
-//   - Grok's passive-hook adapter emits nothing, matching routing-card.mjs and ladder-card.mjs.
+//   - Grok's passive-hook adapter emits nothing, matching routing-card.mjs and ladder-card.mjs;
+//   - band 1 advises a handoff at the next boundary, and band 2 and above escalates to "now".
+//
+// It also covers the other half of the handoff loop, the pending-handoff pickup line
+// plugins/code-ops-suite/hooks/routing-card.mjs injects at SessionStart: which sources get it,
+// what makes a handoff pending, and the CODE_OPS_HANDOFF_PICKUP switch.
 //
 //   node evals/handoff-card/run.mjs
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -137,6 +142,23 @@ function parseOut(r) {
   console.log('ok   crossing prints once, the same band stays silent, the next band prints, and dropping below 150,000 re-arms it');
 }
 
+// ---------------------------------------------------------------- band escalation
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-band-'));
+  const first = runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(160_000), 'b1.jsonl'), sessionId: 'sess-band-1' }), { home });
+  const second = runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(330_000), 'b2.jsonl'), sessionId: 'sess-band-2' }), { home });
+  const m1 = (parseOut(first) || {}).systemMessage || '';
+  const m2 = (parseOut(second) || {}).systemMessage || '';
+  expect(/next workstream boundary/.test(m1) && /resume line/.test(m1), `band 1 must advise the next boundary and name the resume line, got ${m1}`);
+  expect(/handoff now/.test(m2) && /no new workstream/.test(m2), `band 2 must ask for the handoff now and forbid a new workstream, got ${m2}`);
+  expect(m1 !== m2 && m2.includes('/code-ops-suite:handoff'), 'band 2 must escalate past band 1 and still name the command');
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   band 1 advises the next boundary; band 2 escalates to writing the handoff now');
+}
+
 // ---------------------------------------------------------------- the off switch
 
 {
@@ -197,6 +219,84 @@ function parseOut(r) {
 
   rmSync(dir, { recursive: true, force: true });
   cleanup();
+}
+
+// ---------------------------------------------------------------- pending-handoff pickup (routing card)
+
+{
+  const routingCard = join(root, 'plugins', 'code-ops-suite', 'hooks', 'routing-card.mjs');
+  const runCard = (payload, { switchValue } = {}) => {
+    const env = { ...process.env };
+    delete env.CODE_OPS_HANDOFF_PICKUP;
+    delete env.GROK_PLUGIN_ROOT;
+    if (switchValue !== undefined) env.CODE_OPS_HANDOFF_PICKUP = switchValue;
+    return spawnSync('node', [routingCard], { input: JSON.stringify(payload), encoding: 'utf8', env });
+  };
+  const pickupLine = (r) => (r.stdout || '').split('\n').find((l) => l.startsWith('pending handoff:')) || null;
+
+  // A hub-shaped fixture: the vault layout rule puts `80 Runs/` inside a `<repo>-docs/` hub, and
+  // both the hub folder and the dated run folder carry spaces in real repositories.
+  const project = mkdtempSync(join(tmpdir(), 'handoff-pickup-'));
+  const runsDir = join(project, 'fixture-docs', '80 Runs');
+  const folder = join(runsDir, '2026-09-18 token spend audit');
+  mkdirSync(folder, { recursive: true });
+  const handoff = join(folder, 'HANDOFF.md');
+  writeFileSync(handoff, '# HANDOFF\n');
+  const startup = { hook_event_name: 'SessionStart', source: 'startup', cwd: project };
+
+  const fresh = runCard(startup);
+  const line = pickupLine(fresh);
+  expect(fresh.status === 0 && line !== null, `a fresh session must name the pending handoff, got ${JSON.stringify(fresh.stdout)}`);
+  if (line) {
+    expect(line.includes('fixture-docs/80 Runs/2026-09-18 token spend audit/HANDOFF.md'),
+      `the pickup line must carry the repo-relative path with forward slashes, got ${line}`);
+    const today = new Date();
+    const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    expect(line.includes(`(written ${stamp})`), `the pickup line must carry the write date, got ${line}`);
+    expect(line.includes('code-ops-suite:handoff') && !line.includes('/code-ops-suite:handoff'),
+      `the pickup line must name the skill without Claude-only slash syntax, so the Codex projection stays valid, got ${line}`);
+    expect(/five headings: work completed, key findings, in progress, left to do, project scope and constraints/.test(line),
+      `the pickup line must name the five recap headings, got ${line}`);
+    expect(fresh.stdout.split('\n').filter((l) => l.startsWith('pending handoff:')).length === 1, 'the pickup line must print once');
+  }
+  expect(pickupLine(runCard({ ...startup, source: 'clear' })) !== null, 'a cleared session must also get the pickup line');
+  for (const source of ['resume', 'compact']) {
+    expect(pickupLine(runCard({ ...startup, source })) === null, `source ${source} must not get the pickup line`);
+  }
+  for (const value of ['off', '0', 'false', 'OFF']) {
+    expect(pickupLine(runCard(startup, { switchValue: value })) === null, `CODE_OPS_HANDOFF_PICKUP=${value} must silence the pickup line`);
+  }
+  expect(pickupLine(runCard(startup, { switchValue: 'on' })) !== null, 'a non-off switch value must leave the pickup on');
+
+  // The newest pending handoff wins, and a root-level `80 Runs/` is searched beside the hub's.
+  const rootFolder = join(project, '80 Runs', '2026-09-19 newer run');
+  mkdirSync(rootFolder, { recursive: true });
+  writeFileSync(join(rootFolder, 'HANDOFF.md'), '# HANDOFF\n');
+  const aged = Date.now() / 1000 - 3600;
+  utimesSync(handoff, aged, aged);
+  expect((pickupLine(runCard(startup)) || '').includes('80 Runs/2026-09-19 newer run/HANDOFF.md'),
+    'the newest pending handoff must win, including one under a root-level 80 Runs/');
+
+  // A consumed sibling retires the handoff; with both retired, nothing is advertised.
+  writeFileSync(join(rootFolder, 'HANDOFF.consumed'), `${new Date().toISOString()}\n`);
+  expect((pickupLine(runCard(startup)) || '').includes('2026-09-18 token spend audit'),
+    'a consumed sibling must retire that handoff and let the older pending one show');
+  writeFileSync(join(folder, 'HANDOFF.consumed'), `${new Date().toISOString()}\n`);
+  expect(pickupLine(runCard(startup)) === null, 'two consumed handoffs must leave no pickup line');
+
+  // Older than 14 days is history, not pending.
+  rmSync(join(folder, 'HANDOFF.consumed'));
+  const old = Date.now() / 1000 - 15 * 86_400;
+  utimesSync(handoff, old, old);
+  expect(pickupLine(runCard(startup)) === null, 'a handoff older than 14 days must not be advertised');
+
+  // Fail open: a cwd that does not exist still prints the routing card itself.
+  const missing = runCard({ ...startup, cwd: join(project, 'no-such-dir') });
+  expect(missing.status === 0 && /code-ops standard operating mode/.test(missing.stdout) && pickupLine(missing) === null,
+    'an unreadable cwd must fail open with the card and no pickup line');
+
+  rmSync(project, { recursive: true, force: true });
+  console.log('ok   the routing card names the newest pending handoff, skips consumed and stale ones, and honors its switch');
 }
 
 if (fails.length) {

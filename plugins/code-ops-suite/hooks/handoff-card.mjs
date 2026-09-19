@@ -6,6 +6,10 @@
 // lead input-side tokens spent above 200k. The exact value stays SPECULATIVE until session
 // receipts calibrate it. See the "Handoff card" pre-registration in MEASUREMENTS.md.
 //
+// The message escalates with the band. Band 1 advises a handoff at the next workstream boundary.
+// Band 2 and above asks for the handoff now and for no new workstream in this session, because a
+// session that crossed twice already declined the first boundary.
+//
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
 // is `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
 // `.claude/settings.json` sets at user or repository scope; rendered hosts use their documented
@@ -135,8 +139,14 @@ async function main() {
   writeBand(marker, band, peak);
 
   const approx = Math.round(context / 10_000) * 10_000;
-  const message = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context, and every `
-    + 'turn re-reads all of it. Hand off at the next workstream boundary with /code-ops-suite:handoff and start fresh.';
+  const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context, and every turn re-reads all of it. `;
+  // Band 1 is advice; band 2 and above is a session that already paid the first nudge and kept
+  // going, so the second message names the boundary instead of offering one.
+  const message = band === 1
+    ? held + 'Hand off at the next workstream boundary with /code-ops-suite:handoff and start fresh. '
+      + 'The write ends with a resume line, and the next session picks the handoff up from it.'
+    : held + 'Finish the step in flight, then write the handoff now with /code-ops-suite:handoff, give the operator '
+      + 'the resume line it ends with, and start no new workstream in this session.';
   writeSync(1, `${JSON.stringify({
     systemMessage: message,
     hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: message },

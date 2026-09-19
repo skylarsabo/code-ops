@@ -139,10 +139,10 @@ function transformConventions(contents) {
   const portable = portableText(contents);
   return portable.replace(
     /^\*\*Context economy runs under the session, not under a skill\.\*\*.*$/m,
-    '**OpenCode runtime limits.** This distribution runs traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches. The host API exposes no equivalent subagent-start ladder card or session-end transcript receipt.',
+    '**OpenCode runtime limits.** This distribution runs traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches. The host API exposes no equivalent subagent-start ladder card, session-end transcript receipt, pre-tool dispatch guard, or pending-handoff line.',
   ).replace(
     /^Where `code-ops-suite` is installed beside this plugin, its (?:supported )?session mechanisms run under the same session[.:].*$/m,
-    '**OpenCode sibling runtime.** Where `code-ops-suite` is installed beside this plugin, its OpenCode adapters provide digest rewrite, symbol-index refresh, routing guidance, and compaction preservation. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches; routing and compaction have no off switch. The host API exposes no operative ladder card or session receipt. The adapters remain local and make no network request.',
+    '**OpenCode sibling runtime.** Where `code-ops-suite` is installed beside this plugin, its OpenCode adapters provide digest rewrite, symbol-index refresh, routing guidance, and compaction preservation. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches; routing and compaction have no off switch. The host API exposes no operative ladder card, session receipt, dispatch guard, or pending-handoff line. The adapters remain local and make no network request.',
   );
 }
 
@@ -186,7 +186,7 @@ function transformSkill(pluginName, slug, contents, path) {
     '',
     `**Invoked as \`/${name}\`, or by the model through the \`skill\` tool as \`${name}\`.**`,
     '',
-    '**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host.',
+    '**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host.',
   ].join('\n');
 
   const transformed = portableText(body.replace(marker, rule), {
@@ -636,8 +636,10 @@ function compatibilityNotes() {
     '  `experimental.chat.system.transform` and',
     '  `experimental.session.compacting`, so the generated runtime plugin appends the',
     '  canonical preservation instruction to the compaction prompt.',
-    '- **Ladder cards and session receipts are intentionally unavailable here.** The installed',
-    '  plugin types expose no subagent-start callback or session-end transcript path.',
+    '- **Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are',
+    '  intentionally unavailable here.** The installed plugin types expose no subagent-start',
+    '  callback, session-end transcript path, or pre-tool-call agent identity. The routing card',
+    '  ships as text baked at build time, so it carries no per-session pending-handoff line.',
     '- **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin',
     '  derives their absolute local commands from its own module URL and adds typed local MCP',
     '  entries without overwriting operator-defined entries.',

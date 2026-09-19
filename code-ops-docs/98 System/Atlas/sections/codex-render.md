@@ -20,5 +20,6 @@ The Codex projection carries the session receipt and follows child rollouts thro
 `parent_thread_id`. It also projects the compact-resume routing card because plain
 `PreCompact` stdout cannot alter the summary. The OpenCode projection ports traceless/model
 floors, digest, index, routing, native compaction, and MCP behavior. Its current plugin API has
-no typed ladder-card or transcript-receipt callback, so the compatibility record names both
-gaps instead of claiming parity.
+no typed ladder-card or transcript-receipt callback, and no per-subagent identity for the
+dispatch guard. Its routing card is baked at build time, so the pending-handoff line cannot
+reach it. The compatibility record names every gap instead of claiming parity.

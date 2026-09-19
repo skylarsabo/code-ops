@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "3fe49372c43c953ff276838a5a06360640bfb364d9d271e4955b597d37b78e50"
+      "verifiedAt": "5bf94995e037a07a3c918b4683b609cbb3c439a4",
+      "verifiedDigest": "b2545b4243a2cdfc2932f6debb833d23f2690ed218ca84e8c5055931b75a17b1"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "d3b2f34c5dbf99121bc535f1b2f97ae00b9b865d3692a81244ea0a34dfa6acbb",
+      "verifiedAt": "5bf94995e037a07a3c918b4683b609cbb3c439a4",
+      "verifiedDigest": "23184774ff59cc5d6578251def53e015f32785dfabc84371a7eaab0faffd0400",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -28,7 +28,7 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 47,
+          "line": 61,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
@@ -54,8 +54,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "d90b9de73337598255b05b4414ff33add8f8cd810979f1cb66a1810ccf2ebe8f",
+      "verifiedAt": "5bf94995e037a07a3c918b4683b609cbb3c439a4",
+      "verifiedDigest": "43cfabfc36dd68a31e4b9741aae53549eb1da27a7d3367c792771944d59d8df6",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -82,18 +82,18 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "3c406794ee3dae62fc4d6920deae1f241ed51328f99287aac664374d49a51a3d",
+      "verifiedAt": "eff987a2c2cf83cfe6cc0bff64ae4b70c8941d65",
+      "verifiedDigest": "6095a64027a3b53148d70d8319a72e9b1189db4dfadc4d401affc28486a7fafc",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
           "line": 513,
-          "anchor": "addSourceTree(sourcePath(spec.name, 'scripts'),"
+          "anchor": "and the matching entry in the marketplace.', 'the source plugin manifest and mat"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
           "line": 515,
-          "anchor": "addSourceTree(sourcePath(spec.name, 'reference'),"
+          "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
         }
       ]
     },
@@ -103,8 +103,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "0876549df21c461baa679aedac005f3731b98921",
-      "verifiedDigest": "bfe7dbebc770c107e52095e118f1e5b1dcd9b5ccbe918448b668ade6a64970e2"
+      "verifiedAt": "eff987a2c2cf83cfe6cc0bff64ae4b70c8941d65",
+      "verifiedDigest": "ed0f76537871b4244287674755450abf23190239798dd56a68bcba4b1d555afe"
     },
     {
       "slug": "docs-doctrine",
@@ -127,8 +127,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "508261be87a1469639c61e2127a76da6d1c5af8018b262a598cfc7c20cd55f4f"
+      "verifiedAt": "eff987a2c2cf83cfe6cc0bff64ae4b70c8941d65",
+      "verifiedDigest": "e9dbaf5c99fc1b75739124c6447c6334a4d8367ea1e7f1db5373336bf76583e2"
     },
     {
       "slug": "root-contracts",
@@ -142,8 +142,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "0363923b42af372d29e0f5b0426fcd342b41801d",
-      "verifiedDigest": "b0e5553051cff704f357cea2638f45c7b762bd7e49036c8d2a471c6052489eef"
+      "verifiedAt": "eff987a2c2cf83cfe6cc0bff64ae4b70c8941d65",
+      "verifiedDigest": "de3614d8788025d0b43297913f3a712c29951ec71dee1b2ac1217842ec620036"
     },
     {
       "slug": "runtime-toolchain",

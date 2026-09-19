@@ -9,7 +9,7 @@ description: "Use when a repo's AGENTS.md standards contract needs to be created
 
 **Invoked as `/code-ops-suite-adopt-standards`, or by the model through the `skill` tool as `code-ops-suite-adopt-standards`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory
 for it if needed. It defines the operating model, interaction protocol, safety rails, schemas,
 and quality lenses this skill references by section. For this DOCUMENT-mode skill the binding

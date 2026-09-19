@@ -9,7 +9,7 @@ description: "Use when you must decide whether to adopt a library or approach, c
 
 **Invoked as `/researcher-library-eval`, or by the model through the `skill` tool as `researcher-library-eval`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the bundled
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the evidence and citation discipline, the hand-off map, and
 the lenses, referenced by section.

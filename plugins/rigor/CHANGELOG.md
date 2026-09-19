@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.21
+- The sibling-runtime paragraph names the dispatch guard beside the digest, index refresh, ladder card, receipt, and handoff card, so the list matches what `code-ops-suite` now registers.
+
 ## 2.18.20
 - The changelog no longer carries a duplicated `2.18.19` heading or the leftover placeholder bullets from the version bump script.
 

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-13
+updated: 2026-09-18
 ---
 
 # Contracts
@@ -33,6 +33,8 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Deferral harvest](#deferral-harvest)
 - [Ladder card hook](#ladder-card-hook)
 - [Handoff card hook](#handoff-card-hook)
+- [Handoff write and consumption](#handoff-write-and-consumption)
+- [Dispatch guard hook](#dispatch-guard-hook)
 - [Symbol index and query](#symbol-index-and-query)
 - [Atlas claims and scope suggestion](#atlas-claims-and-scope-suggestion)
 - [Documentation manifest](#documentation-manifest)
@@ -175,7 +177,10 @@ The `SessionEnd` hook `session-receipt.mjs` is on by default on hosts that expos
 callback. Claude summarizes the main transcript and its `subagents/*.jsonl` siblings. Codex
 reads peer rollouts and follows `session_meta.payload.parent_thread_id` to include descendants.
 Installed Grok 1.0.13 reads cumulative per-prompt usage from the session's `updates.jsonl`;
-its receipt records `arms.ladderCard=false` and `arms.handoffCard=false`. Every receipt also
+its receipt records `arms.ladderCard=false`, `arms.handoffCard=false`, and
+`arms.handoffPickup=false`. `arms` also carries `handoffPickup` and `dispatchGuard`, each read
+from its own switch the way every other arm is; `CODE_OPS_DISPATCH_GUARD=warn` records
+`dispatchGuard=true`, because only the hard stop is lifted. Every receipt also
 carries `handoff`, the highest band the session's handoff marker reached and whether the
 transcript shows a `/code-ops-suite:handoff` call. OpenCode has no transcript callback, so no
 automatic receipt is claimed there. The hook writes nothing to stdout, exits `0` on bad input,
@@ -197,13 +202,25 @@ and the generated host compatibility files.
 
 ## Routing card and traceless hooks
 
-Two bundled hooks carry no environment switch. On Claude and Codex, the `SessionStart` hook
+One bundled hook carries no environment switch at all, `enforce-traceless.mjs`. On Claude and
+Codex, the `SessionStart` hook
 `routing-card.mjs` prints a fixed card naming the standard routing table, tier and effort
 rules, and context-economy defaults. It parses the start source so a compact resume receives
 the restore instruction above. On Grok it emits nothing because passive hook stdout is ignored;
 the paired instruction files carry the routing doctrine. Any error exits `0` silently.
 Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs` and
 `evals/grok-build-compat/run.mjs`.
+
+On a fresh session, a `source` of `startup` or `clear`, the same card appends one pending-handoff
+line. The line names the newest pending `HANDOFF.md` and the date it was written, and it directs
+the session to resume from it, verify its claims, and open the reply with a five-heading recap.
+A compact resume gets the restore instruction instead, never the pickup line. Discovery reads two
+bounded directory levels: the dated run folders under each `<repo>-docs/80 Runs/` beside the
+repository root and under the repository's own `80 Runs/`. A handoff counts as pending when its
+run folder holds no `HANDOFF.consumed` beside it and the `HANDOFF.md` mtime falls inside 14 days.
+`CODE_OPS_HANDOFF_PICKUP` of `off`, `0`, or `false` drops the line and leaves the rest of the card.
+Every read is guarded, so an unreadable directory yields no line rather than an error. Evidence:
+`plugins/code-ops-suite/hooks/routing-card.mjs:9-65` and `evals/handoff-card/run.mjs`.
 
 The `PreToolUse` hook `enforce-traceless.mjs` is the tool-layer backstop for the
 traceless-publishing rule. When the Bash command about to run matches a `git commit` or a `gh
@@ -542,9 +559,68 @@ context `Part`, but carries no usage or token data to compute the metric from. E
 `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
 `code-ops-docs/35 Contracts and Data/CONTRACTS.md#session-receipt-hook`.
 
+The message escalates with the band. Band 1 advises a handoff at the next workstream boundary and
+names the resume line the write ends with. Band 2 and higher asks for the handoff now and for no
+new workstream in this session, because a session at that band already declined the first
+boundary. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:141-152`.
+
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant
 usage, or any thrown error exits 0 with no output. Evidence: `evals/handoff-card/run.mjs`.
+
+## Handoff write and consumption
+
+`check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors] [--consume]` is the structural
+floor under the handoff skill's write contract. Eleven headings are required, matched by prefix:
+Goal and state of play, Scope and constraints, Work completed, Key findings, In-flight boundaries,
+Open items, Registers and artifacts, Decisions made, Traps and dead ends, Authority, and Carried
+context. The first six answer what an operator asks a resumed session: what was worked on, what
+was found, what is in progress, what is left, and what the scope and constraints are. Order is
+documentation only; presence gates. Evidence: `scripts/check-handoff.mjs:85-97`.
+
+Four other checks fail closed. "Goal and state of play" must carry a non-empty `Request:` line
+holding the operator's original request verbatim. Every top-level bullet under "Key findings" must
+carry a confidence label of `CONFIRMED`, `PROBABLE`, or `SPECULATIVE`. The file must stay at or
+under 8 KB, because detail belongs in the run-folder files the handoff points at. Every Open items
+bullet needs `Owner:` and `Done when:`, must not open with an imperative verb, and every
+`path:line · Anchor:` pointer must resolve against the working tree. Exit `0` is conformant, `1`
+lists violations on stderr, and `2` is a usage error. Evidence: `scripts/check-handoff.mjs:13-54`
+and `evals/handoff-check/run.mjs`.
+
+`--consume` writes `HANDOFF.consumed` beside the file, holding one ISO timestamp line, and only
+after every check above passes. The resume direction writes it once verification finishes, so a
+marker means a session read and verified that state. The `SessionStart` routing card treats the
+marker's presence as already picked up, which retires the handoff from discovery. A failed check
+writes nothing, and a marker that cannot be written is reported rather than swallowed, because the
+caller asked for it. Evidence: `scripts/check-handoff.mjs:45-48` and
+`scripts/check-handoff.mjs:231-246`.
+
+## Dispatch guard hook
+
+`hooks/dispatch-guard.mjs` runs at `PreToolUse` with no matcher, so it sees every tool call, and
+carries two behaviors under one registration. It reads `agent_id`, `cwd`, `tool_name`, and
+`tool_input.model`, `tool_input.subagent_type`, and `tool_input.prompt` from the payload. It is on
+by default. `CODE_OPS_DISPATCH_GUARD` of `off`, `0`, or `false` disables the whole hook, and `warn`
+keeps every advisory while lifting the hard stop. `CODE_OPS_ROUND_BUDGET` overrides the 40-round
+default and takes a positive integer only. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:20-23` and
+`plugins/code-ops-suite/hooks/hooks.json`.
+
+Inside a subagent, which the host marks by an `agent_id` the main thread never carries, the hook
+counts that subagent's tool calls. At the budget, and at every further 20 rounds, it returns one
+`hookSpecificOutput.additionalContext` line telling the operative to checkpoint to its report and
+return. At three times the budget it returns `permissionDecision: deny` with the same instruction.
+It never denies a main-thread tool call. State is one append-only file per subagent at `<host
+home>/.claude/code-ops/dispatch/<project slug>/<agent id slug>.rounds` whose byte length is the
+count, so two concurrent tool calls cannot lose a round. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:78-134`.
+
+On the main thread the hook acts only on the dispatch tool, `Agent` or the older `Task`, and never
+denies. It adds at most three advisory clauses: a `model` override that replaces the agent's
+declared tier, a wide-surface or context-inheriting `subagent_type`, and a brief whose prompt
+names no Round budget. The hook fails open on every path: bad JSON, another event name, a missing
+field, an unwritable state directory, or any thrown error exits 0 with no output. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:136-182` and `evals/dispatch-guard/run.mjs`.
 
 ## Symbol index and query
 

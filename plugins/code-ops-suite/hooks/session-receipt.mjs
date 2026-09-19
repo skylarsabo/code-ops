@@ -107,8 +107,14 @@ async function doFinish() {
       contextAtEnd: main.contextAtEnd,
       // Which mechanisms this session ran under, read from the same switches the hooks read: on
       // unless the switch says off, so the ledger can compare an arm against sessions run with it off.
+      // `dispatchGuard` stays a boolean like every other arm, because the by-arm grouping in
+      // context-audit.mjs names an arm from the keys whose value is exactly `true`. A
+      // `CODE_OPS_DISPATCH_GUARD` of `warn` therefore records `true`: every advisory still runs,
+      // and only the hard stop is lifted.
       arms: { digest: on('CODE_OPS_DIGEST'), ladderCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_LADDER_CARD'), index: on('CODE_OPS_INDEX'),
-        handoffCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_HANDOFF_CARD') },
+        handoffCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_HANDOFF_CARD'),
+        handoffPickup: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_HANDOFF_PICKUP'),
+        dispatchGuard: on('CODE_OPS_DISPATCH_GUARD') },
       handoff,
       files: 1 + subFiles.length,
       skipped: subFiles.length - subs.length,

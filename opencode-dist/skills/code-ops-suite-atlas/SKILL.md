@@ -9,7 +9,7 @@ description: "Use when a repo's atlas needs to be created, refreshed after the c
 
 **Invoked as `/code-ops-suite-atlas`, or by the model through the `skill` tool as `code-ops-suite-atlas`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model (`§1`), the evidence standard (`§9`), and the
 single-source-of-truth conventions (`§12`) that this skill extends from one run's artifacts to a
 durable artifact the repo keeps. Then read

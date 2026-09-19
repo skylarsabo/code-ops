@@ -33,8 +33,10 @@ Rebuild it there with `node scripts/build-opencode-dist.mjs`; CI uses `--check` 
   `experimental.chat.system.transform` and
   `experimental.session.compacting`, so the generated runtime plugin appends the
   canonical preservation instruction to the compaction prompt.
-- **Ladder cards and session receipts are intentionally unavailable here.** The installed
-  plugin types expose no subagent-start callback or session-end transcript path.
+- **Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are
+  intentionally unavailable here.** The installed plugin types expose no subagent-start
+  callback, session-end transcript path, or pre-tool-call agent identity. The routing card
+  ships as text baked at build time, so it carries no per-session pending-handoff line.
 - **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin
   derives their absolute local commands from its own module URL and adds typed local MCP
   entries without overwriting operator-defined entries.

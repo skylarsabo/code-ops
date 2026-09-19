@@ -793,30 +793,41 @@ afterward.
 **How it works.** Two directions, picked at the start.
 
 Write applies when a long run is near a context limit, ending, or changing hands. It captures
-the run's true state as `HANDOFF.md` in the dated artifact folder: the goal and the state of
-play (phases complete, in flight, and not started, the automation level, and the operator
-steering, with merged-PR history as one `base..head` range rather than a per-PR list), every
-register and artifact path stamped `Verified-at: <sha>`, the decisions made with the options
-rejected, the traps and dead ends (approaches that failed, and mistakes the successor will be
-tempted to repeat), the in-flight boundaries with `file:line` pointers each carrying a verbatim
-Anchor, the open items and unanswered operator decisions (one line each, ordered by priority,
-carrying `Owner: agent` or `Owner: operator`, `Done when: <an observable check>`, and a
-pointer), the operator's authority grants in their exact words with scope (none of it carries
-into the resumed session until re-granted), and any analysis, measurement, or proposal the next
-session needs, written to a run-folder file and pointed at rather than kept only in the
-conversation. The file never restates what `git log`, a register, or a report already holds,
-and it stays at or under the size cap `check-handoff.mjs` enforces (about 6 KB), with detail
-pushed into the pointed-at files. Before handing over, run `co scan redaction HANDOFF.md` and
-`co check handoff HANDOFF.md`. Those are the mechanical floor under the secrets rule and under
-the file's required shape, because a handoff travels further than a register. The rule
-throughout is state, not instructions. Describe what is true, such as "the leak gate is
-implemented, the register sweep is not started", and never what to do next.
+the run's true state as `HANDOFF.md` in the dated artifact folder. The first six sections answer
+what an operator asks a resumed session: the goal and the state of play (phases complete, in
+flight, and not started, the automation level, the operator steering, and a `Request:` line
+holding the original request verbatim), the scope and constraints (repository, branch, the areas
+in and out of scope, and the operator's constraints in their exact words), the work completed as
+revision ranges and paths rather than a per-commit list, the key findings one line each with a
+confidence label and an evidence pointer, the in-flight boundaries with `file:line` pointers each
+carrying a verbatim Anchor, and the open items and unanswered operator decisions (one line each,
+ordered by priority, carrying `Owner: agent` or `Owner: operator`, `Done when: <an observable
+check>`, and a pointer). The rest follow: every register and artifact path stamped
+`Verified-at: <sha>`, the decisions made with the options rejected, the traps and dead ends
+(approaches that failed, and mistakes the successor will be tempted to repeat), the operator's
+authority grants in their exact words with scope (none of it carries into the resumed session
+until re-granted), and any analysis, measurement, or proposal the next session needs, written to
+a run-folder file and pointed at rather than kept only in the conversation. The file never
+restates what `git log`, a register, or a report already holds, and it stays at or under the size
+cap `check-handoff.mjs` enforces (about 8 KB), with detail pushed into the pointed-at files.
+Before handing over, run `co scan redaction HANDOFF.md` and `co check handoff HANDOFF.md`. Those
+are the mechanical floor under the secrets rule and under the file's required shape, because a
+handoff travels further than a register. The rule throughout is state, not instructions. Describe
+what is true, such as "the leak gate is implemented, the register sweep is not started", and
+never what to do next. Write ends with one paste-ready line for the operator,
+`/code-ops-suite:handoff resume "<path>"`, and the note that the next session finds the file by
+itself: the SessionStart routing card names the newest unconsumed `HANDOFF.md` in the run
+folders, unless `CODE_OPS_HANDOFF_PICKUP` is off.
 
 Resume treats every claim as context to verify rather than fact to trust. It runs
 `revalidate-register.mjs` on every named register and checks the anchored pointers, where a
 `DRIFTED` pointer is stale state. It re-runs the deterministic baseline when the tree moved,
 then re-plans from what verified, surfacing contradictions at a checkpoint instead of silently
-re-deciding. It then presents the open items to the operator and asks them to re-grant any
+re-deciding. It then runs `co check handoff HANDOFF.md --consume`, which writes
+`HANDOFF.consumed` beside the file on a passing check so later sessions stop being offered a
+handoff this one picked up. Its reply opens with a five-heading recap (work completed, key
+findings, in progress, left to do, project scope and constraints) marking every claim verified,
+moved, or drifted. It then presents the open items to the operator and asks them to re-grant any
 authority the handoff recorded before publishing, merging, or another consequential action.
 
 **Why it's useful.** Registers carry findings across phases, but nothing else carried

@@ -41,6 +41,16 @@ re-reads all of it. The lead continues a checkpointed unit in a fresh operative,
 unit that needs a second continuation. The lead dispatches in the background
 and continues independent work, and it waits only when the next step depends on the result.
 
+Three rules bind every dispatch. Always spawn a fresh operative with a brief rather than
+forking or resuming one, because a fork or a resume starts from the context it inherited
+instead of from the brief. Pass no model override on the dispatch: the agent definition
+declares the tier, and an override silently replaces it unless the brief names the reason.
+The `hooks/dispatch-guard.mjs` hook enforces the Round budget rather than suggesting it. It
+warns the operative at the budget, warns again every further 20 rounds, and denies further
+tool calls at three times the budget, so an operative that ignores the field is stopped
+instead of spending. The same hook flags a dispatch that overrides a tier, names no Round
+budget, or spawns a wide-surface or context-inheriting agent.
+
 For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file.
 
 ## Where the report lands

@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // Regression eval for scripts/check-handoff.mjs, the structural floor under the handoff
 // skill's write contract (plugins/code-ops-suite/skills/handoff/SKILL.md). Asserts a
-// conformant fixture passes and each of four distinct, isolated defects fails closed with
-// the expected violation text, never a different check tripping instead.
+// conformant fixture passes and each distinct, isolated defect fails closed with the expected
+// violation text, never a different check tripping instead. It also pins the sections that answer
+// the operator's five resume questions, the verbatim `Request:` line, the confidence label every
+// Key findings bullet carries, and that `--consume` writes `HANDOFF.consumed` only on a pass.
 //
 //   node evals/handoff-check/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +29,21 @@ const outOf = (r) => (r.stdout || '') + (r.stderr || '');
 // piece of it and nothing else, isolating each check from the others.
 const goodOpenItem = '- PAR-100 close-out: not started · Owner: agent · Done when: register item closed-with-proof · Pointer: path:line';
 
+// The three sections the operator's five questions added, and the Goal section's verbatim
+// `Request:` line, each held in one place so a case below swaps exactly one of them.
+const BASE_GOAL = [
+  '## Goal and state of play',
+  '',
+  'Request: exercise check-handoff.mjs against a conformant fixture.',
+  '',
+  '- Objective: exercise check-handoff.mjs. History: base..head (no exceptions).',
+  '',
+].join('\n');
+
 const BASE_SECTIONS = {
+  scope: '## Scope and constraints\n\n- Repository: this fixture. Branch: none. Out of scope: prose quality.\n\n',
+  workCompleted: '## Work completed\n\n- base..head across scripts/check-handoff.mjs: fixture shape updated.\n\n',
+  keyFindings: '## Key findings\n\n- CONFIRMED: the checker reads headings by prefix. Pointer: scripts/check-handoff.mjs:5\n\n',
   authority: '## Authority\n\n- No grants recorded in this fixture. None carries into a resumed session.\n\n',
   openItems: `## Open items\n\n${goodOpenItem}\n\n`,
   carriedContext: '## Carried context\n\n- Nothing carried; this fixture needs no analysis file.\n',
@@ -39,16 +55,16 @@ const BASE_SECTIONS = {
 // the conformant case exercises the L-062 resolution against a file that really exists.
 const BASE_POINTER = '- Nothing in flight. Pointer: scripts/check-handoff.mjs:2 · Anchor: `HANDOFF.md structural checker`';
 
-function buildHandoff({ authority = BASE_SECTIONS.authority, openItems = BASE_SECTIONS.openItems, carriedContext = BASE_SECTIONS.carriedContext, inFlight = BASE_POINTER, filler = '' } = {}) {
+function buildHandoff({ goal = BASE_GOAL, scope = BASE_SECTIONS.scope, workCompleted = BASE_SECTIONS.workCompleted, keyFindings = BASE_SECTIONS.keyFindings, authority = BASE_SECTIONS.authority, openItems = BASE_SECTIONS.openItems, carriedContext = BASE_SECTIONS.carriedContext, inFlight = BASE_POINTER, filler = '' } = {}) {
   return [
     '# HANDOFF: check-handoff eval fixture',
     '',
     'Verified-at: abc1234 (main, clean).',
     '',
-    '## Goal and state of play',
-    '',
-    '- Objective: exercise check-handoff.mjs. History: base..head (no exceptions).',
-    '',
+    goal,
+    scope,
+    workCompleted,
+    keyFindings,
     '## Registers and artifacts',
     '',
     '- FINDINGS_REGISTER.md: fixture register, pointed at rather than re-pasted. Verified-at: abc1234.',
@@ -101,10 +117,11 @@ const rNoun = run([write('noun-item.md', buildHandoff({ openItems: `## Open item
 check('noun-phrase Open items label ("Review receipts") exits 0', rNoun.status === 0);
 
 // === over the size cap ===
-const overCap = write('over-cap.md', buildHandoff({ filler: `\n## Carried context filler\n\n${'x'.repeat(7000)}\n` }));
+const overCap = write('over-cap.md', buildHandoff({ filler: `\n## Carried context filler\n\n${'x'.repeat(9000)}\n` }));
 const rOverCap = run([overCap]);
 check('over-cap fixture exits 1', rOverCap.status === 1);
-check('over-cap violation names the byte cap', /over the 6144-byte cap/.test(outOf(rOverCap)));
+check('over-cap violation names the byte cap', /over the 8192-byte cap/.test(outOf(rOverCap)));
+check('the conformant fixture sits under the raised cap', /\(\d+ bytes\)/.test(rGood.stdout));
 
 // === imperative-led Open items line ===
 const imperativeItem = '- Fix PAR-100 next · Owner: agent · Done when: register item closed-with-proof · Pointer: path:line';
@@ -113,6 +130,59 @@ const rImperative = run([imperative]);
 check('imperative-led Open items line exits 1', rImperative.status === 1);
 check('imperative violation is reported', /opens with an imperative verb/.test(outOf(rImperative)));
 check('imperative fixture still has Owner and Done when (isolates the one check)', !/missing "Owner|missing "Done when/.test(outOf(rImperative)));
+
+// === the three sections the operator's five questions require ===
+for (const [name, patch, heading] of [
+  ['Scope and constraints', { scope: '' }, 'Scope and constraints'],
+  ['Work completed', { workCompleted: '' }, 'Work completed'],
+  ['Key findings', { keyFindings: '' }, 'Key findings'],
+]) {
+  const r = run([write(`no-${heading.replace(/\s+/g, '-').toLowerCase()}.md`, buildHandoff(patch))]);
+  check(`missing ${name} section exits 1`, r.status === 1);
+  check(`missing ${name} section names the heading`, new RegExp(`missing required heading: "## ${heading}"`).test(outOf(r)));
+}
+
+// === the verbatim Request: line inside Goal and state of play ===
+const goalNoRequest = BASE_GOAL.replace(/^Request:.*$/m, 'The operator asked for a fixture.');
+const rNoRequest = run([write('no-request.md', buildHandoff({ goal: goalNoRequest }))]);
+check('a Goal section with no Request: line exits 1', rNoRequest.status === 1);
+check('the missing-Request violation names the line', /no non-empty "Request:" line/.test(outOf(rNoRequest)));
+const rEmptyRequest = run([write('empty-request.md', buildHandoff({ goal: BASE_GOAL.replace(/^Request:.*$/m, 'Request:') }))]);
+check('an empty Request: line exits 1', rEmptyRequest.status === 1);
+// A `Request:` written as a bullet is the same line for this check, so the write contract may
+// format it either way.
+const rBulletRequest = run([write('bullet-request.md', buildHandoff({ goal: BASE_GOAL.replace(/^Request:/m, '- Request:') }))]);
+check('a bulleted Request: line still passes', rBulletRequest.status === 0);
+
+// === Key findings carry a confidence label ===
+const unlabelled = '## Key findings\n\n- The checker reads headings by prefix. Pointer: scripts/check-handoff.mjs:5\n\n';
+const rUnlabelled = run([write('unlabelled-finding.md', buildHandoff({ keyFindings: unlabelled }))]);
+check('a Key findings bullet with no confidence label exits 1', rUnlabelled.status === 1);
+check('the unlabelled-finding violation names the labels', /carries no confidence label \(CONFIRMED\|PROBABLE\|SPECULATIVE\)/.test(outOf(rUnlabelled)));
+for (const label of ['PROBABLE', 'SPECULATIVE', 'UNVERIFIED']) {
+  const r = run([write(`finding-${label}.md`, buildHandoff({ keyFindings: `## Key findings\n\n- ${label}: one line of state. Pointer: scripts/check-handoff.mjs:5\n\n` }))]);
+  check(`a ${label} finding passes`, r.status === 0);
+}
+
+// === --consume writes the marker, and only on a passing check ===
+const consumeDir = mkdtempSync(join(tmpdir(), 'coh-consume-'));
+const consumeGood = join(consumeDir, 'HANDOFF.md');
+writeFileSync(consumeGood, buildHandoff());
+const rConsume = run([consumeGood, '--consume']);
+const marker = join(consumeDir, 'HANDOFF.consumed');
+check('--consume on a passing check exits 0', rConsume.status === 0);
+check('--consume writes HANDOFF.consumed beside the file', existsSync(marker));
+check('the marker holds one ISO timestamp line', existsSync(marker)
+  && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z\n$/.test(readFileSync(marker, 'utf8')));
+
+const failDir = mkdtempSync(join(tmpdir(), 'coh-consume-fail-'));
+const consumeBad = join(failDir, 'HANDOFF.md');
+writeFileSync(consumeBad, buildHandoff({ authority: '' }));
+const rConsumeFail = run([consumeBad, '--consume']);
+check('--consume on a failing check exits 1', rConsumeFail.status === 1);
+check('--consume writes no marker when the check fails', !existsSync(join(failDir, 'HANDOFF.consumed')));
+rmSync(consumeDir, { recursive: true, force: true });
+rmSync(failDir, { recursive: true, force: true });
 
 // === usage errors ===
 const rNoArgs = run([]);

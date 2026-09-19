@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-13
+updated: 2026-09-18
 ---
 
 # Measurements
@@ -28,8 +28,9 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
   projects as `project-N`; `--raw` names them.
 - `hooks/session-receipt.mjs` runs at `SessionEnd` on Claude, Codex, and installed Grok
   1.0.13. It appends one normalized row to the host-specific home ledger or
-  `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false` and
-  `handoffCard=false`.
+  `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false`,
+  `handoffCard=false`, and `handoffPickup=false`. Every row also carries `handoffPickup` and
+  `dispatchGuard` beside the older arms.
   OpenCode has no corresponding callback.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
 - `node scripts/context-audit.mjs receipts --purge-before <ISO date>` is the ledger's retention: it rewrites the file keeping rows at or after the date and prints what it removed.
@@ -183,7 +184,8 @@ threshold amendment below. They are one day from one operator, so they size the 
 not prove the fixes. **Pre-registered check:** the next audit of comparable runs, using
 `context-audit.mjs --all`, should show implementation operatives with a median first-turn
 context under 30,000 and a median peak under 150,000. If the first holds and the second does
-not, the Round budget is not binding and needs a mechanical backstop.
+not, the Round budget is not binding and needs a mechanical backstop. The dispatch guard below is
+that backstop, pre-registered on its own metric and decision rule.
 
 ## Pre-registered: handoff-card threshold
 
@@ -225,6 +227,35 @@ before the first nudge) lowers it one band; a threshold that fires with no natur
 nearby (nudges the same session repeatedly with no handoff opportunity) raises it. Any outcome
 that shows the card firing but changing no operator behavior removes the hook, the same rule
 the ladder card and index rows use.
+
+**Amendment, 2026-09-18, message and pickup.** The nudge now escalates: band 1 advises a handoff at
+the next workstream boundary, and band 2 and higher asks for it in this session. The routing card
+also carries a pending-handoff line on a fresh session, under its own switch
+`CODE_OPS_HANDOFF_PICKUP`, so a written handoff reaches the next session without the operator
+carrying it. Both changes act on the same outcome the metric above reads, so the on/off comparison
+reads `handoff.invoked` with pickup on, and a row written with `arms.handoffPickup=false` belongs to
+the control rather than the arm.
+
+## Pre-registered: dispatch guard
+
+`hooks/dispatch-guard.mjs` (switch `CODE_OPS_DISPATCH_GUARD`) holds a subagent to the Round budget
+its brief names. It warns at the budget and at every further 20 rounds, and denies further tool
+calls at three times the budget. The 40-round default and the three-times stop are **SPECULATIVE**:
+both come from the 2026-09-18 cross-project audit above, where one operative spent 71 tool uses
+against a 40-round budget, not from a matched on/off comparison. This row fixes the metric and the
+decision rule before any comparison exists.
+
+**Metric.** Operative tool-use counts from `node scripts/context-audit.mjs --all`, read per agent
+type, against the guard arm each session receipt records as `arms.dispatchGuard`. A
+`CODE_OPS_DISPATCH_GUARD` of `warn` records the arm on, because every advisory still runs, so a
+warn-only comparison needs its own checkout and its own rows.
+
+**Decision rule, fixed before any row exists.** The default stays when guarded operatives show a
+lower 90th-percentile tool-use count than the control, with no rise in units abandoned without a
+checkpointed report. Denied operatives that return no usable report lower the warn threshold rather
+than raise the stop, because the failure is a late warning, not a tight stop. A guard that fires
+with no change in operative behavior removes the hook, the same rule the ladder card, index, and
+handoff card rows use.
 
 ## Effort sweep, Workstream D
 

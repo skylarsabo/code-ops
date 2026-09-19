@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.25
+- The sibling-runtime paragraph names the dispatch guard beside the digest, index refresh, ladder card, receipt, and handoff card, so the list matches what `code-ops-suite` now registers.
+
 ## 0.13.24
 - The changelog no longer carries a duplicated `0.13.23` heading with a leftover placeholder bullet from the version bump script.
 

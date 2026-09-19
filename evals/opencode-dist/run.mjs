@@ -263,7 +263,7 @@ for (const plugin of ['privacy-opsec-suite', 'researcher', 'rigor']) {
   const sibling = read(join(dist, 'code-ops', plugin, 'CONVENTIONS.md'));
   expect(sibling.includes('**OpenCode sibling runtime.**'), `${plugin} conventions retain the Claude sibling-runtime claim`);
   expect(sibling.includes('routing and compaction have no off switch'), `${plugin} conventions overstate OpenCode runtime switches`);
-  expect(sibling.includes('no operative ladder card or session receipt'), `${plugin} conventions claim unavailable OpenCode lifecycle hooks`);
+  expect(sibling.includes('no operative ladder card, session receipt, dispatch guard, or pending-handoff line'), `${plugin} conventions claim unavailable OpenCode lifecycle hooks`);
   expect(!sibling.includes('.claude/settings.json'), `${plugin} conventions retain the Claude settings location`);
 }
 // Skills cite vendored execution specs at <plugin-root>/reference/, which resolves to

@@ -9,7 +9,7 @@ description: "Use when you need a clear data-model reference for a codebase, gen
 
 **Invoked as `/code-ops-suite-data-model`, or by the model through the `skill` tool as `code-ops-suite-data-model`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`,
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)**. For this DOCUMENT-mode skill the
 binding sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safety rails),
 §12 (SSOT and registers), and §13 (doc standard). Read those five. The fan-out and fix machinery

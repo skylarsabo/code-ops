@@ -9,12 +9,13 @@ This Codex package is generated from the canonical Claude package in the code-op
 - Claude slash-command spelling becomes the Codex named-workflow spelling, for example `code-ops-suite:codebase-audit`.
 - Claude agent `tools` and `model` frontmatter is removed because Codex does not use it for these role briefs. `agents/model-floors.json` preserves each source alias and canonical minimum tier for runtime routing checks.
 - Claude GitHub Action examples are omitted because they are not Codex runtime configuration.
-- `hooks/hooks.json` retains 7 hook commands on 6 events. Codex skips plugin hooks until the user reviews and trusts the hook definition.
+- `hooks/hooks.json` retains 8 hook commands on 6 events. Codex skips plugin hooks until the user reviews and trusts the hook definition.
   - `PreToolUse` `enforce-traceless.mjs`: blocks a commit or pull-request command whose published text carries attribution traces.
   - `PreToolUse` `digest-rewrite.mjs`: routes a simple shell command through the output digest so long output arrives compressed.
+  - `PreToolUse` `dispatch-guard.mjs`: holds a subagent to its brief’s round budget and flags a dispatch that overrides a declared tier or starts from a wide default context.
   - `PostToolUse` `index-refresh.mjs`: re-indexes a file right after a tool edits it, so context queries read the live tree.
-  - `UserPromptSubmit` `handoff-card.mjs`: nudges the operator and the lead to hand off once resident context crosses 200,000 tokens, and again every further 200,000.
-  - `SessionStart` `routing-card.mjs`: prints the routing card at session start and a restore instruction after compaction.
+  - `UserPromptSubmit` `handoff-card.mjs`: nudges the operator and the lead to hand off once resident context crosses 150,000 tokens, and asks for the handoff now from the second band on.
+  - `SessionStart` `routing-card.mjs`: prints the routing card at session start, a restore instruction after compaction, and the newest pending handoff on a fresh session.
   - `SessionEnd` `session-receipt.mjs`: appends a local session receipt row with token usage, tool calls, and model mix.
   - `SubagentStart` `ladder-card.mjs`: hands an implementer subagent the code-economy ladder card.
 - The Codex render caps every `SessionEnd` command timeout at 3 seconds, which matches the desktop host ceiling. The canonical Claude hook timeout is unchanged.

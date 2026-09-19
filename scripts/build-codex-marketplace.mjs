@@ -288,10 +288,11 @@ const HOOK_PURPOSES = new Map([
   ['enforce-traceless.mjs', 'blocks a commit or pull-request command whose published text carries attribution traces'],
   ['digest-rewrite.mjs', 'routes a simple shell command through the output digest so long output arrives compressed'],
   ['index-refresh.mjs', 're-indexes a file right after a tool edits it, so context queries read the live tree'],
-  ['routing-card.mjs', 'prints the routing card at session start and a restore instruction after compaction'],
+  ['routing-card.mjs', 'prints the routing card at session start, a restore instruction after compaction, and the newest pending handoff on a fresh session'],
   ['session-receipt.mjs', 'appends a local session receipt row with token usage, tool calls, and model mix'],
   ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
-  ['handoff-card.mjs', 'nudges the operator and the lead to hand off once resident context crosses 200,000 tokens, and again every further 200,000'],
+  ['handoff-card.mjs', 'nudges the operator and the lead to hand off once resident context crosses 150,000 tokens, and asks for the handoff now from the second band on'],
+  ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget and flags a dispatch that overrides a declared tier or starts from a wide default context'],
 ]);
 
 function bundledHooks(pluginName) {

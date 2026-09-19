@@ -261,7 +261,7 @@ const hookHome = join(tmp, 'home');
 mkdirSync(hookHome, { recursive: true });
 const env = { ...process.env, CODE_OPS_RECEIPTS: ledger, HOME: hookHome, USERPROFILE: hookHome };
 // The eval must not inherit an arm switch from the operator's own session.
-for (const k of ['CODE_OPS_DIGEST', 'CODE_OPS_LADDER_CARD', 'CODE_OPS_INDEX', 'CODE_OPS_HANDOFF_CARD']) delete env[k];
+for (const k of ['CODE_OPS_DIGEST', 'CODE_OPS_LADDER_CARD', 'CODE_OPS_INDEX', 'CODE_OPS_HANDOFF_CARD', 'CODE_OPS_HANDOFF_PICKUP', 'CODE_OPS_DISPATCH_GUARD']) delete env[k];
 const payload = JSON.stringify({ session_id: 'sess-1', transcript_path: mainFile, cwd: root, hook_event_name: 'SessionEnd', reason: 'other' });
 const h1 = run([hook], { input: payload, env });
 expect(h1.status === 0, `hook should exit 0, got ${h1.status}: ${h1.stderr}`);
@@ -277,7 +277,8 @@ if (existsSync(ledger)) {
   expect(r.files === 2 && r.skipped === 0 && r.turns === 6 && r.durationMs === 600000, `row files/skipped/turns/duration, got ${r.files}/${r.skipped}/${r.turns}/${r.durationMs}`);
   expect(r.toolCalls?.Bash === 3 && r.toolCalls?.Read === 2, `row tool calls, got ${JSON.stringify(r.toolCalls)}`);
   expect(!JSON.stringify(r).includes('secret-file'), 'row must not carry file contents or paths from the transcript');
-  expect(r.arms && r.arms.digest === true && r.arms.ladderCard === true && r.arms.index === true && r.arms.handoffCard === true, `row records every arm on under a clean environment, because each is on unless its switch says off, got ${JSON.stringify(r.arms)}`);
+  expect(r.arms && r.arms.digest === true && r.arms.ladderCard === true && r.arms.index === true && r.arms.handoffCard === true
+    && r.arms.handoffPickup === true && r.arms.dispatchGuard === true, `row records every arm on under a clean environment, because each is on unless its switch says off, got ${JSON.stringify(r.arms)}`);
   expect(r.handoff && r.handoff.band === 0 && r.handoff.invoked === false, `a session with no marker and no handoff command records band 0 and invoked false, got ${JSON.stringify(r.handoff)}`);
   expect(Number.isInteger(r.contextAtEnd) && r.contextAtEnd > 0, `row carries the context resident at session end, got ${r.contextAtEnd}`);
 }
@@ -312,8 +313,8 @@ const grokReceipt = run([hook], { input: JSON.stringify({ session_id: 'grok-sess
   env: { ...env, CODE_OPS_RECEIPTS: grokLedger, GROK_PLUGIN_ROOT: join(root, 'plugins', 'code-ops-suite') } });
 const grokRow = existsSync(grokLedger) ? JSON.parse(readFileSync(grokLedger, 'utf8')) : {};
 expect(grokReceipt.status === 0 && grokRow.tokens?.main?.total === 170 && grokRow.models?.['grok-model-a'] === 2
-  && grokRow.arms?.ladderCard === false && grokRow.arms?.handoffCard === false,
-  `Grok receipt reads deduplicated updates and records the two unavailable card arms: ${JSON.stringify(grokRow)}`);
+  && grokRow.arms?.ladderCard === false && grokRow.arms?.handoffCard === false && grokRow.arms?.handoffPickup === false,
+  `Grok receipt reads deduplicated updates and records the unavailable card arms: ${JSON.stringify(grokRow)}`);
 rmSync(grokDir, { recursive: true, force: true });
 
 // receipts mode reads the ledger back.
@@ -342,23 +343,27 @@ for (const v of ['off', '0', 'false']) {
 }
 expect(readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === rowsBefore, 'the off switch appends nothing to the real ledger');
 rmSync(offDir, { recursive: true, force: true });
+// Arm names, as `armKey` builds them: the keys whose value is exactly true, sorted, joined by `+`.
+const FULL_ARM = 'digest+dispatchGuard+handoffCard+handoffPickup+index+ladderCard';
+const TWO_OFF_ARM = 'digest+dispatchGuard+handoffCard+handoffPickup';
+const CARD_OFF_ARM = 'digest+dispatchGuard+handoffPickup+index+ladderCard';
 // Arms: a session with two switches off records it, and --by-arm reads that arm against the full set.
 const hArm = run([hook], { input: payload, env: { ...env, CODE_OPS_INDEX: 'off', CODE_OPS_LADDER_CARD: 'off' } });
 expect(hArm.status === 0 && hArm.stdout === '', 'the hook stays silent with an arm switch on');
 const armRows = readFileSync(ledger, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
-expect(armRows.at(-1)?.arms?.digest === true && armRows.at(-1)?.arms?.index === false && armRows.at(-1)?.arms?.ladderCard === false, `the digest-only arm is recorded, got ${JSON.stringify(armRows.at(-1)?.arms)}`);
+expect(armRows.at(-1)?.arms?.digest === true && armRows.at(-1)?.arms?.index === false && armRows.at(-1)?.arms?.ladderCard === false, `the two-switch-off arm is recorded, got ${JSON.stringify(armRows.at(-1)?.arms)}`);
 const byArm = run([cli, 'receipts', '--ledger', ledger, '--all', '--by-arm', '--json']);
 try {
   const groups = JSON.parse(byArm.stdout).byArm;
   const names = groups.map((g) => g.arm).sort();
-  expect(names.join(',') === 'digest+handoffCard,digest+handoffCard+index+ladderCard,unknown', `by-arm groups the two-switch arm, the full default, and the pre-switch row as unknown, got ${names.join(',')}`);
-  const digest = groups.find((g) => g.arm === 'digest+handoffCard');
+  expect(names.join(',') === `${TWO_OFF_ARM},${FULL_ARM},unknown`, `by-arm groups the two-switch arm, the full default, and the pre-switch row as unknown, got ${names.join(',')}`);
+  const digest = groups.find((g) => g.arm === TWO_OFF_ARM);
   const last = armRows.at(-1);
   const rowTokens = ['main', 'subagents'].reduce((n, k) => n + ['input', 'cacheRead', 'cacheCreate', 'output'].reduce((m, f) => m + (last.tokens?.[k]?.[f] || 0), 0), 0);
   expect(digest.sessions === 1 && digest.perSession.tokens === rowTokens && digest.perSession.contextAtEnd === last.contextAtEnd, `by-arm reports per-session means from the row, got ${JSON.stringify(digest)}`);
 } catch { fails.push(`receipts --by-arm --json must parse, got ${byArm.stdout.slice(0, 120)}${byArm.stderr.slice(0, 120)}`); }
 const byArmText = run([cli, 'receipts', '--ledger', ledger, '--all', '--by-arm']);
-expect(/\| digest\+handoffCard \| 1 \|/.test(byArmText.stdout) && /\| digest\+handoffCard\+index\+ladderCard \| 1 \|/.test(byArmText.stdout), `the text table lists one row per arm, got:\n${byArmText.stdout}`);
+expect(byArmText.stdout.includes(`| ${TWO_OFF_ARM} | 1 |`) && byArmText.stdout.includes(`| ${FULL_ARM} | 1 |`), `the text table lists one row per arm, got:\n${byArmText.stdout}`);
 expect(/\| Nudged \| Handed off \|/.test(byArmText.stdout), `the text table carries the handoff columns, got:\n${byArmText.stdout}`);
 
 // Handoff arm: the marker band, the operator's own /code-ops-suite:handoff call, the off switch,
@@ -408,15 +413,29 @@ const offPayload = JSON.stringify({ session_id: 'sess-ho-off', transcript_path: 
 expect(run([hook], { input: offPayload, env: { ...hoEnv, CODE_OPS_HANDOFF_CARD: 'off' } }).status === 0, 'the switched-off receipt exits 0');
 expect(hoRows().at(-1)?.arms?.handoffCard === false && hoRows().at(-1)?.handoff?.band === 0,
   `CODE_OPS_HANDOFF_CARD=off records the arm off and no band, got ${JSON.stringify(hoRows().at(-1)?.arms)}`);
+// The two newest arms read their own switches, on a ledger of their own so the by-arm counts
+// below keep their denominators.
+const newArmLedger = join(tmp, 'new-arms', 'receipts.jsonl');
+expect(run([hook], { input: payload, env: { ...env, CODE_OPS_RECEIPTS: newArmLedger, CODE_OPS_HANDOFF_PICKUP: 'off', CODE_OPS_DISPATCH_GUARD: 'off' } }).status === 0,
+  'the receipt with the pickup and guard switches off exits 0');
+const newArmRow = existsSync(newArmLedger) ? JSON.parse(readFileSync(newArmLedger, 'utf8')) : {};
+expect(newArmRow.arms?.handoffPickup === false && newArmRow.arms?.dispatchGuard === false && newArmRow.arms?.handoffCard === true,
+  `the pickup and guard switches record their own arms off, got ${JSON.stringify(newArmRow.arms)}`);
+// `warn` lifts only the guard's hard stop, so the arm stays on: every advisory still runs.
+const warnLedger = join(tmp, 'warn-arm', 'receipts.jsonl');
+run([hook], { input: payload, env: { ...env, CODE_OPS_RECEIPTS: warnLedger, CODE_OPS_DISPATCH_GUARD: 'warn' } });
+expect(existsSync(warnLedger) && JSON.parse(readFileSync(warnLedger, 'utf8')).arms?.dispatchGuard === true,
+  'CODE_OPS_DISPATCH_GUARD=warn records the guard arm on');
+
 // An old row: no arms, no handoff. It groups as unknown and joins neither handoff denominator.
 appendFileSync(hoLedger, JSON.stringify({ v: 1, ts: '2026-09-15T00:00:00.000Z', sessionId: 'old', cwd: root, durationMs: 1000, turns: 1, toolCalls: {}, tokens: { main: { input: 1, cacheRead: 0, cacheCreate: 0, output: 1, thinking: 0, total: 2 } } }) + '\n');
 const hoByArm = run([cli, 'receipts', '--ledger', hoLedger, '--all', '--by-arm', '--json']);
 try {
   const groups = JSON.parse(hoByArm.stdout).byArm;
-  const full = groups.find((g) => g.arm === 'digest+handoffCard+index+ladderCard');
+  const full = groups.find((g) => g.arm === FULL_ARM);
   expect(full?.sessions === 3 && full?.handoff.known === 3 && full?.handoff.nudged === 2 && full?.handoff.invoked === 1,
     `the on arm counts both nudged sessions and the one that handed off, got ${JSON.stringify(full)}`);
-  const offArm = groups.find((g) => g.arm === 'digest+index+ladderCard');
+  const offArm = groups.find((g) => g.arm === CARD_OFF_ARM);
   expect(offArm?.sessions === 1 && offArm?.handoff.nudged === 0, `the off arm carries its own denominator, got ${JSON.stringify(offArm)}`);
   const old = groups.find((g) => g.arm === 'unknown');
   expect(old?.sessions === 1 && old?.handoff.known === 0 && old?.handoff.nudged === 0,

@@ -9,7 +9,7 @@ description: "Use when a repo needs its Obsidian docs vault created, an existing
 
 **Invoked as `/code-ops-suite-vault`, or by the model through the `skill` tool as `code-ops-suite-vault`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the interaction protocol (`§3`), the safety rails (`§4`), the
 single-source-of-truth conventions (`§12`) that decide where a run's artifacts land, and the doc
 standard (`§13`). Then read `<plugin-root>/reference/vault-standard.md`, the bundled

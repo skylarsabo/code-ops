@@ -9,7 +9,7 @@ description: "Use when critical paths lack meaningful coverage or tests are flak
 
 **Invoked as `/code-ops-suite-test-hardening`, or by the model through the `skill` tool as `code-ops-suite-test-hardening`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards and session receipts are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
 quality lenses this skill references by section.
