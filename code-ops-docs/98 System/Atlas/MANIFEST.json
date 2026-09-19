@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "3fe49372c43c953ff276838a5a06360640bfb364d9d271e4955b597d37b78e50"
+      "verifiedAt": "5bf94995e037a07a3c918b4683b609cbb3c439a4",
+      "verifiedDigest": "b2545b4243a2cdfc2932f6debb833d23f2690ed218ca84e8c5055931b75a17b1"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "d3b2f34c5dbf99121bc535f1b2f97ae00b9b865d3692a81244ea0a34dfa6acbb",
+      "verifiedAt": "5bf94995e037a07a3c918b4683b609cbb3c439a4",
+      "verifiedDigest": "23184774ff59cc5d6578251def53e015f32785dfabc84371a7eaab0faffd0400",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -28,7 +28,7 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 47,
+          "line": 61,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
@@ -54,8 +54,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "e3fc71ec8cdc51fcae5ec0d786e6588cf1d25dc2",
-      "verifiedDigest": "d90b9de73337598255b05b4414ff33add8f8cd810979f1cb66a1810ccf2ebe8f",
+      "verifiedAt": "5bf94995e037a07a3c918b4683b609cbb3c439a4",
+      "verifiedDigest": "43cfabfc36dd68a31e4b9741aae53549eb1da27a7d3367c792771944d59d8df6",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
