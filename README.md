@@ -168,7 +168,7 @@ Every skill reads its plugin's `CONVENTIONS.md` first. To apply those principles
 
 ### Context and cost switches
 
-Four mechanisms measure or shrink the context a run consumes. Each runs without configuration
+Six mechanisms measure or shrink the context a run consumes. Each runs without configuration
 where the host exposes its event contract. A user or repository turns one off by setting its
 switch to `off` in the host environment.
 
@@ -176,15 +176,20 @@ switch to `off` in the host environment.
 - **Output digest.** `hooks/digest-rewrite.mjs` rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed and receipted. `CODE_OPS_DIGEST=off` disables it.
 - **Symbol index.** `scripts/context-query.mjs` answers a structural question with `file:line` anchors instead of a dump, and `hooks/index-refresh.mjs` re-indexes each edited file. `CODE_OPS_INDEX=off` disables the hook.
 - **Ladder card.** `hooks/ladder-card.mjs` hands an implementer subagent the code-economy ladder as a ten-line card. `CODE_OPS_LADDER_CARD=off` disables it.
+- **Handoff card.** `hooks/handoff-card.mjs` asks for a handoff once resident context crosses 150,000 tokens, and again at every further band. `CODE_OPS_HANDOFF_CARD=off` disables it. At session start, `hooks/routing-card.mjs` names the newest unconsumed `HANDOFF.md`, and `CODE_OPS_HANDOFF_PICKUP=off` disables that line.
+- **Dispatch guard.** `hooks/dispatch-guard.mjs` counts a subagent's tool rounds, warns at the 40-round budget, and denies further calls at three times it. It also advises the lead on a dispatch that overrides a model, names a wide agent type, or omits a Round budget. `CODE_OPS_DISPATCH_GUARD=off` disables it, and `warn` lifts only the hard stop.
 
 Read the receipt ledger with `node scripts/context-audit.mjs receipts`.
 
 Those names are portable outcomes, not identical host APIs. Claude and trusted Codex plugin
-hooks run all four mechanisms. Installed Grok 1.0.13 runs digest, index, and receipt hooks, while
+hooks run all six mechanisms. Installed Grok 1.0.13 runs digest, index, and receipt hooks, while
 its passive session and subagent hook output is ignored, so `CLAUDE.md` or `AGENTS.md` carries
-routing and ladder doctrine there. OpenCode ports digest, index, routing, and compaction through
-its plugin API, but its current lifecycle API exposes neither the ladder event nor a transcript
-receipt callback. The generated compatibility files state these limits beside each distribution.
+routing and ladder doctrine there. The handoff card has no Grok substitute. The guard's round
+counter runs only where the hook payload carries an `agent_id`. OpenCode ports digest, index,
+routing, and compaction through its plugin API, but its current lifecycle API exposes neither the
+ladder event nor a transcript receipt callback. OpenCode has no handoff card, pending-handoff
+line, or dispatch guard. The generated compatibility files state these limits beside each
+distribution.
 
 ## Verify and maintain
 
