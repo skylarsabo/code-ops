@@ -257,6 +257,15 @@ than raise the stop, because the failure is a late warning, not a tight stop. A 
 with no change in operative behavior removes the hook, the same rule the ladder card, index, and
 handoff card rows use.
 
+**Delivery observation, 2026-09-18.** Delivery of the warning into a live subagent is
+**CONFIRMED** on the Claude host at suite 1.85.0. A read-only operative made 42 sequential tool
+calls under a brief that did not quote the warning. At call 40 it received the guard's line as
+`PreToolUse:Read hook additional context`, verbatim from the hook source, and no earlier call
+carried it. The guard's counter file for that operative held 42 bytes afterward. This settles
+where the warning lands. It says nothing about the decision rule above, because an operative told
+to continue past the warning measures no change in behavior. The three-times stop is still
+unobserved in a live operative.
+
 ## Effort sweep, Workstream D
 
 Effort level names do not carry across model generations, so the routing table in

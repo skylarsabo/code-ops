@@ -127,8 +127,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "eff987a2c2cf83cfe6cc0bff64ae4b70c8941d65",
-      "verifiedDigest": "e9dbaf5c99fc1b75739124c6447c6334a4d8367ea1e7f1db5373336bf76583e2"
+      "verifiedAt": "91ac7af4608b91bb93556d3606972a73b9ec52f5",
+      "verifiedDigest": "8f5f748139a658ceb4f9a603645ecf2e36794d2d7de8041dd88695ccc84d8558"
     },
     {
       "slug": "root-contracts",
@@ -142,8 +142,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "eff987a2c2cf83cfe6cc0bff64ae4b70c8941d65",
-      "verifiedDigest": "de3614d8788025d0b43297913f3a712c29951ec71dee1b2ac1217842ec620036"
+      "verifiedAt": "f1fe7c98b70c4d44b2f3784277ce60f314f01917",
+      "verifiedDigest": "d7d4497b255b3d4491703ac633021f03c4fc71b70d7906f155012caf76a17075"
     },
     {
       "slug": "runtime-toolchain",
