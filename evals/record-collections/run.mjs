@@ -14,7 +14,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 228 : 231;
+const expectedCases = process.platform === 'win32' ? 239 : 242;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -337,6 +337,133 @@ try {
   catch (error) { historicalTargetError = error.message; }
   check('historical target lookup reads a blob above the batch limit individually',
     historicalTarget?.targetSha256 === historicalDigest && !historicalTargetError, historicalTargetError);
+
+  const copyRepo = join(work, 'copied-record'); mkdirSync(copyRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], copyRepo);
+  const copySource = 'records/source.md'; const copyDestination = 'records/copy.md';
+  const copySourceText = `${Array.from({ length: 40 }, (_, line) => `shared evidence line ${line}`).join('\n')}\n`;
+  const copyDestinationText = `${copySourceText}one appended line\n`;
+  write(copyRepo, copySource, copySourceText); commit(copyRepo, 'add copy source');
+  const copyCollection = fixtureManifest().recordCollections[0];
+  const copyRow = (path) => ({ path, kind: 'record', policy: 'append-only' });
+  const sourceBeforeCopy = adoptionHistoryProfiles(copyRepo, copyCollection, [copyRow(copySource)]).get(copySource);
+  write(copyRepo, copyDestination, copyDestinationText); commit(copyRepo, 'add similar copy');
+  const copyCommit = git(['rev-parse', 'HEAD'], copyRepo).trim();
+  const copyLog = git(['log', '--follow', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev', '--', `:(literal)${copyDestination}`], copyRepo);
+  let copyProfiles = null; let copyProfileError = '';
+  try { copyProfiles = adoptionHistoryProfiles(copyRepo, copyCollection, [copyRow(copySource), copyRow(copyDestination)]); }
+  catch (error) { copyProfileError = error.message; }
+  const copiedProfile = copyProfiles?.get(copyDestination);
+  check('fixture history reports the similar add as a copy record', /\sC\d+\0/.test(copyLog), copyLog.replaceAll('\0', ' '));
+  check('a copy never alters the history profile of its source',
+    JSON.stringify(copyProfiles?.get(copySource)) === JSON.stringify(sourceBeforeCopy)
+    && sourceBeforeCopy.history.contentTransitions === 0 && sourceBeforeCopy.adoptionReadiness === 'ready',
+  `${copyProfileError}${JSON.stringify(copyProfiles?.get(copySource))}`);
+  check('a copy destination profiles as a plain add at the copy commit',
+    copiedProfile?.history?.admittedCommit === copyCommit && copiedProfile.history.firstRelevantCommit === copyCommit
+    && copiedProfile.history.contentTransitions === 0 && copiedProfile.history.priorIncarnations === 0
+    && copiedProfile.adoptionReadiness === 'ready' && copiedProfile.reason === 'stable-so-far'
+    && copiedProfile.historyDigest === digestJson({
+      path: copyDestination,
+      lineageEvents: [{ status: 'A', oldPath: copyDestination, newPath: copyDestination, oldSha256: null, newSha256: sha256(Buffer.from(copyDestinationText)) }],
+      priorEvents: [],
+    }), `${copyProfileError}${JSON.stringify(copiedProfile)}`);
+
+  let legacyCopyProfiles = null;
+  try {
+    legacyCopyProfiles = adoptionHistoryProfiles(copyRepo, copyCollection, [copyRow(copySource), copyRow(copyDestination)],
+      { legacyCopyBound: () => true });
+  } catch (error) { copyProfileError = error.message; }
+  const unboundLegacy = adoptionHistoryProfiles(copyRepo, copyCollection, [copyRow(copySource), copyRow(copyDestination)],
+    { legacyCopyBound: () => false });
+  check('the legacy copy reading charges the copy to its source only inside the bound',
+    legacyCopyProfiles?.get(copySource)?.history?.contentTransitions === 1
+    && legacyCopyProfiles.get(copySource).history.lastRelevantCommit === copyCommit
+    && legacyCopyProfiles.get(copyDestination).historyDigest === copiedProfile?.historyDigest
+    && JSON.stringify([...unboundLegacy]) === JSON.stringify([...copyProfiles]), `${copyProfileError}${JSON.stringify(legacyCopyProfiles?.get(copySource))}`);
+
+  // A release through 1.85.0 read every copy as a change to its source. This script reproduces that reading.
+  const copyLegacyRelease = join(work, 'legacy-copy-release'); mkdirSync(copyLegacyRelease, { recursive: true });
+  const fixedLibrary = readFileSync(join(ROOT, 'scripts', 'record-lib.mjs'), 'utf8');
+  const copyLegacyLibrary = fixedLibrary.replace('legacyCopyBound = null,', 'legacyCopyBound = () => true,');
+  if (copyLegacyLibrary === fixedLibrary) throw new Error('instrumentation anchor was not found for legacy-copy-release');
+  writeFileSync(join(copyLegacyRelease, 'record-lib.mjs'), copyLegacyLibrary);
+  for (const name of ['records.mjs', 'context-index-lib.mjs']) cpSync(join(ROOT, 'scripts', name), join(copyLegacyRelease, name));
+  const copyLegacyScript = join(copyLegacyRelease, 'records.mjs');
+  const copyLegacyRepo = join(work, 'legacy-copy-review'); cpSync(copyRepo, copyLegacyRepo, { recursive: true });
+  write(copyLegacyRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(copyLegacyRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  commit(copyLegacyRepo, 'add hub');
+  writeFileSync(join(copyLegacyRepo, '.git', 'info', 'exclude'), 'adoption-review.json\n');
+  result = runWithScript(copyLegacyScript, ['plan-adoption', '--root', copyLegacyRepo, ...COLLECTION, '--out', 'adoption-review.json'], copyLegacyRepo);
+  const copyLegacyReviewPath = join(copyLegacyRepo, 'adoption-review.json');
+  const copyLegacyReview = result.status === 0 ? JSON.parse(readFileSync(copyLegacyReviewPath, 'utf8')) : null;
+  const legacySourceCandidate = copyLegacyReview?.candidates?.find((candidate) => candidate.path === copySource);
+  if (legacySourceCandidate) {
+    legacySourceCandidate.disposition = 'freeze-current';
+    legacySourceCandidate.rationale = 'The source bytes never changed.';
+    writeFileSync(copyLegacyReviewPath, `${JSON.stringify(copyLegacyReview, null, 2)}\n`);
+  }
+  check('the legacy reading plans a copied source as historically revised',
+    legacySourceCandidate?.reason === 'historically-revised' && legacySourceCandidate.history.contentTransitions === 1, result.output);
+  result = runWithScript(copyLegacyScript, ['adopt', '--root', copyLegacyRepo, ...COLLECTION, '--review', 'adoption-review.json'], copyLegacyRepo);
+  if (result.status === 0) commit(copyLegacyRepo, 'adopt under the legacy copy reading');
+  const legacyAdoptOutput = result.output;
+  result = run(['check', '--root', copyLegacyRepo, ...COLLECTION], copyLegacyRepo);
+  check('a review written under the legacy copy reading still verifies', result.status === 0, `${legacyAdoptOutput}${result.output}`);
+  const forgedRepo = join(work, 'forged-copy-review'); cpSync(copyLegacyRepo, forgedRepo, { recursive: true });
+  write(copyLegacyRepo, 'records/later-copy.md', `${copySourceText}another appended line\n`);
+  commit(copyLegacyRepo, 'copy the adopted source again');
+  writeFileSync(join(copyLegacyRepo, '.git', 'info', 'exclude'), 'adoption-review.json\nincremental-review.json\n');
+  result = run(['plan-adoption', '--incremental', '--root', copyLegacyRepo, ...COLLECTION, '--out', 'incremental-review.json'], copyLegacyRepo);
+  const laterPlanOutput = result.output;
+  result = result.status === 0
+    ? run(['adopt', '--root', copyLegacyRepo, ...COLLECTION, '--review', 'incremental-review.json'], copyLegacyRepo) : result;
+  if (result.status === 0) commit(copyLegacyRepo, 'admit the later copy');
+  const laterAdoptOutput = result.output;
+  result = run(['check', '--root', copyLegacyRepo, ...COLLECTION], copyLegacyRepo);
+  const legacyLaterCheck = runWithScript(copyLegacyScript, ['check', '--root', copyLegacyRepo, ...COLLECTION], copyLegacyRepo);
+  check('a copy admitted after the review never drifts the adopted source', result.status === 0
+    && legacyLaterCheck.status === 1 && /records\/(?:source|copy)\.md/.test(legacyLaterCheck.output),
+  `${laterPlanOutput}${laterAdoptOutput}${result.output}${legacyLaterCheck.output}`);
+  const forgedInventoryPath = generated(forgedRepo, 'inventory.json');
+  const forgedText = existsSync(forgedInventoryPath) ? readFileSync(forgedInventoryPath, 'utf8') : '';
+  check('fixture inventory stores the reviewed transition count', forgedText.includes('"contentTransitions": 1'));
+  writeFileSync(forgedInventoryPath, forgedText.replace('"contentTransitions": 1', '"contentTransitions": 2'));
+  result = run(['check', '--root', forgedRepo, ...COLLECTION], forgedRepo);
+  check('a review matching neither copy reading still fails', result.status === 1, result.output);
+
+  const copiedRecordCliRepo = join(work, 'copied-record-cli'); mkdirSync(copiedRecordCliRepo, { recursive: true });
+  git(['init', '--quiet', '-b', 'main'], copiedRecordCliRepo);
+  write(copiedRecordCliRepo, 'hub/Standard.md', '---\nstandard-version: 4\n---\n# Standard\n');
+  write(copiedRecordCliRepo, 'hub/98 System/DOCS_MANIFEST.json', `${JSON.stringify(fixtureManifest(), null, 2)}\n`);
+  const copiedRecordCliBody = Array.from({ length: 60 }, (_, line) => `Observation ${line + 1} of the recorded evidence run.`).join('\n');
+  write(copiedRecordCliRepo, 'records/source.md', `# Source record\n${copiedRecordCliBody}\n`);
+  commit(copiedRecordCliRepo, 'add the source record');
+  write(copiedRecordCliRepo, 'records/copy.md', `# Copied record\n${copiedRecordCliBody}\nOne added observation that makes this a near copy.\n`);
+  commit(copiedRecordCliRepo, 'add a record copied from the source record');
+  const copiedRecordCliAdmission = git(['rev-parse', 'HEAD'], copiedRecordCliRepo).trim();
+  writeFileSync(join(copiedRecordCliRepo, '.git', 'info', 'exclude'), 'adoption-review.json\n');
+  result = run(['plan-adoption', '--root', copiedRecordCliRepo, ...COLLECTION, '--out', 'adoption-review.json'], copiedRecordCliRepo);
+  const copiedRecordCliPlan = result.status === 0
+    ? JSON.parse(readFileSync(join(copiedRecordCliRepo, 'adoption-review.json'), 'utf8')) : null;
+  const copiedRecordCliSource = copiedRecordCliPlan?.candidates?.find((candidate) => candidate.path === 'records/source.md');
+  const copiedRecordCliTarget = copiedRecordCliPlan?.candidates?.find((candidate) => candidate.path === 'records/copy.md');
+  check('the CLI leaves a copied source untouched and starts the copy at its own admission',
+    result.status === 0
+    && copiedRecordCliSource?.adoptionReadiness === 'ready' && copiedRecordCliSource.history.contentTransitions === 0
+    && copiedRecordCliSource.history.lastRelevantCommit === copiedRecordCliSource.history.admittedCommit
+    && copiedRecordCliTarget?.adoptionReadiness === 'ready' && copiedRecordCliTarget.history.contentTransitions === 0
+    && copiedRecordCliTarget.history.admittedCommit === copiedRecordCliAdmission
+    && copiedRecordCliTarget.history.firstRelevantCommit === copiedRecordCliAdmission,
+    `${result.output}${JSON.stringify(copiedRecordCliPlan?.candidates)}`);
+  const copiedRecordCliAdopt = run(['adopt', '--root', copiedRecordCliRepo, ...COLLECTION], copiedRecordCliRepo);
+  if (copiedRecordCliAdopt.status === 0) commit(copiedRecordCliRepo, 'adopt the source and copied records');
+  const copiedRecordCliStrict = copiedRecordCliAdopt.status === 0
+    ? run(['verify-history', '--strict', '--root', copiedRecordCliRepo, ...COLLECTION], copiedRecordCliRepo) : copiedRecordCliAdopt;
+  check('the CLI adopts a copied record without review',
+    copiedRecordCliAdopt.status === 0 && copiedRecordCliStrict.status === 0,
+    `${copiedRecordCliAdopt.output}${copiedRecordCliStrict.output}`);
 
   function batchProfile(fillerCount) {
     const batchRepo = join(work, `batch-profile-${fillerCount}`); mkdirSync(batchRepo, { recursive: true });

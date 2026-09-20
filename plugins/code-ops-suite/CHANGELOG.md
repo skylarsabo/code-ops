@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.85.1
+- `record-lib.mjs` now parses both path fields in a Git copy record (`C<score>`), matching rename handling. Earlier releases read only the source path. The copy then looked like a source modification. `git log --follow` detects copies. Adding a file at least 50% similar to an adopted immutable record therefore changed its history profile. `records.mjs check` then reported `adoption review history drift`, which repository-side changes could not clear.
+- Adoption history profiles ignore copy records. A copy is a plain add of its destination, which the exact-path pass already reports, and it never joins the lineage of its source.
+- Reviews from releases through 1.85.0 can store the old reading. This mostly affects empty files, which Git reports as `C100` copy chains. `records.mjs check` accepts such a review only when it equals the old reading exactly. The bound includes only copies in commits reachable from the review's `sourceHead`. A later copy cannot drift the source. Other mismatches still fail, and `adoptionHistory` is exported so both readings share one history pass.
+
 ## 1.85.0
 - The `SessionStart` routing card ends a fresh session with one line naming the newest pending handoff: the file, the date it was written, and the direction to resume from it, verify its claims, and open the reply with a five-heading recap. Discovery reads two bounded directory levels under each `<repo>-docs/80 Runs/` and the repository's own `80 Runs/`, treats a run folder holding `HANDOFF.consumed` as already picked up, and ignores anything older than 14 days. `CODE_OPS_HANDOFF_PICKUP=off` drops the line and leaves the rest of the card.
 - `check-handoff.mjs` requires three more headings — Scope and constraints, Work completed, and Key findings — so the first six sections answer what an operator asks a resumed session. "Goal and state of play" must carry a non-empty `Request:` line holding the operator's original request verbatim, and every Key findings bullet must carry a `CONFIRMED`, `PROBABLE`, or `SPECULATIVE` label. The size cap is 8 KB.
