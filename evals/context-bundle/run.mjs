@@ -49,6 +49,27 @@ try {
   check(`compact view reduces fixture bytes (${viewBytes.length} vs ${readFileSync(out).length})`, viewBytes.length < readFileSync(out).length);
   result = run(bundleScript, viewArgs);
   check('compact view repeats byte identically', result.status === 0 && readFileSync(viewPath).equals(viewBytes), result.out);
+  const selectedViewPath = join(runDir, 'bundles', 'D-001.selected.json');
+  result = run(bundleScript, [...viewArgs.slice(0, -4), '--out', selectedViewPath, '--max-bytes', '20000', '--sections', 'context', '--require-sections', 'binding,completeness,context']);
+  check('default contract rejects omitting required worker rows', result.status === 1 && /omitted by --sections/.test(result.out) && !existsSync(selectedViewPath), result.out);
+  base.context.requiredViewSections = ['context']; writeFileSync(contractPath, `${JSON.stringify(base, null, 2)}\n`);
+  result = run(bundleScript, [...viewArgs.slice(0, -4), '--out', selectedViewPath, '--max-bytes', '20000', '--sections', 'context', '--require-sections', 'binding,completeness,context']);
+  const selectedView = JSON.parse(readFileSync(selectedViewPath, 'utf8'));
+  check('contract opt-in permits rows-only omission while preserving mandatory identity', result.status === 0
+    && selectedView.binding?.unitId === 'D-001' && selectedView.completeness?.repositoryIndex === 'EXACT-SNAPSHOT'
+    && selectedView.context && !('rows' in selectedView) && selectedView.omittedSections?.join(',') === 'rows', result.out);
+  result = run(bundleScript, [...viewArgs.slice(0, -4), '--out', selectedViewPath, '--max-bytes', '20000', '--require-sections', 'binding,completeness']);
+  const requiredDefaultBytes = readFileSync(selectedViewPath); const requiredDefaultView = JSON.parse(requiredDefaultBytes);
+  check('CLI requirements retain both default payloads and unique required metadata', result.status === 0
+    && requiredDefaultView.rows && requiredDefaultView.context
+    && requiredDefaultView.requiredSections?.filter((section) => section === 'binding').length === 1
+    && requiredDefaultView.requiredSections?.filter((section) => section === 'completeness').length === 1, result.out);
+  result = run(bundleScript, [...viewArgs.slice(0, -4), '--out', selectedViewPath, '--max-bytes', '20000', '--sections', 'rows', '--require-sections', 'rows']);
+  check('CLI cannot override contract-required context before overwriting output', result.status === 1 && /omitted by --sections/.test(result.out)
+    && readFileSync(selectedViewPath).equals(requiredDefaultBytes), result.out);
+  result = run(bundleScript, [...viewArgs.slice(0, -4), '--out', selectedViewPath, '--max-bytes', '20000', '--sections', 'unknown']);
+  check('selected view rejects invalid sections before overwriting output', result.status === 1 && /unsupported section/.test(result.out)
+    && readFileSync(selectedViewPath).equals(requiredDefaultBytes), result.out);
   const bundleBytes = readFileSync(out); const caseAliasViewArgs = viewArgs.slice();
   caseAliasViewArgs[caseAliasViewArgs.indexOf('--out') + 1] = out.toUpperCase();
   result = run(bundleScript, caseAliasViewArgs);

@@ -30,7 +30,7 @@ function die(message, code = 1) { console.error(`x ${message}`); process.exit(co
 function usage() {
   die('usage: context-bundle.mjs build --root <repo> --contract <file> --unit <D-NNN> --cache <dir> --out <file> [--previous <receipt> --delta <file>]\n'
     + '       context-bundle.mjs verify --root <repo> --contract <file> --unit <D-NNN> --bundle <file>\n'
-    + '       context-bundle.mjs view --root <repo> --contract <file> --unit <D-NNN> --bundle <file> --out <file> --max-bytes <integer>', 2);
+    + '       context-bundle.mjs view --root <repo> --contract <file> --unit <D-NNN> --bundle <file> --out <file> --max-bytes <integer> [--sections <rows,context>] [--require-sections <name,...>]', 2);
 }
 function flags(args, known) {
   const out = {};
@@ -124,6 +124,26 @@ function validateDelta(value, previous, receipt, scope) {
     ],
   };
 }
+const OPTIONAL_VIEW_SECTIONS = new Set(['rows', 'context']);
+const REQUIRED_VIEW_SECTIONS = new Set(['canonical', 'binding', 'scope', 'completeness']);
+function sectionList(value, flag) {
+  const sections = value.split(',').map((section) => section.trim());
+  if (!sections.length || sections.some((section) => !/^[a-z]+(?:-[a-z]+)*$/.test(section)) || new Set(sections).size !== sections.length) {
+    throw new Error(`${flag} must name unique comma-separated sections`);
+  }
+  return sections;
+}
+function selectedViewSections(f, contract) {
+  const selected = f['--sections'] ? sectionList(f['--sections'], '--sections') : [...OPTIONAL_VIEW_SECTIONS];
+  if (selected.some((section) => !OPTIONAL_VIEW_SECTIONS.has(section))) throw new Error('--sections contains an unsupported section');
+  const contractRequired = contract.context.requiredViewSections ?? [...OPTIONAL_VIEW_SECTIONS];
+  if (!Array.isArray(contractRequired) || !contractRequired.length || contractRequired.some((section) => !OPTIONAL_VIEW_SECTIONS.has(section)) || new Set(contractRequired).size !== contractRequired.length) throw new Error('context.requiredViewSections must be a non-empty unique allowlist');
+  const requested = f['--require-sections'] ? sectionList(f['--require-sections'], '--require-sections') : [];
+  if (requested.some((section) => !REQUIRED_VIEW_SECTIONS.has(section) && !OPTIONAL_VIEW_SECTIONS.has(section))) throw new Error('--require-sections contains an unsupported section');
+  const required = [...new Set([...contractRequired, ...requested])];
+  if (required.some((section) => OPTIONAL_VIEW_SECTIONS.has(section) && !selected.includes(section))) throw new Error('--require-sections names a section omitted by --sections');
+  return { selected, required };
+}
 
 const command = process.argv[2];
 if (command === 'build') {
@@ -211,7 +231,7 @@ if (command === 'build') {
     console.log(`ok context bundle ${unit.id} ${bundle.bundleId}`);
   } catch (error) { die(error.message); }
 } else if (command === 'verify' || command === 'view') {
-  const f = flags(process.argv.slice(3), new Set(['--root', '--contract', '--unit', '--bundle', ...(command === 'view' ? ['--out', '--max-bytes'] : [])]));
+  const f = flags(process.argv.slice(3), new Set(['--root', '--contract', '--unit', '--bundle', ...(command === 'view' ? ['--out', '--max-bytes', '--sections', '--require-sections'] : [])]));
   if (!f['--root'] || !f['--contract'] || !f['--unit'] || !f['--bundle']) usage();
   if (command === 'view' && (!f['--out'] || !/^[1-9][0-9]*$/.test(f['--max-bytes'] || '') || !Number.isSafeInteger(Number(f['--max-bytes'])))) usage();
   try {
@@ -226,6 +246,7 @@ if (command === 'build') {
     if (!/^[0-9a-f]{64}$/.test(bundle.bundleId || '') || digestJson(normalizeBundle(bundle)) !== bundle.bundleId) throw new Error('context bundle digest is invalid');
     if (Buffer.byteLength(readFileSync(bundlePath)) > contract.context.maxBundleBytes) throw new Error('context bundle exceeds maxBundleBytes');
     if (command === 'view') {
+      const { selected, required } = selectedViewSections(f, contract);
       const out = resolve(f['--out']);
       if ([bundlePath, resolve(f['--contract']), resolve(dirname(resolve(f['--contract'])), contract.context.snapshot)]
         .some((input) => samePathTarget(out, input))) throw new Error('worker view must not overwrite its binding inputs');
@@ -238,9 +259,9 @@ if (command === 'build') {
         canonical: { path: bundlePath, sha256: sha256(readFileSync(bundlePath)), bundleId: bundle.bundleId },
         binding: { runId: bundle.runId, contractRevision: bundle.contractRevision, unitId: bundle.unitId, snapshotId: bundle.snapshotId, compiler: bundle.compiler },
         scope: bundle.scope, completeness: bundle.completeness,
-        columns: ['path', 'fileMetadata', 'importEdges'],
-        rows: paths.map((path) => [path, files.get(path) ?? null, bundle.context.importGraph[path] ?? null]),
-        context,
+        ...(selected.includes('rows') ? { columns: ['path', 'fileMetadata', 'importEdges'], rows: paths.map((path) => [path, files.get(path) ?? null, bundle.context.importGraph[path] ?? null]) } : {}),
+        ...(selected.includes('context') ? { context } : {}),
+        ...((f['--sections'] || f['--require-sections'] || contract.context.requiredViewSections) ? { selectedSections: selected, requiredSections: [...new Set([...REQUIRED_VIEW_SECTIONS, ...required])], omittedSections: [...OPTIONAL_VIEW_SECTIONS].filter((section) => !selected.includes(section)) } : {}),
       };
       const rendered = `${JSON.stringify(view)}\n`;
       const actualBytes = Buffer.byteLength(rendered);

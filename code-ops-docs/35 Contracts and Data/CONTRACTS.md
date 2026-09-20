@@ -100,19 +100,49 @@ The snapshot command can generate a delta only when it receives both a previous 
 
 ## Context bundle
 
-`CONTEXT_BUNDLE.json` binds one work unit to a version 2 contract revision and snapshot identifier. It contains scoped repository-map entries, direct import relations, scoped visible changes, an optional snapshot delta, and Atlas material. Evidence: `scripts/context-bundle.mjs:41-75` and `scripts/context-bundle.mjs:108-149`.
+`CONTEXT_BUNDLE.json` binds one work unit to a version 2, 3, or 4 contract revision and snapshot identifier. It contains scoped repository-map entries, direct import relations, scoped visible changes, an optional snapshot delta, and Atlas material. Evidence: `scripts/context-bundle.mjs:41-75` and `scripts/context-bundle.mjs:108-149`.
 
 The bundle never silently falls back to broad context. It writes `BROAD_CONTEXT_REQUIRED` for high-risk or oversized scope. It writes `BUDGET_EXCEEDED` when the rendered bundle exceeds `maxBundleBytes`. Evidence: `scripts/context-bundle.mjs:52-55` and `scripts/context-bundle.mjs:117-162`.
 
 The share of the repository index one unit may hold defaults to 0.25. The optional contract field `context.maxScopeShare` moves that share anywhere above 0 and up to 1, and a raised share is a slice-design decision the lead records in the contract. The recursive-glob and risky-prefix triggers ignore it, so a security or migration scope still refuses. Evidence: `scripts/context-bundle.mjs:60-73` and `scripts/run-contract.mjs:103-107`.
 
-Context bundles support both v2 and v3 contracts. A bundle still binds its run ID,
+Context bundles support v2, v3, and v4 contracts. A bundle still binds its run ID,
 contract revision, work unit, snapshot, compiler digest, and bounded contents. Runtime
 receipts reference a verified bundle by unit ID, bundle ID, path, and file digest.
 Evidence: `scripts/context-bundle.mjs:44-54`, `scripts/context-bundle.mjs:160-214`, and
 `scripts/run-runtime.mjs:177-183`.
 
-`context-bundle.mjs view` first verifies the canonical bundle, then emits a smaller deterministic unit view. The view preserves the bundle identity, contract and snapshot bindings, completeness markers, omissions, and dependency edges. It fails on a byte-budget breach and never truncates. `worker-brief.mjs build` then frames invariant files before unit files under separate prefix, unit, and total byte limits. Its receipt binds the compiler, every source, both sections, and the final payload. Both tools reject portable path aliases that could overwrite an input or collapse two outputs onto one physical target. `worker-brief.mjs verify` rejects source, compiler, receipt, or payload drift before dispatch. Evidence: `scripts/context-bundle.mjs` and `scripts/worker-brief.mjs`.
+`context-bundle.mjs view` first verifies the canonical bundle, then emits a smaller deterministic unit view. The default view preserves the bundle identity, contract and snapshot bindings, completeness markers, omissions, and dependency edges. It fails on a byte-budget breach and never truncates. `worker-brief.mjs build` then frames invariant files before unit files under separate prefix, unit, and total byte limits. Its receipt binds the compiler, every source, both sections, and the final payload. Both tools reject portable path aliases that could overwrite an input or collapse two outputs onto one physical target. `worker-brief.mjs verify` rejects source, compiler, receipt, or payload drift before dispatch. Evidence: `scripts/context-bundle.mjs` and `scripts/worker-brief.mjs`.
+
+Worker views may select `rows`, `context`, or both with `--sections`. The contract's
+`context.requiredViewSections` declares which sections the unit must retain. Without that
+field, both sections remain required. `--require-sections` can add requirements but cannot
+remove contract requirements. Every view retains canonical identity, binding, scope, and
+completeness. A selected view records its selected, required, and omitted sections. Invalid
+selection or byte overflow fails before replacing the output. Evidence:
+`scripts/context-bundle.mjs` and `evals/context-bundle/run.mjs`.
+
+## Task-based routing
+
+Version 4 contracts may set `routingPolicy: "task-based"`. Each unit then supplies a
+`routingRationale` explaining its role, model tier, and reasoning effort for the assigned work.
+Role and work-kind floors remain binding. The lead does not derive a worker's tier by
+subtracting one from its own tier. Legacy contracts retain their previous routing rules.
+
+A frontier worker requires `peerException` with a permitted class, rationale, and stopping
+criterion. The classes are architecture, refutation, mathematics, and synthesis. A run permits
+at most one such peer. Its own quality criteria must include blocking acceptance owned by the
+lead. Missing, unknown, or incompatible routing fields fail validation. Evidence:
+`scripts/run-contract.mjs` and `evals/run-contract/run.mjs`.
+
+## Attributed cost components
+
+The cost estimator preserves numeric per-model subtotals and the existing attributed total.
+Its `actualCost.componentsByModel` adds separate input, cache-read, cache-write, and output
+charges. Components use unrounded arithmetic; display subtotals retain their existing rounding.
+Missing usage or prices remain `UNKNOWN`. Reasoning is already part of output and receives no
+second charge. These are attributed observations, not invoices or proof of savings. Evidence:
+`scripts/estimate-run-cost.mjs` and `evals/estimate-run-cost/run.mjs`.
 
 ## Host capabilities and policy
 
@@ -598,29 +628,40 @@ caller asked for it. Evidence: `scripts/check-handoff.mjs:45-48` and
 ## Dispatch guard hook
 
 `hooks/dispatch-guard.mjs` runs at `PreToolUse` with no matcher, so it sees every tool call, and
-carries two behaviors under one registration. It reads `agent_id`, `cwd`, `tool_name`, and
+carries worker enforcement and dispatch advice under one registration. It reads `agent_id`, `cwd`, `tool_name`, and
 `tool_input.model`, `tool_input.subagent_type`, and `tool_input.prompt` from the payload. It is on
 by default. `CODE_OPS_DISPATCH_GUARD` of `off`, `0`, or `false` disables the whole hook, and `warn`
 keeps every advisory while lifting the hard stop. `CODE_OPS_ROUND_BUDGET` overrides the 40-round
 default and takes a positive integer only. Evidence:
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:20-23` and
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs` and
 `plugins/code-ops-suite/hooks/hooks.json`.
 
 Inside a subagent, which the host marks by an `agent_id` the main thread never carries, the hook
-counts that subagent's tool calls. At the budget, and at every further 20 rounds, it returns one
+counts that subagent's attempted tool calls, including denied attempts. With no explicit binding,
+at the environment budget and every further 20 calls, it returns one
 `hookSpecificOutput.additionalContext` line telling the operative to checkpoint to its report and
 return. At three times the budget it returns `permissionDecision: deny` with the same instruction.
-It never denies a main-thread tool call. State is one append-only file per subagent at `<host
-home>/.claude/code-ops/dispatch/<project slug>/<agent id slug>.rounds` whose byte length is the
-count, so two concurrent tool calls cannot lose a round. Evidence:
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:78-134`.
+It never denies a main-thread tool call. New state keys hash the working directory and exact
+agent ID. Legacy counters remain readable and are retained during migration. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
+
+`register --agent-id <id> --budget <calls> [--allowance <calls>]` binds an exact controller-known
+identity from the worker's working directory. It never infers correlation from timing, role, or
+the lead's dispatch prompt. The allowance defaults to two, ranges from one to four, and cannot
+extend the unregistered stop. Conflicting or invalid registrations cannot enlarge the allowance.
+A malformed explicit binding or unavailable bound counter denies further calls, including in warning mode. Registration storage failures return nonzero UNAVAILABLE. Receipt counts remain UNKNOWN when counter storage cannot be read as a regular file.
+
+`receipt --agent-id <id>` reports allowlisted control measurements and binding health. It emits
+no raw identity, path, prompt, or command. Model requests and token usage remain `UNKNOWN` when
+unobserved. This receipt is not a provider usage record. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
 On the main thread the hook acts only on the dispatch tool, `Agent` or the older `Task`, and never
 denies. It adds at most three advisory clauses: a `model` override that replaces the agent's
 declared tier, a wide-surface or context-inheriting `subagent_type`, and a brief whose prompt
-names no Round budget. The hook fails open on every path: bad JSON, another event name, a missing
-field, an unwritable state directory, or any thrown error exits 0 with no output. Evidence:
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:136-182` and `evals/dispatch-guard/run.mjs`.
+names no Round budget. Absent or malformed host payloads preserve the legacy no-op behavior.
+Explicit controller bindings have separate validation and conflict handling. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
 ## Symbol index and query
 

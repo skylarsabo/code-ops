@@ -251,16 +251,26 @@ try {
   const observation = { observability: 'observed', cacheEvents: ['hit', 'write'], source: 'provider-usage', cacheReadInputTokens: 1_000_000, cacheWriteInputTokens: 1_000_000, inputTokens: 1_000_000, outputTokens: 1_000_000, unitId: 'D-001', model: 'gpt-6-astra', reasoningTokens: 500_000 };
   const observed = { version: 1, sequence: 2, kind: 'observation', recordedAt: '2026-08-20T00:01:00.000Z', previousReceiptSha256: init.receiptSha256, binding, references: emptyRefs, observation, receiptSha256: null };
   observed.receiptSha256 = receiptSha256(observed);
-  writeFileSync(join(work, receiptRel), `${JSON.stringify(init)}\n${JSON.stringify(observed)}\n`);
+  const tinyObservation = { ...observation, model: 'gpt-6-sol', cacheReadInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0, inputTokens: 1, reasoningTokens: 0 };
+  const observedTiny = { version: 1, sequence: 3, kind: 'observation', recordedAt: '2026-08-20T00:02:00.000Z', previousReceiptSha256: observed.receiptSha256, binding, references: emptyRefs, observation: tinyObservation, receiptSha256: null };
+  observedTiny.receiptSha256 = receiptSha256(observedTiny);
+  writeFileSync(join(work, receiptRel), `${JSON.stringify(init)}\n${JSON.stringify(observed)}\n${JSON.stringify(observedTiny)}\n`);
   const prices = join(work, 'prices.json');
-  writeFileSync(prices, JSON.stringify({ version: 1, currency: 'USD', effectiveAt: '2026-08-20', perMillionTokens: { 'gpt-6-astra': { input: 10, cacheRead: 1, cacheWrite: 10, output: 50 } } }));
+  writeFileSync(prices, JSON.stringify({ version: 1, currency: 'USD', effectiveAt: '2026-08-20', perMillionTokens: { 'gpt-6-astra': { input: 10, cacheRead: 1, cacheWrite: 10, output: 50 }, 'gpt-6-sol': { input: 0.1, cacheRead: 0, cacheWrite: 0, output: 0 } } }));
   const pricedJson = join(work, 'priced.json');
   const pricedResult = run(['--runs', priced, '--root', work, '--prices', prices, '--json', pricedJson]);
   const pricedMachine = JSON.parse(readFileSync(pricedJson, 'utf8'));
   check('s. attributed runtime usage is reported by model', pricedResult.status === 0
     && pricedMachine.actualUsage?.models?.['gpt-6-astra']?.reasoning === 500_000, pricedResult.stdout + pricedResult.stderr);
-  check('s. dated operator prices produce an attributed subtotal without double-billing reasoning', pricedMachine.actualCost?.attributedObservedSubtotal === 71
+  check('s. dated operator prices expose each charge component and retain the exact subtotal without double-billing reasoning', pricedMachine.actualCost?.attributedObservedSubtotal === 71
     && pricedMachine.actualCost?.scope === 'attributed-runtime-observations-only'
+    && pricedMachine.actualCost?.byModel?.['gpt-6-astra'] === 71
+    && pricedMachine.actualCost?.byModel?.['gpt-6-sol'] === 0
+    && pricedMachine.actualCost?.componentsByModel?.['gpt-6-astra']?.input === 10
+    && pricedMachine.actualCost?.componentsByModel?.['gpt-6-astra']?.cacheRead === 1
+    && pricedMachine.actualCost?.componentsByModel?.['gpt-6-astra']?.cacheWrite === 10
+    && pricedMachine.actualCost?.componentsByModel?.['gpt-6-astra']?.output === 50
+    && Math.abs((pricedMachine.actualCost?.componentsByModel?.['gpt-6-sol']?.input ?? 0) - 0.0000001) < 1e-15
     && /not a provider invoice/.test(pricedResult.stdout)
     && /reasoning tokens are reported for control only/.test(pricedResult.stdout), JSON.stringify(pricedMachine.actualCost));
   check('s. a price snapshot without root fails closed', run(['--runs', priced, '--prices', prices]).status === 2);

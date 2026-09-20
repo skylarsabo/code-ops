@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "1b428076d500acc5d49f369c57159d2e35d926bf",
-      "verifiedDigest": "b77bef3b504d47829cfc7bf9018fa322dd825676647461a0b739d558363d5e96"
+      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
+      "verifiedDigest": "8d40e5f2d72dbf2d6d105266491ffaa731e6b65a66b61344a47c6f5dd3647b49"
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +18,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1b428076d500acc5d49f369c57159d2e35d926bf",
-      "verifiedDigest": "aee5b1ff0cb0ae7dcb51720a984712e6fcb2dd9e8f449d715d8c3b59803970c0",
+      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
+      "verifiedDigest": "7c60987a071efc78dda79f953c6760940c8955c2b13204c5c31dcf5b7481767d",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -54,8 +54,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "1b428076d500acc5d49f369c57159d2e35d926bf",
-      "verifiedDigest": "e04d144fa6810698daf76987274cb6d9c937c1bc61527affa5f2909494f40336",
+      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
+      "verifiedDigest": "942d177b2816789eba348119d6560e3057846c1e65df97f770accb55d8a6fd4f",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -82,8 +82,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "1b428076d500acc5d49f369c57159d2e35d926bf",
-      "verifiedDigest": "55a2a34038f549b63645627389706a1518059713a847edc6308c83f92c758196",
+      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
+      "verifiedDigest": "33f4e7c79b89a1318985cbf0b9a6a2ae07ff03b728d3c8c394ec6189742d3a11",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -127,8 +127,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "1b428076d500acc5d49f369c57159d2e35d926bf",
-      "verifiedDigest": "5ef33e8821281a9b9aa7ed0c8c582fe4319b7fb7ad9f492512c723b7b33860b7"
+      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
+      "verifiedDigest": "9bf393811ddd9f1f75502acfd0eddd0ea9379f8b222d903a50b57b55307d23d0"
     },
     {
       "slug": "root-contracts",
@@ -142,8 +142,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "f1fe7c98b70c4d44b2f3784277ce60f314f01917",
-      "verifiedDigest": "d7d4497b255b3d4491703ac633021f03c4fc71b70d7906f155012caf76a17075"
+      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
+      "verifiedDigest": "6ec97906a6f25ba29bac8e0c0bc966ec2e9636dcd96d7bab596339a7ac9b55d8"
     },
     {
       "slug": "runtime-toolchain",

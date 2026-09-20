@@ -37,10 +37,10 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 The code-ops-suite package registers eight commands across six events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
-the required event contract. Seven fail open on every path. The traceless guard intentionally
-blocks a publishing command when it detects a trace and fails open on infrastructure errors.
-The dispatch guard is the one other command that can deny a tool call, and it denies only a
-subagent that has spent three times its round budget.
+the required event contract. The traceless guard blocks a publishing command when it detects a
+trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
+its budget boundary or when its explicit controller binding is invalid. Unbound infrastructure
+failures retain the previous fail-open behavior.
 Six commands carry an off switch, read from the canonical `.claude/settings.json`
 environment, and a seventh variable governs only the routing card's pending-handoff line.
 Rendered hosts use their documented process environment:
@@ -65,12 +65,20 @@ Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
 the hard stop. `CODE_OPS_ROUND_BUDGET` overrides the guard's 40-round default and takes a positive
 integer only. The guard injects one line at the budget and at every further 20 rounds, telling the
 operative to checkpoint to its report and return. At three times the budget it denies further tool
-calls with the same instruction. It counts and denies only inside a subagent, which the host marks
+calls with the same instruction. This is the unregistered fallback; a number written in a brief
+does not bind a worker automatically. It counts and denies only inside a subagent, which the host marks
 by an `agent_id` in the hook payload, so a main-thread tool call is never denied. On the lead's own
 dispatch it adds at most three advisory clauses: a `model` override that replaces the agent's
 declared tier, a wide-surface or context-inheriting agent type, and a brief carrying no Round
-budget. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs:64-76` and
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:111-161`.
+budget. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
+
+A controller with the exact host agent ID can run `dispatch-guard.mjs register --agent-id
+<id> --budget <calls> --allowance <calls>` from the worker's repository directory. The allowance
+defaults to two and cannot exceed four. The effective budget and allowance cannot extend the
+legacy stop. `receipt --agent-id <id>` reports binding health and attempted tool calls, including
+denied attempts. Unobserved model requests and tokens remain `UNKNOWN`. No automatic association
+uses agent type or timing. Registration is local state; installation alone does not provide a
+host correlation capability. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
 On a fresh session, `source` of `startup` or `clear`, the routing card ends with one line naming
 the newest pending handoff. Discovery reads two bounded directory levels, the dated run folders
@@ -125,11 +133,11 @@ session reached. It has no override variable and nothing purges it automatically
 directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:79-92` and
 `scripts/transcript-lib.mjs:539-555`.
 
-The dispatch-guard counter store is `<host home>/code-ops/dispatch/<project slug>/<agent id
-slug>.rounds`, one file per subagent whose byte length is that subagent's round count. It has no
-override variable and nothing purges it automatically; delete the directory to purge it. Evidence:
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:44-54` and
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:78-92`.
+The dispatch-guard store is `~/.claude/code-ops/dispatch/<cwd hash>/<agent hash>`. Each agent
+has a `.rounds` counter and may have a `.binding.json` controller record. New keys use SHA-256;
+legacy slug-keyed counters remain readable so adoption does not reset enforcement. No automatic
+purge runs. Receipts omit raw paths, agent IDs, prompts, and commands. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
 `context-audit.mjs --host codex` reads local Codex session JSONL, filters to the current
 directory unless `--all` is present, and normalizes current response usage. A receipt follows

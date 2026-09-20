@@ -1,6 +1,6 @@
 # Dispatch brief template
 
-Every subagent the orchestrator spawns gets a brief carrying the same twelve fields. A
+Every subagent the orchestrator spawns gets a brief carrying the same sixteen fields. A
 missing field is the usual cause of a subagent guessing instead of escalating, or of two
 subagents clobbering one file. This page holds the fill-in skeleton, one line per agent
 kind, and a worked example.
@@ -13,6 +13,10 @@ Scope: <target files or dirs, explicitly disjoint from any sibling dispatch in t
 Context: <pointer into the repo map or IMPORT_GRAPH relevant to Scope: a path, not a paste.
   Name the `context-query.mjs` command that answers the structural question, not its output>
 Effort: <default per agent-kind routing (see subagent-trade-offs.md); override only with a stated reason>
+Routing rationale: <why this task needs this role, tier, and effort>
+Focused checks: <exact checks for this scope; do not repeat unchanged inputs>
+Check binding: <input snapshot or diff plus environment or receipt anchor>
+Final gate owner: <lead, tool, reviewer, or user; executes the final required gates, while the lead accepts every unit>
 Expected return:
   - sections + finding tiers (CONFIRMED / PROBABLE / SPECULATIVE)
   - dense, file:line cited, no raw dumps
@@ -43,15 +47,17 @@ and continues independent work, and it waits only when the next step depends on 
 
 Three rules bind every dispatch. Always spawn a fresh operative with a brief rather than
 forking or resuming one, because a fork or a resume starts from the context it inherited
-instead of from the brief. Pass no model override on the dispatch: the agent definition
-declares the tier, and an override silently replaces it unless the brief names the reason.
-The `hooks/dispatch-guard.mjs` hook enforces the Round budget rather than suggesting it. It
-warns the operative at the budget, warns again every further 20 rounds, and denies further
-tool calls at three times the budget, so an operative that ignores the field is stopped
-instead of spending. The same hook flags a dispatch that overrides a tier, names no Round
-budget, or spawns a wide-surface or context-inheriting agent.
+instead of from the brief. Select each dispatch from the work and declared floors. A model
+override is allowed only when the brief names its routing rationale, because it replaces the
+agent definition's default tier.
+A controller that knows the exact host agent ID can bind its Round budget with
+`dispatch-guard.mjs register --agent-id <id> --budget <calls>`. Otherwise, a host that
+supplies `agent_id` uses the environment/default counter and hosts without that identity keep
+the fallback. A number in a brief never binds the hook by itself. The hook also flags a
+dispatch that overrides a tier, names no Round budget, or spawns a wide-surface or
+context-inheriting agent.
 
-For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file.
+For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file. Reuse a check only when its input snapshot and environment binding both match; HEAD alone does not bind a dirty worktree.
 
 ## Where the report lands
 
