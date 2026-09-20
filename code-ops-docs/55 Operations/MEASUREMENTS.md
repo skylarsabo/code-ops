@@ -238,12 +238,21 @@ the control rather than the arm.
 
 ## Pre-registered: dispatch guard
 
-`hooks/dispatch-guard.mjs` (switch `CODE_OPS_DISPATCH_GUARD`) holds a subagent to the Round budget
-its brief names. It warns at the budget and at every further 20 rounds, and denies further tool
-calls at three times the budget. The 40-round default and the three-times stop are **SPECULATIVE**:
+`hooks/dispatch-guard.mjs` (switch `CODE_OPS_DISPATCH_GUARD`) counts attempted subagent tool calls.
+Its unregistered fallback warns at the environment budget and every further 20 calls, then denies
+at three times that budget. A brief's number alone does not bind the hook. The 40-call default
+and the three-times stop are **SPECULATIVE**:
 both come from the 2026-09-18 cross-project audit above, where one operative spent 71 tool uses
 against a 40-round budget, not from a matched on/off comparison. This row fixes the metric and the
 decision rule before any comparison exists.
+
+Explicit controller registration now binds an exact agent ID to a budget and small checkpoint
+allowance. Its sanitized receipt reports the declared budget, allowance, attempted calls, and
+binding status. The effective runtime budget remains `UNKNOWN`, because the worker may have a
+different environment from the receipt command. Unobserved request and token counts also remain `UNKNOWN`.
+Synthetic tests establish isolation and stop behavior, not provider savings. The cost estimator's
+component charges explain existing attributed totals without changing them. Selected worker views
+measure byte reduction only; cache hits and accepted-task savings still require observed evidence.
 
 **Metric.** Operative tool-use counts from `node scripts/context-audit.mjs --all`, read per agent
 type, against the guard arm each session receipt records as `arms.dispatchGuard`. A

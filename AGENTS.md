@@ -35,14 +35,16 @@ to break silently.
 ## Model roles
 
 The user-wide contract owns general model behavior. This repository adds only these
-deltas: `scripts/model-tiers.mjs` owns provider bindings, `AGENT_MODEL_FLOORS` owns agent
-floors, and a substantive run uses a frontier lead with ordinary judgment-bearing
-operatives at the strong tier. Delegate every independently briefable unit and launch at
-least two disjoint units in parallel when the graph permits. The lead owns synthesis,
-reprioritization, final verdicts, and acceptance; it records why any genuinely trivial or
-indivisible step stayed inline. Premium frontier peers handle only bounded exceptional
-architecture, refutation, mathematics, or synthesis decisions. Effort follows ambiguity,
-never low for review and never highest for breadth.
+deltas: `scripts/model-tiers.mjs` owns provider bindings and `AGENT_MODEL_FLOORS` owns
+agent floors. A substantive run uses a frontier lead, delegates every independently briefable
+unit, and launches at least two disjoint units in parallel when the graph permits. It then
+selects each operative's role, model tier, and effort from the task. Strong is the normal
+floor for judgment work; mechanical and breadth work may use their lower declared floors. A
+task-based Run Contract records each selection rationale. One frontier peer is allowed only
+for a bounded, explicitly justified architecture, refutation, mathematics, or synthesis
+decision. The lead owns synthesis, reprioritization, final verdicts, and acceptance; it
+records why any genuinely trivial or indivisible step stayed inline. Effort follows
+ambiguity, never low for review and never highest for breadth.
 
 Operative reports remain evidence, not acceptance. The lead reads the relevant diff,
 checks the required gates, and issues verdicts at the highest tier present. Lead reports
@@ -90,8 +92,8 @@ copy in one commit.
 
 Eight plugin hook commands across six events provide traceless publishing, routing with
 compaction restoration and pending-handoff pickup, output digests, index refresh, ladder
-guidance, session receipts, a context-size handoff nudge, and a dispatch guard that binds the
-brief's Round budget. The last six named mechanisms are on by default and have
+guidance, session receipts, a context-size handoff nudge, and a dispatch guard with explicit
+host-agent budget bindings and a legacy fallback. The last six named mechanisms are on by default and have
 documented environment switches. Use
 `scripts/co.mjs context skim|query` before loading large files or maps. The switch names,
 contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and

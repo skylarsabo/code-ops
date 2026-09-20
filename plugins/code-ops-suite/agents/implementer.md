@@ -15,6 +15,7 @@ Rules:
 - Report a pre-existing bug or an improvement the brief does not name as a follow-up. Do not fix it in this unit.
 - Redact secrets/PII. Never print a credential, and never paste a value a command revealed.
 - If the brief is ambiguous, conflicts with the code, or needs a decision only the orchestrator can make, return the open question to the orchestrator instead of guessing.
+- Run only the brief's focused checks. Do not re-run an unchanged check. Report the exact input and environment binding for every check you do run. The brief names the final gate owner, which executes the checks; the lead retains acceptance.
 
 **Context budget.** Every turn re-reads your whole context, so turns and resident text are the cost. Before each tool round, list what you still need, then request every item that does not depend on another result in that one response. Read a line range, not a whole large file, and prefer the dedicated search and file-read tools over shell `cat`, `sed`, or `grep`. Never re-read a file you already hold. Limit noisy command output at the source with a filter or a tail. When you pass the round budget the brief names (40 tool rounds when it names none) with work remaining, stop at the next consistent state. Write a checkpoint to the brief's Report path: what is done with `file:line` evidence, what remains, the exact next action, and any uncommitted state. Then return. The orchestrator continues the unit in a fresh operative.
 

@@ -357,14 +357,16 @@ fields are:
 ```
 version · revision · runId · head · objective · nonGoals · lead · quality · budget
 sharedContext · replanOn · units · context (versions 2 through 4) · runtime (versions 3 and 4)
-orchestration (version 4 only) · calibration (optional, version 4 only)
+orchestration (version 4 only) · calibration (optional, version 4 only) · routingPolicy (optional, version 4 only)
 ```
 
 Quality is a vector of named dimensions and stable `Q-NNN` criteria. Each criterion names
 its oracle, required proof, blocking state, and acceptance owner. A unit has a stable
 `D-NNN`, phase and wave, lens, read and write mode, role, work kind, resolved model and
 tier, effort, short brief, scope, artifact, dependencies, and linked criteria.
-Version 4 units also declare `validates` and `independentOf` relationships.
+Version 4 units also declare `validates` and `independentOf` relationships. Task-based units
+also declare `routingRationale`; a frontier peer adds `peerException` with class, rationale,
+and stopping criterion.
 
 The compiler rejects unknown keys, stale HEADs, invalid routing, dependency cycles,
 overlapping same-wave writes, undeclared criteria, and budgets smaller than the graph.
@@ -374,7 +376,8 @@ Actual dispatches never silently rewrite intent.
 Version 2 binds `context.snapshot`, `snapshotId`, `bundleDir`, `untrackedPolicy`,
 `maxBundleBytes`, and `maxAtlasExcerptBytes`. The optional `maxScopeShare`, a number above 0
 and at most 1, raises the 0.25 share of the repository index one unit may hold; raising it is a
-slice-design decision the lead records in the contract. `context-drift` joins the canonical replan
+slice-design decision the lead records in the contract. The optional `requiredViewSections`
+is a nonempty unique subset of `rows` and `context`; absence requires both. `context-drift` joins the canonical replan
 triggers. A snapshot or bundle that does not match the current visible state fails before
 dispatch.
 
@@ -386,8 +389,11 @@ infer those states from the model name. A required unavailable capability fails 
 
 Version 4 retains the version 3 bindings and requires `lead-and-operatives` mode. Its lead
 is frontier tier. It plans at least two operatives, demonstrates a parallel wave of at least
-two units, keeps ordinary operatives below the lead tier, and makes validators depend on a
-role-independent discovery unit. Finalization refuses missing or empty operative artifacts.
+two units, preserves all role floors, and makes validators depend on a role-independent
+discovery unit. Without `routingPolicy`, ordinary operatives stay below the lead tier for
+compatibility. `routingPolicy: "task-based"` selects each unit by role and ambiguity, requires
+a routing rationale, and allows one frontier peer only with its explicit bounded exception and
+a linked lead-owned blocking criterion. Finalization refuses missing or empty operative artifacts.
 The optional `calibration` block, `{"arm": "b" | "c", "track": "assess-only"}`, admits a
 strong lead for the pre-registered calibration arms. A lead model that also serves the
 frontier rung fails validation, since that arm cannot measure a strong-versus-frontier gap.

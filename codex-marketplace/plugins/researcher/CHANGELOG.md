@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.26
+- Select agent roles, models, and reasoning effort by assigned work while retaining quality floors and independent acceptance.
+
 ## 0.13.25
 - The sibling-runtime paragraph names the dispatch guard beside the digest, index refresh, ladder card, receipt, and handoff card, so the list matches what `code-ops-suite` now registers.
 

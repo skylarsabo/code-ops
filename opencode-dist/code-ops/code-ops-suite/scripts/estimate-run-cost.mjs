@@ -353,15 +353,18 @@ if (usable.length && '--root' in flags) {
   if ('--prices' in flags) {
     const prices = loadPrices(flags['--prices']);
     const byModel = {};
+    const componentsByModel = {};
     let total = 0;
     let complete = runsWithUsage === usable.length && usable.length > 0;
     for (const [model, usage] of Object.entries(modelUsage)) {
       const rates = prices.perMillionTokens[model];
       const keys = ['input', 'cacheRead', 'cacheWrite', 'output'];
       if (!rates || keys.some((key) => !Number.isFinite(usage[key]))) {
-        byModel[model] = 'UNKNOWN'; complete = false; continue;
+        byModel[model] = 'UNKNOWN'; componentsByModel[model] = 'UNKNOWN'; complete = false; continue;
       }
-      const cost = keys.reduce((sum, key) => sum + usage[key] * rates[key] / 1_000_000, 0);
+      const components = Object.fromEntries(keys.map((key) => [key, usage[key] * rates[key] / 1_000_000]));
+      const cost = keys.reduce((sum, key) => sum + components[key], 0);
+      componentsByModel[model] = components;
       byModel[model] = Number(cost.toFixed(6)); total += cost;
     }
     machine.actualCost = {
@@ -370,10 +373,17 @@ if (usable.length && '--root' in flags) {
       scope: 'attributed-runtime-observations-only',
       comparableRunCoverageComplete: runsWithUsage === usable.length && usable.length > 0,
       byModel,
+      componentsByModel,
       attributedObservedSubtotal: !runsWithUsage ? null : complete ? Number(total.toFixed(6)) : 'UNKNOWN',
     };
     p(`  attributed observed cost at operator snapshot ${prices.effectiveAt} (${prices.currency}): ${machine.actualCost.attributedObservedSubtotal}`);
-    for (const [model, cost] of Object.entries(byModel)) p(`    ${model}: ${cost}`);
+    for (const [model, cost] of Object.entries(byModel)) {
+      if (cost === 'UNKNOWN') p(`    ${model}: UNKNOWN`);
+      else {
+        const components = machine.actualCost.componentsByModel[model];
+        p(`    ${model}: input ${components.input}, cache-read ${components.cacheRead}, cache-write ${components.cacheWrite}, output ${components.output}; subtotal ${cost}`);
+      }
+    }
     p('  this subtotal covers attributed runtime observations, not a provider invoice or proof that every call was observed.');
     p('  reasoning tokens are reported for control only and are already included in output pricing.');
   }

@@ -16,19 +16,18 @@ A subagent is a worker the orchestrator spawns with a precise question and a min
 One rule governs all of them, and it lives in code-ops-suite [`CONVENTIONS.md` §1](../../../plugins/code-ops-suite/CONVENTIONS.md). **Read-only analysis parallelizes freely. Anything that edits code runs in parallel only on disjoint file sets, and the orchestrator serializes work that touches shared files or dependency edges.** Every subagent grounds its report in `file:line` evidence ([§9](../../../plugins/code-ops-suite/CONVENTIONS.md)). The orchestrator keeps developer-in-the-loop control, so the subagents report and the orchestrator decides.
 
 **How ambiguity routes to a tier.** Routing is quality-first and independent of the
-lead's own tier. Judgment-bearing operative work runs at the **strong** tier, whether the
-lead is frontier or strong. The rungs are provider-agnostic (frontier, then strong, then
-mid), and `opus` is the strong rung in this suite's Claude models. The economics drive the
-rule: a shallow or failed report costs a redispatch round-trip plus the lead's attention,
-which is dearer than the strong tier's price premium. So the routing optimizes first-pass
-quality rather than per-dispatch price. A tier below strong is for mechanical,
+lead's own tier. Select role, tier, and effort from the task. Judgment-bearing operative
+work runs at the **strong** tier. The rungs are provider-agnostic (frontier, then strong,
+then mid), and `opus` is the strong rung in this suite's Claude models. The economics drive
+the rule: a shallow or failed report costs a redispatch round-trip plus the lead's attention,
+which is dearer than the strong tier's price premium. A tier below strong is for mechanical,
 execution-only work whose brief leaves no ambiguity. Never route work below strong when a
 verdict rests on its output, and never route below an agent's lint-enforced floor:
 
 | Task shape | Route to | Effort | Why |
 | --- | --- | --- | --- |
 | Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`, `mech`) — the one place the strong-tier default gives way, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis, and at least medium when the brief asks the operative to source or verify a name, because low effort answers from memory) | No judgment call to get wrong; cheapest tier that can do the read. |
-| Moderate judgment (single-claim research, one candidate finding, execution-only work) | `sonnet`-floor agents (`claim-checker`, `verifier`) — the mid tier is the floor here, not the target: run them strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test; `verifier` executes only, judgment stays with the lead. |
+| Moderate judgment (single-claim research, execution-only work) | `sonnet`-floor `claim-checker` — the mid tier is the floor here, not the target: run it strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test. |
 | Scoped implementation (build, fix, or refactor one bounded unit) | code-ops `implementer` (`opus` floor), never a general-purpose agent | medium | The narrow tool surface starts each turn near 20,000 tokens, against near 57,000 for a general-purpose agent. See [What a dispatch costs](#what-a-dispatch-costs). |
 | High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | `opus`-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | `reviewer`/`privacy-reviewer` high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
 | Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The lead, at the highest tier present in the session | high; xhigh only for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop and is never down-tiered for this. |
@@ -43,10 +42,11 @@ Three anti-patterns follow from the table:
 
 Effort and tier partially substitute, and the substitution is provider-agnostic: a stronger model at medium effort approximates a mid model at high effort. That substitution buys speed. It never licenses a down-tier for work whose output a verdict rests on.
 
-Premium frontier specialists sit outside the default ladder binding. Use one only for a
-bounded, unusually difficult architecture, independent-refutation, or cross-domain-synthesis
-decision. Give the specialist narrow context and a stopping criterion. Keep ordinary judgment
-on the strong tier, and keep acceptance with the highest-tier lead.
+Premium frontier peers sit outside the default ladder binding. A task-based Run Contract
+permits one for a bounded architecture, independent refutation, mathematics, or cross-domain
+synthesis decision. It records the class, routing rationale, narrow context, stopping
+criterion, and a lead-owned blocking criterion linked to that unit. Keep ordinary judgment
+on the strong tier, and keep acceptance with the lead.
 
 ### Which model satisfies a tier
 

@@ -21,6 +21,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +52,17 @@ function runHook(payload, { home, guard, budget, pluginRoot = suite } = {}) {
   const input = typeof payload === 'string' ? payload : JSON.stringify(payload);
   return spawnSync('node', [hook], { input, encoding: 'utf8', env });
 }
+
+function runControl(args, { home, budget, cwd = root } = {}) {
+  const env = { ...process.env };
+  delete env.CODE_OPS_ROUND_BUDGET;
+  if (budget !== undefined) env.CODE_OPS_ROUND_BUDGET = String(budget);
+  if (home) { env.HOME = home; env.USERPROFILE = home; }
+  return spawnSync('node', [hook, ...args], { encoding: 'utf8', env, cwd });
+}
+
+const stateKey = (value) => createHash('sha256').update(String(value)).digest('hex');
+const legacySlug = (value) => String(value).replace(/[^A-Za-z0-9]/g, '-');
 
 const subagentCall = (agentId, extra = {}) => ({
   hook_event_name: 'PreToolUse', session_id: 'sess-1', cwd: 'C:/fixture-project',
@@ -202,6 +214,132 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
   expect(clean.status === 0 && clean.stdout === '', `a clean dispatch must be silent, got ${clean.status}/${JSON.stringify(clean.stdout)}`);
   cleanup();
   console.log('ok   a leaky dispatch earns one short advisory and a clean dispatch is silent');
+}
+
+// ---------------------------------------------------------------- explicit controller bindings
+
+{
+  const { home, cleanup } = fakeHome();
+  const boundId = 'bound-agent';
+  const otherId = 'same-type-but-unbound';
+  const cwd = root;
+  const registered = runControl(['register', '--agent-id', boundId, '--budget', '2', '--allowance', '2'], { home, budget: 3, cwd });
+  expect(registered.status === 0 && registered.stdout === '', `registration must be local and silent, got ${registered.status}/${registered.stdout}`);
+
+  // Lead dispatch events have no child agent id. A matching type after this event must not
+  // inherit the registration by timing or type; it remains on the legacy fallback.
+  const lead = runHook(dispatchCall({ prompt: 'Round budget: 2 tool rounds', subagent_type: 'code-ops-suite:implementer' }, { cwd }), { home, budget: 3 });
+  expect(lead.stdout === '', `a clean lead dispatch must not auto-bind a future worker, got ${lead.stdout}`);
+  for (let i = 0; i < 2; i++) expect(runHook(subagentCall(otherId, { cwd }), { home, budget: 3 }).stdout === '', 'an unregistered same-type worker must retain its own legacy counter');
+  const fallbackWarning = contextOf(parseOut(runHook(subagentCall(otherId, { cwd }), { home, budget: 3 })));
+  expect(typeof fallbackWarning === 'string' && !/controller-bound/.test(fallbackWarning), `no guessed binding may alter the fallback, got ${fallbackWarning}`);
+
+  const bound = [];
+  for (let i = 0; i < 5; i++) bound.push(parseOut(runHook(subagentCall(boundId, { cwd }), { home, budget: 3 })));
+  expect(/controller-bound 2-round budget/.test(contextOf(bound[1]) ?? ''), `a registered id must warn at its declared budget, got ${JSON.stringify(bound[1])}`);
+  expect(bound[2] === null && bound[3] === null, `the two-call allowance must execute after the bound budget, got ${JSON.stringify(bound.slice(2, 4))}`);
+  expect(bound[4]?.hookSpecificOutput?.permissionDecision === 'deny' && /attempted tool calls/.test(bound[4]?.hookSpecificOutput?.permissionDecisionReason ?? ''),
+    `the call after the allowance must deny and label attempted calls, got ${JSON.stringify(bound[4])}`);
+
+  const receipt = parseOut(runControl(['read', '--agent-id', boundId], { home, cwd }));
+  const measured = receipt?.measurement ?? {};
+  expect(measured.declaredBudget === 2 && measured.effectiveBudget === 'UNKNOWN' && measured.allowance === 2 && measured.calls === 5
+    && measured.source === 'controller-registration' && measured.status === 'BOUND', `the receipt must expose bound local measurements without inventing hook-environment limits, got ${JSON.stringify(receipt)}`);
+  expect(receipt?.unobserved?.model === 'UNKNOWN' && receipt?.unobserved?.requests === 'UNKNOWN' && receipt?.unobserved?.tokens === 'UNKNOWN'
+    && receipt?.unobserved?.cache === 'UNKNOWN' && receipt?.unobserved?.context === 'UNKNOWN',
+  `unobserved model/request/token/cache/context fields must stay UNKNOWN, got ${JSON.stringify(receipt)}`);
+  expect(!JSON.stringify(receipt).includes(boundId) && !JSON.stringify(receipt).includes(cwd) && !/prompt|command/i.test(JSON.stringify(receipt)),
+    `receipt must not expose the agent id, cwd, prompt, or command, got ${JSON.stringify(receipt)}`);
+  cleanup();
+  console.log('ok   only an exact controller registration binds a worker, with a bounded allowance and sanitized receipt');
+}
+
+// ---------------------------------------------------------------- controller conflicts, malformed records, and legacy migration
+
+{
+  const { home, cleanup } = fakeHome();
+  const cwd = root;
+  const id = 'conflict-agent';
+  runControl(['register', '--agent-id', id, '--budget', '2'], { home, budget: 3, cwd });
+  const duplicate = runControl(['register', '--agent-id', id, '--budget', '99', '--allowance', '4'], { home, budget: 3, cwd });
+  expect(duplicate.status === 2 && duplicate.stderr.trim() === 'dispatch-guard CONFLICT',
+    `a conflicting registration must return a concise nonsecret failure, got ${duplicate.status}/${JSON.stringify(duplicate.stderr)}`);
+  const conflict = parseOut(runControl(['receipt', '--agent-id', id], { home, budget: 3, cwd }));
+  expect(conflict?.measurement?.declaredBudget === 2 && conflict?.measurement?.allowance === 2,
+    `a conflicting registration must not enlarge the first binding, got ${JSON.stringify(conflict)}`);
+
+  const malformedId = 'malformed-agent';
+  const state = join(home, '.claude', 'code-ops', 'dispatch', stateKey(cwd));
+  mkdirSync(state, { recursive: true });
+  writeFileSync(join(state, `${stateKey(malformedId)}.binding.json`), '{not json');
+  const malformed = parseOut(runHook(subagentCall(malformedId, { cwd }), { home, budget: 3 }));
+  expect(malformed?.hookSpecificOutput?.permissionDecision === 'deny' && /binding is malformed/i.test(malformed?.hookSpecificOutput?.permissionDecisionReason ?? ''),
+    `a malformed explicit binding must fail closed, got ${JSON.stringify(malformed)}`);
+  const malformedWarn = parseOut(runHook(subagentCall(malformedId, { cwd }), { home, budget: 3, guard: 'warn' }));
+  expect(malformedWarn?.hookSpecificOutput?.permissionDecision === 'deny',
+    `warn mode must not fail open a malformed explicit binding, got ${JSON.stringify(malformedWarn)}`);
+  const invalidReceipt = parseOut(runControl(['receipt', '--agent-id', malformedId], { home, budget: 3, cwd }));
+  expect(invalidReceipt?.measurement?.status === 'INVALID' && invalidReceipt?.measurement?.calls === 'UNKNOWN',
+    `a malformed binding receipt must not invent measurements, got ${JSON.stringify(invalidReceipt)}`);
+
+  const legacyId = 'legacy-agent';
+  const legacy = join(home, '.claude', 'code-ops', 'dispatch', legacySlug(cwd));
+  mkdirSync(legacy, { recursive: true });
+  writeFileSync(join(legacy, `${legacySlug(legacyId)}.rounds`), '.'.repeat(119));
+  const migrated = parseOut(runHook(subagentCall(legacyId, { cwd }), { home, budget: 40 }));
+  expect(migrated?.hookSpecificOutput?.permissionDecision === 'deny', `a legacy count of 119 must deny on its next call after hashed-state rollout, got ${JSON.stringify(migrated)}`);
+  const invalid = runControl(['register', '--agent-id', 'invalid-agent', '--budget', '0'], { home, budget: 3, cwd });
+  expect(invalid.status === 2 && invalid.stderr.trim() === 'dispatch-guard INVALID_ARGUMENT',
+    `an invalid registration must return a concise nonsecret failure, got ${invalid.status}/${JSON.stringify(invalid.stderr)}`);
+  const unavailable = runControl(['register', '--agent-id', 'unavailable-agent', '--budget', '2'], { home: hook, budget: 3, cwd });
+  expect(unavailable.status === 2 && unavailable.stderr.trim() === 'dispatch-guard UNAVAILABLE',
+    `an unavailable controller state directory must fail nonzero and sanitized, got ${unavailable.status}/${JSON.stringify(unavailable.stderr)}`);
+  cleanup();
+  console.log('ok   conflicting and malformed registrations never enlarge a budget, and legacy counters retain their stop');
+}
+
+// ---------------------------------------------------------------- bound cap and concurrent registration isolation
+
+{
+  const { home, cleanup } = fakeHome();
+  const cwd = root;
+  for (const id of ['bound-A', 'bound-B']) runControl(['register', '--agent-id', id, '--budget', '99', '--allowance', '4'], { home, budget: 3, cwd });
+  for (let i = 0; i < 8; i++) {
+    for (const id of ['bound-A', 'bound-B']) {
+      const out = parseOut(runHook(subagentCall(id, { cwd }), { home, budget: 3 }));
+      expect(out?.hookSpecificOutput?.permissionDecision !== 'deny', `concurrent bound counters must not share a cap for ${id}, got ${JSON.stringify(out)}`);
+    }
+  }
+  for (const id of ['bound-A', 'bound-B']) {
+    const stopped = parseOut(runHook(subagentCall(id, { cwd }), { home, budget: 3 }));
+    expect(stopped?.hookSpecificOutput?.permissionDecision === 'deny', `the bound cap must not exceed the legacy fallback cap for ${id}, got ${JSON.stringify(stopped)}`);
+    const view = parseOut(runControl(['read', '--agent-id', id], { home, budget: 3, cwd }));
+    expect(view?.measurement?.effectiveBudget === 'UNKNOWN' && view?.measurement?.allowance === 4,
+      `the read view must expose the declared allowance without inventing a hook-environment effective budget for ${id}, got ${JSON.stringify(view)}`);
+  }
+  cleanup();
+  console.log('ok   concurrent registered workers stay isolated and their allowance cannot extend the legacy cap');
+}
+
+// ---------------------------------------------------------------- registered counter I/O fails closed
+
+{
+  const { home, cleanup } = fakeHome();
+  const cwd = root;
+  const id = 'bound-counter-unavailable';
+  runControl(['register', '--agent-id', id, '--budget', '2'], { home, budget: 3, cwd });
+  runHook(subagentCall(id, { cwd }), { home, budget: 3 });
+  const roundPath = join(home, '.claude', 'code-ops', 'dispatch', stateKey(cwd), `${stateKey(id)}.rounds`);
+  rmSync(roundPath, { force: true });
+  mkdirSync(roundPath);
+  const unavailable = parseOut(runHook(subagentCall(id, { cwd }), { home, budget: 3 }));
+  expect(unavailable?.hookSpecificOutput?.permissionDecision === 'deny' && /counter is unavailable/i.test(unavailable?.hookSpecificOutput?.permissionDecisionReason ?? ''),
+    `a registered counter I/O failure must deny instead of bypassing its cap, got ${JSON.stringify(unavailable)}`);
+  const receipt = parseOut(runControl(['receipt', '--agent-id', id], { home, cwd }));
+  expect(receipt?.measurement?.status === 'UNAVAILABLE' && receipt?.measurement?.calls === 'UNKNOWN',
+    `a receipt must report unavailable counter state as UNKNOWN, got ${JSON.stringify(receipt)}`);
+  cleanup();
+  console.log('ok   a registered counter I/O failure denies and its receipt stays unknown');
 }
 
 // ---------------------------------------------------------------- the off switch

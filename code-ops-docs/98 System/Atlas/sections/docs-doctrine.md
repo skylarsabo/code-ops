@@ -29,3 +29,5 @@ The hub now owns a measurements reference under `55 Operations/`, registered as 
 Provider doctrine defines one portable outcome across Claude, Codex, installed Grok, and OpenCode while preserving host-native mechanics. Capability matrices name unsupported callbacks explicitly, and measurement prose separates synthetic adapter proof, installed-runtime observation, and live external-turn evidence.
 
 The writing standard defines mannered prose and a formatting rule. Context hygiene requires append-only history, turn-scoped reminders, and whole-history replacement at compaction, with the compaction point set later because cache reads are cheap. Global standards guidance keeps stable provider-neutral doctrine shared while allowing small, explicit Claude and Codex host deltas. Repository contracts retain only local facts, commands, gates, and exceptions.
+
+Routing guidance now selects role, tier, and effort from the assigned work while retaining declared quality floors. Dispatch guidance distinguishes explicit host-agent budget binding from legacy fallback. Worker views may omit only sections the context contract does not require; omission remains explicit.

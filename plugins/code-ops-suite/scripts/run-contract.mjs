@@ -12,19 +12,20 @@ import { ACCEPT_HEADER, actorError, parseAcceptance as readAcceptance } from './
 const TOP_V1 = ['version', 'revision', 'runId', 'head', 'objective', 'nonGoals', 'lead', 'quality', 'budget', 'sharedContext', 'replanOn', 'units'];
 const TOP_V2 = new Set([...TOP_V1, 'context']);
 const TOP_V3 = new Set([...TOP_V2, 'runtime']);
-const TOP_V4 = new Set([...TOP_V3, 'orchestration', 'calibration']);
-const OPTIONAL_TOP_V4 = new Set(['calibration']);
+const TOP_V4 = new Set([...TOP_V3, 'orchestration', 'calibration', 'routingPolicy']);
+const OPTIONAL_TOP_V4 = new Set(['calibration', 'routingPolicy']);
 const CALIBRATION = new Set(['arm', 'track']);
 const CALIBRATION_ARMS = new Set(['b', 'c']);
-const CONTEXT = new Set(['snapshot', 'snapshotId', 'bundleDir', 'untrackedPolicy', 'maxBundleBytes', 'maxAtlasExcerptBytes', 'maxScopeShare']);
-const OPTIONAL_CONTEXT = new Set(['maxScopeShare']);
+const CONTEXT = new Set(['snapshot', 'snapshotId', 'bundleDir', 'untrackedPolicy', 'maxBundleBytes', 'maxAtlasExcerptBytes', 'maxScopeShare', 'requiredViewSections']);
+const OPTIONAL_CONTEXT = new Set(['maxScopeShare', 'requiredViewSections']);
 const LEAD = new Set(['model', 'tier', 'effort']);
 const QUALITY = new Set(['dimensions', 'criteria']);
 const CRITERION = new Set(['id', 'dimension', 'description', 'oracle', 'proof', 'blocking', 'owner']);
 const BUDGET = new Set(['maxDispatches', 'maxParallel', 'maxRetriesPerUnit']);
 const UNIT = new Set(['id', 'phase', 'wave', 'lens', 'mode', 'role', 'kind', 'model', 'tier', 'effort', 'brief', 'scope', 'artifact', 'dependsOn', 'qualityCriteria', 'tokenBudget']);
-const UNIT_V4 = new Set([...UNIT, 'validates', 'independentOf']);
+const UNIT_V4 = new Set([...UNIT, 'validates', 'independentOf', 'routingRationale', 'peerException']);
 const OPTIONAL_UNIT = new Set(['tokenBudget']);
+const OPTIONAL_UNIT_V4 = new Set([...OPTIONAL_UNIT, 'routingRationale', 'peerException']);
 const ORCHESTRATION = new Set(['mode', 'minOperatives', 'minParallel']);
 const TOKEN_BUDGET = new Set(['input', 'output', 'reasoning']);
 const DIMENSIONS = new Set(['correctness', 'evidence', 'coverage', 'security', 'privacy', 'usability', 'performance', 'documentation', 'efficiency', 'maintainability']);
@@ -32,6 +33,9 @@ const ORACLES = new Set(['command', 'receipt', 'review', 'artifact']);
 const OWNERS = new Set(['lead', 'reviewer', 'tool', 'user']);
 const KINDS = new Set(['mechanical', 'breadth', 'execution', 'judgment', 'review', 'refutation']);
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh']);
+const PEER_CLASSES = new Set(['architecture', 'refutation', 'mathematics', 'synthesis']);
+const PEER_EXCEPTION = new Set(['class', 'rationale', 'stoppingCriterion']);
+const VIEW_SECTIONS = new Set(['rows', 'context']);
 const REPLAN = ['scope-change', 'new-dependency', 'failed-dispatch', 'quality-gate-failure'];
 const REPLAN_V2 = [...REPLAN, 'context-drift'];
 const REPLAN_V3 = [...REPLAN_V2, 'runtime-drift'];
@@ -105,6 +109,7 @@ function validate(c, root) {
     // the files had no contract-level way to say so. Raising it is a slice-design decision the
     // lead records here; the recursive-glob and risky-prefix triggers ignore it.
     if ('maxScopeShare' in (c.context || {}) && (typeof c.context.maxScopeShare !== 'number' || !Number.isFinite(c.context.maxScopeShare) || c.context.maxScopeShare <= 0 || c.context.maxScopeShare > 1)) errors.push('context.maxScopeShare must be a number greater than 0 and at most 1');
+    if ('requiredViewSections' in (c.context || {}) && (!Array.isArray(c.context.requiredViewSections) || !c.context.requiredViewSections.length || new Set(c.context.requiredViewSections).size !== c.context.requiredViewSections.length || c.context.requiredViewSections.some((section) => !VIEW_SECTIONS.has(section)))) errors.push('context.requiredViewSections must be a nonempty unique array of rows or context');
   }
   if (c.version >= 3) errors.push(...validateRuntimeConfig(c.runtime));
   if (!Number.isInteger(c.revision) || c.revision < 1) errors.push('revision must be a positive integer');
@@ -116,6 +121,8 @@ function validate(c, root) {
   if (!TIER_ORDER.includes(c.lead?.tier) || TIER_RANK[c.lead?.tier] < TIER_RANK.strong || !tierFor(c.lead?.model, c.lead?.tier)) errors.push('lead model must support declared strong or frontier tier');
   if (c.lead?.effort !== 'high') errors.push('lead effort must be high');
   let calibrated = false;
+  const taskBased = c.version === 4 && 'routingPolicy' in c;
+  if (taskBased && c.routingPolicy !== 'task-based') errors.push('routingPolicy must be task-based');
   if (c.version === 4 && 'calibration' in c) {
     // The pre-registered calibration arms b and c run a strong lead on the assess-only track.
     // A valid block waives the frontier-lead rule and lets units run at, never above, the
@@ -137,6 +144,7 @@ function validate(c, root) {
     });
     calibrated = errors.length === before;
   } else if (c.version === 4 && c.lead?.tier !== 'frontier') errors.push('version 4 requires a frontier lead');
+  if (taskBased && 'calibration' in c) errors.push('routingPolicy task-based cannot combine with calibration');
   exact(c.quality, QUALITY, 'quality', errors);
   if (!Array.isArray(c.quality?.dimensions) || !c.quality.dimensions.length || new Set(c.quality.dimensions).size !== c.quality.dimensions.length || c.quality.dimensions.some((x) => !DIMENSIONS.has(x))) errors.push('quality dimensions must be unique supported dimensions');
   const criterionIds = new Set();
@@ -165,19 +173,30 @@ function validate(c, root) {
     if (c.orchestration?.minParallel > c.budget?.maxParallel) errors.push('orchestration.minParallel exceeds maxParallel');
   }
   (c.units || []).forEach((unit, index) => {
-    exact(unit, c.version === 4 ? UNIT_V4 : UNIT, `unit ${index + 1}`, errors, OPTIONAL_UNIT);
+    exact(unit, c.version === 4 ? UNIT_V4 : UNIT, `unit ${index + 1}`, errors, c.version === 4 ? OPTIONAL_UNIT_V4 : OPTIONAL_UNIT);
     const expected = `D-${String(index + 1).padStart(3, '0')}`;
     if (unit.id !== expected || unitIds.has(unit.id)) errors.push(`unit ${index + 1} must be ${expected}`); unitIds.add(unit.id); byId.set(unit.id, unit);
     if (!Number.isInteger(unit.wave) || unit.wave < 1 || typeof unit.phase !== 'string' || !unit.phase || typeof unit.lens !== 'string' || !unit.lens) errors.push(`${unit.id || expected} needs phase, lens, positive wave`);
     if (!['read', 'write'].includes(unit.mode) || !KINDS.has(unit.kind) || !EFFORTS.has(unit.effort) || !TIER_ORDER.includes(unit.tier) || !tierFor(unit.model, unit.tier)) errors.push(`${unit.id || expected} has invalid routing fields`);
     const rank = TIER_RANK[unit.tier];
+    const peerAtXhigh = taskBased && unit.peerException !== undefined && unit.tier === 'frontier' && unit.effort === 'xhigh';
     if (calibrated) { if (rank > TIER_RANK[c.lead.tier]) errors.push(`${unit.id || expected} must not run above the lead tier`); }
-    else if (c.version === 4 && rank >= TIER_RANK[c.lead?.tier]) errors.push(`${unit.id || expected} must run below the lead tier`);
+    else if (c.version === 4 && !taskBased && rank >= TIER_RANK[c.lead?.tier]) errors.push(`${unit.id || expected} must run below the lead tier`);
     if (unit.kind === 'execution' && (rank < TIER_RANK.mid || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates execution routing floor`);
-    if (unit.kind === 'judgment' && (rank < TIER_RANK.strong || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates judgment routing floor`);
-    if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || unit.effort !== 'high')) errors.push(`${unit.id || expected} violates review routing floor`);
+    if (unit.kind === 'judgment' && (rank < TIER_RANK.strong || !['medium', 'high', ...(peerAtXhigh ? ['xhigh'] : [])].includes(unit.effort))) errors.push(`${unit.id || expected} violates judgment routing floor`);
+    if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || (unit.effort !== 'high' && !peerAtXhigh))) errors.push(`${unit.id || expected} violates review routing floor`);
     if (['breadth', 'mechanical'].includes(unit.kind) && ['high', 'xhigh'].includes(unit.effort)) errors.push(`${unit.id || expected} violates breadth/mechanical effort ceiling`);
     if (typeof unit.role !== 'string' || !unit.role || typeof unit.brief !== 'string' || !unit.brief.trim() || words(unit.brief) > 10) errors.push(`${unit.id || expected} needs role and a brief of at most ten words`);
+    if (taskBased && (typeof unit.routingRationale !== 'string' || !unit.routingRationale.trim() || words(unit.routingRationale) > 20)) errors.push(`${unit.id || expected} needs a routingRationale of at most twenty words`);
+    if (!taskBased && ('routingRationale' in unit || 'peerException' in unit)) errors.push(`${unit.id || expected} task-based routing fields require routingPolicy task-based`);
+    if (unit.peerException !== undefined) {
+      exact(unit.peerException, PEER_EXCEPTION, `${unit.id || expected} peerException`, errors);
+      if (!taskBased) errors.push(`${unit.id || expected} peerException requires routingPolicy task-based`);
+      if (!PEER_CLASSES.has(unit.peerException?.class)) errors.push(`${unit.id || expected} peerException.class is invalid`);
+      for (const key of ['rationale', 'stoppingCriterion']) if (typeof unit.peerException?.[key] !== 'string' || !unit.peerException[key].trim()) errors.push(`${unit.id || expected} peerException.${key} must be nonempty`);
+      if (unit.tier !== 'frontier' || !['high', 'xhigh'].includes(unit.effort)) errors.push(`${unit.id || expected} peerException requires frontier tier and high or xhigh effort`);
+      if (unit.peerException?.class === 'refutation' ? unit.kind !== 'refutation' : unit.kind !== 'judgment') errors.push(`${unit.id || expected} peerException class and kind do not match`);
+    } else if (taskBased && unit.tier === 'frontier') errors.push(`${unit.id || expected} frontier routing requires peerException`);
     if (unit.tokenBudget !== undefined) {
       exact(unit.tokenBudget, TOKEN_BUDGET, `${unit.id || expected} tokenBudget`, errors);
       for (const key of TOKEN_BUDGET) if (!Number.isSafeInteger(unit.tokenBudget?.[key]) || unit.tokenBudget[key] < 1) errors.push(`${unit.id || expected} tokenBudget.${key} must be a positive safe integer`);
@@ -200,6 +219,11 @@ function validate(c, root) {
     if (operatives.length < c.orchestration?.minOperatives) errors.push('planned work operatives do not meet orchestration.minOperatives; review and refutation units do not count');
     const widestWave = Math.max(0, ...[...waves.values()].map((units) => units.filter((unit) => !isValidator(unit)).length));
     if (widestWave < c.orchestration?.minParallel) errors.push('work-operative plan does not meet orchestration.minParallel; review and refutation units do not count');
+  }
+  if (taskBased) {
+    const peers = (c.units || []).filter((unit) => unit.peerException !== undefined);
+    if (peers.length > 1) errors.push('routingPolicy task-based allows at most one frontier peer');
+    for (const peer of peers) if (!(peer.qualityCriteria || []).some((id) => c.quality?.criteria?.some((item) => item.id === id && item.blocking && item.owner === 'lead'))) errors.push(`${peer.id} frontier peer requires a lead-owned blocking criterion`);
   }
   for (let i = 0; i < (c.units || []).length; i++) for (let j = i + 1; j < c.units.length; j++) {
     const a = c.units[i], b = c.units[j];

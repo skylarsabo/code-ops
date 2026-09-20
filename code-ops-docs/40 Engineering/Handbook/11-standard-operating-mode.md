@@ -26,8 +26,8 @@ and keeps root work to synthesis, challenge, reprioritization, redirection, inte
 acceptance. Inline execution is limited to a genuinely trivial or indivisible step, with the
 reason stated in the run record.
 
-Set operative tier by quality, not by price. Judgment-bearing operative work runs one tier
-below the lead at the strong tier. Tracing, review, verification, and any
+Set operative tier by quality, not by price. Select role, tier, and effort from the work,
+not the lead's tier. Judgment-bearing operative work runs at the strong tier. Tracing, review, verification, and any
 implementation carrying an open question all count as judgment-bearing. A shallow or
 failed operative report costs a redispatch round trip plus the lead's attention, which
 is dearer than the strong tier's price premium. Only mechanical, low-ambiguity work
@@ -41,10 +41,11 @@ another, so a stronger model at medium approximates a mid model at high. See
 [subagent-trade-offs.md](../Techniques/subagent-trade-offs.md) for the table backing this
 rule and for the floor values themselves.
 
-Every new substantive orchestrated run uses Run Contract version 4. It makes the frontier
-lead, lower-tier operatives, disjoint parallel wave, independent validation, and operative
-evidence mechanical. Versions 1 through 3 remain readable for replay and historical
-verification only; do not author a new run against them.
+Every new non-calibration substantive orchestrated run uses Run Contract version 4 with
+`routingPolicy: "task-based"`. It requires a rationale for every unit and permits one
+explicit, bounded frontier peer. Calibration arms and earlier versions retain their existing
+rules for their registered use or replay. The contract makes the frontier lead, disjoint
+parallel wave, independent validation, and operative evidence mechanical.
 
 ## The ordered objective and the code-economy ladder
 
