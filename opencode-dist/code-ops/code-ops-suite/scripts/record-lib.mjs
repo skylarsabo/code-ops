@@ -463,7 +463,7 @@ function parseHistory(output) {
     const match = /^:[0-7]{6} [0-7]{6} ([0-9a-f]+) ([0-9a-f]+) ([A-Z])\d*$/.exec(trimmed);
     if (!match || !commit || index + 1 >= tokens.length) continue;
     const oldPath = posix(tokens[++index]);
-    const newPath = match[3] === 'R' && index + 1 < tokens.length ? posix(tokens[++index]) : oldPath;
+    const newPath = ['R', 'C'].includes(match[3]) && index + 1 < tokens.length ? posix(tokens[++index]) : oldPath;
     const row = { commit, oldBlobOid: match[1], newBlobOid: match[2], status: match[3], oldPath, newPath };
     const prior = events.at(-1);
     if (!prior || canonical(prior) !== canonical(row)) events.push(row);
@@ -541,15 +541,32 @@ function repositoryHistory(root, rows) {
     });
     if (inherited) duplicateMergeAdds.add(canonical(event));
   }
-  return events.filter((event) => !duplicateMergeAdds.has(canonical(event)) && (event.status === 'R'
+  const compareEvents = (left, right) => {
+    const order = (commitOrder.get(left.commit) ?? Number.MAX_SAFE_INTEGER)
+      - (commitOrder.get(right.commit) ?? Number.MAX_SAFE_INTEGER);
+    return order || canonical(left).localeCompare(canonical(right));
+  };
+  return { compareEvents, events: events.filter((event) => !duplicateMergeAdds.has(canonical(event)) && (event.status === 'R'
     || (event.status === 'A' && !renameAdds.has(canonical([event.commit, event.newPath, event.newBlobOid])))
     || (event.status === 'D' && !renameDeletes.has(canonical([event.commit, event.oldPath, event.oldBlobOid])))
     || !['A', 'D'].includes(event.status)))
-    .sort((left, right) => {
-      const order = (commitOrder.get(left.commit) ?? Number.MAX_SAFE_INTEGER)
-        - (commitOrder.get(right.commit) ?? Number.MAX_SAFE_INTEGER);
-      return order || canonical(left).localeCompare(canonical(right));
-    });
+    .sort(compareEvents) };
+}
+
+// A copy is a plain add of its destination, which the exact-path pass reports, so it never joins a lineage.
+// Releases through 1.85.0 read a copy record as a change to its source. `legacyCopyBound` reproduces that
+// reading for the copies a stored review could have seen, so such a review still verifies exactly.
+function rowHistoryEvents(history, path, legacyCopyBound) {
+  if (!legacyCopyBound) return history.events.filter((event) => event.status !== 'C');
+  const seen = new Set();
+  return history.events.flatMap((event) => {
+    if (event.status !== 'C') return [event];
+    if (!legacyCopyBound(path, event.commit)) return [];
+    const legacy = { ...event, newPath: event.oldPath };
+    if (seen.has(canonical(legacy))) return [];
+    seen.add(canonical(legacy));
+    return [legacy];
+  }).sort(history.compareEvents);
 }
 
 function stableHistoryEvents(events, blobDigests) {
@@ -597,12 +614,21 @@ function treeBlobOids(root, commit, paths) {
   return entries;
 }
 
-export function adoptionHistoryProfiles(root, collection, rows, { allowUncommitted = false, indexed = null } = {}) {
-  const immutable = rows.filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy));
-  const events = repositoryHistory(root, immutable); const profiles = new Map(); const profileDrafts = [];
+const immutableCandidates = (rows) => rows
+  .filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy));
+
+export function adoptionHistory(root, rows) { return repositoryHistory(root, immutableCandidates(rows)); }
+
+export function adoptionHistoryProfiles(root, collection, rows, {
+  allowUncommitted = false, indexed = null, history = null, legacyCopyBound = null,
+} = {}) {
+  const immutable = immutableCandidates(rows);
+  const repository = history || repositoryHistory(root, immutable); const profiles = new Map(); const profileDrafts = [];
+  const copyFreeEvents = legacyCopyBound ? null : rowHistoryEvents(repository, null, null);
   const currentIndex = indexed || indexSnapshot(root, immutable.map((row) => row.path));
   const headBlobOids = treeBlobOids(root, 'HEAD', immutable.map((row) => row.path));
   for (const row of immutable) {
+    const events = copyFreeEvents || rowHistoryEvents(repository, row.path, legacyCopyBound);
     const exactEvents = events.flatMap((event, eventIndex) => {
       if (event.status === 'R' && event.newPath === row.path) return [{ ...event, eventIndex, status: 'A', path: row.path, renamedFrom: event.oldPath }];
       if (event.status === 'R' && event.oldPath === row.path) {

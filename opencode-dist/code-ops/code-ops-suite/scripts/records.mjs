@@ -6,7 +6,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { dirname, join, relative, resolve } from 'node:path';
 import {
-  adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
+  adoptionHistory, adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
   gitPaths, historicalTarget, indexSemantic, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
   maskMarkdownFenceAndTopLevelIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
@@ -1325,7 +1325,8 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
     }
     if (historyComplete) {
       const candidateRows = rows.filter((row) => reviewCandidates.has(row.path));
-      const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows);
+      const history = adoptionHistory(context.root, candidateRows);
+      const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows, { history });
       const pathsBySource = new Map();
       for (const candidate of reviewCandidates.values()) {
         const sourceHead = reviewSources.get(candidate.path);
@@ -1340,6 +1341,23 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
           targets: reachable ? targetsAt(context.root, sourceHead, paths) : null,
         });
       }
+      const covered = (candidate) => reviewCoversCurrentHistory(candidate, currentProfiles.get(candidate.path),
+        sourceStates.get(reviewSources.get(candidate.path)).reachable);
+      // A review written through release 1.85.0 may carry copy records misread as changes to their source.
+      // It stays valid only when it equals that reading exactly, bounded to the copies its source head could see.
+      const legacyPaths = new Set([...reviewCandidates.values()]
+        .filter((candidate) => !covered(candidate) && sourceStates.get(reviewSources.get(candidate.path)).reachable)
+        .map((candidate) => candidate.path));
+      const sourceCommits = new Map();
+      const legacyCopyBound = (path, commit) => {
+        const sourceHead = reviewSources.get(path);
+        if (!sourceCommits.has(sourceHead)) {
+          sourceCommits.set(sourceHead, new Set(git(context.root, ['rev-list', sourceHead]).split(/\r?\n/).filter(Boolean)));
+        }
+        return sourceCommits.get(sourceHead).has(commit);
+      };
+      const legacyProfiles = legacyPaths.size ? adoptionHistoryProfiles(context.root, context.collection,
+        candidateRows.filter((row) => legacyPaths.has(row.path)), { history, legacyCopyBound }) : new Map();
       for (const candidate of reviewCandidates.values()) {
         const current = currentProfiles.get(candidate.path);
         const sourceHead = reviewSources.get(candidate.path);
@@ -1347,7 +1365,7 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
         if (source.reachable && source.targets.get(candidate.path)?.targetSha256 !== candidate.currentSha256) {
           throw new Error(`adoption review source does not contain its candidate: ${candidate.path}`);
         }
-        if (!reviewCoversCurrentHistory(candidate, current, source.reachable)) {
+        if (!covered(candidate) && !reviewCoversCurrentHistory(candidate, legacyProfiles.get(candidate.path), true)) {
           throw new Error(`adoption review history drift: ${candidate.path}`);
         }
         if (current.adoptionReadiness === 'review-required' && !reviewedCandidates.has(candidate.path)) {

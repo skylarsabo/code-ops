@@ -195,6 +195,8 @@ An adoption history profile stores:
 
 The digest uses SHA-256 content identities and paths instead of Git object IDs. Admission stays anchored to the current path. Readiness also follows earlier promoted paths. Every review plan binds the profile to `HEAD` and the manifest digest. An incremental review plan also binds current authority state.
 
+A Git copy record is a plain add of its destination, so it never enters the profile of its source. Releases through code-ops-suite 1.85.0 read a copy as a change to its source. Reviews written then store that reading. The check accepts such a review only when it equals the old reading exactly. It limits that reading to copies in commits reachable from the review's `sourceHead`. A later copy cannot change a stored profile.
+
 Complete-history checks keep stage-0 Git-index blob bytes and classification exact. A content-aware Git comparison rejects semantic worktree divergence without treating checkout transformations as drift. Stored labels must agree with stored counts. Current risk retains review coverage, and counts cannot increase.
 
 Each reviewed batch keeps its exact candidate set. Authority coverage across batches remains exact once. Reachable review sources must contain those candidate bytes and the bound manifest. Incomplete history cannot prove candidate history or risk. Receipt digests provide integrity, not reviewer authentication. Total-history replacement needs an external trust anchor.
