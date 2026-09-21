@@ -236,6 +236,12 @@ carrying it. Both changes act on the same outcome the metric above reads, so the
 reads `handoff.invoked` with pickup on, and a row written with `arms.handoffPickup=false` belongs to
 the control rather than the arm.
 
+**Amendment, 2026-09-21, lifecycle policy.** The fixed bands now request a CONTINUE, COMPACT, or
+HANDOFF assessment at a safe boundary. They remain speculative reminders, not restart thresholds
+or savings proof. Historical `handoff.band` records the peak reminder band and `handoff.invoked`
+records an invocation, including an assess call; neither field identifies the selected action or
+proves a handoff, compaction, delivery, or cost outcome.
+
 ## Pre-registered: dispatch guard
 
 `hooks/dispatch-guard.mjs` (switch `CODE_OPS_DISPATCH_GUARD`) counts attempted subagent tool calls.

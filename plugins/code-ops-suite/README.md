@@ -45,7 +45,7 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `current-docs`: current, version-accurate docs for a library, read from the version installed in this project. It is local-first with no third-party indexer. The same capability ships as the `code-ops-docs` MCP server (`resolve-library` and `get-docs`) and is the `CONVENTIONS §2` documentation-lookup default suite-wide.
 - `atlas`: builds, refreshes, or consolidates the repo's atlas (`<repo>-docs/98 System/Atlas/`), a durable cache of judgment about the codebase. Per-section freshness is decided mechanically against the diff since each section's stamp.
 - `vault`: scaffolds, migrates, or checks the repo's `<repo>-docs/` Obsidian vault against the one layout standard. `check-vault-standard.mjs` decides conformance fail-closed.
-- `handoff`: captures a long run's true state as a verifiable `HANDOFF.md` before a context limit or session end, or resumes from one after re-verifying every claim against the tree.
+- `handoff`: assesses whether to continue, compact, or transfer a long run; a transfer captures verifiable state as `HANDOFF.md`, and resume re-verifies every claim against the tree.
 
 **Suite self-audit**
 - `calibration-run`: standardized real-scale calibration of the suite against a target repo, isolated and assess-only. It ends in a validated sanitized note appended to [`CALIBRATION_TABLE.md`](https://github.com/skylarsabo/code-ops/blob/main/evals/CALIBRATION_TABLE.md) in the code-ops repository. The channel is one-way, so target internals never cross back.

@@ -790,9 +790,22 @@ afterward.
 ### `/code-ops-suite:handoff`
 **Mode:** DOCUMENT
 
-**How it works.** Two directions, picked at the start.
+**How it works.** Default `handoff assess` records CONTINUE, COMPACT, or HANDOFF at a safe
+boundary in the existing run log with observed evidence, unknowns, and the next checkpoint.
+It is an advisory decision, not a host limit or a completed transition. Explicit `write` and `resume <path>` take precedence.
+CONTINUE fits a progressing bounded task without urgent observed pressure or a required transfer or recovery.
+A short finish cannot override those conditions. COMPACT fits same-task pressure after
+durable state is checkpointed. HANDOFF fits an independent workstream, host or operator change,
+session end, or recovery after compaction thrashes. Finish or checkpoint the in-flight step first;
+record active workers, tools, processes, and dirty work without implying they were cancelled or
+reattached. Unknown telemetry alone does not require a restart.
 
-Write applies when a long run is near a context limit, ending, or changing hands. It captures
+Claude documents `/compact [focus]`; Codex CLI and desktop document `/compact`. Detect the active
+surface. An agent executes compaction only through a callable capability; otherwise the command is
+pending operator action. `write` always produces the validated transfer below, while `resume
+<path>` verifies the named file without a new assessment.
+
+Write applies when assessment selects HANDOFF or the operator explicitly requests `write`. It captures
 the run's true state as `HANDOFF.md` in the dated artifact folder. The first six sections answer
 what an operator asks a resumed session: the goal and the state of play (phases complete, in
 flight, and not started, the automation level, the operator steering, and a `Request:` line
@@ -805,8 +818,8 @@ ordered by priority, carrying `Owner: agent` or `Owner: operator`, `Done when: <
 check>`, and a pointer). The rest follow: every register and artifact path stamped
 `Verified-at: <sha>`, the decisions made with the options rejected, the traps and dead ends
 (approaches that failed, and mistakes the successor will be tempted to repeat), the operator's
-authority grants in their exact words with scope (none of it carries into the resumed session
-until re-granted), and any analysis, measurement, or proposal the next session needs, written to
+authority grants in their exact words with scope and limits (the handoff cannot broaden them), and
+any analysis, measurement, or proposal the next session needs, written to
 a run-folder file and pointed at rather than kept only in the conversation. The file never
 restates what `git log`, a register, or a report already holds, and it stays at or under the size
 cap `check-handoff.mjs` enforces (about 8 KB), with detail pushed into the pointed-at files.
@@ -815,9 +828,9 @@ are the mechanical floor under the secrets rule and under the file's required sh
 handoff travels further than a register. The rule throughout is state, not instructions. Describe
 what is true, such as "the leak gate is implemented, the register sweep is not started", and
 never what to do next. Write ends with one paste-ready line for the operator,
-`/code-ops-suite:handoff resume "<path>"`, and the note that the next session finds the file by
-itself: the SessionStart routing card names the newest unconsumed `HANDOFF.md` in the run
-folders, unless `CODE_OPS_HANDOFF_PICKUP` is off.
+`/code-ops-suite:handoff resume "<path>"`. Pickup is discovery only: it requires enabled trusted
+hooks, a supported host, `startup` or `clear`, accessible run folders, no `HANDOFF.consumed`
+sibling, and a file under 14 days. It never consumes or resumes the file itself.
 
 Resume treats every claim as context to verify rather than fact to trust. It runs
 `revalidate-register.mjs` on every named register and checks the anchored pointers, where a
@@ -828,17 +841,17 @@ re-deciding. It then runs `co check handoff HANDOFF.md --consume`, which writes
 handoff this one picked up. Its reply opens with a five-heading recap (work completed, key
 findings, in progress, left to do, project scope and constraints) marking every claim verified,
 moved, or drifted. It then presents the open items to the operator and asks them to re-grant any
-authority the handoff recorded before publishing, merging, or another consequential action.
+authority still needed before publishing, merging, or another consequential action.
 
 **Why it's useful.** Registers carry findings across phases, but nothing else carried
 decisions, rejected approaches, and in-flight boundaries across a context limit. That is the
 most valuable and least recoverable session state. A verifiable handoff turns "trust the
 summary" into "check the anchors".
 
-**When to use it.** Use it before a long run such as `everything`, `full-sweep`, or a big audit
-hits a context limit, or before a session ends mid-run. On the other side, use it to resume
-from a `HANDOFF.md` someone else, or an earlier session, wrote. Do not use it as a findings
-store, because findings belong in the registers it points to.
+**When to use it.** Assess at phase or workstream boundaries, pressure warnings, repeated failed
+compaction, before a large new unit, or an explicit request. Write before a transfer or recovery;
+resume a verified `HANDOFF.md`. Do not use it as a findings store, because findings belong in the
+registers it points to.
 
 **Prerequisites and hand-offs.** Write has no prerequisites. Resume expects the `HANDOFF.md`
 plus whatever registers it names. It composes with every orchestrator, and the registers it

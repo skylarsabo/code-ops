@@ -15,7 +15,9 @@
 //   - fail open: bad JSON, no hook_event_name match, a missing transcript file, a missing
 //     session_id, and empty stdin all exit 0 with no output;
 //   - Grok's passive-hook adapter emits nothing, matching routing-card.mjs and ladder-card.mjs;
-//   - band 1 advises a handoff at the next boundary, and band 2 and above escalates to "now".
+//   - each band requests a CONTINUE, COMPACT, or HANDOFF assessment; a higher band asks before a
+//     new workstream without claiming an earlier warning
+//     was received.
 //
 // It also covers the other half of the handoff loop, the pending-handoff pickup line
 // plugins/code-ops-suite/hooks/routing-card.mjs injects at SessionStart: which sources get it,
@@ -54,6 +56,10 @@ function assistantLine(cacheRead, input = 1000, cacheCreate = 0) {
       input_tokens: input, cache_read_input_tokens: cacheRead, cache_creation_input_tokens: cacheCreate, output_tokens: 5,
     } },
   }) + '\n';
+}
+
+function codexTokenLine(inputTokens) {
+  return JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', info: { last_token_usage: { input_tokens: inputTokens } } } }) + '\n';
 }
 
 function writeTranscript(dir, content, name = 'transcript.jsonl') {
@@ -142,7 +148,7 @@ function parseOut(r) {
   console.log('ok   crossing prints once, the same band stays silent, the next band prints, and dropping below 150,000 re-arms it');
 }
 
-// ---------------------------------------------------------------- band escalation
+// ---------------------------------------------------------------- lifecycle assessment reminder
 
 {
   const { home, cleanup } = fakeHome();
@@ -151,12 +157,26 @@ function parseOut(r) {
   const second = runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(330_000), 'b2.jsonl'), sessionId: 'sess-band-2' }), { home });
   const m1 = (parseOut(first) || {}).systemMessage || '';
   const m2 = (parseOut(second) || {}).systemMessage || '';
-  expect(/next workstream boundary/.test(m1) && /resume line/.test(m1), `band 1 must advise the next boundary and name the resume line, got ${m1}`);
-  expect(/handoff now/.test(m2) && /no new workstream/.test(m2), `band 2 must ask for the handoff now and forbid a new workstream, got ${m2}`);
+  expect(/handoff assess/.test(m1) && /CONTINUE, COMPACT, or HANDOFF/.test(m1) && /next safe boundary/.test(m1), `band 1 must request the lifecycle assessment at a safe boundary, got ${m1}`);
+  expect(/handoff assess/.test(m2) && /before starting a new workstream/.test(m2), `band 2 must request the lifecycle assessment before a new workstream, got ${m2}`);
+  expect(!/handoff now|declined|every turn re-reads all|full price/i.test(`${m1} ${m2}`), `the advisory must not assert the old handoff or cost claims, got ${m1} / ${m2}`);
   expect(m1 !== m2 && m2.includes('/code-ops-suite:handoff'), 'band 2 must escalate past band 1 and still name the command');
   rmSync(dir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   band 1 advises the next boundary; band 2 escalates to writing the handoff now');
+  console.log('ok   both bands request a lifecycle assessment; the higher band asks before a new workstream');
+}
+
+// ---------------------------------------------------------------- Codex token-count fixture
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-codex-'));
+  const r = runHook(payloadFor({ transcript: writeTranscript(dir, codexTokenLine(310_000), 'codex.jsonl'), sessionId: 'sess-codex' }), { home });
+  const message = (parseOut(r) || {}).systemMessage || '';
+  expect(r.status === 0 && /handoff assess/.test(message), `a Codex token_count transcript must receive lifecycle guidance, got ${r.status}/${message}`);
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   a Codex token-count transcript receives the lifecycle assessment reminder');
 }
 
 // ---------------------------------------------------------------- the off switch
@@ -260,6 +280,9 @@ function parseOut(r) {
     expect(fresh.stdout.split('\n').filter((l) => l.startsWith('pending handoff:')).length === 1, 'the pickup line must print once');
   }
   expect(pickupLine(runCard({ ...startup, source: 'clear' })) !== null, 'a cleared session must also get the pickup line');
+  const compact = runCard({ ...startup, source: 'compact' });
+  expect(/compaction resume: restore decisions, constraints, completed and open work/.test(compact.stdout),
+    `a compact source must receive the durable-state restore instruction, got ${JSON.stringify(compact.stdout)}`);
   for (const source of ['resume', 'compact']) {
     expect(pickupLine(runCard({ ...startup, source })) === null, `source ${source} must not get the pickup line`);
   }

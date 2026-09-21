@@ -589,10 +589,12 @@ context `Part`, but carries no usage or token data to compute the metric from. E
 `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
 `code-ops-docs/35 Contracts and Data/CONTRACTS.md#session-receipt-hook`.
 
-The message escalates with the band. Band 1 advises a handoff at the next workstream boundary and
-names the resume line the write ends with. Band 2 and higher asks for the handoff now and for no
-new workstream in this session, because a session at that band already declined the first
-boundary. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:141-152`.
+Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
+receipt, or cost proof. It directs the lead to run `handoff assess` at a safe boundary and choose
+CONTINUE, COMPACT, or HANDOFF; a higher band asks for that assessment before a new workstream.
+The marker proves only that the hook wrote a prior message. It does not prove that the host
+displayed it, that a boundary existed, or that any action was chosen. Evidence:
+`plugins/code-ops-suite/hooks/handoff-card.mjs:141-151`.
 
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant

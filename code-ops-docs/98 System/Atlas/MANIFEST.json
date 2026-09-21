@@ -8,8 +8,45 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
-      "verifiedDigest": "8d40e5f2d72dbf2d6d105266491ffaa731e6b65a66b61344a47c6f5dd3647b49"
+      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
+      "verifiedDigest": "90096975cf4c2c6382a0d693ada132cae7c4927c33fa14261e3c7492cc477b5a",
+      "claims": [
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 4,
+          "anchor": "// COMPACT, or HANDOFF at the next safe boundary. It is not a host limit or a co"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 144,
+          "anchor": "? held + 'At the next safe boundary, run /code-ops-suite:handoff assess to choos"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 11,
+          "anchor": "//   1. BOUND ROUND COUNTER, inside a subagent whose exact"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 233,
+          "anchor": "Dispatch guard: ${used} attempted tool calls used after the ${limits.allowance}-"
+        },
+        {
+          "file": "plugins/code-ops-suite/CONVENTIONS.md",
+          "line": 20,
+          "anchor": ". Legacy replay packets and calibration arms retain their existing rules. Every"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
+          "line": 38,
+          "anchor": "For runtime contracts version 3 or newer, including version 4, checkpoint before"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
+          "line": 144,
+          "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
+        }
+      ]
     },
     {
       "slug": "gate-scripts",
@@ -18,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
-      "verifiedDigest": "7c60987a071efc78dda79f953c6760940c8955c2b13204c5c31dcf5b7481767d",
+      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
+      "verifiedDigest": "4cf4ae2fdd5cf3321aa6bb4467670f9369b255cccf211235011916512d756ee8",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -45,6 +82,36 @@
           "file": "scripts/context-query.mjs",
           "line": 54,
           "anchor": "import { calls, definitions, imports, isCodeExt } from './symbol-lib.mjs';"
+        },
+        {
+          "file": "scripts/estimate-run-cost.mjs",
+          "line": 242,
+          "anchor": "for (const [field, key] of [['inputTokens', 'input'], ['cacheReadInputTokens', '"
+        },
+        {
+          "file": "scripts/estimate-run-cost.mjs",
+          "line": 361,
+          "anchor": "const keys = ['input', 'cacheRead', 'cacheWrite', 'output'];"
+        },
+        {
+          "file": "scripts/run-contract.mjs",
+          "line": 112,
+          "anchor": "if ('requiredViewSections' in (c.context || {}) && (!Array.isArray(c.context.req"
+        },
+        {
+          "file": "scripts/context-bundle.mjs",
+          "line": 139,
+          "anchor": "const contractRequired = contract.context.requiredViewSections ?? [...OPTIONAL_V"
+        },
+        {
+          "file": "scripts/context-bundle.mjs",
+          "line": 264,
+          "anchor": "...((f['--sections'] || f['--require-sections'] || contract.context.requiredView"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 294,
+          "anchor": "['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff a"
         }
       ]
     },
@@ -54,8 +121,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
-      "verifiedDigest": "942d177b2816789eba348119d6560e3057846c1e65df97f770accb55d8a6fd4f",
+      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
+      "verifiedDigest": "325583ba9c4519a1dfaf43bd684c7098953307a2625a59059ac5756217196e70",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -71,6 +138,36 @@
           "file": "scripts/judgment-evals.mjs",
           "line": 155,
           "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
+        },
+        {
+          "file": "evals/run-contract/run.mjs",
+          "line": 63,
+          "anchor": "const requiredSections = calibration(); requiredSections.context.requiredViewSec"
+        },
+        {
+          "file": "evals/run-contract/run.mjs",
+          "line": 78,
+          "anchor": "const taskBased = () => { const value = calibration(); delete value.calibration;"
+        },
+        {
+          "file": "evals/context-bundle/run.mjs",
+          "line": 53,
+          "anchor": "result = run(bundleScript, [...viewArgs.slice(0, -4), '--out', selectedViewPath,"
+        },
+        {
+          "file": "evals/estimate-run-cost/run.mjs",
+          "line": 265,
+          "anchor": "check('s. dated operator prices expose each charge component and retain the exac"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 160,
+          "anchor": "expect(/handoff assess/.test(m1) && /CONTINUE, COMPACT, or HANDOFF/.test(m1) &&"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 176,
+          "anchor": "a Codex token_count transcript must receive lifecycle guidance, got ${r.status}/"
         }
       ]
     },
@@ -82,8 +179,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
-      "verifiedDigest": "33f4e7c79b89a1318985cbf0b9a6a2ae07ff03b728d3c8c394ec6189742d3a11",
+      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
+      "verifiedDigest": "7461525fbd41b331a22972dddcfd02c6d9b580b92123e2ff0e2151aae19df4c9",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -94,6 +191,26 @@
           "file": "scripts/build-codex-marketplace.mjs",
           "line": 515,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
+        },
+        {
+          "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
+          "line": 20,
+          "anchor": ". Legacy replay packets and calibration arms retain their existing rules. Every"
+        },
+        {
+          "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
+          "line": 33,
+          "anchor": ". New non-calibration runs require the frontier lead, task-based routing, a real"
+        },
+        {
+          "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
+          "line": 17,
+          "anchor": ": prompts the lead to assess continue, compact, or handoff at a safe boundary wh"
+        },
+        {
+          "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
+          "line": 149,
+          "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
     },
@@ -127,8 +244,40 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
-      "verifiedDigest": "9bf393811ddd9f1f75502acfd0eddd0ea9379f8b222d903a50b57b55307d23d0"
+      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
+      "verifiedDigest": "cf5846d2b460caaae301f9b73f7f81a1e572adffedbbb2338bacea29efb215d3",
+      "claims": [
+        {
+          "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
+          "line": 26,
+          "anchor": "- **COMPACT** when the same task needs context relief. First persist decisions,"
+        },
+        {
+          "file": "scripts/run-contract.mjs",
+          "line": 112,
+          "anchor": "if ('requiredViewSections' in (c.context || {}) && (!Array.isArray(c.context.req"
+        },
+        {
+          "file": "scripts/context-bundle.mjs",
+          "line": 139,
+          "anchor": "const contractRequired = contract.context.requiredViewSections ?? [...OPTIONAL_V"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
+          "line": 21,
+          "anchor": "take precedence over assessment. Urgent observed context pressure"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 141,
+          "anchor": "const approx = Math.round(context / 10_000) * 10_000;"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
+          "line": 94,
+          "anchor": "invoked: handoffInvoked(mainText),"
+        }
+      ]
     },
     {
       "slug": "root-contracts",
