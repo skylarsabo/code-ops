@@ -28,7 +28,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code.
 - `feature-implementation` — Use when feature specs already exist and you want them built incrementally. It requires specs as input.
 - `full-sweep` — Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything.
-- `handoff` — Use when a long run must survive a context limit, session end, or operator change. It captures the run's true state as a verifiable HANDOFF.md, or resumes from one after re-verifying every claim.
+- `handoff` — Use when a long run needs a continue, compact, or transfer decision. A transfer captures verifiable state as HANDOFF.md; resume re-verifies every claim.
 - `local-review-gate` — Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication.
 - `normalize` — Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. To close divergent implementations of a concept, see rigor:consistency-closure.
 - `onboarding` — Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor.
@@ -56,7 +56,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
   - `PreToolUse` `digest-rewrite.mjs`: routes a simple shell command through the output digest so long output arrives compressed.
   - `PreToolUse` `dispatch-guard.mjs`: holds a subagent to its brief’s round budget and flags a dispatch that overrides a declared tier or starts from a wide default context.
   - `PostToolUse` `index-refresh.mjs`: re-indexes a file right after a tool edits it, so context queries read the live tree.
-  - `UserPromptSubmit` `handoff-card.mjs`: nudges the operator and the lead to hand off once resident context crosses 150,000 tokens, and asks for the handoff now from the second band on.
+  - `UserPromptSubmit` `handoff-card.mjs`: prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band.
   - `SessionStart` `routing-card.mjs`: prints the routing card at session start, a restore instruction after compaction, and the newest pending handoff on a fresh session.
   - `SessionEnd` `session-receipt.mjs`: appends a local session receipt row with token usage, tool calls, and model mix.
   - `SubagentStart` `ladder-card.mjs`: hands an implementer subagent the code-economy ladder card.

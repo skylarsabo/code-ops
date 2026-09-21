@@ -80,11 +80,12 @@ denied attempts. Unobserved model requests and tokens remain `UNKNOWN`. No autom
 uses agent type or timing. Registration is local state; installation alone does not provide a
 host correlation capability. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
-On a fresh session, `source` of `startup` or `clear`, the routing card ends with one line naming
-the newest pending handoff. Discovery reads two bounded directory levels, the dated run folders
-under each `<repo>-docs/80 Runs/` and under the repository's own `80 Runs/`, never a recursive
-walk. Pending means the run folder holds no `HANDOFF.consumed` beside its `HANDOFF.md` and that
-file's mtime falls inside 14 days. Evidence:
+On a trusted, supported host with enabled pickup hooks, a fresh `startup` or `clear` session can
+receive one line naming the newest pending handoff in accessible run folders. Discovery reads two
+bounded directory levels, the dated run folders under each `<repo>-docs/80 Runs/` and under the
+repository's own `80 Runs/`, never a recursive walk. Pending means the run folder has no
+`HANDOFF.consumed` beside its `HANDOFF.md` and that file's mtime falls inside 14 days. Discovery
+does not consume, resume, or reconstruct the handoff. Evidence:
 `plugins/code-ops-suite/hooks/routing-card.mjs:22-65`.
 
 Two variables name a storage path:
@@ -100,9 +101,12 @@ Evidence: `codex-marketplace/plugins/code-ops-suite/hooks/session-receipt.mjs:29
 `CODE_OPS_DIGEST_STORE=off` keeps compression enabled while disabling raw-output and receipt storage.
 
 The one command with no switch is `enforce-traceless.mjs` at `PreToolUse`. The routing card
-itself has none either; only its pending-handoff line does. There is no `PreCompact` command. Claude and Codex
-instead receive a durable-state restore instruction on `SessionStart source=compact`; this
-runs after compaction and does not alter the summary that was already produced. The
+itself has none either; only its pending-handoff line does. There is no `PreCompact` command.
+Claude and Codex instead receive a durable-state restore instruction on `SessionStart
+source=compact`; this runs after compaction and does not alter the summary that was already
+produced. Claude documents `/compact [focus]`; Codex CLI and desktop document `/compact`. Detect
+the active surface and never assume an agent-callable tool. Otherwise report the action as pending
+operator work. The
 [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each command's
 contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json` and
 `plugins/code-ops-suite/hooks/routing-card.mjs`.

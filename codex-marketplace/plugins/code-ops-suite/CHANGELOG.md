@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 1.87.0
+- Assess whether to continue, compact, or hand off using task state and observed host capabilities.
+- Replace token-band restart instructions with assessment reminders while preserving marker, rearm, and pickup behavior.
+- Preserve durable state before transitions, distinguish recommendations from execution, and cover version 3 and 4 runtime recovery.
+
 ## 1.86.0
 - Bind explicit worker budgets to known agent identities and expose sanitized control receipts while preserving unbound host fallbacks.
 - Add task-based routing decisions with role floors, bounded frontier exceptions, selective worker context, and separate cache-charge reporting.

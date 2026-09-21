@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // UserPromptSubmit hook: once a session's resident context crosses 150,000 tokens, and again
-// every further 150,000-token band, tells the operator and the lead to hand off at the next
-// workstream boundary with /code-ops-suite:handoff instead of paying full price on every turn.
+// every further 150,000-token band, reminds the operator and the lead to assess CONTINUE,
+// COMPACT, or HANDOFF at the next safe boundary. It is not a host limit or a cost claim.
 // The threshold moved from 200k to 150k on 2026-09-18, when a transcript audit found 71% of
 // lead input-side tokens spent above 200k. The exact value stays SPECULATIVE until session
 // receipts calibrate it. See the "Handoff card" pre-registration in MEASUREMENTS.md.
 //
-// The message escalates with the band. Band 1 advises a handoff at the next workstream boundary.
-// Band 2 and above asks for the handoff now and for no new workstream in this session, because a
-// session that crossed twice already declined the first boundary.
+// The message escalates with the band. Both bands request the same lifecycle assessment; a higher
+// band asks the lead to resolve it before starting a new workstream. The marker proves only that
+// this hook wrote earlier advice, not that a host displayed it or a boundary was available.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
 // is `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
@@ -139,14 +139,10 @@ async function main() {
   writeBand(marker, band, peak);
 
   const approx = Math.round(context / 10_000) * 10_000;
-  const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context, and every turn re-reads all of it. `;
-  // Band 1 is advice; band 2 and above is a session that already paid the first nudge and kept
-  // going, so the second message names the boundary instead of offering one.
+  const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context. `;
   const message = band === 1
-    ? held + 'Hand off at the next workstream boundary with /code-ops-suite:handoff and start fresh. '
-      + 'The write ends with a resume line, and the next session picks the handoff up from it.'
-    : held + 'Finish the step in flight, then write the handoff now with /code-ops-suite:handoff, give the operator '
-      + 'the resume line it ends with, and start no new workstream in this session.';
+    ? held + 'At the next safe boundary, run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF. Continue a short coherent finish; checkpoint durable state before compacting; use explicit write only for a transfer or recovery.'
+    : held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.';
   writeSync(1, `${JSON.stringify({
     systemMessage: message,
     hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: message },

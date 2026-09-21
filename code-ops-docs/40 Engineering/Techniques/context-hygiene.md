@@ -8,8 +8,8 @@ operator change.
 ## Exec summary (stop here if that is all you need)
 
 - Durable state lives in files, never only in the conversation.
-- Compact at a phase boundary you choose, not when auto-compact fires mid-task.
-- A fresh subagent with a tight brief is a better compaction than a summary.
+- Assess continue, compact, or handoff at a safe boundary; a context warning is a reminder, not a limit.
+- Compact coherently; use a fresh handoff for a transfer, recovery, or independent workstream.
 - Treat a cache as an acceleration, never as durable state.
 - At a workstream boundary, rebuild from artifacts instead of carrying history forward.
 
@@ -29,23 +29,27 @@ alone? If not, the missing piece belongs on disk before the next dispatch.
 
 ## Compact deliberately
 
-Auto-compact fires when the window is full, which is rarely a good moment. It lands
-mid-task on a bloated context and drops whatever was not written down. Compact instead at
-a boundary you pick: after a review lands, before a new workstream opens, or once a phase
-checkpoint is approved.
+Auto-compaction can occur as context approaches the host's configured threshold, including during a task.
+It carries key state forward but does not guarantee every detail survives. Persist durable state
+at safe boundaries so either automatic or deliberate compaction can recover from verified artifacts.
 
-When the main context has grown past usefulness, prefer a fresh subagent with a tight
-brief over dragging history forward. The brief names the files and the artifacts. Such a
-brief is the compaction, and it carries no accumulated noise.
+When the main context has grown past usefulness but the objective remains coherent, compact after
+writing durable state. Use a fresh handoff for an independent workstream, session or operator
+change, or repeated compaction loss. Resume and fork retain history and are not a fresh context
+reset.
 
-Keep the conversation history append-only. Never edit, summarize in place, or remove an
-earlier turn, because the host's prompt cache and any bound thinking blocks restart from
-the first changed byte. Send a per-turn reminder as a turn-scoped message. Change
-instructions with a mid-conversation system message rather than a rewritten system prompt.
+Keep ordinary turns append-only. Let the host's compact mechanism replace history when selected;
+the resulting cache and reconstruction cost depends on the active surface and must be measured,
+not assumed. Send a per-turn reminder as a turn-scoped message. Change instructions with a
+mid-conversation system message rather than a rewritten system prompt.
 
-When compaction is unavoidable, replace the whole history with one summary plus the new
-turn and replay nothing else. Cache reads are cheap on current models, so a later
-compaction point often costs less than an early one.
+When compaction is warranted, checkpoint first and use only an action the active host can perform.
+If no callable capability exists, give the operator the documented host command and record it as
+pending, never as completed. Reload the bounded artifacts afterward and check relevant drift.
+Claude documents [`/compact [focus]`](https://code.claude.com/docs/en/commands); Codex documents
+[`/compact` for CLI](https://developers.openai.com/codex/cli/slash-commands) and
+[desktop](https://developers.openai.com/codex/app/slash-commands). Those sources establish
+available host actions, not that a current agent can call them.
 
 ## What durable state must keep
 
@@ -72,7 +76,8 @@ A live subagent or host may retain reusable context. Batch known follow-ups whil
 state is available. Do not rely on retention, duration, or a cache hit without host
 evidence. A fresh session must reconstruct the run from durable artifacts alone.
 
-For a version 4 run, declare host capabilities before fan-out. Use a stable prefix only
+For a version 3 or newer run, including version 4, checkpoint before a compact or handoff. For
+version 4, declare host capabilities before fan-out. Use a stable prefix only
 when the host can inject the exact emitted payload. Record observed cache events in the
 runtime receipt chain. Do not treat a prefix, cache, compaction, or host memory as state.
 
@@ -108,10 +113,9 @@ switches live in [INFRASTRUCTURE.md](../../50%20Platform/INFRASTRUCTURE.md).
 
 ## Reconstruction beats summarization
 
-At the end of a workstream, write the handoff note, then start the next workstream in a
-fresh session that rebuilds from the artifacts. Exact artifacts beat any summary,
-extractive or abstractive, because a summary drops the detail the next decision needs and
-cannot say which detail it dropped.
+At the end of an independent workstream, write a handoff note before a fresh session rebuilds
+from the artifacts. Do not create one merely to continue or compact the same task. Exact artifacts
+beat any summary because a summary drops detail and cannot identify what it dropped.
 
 `/code-ops-suite:handoff` captures a run's true state as a verifiable `HANDOFF.md` and
 re-verifies every claim before a resume acts on it. A version 4 resume also replays its
