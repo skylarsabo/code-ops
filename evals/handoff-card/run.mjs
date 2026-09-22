@@ -14,7 +14,9 @@
 //     the highest band reached in `peak`, which the session receipt reads;
 //   - fail open: bad JSON, no hook_event_name match, a missing transcript file, a missing
 //     session_id, and empty stdin all exit 0 with no output;
-//   - Grok's passive-hook adapter emits nothing, matching routing-card.mjs and ladder-card.mjs;
+//   - Grok UserPromptSubmit emits nothing, because that stdout is discarded. Grok PostToolUse
+//     reads updates.jsonl and emits one additionalContext per new band, with hookEventName
+//     PostToolUse and no systemMessage;
 //   - each band requests a CONTINUE, COMPACT, or HANDOFF assessment; a higher band asks before a
 //     new workstream without claiming an earlier warning
 //     was received.
@@ -198,17 +200,48 @@ function parseOut(r) {
   console.log('ok   off, 0, and false silence a crossing transcript; unset and non-off values leave it on');
 }
 
-// ---------------------------------------------------------------- Grok passive adapter
+// ---------------------------------------------------------------- Grok delivery channel
+
+function grokUsageLine(inputTokens) {
+  return JSON.stringify({
+    timestamp: 1,
+    params: { update: { prompt_id: 'p1', usage: { inputTokens, cachedReadTokens: 10, cacheCreationTokens: 0, outputTokens: 5, totalTokens: inputTokens + 5 } } },
+  }) + '\n';
+}
 
 {
   const { home, cleanup } = fakeHome();
   const dir = mkdtempSync(join(tmpdir(), 'handoff-grok-'));
   const transcript = writeTranscript(dir, assistantLine(300_000));
-  const r = runHook(payloadFor({ transcript, sessionId: 'sess-grok' }), { home, grok: true });
-  expect(r.status === 0 && r.stdout === '', `Grok passive-hook adapter must emit nothing, got ${r.status}/${JSON.stringify(r.stdout)}`);
+  const ignored = runHook(payloadFor({ transcript, sessionId: 'sess-grok-prompt' }), { home, grok: true });
+  expect(ignored.status === 0 && ignored.stdout === '', `Grok UserPromptSubmit must emit nothing, got ${ignored.status}/${JSON.stringify(ignored.stdout)}`);
+
+  const updates = writeTranscript(dir, grokUsageLine(160_000), 'updates.jsonl');
+  const first = runHook(payloadFor({ transcript: updates, sessionId: 'sess-grok-tool', eventName: 'PostToolUse' }), { home, grok: true });
+  const body = parseOut(first) || {};
+  const note = body.hookSpecificOutput?.additionalContext || '';
+  expect(first.status === 0 && body.systemMessage === undefined
+    && body.hookSpecificOutput?.hookEventName === 'PostToolUse'
+    && /160,000 tokens/.test(note) && /handoff assess/.test(note),
+    `Grok PostToolUse must emit one additionalContext, got ${first.status}/${JSON.stringify(first.stdout)}`);
+  const again = runHook(payloadFor({ transcript: updates, sessionId: 'sess-grok-tool', eventName: 'PostToolUse' }), { home, grok: true });
+  expect(again.status === 0 && again.stdout === '', `the same Grok band must stay silent, got ${JSON.stringify(again.stdout)}`);
+
+  const off = runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(320_000), 'updates-off.jsonl'), sessionId: 'sess-grok-off', eventName: 'PostToolUse' }), { home, grok: true, switchValue: 'off' });
+  expect(off.status === 0 && off.stdout === '', `CODE_OPS_HANDOFF_CARD=off must silence Grok PostToolUse, got ${JSON.stringify(off.stdout)}`);
+
+  const chatDir = mkdtempSync(join(tmpdir(), 'handoff-grok-chat-'));
+  writeTranscript(chatDir, '{}\n', 'chat_history.jsonl');
+  const sibling = writeTranscript(chatDir, grokUsageLine(170_000), 'updates.jsonl');
+  const viaChat = runHook(payloadFor({ transcript: join(chatDir, 'chat_history.jsonl'), sessionId: 'sess-grok-chat', eventName: 'PostToolUse' }), { home, grok: true });
+  const chatNote = (parseOut(viaChat) || {}).hookSpecificOutput?.additionalContext || '';
+  expect(viaChat.status === 0 && /170,000 tokens/.test(chatNote), `a chat_history path must read the sibling updates stream, got ${JSON.stringify(viaChat.stdout)}`);
+  expect(sibling.length > 0, 'sibling updates fixture must exist');
+
   rmSync(dir, { recursive: true, force: true });
+  rmSync(chatDir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   Grok passive-hook adapter emits no card, matching routing-card.mjs and ladder-card.mjs');
+  console.log('ok   Grok UserPromptSubmit stays silent; PostToolUse emits one note per band from updates.jsonl');
 }
 
 // ---------------------------------------------------------------- fail open

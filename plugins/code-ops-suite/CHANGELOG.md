@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.88.0
+- On Grok Build, headless Grok, and the ACP agent, the handoff nudge is a PostToolUse note read from `updates.jsonl`. UserPromptSubmit stdout stays discarded. The session receipt records `handoffCard` from its switch. The handoff skill reads four convention sections instead of the whole file.
+- The default ladder now pins Claude Opus 5.5 at strong, GPT-6 Luna at light, GPT-6 Sol at frontier, and Grok 4.7 on every xAI rung. Previous pins and the reseller spellings still satisfy the same floors. Grok Build 0.1 is a light specialist, not a default rung.
+- OpenCode ships `plugins/code-ops-lifecycle.js` and `code-ops/cost-report.mjs`. The system cards stay byte-identical across model calls. Handoff, routing, and dispatch notes ride on the next tool result or user turn. The cost ledger is checked with `cost-report.mjs --check`.
+- The model-floor gate resolves a tier clone to its base agent and a reseller model by bare id. A model the verified table does not name still fails closed.
+- On Grok, where hook stdout is ignored, the lead assesses continue, compact, or hand off at 150,000 tokens and again before 200,000, because Grok 4.7 bills double above that line.
+
 ## 1.87.0
 - Assess whether to continue, compact, or hand off using task state and observed host capabilities.
 - Replace token-band restart instructions with assessment reminders while preserving marker, rearm, and pickup behavior.

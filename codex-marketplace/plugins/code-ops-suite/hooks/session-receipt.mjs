@@ -111,8 +111,10 @@ async function doFinish() {
       // context-audit.mjs names an arm from the keys whose value is exactly `true`. A
       // `CODE_OPS_DISPATCH_GUARD` of `warn` therefore records `true`: every advisory still runs,
       // and only the hard stop is lifted.
+      // Ladder and pending-handoff pickup still have no model-visible channel on Grok, so those
+      // arms stay false there. The handoff card follows its switch: PostToolUse delivers it.
       arms: { digest: on('CODE_OPS_DIGEST'), ladderCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_LADDER_CARD'), index: on('CODE_OPS_INDEX'),
-        handoffCard: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_HANDOFF_CARD'),
+        handoffCard: on('CODE_OPS_HANDOFF_CARD'),
         handoffPickup: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_HANDOFF_PICKUP'),
         dispatchGuard: on('CODE_OPS_DISPATCH_GUARD') },
       handoff,

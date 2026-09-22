@@ -9,7 +9,7 @@ description: "Use when you have a bug symptom and want it driven from reproducti
 
 **Invoked as `/code-ops-suite-debug`, or by the model through the `skill` tool as `code-ops-suite-debug`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails, the
 quality lenses, and the implementation loop this skill follows.
 **Mode:** IMPLEMENT. **Consumes:** a symptom, meaning an error, a stack trace, or a wrong

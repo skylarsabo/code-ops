@@ -44,4 +44,4 @@ The register-staleness eval pins the Severity field-value parse against composit
 New `run-contract` cases cover view-section validation, task-based routing, and one bounded frontier peer at `evals/run-contract/run.mjs:63` and `evals/run-contract/run.mjs:78`.
 Context-bundle cases reject a selection that omits a contract-required section before it overwrites output at `evals/context-bundle/run.mjs:53`.
 Cost cases preserve input, cache-read, cache-write, and output components at `evals/estimate-run-cost/run.mjs:265`.
-Handoff cases require lifecycle assessment and Codex token-count coverage at `evals/handoff-card/run.mjs:160` and `evals/handoff-card/run.mjs:176`.
+Handoff cases require lifecycle assessment and Codex token-count coverage at `evals/handoff-card/run.mjs:162` and `evals/handoff-card/run.mjs:178`.

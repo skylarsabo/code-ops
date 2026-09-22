@@ -9,7 +9,7 @@ description: "Use when you want the whole privacy-opsec-suite run end-to-end as 
 
 **Invoked as `/privacy-opsec-suite-full-sweep`, or by the model through the `skill` tool as `privacy-opsec-suite-full-sweep`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the bundled
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the bundled
 `<plugin-root>/CONVENTIONS.md`, and section A above all, which carries the central
 anonymity and OpSec model every phase enforces.
 

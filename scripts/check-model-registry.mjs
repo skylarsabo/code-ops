@@ -16,7 +16,7 @@
 //
 // Exit: 0 = every pinned id checked out; 1 = a pin failed; 2 = usage error or fetch failure.
 
-import { PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER } from './model-tiers.mjs';
+import { ACCEPTED_MODELS, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER } from './model-tiers.mjs';
 
 const REGISTRY_URL = 'https://models.dev/api.json';
 const argv = process.argv.slice(2);
@@ -43,6 +43,11 @@ for (const [id, provider] of Object.entries(PROVIDER_TIERS)) {
     if (!specialist.name || !specialist.model || !TIER_ORDER.includes(specialist.tier)) fail(`${id}: specialist has an invalid name, model, or tier`);
     if (!Array.isArray(specialist.uses) || specialist.uses.length === 0 || !specialist.notes) fail(`${id}/${specialist.name || 'specialist'}: needs uses and notes`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(specialist.verifiedAt ?? '')) fail(`${id}/${specialist.name || 'specialist'}: needs a verifiedAt date`);
+  }
+}
+for (const [model, tiers] of Object.entries(ACCEPTED_MODELS)) {
+  if (!model || !Array.isArray(tiers) || tiers.length === 0 || tiers.some((tier) => !TIER_ORDER.includes(tier))) {
+    fail(`accepted ${model || '(blank)'}: needs one or more canonical tiers`);
   }
 }
 
@@ -82,6 +87,14 @@ if (FETCH) {
       checked++;
       if (!(model in known)) fail(`${id}/${model}: pinned for ${tiers.join(', ')} but not in the registry`);
     }
+  }
+  const anywhere = new Set();
+  for (const provider of Object.values(registry)) {
+    for (const model of Object.keys(provider?.models ?? {})) anywhere.add(model);
+  }
+  for (const model of Object.keys(ACCEPTED_MODELS)) {
+    checked++;
+    if (!anywhere.has(model)) fail(`${model}: accepted binding is in no registry provider`);
   }
 }
 

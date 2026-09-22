@@ -9,7 +9,7 @@ description: "Use when you want the whole code-ops-suite run end-to-end on one c
 
 **Invoked as `/code-ops-suite-full-sweep`, or by the model through the `skill` tool as `code-ops-suite-full-sweep`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the bundled
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the bundled
 `<plugin-root>/CONVENTIONS.md`: the operating model, the interaction protocol, the safety
 rails including the **automation-level ladder** (`§4`), the schemas and evidence tiers (`§7`),
 the quality lenses (`§10`), the register-freshness rule (`§12`), and the **documentation quality

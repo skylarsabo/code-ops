@@ -42,7 +42,7 @@ export const CLAUDE_ALIAS_TIER = {
 //
 // Adding a provider is one entry here plus one PROVIDER_SLUG_PATTERNS line. Nothing else in
 // the suite hardcodes a model name.
-export const REGISTRY_VERIFIED_AT = '2026-09-13';
+export const REGISTRY_VERIFIED_AT = '2026-09-22';
 
 export const PROVIDER_TIERS = {
   anthropic: {
@@ -52,29 +52,29 @@ export const PROVIDER_TIERS = {
     models: {
       light: 'claude-haiku-4-5-20251001',
       mid: 'claude-sonnet-5',
-      strong: 'claude-opus-5',
+      strong: 'claude-opus-5-5',
       frontier: 'claude-fable-5-1',
     },
-    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. `frontier` binds to Fable 5.1 and remains lead-only; no bundled agent declares it as a floor.',
+    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. `strong` binds to Claude Opus 5.5 ($4/$20 per million tokens, cache reads $0.20) and `frontier` stays Fable 5.1, lead-only. No bundled agent declares frontier as a floor.',
   },
   xai: {
     id: 'xai',
     label: 'xAI (Grok)',
-    models: { light: 'grok-4.6', mid: 'grok-4.6', strong: 'grok-4.6', frontier: 'grok-4.6' },
+    models: { light: 'grok-4.7', mid: 'grok-4.7', strong: 'grok-4.7', frontier: 'grok-4.7' },
     notes:
-      'Every rung binds to `grok-4.6` by deliberate choice, not because the lineup lacks cheaper models — `grok-4.3` is available at $1.25/$2.50 per 1M against grok-4.6’s $2/$6. Running one model throughout removes tier-routing as a variable and never routes work below its floor. Grok 4.6 takes the same low/medium/high/xhigh reasoning-effort dial the suite routes by ambiguity, so effort remains the live dial.',
+      'Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the handoff assessment sits at 150,000. `grok-build-0.1` is the fast coding specialist, not a default rung.',
   },
   openai: {
     id: 'openai',
     label: 'OpenAI (GPT)',
     models: {
-      light: 'gpt-5.6-luna',
+      light: 'gpt-6-luna',
       mid: 'gpt-5.1',
       strong: 'gpt-5.6-terra',
-      frontier: 'gpt-5.6-sol',
+      frontier: 'gpt-6-sol',
     },
     notes:
-      'The strong/frontier split follows this repo’s own calibration evidence rather than price alone: runs R-007 and R-008 recorded `gpt-5-6-sol-xhigh` leading `gpt-5-6-terra-xhigh` operatives, so sol is the lead tier and terra the operative tier.',
+      'Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. Sol remains the default frontier from runs R-007 and R-008, and its token price now sits below Terra, so the large lead context is the cheaper model.',
   },
   google: {
     id: 'google',
@@ -139,7 +139,7 @@ export const PROVIDER_TIERS = {
   },
 };
 
-// Premium alternatives do not replace a provider's cost-disciplined default ladder.
+// Explicit alternatives do not replace a provider's cost-disciplined default ladder.
 // A run selects one explicitly for a bounded specialist unit, and the contract records
 // that choice. This keeps a generated provider config from spending the premium on every
 // lead turn while still letting the capability and acceptance gates recognize the model.
@@ -150,16 +150,41 @@ export const PROVIDER_SPECIALISTS = {
       model: 'gpt-6-astra',
       tier: 'frontier',
       uses: ['difficult architecture', 'independent refutation', 'cross-domain synthesis'],
-      verifiedAt: '2026-09-13',
-      notes: 'Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.',
+      verifiedAt: '2026-09-22',
+      notes: 'Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Sol is $2/$10 and Astra is $10/$50, verified 2026-09-22. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.',
     },
   ],
+  xai: [
+    {
+      name: 'build',
+      model: 'grok-build-0.1',
+      tier: 'light',
+      uses: ['mechanical breadth', 'high-volume file and log triage'],
+      verifiedAt: '2026-09-22',
+      notes: 'Fast coding model at $1/$2 per million tokens, with no effort dial and a 256k window. The live OpenCode chooser may bind a light agent to it when the host lists it. It is not the default light pin, and it never satisfies a mid, strong, or frontier floor.',
+    },
+  ],
+};
+
+// Hosts keep binding the previous pin, or a reseller spelling of a current one, after the
+// default moved. Ready-made configs ignore this map. `modelClassOf` still sees it, so a
+// historical stamp keeps the rung it had. A spelling alias takes the tier of the model it
+// names and never creates a rung.
+export const ACCEPTED_MODELS = {
+  'claude-opus-5': ['strong'],
+  'gpt-5.6-luna': ['light'],
+  'gpt-5.6-sol': ['frontier'],
+  'grok-4.6': ['light', 'mid', 'strong', 'frontier'],
+  'claude-haiku-4-5': ['light'],
+  'claude-haiku-4.5': ['light'],
+  'claude-fable-5.1': ['frontier'],
 };
 
 export function modelSupportsTier(modelId, tier) {
   if (typeof modelId !== 'string' || !TIER_ORDER.includes(tier)) return false;
   return Object.values(PROVIDER_TIERS).some((provider) => provider.models[tier] === modelId)
-    || Object.values(PROVIDER_SPECIALISTS).flat().some((entry) => entry.model === modelId && entry.tier === tier);
+    || Object.values(PROVIDER_SPECIALISTS).flat().some((entry) => entry.model === modelId && entry.tier === tier)
+    || (ACCEPTED_MODELS[modelId]?.includes(tier) ?? false);
 }
 
 // A provider whose `frontier` is null renders no top-level `model`, so the lead inherits the
@@ -223,6 +248,10 @@ const RUNGS_BY_MODEL_ID = (() => {
       if (!index.has(specialist.model)) index.set(specialist.model, new Set());
       index.get(specialist.model).add(specialist.tier);
     }
+  }
+  for (const [id, tiers] of Object.entries(ACCEPTED_MODELS)) {
+    if (!index.has(id)) index.set(id, new Set());
+    for (const tier of tiers) index.get(id).add(tier);
   }
   return index;
 })();

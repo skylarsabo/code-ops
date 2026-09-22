@@ -9,7 +9,7 @@ description: "Use when you need a deep, diagram-rich architecture reference for 
 
 **Invoked as `/code-ops-suite-architecture`, or by the model through the `skill` tool as `code-ops-suite-architecture`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
 `<plugin-root>/CONVENTIONS.md`: the operating model, the quality lenses, the
 **documentation quality standard (`§13`)** this doc obeys, and the SSOT and freshness rules
 (`§12`). For this DOCUMENT-mode skill the binding sections are §2 (tools and in-house docs

@@ -31,11 +31,16 @@
 // HOST COVERAGE. Claude and Codex both document `UserPromptSubmit` with `session_id` on stdin;
 // every other hook this plugin ships also reads `transcript_path` there, but Codex's own hook
 // reference does not list it as an event-specific field for this event, so a Codex payload that
-// omits it degrades silently to no nudge, exactly like a missing transcript file. Grok is
-// treated as a passive event here, matching `routing-card.mjs` and `ladder-card.mjs`: its
-// instruction files carry the same doctrine instead of a working hook. OpenCode has no
-// transcript or usage callback in its plugin API — the same gap that makes
-// `session-receipt.mjs` unavailable there — so this hook is not ported to OpenCode.
+// omits it degrades silently to no nudge, exactly like a missing transcript file. Grok discards
+// UserPromptSubmit stdout, so on that host the same script runs at PostToolUse and emits
+// `additionalContext`, which the model reads beside the tool result. Usage comes from the
+// session `updates.jsonl` (the payload's transcript path, its `chat_history.jsonl` sibling, or
+// `~/.grok/sessions/<encoded cwd>/<session id>/updates.jsonl`). Resident context there is the
+// last snapshot's `inputTokens`, the same figure `transcript-lib.mjs` stores as `contextAtEnd`.
+// That path covers the TUI, headless `grok -p`, and the ACP agent (`grok agent`). A turn with
+// no tool call never fires it, so the instruction files still tell the lead to assess before
+// the 200,000-token price cliff. OpenCode has no transcript callback; its lifecycle plugin
+// carries the note instead.
 //
 // FAIL-OPEN on every path: bad JSON, a missing or unreadable transcript, a transcript whose
 // tail window carries no assistant usage, or any thrown error exits 0 with no output. The hook
@@ -107,22 +112,60 @@ function writeBand(path, band, peak) {
   writeFileSync(path, JSON.stringify({ v: 1, band, peak: Math.max(peak, band), ts: new Date().toISOString() }));
 }
 
+// Last Grok usage snapshot in the tail. `inputTokens` already includes cache tokens;
+// `transcript-lib.mjs` uses that field as resident context.
+function lastGrokContext(text) {
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line || !line.includes('inputTokens')) continue;
+    let o;
+    try { o = JSON.parse(line); } catch { continue; }
+    const n = o?.params?.update?.usage?.inputTokens;
+    if (typeof n === 'number' && Number.isSafeInteger(n) && n >= 0) return n;
+  }
+  return null;
+}
+
+// Claude and Codex name a transcript. Grok names `updates.jsonl`, or `chat_history.jsonl`
+// with that stream beside it. A missing path falls back to the session directory.
+function measureFile(payload, grok) {
+  const transcript = payload?.transcript_path ?? payload?.transcriptPath ?? payload?.transcript?.path;
+  if (typeof transcript === 'string' && transcript) {
+    if (grok && /chat_history\.jsonl$/i.test(transcript)) {
+      const updates = join(dirname(transcript), 'updates.jsonl');
+      if (existsSync(updates)) return { path: updates, grok: true };
+    }
+    if (existsSync(transcript)) return { path: transcript, grok: grok && /updates\.jsonl$/i.test(transcript) };
+  }
+  if (!grok) return null;
+  const sessionId = payload?.session_id ?? payload?.sessionId;
+  const cwd = typeof payload?.cwd === 'string' ? payload.cwd : '';
+  if (typeof sessionId !== 'string' || !sessionId || !cwd) return null;
+  const home = process.env.GROK_HOME || join(homedir(), '.grok');
+  const candidate = join(home, 'sessions', encodeURIComponent(cwd), sessionId, 'updates.jsonl');
+  return existsSync(candidate) ? { path: candidate, grok: true } : null;
+}
+
 async function main() {
-  if (process.env.GROK_PLUGIN_ROOT) return;
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_HANDOFF_CARD ?? '')) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
   try { payload = JSON.parse(raw.replace(/^﻿/, '')); } catch { return; }
-  if (payload?.hook_event_name && payload.hook_event_name !== 'UserPromptSubmit') return;
-  const transcript = payload?.transcript_path ?? payload?.transcriptPath ?? payload?.transcript?.path;
+  const grok = Boolean(process.env.GROK_PLUGIN_ROOT);
+  const event = payload?.hook_event_name;
+  if (grok) {
+    if (event !== 'PostToolUse') return;
+  } else if (event && event !== 'UserPromptSubmit') return;
   const sessionId = payload?.session_id ?? payload?.sessionId;
-  if (typeof transcript !== 'string' || !transcript || typeof sessionId !== 'string' || !sessionId) return;
-  if (!existsSync(transcript)) return;
+  const file = measureFile(payload, grok);
+  if (!file || typeof sessionId !== 'string' || !sessionId) return;
 
   const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
   const { normalizeUsage, handoffMarkerPath, handoffPeakBand } = await import(pathToFileURL(libPath).href);
-  const context = lastContextSize(readTail(transcript), normalizeUsage);
+  const text = readTail(file.path);
+  const context = file.grok ? lastGrokContext(text) : lastContextSize(text, normalizeUsage);
   if (typeof context !== 'number') return;
 
   const band = Math.floor(context / THRESHOLD);
@@ -143,10 +186,13 @@ async function main() {
   const message = band === 1
     ? held + 'At the next safe boundary, run code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF. Continue a short coherent finish; checkpoint durable state before compacting; use explicit write only for a transfer or recovery.'
     : held + 'Finish the step in flight, then run code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.';
-  writeSync(1, `${JSON.stringify({
-    systemMessage: message,
-    hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: message },
-  })}\n`);
+  const body = grok
+    ? { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: message } }
+    : {
+      systemMessage: message,
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: message },
+    };
+  writeSync(1, `${JSON.stringify(body)}\n`);
 }
 
 main().catch(() => { /* fail open */ });

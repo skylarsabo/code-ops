@@ -8,7 +8,7 @@ models satisfies an agent’s floor. That is what makes the orchestration doctri
 the briefs, the fan-out rules, and the verification bar are identical everywhere, and only
 this table changes between providers.
 
-Model ids are pinned, verified against the models.dev registry on 2026-09-13, except a
+Model ids are pinned, verified against the models.dev registry on 2026-09-22, except a
 provider marked as verified against its host CLI, whose ids come from `opencode models` on the date its
 entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in the code-ops repository.
 
@@ -16,9 +16,9 @@ entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in
 
 | Provider | `light` | `mid` | `strong` | `frontier` |
 | --- | --- | --- | --- | --- |
-| Anthropic (Claude) | `anthropic/claude-haiku-4-5-20251001` | `anthropic/claude-sonnet-5` | `anthropic/claude-opus-5` | `anthropic/claude-fable-5-1` |
-| xAI (Grok) | `xai/grok-4.6` | `xai/grok-4.6` | `xai/grok-4.6` | `xai/grok-4.6` |
-| OpenAI (GPT) | `openai/gpt-5.6-luna` | `openai/gpt-5.1` | `openai/gpt-5.6-terra` | `openai/gpt-5.6-sol` |
+| Anthropic (Claude) | `anthropic/claude-haiku-4-5-20251001` | `anthropic/claude-sonnet-5` | `anthropic/claude-opus-5-5` | `anthropic/claude-fable-5-1` |
+| xAI (Grok) | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` |
+| OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-5.1` | `openai/gpt-5.6-terra` | `openai/gpt-6-sol` |
 | Google (Gemini) | `google/gemini-3.1-flash-lite` | `google/gemini-3.6-flash` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `zai/glm-5` | `zai/glm-5.1` | `zai/glm-5.2` | `zai/glm-5.2` |
 | Moonshot AI (Kimi) | `moonshotai/kimi-k2.6` | `moonshotai/kimi-k2.7-code` | `moonshotai/kimi-k3` | `moonshotai/kimi-k3` |
@@ -31,9 +31,9 @@ the lower one. The collapse is recorded rather than papered over with an invente
 
 ## Provider notes
 
-- **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. `frontier` binds to Fable 5.1 and remains lead-only; no bundled agent declares it as a floor.
-- **xAI (Grok)** — Every rung binds to `grok-4.6` by deliberate choice, not because the lineup lacks cheaper models — `grok-4.3` is available at $1.25/$2.50 per 1M against grok-4.6’s $2/$6. Running one model throughout removes tier-routing as a variable and never routes work below its floor. Grok 4.6 takes the same low/medium/high/xhigh reasoning-effort dial the suite routes by ambiguity, so effort remains the live dial.
-- **OpenAI (GPT)** — The strong/frontier split follows this repo’s own calibration evidence rather than price alone: runs R-007 and R-008 recorded `gpt-5-6-sol-xhigh` leading `gpt-5-6-terra-xhigh` operatives, so sol is the lead tier and terra the operative tier.
+- **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. `strong` binds to Claude Opus 5.5 ($4/$20 per million tokens, cache reads $0.20) and `frontier` stays Fable 5.1, lead-only. No bundled agent declares frontier as a floor.
+- **xAI (Grok)** — Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the handoff assessment sits at 150,000. `grok-build-0.1` is the fast coding specialist, not a default rung.
+- **OpenAI (GPT)** — Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. Sol remains the default frontier from runs R-007 and R-008, and its token price now sits below Terra, so the large lead context is the cheaper model.
 - **Google (Gemini)** — The only Pro-class id in the registry carries a `-preview` suffix, so `strong` and `frontier` share it. Re-pin once a stable Pro id ships.
 - **Z.AI (GLM)** — A tight lineup: the top model serves both `strong` and `frontier`.
 - **Moonshot AI (Kimi)** — `kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves both top rungs.
@@ -46,7 +46,8 @@ the lower one. The collapse is recorded rather than papered over with an invente
 Specialists are explicit bounded alternatives. They never replace a ready-made config’s
 default lead or operative binding:
 
-- `openai/gpt-6-astra` — `frontier` for difficult architecture, independent refutation, cross-domain synthesis. Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.
+- `openai/gpt-6-astra` — `frontier` for difficult architecture, independent refutation, cross-domain synthesis. Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Sol is $2/$10 and Astra is $10/$50, verified 2026-09-22. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.
+- `xai/grok-build-0.1` — `light` for mechanical breadth, high-volume file and log triage. Fast coding model at $1/$2 per million tokens, with no effort dial and a 256k window. The live OpenCode chooser may bind a light agent to it when the host lists it. It is not the default light pin, and it never satisfies a mid, strong, or frontier floor.
 
 ## Ready-made configs
 

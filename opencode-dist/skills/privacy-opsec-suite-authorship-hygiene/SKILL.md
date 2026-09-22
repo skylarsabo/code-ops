@@ -9,7 +9,7 @@ description: "Use when a commit, PR, or branch must carry no AI or tooling trace
 
 **Invoked as `/privacy-opsec-suite-authorship-hygiene`, or by the model through the `skill` tool as `privacy-opsec-suite-authorship-hygiene`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the bundled
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the bundled
 `<plugin-root>/CONVENTIONS.md`. It defines the anonymity and OpSec model (`§A`),
 including the tooling-trace non-negotiable, plus the interaction protocol, the safety rails,
 and the lenses this skill follows.

@@ -18,10 +18,11 @@ Generated agent-floor records make the lead and operative tiers machine-readable
 
 The Codex projection carries the session receipt and follows child rollouts through
 `parent_thread_id`. It also projects the compact-resume routing card because plain
-`PreCompact` stdout cannot alter the summary. The OpenCode projection ports traceless/model
-floors, digest, index, routing, native compaction, and MCP behavior. Its current plugin API has
-no typed ladder-card or transcript-receipt callback, and no per-subagent identity for the
-dispatch guard. Its routing card is baked at build time, so the pending-handoff line cannot
-reach it. The compatibility record names every gap instead of claiming parity.
+`PreCompact` stdout cannot alter the summary. The OpenCode projection ports traceless publishing, model
+floors, digest, index, routing, native compaction, and MCP behavior. It has no typed
+subagent-start callback, transcript path, or pre-tool `agent_id`. The lifecycle plugin covers
+those outcomes, including the implementer ladder, handoff and dispatch notes, a pending-handoff
+line, and a cost ledger (opencode-dist/PLATFORM_COMPATIBILITY.md:36). The compatibility record
+names every remaining gap instead of claiming parity.
 
-The current projections include task-based contract routing, selective bounded worker views, separate cache cost components, and focused implementer verification guidance (codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:20, codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:33). Codex projects the handoff card as an advisory lifecycle assessment, while OpenCode ships the same handoff doctrine through its skill and native compaction port; neither projection may claim that advisory text performed compaction or a transfer (codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md:17, opencode-dist/skills/code-ops-suite-handoff/SKILL.md:149). Claude and Codex project explicit dispatch registration and receipts; OpenCode still has no dispatch-guard equivalent.
+The current projections include task-based contract routing, selective bounded worker views, separate cache cost components, and focused implementer verification guidance (codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:20, codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:33). Codex projects the handoff card as an advisory lifecycle assessment, while OpenCode ships the same handoff doctrine through its skill and delivers the note from the lifecycle plugin. Neither projection may claim that advisory text performed compaction or a transfer (codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md:17, opencode-dist/skills/code-ops-suite-handoff/SKILL.md:153).

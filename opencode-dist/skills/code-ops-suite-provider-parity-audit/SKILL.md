@@ -9,7 +9,7 @@ description: "Use when the marketplace must be audited across Claude, Codex, ins
 
 **Invoked as `/code-ops-suite-provider-parity-audit`, or by the model through the `skill` tool as `code-ops-suite-provider-parity-audit`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin, especially the finding and fix
 tracks (`§6`) and finding schema (`§7`).
 **Mode:** ASSESS · **Runs in:** the code-ops repository · **Consumes:** canonical plugins, both
