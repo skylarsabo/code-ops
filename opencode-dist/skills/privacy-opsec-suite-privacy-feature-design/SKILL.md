@@ -9,8 +9,8 @@ description: "Use when you want high-value privacy and trust features found and 
 
 **Invoked as `/privacy-opsec-suite-privacy-feature-design`, or by the model through the `skill` tool as `privacy-opsec-suite-privacy-feature-design`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the bundled
-`<plugin-root>/CONVENTIONS.md`. Search the plugin directory for it if the path does
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
 references by section.

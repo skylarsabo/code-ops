@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f8a82e4e714085aa3dcaac00c539a9e7d3a8ca18",
-      "verifiedDigest": "f0804ae13f049ac5674185ac180761a0c3e930ba14894e7d751569eaca19d7ea",
+      "verifiedAt": "aed16616d4612353f6b7796250f2919217650e3a",
+      "verifiedDigest": "fb9f368849b90f51967e094623be6e3b1b15abcaaec4d4316f2bd82472729399",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -179,8 +179,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f8a82e4e714085aa3dcaac00c539a9e7d3a8ca18",
-      "verifiedDigest": "ae0e0ddb7e27121995b7d2fa75960fe68564f3ab01d3411a6f53fc59590b43ab",
+      "verifiedAt": "aed16616d4612353f6b7796250f2919217650e3a",
+      "verifiedDigest": "77ec2d2653c89cfca8a4e55226633949902a48b65311b504ea8d6f5e3ecb20bc",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",

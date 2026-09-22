@@ -9,8 +9,8 @@ description: "Use when CONFIRMED bugs exist and you want them fixed at root caus
 
 **Invoked as `/rigor-fix-verified`, or by the model through the `skill` tool as `rigor-fix-verified`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the bundled
-`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
 rails this skill follows.

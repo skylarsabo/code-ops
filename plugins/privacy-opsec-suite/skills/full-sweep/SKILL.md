@@ -4,8 +4,8 @@ description: "Use when you want the whole privacy-opsec-suite run end-to-end as 
 
 # Full sweep: the whole privacy and opsec suite, end to end
 
-**Invoked as `/privacy-opsec-suite:full-sweep`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and section A above all, which carries the central
+**Invoked as `/privacy-opsec-suite:full-sweep`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file, and section A above all, which carries the central
 anonymity and OpSec model every phase enforces.
 
 This skill orchestrates the other skills in sequence as one developer-in-the-loop pipeline.

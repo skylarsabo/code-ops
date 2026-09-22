@@ -5,6 +5,7 @@ All notable changes to this plugin are documented here. Versions track
 
 
 ## 1.88.0
+- The session routing card stays a short route list. `full-sweep` reads only the convention sections its opening paragraph names.
 - On Grok Build, headless Grok, and the ACP agent, the handoff nudge is a PostToolUse note read from `updates.jsonl`. UserPromptSubmit stdout stays discarded. The session receipt records `handoffCard` from its switch. The handoff skill reads four convention sections instead of the whole file.
 - The default ladder now pins Claude Opus 5.5 at strong, GPT-6 Luna at light, GPT-6 Sol at frontier, and Grok 4.7 on every xAI rung. Previous pins and the reseller spellings still satisfy the same floors. Grok Build 0.1 is a light specialist, not a default rung.
 - OpenCode ships `plugins/code-ops-lifecycle.js` and `code-ops/cost-report.mjs`. The system cards stay byte-identical across model calls. Handoff, routing, and dispatch notes ride on the next tool result or user turn. The cost ledger is checked with `cost-report.mjs --check`.

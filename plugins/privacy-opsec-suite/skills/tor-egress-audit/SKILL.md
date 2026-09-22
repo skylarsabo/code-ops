@@ -4,8 +4,8 @@ description: "Use when you need to prove no traffic escapes the proxy or Tor. Ow
 
 # Tor and egress audit: no traffic leaks the user
 
-**Invoked as `/privacy-opsec-suite:tor-egress-audit`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. Search the plugin directory for it if the path does
+**Invoked as `/privacy-opsec-suite:tor-egress-audit`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
 references by section.

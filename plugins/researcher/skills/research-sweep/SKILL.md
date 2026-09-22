@@ -4,8 +4,8 @@ description: "Use when you want code-grounded research run end-to-end as one dev
 
 # Research sweep: the whole research pipeline, end to end
 
-**Invoked as `/researcher:research-sweep`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
+**Invoked as `/researcher:research-sweep`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the modes (`§5`), the schema and tiers (`§6`, `§7`), the priority rule (`§8`), the
 lenses (`§10`), the hand-off map (`§11`), and the single-source-of-truth rules (`§12`).
 

@@ -7,8 +7,8 @@ description: "Use when a task, feature, or plan needs a code-grounded design bri
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `researcher:research-spike`.** First read the bundled
-`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
+**Invoke in Codex by naming `researcher:research-spike`.** Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
 

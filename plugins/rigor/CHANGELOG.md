@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.18.23
+- Each skill reads only the convention sections its opening paragraph names.
+
 ## 2.18.22
 - Select agent roles, models, and reasoning effort by assigned work while retaining quality floors and independent acceptance.
 

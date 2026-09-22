@@ -4,8 +4,8 @@ description: "Use when you want high-value privacy and trust features found and 
 
 # Privacy feature design: high-value, trust-building features
 
-**Invoked as `/privacy-opsec-suite:privacy-feature-design`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. Search the plugin directory for it if the path does
+**Invoked as `/privacy-opsec-suite:privacy-feature-design`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
 references by section.

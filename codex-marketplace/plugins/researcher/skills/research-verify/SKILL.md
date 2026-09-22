@@ -7,8 +7,8 @@ description: "Use when a claim, recommendation, or draft research artifact needs
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `researcher:research-verify`.** First read the bundled
-`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
+**Invoke in Codex by naming `researcher:research-verify`.** Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
 

@@ -7,8 +7,8 @@ description: "Use when you want code-grounded research run end-to-end as one dev
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `researcher:research-sweep`.** First read the bundled
-`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
+**Invoke in Codex by naming `researcher:research-sweep`.** Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the modes (`§5`), the schema and tiers (`§6`, `§7`), the priority rule (`§8`), the
 lenses (`§10`), the hand-off map (`§11`), and the single-source-of-truth rules (`§12`).
 
