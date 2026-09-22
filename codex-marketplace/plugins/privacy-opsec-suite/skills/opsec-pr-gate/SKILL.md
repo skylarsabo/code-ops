@@ -7,8 +7,8 @@ description: "Use when you want a pre-merge gate that blocks any change adding e
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `privacy-opsec-suite:opsec-pr-gate`.** First read the bundled
-`<plugin-root>/CONVENTIONS.md`. Search the plugin directory for it if the path does
+**Invoke in Codex by naming `privacy-opsec-suite:opsec-pr-gate`.** Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
 references by section.

@@ -258,12 +258,12 @@ console.log(JSON.stringify({
 const conventions = read(join(dist, 'code-ops', 'code-ops-suite', 'CONVENTIONS.md'));
 expect(conventions.includes('**OpenCode runtime limits.**'), 'OpenCode conventions do not classify unavailable hook mechanics');
 expect(!conventions.includes('Four mechanisms ship with this plugin and are on by default'), 'OpenCode conventions still claim unavailable hooks run by default');
-expect(conventions.includes('`CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches'), 'OpenCode conventions do not identify the actual switch location');
+expect(conventions.includes('`CODE_OPS_COST_LEDGER` are process-environment switches'), 'OpenCode conventions do not identify the actual switch location');
 for (const plugin of ['privacy-opsec-suite', 'researcher', 'rigor']) {
   const sibling = read(join(dist, 'code-ops', plugin, 'CONVENTIONS.md'));
   expect(sibling.includes('**OpenCode sibling runtime.**'), `${plugin} conventions retain the Claude sibling-runtime claim`);
   expect(sibling.includes('routing and compaction have no off switch'), `${plugin} conventions overstate OpenCode runtime switches`);
-  expect(sibling.includes('no operative ladder card, session receipt, dispatch guard, or pending-handoff line'), `${plugin} conventions claim unavailable OpenCode lifecycle hooks`);
+  expect(sibling.includes('The lifecycle plugin covers the ladder card, the handoff note, the dispatch guard, and the cost ledger'), `${plugin} conventions do not name the lifecycle plugin`);
   expect(!sibling.includes('.claude/settings.json'), `${plugin} conventions retain the Claude settings location`);
 }
 // Skills cite vendored execution specs at <plugin-root>/reference/, which resolves to

@@ -4,8 +4,8 @@ description: "Use when something used to work and you need to pinpoint the commi
 
 # Regression hunt: when it broke, and what else did
 
-**Invoked as `/rigor:regression-hunt`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the verification-first methodology
+**Invoked as `/rigor:regression-hunt`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
 rails this skill follows.

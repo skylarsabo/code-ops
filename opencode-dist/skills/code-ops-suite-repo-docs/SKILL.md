@@ -9,7 +9,7 @@ description: "Use when repository documentation must be extracted, refreshed, or
 
 **Invoked as `/code-ops-suite-repo-docs`, or by the model through the `skill` tool as `code-ops-suite-repo-docs`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read `<plugin-root>/CONVENTIONS.md`,
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read `<plugin-root>/CONVENTIONS.md`,
 and its orchestration, evidence, and documentation sections.
 **Mode:** DOCUMENT · **Produces:** updated manifest-owned documents, an extraction plan, and
 freshness proof.

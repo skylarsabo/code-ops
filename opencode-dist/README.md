@@ -23,8 +23,8 @@ The layout is deliberate. `plugins/code-ops-traceless.js` resolves its scanner t
 - `agents/` — 9 subagents, with their Claude tool allowlists translated to opencode permissions.
 - `code-ops/` — per-plugin `CONVENTIONS.md`, reference specs that skills cite, runtime
   scripts, and non-discoverable tier-floor carriers for the vendored preflight scripts.
-- `plugins/` — the traceless-publishing gate and model-floor gate, ported to opencode
-  plugin hooks.
+- `plugins/` — the traceless-publishing gate, the model-floor gate, and the lifecycle
+  plugin. `code-ops/cost-report.mjs` reads the lifecycle cost ledger.
 - `opencode.json` — an example config binding every agent to its tier. Merge it into
   your own config rather than overwriting one you already have.
 

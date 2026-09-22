@@ -4,8 +4,8 @@ description: "Use when you need to vet dependencies for telemetry, phone-home be
 
 # Supply-chain trust: dependencies that do not betray anonymity
 
-**Invoked as `/privacy-opsec-suite:supply-chain-trust`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. Search the plugin directory for it if the path does
+**Invoked as `/privacy-opsec-suite:supply-chain-trust`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
 references by section.

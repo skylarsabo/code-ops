@@ -7,8 +7,8 @@ description: "Use when you want measured, behavior-preserving improvements, not 
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `rigor:improve-measured`.** First read the bundled
-`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
+**Invoke in Codex by naming `rigor:improve-measured`.** Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
 rails this skill follows.

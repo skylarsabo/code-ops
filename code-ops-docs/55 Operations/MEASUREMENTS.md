@@ -28,8 +28,8 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
   projects as `project-N`; `--raw` names them.
 - `hooks/session-receipt.mjs` runs at `SessionEnd` on Claude, Codex, and installed Grok
   1.0.13. It appends one normalized row to the host-specific home ledger or
-  `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false`,
-  `handoffCard=false`, and `handoffPickup=false`. Every row also carries `handoffPickup` and
+  `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false` and
+  `handoffPickup=false`. `handoffCard` follows its switch. Every row also carries `handoffPickup` and
   `dispatchGuard` beside the older arms.
   OpenCode has no corresponding callback.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.

@@ -9,7 +9,7 @@ description: "Use when deep review, OpSec review, or judgment evals should run l
 
 **Invoked as `/code-ops-suite-local-review-gate`, or by the model through the `skill` tool as `code-ops-suite-local-review-gate`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Five sections govern this skill:
 the operating model (`§1`), evidence and refutation (`§7`), artifact safety (`§9`), the quality
 lenses (`§10`), and the run ledgers (`§12`).

@@ -110,7 +110,7 @@ Check what it discovered. Plugins, skills, agents, hooks, and the MCP server all
 grok inspect
 ```
 
-Grok Build namespaces a plugin agent as `<plugin>:<agent>`, so the two `explorer` agents coexist without the flattening opencode needs. Set the model in `~/.grok/config.toml` under `[models] default`. On Windows that file is `%USERPROFILE%\.grok\config.toml`. Recent builds already default to `grok-4.6`.
+Grok Build namespaces a plugin agent as `<plugin>:<agent>`, so the two `explorer` agents coexist without the flattening opencode needs. Set the model in `~/.grok/config.toml` under `[models] default`. On Windows that file is `%USERPROFILE%\.grok\config.toml`. Recent builds already default to `grok-4.7`. Grok 4.7 bills double above 200,000 tokens, so assess handoff at 150,000.
 
 One gap is worth knowing. Grok Build does not parse an agent's `model:` frontmatter, so an agent inherits the session model rather than its declared tier. The floors still travel, in three parts. Phase 0 of `scripts/preflight.mjs` prints the bundled agents' declared floors, so every run surfaces them on any host. The lead then routes each dispatch at or above its floor by hand. `run-cost-audit` measures the result, and a below-floor dispatch lands as a `tier-routing` FAIL in `RUN_CONFORMANCE.md`. Picking a session model that meets the strongest floor you will dispatch satisfies all three at once. See `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`.
 
@@ -184,11 +184,14 @@ Read the receipt ledger with `node scripts/context-audit.mjs receipts`.
 Those names are portable outcomes, not identical host APIs. Claude and trusted Codex plugin
 hooks run all six mechanisms. Installed Grok 1.0.13 runs digest, index, and receipt hooks, while
 its passive session and subagent hook output is ignored, so `CLAUDE.md` or `AGENTS.md` carries
-routing and ladder doctrine there. The handoff card has no Grok substitute. The guard's round
-counter runs only where the hook payload carries an `agent_id`. OpenCode ports digest, index,
-routing, and compaction through its plugin API, but its current lifecycle API exposes neither the
-ladder event nor a transcript receipt callback. OpenCode has no handoff card, pending-handoff
-line, or dispatch guard. The generated compatibility files state these limits beside each
+routing and ladder doctrine there. The handoff nudge is a PostToolUse note on the TUI, headless
+Grok, and the ACP agent. On Grok the lead still assesses handoff at 150,000 tokens and again
+before 200,000, because Grok 4.7 bills double above that line and a turn with no tool call
+never fires that note. The guard's round
+counter runs only where the hook payload carries an `agent_id`. OpenCode's lifecycle plugin keeps
+a stable system prefix, carries handoff and dispatch notes on the next tool result or user turn,
+and appends a cost row at session idle. `code-ops/cost-report.mjs --check` applies the operator's
+cost gates. The generated compatibility files state the remaining host limits beside each
 distribution.
 
 ## Verify and maintain

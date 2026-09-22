@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
-      "verifiedDigest": "90096975cf4c2c6382a0d693ada132cae7c4927c33fa14261e3c7492cc477b5a",
+      "verifiedAt": "aed16616d4612353f6b7796250f2919217650e3a",
+      "verifiedDigest": "fb9f368849b90f51967e094623be6e3b1b15abcaaec4d4316f2bd82472729399",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -18,7 +18,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 144,
+          "line": 187,
           "anchor": "? held + 'At the next safe boundary, run /code-ops-suite:handoff assess to choos"
         },
         {
@@ -38,12 +38,12 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 38,
+          "line": 42,
           "anchor": "For runtime contracts version 3 or newer, including version 4, checkpoint before"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 144,
+          "line": 148,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
-      "verifiedDigest": "4cf4ae2fdd5cf3321aa6bb4467670f9369b255cccf211235011916512d756ee8",
+      "verifiedAt": "f8a82e4e714085aa3dcaac00c539a9e7d3a8ca18",
+      "verifiedDigest": "b9a0a1ab022fab7b75cd7e79f8c3cfbc573d979e53b71b2103c3eaf5957e1e71",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -121,8 +121,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
-      "verifiedDigest": "325583ba9c4519a1dfaf43bd684c7098953307a2625a59059ac5756217196e70",
+      "verifiedAt": "f8a82e4e714085aa3dcaac00c539a9e7d3a8ca18",
+      "verifiedDigest": "5bda86df97666dd5842f9b9a6cac5f15503de3d6436f17313184f84f8c759d7e",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -161,12 +161,12 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 160,
+          "line": 162,
           "anchor": "expect(/handoff assess/.test(m1) && /CONTINUE, COMPACT, or HANDOFF/.test(m1) &&"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 176,
+          "line": 178,
           "anchor": "a Codex token_count transcript must receive lifecycle guidance, got ${r.status}/"
         }
       ]
@@ -179,8 +179,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
-      "verifiedDigest": "7461525fbd41b331a22972dddcfd02c6d9b580b92123e2ff0e2151aae19df4c9",
+      "verifiedAt": "aed16616d4612353f6b7796250f2919217650e3a",
+      "verifiedDigest": "77ec2d2653c89cfca8a4e55226633949902a48b65311b504ea8d6f5e3ecb20bc",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -191,6 +191,11 @@
           "file": "scripts/build-codex-marketplace.mjs",
           "line": 515,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
+        },
+        {
+          "file": "opencode-dist/PLATFORM_COMPATIBILITY.md",
+          "line": 36,
+          "anchor": "- **The typed subagent-start callback, transcript path, and pre-tool"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -209,7 +214,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 149,
+          "line": 153,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -220,8 +225,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "eff987a2c2cf83cfe6cc0bff64ae4b70c8941d65",
-      "verifiedDigest": "ed0f76537871b4244287674755450abf23190239798dd56a68bcba4b1d555afe"
+      "verifiedAt": "f8a82e4e714085aa3dcaac00c539a9e7d3a8ca18",
+      "verifiedDigest": "5f0c2027f5606801eb9c9faeb8bba31082b6843e336ac182dfb4969256bd0e56"
     },
     {
       "slug": "docs-doctrine",
@@ -244,12 +249,12 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "281dbb87463c70fe75b218c0e9a995ac2228545a",
-      "verifiedDigest": "cf5846d2b460caaae301f9b73f7f81a1e572adffedbbb2338bacea29efb215d3",
+      "verifiedAt": "f8a82e4e714085aa3dcaac00c539a9e7d3a8ca18",
+      "verifiedDigest": "0935bd46b84df546407e8af0b2e20a0be0d4559638bc13ad93fbb5777488dfd7",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 26,
+          "line": 30,
           "anchor": "- **COMPACT** when the same task needs context relief. First persist decisions,"
         },
         {
@@ -264,12 +269,12 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 21,
+          "line": 22,
           "anchor": "take precedence over assessment. Urgent observed context pressure"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 141,
+          "line": 184,
           "anchor": "const approx = Math.round(context / 10_000) * 10_000;"
         },
         {
@@ -291,8 +296,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "59b723dbaca9bc42e4e6b697bdea5a07f0edb505",
-      "verifiedDigest": "6ec97906a6f25ba29bac8e0c0bc966ec2e9636dcd96d7bab596339a7ac9b55d8"
+      "verifiedAt": "b429dd50a87b8a913c33d61cea2e3b23d4fd19e1",
+      "verifiedDigest": "fcf34fc708db3767e677b57a6d388638ec32ee6629185f82cce33e303eeac6bb"
     },
     {
       "slug": "runtime-toolchain",

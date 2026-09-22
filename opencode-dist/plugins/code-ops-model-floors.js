@@ -29,17 +29,19 @@ const KNOWN_MODELS = {
   "anthropic": {
     "claude-haiku-4-5-20251001": "light",
     "claude-sonnet-5": "mid",
-    "claude-opus-5": "strong",
+    "claude-opus-5-5": "strong",
     "claude-fable-5-1": "frontier"
   },
   "xai": {
-    "grok-4.6": "frontier"
+    "grok-4.7": "frontier",
+    "grok-build-0.1": "light"
   },
   "openai": {
-    "gpt-5.6-luna": "light",
+    "gpt-6-luna": "light",
     "gpt-5.1": "mid",
     "gpt-5.6-terra": "strong",
-    "gpt-5.6-sol": "frontier"
+    "gpt-6-sol": "frontier",
+    "gpt-6-astra": "frontier"
   },
   "google": {
     "gemini-3.1-flash-lite": "light",
@@ -67,9 +69,53 @@ const KNOWN_MODELS = {
   },
   "opencode": {
     "muse-spark-1.3-contributor-free": "strong"
+  },
+  "accepted": {
+    "claude-opus-5": "strong",
+    "gpt-5.6-luna": "light",
+    "gpt-5.6-sol": "frontier",
+    "grok-4.6": "frontier",
+    "claude-haiku-4-5": "light",
+    "claude-haiku-4.5": "light",
+    "claude-fable-5.1": "frontier"
   }
 };
-const ROUTING_CARD = "code-ops standard operating mode\ndebug a bug -> /code-ops-suite-debug\nship a feature/change -> /code-ops-suite-ship\naudit/quality sweep -> /code-ops-suite-full-sweep or /rigor-rigor-sweep\nprivacy/leak concern -> /privacy-opsec-suite-full-sweep\nlibrary/dependency decision -> /researcher-library-eval\nclaim verification -> /researcher-research-verify\neverything (broad/multi-domain) -> /code-ops-suite-everything\nsubstantive work -> frontier orchestrator delegates every independently briefable unit, launches at least two disjoint units in parallel when possible, then selects each role, model tier, and effort from the task; strong is the judgment floor, while mechanical and breadth work may use their declared lower floors\nthe root continuously synthesizes, challenges assumptions, reprioritizes, and redirects; inline busy work requires a stated trivial-or-indivisible exception\na dispatch costs context times turns: use the narrowest shipped agent (/code-ops-suite-implementer for build work, never general-purpose), name a round budget in the brief, keep breadth agents at their declared tier, and batch independent tool calls\none frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; record its rationale and stopping criterion, then keep verdicts and acceptance with the lead\nsay in a line what you are about to do, give brief updates while you work, and close with a recap that stands on its own\nonly you see a command's output; put what the user needs to read in your reply\ncontext economy: skim before reading, query the symbol index before a map, digest output is on by default, size is a tie-breaker behind correctness, boundaries, performance, and readability\nsee: in the code-ops repository, https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/11-standard-operating-mode.md and https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/dispatch-brief-template.md";
+const TIER_BY_ID = {
+  "claude-haiku-4-5-20251001": "light",
+  "claude-sonnet-5": "mid",
+  "claude-opus-5-5": "strong",
+  "claude-fable-5-1": "frontier",
+  "grok-4.7": "frontier",
+  "gpt-6-luna": "light",
+  "gpt-5.1": "mid",
+  "gpt-5.6-terra": "strong",
+  "gpt-6-sol": "frontier",
+  "gemini-3.1-flash-lite": "light",
+  "gemini-3.6-flash": "mid",
+  "gemini-3.1-pro-preview": "frontier",
+  "glm-5": "light",
+  "glm-5.1": "mid",
+  "glm-5.2": "frontier",
+  "kimi-k2.6": "light",
+  "kimi-k2.7-code": "mid",
+  "kimi-k3": "frontier",
+  "deepseek-v4-flash": "mid",
+  "deepseek-v4-pro": "frontier",
+  "magistral-small": "light",
+  "mistral-medium-latest": "mid",
+  "magistral-medium-latest": "frontier",
+  "muse-spark-1.3-contributor-free": "strong",
+  "gpt-6-astra": "frontier",
+  "grok-build-0.1": "light",
+  "claude-opus-5": "strong",
+  "gpt-5.6-luna": "light",
+  "gpt-5.6-sol": "frontier",
+  "grok-4.6": "frontier",
+  "claude-haiku-4-5": "light",
+  "claude-haiku-4.5": "light",
+  "claude-fable-5.1": "frontier"
+};
+const ROUTING_CARD = "code-ops standard operating mode\ndebug a bug -> /code-ops-suite-debug\nship a feature/change -> /code-ops-suite-ship\naudit/quality sweep -> /code-ops-suite-full-sweep or /rigor-rigor-sweep\nprivacy/leak concern -> /privacy-opsec-suite-full-sweep\nlibrary/dependency decision -> /researcher-library-eval\nclaim verification -> /researcher-research-verify\neverything (broad/multi-domain) -> /code-ops-suite-everything\nsubstantive work -> frontier lead, task-based tiers, disjoint units in parallel when the graph allows; strong is the judgment floor\na dispatch costs context times turns: /code-ops-suite-implementer for build work, a round budget, breadth agents at their declared tier\none frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; the lead keeps the verdict\nsay what you are about to do, then close with a recap that stands on its own\nonly you see a command's output; put what the user needs to read in your reply\ncontext economy: read the named convention sections only, skim before a whole file, and query the symbol index before a map";
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url));
 const SUITE_ROOT = join(PLUGIN_DIR, '..', 'code-ops', 'code-ops-suite');
 const DIGEST_HOOK = join(SUITE_ROOT, 'hooks', 'digest-rewrite.mjs');
@@ -94,12 +140,14 @@ export const CodeOpsModelFloors = async ({ directory = process.cwd() } = {}) => 
     config.mcp['code-ops-query'] ??= { type: 'local', command: ['node', join(SUITE_ROOT, 'scripts', 'context-query-mcp.mjs')], enabled: true };
   },
   'chat.params': async (input) => {
-    const required = REQUIRED[input?.agent];
+    // A tier clone (`<agent>-frontier`, `<agent>-lead`) is held to its base agent's floor.
+    const agent = String(input?.agent ?? '').replace(/-(light|mid|strong|frontier|lead)$/, '');
+    const required = REQUIRED[input?.agent] ?? REQUIRED[agent];
     if (!required) return;
     const provider = input?.model?.providerID;
     const model = input?.model?.id;
     const actual = typeof provider === 'string' && typeof model === 'string'
-      ? KNOWN_MODELS[provider]?.[model]
+      ? (KNOWN_MODELS[provider]?.[model] ?? TIER_BY_ID[model])
       : undefined;
     if (actual === undefined || RANK[actual] < RANK[required]) {
       const selected = typeof provider === 'string' && typeof model === 'string'

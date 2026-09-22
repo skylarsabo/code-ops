@@ -4,8 +4,8 @@ description: "Use when you want the whole code-ops-suite run end-to-end on one c
 
 # Full sweep: run the whole suite end-to-end
 
-**Invoked as `/code-ops-suite:full-sweep`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`: the operating model, the interaction protocol, the safety
+**Invoked as `/code-ops-suite:full-sweep`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file: the operating model, the interaction protocol, the safety
 rails including the **automation-level ladder** (`§4`), the schemas and evidence tiers (`§7`),
 the quality lenses (`§10`), the register-freshness rule (`§12`), and the **documentation quality
 standard** (`§13`).

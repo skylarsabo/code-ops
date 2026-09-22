@@ -1,33 +1,33 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "xai/grok-4.6",
+  "model": "xai/grok-4.7",
   "agent": {
     "code-ops-suite-explorer": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "code-ops-suite-implementer": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "code-ops-suite-reviewer": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "privacy-opsec-suite-explorer": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "privacy-opsec-suite-privacy-reviewer": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "rigor-tracer": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "rigor-verifier": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "researcher-claim-checker": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     },
     "researcher-gatherer": {
-      "model": "xai/grok-4.6"
+      "model": "xai/grok-4.7"
     }
   },
   "permission": {

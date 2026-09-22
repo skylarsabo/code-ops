@@ -55,8 +55,8 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 | Provider | `light` | `mid` | `strong` | `frontier` |
 | --- | --- | --- | --- | --- |
 | Anthropic (Claude) | `haiku` | `sonnet` | `opus` | `fable` |
-| xAI (Grok) | `grok-4.6` | `grok-4.6` | `grok-4.6` | `grok-4.6` |
-| OpenAI (GPT) | `gpt-5.6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-5.6-sol` |
+| xAI (Grok) | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` |
+| OpenAI (GPT) | `gpt-6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-6-sol` |
 | Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `glm-5` | `glm-5.1` | `glm-5.2` | `glm-5.2` |
 | Moonshot AI (Kimi) | `kimi-k2.6` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` |
@@ -65,12 +65,12 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 | OpenCode Zen (free tier) | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | unset, the lead inherits the session model |
 
 OpenAI also exposes `gpt-6-astra` as an explicit frontier specialist. It does not replace
-Sol in the ready-made configuration. OpenAI's rates verified on 2026-09-13 price Astra input
-and output tokens at 2.5 times Sol, while both expose the same context window. Use Astra only
-when the bounded decision justifies that premium. The binding and selected use remain visible
-in the run contract and dispatch ledger. See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
+Sol in the ready-made configuration. Rates verified on 2026-09-22 price Sol at $2/$10 per
+million tokens and Astra at $10/$50. Use Astra only when the bounded decision justifies that
+premium. The binding and selected use remain visible in the run contract and dispatch ledger.
+See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
 
-The Anthropic `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
+The Anthropic `opus` alias binds to `claude-opus-5-5` at the strong rung. Opus 5.5 is $4/$20 per million tokens, with cache reads at $0.20, and its thinking stays on. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
 so the runtime controls effort and the instruction files do not imitate a reasoning trace.
 Keep the reusable instruction prefix stable, append task-specific turns, and avoid rewriting
 earlier messages. This preserves valid thinking blocks and maximizes cache reuse. Do not force
@@ -79,7 +79,7 @@ a tool call for this model; let the agent select a tool when the task needs one.
 
 The binding table is what makes the rest of the doctrine portable. The briefs, the fan-out rules, the disconfirmation pass, and the verification bar are identical on every provider. Only the bindings change. Adding a provider takes one `PROVIDER_TIERS` entry in `scripts/model-tiers.mjs` plus one `PROVIDER_SLUG_PATTERNS` line. Premium alternatives live in `PROVIDER_SPECIALISTS`, so generated defaults remain cost-disciplined.
 
-Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is flat by choice: `grok-4.6` never routes work below its floor, and running one model removes tier as a variable. The OpenCode Zen operatives are flat by the same choice: `muse-spark-1.3-contributor-free` never routes operative work below its floor, and the lead stays unset. The OpenAI split follows this repository's own calibration evidence rather than price, because runs R-007 and R-008 recorded `gpt-5-6-sol-xhigh` leading `gpt-5-6-terra-xhigh` operatives.
+Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is flat by choice: `grok-4.7` never routes work below its floor, and running one model removes tier as a variable. Its list price doubles above 200,000 tokens. The OpenCode Zen operatives are flat by the same choice: `muse-spark-1.3-contributor-free` never routes operative work below its floor, and the lead stays unset. The OpenAI split follows this repository's own calibration evidence rather than price, because runs R-007 and R-008 recorded Sol leading Terra operatives. GPT-6 Sol and Luna keep those rungs at half the previous token price. `grok-build-0.1` is a light specialist for mechanical breadth, not a default rung.
 
 Effort remains variable on every provider, because the major providers expose the same low, medium, high, and xhigh scale.
 

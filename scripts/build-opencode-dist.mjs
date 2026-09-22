@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits, modelSupportsTier } from './model-tiers.mjs';
+import { ACCEPTED_MODELS, CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits, modelSupportsTier } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
@@ -139,10 +139,10 @@ function transformConventions(contents) {
   const portable = portableText(contents);
   return portable.replace(
     /^\*\*Context economy runs under the session, not under a skill\.\*\*.*$/m,
-    '**OpenCode runtime limits.** This distribution runs traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches. The host API exposes no equivalent subagent-start ladder card, session-end transcript receipt, pre-tool dispatch guard, or pending-handoff line.',
+    '**OpenCode runtime limits.** This distribution runs traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration. `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, `CODE_OPS_HANDOFF_CARD`, `CODE_OPS_HANDOFF_PICKUP`, `CODE_OPS_DISPATCH_GUARD`, `CODE_OPS_RECEIPTS`, and `CODE_OPS_COST_LEDGER` are process-environment switches. The lifecycle plugin keeps one stable system prefix and carries handoff and dispatch notes on the next tool result or user turn.',
   ).replace(
     /^Where `code-ops-suite` is installed beside this plugin, its (?:supported )?session mechanisms run under the same session[.:].*$/m,
-    '**OpenCode sibling runtime.** Where `code-ops-suite` is installed beside this plugin, its OpenCode adapters provide digest rewrite, symbol-index refresh, routing guidance, and compaction preservation. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches; routing and compaction have no off switch. The host API exposes no operative ladder card, session receipt, dispatch guard, or pending-handoff line. The adapters remain local and make no network request.',
+    '**OpenCode sibling runtime.** Where `code-ops-suite` is installed beside this plugin, its OpenCode adapters provide digest rewrite, symbol-index refresh, routing guidance, compaction preservation, and the lifecycle plugin. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches; routing and compaction have no off switch. The lifecycle plugin covers the ladder card, the handoff note, the dispatch guard, and the cost ledger for the whole host. The adapters remain local and make no network request.',
   );
 }
 
@@ -186,7 +186,7 @@ function transformSkill(pluginName, slug, contents, path) {
     '',
     `**Invoked as \`/${name}\`, or by the model through the \`skill\` tool as \`${name}\`.**`,
     '',
-    '**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host.',
+    '**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn.',
   ].join('\n');
 
   const transformed = portableText(body.replace(marker, rule), {
@@ -349,16 +349,28 @@ function modelFloorPlugin(agents, routingCard) {
   const required = Object.fromEntries(agents.map((agent) => [agent.name, agent.tier]));
   const rank = Object.fromEntries(TIER_ORDER.map((tier, index) => [tier, index]));
   const knownModels = {};
-  for (const provider of Object.values(PROVIDER_TIERS)) {
-    const models = {};
-    for (const tier of TIER_ORDER) {
-      const model = provider.models[tier];
-      if (model === null) continue;
-      // A provider can reuse one model across rungs. It satisfies the highest rung carrying
-      // that id, not merely the first rung that happened to mention it.
-      if (models[model] === undefined || rank[tier] > rank[models[model]]) models[model] = tier;
+  const tierById = {};
+  const consider = (providerId, model, tier) => {
+    if (model === null || model === undefined) return;
+    if (providerId) {
+      knownModels[providerId] ??= {};
+      if (knownModels[providerId][model] === undefined || rank[tier] > rank[knownModels[providerId][model]]) {
+        knownModels[providerId][model] = tier;
+      }
     }
-    knownModels[provider.id] = models;
+    // A provider can reuse one model across rungs. The bare id satisfies the highest rung
+    // carrying it, so a reseller provider keeps that verified tier.
+    if (tierById[model] === undefined || rank[tier] > rank[tierById[model]]) tierById[model] = tier;
+  };
+  for (const provider of Object.values(PROVIDER_TIERS)) {
+    for (const tier of TIER_ORDER) consider(provider.id, provider.models[tier], tier);
+  }
+  for (const [providerId, specialists] of Object.entries(PROVIDER_SPECIALISTS)) {
+    for (const specialist of specialists) consider(providerId, specialist.model, specialist.tier);
+  }
+  for (const [model, tiers] of Object.entries(ACCEPTED_MODELS)) {
+    const highest = [...tiers].sort((a, b) => rank[a] - rank[b]).at(-1);
+    consider('accepted', model, highest);
   }
 
   return `// OpenCode runtime adapters, generated from the canonical code-ops contracts.
@@ -374,6 +386,7 @@ import { fileURLToPath } from 'node:url';
 const REQUIRED = ${JSON.stringify(required, null, 2)};
 const RANK = ${JSON.stringify(rank, null, 2)};
 const KNOWN_MODELS = ${JSON.stringify(knownModels, null, 2)};
+const TIER_BY_ID = ${JSON.stringify(tierById, null, 2)};
 const ROUTING_CARD = ${JSON.stringify(routingCard)};
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url));
 const SUITE_ROOT = join(PLUGIN_DIR, '..', 'code-ops', 'code-ops-suite');
@@ -399,12 +412,14 @@ export const CodeOpsModelFloors = async ({ directory = process.cwd() } = {}) => 
     config.mcp['code-ops-query'] ??= { type: 'local', command: ['node', join(SUITE_ROOT, 'scripts', 'context-query-mcp.mjs')], enabled: true };
   },
   'chat.params': async (input) => {
-    const required = REQUIRED[input?.agent];
+    // A tier clone (\`<agent>-frontier\`, \`<agent>-lead\`) is held to its base agent's floor.
+    const agent = String(input?.agent ?? '').replace(/-(light|mid|strong|frontier|lead)$/, '');
+    const required = REQUIRED[input?.agent] ?? REQUIRED[agent];
     if (!required) return;
     const provider = input?.model?.providerID;
     const model = input?.model?.id;
     const actual = typeof provider === 'string' && typeof model === 'string'
-      ? KNOWN_MODELS[provider]?.[model]
+      ? (KNOWN_MODELS[provider]?.[model] ?? TIER_BY_ID[model])
       : undefined;
     if (actual === undefined || RANK[actual] < RANK[required]) {
       const selected = typeof provider === 'string' && typeof model === 'string'
@@ -582,8 +597,8 @@ function generatedReadme(skills, agents) {
     `- \`agents/\` — ${agents.length} subagents, with their Claude tool allowlists translated to opencode permissions.`,
     '- `code-ops/` — per-plugin `CONVENTIONS.md`, reference specs that skills cite, runtime',
     '  scripts, and non-discoverable tier-floor carriers for the vendored preflight scripts.',
-    '- `plugins/` — the traceless-publishing gate and model-floor gate, ported to opencode',
-    '  plugin hooks.',
+    '- `plugins/` — the traceless-publishing gate, the model-floor gate, and the lifecycle',
+    '  plugin. `code-ops/cost-report.mjs` reads the lifecycle cost ledger.',
     '- `opencode.json` — an example config binding every agent to its tier. Merge it into',
     '  your own config rather than overwriting one you already have.',
     '',
@@ -636,10 +651,11 @@ function compatibilityNotes() {
     '  `experimental.chat.system.transform` and',
     '  `experimental.session.compacting`, so the generated runtime plugin appends the',
     '  canonical preservation instruction to the compaction prompt.',
-    '- **Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are',
-    '  intentionally unavailable here.** The installed plugin types expose no subagent-start',
-    '  callback, session-end transcript path, or pre-tool-call agent identity. The routing card',
-    '  ships as text baked at build time, so it carries no per-session pending-handoff line.',
+    '- **The typed subagent-start callback, transcript path, and pre-tool `agent_id` are',
+    '  intentionally unavailable here.** `plugins/code-ops-lifecycle.js` covers those outcomes',
+    '  on the events OpenCode does expose: a stable system prefix, the ladder on the implementer,',
+    '  handoff and dispatch notes on the next tool result or user turn, a pending-handoff line',
+    '  on the first lead system transform, and a cost ledger at session idle.',
     '- **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin',
     '  derives their absolute local commands from its own module URL and adds typed local MCP',
     '  entries without overwriting operator-defined entries.',
@@ -714,6 +730,8 @@ function buildExpectedFiles() {
 
   add('plugins/code-ops-traceless.js', tracelessPlugin());
   add('plugins/code-ops-model-floors.js', modelFloorPlugin(agents, routingCardText()));
+  add('plugins/code-ops-lifecycle.js', readText(resolve(ROOT, 'scripts', 'opencode-lifecycle.js')));
+  add('code-ops/cost-report.mjs', readText(resolve(ROOT, 'scripts', 'opencode-cost-report.mjs')));
   add('MODEL_TIERS.md', modelTiersDoc(agents));
   add('PLATFORM_COMPATIBILITY.md', compatibilityNotes());
   add('README.md', generatedReadme(skills, agents));
@@ -784,7 +802,12 @@ function validate({ files, skills, agents }) {
 
   const floors = files.get('plugins/code-ops-model-floors.js');
   expect(floors?.includes("'chat.params'"), 'the model-floor plugin does not subscribe to chat.params');
+  expect(floors?.includes('TIER_BY_ID'), 'the model-floor plugin does not resolve a reseller model by bare id');
   expect(floors?.includes("'experimental.session.compacting'"), 'the model-floor plugin does not port compaction preservation');
+  const lifecycle = files.get('plugins/code-ops-lifecycle.js');
+  expect(lifecycle?.includes('export const CodeOpsLifecycle'), 'the lifecycle plugin does not export its factory');
+  expect(lifecycle?.includes('CODE_OPS_COST_LEDGER'), 'the lifecycle plugin does not write the cost ledger');
+  expect(files.has('code-ops/cost-report.mjs'), 'the cost report was not rendered');
   for (const agent of agents) {
     expect(floors?.includes(JSON.stringify(agent.name)), `the model-floor plugin does not know ${agent.name}`);
   }
@@ -792,7 +815,7 @@ function validate({ files, skills, agents }) {
   const conventions = files.get('code-ops/code-ops-suite/CONVENTIONS.md');
   expect(conventions?.includes('**OpenCode runtime limits.**'), 'OpenCode conventions do not classify unavailable hook mechanics');
   expect(!conventions?.includes('Four mechanisms ship with this plugin and are on by default'), 'OpenCode conventions still claim unavailable hooks run by default');
-  expect(conventions?.includes('`CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches'), 'OpenCode conventions omit the runtime switch location');
+  expect(conventions?.includes('`CODE_OPS_COST_LEDGER` are process-environment switches'), 'OpenCode conventions omit the runtime switch location');
   for (const pluginName of ['privacy-opsec-suite', 'researcher', 'rigor']) {
     const sibling = files.get(`code-ops/${pluginName}/CONVENTIONS.md`);
     expect(sibling?.includes('**OpenCode sibling runtime.**'), `${pluginName} conventions retain the Claude sibling-runtime claim`);

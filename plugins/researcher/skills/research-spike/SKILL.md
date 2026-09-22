@@ -4,8 +4,8 @@ description: "Use when a task, feature, or plan needs a code-grounded design bri
 
 # Research spike: a code-grounded design brief
 
-**Invoked as `/researcher:research-spike`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
+**Invoked as `/researcher:research-spike`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
 

@@ -38,8 +38,9 @@ The canonical package registers eight hook commands across six events. `handoff-
 at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and asks the lead to
 assess CONTINUE, COMPACT, or HANDOFF at each 150,000-token band; it does not execute a transition
 or prove that the host displayed the advice (plugins/code-ops-suite/hooks/handoff-card.mjs:4,
-plugins/code-ops-suite/hooks/handoff-card.mjs:144). Grok ignores its stdout and OpenCode has no
-equivalent. `routing-card.mjs` discovers, but does not resume, the newest eligible pending
+plugins/code-ops-suite/hooks/handoff-card.mjs:187). Grok discards UserPromptSubmit stdout and
+receives the same note as PostToolUse additionalContext. OpenCode carries the note in its
+lifecycle plugin. `routing-card.mjs` discovers, but does not resume, the newest eligible pending
 handoff. `dispatch-guard.mjs` runs at `PreToolUse` on every thread: inside a subagent it counts
 attempted tool calls against an explicit host-agent binding, or the legacy environment/default
 budget when no binding exists; on the lead's own dispatch it only advises
@@ -82,7 +83,7 @@ dispatch guard, each read from its own switch, and a guard set to `warn` records
 remain pending until a pre-registered matched control is complete.
 Report persistence is pinned across all four conventions. A brief's report path governs over an agent definition's default reporting instruction. An operative with a write tool writes its report to that path and returns only a pointer, and a read-only operative returns its report inline for the lead to persist. Two of the nine shipped agents hold a file-write tool. The verifier writes its report to a named path and never edits the source under evaluation. The implementer edits only inside its brief's Scope and writes its report to the brief's path. A dispatch costs context times turns, so the code-ops-suite conventions bind build, fix, and refactor units to the shipped implementer rather than a general-purpose agent, and every brief names a round budget, 40 tool rounds by default. The hook enforces a custom budget only after explicit registration against a known host agent ID; otherwise it retains the legacy fallback. A missing, empty, or malformed report file fails the pinned shape gate exactly as a malformed inline report does.
 
-New substantive version-4 runs route each unit by assigned task, role floor, and ambiguity; each records its rationale, while a frontier peer remains a bounded exception with lead-owned stopping and blocking criteria (plugins/code-ops-suite/CONVENTIONS.md:20). Lifecycle assessment preserves the same task's recorded authority limits, requires a durable checkpoint before compact or handoff, and treats unavailable host actions and unobserved telemetry as unavailable or `UNKNOWN`, never as completed work (plugins/code-ops-suite/skills/handoff/SKILL.md:38, plugins/code-ops-suite/skills/handoff/SKILL.md:144).
+New substantive version-4 runs route each unit by assigned task, role floor, and ambiguity; each records its rationale, while a frontier peer remains a bounded exception with lead-owned stopping and blocking criteria (plugins/code-ops-suite/CONVENTIONS.md:20). Lifecycle assessment preserves the same task's recorded authority limits, requires a durable checkpoint before compact or handoff, and treats unavailable host actions and unobserved telemetry as unavailable or `UNKNOWN`, never as completed work (plugins/code-ops-suite/skills/handoff/SKILL.md:42, plugins/code-ops-suite/skills/handoff/SKILL.md:148).
 Each of the four conventions now ends with a pinned Code standard section holding one core clause. The section carries no hub path because the packages ship to repositories without this hub; the full rules and their backstops live in the hub's code-standard technique page.
 
 Explicit dispatch registration uses hashed working-directory and agent keys, refuses replacement, and preserves legacy call counts. Bound workers receive a small checkpoint allowance without extending the legacy cap. Receipts expose attempted-call counts; unavailable provider usage and effective runtime budget remain UNKNOWN.

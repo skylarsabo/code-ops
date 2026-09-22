@@ -15,6 +15,9 @@ node_modules/
 # local run artifacts in the vault — never tracked (ADR 0001)
 code-ops-docs/80 Runs/
 
+# local drop-in drafts and other session scratch
+tmp/
+
 # Retired local-only documentation locations remain ignored for compatibility (ADR 0001).
 docs/specs/
 docs/superpowers/

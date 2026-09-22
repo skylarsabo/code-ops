@@ -9,8 +9,8 @@ description: "Use when a claim, recommendation, or draft research artifact needs
 
 **Invoked as `/researcher-research-verify`, or by the model through the `skill` tool as `researcher-research-verify`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the bundled
-`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
 

@@ -95,6 +95,9 @@ jobs:
       - name: opencode distribution regression eval
         run: node evals/opencode-dist/run.mjs
 
+      - name: opencode lifecycle regression eval
+        run: node evals/opencode-lifecycle/run.mjs
+
       # No renderer for Grok Build: it reads the Claude plugin format natively, so the
       # canonical packages ARE its packages. This guards that contract from drifting.
       - name: Grok Build compatibility eval
@@ -372,6 +375,9 @@ jobs:
 
       - name: opencode distribution regression eval
         run: node evals/opencode-dist/run.mjs
+
+      - name: opencode lifecycle regression eval
+        run: node evals/opencode-lifecycle/run.mjs
 
       - name: Preflight regression eval
         run: node evals/preflight/run.mjs

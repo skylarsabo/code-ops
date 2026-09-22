@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.24
+- Each skill reads only the convention sections its opening paragraph names.
+
 ## 1.20.23
 - Select agent roles, models, and reasoning effort by assigned work while retaining quality floors and independent acceptance.
 

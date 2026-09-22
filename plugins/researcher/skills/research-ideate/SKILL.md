@@ -4,8 +4,8 @@ description: "Use when you want net-new, honestly novel feature or direction ide
 
 # Research ideate: net-new directions, grounded and feasibility-checked
 
-**Invoked as `/researcher:research-ideate`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
+**Invoked as `/researcher:research-ideate`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
 

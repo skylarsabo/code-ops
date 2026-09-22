@@ -7,9 +7,10 @@ description: "Use when a long run needs a continue, compact, or transfer decisio
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:handoff`.** First read the `<plugin-root>/CONVENTIONS.md`
-bundled with this plugin. It defines the interaction protocol, the safety rails, the evidence
-standard, and the shared-artifact conventions this skill extends to session state.
+**Invoke in Codex by naming `code-ops-suite:handoff`.** Read §3, §4, §9, and §12 of the
+`<plugin-root>/CONVENTIONS.md` bundled with this plugin. Those four sections are the
+interaction protocol, the safety rails, the evidence standard, and the shared-artifact rules
+this skill extends. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces and consumes:** `HANDOFF.md` in the run's dated artifact folder
 (`§12`).
 
@@ -22,7 +23,10 @@ unknowns, and next safe checkpoint in the existing run log. Do not create `HANDO
 CONTINUE or COMPACT: startup discovery would misidentify it as a transfer.
 
 Explicit `write` and `resume <path>` take precedence over assessment. Urgent observed context pressure
-or a required transfer or recovery takes precedence over a short finish.
+or a required transfer or recovery takes precedence over a short finish. On Grok Build, headless
+Grok, and the Grok ACP agent, a PostToolUse note is the context-pressure warning. UserPromptSubmit
+stdout on those surfaces is discarded, so a turn with no tool call still needs the lead's own
+150,000-token assessment.
 
 - **CONTINUE** when the bounded objective progresses without observed urgent pressure or a required transfer or recovery.
   A short finish supports continuation only under those conditions. Unknown telemetry alone is not a restart signal.
@@ -132,8 +136,8 @@ offered a handoff this one already picked up.
 
 Open the reply to the operator with a recap under five headings: work completed, key findings, in
 progress, left to do, and project scope and constraints. Mark every claim in it **verified**,
-**moved**, or **drifted** against the current tree. The recap is what saves the operator from
-re-explaining the run.
+**moved**, or **drifted** against the current tree. Keep the recap to those headings and the
+open items. The recap is what saves the operator from re-explaining the run.
 
 Present the Open items to the operator once re-planning finishes. Preserve the recorded authority
 limits for the same task, and ask only for authority that the next publishing, merge, or other

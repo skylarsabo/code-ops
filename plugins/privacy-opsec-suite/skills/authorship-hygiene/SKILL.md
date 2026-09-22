@@ -4,8 +4,8 @@ description: "Use when a commit, PR, or branch must carry no AI or tooling trace
 
 # Authorship hygiene: work that reads as yours, not your tools'
 
-**Invoked as `/privacy-opsec-suite:authorship-hygiene`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the anonymity and OpSec model (`§A`),
+**Invoked as `/privacy-opsec-suite:authorship-hygiene`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the anonymity and OpSec model (`§A`),
 including the tooling-trace non-negotiable, plus the interaction protocol, the safety rails,
 and the lenses this skill follows.
 

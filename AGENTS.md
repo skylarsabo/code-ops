@@ -100,13 +100,15 @@ contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
 `MEASUREMENTS.md` under `code-ops-docs/`.
 
 Host coverage differs, and `INFRASTRUCTURE.md` holds the per-host table. Claude and Codex
-register all eight commands. Grok prints nothing for the routing, ladder, and handoff cards.
-Instruction files carry the routing and ladder guidance there, and the handoff nudge has no Grok
-substitute. The dispatch guard counts a subagent's rounds only where the hook payload carries an
+register all eight commands. Grok prints nothing for the routing and ladder cards. The handoff
+nudge reaches the model as a PostToolUse note once a context band is crossed. UserPromptSubmit
+stdout stays discarded. Instruction files carry the routing and ladder guidance. On Grok the
+lead also assesses CONTINUE, COMPACT, or HANDOFF at 150,000 tokens and again before 200,000,
+because Grok 4.7 bills double above that line. The dispatch guard counts a subagent's rounds only where the hook payload carries an
 `agent_id`, so its round counter is inert on a host that omits that field, and its dispatch
-advisories still run. OpenCode ports publishing, routing,
-compaction, digest, and index as plugin events, and has no ladder card, session receipt,
-handoff nudge, dispatch guard, or pending-handoff line.
+advisories still run. OpenCode carries publishing, routing,
+compaction, digest, index, the implementer ladder, a handoff note, a dispatch guard, and a
+cost ledger in the generated lifecycle plugin.
 
 ## Before declaring any change done
 

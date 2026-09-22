@@ -4,8 +4,8 @@ description: "Use when you want grounded, external-best-practice improvements pr
 
 # Research improve: ground the code, gather the outside, propose verified improvements
 
-**Invoked as `/researcher:research-improve`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
+**Invoked as `/researcher:research-improve`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
 section.
 

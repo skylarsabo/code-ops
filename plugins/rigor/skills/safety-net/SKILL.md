@@ -4,8 +4,8 @@ description: "Use before refactoring or fixing low-coverage code. Writes charact
 
 # Safety net: pin behavior before you touch it
 
-**Invoked as `/rigor:safety-net`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the verification-first methodology
+**Invoked as `/rigor:safety-net`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
 rails this skill follows.

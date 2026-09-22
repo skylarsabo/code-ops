@@ -147,8 +147,8 @@ purge runs. Receipts omit raw paths, agent IDs, prompts, and commands. Evidence:
 directory unless `--all` is present, and normalizes current response usage. A receipt follows
 child rollout `parent_thread_id` links rather than assuming Claude's nested directory layout.
 For installed Grok 1.0.13, the receipt parser reads cumulative per-prompt snapshots from the
-session's `updates.jsonl` and records `ladderCard=false`, `handoffCard=false`, and
-`handoffPickup=false`. Every receipt
+session's `updates.jsonl` and records `ladderCard=false` and `handoffPickup=false`.
+`handoffCard` follows its switch, because PostToolUse delivers that note. Every receipt
 also records the handoff band the session reached and whether the operator ran
 `/code-ops-suite:handoff`, so `receipts --by-arm` reads the handoff card against its own control.
 The `arms` object also carries `handoffPickup` and `dispatchGuard`, each read from its own switch.
@@ -178,11 +178,11 @@ byte-identical packaging.
 | Digest and index | Native hooks | `updatedInput` digest and `PostToolUse` index side effect | Payload-adapted hooks | Mutable tool arguments and `file.edited` port |
 | Routing and compaction | Session context and `source=compact` restore | Instruction files only; passive stdout unavailable | Projected session context and restore | System-transform and compaction ports |
 | Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
-| Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Unavailable: no typed subagent-start callback |
-| Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Unavailable: no transcript callback |
-| Handoff card | Native | Instruction files only; passive stdout unavailable | Projected hook; silent if the payload omits `transcript_path` | Unavailable: no transcript or usage callback |
-| Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Unavailable: the routing card ships as text baked at build time |
-| Dispatch guard | Native | Registered; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id` | Unavailable: no pre-tool-call agent identity |
+| Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Lifecycle plugin injects it into the implementer |
+| Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
+| Handoff card | Native | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff | Projected hook; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage |
+| Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Lifecycle line on the first lead system transform |
+| Dispatch guard | Native | Registered; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id` | Lifecycle guard keyed by child `sessionID` |
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
 the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,

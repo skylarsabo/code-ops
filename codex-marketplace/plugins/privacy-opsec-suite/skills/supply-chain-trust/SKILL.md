@@ -7,8 +7,8 @@ description: "Use when you need to vet dependencies for telemetry, phone-home be
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `privacy-opsec-suite:supply-chain-trust`.** First read the bundled
-`<plugin-root>/CONVENTIONS.md`. Search the plugin directory for it if the path does
+**Invoke in Codex by naming `privacy-opsec-suite:supply-chain-trust`.** Read only the sections named in this paragraph of
+`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
 references by section.

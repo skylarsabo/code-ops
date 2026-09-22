@@ -4,8 +4,8 @@ description: "Use when you want the whole rigor suite run end-to-end as a checkp
 
 # Rigor sweep: the whole suite, end to end
 
-**Invoked as `/rigor:rigor-sweep`.** First read the bundled
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the verification-first methodology
+**Invoked as `/rigor:rigor-sweep`.** Read only the sections named in this paragraph of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
 rails this skill follows.

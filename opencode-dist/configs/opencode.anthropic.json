@@ -6,22 +6,22 @@
       "model": "anthropic/claude-haiku-4-5-20251001"
     },
     "code-ops-suite-implementer": {
-      "model": "anthropic/claude-opus-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "code-ops-suite-reviewer": {
-      "model": "anthropic/claude-opus-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "privacy-opsec-suite-explorer": {
       "model": "anthropic/claude-haiku-4-5-20251001"
     },
     "privacy-opsec-suite-privacy-reviewer": {
-      "model": "anthropic/claude-opus-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "rigor-tracer": {
-      "model": "anthropic/claude-opus-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "rigor-verifier": {
-      "model": "anthropic/claude-opus-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "researcher-claim-checker": {
       "model": "anthropic/claude-sonnet-5"

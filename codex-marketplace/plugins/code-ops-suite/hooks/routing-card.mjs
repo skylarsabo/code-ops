@@ -77,14 +77,12 @@ function main() {
     'library/dependency decision -> researcher:library-eval',
     'claim verification -> researcher:research-verify',
     'everything (broad/multi-domain) -> code-ops-suite:everything',
-    'substantive work -> frontier orchestrator delegates every independently briefable unit, launches at least two disjoint units in parallel when possible, then selects each role, model tier, and effort from the task; strong is the judgment floor, while mechanical and breadth work may use their declared lower floors',
-    'the root continuously synthesizes, challenges assumptions, reprioritizes, and redirects; inline busy work requires a stated trivial-or-indivisible exception',
-    'a dispatch costs context times turns: use the narrowest shipped agent (code-ops-suite:implementer for build work, never general-purpose), name a round budget in the brief, keep breadth agents at their declared tier, and batch independent tool calls',
-    'one frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; record its rationale and stopping criterion, then keep verdicts and acceptance with the lead',
-    'say in a line what you are about to do, give brief updates while you work, and close with a recap that stands on its own',
+    'substantive work -> frontier lead, task-based tiers, disjoint units in parallel when the graph allows; strong is the judgment floor',
+    'a dispatch costs context times turns: code-ops-suite:implementer for build work, a round budget, breadth agents at their declared tier',
+    'one frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; the lead keeps the verdict',
+    'say what you are about to do, then close with a recap that stands on its own',
     'only you see a command\'s output; put what the user needs to read in your reply',
-    'context economy: skim before reading, query the symbol index before a map, digest output is on by default, size is a tie-breaker behind correctness, boundaries, performance, and readability',
-    'see: in the code-ops repository, https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Handbook/11-standard-operating-mode.md and https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/dispatch-brief-template.md',
+    'context economy: read the named convention sections only, skim before a whole file, and query the symbol index before a map',
   ];
   if (payload?.source === 'compact') {
     lines.push('compaction resume: restore decisions, constraints, completed and open work, exact identifiers, and named durable artifacts before continuing; never restore redacted values');

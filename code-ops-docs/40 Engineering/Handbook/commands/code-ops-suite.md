@@ -97,8 +97,9 @@ pointer, not a second contract.
 - `co context audit` summarizes where a session's context went. `co context audit receipts` reads the session-receipt ledger back, `--by-arm` groups sessions by the switches they ran under, and `--purge-before <ISO date>` trims old rows.
 - The `SessionEnd` hook `session-receipt.mjs` appends one normalized receipt on Claude,
   Codex, and installed Grok 1.0.13. Codex follows child `parent_thread_id` links; Grok reads
-  cumulative `updates.jsonl` usage and records the ladder arm false. OpenCode has no automatic
-  transcript callback. The switch is `CODE_OPS_RECEIPTS`, and it may name the ledger path.
+  cumulative `updates.jsonl` usage and records the ladder and pickup arms false. `handoffCard`
+  follows its switch. OpenCode has no automatic transcript callback; its lifecycle plugin writes
+  a cost ledger instead. The switch is `CODE_OPS_RECEIPTS`, and it may name the ledger path.
 - The `SubagentStart` hook `ladder-card.mjs` prints the code-economy ladder on Claude and
   Codex. Grok passive stdout is ignored, so its instruction files carry the doctrine. OpenCode
   has no typed subagent-start callback. The switch is `CODE_OPS_LADDER_CARD`.

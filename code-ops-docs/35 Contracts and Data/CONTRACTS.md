@@ -207,8 +207,8 @@ The `SessionEnd` hook `session-receipt.mjs` is on by default on hosts that expos
 callback. Claude summarizes the main transcript and its `subagents/*.jsonl` siblings. Codex
 reads peer rollouts and follows `session_meta.payload.parent_thread_id` to include descendants.
 Installed Grok 1.0.13 reads cumulative per-prompt usage from the session's `updates.jsonl`;
-its receipt records `arms.ladderCard=false`, `arms.handoffCard=false`, and
-`arms.handoffPickup=false`. `arms` also carries `handoffPickup` and `dispatchGuard`, each read
+its receipt records `arms.ladderCard=false` and `arms.handoffPickup=false`.
+`arms.handoffCard` follows its switch, because PostToolUse delivers that note. `arms` also carries `handoffPickup` and `dispatchGuard`, each read
 from its own switch the way every other arm is; `CODE_OPS_DISPATCH_GUARD=warn` records
 `dispatchGuard=true`, because only the hard stop is lifted. Every receipt also
 carries `handoff`, the highest band the session's handoff marker reached and whether the
@@ -580,21 +580,20 @@ confirmed live at `learn.chatgpt.com/docs/hooks`) carrying `session_id` and `pro
 with the same `hookSpecificOutput.additionalContext` output contract this plugin already uses
 for its other Codex-projected hooks; its documented event-specific field list does not include
 `transcript_path`, so a Codex payload that omits it degrades silently to no nudge, the same as a
-missing transcript file. Installed Grok 1.0.13 is treated as a passive event here, matching
-`routing-card.mjs` and `ladder-card.mjs`: the hook emits nothing when `GROK_PLUGIN_ROOT` is set,
-and `CLAUDE.md`/`AGENTS.md` carry the doctrine instead. OpenCode's plugin API has no transcript
-or usage-bearing callback — the same gap `session-receipt.mjs` documents — so this hook is not
-ported there; its nearest hook, `chat.message`, fires per submitted message and can inject a
-context `Part`, but carries no usage or token data to compute the metric from. Evidence:
-`code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
-`code-ops-docs/35 Contracts and Data/CONTRACTS.md#session-receipt-hook`.
+missing transcript file. Installed Grok discards UserPromptSubmit stdout. On `PostToolUse` the
+same script reads `updates.jsonl` and emits `additionalContext` when `GROK_PLUGIN_ROOT` is set.
+That covers the TUI, headless `grok -p`, and the ACP agent. `CLAUDE.md` and `AGENTS.md` still
+carry the assessment, because a turn with no tool call never fires `PostToolUse`. OpenCode does
+not run this hook. `scripts/opencode-lifecycle.js` delivers the note from `message.updated`
+usage. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
+`plugins/code-ops-suite/hooks/handoff-card.mjs`.
 
 Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
 receipt, or cost proof. It directs the lead to run `handoff assess` at a safe boundary and choose
 CONTINUE, COMPACT, or HANDOFF; a higher band asks for that assessment before a new workstream.
 The marker proves only that the hook wrote a prior message. It does not prove that the host
 displayed it, that a boundary existed, or that any action was chosen. Evidence:
-`plugins/code-ops-suite/hooks/handoff-card.mjs:141-151`.
+`plugins/code-ops-suite/hooks/handoff-card.mjs:184-188`.
 
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant

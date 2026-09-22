@@ -9,7 +9,7 @@ description: "Use when you need to capture the reasons behind a codebase's archi
 
 **Invoked as `/code-ops-suite-adr`, or by the model through the `skill` tool as `code-ops-suite-adr`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, and local documentation MCP registration run automatically. Ladder cards, session receipts, the dispatch guard, and the pending-handoff line are unavailable on this host. First read the `<plugin-root>/CONVENTIONS.md`, and
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the `<plugin-root>/CONVENTIONS.md`, and
 especially the **documentation quality standard (`§13`)**.
 **Mode:** DOCUMENT. **Produces:** numbered ADRs in `<repo>-docs/20 Decisions/ADRs/`. Match an
 existing ADR convention when the repo already has one.

@@ -313,8 +313,8 @@ const grokReceipt = run([hook], { input: JSON.stringify({ session_id: 'grok-sess
   env: { ...env, CODE_OPS_RECEIPTS: grokLedger, GROK_PLUGIN_ROOT: join(root, 'plugins', 'code-ops-suite') } });
 const grokRow = existsSync(grokLedger) ? JSON.parse(readFileSync(grokLedger, 'utf8')) : {};
 expect(grokReceipt.status === 0 && grokRow.tokens?.main?.total === 170 && grokRow.models?.['grok-model-a'] === 2
-  && grokRow.arms?.ladderCard === false && grokRow.arms?.handoffCard === false && grokRow.arms?.handoffPickup === false,
-  `Grok receipt reads deduplicated updates and records the unavailable card arms: ${JSON.stringify(grokRow)}`);
+  && grokRow.arms?.ladderCard === false && grokRow.arms?.handoffCard === true && grokRow.arms?.handoffPickup === false,
+  `Grok receipt reads deduplicated updates; ladder and pickup stay off, handoff follows the switch: ${JSON.stringify(grokRow)}`);
 rmSync(grokDir, { recursive: true, force: true });
 
 // receipts mode reads the ledger back.
