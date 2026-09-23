@@ -409,6 +409,24 @@ function grokUsageLine(inputTokens) {
       `the pickup line must name the five recap headings, got ${line}`);
     expect(fresh.stdout.split('\n').filter((l) => l.startsWith('pending handoff:')).length === 1, 'the pickup line must print once');
   }
+  // A handoff naming its Program ledger puts that path on the pickup line, ahead of the resume
+  // instruction. A placeholder or an overlong value stays off, so the card size stays bounded.
+  const programLine = (value) => {
+    writeFileSync(handoff, `# HANDOFF\n\nVerified-at: abc1234\r\n\r\n## Program\r\n\r\nProgram: ${value}\r\nPredecessor: none\r\n\r\n## Goal and state of play\n\nProgram: decoy/PROGRAM.md\n`);
+    return pickupLine(runCard(startup)) || '';
+  };
+  const withProgram = programLine('`fixture-docs/80 Runs/programs/p1/PROGRAM.md`');
+  expect(withProgram.includes('Program ledger: fixture-docs/80 Runs/programs/p1/PROGRAM.md; read it first.')
+    && withProgram.indexOf('Program ledger:') < withProgram.indexOf('Before other work'),
+  `a handoff with a Program line must name the ledger before the resume instruction, got ${withProgram}`);
+  expect(!withProgram.includes('decoy'), 'only the Program line under "## Program" may reach the card');
+  const bare = (() => { writeFileSync(handoff, '# HANDOFF\n'); return pickupLine(runCard(startup)) || ''; })();
+  expect(!bare.includes('Program ledger:'), 'a handoff without a Program section must not name a ledger');
+  expect(!programLine("[FILL: path to this program's PROGRAM.md ledger]").includes('Program ledger:'), 'a [FILL: placeholder must stay off the card');
+  expect(!programLine(`${'x/'.repeat(120)}PROGRAM.md`).includes('Program ledger:'), 'a Program path over 200 characters must stay off the card');
+  expect(Buffer.byteLength(withProgram) - Buffer.byteLength(bare) <= 240,
+    `the ledger must add at most 240 bytes to the pickup line, added ${Buffer.byteLength(withProgram) - Buffer.byteLength(bare)}`);
+  writeFileSync(handoff, '# HANDOFF\n');
   expect(pickupLine(runCard({ ...startup, source: 'clear' })) !== null, 'a cleared session must also get the pickup line');
   const compact = runCard({ ...startup, source: 'compact' });
   expect(/compaction resume: restore decisions, constraints, completed and open work/.test(compact.stdout),

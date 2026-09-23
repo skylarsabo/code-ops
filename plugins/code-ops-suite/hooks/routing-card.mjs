@@ -61,7 +61,21 @@ function pendingHandoff(cwd) {
   if (!best) return null;
   // Repo-relative with forward slashes, so the path reads the same on Windows and POSIX. Folder
   // names carry spaces ("80 Runs", "2026-09-18 token-spend-audit") and are never quoted here.
-  return { path: relative(cwd, best.file).split(sep).join('/'), written: localDate(best.mtime) };
+  return { path: relative(cwd, best.file).split(sep).join('/'), written: localDate(best.mtime), program: programPath(best.file) };
+}
+
+// The `Program:` path under the handoff's `## Program` heading, or null. The handoff is capped at
+// 8 KB, so only its first PROGRAM_SCAN_BYTES are read. A path longer than PROGRAM_PATH_CHARS or
+// still a `[FILL:` placeholder is left off the card, which keeps the card's size bounded.
+const PROGRAM_SCAN_BYTES = 8192;
+const PROGRAM_PATH_CHARS = 200;
+function programPath(file) {
+  let text;
+  try { text = readFileSync(file, 'utf8').slice(0, PROGRAM_SCAN_BYTES); } catch { return null; }
+  const section = /^##[ \t]+Program[ \t]*\r?$([\s\S]*?)(?=^##[ \t]|(?![\s\S]))/m.exec(text)?.[1] ?? '';
+  const value = /^[-*\t ]*Program:[^\S\r\n]*(.*)$/m.exec(section)?.[1].trim().replace(/^`(.*)`$/, '$1').trim();
+  if (!value || value.length > PROGRAM_PATH_CHARS || value.includes('[FILL:') || /[\u0000-\u001f]/.test(value)) return null;
+  return value;
 }
 
 function main() {
@@ -91,7 +105,8 @@ function main() {
     const cwd = typeof payload?.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
     const pending = pendingHandoff(cwd);
     if (pending) {
-      lines.push(`pending handoff: ${pending.path} (written ${pending.written}). Before other work, run the code-ops-suite:handoff skill in resume mode on it, verify its claims, and open your reply with a recap under five headings: work completed, key findings, in progress, left to do, project scope and constraints. If the operator's first request is unrelated, name the pending handoff in one line and proceed with their request.`);
+      const ledger = pending.program ? ` Program ledger: ${pending.program}; read it first.` : '';
+      lines.push(`pending handoff: ${pending.path} (written ${pending.written}).${ledger} Before other work, run the code-ops-suite:handoff skill in resume mode on it, verify its claims, and open your reply with a recap under five headings: work completed, key findings, in progress, left to do, project scope and constraints. If the operator's first request is unrelated, name the pending handoff in one line and proceed with their request.`);
     }
   }
   console.log(lines.join('\n'));

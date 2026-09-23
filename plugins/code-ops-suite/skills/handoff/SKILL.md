@@ -11,8 +11,16 @@ safety rails, the evidence standard, the shared-artifact rules, and the writing 
 (`§12`), beside the live checklist `TASKS.md`.
 
 `TASKS.md` holds one line per item, `- [x]` once done:
-`- [ ] <current state> · Owner: agent|operator · Done when: <observable check> · Pointer: <path[:line]>`.
-Keep it current through the run. It survives compaction and becomes the handoff's Open items.
+`- [ ] OI-<n> <current state> · Owner: agent|operator · Done when: <observable check> · Pointer: <path[:line]>`.
+Keep it current through the run. It survives compaction and becomes the handoff's Open items. The
+`OI-<n>` id stays stable across every hop, so the checker can diff open items between handoffs.
+
+`PROGRAM.md` is the durable program ledger that every handoff in one program shares. It lives
+beside the dated run folders, at `<runs root>/programs/<slug>/PROGRAM.md`, never inside one. Its
+sections are Program goal, Request history (append-only, each request verbatim with a leading
+`YYYY-MM-DD`), Scope documents (one bullet per design doc, spec, ADR, or register: a backticked
+path, `Status:`, and `Role:`), Decisions ledger (append-only; mark superseded entries, never
+delete them), and Closed items (id, how closed, pointer). Its cap is 32 KB.
 
 ## Assess the lifecycle first
 
@@ -53,10 +61,16 @@ Describe what **is true**, never what the next session should do: "the leak gate
 and the register sweep is not started". Point at a revision range or a path rather than restate
 `git log`, a register, or a report.
 
+Update `PROGRAM.md` first, creating it on the first hop: append this session's request, refresh
+the scope-document index and the decisions ledger, and move each open item closed this session
+into Closed items. Then write the handoff.
+
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs handoff draft --run <run dir> --base <ref> --out <run dir>/HANDOFF.md`.
 It fills every mechanical fact: `Verified-at`, branch, dirty paths, the `base..HEAD` range, Open
 items from the unchecked `TASKS.md` lines, each artifact stamped `Verified-at`, and the contract
 and receipt paths. Replace each `[FILL: ...]` placeholder with judgment, held to `§9`:
+- **Program:** added first, above Goal, because it points at the context every other section sits
+  in. It holds `Program: <path to PROGRAM.md>` and `Predecessor: <path to prior HANDOFF.md | none>`.
 - **Goal and state of play:** a `Request:` line with the operator's request verbatim, the phases complete, in flight, and not started, the automation level, and any steering (`§3`).
 - **Scope and constraints:** areas in and out of scope, and the operator's constraints in their exact words.
 - **Key findings:** one line each with `CONFIRMED`, `PROBABLE`, or `SPECULATIVE` and a pointer to its evidence.
@@ -73,7 +87,8 @@ detail in pointed-at files. The unfilled skeleton fails the check by design.
 Redact secrets and PII (`§4`). Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan redaction HANDOFF.md`
 and `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs check handoff HANDOFF.md`. The check enforces the
 shape and resolves each anchored pointer: `GONE` or `DRIFTED` fails, `MOVED` warns
-(`--strict-anchors` fails it).
+(`--strict-anchors` fails it). It also checks the lineage: every scope-document path exists, both
+requests sit in Request history, and each predecessor open-item id stays open or is closed.
 
 With a version 3 or newer contract, then run
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/run-runtime.mjs checkpoint --root . --contract <contract> --ledger <dispatch ledger> --handoff <handoff>`,
@@ -89,7 +104,9 @@ Close by noting that pickup is conditional: enabled and trusted hooks, a support
 
 ## Resume: verify, then continue
 
-Treat every claim as **context to verify against the tree, not fact to trust.** Run
+Treat every claim as **context to verify against the tree, not fact to trust.** Read the
+handoff's `PROGRAM.md` before the handoff itself: the goal, the request history, and the scope
+documents show the whole program, not only the last session. Run
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs handoff resume <HANDOFF.md> --root .` as the single
 verification step. It runs the redaction scan, revalidates every named register, runs
 `run-runtime.mjs status` and `resume` for a version 3 or newer contract, checks every anchor, and
@@ -105,7 +122,8 @@ every claim it marks unverified. Otherwise re-plan from what verified: traps pru
 decisions carry forward unless current code contradicts them. Surface each contradiction at a
 checkpoint (`§3`) instead of silently re-deciding.
 
-Open the reply with **Blocked on operator** items, then a recap under five headings: work
+Open the reply with the program goal and the scope-document list from `PROGRAM.md`, then the
+**Blocked on operator** items, then a recap under five headings: work
 completed, key findings, in progress, left to do, and project scope and constraints. Mark each
 claim **verified**, **moved**, or **drifted**. Preserve the recorded authority limits and ask only
 for authority the next consequential action lacks (`§3`, `§4`).
@@ -120,6 +138,8 @@ For an **Assess**:
   telemetry or capability is `UNKNOWN`. Use handoff recovery when continuation cannot safely progress.
 
 For a **Write**:
+- `PROGRAM.md` was updated before the handoff: this request appended, the scope-document index and decisions current, and closed items moved.
+- The `## Program` section names the ledger and the predecessor handoff, or `none` on the first hop.
 - `HANDOFF.md`, drafted by `co.mjs handoff draft`, states the goal with the operator's request verbatim, the scope and constraints in their exact words, the work completed as revision ranges and paths, the key findings each with a confidence label, the in-flight boundaries with anchored `file:line` pointers, the open items each carrying an owner and an observable done-when check, the decisions with their rejected alternatives, the traps and dead ends, the authority scope and limits, and every register path with a `Verified-at` stamp.
 - The file is state throughout, with no instructions, no `[FILL: ...]` placeholder, and nothing secret.
 - `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs check handoff HANDOFF.md` passes, beside the redaction scan above.
@@ -129,5 +149,6 @@ For a **Write**:
 For a **Resume**:
 - `co.mjs handoff resume` passed before any work continued: registers revalidated, anchors checked, runtime status and resume run for a version 3 or newer contract, and `HANDOFF.consumed` written by that passing run.
 - Contradictions were surfaced rather than silently resolved.
-- The reply opens with the operator-blocked items, then the five-heading recap, every claim marked verified, moved, or drifted.
+- `PROGRAM.md` was read before the handoff.
+- The reply opens with the program goal and scope documents, then the operator-blocked items, then the five-heading recap, every claim marked verified, moved, or drifted.
 - Authority needed for the next consequential action was confirmed without treating the handoff as a new grant.

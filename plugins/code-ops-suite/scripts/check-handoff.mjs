@@ -11,11 +11,11 @@
 // for truth, only for structure.
 //
 // WHAT IT CHECKS
-//   1. Every required heading is present: Goal and state of play, Scope and constraints, Work
+//   1. Every required heading is present: Program, Goal and state of play, Scope and constraints, Work
 //      completed, Key findings, In-flight boundaries, Open items, Registers and artifacts,
 //      Decisions made, Traps and dead ends, Authority, and Carried context. Matched by heading
 //      prefix, so a parenthetical suffix such as "Decisions made (reason; rejected options)"
-//      still matches. The first six answer the five questions an operator asks a resumed
+//      still matches. Goal through Open items answer the five questions an operator asks a resumed
 //      session: what was worked on, what was found, what is in progress, what is left, and what
 //      the scope and constraints are.
 //   2. A `Verified-at:` line exists somewhere in the file: the resume contract's re-verify
@@ -42,6 +42,19 @@
 //      from `co handoff draft` may remain on any line.
 //   8. Every top-level bullet under "## Key findings" carries a confidence label of CONFIRMED,
 //      PROBABLE, or SPECULATIVE. A finding handed on without one is read as certain.
+//   9. Program lineage. A handoff chain lost the original goal, the design docs, and older
+//      decisions after three or four hops, because each HANDOFF.md held only its own session.
+//      So "## Program" (heading 1 above) must carry `Program: <path>` and
+//      `Predecessor: <path to prior HANDOFF.md | none>`, each path absolute or relative to
+//      --root. Every top-level Open items bullet carries a stable id token such as `OI-7`; the
+//      first token on the bullet is the item's id across hops. The Program path must resolve to
+//      a PROGRAM.md at or under PROGRAM_CAP_BYTES with the PROGRAM_HEADINGS sections, a
+//      non-empty goal, a leading YYYY-MM-DD date on every Request history bullet, and this
+//      handoff's own `Request:` text inside Request history. Every Scope documents bullet names
+//      a backticked path that exists, plus `Status:` and `Role:`. Every Closed items bullet
+//      carries an id. When Predecessor is a path, it must resolve, its `Request:` text must sit
+//      in Request history, and each of its open-item ids must appear as the id of a bullet in
+//      this handoff's Open items or in PROGRAM.md Closed items. A dropped item fails by id.
 //
 // `--consume` writes `HANDOFF.consumed` beside the file, holding one ISO timestamp line, and
 // only when every check above passes. The resume direction writes it once verification
@@ -59,7 +72,7 @@
 // Exit: 0 = conformant; 1 = at least one violation (listed on stderr); 2 = usage error.
 // Pointer statuses and advisories print on stderr, so stdout carries only the one-line verdict.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path';
 import { parseOrDie, usage, git } from './cli-lib.mjs';
 // Imported by relative specifier: check-handoff.mjs ships vendored into
@@ -89,6 +102,7 @@ const SIZE_CAP_BYTES = 8 * 1024; // ~8 KB (design cap): detail lives in pointed-
 // Listed in the order the write contract writes them: the five an operator asks about first,
 // then the rest. Order is documentation here, never a check; only presence gates.
 const REQUIRED_HEADINGS = [
+  'Program',
   'Goal and state of play',
   'Scope and constraints',
   'Work completed',
@@ -116,6 +130,22 @@ const IMPERATIVE_VERBS = [
   'ensure', 'confirm', 'apply', 'enable', 'disable', 'finish', 'rename', 'replace', 'do',
 ];
 const IMPERATIVE_RE = new RegExp(`^[-*]\\s+(?:\\[[ xX]\\]\\s+)?(${IMPERATIVE_VERBS.join('|')})\\b`, 'i');
+
+// PROGRAM.md, the durable ledger one program's handoffs share (check 9). It outlives every run
+// folder, so its cap sits well above the handoff's own.
+const PROGRAM_CAP_BYTES = 32 * 1024;
+const PROGRAM_HEADINGS = ['Program goal', 'Request history', 'Scope documents', 'Decisions ledger', 'Closed items'];
+// A stable item id such as OI-7, PAR-100, or FEAT-012. The first one on a bullet is its id.
+const ITEM_ID_RE = /\b[A-Z][A-Z0-9]*-\d+\b/;
+const itemId = (line) => ITEM_ID_RE.exec(line)?.[0] ?? null;
+const bulletsOf = (body) => body.split('\n').filter((l) => /^[-*]\s+/.test(l));
+const findSection = (list, name) => list.find((s) => s.heading.toLowerCase().startsWith(name.toLowerCase()));
+// The text after `<label>:` on its own line, bulleted or not, or null when the line is absent.
+const labelValue = (body, label) => new RegExp(`^[-*\\t ]*${label}:[^\\S\\r\\n]*(.*)$`, 'm').exec(body)?.[1].trim() ?? null;
+const pathValue = (body, label) => labelValue(body, label)?.replace(/^`(.*)`$/, '$1').trim() || null;
+const squash = (s) => s.replace(/\s+/g, ' ').trim();
+const inRoot = (p) => (isAbsolute(p) ? p : resolve(flags.root, p));
+const isFile = (p) => { try { return statSync(p).isFile(); } catch { return false; } };
 
 // Splits the body into { heading, body } pairs on top-level (## ) headings, in document order.
 function sections(body) {
@@ -160,6 +190,9 @@ if (openSection) {
     if (IMPERATIVE_RE.test(line)) {
       violations.push(`Open items entry opens with an imperative verb: ${shown}`);
     }
+    if (!itemId(line)) {
+      violations.push(`Open items entry carries no stable id token such as OI-7: ${shown}`);
+    }
   }
 }
 
@@ -181,6 +214,80 @@ if (findingsSection) {
   for (const line of findingsSection.body.split('\n').filter((l) => /^[-*]\s+/.test(l))) {
     if (!CONFIDENCE_RE.test(line)) {
       violations.push(`Key findings entry carries no confidence label (CONFIRMED|PROBABLE|SPECULATIVE): ${line.trim().slice(0, 70)}`);
+    }
+  }
+}
+
+// ---- 9. Program lineage: the durable ledger and the carry-forward from the predecessor ----
+// Checks PROGRAM.md's own shape and returns its Request history text and closed-item ids.
+function checkProgram(file, shown) {
+  const body = readFileSync(file, 'utf8');
+  const tag = `PROGRAM.md (${shown})`;
+  const bytes = Buffer.byteLength(body, 'utf8');
+  if (bytes > PROGRAM_CAP_BYTES) {
+    violations.push(`${tag} is ${bytes} bytes, over the ${PROGRAM_CAP_BYTES}-byte cap. Move superseded detail into pointed-at files`);
+  }
+  const ps = sections(body);
+  for (const h of PROGRAM_HEADINGS) {
+    if (!findSection(ps, h)) violations.push(`${tag} missing required heading: "## ${h}"`);
+  }
+  const goal = findSection(ps, 'Program goal');
+  if (goal && !goal.body.trim()) violations.push(`${tag} "## Program goal" is empty`);
+  const history = findSection(ps, 'Request history');
+  if (history) {
+    const entries = bulletsOf(history.body);
+    if (entries.length === 0) violations.push(`${tag} "## Request history" holds no dated request`);
+    for (const line of entries) {
+      if (!/^[-*]\s+\d{4}-\d{2}-\d{2}\b/.test(line)) violations.push(`${tag} Request history entry has no leading YYYY-MM-DD date: ${line.trim().slice(0, 70)}`);
+    }
+  }
+  for (const line of bulletsOf(findSection(ps, 'Scope documents')?.body ?? '')) {
+    const shownLine = line.trim().slice(0, 70);
+    const doc = /`([^`\n]+)`/.exec(line)?.[1].trim();
+    if (!doc) violations.push(`${tag} Scope documents entry names no backticked path: ${shownLine}`);
+    else if (!existsSync(inRoot(doc))) violations.push(`${tag} Scope document does not exist on the tree: ${doc}`);
+    if (!/\bStatus:\s*\S/.test(line) || !/\bRole:\s*\S/.test(line)) violations.push(`${tag} Scope documents entry missing "Status:" or "Role:": ${shownLine}`);
+  }
+  const closed = new Set();
+  for (const line of bulletsOf(findSection(ps, 'Closed items')?.body ?? '')) {
+    const id = itemId(line);
+    if (id) closed.add(id);
+    else violations.push(`${tag} Closed items entry carries no stable id token: ${line.trim().slice(0, 70)}`);
+  }
+  return { history: squash(history?.body ?? ''), closed };
+}
+
+const programSection = findSection(secs, 'Program');
+if (programSection) {
+  const programPath = pathValue(programSection.body, 'Program');
+  const predecessor = pathValue(programSection.body, 'Predecessor');
+  if (!programPath) violations.push('"## Program" has no non-empty "Program: <path>" line');
+  if (!predecessor) violations.push('"## Program" has no "Predecessor: <path to prior HANDOFF.md | none>" line');
+  let program = null;
+  if (programPath) {
+    if (isFile(inRoot(programPath))) program = checkProgram(inRoot(programPath), programPath);
+    else violations.push(`Program path does not resolve to a file: ${programPath}`);
+  }
+  const ownRequest = labelValue(goalSection?.body ?? '', 'Request');
+  if (program && ownRequest && !program.history.includes(squash(ownRequest))) {
+    violations.push(`this handoff's Request: text is not in PROGRAM.md "## Request history": ${ownRequest.slice(0, 70)}`);
+  }
+  if (predecessor && !/^none$/i.test(predecessor)) {
+    if (!isFile(inRoot(predecessor))) {
+      violations.push(`Predecessor path does not resolve to a file: ${predecessor}`);
+    } else if (program) {
+      const prior = sections(readFileSync(inRoot(predecessor), 'utf8'));
+      const priorRequest = labelValue(findSection(prior, 'Goal and state of play')?.body ?? '', 'Request');
+      if (!priorRequest) violations.push(`predecessor ${predecessor} has no "Request:" line to carry forward`);
+      else if (!program.history.includes(squash(priorRequest))) {
+        violations.push(`the predecessor's Request: text is not in PROGRAM.md "## Request history": ${priorRequest.slice(0, 70)}`);
+      }
+      const carried = new Set([...program.closed, ...bulletsOf(openSection?.body ?? '').map(itemId).filter(Boolean)]);
+      for (const line of bulletsOf(findSection(prior, 'Open items')?.body ?? '')) {
+        const id = itemId(line);
+        if (!id) violations.push(`predecessor open item carries no id, so its carry-forward cannot be checked: ${line.trim().slice(0, 70)}`);
+        else if (!carried.has(id)) violations.push(`predecessor open item ${id} was dropped: it is in neither "## Open items" nor PROGRAM.md "## Closed items"`);
+      }
     }
   }
 }

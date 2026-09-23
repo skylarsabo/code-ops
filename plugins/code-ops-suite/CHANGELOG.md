@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.92.0
+- Handoffs carry program lineage. `HANDOFF.md` opens with a `## Program` section naming a program ledger at `<runs root>/programs/<slug>/PROGRAM.md` and the predecessor handoff. The ledger holds the program goal, request history, scope documents, decisions, and closed items, capped at 32 KB.
+- `check-handoff` fails when a handoff drops the predecessor's request or leaves a predecessor open item neither carried forward nor closed. Open items use stable `OI-<n>` ids.
+- The handoff draft prefills the Program section and carries the predecessor's open items forward. The session-start pickup line names the program ledger to read first.
+
 ## 1.91.2
 - The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
 
