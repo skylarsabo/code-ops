@@ -24,7 +24,7 @@ The shared methodology lives in
 reads it first. The suite overview is in
 [`plugins/rigor/README.md`](../../../../plugins/rigor/README.md).
 
-This plugin ships **11 skills**, namespaced `/rigor:<name>`. Invoke a skill by slash command,
+This plugin ships **10 skills**, namespaced `/rigor:<name>`. Invoke a skill by slash command,
 or let the model route to it under the standard-operating-mode routing card.
 Side-effect-bearing phases keep their checkpoints, and nothing ever auto-merges. If you are
 new to the handbook, read the orientation lines under each entry. If you already run the
@@ -55,9 +55,8 @@ Foundation and discovery (AUDIT and IMPLEMENT-tests):
 - [`/rigor:regression-hunt`](#rigorregression-hunt): bisect a bug to its origin commit, then hunt regressions in recent changes.
 - [`/rigor:quality-scan`](#rigorquality-scan): high-signal, defect-causing quality issues with evidence and a tier. No cosmetics.
 
-Closure, improvement, fix, and review (IMPLEMENT and REVIEW):
+Improvement, fix, and review (IMPLEMENT and REVIEW):
 
-- [`/rigor:consistency-closure`](#rigorconsistency-closure): one canonical form, every site migrated, an enforcement added.
 - [`/rigor:improve-measured`](#rigorimprove-measured): behavior-preserving improvements with a baseline, a result, and a delta.
 - [`/rigor:fix-verified`](#rigorfix-verified): fix CONFIRMED bugs at root cause with a failing-to-passing regression test and a guard.
 - [`/rigor:deep-review`](#rigordeep-review): review a PR or diff at the verification bar, blocking only on CONFIRMED defects and regressions.
@@ -240,46 +239,16 @@ short, high-signal list rather than padding.
 logic bugs, found with evidence. It complements `bug-hunt` in a discovery phase. Do not use
 it for cosmetic cleanup, which is out of scope. Do not use it for deep correctness bugs that
 need a derived-invariant trace, which is `bug-hunt`. Do not use it for closing divergent
-implementations of one concept, which is `consistency-closure`.
+implementations of one concept, which is the concept mode of
+`code-ops-suite:normalize`.
 
 **Prerequisites and hand-offs.** It reads `GROUND_TRUTH.md`, so run `ground-truth` first. It
 produces tiered `FINDINGS_REGISTER.md` entries that feed `fix-verified` for defects, and that
-may seed `consistency-closure` for divergence.
+may seed the `normalize concept` mode for divergence.
 
 ---
 
-## Closure, improvement, fix, and review
-
-### `/rigor:consistency-closure`
-**Mode:** IMPLEMENT (closure changes are confirmed with you)
-
-**How it works.** It follows the closure protocol `§9` in four phases:
-
-- **Phase 0** scopes the concept space at a checkpoint. Examples are error handling, data access, validation, the naming of one idea, and API response shape.
-- **Phase 1** inventories the variants, grouped by concept, each variant shown with `file:line`: divergent implementations of the same concept, drifted duplication, inconsistent return, error, and null conventions, contract drift across call sites, and inconsistent naming.
-- **Phase 2** proposes one canonical form per group with a rationale. The developer approves before any migration, at an explicit checkpoint that is a real decision.
-- **Phase 3** migrates every other site behavior-preservingly and conflict-aware, each site tested and committed. It then adds a mechanical enforcement (a lint rule, a codemod or CI check, a shared type, or a test) so the divergence cannot recur unnoticed, verifying nothing regressed through the regression guard `§H`.
-
-**Produces** `CONSISTENCY_REGISTER.md` mapping concept to canonical form to sites migrated to
-enforcement, plus the diffs and the enforcement config. The finished register must pass
-`revalidate-register.mjs` clean before the run is done.
-
-**Why it's useful.** "Closed" means the divergence is mechanically prevented from returning,
-not fixed once. You get one canonical form, every site converged, and a guard that keeps it
-that way.
-
-**When to use it.** Use it when the same concept is implemented divergently and you want it
-closed for good. Compared with `code-ops-suite:normalize`, reach for `consistency-closure` to
-pick one canonical form for a specific concept, migrate every site, and add an enforcement at
-the verification bar. Reach for `normalize` for whole-repo style normalization. Do not use it
-to choose a canonical form without then adding the enforcement, because the enforcement is
-the point.
-
-**Prerequisites and hand-offs.** It may be seeded by divergence findings from `quality-scan`
-or `bug-hunt`. It produces `CONSISTENCY_REGISTER.md` and the enforcement. Its migrations are
-protected by the regression guard alongside the rest of the proof set.
-
----
+## Improvement, fix, and review
 
 ### `/rigor:improve-measured`
 **Mode:** IMPLEMENT (through the fix-prove-guard loop `§8`)
@@ -335,7 +304,7 @@ fixes stay fixed.
 **When to use it.** Use it when CONFIRMED bugs exist and you want them fixed with proof. It
 fixes CONFIRMED items only. A PROBABLE item must be reproduced, and so promoted to CONFIRMED,
 first. Do not use it to discover bugs, which is `bug-hunt`. Do not use it to make non-bug
-improvements, which are `improve-measured` and `consistency-closure`.
+improvements, which are `improve-measured` and the `normalize concept` mode of code-ops-suite.
 
 **Prerequisites and hand-offs.** It consumes a `FINDINGS_REGISTER.md` of CONFIRMED items from
 `bug-hunt`, `regression-hunt`, or `quality-scan`. It benefits from a `safety-net` and a
@@ -402,7 +371,7 @@ phase boundary:
 - **Phase 3** finds read-only with proofs through `bug-hunt`, going deep per subsystem, and `quality-scan`, using `regression-hunt` to bisect any confirmed regression. It then checkpoints on the CONFIRMED-led register.
 - **Phase 4** runs `safety-net` on blind spots and on anything queued for change.
 - **Phase 5** runs `fix-verified` on CONFIRMED bugs. This phase writes code, requires approval, and checkpoints per batch.
-- **Phase 6** runs `consistency-closure`.
+- **Phase 6** runs the `normalize concept` mode when code-ops-suite is installed.
 - **Phase 7** optionally runs `improve-measured`.
 
 The master `EXECUTIVE_SUMMARY.md` separates CONFIRMED from PROBABLE and SPECULATIVE, and

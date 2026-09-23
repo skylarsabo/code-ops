@@ -90,8 +90,8 @@ test, a root-cause fix, a sibling sweep, the regression guard, and an enforcemen
 
 ## Phase 6: close inconsistencies
 
-Run **consistency-closure**. Approve a canonical form per concept, migrate every site, and
-add the enforcement.
+When code-ops-suite is installed, run its `normalize concept <name>` mode per concept.
+Approve a canonical form per concept, migrate every site, and add the enforcement.
 
 ## Phase 7: improve, optional and as scoped
 

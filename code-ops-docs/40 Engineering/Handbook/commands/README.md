@@ -95,7 +95,7 @@ which routes each plugin set supports, see
 | **Check whether a repo is on the standard at all** | `/code-ops-suite:conform` | code-ops-suite | Assesses the standards contract, the vault, the atlas, and doc drift in one read-only pass, then repairs surface by surface under checkpoint. |
 | **Give design notes and decisions a standard home** | `/code-ops-suite:vault` | code-ops-suite | Scaffolds, migrates, or checks `<repo>-docs/`: the numbered Obsidian layout, a versioned `Standard.md`, and note frontmatter, checked fail-closed. |
 | **Hand a long run to a fresh session** | `/code-ops-suite:handoff` | code-ops-suite | Write verifiable state (decisions, dead ends, anchored pointers) before a context limit; Resume re-verifies every claim before continuing. |
-| **Close an inconsistency so it cannot return** | `/rigor:consistency-closure` | rigor | Pick a canonical form, migrate every site, add a lint/test enforcement. |
+| **Close an inconsistency so it cannot return** | `/code-ops-suite:normalize concept <name>` | code-ops-suite | Pick a canonical form, migrate every site, add a lint/test enforcement. |
 | **Model how a user could be deanonymized** | `/privacy-opsec-suite:anonymity-threat-model` | privacy-opsec-suite | The keystone artifact every leak audit frames against. |
 | **Find anonymity leaks across the surface** | `/privacy-opsec-suite:anonymity-threat-model` → `/privacy-opsec-suite:tor-egress-audit` + `/privacy-opsec-suite:metadata-leak-audit` + `/privacy-opsec-suite:anon-session-audit` + `/privacy-opsec-suite:fingerprint-resistance` + `/privacy-opsec-suite:traffic-analysis-resistance` + `/privacy-opsec-suite:supply-chain-trust` | privacy-opsec-suite | The six parallel leak audits → `LEAK_REGISTER.md`. |
 | **Harden the leaks I found** | `/privacy-opsec-suite:opsec-hardening` | privacy-opsec-suite | Implements the leak backlog; each leak gets a regression test, fail-closed. |
@@ -170,7 +170,7 @@ switches themselves.
 Full entries for every command, grouped by plugin and in invocation order:
 
 - [code-ops-suite.md](code-ops-suite.md) carries **31 commands**: the engineering spine (assess, build, deep-dives, local review, gate and consistency, docs and knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep`, `everything`, `ship`, `debug`).
-- [rigor.md](rigor.md) carries **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
+- [rigor.md](rigor.md) carries **10 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) carries **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) carries **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).
 

@@ -41,7 +41,6 @@ example on this page is illustration and not page structure.
 | `code-ops-suite:everything` | `code-ops-suite:local-review-gate` | phase 11, after each final stack diff is committed and before its PR exists | plan, two reports, and receipt chain |
 | `code-ops-suite:local-review-gate` | `rigor:deep-review` | Track A, against the exact committed diff | ignored deep-review report and SHA-bound receipt |
 | `code-ops-suite:local-review-gate` | `privacy-opsec-suite:opsec-pr-gate` | Track A, against the exact committed diff | ignored OpSec report and SHA-bound receipt |
-| `code-ops-suite:normalize` | `rigor:consistency-closure` | routing pointer: divergent implementations of one concept go there instead | none (routing pointer) |
 | `code-ops-suite:performance` | `rigor:improve-measured` | routing pointer: broad behavior-preserving measured wins go there instead | none (routing pointer) |
 | `code-ops-suite:pr-split` | `rigor:ground-truth` | for the build/test/lint baseline | `GROUND_TRUTH.md` |
 | `code-ops-suite:pr-split` | `privacy-opsec-suite:authorship-hygiene` | always, fail-closed, before any push | none named (scrubbed commits/PRs) |
@@ -58,8 +57,7 @@ example on this page is illustration and not page structure.
 | `code-ops-suite:ship` | `code-ops-suite:pr-split` | the change ships as a stack rather than one PR | none named (a PR stack) |
 | `code-ops-suite:test-hardening` | `rigor:test-suite-audit` | routing pointer: auditing whether existing tests catch faults goes there | none (routing pointer) |
 | `code-ops-suite:vault` | `code-ops-suite:conform` | hand-off: the contract pair owns the documentation section routing to the vault | none named (the contract pair) |
-| `privacy-opsec-suite:authorship-hygiene` | `code-ops-suite:normalize` | hand-off: repo-wide one-style work is out of this skill's scope | none named |
-| `privacy-opsec-suite:authorship-hygiene` | `rigor:consistency-closure` | hand-off: divergent implementations of one concept are out of scope | none named |
+| `privacy-opsec-suite:authorship-hygiene` | `code-ops-suite:normalize` | hand-off: repo-wide one-style work and divergent implementations of one concept (its concept mode) are out of this skill's scope | none named |
 | `privacy-opsec-suite:opsec-pr-gate` | `rigor:deep-review` | routing pointer: the verification-bar counterpart | none (routing pointer) |
 | `researcher:ecosystem-watch` | `code-ops-suite:dependency-upgrade` | hand-off: CVEs and version bumps | `ECOSYSTEM_WATCH.md` |
 | `researcher:ecosystem-watch` | `privacy-opsec-suite:supply-chain-trust` | hand-off: egress/telemetry/provenance concerns | `ECOSYSTEM_WATCH.md` |
@@ -92,7 +90,6 @@ example on this page is illustration and not page structure.
 | `researcher:research-verify` | `rigor:fix-verified` | hand-off: cleared entries needing proof-backed fixes | the verdict report |
 | `researcher:research-verify` | `rigor:improve-measured` | hand-off: cleared entries needing a measured delta | the verdict report |
 | `rigor:bug-hunt` | `rigor:ground-truth` | `GROUND_TRUTH.md` is absent: fallback producer | `GROUND_TRUTH.md` |
-| `rigor:consistency-closure` | `code-ops-suite:normalize` | routing pointer: whole-repo style normalization goes there | none (routing pointer) |
 | `rigor:deep-review` | `privacy-opsec-suite:opsec-pr-gate` | routing pointer: the anonymity gate | none (routing pointer) |
 | `rigor:fix-verified` | `rigor:bug-hunt` | `FINDINGS_REGISTER.md` is absent: fallback producer | `FINDINGS_REGISTER.md` |
 | `rigor:improve-measured` | `code-ops-suite:performance` | routing pointer: profiling-led hot-path work goes there | none (routing pointer) |
@@ -101,10 +98,10 @@ example on this page is illustration and not page structure.
 ## Standalone skills
 
 Every skill not named above issues no qualified reference and receives none. Each runs its
-own loop against its own `CONVENTIONS.md`. Twenty-one of the marketplace's sixty-six skills
+own loop against its own `CONVENTIONS.md`. Twenty-one of the marketplace's sixty-two skills
 are standalone, and they fall in two plugins:
 
-- `code-ops-suite` (11 of 34): `api-docs`, `architecture`, `current-docs`,
+- `code-ops-suite` (11 of 31): `api-docs`, `architecture`, `current-docs`,
   `data-model`, `handoff`, `onboarding`, `ops-docs`, `provider-parity-audit`,
   `repo-docs`, `run-cost-audit`, `security-privacy-audit`.
 - `privacy-opsec-suite` (10 of 14): `anon-session-audit`, `anonymity-threat-model`,
@@ -112,7 +109,7 @@ are standalone, and they fall in two plugins:
   `opsec-hardening`, `privacy-doc-alignment`, `privacy-feature-design`,
   `tor-egress-audit`, `traffic-analysis-resistance`.
 
-Every `rigor` skill (11 of 11) and every `researcher` skill (7 of 7) carries at least
+Every `rigor` skill (10 of 10) and every `researcher` skill (7 of 7) carries at least
 one edge.
 
 Three of the four sweep orchestrators sequence their own plugin's skills by name in prose

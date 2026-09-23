@@ -64,8 +64,8 @@ over-defensive scaffolding where the neighbors are terser.
 - **Stay behavior-preserving.** The suite stays green. Anything that could change behavior
   is surfaced rather than applied.
 - **Delegate rather than duplicate.** Send a repository-wide single style to
-  `/code-ops-suite-normalize`, and divergent implementations of one concept to
-  `/rigor-consistency-closure`. L3 only makes this diff indistinguishable from its neighbors.
+  `/code-ops-suite-normalize`, and divergent implementations of one concept to its
+  concept mode. L3 only makes this diff indistinguishable from its neighbors.
 
 ## The fail-closed gate
 

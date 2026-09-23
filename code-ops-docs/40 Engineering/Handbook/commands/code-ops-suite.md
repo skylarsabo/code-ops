@@ -345,34 +345,36 @@ findings. It feeds residual items back to the register.
 ### `/code-ops-suite:normalize`
 **Mode:** IMPLEMENT (behavior-preserving)
 
-**How it works.** Two phases:
+**How it works.** It has two modes. The default `normalize` runs the whole-repo pass in two
+phases. `normalize concept <name>` runs the concept mode instead.
 
 - **Phase 0** (required checkpoint) detects tooling, derives the house style from the codebase's dominant patterns, and inventories the tells of hasty or generated code, the inconsistencies, and the modularization opportunities. It baselines tests, build, lint, and coverage, and captures the ratified standard in `STYLE_GUIDE.md`. A tells checklist drives the hunt: narration comments, tutorial voice, placeholder and disclaimer comments, emoji, inflated prose, debug residue, generic names, over-defensive ceremony, over-engineered indirection, section-divider mega-functions, commented-out code, and inconsistent terminology.
 - **Phase 1** fans out conflict-aware across nine workstreams: style and formatting, naming, comments, dead-code removal, standardizing recurring operations, modularization, method clarity, README and docs, and version-control history. It commits in reviewable logical chunks and finishes with a hostile-reviewer pass.
+- **Concept mode** closes the divergent implementations of one concept, such as error handling, data access, validation, the naming of one idea, or one API response shape. It scopes the concept at a checkpoint and inventories every variant at `file:line`. It proposes one canonical form per group for the developer to approve, then migrates every other site with a test for each. It adds a mechanical enforcement (a lint rule, a codemod or CI check, a shared type, or a test) so the divergence cannot recur unnoticed.
 
 Behavior preservation is absolute. Tests stay green at every step, and where coverage is thin,
 characterization tests come first.
 
 **Produces** the normalized codebase, `STYLE_GUIDE.md`, an enforced linter and formatter
 config with a recommended pre-commit or CI gate, `NORMALIZATION_LOG.md`, and a separate list of
-behavior-changing issues found and not fixed here.
+behavior-changing issues found and not fixed here. The concept mode produces
+`CONSISTENCY_REGISTER.md`, the migration diffs, and the enforcement. The register must pass
+`revalidate-register.mjs --strict --profile consistency --min-items 1` before the run is done.
 
 **Why it's useful.** It makes the codebase read as the consistent work of one experienced
 team, and hold up under line-by-line review. The standard is machine-enforced, so consistency
 cannot silently rot again.
 
 **When to use it.** Use it when a codebase has inconsistent style or the artifacts of hasty or
-generated code and you want one professional standard. Do not use it to close divergent
-implementations of a concept, meaning two competing ways to do the same thing, which is
-`rigor:consistency-closure`.
+generated code and you want one professional standard. Use the concept mode when one concept
+is implemented two or more competing ways and you want it closed for good. Do not choose a
+canonical form without adding the enforcement, because the enforcement is the point.
 
-**Sibling disambiguation, `normalize` against `rigor:consistency-closure`.**
-`code-ops-suite:normalize` is about surface and style: one coherent voice everywhere, tells
-removed, dead code gone, recurring operations done the same way, enforced by a linter and
-formatter config. `rigor:consistency-closure` is about semantic convergence. When a concept is
-implemented several divergent ways, it picks one canonical form, migrates every site, and adds
-enforcement so the divergence cannot recur. Use `normalize` to make the code look like one
-team wrote it, and `consistency-closure` to make a concept behave one way everywhere.
+**Mode disambiguation, the whole-repo pass against the concept mode.** The whole-repo pass is
+about surface and style: one coherent voice everywhere, tells removed, dead code gone,
+recurring operations done the same way, enforced by a linter and formatter config. The concept
+mode is about semantic convergence of one concept. Use the whole-repo pass to make the code
+look like one team wrote it, and the concept mode to make a concept behave one way everywhere.
 
 **Prerequisites and hand-offs.** It has no prerequisites, and uses `test-hardening`-style
 characterization where coverage is thin. It routes behavior-changing finds to a separate list
@@ -1053,7 +1055,7 @@ The phases run in order:
 - **5 Safety net**: rigor `safety-net`.
 - **6 Consolidated review**: the main go or no-go checkpoint.
 - **7 Remediate**: rigor `fix-verified`, code-ops `remediation`, and privacy-opsec `opsec-hardening`.
-- **8 Close inconsistencies**: rigor `consistency-closure`.
+- **8 Close inconsistencies**: code-ops `normalize concept`.
 - **9 Improve**: rigor `improve-measured`, code-ops `performance`, and `dependency-upgrade`.
 - **10 Normalize and document**: code-ops `normalize` plus the doc generators.
 - **11 Final verification, report, and ship**: `pr-split` with `authorship-hygiene`.

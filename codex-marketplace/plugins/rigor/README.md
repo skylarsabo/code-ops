@@ -11,7 +11,6 @@ Name a workflow in Codex as `rigor:<skill>`. Every generated skill sets `policy.
 ## Skills
 
 - `bug-hunt` — Use when you want REAL bugs found and proven, not a list of guesses. Each candidate is proven with a failing test. The flagship.
-- `consistency-closure` — Use when the same concept is implemented divergently and you want it closed for good, in one canonical form, mechanically enforced. For whole-repo style normalization, see code-ops-suite:normalize.
 - `deep-review` — Use for a pre-merge review of a PR or diff. bar verified (default) blocks only on CONFIRMED defects; bar standard reviews every quality lens with unproven items advisory.
 - `fix-verified` — Use when CONFIRMED bugs exist and you want them fixed at root cause with proof. Requires CONFIRMED findings as input.
 - `ground-truth` — Use when you want the factual baseline before any analysis. Runs the real toolchain and captures ground truth plus a coverage and blind-spot map. Run this first.

@@ -18,8 +18,8 @@ The layout is deliberate. `plugins/code-ops-traceless.js` resolves its scanner t
 
 ## What lands where
 
-- `skills/` — 63 skills, discovered by the model through opencode's `skill` tool.
-- `commands/` — 63 slash commands, one per skill, for user invocation.
+- `skills/` — 62 skills, discovered by the model through opencode's `skill` tool.
+- `commands/` — 62 slash commands, one per skill, for user invocation.
 - `agents/` — 11 subagents, with their Claude tool allowlists translated to opencode permissions.
 - `code-ops/` — per-plugin `CONVENTIONS.md`, reference specs that skills cite, runtime
   scripts, and non-discoverable tier-floor carriers for the vendored preflight scripts.

@@ -65,7 +65,6 @@ model can also route to one through the standard-operating-mode routing card.
   changes.
 - `quality-scan`. Report high-signal, defect-causing quality issues with evidence, a tier,
   and an impact. No cosmetics.
-- `consistency-closure`. Pick a canonical form, migrate every site, and add an enforcement.
 - `improve-measured`. Ship improvements that carry a baseline, a result, and a delta.
   Behavior-preserving, with no speculative refactors.
 - `fix-verified`. Fix CONFIRMED bugs at root cause with a failing-then-passing regression
@@ -74,7 +73,8 @@ model can also route to one through the standard-operating-mode routing card.
   CONFIRMED defect or regression.
 - `rigor-sweep`. The orchestrator. It runs ground-truth, then test-suite-audit, then
   bug-hunt with quality-scan, then safety-net, then, on approval, fix-verified,
-  consistency-closure, and measured improvements.
+  the concept mode of `code-ops-suite:normalize` when that plugin is installed, and measured
+  improvements.
 
 ## The methodology
 

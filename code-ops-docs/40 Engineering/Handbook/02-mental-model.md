@@ -58,7 +58,7 @@ It fans work out to two bundled subagents: `explorer` (read-only, parallel inves
 - **Proof artifacts, not assertions**: a CONFIRMED bug ships a runnable repro, a fix ships a regression test that **fails before and passes after**, and an improvement shows a **before-and-after measurement**.
 - **Closure with enforcement**: an inconsistency gets one canonical form, every site migrated, and a lint rule or test so the divergence cannot silently return.
 
-It carries **11 skills**: `ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt` (the flagship), `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, and the `rigor-sweep` orchestrator. Its subagents are `tracer` (traces a path or derives invariants, never executes) and `verifier` (writes and runs a minimal repro to confirm or kill a candidate, which is the reason `CONFIRMED` means something).
+It carries **10 skills**: `ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt` (the flagship), `regression-hunt`, `quality-scan`, `improve-measured`, `fix-verified`, `deep-review`, and the `rigor-sweep` orchestrator. Its subagents are `tracer` (traces a path or derives invariants, never executes) and `verifier` (writes and runs a minimal repro to confirm or kill a candidate, which is the reason `CONFIRMED` means something).
 
 The pairing is direct. `rigor:bug-hunt` is the proven-bug counterpart to `code-ops-suite:codebase-audit`. `rigor:deep-review` carries both review bars: `bar: verified` blocks only on proven defects, and `bar: standard` is the all-lens review.
 
@@ -103,7 +103,7 @@ flowchart TB
     end
 
     subgraph verify["rigor: VERIFY (prove it or do not report it)"]
-        V["ground-truth → bug-hunt / quality-scan<br/>safety-net → fix-verified → consistency-closure"]
+        V["ground-truth → bug-hunt / quality-scan<br/>safety-net → fix-verified"]
     end
 
     subgraph anon["privacy-opsec-suite: ANONYMITY (fail-closed, opt-in track)"]

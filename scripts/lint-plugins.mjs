@@ -41,7 +41,7 @@
 //  13. The register-producing skills' Done-when keeps running revalidate-register.mjs
 //      (the producer-side anchor gate cannot silently regress out of the wiring). The rigor
 //      finding producers run it under --strict --profile finding-rigor (CONFIRMED needs a
-//      resolvable proof), and consistency-closure runs it with --min-items.
+//      resolvable proof), and normalize's concept mode runs it with --min-items.
 //  14. SHARED_PASSAGES: the deliberately-duplicated doctrine cores are pinned byte-identically
 //      across every file that carries them — a partial doctrine rollout fails CI.
 //  15. Each code-ops-docs/40 Engineering/Handbook/commands/README.md "Per-plugin command references" bullet's bolded
@@ -831,7 +831,7 @@ for (const p of plugins) {
 const PRODUCER_SELFCHECK = [
   'plugins/rigor/skills/bug-hunt/SKILL.md',
   'plugins/rigor/skills/quality-scan/SKILL.md',
-  'plugins/rigor/skills/consistency-closure/SKILL.md',
+  'plugins/code-ops-suite/skills/normalize/SKILL.md',
   'plugins/code-ops-suite/skills/codebase-audit/SKILL.md',
 ];
 for (const rel of PRODUCER_SELFCHECK) {
@@ -849,7 +849,7 @@ const PRODUCER_STRICT = [
   ['plugins/rigor/skills/bug-hunt/SKILL.md', '--strict --profile finding-rigor'],
   ['plugins/rigor/skills/quality-scan/SKILL.md', '--strict --profile finding-rigor'],
   ['plugins/rigor/skills/deep-review/SKILL.md', '--strict --profile finding-rigor'],
-  ['plugins/rigor/skills/consistency-closure/SKILL.md', '--strict --profile consistency --min-items 1'],
+  ['plugins/code-ops-suite/skills/normalize/SKILL.md', '--strict --profile consistency --min-items 1'],
 ];
 for (const [rel, flags] of PRODUCER_STRICT) {
   const f = join(ROOT, ...rel.split('/'));

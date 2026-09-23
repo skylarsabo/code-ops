@@ -469,7 +469,7 @@ state, not acceptance state.
 
 ## (j) CONSISTENCY_REGISTER.md entry
 
-`/rigor-consistency-closure` writes one entry per closed concept group. The entry starts at an
+The concept mode of `/code-ops-suite-normalize` writes one entry per closed concept group. The entry starts at an
 item ID in entry-heading position, as in (b), and carries these labeled fields:
 
 ```

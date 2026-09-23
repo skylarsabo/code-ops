@@ -1,13 +1,13 @@
 ---
 name: normalize
-description: "Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. To close divergent implementations of a concept, see rigor:consistency-closure."
+description: "Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. Use the concept mode (normalize concept NAME) when one concept is implemented divergently and you want it closed for good in one canonical form with mechanical enforcement."
 ---
 
 # Code normalization: one consistent, professional, hand-crafted codebase
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:normalize`.** First read §1, §3, §4, §7, §10, §11, §14, and §15 of the `<plugin-root>/CONVENTIONS.md`
+**Invoke in Codex by naming `code-ops-suite:normalize`.** Add `concept <name>` for the concept mode below. First read §1, §3, §4, §7, §10, §11, §14, and §15 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin. Search the plugin directory for it if needed. It defines the operating
 model, interaction protocol, safety rails, schemas, and quality lenses this skill references by
 section. Leave the rest of that file unread.
@@ -27,6 +27,16 @@ and where coverage is thin, write characterization tests first.
 it from the codebase's dominant sound patterns. Pick a canonical form only where the repo
 disagrees with itself. **Do not weaken safety-critical paths** in security, auth, crypto, or
 privacy in the name of cleanup.
+
+## Modes
+
+- **`normalize`** (default): the whole-repo, behavior-preserving standard in Phases 0 and 1.
+  Its artifacts are `STYLE_GUIDE.md`, the enforced config, and `NORMALIZATION_LOG.md`.
+- **`normalize concept <name>`**: close the divergent implementations of one concept, such as
+  error handling, data access, validation, the naming of one idea, or one API response shape.
+  It skips Phases 0 and 1 and runs the [concept mode](#concept-mode-close-one-concept-for-good)
+  instead. Its artifact is `CONSISTENCY_REGISTER.md`. The whole-repo pass is about how the code
+  reads; the concept mode is about one concept behaving one way everywhere.
 
 ## Phase 0: the standard and the baseline  *(required checkpoint)*
 
@@ -82,6 +92,32 @@ when net lines are positive.
 Keep tier honesty at the point of use. A reported issue you did not execute a repro for is
 PROBABLE at most, never CONFIRMED (`§7`). When unsure between two tiers, pick the lower.
 
+## Concept mode: close one concept for good
+
+The concept mode is IMPLEMENT, and the developer confirms every closure change. Closed means
+the divergence cannot come back unnoticed, not that it was fixed once.
+
+1. **Scope** *(checkpoint)*. Confirm the concept space named after `concept`.
+2. **Inventory the variants.** Dispatch the `explorer` subagent to find every way the repo does
+   this one thing: drifted duplicates, inconsistent return, error, or null conventions,
+   contract drift across call sites, and several names for one idea. Group the variants and
+   cite each one at `file:line`.
+3. **Choose the canonical form** *(checkpoint, and a real decision)*. Propose one form per
+   group, with a rationale that weighs correctness, safety, ergonomics, and prevalence.
+   Migrate nothing until the developer approves the choice for that group.
+4. **Migrate and enforce.** Move every other site to the canonical form through the
+   implementation loop (`§11`). Each migration preserves behavior, avoids conflicts with other
+   operatives, and has a test. Then add one mechanical enforcement, such as a lint rule, a
+   codemod or CI check, a shared type, or a test. Re-run the full suite and every proof the
+   run produced after each change, and rework any change that breaks one. Never weaken a
+   proof to make a change pass.
+
+The concept mode produces `CONSISTENCY_REGISTER.md`, which maps each concept to its canonical
+form, the migrated sites, and the enforcement added. It follows the grammar in
+`<plugin-root>/reference/artifact-grammars.md` §(j). The mode also produces the
+migration diffs, the enforcement configuration or rule, and a summary of what is now
+canonical and guarded.
+
 ## Deliverables
 
 - The normalized codebase, behavior-preserving, with tests green.
@@ -99,3 +135,10 @@ PROBABLE at most, never CONFIRMED (`§7`). When unsure between two tiers, pick t
 - The standard is documented and enforced by config or hooks.
 - A **final hostile-reviewer pass** read the result as a skeptical engineer hunting for anything that betrays inconsistency or careless generation, and fixed what stood out.
 - `NORMALIZATION_LOG.md` and `STYLE_GUIDE.md` are presented, noting the items awaiting a decision, such as a history rewrite or a behavior-changing find.
+
+In the concept mode, done means each inconsistency group has an approved canonical form, every
+site is migrated, a working enforcement is in place, and the tests are green. The finished
+`CONSISTENCY_REGISTER.md` passes
+`node <plugin-root>/scripts/revalidate-register.mjs CONSISTENCY_REGISTER.md --root . --strict --profile consistency --min-items 1`
+with exit 0, so it carries at least one anchored item and each Enforcement names a real file.
+Before the run is done, re-locate any non-FRESH citation against the real tree or drop it.

@@ -439,7 +439,7 @@ the floor.
 **When to use it.** Run it before publishing a commit, PR, or branch that must carry no AI or
 tooling trace. On the code surface, L3 only makes this diff indistinguishable from its
 neighbors. It delegates repo-wide one-style normalization to `code-ops-suite:normalize`, and
-divergent implementations of one concept to `rigor:consistency-closure`. Do not use it to fix
+divergent implementations of one concept to its concept mode. Do not use it to fix
 behavior, because it is behavior-preserving and surfaces anything risky.
 
 **Prerequisites and hand-offs.** It requires the plugin installed, and the bundled

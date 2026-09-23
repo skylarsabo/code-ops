@@ -13,11 +13,11 @@
 // the marketplace declares:
 //   - PRODUCER_SELFCHECK (its check 13) requires these 4 exact files to exist, each with a
 //     "## Done when" section that mentions revalidate-register.mjs:
-//       plugins/rigor/skills/{bug-hunt,quality-scan,consistency-closure}/SKILL.md
-//       plugins/code-ops-suite/skills/codebase-audit/SKILL.md
+//       plugins/rigor/skills/{bug-hunt,quality-scan}/SKILL.md
+//       plugins/code-ops-suite/skills/{normalize,codebase-audit}/SKILL.md
 //     and PRODUCER_STRICT (same check) requires rigor's bug-hunt, quality-scan, and deep-review
 //     Done-when to carry "revalidate-register.mjs --strict --profile finding-rigor", and
-//     consistency-closure's to carry "--strict --profile consistency --min-items 1".
+//     normalize's to carry "--strict --profile consistency --min-items 1".
 //   - SHARED_PASSAGES (its check 14) requires — unconditionally, for every entry's `files`
 //     list, regardless of whether that plugin is registered — CONVENTIONS.md to exist and
 //     carry a pinned sentence verbatim at FOUR hardcoded plugin paths: code-ops-suite,
@@ -209,18 +209,19 @@ function buildBaseline(root) {
     '',
     'Fixture root README for the scripts/lint-plugins.mjs regression eval.',
     '',
-    '- **`code-ops-suite`** — fixture plugin. (2 skills)',
-    '- **`rigor`** — fixture plugin. (4 skills)',
+    '- **`code-ops-suite`** — fixture plugin. (3 skills)',
+    '- **`rigor`** — fixture plugin. (3 skills)',
     '- **`privacy-opsec-suite`** — fixture filler plugin. (0 skills)',
     '- **`researcher`** — fixture filler plugin. (0 skills)',
     '',
   ].join('\n'));
 
-  // -- code-ops-suite: codebase-audit (PRODUCER_SELFCHECK) + everything (SHARED_PASSAGES) --
+  // -- code-ops-suite: codebase-audit and normalize (PRODUCER_SELFCHECK) + everything (SHARED_PASSAGES) --
   put(root, 'plugins/code-ops-suite/.claude-plugin/plugin.json', JSON.stringify({ name: 'code-ops-suite', version: '0.1.0', description: 'fixture code-ops-suite plugin' }, null, 2));
   put(root, 'plugins/code-ops-suite/CONVENTIONS.md', `# Conventions (fixture)\n\n${DOCTRINE_BLOB}\n`);
-  put(root, 'plugins/code-ops-suite/README.md', '# code-ops-suite (fixture)\n\nSkills: codebase-audit, everything.\n');
+  put(root, 'plugins/code-ops-suite/README.md', '# code-ops-suite (fixture)\n\nSkills: codebase-audit, normalize, everything.\n');
   put(root, 'plugins/code-ops-suite/skills/codebase-audit/SKILL.md', skillBody('CODEBASE AUDIT'));
+  put(root, 'plugins/code-ops-suite/skills/normalize/SKILL.md', skillBody('NORMALIZE', { doneFlags: '--strict --profile consistency --min-items 1' }));
   put(root, 'plugins/code-ops-suite/skills/everything/SKILL.md', skillBody('EVERYTHING', {
     doneRevalidate: false,
     extra: `\n${ALWAYS_GATED_TEXT}** without explicit developer approval at a checkpoint.\n`,
@@ -231,13 +232,12 @@ function buildBaseline(root) {
   put(root, 'plugins/code-ops-suite/agents/mech.md', agentBody('mech', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT], AGENT_REPORT_CAP, MECH_OPTS));
   put(root, 'plugins/code-ops-suite/agents/mech-review.md', agentBody('mech-review', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
 
-  // -- rigor: bug-hunt, quality-scan, consistency-closure (all PRODUCER_SELFCHECK) --
+  // -- rigor: bug-hunt, quality-scan (PRODUCER_SELFCHECK), deep-review (PRODUCER_STRICT) --
   put(root, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify({ name: 'rigor', version: '0.1.0', description: 'fixture rigor plugin' }, null, 2));
   put(root, 'plugins/rigor/CONVENTIONS.md', `# Conventions (fixture)\n\n${DOCTRINE_BLOB}\n`);
-  put(root, 'plugins/rigor/README.md', '# rigor (fixture)\n\nSkills: bug-hunt, quality-scan, consistency-closure, deep-review.\n');
+  put(root, 'plugins/rigor/README.md', '# rigor (fixture)\n\nSkills: bug-hunt, quality-scan, deep-review.\n');
   put(root, 'plugins/rigor/skills/bug-hunt/SKILL.md', skillBody('BUG HUNT'));
   put(root, 'plugins/rigor/skills/quality-scan/SKILL.md', skillBody('QUALITY SCAN'));
-  put(root, 'plugins/rigor/skills/consistency-closure/SKILL.md', skillBody('CONSISTENCY CLOSURE', { doneFlags: '--strict --profile consistency --min-items 1' }));
   put(root, 'plugins/rigor/skills/deep-review/SKILL.md', skillBody('DEEP REVIEW'));
   put(root, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
   put(root, 'plugins/rigor/agents/verifier.md', agentBody('verifier', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
@@ -265,16 +265,16 @@ function buildBaseline(root) {
     '| I want to… | Run | Plugin(s) | Notes |',
     '| --- | --- | --- | --- |',
     '| audit the fixture repo | `/code-ops-suite:codebase-audit` | code-ops-suite | fixture row |',
+    '| close a fixture inconsistency | `/code-ops-suite:normalize` | code-ops-suite | fixture row |',
     '| run the fixture orchestrator | `/code-ops-suite:everything` | code-ops-suite | fixture row |',
     '| hunt fixture bugs | `/rigor:bug-hunt` | rigor | fixture row |',
     '| scan fixture quality | `/rigor:quality-scan` | rigor | fixture row |',
-    '| close a fixture inconsistency | `/rigor:consistency-closure` | rigor | fixture row |',
     '| review a fixture change | `/rigor:deep-review` | rigor | fixture row |',
     '',
     '## Per-plugin command references',
     '',
-    '- [code-ops-suite.md](code-ops-suite.md) — **2 commands**: fixture.',
-    '- [rigor.md](rigor.md) — **4 commands**: fixture.',
+    '- [code-ops-suite.md](code-ops-suite.md) — **3 commands**: fixture.',
+    '- [rigor.md](rigor.md) — **3 commands**: fixture.',
     '- [privacy-opsec-suite.md](privacy-opsec-suite.md) — **0 commands**: fixture filler.',
     '- [researcher.md](researcher.md) — **0 commands**: fixture filler.',
     '',
@@ -288,6 +288,9 @@ function buildBaseline(root) {
     '### `/code-ops-suite:codebase-audit`',
     'Fixture entry.',
     '',
+    '### `/code-ops-suite:normalize`',
+    'Fixture entry.',
+    '',
     '### `/code-ops-suite:everything`',
     'Fixture entry.',
     '',
@@ -299,9 +302,6 @@ function buildBaseline(root) {
     'Fixture entry.',
     '',
     '### `/rigor:quality-scan`',
-    'Fixture entry.',
-    '',
-    '### `/rigor:consistency-closure`',
     'Fixture entry.',
     '',
     '### `/rigor:deep-review`',
@@ -366,15 +366,15 @@ No completion heading here on purpose (case 3 mutation).
   check('3. missing Done when exits 1', r3.status === 1);
   check('3. message mentions "Done when"', r3.all.includes('Done when'));
 
-  // 4. ROUTER COUNT — handbook "**N commands**" bullet set to a wrong N (rigor has 4 skills).
+  // 4. ROUTER COUNT — handbook "**N commands**" bullet set to a wrong N (rigor has 3 skills).
   const d4 = clone('case4-router-count');
   const readme4 = readIn(d4, 'code-ops-docs/40 Engineering/Handbook/commands/README.md');
-  const mutated4 = readme4.replace('- [rigor.md](rigor.md) — **4 commands**: fixture.', '- [rigor.md](rigor.md) — **5 commands**: fixture.');
+  const mutated4 = readme4.replace('- [rigor.md](rigor.md) — **3 commands**: fixture.', '- [rigor.md](rigor.md) — **5 commands**: fixture.');
   check('4. setup: router-count mutation string found', mutated4 !== readme4);
   put(d4, 'code-ops-docs/40 Engineering/Handbook/commands/README.md', mutated4);
   const r4 = runLint(d4);
   check('4. wrong router count exits 1', r4.status === 1);
-  check('4. message mentions the count', r4.all.includes('**5 commands**') && r4.all.includes('actually has 4'));
+  check('4. message mentions the count', r4.all.includes('**5 commands**') && r4.all.includes('actually has 3'));
 
   // 5. VENDORED DRIFT — vendored copy diverges from the canonical script.
   const d5 = clone('case5-vendored-drift');
@@ -606,11 +606,11 @@ No completion heading here on purpose (case 3 mutation).
   put(d12b, REFERRING_SKILL, referringBody);
   put(d12b, COMP_PATH, compPage([
     COMP_EDGE_ROW,
-    '| `rigor:consistency-closure` | `code-ops-suite:everything` | fixture phantom row (case 12b mutation) |',
+    '| `rigor:deep-review` | `code-ops-suite:everything` | fixture phantom row (case 12b mutation) |',
   ]));
   const r12b = runLint(d12b);
   check('12b. an edge row with no reference exits 1', r12b.status === 1);
-  check('12b. message is check 22\'s own "matches no qualified reference"', r12b.all.includes('edge row "rigor:consistency-closure" -> "code-ops-suite:everything" matches no qualified reference'));
+  check('12b. message is check 22\'s own "matches no qualified reference"', r12b.all.includes('edge row "rigor:deep-review" -> "code-ops-suite:everything" matches no qualified reference'));
   check('12b. check 17 is not what fired (both names resolve)', !r12b.all.includes('unknown plugin') && !r12b.all.includes('unresolvable skill'));
 
   // 12c. SECTION SCOPING, no-false-positive floor — a non-edge-shaped table elsewhere on
@@ -652,7 +652,7 @@ No completion heading here on purpose (case 3 mutation).
 
 | Skill | Neighbour | Note |
 | --- | --- | --- |
-| \`rigor:consistency-closure\` | \`code-ops-suite:everything\` | phantom row parked outside the edges section (case 12e mutation) |
+| \`rigor:deep-review\` | \`code-ops-suite:everything\` | phantom row parked outside the edges section (case 12e mutation) |
 `);
   const r12e = runLint(d12e);
   check('12e. an edge-shaped row outside "## The edges" exits 1', r12e.status === 1);
@@ -697,7 +697,7 @@ No completion heading here on purpose (case 3 mutation).
     '```markdown',
     '## Standalone skills',
     '',
-    '| `rigor:consistency-closure` | `code-ops-suite:everything` | example row inside a fence |',
+    '| `rigor:deep-review` | `code-ops-suite:everything` | example row inside a fence |',
     '```',
     '',
     '| From skill | Invokes | When |',
@@ -828,7 +828,7 @@ No completion heading here on purpose (case 3 mutation).
   check('13m. an escaped-quote plugin-root path to a shipped file exits 0', runLint(d13m).status === 0);
 
   // 14. PRODUCER_STRICT (check 13) — the rigor finding producers keep the strict finding-rigor
-  // register gate, and consistency-closure keeps --min-items, in the Done-when invocation itself.
+  // register gate, and normalize keeps --min-items, in the Done-when invocation itself.
   const withProducerBody = (label, rel, title, opts) => {
     const dir = clone(label);
     put(dir, rel, skillBody(title, opts));
@@ -839,8 +839,8 @@ No completion heading here on purpose (case 3 mutation).
   check('14a. message names the strict producer gate', r14a.all.includes('plugins/rigor/skills/bug-hunt/SKILL.md: Done-when no longer runs revalidate-register.mjs with --strict --profile finding-rigor'));
   const r14b = withProducerBody('case14b-deepreview-not-strict', 'plugins/rigor/skills/deep-review/SKILL.md', 'DEEP REVIEW', { doneRevalidate: false, extra: '\nRun revalidate-register.mjs --strict --profile finding-rigor before the Done-when.\n' });
   check('14b. deep-review with the strict flags outside its Done-when exits 1', r14b.status === 1 && r14b.all.includes('deep-review/SKILL.md: Done-when no longer runs revalidate-register.mjs with --strict'));
-  const r14c = withProducerBody('case14c-closure-no-min-items', 'plugins/rigor/skills/consistency-closure/SKILL.md', 'CONSISTENCY CLOSURE', { doneFlags: '--strict --profile consistency' });
-  check('14c. consistency-closure Done-when without --min-items exits 1', r14c.status === 1 && r14c.all.includes('with --strict --profile consistency --min-items 1'));
+  const r14c = withProducerBody('case14c-normalize-no-min-items', 'plugins/code-ops-suite/skills/normalize/SKILL.md', 'NORMALIZE', { doneFlags: '--strict --profile consistency' });
+  check('14c. normalize Done-when without --min-items exits 1', r14c.status === 1 && r14c.all.includes('with --strict --profile consistency --min-items 1'));
 
   // 15. AGENT CONTRACT (check 26), DISPATCH PROSE (check 27), BOUNDED CONVENTIONS READ (check 28).
   const mechWith = (label, contract, tools = MECH_OPTS.tools) => {

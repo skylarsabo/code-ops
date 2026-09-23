@@ -86,7 +86,7 @@ A **separate feature track** exists for building rather than hardening: `feature
 | 3, Find (read-only, with proofs) | `bug-hunt` (deep, per subsystem, root cause plus sibling sweep) with `quality-scan`, and `regression-hunt` to bisect | yes (review CONFIRMED-led register) |
 | 4, Safety net | `safety-net` on blind spots and anything queued for change | none |
 | 5, Fix (writes code) | `fix-verified` on CONFIRMED bugs (failing-to-passing test, root cause, sibling sweep, guard, enforcement) | per batch |
-| 6, Close inconsistencies | `consistency-closure` (canonical form, migrate, enforce) | none |
+| 6, Close inconsistencies | code-ops-suite `normalize concept` when installed (canonical form, migrate, enforce) | none |
 | 7, Improve (optional) | `improve-measured` (only changes with a before-and-after metric ship) | none |
 
 **Track:** start `assess-only` (facts and proven findings, no code changes), `full` (also fix, close, improve), or a custom subset.
@@ -196,7 +196,7 @@ A **separate incident path** exists when a leak is *suspected* rather than sough
 | 5, Safety net | `safety-net` (characterization tests on blind spots and queued changes) | rigor | none |
 | 6, Consolidated review | re-validate every register against HEAD, and present one prioritized, CONFIRMED-led picture and plan | none | **yes, the main go or no-go** |
 | 7, Remediate | `fix-verified`, `remediation`, and `opsec-hardening`, per automation level | rigor, code-ops, privacy | per batch |
-| 8, Close inconsistencies | `consistency-closure` | rigor | none |
+| 8, Close inconsistencies | `normalize concept` | code-ops-suite | none |
 | 9, Improve | `improve-measured`, `performance`, and `dependency-upgrade` (measured deltas only) | rigor, code-ops | none |
 | 10, Normalize and document | `normalize`, `doc-alignment`, and the generators (`architecture`, `data-model`, `api-docs`, `ops-docs`, `adr`, `onboarding`) | code-ops-suite | none |
 | 11, Final verification, report, and ship | full suite and proof set green, master `EXECUTIVE_SUMMARY.md`, note the PR gates (`rigor:deep-review`, `privacy-opsec-suite:opsec-pr-gate`), `pr-split` (running `authorship-hygiene` fail-closed) if shipping, and never auto-merge | none | none |
@@ -226,7 +226,7 @@ sequenceDiagram
     RG-->>Dev: Phase 6, Consolidated review (the main go/no-go)
     Dev-->>RG: approve remediation plan + automation level
     RG->>CO: Phase 7, Remediate (fix-verified + remediation + opsec-hardening)
-    RG->>RG: Phase 8, Close inconsistencies (consistency-closure)
+    RG->>RG: Phase 8, Close inconsistencies (normalize concept)
     RG->>CO: Phase 9, Improve (improve-measured + performance + dependency-upgrade)
     CO->>CO: Phase 10, Normalize & document (normalize + generators)
     CO-->>Dev: Phase 11, Final verification, report; pr-split + authorship-hygiene (never auto-merge)

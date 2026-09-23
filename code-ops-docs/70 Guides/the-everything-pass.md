@@ -266,9 +266,9 @@ means the run hit an architectural problem, not a bug collection.
 
 ---
 
-## Phase 8 · Close inconsistencies (rigor `consistency-closure`)
+## Phase 8 · Close inconsistencies (code-ops `normalize concept`)
 
-**What runs.** `consistency-closure` picks one canonical form per concept, migrates every site to
+**What runs.** The concept mode of `normalize` picks one canonical form per concept, migrates every site to
 it, and adds a mechanical enforcement so the divergence cannot silently return. You approve the
 choice of canonical form unless the level is `auto-safe` or `auto-all` and the choice is clearly
 mechanical.

@@ -120,7 +120,7 @@ failing-then-passing regression test, the regression guard, a sibling sweep, and
 Apply security and privacy fixes with fail-closed behavior where relevant. Each change is tested,
 behavior-preserving, atomic, and on the branch.
 
-## Phase 8: the inconsistency closure  *(rigor `consistency-closure`)*
+## Phase 8: the inconsistency closure  *(code-ops `normalize concept`)*
 
 Settle one canonical form per concept. The choice is approved unless the level is `auto-safe` or
 `auto-all` and the choice is clearly mechanical. Migrate every site, then add the enforcement so
