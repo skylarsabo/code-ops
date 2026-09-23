@@ -173,6 +173,8 @@ ${texts.join('\n\n')}
 ${cap ? `\n${cap}\n` : ''}${contract}`;
 const MECH_OPTS = { tools: 'Read, Edit, Write, Bash, Grep, Glob', contract: agentContract('scope') };
 
+const FIXTURE_CONTRACT = '# Fixture standards contract\n\nStands in for the repo contract that AGENTS.md carries and CLAUDE.md imports.\n';
+
 // Builds a MINIMAL tree that scripts/lint-plugins.mjs (copied in, unmodified) passes.
 // Two plugins, named/shaped exactly as PRODUCER_SELFCHECK and SHARED_PASSAGES require
 // (see the file header note) — 5 skills total, one vendored script, one handbook page
@@ -181,11 +183,10 @@ function buildBaseline(root) {
   mkdirSync(join(root, 'scripts'), { recursive: true });
   copyFileSync(REAL_LINT, join(root, 'scripts', 'lint-plugins.mjs'));
   copyFileSync(REAL_MODEL_TIERS, join(root, 'scripts', 'model-tiers.mjs'));
-  // The standards contract ships under both names (check 20). Identical in the baseline;
-  // case 11 drifts one copy and case 11b deletes it.
-  const contract = '# Fixture standards contract\n\nStands in for the repo contract that CLAUDE.md and AGENTS.md both carry.\n';
-  put(root, 'CLAUDE.md', contract);
-  put(root, 'AGENTS.md', contract);
+  // The standards contract lives in AGENTS.md and CLAUDE.md is only its import line
+  // (check 20). Cases 11 through 11f mutate one side each.
+  put(root, 'CLAUDE.md', '@AGENTS.md\n');
+  put(root, 'AGENTS.md', FIXTURE_CONTRACT);
   put(root, 'scripts/vendored-manifest.mjs', "export const RUNTIME_SCRIPTS = [\n  { name: 'fixture-tool.mjs', plugins: ['rigor'] },\n];\n");
   const fixtureTool = '// Fixture runtime script for evals/lint-plugins/run.mjs (vendored-script parity check).\nexport const FIXTURE_TOOL = true;\n';
   put(root, 'scripts/fixture-tool.mjs', fixtureTool);
@@ -516,22 +517,46 @@ No completion heading here on purpose (case 3 mutation).
   check('10. gh pr merge --auto exits 1', r10.status === 1);
   check('10. message flags the auto-merge denylist', r10.all.includes('auto-merge denylist'));
 
-  // 11. STANDARDS-CONTRACT PARITY (check 20) — AGENTS.md drifting from CLAUDE.md. This is
-  // the regression that actually happened: the writing-standard section lived in CLAUDE.md
-  // alone, so Codex and opencode (which read AGENTS.md) never saw it and nothing complained.
-  const d11 = clone('case11-contract-drift');
-  put(d11, 'AGENTS.md', '# Fixture standards contract\n\nDrifted on purpose (case 11 mutation).\n');
+  // 11. STANDARDS-CONTRACT IMPORT (check 20): a full contract copy in CLAUDE.md. Two
+  // copies are how the writing-standard section once lived in CLAUDE.md alone, unseen by
+  // Codex and opencode, and they cost Grok Build the contract twice per turn.
+  const d11 = clone('case11-contract-full-copy');
+  put(d11, 'CLAUDE.md', FIXTURE_CONTRACT);
   const r11 = runLint(d11);
-  check('11. a divergent AGENTS.md exits 1', r11.status === 1);
-  check('11. message names both files and the fix', r11.all.includes('CLAUDE.md and AGENTS.md have diverged'));
+  check('11. a full contract copy in CLAUDE.md exits 1', r11.status === 1);
+  check('11. message names the import line and the fix', r11.all.includes('CLAUDE.md must be exactly the import line'));
 
-  // 11b. The other half of the contract: a MISSING copy is as bad as a drifted one, since
-  // the host reading that name falls back to nothing.
+  // 11b. A MISSING AGENTS.md leaves every host with nothing, since CLAUDE.md only imports it.
   const d11b = clone('case11b-contract-missing');
   rmSync(join(d11b, 'AGENTS.md'), { force: true });
   const r11b = runLint(d11b);
   check('11b. a missing AGENTS.md exits 1', r11b.status === 1);
-  check('11b. message says which hosts lose it', r11b.all.includes('Codex and opencode read it'));
+  check('11b. message says which hosts lose it', r11b.all.includes('AGENTS.md is missing'));
+
+  // 11c. An import of the wrong target has the right shape and loads the wrong file.
+  const d11c = clone('case11c-contract-wrong-target');
+  put(d11c, 'CLAUDE.md', '@README.md\n');
+  const r11c = runLint(d11c);
+  check('11c. a wrong import target exits 1', r11c.status === 1);
+  check('11c. message names the import line', r11c.all.includes('CLAUDE.md must be exactly the import line'));
+
+  // 11d. An empty AGENTS.md satisfies existence but carries no contract.
+  const d11d = clone('case11d-contract-empty');
+  put(d11d, 'AGENTS.md', '\n');
+  const r11d = runLint(d11d);
+  check('11d. an empty AGENTS.md exits 1', r11d.status === 1);
+  check('11d. message says AGENTS.md is empty', r11d.all.includes('AGENTS.md is empty'));
+
+  // 11e. The only tolerance is one trailing newline: the bare line passes, and the import
+  // line followed by more prose fails.
+  const d11e = clone('case11e-import-no-newline');
+  put(d11e, 'CLAUDE.md', '@AGENTS.md');
+  const r11e = runLint(d11e);
+  check('11e. the import line without a trailing newline passes', r11e.status === 0);
+  const d11f = clone('case11f-import-plus-prose');
+  put(d11f, 'CLAUDE.md', '@AGENTS.md\n\nClaude-only note.\n');
+  const r11f = runLint(d11f);
+  check('11f. the import line plus extra prose exits 1', r11f.status === 1);
 
   // 12. COMPOSITION MAP COMPLETENESS (check 22) — the map must match the skill tree in
   // BOTH directions. Case 8 above only exercises check 17 (does a named edge resolve),

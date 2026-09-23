@@ -24,7 +24,7 @@ The repository has four behavior-bearing layers:
 - `evals/` contains executable regression fixtures and score checks.
 - `.github/workflows/` runs the merge gates on pull requests and the complete validation set on `main`.
 
-The two host distributions are rendered from canonical packages. Both renderers expose a `--check` mode that fails on drift. Evidence: `AGENTS.md:94-101` and `scripts/build-opencode-dist.mjs:475-489`.
+The two host distributions are rendered from canonical packages. Both renderers expose a `--check` mode that fails on drift. Evidence: `AGENTS.md:95-104` and `scripts/build-opencode-dist.mjs:475-489`.
 
 ## Execution flow
 

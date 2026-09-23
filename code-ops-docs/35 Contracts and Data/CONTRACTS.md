@@ -698,6 +698,11 @@ no-op behavior.
 Explicit controller bindings have separate validation and conflict handling. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
+The guard's wide-type deny, context-ceiling gate, and round stop are the enforcement layer.
+The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
+separately requires every bundled agent body to carry a `Report cap: at most N words` line.
+Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
+
 ## Symbol index and query
 
 `context-query.mjs` answers a structural question with `file:line` anchors, one-line

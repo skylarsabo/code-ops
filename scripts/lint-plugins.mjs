@@ -61,9 +61,9 @@
 //      excluded — it legitimately talks ABOUT never auto-merging. (This item's own prose
 //      avoids spelling out the literal tokens so it doesn't trip check 19 on itself; see the
 //      check's own comment block for the exact denylist.)
-//  20. CLAUDE.md and AGENTS.md are byte-identical: they are one standards contract under the
-//      two names different hosts read, and a divergence is invisible to whichever host reads
-//      the other copy.
+//  20. AGENTS.md carries the standards contract and is non-empty, and CLAUDE.md is exactly
+//      the import line `@AGENTS.md` (one trailing newline allowed): one contract, one copy,
+//      under the two names different hosts read.
 //  21. (when code-ops-docs/40 Engineering/Handbook/README.md and code-ops-docs/40 Engineering/Techniques/ both exist) every technique page has
 //      a link entry in the handbook README's techniques list, every listed entry resolves to a
 //      real page, and the written-out "N techniques" count matches the page count.
@@ -1138,21 +1138,26 @@ if (mp?.name === 'code-ops') {
   }
 }
 
-// ---- 20. host-neutral standards contract parity ------------------------------
+// ---- 20. standards contract import ---------------------------------------------
 // The repo's standards contract ships under two names because hosts read different files:
 // Claude Code reads CLAUDE.md; Codex reads AGENTS.md; opencode reads AGENTS.md and only
-// falls back to CLAUDE.md when AGENTS.md is ABSENT; Grok Build reads both. Shipping both
-// files therefore means a divergence is invisible on exactly the hosts that read the other
-// copy — which is how the writing-standard section lived in CLAUDE.md alone, unseen by
-// Codex and opencode. They are one document under two names, so this pins them
-// byte-identically rather than trusting anyone to remember the second edit.
+// falls back to CLAUDE.md when AGENTS.md is ABSENT; Grok Build reads both. Two full copies
+// cost Grok the contract twice per turn, and a divergence is invisible on the hosts that
+// read the other copy (the writing-standard section once lived in CLAUDE.md alone). So
+// AGENTS.md holds the only copy and CLAUDE.md is exactly Claude Code's import line for it.
+// Anything else in CLAUDE.md, including a full copy, fails closed.
 {
   const claudeMd = join(ROOT, 'CLAUDE.md');
   const agentsMd = join(ROOT, 'AGENTS.md');
-  if (!existsSync(claudeMd)) fail('CLAUDE.md is missing — it is the repo standards contract Claude Code reads');
-  else if (!existsSync(agentsMd)) fail('AGENTS.md is missing — Codex and opencode read it instead of CLAUDE.md');
-  else if (readText(claudeMd) !== readText(agentsMd)) {
-    fail('CLAUDE.md and AGENTS.md have diverged — they are one contract under two names, and hosts that read AGENTS.md (Codex, opencode) silently lose whatever only CLAUDE.md carries. Copy CLAUDE.md over AGENTS.md in the same commit.');
+  const IMPORT_LINE = '@AGENTS.md';
+  if (!existsSync(agentsMd)) fail('AGENTS.md is missing — it carries the repo standards contract that Codex, opencode, and Grok Build read and that CLAUDE.md imports');
+  else if (readText(agentsMd).trim() === '') fail('AGENTS.md is empty — it carries the repo standards contract that every host reads directly or through the CLAUDE.md import');
+  if (!existsSync(claudeMd)) fail('CLAUDE.md is missing — Claude Code reads it and must find the import line `@AGENTS.md` there');
+  else {
+    const text = readText(claudeMd);
+    if (text !== IMPORT_LINE && text !== `${IMPORT_LINE}\n`) {
+      fail('CLAUDE.md must be exactly the import line `@AGENTS.md` with at most one trailing newline — AGENTS.md holds the only copy of the contract. Edit AGENTS.md and restore CLAUDE.md to the import line.');
+    }
   }
 }
 
