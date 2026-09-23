@@ -38,7 +38,9 @@ measurable basis.
 
 Apply the change behavior-preservingly (`§8`) and keep the full suite and the proof set
 green. Then have the `verifier` re-measure and record the before, the after, and the delta.
-Roll back any change whose measured delta does not justify it.
+Roll back any change whose measured delta does not justify it. A timing records min, max,
+median, and median absolute deviation (MAD) on each side, and justifies the change only when the
+ranges sit more than one MAD apart or the delta clears the stated threshold (default 5%).
 
 > Take a checkpoint per change when it is behavior-adjacent or touches a public contract.
 

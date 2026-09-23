@@ -33,8 +33,9 @@
 //      Unreadable context, a missing transcript, or a session id outside [A-Za-z0-9._-] fails open.
 //   4. DISPATCH REVIEW, on the main thread for the same tools. A wide-surface, context-inheriting,
 //      or unnamed `subagent_type` on `Agent` or `Task` is denied unless the brief has a line
-//      starting `Wide-surface reason:` with the reason on that line. A `Workflow` script with an
-//      `agent(` call, no `agentType:`, and no `Wide-surface reason:` text is denied the same way.
+//      starting `Wide-surface reason:` with the reason on that line. Grok's `spawn_subagent`
+//      schema has no agent-type field, so a spawn without one skips only this type check. A
+//      `Workflow` script with an `agent(` call, no `agentType:`, and no `Wide-surface reason:` text is denied the same way.
 //      A `model` override and a brief with no Round budget stay advisory clauses. Every denial
 //      and advisory for one dispatch lands in one output.
 //
@@ -47,10 +48,12 @@
 // an integer of at least 150,000 overrides the 300,000 default, and anything else reads as
 // the default (`contextCeiling` in scripts/transcript-lib.mjs, shared with the handoff card).
 //
-// HOST COVERAGE. The ceiling gate and the dispatch review key on Claude's dispatch tool names.
-// This repository does not document the tool name Grok or Codex uses to dispatch a subagent,
-// so on those hosts both behaviours are inert unless that tool happens to share a name
-// (UNVERIFIED); the round counters keep the per-host coverage INFRASTRUCTURE.md records.
+// HOST COVERAGE. The ceiling gate and the dispatch review key on the dispatch tool names: Claude's
+// `Agent`, `Task`, and `Workflow`, and Grok's `spawn_subagent` (~/.grok/docs/user-guide
+// 16-subagents.md). Grok sends camelCase `toolName`, `toolInput`, and `sessionId`
+// (10-hooks.md), which main() maps onto the snake_case keys. Codex's dispatch tool name is
+// UNVERIFIED, so there both behaviours stay inert unless that tool shares a name; the round
+// counters keep the per-host coverage INFRASTRUCTURE.md records.
 // Codex transcripts are measured through their token_count snapshots, Grok's through
 // updates.jsonl, as residentContext documents. OpenCode runs its own lifecycle guard.
 //
@@ -107,7 +110,7 @@ const WARN_EVERY = 20;
 const STOP_MULTIPLE = 2;
 const DEFAULT_CHECKPOINT_ALLOWANCE = 2;
 const MAX_CHECKPOINT_ALLOWANCE = 4;
-const DISPATCH_TOOLS = new Set(['Agent', 'Task', 'Workflow']);
+const DISPATCH_TOOLS = new Set(['Agent', 'Task', 'Workflow', 'spawn_subagent']);
 // Agent types that start from the host's full tool surface or inherit the lead's context.
 const WIDE_TYPES = new Set(['general-purpose', 'claude', 'fork']);
 // A brief line that justifies a wide or unnamed agent type, with the reason on the same line.
@@ -424,7 +427,8 @@ function reviewDispatch(tool, input, budget, denials, advisories) {
     advisories.push(`A model override replaces the agent's declared tier${tier ? ` (${tier})` : ''}; `
       + 'verify task rationale and tier floor.');
   }
-  if ((!type || WIDE_TYPES.has(type.split(':').pop().toLowerCase())) && !WIDE_REASON.test(prompt)) {
+  const typeless = tool === 'spawn_subagent' && input.subagent_type === undefined;
+  if (!typeless && (!type || WIDE_TYPES.has(type.split(':').pop().toLowerCase())) && !WIDE_REASON.test(prompt)) {
     denials.push(`${type || 'An unnamed type'} starts from a large default or inherited context; `
       + 'dispatch code-ops-suite:implementer, explorer, reviewer, or mech, or add a '
       + '"Wide-surface reason: <why>" line to the brief.');
@@ -470,6 +474,12 @@ async function main() {
   let payload;
   try { payload = JSON.parse(raw.replace(/^﻿/, '')); } catch { return; }
   if (!payload || typeof payload !== 'object') return;
+  payload = {
+    ...payload,
+    tool_name: payload.tool_name ?? payload.toolName,
+    tool_input: payload.tool_input ?? payload.toolInput,
+    session_id: payload.session_id ?? payload.sessionId,
+  };
   if (payload.hook_event_name && payload.hook_event_name !== 'PreToolUse') return;
 
   const budget = roundBudget();

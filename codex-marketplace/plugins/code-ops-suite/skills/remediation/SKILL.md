@@ -48,7 +48,10 @@ behavior with the developer before implementing, and pin it with tests.
 
 Hold all new code to the relevant quality lenses (`§10`). A fix that introduces coupling, a
 performance regression, a security or privacy leak, or a hardcoded style in a UI is a failure,
-not a fix.
+not a fix. Run `node <plugin-root>/scripts/co.mjs scan overbuild --git <range>` over the
+change's own range. It blocks only on an unrecorded dependency, and its other tells are leads. The
+report carries its added, removed, and net line counts, with a one-line reason when net lines are
+positive.
 
 **Integrate continuously,** and re-run the full suite after each batch to catch cross-item
 regressions. When implementing surfaces a *new* issue, log it to the register and flag it rather

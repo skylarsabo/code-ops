@@ -208,10 +208,14 @@ reported `AMBIGUOUS` rather than stat-ed, by design.
 
 > The script resolves moved files by name. If a finding cites `auth/session.ts:88`, that exact path is gone, and a single `session.ts` exists elsewhere, it reports against the relocated file instead of falsely declaring `GONE`. More than one match reports `AMBIGUOUS`. That is why a renamed but shrunk file can surface as `MOVED` rather than `GONE`.
 
-**The opt-in schema gate.** `--strict --profile <finding|finding-rigor|leak|research|idea>`
+**The opt-in schema gate.** `--strict --profile <finding|finding-rigor|leak|research|idea|consistency>`
 adds a fail-closed check on the register's labeled per-item fields, so an executing model
 that omits `Tier` or `Disconfirmation` no longer passes silently. Under `finding-rigor`, a
-CONFIRMED item must also carry a `Proof:` that resolves. Add
+CONFIRMED item must also carry a `Proof:` that resolves to an `RCPT-NNN` receipt in
+`RUN_RECEIPTS.md` with a matching exit code (`--receipts` names the ledger), an in-tree
+file other than the register, or a quoted test name in a test file. An unexecuted
+backticked command does not count. `--min-items <n>` fails a register with fewer than n
+anchored items. Add
 `--refutation-log <REFUTATION_LOG.md>` under the finding profiles to validate panel
 receipts. Default behavior is unchanged without these flags.
 

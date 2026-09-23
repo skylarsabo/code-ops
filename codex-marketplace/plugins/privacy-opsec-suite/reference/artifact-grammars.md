@@ -467,6 +467,34 @@ The latest attempt decides finalization. Every blocking criterion must end at `P
 is explicit non-applicability, not a quiet pass. Operative `reported` status is execution
 state, not acceptance state.
 
+## (j) CONSISTENCY_REGISTER.md entry
+
+`rigor:consistency-closure` writes one entry per closed concept group. The entry starts at an
+item ID in entry-heading position, as in (b), and carries these labeled fields:
+
+```
+CONS-001 · HTTP error envelope
+Concept: the error response shape of HTTP handlers
+Canonical: src/http/errors.ts:12 · Anchor: `errorResponse(`
+Sites: src/api/users.ts:40, src/api/orders.ts:88
+Enforcement: eslint-rules/no-raw-error-json.js
+Verified-at: 3bdd203
+```
+
+- `Concept`: the one idea that had divergent implementations.
+- `Canonical`: the `path:line` of the chosen form, with a delimited `Anchor:` copied from a
+  cited line.
+- `Sites`: every migrated site as `path:line`, after migration.
+- `Enforcement`: the path of the lint rule, check, shared type, or test that stops a
+  recurrence. It must name a file that exists in the tree.
+- `Verified-at`: the sha the sites and the enforcement were last checked on.
+
+`revalidate-register.mjs CONSISTENCY_REGISTER.md --root . --strict --profile consistency
+--min-items 1` gates the register. It fails a missing field, an Enforcement that names no
+existing file, and a register with no item that carries both a `path:line` citation and a
+parsed Anchor. The usual DRIFTED check applies, so the Anchor must appear on at least one cited
+line.
+
 ## Producer and consumer contract
 
 Skills and the run-artifact scripts produce these artifacts.

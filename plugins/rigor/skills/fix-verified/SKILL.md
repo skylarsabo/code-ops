@@ -30,7 +30,10 @@ that its repro still fails on current code, and drop or re-tier anything that no
 reproduces.
 
 Where the run produced `RUN_RECEIPTS.md`, replay it with
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/run-proof.mjs verify RUN_RECEIPTS.md --root .`. Where a
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/run-proof.mjs verify RUN_RECEIPTS.md --root .`. Where
+CONFIRMED items exist and `RUN_RECEIPTS.md` is absent, nothing proves their repros ran, so
+re-tier each one PROBABLE unless its Proof names a kept repro file that fails on current code
+now. Treat a re-tiered item as static confidence under the refutation rule below. Where a
 `PROOF_MANIFEST.md` exists, run
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/check-proof-integrity.mjs verify PROOF_MANIFEST.md --root .`.
 An exit-code mismatch or a tampered pinned proof drops or re-tiers the item before any fix

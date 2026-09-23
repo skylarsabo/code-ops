@@ -53,3 +53,19 @@ export function userSummary() {
 // Paging moved to extract.js so the server and the report share one slice.
 // It keeps the page size bound, and it never returns a negative offset.
 // Both callers pass the size they were configured with.
+
+export function logUser(id) {
+  // eslint-disable-next-line no-console
+  console.log(getUser(id));
+}
+
+export function warnUser(id) {
+  // eslint-disable-next-line no-console -- the warning is the command output
+  console.warn(fetchUserById(id));
+}
+
+// TODO: implement retry once the store can report a transient failure.
+export const RETRY_LABEL = 'Retry ✅';
+
+// The table keeps a placeholder row so its height stays stable.
+export const NEXT_LABEL = 'Next →';

@@ -39,7 +39,9 @@
 //      a visible diff, never a silent frontmatter tweak; the handbook's "(model: `X`)"
 //      annotations must match the frontmatter.
 //  13. The register-producing skills' Done-when keeps running revalidate-register.mjs
-//      (the producer-side anchor gate cannot silently regress out of the wiring).
+//      (the producer-side anchor gate cannot silently regress out of the wiring). The rigor
+//      finding producers run it under --strict --profile finding-rigor (CONFIRMED needs a
+//      resolvable proof), and consistency-closure runs it with --min-items.
 //  14. SHARED_PASSAGES: the deliberately-duplicated doctrine cores are pinned byte-identically
 //      across every file that carries them — a partial doctrine rollout fails CI.
 //  15. Each code-ops-docs/40 Engineering/Handbook/commands/README.md "Per-plugin command references" bullet's bolded
@@ -713,6 +715,24 @@ for (const rel of PRODUCER_SELFCHECK) {
   const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
   if (!dw.includes('revalidate-register.mjs'))
     fail(rel + ': Done-when no longer runs revalidate-register.mjs — the producer-side anchor gate must not silently regress');
+}
+// The strict legs of that gate, pinned per skill: without --strict --profile finding-rigor a
+// CONFIRMED finding with no proof, or an unexecuted command as its proof, passes the Done-when;
+// without --min-items a citation-less consistency register passes. Each flag must sit in the
+// same revalidate-register.mjs invocation, so a separate mention cannot satisfy the pin.
+const PRODUCER_STRICT = [
+  ['plugins/rigor/skills/bug-hunt/SKILL.md', '--strict --profile finding-rigor'],
+  ['plugins/rigor/skills/quality-scan/SKILL.md', '--strict --profile finding-rigor'],
+  ['plugins/rigor/skills/deep-review/SKILL.md', '--strict --profile finding-rigor'],
+  ['plugins/rigor/skills/consistency-closure/SKILL.md', '--strict --profile consistency --min-items 1'],
+];
+for (const [rel, flags] of PRODUCER_STRICT) {
+  const f = join(ROOT, ...rel.split('/'));
+  if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_STRICT)'); continue; }
+  const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
+  const invocations = dw.match(/revalidate-register\.mjs[^`\n]*/g) ?? [];
+  if (!invocations.some((inv) => inv.includes(flags)))
+    fail(`${rel}: Done-when no longer runs revalidate-register.mjs with ${flags} — the strict producer gate must not silently regress`);
 }
 
 // ---- 14. shared doctrine passages: intentional duplication gets a drift gate ----

@@ -55,6 +55,24 @@ Follow the language's official style guide and idioms. Run the formatter, linter
 checker the repository configures, and leave them green. An explicit repository convention wins
 over the language default. Where no tool is configured, match the dominant sound pattern nearby.
 
+Adopt the repository's existing strictness, and never lower it. New code meets the floor below
+wherever the repository already enforces that check. Do not force a repository-wide config
+change to reach it.
+
+| Language | Strictness floor |
+|---|---|
+| TypeScript | `strict` and `noUncheckedIndexedAccess` in `tsconfig.json`; no new `any`. |
+| Python | `pyright --strict` or `mypy --strict`. |
+| Go | `go vet ./...` and `staticcheck ./...` clean. |
+| Rust | `cargo clippy -- -D warnings`. |
+| C# | `<Nullable>enable</Nullable>` and `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`. |
+| Java | `javac -Xlint:all -Werror`. |
+| Kotlin | `allWarningsAsErrors` in the Kotlin compiler options. |
+
+Add no suppression comment (`@ts-expect-error`, `# type: ignore`, `noqa`, `eslint-disable`,
+`nolint`, `#[allow]`, `#pragma warning disable`) without a reason on the same line.
+`scan-overbuild.mjs` flags a bare one as `NEW-SUPPRESSION`.
+
 ### 6. Current, stable practice
 
 Write to the versions the repository pins, with the idioms those versions recommend. Verify an API

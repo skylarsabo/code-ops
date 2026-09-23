@@ -72,6 +72,66 @@ writeFileSync(join(sdir, 'mangled.md'), 'Tier: CONFIRMED\nLocation: code.mjs:2\n
 const mg = spawnSync('node', [checker, join(sdir, 'mangled.md'), '--root', sdir, '--strict', '--profile', 'finding'], { encoding: 'utf8' });
 expect(mg.status === 1, `mangled register should fail closed under strict, got ${mg.status}`);
 
+// ---- IMP-02: a CONFIRMED proof must resolve to a receipt or a kept file --------------------
+// A backticked command is not evidence that it ran; a missing Proof, a receipt absent from
+// RUN_RECEIPTS.md, a receipt whose recorded exit code contradicts the claim, and a register that
+// cites itself all fail. A recorded receipt and an in-tree repro file pass.
+const pdir = mkdtempSync(join(tmpdir(), 'reg-proof-'));
+writeFileSync(join(pdir, 'code.mjs'), 'line one\nauth token check\n');
+writeFileSync(join(pdir, 'RUN_RECEIPTS.md'), [
+  '| id | when | head | exit | sha256 | command |', '| --- | --- | --- | --- | --- | --- |',
+  `| RCPT-001 | 2026-09-23T00:00:00Z | abc1234 | 1 | ${'a'.repeat(64)} | node code.mjs |`, '',
+].join('\n'));
+const pitem = (id, proof) => [`${id} · confirmed item`, 'Tier: CONFIRMED', 'Severity: medium', 'Location: code.mjs:2', 'Anchor: `auth token`',
+  'Verified-at: HEAD', 'Disconfirmation: x', 'Refutation: exempt', 'Track: NOW-SAFE', ...(proof === null ? [] : [`Proof: ${proof}`]), ''];
+writeFileSync(join(pdir, 'preg.md'), ['# proof fixture', '',
+  ...pitem('PBUG-001', '`echo it fails`'),
+  ...pitem('PBUG-002', null),
+  ...pitem('PBUG-003', 'RCPT-001 (exit 1)'),
+  ...pitem('PBUG-004', 'RCPT-001 exit 0'),
+  ...pitem('PBUG-005', 'RCPT-009'),
+  ...pitem('PBUG-006', '`preg.md`'),
+  ...pitem('PBUG-007', 'repro at code.mjs:2'),
+].join('\n'));
+const pr = spawnSync('node', [checker, join(pdir, 'preg.md'), '--root', pdir, '--strict', '--profile', 'finding-rigor', '--report-only'], { encoding: 'utf8' });
+const pout = (pr.stdout || '') + (pr.stderr || '');
+const pline = (id) => pout.split('\n').find((l) => l.includes(id)) || '';
+expect(pline('PBUG-001').includes('resolvable Proof'), `an unexecuted backticked command must not prove CONFIRMED, got: ${pline('PBUG-001')}`);
+expect(pline('PBUG-002').includes('no Proof line'), `a CONFIRMED item with no Proof must fail, got: ${pline('PBUG-002')}`);
+expect(/ok /.test(pline('PBUG-003')), `a recorded receipt with a matching exit code should pass, got: ${pline('PBUG-003')}`);
+expect(pline('PBUG-004').includes('recorded exit 1'), `a receipt whose exit code contradicts the claim must fail, got: ${pline('PBUG-004')}`);
+expect(pline('PBUG-005').includes('not in RUN_RECEIPTS.md'), `a receipt absent from the ledger must fail, got: ${pline('PBUG-005')}`);
+expect(pline('PBUG-006').includes('resolvable Proof'), `a register citing itself is not a proof, got: ${pline('PBUG-006')}`);
+expect(/ok /.test(pline('PBUG-007')), `an in-tree repro file should pass, got: ${pline('PBUG-007')}`);
+writeFileSync(join(pdir, 'nreg.md'), ['# no-ledger fixture', '', ...pitem('NBUG-001', 'RCPT-001')].join('\n'));
+const np = spawnSync('node', [checker, join(pdir, 'nreg.md'), '--root', pdir, '--strict', '--profile', 'finding-rigor', '--receipts', join(pdir, 'absent.md')], { encoding: 'utf8' });
+expect(np.status === 1 && ((np.stdout || '') + np.stderr).includes('no RUN_RECEIPTS.md'), `a receipt proof with no ledger must fail closed, got ${np.status}`);
+
+// ---- IMP-03: --min-items and the consistency profile ---------------------------------------
+// A citation-less or empty register cannot pass a producer's Done-when; an Enforcement that names
+// no existing file fails the consistency profile.
+writeFileSync(join(pdir, 'lint-rule.mjs'), '// enforcement\n');
+const cons = (id, enforcement) => [`${id} · error envelope`, 'Concept: HTTP error shape', 'Canonical: code.mjs:2',
+  'Sites: code.mjs:2', 'Anchor: `auth token`', `Enforcement: ${enforcement}`, 'Verified-at: HEAD', ''];
+writeFileSync(join(pdir, 'cons-ok.md'), ['# consistency', '', ...cons('CONS-001', '`lint-rule.mjs`')].join('\n'));
+writeFileSync(join(pdir, 'cons-bad.md'), ['# consistency', '', ...cons('CONS-002', 'a reviewer will remember')].join('\n'));
+writeFileSync(join(pdir, 'cons-bare.md'), '# consistency\n\nCONS-003 · error envelope\nConcept: HTTP error shape\n');
+writeFileSync(join(pdir, 'cons-empty.md'), '# consistency\n\nNothing was closed.\n');
+const consRun = (name) => {
+  const c = spawnSync('node', [checker, join(pdir, name), '--root', pdir, '--strict', '--profile', 'consistency', '--min-items', '1'], { encoding: 'utf8' });
+  return { status: c.status, out: (c.stdout || '') + (c.stderr || '') };
+};
+const cOk = consRun('cons-ok.md');
+expect(cOk.status === 0, `a complete anchored consistency item should pass, got ${cOk.status}: ${cOk.out}`);
+const cBad = consRun('cons-bad.md');
+expect(cBad.status === 1 && cBad.out.includes('Enforcement cites no existing file'), `an enforcement naming no file must fail, got ${cBad.status}`);
+const cBare = consRun('cons-bare.md');
+expect(cBare.status === 1 && cBare.out.includes('TOO-FEW'), `a citation-less register must fail --min-items, got ${cBare.status}`);
+const cEmpty = consRun('cons-empty.md');
+expect(cEmpty.status === 1 && cEmpty.out.includes('TOO-FEW'), `an empty register must fail --min-items, got ${cEmpty.status}`);
+const badMin = spawnSync('node', [checker, join(pdir, 'cons-ok.md'), '--min-items', '0'], { encoding: 'utf8' });
+expect(badMin.status === 2, `--min-items 0 is a usage error, got ${badMin.status}`);
+
 // ---- --consumed terminal-state gate ------------------------------------------------
 writeFileSync(join(sdir, 'pre.md'), 'CBUG-001 · one\nLocation: code.mjs:2\nTrack: NOW-SAFE\n');
 writeFileSync(join(sdir, 'upd-vanished.md'), '# after run\nall clean\n');

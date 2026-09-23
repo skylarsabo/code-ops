@@ -51,7 +51,8 @@ assumption needing verification before a design commitment through `/researcher:
 Climb the code-economy ladder before writing new code, and record a deliberate simplification
 with a `deferred(<ceiling>, <upgrade path>)` marker. The mechanical floor under that rule is
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan overbuild --git <range>` over the change's own
-range. It blocks only on an unrecorded dependency, and its other tells are leads.
+range. It blocks only on an unrecorded dependency, and its other tells are leads. The report carries
+its added, removed, and net line counts, with a one-line reason when net lines are positive.
 
 ## Phase 3: the proof
 

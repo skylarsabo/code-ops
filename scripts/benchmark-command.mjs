@@ -51,15 +51,21 @@ function round(value) {
   return Number(value.toFixed(3));
 }
 
+function medianOf(sorted) {
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+// Median absolute deviation: the noise band a kept change must clear.
 function summarize(samples) {
   const sorted = [...samples].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  const median = medianOf(sorted);
   return {
     minMs: round(sorted[0]),
     medianMs: round(median),
     p95Ms: round(percentile(sorted, 0.95)),
     maxMs: round(sorted.at(-1)),
+    madMs: round(medianOf(sorted.map((v) => Math.abs(v - median)).sort((a, b) => a - b))),
   };
 }
 
@@ -109,5 +115,5 @@ else {
   console.log(`command: ${report.command.join(' ')}`);
   console.log(`protocol: ${report.protocol.warmup} warmup, ${report.protocol.runs} measured, ${report.protocol.timeoutMs} ms timeout`);
   console.log(`environment: Node ${report.environment.node} ${report.environment.platform}/${report.environment.arch}, ${report.environment.logicalCpuCount} logical CPUs`);
-  console.log(`wall time: min ${report.summary.minMs} ms, median ${report.summary.medianMs} ms, p95 ${report.summary.p95Ms} ms, max ${report.summary.maxMs} ms`);
+  console.log(`wall time: min ${report.summary.minMs} ms, median ${report.summary.medianMs} ms, p95 ${report.summary.p95Ms} ms, max ${report.summary.maxMs} ms, MAD ${report.summary.madMs} ms`);
 }

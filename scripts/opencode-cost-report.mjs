@@ -6,7 +6,8 @@
 // Usage: node cost-report.mjs [--ledger <path>] [--profile <path>] [--since <days>] [--json] [--check]
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -40,17 +41,35 @@ const cap = Number(profile.budget_credits) > 0 ? Number(profile.budget_credits) 
 const gates = profile.cost_gates ?? {};
 const creditsOf = (row) => (rate ? row.costUsd * rate : row.credits ?? 0);
 
+// The shipped per-provider prices ride in the generated model-floor plugin,
+// beside this file in the eval layout and under ../plugins/ in the distribution.
+function shippedPrices() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const path of [join(here, 'code-ops-model-floors.js'), join(here, '..', 'plugins', 'code-ops-model-floors.js')]) {
+    try {
+      const match = /const MODEL_PRICES = (\{[\s\S]*?\n\});/.exec(readFileSync(path, 'utf8'));
+      if (match) return JSON.parse(match[1]);
+    } catch { /* absent or torn: no shipped prices */ }
+  }
+  return {};
+}
+
 // A flat-rate host reports zero cost. When the operator has put per-million
-// token prices in the profile (`prices.<model id>: { input, cached, output }`),
-// the row is priced from its own token counts and marked estimated.
+// token prices in the profile (`prices.<model id>: { input, cached, cacheWrite?, output }`),
+// or the provider has shipped prices, the row is priced from its own token
+// counts and marked estimated. A row holds session totals, not per-request
+// sizes, so a price's `longContext` tier cannot be applied here.
 const bare = (id) => String(id).split('/').pop();
+const shipped = shippedPrices();
+const provider = (id) => (String(id).includes('/') ? String(id).split('/')[0] : '');
 function priced(row) {
   if (row.costUsd > 0) return row;
-  const price = (row.models ?? []).map((id) => profile.prices?.[id] ?? profile.prices?.[bare(id)]).find(Boolean);
+  const price = (row.models ?? []).map((id) => profile.prices?.[id] ?? profile.prices?.[bare(id)]
+    ?? shipped[provider(id)]?.[bare(id)]).find(Boolean);
   if (!price || !row.tokens) return row;
   const t = row.tokens;
-  const usd = ((t.input + t.cacheCreate) * (price.input ?? 0) + t.cacheRead * (price.cached ?? price.input ?? 0)
-    + (t.output + t.thinking) * (price.output ?? 0)) / 1e6;
+  const usd = (t.input * (price.input ?? 0) + t.cacheCreate * (price.cacheWrite ?? price.input ?? 0)
+    + t.cacheRead * (price.cached ?? price.input ?? 0) + (t.output + t.thinking) * (price.output ?? 0)) / 1e6;
   return { ...row, costUsd: usd, estimated: true };
 }
 

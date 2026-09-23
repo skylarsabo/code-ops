@@ -36,7 +36,7 @@ const run = (args, opts = {}) => spawnSync('node', args, { encoding: 'utf8', cwd
 
 // The domains the eval knows about. Pinned here rather than read from co.mjs so that removing
 // a domain from the table fails this eval instead of silently shrinking the expectation.
-const DOMAINS = ['context', 'run', 'security', 'scan', 'check', 'docs', 'atlas', 'register', 'calibrate', 'review', 'research', 'build'];
+const DOMAINS = ['context', 'run', 'security', 'scan', 'check', 'docs', 'atlas', 'register', 'handoff', 'calibrate', 'review', 'research', 'build'];
 
 // The table's own top-level keys, read from the source, must equal the pinned list. A new
 // domain has to be added here too, which is the point.

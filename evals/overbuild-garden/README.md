@@ -1,11 +1,12 @@
 # overbuild-garden
 
 A decoy garden for `scripts/scan-overbuild.mjs`. `repo/base/` is a small project and
-`repo/change/` overlays one change onto it. The change plants eleven over-builds, one of every
-tell and three of the new-file tell, and nine decoys a naive scanner would flag: a sized
+`repo/change/` overlays one change onto it. The change plants fifteen over-builds, one of every
+tell, three of the new-file tell, and two of the suppression tell, and thirteen decoys a naive scanner would flag: a sized
 extraction with two callers, an interface with two implementors, a test file sized like its
 neighbors, a dependency with a decision record in the same diff, a config key the server reads,
-two wrappers that add a guard or change an argument, and prose comment blocks.
+two wrappers that add a guard or change an argument, prose comment blocks, two suppressions
+with a same-line reason, a placeholder row, and an arrow symbol.
 
 `run.mjs` builds a throwaway git repository from the two trees, runs the scanner on
 `HEAD~1..HEAD`, scores the `--json` hits with `evals/score.mjs` against `ANSWER_KEY.json`, and

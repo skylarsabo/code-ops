@@ -38,7 +38,8 @@
 //      existence only, exactly as the register gate treats it.
 //   7. A non-empty `Request:` line sits inside "## Goal and state of play", carrying the
 //      operator's original request verbatim. A resumed session that cannot read what was asked
-//      for re-derives the objective from artifacts and drifts off it.
+//      for re-derives the objective from artifacts and drifts off it. No `[FILL:` placeholder
+//      from `co handoff draft` may remain on any line.
 //   8. Every top-level bullet under "## Key findings" carries a confidence label of CONFIRMED,
 //      PROBABLE, or SPECULATIVE. A finding handed on without one is read as certain.
 //
@@ -169,6 +170,10 @@ const goalSection = secs.find((s) => s.heading.toLowerCase().startsWith('goal an
 if (goalSection && !/^[-*\t ]*Request:[^\S\r\n]*\S/m.test(goalSection.body)) {
   violations.push('"## Goal and state of play" has no non-empty "Request:" line carrying the operator\'s original request');
 }
+
+// ---- 7b. no unfilled draft placeholder survives anywhere in the file ----
+const unfilled = text.split('\n').filter((line) => line.includes('[FILL:')).length;
+if (unfilled) violations.push(`${unfilled} line(s) still hold a "[FILL:" placeholder from \`co handoff draft\``);
 
 // ---- 8. Key findings: every bullet carries a confidence label ----
 const findingsSection = secs.find((s) => s.heading.toLowerCase().startsWith('key findings'));

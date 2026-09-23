@@ -70,6 +70,15 @@ const KNOWN_MODELS = {
   "opencode": {
     "muse-spark-1.3-contributor-free": "strong"
   },
+  "github-copilot": {
+    "gpt-6-luna": "light",
+    "gemini-3.8-flash": "mid",
+    "gpt-6-sol": "frontier",
+    "claude-opus-5.5": "strong",
+    "grok-4.7": "strong",
+    "claude-haiku-4.5": "light",
+    "mai-code-1.1-flash": "light"
+  },
   "accepted": {
     "claude-opus-5": "strong",
     "gpt-5.6-luna": "light",
@@ -77,6 +86,7 @@ const KNOWN_MODELS = {
     "grok-4.6": "frontier",
     "claude-haiku-4-5": "light",
     "claude-haiku-4.5": "light",
+    "claude-opus-5.5": "strong",
     "claude-fable-5.1": "frontier"
   }
 };
@@ -105,15 +115,96 @@ const TIER_BY_ID = {
   "mistral-medium-latest": "mid",
   "magistral-medium-latest": "frontier",
   "muse-spark-1.3-contributor-free": "strong",
+  "gemini-3.8-flash": "mid",
   "gpt-6-astra": "frontier",
   "grok-build-0.1": "light",
+  "claude-opus-5.5": "strong",
+  "claude-haiku-4.5": "light",
+  "mai-code-1.1-flash": "light",
   "claude-opus-5": "strong",
   "gpt-5.6-luna": "light",
   "gpt-5.6-sol": "frontier",
   "grok-4.6": "frontier",
   "claude-haiku-4-5": "light",
-  "claude-haiku-4.5": "light",
   "claude-fable-5.1": "frontier"
+};
+// Read by the lifecycle chooser and the cost report, never by this gate.
+const MODEL_PRICES = {
+  "github-copilot": {
+    "grok-4.7": {
+      "input": 2,
+      "cached": 0.5,
+      "output": 6,
+      "longContext": {
+        "above": 200000,
+        "input": 4,
+        "cached": 1,
+        "output": 12
+      },
+      "verifiedAt": "2026-09-23",
+      "source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+    },
+    "gpt-6-sol": {
+      "input": 2,
+      "cached": 0.2,
+      "cacheWrite": 2.5,
+      "output": 10,
+      "longContext": {
+        "above": 272000,
+        "input": 4,
+        "cached": 0.4,
+        "cacheWrite": 5,
+        "output": 15
+      },
+      "verifiedAt": "2026-09-23",
+      "source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+    },
+    "gpt-6-luna": {
+      "input": 0.1,
+      "cached": 0.01,
+      "cacheWrite": 0.125,
+      "output": 0.5,
+      "longContext": {
+        "above": 272000,
+        "input": 0.2,
+        "cached": 0.02,
+        "cacheWrite": 0.25,
+        "output": 0.75
+      },
+      "verifiedAt": "2026-09-23",
+      "source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+    },
+    "gemini-3.8-flash": {
+      "input": 0.75,
+      "cached": 0.075,
+      "output": 3.75,
+      "verifiedAt": "2026-09-23",
+      "source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+    },
+    "mai-code-1.1-flash": {
+      "input": 0.2,
+      "cached": 0.02,
+      "output": 1.2,
+      "verifiedAt": "2026-09-23",
+      "source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+    },
+    "claude-haiku-4.5": {
+      "input": 1,
+      "cached": 0.1,
+      "cacheWrite": 1.25,
+      "output": 5,
+      "verifiedAt": "2026-09-23",
+      "source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+    },
+    "claude-opus-5.5": {
+      "input": 4,
+      "cached": 0.2,
+      "cacheWrite": 5,
+      "output": 20,
+      "verifiedAt": "2026-09-23",
+      "source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+    }
+  }
 };
 const ROUTING_CARD = "code-ops standard operating mode\ndebug a bug -> /code-ops-suite-debug\nship a feature/change -> /code-ops-suite-ship\naudit/quality sweep -> /code-ops-suite-full-sweep or /rigor-rigor-sweep\nprivacy/leak concern -> /privacy-opsec-suite-full-sweep\nlibrary/dependency decision -> /researcher-library-eval\nclaim verification -> /researcher-research-verify\neverything (broad/multi-domain) -> /code-ops-suite-everything\nsubstantive work -> frontier lead, task-based tiers, disjoint units in parallel when the graph allows; strong is the judgment floor\na dispatch costs context times turns: /code-ops-suite-implementer for build work, a round budget, breadth agents at their declared tier\none frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; the lead keeps the verdict\nsay what you are about to do, then close with a recap that stands on its own\nonly you see a command's output; put what the user needs to read in your reply\ncontext economy: read the named convention sections only, skim before a whole file, and query the symbol index before a map";
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url));

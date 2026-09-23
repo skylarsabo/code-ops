@@ -76,7 +76,8 @@ The mechanical floor under area F is
 over-build tells on the pass's own diff and blocks only on an unrecorded dependency. Record a
 deliberate simplification with a `deferred(<ceiling>, <upgrade path>)` marker, and collect the
 markers with `node <plugin-root>/scripts/co.mjs scan deferrals` so the register carries
-them forward.
+them forward. The report carries its added, removed, and net line counts, with a one-line reason
+when net lines are positive.
 
 Keep tier honesty at the point of use. A reported issue you did not execute a repro for is
 PROBABLE at most, never CONFIRMED (`§7`). When unsure between two tiers, pick the lower.

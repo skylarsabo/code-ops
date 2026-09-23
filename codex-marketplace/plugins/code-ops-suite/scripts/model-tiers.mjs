@@ -137,6 +137,13 @@ export const PROVIDER_TIERS = {
     },
     notes: 'Zero account cost with a single operative model. Light, mid, and strong all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.',
   },
+  'github-copilot': {
+    id: 'github-copilot',
+    label: 'GitHub Copilot (AI Credits)',
+    verifiedAt: '2026-09-23',
+    models: { light: 'gpt-6-luna', mid: 'gemini-3.8-flash', strong: 'gpt-6-sol', frontier: 'gpt-6-sol' },
+    notes: 'Copilot bills GitHub AI Credits (1 credit = $0.01) from input, cached, cache-write, and output tokens. Each rung binds the lowest-cost verified model that meets it. Sol serves both top rungs because it is the calibrated frontier on the OpenAI ladder and costs less than Opus 5.5 or Grok 4.7 on a standard operative workload. PROVIDER_PRICES carries the per-million rates the live chooser and the cost report read.',
+  },
 };
 
 // Explicit alternatives do not replace a provider's cost-disciplined default ladder.
@@ -164,6 +171,60 @@ export const PROVIDER_SPECIALISTS = {
       notes: 'Fast coding model at $1/$2 per million tokens, with no effort dial and a 256k window. The live OpenCode chooser may bind a light agent to it when the host lists it. It is not the default light pin, and it never satisfies a mid, strong, or frontier floor.',
     },
   ],
+  'github-copilot': [
+    {
+      name: 'opus',
+      model: 'claude-opus-5.5',
+      tier: 'strong',
+      uses: ['quality-first judgment', 'review'],
+      verifiedAt: '2026-09-23',
+      notes: 'Opus 5.5 at $4/$20 per million tokens, cache reads $0.20 and cache writes $5. Select it for a unit where review quality outweighs the premium over Sol.',
+    },
+    {
+      name: 'grok',
+      model: 'grok-4.7',
+      tier: 'strong',
+      uses: ['short high-output units'],
+      verifiedAt: '2026-09-23',
+      notes: 'Grok 4.7 at $2/$6 per million tokens, but cached input costs $0.50, 2.5 times Sol and Opus 5.5, and every rate doubles above 200,000 tokens. It suits short units with a large output, not a long lead.',
+    },
+    {
+      name: 'haiku',
+      model: 'claude-haiku-4.5',
+      tier: 'light',
+      uses: ['mechanical breadth'],
+      verifiedAt: '2026-09-23',
+      notes: 'Haiku 4.5 at $1/$5 per million tokens. A light alternative to Luna when the unit needs a Claude model.',
+    },
+    {
+      name: 'mai-code',
+      model: 'mai-code-1.1-flash',
+      tier: 'light',
+      uses: ['mechanical breadth', 'high-volume file and log triage'],
+      verifiedAt: '2026-09-23',
+      notes: 'MAI Code 1.1 Flash at $0.20/$1.20 per million tokens. It never satisfies a mid, strong, or frontier floor.',
+    },
+  ],
+};
+
+// Per-million-token USD prices for a provider whose bill is token-priced, so the live
+// OpenCode chooser can rank models by cost and the cost report can price a flat-rate row
+// offline. `cacheWrite` is present only where the provider lists it; without it a cache
+// write bills at `input`. `longContext` rates apply to a request above `above` tokens.
+// Prices are pinned with their source, not fetched, for the same reason model ids are.
+const COPILOT_PRICING = 'https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing';
+const copilot = (rates) => ({ ...rates, verifiedAt: '2026-09-23', source: COPILOT_PRICING });
+export const PROVIDER_PRICES = {
+  'github-copilot': {
+    'grok-4.7': copilot({ input: 2, cached: 0.5, output: 6, longContext: { above: 200_000, input: 4, cached: 1, output: 12 } }),
+    'gpt-6-sol': copilot({ input: 2, cached: 0.2, cacheWrite: 2.5, output: 10, longContext: { above: 272_000, input: 4, cached: 0.4, cacheWrite: 5, output: 15 } }),
+    'gpt-6-luna': copilot({ input: 0.1, cached: 0.01, cacheWrite: 0.125, output: 0.5, longContext: { above: 272_000, input: 0.2, cached: 0.02, cacheWrite: 0.25, output: 0.75 } }),
+    // Promotional price through 2026-12-31.
+    'gemini-3.8-flash': copilot({ input: 0.75, cached: 0.075, output: 3.75 }),
+    'mai-code-1.1-flash': copilot({ input: 0.2, cached: 0.02, output: 1.2 }),
+    'claude-haiku-4.5': copilot({ input: 1, cached: 0.1, cacheWrite: 1.25, output: 5 }),
+    'claude-opus-5.5': copilot({ input: 4, cached: 0.2, cacheWrite: 5, output: 20 }),
+  },
 };
 
 // Hosts keep binding the previous pin, or a reseller spelling of a current one, after the
@@ -177,6 +238,7 @@ export const ACCEPTED_MODELS = {
   'grok-4.6': ['light', 'mid', 'strong', 'frontier'],
   'claude-haiku-4-5': ['light'],
   'claude-haiku-4.5': ['light'],
+  'claude-opus-5.5': ['strong'],
   'claude-fable-5.1': ['frontier'],
 };
 
@@ -210,6 +272,7 @@ const PROVIDER_SLUG_PATTERNS = [
   ['anthropic', /^(claude|opus|sonnet|haiku|fable)\b/],
   ['xai', /^grok\b/],
   ['opencode', /^(ling|mimo|nemotron|muse)\b/],
+  ['github-copilot', /^(github-copilot|copilot|mai)\b/],
   ['openai', /^(gpt|codex|o[0-9])\b/],
   ['google', /^gemini\b/],
   ['zai', /^glm\b/],

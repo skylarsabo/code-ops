@@ -37,7 +37,7 @@ CONFIRMED is the only tier backed by *execution*. Something ran and demonstrated
 
 Per §E (evidence standard), anything *unexecuted* is PROBABLE or SPECULATIVE, and **never** CONFIRMED. You cannot reason your way to CONFIRMED. You have to run something.
 
-The claim is also mechanically checkable. Under strict register validation (`revalidate-register.mjs --strict --profile finding-rigor`), a `Tier: CONFIRMED` item must carry a `Proof:` that *resolves* on the current tree: a cited file that exists, a backticked runnable command, or a quoted test name found by grep. Otherwise the register fails with "attach a resolvable proof or downgrade to PROBABLE." A CONFIRMED with no checkable proof no longer passes silently.
+The claim is also mechanically checkable. Under strict register validation (`revalidate-register.mjs --strict --profile finding-rigor`), a `Tier: CONFIRMED` item must carry a `Proof:` that *resolves* on the current tree: an `RCPT-NNN` receipt present in the run's `RUN_RECEIPTS.md` whose recorded exit code matches any exit the proof claims, a cited in-tree file other than the register itself, or a quoted test name found in a test or spec file. A backticked command that nobody ran does not count. Otherwise the register fails with "attach a resolvable proof or downgrade to PROBABLE." A CONFIRMED with no checkable proof no longer passes silently.
 
 ### PROBABLE means strong static evidence on two independent lines
 

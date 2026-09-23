@@ -55,7 +55,8 @@ what is now canonical and guarded.
 
 Each inconsistency group has a canonical form, every site is migrated, a working enforcement
 is in place, and the tests are green. Closed means that recurrence is mechanically
-prevented. The finished `CONSISTENCY_REGISTER.md` passes
-`node <plugin-root>/scripts/revalidate-register.mjs CONSISTENCY_REGISTER.md --root .`
-with exit 0. Before the run is done, re-locate any non-FRESH citation against the real tree
+prevented. The finished `CONSISTENCY_REGISTER.md` follows the grammar in
+`<plugin-root>/reference/artifact-grammars.md` §(j) and passes
+`node <plugin-root>/scripts/revalidate-register.mjs CONSISTENCY_REGISTER.md --root . --strict --profile consistency --min-items 1`
+with exit 0, so it carries at least one anchored item and each Enforcement names a real file. Before the run is done, re-locate any non-FRESH citation against the real tree
 or drop it (`§E`).

@@ -145,12 +145,12 @@ Prompts reference these by name. Apply the ones relevant to the task and the pro
 
 ## 11 · The implementation loop (shared, for IMPLEMENT-mode work)
 For each unit of work:
-1. **Re-validate and understand**: confirm the item still applies against current code, and understand root cause and full intent.
+1. **Re-validate and understand**: confirm the item still applies against current code, and understand root cause and full intent. Before coding against a third-party API the tree does not already use the same way, run `/code-ops-suite-current-docs` and record `name@version` and its source. A miss is `DOCS-UNVERIFIED <lib>` in the unit report, and the lead treats it as an open item.
 2. **Plan**: approach, files, tests, blast radius, risk. Keep it the smallest correct change.
 3. **Confirm if unsure**: behavior, contract, or data-handling changes, ambiguous scope, multiple viable approaches, or a design direction all mean ask (§3).
 4. **Implement**: match existing conventions and uphold the relevant lenses (§10). Do not trade one issue for a new one. Edit surgically. Rewrite a whole file only when the file is short or most of it changes. A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.
 5. **Test**: add or adjust tests that fail before and pass after, and cover edge and error paths. Commit tests only where the task asks for them or the repository already keeps tests for this kind of change, sized like the neighboring test files, and never turn scratch checks into permanent test files.
-6. **Verify**: build, lint, typecheck, and tests green. For UI, render and exercise it.
+6. **Verify**: run the repository's own format-check, lint, typecheck, build, and tests, all green, with no new warnings or suppressions. For UI, render and exercise it.
 7. **Self-review** against the lenses, and fix before committing.
 8. **Commit** atomically, referencing the item ID, and open or update a PR per the developer's preference.
 9. **Close the loop**: update the backlog status, and update any documentation the change affects. Do not create doc drift.

@@ -519,6 +519,23 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   r = runHook(subagentCall('agent-ceil', { tool_name: 'Agent', tool_input: clean, transcript_path: transcriptAt(dir, 900_000, 'big.jsonl') }), { home });
   expect(r.status === 0 && r.stdout === '', `a subagent call must not meet the main-thread ceiling gate, got ${JSON.stringify(r.stdout)}`);
 
+  // Grok: camelCase keys and `spawn_subagent`, whose schema has no agent-type field. The
+  // ceiling still gates it; the missing type alone is not a wide-type deny.
+  const grokSpawn = (context, sessionId, toolInput = { prompt: 'Round budget: 5' }) => runHook({
+    hook_event_name: 'PreToolUse', hookEventName: 'pre_tool_use', sessionId, cwd,
+    toolName: 'spawn_subagent', toolInput, transcriptPath: transcriptAt(dir, context, `g-${context}.jsonl`),
+  }, { home });
+  out = parseOut(grokSpawn(310_000, 'sess-grok'));
+  reason = reasonOf(out) ?? '';
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && /context ceiling/.test(reason) && !/unnamed type/i.test(reason),
+    `a Grok spawn past the ceiling must deny on the ceiling alone, got ${JSON.stringify(out)}`);
+  r = grokSpawn(290_000, 'sess-grok');
+  expect(r.status === 0 && r.stdout === '', `a Grok spawn with no agent type under the ceiling must be silent, got ${JSON.stringify(r.stdout)}`);
+  out = parseOut(grokSpawn(290_000, 'sess-grok', { prompt: 'Round budget: 5', subagent_type: 'general-purpose' }));
+  expect(/general-purpose/.test(reasonOf(out) ?? ''), `a Grok spawn naming a wide type must still deny, got ${JSON.stringify(out)}`);
+  out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 5' }, { cwd, session_id: session, transcript_path: transcriptAt(dir, 290_000, 'claude.jsonl') }), { home }));
+  expect(/unnamed type/i.test(reasonOf(out) ?? ''), `a Claude Agent call with no subagent_type must still deny, got ${JSON.stringify(out)}`);
+
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   the context ceiling denies dispatch until a handoff assessment records the band, and each switch behaves');

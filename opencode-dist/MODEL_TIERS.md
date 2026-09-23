@@ -25,6 +25,7 @@ entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in
 | DeepSeek | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` |
 | Mistral | `mistral/magistral-small` | `mistral/mistral-medium-latest` | `mistral/magistral-medium-latest` | `mistral/magistral-medium-latest` |
 | OpenCode Zen (free tier) | `opencode/muse-spark-1.3-contributor-free` | `opencode/muse-spark-1.3-contributor-free` | `opencode/muse-spark-1.3-contributor-free` | session model (lead unset) |
+| GitHub Copilot (AI Credits) | `github-copilot/gpt-6-luna` | `github-copilot/gemini-3.8-flash` | `github-copilot/gpt-6-sol` | `github-copilot/gpt-6-sol` |
 
 Where a provider repeats a model across two rungs, its lineup has no distinct model for
 the lower one. The collapse is recorded rather than papered over with an invented tier.
@@ -40,6 +41,7 @@ the lower one. The collapse is recorded rather than papered over with an invente
 - **DeepSeek** — A two-model lineup, so each of its models covers two rungs. The cheapest ladder here by a wide margin.
 - **Mistral** — Only the `magistral` line reasons, so the ladder is built from it wherever a rung needs reasoning.
 - **OpenCode Zen (free tier)** — Zero account cost with a single operative model. Light, mid, and strong all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.
+- **GitHub Copilot (AI Credits)** — Copilot bills GitHub AI Credits (1 credit = $0.01) from input, cached, cache-write, and output tokens. Each rung binds the lowest-cost verified model that meets it. Sol serves both top rungs because it is the calibrated frontier on the OpenAI ladder and costs less than Opus 5.5 or Grok 4.7 on a standard operative workload. PROVIDER_PRICES carries the per-million rates the live chooser and the cost report read.
 
 ## Premium specialists
 
@@ -48,6 +50,10 @@ default lead or operative binding:
 
 - `openai/gpt-6-astra` — `frontier` for difficult architecture, independent refutation, cross-domain synthesis. Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Sol is $2/$10 and Astra is $10/$50, verified 2026-09-22. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.
 - `xai/grok-build-0.1` — `light` for mechanical breadth, high-volume file and log triage. Fast coding model at $1/$2 per million tokens, with no effort dial and a 256k window. The live OpenCode chooser may bind a light agent to it when the host lists it. It is not the default light pin, and it never satisfies a mid, strong, or frontier floor.
+- `github-copilot/claude-opus-5.5` — `strong` for quality-first judgment, review. Opus 5.5 at $4/$20 per million tokens, cache reads $0.20 and cache writes $5. Select it for a unit where review quality outweighs the premium over Sol.
+- `github-copilot/grok-4.7` — `strong` for short high-output units. Grok 4.7 at $2/$6 per million tokens, but cached input costs $0.50, 2.5 times Sol and Opus 5.5, and every rate doubles above 200,000 tokens. It suits short units with a large output, not a long lead.
+- `github-copilot/claude-haiku-4.5` — `light` for mechanical breadth. Haiku 4.5 at $1/$5 per million tokens. A light alternative to Luna when the unit needs a Claude model.
+- `github-copilot/mai-code-1.1-flash` — `light` for mechanical breadth, high-volume file and log triage. MAI Code 1.1 Flash at $0.20/$1.20 per million tokens. It never satisfies a mid, strong, or frontier floor.
 
 ## Ready-made configs
 
@@ -62,6 +68,8 @@ One config per provider ships under `configs/`, each binding every agent to its 
 - `configs/opencode.deepseek.json`
 - `configs/opencode.mistral.json`
 - `configs/opencode.opencode.json`
+- `configs/opencode.github-copilot.json`
+- `configs/model-profile.github-copilot.json` — a starter chooser profile with prices and cost gates. Copy it to `~/.claude/code-ops/opencode-model-profile.json`.
 
 `opencode.json` at the root is a copy of the `opencode` one, which costs nothing and leaves the lead
 unset so it inherits the session model. Merge whichever you want into your own config rather
@@ -75,7 +83,7 @@ The `opencode` ladder leaves the lead unset and binds no frontier model. Its con
 A `calibration` block is the only exception. It serves calibration arms (b) and (c) on the
 assess-only track, and it admits a `strong` lead such as `muse-spark-1.3-contributor-free`. The validator rejects
 the block when the lead model also serves the `frontier` rung, because that arm cannot
-measure a strong-versus-frontier gap. That rules out a strong lead from: xAI (Grok), Google (Gemini), Z.AI (GLM), Moonshot AI (Kimi), DeepSeek, Mistral.
+measure a strong-versus-frontier gap. That rules out a strong lead from: xAI (Grok), Google (Gemini), Z.AI (GLM), Moonshot AI (Kimi), DeepSeek, Mistral, GitHub Copilot (AI Credits).
 
 Contracts take bare model ids. Write `muse-spark-1.3-contributor-free`, not `opencode/muse-spark-1.3-contributor-free`. The
 provider-prefixed form in the table above and in `opencode.json` fails the tier check.

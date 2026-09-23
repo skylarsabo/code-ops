@@ -38,10 +38,12 @@ const expectedSummary = orderedSamples.length === 3 ? {
   p95Ms: orderedSamples[2],
   maxMs: orderedSamples[2],
 } : null;
-check('b. JSON report includes every sample and ordered summary metrics',
+check('b. JSON report includes every sample, ordered summary metrics, and the MAD',
   report?.samplesMs?.length === 3
     && report.samplesMs.every((sample) => sample > 0)
-    && JSON.stringify(report.summary) === JSON.stringify(expectedSummary),
+    && JSON.stringify({ ...report.summary, madMs: undefined }) === JSON.stringify(expectedSummary)
+    // Three samples: the MAD is the smaller gap to the median, within rounding of the raw samples.
+    && Math.abs(report.summary.madMs - Math.min(orderedSamples[1] - orderedSamples[0], orderedSamples[2] - orderedSamples[1])) <= 0.002,
   measured.out);
 check('c. environment fingerprint identifies the runtime',
   report?.environment?.node === process.version
