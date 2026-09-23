@@ -624,9 +624,12 @@ function readTail(path) {
 // content block of the same message, each repeating `usage`, and the last one carries the final
 // counts (see the header), so the first assistant usage line found scanning backward from the
 // end of the file is already the turn's final number; no dedup pass needed. A compaction marker
-// newer than every usage record (Claude's `compact_boundary` system row, Codex's `compacted`
-// row) returns null: the usage before it is the pre-compaction size, and the true size stays
-// unknown until the first post-compaction turn records usage.
+// newer than every usage record makes the usage before it stale, since that is the
+// pre-compaction size. Claude's `compact_boundary` system row carries the post-compaction size
+// in `compactMetadata.postTokens`, which stands in with source `compaction` until the first
+// post-compaction turn records usage. A boundary without it, and Codex's `compacted` row,
+// return null: the size is unknown. The result is `{ tokens, source }`, source `usage` or
+// `compaction`.
 function lastContextSize(text) {
   const lines = text.split('\n');
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -635,11 +638,15 @@ function lastContextSize(text) {
     let o;
     try { o = JSON.parse(line); } catch { continue; }
     if (!o || typeof o !== 'object') continue;
-    if ((o.type === 'system' && o.subtype === 'compact_boundary') || o.type === 'compacted') return null;
+    if (o.type === 'system' && o.subtype === 'compact_boundary') {
+      const n = o.compactMetadata?.postTokens;
+      return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? { tokens: n, source: 'compaction' } : null;
+    }
+    if (o.type === 'compacted') return null;
     if (o.type === 'assistant' && o.message && typeof o.message === 'object') {
       const u = normalizeUsage(o.message.usage);
       if (u && typeof u.input === 'number' && typeof u.cacheRead === 'number' && typeof u.cacheCreate === 'number') {
-        return u.input + u.cacheRead + u.cacheCreate;
+        return { tokens: u.input + u.cacheRead + u.cacheCreate, source: 'usage' };
       }
       return null;
     }
@@ -648,7 +655,7 @@ function lastContextSize(text) {
     // cache-inclusive input_tokens field, not the cache-excluded `input` normalizeUsage computes.
     if (o.type === 'event_msg' && o.payload?.type === 'token_count') {
       const n = o.payload.info?.last_token_usage?.input_tokens;
-      return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? n : null;
+      return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? { tokens: n, source: 'usage' } : null;
     }
   }
   return null;
@@ -692,13 +699,22 @@ function contextFile(payload, grok, home) {
 // The session's resident context in tokens from a hook payload, or null when it cannot be read.
 // Claude: input plus cache-read plus cache-creation on the last assistant usage record. Codex:
 // the last token_count snapshot's input_tokens. Grok (`grok: true`): the last updates.jsonl
-// snapshot's inputTokens. Never throws, so a caller fails open on null.
-export function residentContext(payload, { grok = false, home = homedir() } = {}) {
+// snapshot's inputTokens. After a Claude compaction with no newer usage record, the boundary's
+// postTokens. Never throws, so a caller fails open on null.
+export function residentContext(payload, options) {
+  return residentContextReading(payload, options)?.tokens ?? null;
+}
+
+// residentContext with its source: `{ tokens, source }`, where source `compaction` marks a size
+// read from compaction metadata rather than a usage record. Null when unknown.
+export function residentContextReading(payload, { grok = false, home = homedir() } = {}) {
   try {
     const file = contextFile(payload, grok, home);
     if (!file) return null;
     const text = readTail(file.path);
-    return file.grok ? lastGrokContext(text) : lastContextSize(text);
+    if (!file.grok) return lastContextSize(text);
+    const n = lastGrokContext(text);
+    return n === null ? null : { tokens: n, source: 'usage' };
   } catch { return null; }
 }
 

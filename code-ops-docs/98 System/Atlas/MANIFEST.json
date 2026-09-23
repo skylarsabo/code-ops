@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
-      "verifiedDigest": "243b1189c22f4d02174c21b719884f9a66186a1f93c486cc4b8a2e2910e96412",
+      "verifiedAt": "5662ed65c3149e3a473de6ec39ab448337058bea",
+      "verifiedDigest": "a223ca70be575b0809eeff6a385d032640d2294201094bf43137a9844eaf3f97",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "62e66851b540f3810becc99bba8970ad3b408c16",
-      "verifiedDigest": "ba04fcce5a9a3a257f9a860ccd5f67a9e8394a0d8d41722d2b76847fe223e4ee",
+      "verifiedAt": "5662ed65c3149e3a473de6ec39ab448337058bea",
+      "verifiedDigest": "175e0e325fd25a2a24ea65c2b959759666993a3a991060ad795d815a05ab0fcc",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -65,8 +65,8 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 623,
-          "anchor": "// The last assistant-turn usage record in the tail window, or null. Claude writ"
+          "line": 710,
+          "anchor": "export function residentContextReading(payload, { grok = false, home = homedir()"
         },
         {
           "file": "scripts/citation-lib.mjs",
@@ -136,8 +136,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "62e66851b540f3810becc99bba8970ad3b408c16",
-      "verifiedDigest": "2be7502c4ccb3227eab22edbd11b303b3b727ef37db60427588c06343f78c7b8",
+      "verifiedAt": "5662ed65c3149e3a473de6ec39ab448337058bea",
+      "verifiedDigest": "972839e3dfe07acc8b7e181f2bbbb068cfa402a5b403165c846c7dd7858a6a08",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -177,12 +177,12 @@
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 205,
-          "anchor": "expect(/handoff assess/.test(m1) && /CONTINUE, COMPACT, or HANDOFF/.test(m1) &&"
+          "anchor": "const boundary = JSON.stringify({ type: 'system', subtype: 'compact_boundary', c"
         },
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 275,
-          "anchor": "a Codex token_count transcript must receive lifecycle guidance, got ${r.status}/"
+          "anchor": "console.log('ok   a crossing at or past the context ceiling says new dispatches"
         }
       ]
     },
@@ -194,8 +194,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
-      "verifiedDigest": "2c9cf049afa651af56c2eb7567182f2702a4b3353f6a3709aaa52d4a893e23fa",
+      "verifiedAt": "5662ed65c3149e3a473de6ec39ab448337058bea",
+      "verifiedDigest": "3dcc8aa9f287b90561df469053f782061e54135abcf7f686be45b9b18d3170ec",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",

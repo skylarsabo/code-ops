@@ -47,9 +47,11 @@ repository tree. Grouped receipts are descriptive until a pre-registered matched
 supports a causal claim.
 
 The resident-context reader shared by the handoff card and the dispatch guard reads only the
-newest usage record. It returns unknown when a compaction marker, the Claude `compact_boundary`
-row or the Codex `compacted` row, sits after that record, so a pre-compaction size never reaches
-either hook (`scripts/transcript-lib.mjs:623`).
+newest usage record. When a compaction marker sits after that record, a pre-compaction size
+never reaches either hook. A Claude `compact_boundary` row with a numeric
+`compactMetadata.postTokens` yields that size, labeled with source `compaction`, until a newer
+usage record replaces it. A boundary without it, or a Codex `compacted` row, reads as unknown
+(`scripts/transcript-lib.mjs:710`).
 
 Register citations are confined by what they resolve to, not only by their text. `citation-lib.mjs` flags a backslash or drive-letter prefix directly at `scripts/citation-lib.mjs:150`, restores a dropped forward-slash prefix from a bounded window that fails closed when a path-shaped run fills it, and requires a cited file's real path to stay under the root's real path. `revalidate-register.mjs` and `check-handoff.mjs` both import it at `scripts/check-handoff.mjs:80`, so the register gate and the handoff gate rank a pointer FRESH, MOVED, DRIFTED, GONE, or AMBIGUOUS under one rule. The handoff gate also requires the six sections that answer an operator's resume questions, a verbatim `Request:` line, a confidence label on every Key findings bullet, no leftover `[FILL:` draft placeholder, and an 8 KB ceiling; its `--consume` flag writes `HANDOFF.consumed` only after every check passes, which retires that handoff from the routing card's pickup line. A leading `## Program` section names the program ledger and the predecessor handoff. When a predecessor exists, the gate fails if the ledger's request history lacks its request, or if any of its `OI-<n>` open items is in neither the new Open items nor the ledger's closed items, so program scope survives each hop. When `Verified-at` matches HEAD on a clean tree, it prints a non-gating `same-tree` status. `integrate-branch.mjs` runs the per-change bump, host renders, manifest sync, and atlas report, then selects `validate.yml` steps from the changed paths; stamping and changelog text stay manual.
 

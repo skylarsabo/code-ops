@@ -190,7 +190,22 @@ function pendingHandoff(cwd) {
     }
   }
   if (!best) return null;
-  return { path: relative(cwd, best.file).split(sep).join('/'), written: localDate(best.mtime) };
+  return { path: relative(cwd, best.file).split(sep).join('/'), written: localDate(best.mtime), program: programPath(best.file) };
+}
+
+// The `Program:` path under the handoff's `## Program` heading, or null. This mirrors
+// programPath() in plugins/code-ops-suite/hooks/routing-card.mjs, which this standalone
+// plugin cannot import. Only the first PROGRAM_SCAN_BYTES are read. A path longer than
+// PROGRAM_PATH_CHARS or still a `[FILL:` placeholder is left off the pickup line.
+const PROGRAM_SCAN_BYTES = 8192;
+const PROGRAM_PATH_CHARS = 200;
+function programPath(file) {
+  let text;
+  try { text = readFileSync(file, 'utf8').slice(0, PROGRAM_SCAN_BYTES); } catch { return null; }
+  const section = /^##[ \t]+Program[ \t]*\r?$([\s\S]*?)(?=^##[ \t]|(?![\s\S]))/m.exec(text)?.[1] ?? '';
+  const value = /^[-*\t ]*Program:[^\S\r\n]*(.*)$/m.exec(section)?.[1].trim().replace(/^`(.*)`$/, '$1').trim();
+  if (!value || value.length > PROGRAM_PATH_CHARS || value.includes('[FILL:') || /[\u0000-\u001f]/.test(value)) return null;
+  return value;
 }
 
 function ledgerPath() {
@@ -1005,7 +1020,8 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
     row.pickupDone = true;
     const pending = pendingHandoff(row.cwd);
     if (!pending) return null;
-    return `pending handoff: ${pending.path} (written ${pending.written}). Pickup is discovery, not resume. Before other work, run /code-ops-suite-handoff resume "${pending.path}", verify its claims, and open your reply with a recap under five headings: work completed, key findings, in progress, left to do, project scope and constraints. If the operator's first request is unrelated, name the pending handoff in one line and proceed with their request.`;
+    const ledger = pending.program ? ` Program ledger: ${pending.program}; read it first.` : '';
+    return `pending handoff: ${pending.path} (written ${pending.written}).${ledger} Pickup is discovery, not resume. Before other work, run /code-ops-suite-handoff resume "${pending.path}", verify its claims, and open your reply with a recap under five headings: work completed, key findings, in progress, left to do, project scope and constraints. If the operator's first request is unrelated, name the pending handoff in one line and proceed with their request.`;
   };
 
   const mergeChildReceipt = (row) => {
@@ -1374,4 +1390,5 @@ CodeOpsLifecycle.internals = {
   routeTier,
   resolveEffort,
   pickVariant,
+  pendingHandoff,
 };
