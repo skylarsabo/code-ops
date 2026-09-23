@@ -5,7 +5,7 @@ you actually have to the commands that serve it in the right order, and points a
 per-plugin reference for detail. Read it when you know what you want and not which
 command does it.
 
-The code-ops marketplace ships **66 commands** across four plugins. Call any command as
+The code-ops marketplace ships **64 commands** across four plugins. Call any command as
 `/<plugin>:<skill>` in Claude Code, or name `<plugin>:<skill>` in a Codex request. The
 model can also route to a command per the standard-operating-mode routing card. Either
 way, side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing
@@ -117,8 +117,8 @@ which routes each plugin set supports, see
 | **Onboard onto a codebase** | `/code-ops-suite:onboarding` | code-ops-suite | Verified, code-grounded orientation guide with an architecture diagram. |
 | **Reconcile docs against the code** | `/code-ops-suite:doc-alignment` | code-ops-suite | Establish a clean single source of truth; fixes doc drift. (`/privacy-opsec-suite:privacy-doc-alignment` reconciles privacy/anonymity promises.) |
 | **Refresh repository docs from changed source** | `/code-ops-suite:repo-docs` | code-ops-suite | Uses one exact context index and the documentation manifest to update only affected domains. |
-| **Bootstrap or verify a repo's CLAUDE.md standards contract** | `/code-ops-suite:adopt-standards` | code-ops-suite | Writes or re-verifies `CLAUDE.md` against reality: commands run, gate chain matches CI, citations resolve. |
-| **Re-verify the Claude and Codex global contracts against suite doctrine** | `/code-ops-suite:adopt-global-standards` | code-ops-suite | Diffs both host contracts against the SSOT; classifies drift, preserves a shared core, and writes deliberate host deltas under checkpoint. |
+| **Bootstrap or verify a repo's CLAUDE.md standards contract** | `/code-ops-suite:conform` (repo scope, surface 1) | code-ops-suite | Writes or re-verifies `CLAUDE.md` against reality: commands run, gate chain matches CI, citations resolve. |
+| **Re-verify the Claude and Codex global contracts against suite doctrine** | `/code-ops-suite:conform global` | code-ops-suite | Diffs both host contracts against the SSOT; classifies drift, preserves a shared core, and writes deliberate host deltas under checkpoint. |
 | **Get version-accurate docs for a dependency** | `/code-ops-suite:current-docs` | code-ops-suite | Local-first, no third-party. It is the in-house Context7 alternative (also the `code-ops-docs` MCP). |
 | **Threat-model the attack surface** | `/code-ops-suite:security-privacy-audit` | code-ops-suite | Adversarial STRIDE + LINDDUN; writes `THREAT_MODEL.md` + findings. |
 | **Run the full intra-suite engineering pass** | `/code-ops-suite:full-sweep` (orchestrator) | code-ops-suite | scope → ground truth → assess → safety-net → fix → deep-dives → consistency → document → ship. |
@@ -169,7 +169,7 @@ switches themselves.
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) carries **34 commands**: the engineering spine (assess, build, deep-dives, local review, gate and consistency, docs and knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep`, `everything`, `ship`, `debug`).
+- [code-ops-suite.md](code-ops-suite.md) carries **32 commands**: the engineering spine (assess, build, deep-dives, local review, gate and consistency, docs and knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep`, `everything`, `ship`, `debug`).
 - [rigor.md](rigor.md) carries **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) carries **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) carries **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).

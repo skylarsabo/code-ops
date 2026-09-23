@@ -114,10 +114,9 @@ function assertDiscoverableName(name, what) {
   if (name.length > OPENCODE_NAME_MAX) throw new Error(`${what}: "${name}" is ${name.length} characters, over opencode's ${OPENCODE_NAME_MAX}-character limit`);
 }
 
-function portableText(contents, { preserveClaudeContract = false, preservePairedContracts = false } = {}) {
+function portableText(contents, { preservePairedContracts = false } = {}) {
   let guarded = contents;
-  if (preserveClaudeContract) guarded = guarded.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL);
-  else if (preservePairedContracts) {
+  if (preservePairedContracts) {
     guarded = guarded.split('\n').map((line) => line.includes('CLAUDE.md') && line.includes('AGENTS.md')
       ? line.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL)
       : line).join('\n');
@@ -190,8 +189,7 @@ function transformSkill(pluginName, slug, contents, path) {
   ].join('\n');
 
   const transformed = portableText(body.replace(marker, rule), {
-    preserveClaudeContract: pluginName === 'code-ops-suite' && slug === 'adopt-global-standards',
-    preservePairedContracts: pluginName === 'code-ops-suite' && slug === 'adopt-standards',
+    preservePairedContracts: pluginName === 'code-ops-suite' && slug === 'conform',
   });
   return ['---', `name: ${name}`, `description: ${yamlString(description)}`, '---', transformed].join('\n');
 }
@@ -852,10 +850,9 @@ function validate({ files, skills, agents }) {
     expect(sibling?.includes('routing and compaction have no off switch'), `${pluginName} conventions overstate OpenCode runtime switches`);
     expect(!sibling?.includes('.claude/settings.json'), `${pluginName} conventions retain the Claude settings location`);
   }
-  const adoptGlobal = files.get('skills/code-ops-suite-adopt-global-standards/SKILL.md');
-  const adoptRepo = files.get('skills/code-ops-suite-adopt-standards/SKILL.md');
-  expect(adoptGlobal?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed host-specific contract paths');
-  expect(adoptRepo?.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted parity modes');
+  const conform = files.get('skills/code-ops-suite-conform/SKILL.md');
+  expect(conform?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed host-specific contract paths');
+  expect(conform?.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted parity modes');
 
   const config = JSON.parse(files.get('opencode.json'));
   for (const agent of agents) {

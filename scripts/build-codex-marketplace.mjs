@@ -140,10 +140,9 @@ function walkFiles(root) {
   return files;
 }
 
-function portableText(contents, { preserveClaudeContract = false, preservePairedContracts = false, preserveClaudeHome = false } = {}) {
+function portableText(contents, { preservePairedContracts = false, preserveClaudeHome = false } = {}) {
   let guarded = contents;
-  if (preserveClaudeContract) guarded = guarded.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL);
-  else if (preservePairedContracts) {
+  if (preservePairedContracts) {
     guarded = guarded.split('\n').map((line) => line.includes('CLAUDE.md') && line.includes('AGENTS.md')
       ? line.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL)
       : line).join('\n');
@@ -216,10 +215,11 @@ function transformSkill(pluginName, slug, contents, path) {
     marker,
     `**Codex path rule:** Resolve \`<plugin-root>\` as the installed root of this plugin (the directory containing \`CONVENTIONS.md\`); use it for every bundled script or reference path.\n\n**Invoke in Codex by naming \`${command}\`.**`,
   );
-  const crossHostStandards = pluginName === 'code-ops-suite' && (slug === 'adopt-global-standards' || slug === 'adopt-standards');
+  // conform carries both contract scopes: a line naming both contract files keeps its Claude
+  // spelling, and the global scope keeps the Claude home beside the Codex one.
+  const crossHostStandards = pluginName === 'code-ops-suite' && slug === 'conform';
   transformed = portableText(transformed, {
-    preserveClaudeContract: slug === 'adopt-global-standards',
-    preservePairedContracts: slug === 'adopt-standards',
+    preservePairedContracts: crossHostStandards,
     preserveClaudeHome: crossHostStandards,
   });
   return `---\nname: ${slug}\n${keptHeader.join('\n')}\n---\n${transformed}`;
@@ -630,10 +630,9 @@ function validateExpectedFiles(expected) {
   expect(contextAudit?.includes("const opt = { host: 'codex'"), 'Codex context audit does not default to the Codex host');
   expect(transcriptLib?.includes("join(homedir(), '.claude', 'projects'"), 'Codex transcript library corrupted its explicit Claude branch');
   expect(transcriptLib?.includes("join(homedir(), '.codex')"), 'Codex transcript library lost its explicit Codex branch');
-  const adoptGlobal = expected.get(`${suiteBase}/skills/adopt-global-standards/SKILL.md`);
-  const adoptRepo = expected.get(`${suiteBase}/skills/adopt-standards/SKILL.md`);
-  expect(adoptGlobal?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'Codex global-standards render collapsed host-specific contract paths');
-  expect(adoptRepo?.includes('`CLAUDE.md` and `AGENTS.md`'), 'Codex repo-standards render collapsed the accepted parity modes');
+  const conform = expected.get(`${suiteBase}/skills/conform/SKILL.md`);
+  expect(conform?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'Codex global-standards render collapsed host-specific contract paths');
+  expect(conform?.includes('`CLAUDE.md` and `AGENTS.md`'), 'Codex repo-standards render collapsed the accepted parity modes');
   const marketplace = makeMarketplace();
   expect(marketplace.plugins.length === PLUGINS.length, 'marketplace plugin count does not match renderer registry');
   for (const entry of marketplace.plugins) {

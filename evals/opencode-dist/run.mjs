@@ -302,10 +302,9 @@ if (referenceSpecs.length > 0) {
   expect(missingCheck.status === 1 && `${missingCheck.stderr}`.includes(`missing generated file: opencode-dist/code-ops/${plugin}/reference/${spec}`), `--check did not detect a missing code-ops/${plugin}/reference/${spec} (exit ${missingCheck.status})`);
 }
 
-const openCodeAdoptGlobal = read(join(dist, 'skills', 'code-ops-suite-adopt-global-standards', 'SKILL.md'));
-const openCodeAdoptRepo = read(join(dist, 'skills', 'code-ops-suite-adopt-standards', 'SKILL.md'));
-expect(openCodeAdoptGlobal.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed the three host-specific contract paths');
-expect(openCodeAdoptRepo.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted two-file parity modes');
+const openCodeConform = read(join(dist, 'skills', 'code-ops-suite-conform', 'SKILL.md'));
+expect(openCodeConform.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed the three host-specific contract paths');
+expect(openCodeConform.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted two-file parity modes');
 const compatibility = read(join(dist, 'PLATFORM_COMPATIBILITY.md'));
 expect(compatibility.includes('are auto-configured'), 'OpenCode compatibility notes do not describe MCP auto-configuration');
 expect(compatibility.includes('intentionally unavailable here'), 'OpenCode compatibility notes do not classify unsupported hook mechanics');

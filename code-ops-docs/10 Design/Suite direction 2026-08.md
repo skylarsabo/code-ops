@@ -30,7 +30,7 @@ The suite is production-ready for single-repo adoption. The gaps cluster in thre
 3. **Pre-run cost estimation.** The cost model and the post-run auditor exist. No pre-flight estimate reads prior dispatch ledgers, so a budget is only ever known after it is spent.
    **Shipped:** `scripts/estimate-run-cost.mjs --runs <dir>` reads prior `DISPATCH_LEDGER.md` files and prints a dispatch-count range and a model-class mix. It prints no money figure, because per-token prices drift.
 4. **Partial-plugin adoption paths.** The handbook assumes all four plugins. Commands needing a specific plugin set are not marked.
-5. **Standards propagation.** `adopt-standards` is per-repo. A fleet has no mechanism to push a doctrine change outward. `conform` is the natural carrier.
+5. **Standards propagation.** The repo standards-contract skill (since merged into `conform` repo scope) is per-repo. A fleet has no mechanism to push a doctrine change outward. `conform` is the natural carrier.
    **Shipped:** the fleet mode of `conform` names doctrine propagation as its canonical use, and it carries a moved source of truth to each consenting member as an ordinary reviewed change.
 6. **Audit-trail generation.** Checkpoints and registers exist, but no skill renders a compliance-grade approval log.
 7. **CI host coverage.** Gate examples name GitHub Actions only.

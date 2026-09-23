@@ -10,15 +10,13 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 
 ## Skills
 
-- `adopt-global-standards` — Use when the user's Claude or Codex global standards contract needs to be created, aligned to current doctrine, or re-verified after the marketplace moves.
-- `adopt-standards` — Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality.
 - `adr` — Use when you need to capture the reasons behind a codebase's architecture as decision records, either backfilling load-bearing past decisions or authoring an ADR for a current one.
 - `api-docs` — Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory.
 - `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.
 - `atlas` — Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See its bundled atlas reference.
 - `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See its bundled calibration protocol reference.
 - `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes.
-- `conform` — Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back. It assesses the standards contract, the docs vault, the atlas, and doc drift in one pass, then repairs under checkpoint.
+- `conform` — Use to assess and repair a repo's standards contract, vault, atlas, and doc drift, or with scope global to align the user-wide Claude or Codex contract.
 - `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory.
 - `data-model` — Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations.
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.

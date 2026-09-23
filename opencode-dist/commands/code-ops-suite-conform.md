@@ -1,5 +1,5 @@
 ---
-description: "Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back. It assesses the standards contract, the docs vault, the atlas, and doc drift in one pass, then repairs under checkpoint."
+description: "Use to assess and repair a repo's standards contract, vault, atlas, and doc drift, or with scope global to align the user-wide Claude or Codex contract."
 ---
 
 Use the `code-ops-suite-conform` skill for this task, following it end to end.

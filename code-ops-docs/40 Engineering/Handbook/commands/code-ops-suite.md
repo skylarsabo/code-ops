@@ -5,7 +5,7 @@ It carries one entry per command: how it works, why it is useful, when to reach 
 Read it when you are picking an engineering command, or when you need the bundled scripts and hooks a run leans on.
 
 The `code-ops-suite` plugin is the spine of the marketplace. It packages broad-breadth
-engineering workflows for any codebase as 34 namespaced skills, invoked as
+engineering workflows for any codebase as 32 namespaced skills, invoked as
 `/code-ops-suite:<name>`. Every skill reads the shared
 [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first. That file defines
 the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch,
@@ -47,8 +47,6 @@ freshness check.
 - [`local-review-gate`](#code-ops-suitelocal-review-gate): opt-in local deep review, the OpSec gate, and judgment-eval receipts before PR creation
 
 **Document (DOCUMENT)**
-- [`adopt-standards`](#code-ops-suiteadopt-standards): bootstrap or maintain a repo's `CLAUDE.md` standards contract
-- [`adopt-global-standards`](#code-ops-suiteadopt-global-standards): maintain the user-wide standards contract from marketplace doctrine
 - [`doc-alignment`](#code-ops-suitedoc-alignment): reconcile doc drift and establish the single source of truth
 - [`repo-docs`](#code-ops-suiterepo-docs): refresh the affected manifest-owned documentation domains
 - [`onboarding`](#code-ops-suiteonboarding): verified orientation guide with a diagram
@@ -60,7 +58,7 @@ freshness check.
 - [`ops-docs`](#code-ops-suiteops-docs): the operator's runbook
 - [`handoff`](#code-ops-suitehandoff): capture or resume a run's verifiable session state
 - [`atlas`](#code-ops-suiteatlas): the repo's durable cache of judgment, with mechanical freshness
-- [`conform`](#code-ops-suiteconform): assess and repair the complete code-ops standard
+- [`conform`](#code-ops-suiteconform): assess and repair the complete code-ops standard, including the repo contract; `global` scope maintains the user-wide contracts
 - [`vault`](#code-ops-suitevault): create, migrate, or check the repository documentation vault
 
 **Meta and suite self-audit**
@@ -491,69 +489,6 @@ scorer. `ship` invokes Track A when the operator opted in.
 
 ## Document
 
-### `/code-ops-suite:adopt-standards`
-**Mode:** DOCUMENT
-
-**How it works.** Phase 0 (checkpoint) detects the mode. BOOTSTRAP applies when no `CLAUDE.md`
-exists, or when an existing one fails a quick audit. MAINTAIN applies when a sound one already
-exists.
-
-In BOOTSTRAP mode it audits the repo, then writes `CLAUDE.md` in the house style. The audit
-covers the real build, test, lint, and gate commands, run read-only or cited to the CI workflow
-at `file:line` and never invented, the architecture worth three to five lines, the non-obvious
-gotchas, and the doc-lifecycle rules.
-
-In MAINTAIN mode it re-verifies every claim against reality. Commands still run. The gate chain
-still mirrors CI step for step. Enforcement claims are truthful. Line citations are swept
-mechanically against the current tree rather than eyeballed. Cited paths still exist. It fixes
-the drift and reports what was stale.
-
-The house style is fixed. `## Never (no gate will save you)` comes first and carries only real,
-repo-specific, backstop-free rules. `## Before declaring any change done` carries the verified
-command chain mirroring CI, noting any unenforced convention. Post-edit chores follow when the
-repo has them. `## Invariants the gates will catch` follows. A local-only or gitignored docs
-  note follows when it applies. It never duplicates the user-wide Claude or Codex contracts.
-
-**Why it's useful.** It keeps a repo's standards contract mechanically true rather than
-aspirational. The commands it lists actually run, the gates it claims actually gate, and the
-citations it makes actually resolve, so the next operator can trust it cold.
-
-**When to use it.** Use it when a repo has no `CLAUDE.md` and needs one bootstrapped from
-verified reality, or when an existing one is suspected stale, meaning commands that no longer
-run, citations that have drifted, or a gate chain that no longer matches CI. Do not use it to
-write general engineering advice, because every line must be project-specific and verified.
-
-**Prerequisites and hand-offs.** It has no prerequisites, and uses CI workflow files and
-version-control history as evidence sources. It complements `doc-alignment`, which reconciles
-the rest of the docs, because `adopt-standards` owns the standards contract specifically.
-
-### `/code-ops-suite:adopt-global-standards`
-**Mode:** DOCUMENT
-
-**How it works.** Five phases:
-
-- **Phase 0** (checkpoint) resolves the Claude global pair, the Codex global `AGENTS.md`, and the marketplace checkout they cache. It detects BOOTSTRAP against MAINTAIN and states every path plus the marketplace commit being verified.
-- **Phase 1** builds the current-doctrine baseline by reading the SSOT pages themselves, anchoring each claim to `file:line`. It reads `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md` for the routing table, the tier and effort rule, and the declared exception. It reads `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and `AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs` for the enforced floors. It reads `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and the `CONVENTIONS.md` §7 and §9 schemas for the reporting standard.
-- **Phase 2** classifies every divergence into one of five buckets. CONTRADICTS means the global file states a rule the SSOT now states differently, which is worse than silence because sessions follow it. STALE and MISSING are what they say. REPO-LOCAL means repo facts leaked upward, and they are handed back to `adopt-standards`. LOCAL-DOCTRINE means cross-repo rules the file already carries that no SSOT page states, which are kept, never pruned, and listed as candidates to promote into the marketplace. Line citations are swept mechanically.
-- **Phase 3** checkpoints with the classified drift and the exact proposed edit before any write. It names every removal with the bucket justifying it, and it refuses to touch settings, hooks, permissions, or keybindings.
-- **Phase 4** preserves surviving meaning while consolidating repeated prose. It writes a small provider-neutral core plus deliberate Claude and Codex host deltas. The Claude pair remains byte-identical; the Codex file may differ. The run records the marketplace revision without forcing transient revision text into every prompt.
-
-**Why it's useful.** The global contract is a cache of the marketplace's doctrine, and a stale
-cache mis-routes every session in every repo, silently. An inverted tier rule down-tiers work
-the SSOT routes to the strong tier, and nothing in a normal session surfaces that. This is the
-only command that re-verifies the cache against its source.
-
-**When to use it.** Use it after the suite's SSOT pages move, meaning a routing-table change, a
-tier or effort revision, or a new enforcement mechanism. Use it when the global file has no
-commit stamp, so its age is unknowable, or when a session's routing seems to contradict the
-handbook. Do not use it to configure the harness, because `settings.json`, hooks, and
-permissions are out of scope.
-
-**Prerequisites and hand-offs.** It needs a local checkout of this marketplace as its ground
-truth. The repo-side counterpart is `adopt-standards`. Between the two, each fact lives in
-exactly one place, and `adopt-global-standards` hands any repo-local content it finds back to
-it.
-
 ### `/code-ops-suite:doc-alignment`
 **Mode:** DOCUMENT
 
@@ -921,8 +856,40 @@ sections in the same session, while the change rationale is still recoverable.
 **How it works.** Three phases:
 
 - **Phase A** assesses five standardization surfaces read-only, in dependency order, and records each as CONFORMANT, DRIFTED, ABSENT, or UNKNOWN with the checker output that decided it. Surface 1 is the repo's standards contract: the pair exists, matches an accepted parity mode, and carries the routing section. Surface 2 is the docs vault: `<repo>-docs/` exists and `check-vault-standard.mjs` exits 0. Surface 3 is the atlas: `code-ops-docs/98 System/Atlas/` exists, its manifest parses, and `atlas-check.mjs check` reports each section FRESH or STALE. Surface 4 is doc alignment, assessed only when the first three surfaced a drift signal. Surface 5 is the user's global contract, off by default and never touched without asking. The verdicts go to `CONFORMANCE_REPORT.md`, written to the vault's `80 Runs/` folder when the repo has a vault, and to its dated-docs convention when it does not.
-- **Phase B** repairs the approved surfaces one at a time. It delegates each surface to the skill that owns it and checkpoints between them, because repairing one surface changes what the next one reads.
+- **Phase B** repairs the approved surfaces one at a time. It delegates surfaces 2 to 4 to the skill that owns each and checkpoints between them, because repairing one surface changes what the next one reads. It repairs surface 1 itself, through the repo contract procedure described below.
 - **Phase C** re-runs every mechanical check and re-writes the report in place, one row per surface, with the opening verdict noted in that row's evidence cell.
+
+**The repo contract procedure (surface 1).** Contract Phase 0 (checkpoint) detects the mode.
+BOOTSTRAP applies when no `CLAUDE.md` exists, or when an existing one fails a quick audit.
+MAINTAIN applies when a sound one already exists. In BOOTSTRAP mode it audits the repo, then
+writes `CLAUDE.md` in the house style. The audit covers the real build, test, lint, and gate
+commands, run read-only or cited to the CI workflow at `file:line` and never invented, the
+architecture worth three to five lines, the non-obvious gotchas, and the doc-lifecycle rules.
+In MAINTAIN mode it re-verifies every claim against reality. Commands still run. The gate chain
+still mirrors CI step for step. Enforcement claims are truthful. Line citations are swept
+mechanically against the current tree rather than eyeballed. Cited paths still exist. It fixes
+the drift and reports what was stale.
+
+The house style is fixed. `## Never (no gate will save you)` comes first and carries only real,
+repo-specific, backstop-free rules. `## Before declaring any change done` carries the verified
+command chain mirroring CI, noting any unenforced convention. Post-edit chores follow when the
+repo has them. `## Invariants the gates will catch` follows. A local-only or gitignored docs
+note follows when it applies. It never duplicates the user-wide Claude or Codex contracts.
+
+**Global scope.** `/code-ops-suite:conform global` maintains the user-wide contracts instead of
+a repo, in five phases:
+
+- **Phase 0** (checkpoint) resolves the Claude global pair, the Codex global `AGENTS.md`, and the marketplace checkout they cache. It detects BOOTSTRAP against MAINTAIN and states every path plus the marketplace commit being verified.
+- **Phase 1** builds the current-doctrine baseline by reading the SSOT pages themselves, anchoring each claim to `file:line`. It reads `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md` for the routing table, the tier and effort rule, and the declared exception. It reads `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and `AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs` for the enforced floors. It reads `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and the `CONVENTIONS.md` §7 and §9 schemas for the reporting standard.
+- **Phase 2** classifies every divergence into one of five buckets. CONTRADICTS means the global file states a rule the SSOT now states differently, which is worse than silence because sessions follow it. STALE and MISSING are what they say. REPO-LOCAL means repo facts leaked upward, and they are handed back to a `repo`-scope run in the owning repo. LOCAL-DOCTRINE means cross-repo rules the file already carries that no SSOT page states, which are kept, never pruned, and listed as candidates to promote into the marketplace. Line citations are swept mechanically.
+- **Phase 3** checkpoints with the classified drift and the exact proposed edit before any write. It names every removal with the bucket justifying it, and it refuses to touch settings, hooks, permissions, or keybindings.
+- **Phase 4** preserves surviving meaning while consolidating repeated prose. It writes a small provider-neutral core plus deliberate Claude and Codex host deltas. The Claude pair remains byte-identical; the Codex file may differ. The run records the marketplace revision without forcing transient revision text into every prompt.
+
+The global contract is a cache of the marketplace's doctrine, and a stale cache mis-routes every
+session in every repo, silently. Use global scope after the suite's SSOT pages move, when the
+global file has no commit stamp, or when a session's routing seems to contradict the handbook.
+It needs a local checkout of this marketplace as its ground truth. Between the two scopes, each
+fact lives in exactly one place.
 
 Fleet mode turns on when the run is handed a `FLEET.json`, or when one sits at the invocation
 root. A fleet run is the per-repo run performed member by member, under one report. The layout,
@@ -941,7 +908,7 @@ itself, because every fix is delegated, so a surface it cannot delegate is repor
 improvised.
 
 **Prerequisites and hand-offs.** It needs nothing beyond the repo. It composes
-`adopt-standards`, `vault`, `atlas`, `doc-alignment`, and, opt-in, `adopt-global-standards`.
+`vault`, `atlas`, and `doc-alignment`, and owns the repo and global contract procedures itself.
 `code-ops-suite:everything` runs it assess-only inside phase 0, as its standardization
 preflight. See [the skill-composition map](../../Techniques/skill-composition.md).
 
@@ -971,7 +938,7 @@ admit committed evidence into an existing collection. Do not move a governed rec
 archival. Use curation and a canonical hub document instead.
 
 **Prerequisites and hand-offs.** It needs nothing beyond the repo itself.
-`code-ops-suite:adopt-standards` owns the `CLAUDE.md` and `AGENTS.md` contract that routes
+`code-ops-suite:conform`, through its repo contract procedure, owns the `CLAUDE.md` and `AGENTS.md` contract that routes
 agents to the vault's `Standard.md`. Run it after a SCAFFOLD or MIGRATE, rather than editing
 the contract from the vault skill.
 

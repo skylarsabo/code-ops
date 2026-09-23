@@ -180,11 +180,10 @@ expect(contextAudit.includes("const opt = { host: 'codex'"), 'context audit does
 expect(transcriptLib.includes("join(homedir(), '.claude', 'projects'"), 'transcript library corrupted its explicit Claude transcript branch');
 expect(transcriptLib.includes("join(homedir(), '.codex')"), 'transcript library lost its explicit Codex transcript branch');
 
-const adoptGlobal = read(join(pluginsDir, 'code-ops-suite', 'skills', 'adopt-global-standards', 'SKILL.md'));
-const adoptRepo = read(join(pluginsDir, 'code-ops-suite', 'skills', 'adopt-standards', 'SKILL.md'));
-expect(adoptGlobal.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'global-standards render collapsed the three host-specific contract paths');
-expect(adoptRepo.includes('`CLAUDE.md` and `AGENTS.md`'), 'repo-standards render collapsed the accepted two-file parity modes');
-expect(adoptRepo.includes('Claude reads the global pair under `~/.claude/`') && adoptRepo.includes('Codex reads `~/.codex/AGENTS.md`'), 'repo-standards render collapsed the distinct global contract homes');
+const conform = read(join(pluginsDir, 'code-ops-suite', 'skills', 'conform', 'SKILL.md'));
+expect(conform.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'global-standards render collapsed the three host-specific contract paths');
+expect(conform.includes('`CLAUDE.md` and `AGENTS.md`'), 'repo-standards render collapsed the accepted two-file parity modes');
+expect(conform.includes('Claude reads the global pair under `~/.claude/`') && conform.includes('Codex reads `~/.codex/AGENTS.md`'), 'repo-standards render collapsed the distinct global contract homes');
 
 if (fails.length) {
   console.error('FAIL — Codex marketplace eval:');

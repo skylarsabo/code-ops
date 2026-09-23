@@ -37,8 +37,6 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `pr-split`: carves an existing big branch into a clean stack of small, independently-green PRs, scrubbed of AI and tooling trace (composes `privacy-opsec-suite:authorship-hygiene`, fail-closed). It never auto-merges.
 
 **Docs and knowledge**
-- `adopt-standards`: bootstraps or maintains a repo's `CLAUDE.md` standards contract, so the contract is mechanically kept rather than aspirational.
-- `adopt-global-standards`: the cross-repo counterpart. It re-verifies the user's global `~/.claude/CLAUDE.md` against the marketplace's SSOT pages, classifies every divergence, and rewrites the file under checkpoint.
 - `doc-alignment`: reconciles doc drift against code and establishes a clean single source of truth.
 - `repo-docs`: extracts and refreshes only the affected documentation domains from one manifest-owned documentation hub.
 - `onboarding`: generates a verified, code-grounded orientation guide with an architecture diagram.
@@ -66,7 +64,7 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `full-sweep`: runs the whole suite end-to-end as one developer-in-the-loop pipeline, pausing at each phase boundary. Intra-plugin.
 - `everything`: the cross-plugin superset. It orchestrates every phase across all three plugins and requires `rigor` and `privacy-opsec-suite` installed. It is the most thorough and most token-expensive option.
 - `ship`: implements one change (feature or one-off) end-to-end at full rigor, from design-check to a traceless PR. It requires `rigor` and the local review dependencies.
-- `conform`: assesses every standardization surface of a repo in one read-only pass, writes `CONFORMANCE_REPORT.md`, then repairs surface by surface under checkpoint by delegating to the skill that owns each one.
+- `conform`: assesses every standardization surface of a repo in one read-only pass, writes `CONFORMANCE_REPORT.md`, then repairs surface by surface under checkpoint. It bootstraps or maintains the repo's `CLAUDE.md` standards contract itself and delegates the other surfaces to the skill that owns each one. Its `global` scope re-verifies the user's global Claude and Codex contracts against the marketplace's SSOT pages, classifies every divergence, and rewrites them under checkpoint.
 - `debug`: drives a bug from symptom to a proven root-cause fix, ending in a traceless PR. It requires `rigor`.
 
 ## Subagents

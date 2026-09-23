@@ -273,7 +273,7 @@ Put a recurring scan on a schedule with Routines (`/schedule`), covering depende
 
 Four plugins ship from one repository:
 
-- **`code-ops-suite`** covers general engineering for any codebase: audit, security and privacy threat assessment, remediation, feature discovery and build, performance, tests, dependencies, PR review, local review gates, repo docs, standards adoption, onboarding, normalization, PR splitting, ship, debug, current docs, architecture and API and data-model and ADR and ops documentation, run handoff, the atlas, the docs vault, the conformance pass, and the suite's own calibration, cost, and parity audits. (34 skills)
+- **`code-ops-suite`** covers general engineering for any codebase: audit, security and privacy threat assessment, remediation, feature discovery and build, performance, tests, dependencies, PR review, local review gates, repo docs, standards adoption, onboarding, normalization, PR splitting, ship, debug, current docs, architecture and API and data-model and ADR and ops documentation, run handoff, the atlas, the docs vault, the conformance pass, and the suite's own calibration, cost, and parity audits. (32 skills)
 - **`privacy-opsec-suite`** covers the privacy, anonymity, and OpSec specialization: the anonymity threat model, anonymous sessions, Tor and proxy egress with leak prevention, metadata minimization, fingerprint and traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, the opsec PR gate, and authorship hygiene. (14 skills)
 - **`rigor`** covers verification-first quality: find real bugs and prove each with a repro, validate the test suite with flaky and mutation testing, lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, and ship measured improvements. Prove it or do not report it. (11 skills)
 - **`researcher`** covers code-grounded research: ground in the codebase or the given materials, gather external knowledge, then propose improvements, design briefs, library evaluations, ideas, and an ecosystem watch. Every claim is cited and tiered, sourcing is local-first with disclosed fail-closed egress, and implementation hands off to the other suites. (7 skills)
@@ -295,7 +295,7 @@ code-ops/
 ├── evals/                                # regression and judgment eval harness
 ├── code-ops-docs/                        # the documentation hub and Obsidian vault
 └── plugins/
-    ├── code-ops-suite/                   # 34 skills, explorer + reviewer + implementer, hooks/
+    ├── code-ops-suite/                   # 32 skills, explorer + reviewer + implementer, hooks/
     ├── privacy-opsec-suite/              # 14 skills, explorer + privacy-reviewer
     ├── rigor/                            # 11 skills, tracer + verifier
     └── researcher/                       # 7 skills, gatherer + claim-checker

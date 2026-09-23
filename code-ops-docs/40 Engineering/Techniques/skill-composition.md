@@ -26,14 +26,11 @@ example on this page is illustration and not page structure.
 
 | From skill | Invokes | When | Artifact passed |
 | --- | --- | --- | --- |
-| `code-ops-suite:adopt-standards` | `code-ops-suite:vault` | hand-off: the repo carries or adopts a `<repo>-docs/` vault the contract must route to | none named (the vault's `Standard.md`) |
 | `code-ops-suite:calibration-run` | `code-ops-suite:full-sweep` | dispatched in the `assess-only` track as the mechanism under calibration | the run folder's registers and `EXECUTIVE_SUMMARY.md` |
 | `code-ops-suite:calibration-run` | `rigor:rigor-sweep` | same, when `rigor` is the mechanism under calibration | the run folder's registers and `EXECUTIVE_SUMMARY.md` |
-| `code-ops-suite:conform` | `code-ops-suite:adopt-standards` | the standards-contract surface is drifted or absent | `CONFORMANCE_REPORT.md` (the contract verdict and parity mode) |
-| `code-ops-suite:conform` | `code-ops-suite:vault` | the vault is absent, or `check-vault-standard.mjs` exits non-zero | `CONFORMANCE_REPORT.md` (the detected vault mode) |
+| `code-ops-suite:conform` | `code-ops-suite:vault` | the vault is absent, or `check-vault-standard.mjs` exits non-zero; or, as a hand-off, the repo contract must route to a `<repo>-docs/` vault it carries or adopts | `CONFORMANCE_REPORT.md` (the detected vault mode) |
 | `code-ops-suite:conform` | `code-ops-suite:atlas` | the atlas is absent, or `atlas-check.mjs check` reports a STALE section | `CONFORMANCE_REPORT.md` (the STALE section list) |
 | `code-ops-suite:conform` | `code-ops-suite:doc-alignment` | the assessment surfaced a drift signal between the contract, the vault, and the repo docs: never unconditionally | `CONFORMANCE_REPORT.md` (the drift signals) |
-| `code-ops-suite:conform` | `code-ops-suite:adopt-global-standards` | opt-in only, after asking: the global contract's marketplace stamp is behind this checkout | none named (user-scope, outside the repo) |
 | `code-ops-suite:debug` | `rigor:ground-truth` | always, before tracing the symptom | `GROUND_TRUTH.md` |
 | `code-ops-suite:debug` | `rigor:regression-hunt` | the bug is a regression: bisect to the introducing commit | none named (returns a commit) |
 | `code-ops-suite:debug` | `rigor:fix-verified` | always, for the fix loop: repro passes, regression guard holds, sibling sweep, enforcement | `FINDINGS_REGISTER.md` |
@@ -62,7 +59,7 @@ example on this page is illustration and not page structure.
 | `code-ops-suite:ship` | `code-ops-suite:local-review-gate` | always, after the final intended diff is committed and before the PR exists | plan, two reports, and receipt chain |
 | `code-ops-suite:ship` | `code-ops-suite:pr-split` | the change ships as a stack rather than one PR | none named (a PR stack) |
 | `code-ops-suite:test-hardening` | `rigor:test-suite-audit` | routing pointer: auditing whether existing tests catch faults goes there | none (routing pointer) |
-| `code-ops-suite:vault` | `code-ops-suite:adopt-standards` | hand-off: the contract pair owns the documentation section routing to the vault | none named (the contract pair) |
+| `code-ops-suite:vault` | `code-ops-suite:conform` | hand-off: the contract pair owns the documentation section routing to the vault | none named (the contract pair) |
 | `privacy-opsec-suite:authorship-hygiene` | `code-ops-suite:normalize` | hand-off: repo-wide one-style work is out of this skill's scope | none named |
 | `privacy-opsec-suite:authorship-hygiene` | `rigor:consistency-closure` | hand-off: divergent implementations of one concept are out of scope | none named |
 | `privacy-opsec-suite:opsec-pr-gate` | `code-ops-suite:pr-review` | routing pointer: the quality-lens counterpart | none (routing pointer) |
