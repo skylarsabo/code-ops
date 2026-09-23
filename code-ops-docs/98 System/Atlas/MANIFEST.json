@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
-      "verifiedDigest": "20e129c50c3e8ad857efb4a2b1bba116dab783668330387df408f70a64574c09",
+      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
+      "verifiedDigest": "243b1189c22f4d02174c21b719884f9a66186a1f93c486cc4b8a2e2910e96412",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -189,8 +189,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
-      "verifiedDigest": "73b4e5e323c2ee6c227a909e73d0cc4739a7740dd4bb0a28ace75e67e22aed47",
+      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
+      "verifiedDigest": "2c9cf049afa651af56c2eb7567182f2702a4b3353f6a3709aaa52d4a893e23fa",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -235,8 +235,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "01404b2d98b1b46f4bb9149dd805a8ab40ed863a",
-      "verifiedDigest": "3b816934fbe5b602063c39af8377c480f0b6cdd64471e42ff7f041f689782c7d"
+      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
+      "verifiedDigest": "4db0a9b95a5515de5540cc52c45fc4d74d366aecc753fbb2677569c2f26cb1e3"
     },
     {
       "slug": "docs-doctrine",
@@ -259,8 +259,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
-      "verifiedDigest": "455f6d7ba9b020ca5a2662e8755f00843f9319cd1d3dd84e25ba03be50000b5c",
+      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
+      "verifiedDigest": "066f04cef279dfafb22da93478f65834ebbc304c6c962259300c4d86abdb1350",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
@@ -299,6 +299,7 @@
       "file": "sections/root-contracts.md",
       "scope": [
         "README.md",
+        "global-contracts",
         "CLAUDE.md",
         "AGENTS.md",
         ".claude",
@@ -306,8 +307,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
-      "verifiedDigest": "86b3f626ccf2e2a0b283d165fbf6d556b2100e6ff0f69f2785ff3a4b319353ab"
+      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
+      "verifiedDigest": "39eef0a2695a2044c401c54a05a824f72b21d3e952e5590dd02466276bebb463"
     },
     {
       "slug": "runtime-toolchain",
