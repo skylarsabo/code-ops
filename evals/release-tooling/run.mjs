@@ -192,6 +192,19 @@ try {
       check('bump-plugin-version: explicit X.Y.Z bump sets that exact version', pj === originalPj.replace('"version": "1.2.3"', '"version": "2.0.0"'));
     }
 
+    // the target version already has a CHANGELOG heading: no stub, no duplicate heading
+    {
+      const f = buildBumpFixture('bump-existing-heading', 'demo-plugin', '1.2.3', '1.2.3');
+      const written = readFileSync(f.changelogPath, 'utf8').replace('## 1.2.3', '## 1.3.0\n- written before the bump.\n\n## 1.2.3');
+      writeFileSync(f.changelogPath, written);
+      const r = run(f.scriptPath, ['demo-plugin', 'minor']);
+      check('bump-plugin-version: bump onto an existing CHANGELOG heading exits 0', r.status === 0);
+      check(
+        'bump-plugin-version: an existing "## 1.3.0" heading gets no TODO stub and no duplicate',
+        readFileSync(f.changelogPath, 'utf8') === written
+      );
+    }
+
     // bad bump spec
     {
       const f = buildBumpFixture('bump-badspec', 'demo-plugin', '1.2.3', '1.2.3');

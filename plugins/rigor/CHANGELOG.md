@@ -1,7 +1,7 @@
 # Changelog — rigor
 
-## 2.20.0
-- **TODO** — describe the change.
+## 2.20.1
+- The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
 
 ## 2.20.0
 - The tracer and verifier agents carry a typed `## Contract` section.
@@ -66,6 +66,7 @@
 
 ## 2.18.10
 - Substantive workflows inherit the enforced lead-and-operative work graph, portable tier-floor carriers, and host-specific runtime capability disclosures. The read-only tracer now uses only its declared search and read tools.
+- Portable preflight now reads rendered model-floor carriers, and the shared command router exposes the security-chain compiler when the containing package bundles it.
 
 ## 2.18.9
 - `rigor-sweep` uses the v3 run contract when the runtime is available, records partial acceptance at checkpoints, and resumes from bounded runtime status instead of replaying prior prose.
@@ -114,9 +115,6 @@
 
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
-
-## 2.18.10
-- Portable preflight now reads rendered model-floor carriers, and the shared command router exposes the security-chain compiler when the containing package bundles it.
 
 ## 2.16.2
 - **`run-proof.mjs` spawns npm-style `.cmd`/`.bat` shims on Windows** — same fix as code-ops-suite 1.43.6 (the script is vendored into both plugins): `record`/`verify` now rewrite a resolved `.cmd`/`.bat` shim to `cmd.exe /d /s /c` with escaped arguments, so a verifier's `npm run ...` gate chain writes its receipt on win32 instead of failing with 127/EINVAL. Original tokens are recorded, replay screening is unchanged, and a missing command still exits 127 with no receipt.

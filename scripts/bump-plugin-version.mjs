@@ -138,7 +138,10 @@ if (firstHeading === -1) {
   console.error(`x plugins/${pluginName}/CHANGELOG.md has no existing "## <version>" section to anchor the insertion`);
   process.exit(1);
 }
-const newSection = `## ${newVersion}\n- **TODO** — describe the change.\n\n`;
+// A heading for this version already exists (a re-run, or an entry written first), so a
+// stub would duplicate it.
+const hasSection = changelogText.split(/\r?\n/).some((line) => line.trim() === `## ${newVersion}`);
+const newSection = hasSection ? '' : `## ${newVersion}\n- **TODO** — describe the change.\n\n`;
 const newChangelogText = changelogText.slice(0, firstHeading) + newSection + changelogText.slice(firstHeading);
 
 // ---- write all three, only after every computation above has succeeded ----

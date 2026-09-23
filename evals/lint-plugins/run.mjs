@@ -882,6 +882,19 @@ No completion heading here on purpose (case 3 mutation).
   put(d15j, BUG_HUNT, skillBody('BUG HUNT').replace(' Leave the rest of that file unread.', ''));
   const r15j = runLint(d15j);
   check('15j. a skill citing CONVENTIONS.md without the bound sentence exits 1', r15j.status === 1 && r15j.all.includes('bug-hunt/SKILL.md: cites CONVENTIONS.md without the sentence "Leave the rest of that file unread."'));
+
+  // 16a-16c. CHANGELOG STUBS (lint check 29) — a written entry passes; a bump-script TODO
+  // placeholder or a repeated version heading fails closed and names the line.
+  const withChangelog = (label, text) => {
+    const dir = clone(label);
+    put(dir, 'plugins/rigor/CHANGELOG.md', `# Changelog — rigor\n\n${text}`);
+    return runLint(dir);
+  };
+  check('16a. a CHANGELOG with written entries exits 0', withChangelog('case16a-changelog-ok', '## 0.1.0\n- Fixture entry.\n\n## 0.0.9\n- Older entry.\n').status === 0);
+  const r16b = withChangelog('case16b-changelog-todo', '## 0.1.0\n- **TODO** — describe the change.\n\n## 0.0.9\n- Older entry.\n');
+  check('16b. a TODO placeholder line exits 1', r16b.status === 1 && r16b.all.includes('plugins/rigor/CHANGELOG.md:4: placeholder "**TODO**" line'));
+  const r16c = withChangelog('case16c-changelog-duplicate', '## 0.1.0\n- Fixture entry.\n\n## 0.1.0\n- Same version again.\n');
+  check('16c. a duplicated version heading exits 1', r16c.status === 1 && r16c.all.includes('plugins/rigor/CHANGELOG.md:6: duplicate "## 0.1.0" heading'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

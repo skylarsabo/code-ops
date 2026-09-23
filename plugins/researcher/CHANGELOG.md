@@ -1,7 +1,7 @@
 # Changelog — researcher
 
-## 0.13.30
-- **TODO** — describe the change.
+## 0.13.31
+- The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
 
 ## 0.13.30
 - The gatherer and claim-checker agents carry a typed `## Contract` section. Skills read only the CONVENTIONS sections they cite, plus the writing standard.
@@ -57,6 +57,7 @@
 
 ## 0.13.14
 - Substantive workflows inherit the enforced lead-and-operative work graph, portable tier-floor carriers, and host-specific runtime capability disclosures. The read-only gatherer now uses only its declared search and read tools.
+- Portable preflight now reads rendered model-floor carriers, and the shared command router exposes the security-chain compiler when the containing package bundles it.
 
 ## 0.13.13
 - `research-sweep` uses the v3 run contract when the runtime is available, records partial acceptance at checkpoints, and resumes from bounded runtime status instead of replaying prior prose.
@@ -105,9 +106,6 @@
 
 All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
-
-## 0.13.14
-- Portable preflight now reads rendered model-floor carriers, and the shared command router exposes the security-chain compiler when the containing package bundles it.
 
 ## 0.12.1
 - **Tier-floor carrier for hosts that ignore agent frontmatter** — `scripts/preflight.mjs` now prints every bundled agent’s declared tier floor at Phase 0, so the floors are visible on any host. A new `CONVENTIONS.md` bullet makes the lead route each dispatch at or above its floor by hand where the host ignores `model:` frontmatter, and `run-cost-audit` records a below-floor dispatch as a `tier-routing` FAIL.

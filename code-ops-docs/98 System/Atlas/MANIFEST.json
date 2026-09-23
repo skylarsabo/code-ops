@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
-      "verifiedDigest": "1c33cd164234b84328c06efb341d1686496f3a70381f2ed1d8d396e2b582f8f0",
+      "verifiedAt": "1883efac90ee5931e8eab4c1c8a75a50a85afab6",
+      "verifiedDigest": "12f67ff02e7ee86606202a6a128357e8f8e1c816308989c737cf196dc518e14e",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -55,9 +55,14 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
-      "verifiedDigest": "1c8736c98af0b7382b7e9bed1c0e7c37b2b2f5b4a81477e8c54b39e7006eda65",
+      "verifiedAt": "1883efac90ee5931e8eab4c1c8a75a50a85afab6",
+      "verifiedDigest": "113111c0f250f9caf18585fb3505f78515ee7e458062ef86bf4066023af4d8bc",
       "claims": [
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 813,
+          "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
+        },
         {
           "file": "scripts/transcript-lib.mjs",
           "line": 623,
@@ -126,8 +131,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
-      "verifiedDigest": "1260c5e52d60a5af1bc987f76ef3cc183462c572b20231745859f8ba70ff55ff",
+      "verifiedAt": "1883efac90ee5931e8eab4c1c8a75a50a85afab6",
+      "verifiedDigest": "837b620510e9584bb0670935b3070e6eec6b3cb4c49531d9da3471e9279c9599",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -184,8 +189,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
-      "verifiedDigest": "313aca4ae67d428d348b9849e394633bb88ec0fc8287e28d6f4e6369bfca6642",
+      "verifiedAt": "1883efac90ee5931e8eab4c1c8a75a50a85afab6",
+      "verifiedDigest": "ebd3db00e3553b78483d24f08911513361e7d5109d8f15d86ee59fcb37c9f6ce",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -254,8 +259,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
-      "verifiedDigest": "ff907249f34cbf2c061a3cf106d0c91b0927e4d54c9134ed2272a1092ddfef4c",
+      "verifiedAt": "1883efac90ee5931e8eab4c1c8a75a50a85afab6",
+      "verifiedDigest": "2b228934835aaadc234536d14309e149336292e2e78a9a0ae666dce9ac97f152",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
