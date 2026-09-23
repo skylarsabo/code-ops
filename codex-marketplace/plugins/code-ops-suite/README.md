@@ -50,7 +50,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - The package bundles 10 hook commands. Codex requires the user to review and trust plugin hooks before they run.
   - `PreToolUse` `enforce-traceless.mjs`: blocks a commit or pull-request command whose published text carries attribution traces.
   - `PreToolUse` `digest-rewrite.mjs`: routes a simple shell command through the output digest so long output arrives compressed.
-  - `PreToolUse` `dispatch-guard.mjs`: holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier.
+  - `PreToolUse` `dispatch-guard.mjs`: holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, denies a suite-agent dispatch whose brief lacks a field the agent’s contract requires, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier.
   - `PostToolUse` `index-refresh.mjs`: re-indexes a file right after a tool edits it, so context queries read the live tree.
   - `PostToolUse` `handoff-card.mjs`: prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band.
   - `UserPromptSubmit` `handoff-card.mjs`: prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band.

@@ -48,7 +48,7 @@ budget when no binding exists, and stops the unbound counter at twice the budget
 own dispatch (Claude's `Agent`, `Task`, or `Workflow`, or Grok's `spawn_subagent`) it denies a wide-surface or unnamed agent type whose brief has no `Wide-surface
 reason:` line, denies a suite-agent dispatch whose brief lacks a field the target agent's
 `## Contract` lists on its `Brief requires:` line, and denies new dispatches past the context
-ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:514).
+ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:489).
 `session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
 Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex

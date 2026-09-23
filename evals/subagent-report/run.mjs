@@ -8,6 +8,7 @@
 //   - transcript fallback: with no last_assistant_message, the last assistant text in
 //     agent_transcript_path is checked;
 //   - unknown agent: a bare, custom, traversal, or missing type gets nothing;
+//   - cache layout: only the highest all-numeric version directory of a sibling plugin binds;
 //   - malformed payload: bad JSON, an empty input, a non-object, and another event exit 0 silently;
 //   - never blocks: no output carries decision, continue, or additionalContext, and every run
 //     exits 0; the off switch and the Grok adapter silence it.
@@ -15,7 +16,7 @@
 //   node evals/subagent-report/run.mjs
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -113,6 +114,28 @@ for (const type of ['implementer', 'general-purpose', 'acme:builder', 'code-ops-
   silent(runHook(payload(type, 'nonsense first line')), `unknown agent ${JSON.stringify(type)}`);
 }
 console.log('ok   bare, custom, traversal, missing, and non-string types get nothing');
+
+// ---------------------------------------------------------------- cache layout
+// The installed cache keeps a sibling plugin at <marketplace>/<plugin>/<version>/. Only an
+// all-numeric version directory counts and the highest one wins (10.0.0 over 9.0.0, which a
+// string sort would pick), the same resolution the dispatch guard uses.
+const cache = join(dir, 'cache', 'code-ops');
+const cacheAgent = (plugin, version, name, verdicts) => {
+  mkdirSync(join(cache, plugin, version, 'agents'), { recursive: true });
+  writeFileSync(join(cache, plugin, version, 'agents', `${name}.md`), `## Contract\n\nVerdicts: ${verdicts}\n`);
+};
+cacheAgent('code-ops-suite', '2.0.0', 'implementer', 'DONE');
+cacheAgent('rigor', '9.0.0', 'tracer', 'OLD');
+cacheAgent('rigor', '10.0.0', 'tracer', 'NEW');
+cacheAgent('rigor', 'zzz-latest', 'tracer', 'STRAY');
+const cacheRoot = { CLAUDE_PLUGIN_ROOT: join(cache, 'code-ops-suite', '2.0.0') };
+silent(runHook(payload('rigor:tracer', 'NEW: resolved'), cacheRoot), 'cache highest numeric version');
+for (const stale of ['OLD: stale', 'STRAY: non-numeric']) {
+  const m = note(runHook(payload('rigor:tracer', stale), cacheRoot), `cache ${stale}`);
+  expect(m.includes('(NEW)'), `cache: only rigor 10.0.0 binds, got ${JSON.stringify(m)}`);
+}
+silent(runHook(payload('code-ops-suite:implementer', 'DONE'), cacheRoot), 'cache own plugin');
+console.log('ok   the cache layout resolves the highest all-numeric version and ignores other directories');
 
 // ---------------------------------------------------------------- malformed payload
 const malformed = [

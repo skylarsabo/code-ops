@@ -17,38 +17,18 @@
 // The universal output schema accepts `systemMessage` (196910085), which the host shows to the
 // user and does not hand to the model.
 //
-// Only a plugin-qualified type (`code-ops-suite:implementer`) whose agent file declares a
-// contract is checked. A bare, custom, or unresolvable type is unknown and gets nothing. The
+// Only a plugin-qualified type from a suite plugin (`code-ops-suite:implementer`) whose agent
+// file declares a contract is checked. A bare, custom, non-suite, or unresolvable type is
+// unknown and gets nothing. The
 // Grok adapter's SubagentStop payload is UNVERIFIED, so the hook stays silent under Grok.
 //
 // Fail-open on every path: bad JSON, a missing field, an unreadable file, or an internal error
 // exits 0 with no output. It reads stdin and local files, imports builtins, and spawns nothing.
 
-import { existsSync, readdirSync, readFileSync, writeSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const SUITE_ROOT = process.env.CLAUDE_PLUGIN_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SAFE_NAME = /^[A-Za-z0-9][\w.-]*$/;
-
-// The agent file for `plugin:name`. The suite's own agents live under its root. A sibling
-// plugin sits beside it in a checkout (`plugins/<plugin>`) and one level up, under a version
-// directory, in the host plugin cache (`<marketplace>/<plugin>/<version>`).
-function agentFile(agentType) {
-  if (typeof agentType !== 'string') return null;
-  const parts = agentType.trim().split(':');
-  if (parts.length !== 2 || !parts.every((p) => SAFE_NAME.test(p))) return null;
-  const [plugin, name] = parts;
-  const leaf = join('agents', `${name}.md`);
-  const candidates = [join(SUITE_ROOT, '..', plugin, leaf)];
-  if (plugin === 'code-ops-suite') candidates.unshift(join(SUITE_ROOT, leaf));
-  const cached = join(SUITE_ROOT, '..', '..', plugin);
-  if (existsSync(cached)) {
-    const versions = readdirSync(cached).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
-    candidates.push(...versions.map((v) => join(cached, v, leaf)));
-  }
-  return candidates.find((p) => existsSync(p)) ?? null;
-}
+import { existsSync, readFileSync, writeSync } from 'node:fs';
+// The agent file resolves exactly as the dispatch guard resolves it: a suite plugin's sibling
+// checkout directory, or the highest all-numeric version directory in the host plugin cache.
+import { agentFile } from './agent-file.mjs';
 
 function contractOf(text) {
   const section = text.match(/^## Contract[ \t]*\r?\n([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ?? '';

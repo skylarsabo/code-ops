@@ -738,11 +738,15 @@ In the repo the sibling is `../<plugin>/` beside the hook's plugin root. In the 
 it is `../../<plugin>/<version>/`, and the highest all-numeric version directory wins. When
 the `## Contract` section of that file has a `Brief requires:` line, the gate denies a
 dispatch whose prompt lacks any listed field and names each missing field. A field is present
-when its label, case-insensitive and not inside a longer word, is followed on the same line by
-a colon. Optional `**` or `__` markers and a parenthetical qualifier may sit between them, as
-in `Scope (edit authority):`. A markdown heading line that starts with the label also counts.
-A bare, unknown, or non-suite type passes, and so does an unreadable file or an agent with no
-`Brief requires:` line in its Contract. The gate does not read `Workflow` scripts.
+when a line starts with its label, case-insensitive, and a colon follows the label on that
+line. Only whitespace, one list marker (`-`, `*`, or `1.`), and `**` or `__` may precede the
+label. Optional `**` or `__` markers and a parenthetical qualifier may sit between the label
+and the colon, as in `Scope (edit authority):`. A markdown heading line that starts with the
+label also counts. A label mid-line, as in `Out of scope:`, does not count. When this denial
+names Round budget, the separate Round budget advisory is dropped. A bare, unknown, or
+non-suite type passes, and so does an unreadable file or an agent with no `Brief requires:`
+line in its Contract. The subagent-report hook resolves agent files with the same shared
+module, `hooks/agent-file.mjs`. The gate does not read `Workflow` scripts.
 
 The context-ceiling gate reads the lead's
 resident context from the transcript tail. At or above the ceiling it denies a new dispatch until

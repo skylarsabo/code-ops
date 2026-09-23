@@ -1,6 +1,7 @@
 # Changelog — rigor
 
 ## 3.1.1
+- The verifier agent always writes its report to the brief's Report path, which its Contract requires.
 - Skill descriptions are 160 characters or fewer, under the new lint cap.
 - The vendored `cli-lib.mjs` owns the shared spawn and hash helpers; `run-proof` and `check-proof-integrity` use them.
 

@@ -246,17 +246,26 @@ for (const p of plugins) {
     else if (!/^description:[ \t]*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`); // [ \t] not \s: \s spans the newline and matches the next key
     if (fm) {
       // Every description loads into the system prompt at discovery, so each one costs
-      // context on every turn of every session. Cap its length; a block scalar counts its
-      // joined continuation lines, and surrounding quotes do not count.
+      // context on every turn of every session. Cap its length. A block scalar counts its
+      // joined continuation lines, a plain or quoted scalar counts its first line plus any
+      // indented continuation lines, and surrounding quotes do not count. A blank line stays
+      // inside the scalar when an indented line follows it.
       const dm = fm[1].match(/^description:[ \t]*(.*?)[ \t]*\r?$/m);
       if (dm) {
         let desc = dm[1];
-        if (/^[|>]/.test(desc)) {
-          const after = fm[1].slice(dm.index + dm[0].length).split('\n').slice(1);
-          const cont = [];
-          for (const raw of after) { if (!/^[ \t]/.test(raw)) break; cont.push(raw.trim()); }
-          desc = cont.join(' ');
-        } else if (/^(["']).*\1$/.test(desc)) desc = desc.slice(1, -1);
+        const after = fm[1].slice(dm.index + dm[0].length).split('\n').slice(1).map((raw) => raw.replace(/\r$/, ''));
+        const cont = [];
+        for (let i = 0; i < after.length; i++) {
+          if (/^[ \t]+\S/.test(after[i])) { cont.push(after[i].trim()); continue; }
+          const next = after.slice(i + 1).find((raw) => raw.trim() !== '');
+          if (after[i].trim() === '' && next !== undefined && /^[ \t]+\S/.test(next)) continue;
+          break;
+        }
+        if (/^[|>]/.test(desc)) desc = cont.join(' ');
+        else {
+          desc = [desc, ...cont].join(' ');
+          if (/^(["']).*\1$/.test(desc)) desc = desc.slice(1, -1);
+        }
         if (desc.length > DESCRIPTION_MAX)
           fail(`${p.name}/${slug}: frontmatter description is ${desc.length} characters (max ${DESCRIPTION_MAX}) — shorten it and keep its trigger, sibling distinction, and required inputs`);
       }

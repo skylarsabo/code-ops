@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
-      "verifiedDigest": "70dcfa3b7d9f3c2a862b58a1268d8454211373d11ff5bd984ef5421437201769",
+      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
+      "verifiedDigest": "870cc1d2ffcfd8354edab30f08249e6ebfedda69ef0b4c5ae2f47992e3d6d6bc",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -28,7 +28,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 514,
+          "line": 489,
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
         },
         {
@@ -55,12 +55,12 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
-      "verifiedDigest": "20399cbf971d5ee021fecbf17a676e1a2d92f97be401511e8a603937c80b2369",
+      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
+      "verifiedDigest": "3490eedbbb261cc00aa6ffb87f6dd450e219ed694a4e0e0fd7cfb6e67e3ce0e2",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 831,
+          "line": 840,
           "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
         },
         {
@@ -136,8 +136,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
-      "verifiedDigest": "db2e4087a0eb7c75599d96dafbe86161e5c0fef3dffcb8952fc659d35dadaa55",
+      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
+      "verifiedDigest": "bde2a56521eef494b0887ced0afb9f98831b0c66600a3abe9e6d62f575ae9d2e",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -194,8 +194,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
-      "verifiedDigest": "45afc16f0e1888f1b926cf21faeb6d6bd67218f6056eeda31265bebde641372a",
+      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
+      "verifiedDigest": "fca8d26e9b23dfacf184ba906e929bae93ae42d858eaf02208655f1678b91411",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -264,8 +264,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
-      "verifiedDigest": "fb408f2de129f5ed16049a39ee4af23e8d26846d1a318a71513d43027224b428",
+      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
+      "verifiedDigest": "a042f833db35df2d82b2d53bc5c79be244fdc6065bcc3c48890f568ebca848cb",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",

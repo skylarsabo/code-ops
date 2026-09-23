@@ -291,16 +291,38 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(deny(out) && /missing: Report path;/.test(text) && /code-ops-suite:implementer Contract/.test(text),
     `a brief missing a Contract field must deny and name it, got ${JSON.stringify(out)}`);
 
-  // Every field present passes, including loose forms: case, bold, a parenthetical, inline
-  // placement after another field, and a markdown heading.
+  // Every field present passes, including loose forms: case, bold, a parenthetical, list
+  // markers, leading whitespace, and a markdown heading.
   const loose = 'scope (edit authority): one file.\n## Objective\nfix it.\n**Round budget:** 10\n'
-    + 'Report cap: 100 words. Report path: r.md\nEXPECTED RETURN: a line.';
+    + '- Report cap: 100 words.\n  1. Report path: r.md\n* EXPECTED RETURN: a line.';
   let r = runHook(dispatchCall({ prompt: loose, subagent_type: 'code-ops-suite:implementer' }), { home });
   expect(r.status === 0 && r.stdout === '', `a brief with every field in loose form must pass, got ${JSON.stringify(r.stdout)}`);
 
   // A label inside a longer word, or with no colon, does not count.
   out = parseOut(runHook(dispatchCall({ prompt: brief('Scope').replace('Objective:', 'Microscope: x\nObjective is'), subagent_type: 'code-ops-suite:implementer' }), { home }));
   expect(deny(out) && /missing: Scope, Objective;/.test(reasonOf(out) ?? ''), `an embedded or colonless label must not count, got ${JSON.stringify(out)}`);
+
+  // The label must start its line: `Out of scope:`, an inline mid-sentence `Scope:`, and a
+  // field placed after another field on the same line do not count.
+  for (const [label, line] of [
+    ['Out of scope', 'Out of scope: docs'],
+    ['mid-sentence', 'Edit only the files relevant to Scope: a path'],
+    ['after another field', 'Objective: fix it. Scope: one file.'],
+  ]) {
+    out = parseOut(runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer' }), { home }));
+    expect(deny(out) && /missing: Scope;/.test(reasonOf(out) ?? ''), `${label} must not satisfy Scope, got ${JSON.stringify(out)}`);
+  }
+  // A bold list item with a parenthetical, and a heading, do count.
+  for (const line of ['- **Scope (edit authority):** x', '## Scope']) {
+    r = runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer' }), { home });
+    expect(r.status === 0 && r.stdout === '', `${JSON.stringify(line)} must satisfy Scope, got ${JSON.stringify(r.stdout)}`);
+  }
+
+  // A field denial that names Round budget carries no separate Round budget advisory.
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Round budget'), subagent_type: 'code-ops-suite:implementer' }), { home }));
+  text = reasonOf(out) ?? '';
+  expect(deny(out) && /missing: Round budget;/.test(text) && !/No Round budget/.test(text),
+    `a Round budget field denial must not repeat as an advisory, got ${JSON.stringify(out)}`);
 
   // Warn mode downgrades the denial to an advisory.
   out = parseOut(runHook(dispatchCall({ prompt: brief('Objective'), subagent_type: 'code-ops-suite:implementer' }), { home, guard: 'warn' }));

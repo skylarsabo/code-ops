@@ -5,7 +5,7 @@ the source plugin manifest and matching marketplace entries.
 
 
 ## 2.3.0
-- The dispatch guard denies a suite-agent dispatch whose brief lacks a field from that agent's `Brief requires:` line. It resolves agents across all four plugins, and `CODE_OPS_DISPATCH_GUARD=warn` turns the denial into a warning.
+- The dispatch guard denies a suite-agent dispatch whose brief lacks a field from that agent's `Brief requires:` line. It resolves agents across all four plugins, and `CODE_OPS_DISPATCH_GUARD=warn` turns the denial into a warning. A field counts only as a label at the start of a line or as a heading, so `Out of scope:` does not satisfy Scope. The implementer and mech agents no longer describe required brief fields as optional.
 - A new advisory `SubagentStop` hook, `subagent-report.mjs`, notes a report whose first line lacks a declared verdict token or that exceeds its Report cap. `CODE_OPS_SUBAGENT_REPORT=off` disables it.
 - Session receipts record a `skills` count per skill id, and `context-audit receipts` totals them.
 - Skill descriptions are 160 characters or fewer; lint enforces the cap.

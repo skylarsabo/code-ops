@@ -940,6 +940,17 @@ No completion heading here on purpose (case 3 mutation).
   put(d18c, BUG_HUNT, skillBody('BUG HUNT').replace(/^description: .*$/m, `description: |\n  ${DESC_160.slice(0, 80)}\n  ${DESC_160.slice(81)}y`));
   const r18c = runLint(d18c);
   check('18c. a 161-character block-scalar description exits 1', r18c.status === 1 && r18c.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
+  // 18d. A plain scalar folds its indented continuation lines into one value, so a long plain
+  // description split across lines is still over the cap, not just its first line.
+  const d18d = clone('case18d-desc-plain-161');
+  put(d18d, BUG_HUNT, skillBody('BUG HUNT').replace(/^description: .*$/m, `description: ${DESC_160.slice(0, 80)}\n  ${DESC_160.slice(81)}y`));
+  const r18d = runLint(d18d);
+  check('18d. a 161-character multi-line plain-scalar description exits 1', r18d.status === 1 && r18d.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
+  // 18e. A blank line inside a block scalar does not end it when an indented line follows.
+  const d18e = clone('case18e-desc-block-blank-161');
+  put(d18e, BUG_HUNT, skillBody('BUG HUNT').replace(/^description: .*$/m, `description: >\n  ${DESC_160.slice(0, 80)}\n\n  ${DESC_160.slice(81)}y`));
+  const r18e = runLint(d18e);
+  check('18e. a block scalar with a blank line still counts every line', r18e.status === 1 && r18e.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

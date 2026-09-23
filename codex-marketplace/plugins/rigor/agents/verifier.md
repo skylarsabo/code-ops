@@ -9,7 +9,7 @@ Codex role checklist:
 - [ ] Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
 - [ ] Edits: report-only
 - [ ] Verdicts: CONFIRMED | NOT-CONFIRMED | ESCALATE
-- [ ] Report cap: at most 400 words for a report you return inline.
+- [ ] Report cap: at most 400 words for the message you return.
 
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `verifier` at or above its `strong` floor. This role may write files only for its report and repro artifacts.
 
@@ -31,9 +31,9 @@ Rules:
 
 Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
-Report the candidate, the repro (command and file), the observed result, the resulting tier, and the proof artifact or the disconfirmation, dense and evidence-cited, with no raw command output dumped beyond the receipt. When the brief names a report path, write that full report there with the file-write tool and return only a pointer: the path, a one-line verdict, and counts. Otherwise return the report inline. The orchestrator records only what you actually demonstrated.
+Report the candidate, the repro (command and file), the observed result, the resulting tier, and the proof artifact or the disconfirmation, dense and evidence-cited, with no raw command output dumped beyond the receipt. Write that full report to the brief's Report path with the file-write tool and return only a pointer: the path, a one-line verdict, and counts. The orchestrator records only what you actually demonstrated.
 
-Report cap: at most 400 words for a report you return inline. With a Report path, put detail in that file and return only the pointer above plus the next action.
+Report cap: at most 400 words for the message you return. Put detail in the Report path file and return only the pointer above plus the next action.
 
 ## Contract
 
