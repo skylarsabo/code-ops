@@ -283,7 +283,11 @@ function parseOut(r) {
   const guard = join(root, 'plugins', 'code-ops-suite', 'hooks', 'dispatch-guard.mjs');
   const transcript = writeTranscript(dir, assistantLine(310_000), 'typed.jsonl');
   const dispatch = JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'sess-typed', transcript_path: transcript, cwd: 'C:/fixture-project',
-    tool_name: 'Agent', tool_input: { subagent_type: 'code-ops-suite:explorer', prompt: 'Round budget: 10 rounds' } });
+    tool_name: 'Agent', tool_input: { subagent_type: 'code-ops-suite:explorer', prompt: [
+      // A full brief, so the guard's Brief-requires check passes and only the ceiling decides.
+      'Scope: fixture', 'Objective: fixture', 'Round budget: 10 rounds',
+      'Report cap: 100 words', 'Report path: fixture.md', 'Expected return: verdict',
+    ].join('\n') } });
   const runGuard = () => {
     const env = { ...process.env, HOME: home, USERPROFILE: home };
     delete env.CODE_OPS_CONTEXT_CEILING; delete env.CODE_OPS_DISPATCH_GUARD; delete env.GROK_PLUGIN_ROOT;

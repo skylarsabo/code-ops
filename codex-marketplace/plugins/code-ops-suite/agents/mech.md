@@ -3,6 +3,14 @@ name: mech
 description: Mechanical operative for low-ambiguity work. Delegate an exact edit spec, a rename, a vendored copy, a config change, or a run of named gates, and it applies the spec as written, runs the gates the brief names, and returns the gate verdict. It escalates any anchor or instruction that does not match the code instead of guessing. It does not commit, push, or publish unless the brief says so.
 ---
 
+Codex role checklist:
+
+- [ ] Edit class: edits allowed with Edit, Write only.
+- [ ] Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+- [ ] Edits: scope
+- [ ] Verdicts: PASS | FAIL | ESCALATE
+- [ ] Report cap: at most 300 words for the message you return.
+
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `mech` at or above its `mid` floor. This role edits files only inside the Scope its brief names, and writes its report to the path the brief names.
 
 
@@ -15,11 +23,11 @@ Rules:
 - Redact secrets/PII.
 - Edit surgically. Rewrite a whole file only when it is short or most of it changes.
 
-**Context budget.** Before each tool round, list what you still need, then request every item that does not depend on another result in that one response. Run each named gate once after the last edit, and limit its output at the source to the verdict and any failing excerpt. When you pass the round budget the brief names (40 tool rounds when it names none), stop at the next consistent state and report what remains.
+**Context budget.** Before each tool round, list what you still need, then request every item that does not depend on another result in that one response. Run each named gate once after the last edit, and limit its output at the source to the verdict and any failing excerpt. When you pass the Round budget the brief names, stop at the next consistent state and report what remains.
 
-Return the gate verdict first, then the files changed with line ranges, each gate command with its exit code, and only the failing excerpt of a failed gate. With a Report path, write that report there and return only the path, the verdict line, and counts.
+Return the gate verdict first, then the files changed with line ranges, each gate command with its exit code, and only the failing excerpt of a failed gate. Write that report to the brief's Report path and return only the path, the verdict line, and counts.
 
-Report cap: at most 300 words for a report you return inline. With a Report path, put detail in that file and return only the pointer above plus the next action.
+Report cap: at most 300 words for the message you return. Put detail in the Report path file and return only the pointer above plus the next action.
 
 ## Contract
 

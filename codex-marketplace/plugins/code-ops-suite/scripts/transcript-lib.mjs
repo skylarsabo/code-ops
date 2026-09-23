@@ -202,7 +202,7 @@ export function emptySummary() {
     models: {},
     usage: emptyUsage(),
     normalizedUsage: emptyUsage(), usageByModel: {}, hosts: {},
-    toolCalls: {}, toolResults: 0, toolResultChars: {}, toolResultCharsTotal: 0,
+    toolCalls: {}, skills: {}, toolResults: 0, toolResultChars: {}, toolResultCharsTotal: 0,
     textChars: { assistant: 0, user: 0, thinking: 0 },
     bashFamilies: {},
     repeatReads: { paths: 0, extraReads: 0, extraChars: 0 },
@@ -222,6 +222,24 @@ export function emptySummary() {
 }
 
 const bump = (obj, k, n = 1) => { obj[k] = (obj[k] || 0) + n; };
+
+// A skill id as the receipt stores it: the colon form (`code-ops-suite:handoff`) with any leading
+// slash removed. Anything else is not an id and returns null, so no transcript text reaches a row.
+const SKILL_ID_RE = /^[A-Za-z0-9._-]+(?::[A-Za-z0-9._-]+)*$/;
+export function skillId(raw) {
+  if (typeof raw !== 'string') return null;
+  const id = raw.trim().replace(/^\//, '');
+  return id.length <= 128 && SKILL_ID_RE.test(id) ? id : null;
+}
+const COMMAND_NAME_RE = /<command-name>\s*([^<]*?)\s*<\/command-name>/;
+// The skill an operator ran as a slash command: a prompt that opens with the host command tag.
+// Only a namespaced `plugin:skill` name counts, because a bare name such as `/clear` or
+// `/compact` is a host built-in the transcript does not tell apart from a user skill.
+function slashSkill(prompt) {
+  if (!prompt.trimStart().startsWith('<command-')) return null;
+  const id = skillId(prompt.match(COMMAND_NAME_RE)?.[1]);
+  return id && id.includes(':') ? id : null;
+}
 
 // Summarize one JSONL transcript. Malformed lines are skipped, never fatal.
 export function summarizeTranscript(text, opts = {}) {
@@ -352,7 +370,13 @@ export function summarizeTranscript(text, opts = {}) {
     } else if (o.type === 'user') {
       // A human turn, not a tool-result carrier line (those also arrive as `type: "user"`).
       const carriesResult = Array.isArray(msg.content) && msg.content.some((b) => b && b.type === 'tool_result');
-      if (!carriesResult) s.messages.user++;
+      if (!carriesResult) {
+        s.messages.user++;
+        const prompt = typeof msg.content === 'string' ? msg.content
+          : Array.isArray(msg.content) ? msg.content.map((b) => (b?.type === 'text' && typeof b.text === 'string' ? b.text : '')).join('') : '';
+        const skill = o.isMeta ? null : slashSkill(prompt);
+        if (skill) bump(s.skills, skill);
+      }
     }
     const content = msg.content;
     if (typeof content === 'string') {
@@ -367,6 +391,7 @@ export function summarizeTranscript(text, opts = {}) {
         const name = typeof b.name === 'string' ? b.name : '?';
         bump(s.toolCalls, name);
         toolById.set(b.id, { name, input: b.input });
+        if (name === 'Skill') { const id = skillId(b.input?.skill); if (id) bump(s.skills, id); }
         if (name === 'Bash') bump(s.bashFamilies, bashFamily(b.input?.command), 0);
         if (name === 'Read' && typeof b.input?.file_path === 'string') {
           readsByPath.set(b.input.file_path, (readsByPath.get(b.input.file_path) || 0) + 1);
@@ -496,6 +521,7 @@ export function mergeSummaries(list, opts = {}) {
     }
     for (const [k, n] of Object.entries(s.hosts)) bump(m.hosts, k, n);
     for (const [k, v] of Object.entries(s.toolCalls)) bump(m.toolCalls, k, v);
+    for (const [k, v] of Object.entries(s.skills || {})) bump(m.skills, k, v);
     m.toolResults += s.toolResults;
     for (const [k, v] of Object.entries(s.toolResultChars)) bump(m.toolResultChars, k, v);
     m.toolResultCharsTotal += s.toolResultCharsTotal;

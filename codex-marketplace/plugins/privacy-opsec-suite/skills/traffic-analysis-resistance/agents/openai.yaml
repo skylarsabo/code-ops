@@ -1,6 +1,6 @@
 interface:
   display_name: "Traffic Analysis Resistance"
-  short_description: "Use when you need to reduce observable timing, size, and volume side channels and add padding or batching defaults. Owns traffic-shape correlation, not header or TLS fingerprints, which fingerprint-resistance owns."
+  short_description: "Use to reduce timing, size, and volume side channels and add padding or batching defaults. Header and TLS fingerprints belong to fingerprint-resistance."
   default_prompt: "Use privacy-opsec-suite:traffic-analysis-resistance for this task."
 policy:
   allow_implicit_invocation: true

@@ -237,6 +237,32 @@ function agentFloor(contents, path) {
   return { name, sourceModel, minimumTier };
 }
 
+const EDIT_TOOLS = ['Edit', 'MultiEdit', 'Write', 'NotebookEdit'];
+const CONTRACT_FIELDS = ['Brief requires', 'Edits', 'Verdicts'];
+
+// Codex drops the tools line, so the rendered body opens with the edit class and the
+// `## Contract` fields as a checklist. The edit class comes first and is read-only unless
+// the source grants an edit tool. Report cap is the first sentence of the body's cap line.
+function agentChecklist(tools, body, path) {
+  const granted = tools.split(',').map((tool) => tool.trim()).filter((tool) => EDIT_TOOLS.includes(tool));
+  const editClass = granted.length === 0
+    ? 'read-only; this role has no Edit, Write, or NotebookEdit tool and changes no file'
+    : `edits allowed with ${granted.join(', ')} only`;
+  const contract = body.match(/^## Contract\n([\s\S]*?)(?=^## |^```|(?![\s\S]))/m)?.[1];
+  if (contract === undefined) throw new Error(`${path}: agent needs a ## Contract section`);
+  const field = (name, text) => text.match(new RegExp(`^${name}:[ \\t]*(.+)$`, 'm'))?.[1].trim();
+  const lines = [`- [ ] Edit class: ${editClass}.`];
+  for (const name of CONTRACT_FIELDS) {
+    const value = field(name, contract);
+    if (!value) throw new Error(`${path}: ## Contract needs a ${name} line`);
+    lines.push(`- [ ] ${name}: ${value}`);
+  }
+  const cap = field('Report cap', body)?.match(/^.*?\.(?=\s|$)/)?.[0];
+  if (!cap) throw new Error(`${path}: agent needs a Report cap line`);
+  lines.push(`- [ ] Report cap: ${cap}`);
+  return ['Codex role checklist:', '', ...lines];
+}
+
 function transformAgent(contents, path) {
   const match = contents.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (!match) throw new Error(`${path}: expected YAML frontmatter bounded by ---`);
@@ -256,6 +282,8 @@ function transformAgent(contents, path) {
     '---',
     ...header,
     '---',
+    '',
+    ...agentChecklist(tools, body, path),
     '',
     `> Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads \`agents/model-floors.json\` and routes \`${floor.name}\` at or above its \`${floor.minimumTier}\` floor. ${writeCapability}`,
     '',
@@ -291,8 +319,9 @@ const HOOK_PURPOSES = new Map([
   ['routing-card.mjs', 'prints the routing card at session start, a restore instruction after compaction, and the newest pending handoff on a fresh session'],
   ['session-receipt.mjs', 'appends a local session receipt row with token usage, tool calls, and model mix'],
   ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
+  ['subagent-report.mjs', 'notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap'],
   ['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band'],
-  ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier'],
+  ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, denies a suite-agent dispatch whose brief lacks a field the agent’s contract requires, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier'],
 ]);
 
 function bundledHooks(pluginName) {

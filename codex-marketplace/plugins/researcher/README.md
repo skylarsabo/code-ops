@@ -10,13 +10,13 @@ Name a workflow in Codex as `researcher:<skill>`. Every generated skill sets `po
 
 ## Skills
 
-- `ecosystem-watch` — Use when you want to know what changed in OUR stack that we should act on: dependency updates, CVEs, deprecations, and newly available capabilities, grounded in what we actually use. Schedulable, discovery only, and writes no code.
-- `library-eval` — Use when you must decide whether to adopt a library or approach, comparing A against B against building it, and want a code-grounded fit assessment, migration cost, and a tiered recommendation. Writes no code.
-- `research-ideate` — Use when you want net-new, honestly novel feature or direction ideas grounded in our code plus its domain and opt-in external trends. Writes no code. For ideas mined from the codebase alone, use code-ops-suite:feature-discovery.
-- `research-improve` — Use when you want grounded, external-best-practice improvements proposed for our existing code, not a generic checklist. Writes no code, and proposes and hands off instead.
+- `ecosystem-watch` — Use to learn what changed in our stack that needs action: dependency updates, CVEs, deprecations, and new capabilities. Schedulable, discovery only, no code.
+- `library-eval` — Use to decide on adopting a library or approach, A versus B versus building it, with code-grounded fit, migration cost, and a tiered verdict. Writes no code.
+- `research-ideate` — Use for novel feature ideas grounded in our code, its domain, and opt-in web trends. Writes no code. For code-only ideas, use code-ops-suite:feature-discovery.
+- `research-improve` — Use for improvements to our existing code grounded in external best practice, not a generic checklist. Writes no code, and proposes and hands off instead.
 - `research-spike` — Use when a task, feature, or plan needs a code-grounded design brief before anyone builds it. Writes no code.
-- `research-sweep` — Use when you want code-grounded research run end-to-end as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Intra-plugin orchestrator that researches and proposes only, and writes no code.
-- `research-verify` — Use when a claim, recommendation, or draft research artifact needs adversarial fact-checking against sources and our code before anyone acts on it. Review only, and writes no code.
+- `research-sweep` — Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates and proposes; writes no code.
+- `research-verify` — Use to fact-check a claim, recommendation, or draft research adversarially against sources and our code before anyone acts on it. Review only; writes no code.
 
 ## Packaging notes
 

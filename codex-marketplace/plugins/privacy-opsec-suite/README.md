@@ -13,16 +13,16 @@ Name a workflow in Codex as `privacy-opsec-suite:<skill>`. Every generated skill
 - `anon-session-audit` — Use when you need to verify sessions are truly unlinkable. Owns linkability and session identity, not network egress or file metadata.
 - `anonymity-threat-model` — Use when you need the keystone anonymity threat model that the other privacy audits build on.
 - `authorship-hygiene` — Use when a commit, PR, or branch must carry no AI or tooling trace before publishing.
-- `fingerprint-resistance` — Use when you need to reduce the fingerprinting and uniqueness surface that could re-link anonymous users. Owns identity-fingerprint distinctiveness, not traffic timing or size, which traffic-analysis-resistance owns.
+- `fingerprint-resistance` — Use to reduce the fingerprinting and uniqueness surface that could re-link anonymous users. Traffic timing and size belong to traffic-analysis-resistance.
 - `leak-incident-response` — Use when an anonymity or privacy leak is suspected and you need to triage, contain, scope the blast radius, and plan remediation without making it worse.
-- `metadata-leak-audit` — Use when you need to find personal data or identifiers leaking in logs, telemetry, errors, response headers, or embedded file metadata. Owns at-rest and in-band metadata, not timing or size side channels, which traffic-analysis-resistance owns.
+- `metadata-leak-audit` — Use to find PII or identifiers leaking in logs, telemetry, errors, headers, or file metadata. Timing and size side channels go to traffic-analysis-resistance.
 - `opsec-hardening` — Use when a LEAK_REGISTER.md exists and you want its leaks fixed safely, each pinned with a regression test. Requires a register as input.
-- `opsec-pr-gate` — Use when you want a pre-merge gate that blocks any change adding egress, logging, identifiers, fingerprint surface, correlation, or weakened anonymity defaults. The anonymity counterpart to rigor:deep-review.
+- `opsec-pr-gate` — Use as a pre-merge gate that blocks egress, logging, identifiers, fingerprints, correlation, or weaker anonymity defaults. Anonymity twin of rigor:deep-review.
 - `privacy-doc-alignment` — Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the single source of truth.
 - `privacy-feature-design` — Use when you want high-value privacy and trust features found and specified, each gated against the anonymity model. Discovery and specification only.
-- `supply-chain-trust` — Use when you need to vet dependencies for telemetry, phone-home behavior, and egress, for CVEs, and for build and lockfile integrity under an anonymity-hostile model.
+- `supply-chain-trust` — Use to vet dependencies for telemetry, phone-home behavior, and egress, for CVEs, and for build and lockfile integrity under an anonymity-hostile model.
 - `tor-egress-audit` — Use when you need to prove no traffic escapes the proxy or Tor. Owns network egress and routing.
-- `traffic-analysis-resistance` — Use when you need to reduce observable timing, size, and volume side channels and add padding or batching defaults. Owns traffic-shape correlation, not header or TLS fingerprints, which fingerprint-resistance owns.
+- `traffic-analysis-resistance` — Use to reduce timing, size, and volume side channels and add padding or batching defaults. Header and TLS fingerprints belong to fingerprint-resistance.
 
 ## Packaging notes
 

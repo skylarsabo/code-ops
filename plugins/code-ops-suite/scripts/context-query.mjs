@@ -47,10 +47,10 @@
 // usage error or a git failure.
 
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { extname, join, relative, resolve } from 'node:path';
+import { sha256 } from './cli-lib.mjs';
 import { calls, definitions, imports, isCodeExt } from './symbol-lib.mjs';
 
 const USAGE = 'usage: context-query.mjs <refresh|status|find|callers|callees|blast|explore> [args] [--root <dir>] [--exclude <prefix>]... [--provider <ctags|codegraph|none>] [--json] [--fuzzy] [--depth <n>] [--budget <bytes>] [--with-source] [--no-stale-check]';
@@ -93,7 +93,6 @@ function git(root, gitArgs) {
 // prints the long form, and a relative path between the two forms escapes the tree.
 const real = (p) => { try { return realpathSync.native(p); } catch { return p; } };
 const root = real(resolve(o.root ?? git(process.cwd(), ['rev-parse', '--show-toplevel']).trim()));
-const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 const projectSlug = (p) => String(p).replace(/[^A-Za-z0-9]/g, '-');
 const storeDir = process.env.CODE_OPS_INDEX_DIR ? resolve(process.env.CODE_OPS_INDEX_DIR) : join(homedir(), '.claude', 'code-ops', 'index', projectSlug(root));
 const indexPath = join(storeDir, 'index.json');

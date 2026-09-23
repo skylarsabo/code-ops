@@ -3,6 +3,14 @@ name: claim-checker
 description: Adversarial claim verifier for research. Delegate a single claim, recommendation, or cited statement, and it tries to refute it against the actual code and the cited sources, then returns a tiered verdict. It is read-only, so it verifies rather than edits or implements. Use one per load-bearing claim, in parallel.
 ---
 
+Codex role checklist:
+
+- [ ] Edit class: read-only; this role has no Edit, Write, or NotebookEdit tool and changes no file.
+- [ ] Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+- [ ] Edits: none
+- [ ] Verdicts: SUPPORTED | PARTIAL | UNSUPPORTED | ESCALATE
+- [ ] Report cap: at most 400 words.
+
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `claim-checker` at or above its `mid` floor. This role is read-only: return the report inline.
 
 

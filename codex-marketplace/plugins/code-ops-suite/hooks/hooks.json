@@ -81,6 +81,16 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/subagent-report.mjs\""
+          }
+        ]
+      }
     ]
   }
 }

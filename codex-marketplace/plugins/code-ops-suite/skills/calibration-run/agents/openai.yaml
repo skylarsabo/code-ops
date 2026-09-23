@@ -1,6 +1,6 @@
 interface:
   display_name: "Calibration Run"
-  short_description: "Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See its bundled calibration protocol reference."
+  short_description: "Use for a standard, isolated assess-only calibration run against a real-scale target repo. Ends in a sanitized trend entry and never quotes target internals."
   default_prompt: "Use code-ops-suite:calibration-run for this task."
 policy:
   allow_implicit_invocation: true

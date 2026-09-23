@@ -1,5 +1,9 @@
 # Changelog — privacy-opsec-suite
 
+## 2.1.1
+- Skill descriptions are 160 characters or fewer, under the new lint cap.
+- The vendored `cli-lib.mjs` carries the shared spawn and hash helpers.
+
 ## 2.1.0
 - The vendored artifact grammar reference now starts `RUN_CONTRACT.json` with `run-contract.mjs init`.
 

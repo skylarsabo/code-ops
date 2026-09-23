@@ -15,7 +15,11 @@
 //     override (naming the agent's declared tier when a definition declares one) and a prompt
 //     with no Round budget stay advisory clauses in the same output, and warn mode downgrades
 //     every denial to an advisory;
-//   - a dispatch that names a narrow agent, no model, and a Round budget is silent;
+//   - a dispatch to a suite agent (`<plugin>:<agent>` in any of the four plugins, resolved in the
+//     repo layout and the installed cache layout) whose prompt lacks a field its `## Contract`
+//     `Brief requires:` line lists is denied, warn mode downgrades it, and unknown, bare,
+//     non-suite, and contract-less agents pass;
+//   - a dispatch that names a narrow agent, no model, and a complete brief is silent;
 //   - at and past the context ceiling (300,000 by default, CODE_OPS_CONTEXT_CEILING overrides
 //     or disables it), a main-thread dispatch is denied until a handoff Skill call or the
 //     `assessed` CLI verb records the current 150,000-token band, and the next band re-gates;
@@ -83,6 +87,10 @@ const dispatchCall = (toolInput, extra = {}) => ({
   hook_event_name: 'PreToolUse', session_id: 'sess-1', cwd: 'C:/fixture-project',
   tool_name: 'Agent', tool_input: toolInput, tool_use_id: 'tu-2', ...extra,
 });
+
+// A brief that carries every field the suite agents' `Brief requires:` lines name.
+const FULL_BRIEF = 'Scope: one file.\nObjective: fix it.\nRound budget: 25 tool rounds\n'
+  + 'Report cap: 200 words.\nReport path: r.md\nExpected return: a verdict line.';
 
 function parseOut(r) {
   if (r.stdout.trim() === '') return null;
@@ -224,7 +232,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `the reason must start its own line, got ${JSON.stringify(out)}`);
 
   // A code-ops-suite agent's declared tier is named from its own definition.
-  out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 20 rounds', subagent_type: 'code-ops-suite:explorer', model: 'opus' }), { home }));
+  out = parseOut(runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:explorer', model: 'opus' }), { home }));
   text = contextOf(out) ?? '';
   const declared = readFileSync(join(suite, 'agents', 'explorer.md'), 'utf8').match(/^model:[ \t]*(\S+)$/m)[1];
   expect(text.includes(`(${declared})`), `the advisory must name the declared tier ${declared}, got ${text}`);
@@ -264,10 +272,97 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   }
 
   // A clean dispatch: narrow agent, no override, a Round budget in the brief.
-  const clean = runHook(dispatchCall({ description: 'build it', prompt: 'Scope: one file.\nRound budget: 25 tool rounds', subagent_type: 'code-ops-suite:implementer' }), { home });
+  const clean = runHook(dispatchCall({ description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' }), { home });
   expect(clean.status === 0 && clean.stdout === '', `a clean dispatch must be silent, got ${clean.status}/${JSON.stringify(clean.stdout)}`);
   cleanup();
   console.log('ok   a wide dispatch denies unless it states a reason, warn downgrades it, and a clean dispatch is silent');
+}
+
+// ---------------------------------------------------------------- brief contract fields
+
+{
+  const { home, cleanup } = fakeHome();
+  const deny = (out) => out?.hookSpecificOutput?.permissionDecision === 'deny';
+  const brief = (drop) => FULL_BRIEF.split('\n').filter((line) => !line.startsWith(drop)).join('\n');
+
+  // A missing field denies and names it; the other fields are not named.
+  let out = parseOut(runHook(dispatchCall({ prompt: brief('Report path'), subagent_type: 'code-ops-suite:implementer' }), { home }));
+  let text = reasonOf(out) ?? '';
+  expect(deny(out) && /missing: Report path;/.test(text) && /code-ops-suite:implementer Contract/.test(text),
+    `a brief missing a Contract field must deny and name it, got ${JSON.stringify(out)}`);
+
+  // Every field present passes, including loose forms: case, bold, a parenthetical, list
+  // markers, leading whitespace, and a markdown heading.
+  const loose = 'scope (edit authority): one file.\n## Objective\nfix it.\n**Round budget:** 10\n'
+    + '- Report cap: 100 words.\n  1. Report path: r.md\n* EXPECTED RETURN: a line.';
+  let r = runHook(dispatchCall({ prompt: loose, subagent_type: 'code-ops-suite:implementer' }), { home });
+  expect(r.status === 0 && r.stdout === '', `a brief with every field in loose form must pass, got ${JSON.stringify(r.stdout)}`);
+
+  // A label inside a longer word, or with no colon, does not count.
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Scope').replace('Objective:', 'Microscope: x\nObjective is'), subagent_type: 'code-ops-suite:implementer' }), { home }));
+  expect(deny(out) && /missing: Scope, Objective;/.test(reasonOf(out) ?? ''), `an embedded or colonless label must not count, got ${JSON.stringify(out)}`);
+
+  // The label must start its line: `Out of scope:`, an inline mid-sentence `Scope:`, and a
+  // field placed after another field on the same line do not count.
+  for (const [label, line] of [
+    ['Out of scope', 'Out of scope: docs'],
+    ['mid-sentence', 'Edit only the files relevant to Scope: a path'],
+    ['after another field', 'Objective: fix it. Scope: one file.'],
+  ]) {
+    out = parseOut(runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer' }), { home }));
+    expect(deny(out) && /missing: Scope;/.test(reasonOf(out) ?? ''), `${label} must not satisfy Scope, got ${JSON.stringify(out)}`);
+  }
+  // A bold list item with a parenthetical, and a heading, do count.
+  for (const line of ['- **Scope (edit authority):** x', '## Scope']) {
+    r = runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer' }), { home });
+    expect(r.status === 0 && r.stdout === '', `${JSON.stringify(line)} must satisfy Scope, got ${JSON.stringify(r.stdout)}`);
+  }
+
+  // A field denial that names Round budget carries no separate Round budget advisory.
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Round budget'), subagent_type: 'code-ops-suite:implementer' }), { home }));
+  text = reasonOf(out) ?? '';
+  expect(deny(out) && /missing: Round budget;/.test(text) && !/No Round budget/.test(text),
+    `a Round budget field denial must not repeat as an advisory, got ${JSON.stringify(out)}`);
+
+  // Warn mode downgrades the denial to an advisory.
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Objective'), subagent_type: 'code-ops-suite:implementer' }), { home, guard: 'warn' }));
+  expect(!deny(out) && /missing: Objective;/.test(contextOf(out) ?? ''), `warn mode must downgrade the field denial, got ${JSON.stringify(out)}`);
+
+  // A sibling plugin's agent resolves from the repo layout.
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Scope'), subagent_type: 'rigor:tracer' }), { home }));
+  expect(deny(out) && /rigor:tracer Contract.*missing: Scope;/.test(reasonOf(out) ?? ''), `rigor:tracer must resolve across plugins, got ${JSON.stringify(out)}`);
+  r = runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'researcher:gatherer' }), { home });
+  expect(r.stdout === '', `a complete brief to researcher:gatherer must pass, got ${JSON.stringify(r.stdout)}`);
+
+  // Unknown, bare, and non-suite types pass unchanged.
+  for (const type of ['code-ops-suite:no-such-agent', 'implementer', 'other-plugin:implementer', 'rigor:../tracer']) {
+    r = runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: type }), { home });
+    expect(r.stdout === '', `${type} must pass with no contract check, got ${JSON.stringify(r.stdout)}`);
+  }
+
+  // The installed cache layout: sibling plugins at <marketplace>/<plugin>/<version>/, the
+  // highest numeric version wins (10.0.0 over 9.0.0, which a string sort would pick), and an
+  // agent without a Contract passes.
+  const cache = join(home, 'cache', 'code-ops');
+  const suiteRoot = join(cache, 'code-ops-suite', '2.0.0');
+  const agent = (plugin, version, name, body) => {
+    mkdirSync(join(cache, plugin, version, 'agents'), { recursive: true });
+    writeFileSync(join(cache, plugin, version, 'agents', `${name}.md`), body);
+  };
+  agent('code-ops-suite', '2.0.0', 'implementer', '---\nname: implementer\n---\nBody.\n\n## Contract\n\nBrief requires: Widget\n');
+  agent('rigor', '9.0.0', 'tracer', '## Contract\n\nBrief requires: Old field\n');
+  agent('rigor', '10.0.0', 'tracer', '## Contract\r\n\r\nBrief requires: Scope, Gadget\r\nEdits: none\r\n\r\n## Later\r\nBrief requires: Ignored\r\n');
+  agent('rigor', '10.0.0', 'bare', '---\nname: bare\n---\nNo contract here.\nBrief requires: Outside\n');
+  out = parseOut(runHook(dispatchCall({ prompt: 'Scope: x', subagent_type: 'rigor:tracer' }), { home, pluginRoot: suiteRoot }));
+  expect(deny(out) && /missing: Gadget;/.test(reasonOf(out) ?? ''), `the cache layout must resolve rigor 10.0.0, got ${JSON.stringify(out)}`);
+  r = runHook(dispatchCall({ prompt: 'Scope: x\nGadget: y\nRound budget: 5', subagent_type: 'rigor:tracer' }), { home, pluginRoot: suiteRoot });
+  expect(r.stdout === '', `only the Contract section's line binds, got ${JSON.stringify(r.stdout)}`);
+  out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: 'code-ops-suite:implementer' }), { home, pluginRoot: suiteRoot }));
+  expect(deny(out) && /missing: Widget;/.test(reasonOf(out) ?? ''), `the hook's own cached plugin must resolve, got ${JSON.stringify(out)}`);
+  r = runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: 'rigor:bare' }), { home, pluginRoot: suiteRoot });
+  expect(r.stdout === '', `an agent without a Contract must pass, got ${JSON.stringify(r.stdout)}`);
+  cleanup();
+  console.log('ok   a suite agent\'s Contract fields deny when missing, resolve across plugins in the repo and the cache, and warn mode downgrades');
 }
 
 // ---------------------------------------------------------------- explicit controller bindings
@@ -282,7 +377,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
 
   // Lead dispatch events have no child agent id. A matching type after this event must not
   // inherit the registration by timing or type; it remains on the legacy fallback.
-  const lead = runHook(dispatchCall({ prompt: 'Round budget: 2 tool rounds', subagent_type: 'code-ops-suite:implementer' }, { cwd }), { home, budget: 3 });
+  const lead = runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' }, { cwd }), { home, budget: 3 });
   expect(lead.stdout === '', `a clean lead dispatch must not auto-bind a future worker, got ${lead.stdout}`);
   for (let i = 0; i < 2; i++) expect(runHook(subagentCall(otherId, { cwd }), { home, budget: 3 }).stdout === '', 'an unregistered same-type worker must retain its own legacy counter');
   const fallbackWarning = contextOf(parseOut(runHook(subagentCall(otherId, { cwd }), { home, budget: 3 })));
@@ -415,7 +510,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   const dir = mkdtempSync(join(tmpdir(), 'dispatch-ceiling-'));
   const cwd = root;
   const session = 'sess-ceil';
-  const clean = { description: 'build it', prompt: 'Scope: one file.\nRound budget: 25 tool rounds', subagent_type: 'code-ops-suite:implementer' };
+  const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' };
   const dispatchAt = (context, opts = {}, sessionId = session) => runHook(dispatchCall(clean, {
     cwd, session_id: sessionId, transcript_path: transcriptAt(dir, context, `t-${context}.jsonl`),
   }), { home, ...opts });

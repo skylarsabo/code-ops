@@ -1,6 +1,6 @@
 ---
 name: researcher-research-sweep
-description: "Use when you want code-grounded research run end-to-end as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Intra-plugin orchestrator that researches and proposes only, and writes no code."
+description: "Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates and proposes; writes no code."
 ---
 
 # Research sweep: the whole research pipeline, end to end

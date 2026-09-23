@@ -15,7 +15,7 @@
 // stdin may never close on some Windows shells, so a short timer finishes with what arrived.
 //
 // Row shape (v: 1): { v, ts, sessionId, cwd, reason, durationMs, models, turns, toolCalls,
-//   toolResultChars, contextAtEnd, arms, handoff: { band, invoked }, files, skipped,
+//   skills: { "<skill id>": count }, toolResultChars, contextAtEnd, arms, handoff: { band, invoked }, files, skipped,
 //   tokens: { main: {...}, subagents: {...} } }. Fields are added without a version bump:
 //   every reader tolerates an unknown key and treats a missing one as absent.
 
@@ -103,6 +103,9 @@ async function doFinish() {
       models: main.models,
       turns: main.messages.assistant,
       toolCalls: main.toolCalls,
+      // Skill invocations by id, main thread and subagents together: `Skill` tool calls and
+      // namespaced slash commands the operator ran. A session with none records `{}`.
+      skills: lib.mergeSummaries([main, sub], { top: 0 }).skills,
       toolResultChars: main.toolResultCharsTotal,
       contextAtEnd: main.contextAtEnd,
       // Which mechanisms this session ran under, read from the same switches the hooks read: on

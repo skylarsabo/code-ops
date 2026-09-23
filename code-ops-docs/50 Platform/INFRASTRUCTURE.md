@@ -37,15 +37,15 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers eight commands across six events in
+The code-ops-suite package registers nine commands across seven events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
 trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
 its budget boundary or when its explicit controller binding is invalid. It can also deny a lead
 dispatch of a wide-surface type that names no reason, and a lead dispatch past the context
 ceiling before the handoff assessment. Unbound infrastructure failures retain the previous
-fail-open behavior.
-Six commands carry an off switch, read from the canonical `.claude/settings.json`
+fail-open behavior. The `SubagentStop` return check is advisory and never blocks.
+Seven commands carry an off switch, read from the canonical `.claude/settings.json`
 environment. A seventh variable governs only the routing card's pending-handoff line, and an
 eighth sets or disables the dispatch guard's context ceiling.
 Rendered hosts use their documented process environment:
@@ -59,6 +59,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_DIGEST` | `off`, `0`, or `false` | the `PreToolUse` output digest, `digest-rewrite.mjs` |
 | `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
+| `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false` | the `SubagentStop` advisory verdict and word-cap check, `subagent-report.mjs` |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs` |
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
@@ -152,7 +153,7 @@ The handoff-card marker store is `<host home>/code-ops/handoff/<project slug>/<s
 one small file per session holding the 150,000-token band already nudged and the highest band the
 session reached. It has no override variable and nothing purges it automatically; delete the
 directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:68-72` and
-`scripts/transcript-lib.mjs:539-555`.
+`scripts/transcript-lib.mjs:565-581`.
 
 The dispatch-guard store is `~/.claude/code-ops/dispatch/<cwd hash>/<agent hash>`. Each agent
 has a `.rounds` counter and may have a `.binding.json` controller record. Each lead session that
@@ -198,6 +199,7 @@ byte-identical packaging.
 | Routing and compaction | Session context and `source=compact` restore | Instruction files only; passive stdout unavailable | Projected session context and restore | System-transform and compaction ports |
 | Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Lifecycle plugin injects it into the implementer |
+| Subagent return check | Native `SubagentStop` `systemMessage` note | Not registered in effect: the hook is silent under the adapter because the `SubagentStop` payload is UNVERIFIED | Projected hook; payload fields UNVERIFIED, so a missing field leaves it silent | Not ported; no verified subagent-stop callback (UNVERIFIED) |
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
 | Handoff card | Native | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff | Projected hook; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage |
 | Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Lifecycle line on the first lead system transform |
@@ -226,7 +228,7 @@ and `scripts/local-review-gate.mjs:1-39`.
 each one as present or absent beside its other capability lines, and their absence never fails a
 preflight. `context-query.mjs` spawns one only when `refresh --provider` names it, and without
 one the index falls back to its own line rules. Evidence: `scripts/preflight.mjs:93-99` and
-`scripts/context-query.mjs:208-213`.
+`scripts/context-query.mjs:207-212`.
 
 ## Operational limits
 

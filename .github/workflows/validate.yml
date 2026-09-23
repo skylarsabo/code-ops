@@ -107,6 +107,9 @@ jobs:
       - name: Ladder card hook eval (opt-in switch + implementer filter)
         run: node evals/ladder-card/run.mjs
 
+      - name: Subagent report hook eval (verdict token + report cap, advisory)
+        run: node evals/subagent-report/run.mjs
+
       - name: Dispatch guard hook eval (round budget + dispatch advisories)
         run: node evals/dispatch-guard/run.mjs
 
@@ -363,6 +366,7 @@ jobs:
       - run: node evals/context-query/run.mjs
       - run: node evals/context-query-mcp/run.mjs
       - run: node evals/ladder-card/run.mjs
+      - run: node evals/subagent-report/run.mjs
       - run: node evals/handoff-card/run.mjs
       - run: node evals/dispatch-guard/run.mjs
       - run: node evals/context-audit/run.mjs
@@ -546,6 +550,9 @@ jobs:
 
       - name: Ladder card hook eval (opt-in switch + implementer filter)
         run: node evals/ladder-card/run.mjs
+
+      - name: Subagent report hook eval (verdict token + report cap, advisory)
+        run: node evals/subagent-report/run.mjs
 
       - name: Handoff card hook eval (opt-in switch + context-band threshold)
         run: node evals/handoff-card/run.mjs

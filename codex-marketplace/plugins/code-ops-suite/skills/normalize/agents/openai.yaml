@@ -1,6 +1,6 @@
 interface:
   display_name: "Normalize"
-  short_description: "Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. Use the concept mode (normalize concept NAME) when one concept is implemented divergently and you want it closed for good in one canonical form with mechanical enforcement."
+  short_description: "Use when code has inconsistent style or hasty-code artifacts and needs a behavior-preserving standard. Concept mode unifies a divergent concept and enforces it."
   default_prompt: "Use code-ops-suite:normalize for this task."
 policy:
   allow_implicit_invocation: true

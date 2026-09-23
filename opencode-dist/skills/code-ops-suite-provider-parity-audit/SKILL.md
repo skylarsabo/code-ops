@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-provider-parity-audit
-description: "Use when the marketplace must be audited across Claude, Codex, installed Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, generated projections, and documentation."
+description: "Use to audit the suite on Claude, Codex, Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, and docs."
 ---
 
 # Provider parity audit: one outcome across supported hosts

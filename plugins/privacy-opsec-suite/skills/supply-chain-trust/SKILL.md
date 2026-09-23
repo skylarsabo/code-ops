@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to vet dependencies for telemetry, phone-home behavior, and egress, for CVEs, and for build and lockfile integrity under an anonymity-hostile model."
+description: "Use to vet dependencies for telemetry, phone-home behavior, and egress, for CVEs, and for build and lockfile integrity under an anonymity-hostile model."
 ---
 
 # Supply-chain trust: dependencies that do not betray anonymity

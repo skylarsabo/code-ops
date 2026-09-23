@@ -1,5 +1,5 @@
 ---
-description: "Use when you want net-new, honestly novel feature or direction ideas grounded in our code plus its domain and opt-in external trends. Writes no code. For ideas mined from the codebase alone, use /code-ops-suite-feature-discovery."
+description: "Use for novel feature ideas grounded in our code, its domain, and opt-in web trends. Writes no code. For code-only ideas, use /code-ops-suite-feature-discovery."
 ---
 
 Use the `researcher-research-ideate` skill for this task, following it end to end.

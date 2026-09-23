@@ -281,6 +281,7 @@ if (existsSync(ledger)) {
     && r.arms.handoffPickup === true && r.arms.dispatchGuard === true, `row records every arm on under a clean environment, because each is on unless its switch says off, got ${JSON.stringify(r.arms)}`);
   expect(r.handoff && r.handoff.band === 0 && r.handoff.invoked === false, `a session with no marker and no handoff command records band 0 and invoked false, got ${JSON.stringify(r.handoff)}`);
   expect(Number.isInteger(r.contextAtEnd) && r.contextAtEnd > 0, `row carries the context resident at session end, got ${r.contextAtEnd}`);
+  expect(JSON.stringify(r.skills) === '{}', `a session with no skill invocation records an empty skills object, got ${JSON.stringify(r.skills)}`);
 }
 const h2 = run([hook], { input: 'not json at all', env });
 expect(h2.status === 0, `garbage stdin should exit 0, got ${h2.status}`);
@@ -441,6 +442,42 @@ try {
   expect(old?.sessions === 1 && old?.handoff.known === 0 && old?.handoff.nudged === 0,
     `a row without the fields still aggregates and counts as absent, got ${JSON.stringify(old)}`);
 } catch { fails.push(`handoff --by-arm --json must parse, got ${hoByArm.stdout.slice(0, 160)}${hoByArm.stderr.slice(0, 160)}`); }
+// Skills: Skill tool calls and namespaced slash commands count by colon-form id, a leading slash
+// stripped. A host built-in, a meta prompt, a quoted tag, and a non-id value count nothing.
+const skillsFile = join(tmp, 'skills.jsonl');
+const skillCall = (id, skill) => ({ type: 'assistant', message: { id, model: 'model-x', content: [{ type: 'tool_use', id: `tu-${id}`, name: 'Skill', input: { skill } }],
+  usage: { input_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } });
+const command = (name) => `<command-message>${name}</command-message>\n<command-name>/${name}</command-name>`;
+appendFileSync(skillsFile, jsonl([
+  { type: 'user', message: { role: 'user', content: command('code-ops-suite:ship') } },
+  skillCall('sk-1', 'code-ops-suite:handoff'),
+  skillCall('sk-2', '/rigor:refute'),
+  skillCall('sk-3', 'rm -rf; echo <secret>'),
+  { type: 'user', message: { role: 'user', content: [{ type: 'text', text: command('code-ops-suite:handoff') }] } },
+  { type: 'user', message: { role: 'user', content: command('clear') } },
+  { type: 'user', isMeta: true, message: { role: 'user', content: command('code-ops-suite:ship') } },
+  { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu-sk-1', content: command('code-ops-suite:ship') }] } },
+  { type: 'user', message: { role: 'user', content: `Run ${command('code-ops-suite:ship')} later` } },
+]));
+const skillsLedger = join(tmp, 'skills', 'receipts.jsonl');
+expect(run([hook], { input: JSON.stringify({ session_id: 'sess-skills', transcript_path: skillsFile, cwd: root }), env: { ...env, CODE_OPS_RECEIPTS: skillsLedger } }).status === 0,
+  'the skills receipt exits 0');
+const skillsRow = existsSync(skillsLedger) ? JSON.parse(readFileSync(skillsLedger, 'utf8')) : {};
+const wantSkills = { 'code-ops-suite:ship': 1, 'code-ops-suite:handoff': 2, 'rigor:refute': 1 };
+const sortedJson = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort()));
+expect(sortedJson(skillsRow.skills) === sortedJson(wantSkills), `Skill calls and slash commands count by id, got ${JSON.stringify(skillsRow.skills)}`);
+expect(!JSON.stringify(skillsRow).includes('secret'), 'a Skill input that is not an id never reaches the row');
+appendFileSync(skillsLedger, readFileSync(skillsLedger, 'utf8').split('\n')[0].replace('sess-skills', 'sess-skills-2') + '\n');
+appendFileSync(skillsLedger, JSON.stringify({ v: 1, ts: '2026-09-15T00:00:00.000Z', sessionId: 'pre-skills', cwd: root, durationMs: 1, turns: 1, toolCalls: {}, tokens: {} }) + '\n');
+const rcSkills = run([cli, 'receipts', '--ledger', skillsLedger, '--all', '--json']);
+try {
+  const agg = JSON.parse(rcSkills.stdout);
+  expect(agg.sessions === 3 && agg.skills?.['code-ops-suite:handoff'] === 4 && agg.skills?.['rigor:refute'] === 2,
+    `receipts sums skills across rows and tolerates a row without the field, got ${JSON.stringify(agg.skills)}`);
+} catch { fails.push(`receipts --json with skills must parse, got ${rcSkills.stdout.slice(0, 160)}${rcSkills.stderr.slice(0, 160)}`); }
+const rcSkillsText = run([cli, 'receipts', '--ledger', skillsLedger, '--all']);
+expect(rcSkillsText.stdout.includes('| code-ops-suite:handoff | 4 |'), `the text summary lists skill invocations, got:\n${rcSkillsText.stdout}`);
+
 // Retention: --purge-before rewrites the ledger keeping rows at or after the cutoff.
 const beforePurge = readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length;
 const purge = run([cli, 'receipts', '--ledger', ledger, '--purge-before', '2026-09-01T12:00:00Z', '--json']);
@@ -470,6 +507,7 @@ console.log('ok   tool attribution, cd-stripped families, repeat reads, sanitize
 console.log('ok   SessionEnd receipt hook appends one row, prints nothing, fails open');
 console.log('ok   receipts record the arm switches and the context at end; --by-arm reads arms against none');
 console.log('ok   receipts record the handoff band and whether the operator ran the handoff command; old rows still aggregate');
+console.log('ok   receipts count skill invocations by id from Skill calls and slash commands; none records {}');
 console.log('ok   --purge-before rewrites the ledger by date and reports what it removed');
 console.log('ok   context shape: per-turn bands, cache rewrites, agent types, and --all across projects');
 console.log('\ncontext-audit eval passed');

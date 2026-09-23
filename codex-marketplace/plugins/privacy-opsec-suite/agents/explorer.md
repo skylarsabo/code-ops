@@ -3,6 +3,14 @@ name: explorer
 description: Read-only leak-aware codebase explorer for parallel investigation. Delegate to it to map egress paths, find logging/telemetry calls, locate identifiers/session handling, trace routing/proxy code, and surface metadata sources, without editing. Use several in parallel across disjoint areas.
 ---
 
+Codex role checklist:
+
+- [ ] Edit class: read-only; this role has no Edit, Write, or NotebookEdit tool and changes no file.
+- [ ] Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+- [ ] Edits: none
+- [ ] Verdicts: ANSWERED | PARTIAL | ESCALATE
+- [ ] Report cap: at most 400 words.
+
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `explorer` at or above its `light` floor. This role is read-only: return the report inline.
 
 

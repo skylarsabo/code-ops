@@ -1,6 +1,6 @@
 ---
 name: rigor-improve-measured
-description: "Use when you want measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization specifically, see /code-ops-suite-performance."
+description: "Use for measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization, use /code-ops-suite-performance."
 ---
 
 # Measured improvement: no speculative refactors

@@ -36,8 +36,20 @@
 //      starting `Wide-surface reason:` with the reason on that line. Grok's `spawn_subagent`
 //      schema has no agent-type field, so a spawn without one skips only this type check. A
 //      `Workflow` script with an `agent(` call, no `agentType:`, and no `Wide-surface reason:` text is denied the same way.
-//      A `model` override and a brief with no Round budget stay advisory clauses. Every denial
-//      and advisory for one dispatch lands in one output.
+//      The same review enforces the target agent's brief contract. A `subagent_type` of the form
+//      `<plugin>:<agent>`, where the plugin is code-ops-suite, rigor, privacy-opsec-suite, or
+//      researcher, resolves to `agents/<agent>.md` in that sibling plugin: `../<plugin>/` beside
+//      this plugin's root in the repo, or `../../<plugin>/<version>/` in the installed cache, where
+//      the highest all-numeric version directory wins (hooks/agent-file.mjs, shared with
+//      subagent-report.mjs). When that file's `## Contract` section has a `Brief requires:` line,
+//      the dispatch is denied unless the prompt carries every listed field. A field is present
+//      when a line starts with its label, case-insensitive, after only whitespace, a list marker,
+//      and `**` or `__`, and the label is followed by a colon, optionally after bold markers and
+//      a parenthetical qualifier (`Scope (edit authority):`), or when a markdown heading line
+//      starts with it. A bare, unknown, or non-suite type, an unreadable file, or an agent
+//      without that line passes. A `model` override and a brief with no Round budget stay
+//      advisory clauses; the Round budget advisory is dropped when a field denial already names
+//      it. Every denial and advisory for one dispatch lands in one output.
 //
 // SWITCHES. `CODE_OPS_ROUND_BUDGET` overrides the 40-round default (a positive integer only).
 // `CODE_OPS_DISPATCH_GUARD` takes `off`, `0`, or `false` (case-insensitive) to disable the
@@ -108,6 +120,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { agentFile } from './agent-file.mjs';
 
 const DEFAULT_BUDGET = 40;
 const WARN_EVERY = 20;
@@ -262,6 +275,29 @@ function declaredTier(subagentType) {
     const head = readFileSync(join(root, 'agents', `${leaf}.md`), 'utf8').slice(0, 600);
     return head.match(/^model:[ \t]*([A-Za-z0-9._-]+)[ \t]*$/m)?.[1] ?? null;
   } catch { return null; }
+}
+
+// The fields the agent's `## Contract` section lists on its `Brief requires:` line, or [] when
+// the type is unknown, the definition is unreadable, or it declares no contract.
+function requiredFields(subagentType) {
+  const path = agentFile(subagentType);
+  if (!path) return [];
+  let text;
+  try { text = readFileSync(path, 'utf8'); } catch { return []; }
+  const section = /^## Contract[ \t]*\r?\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(text)?.[1] ?? '';
+  const line = /^Brief requires:[ \t]*(.+)$/m.exec(section)?.[1] ?? '';
+  return line.split(',').map((field) => field.trim()).filter(Boolean);
+}
+
+// A brief carries a field when a line starts with the label, case-insensitive, followed by a
+// colon. Only leading whitespace, one list marker (`-`, `*`, or `1.`), and bold markers may
+// precede the label; bold markers or a parenthetical may sit between it and the colon. A
+// markdown heading line that starts with the label also counts. A label mid-line, as in
+// `Out of scope:` or `relevant to Scope: x`, does not.
+function briefHas(prompt, field) {
+  const label = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '[ \\t]+');
+  return new RegExp(`^[ \\t]*(?:(?:[-*]|\\d+\\.)[ \\t]+)?(?:\\*\\*|__)?${label}(?:\\*\\*|__)?[ \\t]*(?:\\([^)\\n]*\\))?[ \\t]*(?:\\*\\*|__)?[ \\t]*:`, 'im').test(prompt)
+    || new RegExp(`^[ \\t]*#{1,6}[ \\t]+${label}(?![A-Za-z0-9])`, 'im').test(prompt);
 }
 
 function emit(body) {
@@ -437,7 +473,14 @@ function reviewDispatch(tool, input, budget, denials, advisories) {
       + 'dispatch code-ops-suite:implementer, explorer, reviewer, or mech, or add a '
       + '"Wide-surface reason: <why>" line to the brief.');
   }
-  if (typeof input.prompt === 'string' && !/round budget/i.test(input.prompt)) {
+  const missing = requiredFields(type).filter((field) => !briefHas(prompt, field));
+  if (missing.length) {
+    denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `
+      + 'add each as a "Label:" line or a heading.');
+  }
+  // A field denial that already names Round budget makes this advisory a repeat.
+  const deniedBudget = missing.some((field) => /^round budget$/i.test(field));
+  if (typeof input.prompt === 'string' && !deniedBudget && !/round budget/i.test(input.prompt)) {
     advisories.push(`No Round budget in the brief; the guard warns at ${budget} rounds, `
       + `stops at ${budget * STOP_MULTIPLE}.`);
   }

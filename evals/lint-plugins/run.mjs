@@ -117,8 +117,8 @@ const put = (root, relPath, content) => {
 
 // Fixture descriptions name no repository-root path: check 24 reports a shipped citation of a
 // file the plugin does not bundle, and a fixture plugin bundles no eval.
-const skillBody = (title, { doneRevalidate = true, doneFlags = '--strict --profile finding-rigor', extra = '' } = {}) => `---
-description: "Fixture skill for the lint-plugins regression eval."
+const skillBody = (title, { doneRevalidate = true, doneFlags = '--strict --profile finding-rigor', extra = '', description = 'Fixture skill for the lint-plugins regression eval.' } = {}) => `---
+description: "${description}"
 ---
 
 # ${title} (FIXTURE)
@@ -922,6 +922,35 @@ No completion heading here on purpose (case 3 mutation).
   check('17a. a gate job needing every shard exits 0', r17a.status === 0);
   const r17b = withShards('case17b-shard-unwired', ['structural-lint-shard-1']);
   check('17b. a shard missing from the gate needs: exits 1', r17b.status === 1 && r17b.all.includes('structural-lint must need exactly its shards in flow form (needs [structural-lint-shard-1], shards [structural-lint-shard-1, structural-lint-shard-2])'));
+
+  // 18a/18b/18c. DESCRIPTION LENGTH (check 3) — a skill description loads into the system
+  // prompt at discovery, so lint caps it at 160 characters. The quotes do not count, and a
+  // block scalar counts its joined continuation lines.
+  const withDescription = (label, description) => {
+    const dir = clone(label);
+    put(dir, BUG_HUNT, skillBody('BUG HUNT', { description }));
+    return runLint(dir);
+  };
+  const DESC_160 = `Use when ${'x'.repeat(151)}`;
+  check('18a. fixture description is exactly 160 characters', DESC_160.length === 160);
+  check('18a. a 160-character description exits 0', withDescription('case18a-desc-160', DESC_160).status === 0);
+  const r18b = withDescription('case18b-desc-161', `${DESC_160}y`);
+  check('18b. a 161-character description exits 1', r18b.status === 1 && r18b.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
+  const d18c = clone('case18c-desc-block-161');
+  put(d18c, BUG_HUNT, skillBody('BUG HUNT').replace(/^description: .*$/m, `description: |\n  ${DESC_160.slice(0, 80)}\n  ${DESC_160.slice(81)}y`));
+  const r18c = runLint(d18c);
+  check('18c. a 161-character block-scalar description exits 1', r18c.status === 1 && r18c.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
+  // 18d. A plain scalar folds its indented continuation lines into one value, so a long plain
+  // description split across lines is still over the cap, not just its first line.
+  const d18d = clone('case18d-desc-plain-161');
+  put(d18d, BUG_HUNT, skillBody('BUG HUNT').replace(/^description: .*$/m, `description: ${DESC_160.slice(0, 80)}\n  ${DESC_160.slice(81)}y`));
+  const r18d = runLint(d18d);
+  check('18d. a 161-character multi-line plain-scalar description exits 1', r18d.status === 1 && r18d.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
+  // 18e. A blank line inside a block scalar does not end it when an indented line follows.
+  const d18e = clone('case18e-desc-block-blank-161');
+  put(d18e, BUG_HUNT, skillBody('BUG HUNT').replace(/^description: .*$/m, `description: >\n  ${DESC_160.slice(0, 80)}\n\n  ${DESC_160.slice(81)}y`));
+  const r18e = runLint(d18e);
+  check('18e. a block scalar with a blank line still counts every line', r18e.status === 1 && r18e.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

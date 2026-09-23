@@ -1,5 +1,5 @@
 ---
-description: "Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See its bundled calibration protocol reference."
+description: "Use for a standard, isolated assess-only calibration run against a real-scale target repo. Ends in a sanitized trend entry and never quotes target internals."
 ---
 
 Use the `code-ops-suite-calibration-run` skill for this task, following it end to end.

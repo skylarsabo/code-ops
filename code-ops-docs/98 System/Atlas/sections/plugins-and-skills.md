@@ -2,7 +2,7 @@
 
 Charter: canonical plugin packages and marketplace registration. Excludes generated host projections and repository gates.
 
-The four packages under `plugins/` are the sole authored runtime surface. Each skill reads only the cited sections of its plugin `CONVENTIONS.md` plus the writing standard, and lint check 28 requires the sentence "Leave the rest of that file unread." wherever a skill names the file, and exploring skills consult the atlas and symbol index first; shared doctrine stays there rather than being duplicated into skills. Structural lint makes that boundary mechanical through section references, copied-prose limits, model floors, handbook parity, and plugin version checks.
+The four packages under `plugins/` are the sole authored runtime surface. Each skill reads only the cited sections of its plugin `CONVENTIONS.md` plus the writing standard, and lint check 28 requires the sentence "Leave the rest of that file unread." wherever a skill names the file, and exploring skills consult the atlas and symbol index first; shared doctrine stays there rather than being duplicated into skills. Structural lint makes that boundary mechanical through section references, copied-prose limits, a 160-character skill description cap, model floors, handbook parity, and plugin version checks.
 
 Provider parity is behavioral rather than byte-identical. The provider-parity audit now inventories Claude, Codex, installed Grok, and OpenCode across contracts, agents, skills, scripts, hooks, settings, renderers, and runtime evidence. It distinguishes deterministic adapter proof from a live external model turn and records each host API gap instead of treating an absent callback as implemented. A `--since <sha>` run narrows that inventory to changed surfaces and their projections, and carries forward a host profile only while that host's version and renderer are unchanged.
 
@@ -34,7 +34,7 @@ The traceless scanner is one canonical script shared by the code-ops and privacy
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.
 
-The canonical package registers eight hook commands across six events. `handoff-card.mjs` runs
+The canonical package registers nine hook commands across seven events. `handoff-card.mjs` runs
 at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and asks the lead to
 assess CONTINUE, COMPACT, or HANDOFF at each 150,000-token band; it does not execute a transition
 or prove that the host displayed the advice (plugins/code-ops-suite/hooks/handoff-card.mjs:4,
@@ -46,13 +46,17 @@ handoff. `dispatch-guard.mjs` runs at `PreToolUse` on every thread: inside a sub
 attempted tool calls against an explicit host-agent binding, or the legacy environment/default
 budget when no binding exists, and stops the unbound counter at twice the budget. On the lead's
 own dispatch (Claude's `Agent`, `Task`, or `Workflow`, or Grok's `spawn_subagent`) it denies a wide-surface or unnamed agent type whose brief has no `Wide-surface
-reason:` line, and denies new dispatches past the context ceiling until a handoff assessment
-records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:446).
+reason:` line, denies a suite-agent dispatch whose brief lacks a field the target agent's
+`## Contract` lists on its `Brief requires:` line, and denies new dispatches past the context
+ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:489).
 `session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
 Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex
 follows peer rollout `parent_thread_id` links, and Grok reads cumulative `updates.jsonl`
-snapshots with its unavailable ladder arm false. OpenCode has no transcript callback.
+snapshots with its unavailable ladder arm false. OpenCode has no transcript callback. Each row
+also counts skill invocations by id in `skills`. `subagent-report.mjs` runs at `SubagentStop`, and the
+Codex projection registers it too. It checks a suite agent's final report against that agent's `Verdicts:` and
+`Report cap:` lines. It only prints an operator note, never blocks, and stays silent under Grok.
 
 There is no `PreCompact` command because Claude and Codex ignore plain stdout from that event.
 Their `SessionStart source=compact` path supplies a post-compaction durable-state restore

@@ -32,6 +32,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Over-build scanner](#over-build-scanner)
 - [Deferral harvest](#deferral-harvest)
 - [Ladder card hook](#ladder-card-hook)
+- [Subagent report hook](#subagent-report-hook)
 - [Handoff card hook](#handoff-card-hook)
 - [Handoff write and consumption](#handoff-write-and-consumption)
 - [Dispatch guard hook](#dispatch-guard-hook)
@@ -231,7 +232,14 @@ its receipt records `arms.ladderCard=false` and `arms.handoffPickup=false`.
 from its own switch the way every other arm is; `CODE_OPS_DISPATCH_GUARD=warn` records
 `dispatchGuard=true`, because only the hard stop is lifted. Every receipt also
 carries `handoff`, the highest band the session's handoff marker reached and whether the
-transcript shows a `/code-ops-suite:handoff` call. OpenCode has no transcript callback, so no
+transcript shows a `/code-ops-suite:handoff` call. Every receipt also carries `skills`, a
+`{ "<skill id>": count }` object over the main thread and its subagents. It counts `Skill`
+tool calls by `input.skill` and operator prompts that open with a namespaced
+`<command-name>/plugin:skill</command-name>` tag. Ids take the colon form with any leading
+slash removed, and a value that is not an id is dropped. A session with no invocation records
+`{}`. A bare slash name such as `/clear` is not counted, because the transcript does not tell a
+host built-in apart from a user skill. Codex and Grok rows run the same parser, but no Codex or
+Grok skill-invocation shape is verified yet, so their `skills` count may stay `{}`. OpenCode has no transcript callback, so no
 automatic receipt is claimed there. The hook writes nothing to stdout, exits `0` on bad input,
 missing evidence, or an unwritable ledger, and finishes on a bounded timer. Its ledger path is
 `$CODE_OPS_RECEIPTS`, else the host-specific home default. `off`, `0`, or `false` disables it.
@@ -371,16 +379,16 @@ plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
 `digest.mjs` spawns the command after `--` directly, with no shell, and captures stdout and
 stderr apart. The child's exit code becomes the digest's exit code on every path, including a
 signal kill. A missing `--` exits 2 with usage. An executable that cannot spawn exits 127 and
-names itself. Evidence: `scripts/digest.mjs:128-160`, `scripts/digest.mjs:213-216`, and
-`scripts/digest.mjs:223-224`.
+names itself. Evidence: `scripts/cli-lib.mjs:243`, `scripts/digest.mjs:83-104`, `scripts/digest.mjs:147-150`, and
+`scripts/digest.mjs:157-158`.
 
 `--cwd <dir>` names the directory the command runs in, so a caller that would otherwise write
 `cd <dir> && <cmd>` keeps the no-shell contract. That directory becomes the working directory
 for the spawn, the Windows shim lookup, the in-repository frame test the stack shape applies,
 the default store slug, and the `cwd` field of the receipt row. Without the flag it is the
 digest's own working directory, so every default path is unchanged. A `--cwd` naming no
-directory exits `2` with usage. Evidence: `scripts/digest.mjs:201-208` and
-`scripts/digest.mjs:213-214`.
+directory exits `2` with usage. Evidence: `scripts/digest.mjs:135-142` and
+`scripts/digest.mjs:147-148`.
 
 One shape is chosen per invocation. The detectors run in a fixed order, and the command tokens
 bias only the cases the detectors leave open. Nine shapes exist: `json`, `diff`, `test`,
@@ -411,13 +419,13 @@ printed line is always the trailer
 `[exit <code> · <shape> · <rawLines> lines → <outLines> · raw <path> · sha256:<first 12>]`, with
 `raw -` when nothing was stored. A stderr digest offsets its line numbers past the stdout section,
 so its recovery hints address the raw file. Evidence: `scripts/digest-lib.mjs:102-108`,
-`scripts/digest.mjs:244-252`, and `scripts/digest.mjs:236-242`.
+`scripts/digest.mjs:178-186`, and `scripts/digest.mjs:170-176`.
 
 Raw bytes go to `--store`, else `$CODE_OPS_DIGEST_DIR`, else
 `~/.claude/code-ops/digest/<project slug of cwd>/`, at `<store>/<ISO date>/<HHMMSS>-<sha8>.txt`.
 `--no-store` or `CODE_OPS_DIGEST_STORE=off` outranks all three and stores nothing. The default is a home-directory path, so a raw output is never inside a repository. Store writes
 fail open: an unwritable store prints the digest with `raw -` and keeps going. Evidence:
-`scripts/digest.mjs:166-195`.
+`scripts/digest.mjs:100-129`.
 
 ## Digest rewrite hook
 
@@ -494,7 +502,7 @@ The `scan` domain runs on the shared CLI library, and the skills reach its scrip
 error goes through `parseOrDie`, which prints `x <message>` on stderr and exits 2. A flag rule
 declares `many` for a repeatable flag and `raw` for a flag whose own check must see a smuggled
 option. The `missing` key carries the wording a caller already pins, so no flag, exit code, or
-message changed. Evidence: `scripts/cli-lib.mjs:37-46`, `scripts/cli-lib.mjs:110-121`,
+message changed. Evidence: `scripts/cli-lib.mjs:38-47`, `scripts/cli-lib.mjs:111-122`,
 `scripts/check-autofix-scope.mjs:50-57`, and `evals/co-facade/run.mjs:101-117`.
 
 ## File skim
@@ -566,6 +574,25 @@ hook returns no permission decision. On installed Grok 1.0.13 it emits nothing b
 OpenCode has no typed subagent-start callback. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
 `plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
 
+## Subagent report hook
+
+`hooks/subagent-report.mjs` runs at `SubagentStop` and checks a suite subagent's final report
+against that agent's `## Contract` block. The first non-empty line must start with a token from
+the `Verdicts:` line, and the report must fit the body's `Report cap: at most N words` line. A
+miss prints one `systemMessage` note, which the host shows to the operator. The hook is on by
+default and does nothing when `CODE_OPS_SUBAGENT_REPORT` is `off`, `0`, or `false`.
+
+The hook is advisory. It never returns `decision`, `continue`, or `additionalContext`, so it
+cannot keep a subagent running. Only a plugin-qualified type whose agent file resolves is
+checked; a bare or custom type gets nothing. The Claude host contract was read from the
+installed 2.1.276 bundle: the input carries `agent_id`, `agent_type`, `agent_transcript_path`,
+and `last_assistant_message` (offset 203499373). When `last_assistant_message` is absent, the
+hook reads the last assistant text from `agent_transcript_path`. Bad JSON, a missing field, an
+unreadable file, or another event name exits 0 with no output. The Grok and OpenCode
+`SubagentStop` contracts are UNVERIFIED, so the hook is silent under the Grok adapter and
+OpenCode has no port. Evidence: `plugins/code-ops-suite/hooks/subagent-report.mjs:1-25` and
+`evals/subagent-report/run.mjs:3-14`.
+
 ## Handoff card hook
 
 `hooks/handoff-card.mjs` runs at `UserPromptSubmit` on Claude and Codex and, SPECULATIVE pending
@@ -593,7 +620,7 @@ band already nudged (`band = floor(context / 150000)`) and `peak`, the highest b
 ever reached; the hook nudges again only on a higher band, and re-arms (sets the band to 0, never
 the peak) once context falls back under 150,000, which a compaction typically causes. The session
 receipt reads the peak. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:62-110` and
-`scripts/transcript-lib.mjs:539-555`.
+`scripts/transcript-lib.mjs:565-581`.
 
 Codex documents an equivalent `UserPromptSubmit` event (OpenAI's `developers.openai.com/codex/hooks`,
 confirmed live at `learn.chatgpt.com/docs/hooks`) carrying `session_id` and `prompt` on stdin,
@@ -699,10 +726,29 @@ unobserved. This receipt is not a provider usage record. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
 On the main thread the hook acts only on a dispatch tool: `Agent`, the older `Task`, or
-`Workflow`. Two gates can deny there, and `warn` turns each deny into an advisory. The wide-type
+`Workflow`. Three gates can deny there, and `warn` turns each deny into an advisory. The wide-type
 gate denies a `subagent_type` of `general-purpose`, `claude`, or `fork`, or no type at all,
 unless the prompt carries a line starting `Wide-surface reason:` with the reason on it. It denies a `Workflow` script that calls
-`agent(` with no `agentType` on the same terms. The context-ceiling gate reads the lead's
+`agent(` with no `agentType` on the same terms.
+
+The brief-contract gate reads the target agent's own contract. A `subagent_type` of the form
+`<plugin>:<agent>` resolves when the plugin is `code-ops-suite`, `rigor`,
+`privacy-opsec-suite`, or `researcher`. The file is `agents/<agent>.md` in that sibling plugin.
+In the repo the sibling is `../<plugin>/` beside the hook's plugin root. In the installed cache
+it is `../../<plugin>/<version>/`, and the highest all-numeric version directory wins. When
+the `## Contract` section of that file has a `Brief requires:` line, the gate denies a
+dispatch whose prompt lacks any listed field and names each missing field. A field is present
+when a line starts with its label, case-insensitive, and a colon follows the label on that
+line. Only whitespace, one list marker (`-`, `*`, or `1.`), and `**` or `__` may precede the
+label. Optional `**` or `__` markers and a parenthetical qualifier may sit between the label
+and the colon, as in `Scope (edit authority):`. A markdown heading line that starts with the
+label also counts. A label mid-line, as in `Out of scope:`, does not count. When this denial
+names Round budget, the separate Round budget advisory is dropped. A bare, unknown, or
+non-suite type passes, and so does an unreadable file or an agent with no `Brief requires:`
+line in its Contract. The subagent-report hook resolves agent files with the same shared
+module, `hooks/agent-file.mjs`. The gate does not read `Workflow` scripts.
+
+The context-ceiling gate reads the lead's
 resident context from the transcript tail. At or above the ceiling it denies a new dispatch until
 the session records a handoff assessment for the current band. The first band starts at the
 ceiling, and each further 150,000 tokens starts a new band that gates again.
@@ -721,7 +767,7 @@ no-op behavior.
 Explicit controller bindings have separate validation and conflict handling. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
-The guard's wide-type deny, context-ceiling gate, and round stop are the enforcement layer.
+The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round stop are the enforcement layer.
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.
 Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
@@ -736,8 +782,8 @@ prefers an exact path over a suffix match, so a vendored copy never shadows the 
 `BUDGET_EXCEEDED` marker, and appends definition bodies only under `--with-source` and only
 within the same budget. `refresh` re-parses only files whose content sha changed, `refresh
 <path>` re-parses one file, and `--exclude <prefix>` is remembered by the index. Evidence:
-`scripts/context-query.mjs:8-21`, `scripts/context-query.mjs:218`,
-`scripts/context-query.mjs:266`, and `scripts/context-query.mjs:434`.
+`scripts/context-query.mjs:8-21`, `scripts/context-query.mjs:217`,
+`scripts/context-query.mjs:265`, and `scripts/context-query.mjs:433`.
 
 The ceiling is printed on every edge result. Definitions, spans, calls, and import edges come
 from the line rules in `symbol-lib.mjs`, and that file is the single source of all four readers:
@@ -756,8 +802,8 @@ A result that touches a file whose content changed since the index was built car
 banner, and `--no-stale-check` suppresses the check. Evidence: `scripts/symbol-lib.mjs:45`,
 `scripts/symbol-lib.mjs:95`, `scripts/symbol-lib.mjs:144`, `scripts/symbol-lib.mjs:162`,
 `scripts/repo-map.mjs:39`, `scripts/import-graph.mjs:44`, `scripts/import-graph.mjs:74`,
-`scripts/skim.mjs:132`, `scripts/context-query.mjs:282`, `scripts/context-query.mjs:337`, and
-`scripts/context-query.mjs:358`.
+`scripts/skim.mjs:132`, `scripts/context-query.mjs:281`, `scripts/context-query.mjs:336`, and
+`scripts/context-query.mjs:357`.
 
 Two optional providers raise fidelity, and both are data rather than a requirement.
 `refresh --provider ctags|codegraph|none` defaults to `none`, and nothing is spawned unless the
@@ -768,9 +814,9 @@ the ctags kind into the index's own, and the signature comes from the tag patter
 is absent, is a different ctags, or fails prints one line on stderr and the rules stand alone, so
 a refresh never fails for a missing tool. `codegraph` is detected and reported, not ingested. The
 index records the providers its definitions came from and `status` prints them. Evidence:
-`scripts/context-query.mjs:31-33`, `scripts/context-query.mjs:120`,
-`scripts/context-query.mjs:166`, `scripts/context-query.mjs:201`, and
-`scripts/context-query.mjs:216`.
+`scripts/context-query.mjs:31-33`, `scripts/context-query.mjs:119`,
+`scripts/context-query.mjs:165`, `scripts/context-query.mjs:200`, and
+`scripts/context-query.mjs:215`.
 
 `context-query-mcp.mjs` is the same queries as a newline-delimited JSON-RPC 2.0 stdio server, so
 a host with no shell reaches them. The server is `code-ops-query` in the plugin manifest's
@@ -790,7 +836,7 @@ never reads another repository's index and nothing is committed. The `PostToolUs
 `index-refresh.mjs` is on by default. It calls `refresh <file>` after every edit with a
 five-second budget and prints nothing. Setting `CODE_OPS_INDEX` to `off`, `0`, or `false` in the
 canonical environment turns it off; rendered hosts use their documented process environment.
-Evidence: `scripts/context-query.mjs:97` and
+Evidence: `scripts/context-query.mjs:96` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
 ## Atlas claims and scope suggestion
