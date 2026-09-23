@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "4c8042656ebcb3e5a9c09202924de76f47fce8ed",
-      "verifiedDigest": "0e04f4751b4c495844998cc0a191bd2ac796d8294721f93db3629f109c5ab230",
+      "verifiedAt": "62e66851b540f3810becc99bba8970ad3b408c16",
+      "verifiedDigest": "ba04fcce5a9a3a257f9a860ccd5f67a9e8394a0d8d41722d2b76847fe223e4ee",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -136,8 +136,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "4c8042656ebcb3e5a9c09202924de76f47fce8ed",
-      "verifiedDigest": "bfc1758cf4ed6877117520426aeceaa799bb30e8382eee01ff15039739df0a9e",
+      "verifiedAt": "62e66851b540f3810becc99bba8970ad3b408c16",
+      "verifiedDigest": "2be7502c4ccb3227eab22edbd11b303b3b727ef37db60427588c06343f78c7b8",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
