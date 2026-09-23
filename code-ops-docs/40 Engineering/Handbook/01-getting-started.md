@@ -12,9 +12,9 @@ Code-ops is one marketplace (`code-ops`) that publishes four plugins. You instal
 
 | Plugin | What it is | Install it when |
 | --- | --- | --- |
-| `code-ops-suite` | The spine: general engineering for any repo, covering audit, remediation, feature discovery and build, performance, tests, dependencies, PR review, normalization, doc generators, the orchestrators, and suite self-audit. (31 skills) | Always. This is the baseline for any project. |
-| `rigor` | The verification layer: prove it or do not report it. Find real bugs (with runnable repros), validate the test suite, lock behavior with safety nets, fix at root cause with a regression guard. (11 skills) | When you want **proven** defects and enforced consistency rather than a long list. It is the highest-signal option. |
-| `privacy-opsec-suite` | The anonymity track: anonymity threat model, Tor and proxy egress and leak audits, metadata minimization, fingerprinting resistance, opsec hardening, authorship hygiene. (14 skills) | Only on projects with anonymity or opsec requirements (anonymous sessions, Tor or onion routing, strong metadata minimization). |
+| `code-ops-suite` | The spine: general engineering for any repo, covering audit, remediation, feature discovery and build, performance, tests, dependencies, PR review, normalization, doc generators, the orchestrators, and suite self-audit. (30 skills) | Always. This is the baseline for any project. |
+| `rigor` | The verification layer: prove it or do not report it. Find real bugs (with runnable repros), validate the test suite, lock behavior with safety nets, fix at root cause with a regression guard. (9 skills) | When you want **proven** defects and enforced consistency rather than a long list. It is the highest-signal option. |
+| `privacy-opsec-suite` | The anonymity track: anonymity threat model, Tor and proxy egress and leak audits, metadata minimization, fingerprinting resistance, opsec hardening, authorship hygiene. (13 skills) | Only on projects with anonymity or opsec requirements (anonymous sessions, Tor or onion routing, strong metadata minimization). |
 | `researcher` | The proposal layer: code-grounded research, local-first with disclosed, fail-closed egress. It proposes registers and design briefs and hands implementation to the other three. It never edits code. (7 skills) | When you want grounded improvement proposals, design spikes, or library evaluations before building. |
 
 Rule of thumb (from the top-level [`README.md`](../../../README.md)): **`code-ops-suite` for breadth, `rigor` for proof, `privacy-opsec-suite` for the anonymity specialization.** The plugins compose. See [Recommended order](#4--recommended-order-composing-the-plugins).
@@ -69,7 +69,7 @@ codex plugin add code-ops-suite@code-ops
 
 Install `rigor`, `privacy-opsec-suite`, and `researcher` with the same `codex plugin add <name>@code-ops` form as needed. For GitHub, use `codex plugin marketplace add skylarsabo/code-ops --ref main`. The renderer emits `allow_implicit_invocation: true` for each skill, mirroring Claude's model-invocable skills, so Codex may invoke a workflow implicitly. Naming it explicitly remains the most reliable route.
 
-> **A note on the cross-plugin orchestrators.** A few `code-ops-suite` skills require the others to be installed. `everything` needs `rigor` *and* `privacy-opsec-suite`. `ship` and `debug` need `rigor`. The skill states its requirement when you invoke it. If you installed only `code-ops-suite`, the single-plugin workflows (`codebase-audit`, the doc generators, `full-sweep`, and the rest) all work on their own.
+> **A note on the cross-plugin orchestrators.** A few `code-ops-suite` skills use the others. `everything` runs the phases of every installed plugin it selects and names the phases it skips. `ship` and `debug` need `rigor`. The skill states its requirement when you invoke it. If you installed only `code-ops-suite`, the single-plugin workflows (`codebase-audit`, the doc generators, `everything plugins: suite`, and the rest) all work on their own.
 
 ### Partial installs
 
@@ -77,11 +77,11 @@ The four plugins install independently, so most people run a subset. This sectio
 
 | Installed | What you get | What you do not get |
 | --- | --- | --- |
-| `code-ops-suite` alone | Every breadth route: `codebase-audit`, `remediation`, `feature-discovery`, `feature-implementation`, `normalize`, `pr-split`, `dependency-upgrade`, `conform`, `atlas`, `vault`, the doc generators, and `full-sweep`. | `ship`, `debug`, and `everything`. `performance` and `test-hardening` lose their ground-truth baseline step. |
-| `code-ops-suite` + `rigor` | The above plus `ship`, `debug`, the whole verification layer, and `rigor-sweep`. `ship` and `debug` fall back to the bundled `scan-ai-tells.mjs` for the traceless gate. | `everything`, and every anonymity route. |
+| `code-ops-suite` alone | Every breadth route: `codebase-audit`, `remediation`, `feature-discovery`, `feature-implementation`, `normalize`, `pr-split`, `dependency-upgrade`, `conform`, `atlas`, `vault`, the doc generators, and `everything plugins: suite`. | `ship`, `debug`, and `everything`. `performance` and `test-hardening` lose their ground-truth baseline step. |
+| `code-ops-suite` + `rigor` | The above plus `ship`, `debug`, the whole verification layer, and `everything plugins: rigor`. `ship` and `debug` fall back to the bundled `scan-ai-tells.mjs` for the traceless gate. | `everything`, and every anonymity route. |
 | `code-ops-suite` + `rigor` + `privacy-opsec-suite` | `everything`, the anonymity track, and the anonymity PR gate. | The research routes. |
-| `rigor` alone | The proof journey end to end: `ground-truth`, `test-suite-audit`, `bug-hunt`, `quality-scan`, `safety-net`, `fix-verified`, `deep-review`, `rigor-sweep`. | The build and doc routes it hands off to. |
-| `privacy-opsec-suite` alone | The whole anonymity track: the threat model, the six leak audits, `opsec-hardening`, `opsec-pr-gate`, `authorship-hygiene`, and its own `full-sweep`. | The build hand-offs (`feature-implementation`, `normalize`). |
+| `rigor` alone | The proof journey end to end: `ground-truth`, `test-suite-audit`, `bug-hunt`, `quality-scan`, `safety-net`, `fix-verified`, `deep-review`, `everything plugins: rigor`. | The build and doc routes it hands off to. |
+| `privacy-opsec-suite` alone | The whole anonymity track: the threat model, the six leak audits, `opsec-hardening`, `opsec-pr-gate`, `authorship-hygiene`, and its own `everything plugins: suite`. | The build hand-offs (`feature-implementation`, `normalize`). |
 | `researcher` alone | Every research route: `research-spike`, `research-improve`, `research-ideate`, `library-eval`, `research-verify`, `ecosystem-watch`, `research-sweep`. It requires nothing beyond itself. | The implementation hand-offs. The proposals are written, and nothing picks them up. |
 
 Two behaviors govern a missing plugin, and neither is silent:
@@ -116,9 +116,9 @@ In Codex, name the same workflow in the request instead: `Use rigor:bug-hunt on 
 
 The plugins compose into one flow. Run as much or as little as a task needs. From the top-level [`README.md`](../../../README.md):
 
-1. **`code-ops-suite:full-sweep`** (or `:codebase-audit`) for a broad map of the codebase and a first findings pass.
-2. **`rigor:rigor-sweep`** (start `assess-only`) to establish ground truth, validate the test suite, then **prove** the real bugs, lock behavior with safety nets, and fix at root cause with a regression guard. This sequence is the high-signal core.
-3. **`privacy-opsec-suite:full-sweep`**, only on projects with anonymity or opsec requirements: the threat model, the Tor, egress, and leak audits, and hardening.
+1. **`code-ops-suite:everything plugins: suite`** (or `:codebase-audit`) for a broad map of the codebase and a first findings pass.
+2. **`code-ops-suite:everything plugins: rigor`** (start `assess-only`) to establish ground truth, validate the test suite, then **prove** the real bugs, lock behavior with safety nets, and fix at root cause with a regression guard. This sequence is the high-signal core.
+3. **`code-ops-suite:everything plugins: privacy`**, only on projects with anonymity or opsec requirements: the threat model, the Tor, egress, and leak audits, and hardening.
 4. Wire the matching PR gates into CI: `rigor:deep-review` and `privacy-opsec-suite:opsec-pr-gate`.
 
 To run all of it in one command, `code-ops-suite:everything` orchestrates every phase across the plugins end to end. It is the most thorough and most token-expensive option. It runs phased with checkpoints rather than as a blind firehose, and it requires the three engineering plugins (code-ops-suite, rigor, and privacy-opsec-suite) installed. See [03-orchestrators.md](03-orchestrators.md) for when to reach for which orchestrator.

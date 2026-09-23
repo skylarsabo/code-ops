@@ -1,6 +1,6 @@
 # Harden anonymity
 
-This guide walks `/privacy-opsec-suite:full-sweep` end to end over one service whose users
+This guide walks `/code-ops-suite:everything plugins: privacy` end to end over one service whose users
 must stay unidentifiable. Read it when you need every anonymity leak in your own code
 found, fixed so it fails closed, and locked shut against a future commit. Every command,
 mode, phase, artifact, and script below comes from the plugin source under
@@ -19,7 +19,7 @@ IP, or one stable identifier that survives logout exposes a real person.
 You can stop reading after this section and still run the journey correctly.
 
 ```
-/privacy-opsec-suite:full-sweep
+/code-ops-suite:everything plugins: privacy
   Phase 0  Scope the run            → track, adversaries, automation level (checkpoint)
   Phase 1  anonymity-threat-model   → ANONYMITY_THREAT_MODEL.md (keystone; go/no-go)
   Phase 2  six parallel audits      → merged LEAK_REGISTER.md (ranked leaks; checkpoint)
@@ -37,24 +37,24 @@ Five rules carry the whole journey:
 4. **Every fix is pinned by a regression test that fails if the leak returns.** A hardening change without that test is not done ([`opsec-hardening/SKILL.md`](../../plugins/privacy-opsec-suite/skills/opsec-hardening/SKILL.md)).
 5. **Anonymity-affecting changes are always gated.** Anything touching egress, logging, identifiers, fingerprint surface, or a default pauses for your approval at every automation level ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §4).
 
-You can call `full-sweep` directly, or the model can route to it per the standard-operating-mode
+You can call `everything plugins: privacy` directly, or the model can route to it per the standard-operating-mode
 routing card. The checkpoints below apply either way. It is the intra-plugin orchestrator, so it
 sequences only this suite's skills. The cross-plugin orchestrator that spans the spine, the rigor
 verification layer, and this anonymity track is the code-ops-suite `everything` orchestrator, which
 requires all three plugins. Reach for it only when the work crosses plugin boundaries. This guide
-runs `full-sweep` step by step so you can see and approve each checkpoint.
+runs `everything plugins: privacy` step by step so you can see and approve each checkpoint.
 
 ```mermaid
 sequenceDiagram
     actor Dev as You
-    participant FS as full-sweep
+    participant FS as everything
     participant TM as anonymity-threat-model
     participant AU as six parallel audits
     participant LR as LEAK_REGISTER.md
     participant HD as opsec-hardening
     participant DG as privacy-doc-alignment + opsec-pr-gate
 
-    Dev->>FS: /privacy-opsec-suite:full-sweep
+    Dev->>FS: /code-ops-suite:everything plugins: privacy
     FS->>Dev: Phase 0, scope, track, adversaries (checkpoint)
     FS->>TM: Phase 1, model
     TM-->>LR: ANONYMITY_THREAT_MODEL.md + concrete leaks
@@ -88,8 +88,8 @@ For the full command reference, see
 
 ## Phase 0 · Scoping the run (checkpoint)
 
-`full-sweep` opens by detecting your stack and repository size, then confirms three things with you
-([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 0):
+`everything plugins: privacy` opens by detecting your stack and repository size, then confirms three things with you
+([`everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md) Phase 0):
 
 - **Track.** `audit-only` reads and documents without changing code. `full` runs audit, then harden, then docs and gate. A custom subset is also possible. For this journey pick `full`, because you want the leaks found and fixed.
 - **The adversaries to emphasize.** The model assumes a standing cast ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §A): a passive network observer including a global passive adversary correlating traffic, an active network attacker, a malicious or compromised operator or insider, the hosting and infrastructure provider, legal coercion and subpoena, a compromised dependency or build, a malicious peer, and an adversary correlating activity across sessions and over time. For a Tor-routed tip line, emphasize the passive network observer and the legal-coercion adversary.
@@ -109,13 +109,13 @@ It does not wait for a checkpoint to deliver bad news.
 leaks into `LEAK_REGISTER.md`. The model is a durable, reusable artifact.
 
 This runs first because everything downstream references it
-([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 1). The
+([`everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md) Phase 1). The
 six audits are not a blind checklist. Each one is aimed by the paths this model surfaces.
 
 - **Phase 0 · Inventory assets, adversaries, and goals (checkpoint).** It enumerates the assets that identify or link a user: real IP and location, account or session identifiers, behavioral patterns, device characteristics, metadata, and anything correlatable across sessions or time. It lays out the adversaries (§A) and trust boundaries, and it states the system's anonymity goals of unlinkability, unobservability, deniability, and data minimization ([`anonymity-threat-model/SKILL.md`](../../plugins/privacy-opsec-suite/skills/anonymity-threat-model/SKILL.md) Phase 0).
 - **Phase 1 · Map deanonymization paths.** For each adversary and asset pair it works out how the adversary could observe, link, or deanonymize, at the network, session, application, metadata, dependency, and operator or legal layers. It marks where anonymity depends on a control, meaning proxy routing, isolation, minimization, or fail-closed, and what happens when that control fails. It rates residual risk per path and cross-checks every stated promise against whether the system actually keeps it.
 
-> **Checkpoint, go or no-go.** It presents the worst deanonymization paths first ([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 1). For the tip line, suppose the worst path is this: on Tor circuit failure the HTTP client retries directly, so the user's real IP reaches the destination. That single path frames the entire `tor-egress-audit` to come. You confirm the model and approve proceeding.
+> **Checkpoint, go or no-go.** It presents the worst deanonymization paths first ([`everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md) Phase 1). For the tip line, suppose the worst path is this: on Tor circuit failure the HTTP client retries directly, so the user's real IP reaches the destination. That single path frames the entire `tor-egress-audit` to come. You confirm the model and approve proceeding.
 
 The model is the keystone because a leak found by an audit means little until you can name which
 adversary exploits it and what user property it exposes. The model supplies that frame, and the
@@ -125,9 +125,9 @@ register schema below makes every audit fill it in.
 
 ## Phase 2 · Six parallel audits into one `LEAK_REGISTER.md`
 
-**Mode:** AUDIT, read-only, with no code changes. `full-sweep` parallelizes independent audits in
+**Mode:** AUDIT, read-only, with no code changes. `everything plugins: privacy` parallelizes independent audits in
 bounded waves, then merges everything into `LEAK_REGISTER.md` (schema §6)
-([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 2).
+([`everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md) Phase 2).
 Read-only analysis uses the available concurrency without exceeding the orchestrator's wave limit
 ([`CONVENTIONS.md`](../../plugins/privacy-opsec-suite/CONVENTIONS.md) §1), and every wave converges
 on one register.
@@ -276,7 +276,7 @@ See
 and
 [`code-ops-docs/40 Engineering/Techniques/reading-a-findings-register.md`](../40 Engineering/Techniques/reading-a-findings-register.md).
 
-> **Checkpoint, decide what to fix.** `full-sweep` presents the ranked leaks led by any clearnet, DNS, or identifier exposure ([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 2). You bless `EGRESS-003`, `DNS-001`, `LINK-005`, and `META-002` for hardening. `FP-009` stays PROBABLE until reproduced, and `TA-004` routes to a `traffic-analysis-resistance` mitigation rather than a fix.
+> **Checkpoint, decide what to fix.** `everything plugins: privacy` presents the ranked leaks led by any clearnet, DNS, or identifier exposure ([`everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md) Phase 2). You bless `EGRESS-003`, `DNS-001`, `LINK-005`, and `META-002` for hardening. `FP-009` stays PROBABLE until reproduced, and `TA-004` routes to a `traffic-analysis-resistance` mitigation rather than a fix.
 
 ---
 
@@ -325,7 +325,7 @@ integration pass shows the fixes themselves introduced no new egress, log line, 
 ## Phase 4 · `privacy-doc-alignment` and wiring `opsec-pr-gate`
 
 The last phase makes the promises true and stops the next regression before it merges
-([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md) Phase 4).
+([`everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md) Phase 4).
 
 ### `privacy-doc-alignment`, promises that match reality
 
@@ -373,12 +373,12 @@ wires its own gates, and for the platform legs and their triggers, see
 
 ## Definition of done
 
-`full-sweep` is done when every selected phase is complete, leaks are fixed or deferred with a
+`everything plugins: privacy` is done when every selected phase is complete, leaks are fixed or deferred with a
 reason, fail-closed and isolation are verified on the actual implementation, regression tests lock
 the leaks shut, and the docs and threat model are reconciled. The master `EXECUTIVE_SUMMARY.md` ties
 findings, fixes, and residual risk together, and nothing code-changing happened without your
 approval
-([`full-sweep/SKILL.md`](../../plugins/privacy-opsec-suite/skills/full-sweep/SKILL.md), "Done when").
+([`everything/SKILL.md`](../../plugins/code-ops-suite/skills/everything/SKILL.md), "Done when").
 It presents the summary and lists anything still awaiting a decision. For this run that is the
 PROBABLE `FP-009` JA3 fingerprint, awaiting a live capture to promote it, and the NEEDS-DESIGN TLS
 homogenization.

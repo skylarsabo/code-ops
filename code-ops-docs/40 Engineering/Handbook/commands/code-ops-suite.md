@@ -66,7 +66,6 @@ freshness check.
 - [`provider-parity-audit`](#code-ops-suiteprovider-parity-audit): audit every suite surface across Claude, Codex, Grok, and OpenCode
 
 **Orchestrators**
-- [`full-sweep`](#code-ops-suitefull-sweep): the whole suite end to end (intra-plugin)
 - [`everything`](#code-ops-suiteeverything): the cross-plugin superset (all three plugins)
 - [`ship`](#code-ops-suiteship): implement one change end to end at full rigor
 - [`debug`](#code-ops-suitedebug): drive a bug from symptom to a proven root-cause fix
@@ -404,7 +403,7 @@ not use it to review someone's diff, which is `rigor:deep-review bar: standard`,
 **Prerequisites and hand-offs.** It requires `rigor` and `privacy-opsec-suite`, and the local
 review gate when the operator opts in. It composes
 `privacy-opsec-suite:authorship-hygiene` fail-closed before any push. It is the finish stage
-that `ship`, `debug`, `full-sweep`, and `everything` delegate to.
+that `ship`, `debug`, and `everything` delegate to.
 
 ---
 
@@ -910,7 +909,7 @@ the contract from the vault skill.
 **How it works.** Five phases:
 
 - **Phase 0** (checkpoint) confirms the target repo, that the session is a fresh isolated context, that the run is `assess-only`, and the one-way channel rule, where only a sanitized note returns (`code-ops-docs/40 Engineering/Techniques/calibration-protocol.md`). It runs `preflight.mjs`.
-- **Phase 1** runs the atlas leg with `atlas-check.mjs check`, or `init` when the target keeps no atlas. It hands each section's FRESH or STALE state into the sweep briefs, then dispatches `full-sweep`, or `rigor:rigor-sweep`, in the `assess-only` track against the target, letting it run its own phases and checkpoints.
+- **Phase 1** runs the atlas leg with `atlas-check.mjs check`, or `init` when the target keeps no atlas. It hands each section's FRESH or STALE state into the sweep briefs, then dispatches `everything plugins: suite`, or `code-ops-suite:everything plugins: rigor`, in the `assess-only` track against the target, letting it run its own phases and checkpoints.
 - **Phase 2** extracts the quality, token, orchestration, and standardization metrics with `calibration-metrics.mjs --artifacts`.
 - **Phase 3** fills the sanitized-note template from the extracted metrics, meaning counts, deltas against the prior table row, and lessons, with zero paths, code, or URLs. It validates the note fail-closed with `calibration-metrics.mjs --validate-note`.
 - **Phase 4** gates the note, ingests it into the calibration store under `evals/calibration/`, re-renders `evals/CALIBRATION_TABLE.md` from the store, and validates the graph.
@@ -988,54 +987,6 @@ Orchestrators do not replace the individual skills. They run them in a sensible 
 the shared registers forward fresh, maintain a master plan, and check in with you at every
 phase boundary.
 
-### `/code-ops-suite:full-sweep`
-**Mode:** orchestrator
-
-**How it works.** It is the intra-plugin pipeline. Phase 0 (checkpoint) scopes the run, meaning
-the track (`assess-only`, `full`, or a custom subset), the scope, the risk tolerance, the PR
-preference, and the automation level (`§4`). It compiles the objective, quality vector, budget,
-work graph, routing, and scopes into `RUN_CONTRACT.json`. It opens a master todo and a running
-`EXECUTIVE_SUMMARY.md`, carrying registers forward fresh (`§12`). Each later wave reconciles the
-contract against `DISPATCH_LEDGER.md`, and a declared learning trigger produces a new contract
-revision.
-
-The phases run in order:
-
-- **1 Ground truth**: `doc-alignment`.
-- **2 Assess**: `codebase-audit`, then `security-privacy-audit`, with findings evidence-tiered and disconfirmed, merged into `FINDINGS_REGISTER.md`.
-- **3 Safety net**: `test-hardening`.
-- **4 Fix**: `remediation`, re-validating the register first.
-- **5 Deep dives**: `performance` and `dependency-upgrade`.
-- **6 Consistency**: `normalize`.
-- **7 Document**: `doc-alignment`, then the generators `architecture`, `data-model`, `api-docs`, `ops-docs`, `adr`, and `onboarding`, each self-scoping.
-- **8 Ship**: `pr-split`.
-
-A separate feature track, `/code-ops-suite:full-sweep feature`, runs `feature-discovery`, then
-`feature-implementation`, then `rigor:deep-review bar: standard`, then `pr-split`. Finalization writes
-`RUN_CONTRACT_RESULT.json` only after every blocking criterion is accepted with replayable
-proof. Checkpoints remain at every phase boundary, and nothing code-changing happens without
-your approval.
-
-**Why it's useful.** It runs the whole code-ops-suite end to end as one coherent, checkpointed
-pipeline, from assess to safety-net to fix to polish to document. It carries the registers
-forward, so nothing already fixed is re-shown.
-
-**When to use it.** Use it when you want the whole suite on one codebase as a guided pipeline.
-Do not reach for it when you want the cross-plugin superset with rigor's verification layer and
-the privacy track, which is `everything`.
-
-**Sibling disambiguation, `full-sweep` (intra-plugin) against `everything` (cross-plugin).**
-`full-sweep` orchestrates only code-ops-suite skills. It needs nothing else installed and is
-the right default for a thorough single-plugin pass. `everything` is the superset across all
-three plugins. It weaves in rigor's verification methodology, meaning evidence tiers,
-disconfirmation, and the regression guard, plus the privacy-opsec anonymity track, and it
-requires `rigor` and `privacy-opsec-suite` installed. `everything` is deliberately the most
-thorough and most token-expensive option, and `full-sweep` is the lighter, self-contained one.
-
-**Prerequisites and hand-offs.** It requires no external plugins, and uses `rigor:ground-truth`
-only inside the `pr-split` ship phase, when `rigor` is installed. It orchestrates the full
-code-ops-suite, and ends by shipping with `pr-split`.
-
 ### `/code-ops-suite:everything`
 **Mode:** orchestrator
 
@@ -1068,7 +1019,7 @@ governing methodology in the right order, deduplicated, with one growing proof s
 
 **When to use it.** Use it when you want the deepest possible pass and accept the token cost.
 It is phased with checkpoints rather than a blind firehose, so you can widen or narrow scope at
-Phase 0. Do not reach for it for a single-plugin pass, which is `full-sweep`, or for a single
+Phase 0. Do not reach for it for a single-plugin pass, which is `everything plugins: suite`, or for a single
 change, which is `ship`.
 
 **Prerequisites and hand-offs.** It requires `code-ops-suite`, `rigor`, and

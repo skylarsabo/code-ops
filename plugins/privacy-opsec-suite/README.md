@@ -60,8 +60,8 @@ automation level.
 
 **Orchestrator**
 
-- `full-sweep`. Run the whole suite end to end as one developer-in-the-loop pipeline, from
-  model to audits to hardening to documentation and gate, pausing at each phase boundary.
+- Run the whole track end to end with `code-ops-suite:everything plugins: privacy`, from model
+  to audits to hardening to documentation and gate, pausing at each phase boundary.
 
 ## The anonymity and OpSec model
 

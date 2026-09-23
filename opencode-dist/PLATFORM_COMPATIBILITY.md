@@ -8,7 +8,7 @@ Rebuild it there with `node scripts/build-opencode-dist.mjs`; CI uses `--check` 
 - **Names are plugin-prefixed.** opencode discovers skills and agents into one flat
   namespace and its name grammar (`^[a-z0-9]+(-[a-z0-9]+)*$`) has no colon, so
   `code-ops-suite:ship` renders as `code-ops-suite-ship`. Without the prefix the two
-  `full-sweep` skills and the two `explorer` agents would collide on install.
+  `explorer` agents would collide on install.
 - **Skills and commands are both generated.** A skill is model-invocable through
   opencode's `skill` tool; a command is the user-facing slash entry point that names it.
   Claude Code collapses both into one surface, opencode does not.

@@ -1,6 +1,6 @@
 # leak-lab — answer key
 
-A tiny telemetry/egress client (`repo/`) with **3 real anonymity leaks** and **3 decoys** (safe patterns that look like leaks). Measures the privacy audits — `privacy-opsec-suite:tor-egress-audit`, `metadata-leak-audit`, `anon-session-audit` (or `full-sweep`) — on recall and false-positive rate.
+A tiny telemetry/egress client (`repo/`) with **3 real anonymity leaks** and **3 decoys** (safe patterns that look like leaks). Measures the privacy audits — `privacy-opsec-suite:tor-egress-audit`, `metadata-leak-audit`, `anon-session-audit` (or `everything plugins: privacy`) — on recall and false-positive rate.
 
 Keep this file out of any context you give the skill.
 

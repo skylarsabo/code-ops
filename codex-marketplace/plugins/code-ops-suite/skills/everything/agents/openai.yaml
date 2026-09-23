@@ -1,6 +1,6 @@
 interface:
   display_name: "Everything"
-  short_description: "Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed."
+  short_description: "Use when you want a whole-suite, checkpointed pass over one or more installed plugins, from one plugin pipeline up to the exhaustive cross-plugin superset. Select them with plugins: suite, rigor, or privacy (default: every installed one). Phases of an absent plugin are skipped and named. Tracks: assess-only, full, feature."
   default_prompt: "Use code-ops-suite:everything for this task."
 policy:
   allow_implicit_invocation: true

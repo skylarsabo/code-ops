@@ -9,7 +9,7 @@ A `FINDINGS_REGISTER.md` is the authoritative backlog an audit or review produce
 single source of truth for what is wrong and what to do about it. Audit skills write it:
 `code-ops-suite:codebase-audit`, `code-ops-suite:security-privacy-audit`, and the `rigor`
 hunts (`bug-hunt`, `quality-scan`, `ground-truth`, `regression-hunt`, `safety-net`,
-`test-suite-audit`, `rigor-sweep`). Remediation skills consume it: `code-ops-suite:remediation`
+`test-suite-audit`, `everything plugins: rigor`). Remediation skills consume it: `code-ops-suite:remediation`
 and `rigor:fix-verified`. One skill sits outside the pattern.
 `ship` consumes an intent, not the register.
 

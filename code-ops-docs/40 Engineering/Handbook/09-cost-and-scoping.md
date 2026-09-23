@@ -19,7 +19,7 @@ frequency. Two rules cover most of the decision.
 1. **Pick the narrowest thing that covers your goal.** Relative cost, largest to smallest:
 
    ```
-   everything  >  full-sweep ≈ rigor-sweep ≈ privacy full-sweep ≈ research-sweep  >  ship / debug  >  a single skill
+   everything (all plugins)  >  everything (one plugin) ≈ research-sweep  >  ship / debug  >  a single skill
    (all 3 plugins)              (one plugin, whole suite)                            (one scoped change)   (one task)
    ```
 
@@ -42,15 +42,15 @@ The orchestrators form a strict cost ladder. From
 | Tier | What runs | Relative cost |
 | --- | --- | --- |
 | `everything` | The cross-plugin superset: all three engineering plugins (code-ops-suite, rigor, privacy-opsec-suite), deduplicated, one consolidated go/no-go | **most expensive** |
-| `full-sweep` · `rigor-sweep` · privacy `full-sweep` · `research-sweep` | One plugin's whole suite, end to end | a tier below `everything`, and roughly comparable to one another |
+| `everything plugins: suite` · `everything plugins: rigor` · `everything plugins: privacy` · `research-sweep` | One plugin's whole suite, end to end | a tier below `everything`, and roughly comparable to one another |
 | `ship` / `debug` | One scoped change or one symptom, run at full rigor | much cheaper than a sweep |
 | A single skill | One task (`codebase-audit`, `bug-hunt`, `tor-egress-audit`) | **cheapest unit** |
 
 ```mermaid
 flowchart TD
-    E["everything<br/>(cross-plugin superset)"] --> S1["full-sweep"]
-    E --> S2["rigor-sweep"]
-    E --> S3["privacy full-sweep"]
+    E["everything<br/>(cross-plugin superset)"] --> S1["everything plugins: suite"]
+    E --> S2["everything plugins: rigor"]
+    E --> S3["everything plugins: privacy"]
     E --> S4["research-sweep"]
     S1 --> C["ship / debug<br/>(one scoped change)"]
     S2 --> C
@@ -88,9 +88,9 @@ lever and the biggest risk lever. The name differs by plugin. The shape does not
 
 | Orchestrator | Read-only track | Full track |
 | --- | --- | --- |
-| `full-sweep` (code-ops-suite) | `assess-only` (read + document) | `full` (assess → safety net → fix → polish → document) |
-| `rigor-sweep` | `assess-only` (facts + proven findings) | `full` (also fix / close / improve) |
-| privacy `full-sweep` | `audit-only` (read + document) | `full` (audit → harden → docs/gate) |
+| `everything plugins: suite` | `assess-only` (read + document) | `full` (assess → safety net → fix → polish → document) |
+| `everything plugins: rigor` | `assess-only` (facts + proven findings) | `full` (also fix / close / improve) |
+| `everything plugins: privacy` | `audit-only` (read + document) | `full` (audit → harden → docs/gate) |
 | `research-sweep` | local-first, never edits by design | proposes and hands off, still never edits |
 
 A read-only pass skips the safety-net, fix, close, and improve phases entirely, and it
@@ -123,8 +123,8 @@ the cheapest high-signal starting move in the whole suite.
 Some phases run only if you select them at Phase 0. The two most expensive optional
 phases are performance and dependency-upgrade:
 
-- In `full-sweep`, Phase 5 runs performance or dependency-upgrade only if selected.
-- In `rigor-sweep`, Phase 7 (`improve-measured`) is optional, and only changes with a before-and-after metric ship.
+- In `everything plugins: suite`, Phase 5 runs performance or dependency-upgrade only if selected.
+- In `everything plugins: rigor`, Phase 7 (`improve-measured`) is optional, and only changes with a before-and-after metric ship.
 - In `everything`, the improve phase (`improve-measured`, `performance`, `dependency-upgrade`) ships measured deltas only.
 
 Defer these on a first pass. They are valuable and rarely urgent, and each adds cost
@@ -302,7 +302,7 @@ across a long run, see [context-hygiene.md](../Techniques/context-hygiene.md).
 
 Putting the levers together for a large, unfamiliar repository on a tight budget:
 
-1. **Do not start with `everything`.** Start with the one plugin whose lens matches your goal: `rigor-sweep` for proven correctness, code-ops `full-sweep` for breadth hardening, privacy `full-sweep` only if the repository has anonymity or opsec needs.
+1. **Do not start with `everything`.** Start with the one plugin whose lens matches your goal: `everything plugins: rigor` for proven correctness, code-ops `everything plugins: suite` for breadth hardening, `everything plugins: privacy` only if the repository has anonymity or opsec needs.
 2. **Take the read-only track** (`assess-only` or `audit-only`), scoped to the riskiest subsystem, with deep-dives deferred and web egress off.
 3. **Read the register at the checkpoint.** Approve only the subset worth fixing.
 4. **Promote to `full` for that subset only.** Run the fix phases under `gated`, or `auto-safe` for NOW-SAFE items. Always-gated categories still stop for you.

@@ -71,10 +71,6 @@ model can also route to one through the standard-operating-mode routing card.
   test, the regression guard, a sibling sweep, and an enforcement.
 - `deep-review`. Review a pull request or diff at the verification bar, blocking only on a
   CONFIRMED defect or regression.
-- `rigor-sweep`. The orchestrator. It runs ground-truth, then test-suite-audit, then
-  bug-hunt with quality-scan, then safety-net, then, on approval, fix-verified,
-  the concept mode of `code-ops-suite:normalize` when that plugin is installed, and measured
-  improvements.
 
 ## The methodology
 
@@ -103,8 +99,8 @@ reads first:
 
 ## Running it
 
-- **The whole pipeline:** `/rigor:rigor-sweep`. Start on the `assess-only` track to get
-  proven findings before anything changes.
+- **The whole pipeline:** `/code-ops-suite:everything plugins: rigor`, with code-ops-suite
+  installed. Start on the `assess-only` track to get proven findings before anything changes.
 - **Bugs only:** `/rigor:ground-truth`, then `/rigor:bug-hunt` on the riskiest subsystem.
 - **On every pull request:** wire `deep-review` into CI with the Claude Code action pinned
   to a reviewed commit. See `examples/github-deep-review.yml`.

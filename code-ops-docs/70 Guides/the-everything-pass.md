@@ -22,7 +22,7 @@ checking in at phase boundaries.
 - **The arc.** Scope and preflight, map, ground truth and test trust, prove, leak audits when in scope, safety net, a consolidated go or no-go, remediate, close inconsistencies, improve, normalize and document, then final report and ship.
 - **Two mandatory checkpoints.** Phase 0 (scope and automation) and Phase 6 (the consolidated review) fire regardless of check-in level. Every always-gated category also stops for you.
 - **Safety floor.** The run always works on a branch. Always-gated categories stop for your approval no matter what level you chose: security and auth, secret handling, data migrations or destructive operations, public API or contract changes, and anything irreversible. Even fully-automatic fixes land as commits or pull requests for review.
-- **Cost.** This is deliberately the most token-expensive workflow in the suite. Reach for it when you want exhaustive coverage of a whole repository, or its riskiest subsystems, and you are prepared to spend for it. For a single-plugin pass, use `code-ops-suite:full-sweep`. For one change, use `code-ops-suite:ship`.
+- **Cost.** This is deliberately the most token-expensive workflow in the suite. Reach for it when you want exhaustive coverage of a whole repository, or its riskiest subsystems, and you are prepared to spend for it. For a single-plugin pass, use `code-ops-suite:everything plugins: suite`. For one change, use `code-ops-suite:ship`.
 
 ```mermaid
 flowchart TD
@@ -349,7 +349,7 @@ and under `gated` nothing code-changing, happened without your approval.
 ## Choosing everything over its alternatives
 
 - **Use `everything`** when you want the most exhaustive pass across all three plugins on a whole repository or its riskiest subsystems, and you are prepared for the cost.
-- **Use `code-ops-suite:full-sweep`** when you want the spine plugin's pipeline only, with no rigor verification layer and no privacy track. It is cheaper and narrower.
+- **Use `code-ops-suite:everything plugins: suite`** when you want the spine plugin's pipeline only, with no rigor verification layer and no privacy track. It is cheaper and narrower.
 - **Use `code-ops-suite:ship`** for one change end to end at full rigor. See [`code-ops-docs/70 Guides/ship-a-verified-fix.md`](ship-a-verified-fix.md).
 - **Use `code-ops-suite:debug`** to drive a single bug from symptom to a proven root-cause fix. See [`code-ops-docs/70 Guides/debug-symptom-to-root-cause.md`](debug-symptom-to-root-cause.md).
 

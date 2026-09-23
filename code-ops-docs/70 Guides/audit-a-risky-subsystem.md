@@ -36,7 +36,7 @@ Five rules carry the whole journey:
 5. **A fix without a failing-then-passing test is not done.** It must also break no prior proof ([`CONVENTIONS.md`](../../plugins/rigor/CONVENTIONS.md) §8, §H).
 
 You can call any command here directly, or the model can route to it per the standard-operating-mode
-routing card. Every checkpoint below applies either way. The orchestrator `/rigor:rigor-sweep` runs
+routing card. Every checkpoint below applies either way. The orchestrator `/code-ops-suite:everything plugins: rigor` runs
 this same sequence end to end if you would rather drive it as one pass. This guide does it step by
 step so you can see and approve each checkpoint.
 
@@ -335,7 +335,7 @@ that level.
 - **A regression rather than a bug.** Use `/rigor:regression-hunt` to bisect a CONFIRMED bug to the commit that introduced it.
 - **The SPECULATIVE interface-consistency lead (`Q-003`).** Route it to `/code-ops-suite:normalize concept <name>`, which picks one canonical form, migrates every site, and adds an enforcement so the divergence cannot recur.
 - **Reviewing the resulting pull request at the verification bar.** That is `/rigor:deep-review`, which blocks only on CONFIRMED defects and regressions.
-- **Driving it all as one pass.** `/rigor:rigor-sweep` runs ground-truth, test-suite-audit, bug-hunt with quality-scan, safety-net, an approval, fix-verified, the `normalize concept` mode when code-ops-suite is installed, and measured improvements.
+- **Driving it all as one pass.** `/code-ops-suite:everything plugins: rigor` runs ground-truth, test-suite-audit, bug-hunt with quality-scan, safety-net, an approval, fix-verified, the `normalize concept` mode when code-ops-suite is installed, and measured improvements.
 
 To ship the fix as a verified, low-trace pull request, continue with
 [`code-ops-docs/70 Guides/ship-a-verified-fix.md`](ship-a-verified-fix.md). For the full command

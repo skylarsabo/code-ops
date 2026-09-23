@@ -32,7 +32,7 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
 
 ### The spine: `code-ops-suite`
 
-`code-ops-suite` ([README](../../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **31 skills**, grouped by intent:
+`code-ops-suite` ([README](../../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **30 skills**, grouped by intent:
 
 - **Assess**: `codebase-audit` (broad multi-lens review, writing `FINDINGS_REGISTER.md`) and `security-privacy-audit` (STRIDE and LINDDUN threat assessment, writing `THREAT_MODEL.md`).
 - **Build**: `remediation` (implements the findings backlog), `feature-discovery` (finds and specs grounded features), `feature-implementation` (builds the smallest valuable slice behind flags).
@@ -44,7 +44,7 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
   one-way sanitized channel), `run-cost-audit` (audits a completed run's cost discipline), and
   `provider-parity-audit` (audits hooks, agents, skills, scripts, settings, renderers, generated
   distributions, documentation, and installed-host evidence across all four supported hosts).
-- **Orchestrators**: `full-sweep` (the whole suite end to end, intra-plugin), `everything` (the cross-plugin superset across all three engineering and anonymity plugins), `ship` (one change at full rigor), `debug` (symptom to proven root-cause fix).
+- **Orchestrators**: `everything plugins: suite` (the whole suite end to end, intra-plugin), `everything` (the cross-plugin superset across all three engineering and anonymity plugins), `ship` (one change at full rigor), `debug` (symptom to proven root-cause fix).
 
 It fans work out to two bundled subagents: `explorer` (read-only, parallel investigation) and `reviewer` (strong-tier, parallel review). Neither ever edits.
 
@@ -58,7 +58,7 @@ It fans work out to two bundled subagents: `explorer` (read-only, parallel inves
 - **Proof artifacts, not assertions**: a CONFIRMED bug ships a runnable repro, a fix ships a regression test that **fails before and passes after**, and an improvement shows a **before-and-after measurement**.
 - **Closure with enforcement**: an inconsistency gets one canonical form, every site migrated, and a lint rule or test so the divergence cannot silently return.
 
-It carries **10 skills**: `ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt` (the flagship), `regression-hunt`, `quality-scan`, `improve-measured`, `fix-verified`, `deep-review`, and the `rigor-sweep` orchestrator. Its subagents are `tracer` (traces a path or derives invariants, never executes) and `verifier` (writes and runs a minimal repro to confirm or kill a candidate, which is the reason `CONFIRMED` means something).
+It carries **9 skills**: `ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt` (the flagship), `regression-hunt`, `quality-scan`, `improve-measured`, `fix-verified`, and `deep-review`. `code-ops-suite:everything plugins: rigor` runs them end to end. Its subagents are `tracer` (traces a path or derives invariants, never executes) and `verifier` (writes and runs a minimal repro to confirm or kill a candidate, which is the reason `CONFIRMED` means something).
 
 The pairing is direct. `rigor:bug-hunt` is the proven-bug counterpart to `code-ops-suite:codebase-audit`. `rigor:deep-review` carries both review bars: `bar: verified` blocks only on proven defects, and `bar: standard` is the all-lens review.
 
@@ -74,7 +74,7 @@ The track has a clear shape: a keystone model, six parallel leak audits, a singl
 - **Harden**: `opsec-hardening` implements the fixes fail-closed, and each leak gets a regression test that fails if it returns.
 - **Gates**: `opsec-pr-gate` blocks any change adding egress, logging, identifiers, fingerprint surface, correlation, or weakened defaults. `authorship-hygiene` removes AI and tooling trace before publish (bundled `scan-ai-tells.mjs`, fail-closed).
 
-It carries **14 skills** in total, the above plus `privacy-feature-design`, `leak-incident-response`, `privacy-doc-alignment`, and the `full-sweep` orchestrator. Its subagents are `explorer` and `privacy-reviewer`, which flags anonymity regressions as blocking. It pairs with `code-ops-suite` for the broad work and supplies the anonymity specialization on top.
+It carries **13 skills** in total, the above plus `privacy-feature-design`, `leak-incident-response`, and `privacy-doc-alignment`. `code-ops-suite:everything plugins: privacy` runs them end to end. Its subagents are `explorer` and `privacy-reviewer`, which flags anonymity regressions as blocking. It pairs with `code-ops-suite` for the broad work and supplies the anonymity specialization on top.
 
 ### The proposal layer: `researcher`
 

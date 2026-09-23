@@ -14,7 +14,6 @@ Name a workflow in Codex as `privacy-opsec-suite:<skill>`. Every generated skill
 - `anonymity-threat-model` — Use when you need the keystone anonymity threat model that the other privacy audits build on.
 - `authorship-hygiene` — Use when a commit, PR, or branch must carry no AI or tooling trace before publishing.
 - `fingerprint-resistance` — Use when you need to reduce the fingerprinting and uniqueness surface that could re-link anonymous users. Owns identity-fingerprint distinctiveness, not traffic timing or size, which traffic-analysis-resistance owns.
-- `full-sweep` — Use when you want the whole privacy-opsec-suite run end-to-end as a guided, checkpointed pipeline. Intra-plugin orchestrator.
 - `leak-incident-response` — Use when an anonymity or privacy leak is suspected and you need to triage, contain, scope the blast radius, and plan remediation without making it worse.
 - `metadata-leak-audit` — Use when you need to find personal data or identifiers leaking in logs, telemetry, errors, response headers, or embedded file metadata. Owns at-rest and in-band metadata, not timing or size side channels, which traffic-analysis-resistance owns.
 - `opsec-hardening` — Use when a LEAK_REGISTER.md exists and you want its leaks fixed safely, each pinned with a regression test. Requires a register as input.

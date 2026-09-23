@@ -60,8 +60,7 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `ops-docs`: the operator's runbook. It covers deploy and rollback, the configuration reference, incident runbooks, and health and observability.
 
 **Orchestrators**
-- `full-sweep`: runs the whole suite end-to-end as one developer-in-the-loop pipeline, pausing at each phase boundary. Intra-plugin.
-- `everything`: the cross-plugin superset. It orchestrates every phase across all three plugins and requires `rigor` and `privacy-opsec-suite` installed. It is the most thorough and most token-expensive option.
+- `everything`: the whole-suite pipeline. `plugins: suite,rigor,privacy` selects the plugins, and the default is every installed one. It runs only the installed plugins' phases and names the skipped ones. With all three selected it is the most thorough and most token-expensive option. Tracks: `assess-only`, `full`, and `feature`.
 - `ship`: implements one change (feature or one-off) end-to-end at full rigor, from design-check to a traceless PR. It requires `rigor` and the local review dependencies.
 - `conform`: assesses every standardization surface of a repo in one read-only pass, writes `CONFORMANCE_REPORT.md`, then repairs surface by surface under checkpoint. It bootstraps or maintains the repo's `CLAUDE.md` standards contract itself and delegates the other surfaces to the skill that owns each one. Its `global` scope re-verifies the user's global Claude and Codex contracts against the marketplace's SSOT pages, classifies every divergence, and rewrites them under checkpoint.
 - `debug`: drives a bug from symptom to a proven root-cause fix, ending in a traceless PR. It requires `rigor`.

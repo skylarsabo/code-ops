@@ -203,7 +203,7 @@ The skill chooses how many agents and over what slices, based on the size and in
 - [09 · Cost and scoping](../Handbook/09-cost-and-scoping.md): the token cost of fan-out and how the suite decides how wide to go.
 - [The disconfirmation pass](disconfirmation-pass.md): what the `verifier` and `claim-checker` do to earn or kill a tier.
 - [05 · Evidence and tiers](../Handbook/05-evidence-and-tiers.md): the `file:line` evidence and CONFIRMED, PROBABLE, and SPECULATIVE tiers every subagent reports against.
-- [03 · Orchestrators](../Handbook/03-orchestrators.md): the full-sweep skills that drive the fan-out loop.
+- [03 · Orchestrators](../Handbook/03-orchestrators.md): the sweep orchestrators that drive the fan-out loop.
 - [Context hygiene](context-hygiene.md): batching follow-ups before a subagent's prompt cache expires, and using a fresh brief as the compaction.
 
 *Verified-at: b0ffede*

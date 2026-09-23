@@ -22,10 +22,9 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.
 - `dependency-upgrade` — Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps.
 - `doc-alignment` — Use when docs have drifted from code and you want them reconciled into a clean single source of truth.
-- `everything` — Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed.
+- `everything` — Use when you want a whole-suite, checkpointed pass over one or more installed plugins, from one plugin pipeline up to the exhaustive cross-plugin superset. Select them with plugins: suite, rigor, or privacy (default: every installed one). Phases of an absent plugin are skipped and named. Tracks: assess-only, full, feature.
 - `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code.
 - `feature-implementation` — Use when feature specs already exist and you want them built incrementally. It requires specs as input.
-- `full-sweep` — Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything.
 - `handoff` — Use when a long run needs a continue, compact, or transfer decision. A transfer captures verifiable state as HANDOFF.md; resume re-verifies every claim.
 - `local-review-gate` — Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication.
 - `normalize` — Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. Use the concept mode (normalize concept NAME) when one concept is implemented divergently and you want it closed for good in one canonical form with mechanical enforcement.

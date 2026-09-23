@@ -134,7 +134,7 @@ expect(sessionEndTimeouts.length > 0 && sessionEndTimeouts.every((timeout) => ti
 const routingCard = read(join(pluginsDir, 'code-ops-suite', 'hooks', 'routing-card.mjs'));
 expect(!/\/(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/.test(routingCard), 'routing card retains Claude slash-command syntax');
 expect(routingCard.includes('code-ops-suite:debug'), 'routing card does not name the Codex workflow syntax');
-expect(routingCard.includes('privacy-opsec-suite:full-sweep'), 'routing card does not name a valid privacy workflow');
+expect(routingCard.includes('code-ops-suite:everything plugins: privacy'), 'routing card does not name a valid privacy workflow');
 
 // Skills cite vendored execution specs at <plugin-root>/reference/, so each canonical spec must
 // reach the package. Only lines naming a host-specific token may differ from the canonical text.

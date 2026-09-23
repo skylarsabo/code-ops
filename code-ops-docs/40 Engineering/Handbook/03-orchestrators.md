@@ -6,9 +6,9 @@
 > | --- | --- | --- |
 > | Implement one change end-to-end, proven and shipped clean | [`/code-ops-suite:ship`](#ship-code-ops-suite) | code-ops-suite |
 > | Take a bug symptom to a proven root-cause fix | [`/code-ops-suite:debug`](#debug-code-ops-suite) | code-ops-suite |
-> | Run the whole engineering suite on one repo | [`/code-ops-suite:full-sweep`](#full-sweep-code-ops-suite) | code-ops-suite |
-> | Run the whole verification suite on one repo | [`/rigor:rigor-sweep`](#rigor-sweep-rigor) | rigor |
-> | Run the whole anonymity and opsec suite on one repo | [`/privacy-opsec-suite:full-sweep`](#full-sweep-privacy-opsec-suite) | privacy-opsec-suite |
+> | Run the whole engineering suite on one repo | [`/code-ops-suite:everything plugins: suite`](#everything-code-ops-suite) | code-ops-suite |
+> | Run the whole verification suite on one repo | [`/code-ops-suite:everything plugins: rigor`](#everything-code-ops-suite) | rigor |
+> | Run the whole anonymity and opsec suite on one repo | [`/code-ops-suite:everything plugins: privacy`](#everything-code-ops-suite) | privacy-opsec-suite |
 > | Run code-grounded research end-to-end (proposes, never edits) | [`/researcher:research-sweep`](#research-sweep-researcher) | researcher |
 > | The most exhaustive cross-plugin pass there is | [`/code-ops-suite:everything`](#everything-code-ops-suite) | code-ops-suite |
 >
@@ -41,55 +41,6 @@ ladder. OpenCode ports digest and index but has no ladder or receipt callback. T
 [12-context-and-code-economy.md](12-context-and-code-economy.md) for the mechanisms,
 [../../50 Platform/INFRASTRUCTURE.md](../../50 Platform/INFRASTRUCTURE.md) for the host matrix,
 and [../../55 Operations/MEASUREMENTS.md](../../55 Operations/MEASUREMENTS.md) for the evidence.
-
----
-
-## `full-sweep` (code-ops-suite)
-
-**Invoked as `/code-ops-suite:full-sweep`.** One line: it chains the breadth-engineering suite (assess, safety-net, fix, polish, document) into one guided pipeline on a single codebase. It is the **intra-plugin** orchestrator for the spine. For the cross-plugin superset use [`everything`](#everything-code-ops-suite).
-
-**Prerequisites:** `code-ops-suite` only.
-
-**Phases** (from the skill):
-
-| Phase | Skill(s) chained | Checkpoint |
-| --- | --- | --- |
-| 0, Scope the run | (sets track, scope, automation level, and opens `EXECUTIVE_SUMMARY.md`) | yes |
-| 1, Ground truth | `doc-alignment` (skip if docs are known-current) | yes (drift summary, go or no-go) |
-| 2, Assess (read-only) | `codebase-audit`, then `security-privacy-audit`, writing `FINDINGS_REGISTER.md` | yes (review ranked, CONFIRMED-led findings) |
-| 3, Safety net | `test-hardening` on critical and risky paths | yes (coverage on targets, go or no-go) |
-| 4, Fix (writes code) | `remediation` against the register, per automation level | per fix batch |
-| 5, Deep-dives (optional) | `performance` and `dependency-upgrade` | as scoped |
-| 6, Consistency | `normalize` (behavior-preserving) | yes (normalization log) |
-| 7, Document | `doc-alignment` then the generators: `architecture`, `data-model`, `api-docs`, `ops-docs`, `adr`, `onboarding` | none |
-| 8, Ship (optional) | `pr-split` (scrubs AI and tooling trace), opens PRs, never auto-merges | none |
-
-A **separate feature track** exists for building rather than hardening: `feature-discovery`, then `feature-implementation`, then `rigor:deep-review bar: standard`, shipped with `pr-split`. Drive it with `/code-ops-suite:full-sweep feature`.
-
-**Track:** `assess-only` (read and document, no code changes), `full` (the whole chain), or a custom subset.
-
----
-
-## `rigor-sweep` (rigor)
-
-**Invoked as `/rigor:rigor-sweep`.** One line: it chains the whole verification suite (ground-truth, test-trust, prove, safety-net, fix, close, improve) under rigor's verification-first methodology, which is evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and the regression guard. It is the **intra-plugin** orchestrator for the verification layer, and the high-signal counterpart to `full-sweep`.
-
-**Prerequisites:** `rigor` only.
-
-**Phases** (from the skill):
-
-| Phase | Skill chained | Checkpoint |
-| --- | --- | --- |
-| 0, Scope the run | (sets track and scope, opens `EXECUTIVE_SUMMARY.md` and the coverage map) | yes |
-| 1, Ground truth | `ground-truth` (deterministic toolchain, giving a factual baseline and blind-spot map) | none |
-| 2, Trust the tests | `test-suite-audit` (flaky, assertion, and mutation check) | none |
-| 3, Find (read-only, with proofs) | `bug-hunt` (deep, per subsystem, root cause plus sibling sweep) with `quality-scan`, and `regression-hunt` to bisect | yes (review CONFIRMED-led register) |
-| 4, Safety net | `safety-net` on blind spots and anything queued for change | none |
-| 5, Fix (writes code) | `fix-verified` on CONFIRMED bugs (failing-to-passing test, root cause, sibling sweep, guard, enforcement) | per batch |
-| 6, Close inconsistencies | code-ops-suite `normalize concept` when installed (canonical form, migrate, enforce) | none |
-| 7, Improve (optional) | `improve-measured` (only changes with a before-and-after metric ship) | none |
-
-**Track:** start `assess-only` (facts and proven findings, no code changes), `full` (also fix, close, improve), or a custom subset.
 
 ---
 
@@ -132,28 +83,6 @@ The model review gates are opt-in and rare. `ship` recommends them only for a hi
 | 5, Finish traceless | a clean PR scrubbed by `authorship-hygiene` (or `pr-split` if multi-part), `scan-ai-tells` fail-closed before push, and never auto-merge | none |
 
 > `ship` and `debug` differ only in their *consumed input* and their first three phases. `ship` takes an *intent* and builds it. `debug` takes a *symptom* and chases its root cause. Both share the proof, privacy-gate, and traceless-finish tail, and both **require rigor**.
-
----
-
-## `full-sweep` (privacy-opsec-suite)
-
-**Invoked as `/privacy-opsec-suite:full-sweep`.** One line: it chains the whole anonymity and opsec track (threat-model, six parallel leak audits, harden, docs and gate) into one guided pipeline, with a defensive stance that protects the system's own users and fixes leaks in your own code. This pipeline is the **anonymity track**, relevant only for projects with anonymity or opsec needs.
-
-**Prerequisites:** `privacy-opsec-suite` only.
-
-**Phases** (from the skill):
-
-| Phase | Skill(s) chained | Checkpoint |
-| --- | --- | --- |
-| 0, Scope the run | (sets track, adversaries to emphasize, PR preference, and opens `EXECUTIVE_SUMMARY.md`) | yes |
-| 1, Model | `anonymity-threat-model` (adversaries, identifying and linking assets, deanonymization paths), the keystone everything references | yes (worst paths, go or no-go) |
-| 2, Audit (read-only) | the six audits, parallelizing the independent ones: `anon-session-audit`, `tor-egress-audit`, `metadata-leak-audit`, `fingerprint-resistance`, `traffic-analysis-resistance`, `supply-chain-trust`, writing `LEAK_REGISTER.md` | yes (ranked leaks, decide what to fix) |
-| 3, Harden (writes code) | `opsec-hardening` against the register: enforce proxy routing and fail-closed, close DNS, WebRTC, and IPv6 leaks, stream isolation, strip metadata, redact logging, each leak pinned with a regression test | per batch |
-| 4, Docs and gate | `privacy-doc-alignment` (reconcile promises, threat model, and runbooks into the SSOT), then wire `opsec-pr-gate` into review | none |
-
-A **separate incident path** exists when a leak is *suspected* rather than sought. Start with `leak-incident-response` (triage, contain, scope, plan) and feed its output into the same `LEAK_REGISTER.md`.
-
-**Track:** `audit-only` (read and document, no code changes), `full` (audit, harden, docs and gate), or a custom subset.
 
 ---
 
@@ -240,10 +169,10 @@ sequenceDiagram
 | --- | --- | --- |
 | One ticket or spec to implement, proven and shipped | `/code-ops-suite:ship` | scoped IMPLEMENT pass, needs `rigor` |
 | A bug symptom to chase to its root cause | `/code-ops-suite:debug` | reproduce, isolate, root-cause, fix, needs `rigor` |
-| Harden one whole repo (breadth, not depth-proofs) | `/code-ops-suite:full-sweep` | assess, safety-net, fix, polish, document |
-| Build a feature with discovery and review | `/code-ops-suite:full-sweep feature` | the feature track of full-sweep |
-| Prove the state of a repo with high signal | `/rigor:rigor-sweep` | verification-first, with tiers, disconfirmation, and the regression guard |
-| Audit or harden an anonymity-sensitive or opsec-sensitive repo | `/privacy-opsec-suite:full-sweep` | threat-model, leak audits, harden, gate |
+| Harden one whole repo (breadth, not depth-proofs) | `/code-ops-suite:everything plugins: suite` | assess, safety-net, fix, polish, document |
+| Build a feature with discovery and review | `/code-ops-suite:everything feature` | the feature track of everything |
+| Prove the state of a repo with high signal | `/code-ops-suite:everything plugins: rigor` | verification-first, with tiers, disconfirmation, and the regression guard |
+| Audit or harden an anonymity-sensitive or opsec-sensitive repo | `/code-ops-suite:everything plugins: privacy` | threat-model, leak audits, harden, gate |
 | A leak is *suspected* right now | `privacy-opsec-suite:leak-incident-response` | triage, contain, scope, plan, feeding the leak register |
 | Decide what to do or what to adopt, with no code yet | `/researcher:research-sweep` | proposes registers and briefs, hands off, never edits |
 | The deepest possible end-to-end pass on a critical repo | `/code-ops-suite:everything` | cross-plugin superset, needs all three engineering plugins |
@@ -257,12 +186,12 @@ When two fit, prefer the **narrowest**: a single skill over an intra-plugin swee
 Cost is expressed only in relative terms, with no token numbers, because actual cost scales with repo size, scope, and the check-in level set at Phase 0.
 
 ```
-everything  >  full-sweep  ≈  rigor-sweep  ≈  privacy full-sweep  ≈  research-sweep  >  ship / debug  >  a single skill
+everything (all plugins)  >  everything (one plugin)  ≈  research-sweep  >  ship / debug  >  a single skill
 (all 3 plugins)        (one plugin, whole suite)                                    (one scoped change)   (one task)
 ```
 
 - **`everything` is the most thorough and most token-expensive option**, deliberately so. It runs the supersets of all three engineering plugins, deduplicated, with a single consolidated go or no-go review. Reach for it only on a critical repo, and narrow scope at Phase 0 to the riskiest subsystems first on a large one.
-- **The four whole-suite sweeps** (`full-sweep` twice, `rigor-sweep`, `research-sweep`) sit a tier below, because each runs one plugin's full chain end to end. They are roughly comparable to one another in shape. The actual cost depends on track, where assess-only or audit-only is far cheaper than full, and on repo size.
+- **The four whole-suite sweeps** (`everything` with one of `suite`, `rigor`, or `privacy` selected, and `research-sweep`) sit a tier below, because each runs one plugin's full chain end to end. They are roughly comparable to one another in shape. The actual cost depends on track, where assess-only or audit-only is far cheaper than full, and on repo size.
 - **`ship` and `debug`** are scoped to a *single* change or symptom, so they are much cheaper than a sweep even though each phase is run at full rigor.
 - **A single skill** (for example `codebase-audit`, `bug-hunt`, or `tor-egress-audit`) is the cheapest unit. The orchestrators exist to chain these when one is not enough.
 

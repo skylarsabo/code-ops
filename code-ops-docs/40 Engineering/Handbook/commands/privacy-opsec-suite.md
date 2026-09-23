@@ -75,7 +75,6 @@ Docs and gate (DOCUMENT and REVIEW):
 
 Orchestrator:
 
-- [`full-sweep`](#privacy-opsec-suitefull-sweep): run the whole suite end to end as one checkpointed pipeline.
 
 ---
 
@@ -354,7 +353,7 @@ because it consumes one as input. Because it changes the anonymity and opsec pos
 is always gated (`§4`). Never auto-merge.
 
 **Prerequisites and hand-offs.** It requires a populated `LEAK_REGISTER.md` from the audits,
-from `full-sweep` Phase 2, or from `leak-incident-response`. The default automation level is
+from `everything plugins: privacy` Phase 2, or from `leak-incident-response`. The default automation level is
 `gated`, and the always-gated categories hold regardless: egress, logging, identifiers,
 defaults, secrets, migrations, and public contracts. Its closed leaks are then guarded by
 `opsec-pr-gate`.
@@ -408,7 +407,7 @@ durable fix goes through `opsec-hardening` with the developer's go-ahead.
 
 **Prerequisites and hand-offs.** It requires the plugin installed. It feeds its tracked entry
 into `LEAK_REGISTER.md` and its report into `OPSEC_RUNBOOK.md`, and `opsec-hardening` then
-carries out the remediation. In `full-sweep` this is the separate incident entry point.
+carries out the remediation. In `everything plugins: privacy` this is the separate incident entry point.
 
 ### `/privacy-opsec-suite:authorship-hygiene`
 **Mode:** REVIEW (audit) and IMPLEMENT (scrub)
@@ -522,40 +521,3 @@ after the chain of audits, `LEAK_REGISTER.md`, and `opsec-hardening`.
 
 ## Orchestrator
 
-### `/privacy-opsec-suite:full-sweep`
-**Mode:** orchestrator
-
-**How it works.** It runs the other skills in sequence as one developer-in-the-loop pipeline.
-It carries `LEAK_REGISTER.md` forward, keeps a master plan, and checkpoints at every phase
-boundary:
-
-- **Phase 0** (checkpoint) detects the stack and repo size and confirms the track: `audit-only` to read and document with no code changes, `full` to audit, then harden, then reconcile docs and wire the gate, or a custom subset. It also confirms scope, the adversaries to emphasize, the PR preference, and whether code-changing phases are pre-approved or gated each time. It opens a master todo and a running `EXECUTIVE_SUMMARY.md`.
-- **Phase 1** runs `anonymity-threat-model`, checkpointing on the worst paths and a go or no-go.
-- **Phase 2** runs the audits in parallel where they are independent: `anon-session-audit`, `tor-egress-audit`, `metadata-leak-audit`, `fingerprint-resistance`, `traffic-analysis-resistance`, and `supply-chain-trust`. Everything merges into `LEAK_REGISTER.md`, and the checkpoint presents the ranked leaks so you decide what to fix.
-- **Phase 3** runs `opsec-hardening` against the register, each fix pinned with a regression test, with a checkpoint per batch and intentional behavior-tightening confirmed.
-- **Phase 4** runs `privacy-doc-alignment` to reconcile the promises, threat model, and runbooks and surface unkept promises, then wires `opsec-pr-gate` into review.
-
-A separate incident path starts with `leak-incident-response`, when a leak is suspected rather
-than sought, and feeds its output into the same register.
-
-**Why it's useful.** It is the one-command way to take a project from no model to a
-reconciled, gated, hardened anonymity posture. The developer stays in the loop at every
-boundary, and one `EXECUTIVE_SUMMARY.md` ties findings, fixes, and residual risk together.
-
-**When to use it.** Use it when you want the whole privacy-opsec-suite run end to end on a
-project with anonymity or opsec needs. This `full-sweep` is the intra-plugin orchestrator and
-sequences only this suite's skills. The cross-plugin orchestrator is
-`code-ops-suite:everything`, which spans the breadth spine, the rigor verification layer, and
-this anonymity track, and requires those three plugins installed. Reach for `everything` when
-the work crosses plugin boundaries, and for `full-sweep` when it is anonymity work alone.
-Choose `audit-only` to find leaks without changing code, and `full` to find and fix them.
-
-**Prerequisites and hand-offs.** It requires the privacy-opsec-suite plugin installed. The
-`full` track's hardening phase changes code and is always gated (`§4`). Never auto-merge. It
-produces `ANONYMITY_THREAT_MODEL.md`, a merged `LEAK_REGISTER.md`, hardening PRs with
-regression tests, reconciled docs, a wired `opsec-pr-gate`, and the master
-`EXECUTIVE_SUMMARY.md`.
-
----
-
-*Verified-at: b0ffede*

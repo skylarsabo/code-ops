@@ -4,7 +4,7 @@ Measures anonymity-leak **recall** and **false-positive rate** of the privacy au
 
 ## Run it
 1. Point a privacy audit at the fixture and capture findings (a `LEAK_REGISTER.md` or a JSON array of `{ "file": "...", "line": N }`):
-   - `/privacy-opsec-suite:tor-egress-audit`, `:metadata-leak-audit`, `:anon-session-audit`, or `:full-sweep` scoped to `evals/leak-lab/repo`.
+   - `/privacy-opsec-suite:tor-egress-audit`, `:metadata-leak-audit`, `:anon-session-audit`, or `/code-ops-suite:everything plugins: privacy` scoped to `evals/leak-lab/repo`.
 2. Score it:
    ```
    node evals/score.mjs evals/leak-lab/ANSWER_KEY.json <findings.md|findings.json>

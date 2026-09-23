@@ -26,8 +26,7 @@ example on this page is illustration and not page structure.
 
 | From skill | Invokes | When | Artifact passed |
 | --- | --- | --- | --- |
-| `code-ops-suite:calibration-run` | `code-ops-suite:full-sweep` | dispatched in the `assess-only` track as the mechanism under calibration | the run folder's registers and `EXECUTIVE_SUMMARY.md` |
-| `code-ops-suite:calibration-run` | `rigor:rigor-sweep` | same, when `rigor` is the mechanism under calibration | the run folder's registers and `EXECUTIVE_SUMMARY.md` |
+| `code-ops-suite:calibration-run` | `code-ops-suite:everything` | dispatched in the `assess-only` track, with `plugins: suite` or `plugins: rigor`, as the mechanism under calibration | the run folder's registers and `EXECUTIVE_SUMMARY.md` |
 | `code-ops-suite:conform` | `code-ops-suite:vault` | the vault is absent, or `check-vault-standard.mjs` exits non-zero; or, as a hand-off, the repo contract must route to a `<repo>-docs/` vault it carries or adopts | `CONFORMANCE_REPORT.md` (the detected vault mode) |
 | `code-ops-suite:conform` | `code-ops-suite:atlas` | the atlas is absent, or `atlas-check.mjs check` reports a STALE section | `CONFORMANCE_REPORT.md` (the STALE section list) |
 | `code-ops-suite:conform` | `code-ops-suite:doc-alignment` | the assessment surfaced a drift signal between the contract, the vault, and the repo docs: never unconditionally | `CONFORMANCE_REPORT.md` (the drift signals) |
@@ -98,25 +97,21 @@ example on this page is illustration and not page structure.
 ## Standalone skills
 
 Every skill not named above issues no qualified reference and receives none. Each runs its
-own loop against its own `CONVENTIONS.md`. Twenty-one of the marketplace's sixty-two skills
+own loop against its own `CONVENTIONS.md`. Twenty of the marketplace's fifty-nine skills
 are standalone, and they fall in two plugins:
 
-- `code-ops-suite` (11 of 31): `api-docs`, `architecture`, `current-docs`,
+- `code-ops-suite` (11 of 30): `api-docs`, `architecture`, `current-docs`,
   `data-model`, `handoff`, `onboarding`, `ops-docs`, `provider-parity-audit`,
   `repo-docs`, `run-cost-audit`, `security-privacy-audit`.
-- `privacy-opsec-suite` (10 of 14): `anon-session-audit`, `anonymity-threat-model`,
-  `fingerprint-resistance`, `full-sweep`, `leak-incident-response`,
+- `privacy-opsec-suite` (9 of 13): `anon-session-audit`, `anonymity-threat-model`,
+  `fingerprint-resistance`, `leak-incident-response`,
   `opsec-hardening`, `privacy-doc-alignment`, `privacy-feature-design`,
   `tor-egress-audit`, `traffic-analysis-resistance`.
 
-Every `rigor` skill (10 of 10) and every `researcher` skill (7 of 7) carries at least
+Every `rigor` skill (9 of 9) and every `researcher` skill (7 of 7) carries at least
 one edge.
 
-Three of the four sweep orchestrators sequence their own plugin's skills by name in prose
-rather than by qualified reference: `code-ops-suite:full-sweep`,
-`privacy-opsec-suite:full-sweep`, and `rigor:rigor-sweep`. All three appear here only as
-targets, never as sources. `researcher:research-sweep` is the exception, and it names nine
-qualified hand-off targets. `code-ops-suite:everything` calls `conform` in phase 0 and
+The sweep orchestrator `researcher:research-sweep` names nine qualified hand-off targets. `code-ops-suite:everything` calls `conform` in phase 0 and
 `local-review-gate` in its final phase. The local gate owns the deep-review and
 OpSec-review hand-offs for the exact committed diff.
 

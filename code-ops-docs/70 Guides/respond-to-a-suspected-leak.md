@@ -326,7 +326,7 @@ A containment with no durable fix is an open incident. A fix with no regression 
 
 - **Trigger.** The audits hunt for leaks proactively, framed by `anonymity-threat-model`. `leak-incident-response` is the reactive entry point, used when a leak is already suspected in the wild ([`commands/privacy-opsec-suite.md`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md#privacy-opsec-suiteleak-incident-response)).
 - **Shared destination.** Both paths converge on `LEAK_REGISTER.md` and both hand off to `opsec-hardening`. The incident jumps the queue ([`README.md`](../../plugins/privacy-opsec-suite/README.md) "How they chain").
-- **Driving it as one pass.** In `full-sweep`, the incident path is the separate incident entry point. The orchestrator otherwise runs model, audits, harden, then docs and gate. See [Harden anonymity](harden-anonymity.md).
+- **Driving it as one pass.** In `everything plugins: privacy`, the incident path is the separate incident entry point. The orchestrator otherwise runs model, audits, harden, then docs and gate. See [Harden anonymity](harden-anonymity.md).
 
 For the full command reference, see
 [`code-ops-docs/40 Engineering/Handbook/commands/privacy-opsec-suite.md`](../40 Engineering/Handbook/commands/privacy-opsec-suite.md).

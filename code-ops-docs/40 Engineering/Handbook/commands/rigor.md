@@ -24,7 +24,7 @@ The shared methodology lives in
 reads it first. The suite overview is in
 [`plugins/rigor/README.md`](../../../../plugins/rigor/README.md).
 
-This plugin ships **10 skills**, namespaced `/rigor:<name>`. Invoke a skill by slash command,
+This plugin ships **9 skills**, namespaced `/rigor:<name>`. Invoke a skill by slash command,
 or let the model route to it under the standard-operating-mode routing card.
 Side-effect-bearing phases keep their checkpoints, and nothing ever auto-merges. If you are
 new to the handbook, read the orientation lines under each entry. If you already run the
@@ -63,7 +63,6 @@ Improvement, fix, and review (IMPLEMENT and REVIEW):
 
 Orchestrator:
 
-- [`/rigor:rigor-sweep`](#rigorrigor-sweep): the whole suite end to end as a checkpointed pipeline.
 
 ---
 
@@ -357,46 +356,3 @@ It hands CONFIRMED defects to `fix-verified`.
 
 ## Orchestrator
 
-### `/rigor:rigor-sweep`
-**Mode:** orchestrator
-
-**How it works.** It orchestrates the other rigor skills in sequence as one
-developer-in-the-loop pipeline, and it does not replace them. It carries the registers and a
-growing proof set forward, keeps a master plan and a coverage map, and checks in at every
-phase boundary:
-
-- **Phase 0** scopes the run. It detects stack and size, confirms the track and the scope, opens a master todo, a running `EXECUTIVE_SUMMARY.md`, and a coverage map, and surfaces any CONFIRMED critical finding immediately. The tracks are `assess-only` for facts and proven findings with no code changes, `full` to also fix, close, and improve, or a custom subset.
-- **Phase 1** runs `ground-truth`.
-- **Phase 2** runs `test-suite-audit`.
-- **Phase 3** finds read-only with proofs through `bug-hunt`, going deep per subsystem, and `quality-scan`, using `regression-hunt` to bisect any confirmed regression. It then checkpoints on the CONFIRMED-led register.
-- **Phase 4** runs `safety-net` on blind spots and on anything queued for change.
-- **Phase 5** runs `fix-verified` on CONFIRMED bugs. This phase writes code, requires approval, and checkpoints per batch.
-- **Phase 6** runs the `normalize concept` mode when code-ops-suite is installed.
-- **Phase 7** optionally runs `improve-measured`.
-
-The master `EXECUTIVE_SUMMARY.md` separates CONFIRMED from PROBABLE and SPECULATIVE, and
-states coverage.
-
-**Why it's useful.** It runs the whole verification suite end to end as a checkpointed
-pipeline, with the proof set and the registers carried forward. Nothing code-changing happens
-without approval, and the trustworthiness of the suite is established before fixes lean on it.
-
-**When to use it.** Use it when you want the entire rigor suite on a repo or subsystem. Start
-with `assess-only` to get proven findings before changing anything, then re-run `full`.
-`rigor:rigor-sweep` is the intra-plugin orchestrator that runs only rigor's own skills end to
-end, the same way each suite has its own orchestrator. The cross-plugin `everything`
-orchestrator in `code-ops-suite` composes across plugins. Reach for `rigor-sweep` when the
-work is purely verification-first, and for `everything` when you want breadth, rigor, and the
-other layers composed in one pass. Do not use it as a substitute for pointing `bug-hunt` at
-one subsystem when that is all you need.
-
-**Prerequisites and hand-offs.** It drives all ten other rigor skills in order, and needs
-whatever each phase needs. `regression-hunt` needs version-control history, and a connected
-version-control tool matters only if you later review. It produces every per-skill artifact
-plus the master `EXECUTIVE_SUMMARY.md`. The automation level set at the start governs every
-code-changing step, with the always-gated categories per `§4`. The levels are `gated` by
-default, then `auto-safe`, then `auto-all`.
-
----
-
-*Verified-at: b0ffede*

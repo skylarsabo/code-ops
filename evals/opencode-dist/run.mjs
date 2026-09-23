@@ -76,11 +76,13 @@ expectedAgents.sort((a, b) => a.name.localeCompare(b.name));
 const renderedSkills = readdirSync(join(dist, 'skills'), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
 expect(JSON.stringify(renderedSkills) === JSON.stringify(expectedSkills), 'generated skills do not match the canonical source set');
 
-// The collision guard is the whole reason for the prefix: `full-sweep` ships in two
-// plugins and `explorer` in two more. A renderer that dropped the prefix would silently
-// render 59 skills here instead of 61, so assert the count as well as the names.
+// The collision guard is the whole reason for the prefix: `explorer` ships as an agent in
+// two plugins. A renderer that dropped the prefix would silently render one explorer agent
+// instead of two, so assert the rendered agents as well as the skill names.
 expect(new Set(renderedSkills).size === expectedSkills.length, 'generated skill names collide after prefixing');
-expect(renderedSkills.filter((n) => n.endsWith('-full-sweep')).length === 2, 'the two full-sweep skills did not both survive prefixing');
+const renderedAgentNames = readdirSync(join(dist, 'agents')).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3));
+expect(new Set(renderedAgentNames).size === expectedAgents.length, 'generated agent names collide after prefixing');
+expect(renderedAgentNames.filter((n) => n.endsWith('-explorer')).length === 2, 'the two explorer agents did not both survive prefixing');
 expect(expectedAgents.filter((a) => a.name.endsWith('-explorer')).length === 2, 'fixture drift: the two explorer agents are no longer both present');
 
 // ---- 2. skills are host-clean and paired with a command ------------------------
@@ -200,7 +202,7 @@ for (const agent of expectedAgents) {
 const floorPluginPath = join(dist, 'plugins', 'code-ops-model-floors.js');
 expect(existsSync(floorPluginPath), 'the model-floor plugin was not rendered');
 const floorPluginText = readFileSync(floorPluginPath, 'utf8');
-expect(floorPluginText.includes('/privacy-opsec-suite-full-sweep'), 'the routing card does not name a valid OpenCode privacy workflow');
+expect(floorPluginText.includes('/code-ops-suite-everything plugins: privacy'), 'the routing card does not name a valid OpenCode privacy workflow');
 expect(!floorPluginText.includes('/privacy-opsec-suite skills'), 'the routing card retains an invalid generic privacy route');
 expect(existsSync(join(dist, 'code-ops', 'code-ops-suite', 'hooks', 'digest-rewrite.mjs')), 'the canonical digest adapter hook was not rendered');
 const strongAgent = expectedAgents.find((agent) => agent.tier === 'strong');

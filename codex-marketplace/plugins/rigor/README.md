@@ -17,7 +17,6 @@ Name a workflow in Codex as `rigor:<skill>`. Every generated skill sets `policy.
 - `improve-measured` — Use when you want measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization specifically, see code-ops-suite:performance.
 - `quality-scan` — Use when you want high-signal, defect-causing quality issues with evidence and tiers, not cosmetic nits.
 - `regression-hunt` — Use when something used to work and you need to pinpoint the commit that broke it and find related regressions in recent changes.
-- `rigor-sweep` — Use when you want the whole rigor suite run end-to-end as a checkpointed pipeline. Start on the assess-only track. Intra-plugin orchestrator.
 - `safety-net` — Use before refactoring or fixing low-coverage code. Writes characterization tests that lock current observable behavior.
 - `test-suite-audit` — Use when you need to know whether a green suite actually catches faults. Validates the tests other proofs rest on.
 

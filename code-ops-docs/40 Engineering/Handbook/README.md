@@ -6,7 +6,7 @@ This page is the front door. It names the plugin that owns the job in front of y
 
 ## The four-plugin mental model
 
-- **code-ops-suite is the spine.** Broad-breadth engineering for any repo (audit, remediation, feature discovery and build, performance, tests, dependencies, PR review, normalization, pr-split) plus all reference-doc generators (architecture, api-docs, data-model, adr, ops-docs, onboarding) plus the orchestrators (full-sweep, everything, ship, debug). Start here when the task is ordinary engineering.
+- **code-ops-suite is the spine.** Broad-breadth engineering for any repo (audit, remediation, feature discovery and build, performance, tests, dependencies, PR review, normalization, pr-split) plus all reference-doc generators (architecture, api-docs, data-model, adr, ops-docs, onboarding) plus the orchestrators (everything plugins: suite, everything, ship, debug). Start here when the task is ordinary engineering.
 - **rigor is the verification layer.** Prove it or do not report it. Evidence tiers (CONFIRMED, PROBABLE, SPECULATIVE), a disconfirmation pass, ground truth first, runnable repros, a regression guard, and closure with enforcement. It is the high-signal counterpart to code-ops breadth (`rigor:bug-hunt` against `codebase-audit`, `rigor:deep-review` at its default verification bar). Reach for it when you want proven findings rather than a long list.
 - **privacy-opsec-suite is the anonymity track.** Install it only for projects with anonymity or opsec needs. The keystone `anonymity-threat-model` frames six parallel leak audits, which feed `LEAK_REGISTER.md`, which drives `opsec-hardening` (fail-closed), guarded by `opsec-pr-gate` and `authorship-hygiene`. Its stance is defensive privacy engineering: protect your own users, anonymous by default.
 - **researcher is the proposal layer.** Code-grounded research, local-first with disclosed, fail-closed egress. It proposes registers and design briefs, then hands off to the other three. It never edits code.
@@ -59,7 +59,7 @@ Every page below sits under `code-ops-docs/` and is tracked in the repo.
 **Handbook (orientation and reference)**
 - [01-getting-started.md](01-getting-started.md): install, first run, and how to read a checkpoint.
 - [02-mental-model.md](02-mental-model.md): the four-plugin model and how the plugins compose, with a C4 diagram and the glossary.
-- [03-orchestrators.md](03-orchestrators.md). It covers `full-sweep`, `everything`, `ship`, `debug`, `rigor-sweep`, `research-sweep`, and the privacy `full-sweep`, with when to use which, their phases, and relative cost.
+- [03-orchestrators.md](03-orchestrators.md). It covers `everything`, `ship`, `debug`, `research-sweep`, and the `everything plugins: privacy`, with when to use which, their phases, and relative cost.
 - [04-registers-and-freshness.md](04-registers-and-freshness.md): the FINDINGS, CONSISTENCY, LEAK, RESEARCH_FINDINGS, IDEAS, DEFERRALS, and EGRESS_MANIFEST schemas, the NOW-SAFE, NEEDS-REVIEW, and NEEDS-DESIGN tracks, Verified-at stamps, `revalidate-register.mjs`, OBSOLETE-AT, and recovery.
 - [05-evidence-and-tiers.md](05-evidence-and-tiers.md): CONFIRMED, PROBABLE, and SPECULATIVE, plus the disconfirmation pass as lived practice.
 - [06-privacy-opsec-primer.md](06-privacy-opsec-primer.md): orientation to the anonymity track, covering when a repo needs it and why anonymity is a stronger property than privacy.
@@ -83,7 +83,7 @@ Every page below sits under `code-ops-docs/` and is tracked in the repo.
 - [../../70 Guides/ship-a-verified-fix.md](../../70 Guides/ship-a-verified-fix.md): `code-ops-suite:ship` across rigor, the privacy gate, and a traceless PR.
 - [../../70 Guides/the-everything-pass.md](../../70 Guides/the-everything-pass.md): the `everything` orchestrator end to end, checkpoint by checkpoint.
 - [../../70 Guides/debug-symptom-to-root-cause.md](../../70 Guides/debug-symptom-to-root-cause.md): driving `code-ops-suite:debug` from a live symptom to a proven root-cause fix: reproduce first, fix at the cause, lock it behind a regression test.
-- [../../70 Guides/harden-anonymity.md](../../70 Guides/harden-anonymity.md): the anonymity-track journey through `privacy-opsec-suite:full-sweep`: model, audits, hardening, and docs and gate as one fail-closed pipeline.
+- [../../70 Guides/harden-anonymity.md](../../70 Guides/harden-anonymity.md): the anonymity-track journey through `code-ops-suite:everything plugins: privacy`: model, audits, hardening, and docs and gate as one fail-closed pipeline.
 - [../../70 Guides/respond-to-a-suspected-leak.md](../../70 Guides/respond-to-a-suspected-leak.md): the incident journey: `leak-incident-response` then `opsec-hardening`, confirming from redacted evidence and locking the leak shut.
 - [../../70 Guides/research-a-library-choice.md](../../70 Guides/research-a-library-choice.md): an A-against-B-against-build decision via `researcher:library-eval`, then `research-verify`, then `code-ops-suite:adr`, proven before anyone writes code.
 - [../../70 Guides/wire-ci-gates.md](../../70 Guides/wire-ci-gates.md): the hands-on companion to chapter 08: standing up the three per-PR review gates and recurring researcher runs on a repo.

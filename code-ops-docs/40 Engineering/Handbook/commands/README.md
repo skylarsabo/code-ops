@@ -5,7 +5,7 @@ you actually have to the commands that serve it in the right order, and points a
 per-plugin reference for detail. Read it when you know what you want and not which
 command does it.
 
-The code-ops marketplace ships **63 commands** across four plugins. Call any command as
+The code-ops marketplace ships **59 commands** across four plugins. Call any command as
 `/<plugin>:<skill>` in Claude Code, or name `<plugin>:<skill>` in a Codex request. The
 model can also route to a command per the standard-operating-mode routing card. Either
 way, side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing
@@ -101,7 +101,7 @@ which routes each plugin set supports, see
 | **Harden the leaks I found** | `/privacy-opsec-suite:opsec-hardening` | privacy-opsec-suite | Implements the leak backlog; each leak gets a regression test, fail-closed. |
 | **Respond to a suspected leak** | `/privacy-opsec-suite:leak-incident-response` → `/privacy-opsec-suite:opsec-hardening` | privacy-opsec-suite | Triage, contain, scope blast radius, plan remediation, without making it worse. |
 | **Design a privacy/trust feature** | `/privacy-opsec-suite:privacy-feature-design` → `/code-ops-suite:feature-implementation` | privacy-opsec-suite (+ code-ops-suite) | **Optional:** `code-ops-suite`: the design pass stands alone; without it the build hand-off has no route. Each feature gated against the anonymity model. |
-| **Run the whole anonymity track** | `/privacy-opsec-suite:full-sweep` (orchestrator) | privacy-opsec-suite | model → audits → harden → docs/gate, pausing at each phase boundary. |
+| **Run the whole anonymity track** | `/code-ops-suite:everything plugins: privacy` (orchestrator) | privacy-opsec-suite | model → audits → harden → docs/gate, pausing at each phase boundary. |
 | **Choose a library / decide "adopt X?"** | `/researcher:library-eval` → `/code-ops-suite:adr` | researcher (+ code-ops-suite) | **Optional:** `code-ops-suite`: the evaluation stands alone; without it the ADR hand-off has no route. A-vs-B-vs-build grounded in your code and sources. |
 | **Research an approach before building** | `/researcher:research-spike` → `/code-ops-suite:feature-implementation` | researcher (+ code-ops-suite) | **Optional:** `code-ops-suite`: the brief stands alone; without it the build hand-off has no route. Cited design brief + recommendation. |
 | **Gather grounded improvement ideas** | `/researcher:research-improve` → `/code-ops-suite:remediation` | researcher (+ code-ops-suite) | **Optional:** `code-ops-suite`, `rigor`: the research stands alone; without them the implementation hand-offs have no route. External best practices grounded in your code → `RESEARCH_FINDINGS.md`. |
@@ -121,10 +121,10 @@ which routes each plugin set supports, see
 | **Re-verify the Claude and Codex global contracts against suite doctrine** | `/code-ops-suite:conform global` | code-ops-suite | Diffs both host contracts against the SSOT; classifies drift, preserves a shared core, and writes deliberate host deltas under checkpoint. |
 | **Get version-accurate docs for a dependency** | `/code-ops-suite:current-docs` | code-ops-suite | Local-first, no third-party. It is the in-house Context7 alternative (also the `code-ops-docs` MCP). |
 | **Threat-model the attack surface** | `/code-ops-suite:security-privacy-audit` | code-ops-suite | Adversarial STRIDE + LINDDUN; writes `THREAT_MODEL.md` + findings. |
-| **Run the full intra-suite engineering pass** | `/code-ops-suite:full-sweep` (orchestrator) | code-ops-suite | scope → ground truth → assess → safety-net → fix → deep-dives → consistency → document → ship. |
+| **Run the full intra-suite engineering pass** | `/code-ops-suite:everything plugins: suite` (orchestrator) | code-ops-suite | scope → ground truth → assess → safety-net → fix → deep-dives → consistency → document → ship. |
 | **Run the most thorough cross-plugin pass** | `/code-ops-suite:everything` (orchestrator) | all three (code-ops-suite, rigor, privacy) | map → ground-truth → prove → leak-audit → safety-net → review → remediate → close → improve → normalize-and-document → verify-and-ship. **Requires `rigor` and `privacy-opsec-suite`**: the skill declares all three as prerequisites and confirms availability in phase 0. See [the-everything-pass](../../../70 Guides/the-everything-pass.md). |
-| **Run the rigor pipeline end-to-end** | `/rigor:rigor-sweep` (orchestrator) | rigor | Start with `assess-only` to get proven findings before changing anything. |
-| **Calibrate the suite against a real repo** | `/code-ops-suite:calibration-run` | code-ops-suite | **Optional:** `rigor`: needed only when `rigor:rigor-sweep` is the mechanism under calibration. Isolated, assess-only; only a sanitized note crosses back into `evals/CALIBRATION_TABLE.md`. |
+| **Run the rigor pipeline end-to-end** | `/code-ops-suite:everything plugins: rigor` (orchestrator) | rigor | Start with `assess-only` to get proven findings before changing anything. |
+| **Calibrate the suite against a real repo** | `/code-ops-suite:calibration-run` | code-ops-suite | **Optional:** `rigor`: needed only when `code-ops-suite:everything plugins: rigor` is the mechanism under calibration. Isolated, assess-only; only a sanitized note crosses back into `evals/CALIBRATION_TABLE.md`. |
 | **Audit a completed run's cost discipline** | `/code-ops-suite:run-cost-audit` | code-ops-suite | Dispatch counts, artifact sizes, tier/effort mix vs. the suite's own routing doctrine → `COST_AUDIT.md`. |
 | **Audit provider parity across every suite surface** | `/code-ops-suite:provider-parity-audit` | code-ops-suite | Classifies canonical behavior, both renderers, generated distributions, installed Grok evidence, fallbacks, and API gaps across Claude, Codex, Grok, and OpenCode. |
 | **Keep judgment off hosted CI** | `/code-ops-suite:local-review-gate` before PR creation | code-ops-suite + rigor + privacy | Run both judgment gates locally and leave deterministic lint, build, and tests in CI. The shipped action examples remain an opt-in portability fallback. |
@@ -169,9 +169,9 @@ switches themselves.
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) carries **31 commands**: the engineering spine (assess, build, deep-dives, local review, gate and consistency, docs and knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep`, `everything`, `ship`, `debug`).
-- [rigor.md](rigor.md) carries **10 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
-- [privacy-opsec-suite.md](privacy-opsec-suite.md) carries **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
+- [code-ops-suite.md](code-ops-suite.md) carries **30 commands**: the engineering spine (assess, build, deep-dives, local review, gate and consistency, docs and knowledge, the documentation generators, suite self-audit, and the orchestrators `everything`, `ship`, `debug`).
+- [rigor.md](rigor.md) carries **9 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `improve-measured`, `fix-verified`, `deep-review`).
+- [privacy-opsec-suite.md](privacy-opsec-suite.md) carries **13 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`).
 - [researcher.md](researcher.md) carries **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).
 
 For the concepts the commands assume, see
