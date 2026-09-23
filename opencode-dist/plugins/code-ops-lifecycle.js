@@ -478,7 +478,8 @@ function gateTier(fullId) {
           if (byId[id] === undefined || TIER_RANK[tier] < TIER_RANK[byId[id]]) byId[id] = tier;
         }
       }
-      gateTable = { known, byId };
+      const prices = /const MODEL_PRICES = (\{[\s\S]*?\n\});/.exec(text);
+      gateTable = { known, byId, prices: prices ? JSON.parse(prices[1]) : {} };
     } catch { /* fall back to the family classifier */ }
   }
   const id = String(fullId).toLowerCase();
@@ -588,6 +589,28 @@ function costScore(fullId) {
   return 30;
 }
 
+// Per-million prices for one model: the profile's `prices` first, by full then
+// bare id, then the shipped table for that exact provider. A shipped price is a
+// provider's own bill, so a reseller of the same bare id never inherits it.
+function priceOf(fullId, profile) {
+  const id = String(fullId).toLowerCase();
+  const own = profile?.prices?.[id] ?? profile?.prices?.[bareId(id)];
+  if (own) return own;
+  gateTier(id);
+  const provider = id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
+  return gateTable?.prices?.[provider]?.[bareId(id)] ?? null;
+}
+
+// USD for a standard operative workload: 1M cached input, 60k fresh input
+// written to cache, and 15k output. Spend follows context re-reads, so the
+// cached rate dominates.
+function workloadCost(price) {
+  if (!price) return null;
+  const cost = Number(price.cached ?? price.input ?? 0) + 0.06 * Number(price.cacheWrite ?? price.input ?? 0)
+    + 0.015 * Number(price.output ?? 0);
+  return Number.isFinite(cost) ? cost : null;
+}
+
 function qualityScore(fullId) {
   const name = String(fullId).toLowerCase().replace(/opus-41/, 'opus-4.1');
   const nums = [...name.matchAll(/(\d+)(?:\.(\d+))?/g)].map((m) => Number(m[1]) * 100 + Number(m[2] || 0));
@@ -598,12 +621,21 @@ function pickChooserModel(required, catalog, profile = {}) {
   const need = TIER_RANK[required];
   if (need === undefined) return null;
   const eligible = catalog
-    .map((id) => ({ id, tier: classifyChooserModel(id, profile), value: valueScore(profileRow(id, profile), profile) }))
+    .map((id) => ({
+      id,
+      tier: classifyChooserModel(id, profile),
+      value: valueScore(profileRow(id, profile), profile),
+      cost: workloadCost(priceOf(id, profile)),
+    }))
     .filter((row) => row.tier && TIER_RANK[row.tier] >= need && !String(row.id).toLowerCase().startsWith('opencode/'));
   if (!eligible.length) return null;
-  // A measured model outranks an unmeasured one; unmeasured ones keep the family order.
+  // A measured model outranks an unmeasured one. Among unmeasured ones a priced
+  // model ranks by its workload cost ahead of an unpriced one, which keeps the
+  // family order.
   eligible.sort((a, b) => (b.value !== null) - (a.value !== null)
     || (b.value ?? 0) - (a.value ?? 0)
+    || (b.cost !== null) - (a.cost !== null)
+    || (a.cost ?? 0) - (b.cost ?? 0)
     || costScore(a.id) - costScore(b.id) || qualityScore(b.id) - qualityScore(a.id));
   return eligible[0].id;
 }

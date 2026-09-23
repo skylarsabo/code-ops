@@ -633,10 +633,13 @@ keeps true.
 (`CONVENTIONS §2`) in-house: local-first, with no third-party indexer and no query egress. It
 runs the bundled engine,
 `node ${CLAUDE_PLUGIN_ROOT}/scripts/lib-docs.mjs <library> [topic] --root <repo>`, which
-resolves the installed version from `node_modules`. It returns that package's real README,
-filtered by topic, plus its exported type signatures, with zero network. It falls back to
-fetching the library's own source, meaning `llms.txt` or the GitHub README, only when the
-bundled docs are thin. `--no-fetch` forbids that fallback, and `--json` gives structured
+resolves the version from the lockfile first and then reads the installed copy. It covers npm,
+pnpm, and yarn; Python (uv, poetry, requirements pins, and the virtual environment); Rust;
+Go; and .NET. `--ecosystem` picks one explicitly; otherwise the manifests at the root decide.
+It returns the package's real README, filtered by topic, plus its exported type signatures,
+with zero network. A lockfile and installed version that differ print a `MISMATCH:` line. A
+miss exits 3 and lists the paths it searched. Fetching the library's own source, meaning
+`llms.txt` or the GitHub README, runs only with `--fetch`, and `--json` gives structured
 output. The same capability is exposed as the `code-ops-docs` MCP server's `resolve-library`
 and `get-docs` tools. Fetched docs from a non-installed package are treated as `UNVERIFIED`
 against the running version.
@@ -649,8 +652,9 @@ the only correct source for a private or internal package.
 It is the suite's default documentation-lookup mechanism, used implicitly by other skills to
 confirm library facts. Do not code an API from memory when this is available.
 
-**Prerequisites and hand-offs.** It works best with the library installed, because it reads
-`node_modules`. The `code-ops-docs` MCP server is optional. It feeds version-accurate facts
+**Prerequisites and hand-offs.** It works best with the library installed and locked, because it
+reads the lockfile and the installed copy. On a miss, the skill marks API claims `UNVERIFIED`
+instead of coding from memory. The `code-ops-docs` MCP server is optional. It feeds version-accurate facts
 into every other skill's implementation and DOCUMENT work.
 
 ### `/code-ops-suite:architecture`
@@ -808,8 +812,15 @@ surface. An agent executes compaction only through a callable capability; otherw
 pending operator action. `write` always produces the validated transfer below, while `resume
 <path>` verifies the named file without a new assessment.
 
+The run keeps a live checklist, `TASKS.md`, in its artifact folder: one line per item carrying
+its current state, `Owner: agent|operator`, `Done when:`, and a pointer. COMPACT persists open
+items there, and the checklist survives compaction.
+
 Write applies when assessment selects HANDOFF or the operator explicitly requests `write`. It captures
-the run's true state as `HANDOFF.md` in the dated artifact folder. The first six sections answer
+the run's true state as `HANDOFF.md` in the dated artifact folder. `co handoff draft --run <dir>
+--base <ref>` pre-fills every mechanical fact (`Verified-at`, branch, dirty paths, the range, Open
+items from unchecked `TASKS.md` lines, and stamped artifact, contract, and receipt paths) and leaves
+`[FILL: ...]` placeholders for judgment, which fail the handoff check until filled. The first six sections answer
 what an operator asks a resumed session: the goal and the state of play (phases complete, in
 flight, and not started, the automation level, the operator steering, and a `Request:` line
 holding the original request verbatim), the scope and constraints (repository, branch, the areas
@@ -835,18 +846,20 @@ never what to do next. Write ends with one paste-ready line for the operator,
 hooks, a supported host, `startup` or `clear`, accessible run folders, no `HANDOFF.consumed`
 sibling, and a file under 14 days. It never consumes or resumes the file itself.
 
-Resume treats every claim as context to verify rather than fact to trust. It runs
-`revalidate-register.mjs` on every named register and checks the anchored pointers, where a
-`DRIFTED` pointer is stale state. When `co check handoff` prints `same-tree: Verified-at matches
-HEAD on a clean tree`, resume accepts each FRESH anchor without re-reading its file and keeps the
-handoff's plan, while register revalidation still runs. It re-runs the deterministic baseline when the tree moved,
-then re-plans from what verified, surfacing contradictions at a checkpoint instead of silently
-re-deciding. It then runs `co check handoff HANDOFF.md --consume`, which writes
-`HANDOFF.consumed` beside the file on a passing check so later sessions stop being offered a
-handoff this one picked up. Its reply opens with a five-heading recap (work completed, key
-findings, in progress, left to do, project scope and constraints) marking every claim verified,
-moved, or drifted. It then presents the open items to the operator and asks them to re-grant any
-authority still needed before publishing, merging, or another consequential action.
+Resume treats every claim as context to verify rather than fact to trust. Its single
+verification step, `co handoff resume <HANDOFF.md>`, runs the redaction scan, `revalidate-register.mjs`
+on every named register, `run-runtime.mjs status` and `resume` for a version 3 or newer contract,
+and the anchored-pointer check, where a `DRIFTED` pointer is stale state. It writes
+`HANDOFF.consumed` beside the file only when every step passes, so later sessions stop being
+offered a handoff this one picked up. Its summary gives the same-tree flag, anchor counts, each
+non-FRESH pointer and register item, and the open items with operator-owned ones first. On a same
+tree, resume accepts each FRESH anchor without re-reading its file and keeps the handoff's plan.
+Otherwise it re-runs the deterministic baseline and re-plans from what verified, surfacing
+contradictions at a checkpoint instead of silently re-deciding. Its reply opens with the items
+blocked on the operator, then a five-heading recap (work completed, key findings, in progress,
+left to do, project scope and constraints) marking every claim verified, moved, or drifted. It
+asks the operator to re-grant any authority still needed before publishing, merging, or another
+consequential action.
 
 **Why it's useful.** Registers carry findings across phases, but nothing else carried
 decisions, rejected approaches, and in-flight boundaries across a context limit. That is the

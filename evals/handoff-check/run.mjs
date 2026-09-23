@@ -97,6 +97,12 @@ const rGood = run([good]);
 check('conformant fixture exits 0', rGood.status === 0);
 check('conformant fixture reports OK', /^OK —/.test(rGood.stdout));
 
+// === unfilled draft placeholder ===
+const unfilled = write('unfilled.md', buildHandoff({ carriedContext: '## Carried context\n\n- [FILL: analyses the successor needs]\n' }));
+const rUnfilled = run([unfilled]);
+check('an unfilled [FILL: placeholder exits 1', rUnfilled.status === 1);
+check('the placeholder violation is reported', /"\[FILL:" placeholder/.test(outOf(rUnfilled)));
+
 // === missing Authority ===
 const noAuthority = write('no-authority.md', buildHandoff({ authority: '' }));
 const rNoAuthority = run([noAuthority]);

@@ -73,6 +73,8 @@ not.
 The scoped code is traced against its invariants. Every reported bug carries a tier and its
 evidence. Every CONFIRMED bug has a runnable repro, a root cause, and a sibling sweep.
 Disconfirmation is done and coverage is stated. The finished `FINDINGS_REGISTER.md` passes
-`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .`
-with exit 0. Before the run is done, re-locate any non-FRESH citation against the real tree
-or drop it (`§E`).
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root . --strict --profile finding-rigor`
+with exit 0. A CONFIRMED item's Proof cites its `RCPT-NNN` receipt from
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/run-proof.mjs record -- <repro>` or a kept repro file,
+or the item is re-tiered PROBABLE. Before the run is done, re-locate any non-FRESH citation
+against the real tree or drop it (`§E`).

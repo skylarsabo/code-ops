@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ACCEPTED_MODELS, CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits, modelSupportsTier } from './model-tiers.mjs';
+import { ACCEPTED_MODELS, CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_PRICES, PROVIDER_SPECIALISTS, PROVIDER_TIERS, REGISTRY_VERIFIED_AT, TIER_ORDER, leadInherits, modelSupportsTier } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
@@ -387,6 +387,8 @@ const REQUIRED = ${JSON.stringify(required, null, 2)};
 const RANK = ${JSON.stringify(rank, null, 2)};
 const KNOWN_MODELS = ${JSON.stringify(knownModels, null, 2)};
 const TIER_BY_ID = ${JSON.stringify(tierById, null, 2)};
+// Read by the lifecycle chooser and the cost report, never by this gate.
+const MODEL_PRICES = ${JSON.stringify(PROVIDER_PRICES, null, 2)};
 const ROUTING_CARD = ${JSON.stringify(routingCard)};
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url));
 const SUITE_ROOT = join(PLUGIN_DIR, '..', 'code-ops', 'code-ops-suite');
@@ -501,6 +503,7 @@ function modelTiersDoc(agents) {
     'One config per provider ships under `configs/`, each binding every agent to its tier:',
     '',
     ...providers.map((p) => `- \`configs/opencode.${p.id}.json\``),
+    ...Object.keys(PROVIDER_PRICES).map((id) => `- \`configs/model-profile.${id}.json\` — a starter chooser profile with prices and cost gates. Copy it to \`~/.claude/code-ops/opencode-model-profile.json\`.`),
     '',
     `\`opencode.json\` at the root is a copy of the \`${DEFAULT_PROVIDER}\` one, which costs nothing and leaves the lead`,
     'unset so it inherits the session model. Merge whichever you want into your own config rather',
@@ -567,6 +570,23 @@ function exampleConfig(agents, providerId) {
       // is the interaction protocol every skill in this suite assumes.
       bash: { 'git push *': 'ask', 'gh pr *': 'ask' },
     },
+  };
+}
+
+// A starter lifecycle profile for a token-priced provider, keyed the way readProfile() in
+// opencode-lifecycle.js and opencode-cost-report.mjs read it. The budget and the cost gates
+// describe a 15,000-credit month.
+function starterProfile(providerId) {
+  const prices = Object.fromEntries(Object.entries(PROVIDER_PRICES[providerId])
+    .map(([model, { verifiedAt, source, ...rates }]) => [model, rates]));
+  return {
+    mode: 'lean',
+    enabled: Object.keys(prices).map((model) => `${providerId}/${model}`),
+    prices,
+    credits_per_usd: 100,
+    budget_credits: 15000,
+    budget: '15,000 GitHub AI Credits ($150) per month',
+    cost_gates: { max_projected_month_credits: 15000, max_context_peak: 200000, min_cache_hit_rate: 0.8 },
   };
 }
 
@@ -742,6 +762,9 @@ function buildExpectedFiles() {
     add(`configs/opencode.${providerId}.json`, JSON.stringify(exampleConfig(agents, providerId), null, 2) + '\n');
   }
   add('opencode.json', JSON.stringify(exampleConfig(agents, DEFAULT_PROVIDER), null, 2) + '\n');
+  for (const providerId of Object.keys(PROVIDER_PRICES)) {
+    add(`configs/model-profile.${providerId}.json`, JSON.stringify(starterProfile(providerId), null, 2) + '\n');
+  }
   return { files: out, skills, agents };
 }
 

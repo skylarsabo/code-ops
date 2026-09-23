@@ -90,6 +90,7 @@ export const RUNTIME_SCRIPTS = [
   // The structural floor under the handoff skill's write contract; only code-ops-suite ships
   // the handoff skill, so no other plugin needs this copy.
   { name: 'check-handoff.mjs', plugins: ['code-ops-suite'] },
+  { name: 'handoff-state.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.

@@ -1,0 +1,81 @@
+{
+  "mode": "lean",
+  "enabled": [
+    "github-copilot/grok-4.7",
+    "github-copilot/gpt-6-sol",
+    "github-copilot/gpt-6-luna",
+    "github-copilot/gemini-3.8-flash",
+    "github-copilot/mai-code-1.1-flash",
+    "github-copilot/claude-haiku-4.5",
+    "github-copilot/claude-opus-5.5"
+  ],
+  "prices": {
+    "grok-4.7": {
+      "input": 2,
+      "cached": 0.5,
+      "output": 6,
+      "longContext": {
+        "above": 200000,
+        "input": 4,
+        "cached": 1,
+        "output": 12
+      }
+    },
+    "gpt-6-sol": {
+      "input": 2,
+      "cached": 0.2,
+      "cacheWrite": 2.5,
+      "output": 10,
+      "longContext": {
+        "above": 272000,
+        "input": 4,
+        "cached": 0.4,
+        "cacheWrite": 5,
+        "output": 15
+      }
+    },
+    "gpt-6-luna": {
+      "input": 0.1,
+      "cached": 0.01,
+      "cacheWrite": 0.125,
+      "output": 0.5,
+      "longContext": {
+        "above": 272000,
+        "input": 0.2,
+        "cached": 0.02,
+        "cacheWrite": 0.25,
+        "output": 0.75
+      }
+    },
+    "gemini-3.8-flash": {
+      "input": 0.75,
+      "cached": 0.075,
+      "output": 3.75
+    },
+    "mai-code-1.1-flash": {
+      "input": 0.2,
+      "cached": 0.02,
+      "output": 1.2
+    },
+    "claude-haiku-4.5": {
+      "input": 1,
+      "cached": 0.1,
+      "cacheWrite": 1.25,
+      "output": 5
+    },
+    "claude-opus-5.5": {
+      "input": 4,
+      "cached": 0.2,
+      "cacheWrite": 5,
+      "output": 20
+    }
+  },
+  "credits_per_usd": 100,
+  "budget_credits": 15000,
+  "budget": "15,000 GitHub AI Credits ($150) per month",
+  "cost_gates": {
+    "max_projected_month_credits": 15000,
+    "max_context_peak": 200000,
+    "min_cache_hit_rate": 0.8
+  }
+}

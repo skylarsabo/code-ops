@@ -105,7 +105,7 @@ Each skill declares one mode: **AUDIT** reads and may execute repros, mutations,
 Tracks are **NOW-SAFE** (CONFIRMED, local, low-risk), **NEEDS-REVIEW** (behavior-changing, contract-changing, or PROBABLE), and **NEEDS-DESIGN** (architectural, so a proposal with options).
 ```
 ID · Title · Lens · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·
-Proof (test name / repro steps / trace / measurement) · Location (file:line) ·
+Proof (CONFIRMED: an `RCPT-NNN` run receipt, a kept repro or test file, or a quoted test name; otherwise the static evidence lines, marked not executed) · Location (file:line) ·
 Anchor (a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) ·
 Verified-at (sha the proof last passed on) ·
 Root-cause · Class/siblings (other sites of the same cause) ·

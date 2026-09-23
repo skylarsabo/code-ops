@@ -14,7 +14,11 @@
     { "id": "OB-8", "file": "src/users.js", "line": 22, "anchor": "export function getUser(id)", "category": "PASS-THROUGH", "desc": "getUser forwards id to fetchUser and adds nothing" },
     { "id": "OB-9", "file": "src/users.js", "line": 36, "anchor": "export function slugify(text)", "category": "DUPLICATE-HELPER", "desc": "slugify is already exported by src/text.js" },
     { "id": "OB-10", "file": "src/users.js", "line": 49, "anchor": "const start = (page - 1) * size", "category": "COMMENTED-CODE", "desc": "three consecutive comment lines shaped like code" },
-    { "id": "OB-11", "file": "tests/big.test.js", "line": 1, "anchor": "import assert", "category": "TEST-BLOAT", "desc": "a new test file over twice the median size of its siblings" }
+    { "id": "OB-11", "file": "tests/big.test.js", "line": 1, "anchor": "import assert", "category": "TEST-BLOAT", "desc": "a new test file over twice the median size of its siblings" },
+    { "id": "OB-12", "file": "src/users.js", "line": 58, "anchor": "eslint-disable-next-line no-console", "category": "NEW-SUPPRESSION", "desc": "a lint suppression with no same-line reason" },
+    { "id": "OB-13", "file": "src/users.js", "line": 67, "anchor": "TODO: implement retry", "category": "PLACEHOLDER-COMMENT", "desc": "a comment that defers the work it stands in for" },
+    { "id": "OB-14", "file": "src/users.js", "line": 68, "anchor": "RETRY_LABEL", "category": "EMOJI-IN-CODE", "desc": "an emoji in a string literal" },
+    { "id": "OB-15", "file": "src/report.py", "line": 24, "anchor": "def row_count(report):  # type: ignore", "category": "NEW-SUPPRESSION", "desc": "a type suppression with no same-line reason" }
   ],
   "decoys": [
     { "id": "DECOY-1", "file": "src/extract.js", "line": 1, "anchor": "Paging and summary", "desc": "a legitimate extraction: a sized module with two callers in the same diff" },
@@ -25,6 +29,10 @@
     { "id": "DECOY-6", "file": "src/users.js", "line": 26, "anchor": "getUserOrThrow", "desc": "a wrapper that adds a guard, not a pass-through" },
     { "id": "DECOY-7", "file": "src/users.js", "line": 32, "anchor": "fetchUserById", "desc": "a wrapper that changes its argument, not a pass-through" },
     { "id": "DECOY-8", "file": "src/users.js", "line": 53, "anchor": "Paging moved to extract.js", "desc": "three consecutive prose comment lines" },
-    { "id": "DECOY-9", "file": "src/report.py", "line": 17, "anchor": "load_report_or_empty", "desc": "a Python wrapper that adds error handling" }
+    { "id": "DECOY-9", "file": "src/report.py", "line": 17, "anchor": "load_report_or_empty", "desc": "a Python wrapper that adds error handling" },
+    { "id": "DECOY-10", "file": "src/users.js", "line": 63, "anchor": "no-console -- the warning is the command output", "desc": "a lint suppression with a same-line reason" },
+    { "id": "DECOY-11", "file": "src/users.js", "line": 70, "anchor": "keeps a placeholder row", "desc": "a comment that names a placeholder row, not deferred work" },
+    { "id": "DECOY-12", "file": "src/users.js", "line": 71, "anchor": "NEXT_LABEL", "desc": "an arrow symbol, not an emoji" },
+    { "id": "DECOY-13", "file": "src/report.py", "line": 29, "anchor": "summarize guarantees a list", "desc": "a type suppression with a trailing reason" }
   ]
 }

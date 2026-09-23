@@ -1,5 +1,11 @@
 # Changelog — rigor
 
+## 2.19.0
+- A strict CONFIRMED proof must resolve to an `RCPT-NNN` receipt in `RUN_RECEIPTS.md` with a matching exit code, an in-tree file other than the register, or a quoted test name in a test file. An unexecuted command no longer counts. `--receipts` names the ledger.
+- `bug-hunt`, `quality-scan`, and `deep-review` end on a strict `finding-rigor` check that lint pins. `deep-review` now writes `FINDINGS_REGISTER.md`.
+- The checker adds a `consistency` profile and `--min-items`. `fix-verified` re-tiers a CONFIRMED item to PROBABLE unless a kept repro still fails. `improve-measured` keeps a change only when the ranges sit more than one median absolute deviation apart or the delta clears the stated threshold.
+- Convention §6 states what a Proof holds for CONFIRMED and lower tiers.
+
 ## 2.18.24
 - `tracer` and `verifier` each carry a 400-word report cap; the verifier's cap binds a report it returns inline. Lint check 25 now requires a `Report cap:` line on every agent, between 100 and 800 words.
 - The artifact-grammars reference documents the optional Run Contract `orchestration.singleUnitReason`, which lowers the two-operative floor to one.

@@ -49,7 +49,10 @@ mandatory.
 Run the `rigor:fix-verified` loop. The repro now passes, the suite is green, and the regression
 guard holds. Sweep for **siblings**, meaning other sites of the same cause, and add an
 enforcement so the class cannot recur. When the fix keeps cascading into new findings, the
-**cascade circuit-breaker** (`CONVENTIONS §11`) stops the loop and escalates as NEEDS-DESIGN.
+**cascade circuit-breaker** (`CONVENTIONS §11`) stops the loop and escalates as NEEDS-DESIGN. Run
+`node <plugin-root>/scripts/co.mjs scan overbuild --git <range>` over the change's own
+range. It blocks only on an unrecorded dependency, and its other tells are leads. The report carries
+its added, removed, and net line counts, with a one-line reason when net lines are positive.
 
 Gate the tracer's and verifier's reports on shape before acting on them. A null, empty, or
 malformed report is a failed dispatch (`§1`). Mark it `failed` in `DISPATCH_LEDGER.md` (`§12`)

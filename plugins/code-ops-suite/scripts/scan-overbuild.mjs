@@ -24,10 +24,14 @@
 //   UNREAD-CONFIG      a new top-level key in a root config file that no other file names.
 //   DUPLICATE-HELPER   a new exported name that another file already exports.
 //   COMMENTED-CODE     three or more consecutive added comment lines shaped like code.
+//   NEW-SUPPRESSION    an added lint or type suppression comment with no same-line reason.
+//   PLACEHOLDER-COMMENT an added comment that defers the work it stands in for.
+//   EMOJI-IN-CODE      an added source line that carries an emoji.
 //
 // Ceiling: the tells are line-shaped heuristics for JavaScript, TypeScript, and Python, not a
-// parse. A pass-through hidden behind a destructured parameter, an implementor registered by
-// string, or a config key read through a computed name escapes them. A hit is a lead for the
+// parse, and the last three are language-agnostic line patterns. A pass-through hidden behind a
+// destructured parameter, an implementor registered by string, or a config key read through a
+// computed name escapes them. A hit is a lead for the
 // review, and a clean run is not a proof of right-sizing.
 //
 // Exit: 1 when a blocking tell fires (unless --report-only), 0 otherwise, 2 on a usage error or
@@ -73,7 +77,7 @@ const span = `${base}..${headRef}`;
 
 // ---------------------------------------------------------------- diff and tree material
 
-const SOURCE_EXT = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.go', '.rs', '.java', '.rb']);
+const SOURCE_EXT = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.go', '.rs', '.java', '.rb', '.cs']);
 const TEST_RE = /(^|\/)(tests?|__tests__|spec)\/|\.(test|spec)\.\w+$|_test\.\w+$|(^|\/)test_\w+\.py$/;
 const isSource = (f) => SOURCE_EXT.has(extname(f));
 const isTest = (f) => TEST_RE.test(f);
@@ -334,15 +338,38 @@ const nonBlank = (text) => text.split('\n').filter((l) => l.trim()).length;
   }
 }
 
+// ---------------------------------------------------------------- line tells
+
+{
+  // A suppression carries a reason after `--`, a trailing comment, or Rust's `reason =`; a
+  // TypeScript directive takes any trailing description, as `ban-ts-comment` allows.
+  const SUPPRESS_RE = /(?:\/\/|\/\*|#)\s*(@ts-(?:ignore|expect-error)|eslint-disable\S*|type:\s*ignore\S*|noqa\S*|nolint\S*|pragma warning disable)(.*)$|#!?\[(allow)\((.*)$/;
+  const reasoned = (directive, rest) => (directive.startsWith('@ts-') ? /\w{3}/ : /(?:--|\/\/|#|reason\s*=)\s*["'\w]{3}/).test(rest);
+  const PLACEHOLDER_RE = /(?:\/\/|#|\/\*|^\s*\*).*\b(?:in a real\s+implementation|TODO:?\s*implement|placeholder\s+(?:implementation|logic|code|for now))\b/i;
+  const EMOJI_RE = /\p{Emoji_Presentation}|\p{Extended_Pictographic}️/u;
+  for (const [file, rows] of added) {
+    if (!isSource(file)) continue;
+    for (const { line, text } of rows) {
+      const m = SUPPRESS_RE.exec(text);
+      const directive = m?.[1] ?? m?.[3];
+      if (m && !reasoned(directive, m[2] ?? m[4])) hit('NEW-SUPPRESSION', file, line, `${directive.split(/[:[]/)[0]} suppression with no same-line reason`);
+      if (PLACEHOLDER_RE.test(text)) hit('PLACEHOLDER-COMMENT', file, line, 'a comment defers the work it stands in for');
+      if (EMOJI_RE.test(text)) hit('EMOJI-IN-CODE', file, line, 'an emoji in a source line');
+    }
+  }
+}
+
 // ---------------------------------------------------------------- report
 
 hits.sort((a, b) => Number(b.blocking) - Number(a.blocking) || a.file.localeCompare(b.file) || a.line - b.line);
 const blocking = hits.filter((h) => h.blocking).length;
+const addedLines = [...numstat.values()].reduce((n, s) => n + s.added, 0);
+const removedLines = [...numstat.values()].reduce((n, s) => n + s.deleted, 0);
+const netLines = addedLines - removedLines;
 if (json) {
-  process.stdout.write(`${JSON.stringify({ range: span, files: changedFiles.length, newFiles: newFiles.length, hits, blocking }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ range: span, files: changedFiles.length, newFiles: newFiles.length, addedLines, removedLines, netLines, hits, blocking }, null, 2)}\n`);
 } else {
-  const addedTotal = [...numstat.values()].reduce((n, s) => n + s.added, 0);
-  console.log(`# ${span} (${addedTotal} added lines in ${changedFiles.length} files, ${newFiles.length} new)`);
+  console.log(`# ${span} (+${addedLines} -${removedLines} lines, net ${netLines}, in ${changedFiles.length} files, ${newFiles.length} new)`);
   for (const h of hits) console.log(`  !! ${h.tell.padEnd(18)} ${posix.normalize(h.file)}:${h.line}  ${h.message}${h.blocking ? ' (blocking)' : ''}`);
   console.log(hits.length ? `\n${hits.length} over-build tell(s), ${blocking} blocking.` : '\nclean: no over-build tells.');
 }

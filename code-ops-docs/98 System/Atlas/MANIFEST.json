@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "3bdd2037c78d74db861ad89d2e1a2d9dc1a935a7",
-      "verifiedDigest": "bbdcc37b35c2ccb1e4dbb129276cd54d1e4f8a4d0235c604cf100057ba47d33d",
+      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
+      "verifiedDigest": "ad40c177a09ce98397115a386566191fad59eb397a04bd3128c4162953c2143c",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -28,7 +28,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 438,
+          "line": 442,
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
         },
         {
@@ -38,12 +38,12 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 42,
-          "anchor": "For runtime contracts version 3 or newer, including version 4, checkpoint before"
+          "line": 45,
+          "anchor": "For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF."
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 158,
+          "line": 118,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "3bdd2037c78d74db861ad89d2e1a2d9dc1a935a7",
-      "verifiedDigest": "4dea568b0a1ac027c5fdb330886341cee13eba8c3bf6deb507a2b77cef6528f4",
+      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
+      "verifiedDigest": "c139f09db5df6b42abd2503f9943ce8e21afef747c10e2fdf35fe0be2a33a662",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -65,7 +65,7 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 66,
+          "line": 67,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
@@ -121,8 +121,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "3bdd2037c78d74db861ad89d2e1a2d9dc1a935a7",
-      "verifiedDigest": "f12aec2ec30e6e66d922b33dbc892d632b9e6bd6dd4006184c9b38cc77d66fc2",
+      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
+      "verifiedDigest": "6668925d6af6713201ec3ab6a0b086033e2d8da959bfe48349d669b953301331",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -179,8 +179,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "3bdd2037c78d74db861ad89d2e1a2d9dc1a935a7",
-      "verifiedDigest": "4af66c48d9512c01f4d1d291a8229c2ae022ff9a93ed40cf2256f72bcf0eedff",
+      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
+      "verifiedDigest": "775545f866d02622cf659170bef2f4035510b04bfa1d2fe43d810b761d2b1d4d",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -214,7 +214,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 163,
+          "line": 123,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -225,8 +225,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "f8a82e4e714085aa3dcaac00c539a9e7d3a8ca18",
-      "verifiedDigest": "5f0c2027f5606801eb9c9faeb8bba31082b6843e336ac182dfb4969256bd0e56"
+      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
+      "verifiedDigest": "61236ee829978b7707b75c9f8f811429521f8d6dd708e59740c6ef6ed8510c11"
     },
     {
       "slug": "docs-doctrine",
@@ -249,12 +249,12 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "3bdd2037c78d74db861ad89d2e1a2d9dc1a935a7",
-      "verifiedDigest": "e49687f2a9e675077717abdf8928d308a135906201cd1df81dce7283061d9f3f",
+      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
+      "verifiedDigest": "6cb077ffdc536836c979e09e2672f6bf4247db04e378af52006c6e7aabc20da8",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 30,
+          "line": 34,
           "anchor": "- **COMPACT** when the same task needs context relief. First persist decisions,"
         },
         {
@@ -269,8 +269,8 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 22,
-          "anchor": "take precedence over assessment. Urgent observed context pressure"
+          "line": 37,
+          "anchor": "a callable host capability; otherwise report the documented"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -296,8 +296,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "3bdd2037c78d74db861ad89d2e1a2d9dc1a935a7",
-      "verifiedDigest": "69093103693c64e4ec8538cbc76723cad61b316fd05ae047026c9b957f5b10f0"
+      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
+      "verifiedDigest": "3956448726cdea84b672c8494b5e77df5569ad43dd2c9f43ca334ff0eb32729a"
     },
     {
       "slug": "runtime-toolchain",

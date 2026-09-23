@@ -41,8 +41,10 @@ Dispatch an ephemeral implementation operative per hot path, with conflict-aware
 - **Build and CI time.**
 
 The method per optimization: confirm the path is hot, make the smallest change, benchmark before
-and after, get the tests green, then commit with the delta. When a change does not move the
-number, revert it.
+and after, get the tests green, then commit with the delta. Record min, max, median, and median
+absolute deviation (MAD) for each side. Keep a change only when the before and after ranges sit
+more than one MAD apart or the delta clears the stated threshold (default 5%). Otherwise revert
+it.
 
 ## The guardrails
 

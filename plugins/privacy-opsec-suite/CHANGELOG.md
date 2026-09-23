@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.26
+- Vendored scripts match the canonical copies.
+
 ## 1.20.25
 - `explorer` carries a 400-word report cap and `privacy-reviewer` a 600-word cap. Lint check 25 now requires a `Report cap:` line on every agent, between 100 and 800 words.
 - The artifact-grammars reference documents the optional Run Contract `orchestration.singleUnitReason`, which lowers the two-operative floor to one.

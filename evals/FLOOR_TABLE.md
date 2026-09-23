@@ -169,7 +169,8 @@ diffuse-emission skills.**
 **Why this is acceptable, by design:** the residue is exactly what the mechanical layer
 catches. A weak-model CONFIRMED with no resolvable proof does not survive consumption —
 `revalidate-register.mjs --strict --profile <type>` rejects it ("attach a resolvable proof
-or downgrade to PROBABLE") before `fix-verified`/`remediation`/`opsec-hardening` act on it,
+or downgrade to PROBABLE"; only a matching `RCPT-NNN` run receipt, an in-tree file, or a
+test name in a test file resolves, never an unexecuted command) before `fix-verified`/`remediation`/`opsec-hardening` act on it,
 and the read-only judgment evals flag it as inflation-by-construction. Prose reduces the
 rate; the gate makes the survivors harmless. Further prose iterations against these three
 fixtures are not planned — the layered defense is the design, not a workaround.

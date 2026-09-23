@@ -52,8 +52,10 @@ ID (RSCH-NNN | IDEA-NNN) · Title · Lens · Tier (CONFIRMED|PROBABLE|SPECULATIV
 Claim · Sources (code file:line | installed-doc | external+manifest entry) ·
 Anchor (for code sources: a verbatim ≤~40-char substring copied from the cited line, backtick- or quote-delimited) · Verified-at (sha) ·
 Grounding (how it applies to our code) · Disconfirmation (what you ruled out) ·
+Searched (required on an UNVERIFIED or UNSUPPORTED item: the paths, installed docs, and URLs checked) ·
 Value/Impact · Smallest slice · Recommendation · Hands-off-to (skill) · Effort · Risks
 ```
+An `UNVERIFIED` or `UNSUPPORTED` item without a `Searched:` line is incomplete: a reader cannot tell a real gap from a search that never ran.
 
 ## 7 · Evidence and citation discipline
 The tiers, grounding, and disconfirmation of `§A` apply to every register entry and every brief sentence. A claim with no source is not reported. An external claim with no manifest entry is not published (`§A`). Triangulate: prefer a primary source (the library's own installed docs and types, the spec, the code) over a secondary one, and two independent secondaries beat one. Convey a source in your own indirect speech. Quote at most one short marked phrase per source, never an unmarked passage. Recognizing a name is not knowing its current state. Verify a library, tool, or model name against the installed version or a primary source before reporting on it, and keep the name as the brief wrote it. A code citation also carries an **Anchor**, a verbatim substring of about 40 characters at most, *copied* from the cited line and backtick- or quote-delimited so the checker can parse it, for example Anchor: `parseManifest(text)`. An undelimited value is invisible to `revalidate-register.mjs` and forfeits the DRIFTED check. A cited line that no longer contains its anchor is flagged **`DRIFTED`**, so re-locate the claim on the current tree or drop it. For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value). If no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.

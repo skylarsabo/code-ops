@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 1.90.0
+- The OpenCode distribution ships a model ladder for a metered GitHub provider, with a starter profile and per-model prices. The lifecycle chooser ranks candidates by measured cost first, then by priced workload cost, then by name pattern. The cost report prices cache writes.
+- `co handoff draft` writes a handoff note with the mechanical facts filled and `[FILL: ...]` placeholders for judgment. `co handoff resume` runs the redaction scan, register revalidation, runtime status, and handoff check in order. The handoff skill is smaller, opens with the assess step, and adopts a `TASKS.md` convention. The handoff check rejects a note that still carries an unfilled placeholder.
+- The dispatch guard reads Grok hook payloads, including camelCase fields and the `spawn_subagent` tool.
+- `lib-docs` resolves installed versions for npm, pnpm, yarn, Python, Rust, Go, and .NET from the lockfile first. A miss exits 3 and lists the searched paths.
+- The code standard adds a strictness floor that a repository adopts and never lowers, per language. The overbuild scan adds advisory tells for new suppressions, placeholder comments, and emoji in code, and reports net lines. Benchmarks report the median absolute deviation. Convention §11 requires a current-docs lookup before code that depends on a library.
+
 ## 1.89.0
 - The dispatch guard gates the lead's own dispatch past a context ceiling. At 300,000 tokens of resident context, a new `Agent`, `Task`, or `Workflow` dispatch is denied until `code-ops-suite:handoff assess` runs. The assessment unlocks dispatch until the next 150,000-token band. `CODE_OPS_CONTEXT_CEILING` takes `off` to disable the gate or an integer of at least 150,000 to move it. A host without a skill tool records the assessment with `dispatch-guard.mjs assessed --session <id> --band <n>`. OpenCode records it from the `skill` tool or the typed handoff command. A 10-day audit found lead turns above 300,000 tokens spending 2.68 billion of 3.69 billion lead input tokens.
 - The dispatch guard denies a `general-purpose`, `claude`, `fork`, or unnamed agent type unless the brief carries a `Wide-surface reason:` line. A `Workflow` script whose `agent(` call names no `agentType` is denied the same way. General-purpose operatives carried 29% of the audit's input tokens.

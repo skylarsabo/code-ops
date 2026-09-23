@@ -121,6 +121,9 @@ jobs:
       - name: Handoff structural-checker eval
         run: node evals/handoff-check/run.mjs
 
+      - name: Handoff draft and resume eval
+        run: node evals/handoff-state/run.mjs
+
       - name: Fixture-drift guard (answer keys still match their fixtures)
         run: |
           for k in evals/*/ANSWER_KEY.json; do

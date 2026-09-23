@@ -80,9 +80,10 @@ try {
   expect(blocking.length === 1 && blocking[0].tell === 'NEW-DEPENDENCY', `exactly one blocking tell, the unrecorded dependency, got ${JSON.stringify(blocking)}`);
   const plain = run([scanner, '--git', 'HEAD~1..HEAD', '--root', work]);
   expect(plain.status === 1, `a blocking tell must exit 1 without --report-only, got ${plain.status}`);
-  expect(/\(blocking\)/.test(plain.stdout) && /11 over-build tell\(s\), 1 blocking/.test(plain.stdout), `the text report names the tally, got:\n${plain.stdout}`);
+  expect(/\(blocking\)/.test(plain.stdout) && /15 over-build tell\(s\), 1 blocking/.test(plain.stdout), `the text report names the tally, got:\n${plain.stdout}`);
+  expect(parsed?.addedLines > 0 && parsed.netLines === parsed.addedLines - parsed.removedLines, `--json must report added, removed, and net lines, got ${JSON.stringify(parsed && [parsed.addedLines, parsed.removedLines, parsed.netLines])}`);
   const tells = new Set(hits.map((h) => h.tell));
-  for (const t of ['NEW-FILE-RATIO', 'SINGLE-IMPLEMENTOR', 'PASS-THROUGH', 'NEW-DEPENDENCY', 'TEST-BLOAT', 'UNREAD-CONFIG', 'DUPLICATE-HELPER', 'COMMENTED-CODE']) {
+  for (const t of ['NEW-FILE-RATIO', 'SINGLE-IMPLEMENTOR', 'PASS-THROUGH', 'NEW-DEPENDENCY', 'TEST-BLOAT', 'UNREAD-CONFIG', 'DUPLICATE-HELPER', 'COMMENTED-CODE', 'NEW-SUPPRESSION', 'PLACEHOLDER-COMMENT', 'EMOJI-IN-CODE']) {
     expect(tells.has(t), `${t} must fire at least once on the garden`);
   }
   const recallLine = (score.stdout.match(/Recall:.*$/m) ?? [''])[0].trim();

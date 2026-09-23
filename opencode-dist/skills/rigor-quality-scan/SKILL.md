@@ -56,6 +56,8 @@ is fixed.
 Real, defect-causing quality issues are surfaced with evidence, a tier, and an impact.
 Cosmetic noise is excluded, disconfirmation is done, and nothing is inflated. The finished
 `FINDINGS_REGISTER.md` passes
-`node <plugin-root>/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root .`
-with exit 0. Before the run is done, re-locate any non-FRESH citation against the real tree
-or drop it (`§E`).
+`node <plugin-root>/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root . --strict --profile finding-rigor`
+with exit 0. A CONFIRMED item's Proof cites its `RCPT-NNN` receipt from
+`node <plugin-root>/scripts/run-proof.mjs record -- <repro>` or a kept repro file,
+or the item is re-tiered PROBABLE. Before the run is done, re-locate any non-FRESH citation
+against the real tree or drop it (`§E`).

@@ -27,19 +27,32 @@
 // unrecognized --flag (rejected before it could be misread as a filename).
 //
 // STRICT MODE (opt-in; default behavior above is unchanged without these flags):
-//   --strict --profile <finding|finding-rigor|leak|research|idea>
+//   --strict --profile <finding|finding-rigor|leak|research|idea|consistency>
 //     A fail-closed SCHEMA gate for the register's labeled per-item fields (weak-model floor:
 //     an executing model that omits Tier/Disconfirmation/Proof no longer passes silently).
 //     Per profile, each item block must carry the mandatory `Field:` labels with non-empty
 //     values; under `finding-rigor`, a Tier CONFIRMED item must also carry a Proof: that
-//     RESOLVES — a cited file that exists in the tree, a backticked runnable command, or a
-//     backtick/quoted test name found by grep — else the report says "attach a resolvable
-//     proof or downgrade to PROBABLE" and the run fails. A register file that carries schema
-//     labels but zero parseable item IDs fails under strict (a mangled register otherwise
+//     RESOLVES to evidence of an executed run or a kept artifact — an `RCPT-NNN` receipt id
+//     present in the run's RUN_RECEIPTS.md (an `exit N` right after it must match the recorded
+//     exit code), a cited file that exists in the tree (never the register itself), or a
+//     backtick/quoted test name found in a test/spec file. An unexecuted backticked command is
+//     NOT a proof. Otherwise the report says "attach a resolvable proof or downgrade to
+//     PROBABLE" and the run fails. Under `consistency` (CONSISTENCY_REGISTER.md, artifact
+//     grammar §(j)), the Enforcement: value must also cite an existing file in the tree.
+//     A register file that carries schema labels but zero parseable item IDs fails under
+//     strict (a mangled register otherwise
 //     vacates every per-item gate); a file with no labels at all passes with an explicit
 //     "(empty register)" notice. Severity floor: an item citing a sensitive path (auth/
 //     session/token/secret/crypto/migration/deletion/payment) or a security/privacy Lens
 //     whose Severity sits below high must carry a `Panel-exempt: <reason>` line.
+//   --receipts <RUN_RECEIPTS.md>   (strict, finding-rigor)
+//     The receipt ledger (scripts/run-proof.mjs row grammar) that an RCPT-NNN proof is looked up
+//     in. Default: RUN_RECEIPTS.md beside the register, then at --root. A cited receipt with no
+//     ledger, or absent from it, does not resolve.
+//   --min-items <n>
+//     Fails a register that carries fewer than n ANCHORED items (an item with a file:line
+//     citation and a parsed Anchor:), so a citation-less or empty register cannot pass a
+//     producer's Done-when. Opt-in; default behavior is unchanged without it.
 //   --refutation-log <REFUTATION_LOG.md>   (strict, finding/finding-rigor profiles)
 //     Validates panel receipts: a critical/high item not proven by an executed repro needs
 //     >=1 log line for its ID; a critical item needs an odd panel of >=3; a REFUTED line must
@@ -62,7 +75,7 @@
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { resolve, isAbsolute, sep } from 'node:path';
+import { resolve, isAbsolute, sep, dirname } from 'node:path';
 // The citation grammar and its resolver live in one place, shared with check-handoff.mjs, so the
 // register gate and the handoff gate read a `file:line · Anchor:` pointer identically. Imported by
 // relative specifier because both scripts ship vendored into plugins/<name>/scripts/.
@@ -79,6 +92,8 @@ let profile = null;
 let refutationLogPath = null;
 let consumedPath = null;
 let ledgerPath = null;
+let receiptsPath = null;
+let minItems = 0;
 const files = [];
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--root') {
@@ -86,7 +101,14 @@ for (let i = 0; i < argv.length; i++) {
     if (root === undefined || root.trim() === '' || root.startsWith('--')) { console.error('x --root needs a path'); process.exit(2); }
   } else if (argv[i] === '--profile') {
     profile = argv[++i];
-    if (!['finding', 'finding-rigor', 'leak', 'research', 'idea'].includes(profile ?? '')) { console.error('x --profile needs one of: finding, finding-rigor, leak, research, idea'); process.exit(2); }
+    if (!['finding', 'finding-rigor', 'leak', 'research', 'idea', 'consistency'].includes(profile ?? '')) { console.error('x --profile needs one of: finding, finding-rigor, leak, research, idea, consistency'); process.exit(2); }
+  } else if (argv[i] === '--receipts') {
+    receiptsPath = argv[++i];
+    if (receiptsPath === undefined || receiptsPath.trim() === '' || receiptsPath.startsWith('--')) { console.error('x --receipts needs a path'); process.exit(2); }
+  } else if (argv[i] === '--min-items') {
+    const v = argv[++i];
+    if (!/^[1-9]\d*$/.test(v ?? '')) { console.error('x --min-items needs a positive integer'); process.exit(2); }
+    minItems = Number(v);
   } else if (argv[i] === '--refutation-log') {
     refutationLogPath = argv[++i];
     if (refutationLogPath === undefined || refutationLogPath.trim() === '' || refutationLogPath.startsWith('--')) { console.error('x --refutation-log needs a path'); process.exit(2); }
@@ -103,10 +125,10 @@ for (let i = 0; i < argv.length; i++) {
   else files.push(argv[i]);
 }
 if (files.length === 0 && !ledgerPath) {
-  console.error('usage: revalidate-register.mjs <register.md> [...] [--root <repo>] [--report-only] [--strict --profile <type>] [--refutation-log <log>] [--consumed <pre-run register>] [--dispatch-ledger <DISPATCH_LEDGER.md>]');
+  console.error('usage: revalidate-register.mjs <register.md> [...] [--root <repo>] [--report-only] [--strict --profile <type>] [--receipts <RUN_RECEIPTS.md>] [--min-items <n>] [--refutation-log <log>] [--consumed <pre-run register>] [--dispatch-ledger <DISPATCH_LEDGER.md>]');
   process.exit(2);
 }
-if (strict && !profile) { console.error('x --strict needs --profile <finding|finding-rigor|leak|research|idea>'); process.exit(2); }
+if (strict && !profile) { console.error('x --strict needs --profile <finding|finding-rigor|leak|research|idea|consistency>'); process.exit(2); }
 root = resolve(root);
 // PAR-003: root itself may be reached through a symlink (a tmp mount, e.g.), so the resolver
 // realpaths it once up front — a citation's real target is compared against that, not the literal
@@ -121,9 +143,10 @@ const PROFILES = {
   leak: ['Tier', 'Location', 'Anchor', 'Verified-at', 'Disconfirmation', 'Adversary', 'Leak-class', 'Track'],
   research: ['Tier', 'Verified-at'],
   idea: ['Evidence', 'Verified-at'],
+  consistency: ['Concept', 'Canonical', 'Sites', 'Anchor', 'Enforcement', 'Verified-at'],
 };
 const SENSITIVE_PATH_RE = /auth|authz|session|token|secret|credential|crypt|migrat|delet|payment/i;
-const SCHEMA_LABEL_RE = /^\s*[-|*·]*\s*\**(Tier|Location|Leak-class|Anchor|Track|Adversary|Proof)\**\s*:/im;
+const SCHEMA_LABEL_RE = /^\s*[-|*·]*\s*\**(Tier|Location|Leak-class|Anchor|Track|Adversary|Proof|Canonical|Enforcement)\**\s*:/im;
 const hasField = (block, field) => new RegExp(`\\b${field}\\s*:\\s*\\S`, 'i').test(block);
 // L-062: the Severity FIELD VALUE, lowercased, or '' when the block carries no Severity label.
 // The value is the first word after the label, so a composite line such as
@@ -176,30 +199,76 @@ function findEntryIds(text) {
   return out;
 }
 
-// A Proof: value RESOLVES if it names something checkable on the current tree: a cited
-// file that exists under root, a backticked runnable command (contains a space), or a
-// backtick/quoted test name that greps in the tree (test-ish files first, then the rest).
-function proofResolves(value) {
-  for (const m of value.matchAll(REF_RE)) {
-    const abs = resolve(root, m[1]);
-    if ((abs === root || abs.startsWith(root + sep)) && existsSync(abs)) return true;
-  }
-  for (const m of value.matchAll(/`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)'/g)) {
-    const tok = m[1] ?? m[2] ?? m[3];
-    if (!tok) continue;
-    if (/\s/.test(tok.trim()) && m[1]) return true; // backticked multi-word = runnable command
-    const abs = resolve(root, tok);
-    if ((abs === root || abs.startsWith(root + sep)) && existsSync(abs)) return true;
-    const all = indexFiles();
-    const testish = all.filter((f) => /test|spec/i.test(f));
-    for (const set of [testish, all]) {
-      for (const f of set) {
-        try { if (statSync(f).size < 524288 && readFileSync(f, 'utf8').includes(tok)) return true; } catch { /* unreadable */ }
-      }
-      // fall through: token not found in test-ish files — the full tree is a genuine fallback
-    }
+// A path names an in-tree FILE: not a directory such as `.`, and not a register this run checks,
+// because a register citing itself must never stand in for evidence.
+const registerPaths = new Set(files.map((f) => resolve(f)));
+function inTreeFile(p) {
+  const abs = resolve(root, p);
+  if (!(abs === root || abs.startsWith(root + sep)) || registerPaths.has(abs)) return false;
+  try { return statSync(abs).isFile() && realpathContained(abs); } catch { return false; }
+}
+// A field value cites an in-tree file through a file:line citation, a backtick or quoted span,
+// or a bare path-shaped word.
+function citesInTreeFile(value) {
+  for (const m of value.matchAll(REF_RE)) if (inTreeFile(m[1])) return true;
+  for (const m of value.matchAll(/`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)'|(?<![\w./-])([\w./-]+\.\w+)(?![\w/-])/g)) {
+    const tok = (m[1] ?? m[2] ?? m[3] ?? m[4] ?? '').trim();
+    if (tok && inTreeFile(tok)) return true;
   }
   return false;
+}
+
+// RUN_RECEIPTS.md rows, in the scripts/run-proof.mjs grammar:
+//   | RCPT-NNN | <ISO timestamp> | <git HEAD sha> | <exit code> | <sha256 of output> | <command> |
+// Loaded once per ledger path. A row that does not parse is not a receipt.
+const receiptCache = new Map();
+function loadReceipts(regPath) {
+  const candidates = receiptsPath ? [resolve(receiptsPath)]
+    : [resolve(dirname(regPath), 'RUN_RECEIPTS.md'), resolve(root, 'RUN_RECEIPTS.md')];
+  const found = candidates.find((c) => existsSync(c));
+  if (!found) return null;
+  if (!receiptCache.has(found)) {
+    const rows = new Map();
+    for (const raw of readFileSync(found, 'utf8').split('\n')) {
+      const cells = raw.replace(/\r$/, '').trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+      if (cells.length !== 6 || !/^RCPT-\d+$/.test(cells[0]) || !/^-?\d+$/.test(cells[3])
+        || !/^[0-9a-f]{64}$/i.test(cells[4]) || !cells[5]) continue;
+      rows.set(cells[0], { exit: Number(cells[3]) });
+    }
+    receiptCache.set(found, rows);
+  }
+  return receiptCache.get(found);
+}
+
+// A Proof: value RESOLVES only to evidence that a run happened or an artifact was kept:
+//   - an RCPT-NNN receipt present in the run's RUN_RECEIPTS.md. An `exit N` written right after
+//     the id must equal the recorded exit code, because the exit code is run-proof's contract.
+//   - a cited file that exists in the tree (a kept repro or test), never the register itself.
+//   - a backtick or quoted test name found in a test/spec file.
+// A backticked multi-word command no longer resolves by its shape alone, because nothing proves
+// it ran. Returns null when the proof resolves, else the reason it does not.
+function proofProblem(value, regPath) {
+  const cited = [...value.matchAll(/\b(RCPT-\d+)\b(?:[^\n\w]{0,4}exit(?:\s*code)?\s*[:=]?\s*(-?\d+))?/gi)];
+  if (cited.length) {
+    const rows = loadReceipts(regPath);
+    if (!rows) return 'cites a receipt but no RUN_RECEIPTS.md was found';
+    for (const m of cited) {
+      const row = rows.get(m[1].toUpperCase());
+      if (!row) return `receipt ${m[1]} is not in RUN_RECEIPTS.md`;
+      if (m[2] !== undefined && Number(m[2]) !== row.exit) return `receipt ${m[1]} recorded exit ${row.exit}, proof claims exit ${m[2]}`;
+    }
+    return null;
+  }
+  if (citesInTreeFile(value)) return null;
+  const testish = indexFiles().filter((f) => /test|spec/i.test(f) && !registerPaths.has(resolve(f)));
+  for (const m of value.matchAll(/`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)'/g)) {
+    const tok = (m[1] ?? m[2] ?? m[3] ?? '').trim();
+    if (!tok) continue;
+    for (const f of testish) {
+      try { if (statSync(f).size < 524288 && readFileSync(f, 'utf8').includes(tok)) return null; } catch { /* unreadable */ }
+    }
+  }
+  return 'no receipt, in-tree file, or test name';
 }
 
 // Refutation log: one verdict per line, keyed by the finding's own ID at the START of the line
@@ -242,8 +311,8 @@ for (const file of files) {
       console.log(strict ? '  (empty register — no items, no schema labels)' : '  (no item IDs found — not a register, or a free-form doc)');
     }
     // Do NOT skip the --consumed gate: an updated register with every item vanished is the
-    // worst case the gate exists for, not an exemption from it.
-    if (!consumedPath) continue;
+    // worst case the gate exists for, not an exemption from it. The same holds for --min-items.
+    if (!consumedPath && !minItems) continue;
   }
 
   // Merge blocks by ID (an ID may recur; take the union of refs across its occurrences).
@@ -309,16 +378,24 @@ for (const file of files) {
       const missing = required.filter((f) => !hasField(item.block, f));
       if (missing.length) { schemaFail = true; notes.push(`missing field(s): ${missing.join(', ')} (strict/${profile})`); }
       const confirmed = /\bTier\b[^\n]*\bCONFIRMED\b/i.test(item.block);
-      if (confirmed && profile === 'finding-rigor') {
-        const proofLine = item.block.match(/\bProof\s*:\s*([^\n]+)/i);
-        if (!proofLine || !proofResolves(proofLine[1])) {
+      const proofLine = item.block.match(/\bProof\s*:\s*([^\n]+)/i);
+      // Resolved only for a CONFIRMED item: the proof walk may grep the tree's test files.
+      const proofWhy = !confirmed ? 'not CONFIRMED' : proofLine ? proofProblem(proofLine[1], regPath) : 'no Proof line';
+      if (confirmed && profile === 'finding-rigor' && proofWhy) {
+        schemaFail = true;
+        notes.push(`CONFIRMED without a resolvable Proof (${proofWhy}) — attach a resolvable proof or downgrade to PROBABLE`);
+      }
+      // The enforcement that keeps a closed divergence closed must exist in the tree.
+      if (profile === 'consistency') {
+        const enf = item.block.match(/\bEnforcement\s*:\s*([^\n]+)/i);
+        if (enf && !citesInTreeFile(enf[1])) {
           schemaFail = true;
-          notes.push('CONFIRMED without a resolvable Proof — attach a resolvable proof or downgrade to PROBABLE');
+          notes.push('Enforcement cites no existing file in the tree; name the lint rule, check, type, or test that prevents recurrence');
         }
       }
       // Severity floor: sensitive path or security/privacy lens at sub-high severity needs an
       // explicit Panel-exempt justification — deflation may not silently dodge the panel.
-      if (profile !== 'research' && profile !== 'idea') {
+      if (profile !== 'research' && profile !== 'idea' && profile !== 'consistency') {
         const sensitive = item.refs.some((r) => SENSITIVE_PATH_RE.test(r.path)) || /\bLens\b[^\n]*(security|privacy)/i.test(item.block);
         const subHigh = ['low', 'medium', 'nit'].includes(severityOf(item.block));
         if (sensitive && subHigh && !hasField(item.block, 'Panel-exempt')) {
@@ -330,7 +407,9 @@ for (const file of files) {
       if (refutationLog && (profile === 'finding' || profile === 'finding-rigor')) {
         const severity = severityOf(item.block);
         const loadBearing = severity === 'critical' || severity === 'high';
-        const repro = /\bTier\b[^\n]*\bCONFIRMED\b/i.test(item.block) && hasField(item.block, 'Proof');
+        // The executed-repro exemption holds only for a proof that resolves, so an unresolvable
+        // Proof line cannot also buy a load-bearing item out of its panel.
+        const repro = confirmed && !proofWhy;
         if (loadBearing && !repro) {
           const lines = refutationLog.get(id) ?? [];
           const critical = severity === 'critical';
@@ -362,6 +441,15 @@ for (const file of files) {
     if (status !== 'FRESH' || schemaFail) totalStale++;
     const flag = status === 'FRESH' && !schemaFail ? 'ok ' : '!! ';
     console.log(`  ${flag}${(schemaFail && status === 'FRESH' ? 'SCHEMA' : status).padEnd(9)} ${id}${notes.length ? '  — ' + notes.join('; ') : ''}`);
+  }
+
+  // ---- --min-items: a producer's register must carry anchored evidence -----------
+  if (minItems) {
+    const anchored = [...items.values()].filter((it) => it.refs.length > 0 && it.anchor).length;
+    if (anchored < minItems) {
+      totalStale++;
+      console.log(`  !! TOO-FEW   ${anchored} anchored item(s), --min-items ${minItems}; each item needs a file:line citation and a delimited Anchor:`);
+    }
   }
 
   // ---- --consumed: terminal-state gate for register-consuming skills -------------

@@ -22,6 +22,6 @@ Operating rules:
 
 Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
-Return a verdict of SUPPORTED, PARTIAL, or UNSUPPORTED, with an evidence tier (CONFIRMED, PROBABLE, or SPECULATIVE, per `CONVENTIONS.md §A`), the specific evidence for and against (`file:line` or a named source), what you ruled out, and, for PARTIAL or UNSUPPORTED, the narrowest corrected claim the evidence does support. Keep the report dense and evidence-cited, with no raw dumps.
+Return a verdict of SUPPORTED, PARTIAL, or UNSUPPORTED, with an evidence tier (CONFIRMED, PROBABLE, or SPECULATIVE, per `CONVENTIONS.md §A`), the specific evidence for and against (`file:line` or a named source), what you ruled out, and, for PARTIAL or UNSUPPORTED, the narrowest corrected claim the evidence does support. An UNSUPPORTED or UNVERIFIED verdict carries `Searched: <paths, installed docs, URLs>`, naming what you checked and did not find. Keep the report dense and evidence-cited, with no raw dumps.
 
 Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.

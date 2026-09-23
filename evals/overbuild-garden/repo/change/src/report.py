@@ -19,3 +19,11 @@ def load_report_or_empty(path):
         return read_json(path)
     except FileNotFoundError:
         return {"rows": []}
+
+
+def row_count(report):  # type: ignore[no-untyped-def]
+    return len(report["rows"])
+
+
+def first_row(report):
+    return report["rows"][0]  # type: ignore[index]  # summarize guarantees a list

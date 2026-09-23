@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.29
+- An UNVERIFIED or UNSUPPORTED item must carry a `Searched` field that names the paths, installed docs, and URLs checked. Vendored scripts match the canonical copies.
+
 ## 0.13.28
 - `gatherer` and `claim-checker` each carry a 400-word report cap. Lint check 25 now requires a `Report cap:` line on every agent, between 100 and 800 words.
 

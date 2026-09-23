@@ -30,7 +30,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // The verb table. Each verb names a canonical script in scripts/. `sub` marks a
 // subcommand-driven script and gives the subcommand to insert when the caller supplied none,
 // so `co atlas check --atlas <dir>` reaches `atlas-check.mjs check --atlas <dir>` while
-// `co atlas check init --atlas <dir>` passes `init` through untouched.
+// `co atlas check init --atlas <dir>` passes `init` through untouched. `cmd` marks a verb that
+// IS a subcommand and always inserts it, so `co handoff resume <file>` reaches
+// `handoff-state.mjs resume <file>`.
 const TABLE = {
   context: {
     snapshot: 'context-snapshot.mjs',
@@ -89,6 +91,10 @@ const TABLE = {
   register: {
     revalidate: 'revalidate-register.mjs',
   },
+  handoff: {
+    draft: { script: 'handoff-state.mjs', cmd: 'draft' },
+    resume: { script: 'handoff-state.mjs', cmd: 'resume' },
+  },
   calibrate: {
     graph: 'calibration-graph.mjs',
     metrics: 'calibration-metrics.mjs',
@@ -110,7 +116,7 @@ const TABLE = {
   },
 };
 
-const entryOf = (v) => (typeof v === 'string' ? { script: v, sub: null } : v);
+const entryOf = (v) => (typeof v === 'string' ? { script: v, sub: null, cmd: null } : v);
 const domains = () => Object.keys(TABLE);
 const verbs = (domain) => Object.keys(TABLE[domain]);
 
@@ -124,9 +130,9 @@ function helpLines(only = null) {
     if (only && domain !== only) continue;
     lines.push(`  ${domain}`);
     for (const verb of verbs(domain)) {
-      const { script, sub } = entryOf(TABLE[domain][verb]);
+      const { script, sub, cmd } = entryOf(TABLE[domain][verb]);
       const bundled = existsSync(join(HERE, script)) ? '' : '   (not bundled here)';
-      lines.push(`    ${verb.padEnd(12)} ${script}${sub ? ` (${sub} is the default subcommand)` : ''}${bundled}`);
+      lines.push(`    ${verb.padEnd(12)} ${script}${sub ? ` (${sub} is the default subcommand)` : ''}${cmd ? ` ${cmd}` : ''}${bundled}`);
     }
   }
   lines.push('');
@@ -186,7 +192,7 @@ if (verb === undefined || !Object.hasOwn(TABLE[domain], verb)) {
   ]);
 }
 
-const { script, sub } = entryOf(TABLE[domain][verb]);
+const { script, sub, cmd } = entryOf(TABLE[domain][verb]);
 const target = resolve(HERE, script);
 if (!existsSync(target)) {
   fail([`co: ${domain} ${verb} is not bundled in this plugin (${script})`]);
@@ -196,6 +202,7 @@ const rest = argv.slice(2);
 // A subcommand-driven script keeps its own grammar. Insert the default subcommand only when the
 // caller opened with a flag or supplied nothing, so an explicit subcommand always wins.
 if (sub && (rest.length === 0 || rest[0].startsWith('-'))) rest.unshift(sub);
+if (cmd) rest.unshift(cmd);
 
 // What the script would have seen if the caller had run it directly. Scripts that detect being
 // the entry point compare argv[1] against their own module URL, so it must be the resolved path.

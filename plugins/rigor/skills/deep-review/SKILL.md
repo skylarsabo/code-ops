@@ -12,7 +12,8 @@ rails this skill follows.
 
 - **Mode:** REVIEW. It changes nothing unless you ask.
 - **Produces:** tiered `file:line` comments and a verdict. They go to the pull request when
-  a version-control tool is connected, and to `REVIEW.md` otherwise.
+  a version-control tool is connected, and to `REVIEW.md` otherwise. The Blocking and
+  Should-fix items are also written to `FINDINGS_REGISTER.md`, so the register gate checks them.
 
 ## Phase 0: understand the change
 
@@ -55,4 +56,9 @@ through a CONFIRMED defect.
 ## Done when
 
 The change is reviewed at the verification bar. CONFIRMED issues carry repros. Consistency,
-enforcements, and regressions are checked, and the verdict is calibrated.
+enforcements, and regressions are checked, and the verdict is calibrated. Every Blocking and
+Should-fix comment is also an entry in `FINDINGS_REGISTER.md`, and that register passes
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/revalidate-register.mjs FINDINGS_REGISTER.md --root . --strict --profile finding-rigor`
+with exit 0. A CONFIRMED item's Proof cites its `RCPT-NNN` receipt from
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/run-proof.mjs record -- <repro>` or a kept repro file,
+or the item is re-tiered PROBABLE and cannot block.

@@ -13,16 +13,17 @@
 // Malformed requests and tool errors are returned as JSON-RPC error responses over stdout,
 // never a process exit — one bad request must not kill a long-lived server.
 
-import { getDocs, resolveInstalled } from './lib-docs.mjs';
+import { getDocs, resolveLibrary, describeResolution } from './lib-docs.mjs';
 
 const SERVER = { name: 'code-ops-docs', version: '1.0.0' };
+const ECOSYSTEM_ARG = { type: 'string', description: 'npm, python, rust, go, or dotnet (language aliases such as ts, py, csharp accepted); default: detected from the manifests at root' };
 const TOOLS = [
   {
     name: 'resolve-library',
-    description: 'Resolve a library to the version INSTALLED in this project (from node_modules). Returns name@version or that it is not installed.',
+    description: 'Resolve a library to its locked and installed version in this project (npm, python, rust, go, dotnet). Returns name@version with any lockfile/installed mismatch, or the paths searched on a miss.',
     inputSchema: {
       type: 'object',
-      properties: { library: { type: 'string', description: 'package name, e.g. "zod" or "@scope/pkg"' }, root: { type: 'string', description: 'project root (default: cwd)' } },
+      properties: { library: { type: 'string', description: 'package name, e.g. "zod", "@scope/pkg", "requests", "serde", "golang.org/x/mod"' }, root: { type: 'string', description: 'project root (default: cwd)' }, ecosystem: ECOSYSTEM_ARG },
       required: ['library'],
     },
   },
@@ -35,6 +36,7 @@ const TOOLS = [
         library: { type: 'string' },
         topic: { type: 'string', description: 'optional focus, e.g. "streaming" or "auth"' },
         root: { type: 'string', description: 'project root (default: cwd)' },
+        ecosystem: ECOSYSTEM_ARG,
         noFetch: { type: 'boolean', description: 'disable the network fallback (default true — local only; pass false to opt in to the library-source fallback)' },
       },
       required: ['library'],
@@ -54,12 +56,12 @@ async function callTool(name, args = {}) {
     if (typeof args.library !== 'string' || !args.library.trim()) throw new Error('missing or invalid required argument: library (non-empty string)');
   }
   if (name === 'resolve-library') {
-    const pkg = resolveInstalled(args.library, root);
-    return pkg ? `${pkg.name}@${pkg.version}${pkg.homepage ? ` — ${pkg.homepage}` : ''}` : `${args.library}: not installed under ${root}/node_modules`;
+    const r = resolveLibrary(args.library, root, args.ecosystem || '');
+    return describeResolution(r) + (r.pkg?.homepage ? ` — ${r.pkg.homepage}` : '');
   }
   if (name === 'get-docs') {
     // PRIV-001: local-only unless the caller explicitly opts in with noFetch:false.
-    const res = await getDocs({ library: args.library, topic: args.topic || '', root, noFetch: args.noFetch !== false });
+    const res = await getDocs({ library: args.library, topic: args.topic || '', root, ecosystem: args.ecosystem || '', noFetch: args.noFetch !== false });
     return res.text;
   }
   throw new Error(`unknown tool: ${name}`);

@@ -42,7 +42,10 @@ accessibility, verified with the UI tool. Assert the spec's **acceptance criteri
 signals**. When the system handles sensitive data, re-check the **privacy and data-handling**
 posture on the *actual implementation*, keeping the defaults private. Anything that would weaken
 that posture stops for a developer decision. Integrate continuously, and re-run the suite after
-each slice.
+each slice. Run `node <plugin-root>/scripts/co.mjs scan overbuild --git <range>` over the
+change's own range. It blocks only on an unrecorded dependency, and its other tells are leads. The
+report carries its added, removed, and net line counts, with a one-line reason when net lines are
+positive.
 
 ## Deliverables
 

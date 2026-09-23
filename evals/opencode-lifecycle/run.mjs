@@ -76,6 +76,37 @@ expect(!Object.values(ladder.agents).some((id) => String(id).includes('muse-spar
 expect(ladder.agents['code-ops-suite-explorer'] === 'provider-b/gpt-6-luna', 'explorer should bind luna');
 expect(ladder.agents['code-ops-suite-implementer'] === 'provider-a/claude-opus-5-5', 'implementer should bind opus 5.5');
 
+// GitHub Copilot: the shipped floor plugin carries prices, so the chooser ranks
+// the priced catalog by workload cost and the cost report prices cache writes.
+const copilotDir = join(work, 'copilot');
+mkdirSync(copilotDir);
+for (const file of ['plugins/code-ops-model-floors.js', 'plugins/code-ops-lifecycle.js', 'code-ops/cost-report.mjs']) {
+  writeFileSync(join(copilotDir, file.split('/').pop()), readFileSync(join(root, 'opencode-dist', file)));
+}
+const copilot = (await import(pathToFileURL(join(copilotDir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle.internals;
+const starter = JSON.parse(readFileSync(join(root, 'opencode-dist', 'configs', 'model-profile.github-copilot.json'), 'utf8'));
+const copilotCatalog = starter.enabled;
+for (const profileCase of [{}, starter]) {
+  const label = profileCase === starter ? 'starter profile' : 'shipped prices';
+  const picks = Object.fromEntries(['light', 'mid', 'strong', 'frontier'].map((tier) => [tier, copilot.pickChooserModel(tier, copilotCatalog, profileCase)]));
+  const want = { light: 'github-copilot/gpt-6-luna', mid: 'github-copilot/gemini-3.8-flash', strong: 'github-copilot/gpt-6-sol', frontier: 'github-copilot/gpt-6-sol' };
+  expect(JSON.stringify(picks) === JSON.stringify(want), `Copilot ${label} picks were ${JSON.stringify(picks)}`);
+}
+expect(copilot.classifyChooserModel('github-copilot/mai-code-1.1-flash') === 'light', 'mai-code-1.1-flash should classify light');
+const withoutLuna = copilotCatalog.filter((id) => !id.endsWith('/gpt-6-luna'));
+expect(copilot.pickChooserModel('light', withoutLuna, starter) === 'github-copilot/mai-code-1.1-flash', 'mai-code should take light once luna is absent');
+expect(['mid', 'strong', 'frontier'].every((tier) => copilot.pickChooserModel(tier, ['github-copilot/mai-code-1.1-flash'], starter) === null), 'mai-code bound above light');
+const { modelSupportsTier } = await import(pathToFileURL(join(root, 'scripts', 'model-tiers.mjs')).href);
+expect(modelSupportsTier('claude-opus-5.5', 'strong'), 'the Copilot Opus 5.5 spelling should support strong');
+const copilotLedger = join(copilotDir, 'ledger.jsonl');
+writeFileSync(copilotLedger, `${JSON.stringify({
+  sessionId: 'copilot-lead', ts: new Date().toISOString(), turns: 1, costUsd: 0, models: ['github-copilot/gpt-6-sol'],
+  tokens: { input: 1_000_000, cacheCreate: 1_000_000, cacheRead: 0, output: 0, thinking: 0 },
+})}\n`);
+const copilotReport = spawnSync(process.execPath, [join(copilotDir, 'cost-report.mjs'), '--ledger', copilotLedger, '--profile', join(work, 'no-profile.json'), '--json'], { encoding: 'utf8' });
+const copilotUsd = JSON.parse(copilotReport.stdout || '{}').totals?.usd;
+expect(Math.abs(copilotUsd - 4.5) < 1e-9, `cost report should price cache writes at cacheWrite ($4.50), got ${copilotUsd}`);
+
 const hooks = await overlay.CodeOpsLifecycle({
   directory: work,
   client: { session: { get: async ({ path }) => (path.id === 'child' ? { parentID: 'lead' } : {}) } },
