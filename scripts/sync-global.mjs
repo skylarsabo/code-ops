@@ -27,7 +27,7 @@
 //   codex   plugin marketplace upgrade code-ops, then plugin add <p>@code-ops. Codex keeps a
 //           per-version copy under ~/.codex/plugins/cache/code-ops/<p>/<version>/ written at
 //           install time, so a snapshot upgrade alone does not install a bumped version.
-//   grok    plugin marketplace update <source URL of code-ops>, then plugin update <p>
+//   grok    plugin marketplace update code-ops (the name; the URL is refused), then plugin update <p>
 // A missing host CLI is a skip, not a failure. Every CLI runs with a fixed argv; a .cmd/.bat
 // shim on Windows runs through cmd.exe only after every argument passes a strict character check.
 //
@@ -270,7 +270,7 @@ const CACHE_HOSTS = {
     const list = r.status === 0 ? parseJson(r.stdout) : undefined;
     if (!Array.isArray(list)) return { error: `plugin list --json failed: ${r.error || lastLine(r.stderr)}` };
     const names = list.filter((p) => p?.marketplace === MARKETPLACE && plugins.includes(p?.name)).map((p) => p.name);
-    return { names, commands: [['plugin', 'marketplace', 'update', url], ...names.map((n) => ['plugin', 'update', n])] };
+    return { names, commands: [['plugin', 'marketplace', 'update', MARKETPLACE], ...names.map((n) => ['plugin', 'update', n])] };
   },
 };
 

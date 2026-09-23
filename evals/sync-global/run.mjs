@@ -153,7 +153,7 @@ try {
     'codex plugin list --marketplace code-ops --json', 'codex plugin marketplace upgrade code-ops',
     'codex plugin add code-ops-suite@code-ops',
     'grok plugin marketplace list', 'grok plugin list --json',
-    'grok plugin marketplace update https://github.com/skylarsabo/code-ops.git', 'grok plugin update researcher',
+    'grok plugin marketplace update code-ops', 'grok plugin update researcher',
   ];
   check('stub CLIs receive the expected argv', JSON.stringify(r.argv) === JSON.stringify(want), r.argv.join('\n'));
   check('--hosts limits the run', JSON.stringify(sync(home, ['--only', 'caches', '--hosts', 'codex']).argv) === JSON.stringify(want.slice(4, 7)));
