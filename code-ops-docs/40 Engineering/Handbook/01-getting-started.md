@@ -71,6 +71,10 @@ Install `rigor`, `privacy-opsec-suite`, and `researcher` with the same `codex pl
 
 > **A note on the cross-plugin orchestrators.** A few `code-ops-suite` skills use the others. `everything` runs the phases of every installed plugin it selects and names the phases it skips. `ship` and `debug` need `rigor`. The skill states its requirement when you invoke it. If you installed only `code-ops-suite`, the single-plugin workflows (`codebase-audit`, the doc generators, `everything plugins: suite`, and the rest) all work on their own.
 
+### Keep this machine current
+
+After each merge to main, run `node scripts/sync-global.mjs` from a checkout of the marketplace. It installs the user-wide contracts from `global-contracts/` for Claude Code, Codex, and Grok Build. It also refreshes the installed code-ops plugins on each host from GitHub. Preview with `--dry-run`. The README section "Keep this machine current" lists every flag and the safety rule.
+
 ### Partial installs
 
 The four plugins install independently, so most people run a subset. This section says which routes each subset supports. The [command router](commands/README.md#the-task--command-router) marks the same fact per row: **Requires `<plugin>`** for a route that does not run without it, and **Optional: `<plugin>`** for a route that runs and skips the cross-plugin step.

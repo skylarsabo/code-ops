@@ -48,7 +48,7 @@ and doc alignment reconciles what the first three surfaces reference.
 | 2 | Documentation hub | `<repo>-docs/` exists; vault and manifest checks exit 0; manifest-v2 collections also pass `records check` | `/code-ops-suite-vault` in the mode Phase B detects |
 | 3 | Atlas | `<repo>-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `/code-ops-suite-atlas` |
 | 4 | Doc alignment | Only when surfaces 1-3 surfaced drift signals: a contract, vault note, or repo doc referencing something the others contradict or no longer carry | `/code-ops-suite-doc-alignment` |
-| 5 | Global contract *(optional, ask first)* | The user's global contracts (`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`) match current marketplace doctrine | `/code-ops-suite-conform` in global scope |
+| 5 | Global contract *(optional, ask first)* | The user's global contracts (`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.grok/rules/code-ops-global.md`) match current marketplace doctrine, and `<marketplace>/scripts/sync-global.mjs --check` exits 0 | `/code-ops-suite-conform` in global scope |
 
 Record each surface as CONFORMANT, DRIFTED, or ABSENT, with the checker output that decided it.
 A surface whose checker could not run is UNKNOWN, never CONFORMANT, because a check that did not
@@ -199,17 +199,20 @@ Write or update `AGENTS.md` in this exact section order:
   Codex reads `~/.codex/AGENTS.md`. Model roles, truthful reporting, token economy, context
   hygiene, and other cross-repo rules stay global. Repository contracts contain only facts,
   commands, gates, and local exceptions.
-- **Keep `CLAUDE.md` and `AGENTS.md` in one of two accepted parity modes:** a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Pick one mode and keep it. A pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
+- **Keep `CLAUDE.md` and `AGENTS.md` in one of two accepted parity modes:** a byte-identical pair, or a pointer pair where one file is the substantive contract and the other is a short file naming it as required reading. Prefer the import form of the pointer pair: `AGENTS.md` holds the contract and `CLAUDE.md` is exactly the line `@AGENTS.md`, which opencode expands on load. Grok Build loads both names, so a byte-identical pair puts the contract in its context twice, and the import line does not. Pick one mode and keep it. A pair that has silently drifted into two different contracts is the failure both modes exist to prevent, because each host reads only one of the two names.
 - **Make relative dates absolute.** Write "verify by 2026-08-01", never "next month".
 - **Keep the prose terse and imperative, the commands copy-paste-ready, and the facts project-specific.** No filler, and no generic engineering advice a competent agent already knows.
 
 ## Global scope: the user-wide contracts
 
 **Produces:** the host-specific global contracts at
-`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`, written or updated
-in place, plus a drift report at the pre-write checkpoint. The Claude pair is byte-identical.
-The Codex contract may differ by explicit host behavior. Phases A to C above do not run in
-this scope.
+`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`, plus the Grok rule
+`~/.grok/rules/code-ops-global.md`, and a drift report at the pre-write checkpoint. Their
+sources live in the marketplace checkout's `global-contracts/`, and
+`<marketplace>/scripts/sync-global.mjs` installs them. `global-contracts/AGENTS.md` feeds the
+Claude pair and the Grok rule. `global-contracts/AGENTS.codex.md` feeds Codex. The Claude pair
+is byte-identical. The Codex contract may differ by explicit host behavior. Phases A to C above
+do not run in this scope.
 
 The repo contract procedure keeps one repo's `AGENTS.md` truthful.
 **This scope keeps the other half of the split honest.** The global file carries cross-repo
@@ -219,7 +222,7 @@ mis-routes every session in every repo.
 
 ### Global Phase 0: the mode and the marketplace HEAD  *(checkpoint)*
 
-Resolve all three global paths and the marketplace checkout they cache. The marketplace is
+Resolve every global target path and the marketplace checkout they cache. The marketplace is
 the code-ops repo. Take its path from an existing contract's SSOT pointer, or ask, and call that
 checkout root `<marketplace>`. Pick
 **BOOTSTRAP** when no host contract exists or none carries suite doctrine. Pick **MAINTAIN**
@@ -255,10 +258,17 @@ The global files govern every repo and every session, so never edit them without
 Present the classified drift and the exact proposed edit, then wait. Name every removal
 explicitly with the bucket that justifies it. A section the developer never sees named is a
 section they never agreed to lose. When the edit removes nothing, say that too. Per §4, take no
-action outside the three named global contract paths. Settings, hooks, permissions, and
+action outside the two `global-contracts/` sources and the targets `sync-global.mjs` installs. Settings, hooks, permissions, and
 keybindings stay out of scope even when the drift seems to call for them. Say so and stop.
 
 ### Global Phase 4: write stable shared doctrine and small host deltas
+
+Write through the marketplace, never in place. Edit `<marketplace>/global-contracts/`, then
+run `node <marketplace>/scripts/sync-global.mjs --only contracts` to install the result. When a
+home file holds approved edits the sources lack, run the script with `--capture` first, so the
+sources start from what the machine runs. The script refuses a target it did not write. Pass
+`--force` only when the checkpoint approved discarding that file's edits. It keeps a dated
+backup either way.
 
 Preserve every surviving rule's meaning, not its old prose. Consolidate repeated rules and
 replace detail with an SSOT pointer when the session can resolve it. Do not copy a routing

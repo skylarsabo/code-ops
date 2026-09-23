@@ -112,6 +112,9 @@ runs this section's mechanical steps — the version bump, the two regenerations
 documentation-manifest sync, and the applicable CI gates — in one pass, so a helper only has
 to supply the judgment call (which bump, whether a stale atlas section still holds).
 
+After a merge to main, run `node scripts/sync-global.mjs` to refresh this machine's global
+contracts and plugin caches.
+
 Adding or removing a skill also requires updating the plugin README's skill list and
 `(N skills)` count, the matching count in root `README.md`, and handbook entries in both
 `code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md` and the router table in
