@@ -237,6 +237,32 @@ function agentFloor(contents, path) {
   return { name, sourceModel, minimumTier };
 }
 
+const EDIT_TOOLS = ['Edit', 'MultiEdit', 'Write', 'NotebookEdit'];
+const CONTRACT_FIELDS = ['Brief requires', 'Edits', 'Verdicts'];
+
+// Codex drops the tools line, so the rendered body opens with the edit class and the
+// `## Contract` fields as a checklist. The edit class comes first and is read-only unless
+// the source grants an edit tool. Report cap is the first sentence of the body's cap line.
+function agentChecklist(tools, body, path) {
+  const granted = tools.split(',').map((tool) => tool.trim()).filter((tool) => EDIT_TOOLS.includes(tool));
+  const editClass = granted.length === 0
+    ? 'read-only; this role has no Edit, Write, or NotebookEdit tool and changes no file'
+    : `edits allowed with ${granted.join(', ')} only`;
+  const contract = body.match(/^## Contract\n([\s\S]*?)(?=^## |^```|(?![\s\S]))/m)?.[1];
+  if (contract === undefined) throw new Error(`${path}: agent needs a ## Contract section`);
+  const field = (name, text) => text.match(new RegExp(`^${name}:[ \\t]*(.+)$`, 'm'))?.[1].trim();
+  const lines = [`- [ ] Edit class: ${editClass}.`];
+  for (const name of CONTRACT_FIELDS) {
+    const value = field(name, contract);
+    if (!value) throw new Error(`${path}: ## Contract needs a ${name} line`);
+    lines.push(`- [ ] ${name}: ${value}`);
+  }
+  const cap = field('Report cap', body)?.match(/^.*?\.(?=\s|$)/)?.[0];
+  if (!cap) throw new Error(`${path}: agent needs a Report cap line`);
+  lines.push(`- [ ] Report cap: ${cap}`);
+  return ['Codex role checklist:', '', ...lines];
+}
+
 function transformAgent(contents, path) {
   const match = contents.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (!match) throw new Error(`${path}: expected YAML frontmatter bounded by ---`);
@@ -256,6 +282,8 @@ function transformAgent(contents, path) {
     '---',
     ...header,
     '---',
+    '',
+    ...agentChecklist(tools, body, path),
     '',
     `> Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads \`agents/model-floors.json\` and routes \`${floor.name}\` at or above its \`${floor.minimumTier}\` floor. ${writeCapability}`,
     '',

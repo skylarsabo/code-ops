@@ -61,6 +61,19 @@ for (const plugin of pluginNames) {
       expect(!/^model:/m.test(rendered) && !/^tools:/m.test(rendered), `${plugin}/${agent.name}: Claude-only agent controls leaked`);
       expect(rendered.includes('agents/model-floors.json') && rendered.includes(`\`${agent.minimumTier}\``), `${plugin}/${agent.name}: role brief does not direct the lead to its floor contract`);
       expect(!/\b(?:Bash|Write) (?:is|and|are)\b|\buse (?:Grep|Read)\b/.test(rendered), `${plugin}/${agent.name}: role brief names a stripped Claude tool`);
+      // The body opens with the checklist, and its first line states the edit class that the
+      // stripped tools line granted: read-only unless an edit tool is present.
+      const source = read(join(sourceAgentsDir, `${agent.name}.md`)).replace(/\r\n/g, '\n');
+      const editTools = (source.match(/^tools:[ \t]*(.*)$/m)?.[1] ?? '').split(',').map((tool) => tool.trim())
+        .filter((tool) => ['Edit', 'MultiEdit', 'Write', 'NotebookEdit'].includes(tool));
+      const body = rendered.replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n\n/, '');
+      const editClass = editTools.length ? `edits allowed with ${editTools.join(', ')} only.` : 'read-only;';
+      expect(body.startsWith(`Codex role checklist:\n\n- [ ] Edit class: ${editClass}`), `${plugin}/${agent.name}: rendered body does not open with its edit class`);
+      for (const name of ['Brief requires', 'Edits', 'Verdicts']) {
+        const value = source.match(new RegExp(`^${name}:[ \\t]*(.+)$`, 'm'))?.[1].trim();
+        expect(value && body.includes(`\n- [ ] ${name}: ${value}\n`), `${plugin}/${agent.name}: checklist omits its ${name} contract field`);
+      }
+      expect(/\n- \[ \] Report cap: at most \d+ words\b/.test(body), `${plugin}/${agent.name}: checklist omits its report cap`);
     }
   }
 }
@@ -76,6 +89,12 @@ expect(implementerBrief.includes(EDITOR) && !implementerBrief.includes(WRITER) &
 for (const [plugin, role] of [['code-ops-suite', 'explorer'], ['privacy-opsec-suite', 'privacy-reviewer']]) {
   const brief = read(join(pluginsDir, plugin, 'agents', `${role}.md`));
   expect(brief.includes(READ_ONLY) && !brief.includes(WRITER), `${plugin}/${role}: role contract does not state it is read-only`);
+}
+// A read-only role's rendered body states read-only before any other checklist line.
+for (const [plugin, role] of [['rigor', 'tracer'], ['code-ops-suite', 'explorer']]) {
+  const body = read(join(pluginsDir, plugin, 'agents', `${role}.md`)).replace(/\r\n/g, '\n').split('\n---\n').slice(1).join('\n---\n').trimStart();
+  const firstItem = body.split('\n').find((line) => line.startsWith('- [ ] '));
+  expect(body.startsWith('Codex role checklist:') && firstItem?.startsWith('- [ ] Edit class: read-only;'), `${plugin}/${role}: rendered body does not state read-only first`);
 }
 
 // The compatibility page and README list every bundled hook command, not only the traceless one.
