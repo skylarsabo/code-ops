@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "524d2ec0bf9ad8a947bb2a974f796e4a76551be4",
-      "verifiedDigest": "a9f4be5bf0885789a9c2240413a160b512ec0f3033b3beabbae712f084653179",
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "70dcfa3b7d9f3c2a862b58a1268d8454211373d11ff5bd984ef5421437201769",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -28,7 +28,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 446,
+          "line": 514,
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
         },
         {
@@ -55,17 +55,17 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "524d2ec0bf9ad8a947bb2a974f796e4a76551be4",
-      "verifiedDigest": "9a9757cc713cd79ab293450ee4d38c24435bd5a4be3050f30917d8bad4bf9c2b",
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "20399cbf971d5ee021fecbf17a676e1a2d92f97be401511e8a603937c80b2369",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 814,
+          "line": 831,
           "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 710,
+          "line": 736,
           "anchor": "export function residentContextReading(payload, { grok = false, home = homedir()"
         },
         {
@@ -120,12 +120,12 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 294,
+          "line": 323,
           "anchor": "['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff a"
         },
         {
           "file": "scripts/sync-global.mjs",
-          "line": 115,
+          "line": 113,
           "anchor": "function classify(file, source, state) {"
         }
       ]
@@ -136,12 +136,12 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "524d2ec0bf9ad8a947bb2a974f796e4a76551be4",
-      "verifiedDigest": "b8bbedb34c500f1170deb213ce0a03c106fb399036852528f934b2f21e5b323e",
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "db2e4087a0eb7c75599d96dafbe86161e5c0fef3dffcb8952fc659d35dadaa55",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 148,
+          "line": 167,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
@@ -194,17 +194,17 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "524d2ec0bf9ad8a947bb2a974f796e4a76551be4",
-      "verifiedDigest": "e39cab83607932ba22af912221193d34c31640137cdad585830c1a15517ed146",
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "45afc16f0e1888f1b926cf21faeb6d6bd67218f6056eeda31265bebde641372a",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 513,
+          "line": 542,
           "anchor": "and the matching entry in the marketplace.', 'the source plugin manifest and mat"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 515,
+          "line": 544,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
         },
         {
@@ -240,8 +240,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
-      "verifiedDigest": "4db0a9b95a5515de5540cc52c45fc4d74d366aecc753fbb2677569c2f26cb1e3"
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "b0111a94e036a45c2522521020a9bd50b5b14dd0590af0bcd805f0ad45a38483"
     },
     {
       "slug": "docs-doctrine",
@@ -264,8 +264,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "524d2ec0bf9ad8a947bb2a974f796e4a76551be4",
-      "verifiedDigest": "5f6da5701cf7c54f1c386857bce4c0bbe68e5aaf47e0f0848414c4d79c69bca7",
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "fb408f2de129f5ed16049a39ee4af23e8d26846d1a318a71513d43027224b428",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
@@ -312,17 +312,18 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "4c8042656ebcb3e5a9c09202924de76f47fce8ed",
-      "verifiedDigest": "57626bd530721cf733e1259f0c9c5624dc8175968293412097b2ecb4287aec9b"
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "84fb29f9fcfa41816ecbce7eaf2811f881c67ad911e367ccba4964ce26de28e6"
     },
     {
       "slug": "runtime-toolchain",
       "file": "sections/runtime-toolchain.md",
       "scope": [
-        ".node-version"
+        ".node-version",
+        "tsconfig.json"
       ],
-      "verifiedAt": "6a0745086caaf6f16806103d40ca859112bdfee7",
-      "verifiedDigest": "de90f58be818b81b8dc2f34ddda4fbe5b704205e2d15b98113c61cfe04739638"
+      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
+      "verifiedDigest": "1dfff4d57d83adf5a0a7d144e980777ec5d1f4ac686a34f0f892282df293a7ff"
     }
   ]
 }
