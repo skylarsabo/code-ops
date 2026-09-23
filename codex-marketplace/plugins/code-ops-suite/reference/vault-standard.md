@@ -200,7 +200,7 @@ Each switch is `CODE_OPS_INDEX`, `CODE_OPS_DIGEST`, `CODE_OPS_LADDER_CARD`, or `
 
 ## Trust model
 
-Trust code for behavior. Trust a manifest domain only when its source and content digests pass. Trust atlas prose only when its section is FRESH. Treat stale artifacts as leads. Treat ignored files as unknown unless the run explicitly brings them into scope.
+Trust code for behavior. Trust a manifest domain only when its source and content digests pass. Trust atlas prose only when its section is FRESH. A FRESH section does not vouch for a claim reported DRIFTED or GONE, so treat that claim as a lead. Treat stale artifacts as leads. Treat ignored files as unknown unless the run explicitly brings them into scope.
 
 Atlas freshness reaches claim granularity. A claim is one `path:line` citation inside a section's prose, stamped with an anchor copied verbatim from the cited line. `atlas-check.mjs check` classifies every claim through the same rules a findings register uses, and `--claims-gate` exits non-zero on any claim it did not call FRESH.
 

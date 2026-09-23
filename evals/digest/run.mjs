@@ -198,6 +198,11 @@ expect(/^digest: cannot spawn a-command-that-does-not-exist-42/m.test(spawnErr.s
 expect(run([cli, 'node', '-e', '1']).status === 2, 'a command without -- must exit 2');
 expect(run([cli]).status === 2, 'no arguments must exit 2');
 expect(run([cli, '--shape', 'nosuchshape', '--', 'node', '-e', '1']).status === 2, 'an unknown shape must exit 2');
+{
+  let message = '';
+  try { lib.digestText('a\nb\n', { shape: 'toString' }); } catch (e) { message = String(e?.message); }
+  expect(message === 'unknown shape: toString', 'a prototype key such as toString must be rejected as an unknown shape');
+}
 
 // A synthetic error line survives the CLI verbatim, even when the surrounding output is capped.
 const errRun = run([cli, '--no-store', '--', 'node', '-e',

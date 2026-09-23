@@ -421,8 +421,8 @@ export function truncateLines(items, ctx) {
 export function capTail(items, ctx) {
   const cap = Math.max(1, Number(ctx.cap) || DEFAULTS.cap);
   if (items.length <= cap) return items;
-  const head = Math.max(0, Number(ctx.head) ?? DEFAULTS.head);
-  const tail = Math.max(0, Number(ctx.tail) ?? DEFAULTS.tail);
+  const head = Math.max(0, Number.isFinite(Number(ctx.head)) ? Number(ctx.head) : DEFAULTS.head);
+  const tail = Math.max(0, Number.isFinite(Number(ctx.tail)) ? Number(ctx.tail) : DEFAULTS.tail);
   const keep = items.map((it, i) => i < head || i >= items.length - tail || guarded(ctx, it));
   return rebuild(items, keep);
 }
@@ -642,7 +642,8 @@ export function digestText(raw, opts = {}) {
   const o = { ...DEFAULTS, cwd: process.cwd(), rawPath: null, shape: 'auto', argv: [], offset: 0, ...opts };
   const { lines: srcLines, endsWithNewline } = splitLines(raw);
   const shape = o.shape && o.shape !== 'auto' ? o.shape : detectShape(raw, '', o.argv);
-  const shapeDef = SHAPES[shape];
+  // Own keys only: a name such as `toString` must not resolve through the prototype.
+  const shapeDef = Object.hasOwn(SHAPES, shape) ? SHAPES[/** @type {keyof typeof SHAPES} */ (shape)] : undefined;
   if (!shapeDef) throw new Error(`unknown shape: ${shape}`);
   const bytesIn = String(raw ?? '').length;
   if (srcLines.length === 0) {
