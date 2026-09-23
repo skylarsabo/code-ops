@@ -1067,9 +1067,28 @@ if (mp?.name === 'code-ops') {
   const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
   if (!existsSync(workflowPath)) fail('missing .github/workflows/validate.yml — cannot verify action-pin gate wiring');
   else {
+    const workflowText = readText(workflowPath);
     const needle = 'node scripts/check-action-pins.mjs';
-    const count = readText(workflowPath).split(needle).length - 1;
-    if (count !== 2) fail(`.github/workflows/validate.yml must invoke "${needle}" once per platform job (expected 2, found ${count})`);
+    const count = workflowText.split(needle).length - 1;
+    if (count !== 2) fail(`.github/workflows/validate.yml must invoke "${needle}" once per platform (expected 2, found ${count})`);
+
+    // Sharded gate wiring: each aggregate gate job must need exactly its <gate>-shard-<n> jobs,
+    // run under if: always(), and fail unless every needed result is success. Otherwise a new
+    // shard left out of needs:, or a skipped or cancelled shard, would pass the required status.
+    const wfLines = workflowText.split(/\r?\n/);
+    const jobIds = wfLines.map((l) => /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(l)?.[1]).filter(Boolean);
+    const jobBlock = (id) => { const s = wfLines.indexOf(`  ${id}:`); let e = s + 1; while (e < wfLines.length && !/^ {2}\S/.test(wfLines[e])) e++; return wfLines.slice(s + 1, e); };
+    for (const gate of ['structural-lint', 'structural-lint-windows']) {
+      if (!jobIds.includes(gate)) { fail(`.github/workflows/validate.yml is missing the ${gate} gate job`); continue; }
+      const block = jobBlock(gate);
+      const shards = jobIds.filter((id) => new RegExp(`^${gate}-shard-\\d+$`).test(id)).sort();
+      const needsLine = block.map((l) => /^ {4}needs:\s*\[(.*)\]\s*$/.exec(l)).find(Boolean);
+      const needs = needsLine ? needsLine[1].split(',').map((s) => s.trim()).filter(Boolean).sort() : [];
+      if (!shards.length) fail(`.github/workflows/validate.yml: ${gate} has no ${gate}-shard-<n> jobs`);
+      if (JSON.stringify(needs) !== JSON.stringify(shards)) fail(`.github/workflows/validate.yml: ${gate} must need exactly its shards in flow form (needs [${needs.join(', ')}], shards [${shards.join(', ')}])`);
+      if (!block.some((l) => /^ {4}if: always\(\)\s*$/.test(l))) fail(`.github/workflows/validate.yml: ${gate} must run with if: always() so a failed or skipped shard fails it`);
+      if (!block.some((l) => l.includes('needs[id].result !== "success"'))) fail(`.github/workflows/validate.yml: ${gate} must fail unless every needed shard result is success`);
+    }
   }
 }
 

@@ -391,6 +391,55 @@ try {
     check('integrate-branch: if: guard is detected', steps[4].hasIf === true && steps[0].hasIf === false);
     check('integrate-branch: env: block is detected', steps[5].hasEnv === true && steps[0].hasEnv === false);
 
+    // Case: a sharded gate job. The aggregate's own steps plus every shard it needs are
+    // selected, in needs: order; a shard it does not need is not; all three needs: forms parse;
+    // a needed shard with no steps throws instead of dropping out of selection.
+    {
+      const sharded = [
+        'jobs:',
+        '  gate-shard-2:',
+        '    runs-on: ubuntu-latest',
+        '    steps:',
+        '      - name: Second shard step',
+        '        run: node evals/two/run.mjs',
+        '  gate-shard-1:',
+        '    runs-on: ubuntu-latest',
+        '    steps:',
+        '      - name: First shard step',
+        '        run: node evals/one/run.mjs',
+        '  unrelated:',
+        '    runs-on: ubuntu-latest',
+        '    steps:',
+        '      - name: Unrelated step',
+        '        run: node evals/three/run.mjs',
+        '  gate:',
+        '    if: always()',
+        '    needs: [gate-shard-1, gate-shard-2]',
+        '    runs-on: ubuntu-latest',
+        '    steps:',
+        '      - name: Require every shard to succeed',
+        '        env:',
+        '          NEEDS_JSON: x',
+        '        run: node -e "0"',
+        '  block-gate:',
+        '    needs:',
+        '      - gate-shard-2',
+        '    runs-on: ubuntu-latest',
+        '  scalar-gate:',
+        '    needs: gate-shard-1',
+        '    runs-on: ubuntu-latest',
+        '  broken-gate:',
+        '    needs: [gate-shard-1, missing-shard]',
+        '    runs-on: ubuntu-latest',
+      ].join('\n');
+      const names = mod.parseWorkflowGateSteps(sharded, 'gate').map((s) => s.name);
+      check('integrate-branch: a gate job covers every needed shard in needs: order, then its own steps', JSON.stringify(names) === JSON.stringify(['First shard step', 'Second shard step', 'Require every shard to succeed']));
+      check('integrate-branch: needs: parses in flow, block, and scalar form', JSON.stringify(mod.parseWorkflowJobNeeds(sharded, 'block-gate')) === '["gate-shard-2"]' && JSON.stringify(mod.parseWorkflowJobNeeds(sharded, 'scalar-gate')) === '["gate-shard-1"]');
+      let threw = false; try { mod.parseWorkflowGateSteps(sharded, 'broken-gate'); } catch { threw = true; }
+      check('integrate-branch: a needed shard with no steps fails closed', threw);
+      check('integrate-branch: the real workflow gate covers its lint and record steps', (() => { const real = mod.parseWorkflowGateSteps(readFileSync(join(SCRIPTS_DIR, '..', '.github', 'workflows', 'validate.yml'), 'utf8'), 'structural-lint').map((s) => s.name); return real.includes('Structural lint (the gate)') && real.includes('Durable record-collection regression eval') && real.includes('Attack-chain graph regression eval'); })());
+    }
+
     check('integrate-branch: classifyStep accepts a plain node step', mod.classifyStep(steps[0]).runnable === true);
     check('integrate-branch: classifyStep rejects an if:-guarded step', mod.classifyStep(steps[4]).runnable === false && /if: guard/.test(mod.classifyStep(steps[4]).reason));
     check('integrate-branch: classifyStep rejects an env: step', mod.classifyStep(steps[5]).runnable === false && /env\/secrets/.test(mod.classifyStep(steps[5]).reason));
