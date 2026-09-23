@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.1.1
+- The resident context reads a compact boundary's `postTokens` as the post-compaction size, labeled `compaction`, until the next usage record.
+
 ## 2.1.0
 - `conform` global scope now edits the marketplace's `global-contracts/` sources and installs them with `scripts/sync-global.mjs`, instead of editing the home files in place. The approval checkpoint is unchanged.
 - The global targets now include the Grok Build rule `~/.grok/rules/code-ops-global.md`, because Grok ignores the Claude global files.
