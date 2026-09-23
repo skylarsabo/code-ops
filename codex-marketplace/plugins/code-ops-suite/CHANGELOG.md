@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.0.0
+- Breaking: four overlapping skills are merged, and the plugin ships 30 skills.
+- `conform` absorbs `adopt-standards` and `adopt-global-standards`. Choose `scope: repo` (the default) or `scope: global` for the user-wide contracts.
+- `pr-review` is removed. Use `rigor:deep-review` with `bar: standard` for the all-lens senior review.
+- `normalize` gains a concept mode, `normalize concept <name>`, which closes one concept implemented divergently. It replaces `rigor:consistency-closure` and runs the strict consistency gate.
+- `full-sweep` is removed. `everything` takes `plugins: suite,rigor,privacy`, defaulting to every installed plugin, skips and names the phases of an absent plugin, and adds the `assess-only`, `full`, and `feature` tracks and the leak incident path.
+
 ## 1.92.0
 - Handoffs carry program lineage. `HANDOFF.md` opens with a `## Program` section naming a program ledger at `<runs root>/programs/<slug>/PROGRAM.md` and the predecessor handoff. The ledger holds the program goal, request history, scope documents, decisions, and closed items, capped at 32 KB.
 - `check-handoff` fails when a handoff drops the predecessor's request or leaves a predecessor open item neither carried forward nor closed. Open items use stable `OI-<n>` ids.

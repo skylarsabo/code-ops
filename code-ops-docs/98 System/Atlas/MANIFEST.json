@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "4c20be10cc68a8a690627b85743ede917086adac",
-      "verifiedDigest": "c03e2062cc498d1a333c3530b062db2f99b13696d291ae3e9825e256daa9e5aa",
+      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
+      "verifiedDigest": "20e129c50c3e8ad857efb4a2b1bba116dab783668330387df408f70a64574c09",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -55,12 +55,12 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "4c20be10cc68a8a690627b85743ede917086adac",
-      "verifiedDigest": "65db0df95c0207a49c7fb60d616554d3c74120296f26249319700e80d701d75a",
+      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
+      "verifiedDigest": "951797a9a1ea266b4eea0e888996104886ffc4670909d700930cc8f0b5ab680b",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 813,
+          "line": 814,
           "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
         },
         {
@@ -131,8 +131,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "4c20be10cc68a8a690627b85743ede917086adac",
-      "verifiedDigest": "a84a096915bab06f275af513fdcce7cb5b717353865ebb4b2c4d6c320d6822ac",
+      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
+      "verifiedDigest": "fd57aeea9be6571edf0fa75437fd3adda0b16928a115c2303a6ff2b93e1ceac5",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -141,7 +141,7 @@
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 278,
+          "line": 280,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
@@ -189,8 +189,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "4c20be10cc68a8a690627b85743ede917086adac",
-      "verifiedDigest": "ad15930e7385c7968c07793b000d232c9644e0439eae41b8f3551ddd3efbf6b4",
+      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
+      "verifiedDigest": "73b4e5e323c2ee6c227a909e73d0cc4739a7740dd4bb0a28ace75e67e22aed47",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -259,8 +259,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "4c20be10cc68a8a690627b85743ede917086adac",
-      "verifiedDigest": "514de0e228030409c3291d444d125473d4ba9fb0e3b45b3bce74188e40050a3c",
+      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
+      "verifiedDigest": "455f6d7ba9b020ca5a2662e8755f00843f9319cd1d3dd84e25ba03be50000b5c",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
@@ -306,8 +306,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "3ab60f56636cab75429bdb0f8b4aaecc97fadcb7",
-      "verifiedDigest": "f9313d18e06bb70b844cc43346909a1a9ee4beee4cbce2f423d14c7f2ca480c5"
+      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
+      "verifiedDigest": "86b3f626ccf2e2a0b283d165fbf6d556b2100e6ff0f69f2785ff3a4b319353ab"
     },
     {
       "slug": "runtime-toolchain",

@@ -10,7 +10,7 @@ The root contract keeps model review gates opt-in and rare. The deterministic ch
 
 The documentation clause names the hub as the sole authored authority and the manifest as its registry. It routes verification of each record collection to the shared records engine.
 
-The root README is an orientation surface for the whole marketplace. Plugin READMEs remain installation surfaces because a single-plugin install does not include the repository README. Root counts and plugin command counts are mechanically coupled to skill directories and handbook routing. The current code-ops package exposes 34 skills, including the local review boundary and long-horizon runtime support.
+The root README is an orientation surface for the whole marketplace. Plugin READMEs remain installation surfaces because a single-plugin install does not include the repository README. Root counts and plugin command counts are mechanically coupled to skill directories and handbook routing. The code-ops-suite plugin exposes 30 skills, including the local review boundary and long-horizon runtime support, and the marketplace ships 59 across its four plugins.
 
 Ignore policy separates working scratch from durable evidence. Run scratch is local. The documentation hub is tracked. `docs/specs/`, `docs/superpowers/`, `docs/code-ops-run/`, and `tmp/` remain ignored scratch paths; they are compatibility boundaries or local drafts, not alternate authoritative documentation. `.gitattributes` forces LF so byte-identical doctrine and vendored scripts remain verifiable across Windows and Unix checkouts. Stage explicit paths because local host state can exist outside ignored directories.
 

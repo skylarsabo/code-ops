@@ -1,7 +1,7 @@
 {
   "name": "code-ops-suite",
-  "version": "1.92.0",
-  "description": "Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.",
+  "version": "2.0.0",
+  "description": "Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, local review gates, doc alignment, onboarding, and code and concept normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.",
   "author": {
     "name": "Skylar",
     "url": "https://github.com/skylarsabo"
@@ -27,7 +27,7 @@
   "interface": {
     "displayName": "Code Ops Suite",
     "shortDescription": "Broad engineering audits, implementation, tests, docs, and reviews.",
-    "longDescription": "Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.",
+    "longDescription": "Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, local review gates, doc alignment, onboarding, and code and concept normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.",
     "developerName": "Skylar",
     "category": "Productivity",
     "capabilities": [

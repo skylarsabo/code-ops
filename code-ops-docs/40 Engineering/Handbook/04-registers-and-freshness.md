@@ -17,7 +17,7 @@ The standard registers, one per plugin lens:
 | Register | Plugin | Schema source | Holds |
 | --- | --- | --- | --- |
 | `FINDINGS_REGISTER.md` | code-ops-suite, rigor | [code-ops CONVENTIONS §7](../../../plugins/code-ops-suite/CONVENTIONS.md) and [rigor §6](../../../plugins/rigor/CONVENTIONS.md) | Audit, review, and bug findings |
-| `CONSISTENCY_REGISTER.md` | rigor | [rigor CONVENTIONS §6, §9](../../../plugins/rigor/CONVENTIONS.md) | Variants of one concept to be closed to a canonical form |
+| `CONSISTENCY_REGISTER.md` | code-ops-suite (`normalize concept`) | [rigor CONVENTIONS §6, §9](../../../plugins/rigor/CONVENTIONS.md) | Variants of one concept to be closed to a canonical form |
 | `LEAK_REGISTER.md` | privacy-opsec-suite | [privacy CONVENTIONS §6](../../../plugins/privacy-opsec-suite/CONVENTIONS.md) | Anonymity and leak findings |
 | `RESEARCH_FINDINGS.md` | researcher | [researcher CONVENTIONS §6](../../../plugins/researcher/CONVENTIONS.md) | Code-grounded research claims (`RSCH-NNN`) |
 | `IDEAS_REGISTER.md` | researcher | [researcher CONVENTIONS §6](../../../plugins/researcher/CONVENTIONS.md) | Proposed features and ideas (`IDEA-NNN`) |
