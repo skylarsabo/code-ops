@@ -95,6 +95,8 @@
 //      list is a shipped agent.
 //  28. A SKILL.md whose body mentions CONVENTIONS.md carries the exact sentence in
 //      CONVENTIONS_READ_BOUND, so a skill never loads the whole file by default.
+//  29. Every plugins/<plugin>/CHANGELOG.md is free of the bump script's `**TODO**` placeholder
+//      line and never repeats a `## <version>` heading, so an unwritten stub cannot ship.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -806,6 +808,20 @@ for (const p of plugins) {
     if (body.includes('CONVENTIONS.md') && !body.includes(CONVENTIONS_READ_BOUND))
       fail(`${rel(skPath)}: cites CONVENTIONS.md without the sentence "${CONVENTIONS_READ_BOUND}"`);
   }
+}
+
+// ---- 29. CHANGELOG placeholders and duplicate version headings ----------------------
+for (const p of plugins) {
+  const path = join(p.dir, 'CHANGELOG.md');
+  if (!existsSync(path)) continue;
+  const seen = new Set();
+  readText(path).split(/\r?\n/).forEach((line, i) => {
+    if (/^\s*-\s*\*\*TODO\*\*/.test(line)) fail(`${rel(path)}:${i + 1}: placeholder "**TODO**" line — write the real change description`);
+    const heading = line.match(/^##\s+(\S+)/);
+    if (!heading) return;
+    if (seen.has(heading[1])) fail(`${rel(path)}:${i + 1}: duplicate "## ${heading[1]}" heading — merge the entries under one heading`);
+    seen.add(heading[1]);
+  });
 }
 
 // ---- 13. producer register self-check wiring ---------------------------------

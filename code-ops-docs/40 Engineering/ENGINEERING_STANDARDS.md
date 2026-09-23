@@ -16,7 +16,7 @@ Edit canonical source under `plugins/` and `scripts/`. Treat host projections as
 
 Before declaring a change complete, run the required local gate listed in `AGENTS.md`. That gate includes structural lint, dependency policy, and both generated-output drift checks. Evidence: `AGENTS.md:86-89`.
 
-The structural lint validates package shape, documentation references, and generated contracts. The dependency guard rejects third-party module specifiers. Evidence: `scripts/lint-plugins.mjs:4-5`, `scripts/lint-plugins.mjs:10-27`, and `scripts/check-no-deps.mjs:24-28`.
+The structural lint validates package shape, changelog entries, documentation references, and generated contracts. The dependency guard rejects third-party module specifiers. Evidence: `scripts/lint-plugins.mjs:4-5`, `scripts/lint-plugins.mjs:10-27`, and `scripts/check-no-deps.mjs:24-28`.
 
 Run the regression eval that owns any modified behavior. Fixtures that have an answer key require `node evals/score.mjs <ANSWER_KEY.json> --check`. Evidence: `AGENTS.md:88-89`.
 

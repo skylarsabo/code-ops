@@ -8,9 +8,6 @@ All notable changes to this plugin are documented here. Versions track
 - The context-size reader returns unknown when a compaction marker (a Claude `compact_boundary` row or a Codex `compacted` row) is newer than the last usage record. The handoff-card nudge no longer reports the pre-compaction size on the first prompt after `/compact`, and the dispatch guard no longer gates on it. The first post-compaction usage record is read as before and re-arms the handoff band.
 
 ## 1.91.0
-- **TODO** — describe the change.
-
-## 1.91.0
 - The session model leads. A run contract records the lead model, tier, and effort; a lead below strong prints a warning, and every operative floor still holds. Convention §1 and the routing card follow the same rule.
 - The suite ships `mech` for exact edits and gate runs, and `mech-review` for checking a mechanical diff against its spec, both at the sonnet floor. Every agent carries a `## Contract` section with the brief fields it requires, its edit class, its verdict tokens, and a return example that lint checks.
 - Each skill reads only the CONVENTIONS sections it cites, plus the writing standard. Exploring skills consult the atlas and the symbol index first, and the index skips vendored script copies.
