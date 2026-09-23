@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Proves the OpenCode lifecycle plugin: a stable system prefix, tail notes, a
 // fail-closed chooser, a cost ledger the report can gate, the context-ceiling
-// dispatch gate with its handoff unlock, and the subagent stop at twice the budget.
+// dispatch gate with its handoff unlock, the subagent stop at twice the budget, and a
+// pickup line that names the handoff's program ledger only when it has one.
 //
 //   node evals/opencode-lifecycle/run.mjs
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
@@ -34,7 +35,7 @@ writeFileSync(join(work, 'cost-report.mjs'), readFileSync(join(root, 'scripts', 
 
 const runs = join(work, 'code-ops-docs', '80 Runs', '2026-09-22 pending');
 mkdirSync(runs, { recursive: true });
-writeFileSync(join(runs, 'HANDOFF.md'), '# pending\n');
+writeFileSync(join(runs, 'HANDOFF.md'), '# pending\n\n## Program\n\nProgram: `code-ops-docs/80 Runs/PROGRAM.md`\nPredecessor: none\n\n## Next\n');
 
 process.env.CODE_OPS_RECEIPTS = join(work, 'session-receipts.jsonl');
 process.env.CODE_OPS_COST_LEDGER = join(work, 'opencode-cost.jsonl');
@@ -65,7 +66,7 @@ process.env.USERPROFILE = work;
 
 const overlay = await import(pathToFileURL(join(work, 'code-ops-lifecycle.js')).href);
 expect(Object.keys(overlay).length === 1, `lifecycle exported ${Object.keys(overlay).join(', ')}`);
-const { classifyChooserModel, pickChooserModel, buildChooserLadder } = overlay.CodeOpsLifecycle.internals;
+const { classifyChooserModel, pickChooserModel, buildChooserLadder, pendingHandoff } = overlay.CodeOpsLifecycle.internals;
 const catalog = process.env.CODE_OPS_OPENCODE_MODELS.split('\n');
 expect(classifyChooserModel('provider-b/gpt-6-luna') === 'light', 'gpt-6-luna should be light');
 expect(classifyChooserModel('provider-a/claude-opus-5-5') === 'strong', 'opus 5.5 should be strong');
@@ -249,6 +250,19 @@ const profile = join(work, 'gate.json');
 writeFileSync(profile, JSON.stringify({ credits_per_usd: 40, cost_gates: { max_context_peak: 100000 } }));
 const tight = spawnSync(process.execPath, [join(work, 'cost-report.mjs'), '--ledger', process.env.CODE_OPS_COST_LEDGER, '--profile', profile, '--check'], { encoding: 'utf8' });
 expect(tight.status === 1 && tight.stdout.includes('max_context_peak'), `cost report did not fail the gate: ${tight.stdout}`);
+
+// Pickup names the program ledger when the handoff has a Program section, and
+// omits the clause when it has none.
+const pickupTurn = { parts: [{ type: 'text', text: 'hello' }] };
+await hooks['chat.message']({ sessionID: 'pickup', agent: 'build' }, pickupTurn);
+const pickupText = pickupTurn.parts[0].text;
+expect(pickupText.includes('pending handoff: code-ops-docs/80 Runs/2026-09-22 pending/HANDOFF.md')
+  && pickupText.includes('Program ledger: code-ops-docs/80 Runs/PROGRAM.md; read it first.'), `pickup did not name the program ledger: ${pickupText}`);
+const bare = join(work, 'bare');
+mkdirSync(join(bare, '80 Runs', '2026-09-22 bare'), { recursive: true });
+writeFileSync(join(bare, '80 Runs', '2026-09-22 bare', 'HANDOFF.md'), '# pending\n\n## Next\n');
+const barePending = pendingHandoff(bare);
+expect(barePending?.path === '80 Runs/2026-09-22 bare/HANDOFF.md' && barePending.program === null, `a handoff without a Program section gave ${JSON.stringify(barePending)}`);
 
 rmSync(work, { recursive: true, force: true });
 if (fails.length) {
