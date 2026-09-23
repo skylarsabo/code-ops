@@ -10,7 +10,7 @@ updated: 2026-09-03
 
 **Not applicable to a product interface.** Code-ops ships agent plugins, command-line scripts, Markdown documentation, and generated marketplace metadata. It does not ship a browser, mobile, desktop, or component-library user interface.
 
-That conclusion is grounded in the current repository layout and delivery path: canonical packages render to host plugin directories, while the dependency guard permits only Node built-ins. Evidence: `AGENTS.md:94-101`, `scripts/build-opencode-dist.mjs:475-489`, and `scripts/check-no-deps.mjs:24-28`.
+That conclusion is grounded in the current repository layout and delivery path: canonical packages render to host plugin directories, while the dependency guard permits only Node built-ins. Evidence: `AGENTS.md:95-104`, `scripts/build-opencode-dist.mjs:475-489`, and `scripts/check-no-deps.mjs:24-28`.
 
 ## Interaction surfaces
 
@@ -30,7 +30,7 @@ One command-line convention is load-bearing for the agent surfaces: a tool answe
 
 The house writing standard is the design system for documentation and agent interaction. It requires active, concise prose, one stable term per concept, and code citations for factual claims. Evidence: `code-ops-docs/40 Engineering/Techniques/writing-standard.md:1-105`.
 
-Generated host artifacts retain canonical package content while transforming host-specific syntax. Evidence: `AGENTS.md:94-101` and `scripts/build-opencode-dist.mjs:475-489`.
+Generated host artifacts retain canonical package content while transforming host-specific syntax. Evidence: `AGENTS.md:95-104` and `scripts/build-opencode-dist.mjs:475-489`.
 
 ## Future trigger
 

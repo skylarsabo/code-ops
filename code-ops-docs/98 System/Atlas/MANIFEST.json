@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "01404b2d98b1b46f4bb9149dd805a8ab40ed863a",
-      "verifiedDigest": "33739895d454a65eeb35bf1a3cd8f58914ad8d2b2df765e5ff428c71a615f524",
+      "verifiedAt": "4a1ce676b9609e66533334aed53452fb2727820d",
+      "verifiedDigest": "0787fae6617cb3e0d7841870db445df2e5d7df7bcdcb30e444132c9133989815",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -121,8 +121,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "01404b2d98b1b46f4bb9149dd805a8ab40ed863a",
-      "verifiedDigest": "31cf0c254a1d384b1489714216989ea7f3640b676e2cf96872d1dd4a7c0c39a2",
+      "verifiedAt": "4a1ce676b9609e66533334aed53452fb2727820d",
+      "verifiedDigest": "6b34defb2829ad5ce889d53c57f2f57d737b1733923a0280cfa81827ff115f91",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -249,8 +249,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "032d3b1dcf9e486f5c1b391d2c44b0747af693cee4e058de224d937aaf7ca8c4",
+      "verifiedAt": "4a1ce676b9609e66533334aed53452fb2727820d",
+      "verifiedDigest": "d3fc78a525dcbc2f76a95d5e31c2f6ca8d34933acbbf433921931a5b69636347",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
@@ -296,8 +296,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "4239a1d87a46d5e60b778baef9069a2da45bffc964301036e0bfbabd5e61a196"
+      "verifiedAt": "3ab60f56636cab75429bdb0f8b4aaecc97fadcb7",
+      "verifiedDigest": "f9313d18e06bb70b844cc43346909a1a9ee4beee4cbce2f423d14c7f2ca480c5"
     },
     {
       "slug": "runtime-toolchain",

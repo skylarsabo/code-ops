@@ -34,31 +34,24 @@ to break silently.
 
 ## Model roles
 
-The user-wide contract owns general model behavior. This repository adds only these
-deltas. `scripts/model-tiers.mjs` owns provider bindings and `AGENT_MODEL_FLOORS` owns
-agent floors. A version-4 Run Contract needs two work operatives in parallel unless
-`orchestration.singleUnitReason` records why one unit suffices. Dispatch a suite agent,
-never a wide-surface type: the dispatch guard denies `general-purpose` and unnamed types
-unless the brief carries a `Wide-surface reason:` line. Above the context ceiling (300,000
-tokens by default) the guard also denies new dispatches until `code-ops-suite:handoff`
-assess runs. Each agent definition carries a `Report cap:` line that lint enforces.
-
-The routing card, dispatch ledger, and narration scan are advisories. The dispatch guard's
-wide-type deny, context-ceiling gate, and round stop are enforcement.
+The user-wide contract owns general model behavior, and this repository adds only deltas.
+`scripts/model-tiers.mjs` owns provider bindings and `AGENT_MODEL_FLOORS` owns agent floors.
+Dispatch a suite agent, never a wide-surface type. The Run Contract validator and the
+dispatch guard enforce the rest. The "Run contract" and "Dispatch guard hook" sections of
+`code-ops-docs/35 Contracts and Data/CONTRACTS.md` state each rule and name the advisories.
 
 ## One contract, two filenames
 
-`CLAUDE.md` and `AGENTS.md` are the same document. Hosts read different names: Claude Code
-reads `CLAUDE.md`, Codex reads `AGENTS.md`, opencode reads `AGENTS.md` and falls back to
-`CLAUDE.md` only when `AGENTS.md` is absent, and Grok Build reads both. Because this repo
-ships both files, opencode never reads `CLAUDE.md` here, so anything living in only one
-copy is invisible to whichever hosts read the other.
+`AGENTS.md` holds the only copy of this contract. `CLAUDE.md` is the single import line
+`@AGENTS.md`, which Claude Code expands on load. Codex and opencode read `AGENTS.md`, and
+opencode never falls back to `CLAUDE.md` while `AGENTS.md` exists. Grok Build lists both
+files, so the import keeps Grok from loading the contract twice.
+
+Edit `AGENTS.md` only. Lint fails closed unless `CLAUDE.md` is exactly the import line and
+`AGENTS.md` is non-empty.
 
 Skill ids here use the colon form, such as `code-ops-suite:repo-docs`. OpenCode calls the
 same skills by hyphenated names, such as `code-ops-suite-repo-docs`.
-
-Edit `CLAUDE.md`, then copy it over `AGENTS.md` in the same commit. Lint pins them
-byte-identically and fails closed on a divergence.
 
 ## Writing standard
 
@@ -84,18 +77,11 @@ copy in one commit.
 
 ## Session mechanisms that run under every change
 
-Eight plugin hook commands across six events provide traceless publishing, routing with
-compaction restoration and pending-handoff pickup, output digests, index refresh, ladder
-guidance, session receipts, a context-size handoff nudge, and a dispatch guard with explicit
-host-agent budget bindings and a legacy fallback. The last six named mechanisms are on by default and have
-documented environment switches. Use
-`scripts/co.mjs context skim|query` before loading large files or maps. The switch names,
-contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
-`MEASUREMENTS.md` under `code-ops-docs/`.
-
-Host coverage differs; `INFRASTRUCTURE.md` holds the per-host table. On Grok the lead
-assesses CONTINUE, COMPACT, or HANDOFF at 150,000 tokens and again before 200,000, because
-Grok 4.7 bills double above that line.
+`INFRASTRUCTURE.md` under `code-ops-docs/` lists the suite hooks, their off switches, and
+the per-host coverage table. `CONTRACTS.md` owns each hook contract and `MEASUREMENTS.md` its
+measured effect. Use `scripts/co.mjs context skim|query` before loading large files or maps.
+On Grok the lead assesses CONTINUE, COMPACT, or HANDOFF at 150,000 tokens and again before
+200,000, because Grok 4.7 bills double above that line.
 
 ## Before declaring any change done
 

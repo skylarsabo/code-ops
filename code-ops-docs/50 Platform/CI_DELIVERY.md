@@ -73,9 +73,9 @@ permissions, and required-status policy.
 
 ## Delivery path
 
-The canonical packages are rendered into host-specific distributions before delivery. CI checks drift rather than trusting a local hook. Evidence: `.github/workflows/validate.yml:39-45` and `AGENTS.md:94-101`.
+The canonical packages are rendered into host-specific distributions before delivery. CI checks drift rather than trusting a local hook. Evidence: `.github/workflows/validate.yml:39-45` and `AGENTS.md:95-104`.
 
-A release change must bump the canonical plugin version, the marketplace entry, and the plugin changelog. Evidence: `AGENTS.md:94-96`.
+A release change must bump the canonical plugin version, the marketplace entry, and the plugin changelog. Evidence: `AGENTS.md:97-99`.
 
 ## Merge safety
 

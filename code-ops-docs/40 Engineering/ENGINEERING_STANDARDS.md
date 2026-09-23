@@ -8,19 +8,19 @@ updated: 2026-09-03
 
 ## Source of truth
 
-Edit canonical source under `plugins/` and `scripts/`. Treat host projections as generated output. Run both renderers after a plugin change. Evidence: `scripts/build-opencode-dist.mjs:476-489` and `AGENTS.md:96-99`.
+Edit canonical source under `plugins/` and `scripts/`. Treat host projections as generated output. Run both renderers after a plugin change. Evidence: `scripts/build-opencode-dist.mjs:476-489` and `AGENTS.md:97-104`.
 
-`CLAUDE.md` and `AGENTS.md` are one contract for hosts that read different filenames. Keep them byte-identical. Evidence: `AGENTS.md:58-67`.
+`AGENTS.md` holds the only copy of the repository contract, and `CLAUDE.md` is the single import line `@AGENTS.md`. Edit `AGENTS.md` only; lint fails closed on any other `CLAUDE.md` content. Evidence: `AGENTS.md:43-51`.
 
 ## Required local gate
 
-Before declaring a change complete, run the required local gate listed in `AGENTS.md`. That gate includes structural lint, dependency policy, and both generated-output drift checks. Evidence: `AGENTS.md:83-86`.
+Before declaring a change complete, run the required local gate listed in `AGENTS.md`. That gate includes structural lint, dependency policy, and both generated-output drift checks. Evidence: `AGENTS.md:86-89`.
 
 The structural lint validates package shape, documentation references, and generated contracts. The dependency guard rejects third-party module specifiers. Evidence: `scripts/lint-plugins.mjs:4-5`, `scripts/lint-plugins.mjs:10-27`, and `scripts/check-no-deps.mjs:24-28`.
 
-Run the regression eval that owns any modified behavior. Fixtures that have an answer key require `node evals/score.mjs <ANSWER_KEY.json> --check`. Evidence: `AGENTS.md:85-86`.
+Run the regression eval that owns any modified behavior. Fixtures that have an answer key require `node evals/score.mjs <ANSWER_KEY.json> --check`. Evidence: `AGENTS.md:88-89`.
 
-A verifier or mechanical operative runs the gate chain and returns the verdict plus the failing excerpt. The lead re-runs a gate itself only to settle a disputed outcome. Evidence: `AGENTS.md:88-90`.
+A verifier or mechanical operative runs the gate chain and returns the verdict plus the failing excerpt. The lead re-runs a gate itself only to settle a disputed outcome. Evidence: `AGENTS.md:91-93`.
 
 ## Change rules
 
@@ -70,9 +70,9 @@ the host-qualified arms and decision rules.
 
 ## Agent orchestration
 
-The lead owns scope, acceptance, and final verification. A worker report is evidence, not acceptance. Use independent review for high-impact findings. Evidence: `AGENTS.md:33-56`.
+The lead owns scope, acceptance, and final verification. A worker report is evidence, not acceptance. Use independent review for high-impact findings. Evidence: `AGENTS.md:35-41`.
 
-Route every judgment-bearing dispatch at the strong tier, whatever tier the lead runs at. Drop a tier only for mechanical, low-ambiguity work, and never below an agent's lint-enforced floor. Effort routes by ambiguity, never low on review and never at the highest setting on a breadth sweep. Evidence: `AGENTS.md:35-48`. The routing table is [Subagent trade-offs](Techniques/subagent-trade-offs.md).
+Route every judgment-bearing dispatch at the strong tier, whatever tier the lead runs at. Drop a tier only for mechanical, low-ambiguity work, and never below an agent's lint-enforced floor. Effort routes by ambiguity, never low on review and never at the highest setting on a breadth sweep. Evidence: `AGENTS.md:35-41`. The routing table is [Subagent trade-offs](Techniques/subagent-trade-offs.md).
 
 Use `RUN_CONTRACT.json` before a substantial multi-agent run. Bound the dispatch count, parallelism, retries, unit scope, and context budget. Evidence: `scripts/run-contract.mjs:10-24` and `scripts/run-contract.mjs:102-140`.
 
