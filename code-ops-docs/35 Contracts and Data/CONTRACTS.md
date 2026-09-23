@@ -231,7 +231,14 @@ its receipt records `arms.ladderCard=false` and `arms.handoffPickup=false`.
 from its own switch the way every other arm is; `CODE_OPS_DISPATCH_GUARD=warn` records
 `dispatchGuard=true`, because only the hard stop is lifted. Every receipt also
 carries `handoff`, the highest band the session's handoff marker reached and whether the
-transcript shows a `/code-ops-suite:handoff` call. OpenCode has no transcript callback, so no
+transcript shows a `/code-ops-suite:handoff` call. Every receipt also carries `skills`, a
+`{ "<skill id>": count }` object over the main thread and its subagents. It counts `Skill`
+tool calls by `input.skill` and operator prompts that open with a namespaced
+`<command-name>/plugin:skill</command-name>` tag. Ids take the colon form with any leading
+slash removed, and a value that is not an id is dropped. A session with no invocation records
+`{}`. A bare slash name such as `/clear` is not counted, because the transcript does not tell a
+host built-in apart from a user skill. Codex and Grok rows run the same parser, but no Codex or
+Grok skill-invocation shape is verified yet, so their `skills` count may stay `{}`. OpenCode has no transcript callback, so no
 automatic receipt is claimed there. The hook writes nothing to stdout, exits `0` on bad input,
 missing evidence, or an unwritable ledger, and finishes on a bounded timer. Its ledger path is
 `$CODE_OPS_RECEIPTS`, else the host-specific home default. `off`, `0`, or `false` disables it.

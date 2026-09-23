@@ -30,7 +30,9 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
   1.0.13. It appends one normalized row to the host-specific home ledger or
   `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false` and
   `handoffPickup=false`. `handoffCard` follows its switch. Every row also carries `handoffPickup` and
-  `dispatchGuard` beside the older arms.
+  `dispatchGuard` beside the older arms. Each row counts skill invocations by id in `skills`
+  (`{}` when none ran), and `context-audit.mjs receipts` sums them across rows, so a usage
+  audit is one ledger query rather than a transcript search.
   OpenCode has no corresponding callback.
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
 - `node scripts/context-audit.mjs receipts --purge-before <ISO date>` is the ledger's retention: it rewrites the file keeping rows at or after the date and prints what it removed.

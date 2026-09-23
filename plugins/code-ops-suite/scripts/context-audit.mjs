@@ -215,10 +215,12 @@ for (const r of mine) {
   }
   for (const [k, v] of Object.entries(r.models || {})) byModel[k] = (byModel[k] || 0) + (Number(v) || 0);
   for (const [k, v] of Object.entries(r.toolCalls || {})) sum.toolCalls[k] = (sum.toolCalls[k] || 0) + (Number(v) || 0);
+  // A row written before receipts carried `skills` adds nothing here.
+  for (const [k, v] of Object.entries(r.skills || {})) sum.skills[k] = (sum.skills[k] || 0) + (Number(v) || 0);
 }
 sum.usage.total = sum.usage.input + sum.usage.cacheRead + sum.usage.cacheCreate + sum.usage.output;
 if (opt.json) {
-  emit(JSON.stringify({ v: 1, sessions: mine.length, durationMs, usage: sum.usage, models: byModel, toolCalls: sum.toolCalls }, null, 2));
+  emit(JSON.stringify({ v: 1, sessions: mine.length, durationMs, usage: sum.usage, models: byModel, toolCalls: sum.toolCalls, skills: sum.skills }, null, 2));
 } else {
   const fmt = (n) => Number(n || 0).toLocaleString('en-US');
   const L = ['# Session receipts', '', `Ledger rows: ${mine.length}${wanted ? ' for this directory' : ''}. Wall time: ${(durationMs / 60000).toFixed(1)} min.`, '',
@@ -228,6 +230,8 @@ if (opt.json) {
   for (const [k, v] of Object.entries(byModel).sort((a, b) => b[1] - a[1])) L.push(`| ${k} | ${fmt(v)} |`);
   L.push('', '| Tool | Calls |', '| --- | ---: |');
   for (const [k, v] of Object.entries(sum.toolCalls).sort((a, b) => b[1] - a[1])) L.push(`| ${k} | ${fmt(v)} |`);
+  L.push('', '| Skill | Invocations |', '| --- | ---: |');
+  for (const [k, v] of Object.entries(sum.skills).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))) L.push(`| ${k} | ${fmt(v)} |`);
   emit(L.join('\n'));
 }
 process.exit(0);
