@@ -32,12 +32,12 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
 
 ### The spine: `code-ops-suite`
 
-`code-ops-suite` ([README](../../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **32 skills**, grouped by intent:
+`code-ops-suite` ([README](../../../plugins/code-ops-suite/README.md)) is the broad-breadth engineering layer for any codebase. It is the spine because two other things hang off it: the **reference-doc generators** and the **orchestrators** that drive cross-plugin workflows. It carries **31 skills**, grouped by intent:
 
 - **Assess**: `codebase-audit` (broad multi-lens review, writing `FINDINGS_REGISTER.md`) and `security-privacy-audit` (STRIDE and LINDDUN threat assessment, writing `THREAT_MODEL.md`).
 - **Build**: `remediation` (implements the findings backlog), `feature-discovery` (finds and specs grounded features), `feature-implementation` (builds the smallest valuable slice behind flags).
 - **Deep-dives**: `performance` (measure, optimize the proven-hot, prove with before-and-after numbers), `test-hardening` (meaningful, deterministic coverage), `dependency-upgrade` (safe, staged upgrades and CVE remediation).
-- **Gate and consistency**: `pr-review` (rigorous pre-merge review), `normalize` (one consistent professional style repo-wide, behavior-preserving), `pr-split` (carve a big branch into a clean stack of small green PRs, composing `privacy-opsec-suite:authorship-hygiene`, fail-closed), `local-review-gate` (the opt-in local deep-review and opsec gate with exact-SHA receipts).
+- **Gate and consistency**: `normalize` (one consistent professional style repo-wide, behavior-preserving), `pr-split` (carve a big branch into a clean stack of small green PRs, composing `privacy-opsec-suite:authorship-hygiene`, fail-closed), `local-review-gate` (the opt-in local deep-review and opsec gate with exact-SHA receipts).
 - **Docs and knowledge**: `doc-alignment` (reconcile doc drift), `repo-docs` (refresh the manifest-owned hub), `onboarding` (verified orientation), `current-docs` (version-accurate dependency docs), `handoff` (capture or resume verifiable run state), `atlas` (durable judgment cache), `vault` (create, migrate, or check the documentation vault), and `conform` (assess and repair the complete standard, including the repo contract, with a `global` scope for the user contracts).
 - **Documentation generators** (Mode: DOCUMENT): `architecture`, `api-docs`, `data-model`, `adr`, `ops-docs`.
 - **Meta and suite self-audit**: `calibration-run` (standardized real-scale calibration,
@@ -60,7 +60,7 @@ It fans work out to two bundled subagents: `explorer` (read-only, parallel inves
 
 It carries **11 skills**: `ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt` (the flagship), `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, and the `rigor-sweep` orchestrator. Its subagents are `tracer` (traces a path or derives invariants, never executes) and `verifier` (writes and runs a minimal repro to confirm or kill a candidate, which is the reason `CONFIRMED` means something).
 
-The pairing is direct. `rigor:bug-hunt` is the proven-bug counterpart to `code-ops-suite:codebase-audit`. `rigor:deep-review` is the verification-bar counterpart to `code-ops-suite:pr-review`.
+The pairing is direct. `rigor:bug-hunt` is the proven-bug counterpart to `code-ops-suite:codebase-audit`. `rigor:deep-review` carries both review bars: `bar: verified` blocks only on proven defects, and `bar: standard` is the all-lens review.
 
 ### The anonymity track: `privacy-opsec-suite`
 
@@ -98,7 +98,7 @@ flowchart TB
         direction TB
         AUDIT["assess: codebase-audit / security-privacy-audit"]
         BUILD["build: remediation / feature-discovery / feature-implementation"]
-        NORM["consistency: normalize / pr-review / pr-split"]
+        NORM["consistency: normalize / pr-split"]
         DOCS["document: architecture / api-docs / data-model / adr / ops-docs / onboarding"]
     end
 

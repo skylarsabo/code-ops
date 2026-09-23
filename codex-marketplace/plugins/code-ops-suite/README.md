@@ -32,7 +32,6 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `onboarding` — Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor.
 - `ops-docs` — Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it.
 - `performance` — Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured.
-- `pr-review` — Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review. For an anonymity gate, use privacy-opsec-suite:opsec-pr-gate.
 - `pr-split` — Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless.
 - `provider-parity-audit` — Use when the marketplace must be audited across Claude, Codex, installed Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, generated projections, and documentation.
 - `remediation` — Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input.

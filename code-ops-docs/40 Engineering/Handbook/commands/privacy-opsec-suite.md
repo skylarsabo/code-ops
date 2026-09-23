@@ -505,9 +505,9 @@ anonymity regressions before they merge. It is the enforcement endpoint of the w
 
 **When to use it.** Run it on every PR by wiring it into CI, and especially as the gate after
 `opsec-hardening` lands fixes. It is review-only by default. Among the three review gates,
-`code-ops-suite:pr-review` is the general engineering review of correctness, design, tests,
-and maintainability. `rigor:deep-review` is the high-signal, evidence-tiered verification
-review. `privacy-opsec-suite:opsec-pr-gate` is the anonymity counterpart, blocking
+`rigor:deep-review` at `bar: standard` is the general engineering review of correctness, design,
+tests, and maintainability, and at its default `bar: verified` it is the high-signal,
+evidence-tiered verification review. `privacy-opsec-suite:opsec-pr-gate` is the anonymity counterpart, blocking
 specifically on egress, logging, identifier, fingerprint, correlation, and weakened-default
 regressions, and nothing else is its job. Run all three for a change that is both risky and
 anonymity-sensitive.

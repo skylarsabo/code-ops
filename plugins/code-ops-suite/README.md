@@ -32,7 +32,6 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `normalize`: one consistent professional style repo-wide, behavior-preserving, with the artifacts of hasty or generated code removed.
 
 **Gate**
-- `pr-review`: rigorous pre-merge review of one PR or diff against all lenses, ending in prioritized comments and a verdict.
 - `local-review-gate`: runs deep review and OpSec judgment locally against the final committed diff, records SHA-bound receipts, and publishes optional commit statuses before a PR exists. It also plans and scores local judgment evals.
 - `pr-split`: carves an existing big branch into a clean stack of small, independently-green PRs, scrubbed of AI and tooling trace (composes `privacy-opsec-suite:authorship-hygiene`, fail-closed). It never auto-merges.
 
@@ -122,8 +121,8 @@ says otherwise. Set a switch to `off`, `0`, or `false` in the host environment.
 ## How the skills chain
 
 Registers are live backlogs with stable IDs (`PERF-007` → register → commit or PR → log):
-- `codebase-audit` / `security-privacy-audit` / deep-dives → `FINDINGS_REGISTER.md` → `remediation` → `pr-review`
-- `feature-discovery` → specs → `feature-implementation` → `pr-review`
+- `codebase-audit` / `security-privacy-audit` / deep-dives → `FINDINGS_REGISTER.md` → `remediation` → `rigor:deep-review` (`bar: standard`)
+- `feature-discovery` → specs → `feature-implementation` → `rigor:deep-review` (`bar: standard`)
 - every build skill keeps docs current, `doc-alignment` establishes the SSOT, and `onboarding` sits inside it
 
 ## Notes

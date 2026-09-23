@@ -64,7 +64,7 @@ and [../../55 Operations/MEASUREMENTS.md](../../55 Operations/MEASUREMENTS.md) f
 | 7, Document | `doc-alignment` then the generators: `architecture`, `data-model`, `api-docs`, `ops-docs`, `adr`, `onboarding` | none |
 | 8, Ship (optional) | `pr-split` (scrubs AI and tooling trace), opens PRs, never auto-merges | none |
 
-A **separate feature track** exists for building rather than hardening: `feature-discovery`, then `feature-implementation`, then `pr-review`, shipped with `pr-split`. Drive it with `/code-ops-suite:full-sweep feature`.
+A **separate feature track** exists for building rather than hardening: `feature-discovery`, then `feature-implementation`, then `rigor:deep-review bar: standard`, shipped with `pr-split`. Drive it with `/code-ops-suite:full-sweep feature`.
 
 **Track:** `assess-only` (read and document, no code changes), `full` (the whole chain), or a custom subset.
 

@@ -1,6 +1,6 @@
 ---
 name: opsec-pr-gate
-description: "Use when you want a pre-merge gate that blocks any change adding egress, logging, identifiers, fingerprint surface, correlation, or weakened anonymity defaults. The anonymity counterpart to code-ops-suite:pr-review and rigor:deep-review."
+description: "Use when you want a pre-merge gate that blocks any change adding egress, logging, identifiers, fingerprint surface, correlation, or weakened anonymity defaults. The anonymity counterpart to rigor:deep-review."
 ---
 
 # OpSec pull request gate: block anonymity regressions before merge

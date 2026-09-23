@@ -140,7 +140,7 @@ Open the PRs, and **never auto-merge.**
 
 ## The feature track, a separate pipeline
 
-Building features is its own flow: `feature-discovery` → `feature-implementation` → `pr-review`,
+Building features is its own flow: `feature-discovery` → `feature-implementation` → the rigor plugin's deep review at its standard bar,
 shipping the result with `pr-split`. Run `/code-ops-suite-full-sweep feature` to drive that track
 instead of the hardening track above.
 

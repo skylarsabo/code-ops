@@ -7,7 +7,7 @@ This page is the front door. It names the plugin that owns the job in front of y
 ## The four-plugin mental model
 
 - **code-ops-suite is the spine.** Broad-breadth engineering for any repo (audit, remediation, feature discovery and build, performance, tests, dependencies, PR review, normalization, pr-split) plus all reference-doc generators (architecture, api-docs, data-model, adr, ops-docs, onboarding) plus the orchestrators (full-sweep, everything, ship, debug). Start here when the task is ordinary engineering.
-- **rigor is the verification layer.** Prove it or do not report it. Evidence tiers (CONFIRMED, PROBABLE, SPECULATIVE), a disconfirmation pass, ground truth first, runnable repros, a regression guard, and closure with enforcement. It is the high-signal counterpart to code-ops breadth (`rigor:bug-hunt` against `codebase-audit`, `rigor:deep-review` against `pr-review`). Reach for it when you want proven findings rather than a long list.
+- **rigor is the verification layer.** Prove it or do not report it. Evidence tiers (CONFIRMED, PROBABLE, SPECULATIVE), a disconfirmation pass, ground truth first, runnable repros, a regression guard, and closure with enforcement. It is the high-signal counterpart to code-ops breadth (`rigor:bug-hunt` against `codebase-audit`, `rigor:deep-review` at its default verification bar). Reach for it when you want proven findings rather than a long list.
 - **privacy-opsec-suite is the anonymity track.** Install it only for projects with anonymity or opsec needs. The keystone `anonymity-threat-model` frames six parallel leak audits, which feed `LEAK_REGISTER.md`, which drives `opsec-hardening` (fail-closed), guarded by `opsec-pr-gate` and `authorship-hygiene`. Its stance is defensive privacy engineering: protect your own users, anonymous by default.
 - **researcher is the proposal layer.** Code-grounded research, local-first with disclosed, fail-closed egress. It proposes registers and design briefs, then hands off to the other three. It never edits code.
 
@@ -15,7 +15,7 @@ A shared backbone runs through all four: developer-in-the-loop, evidence at `fil
 
 ## Task to command router
 
-The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 64 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
+The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:<name>`. For the full table covering all 63 commands, see [commands/README.md](commands/README.md). A CI parity check (`lint-plugins.mjs`) keeps that reference in lockstep with the plugin manifests, so no command can quietly drop out of the table.
 
 | I want to… | Command |
 | --- | --- |
@@ -23,7 +23,7 @@ The twelve most common starts. Each command is a skill: invoke it as `/<plugin>:
 | Find *proven* bugs in one risky subsystem (not a long list) | `rigor:ground-truth` then `rigor:bug-hunt` |
 | Fix items from the findings backlog, safely with tests | `code-ops-suite:remediation` |
 | Fix one confirmed bug at root cause, with a regression guard | `rigor:fix-verified` |
-| Review a PR before merge | `code-ops-suite:pr-review` (or `rigor:deep-review` at the verification bar) |
+| Review a PR before merge | `rigor:deep-review bar: standard` (or the default `bar: verified` for proven blockers only) |
 | Implement one change end-to-end at full rigor | `code-ops-suite:ship` |
 | Drive a bug from symptom to a proven root-cause fix | `code-ops-suite:debug` |
 | Discover and specify high-value features | `code-ops-suite:feature-discovery` |
@@ -71,8 +71,8 @@ Every page below sits under `code-ops-docs/` and is tracked in the repo.
 - [12-context-and-code-economy.md](12-context-and-code-economy.md): the skim, digest, symbol index, ladder, and receipt mechanisms, with what each one does, its default state, and its off switch.
 
 **Command reference**
-- [commands/README.md](commands/README.md): the command-reference index and the full task to command router covering all 64 commands.
-- [commands/code-ops-suite.md](commands/code-ops-suite.md): the 32 code-ops-suite commands.
+- [commands/README.md](commands/README.md): the command-reference index and the full task to command router covering all 63 commands.
+- [commands/code-ops-suite.md](commands/code-ops-suite.md): the 31 code-ops-suite commands.
 - [commands/rigor.md](commands/rigor.md): the 11 rigor commands.
 - [commands/privacy-opsec-suite.md](commands/privacy-opsec-suite.md): the 14 privacy-opsec-suite commands.
 - [commands/researcher.md](commands/researcher.md): the 7 researcher commands.

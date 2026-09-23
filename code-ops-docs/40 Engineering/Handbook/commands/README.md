@@ -5,7 +5,7 @@ you actually have to the commands that serve it in the right order, and points a
 per-plugin reference for detail. Read it when you know what you want and not which
 command does it.
 
-The code-ops marketplace ships **64 commands** across four plugins. Call any command as
+The code-ops marketplace ships **63 commands** across four plugins. Call any command as
 `/<plugin>:<skill>` in Claude Code, or name `<plugin>:<skill>` in a Codex request. The
 model can also route to a command per the standard-operating-mode routing card. Either
 way, side-effect-bearing phases keep their developer-in-the-loop checkpoints, and nothing
@@ -74,20 +74,20 @@ which routes each plugin set supports, see
 
 | I want to… | Run (in order) | Plugin(s) | Notes |
 | --- | --- | --- | --- |
-| **Audit an unfamiliar or drifting codebase** (breadth) | `/code-ops-suite:codebase-audit` → `/code-ops-suite:remediation` → `/code-ops-suite:pr-review` | code-ops-suite | Broad multi-lens review → fix the backlog → gate the diff. Writes `FINDINGS_REGISTER.md`. |
+| **Audit an unfamiliar or drifting codebase** (breadth) | `/code-ops-suite:codebase-audit` → `/code-ops-suite:remediation` → `/rigor:deep-review bar: standard` | code-ops-suite | Broad multi-lens review → fix the backlog → gate the diff. Writes `FINDINGS_REGISTER.md`. |
 | **Audit a risky subsystem and trust the result** (depth + proof) | `/rigor:ground-truth` → `/rigor:test-suite-audit` → `/rigor:bug-hunt` + `/rigor:quality-scan` → `/rigor:safety-net` → `/rigor:fix-verified` | rigor | The verification journey. See [audit-a-risky-subsystem](../../../70 Guides/audit-a-risky-subsystem.md). |
 | **Prove a bug is real (not just asserted)** | `/rigor:ground-truth` → `/rigor:bug-hunt` | rigor | Only `CONFIRMED` (reproduced) findings drive fixes. Read [evidence and tiers](../05-evidence-and-tiers.md). |
 | **Find when a bug was introduced** | `/rigor:regression-hunt` | rigor | VCS-bisects a confirmed bug to its origin commit and sweeps recent changes. |
 | **Fix a confirmed bug at root cause** | `/rigor:fix-verified` | rigor | Failing→passing regression test, regression guard, sibling sweep, enforcement. |
 | **Drive a bug from symptom to proven fix** | `/code-ops-suite:debug` (orchestrator) | code-ops-suite (+ rigor) | reproduce → isolate → confirm cause → `rigor:fix-verified` → traceless PR. **Requires `rigor`**; **Optional:** `privacy-opsec-suite`: without it the leak check is skipped and the bundled `scan-ai-tells.mjs` runs as the traceless gate. |
 | **Ship one change end-to-end at full rigor** | `/code-ops-suite:ship` (orchestrator) | code-ops-suite + rigor + privacy | design-check → safety-net → implement → prove → local deep/OpSec receipts → traceless PR. See [ship-a-verified-fix](../../../70 Guides/ship-a-verified-fix.md). |
-| **Build a feature from scratch** | `/code-ops-suite:feature-discovery` → `/code-ops-suite:feature-implementation` → `/code-ops-suite:pr-review` | code-ops-suite | Discover + spec grounded features → build smallest slice behind flags → gate. |
+| **Build a feature from scratch** | `/code-ops-suite:feature-discovery` → `/code-ops-suite:feature-implementation` → `/rigor:deep-review bar: standard` | code-ops-suite | Discover + spec grounded features → build smallest slice behind flags → gate. |
 | **Make something measurably faster** | `/rigor:ground-truth` → `/code-ops-suite:performance` | code-ops-suite (+ rigor) | **Requires `rigor`** for the ground-truth baseline. Optimize only what is proven hot; prove it with before/after numbers. `/rigor:improve-measured` for measured deltas. |
 | **Add meaningful test coverage** | `/rigor:ground-truth` → `/rigor:test-suite-audit` → `/code-ops-suite:test-hardening` | code-ops-suite (+ rigor) | **Requires `rigor`** for the first two steps; `/code-ops-suite:test-hardening` runs alone without it. Validate the suite (mutation/flaky) first, then harden critical paths. |
 | **Pin behavior before a refactor** | `/rigor:safety-net` | rigor | Characterization tests lock observable behavior on blind spots first. |
 | **Upgrade dependencies / clear CVEs safely** | `/code-ops-suite:dependency-upgrade` | code-ops-suite | Staged upgrades, never bulk-bumps. Pair with `researcher:ecosystem-watch`. |
-| **Review a PR before merge** (breadth) | `/code-ops-suite:pr-review` | code-ops-suite | Rigorous pre-merge review across all lenses; prioritized comments + verdict. |
-| **Review a PR at the verification bar** (depth) | `/rigor:deep-review` | rigor | Blocks only on `CONFIRMED` defects/regressions. The high-signal counterpart to `pr-review`. |
+| **Review a PR before merge** (breadth) | `/rigor:deep-review bar: standard` | rigor | Rigorous pre-merge review across all lenses; prioritized comments + verdict. |
+| **Review a PR at the verification bar** (depth) | `/rigor:deep-review` | rigor | Blocks only on `CONFIRMED` defects/regressions. The default bar; `bar: standard` is the all-lens review. |
 | **Review locally before opening a PR** | `/code-ops-suite:local-review-gate` → `/rigor:deep-review` + `/privacy-opsec-suite:opsec-pr-gate` | code-ops-suite + rigor + privacy | Binds local deep review and OpSec reports to the exact base, HEAD, and diff; can publish required commit statuses before PR creation. Also plans local judgment evals. |
 | **Normalize a repo to one consistent style** | `/code-ops-suite:normalize` | code-ops-suite | Behavior-preserving; removes the artifacts of hasty/generated code. |
 | **Split a big branch into clean small PRs** | `/code-ops-suite:pr-split` | code-ops-suite (+ privacy) | **Optional:** `privacy-opsec-suite`: composes `authorship-hygiene` (fail-closed) when installed, else the bundled `scan-ai-tells.mjs` is the mechanical floor. Never auto-merges. |
@@ -169,7 +169,7 @@ switches themselves.
 
 Full entries for every command, grouped by plugin and in invocation order:
 
-- [code-ops-suite.md](code-ops-suite.md) carries **32 commands**: the engineering spine (assess, build, deep-dives, local review, gate and consistency, docs and knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep`, `everything`, `ship`, `debug`).
+- [code-ops-suite.md](code-ops-suite.md) carries **31 commands**: the engineering spine (assess, build, deep-dives, local review, gate and consistency, docs and knowledge, the documentation generators, suite self-audit, and the orchestrators `full-sweep`, `everything`, `ship`, `debug`).
 - [rigor.md](rigor.md) carries **11 commands**: the verification layer (`ground-truth`, `test-suite-audit`, `safety-net`, `bug-hunt`, `regression-hunt`, `quality-scan`, `consistency-closure`, `improve-measured`, `fix-verified`, `deep-review`, `rigor-sweep`).
 - [privacy-opsec-suite.md](privacy-opsec-suite.md) carries **14 commands**: the anonymity track (the threat model, the six leak audits, `opsec-hardening`, `privacy-feature-design`, `leak-incident-response`, `authorship-hygiene`, `privacy-doc-alignment`, `opsec-pr-gate`, `full-sweep`).
 - [researcher.md](researcher.md) carries **7 commands**: the proposal layer (`research-spike`, `research-improve`, `research-ideate`, `ecosystem-watch`, `research-verify`, `library-eval`, `research-sweep`).

@@ -43,8 +43,6 @@ example on this page is illustration and not page structure.
 | `code-ops-suite:local-review-gate` | `privacy-opsec-suite:opsec-pr-gate` | Track A, against the exact committed diff | ignored OpSec report and SHA-bound receipt |
 | `code-ops-suite:normalize` | `rigor:consistency-closure` | routing pointer: divergent implementations of one concept go there instead | none (routing pointer) |
 | `code-ops-suite:performance` | `rigor:improve-measured` | routing pointer: broad behavior-preserving measured wins go there instead | none (routing pointer) |
-| `code-ops-suite:pr-review` | `rigor:deep-review` | routing pointer: a verification-bar review blocking only on reproduced defects | none (routing pointer) |
-| `code-ops-suite:pr-review` | `privacy-opsec-suite:opsec-pr-gate` | routing pointer: the anonymity gate | none (routing pointer) |
 | `code-ops-suite:pr-split` | `rigor:ground-truth` | for the build/test/lint baseline | `GROUND_TRUTH.md` |
 | `code-ops-suite:pr-split` | `privacy-opsec-suite:authorship-hygiene` | always, fail-closed, before any push | none named (scrubbed commits/PRs) |
 | `code-ops-suite:pr-split` | `code-ops-suite:local-review-gate` | every final stacked branch, before its push and PR creation | plan, two reports, and receipt chain |
@@ -62,7 +60,6 @@ example on this page is illustration and not page structure.
 | `code-ops-suite:vault` | `code-ops-suite:conform` | hand-off: the contract pair owns the documentation section routing to the vault | none named (the contract pair) |
 | `privacy-opsec-suite:authorship-hygiene` | `code-ops-suite:normalize` | hand-off: repo-wide one-style work is out of this skill's scope | none named |
 | `privacy-opsec-suite:authorship-hygiene` | `rigor:consistency-closure` | hand-off: divergent implementations of one concept are out of scope | none named |
-| `privacy-opsec-suite:opsec-pr-gate` | `code-ops-suite:pr-review` | routing pointer: the quality-lens counterpart | none (routing pointer) |
 | `privacy-opsec-suite:opsec-pr-gate` | `rigor:deep-review` | routing pointer: the verification-bar counterpart | none (routing pointer) |
 | `researcher:ecosystem-watch` | `code-ops-suite:dependency-upgrade` | hand-off: CVEs and version bumps | `ECOSYSTEM_WATCH.md` |
 | `researcher:ecosystem-watch` | `privacy-opsec-suite:supply-chain-trust` | hand-off: egress/telemetry/provenance concerns | `ECOSYSTEM_WATCH.md` |
@@ -96,7 +93,7 @@ example on this page is illustration and not page structure.
 | `researcher:research-verify` | `rigor:improve-measured` | hand-off: cleared entries needing a measured delta | the verdict report |
 | `rigor:bug-hunt` | `rigor:ground-truth` | `GROUND_TRUTH.md` is absent: fallback producer | `GROUND_TRUTH.md` |
 | `rigor:consistency-closure` | `code-ops-suite:normalize` | routing pointer: whole-repo style normalization goes there | none (routing pointer) |
-| `rigor:deep-review` | `code-ops-suite:pr-review` | routing pointer: the all-lenses counterpart | none (routing pointer) |
+| `rigor:deep-review` | `privacy-opsec-suite:opsec-pr-gate` | routing pointer: the anonymity gate | none (routing pointer) |
 | `rigor:fix-verified` | `rigor:bug-hunt` | `FINDINGS_REGISTER.md` is absent: fallback producer | `FINDINGS_REGISTER.md` |
 | `rigor:improve-measured` | `code-ops-suite:performance` | routing pointer: profiling-led hot-path work goes there | none (routing pointer) |
 | `rigor:quality-scan` | `rigor:ground-truth` | `GROUND_TRUTH.md` is absent: fallback producer | `GROUND_TRUTH.md` |

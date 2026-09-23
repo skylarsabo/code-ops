@@ -67,7 +67,7 @@ that doctrine. OpenCode uses its native compaction port.
 accept the projected shape. An on/off comparison is descriptive until a pre-registered matched
 control holds host, version, model, work, and stopping rule fixed.
 
-The implementation loops in the code-ops-suite, rigor, and privacy-opsec-suite conventions carry the code-economy ladder: an ordered objective with size last, and six rungs a change climbs before new code is written. Both sentences are pinned through `SHARED_PASSAGES`. A size-and-boundary lens joins the quality lenses and `pr-review`, `normalize` rule F extracts only on the ladder's evidence, and a deliberate simplification is marked `deferred(<ceiling>, <upgrade path>)` for a later harvest.
+The implementation loops in the code-ops-suite, rigor, and privacy-opsec-suite conventions carry the code-economy ladder: an ordered objective with size last, and six rungs a change climbs before new code is written. Both sentences are pinned through `SHARED_PASSAGES`. A size-and-boundary lens joins the quality lenses and `rigor:deep-review` at `bar: standard`, `normalize` rule F extracts only on the ladder's evidence, and a deliberate simplification is marked `deferred(<ceiling>, <upgrade path>)` for a later harvest.
 
 The ladder has a mechanical floor. `scan-overbuild.mjs` reports eleven over-build tells on a git range and blocks only on a package entry with no decision record; `evals/overbuild-garden` scores it against planted over-builds and decoy extractions. `harvest-deferrals.mjs` turns `deferred(...)` markers into a register with stable ids. `ladder-card.mjs` is on by default for Claude and Codex implementer operatives. Grok and OpenCode rely on their instruction files because neither exposes a usable ladder-card callback.
 

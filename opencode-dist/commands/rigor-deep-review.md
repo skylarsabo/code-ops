@@ -1,5 +1,5 @@
 ---
-description: "Use when you want a PR or diff reviewed at the verification bar, blocking only on CONFIRMED defects and regressions. The high-rigor counterpart to /code-ops-suite-pr-review."
+description: "Use for a pre-merge review of a PR or diff. bar verified (default) blocks only on CONFIRMED defects; bar standard reviews every quality lens with unproven items advisory."
 ---
 
 Use the `rigor-deep-review` skill for this task, following it end to end.

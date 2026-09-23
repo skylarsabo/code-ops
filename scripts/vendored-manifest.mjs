@@ -84,8 +84,9 @@ export const RUNTIME_SCRIPTS = [
   { name: 'digest.mjs', plugins: ['code-ops-suite'] },
   { name: 'digest-lib.mjs', plugins: ['code-ops-suite'] },
   // The over-build scanner and the deferral harvest back the code-economy ladder; `co scan
-  // overbuild` and `co scan deferrals` reach them from the suite's skills.
-  { name: 'scan-overbuild.mjs', plugins: ['code-ops-suite'] },
+  // overbuild` and `co scan deferrals` reach them from the suite's skills; rigor:deep-review
+  // runs the over-build scan at its standard bar.
+  { name: 'scan-overbuild.mjs', plugins: ['code-ops-suite', 'rigor'] },
   { name: 'harvest-deferrals.mjs', plugins: ['code-ops-suite'] },
   // The structural floor under the handoff skill's write contract; only code-ops-suite ships
   // the handoff skill, so no other plugin needs this copy.

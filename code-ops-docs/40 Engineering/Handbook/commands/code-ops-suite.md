@@ -5,7 +5,7 @@ It carries one entry per command: how it works, why it is useful, when to reach 
 Read it when you are picking an engineering command, or when you need the bundled scripts and hooks a run leans on.
 
 The `code-ops-suite` plugin is the spine of the marketplace. It packages broad-breadth
-engineering workflows for any codebase as 32 namespaced skills, invoked as
+engineering workflows for any codebase as 31 namespaced skills, invoked as
 `/code-ops-suite:<name>`. Every skill reads the shared
 [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first. That file defines
 the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch,
@@ -43,7 +43,6 @@ freshness check.
 - [`pr-split`](#code-ops-suitepr-split): carve a big branch into a clean, traceless stack
 
 **Review (REVIEW)**
-- [`pr-review`](#code-ops-suitepr-review): rigorous pre-merge review against all lenses
 - [`local-review-gate`](#code-ops-suitelocal-review-gate): opt-in local deep review, the OpSec gate, and judgment-eval receipts before PR creation
 
 **Document (DOCUMENT)**
@@ -233,7 +232,7 @@ never re-lists items already fixed in code.
 safely. Do not use it without a register, because it consumes one as input.
 
 **Prerequisites and hand-offs.** It requires a `FINDINGS_REGISTER.md`. It consumes the
-register's NEEDS-REVIEW and NEEDS-DESIGN items, and feeds its PRs to `pr-review`.
+register's NEEDS-REVIEW and NEEDS-DESIGN items, and feeds its PRs to `rigor:deep-review bar: standard`.
 
 ### `/code-ops-suite:feature-implementation`
 **Mode:** IMPLEMENT
@@ -257,7 +256,7 @@ use it for unspecified ideas, because `feature-discovery` comes first. Do not us
 single ad-hoc change end to end, which is `ship`.
 
 **Prerequisites and hand-offs.** It requires feature specs, plus
-`FEATURE_OPPORTUNITIES.md` and `FEATURE_ROADMAP.md`. It feeds its PRs to `pr-review`.
+`FEATURE_OPPORTUNITIES.md` and `FEATURE_ROADMAP.md`. It feeds its PRs to `rigor:deep-review bar: standard`.
 
 ### `/code-ops-suite:performance`
 **Mode:** IMPLEMENT
@@ -398,7 +397,7 @@ independently green PRs scrubbed of AI and tooling trace. Review becomes fast, a
 authorship hygiene stays airtight.
 
 **When to use it.** Use it when you have one big branch to carve into a reviewable stack. Do
-not use it to review someone's diff, which is `pr-review`, or to implement from scratch.
+not use it to review someone's diff, which is `rigor:deep-review bar: standard`, or to implement from scratch.
 
 **Prerequisites and hand-offs.** It requires `rigor` and `privacy-opsec-suite`, and the local
 review gate when the operator opts in. It composes
@@ -408,49 +407,6 @@ that `ship`, `debug`, `full-sweep`, and `everything` delegate to.
 ---
 
 ## Review
-
-### `/code-ops-suite:pr-review`
-**Mode:** REVIEW
-
-**How it works.** Two phases:
-
-- **Phase 0** pulls the PR, branch, or diff and its intent, meaning the description, the linked issue, finding, or spec, and the surrounding code context. It reviews the diff against the code it changes. It traces the change's reach first, covering dependents and call sites of changed exported symbols, shared types and schemas, and API and database contracts. It scales reviewer fan-out and depth to that reach rather than to diff size, because a small diff in a shared contract is a large review. For a large PR it fans out parallel reviewers per file-group and synthesizes one coherent review.
-- **Phase 1** applies the relevant lenses (`§10`) scoped to the diff plus the context it needs: correctness and intricate bugs, design and modularity, performance and efficiency regressions, security introduced, privacy and data-handling regressions (blocking, scaled to data sensitivity), user interface, theming, and accessibility, tests, docs, and conventions.
-
-**Produces** a prioritized review. Each comment sits at `file:line` with a concrete suggested
-change, labeled Blocking, Should-fix, or Nit. It ends with a verdict of approve,
-approve-with-nits, or request-changes, plus a two-line or three-line summary, with the blocking
-items first. Before any item ships as Blocking it goes through independent refutation (`§7`),
-where a fresh `reviewer` or `tracer` that did not raise it tries to kill it by locating a
-dominating guard or handler elsewhere. A refuted item drops or downgrades, citing the guard.
-Each comment quotes a verbatim Anchor (`§9`) of its cited line, so the citation is checkable.
-Comments post to the PR when a version-control tool is connected, and otherwise land in
-`REVIEW.md`. It is review-only by default, and switches to the implementation loop only if you
-ask it to fix.
-
-**Why it's useful.** It is a senior-level pre-merge gate that catches the bugs, regressions,
-and missing tests that matter. Each comment carries a concrete fix and a clear merge verdict.
-
-**When to use it.** Use it before merging any specific change. Wire it into CI on every PR
-with the reviewed immutable action pin in the plugin's
-[`examples/github-pr-review.yml`](../../../../plugins/code-ops-suite/examples/github-pr-review.yml).
-Do not use it for a verification-bar review that blocks only on reproduced defects, which is
-`rigor:deep-review`, or for an anonymity gate, which is
-`privacy-opsec-suite:opsec-pr-gate`.
-
-**Sibling disambiguation among the three review gates.** All three review a change before
-merge, at different bars. `code-ops-suite:pr-review` is the broad senior review across all
-quality lenses, producing prioritized comments and a verdict, and it will flag should-fixes and
-nits. `rigor:deep-review` is the verification-first review, blocking only on reproduced
-defects with evidence tiers, trading breadth for a high-signal, low-noise gate.
-`privacy-opsec-suite:opsec-pr-gate` is the anonymity gate, blocking a change that introduces a
-new leak, egress, identifier, or fingerprint, or that weakens fail-closed posture. Run
-`pr-review` for general merge readiness, `deep-review` when you want only proven blockers, and
-`opsec-pr-gate` on any change touching an anonymity surface.
-
-**Prerequisites and hand-offs.** It has no prerequisites, and uses a version-control tool when
-connected. It consumes the PRs from `remediation` and `feature-implementation`. When asked to
-fix, it enters the implementation loop.
 
 ### `/code-ops-suite:local-review-gate`
 **Mode:** REVIEW
@@ -1053,7 +1009,7 @@ The phases run in order:
 - **8 Ship**: `pr-split`.
 
 A separate feature track, `/code-ops-suite:full-sweep feature`, runs `feature-discovery`, then
-`feature-implementation`, then `pr-review`, then `pr-split`. Finalization writes
+`feature-implementation`, then `rigor:deep-review bar: standard`, then `pr-split`. Finalization writes
 `RUN_CONTRACT_RESULT.json` only after every blocking criterion is accepted with replayable
 proof. Checkpoints remain at every phase boundary, and nothing code-changing happens without
 your approval.

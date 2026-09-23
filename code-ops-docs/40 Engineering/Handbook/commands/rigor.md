@@ -349,7 +349,13 @@ destructive operations, and public contracts.
 ### `/rigor:deep-review`
 **Mode:** REVIEW (no changes unless asked)
 
-**How it works.** Two phases plus an output step:
+**How it works.** It runs at one of two bars. `bar: verified`, the default, is the verification
+bar described below; `code-ops-suite:local-review-gate` and the `local-deep-review` status always
+use it. `bar: standard` is the broad senior review across all quality lenses: it adds design and
+modularity, size and boundary (backed by `co.mjs scan overbuild`), performance, security, privacy
+and data handling, user interface and accessibility, tests, docs, and conventions. At that bar an
+unreproduced finding stays advisory, as Should-fix or Nit, and never blocks. Two phases plus an
+output step:
 
 - **Phase 0** understands the change. It pulls the diff, its intent, and the surrounding code. It runs the `GROUND_TRUTH` tooling on the branch (typecheck, lint, tests) so the review starts from facts, and it fans out to the tracer and verifier subagents for large diffs. Changed exported symbols and shared contracts get their dependents traced, so ranking reflects demonstrated reach (`§D`) rather than diff size.
 - **Phase 1** reviews against the correctness, failure-handling, consistency, and defect-causing-maintainability lenses (`§7`). Each concern is reproduced with a failing test or a trace where feasible, which makes it CONFIRMED, and otherwise tiered PROBABLE or SPECULATIVE. The disconfirmation pass (`§B`) runs on every concern. It checks that the change does not introduce an inconsistency, regress an existing enforcement or prior proof (`§H`), or land behavior without a test. It runs a quick bisect or history check when the change looks like it reverts a past fix.
@@ -366,7 +372,7 @@ a reproduced defect. The result is calibrated rather than opinion.
 **When to use it.** Use it when you want a PR or diff reviewed with reproduced, tiered
 concerns. Among the three review gates, `rigor:deep-review` is the high-rigor counterpart that
 reproduces and tiers concerns and blocks only on CONFIRMED defects and regressions.
-`code-ops-suite:pr-review` is the broad-coverage PR review.
+`bar: standard` is the broad-coverage PR review, flagging should-fixes and nits across every lens.
 `privacy-opsec-suite:opsec-pr-gate` is the anonymity and leak gate for projects with opsec
 needs. Use `deep-review` when proof-grade review of correctness and regressions is what you
 want. Do not use it to apply fixes, because it produces a review. Switch to `fix-verified` to
