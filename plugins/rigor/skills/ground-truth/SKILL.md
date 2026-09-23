@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the factual baseline before any analysis. Runs the real toolchain and captures ground truth plus a coverage and blind-spot map. Run this first."
+description: "Use first, for the factual baseline before any analysis. Runs the real toolchain and captures ground truth plus a coverage and blind-spot map."
 ---
 
 # Ground truth: the factual baseline

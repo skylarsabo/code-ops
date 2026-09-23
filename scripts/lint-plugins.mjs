@@ -11,8 +11,9 @@
 //      agree; sources resolve; no duplicate entries; no unregistered plugin dir.
 //   2. Every README "(N skills)" count matches the real skills/ dir count, and
 //      every skill slug is mentioned (word-boundary) in its plugin README.
-//   3. Every SKILL.md has a frontmatter `description:`, a `## Done when` heading,
-//      and references CONVENTIONS.md (the suite's completion + backbone contract).
+//   3. Every SKILL.md has a frontmatter `description:` of at most DESCRIPTION_MAX
+//      characters, a `## Done when` heading, and references CONVENTIONS.md (the
+//      suite's completion + backbone contract).
 //   4. Each plugin has the CONVENTIONS.md its skills reference.
 //   5. Orchestrator skills only reference skills that actually exist — intra-plugin
 //      orchestrators against their OWN plugin, `everything` across all — and every
@@ -227,6 +228,7 @@ const QUALIFIED_RE = plugins.length
   : null;
 
 // ---- 2/3/5. per-plugin: README mentions, SKILL.md structure, orchestrator refs
+const DESCRIPTION_MAX = 160;
 for (const p of plugins) {
   for (const slug of p.skills) {
     if (p.readme && !mentions(p.readme, slug))
@@ -243,6 +245,21 @@ for (const p of plugins) {
     if (!fm) fail(`${p.name}/${slug}: missing YAML frontmatter`);
     else if (!/^description:[ \t]*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`); // [ \t] not \s: \s spans the newline and matches the next key
     if (fm) {
+      // Every description loads into the system prompt at discovery, so each one costs
+      // context on every turn of every session. Cap its length; a block scalar counts its
+      // joined continuation lines, and surrounding quotes do not count.
+      const dm = fm[1].match(/^description:[ \t]*(.*?)[ \t]*\r?$/m);
+      if (dm) {
+        let desc = dm[1];
+        if (/^[|>]/.test(desc)) {
+          const after = fm[1].slice(dm.index + dm[0].length).split('\n').slice(1);
+          const cont = [];
+          for (const raw of after) { if (!/^[ \t]/.test(raw)) break; cont.push(raw.trim()); }
+          desc = cont.join(' ');
+        } else if (/^(["']).*\1$/.test(desc)) desc = desc.slice(1, -1);
+        if (desc.length > DESCRIPTION_MAX)
+          fail(`${p.name}/${slug}: frontmatter description is ${desc.length} characters (max ${DESCRIPTION_MAX}) — shorten it and keep its trigger, sibling distinction, and required inputs`);
+      }
       // An unquoted scalar containing ": " (colon-space) or a trailing colon breaks
       // the YAML parser, so the frontmatter silently loads as EMPTY metadata at runtime.
       for (const raw of fm[1].split('\n')) {

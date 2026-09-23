@@ -1,5 +1,5 @@
 ---
-description: "Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input."
+description: "Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register as input."
 ---
 
 # Remediation implementation: execute the findings backlog

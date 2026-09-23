@@ -1,5 +1,5 @@
 ---
-description: "Use when you need to reduce observable timing, size, and volume side channels and add padding or batching defaults. Owns traffic-shape correlation, not header or TLS fingerprints, which fingerprint-resistance owns."
+description: "Use to reduce timing, size, and volume side channels and add padding or batching defaults. Header and TLS fingerprints belong to fingerprint-resistance."
 ---
 
 # Traffic-analysis resistance: reduce observable signatures
