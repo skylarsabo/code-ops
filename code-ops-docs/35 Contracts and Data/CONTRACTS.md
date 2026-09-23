@@ -379,16 +379,16 @@ plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
 `digest.mjs` spawns the command after `--` directly, with no shell, and captures stdout and
 stderr apart. The child's exit code becomes the digest's exit code on every path, including a
 signal kill. A missing `--` exits 2 with usage. An executable that cannot spawn exits 127 and
-names itself. Evidence: `scripts/digest.mjs:128-160`, `scripts/digest.mjs:213-216`, and
-`scripts/digest.mjs:223-224`.
+names itself. Evidence: `scripts/cli-lib.mjs:243`, `scripts/digest.mjs:83-104`, `scripts/digest.mjs:147-150`, and
+`scripts/digest.mjs:157-158`.
 
 `--cwd <dir>` names the directory the command runs in, so a caller that would otherwise write
 `cd <dir> && <cmd>` keeps the no-shell contract. That directory becomes the working directory
 for the spawn, the Windows shim lookup, the in-repository frame test the stack shape applies,
 the default store slug, and the `cwd` field of the receipt row. Without the flag it is the
 digest's own working directory, so every default path is unchanged. A `--cwd` naming no
-directory exits `2` with usage. Evidence: `scripts/digest.mjs:201-208` and
-`scripts/digest.mjs:213-214`.
+directory exits `2` with usage. Evidence: `scripts/digest.mjs:135-142` and
+`scripts/digest.mjs:147-148`.
 
 One shape is chosen per invocation. The detectors run in a fixed order, and the command tokens
 bias only the cases the detectors leave open. Nine shapes exist: `json`, `diff`, `test`,
@@ -419,13 +419,13 @@ printed line is always the trailer
 `[exit <code> · <shape> · <rawLines> lines → <outLines> · raw <path> · sha256:<first 12>]`, with
 `raw -` when nothing was stored. A stderr digest offsets its line numbers past the stdout section,
 so its recovery hints address the raw file. Evidence: `scripts/digest-lib.mjs:102-108`,
-`scripts/digest.mjs:244-252`, and `scripts/digest.mjs:236-242`.
+`scripts/digest.mjs:178-186`, and `scripts/digest.mjs:170-176`.
 
 Raw bytes go to `--store`, else `$CODE_OPS_DIGEST_DIR`, else
 `~/.claude/code-ops/digest/<project slug of cwd>/`, at `<store>/<ISO date>/<HHMMSS>-<sha8>.txt`.
 `--no-store` or `CODE_OPS_DIGEST_STORE=off` outranks all three and stores nothing. The default is a home-directory path, so a raw output is never inside a repository. Store writes
 fail open: an unwritable store prints the digest with `raw -` and keeps going. Evidence:
-`scripts/digest.mjs:166-195`.
+`scripts/digest.mjs:100-129`.
 
 ## Digest rewrite hook
 
@@ -502,7 +502,7 @@ The `scan` domain runs on the shared CLI library, and the skills reach its scrip
 error goes through `parseOrDie`, which prints `x <message>` on stderr and exits 2. A flag rule
 declares `many` for a repeatable flag and `raw` for a flag whose own check must see a smuggled
 option. The `missing` key carries the wording a caller already pins, so no flag, exit code, or
-message changed. Evidence: `scripts/cli-lib.mjs:37-46`, `scripts/cli-lib.mjs:110-121`,
+message changed. Evidence: `scripts/cli-lib.mjs:38-47`, `scripts/cli-lib.mjs:111-122`,
 `scripts/check-autofix-scope.mjs:50-57`, and `evals/co-facade/run.mjs:101-117`.
 
 ## File skim
@@ -620,7 +620,7 @@ band already nudged (`band = floor(context / 150000)`) and `peak`, the highest b
 ever reached; the hook nudges again only on a higher band, and re-arms (sets the band to 0, never
 the peak) once context falls back under 150,000, which a compaction typically causes. The session
 receipt reads the peak. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:62-110` and
-`scripts/transcript-lib.mjs:539-555`.
+`scripts/transcript-lib.mjs:565-581`.
 
 Codex documents an equivalent `UserPromptSubmit` event (OpenAI's `developers.openai.com/codex/hooks`,
 confirmed live at `learn.chatgpt.com/docs/hooks`) carrying `session_id` and `prompt` on stdin,
@@ -782,8 +782,8 @@ prefers an exact path over a suffix match, so a vendored copy never shadows the 
 `BUDGET_EXCEEDED` marker, and appends definition bodies only under `--with-source` and only
 within the same budget. `refresh` re-parses only files whose content sha changed, `refresh
 <path>` re-parses one file, and `--exclude <prefix>` is remembered by the index. Evidence:
-`scripts/context-query.mjs:8-21`, `scripts/context-query.mjs:218`,
-`scripts/context-query.mjs:266`, and `scripts/context-query.mjs:434`.
+`scripts/context-query.mjs:8-21`, `scripts/context-query.mjs:217`,
+`scripts/context-query.mjs:265`, and `scripts/context-query.mjs:433`.
 
 The ceiling is printed on every edge result. Definitions, spans, calls, and import edges come
 from the line rules in `symbol-lib.mjs`, and that file is the single source of all four readers:
@@ -802,8 +802,8 @@ A result that touches a file whose content changed since the index was built car
 banner, and `--no-stale-check` suppresses the check. Evidence: `scripts/symbol-lib.mjs:45`,
 `scripts/symbol-lib.mjs:95`, `scripts/symbol-lib.mjs:144`, `scripts/symbol-lib.mjs:162`,
 `scripts/repo-map.mjs:39`, `scripts/import-graph.mjs:44`, `scripts/import-graph.mjs:74`,
-`scripts/skim.mjs:132`, `scripts/context-query.mjs:282`, `scripts/context-query.mjs:337`, and
-`scripts/context-query.mjs:358`.
+`scripts/skim.mjs:132`, `scripts/context-query.mjs:281`, `scripts/context-query.mjs:336`, and
+`scripts/context-query.mjs:357`.
 
 Two optional providers raise fidelity, and both are data rather than a requirement.
 `refresh --provider ctags|codegraph|none` defaults to `none`, and nothing is spawned unless the
@@ -814,9 +814,9 @@ the ctags kind into the index's own, and the signature comes from the tag patter
 is absent, is a different ctags, or fails prints one line on stderr and the rules stand alone, so
 a refresh never fails for a missing tool. `codegraph` is detected and reported, not ingested. The
 index records the providers its definitions came from and `status` prints them. Evidence:
-`scripts/context-query.mjs:31-33`, `scripts/context-query.mjs:120`,
-`scripts/context-query.mjs:166`, `scripts/context-query.mjs:201`, and
-`scripts/context-query.mjs:216`.
+`scripts/context-query.mjs:31-33`, `scripts/context-query.mjs:119`,
+`scripts/context-query.mjs:165`, `scripts/context-query.mjs:200`, and
+`scripts/context-query.mjs:215`.
 
 `context-query-mcp.mjs` is the same queries as a newline-delimited JSON-RPC 2.0 stdio server, so
 a host with no shell reaches them. The server is `code-ops-query` in the plugin manifest's
@@ -836,7 +836,7 @@ never reads another repository's index and nothing is committed. The `PostToolUs
 `index-refresh.mjs` is on by default. It calls `refresh <file>` after every edit with a
 five-second budget and prints nothing. Setting `CODE_OPS_INDEX` to `off`, `0`, or `false` in the
 canonical environment turns it off; rendered hosts use their documented process environment.
-Evidence: `scripts/context-query.mjs:97` and
+Evidence: `scripts/context-query.mjs:96` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
 
 ## Atlas claims and scope suggestion

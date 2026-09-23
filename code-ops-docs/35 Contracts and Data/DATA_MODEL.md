@@ -130,14 +130,14 @@ A digest receipt is one JSON line, version `1`, with `ts`, `cwd`, `argv`, `exit`
 tokens exactly as the caller gave them. `sha256` covers the raw file named by `raw`, which holds
 the command's stdout, then a `----- stderr -----` separator and its stderr when stderr is not
 empty. `linesIn` counts that whole file, and `linesOut` counts what the digest printed, including its
-trailer. Evidence: `scripts/digest.mjs:254-269` and `scripts/digest.mjs:230-233`.
+trailer. Evidence: `scripts/digest.mjs:188-203` and `scripts/digest.mjs:164-167`.
 
 A row's `cwd` is the directory the command ran in, which under `--cwd` is the target the caller named, while the store it is filed under follows the directory the digest started in. The store lives outside the repository, at `~/.claude/code-ops/digest/<project slug of cwd>/`,
 unless `--store` or `$CODE_OPS_DIGEST_DIR` names another directory, and `--no-store` or
 `CODE_OPS_DIGEST_STORE=off` outranks both and stores nothing. Raw files sit under
 `<store>/<ISO date>/`, and the ledger is `<store>/DIGEST_RECEIPTS.jsonl`. Both writes fail open, so a
 run whose store is unwritable still prints a correct digest with no raw path. Rows carry the
-working directory and the command, never the output. Evidence: `scripts/digest.mjs:166-195`.
+working directory and the command, never the output. Evidence: `scripts/digest.mjs:100-129`.
 
 ## Symbol index
 
@@ -146,7 +146,7 @@ The index is one JSON document, version `1`, with `root`, `excludes`, `builtAt`,
 sig}`, a `calls` list of `{name, line, member, from}`, and an `imports` list of `{spec, target,
 names}` where `names` pairs a local binding with the exported name. A file over 512 KB or holding
 a NUL byte keeps only its `sha`, `size`, and a `skipped` reason. The index holds no file body: a
-signature is one trimmed line capped at 120 characters. Evidence: `scripts/context-query.mjs:94-103`
+signature is one trimmed line capped at 120 characters. Evidence: `scripts/context-query.mjs:94-102`
 and `scripts/symbol-lib.mjs:46-64`.
 
 ## Retention and sensitivity

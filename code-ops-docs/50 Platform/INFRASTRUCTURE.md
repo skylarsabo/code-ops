@@ -153,7 +153,7 @@ The handoff-card marker store is `<host home>/code-ops/handoff/<project slug>/<s
 one small file per session holding the 150,000-token band already nudged and the highest band the
 session reached. It has no override variable and nothing purges it automatically; delete the
 directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:68-72` and
-`scripts/transcript-lib.mjs:539-555`.
+`scripts/transcript-lib.mjs:565-581`.
 
 The dispatch-guard store is `~/.claude/code-ops/dispatch/<cwd hash>/<agent hash>`. Each agent
 has a `.rounds` counter and may have a `.binding.json` controller record. Each lead session that
@@ -228,7 +228,7 @@ and `scripts/local-review-gate.mjs:1-39`.
 each one as present or absent beside its other capability lines, and their absence never fails a
 preflight. `context-query.mjs` spawns one only when `refresh --provider` names it, and without
 one the index falls back to its own line rules. Evidence: `scripts/preflight.mjs:93-99` and
-`scripts/context-query.mjs:208-213`.
+`scripts/context-query.mjs:207-212`.
 
 ## Operational limits
 
