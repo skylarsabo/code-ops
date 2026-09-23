@@ -67,6 +67,7 @@ export function parseFlags(argv, spec = {}) {
   }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === undefined) continue; // unreachable: i stays below argv.length
     if (arg === '--') {
       positional.push(...argv.slice(i + 1));
       break;
