@@ -6,7 +6,11 @@
 // replaced an agent's declared tier; and a wide-surface or context-inheriting operative
 // started 33,000 to 39,000 tokens above a restricted agent on every turn.
 //
-// THREE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// A later audit of this repository (2026-09, ten days) found leads spending 73% of their input
+// tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
+// advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
+//
+// FOUR BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -14,18 +18,41 @@
 //      `dispatch-guard.mjs register --agent-id <id> --budget <rounds>` before work begins.
 //      The hook warns at that unit's bound budget and denies after a two-call checkpoint
 //      allowance. `receipt --agent-id <id>` emits only allowlisted local measurements.
-//   2. LEGACY ROUND COUNTER, inside every other subagent (`agent_id` present). It preserves
-//      the prior environment budget, warning cadence, and three-times-budget stop as the safe
-//      fallback when exact controller registration is unavailable.
-//   3. DISPATCH ADVISORIES, on the main thread only (`agent_id` absent) and only for the
-//      dispatch tool (`Agent`, or `Task` before the host renamed it). It never denies: it adds
-//      at most three short clauses about a `model` override, a wide-surface or
-//      context-inheriting agent type, and a brief with no Round budget.
+//   2. LEGACY ROUND COUNTER, inside every other subagent (`agent_id` present). It keeps the
+//      environment budget and warning cadence and stops at twice the budget, the safe fallback
+//      when exact controller registration is unavailable. A bound allowance never extends it.
+//   3. CONTEXT CEILING GATE, on the main thread only (`agent_id` absent), for the dispatch tools
+//      `Agent`, `Task` (its name before the host renamed it), and `Workflow`. Resident context
+//      comes from `residentContext` (scripts/transcript-lib.mjs), the bounded transcript-tail
+//      read hooks/handoff-card.mjs shares. At and past the ceiling the gate band is
+//      `1 + floor((context - ceiling) / 150000)`, and a dispatch is denied until a handoff
+//      assessment has recorded that band. A main-thread `Skill` call whose skill matches
+//      `code-ops-suite:handoff` records the band current at that call; so does the CLI verb
+//      `dispatch-guard.mjs assessed --session <id> --band <n>`, run from the project root, for a
+//      host without a skill tool. The record only rises, so each new 150,000-token band re-gates.
+//      Unreadable context, a missing transcript, or a session id outside [A-Za-z0-9._-] fails open.
+//   4. DISPATCH REVIEW, on the main thread for the same tools. A wide-surface, context-inheriting,
+//      or unnamed `subagent_type` on `Agent` or `Task` is denied unless the brief has a line
+//      starting `Wide-surface reason:` with the reason on that line. A `Workflow` script with an
+//      `agent(` call, no `agentType:`, and no `Wide-surface reason:` text is denied the same way.
+//      A `model` override and a brief with no Round budget stay advisory clauses. Every denial
+//      and advisory for one dispatch lands in one output.
 //
 // SWITCHES. `CODE_OPS_ROUND_BUDGET` overrides the 40-round default (a positive integer only).
 // `CODE_OPS_DISPATCH_GUARD` takes `off`, `0`, or `false` (case-insensitive) to disable the
-// whole hook, and `warn` to keep every advisory while lifting the hard stop. One variable
-// carries both so an operator has one name to remember; the default is on, with the stop.
+// whole hook, ceiling gate included, and `warn` to turn every denial except a malformed or
+// unavailable controller binding into advisory text. One variable carries both so an
+// operator has one name to remember; the default is on, with every denial.
+// `CODE_OPS_CONTEXT_CEILING` sets the ceiling: `off`, `0`, or `false` disables only the gate,
+// an integer of at least 150,000 overrides the 300,000 default, and anything else reads as
+// the default (`contextCeiling` in scripts/transcript-lib.mjs, shared with the handoff card).
+//
+// HOST COVERAGE. The ceiling gate and the dispatch review key on Claude's dispatch tool names.
+// This repository does not document the tool name Grok or Codex uses to dispatch a subagent,
+// so on those hosts both behaviours are inert unless that tool happens to share a name
+// (UNVERIFIED); the round counters keep the per-host coverage INFRASTRUCTURE.md records.
+// Codex transcripts are measured through their token_count snapshots, Grok's through
+// updates.jsonl, as residentContext documents. OpenCode runs its own lifecycle guard.
 //
 // HOST CONTRACT (confirmed against the installed host 2.1.276 bundle, byte offsets in it):
 //   - Every hook input carries optional `agent_id` and `agent_type` (196890439). `agent_id` is
@@ -40,6 +67,10 @@
 //   - The dispatch tool is `Agent`; the host renames the older `Task` to it (195073281). Its
 //     input carries `description`, `prompt`, optional `subagent_type`, and an optional `model`
 //     that "Takes precedence over the agent definition's model frontmatter" (208306001).
+//   - The `Workflow` tool's `script` input and its `agent(` calls with an `agentType:` field
+//     come from the operator's brief, not from a located declaration in that bundle
+//     (UNVERIFIED), and a `Skill` call's `tool_input.skill` names the skill, as the Claude
+//     host's Skill tool documents.
 //   That an injected `additionalContext` on an allowed subagent tool call lands in the
 //   subagent's own context, rather than the lead's, is PROBABLE rather than confirmed: the
 //   host collects hook `additionalContexts` independently of the permission decision
@@ -47,8 +78,9 @@
 //   but no single declaration states it for this event.
 //
 // STATE. One counter and optional binding per exact `(cwd, agent_id)` under `<host
-// home>/.claude/code-ops/dispatch/<sha256 cwd>/<sha256 agent id>.{rounds,binding.json}`, the
-// storage convention `handoffMarkerPath`
+// home>/.claude/code-ops/dispatch/<sha256 cwd>/<sha256 agent id>.{rounds,binding.json}`, and
+// one assessment marker per session at `<sha256 cwd>/<sha256 session id>.assessed.json`
+// (`{version: 1, band}`), the storage convention `handoffMarkerPath`
 // (scripts/transcript-lib.mjs) sets for the sibling hooks. The count is the file's byte
 // length, appended one byte per tool call, so two concurrent tool calls from the same
 // subagent cannot lose a round the way a read-modify-write of a JSON counter would. The
@@ -68,16 +100,24 @@ import { appendFileSync, constants, copyFileSync, existsSync, mkdirSync, readFil
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const DEFAULT_BUDGET = 40;
 const WARN_EVERY = 20;
-const STOP_MULTIPLE = 3;
+const STOP_MULTIPLE = 2;
 const DEFAULT_CHECKPOINT_ALLOWANCE = 2;
 const MAX_CHECKPOINT_ALLOWANCE = 4;
-const DISPATCH_TOOLS = new Set(['Agent', 'Task']);
+const DISPATCH_TOOLS = new Set(['Agent', 'Task', 'Workflow']);
 // Agent types that start from the host's full tool surface or inherit the lead's context.
 const WIDE_TYPES = new Set(['general-purpose', 'claude', 'fork']);
+// A brief line that justifies a wide or unnamed agent type, with the reason on the same line.
+const WIDE_REASON = /^Wide-surface reason:[ \t]*\S/m;
+const BAND_TOKENS = 150_000;
+const HANDOFF_SKILL = /code-ops-suite[:-]handoff/;
+// Session ids key the assessment marker and appear in the unlock command the deny prints, so
+// only a shell-safe id is gated; any other id fails open.
+const SAFE_SESSION = /^[A-Za-z0-9._-]{1,256}$/;
+const HOOK_PATH = fileURLToPath(import.meta.url);
 
 const stateKey = (value) => createHash('sha256').update(String(value)).digest('hex');
 const legacySlug = (value) => String(value).replace(/[^A-Za-z0-9]/g, '-');
@@ -98,6 +138,28 @@ function counterPath(cwd, agentId) {
 function legacyCounterPath(cwd, agentId) {
   return join(homedir(), '.codex', 'code-ops', 'dispatch', legacySlug(cwd), `${legacySlug(agentId)}.rounds`);
 }
+
+function assessedPath(cwd, sessionId) {
+  return join(stateDir(cwd), `${stateKey(sessionId)}.assessed.json`);
+}
+
+// The highest ceiling band a handoff assessment unlocked, or 0 for a missing or malformed marker.
+function assessedBand(path) {
+  try {
+    const marker = JSON.parse(readFileSync(path, 'utf8'));
+    return marker?.version === 1 && Number.isSafeInteger(marker.band) && marker.band > 0 ? marker.band : 0;
+  } catch { return 0; }
+}
+
+// Records an assessment at `band`. The marker only rises, so a stale unlock never lowers it.
+function recordAssessment(cwd, sessionId, band) {
+  const path = assessedPath(cwd, sessionId);
+  if (band < 1 || assessedBand(path) >= band) return;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify({ version: 1, band }) + '\n');
+}
+
+const gateBand = (context, ceiling) => (context < ceiling ? 0 : 1 + Math.floor((context - ceiling) / BAND_TOKENS));
 
 function bindingPath(cwd, agentId) {
   return join(stateDir(cwd), `${stateKey(agentId)}.binding.json`);
@@ -260,10 +322,12 @@ function cliAgentId(args) {
   return agentId && agentId.length <= 512 ? agentId : null;
 }
 
-function cliBudget(args) {
-  const raw = cliValue(args, '--budget');
+function cliPositive(args, name) {
+  const raw = cliValue(args, name);
   return raw && /^[1-9][0-9]*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : null;
 }
+
+const cliBudget = (args) => cliPositive(args, '--budget');
 
 function cliAllowance(args) {
   const raw = cliValue(args, '--allowance');
@@ -292,6 +356,13 @@ function cliFailure(status) {
 function command() {
   const [verb, ...args] = process.argv.slice(2);
   if (!verb) return false;
+  if (verb === 'assessed') {
+    const sessionId = cliValue(args, '--session');
+    const band = cliPositive(args, '--band');
+    if (!sessionId || !SAFE_SESSION.test(sessionId) || !band) return cliFailure('INVALID_ARGUMENT');
+    try { recordAssessment(process.cwd(), sessionId, band); } catch { return cliFailure('UNAVAILABLE'); }
+    return true;
+  }
   const agentId = cliAgentId(args);
   if (!agentId) return cliFailure('INVALID_ARGUMENT');
   const cwd = process.cwd();
@@ -309,34 +380,88 @@ function command() {
   return cliFailure('INVALID_COMMAND');
 }
 
-// Behaviour 2: the lead's own dispatch. Advisory only, never a decision.
-function adviseDispatch(payload, budget) {
-  const input = payload.tool_input;
-  if (!input || typeof input !== 'object') return;
+// The session's resident context against the ceiling, or null when the gate is off or any
+// input is missing or unreadable (fail open).
+async function ceilingGate(payload) {
+  const sessionId = payload.session_id;
+  if (typeof sessionId !== 'string' || !SAFE_SESSION.test(sessionId)) return null;
+  let lib;
+  try { lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'transcript-lib.mjs')).href); } catch { return null; }
+  const ceiling = lib.contextCeiling();
+  if (ceiling === null) return null;
+  const context = lib.residentContext(payload, { grok: Boolean(process.env.GROK_PLUGIN_ROOT), home: homedir() });
+  if (typeof context !== 'number') return null;
+  const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
+  return { cwd, sessionId, context, ceiling, band: gateBand(context, ceiling) };
+}
+
+const tokens = (n) => (Math.round(n / 1000) * 1000).toLocaleString('en-US');
+
+function ceilingReason(gate) {
+  return `This session holds about ${tokens(gate.context - gate.ceiling)} tokens past the `
+    + `${gate.ceiling.toLocaleString('en-US')}-token context ceiling. Run code-ops-suite:handoff assess `
+    + '(CONTINUE, COMPACT, or HANDOFF) before dispatching new work; the assessment unlocks dispatch '
+    + `until the next ${BAND_TOKENS.toLocaleString('en-US')}-token band. Without a skill tool, run this exact `
+    + `command from the project root: \`node "${HOOK_PATH}" assessed --session ${gate.sessionId} --band ${gate.band}\`.`;
+}
+
+// Behaviour 4: the lead's own dispatch. A wide surface without a stated reason is a denial; a
+// model override and a missing Round budget stay advisory.
+function reviewDispatch(tool, input, budget, denials, advisories) {
+  if (tool === 'Workflow') {
+    const script = typeof input.script === 'string' ? input.script : '';
+    if (/\bagent\s*\(/.test(script) && !/\bagentType\s*:/.test(script) && !script.includes('Wide-surface reason:')) {
+      denials.push('A Workflow agent() call with no agentType starts from the default surface; set agentType '
+        + 'to a code-ops-suite agent, or add "Wide-surface reason: <why>" to the script.');
+    }
+    return;
+  }
   const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim() : '';
-  const clauses = [];
+  const prompt = typeof input.prompt === 'string' ? input.prompt : '';
 
   if (input.model !== undefined && input.model !== null && input.model !== '') {
     const tier = declaredTier(type);
-    clauses.push(`A model override replaces the agent's declared tier${tier ? ` (${tier})` : ''}; `
+    advisories.push(`A model override replaces the agent's declared tier${tier ? ` (${tier})` : ''}; `
       + 'verify task rationale and tier floor.');
   }
-  if (!type || WIDE_TYPES.has(type.split(':').pop().toLowerCase())) {
-    clauses.push(`${type || 'An unnamed type'} starts from a large default or inherited context; `
-      + 'prefer code-ops-suite:implementer, explorer, reviewer, or mech.');
+  if ((!type || WIDE_TYPES.has(type.split(':').pop().toLowerCase())) && !WIDE_REASON.test(prompt)) {
+    denials.push(`${type || 'An unnamed type'} starts from a large default or inherited context; `
+      + 'dispatch code-ops-suite:implementer, explorer, reviewer, or mech, or add a '
+      + '"Wide-surface reason: <why>" line to the brief.');
   }
   if (typeof input.prompt === 'string' && !/round budget/i.test(input.prompt)) {
-    clauses.push(`No Round budget in the brief; the guard warns at ${budget} rounds, `
+    advisories.push(`No Round budget in the brief; the guard warns at ${budget} rounds, `
       + `stops at ${budget * STOP_MULTIPLE}.`);
   }
-  if (!clauses.length) return;
-  emit({ hookSpecificOutput: {
-    hookEventName: 'PreToolUse',
-    additionalContext: `Dispatch guard: ${clauses.join(' ')}`,
-  } });
 }
 
-function main() {
+// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessment; a dispatch
+// meets the ceiling gate and then the dispatch review, in one output.
+async function guardMainThread(payload, budget, hardStop) {
+  const tool = payload.tool_name;
+  const input = payload.tool_input && typeof payload.tool_input === 'object' ? payload.tool_input : null;
+  if (tool === 'Skill') {
+    if (!HANDOFF_SKILL.test(String(input?.skill ?? ''))) return;
+    const gate = await ceilingGate(payload);
+    if (gate) try { recordAssessment(gate.cwd, gate.sessionId, gate.band); } catch { /* fail open */ }
+    return;
+  }
+  if (!DISPATCH_TOOLS.has(tool) || !input) return;
+  const denials = [];
+  const advisories = [];
+  const gate = await ceilingGate(payload);
+  if (gate && gate.band >= 1 && assessedBand(assessedPath(gate.cwd, gate.sessionId)) < gate.band) {
+    denials.push(ceilingReason(gate));
+  }
+  reviewDispatch(tool, input, budget, denials, advisories);
+  if (!denials.length && !advisories.length) return;
+  const text = `Dispatch guard: ${[...denials, ...advisories].join(' ')}`;
+  emit({ hookSpecificOutput: hardStop && denials.length
+    ? { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: text }
+    : { hookEventName: 'PreToolUse', additionalContext: text } });
+}
+
+async function main() {
   if (command()) return;
   const setting = process.env.CODE_OPS_DISPATCH_GUARD ?? '';
   if (/^(off|0|false)$/i.test(setting)) return;
@@ -348,12 +473,13 @@ function main() {
   if (payload.hook_event_name && payload.hook_event_name !== 'PreToolUse') return;
 
   const budget = roundBudget();
+  const hardStop = !/^warn$/i.test(setting);
   const agentId = payload.agent_id;
   if (typeof agentId === 'string' && agentId) {
-    guardSubagent(payload, budget, !/^warn$/i.test(setting));
+    guardSubagent(payload, budget, hardStop);
     return;
   }
-  if (DISPATCH_TOOLS.has(payload.tool_name)) adviseDispatch(payload, budget);
+  await guardMainThread(payload, budget, hardStop);
 }
 
-try { main(); } catch { /* fail open */ }
+main().catch(() => { /* fail open */ });

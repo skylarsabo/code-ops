@@ -2,15 +2,16 @@
 //
 // OpenCode ports of the lifecycle mechanisms the host events can carry:
 // ladder card, session receipt, handoff assess/nudge/pickup,
-// dispatch guard, Task-tool suite allowlist, compact checkpoint, and
-// chooser-aware cheapest-at-floor agent bindings.
+// dispatch guard (subagent round stop at twice the budget), context-ceiling
+// dispatch gate on the lead, Task-tool suite allowlist, compact checkpoint,
+// and chooser-aware cheapest-at-floor agent bindings.
 //
 // WHY: OpenCode has no SubagentStart, SessionEnd transcript_path, or PreToolUse
 // agent_id. This plugin approximates them with sessionID, parentID, chat.params,
 // system.transform, tool.execute, session.idle, tool.definition, and config.
 // It ships in the generated distribution. It is not a claim that OpenCode has the
-// Claude hook events. Fail-open on every path except a bound dispatch-guard stop
-// or a non-suite Task dispatch.
+// Claude hook events. Fail-open on every path except a bound dispatch-guard stop,
+// an unassessed dispatch past the context ceiling, or a non-suite Task dispatch.
 
 import {
   appendFileSync,
@@ -34,7 +35,10 @@ const INLINE_BAND = 120_000;
 const REPORT_CHARS = 16_000;
 const DEFAULT_BUDGET = 40;
 const WARN_EVERY = 20;
-const STOP_MULTIPLE = 3;
+const STOP_MULTIPLE = 2;
+// Past this context size the lead must run the handoff assessment before it
+// dispatches new work. Each later THRESHOLD-sized band gates again.
+const CEILING = 300_000;
 const PENDING_DAYS = 14;
 const DISPATCH_TOOLS = new Set(['task', 'Task', 'agent', 'Agent']);
 const WIDE_TYPES = new Set(['general-purpose', 'general', 'claude', 'fork', 'explore', 'scout']);
@@ -240,6 +244,22 @@ function contextThreshold(profile) {
   return Number.isSafeInteger(raw) && raw >= MIN_THRESHOLD ? raw : THRESHOLD;
 }
 
+// CODE_OPS_CONTEXT_CEILING: off|0|false disables the gate, an integer of at
+// least THRESHOLD overrides it, anything else keeps the default. The ceiling
+// never sits below the handoff band the profile set.
+function contextCeiling(profile) {
+  const raw = String(process.env.CODE_OPS_CONTEXT_CEILING ?? '').trim();
+  if (/^(off|0|false)$/i.test(raw)) return null;
+  const n = Number(raw);
+  const ceiling = raw && Number.isSafeInteger(n) && n >= THRESHOLD ? n : CEILING;
+  return Math.max(ceiling, contextThreshold(profile));
+}
+
+function gateBand(context, ceiling) {
+  if (!ceiling || !(context >= ceiling)) return 0;
+  return 1 + Math.floor((context - ceiling) / THRESHOLD);
+}
+
 // Host-reported spend, converted by the operator's own measured rate. A host
 // that reports zero cost yields no line rather than a false zero.
 function spendLine(usd, profile) {
@@ -307,6 +327,14 @@ function sessionStore(cwd) {
 
 function counterPath(cwd, sessionId) {
   return join(sessionStore(cwd), `${stateKey(sessionId)}.rounds`);
+}
+
+function assessedPath(cwd, sessionId) {
+  return join(sessionStore(cwd), `${stateKey(sessionId)}.assessed.json`);
+}
+
+function readAssessed(path) {
+  try { return Math.max(0, Number(JSON.parse(readFileSync(path, 'utf8')).band) || 0); } catch { return 0; }
 }
 
 function countRound(path) {
@@ -747,6 +775,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         lastTs: Date.now(),
         userPrompts: 0,
         handoffInvoked: false,
+        assessedBand: null,
         pickupDone: false,
         ladderDone: false,
         ladderViaSystem: false,
@@ -775,6 +804,24 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
   const queueNote = (row, note) => {
     if (!row || !note) return;
     if (!row.pendingNotes.includes(note)) row.pendingNotes.push(note);
+  };
+
+  // The assessed band survives a restart through a marker beside the round
+  // counter. It only rises, so a stale write never re-locks an unlocked band.
+  const assessedBand = (row) => {
+    row.assessedBand ??= readAssessed(assessedPath(row.cwd, row.id));
+    return row.assessedBand;
+  };
+
+  const recordAssessment = (row) => {
+    const band = gateBand(row.contextAtEnd, contextCeiling(profile));
+    if (band <= assessedBand(row)) return;
+    row.assessedBand = band;
+    try {
+      const path = assessedPath(row.cwd, row.id);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, JSON.stringify({ version: 1, band }));
+    } catch { /* fail open: the row still holds the band */ }
   };
 
   const takeNotes = (row) => {
@@ -876,9 +923,14 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
     writeBand(marker, band, peak);
     const approx = Math.round(context / 10_000) * 10_000;
     const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context, and every turn re-reads all of it. ${spendLine(sessionCost(row) + row.childCost, profile)}`;
-    return band === 1
+    const ceiling = contextCeiling(profile);
+    const gated = on('CODE_OPS_DISPATCH_GUARD') && hardStop() && ceiling && context >= ceiling
+      && assessedBand(row) < gateBand(context, ceiling)
+      ? ' New dispatches are gated until that assessment runs.'
+      : '';
+    return (band === 1
       ? held + 'At the next safe boundary, run /code-ops-suite-handoff assess to choose CONTINUE, COMPACT, or HANDOFF. Continue a short coherent finish; checkpoint durable state before compacting; use explicit write only for a transfer or recovery.'
-      : held + 'Finish the step in flight, then run /code-ops-suite-handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.';
+      : held + 'Finish the step in flight, then run /code-ops-suite-handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.') + gated;
   };
 
   // The lead's own reads are the largest cost on a metered host. The advisory
@@ -1036,7 +1088,10 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         const text = Array.isArray(output?.parts)
           ? output.parts.map((part) => (part?.type === 'text' ? part.text : '')).join('\n')
           : '';
-        if (row.userPrompts > 1 && HANDOFF_RE.test(text)) row.handoffInvoked = true;
+        if (row.userPrompts > 1 && HANDOFF_RE.test(text)) {
+          row.handoffInvoked = true;
+          recordAssessment(row);
+        }
         if (suiteAgent(row.agent)) {
           const effort = directive(text, 'Effort', EFFORTS);
           if (effort.raw) { row.effort = effort.value; row.effortRaw = effort.raw; }
@@ -1090,6 +1145,13 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         const tool = typeof input?.tool === 'string' ? input.tool : '';
         row.toolCalls[tool] = (row.toolCalls[tool] || 0) + 1;
         row.lastTs = Date.now();
+        // The model loads a skill through the host's `skill` tool. Loading the
+        // handoff skill is the assessment that unlocks the context ceiling.
+        if (tool.toLowerCase() === 'skill' && output?.args && typeof output.args === 'object'
+          && Object.values(output.args).some((v) => typeof v === 'string' && HANDOFF_RE.test(v))) {
+          row.handoffInvoked = true;
+          recordAssessment(row);
+        }
         if (DISPATCH_TOOLS.has(tool) && on('CODE_OPS_TIER_ROUTING') && output?.args && typeof output.args === 'object') {
           const args = output.args;
           const key = ['subagent_type', 'agent', 'subagentType', 'name'].find((k) => typeof args[k] === 'string' && args[k].trim());
@@ -1136,6 +1198,14 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
               `Dispatch guard: ${type || 'an unnamed type'} is not a suite subagent. Dispatch code-ops-suite-implementer, code-ops-suite-explorer, code-ops-suite-reviewer, rigor-tracer, rigor-verifier, privacy-opsec-suite-explorer, privacy-opsec-suite-privacy-reviewer, researcher-claim-checker, or researcher-gatherer.`,
             );
           }
+          const ceiling = contextCeiling(profile);
+          const band = gateBand(row.contextAtEnd, ceiling);
+          if (band >= 1 && assessedBand(row) < band) {
+            const approx = Math.round(row.contextAtEnd / 10_000) * 10_000;
+            const gate = `Dispatch guard: this session holds about ${approx.toLocaleString('en-US')} tokens, past the ${ceiling.toLocaleString('en-US')}-token context ceiling. Run /code-ops-suite-handoff assess to choose CONTINUE, COMPACT, or HANDOFF before dispatching new work. The assessment unlocks dispatch until the next ${THRESHOLD.toLocaleString('en-US')}-token band.`;
+            if (hardStop()) throw new Error(gate);
+            queueNote(row, gate);
+          }
           const clauses = [];
           const model = dispatchModel(args);
           if (model !== undefined && model !== null && model !== '') {
@@ -1152,7 +1222,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         try { used = countRound(counterPath(row.cwd, row.id)); } catch { return; }
         if (hardStop() && used >= budget * STOP_MULTIPLE) {
           throw new Error(
-            `Dispatch guard: ${used} tool rounds used, ${STOP_MULTIPLE} times the ${budget}-round budget. Return your report now: what is done with file:line evidence, what remains, the exact next action, and any uncommitted state.`,
+            `Dispatch guard: ${used} tool rounds used, ${STOP_MULTIPLE === 2 ? 'twice' : `${STOP_MULTIPLE} times`} the ${budget}-round budget. Return your report now: what is done with file:line evidence, what remains, the exact next action, and any uncommitted state.`,
           );
         }
         if (used === budget || (used > budget && (used - budget) % WARN_EVERY === 0)) {

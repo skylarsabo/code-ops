@@ -23,3 +23,5 @@ Rules:
 Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
 Return findings grouped by priority: **Blocking** (bugs, security or privacy regressions, broken contracts, missing critical tests), **Should-fix**, and **Nit**, plus a one-line overall risk read. Keep the report dense and evidence-cited, with no raw file dumps. The orchestrator merges your report with others.
+
+Report cap: at most 600 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.

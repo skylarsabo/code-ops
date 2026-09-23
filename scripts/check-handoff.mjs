@@ -50,11 +50,16 @@
 // Advisory (never gating): a `Verified-at:` sha that is not the current HEAD, so a resumed
 // session re-verifies before trusting the handoff's claims.
 //
+// Status (never gating): `same-tree: Verified-at matches HEAD on a clean tree` prints when the
+// `Verified-at:` sha is the current HEAD and `git status --porcelain` lists nothing but the
+// handoff file itself. Gitignored run scratch never appears there. A resumed session may then
+// take FRESH anchors without re-reading each file (handoff SKILL.md, resume direction).
+//
 // Exit: 0 = conformant; 1 = at least one violation (listed on stderr); 2 = usage error.
 // Pointer statuses and advisories print on stderr, so stdout carries only the one-line verdict.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, resolve, isAbsolute } from 'node:path';
 import { parseOrDie, usage, git } from './cli-lib.mjs';
 // Imported by relative specifier: check-handoff.mjs ships vendored into
 // plugins/code-ops-suite/scripts/, and the library ships beside it.
@@ -222,6 +227,18 @@ let headSha = null;
 try { headSha = git(['rev-parse', '--short', 'HEAD'], { cwd: resolver.root }); } catch { /* not a git repo */ }
 if (stamped && headSha && !stamped[1].startsWith(headSha) && !headSha.startsWith(stamped[1]))
   console.error(`  advisory: Verified-at ${stamped[1]} != HEAD ${headSha}: re-verify the handoff's claims before acting on them`);
+
+// ---- status: same tree, so FRESH anchors need no re-read ----
+// WHY: a resume on the very tree the handoff verified re-read every anchored file for nothing.
+// The handoff file is excluded because writing it dirties the tree it describes. Any git
+// failure leaves the status unprinted, which only costs the successor the slow path.
+else if (stamped && headSha) {
+  const own = relative(resolver.root, resolve(target)).replace(/\\/g, '/');
+  const exclude = own && !own.startsWith('../') && !isAbsolute(own) ? [`:(exclude,literal)${own}`] : [];
+  let dirty = null;
+  try { dirty = git(['status', '--porcelain', '--untracked-files=all', '--', '.', ...exclude], { cwd: resolver.root }); } catch { /* not decidable */ }
+  if (dirty === '') console.error('  same-tree: Verified-at matches HEAD on a clean tree');
+}
 
 if (violations.length) {
   console.error(`x ${target}: ${violations.length} violation(s)`);

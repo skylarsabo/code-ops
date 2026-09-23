@@ -246,11 +246,13 @@ proves a handoff, compaction, delivery, or cost outcome.
 
 `hooks/dispatch-guard.mjs` (switch `CODE_OPS_DISPATCH_GUARD`) counts attempted subagent tool calls.
 Its unregistered fallback warns at the environment budget and every further 20 calls, then denies
-at three times that budget. A brief's number alone does not bind the hook. The 40-call default
-and the three-times stop are **SPECULATIVE**:
+at twice that budget. A brief's number alone does not bind the hook. The 40-call default and the
+twice-budget stop are **SPECULATIVE**:
 both come from the 2026-09-18 cross-project audit above, where one operative spent 71 tool uses
-against a 40-round budget, not from a matched on/off comparison. This row fixes the metric and the
-decision rule before any comparison exists.
+against a 40-round budget, not from a matched on/off comparison. The stop moved from three times
+to twice the budget after the 10-day audit below: reviewers averaged about 90 rounds, under the
+old 120-round stop, so that stop never bound them. This row fixes the metric and the decision
+rule before any comparison exists.
 
 Explicit controller registration now binds an exact agent ID to a budget and small checkpoint
 allowance. Its sanitized receipt reports the declared budget, allowance, attempted calls, and
@@ -278,8 +280,47 @@ calls under a brief that did not quote the warning. At call 40 it received the g
 `PreToolUse:Read hook additional context`, verbatim from the hook source, and no earlier call
 carried it. The guard's counter file for that operative held 42 bytes afterward. This settles
 where the warning lands. It says nothing about the decision rule above, because an operative told
-to continue past the warning measures no change in behavior. The three-times stop is still
+to continue past the warning measures no change in behavior. The round stop is still
 unobserved in a live operative.
+
+## Pre-registered: context ceiling and wide-type deny
+
+A 10-day transcript audit of this repository measured where lead and operative input went. Leads
+spent 68% of input tokens. Lead turns above 300,000 tokens of context spent 2.68 billion of
+3.69 billion lead input tokens. 1,942 lead turns ran above 600,000 tokens, and 38 sessions held
+only 2 compactions. The 150,000-token handoff nudge alone did not change that behavior.
+General-purpose operatives carried 29% of input tokens. Across 82 of them the mean was 156 turns,
+and each started near 56,000 tokens of context, against 14,000 to 20,000 for a restricted agent.
+These are one repository's numbers from one operator. They size the levers and prove nothing
+about the fixes.
+
+Two gates answer them in `hooks/dispatch-guard.mjs` and the OpenCode lifecycle plugin. The
+context-ceiling gate denies a new lead dispatch at or above `CODE_OPS_CONTEXT_CEILING`, 300,000
+tokens by default, until `/code-ops-suite:handoff assess` runs, and gates again at each further
+150,000-token band. The wide-type gate denies a `general-purpose`, `claude`, `fork`, or unnamed
+dispatch whose brief carries no `Wide-surface reason:` line. The 300,000 default and the band
+width are **SPECULATIVE**: they come from this audit, not from a matched on/off comparison.
+
+**Metric.** From `node scripts/context-audit.mjs --all` over comparable sessions: the share of lead
+input tokens spent on turns above 300,000 tokens, the count of lead turns above 600,000, the
+compactions and handoffs per session, and the share of operative input carried by wide-surface
+types. Each session receipt's `arms.dispatchGuard` separates the arms.
+
+**Decision rule, fixed before any row exists.** The ceiling gate stays when gated sessions show a
+lower share of lead input above 300,000 tokens and fewer turns above 600,000 than the baseline,
+with no rise in abandoned units. It also needs no rise in handoffs that fail `check-handoff.mjs`.
+Gated sessions that record the assessment and then run on unchanged refute the gate: the lead
+clicked through, and the ceiling moves down or the gate goes. The wide-type deny stays when the
+wide-surface share of operative input falls with no rise in failed units. A deny that most briefs
+answer with a boilerplate `Wide-surface reason:` refutes it.
+
+## Startup context
+
+A lead's first turn measured 62,000 to 72,000 tokens. About 50,000 of that is the host system
+prompt and tool schemas, outside this repository's control. The plugin skill and agent listings
+add about 4,000, and `CLAUDE.md` about 2,400 after its trim. Three operator levers remain, and none
+is automated. Disable unused desktop connectors per session. Enable `privacy-opsec-suite` and
+`researcher` only in projects that use them. Keep `MEMORY.md` an index rather than a store.
 
 ## Effort sweep, Workstream D
 

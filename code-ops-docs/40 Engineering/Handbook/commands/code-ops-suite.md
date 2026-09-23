@@ -799,7 +799,9 @@ A short finish cannot override those conditions. COMPACT fits same-task pressure
 durable state is checkpointed. HANDOFF fits an independent workstream, host or operator change,
 session end, or recovery after compaction thrashes. Finish or checkpoint the in-flight step first;
 record active workers, tools, processes, and dirty work without implying they were cancelled or
-reattached. Unknown telemetry alone does not require a restart.
+reattached. Unknown telemetry alone does not require a restart. Invoking `handoff assess` also
+records the assessment that unlocks the dispatch guard's context ceiling, 300,000 tokens by
+default, until the next 150,000-token band.
 
 Claude documents `/compact [focus]`; Codex CLI and desktop document `/compact`. Detect the active
 surface. An agent executes compaction only through a callable capability; otherwise the command is
@@ -835,7 +837,9 @@ sibling, and a file under 14 days. It never consumes or resumes the file itself.
 
 Resume treats every claim as context to verify rather than fact to trust. It runs
 `revalidate-register.mjs` on every named register and checks the anchored pointers, where a
-`DRIFTED` pointer is stale state. It re-runs the deterministic baseline when the tree moved,
+`DRIFTED` pointer is stale state. When `co check handoff` prints `same-tree: Verified-at matches
+HEAD on a clean tree`, resume accepts each FRESH anchor without re-reading its file and keeps the
+handoff's plan, while register revalidation still runs. It re-runs the deterministic baseline when the tree moved,
 then re-plans from what verified, surfacing contradictions at a checkpoint instead of silently
 re-deciding. It then runs `co check handoff HANDOFF.md --consume`, which writes
 `HANDOFF.consumed` beside the file on a passing check so later sessions stop being offered a

@@ -24,7 +24,8 @@
 // subcommand), and file extensions — never paths, arguments, or content. `raw: true` keeps a
 // truncated command / path for local inspection only.
 
-import { readFileSync, readdirSync, existsSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, openSync, readSync, closeSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, extname, basename, dirname } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -552,6 +553,145 @@ export function handoffPeakBand(path) {
     const m = JSON.parse(readFileSync(path, 'utf8'));
     return Math.max(0, Number(m.peak) || 0, Number(m.band) || 0);
   } catch { return 0; }
+}
+
+// Context ceiling shared by `hooks/dispatch-guard.mjs`, which gates new dispatches at and past
+// it, and `hooks/handoff-card.mjs`, which says so in its band nudge. `CODE_OPS_CONTEXT_CEILING`
+// takes `off`, `0`, or `false` (case-insensitive) to disable the gate (null), an integer of at
+// least 150,000 to override the default, and anything else reads as the 300,000 default.
+export const CONTEXT_CEILING_DEFAULT = 300_000;
+export const CONTEXT_CEILING_MIN = 150_000;
+export function contextCeiling(raw = process.env.CODE_OPS_CONTEXT_CEILING) {
+  const value = String(raw ?? '').trim();
+  if (/^(off|0|false)$/i.test(value)) return null;
+  const n = /^[0-9]+$/.test(value) ? Number(value) : NaN;
+  return Number.isSafeInteger(n) && n >= CONTEXT_CEILING_MIN ? n : CONTEXT_CEILING_DEFAULT;
+}
+
+// The ceiling band a context sits in: 0 below the ceiling, then 1 plus one per further
+// 150,000 tokens. `hooks/dispatch-guard.mjs` applies the same formula.
+export const CEILING_BAND_TOKENS = 150_000;
+export function ceilingBand(context, ceiling) {
+  return context < ceiling ? 0 : 1 + Math.floor((context - ceiling) / CEILING_BAND_TOKENS);
+}
+
+// Records a handoff assessment for the context-ceiling gate. `hooks/dispatch-guard.mjs` reads
+// and writes the same marker, `<home>/.claude/code-ops/dispatch/<sha256 cwd>/<sha256 session
+// id>.assessed.json` with body `{ version: 1, band }`, and keeps its own synchronous copy of the
+// path for its CLI. `hooks/handoff-card.mjs` calls this when the operator types the handoff
+// command, which the host expands without a Skill tool call the guard could see. The band only
+// rises. Returns the band now recorded, or 0 when nothing was written.
+export function recordCeilingAssessment(cwd, sessionId, context, ceiling, home = homedir()) {
+  if (ceiling === null || typeof context !== 'number') return 0;
+  const band = ceilingBand(context, ceiling);
+  if (band < 1) return 0;
+  const key = (value) => createHash('sha256').update(String(value)).digest('hex');
+  const path = join(home, '.claude', 'code-ops', 'dispatch', key(cwd), `${key(sessionId)}.assessed.json`);
+  let prior = 0;
+  try {
+    const marker = JSON.parse(readFileSync(path, 'utf8'));
+    if (marker?.version === 1 && Number.isSafeInteger(marker.band) && marker.band > 0) prior = marker.band;
+  } catch { /* no marker yet */ }
+  if (prior >= band) return prior;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify({ version: 1, band }) + '\n');
+  return band;
+}
+
+// Resident-context measurement for the hooks, which must stay inside a tens-of-milliseconds
+// budget: only the last CONTEXT_TAIL_BYTES of the transcript are read, never the whole file.
+const CONTEXT_TAIL_BYTES = 256 * 1024;
+
+// The last CONTEXT_TAIL_BYTES of the file, with a possibly-truncated leading partial line dropped.
+function readTail(path) {
+  const size = statSync(path).size;
+  const length = Math.min(size, CONTEXT_TAIL_BYTES);
+  const offset = size - length;
+  const buf = Buffer.allocUnsafe(length);
+  const fd = openSync(path, 'r');
+  try { readSync(fd, buf, 0, length, offset); } finally { closeSync(fd); }
+  const text = buf.toString('utf8');
+  if (offset === 0) return text;
+  const nl = text.indexOf('\n');
+  return nl < 0 ? '' : text.slice(nl + 1);
+}
+
+// The last assistant-turn usage record in the tail window, or null. Claude writes one line per
+// content block of the same message, each repeating `usage`, and the last one carries the final
+// counts (see the header), so the first assistant usage line found scanning backward from the
+// end of the file is already the turn's final number; no dedup pass needed.
+function lastContextSize(text) {
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    let o;
+    try { o = JSON.parse(line); } catch { continue; }
+    if (!o || typeof o !== 'object') continue;
+    if (o.type === 'assistant' && o.message && typeof o.message === 'object') {
+      const u = normalizeUsage(o.message.usage);
+      if (u && typeof u.input === 'number' && typeof u.cacheRead === 'number' && typeof u.cacheCreate === 'number') {
+        return u.input + u.cacheRead + u.cacheCreate;
+      }
+      return null;
+    }
+    // Codex best-effort branch: the host's own last-turn usage snapshot, read directly rather
+    // than through normalizeUsage's codex path, because Codex's own contextAtEnd is the raw,
+    // cache-inclusive input_tokens field, not the cache-excluded `input` normalizeUsage computes.
+    if (o.type === 'event_msg' && o.payload?.type === 'token_count') {
+      const n = o.payload.info?.last_token_usage?.input_tokens;
+      return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? n : null;
+    }
+  }
+  return null;
+}
+
+// Last Grok usage snapshot in the tail. `inputTokens` already includes cache tokens, the same
+// figure the Grok summarizer above stores as `contextAtEnd`.
+function lastGrokContext(text) {
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line || !line.includes('inputTokens')) continue;
+    let o;
+    try { o = JSON.parse(line); } catch { continue; }
+    const n = o?.params?.update?.usage?.inputTokens;
+    if (typeof n === 'number' && Number.isSafeInteger(n) && n >= 0) return n;
+  }
+  return null;
+}
+
+// Claude and Codex name a transcript. Grok names `updates.jsonl`, or `chat_history.jsonl`
+// with that stream beside it. A missing path falls back to the Grok session directory.
+function contextFile(payload, grok, home) {
+  const transcript = payload?.transcript_path ?? payload?.transcriptPath ?? payload?.transcript?.path;
+  if (typeof transcript === 'string' && transcript) {
+    if (grok && /chat_history\.jsonl$/i.test(transcript)) {
+      const updates = join(dirname(transcript), 'updates.jsonl');
+      if (existsSync(updates)) return { path: updates, grok: true };
+    }
+    if (existsSync(transcript)) return { path: transcript, grok: grok && /updates\.jsonl$/i.test(transcript) };
+  }
+  if (!grok) return null;
+  const sessionId = payload?.session_id ?? payload?.sessionId;
+  const cwd = typeof payload?.cwd === 'string' ? payload.cwd : '';
+  if (typeof sessionId !== 'string' || !sessionId || !cwd) return null;
+  const grokHome = process.env.GROK_HOME || join(home, '.grok');
+  const candidate = join(grokHome, 'sessions', encodeURIComponent(cwd), sessionId, 'updates.jsonl');
+  return existsSync(candidate) ? { path: candidate, grok: true } : null;
+}
+
+// The session's resident context in tokens from a hook payload, or null when it cannot be read.
+// Claude: input plus cache-read plus cache-creation on the last assistant usage record. Codex:
+// the last token_count snapshot's input_tokens. Grok (`grok: true`): the last updates.jsonl
+// snapshot's inputTokens. Never throws, so a caller fails open on null.
+export function residentContext(payload, { grok = false, home = homedir() } = {}) {
+  try {
+    const file = contextFile(payload, grok, home);
+    if (!file) return null;
+    const text = readTail(file.path);
+    return file.grok ? lastGrokContext(text) : lastContextSize(text);
+  } catch { return null; }
 }
 
 export function defaultTranscriptDir(cwd = process.cwd(), host = 'claude') {

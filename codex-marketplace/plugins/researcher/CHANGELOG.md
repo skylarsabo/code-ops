@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.28
+- `gatherer` and `claim-checker` each carry a 400-word report cap. Lint check 25 now requires a `Report cap:` line on every agent, between 100 and 800 words.
+
 ## 0.13.27
 - Each skill reads only the convention sections its opening paragraph names.
 

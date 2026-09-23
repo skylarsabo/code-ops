@@ -22,7 +22,8 @@ The Codex projection carries the session receipt and follows child rollouts thro
 floors, digest, index, routing, native compaction, and MCP behavior. It has no typed
 subagent-start callback, transcript path, or pre-tool `agent_id`. The lifecycle plugin covers
 those outcomes, including the implementer ladder, handoff and dispatch notes, a pending-handoff
-line, and a cost ledger (opencode-dist/PLATFORM_COMPATIBILITY.md:36). The compatibility record
+line, a cost ledger, and dispatch-guard denials for the round stop, a non-suite Task dispatch, and
+an unassessed dispatch past the context ceiling (opencode-dist/PLATFORM_COMPATIBILITY.md:36). The compatibility record
 names every remaining gap instead of claiming parity.
 
-The current projections include task-based contract routing, selective bounded worker views, separate cache cost components, and focused implementer verification guidance (codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:20, codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:33). Codex projects the handoff card as an advisory lifecycle assessment, while OpenCode ships the same handoff doctrine through its skill and delivers the note from the lifecycle plugin. Neither projection may claim that advisory text performed compaction or a transfer (codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md:17, opencode-dist/skills/code-ops-suite-handoff/SKILL.md:153).
+The current projections include task-based contract routing, selective bounded worker views, separate cache cost components, and focused implementer verification guidance (codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:20, codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:33). Codex projects the handoff card as an advisory lifecycle assessment, while OpenCode ships the same handoff doctrine through its skill and delivers the note from the lifecycle plugin. Neither projection may claim that advisory text performed compaction or a transfer (codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md:17, opencode-dist/skills/code-ops-suite-handoff/SKILL.md:163).

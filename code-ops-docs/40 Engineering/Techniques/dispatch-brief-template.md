@@ -1,6 +1,7 @@
 # Dispatch brief template
 
-Every subagent the orchestrator spawns gets a brief carrying the same sixteen fields. A
+Every subagent the orchestrator spawns gets a brief carrying the same seventeen fields, plus a Wide-surface reason line when it needs a
+wide agent type. A
 missing field is the usual cause of a subagent guessing instead of escalating, or of two
 subagents clobbering one file. This page holds the fill-in skeleton, one line per agent
 kind, and a worked example.
@@ -26,6 +27,9 @@ Report path: <exact file inside the run folder, e.g. `80 Runs/<date slug>/report
 Batching: request every independent item in one tool round; wait only on true dependencies
 Round budget: <tool rounds this unit should finish inside, 40 unless stated; past it the operative
   checkpoints done, remaining, and the exact next action to the Report path, then returns>
+Report cap: <at most N words for the returned report, at or under the agent definition's own cap>
+Wide-surface reason: <only for a general-purpose, claude, fork, or unnamed agent type: why no
+  suite agent fits; without this line the dispatch guard denies the dispatch>
 Size discipline: <implementer briefs only: correctness and the safety floor, then boundaries, then
   measured performance, then readability, then size; mark a deliberate simplification
   deferred(<ceiling>, <upgrade path>)>
@@ -42,7 +46,10 @@ without the lead re-emitting it. Escalation and Constraints keep a
 subagent from improvising past what it was asked. Independence separates validation from
 discovery. Round budget caps the context one operative accumulates, because every turn
 re-reads all of it. The lead continues a checkpointed unit in a fresh operative, and splits a
-unit that needs a second continuation. The lead dispatches in the background
+unit that needs a second continuation. Report cap bounds the report the lead re-reads on every
+later turn. Each agent definition already carries its own cap, 600 words for `reviewer`,
+`privacy-reviewer`, and `implementer` and 400 for every other agent, and a brief may set a
+smaller one. The lead dispatches in the background
 and continues independent work, and it waits only when the next step depends on the result.
 
 Three rules bind every dispatch. Always spawn a fresh operative with a brief rather than
@@ -53,9 +60,12 @@ agent definition's default tier.
 A controller that knows the exact host agent ID can bind its Round budget with
 `dispatch-guard.mjs register --agent-id <id> --budget <calls>`. Otherwise, a host that
 supplies `agent_id` uses the environment/default counter and hosts without that identity keep
-the fallback. A number in a brief never binds the hook by itself. The hook also flags a
-dispatch that overrides a tier, names no Round budget, or spawns a wide-surface or
-context-inheriting agent.
+the fallback. A number in a brief never binds the hook by itself. The unregistered counter denies at twice
+the budget. The hook denies a lead dispatch of a `general-purpose`, `claude`, `fork`, or unnamed
+agent type unless the brief carries a `Wide-surface reason:` line, so dispatch a suite agent
+instead wherever one fits. It also denies a new dispatch past the context ceiling, 300,000
+tokens by default, until `/code-ops-suite:handoff assess` runs. It flags a dispatch that
+overrides a tier or names no Round budget.
 
 For a contract-backed dispatch, do not paste the canonical context bundle into the brief. Compile a bounded unit view with `co context bundle view`, place stable invariant files before unit-specific files, and build the exact payload with `co context brief build`. Verify its receipt with `co context brief verify` immediately before dispatch. The compiler fails on any prefix, unit, or total byte-budget breach rather than truncating a file. Reuse a check only when its input snapshot and environment binding both match; HEAD alone does not bind a dirty worktree.
 
@@ -142,6 +152,7 @@ Expected return: CONFIRMED/PROBABLE/SPECULATIVE verdict, file:line evidence, one
 Report path: 80 Runs/2026-09-14 retry-audit/reports/D-004-verifier.md (write it, then
   return the path, the verdict, and the command count)
 Round budget: 15 tool rounds
+Report cap: 150 words
 Escalation: if the swallow looks intentional (a comment or test asserts it), stop
   and report that instead of guessing at intent.
 Constraints: do not edit retry.ts; no commits.

@@ -39,10 +39,13 @@ The code-ops-suite package registers eight commands across six events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
 trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
-its budget boundary or when its explicit controller binding is invalid. Unbound infrastructure
-failures retain the previous fail-open behavior.
+its budget boundary or when its explicit controller binding is invalid. It can also deny a lead
+dispatch of a wide-surface type that names no reason, and a lead dispatch past the context
+ceiling before the handoff assessment. Unbound infrastructure failures retain the previous
+fail-open behavior.
 Six commands carry an off switch, read from the canonical `.claude/settings.json`
-environment, and a seventh variable governs only the routing card's pending-handoff line.
+environment. A seventh variable governs only the routing card's pending-handoff line, and an
+eighth sets or disables the dispatch guard's context ceiling.
 Rendered hosts use their documented process environment:
 
 ```json
@@ -57,20 +60,32 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs` |
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
-| `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter and dispatch advisories, `dispatch-guard.mjs` |
+| `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |
+| `CODE_OPS_CONTEXT_CEILING` | `off`, `0`, or `false` | the context-ceiling dispatch gate inside `dispatch-guard.mjs`; an integer of at least 150,000 replaces the 300,000-token default |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
 
-`CODE_OPS_DISPATCH_GUARD=warn` is the one middle setting: it keeps every advisory and lifts only
-the hard stop. `CODE_OPS_ROUND_BUDGET` overrides the guard's 40-round default and takes a positive
-integer only. The guard injects one line at the budget and at every further 20 rounds, telling the
-operative to checkpoint to its report and return. At three times the budget it denies further tool
-calls with the same instruction. This is the unregistered fallback; a number written in a brief
-does not bind a worker automatically. It counts and denies only inside a subagent, which the host marks
-by an `agent_id` in the hook payload, so a main-thread tool call is never denied. On the lead's own
-dispatch it adds at most three advisory clauses: a `model` override that replaces the agent's
-declared tier, a wide-surface or context-inheriting agent type, and a brief carrying no Round
-budget. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
+`CODE_OPS_DISPATCH_GUARD=warn` is the one middle setting: it keeps every advisory and turns each
+deny into an advisory, except a deny for a malformed or unavailable controller binding. `CODE_OPS_ROUND_BUDGET` overrides the guard's 40-round default and takes a
+positive integer only. The guard injects one line at the budget and at every further 20 rounds,
+telling the operative to checkpoint to its report and return. At twice the budget it denies
+further tool calls with the same instruction. This is the unregistered fallback; a number written
+in a brief does not bind a worker automatically. It counts rounds only inside a subagent, which
+the host marks by an `agent_id` in the hook payload. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
+
+On the lead's own dispatch (`Agent`, `Task`, or `Workflow`) the guard applies two gates. The
+wide-type gate denies a `general-purpose`, `claude`, `fork`, or unnamed agent type unless the
+brief carries a `Wide-surface reason:` line. It also denies a `Workflow` script that calls
+`agent(` with no `agentType`. The context-ceiling gate denies a new dispatch once the lead's
+resident context reaches `CODE_OPS_CONTEXT_CEILING`, 300,000 tokens by default. Running
+`/code-ops-suite:handoff assess` records the assessment and unlocks dispatch until the next
+150,000-token band. A host without a skill tool records it with `dispatch-guard.mjs assessed
+--session <id> --band <n>`, run from the project root. The guard also adds at most two advisory
+clauses: a `model` override that replaces the agent's declared tier, and a brief carrying no
+Round budget. It never denies any other main-thread tool call. `CODE_OPS_DISPATCH_GUARD=off`
+disables the ceiling gate with the rest of the hook. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
 A controller with the exact host agent ID can run `dispatch-guard.mjs register --agent-id
 <id> --budget <calls> --allowance <calls>` from the worker's repository directory. The allowance
@@ -134,11 +149,13 @@ retention stays one operator command. Evidence: `scripts/context-audit.mjs:8-16`
 The handoff-card marker store is `<host home>/code-ops/handoff/<project slug>/<session id>.json`,
 one small file per session holding the 150,000-token band already nudged and the highest band the
 session reached. It has no override variable and nothing purges it automatically; delete the
-directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:79-92` and
+directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:68-72` and
 `scripts/transcript-lib.mjs:539-555`.
 
 The dispatch-guard store is `~/.claude/code-ops/dispatch/<cwd hash>/<agent hash>`. Each agent
-has a `.rounds` counter and may have a `.binding.json` controller record. New keys use SHA-256;
+has a `.rounds` counter and may have a `.binding.json` controller record. Each lead session that
+recorded a handoff assessment has a `<session hash>.assessed.json` marker holding the highest
+assessed band. New keys use SHA-256;
 legacy slug-keyed counters remain readable so adoption does not reset enforcement. No automatic
 purge runs. Receipts omit raw paths, agent IDs, prompts, and commands. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
@@ -153,7 +170,7 @@ also records the handoff band the session reached and whether the operator ran
 `/code-ops-suite:handoff`, so `receipts --by-arm` reads the handoff card against its own control.
 The `arms` object also carries `handoffPickup` and `dispatchGuard`, each read from its own switch.
 A `CODE_OPS_DISPATCH_GUARD` of `warn` records `dispatchGuard=true`, because every advisory still
-runs and only the hard stop is lifted.
+runs and only the denies are lifted.
 The report omits tool arguments and
 working-directory values unless raw output was explicitly requested.
 
@@ -182,7 +199,7 @@ byte-identical packaging.
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
 | Handoff card | Native | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff | Projected hook; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage |
 | Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Lifecycle line on the first lead system transform |
-| Dispatch guard | Native | Registered; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id` | Lifecycle guard keyed by child `sessionID` |
+| Dispatch guard | Native, with the wide-type and context-ceiling dispatch gates | Registered; the round counter is inert without `agent_id`, and the dispatch gates stay inert unless the dispatch tool shares Claude's name (UNVERIFIED) | Projected hook; the round counter is inert without `agent_id`, and the dispatch gates stay inert unless the dispatch tool shares Claude's name (UNVERIFIED) | Lifecycle guard keyed by child `sessionID`, a suite-only Task allowlist, and a context-ceiling gate unlocked by the `skill` tool or the typed handoff command |
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
 the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,

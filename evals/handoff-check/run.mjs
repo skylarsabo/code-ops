@@ -9,7 +9,7 @@
 //   node evals/handoff-check/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -225,6 +225,36 @@ check('a doubled-backtick anchor containing a backtick resolves FRESH', rTick.st
 // The Verified-at advisory never gates. It needs a git root, so it is asserted on the
 // repository-rooted conformant run, whose fixture sha is not this repository's HEAD.
 check('a stale Verified-at sha is an advisory, not a violation', rGood.status === 0 && /advisory: Verified-at abc1234/.test(outOf(rGood)));
+check('a stale Verified-at sha never reports same-tree', !/same-tree:/.test(outOf(rGood)));
+
+// === same-tree: Verified-at equals HEAD on a clean tree ===
+// A throwaway repository pins HEAD. The handoff file sits untracked inside it, and a gitignored
+// scratch file sits beside it; neither may count as a dirty tree.
+const tree = mkdtempSync(join(tmpdir(), 'coh-same-tree-'));
+const gitIn = (...args) => spawnSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: tree, encoding: 'utf8' });
+writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\n');
+writeFileSync(join(tree, '.gitignore'), 'scratch/\n');
+gitIn('init', '-q'); gitIn('add', '-A'); gitIn('commit', '-q', '-m', 'fixture');
+const treeHead = gitIn('rev-parse', '--short', 'HEAD').stdout.trim();
+const treeHandoff = join(tree, 'HANDOFF.md');
+const stampHandoff = (sha) => writeFileSync(treeHandoff, buildHandoff({ inFlight: '- Nothing in flight. Pointer: target.mjs:1 · Anchor: `clamp(size, MAX)`' }).replace('Verified-at: abc1234 (main, clean).', `Verified-at: ${sha} (main, clean).`));
+stampHandoff(treeHead);
+mkdirSync(join(tree, 'scratch')); writeFileSync(join(tree, 'scratch', 'run.md'), 'x');
+const rSame = run([treeHandoff], tree);
+check('Verified-at at HEAD on a clean tree reports same-tree', rSame.status === 0 && /same-tree: Verified-at matches HEAD on a clean tree/.test(outOf(rSame)));
+check('the same-tree status prints on stderr, never stdout', !/same-tree:/.test(rSame.stdout || ''));
+writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
+const rDirty = run([treeHandoff], tree);
+check('a dirty tracked file suppresses same-tree', rDirty.status === 0 && !/same-tree:/.test(outOf(rDirty)));
+gitIn('checkout', '-q', '--', 'target.mjs');
+writeFileSync(join(tree, 'untracked.txt'), 'new\n');
+const rUntracked = run([treeHandoff], tree);
+check('an untracked non-handoff file suppresses same-tree', rUntracked.status === 0 && !/same-tree:/.test(outOf(rUntracked)));
+rmSync(join(tree, 'untracked.txt'));
+stampHandoff('abc1234');
+const rStaleTree = run([treeHandoff], tree);
+check('a clean tree with a stale Verified-at reports no same-tree', rStaleTree.status === 0 && !/same-tree:/.test(outOf(rStaleTree)) && /advisory: Verified-at abc1234/.test(outOf(rStaleTree)));
+rmSync(tree, { recursive: true, force: true });
 
 rmSync(work, { recursive: true, force: true });
 
