@@ -9,7 +9,9 @@
 // took a separate tool turn per check. Each turn re-reads the whole context, so the turn count
 // is the cost. This script moves the mechanical facts and the verification chain into one call.
 //
-// DRAFT prints (or writes to a new `--out` file) a HANDOFF.md skeleton. It fills `Verified-at:`
+// DRAFT prints (or writes to a new `--out` file) a HANDOFF.md skeleton. It opens with the
+// `## Program` section and prefills its lineage when a predecessor is unambiguous (see lineage()
+// below), carrying that predecessor's open items forward. It fills `Verified-at:`
 // with the HEAD short sha, the branch, the dirty paths from `git status --porcelain` (counted per
 // top-level directory, derived paths omitted, at most 20 listed), the `base..HEAD` range when `--base` is given, the unchecked `<dir>/TASKS.md` lines as Open items
 // verbatim, every run-folder artifact stamped `Verified-at`, and the contract and runtime receipt
@@ -32,8 +34,8 @@
 // 2 = usage error.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseOrDie, usage, die, git, walkFiles } from './cli-lib.mjs';
 
@@ -52,6 +54,52 @@ function sections(text) {
 }
 const sectionBody = (text, prefix) => sections(text).find((s) => s.heading.toLowerCase().startsWith(prefix))?.body ?? '';
 const bullets = (body) => body.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => /^[-*]\s+/.test(l));
+// Item ids and `<label>: <path>` lines, parsed as check-handoff.mjs parses them.
+const itemId = (line) => /\b[A-Z][A-Z0-9]*-\d+\b/.exec(line)?.[0] ?? null;
+const pathValue = (body, label) => new RegExp(`^[-*\\t ]*${label}:[^\\S\\r\\n]*(.*)$`, 'm').exec(body)?.[1].trim()
+  .replace(/^`(.*)`$/, '$1').trim() || null;
+const CANDIDATES_SHOWN = 3;
+
+// The program lineage for a new handoff. Candidates are the consumed HANDOFF.md files in sibling
+// run folders, newest HANDOFF.consumed first. The newest is the predecessor only when it is
+// unambiguous: more than a second newer than the next candidate, and every candidate that names a
+// Program names the same one, so two programs sharing a runs root never guess. Program comes from
+// the predecessor's own Program line when that path resolves. Anything unsure stays [FILL: ...].
+function lineage(runDir, root, repoPath) {
+  const parent = dirname(runDir);
+  let dirs = [];
+  try { dirs = readdirSync(parent, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => join(parent, d.name)); } catch { /* no siblings */ }
+  const candidates = [];
+  for (const dir of dirs) {
+    const file = join(dir, 'HANDOFF.md');
+    const mark = join(dir, 'HANDOFF.consumed');
+    if (dir === runDir || !existsSync(file) || !existsSync(mark)) continue;
+    const text = readFileSync(file, 'utf8');
+    candidates.push({ file, text, consumed: statSync(mark).mtimeMs, program: pathValue(sectionBody(text, 'program'), 'Program') });
+  }
+  candidates.sort((a, b) => b.consumed - a.consumed);
+  const programs = new Set(candidates.map((c) => c.program).filter(Boolean));
+  const [first, second] = candidates;
+  if (!first || (second && first.consumed - second.consumed <= 1000) || programs.size > 1) {
+    const shown = candidates.slice(0, CANDIDATES_SHOWN).map((c) => `\`${repoPath(c.file)}\``).join(', ');
+    return {
+      program: "[FILL: path to this program's PROGRAM.md ledger]",
+      predecessor: first
+        ? `[FILL: path to the prior HANDOFF.md or none; ambiguous consumed candidates: ${shown}]`
+        : '[FILL: path to the prior HANDOFF.md, or none when this handoff starts the program; no sibling run folder holds a consumed HANDOFF.md]',
+      carried: [],
+    };
+  }
+  const programFile = first.program && (isAbsolute(first.program) ? first.program : resolve(root, first.program));
+  const known = Boolean(programFile) && existsSync(programFile);
+  const closed = new Set(known ? bullets(sectionBody(readFileSync(programFile, 'utf8'), 'closed items')).map(itemId).filter(Boolean) : []);
+  return {
+    program: known ? first.program : "[FILL: path to this program's PROGRAM.md ledger; the predecessor names none that resolves]",
+    predecessor: repoPath(first.file),
+    carried: bullets(sectionBody(first.text, 'open items')).filter((l) => !closed.has(itemId(l))),
+    closedKnown: known,
+  };
+}
 
 // Regenerated host distributions and vendored script copies: their source edits already show
 // elsewhere in the dirty list, so the draft counts them instead of listing them.
@@ -94,9 +142,23 @@ function draft(flags) {
     : '[FILL: the revision range and paths worked on; no --base was given]';
 
   const tasksPath = join(runDir, 'TASKS.md');
-  const open = existsSync(tasksPath)
-    ? readFileSync(tasksPath, 'utf8').split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => /^[-*]\s+\[ \]\s/.test(l))
-    : [];
+  const taskLines = existsSync(tasksPath) ? readFileSync(tasksPath, 'utf8').split('\n').map((l) => l.replace(/\r$/, '')) : [];
+  const open = taskLines.filter((l) => /^[-*]\s+\[ \]\s/.test(l));
+  const done = new Set(taskLines.filter((l) => /^[-*]\s+\[[xX]\]\s/.test(l)).map(itemId).filter(Boolean));
+
+  // Predecessor open items carry forward by default. An id TASKS.md already lists stays with its
+  // TASKS.md line. An id TASKS.md checks off belongs in PROGRAM.md Closed items, so it becomes a
+  // placeholder instead of a silent drop.
+  const lin = lineage(runDir, root, repoPath);
+  const taskIds = new Set(open.map(itemId).filter(Boolean));
+  const carried = [];
+  for (const line of lin.carried) {
+    const id = itemId(line);
+    if (id && done.has(id)) carried.push(`[FILL: ${id} is checked in TASKS.md; record it in PROGRAM.md Closed items]`);
+    else if (!id || !taskIds.has(id)) carried.push(line);
+  }
+  if (lin.carried.length && !lin.closedKnown) carried.push('[FILL: confirm the carried items against PROGRAM.md Closed items]');
+  const openItems = [...open, ...carried];
 
   const skip = new Set(['HANDOFF.md', 'HANDOFF.consumed']);
   const artifacts = walkFiles(runDir, (f) => !skip.has(basename(f))).map(repoPath).sort()
@@ -112,6 +174,11 @@ function draft(flags) {
     `# HANDOFF: ${basename(runDir)}`,
     '',
     `Verified-at: ${head} (${branch}, ${dirty.length ? `${dirty.length} dirty path(s)` : 'clean'})`,
+    '',
+    '## Program',
+    '',
+    `Program: ${lin.program}`,
+    `Predecessor: ${lin.predecessor}`,
     '',
     '## Goal and state of play',
     '',
@@ -138,7 +205,7 @@ function draft(flags) {
     '',
     '## Open items',
     '',
-    ...(open.length ? open : [existsSync(tasksPath) ? 'None: TASKS.md has no unchecked line.' : 'No TASKS.md in the run folder.']),
+    ...(openItems.length ? openItems : [existsSync(tasksPath) ? 'None: TASKS.md has no unchecked line.' : 'No TASKS.md in the run folder.']),
     '',
     '## Registers and artifacts',
     '',

@@ -50,6 +50,9 @@ try {
   check('draft maps unchecked TASKS.md lines verbatim', skeleton.includes(agentItem) && skeleton.includes(operatorItem));
   check('draft omits checked TASKS.md lines', !skeleton.includes('Alpha audit'));
   check('draft stamps each artifact', skeleton.includes(`\`runs/r1/FINDINGS_REGISTER.md\` · Verified-at: ${head}`));
+  check('draft opens with the Program section', skeleton.indexOf('## Program\n') > 0 && skeleton.indexOf('## Program\n') < skeleton.indexOf('## Goal and state of play'));
+  check('draft leaves Program and Predecessor as placeholders with no consumed sibling',
+    /^Program: \[FILL: /m.test(skeleton) && /^Predecessor: \[FILL: [^\n]*no sibling run folder holds a consumed HANDOFF\.md\]$/m.test(skeleton));
 
   const handoff = join(run, 'HANDOFF.md');
   writeFileSync(handoff, skeleton);
@@ -59,8 +62,7 @@ try {
   check('unfilled skeleton fails on the unlabelled finding', unfilled.stderr.includes('Key findings entry carries no confidence label'));
 
   // ---- resume on a good handoff ----
-  // The writer adds the Program section and keeps the durable ledger beside the run folders,
-  // because the draft carries no program lineage of its own.
+  // The writer fills the Program section and keeps the durable ledger beside the run folders.
   const programDir = join(tmp, 'runs', 'programs', 'p1');
   mkdirSync(programDir, { recursive: true });
   writeFileSync(join(programDir, 'PROGRAM.md'), ['# PROGRAM: p1', '', '## Program goal', '', 'Keep alpha and rewrite beta.', '',
@@ -68,7 +70,8 @@ try {
     '- `src.txt` · Status: current · Role: the file under change', '', '## Decisions ledger', '', '- 2026-09-23: alpha stays.', '',
     '## Closed items', '', '- OI-0 alpha audit: closed-with-proof in the fixture', ''].join('\n'));
   const filled = skeleton
-    .replace(/^(Verified-at:[^\n]*\n)/m, '$1\n## Program\n\nProgram: runs/programs/p1/PROGRAM.md\nPredecessor: none\n')
+    .replace(/^Program: \[FILL:[^\n]*$/m, 'Program: runs/programs/p1/PROGRAM.md')
+    .replace(/^Predecessor: \[FILL:[^\n]*$/m, 'Predecessor: none')
     .replace(/^Request:\n\[FILL:[^\n]*\]/m, 'Request: keep alpha and rewrite beta.')
     .replace(/^- \[FILL: one line per finding[^\n]*$/m, '- CONFIRMED: alpha is on line 1. Pointer: runs/r1/FINDINGS_REGISTER.md')
     .replace(/^\[FILL: the done-against[^\n]*$/m, '- Alpha kept. Pointer: src.txt:1 · Anchor: `alpha line`')
@@ -83,6 +86,32 @@ try {
   check('operator items print first', blocked >= 0 && blocked < good.stdout.indexOf(operatorItem)
     && good.stdout.indexOf(operatorItem) < good.stdout.indexOf('Agent-owned:')
     && good.stdout.indexOf('Agent-owned:') < good.stdout.indexOf(agentItem));
+
+  // ---- draft prefills the lineage from the consumed predecessor ----
+  const run2 = join(tmp, 'runs', 'r2');
+  mkdirSync(run2, { recursive: true });
+  writeFileSync(join(run2, 'TASKS.md'), '# Tasks\n\n- [x] OI-2 Merge decision: answered yes · Owner: operator · Done when: reply recorded · Pointer: src.txt\n');
+  const next = node([co, 'handoff', 'draft', '--run', 'runs/r2']).stdout;
+  check('draft prefills Predecessor with the consumed sibling', /^Predecessor: runs\/r1\/HANDOFF\.md$/m.test(next));
+  check("draft prefills Program from the predecessor's Program line", /^Program: runs\/programs\/p1\/PROGRAM\.md$/m.test(next));
+  check('draft carries an unclosed predecessor item verbatim', next.includes(agentItem));
+  check('draft turns an item TASKS.md checked off into a Closed items placeholder',
+    next.includes('[FILL: OI-2 is checked in TASKS.md; record it in PROGRAM.md Closed items]') && !next.includes(operatorItem));
+  const programFile = join(programDir, 'PROGRAM.md');
+  writeFileSync(programFile, `${readFileSync(programFile, 'utf8')}- OI-1 beta rewrite: closed-with-proof in the fixture\n`);
+  const closedDraft = node([co, 'handoff', 'draft', '--run', 'runs/r2']).stdout;
+  check('draft drops an item PROGRAM.md already closed', !closedDraft.includes('OI-1 Beta rewrite'));
+  // A consumed sibling on another program makes the predecessor ambiguous, so nothing is guessed.
+  const run3 = join(tmp, 'runs', 'r3');
+  mkdirSync(run3, { recursive: true });
+  writeFileSync(join(run3, 'HANDOFF.md'), '# HANDOFF: r3\n\n## Program\n\nProgram: runs/programs/other/PROGRAM.md\nPredecessor: none\n\n## Open items\n\n- OI-9 other: open · Owner: agent · Done when: x\n');
+  writeFileSync(join(run3, 'HANDOFF.consumed'), 'fixture\n');
+  const ambiguous = node([co, 'handoff', 'draft', '--run', 'runs/r2']).stdout;
+  check('draft leaves an ambiguous predecessor as a placeholder naming the candidates',
+    /^Predecessor: \[FILL: [^\n]*ambiguous consumed candidates: [^\n]*runs\/r3\/HANDOFF\.md/m.test(ambiguous)
+    && /^Program: \[FILL: /m.test(ambiguous) && !ambiguous.includes('OI-9'));
+  rmSync(run2, { recursive: true, force: true });
+  rmSync(run3, { recursive: true, force: true });
 
   // ---- resume refuses to consume a drifted anchor ----
   rmSync(join(run, 'HANDOFF.consumed'));
