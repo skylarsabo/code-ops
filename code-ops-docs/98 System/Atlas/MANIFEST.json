@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
-      "verifiedDigest": "ad40c177a09ce98397115a386566191fad59eb397a04bd3128c4162953c2143c",
+      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
+      "verifiedDigest": "9acc274223807231fcb8f60bd05a90f7de70f2669f7cc2e57805ee138229b520",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -18,7 +18,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 122,
+          "line": 120,
           "anchor": ": held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
         },
         {
@@ -28,7 +28,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 442,
+          "line": 446,
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
         },
         {
@@ -55,12 +55,12 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
-      "verifiedDigest": "c139f09db5df6b42abd2503f9943ce8e21afef747c10e2fdf35fe0be2a33a662",
+      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
+      "verifiedDigest": "6b74dfe2ae37028386232fd28aac5bfdd4397489b46f7a0c1d5d08b13e098727",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
-          "line": 137,
+          "line": 150,
           "anchor": "export function restoreCitationPrefix(before, matched) {"
         },
         {
@@ -75,7 +75,7 @@
         },
         {
           "file": "scripts/symbol-lib.mjs",
-          "line": 45,
+          "line": 55,
           "anchor": "export function definitions(text, ext) {"
         },
         {
@@ -121,8 +121,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
-      "verifiedDigest": "6668925d6af6713201ec3ab6a0b086033e2d8da959bfe48349d669b953301331",
+      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
+      "verifiedDigest": "0b9a267ffea816ed91f5211c11f86d5e0afd00f2cc2c9180ef98bcc219b2e59c",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -179,8 +179,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
-      "verifiedDigest": "775545f866d02622cf659170bef2f4035510b04bfa1d2fe43d810b761d2b1d4d",
+      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
+      "verifiedDigest": "ddaada0a6cfa56ec4d6133557ad6ded0dc82cbf2520bf602bbfd4da5de14cf3f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -205,7 +205,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
           "line": 33,
-          "anchor": ". New non-calibration runs require the frontier lead, task-based routing, a real"
+          "anchor": "block records the session model. A lead below strong prints a warning, not an er"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
@@ -225,8 +225,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
-      "verifiedDigest": "61236ee829978b7707b75c9f8f811429521f8d6dd708e59740c6ef6ed8510c11"
+      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
+      "verifiedDigest": "7c8c522675bddcefe03f8b5683955db7353407122d83c1faf7eedce7eef7f6ae"
     },
     {
       "slug": "docs-doctrine",
@@ -249,8 +249,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
-      "verifiedDigest": "6cb077ffdc536836c979e09e2672f6bf4247db04e378af52006c6e7aabc20da8",
+      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
+      "verifiedDigest": "032d3b1dcf9e486f5c1b391d2c44b0747af693cee4e058de224d937aaf7ca8c4",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
@@ -274,7 +274,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 122,
+          "line": 120,
           "anchor": ": held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
         },
         {
@@ -296,8 +296,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "d1e33052b7d2ef1452ddac841e31abfcad3e1cc6",
-      "verifiedDigest": "3956448726cdea84b672c8494b5e77df5569ad43dd2c9f43ca334ff0eb32729a"
+      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
+      "verifiedDigest": "4239a1d87a46d5e60b778baef9069a2da45bffc964301036e0bfbabd5e61a196"
     },
     {
       "slug": "runtime-toolchain",

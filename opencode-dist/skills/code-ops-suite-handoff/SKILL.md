@@ -9,9 +9,9 @@ description: "Use when a long run needs a continue, compact, or transfer decisio
 
 **Invoked as `/code-ops-suite-handoff`, or by the model through the `skill` tool as `code-ops-suite-handoff`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §3, §4, §9, and §12 of the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §3, §4, §9, §12, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin: the interaction protocol, the
-safety rails, the evidence standard, and the shared-artifact rules. Leave the rest unread.
+safety rails, the evidence standard, the shared-artifact rules, and the writing standard. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces and consumes:** `HANDOFF.md` in the run's dated artifact folder
 (`§12`), beside the live checklist `TASKS.md`.
 

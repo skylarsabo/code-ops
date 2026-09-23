@@ -7,10 +7,10 @@ description: "Use when you want a rigorous pre-merge review of one PR or diff ag
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:pr-review`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoke in Codex by naming `code-ops-suite:pr-review`.** First read §1, §3, §4, §7, §8, §9, §10, §11, and §14 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin. Search the plugin directory for it if needed. It defines the operating
 model, interaction protocol, safety rails, schemas, and quality lenses this skill references by
-section.
+section. Leave the rest of that file unread.
 **Mode:** REVIEW · **Produces:** a prioritized review and a verdict, as PR comments when a
 version-control tool is connected, and otherwise as `REVIEW.md`.
 

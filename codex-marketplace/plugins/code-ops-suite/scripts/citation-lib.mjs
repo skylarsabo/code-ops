@@ -1,3 +1,4 @@
+// @ts-check
 // Shared resolver for the `path:line · Anchor: <delimited text>` citation grammar
 // (code-ops-docs/40 Engineering/Techniques/artifact-grammars.md, sections (b) and (c)).
 //
@@ -43,6 +44,7 @@ export const ANCHOR_RE = /Anchor:\s*(?:``([^\n]+?)``|`([^`\n]+)`|"([^"\n]+)"|'([
 // The anchor text an ANCHOR_RE match carries, or null when there is no match. A doubled-backtick
 // span drops one leading and one trailing space when it has both, exactly as CommonMark does, so
 // the padding that keeps such a span unambiguous never becomes part of the compared substring.
+/** @param {RegExpMatchArray | null | undefined} match */
 export function anchorValue(match) {
   if (!match) return null;
   if (match[1] != null) {
@@ -79,12 +81,19 @@ const WIDEN_MAX_WORDS = 8;  // bounds the existsSync attempts per match (nearest
 // FRESH. A traversal-looking prefix (../, ./, or a bare /) at the scanned window's own start gets
 // exactly one attempt — the whole window — so a shorter cut can never silently drop it and resolve
 // only the text after it (FWD_PREFIX_RE below matches the same shape).
+/**
+ * @param {string} before
+ * @param {string} root
+ * @param {string} matchedPath
+ * @returns {string | null}
+ */
 export function widenSpacedPath(before, root, matchedPath) {
   const window = before.length > WIDEN_SCAN_MAX ? before.slice(before.length - WIDEN_SCAN_MAX) : before;
   let start = window.length;
   while (start > 0 && WIDEN_ALLOWED_RE.test(window[start - 1])) start--;
   const raw = window.slice(start).replace(/^ +/, '');
   if (!raw) return null;
+  /** @type {(prefix: string) => string | null} */
   const safeHit = (prefix) => {
     if (!prefix) return null;
     const candidate = prefix + matchedPath;
@@ -134,6 +143,10 @@ export function widenSpacedPath(before, root, matchedPath) {
 // see L-045 in evals/script-guards).
 const PATH_SCAN_MAX = 4096;
 const FWD_PREFIX_RE = /(?:\.{0,2}\/)+[.-]?$/;
+/**
+ * @param {string} before
+ * @param {string} matched
+ */
 export function restoreCitationPrefix(before, matched) {
   const window = before.length > PATH_SCAN_MAX ? before.slice(before.length - PATH_SCAN_MAX) : before;
   let escaping = false;
@@ -151,6 +164,13 @@ export function restoreCitationPrefix(before, matched) {
 
 // Every citation in `text`, as { path, line, escaping } in document order. The prefix restore and
 // the spaced-path widen both apply, so a caller sees the same path the register checker sees.
+/** @typedef {{ path: string, line: number, escaping: boolean }} CitationRef */
+
+/**
+ * @param {string} text
+ * @param {string} root
+ * @returns {CitationRef[]}
+ */
 export function extractRefs(text, root) {
   const refs = [];
   for (const m of text.matchAll(REF_RE)) {
@@ -175,6 +195,7 @@ export function extractRefs(text, root) {
   return refs;
 }
 
+/** @param {string} absPath */
 export function lineCount(absPath) {
   try {
     const t = readFileSync(absPath, 'utf8');
@@ -185,6 +206,10 @@ export function lineCount(absPath) {
 }
 
 // Read a single 1-indexed line's text (for the optional Anchor check); null if unreadable/out of range.
+/**
+ * @param {string} absPath
+ * @param {number} lineNo
+ */
 export function readLineAt(absPath, lineNo) {
   try {
     const line = readFileSync(absPath, 'utf8').split('\n')[lineNo - 1];
@@ -194,20 +219,26 @@ export function readLineAt(absPath, lineNo) {
 
 // SCR-014: explicit status precedence so a later MOVED cannot clobber an earlier AMBIGUOUS.
 export const RANK = { FRESH: 0, MOVED: 1, DRIFTED: 2, AMBIGUOUS: 3, GONE: 4 };
+/** @type {(cur: keyof typeof RANK, next: keyof typeof RANK) => keyof typeof RANK} */
 export const escalate = (cur, next) => (RANK[next] > RANK[cur] ? next : cur);
 
 // A resolver binds one repository root: its real path (root itself may be reached through a
 // symlink — PAR-003) and the lazily built file index a bare-filename citation needs.
+/** @param {string} root */
 export function createResolver(root) {
   const abs = resolve(root);
   let rootReal = abs;
   try { rootReal = realpathSync(abs); } catch { /* root may not exist yet under report-only tooling */ }
+  /** @type {string[] | null} */
   let fileIndex = null;
   // Walk the repo once (excluding .git/node_modules) so a bare-filename ref (cited without its
   // directory) can be resolved to its real location instead of being falsely reported GONE.
   const indexFiles = () => {
     if (fileIndex) return fileIndex;
-    fileIndex = [];
+    /** @type {string[]} */
+    const files = [];
+    fileIndex = files;
+    /** @type {(dir: string, depth: number) => void} */
     const walk = (dir, depth) => {
       if (depth > 16) return;
       let entries;
@@ -216,7 +247,7 @@ export function createResolver(root) {
         if (e.name === '.git' || e.name === 'node_modules') continue;
         const full = join(dir, e.name);
         if (e.isDirectory()) walk(full, depth + 1);
-        else if (e.isFile()) fileIndex.push(full);
+        else if (e.isFile()) files.push(full);
       }
     };
     walk(abs, 0);
@@ -226,11 +257,13 @@ export function createResolver(root) {
   // citation may still name a real in-root path that is itself a symlink or junction pointing
   // outside root, and a plain existsSync/statSync follows it silently. Resolve the real
   // filesystem path once links are followed and require it under root's own real path too.
+  /** @type {(target: string) => boolean} */
   const realpathContained = (target) => {
     let real;
     try { real = realpathSync(target); } catch { return true; } // unreadable — the caller's existsSync gates it
     return real === rootReal || real.startsWith(rootReal + sep);
   };
+  /** @type {(refPath: string) => string[]} */
   const findByName = (refPath) => {
     const norm = refPath.replace(/\\/g, '/').replace(/^\.?\//, '');
     const idx = indexFiles().map((f) => ({ full: f, slash: f.replace(/\\/g, '/') }));
@@ -244,6 +277,10 @@ export function createResolver(root) {
 
 // Classify one citation against the tree: { status, note, target }. `target` is the resolved file
 // whose cited line an anchor can be compared against, and is null for every non-FRESH status.
+/**
+ * @param {ReturnType<typeof createResolver>} resolver
+ * @param {CitationRef} ref
+ */
 export function resolveRef(resolver, ref) {
   const { root } = resolver;
   if (ref.escaping) return { status: 'AMBIGUOUS', note: `${ref.path} escapes root — not checked`, target: null };

@@ -8,6 +8,12 @@
     "code-ops-suite-implementer": {
       "model": "xai/grok-4.7"
     },
+    "code-ops-suite-mech-review": {
+      "model": "xai/grok-4.7"
+    },
+    "code-ops-suite-mech": {
+      "model": "xai/grok-4.7"
+    },
     "code-ops-suite-reviewer": {
       "model": "xai/grok-4.7"
     },

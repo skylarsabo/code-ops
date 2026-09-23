@@ -9,10 +9,10 @@ description: "Use when you want to know what changed in OUR stack that we should
 
 **Invoked as `/researcher-ecosystem-watch`, or by the model through the `skill` tool as `researcher-ecosystem-watch`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §A, §2, §3, §4, §6, §7, §8, §10, §11, §12, and §14 of
+`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
-section.
+section. Leave the rest of that file unread.
 
 - **Mode:** DISCOVERY.
 - **Produces:** `ECOSYSTEM_WATCH.md` as a tiered, cited register, plus `EGRESS_MANIFEST.md`

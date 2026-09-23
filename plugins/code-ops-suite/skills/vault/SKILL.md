@@ -4,10 +4,10 @@ description: "Use when a repo needs its Obsidian docs vault created, an existing
 
 # Vault: the repo's Obsidian notebook, to one standard
 
-**Invoked as `/code-ops-suite:vault`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
+**Invoked as `/code-ops-suite:vault`.** First read §3, §4, §12, §13, and §14 of the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin: the interaction protocol (`§3`), the safety rails (`§4`), the
 single-source-of-truth conventions (`§12`) that decide where a run's artifacts land, and the doc
-standard (`§13`). Then read `${CLAUDE_PLUGIN_ROOT}/reference/vault-standard.md`, the bundled
+standard (`§13`). Leave the rest of that file unread. Then read `${CLAUDE_PLUGIN_ROOT}/reference/vault-standard.md`, the bundled
 copy of the vault standard, which defines the layout, the profiles, and the promotion rule.
 **Mode:** DOCUMENT · **Consumes:** the target repo and its existing docs tree or vault, when it
 has one · **Produces:** `<repo>-docs/`, holding the numbered folders, `Standard.md`,

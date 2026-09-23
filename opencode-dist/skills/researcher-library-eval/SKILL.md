@@ -9,10 +9,10 @@ description: "Use when you must decide whether to adopt a library or approach, c
 
 **Invoked as `/researcher-library-eval`, or by the model through the `skill` tool as `researcher-library-eval`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §A, §2, §3, §4, §7, §8, §10, §11, §12, §13, and §14 of
+`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the evidence and citation discipline, the hand-off map, and
-the lenses, referenced by section.
+the lenses, referenced by section. Leave the rest of that file unread.
 
 - **Mode:** REVIEW.
 - **Produces:** a comparison and recommendation brief in `LIBRARY_EVAL.md`, on the `§13`

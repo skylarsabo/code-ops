@@ -4,10 +4,11 @@ description: "Use when you want code-grounded research run end-to-end as one dev
 
 # Research sweep: the whole research pipeline, end to end
 
-**Invoked as `/researcher:research-sweep`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**Invoked as `/researcher:research-sweep`.** Read §A, §1, §2, §3, §4, §5, §6, §7, §8, §9, §10, §11, §12, §13, and §14 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the modes (`§5`), the schema and tiers (`§6`, `§7`), the priority rule (`§8`), the
 lenses (`§10`), the hand-off map (`§11`), and the single-source-of-truth rules (`§12`).
+Leave the rest of that file unread.
 
 This skill orchestrates the researcher's own skills in sequence as one
 developer-in-the-loop pipeline. It does not replace them. It carries the shared registers

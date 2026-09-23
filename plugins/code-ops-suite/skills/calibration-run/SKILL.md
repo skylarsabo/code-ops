@@ -4,9 +4,9 @@ description: "Use when you want a standardized real-scale calibration run of the
 
 # Calibration run: standardized real-scale measurement
 
-**Invoked as `/code-ops-suite:calibration-run`.** First read the
+**Invoked as `/code-ops-suite:calibration-run`.** First read §1, §4, §9, and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. It defines the operating model,
-the safety rails, and the evidence standard this skill extends to run measurement. Then read
+the safety rails, and the evidence standard this skill extends to run measurement. Leave the rest of that file unread. Then read
 `${CLAUDE_PLUGIN_ROOT}/reference/calibration-protocol.md` for the one-way channel rule,
 the metric table, and the sanitized-note template this skill fills in.
 **Mode:** ASSESS · **Consumes:** a target repo, real-scale rather than a toy fixture ·

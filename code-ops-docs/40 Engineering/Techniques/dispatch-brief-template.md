@@ -120,8 +120,14 @@ the `env` block of a `.claude/settings.json`. The index contract lives in
 - **implementer**: one bounded build, fix, or refactor unit with a disjoint Scope. Use it
   instead of a general-purpose agent, whose full tool surface costs about 35,000 more tokens
   on every turn. Name the verification commands and the Round budget.
-- **mech**: an exact edit spec with no ambiguity to resolve. Transcribe the diff as briefed
-  and report what changed.
+- **mech**: an exact edit spec with no ambiguity to resolve. Transcribe the diff as briefed,
+  run the named gates, and report PASS, FAIL, or ESCALATE.
+- **mech-review**: a small mechanical diff checked against its spec. Returns PASS, FAIL, or
+  ESCALATE, and escalates a judgment-heavy diff.
+
+Each agent file ends in a `## Contract` section that lint parses. It lists the brief fields
+the agent requires, its edit authority, its first-line verdict tokens, and one return
+example. Fill every listed field, and gate the report on its first-line verdict.
 
 ## The ladder card an implementer also receives
 

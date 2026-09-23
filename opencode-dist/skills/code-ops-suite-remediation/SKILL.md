@@ -9,10 +9,10 @@ description: "Use when a FINDINGS_REGISTER.md already exists and you want its NE
 
 **Invoked as `/code-ops-suite-remediation`, or by the model through the `skill` tool as `code-ops-suite-remediation`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §3, §4, §6, §7, §10, §11, §12, §14, and §15 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT · **Consumes:** `FINDINGS_REGISTER.md`, specifically its NEEDS-REVIEW and
 NEEDS-DESIGN items · **Produces:** verified fixes as branches or PRs, `IMPLEMENTATION_LOG.md`,
 and an updated register.

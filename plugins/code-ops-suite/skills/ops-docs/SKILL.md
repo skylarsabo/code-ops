@@ -7,8 +7,8 @@ description: "Use when you need an operational runbook for a codebase, written f
 **Invoked as `/code-ops-suite:ops-docs`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)** and the secret-redaction safety
 rail (`§4`). For this DOCUMENT-mode skill the binding sections are §2 (tools and in-house docs
-lookup), §3 (interaction), §4 (safety rails), §12 (SSOT and registers), and §13 (doc standard).
-Read those five. The fan-out and fix machinery (§1, §5 to §8, §11) does not apply here.
+lookup), §3 (interaction), §4 (safety rails), §12 (SSOT and registers), §13 (doc standard), and §14 (writing standard).
+Read those six. The fan-out and fix machinery (§1, §5 to §8, §11) does not apply here. Leave the rest of that file unread.
 **Mode:** DOCUMENT. **Produces:** `RUNBOOK.md`, or a set of ops docs, in the repo's docs
 location.
 

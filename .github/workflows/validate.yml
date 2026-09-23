@@ -65,6 +65,14 @@ jobs:
       - name: Zero-dependency guard
         run: node scripts/check-no-deps.mjs
 
+      # The compiler is fetched at an exact pin into a temp dir, never into the repo, so the
+      # zero-dependency guard still holds. Only files that opt in with // @ts-check are checked.
+      - name: Type-check opted-in scripts (TypeScript 7)
+        run: |
+          tsdir="$RUNNER_TEMP/ts7"
+          npm install --no-save --ignore-scripts --no-audit --no-fund --prefix "$tsdir" typescript@7.0.2 @types/node@24.13.6
+          "$tsdir/node_modules/.bin/tsc" -p tsconfig.json --typeRoots "$tsdir/node_modules/@types"
+
       - name: Vault conformance (this repo's own vault)
         run: node scripts/check-vault-standard.mjs code-ops-docs
 

@@ -9,10 +9,11 @@ description: "Use when you want to know whether a repo is on the code-ops standa
 
 **Invoked as `/code-ops-suite-conform`, or by the model through the `skill` tool as `code-ops-suite-conform`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the `<plugin-root>/CONVENTIONS.md`
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §3, §4, §7, §12, §13, and §14 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model (`§1`), the interaction protocol (`§3`), the safety
 rails (`§4`), the evidence tiers (`§7`), the single-source-of-truth conventions (`§12`) that
 decide where this run's artifacts land, and the doc standard (`§13`).
+Leave the rest of that file unread.
 **Mode:** ASSESS, then DOCUMENT · **Consumes:** the target repo plus whatever standardization
 artifacts it already carries, or a `FLEET.json` naming several repos, which turns on fleet mode
 below · **Produces:** `CONFORMANCE_REPORT.md`, plus the repairs the developer approves.

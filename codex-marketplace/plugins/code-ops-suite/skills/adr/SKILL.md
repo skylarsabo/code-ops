@@ -7,8 +7,8 @@ description: "Use when you need to capture the reasons behind a codebase's archi
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:adr`.** First read the `<plugin-root>/CONVENTIONS.md`, and
-especially the **documentation quality standard (`§13`)**.
+**Invoke in Codex by naming `code-ops-suite:adr`.** First read §3, §4, §12, §13, and §14 of the `<plugin-root>/CONVENTIONS.md`, and
+especially the **documentation quality standard (`§13`)**. Leave the rest of that file unread.
 **Mode:** DOCUMENT. **Produces:** numbered ADRs in `<repo>-docs/20 Decisions/ADRs/`. Match an
 existing ADR convention when the repo already has one.
 

@@ -16,6 +16,8 @@ The workflow has three jobs:
 - `host-evals-macos` on `macos-latest` runs structural lint and ten host-facing evals: skim, digest, the digest hook, context query, the query MCP server, the ladder card, context audit, the over-build garden, deferral harvest, and atlas check. A macOS minute costs ten Linux minutes, so the job runs on the weekly schedule and on manual dispatch only, never on a pull request. Evidence: `.github/workflows/validate.yml:244-267`.
 - `structural-lint-windows` on `windows-latest` mirrors the Ubuntu checks so a path, quoting, or line-ending failure surfaces before merge rather than for a Windows contributor. It runs the long-horizon runtime eval too. Evidence: `.github/workflows/validate.yml:269-439`.
 
+The Ubuntu job type-checks every script that opts in with `// @ts-check`. It installs TypeScript 7.0.2 and `@types/node` 24.13.6 at exact pins into a runner temp directory, so the repository keeps zero dependencies. Evidence: `tsconfig.json` and `.github/workflows/validate.yml:68-74`.
+
 The documentation link gate rejects missing, escaping, case-unsafe, and ambiguous local targets. It rejects hub-internal directory links and unresolved local Markdown heading fragments. Evidence: `scripts/check-doc-links.mjs:76-89` and `evals/doc-links/run.mjs:11-28`.
 
 The documentation citation gate validates both `path:line` references and explicit commit fields. Recognized commit IDs must be complete tokens, resolve unambiguously under the repository's Git object format, and name commits in `HEAD` history. A shallow checkout that cannot establish ancestry is an infrastructure failure, so both validation jobs fetch full history. Evidence: `scripts/check-doc-citations.mjs` and `.github/workflows/validate.yml`.

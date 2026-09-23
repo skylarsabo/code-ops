@@ -10,8 +10,8 @@
 // is the cost. This script moves the mechanical facts and the verification chain into one call.
 //
 // DRAFT prints (or writes to a new `--out` file) a HANDOFF.md skeleton. It fills `Verified-at:`
-// with the HEAD short sha, the branch, the dirty paths from `git status --porcelain`, the
-// `base..HEAD` range when `--base` is given, the unchecked `<dir>/TASKS.md` lines as Open items
+// with the HEAD short sha, the branch, the dirty paths from `git status --porcelain` (counted per
+// top-level directory, derived paths omitted, at most 20 listed), the `base..HEAD` range when `--base` is given, the unchecked `<dir>/TASKS.md` lines as Open items
 // verbatim, every run-folder artifact stamped `Verified-at`, and the contract and runtime receipt
 // paths when `<dir>/RUN_CONTRACT.json` exists. Judgment sections hold `[FILL: ...]` placeholders.
 // The skeleton fails check-handoff.mjs as-is: its `Request:` line is empty and its Key findings
@@ -52,6 +52,30 @@ function sections(text) {
 }
 const sectionBody = (text, prefix) => sections(text).find((s) => s.heading.toLowerCase().startsWith(prefix))?.body ?? '';
 const bullets = (body) => body.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => /^[-*]\s+/.test(l));
+
+// Regenerated host distributions and vendored script copies: their source edits already show
+// elsewhere in the dirty list, so the draft counts them instead of listing them.
+const DERIVED = /^(codex-marketplace\/|opencode-dist\/|\.agents\/plugins\/|plugins\/[^/]+\/scripts\/)/;
+const DIRTY_LINES = 20;
+
+// Porcelain lines as bullets under the 8 KB handoff cap: one line of counts per top-level
+// directory, then at most DIRTY_LINES non-derived paths and a "+N more" line.
+function dirtyLines(dirty) {
+  const pathOf = (line) => line.slice(3).split(' -> ').pop().replace(/^"|"$/g, '');
+  const counts = new Map();
+  for (const line of dirty) {
+    const path = pathOf(line);
+    const top = path.includes('/') ? `${path.slice(0, path.indexOf('/'))}/` : '(root)';
+    counts.set(top, (counts.get(top) ?? 0) + 1);
+  }
+  const listed = dirty.filter((line) => !DERIVED.test(pathOf(line)));
+  const derived = dirty.length - listed.length;
+  const out = [`- Dirty by top-level directory: ${[...counts].sort().map(([dir, n]) => `\`${dir}\` ${n}`).join(', ')}.`];
+  if (derived) out.push(`- Derived dirty paths not listed: ${derived} (host distributions and vendored plugin scripts).`);
+  out.push(...listed.slice(0, DIRTY_LINES).map((l) => `- Dirty: \`${l}\``));
+  if (listed.length > DIRTY_LINES) out.push(`- +${listed.length - DIRTY_LINES} more non-derived dirty path(s); run \`git status --porcelain\` for the full list.`);
+  return out;
+}
 
 function draft(flags) {
   if (!flags.run) usage(['x draft needs --run <dir>', ...USAGE]);
@@ -109,7 +133,7 @@ function draft(flags) {
     '',
     '## In-flight boundaries',
     '',
-    ...(dirty.length ? dirty.map((l) => `- Dirty: \`${l}\``) : ['- Working tree clean.']),
+    ...(dirty.length ? dirtyLines(dirty) : ['- Working tree clean.']),
     '[FILL: the done-against-not-done line; load-bearing path:line pointers, each with a verbatim Anchor]',
     '',
     '## Open items',

@@ -102,7 +102,7 @@ Grok 4.7 bills double above that line.
 Run `node scripts/lint-plugins.mjs && node scripts/check-no-deps.mjs && node scripts/build-codex-marketplace.mjs --check && node scripts/build-opencode-dist.mjs --check`, the first structural steps of the CI gate in `.github/workflows/validate.yml`. That workflow also runs the regression evals under `evals/`, so mirror the step covering what you touched. If you touched a fixture under `evals/*/repo`, run `node evals/score.mjs <its ANSWER_KEY.json>
 --check`. The `register-staleness` eval has no answer key, so run `node evals/register-staleness/run.mjs`.
 
-For substantive changes, a verifier or mechanical worker runs the gate chain and returns
+For substantive changes, `code-ops-suite:mech` runs the gate chain and returns
 only the verdict plus a failing excerpt. The lead owns acceptance and repeats a gate only
 to settle a disputed result.
 

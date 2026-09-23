@@ -10,8 +10,8 @@ description: "Use when you need an accurate API or interface reference for a cod
 **Invoke in Codex by naming `code-ops-suite:api-docs`.** First read the `<plugin-root>/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)** this doc obeys. For this
 DOCUMENT-mode skill the binding sections are §2 (tools and in-house docs lookup), §3
-(interaction), §4 (safety rails), §12 (SSOT and registers), and §13 (doc standard). Read those
-five. The fan-out and fix machinery (§1, §5 to §8, §11) does not apply here.
+(interaction), §4 (safety rails), §12 (SSOT and registers), §13 (doc standard), and §14 (writing standard). Read those
+six. The fan-out and fix machinery (§1, §5 to §8, §11) does not apply here. Leave the rest of that file unread.
 **Mode:** DOCUMENT. **Produces:** `API.md`, or one file per service, in the repo's docs
 location.
 

@@ -1,5 +1,12 @@
 # Changelog — rigor
 
+## 2.20.0
+- **TODO** — describe the change.
+
+## 2.20.0
+- The tracer and verifier agents carry a typed `## Contract` section.
+- Skills read only the CONVENTIONS sections they cite, plus the writing standard. bug-hunt, quality-scan, ground-truth, and regression-hunt consult the atlas and the symbol index when code-ops-suite is installed.
+
 ## 2.19.0
 - A strict CONFIRMED proof must resolve to an `RCPT-NNN` receipt in `RUN_RECEIPTS.md` with a matching exit code, an in-tree file other than the register, or a quoted test name in a test file. An unexecuted command no longer counts. `--receipts` names the ledger.
 - `bug-hunt`, `quality-scan`, and `deep-review` end on a strict `finding-rigor` check that lint pins. `deep-review` now writes `FINDINGS_REGISTER.md`.

@@ -1,3 +1,4 @@
+// @ts-check
 // Data-only source of truth for grammar (a) of code-ops-docs/40 Engineering/Techniques/artifact-grammars.md — the
 // DISPATCH_LEDGER.md table row.
 //
@@ -31,11 +32,14 @@ export const LEDGER_STATUSES = ['dispatched', 'reported', 'failed', 'redispatche
 export const LEDGER_HEADER = '| id | role | brief | expected artifact | status |\n'
   + '| --- | --- | --- | --- | --- |\n';
 
+/** @param {string} text */
 export function replayDispatchJournal(text) {
   const expected = new Map();
   const activeActor = new Map();
   const violations = [];
+  /** @type {any[]} */
   const events = [];
+  /** @type {(from: string, to: string) => boolean} */
   const transitionAllowed = (from, to) => {
     if (from === 'reported') return false;
     if (from === 'failed') return to === 'redispatched';

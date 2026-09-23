@@ -8,6 +8,12 @@
     "code-ops-suite-implementer": {
       "model": "github-copilot/gpt-6-sol"
     },
+    "code-ops-suite-mech-review": {
+      "model": "github-copilot/gemini-3.8-flash"
+    },
+    "code-ops-suite-mech": {
+      "model": "github-copilot/gemini-3.8-flash"
+    },
     "code-ops-suite-reviewer": {
       "model": "github-copilot/gpt-6-sol"
     },

@@ -4,10 +4,10 @@ description: "Use when you need current, version-accurate docs for a library or 
 
 # Current-docs: version-accurate library docs, in-house
 
-**Invoked as `/code-ops-suite:current-docs`.** First read the
+**Invoked as `/code-ops-suite:current-docs`.** First read §2 and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. This skill implements its
 documentation and reference lookup capability (`§2`) in-house: local-first, with no third-party
-indexer and no query egress.
+indexer and no query egress. Leave the rest of that file unread.
 **Mode:** AUDIT, read-only. **Use it** before writing code against an unfamiliar or
 version-sensitive API, instead of relying on training-data memory.
 

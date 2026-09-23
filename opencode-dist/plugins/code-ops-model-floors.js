@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 const REQUIRED = {
   "code-ops-suite-explorer": "light",
   "code-ops-suite-implementer": "strong",
+  "code-ops-suite-mech-review": "mid",
+  "code-ops-suite-mech": "mid",
   "code-ops-suite-reviewer": "strong",
   "privacy-opsec-suite-explorer": "light",
   "privacy-opsec-suite-privacy-reviewer": "strong",
@@ -128,6 +130,20 @@ const TIER_BY_ID = {
   "claude-haiku-4-5": "light",
   "claude-fable-5.1": "frontier"
 };
+const SPECIALIST_MODELS = {
+  "openai": [
+    "gpt-6-astra"
+  ],
+  "xai": [
+    "grok-build-0.1"
+  ],
+  "github-copilot": [
+    "claude-opus-5.5",
+    "grok-4.7",
+    "claude-haiku-4.5",
+    "mai-code-1.1-flash"
+  ]
+};
 // Read by the lifecycle chooser and the cost report, never by this gate.
 const MODEL_PRICES = {
   "github-copilot": {
@@ -206,7 +222,7 @@ const MODEL_PRICES = {
     }
   }
 };
-const ROUTING_CARD = "code-ops standard operating mode\ndebug a bug -> /code-ops-suite-debug\nship a feature/change -> /code-ops-suite-ship\naudit/quality sweep -> /code-ops-suite-full-sweep or /rigor-rigor-sweep\nprivacy/leak concern -> /privacy-opsec-suite-full-sweep\nlibrary/dependency decision -> /researcher-library-eval\nclaim verification -> /researcher-research-verify\neverything (broad/multi-domain) -> /code-ops-suite-everything\nsubstantive work -> frontier lead, task-based tiers, disjoint units in parallel when the graph allows; strong is the judgment floor\na dispatch costs context times turns: /code-ops-suite-implementer for build work, a round budget, breadth agents at their declared tier\none frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; the lead keeps the verdict\nsay what you are about to do, then close with a recap that stands on its own\nonly you see a command's output; put what the user needs to read in your reply\ncontext economy: read the named convention sections only, skim before a whole file, and query the symbol index before a map";
+const ROUTING_CARD = "code-ops standard operating mode\ndebug a bug -> /code-ops-suite-debug\nship a feature/change -> /code-ops-suite-ship\naudit/quality sweep -> /code-ops-suite-full-sweep or /rigor-rigor-sweep\nprivacy/leak concern -> /privacy-opsec-suite-full-sweep\nlibrary/dependency decision -> /researcher-library-eval\nclaim verification -> /researcher-research-verify\neverything (broad/multi-domain) -> /code-ops-suite-everything\nsubstantive work -> session lead, task-based tiers, disjoint units in parallel when the graph allows; strong is the judgment floor\na dispatch costs context times turns: /code-ops-suite-implementer for build work, a round budget, breadth agents at their declared tier\none frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; the lead keeps the verdict\nsay what you are about to do, then close with a recap that stands on its own\nonly you see a command's output; put what the user needs to read in your reply\ncontext economy: read the named convention sections only, skim before a whole file, and query the symbol index before a map";
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url));
 const SUITE_ROOT = join(PLUGIN_DIR, '..', 'code-ops', 'code-ops-suite');
 const DIGEST_HOOK = join(SUITE_ROOT, 'hooks', 'digest-rewrite.mjs');

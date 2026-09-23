@@ -7,9 +7,9 @@ description: "Use when the marketplace must be audited across Claude, Codex, ins
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:provider-parity-audit`.** First read the
+**Invoke in Codex by naming `code-ops-suite:provider-parity-audit`.** First read §6, §7, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin, especially the finding and fix
-tracks (`§6`) and finding schema (`§7`).
+tracks (`§6`) and finding schema (`§7`). Leave the rest of that file unread.
 **Mode:** ASSESS · **Runs in:** the code-ops repository · **Consumes:** canonical plugins, both
 generated host distributions, repository and global contracts, host settings, evals, and installed-host evidence ·
 **Produces:** `FINDINGS_REGISTER.md`.

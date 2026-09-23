@@ -4,11 +4,11 @@ description: "Use when you want measured, behavior-preserving improvements, not 
 
 # Measured improvement: no speculative refactors
 
-**Invoked as `/rigor:improve-measured`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**Invoked as `/rigor:improve-measured`.** Read §A, §B, §C, §G, §H, §1, §3, §4, §8, §11, and §12 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** IMPLEMENT, through the fix-prove-guard loop in `§8`.
 - **Produces:** `IMPROVEMENTS_LOG.md`, the diffs or pull requests, and a summary carrying

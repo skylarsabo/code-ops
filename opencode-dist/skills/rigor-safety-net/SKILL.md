@@ -9,11 +9,11 @@ description: "Use before refactoring or fixing low-coverage code. Writes charact
 
 **Invoked as `/rigor-safety-net`, or by the model through the `skill` tool as `rigor-safety-net`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §A, §B, §C, §G, §H, §1, §3, §4, §11, and §12 of
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** IMPLEMENT. It adds tests and changes no production code.
 - **Produces:** a characterization test suite, plus suspicious-behavior findings.

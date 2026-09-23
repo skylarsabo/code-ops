@@ -4,10 +4,10 @@ description: "Use when a claim, recommendation, or draft research artifact needs
 
 # Research verify: the prove-it-or-drop-it claim check
 
-**Invoked as `/researcher:research-verify`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**Invoked as `/researcher:research-verify`.** Read §A, §2, §3, §4, §6, §7, §10, §11, §12, and §14 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
-section.
+section. Leave the rest of that file unread.
 
 - **Mode:** REVIEW.
 - **Produces:** a verdict report, one verdict per claim, each tiered with its evidence. The

@@ -14,8 +14,8 @@ description: "Use when you need a verified, code-grounded orientation guide, wit
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
 quality lenses this skill references by section. For this DOCUMENT-mode skill the binding
 sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safety rails), §12 (SSOT
-and registers), and §13 (doc standard). Read those five. The fan-out and fix machinery (§1, §5 to
-§8, §11) does not apply here.
+and registers), §13 (doc standard), and §14 (writing standard). Read those six. The fan-out and fix machinery (§1, §5 to
+§8, §11) does not apply here. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces:** `ONBOARDING.md`, or a small `docs/onboarding/` set, with an
 architecture diagram, following the documentation quality standard (`§13`).
 
@@ -26,6 +26,10 @@ uncertainties as open questions rather than inventing answers.
 
 ## Phase 0: the system map  *(checkpoint)*
 
+Before broad reads, check the repo atlas when present with
+`node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98
+System/Atlas/`, fallback `atlas/`), and query the symbol index with
+`node <plugin-root>/scripts/co.mjs context query find <symbol>` before loading a map.
 Dispatch an `explorer` operative to map the stack and runtimes, the services and modules and how
 they fit, the data models, the main user-facing flows, the entry points, the build and test and
 run commands, and the conventions and patterns. When the system handles sensitive data, have it

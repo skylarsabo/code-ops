@@ -7,11 +7,11 @@ description: "Use before refactoring or fixing low-coverage code. Writes charact
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `rigor:safety-net`.** Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**Invoke in Codex by naming `rigor:safety-net`.** Read §A, §B, §C, §G, §H, §1, §3, §4, §11, and §12 of
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** IMPLEMENT. It adds tests and changes no production code.
 - **Produces:** a characterization test suite, plus suspicious-behavior findings.

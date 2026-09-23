@@ -21,7 +21,11 @@ const floors = `const KNOWN_MODELS = {
   "openai": { "gpt-6-luna": "light", "gpt-5.1": "mid", "gpt-5.6-terra": "strong", "gpt-6-sol": "frontier" },
   "xai": { "grok-4.7": "frontier", "grok-build-0.1": "light" },
   "opencode": { "muse-spark-1.3-contributor-free": "strong" },
+  "github-copilot": { "gpt-6-sol": "frontier", "grok-4.7": "strong" },
   "accepted": { "claude-opus-5": "strong", "gpt-5.6-luna": "light", "grok-4.6": "frontier" }
+};
+const SPECIALIST_MODELS = {
+  "github-copilot": ["grok-4.7"]
 };
 `;
 writeFileSync(join(work, 'code-ops-model-floors.js'), floors);
@@ -67,6 +71,9 @@ expect(classifyChooserModel('provider-b/gpt-6-luna') === 'light', 'gpt-6-luna sh
 expect(classifyChooserModel('provider-a/claude-opus-5-5') === 'strong', 'opus 5.5 should be strong');
 expect(classifyChooserModel('provider-c/grok-4.7') === 'frontier', 'grok-4.7 should meet frontier');
 expect(classifyChooserModel('provider-c/grok-build-0.1') === 'light', 'grok-build should be light');
+expect(classifyChooserModel('reseller/grok-4.7') === 'frontier', `a Copilot specialist row set the reseller grok-4.7 tier: ${classifyChooserModel('reseller/grok-4.7')}`);
+expect(classifyChooserModel('github-copilot/grok-4.7') === 'strong', 'the Copilot grok-4.7 row should still resolve strong');
+expect(classifyChooserModel('github-copilot/gpt-6-sol') === 'frontier', 'the Copilot gpt-6-sol ladder row should still resolve frontier');
 expect(classifyChooserModel('provider-z/not-a-real-model') === null, 'an unknown model must stay unbound');
 expect(classifyChooserModel('github-copilot/gpt-5.6-luna') === 'light', 'a reseller id should use the accepted bare id');
 expect(pickChooserModel('light', catalog) === 'provider-b/gpt-6-luna', `light pick should be gpt-6-luna, got ${pickChooserModel('light', catalog)}`);
@@ -195,6 +202,17 @@ expect(await ceilingCase('400000', 'env-under', 320000) === null, 'an override o
 expect((await ceilingCase('400000', 'env-over', 410000))?.includes('400,000-token context ceiling'), 'an override of 400000 did not gate at 410,000 tokens');
 expect((await ceilingCase('1000', 'env-small', 320000))?.includes('300,000-token context ceiling'), 'an override below 150000 did not fall back to the default');
 expect((await ceilingCase('lots', 'env-junk', 320000))?.includes('300,000-token context ceiling'), 'a junk override did not fall back to the default');
+
+// Grok prices double above 200,000 tokens, so a session on a Grok model gates there.
+const modelContext = (sessionID, input, modelID) => hooks.event({
+  event: { type: 'message.updated', properties: { info: { role: 'assistant', sessionID, id: `${sessionID}-1`, providerID: 'provider-c', modelID, tokens: { input, output: 0, cache: { read: 0, write: 0 } } } } },
+});
+await modelContext('grok-lead', 210000, 'grok-4.7');
+gate = await dispatch(hooks, 'grok-lead');
+expect(gate?.includes('200,000-token context ceiling'), `a Grok session was not gated at 210,000 tokens: ${gate}`);
+await modelContext('other-lead', 250000, 'gpt-6-sol');
+gate = await dispatch(hooks, 'other-lead');
+expect(gate === null, `a non-Grok session was gated at 250,000 tokens: ${gate}`);
 
 process.env.CODE_OPS_DISPATCH_GUARD = 'warn';
 await setContext(hooks, 'warned', 320000, 'w1');

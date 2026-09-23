@@ -14,8 +14,8 @@ description: "Use when a repo's AGENTS.md standards contract needs to be created
 for it if needed. It defines the operating model, interaction protocol, safety rails, schemas,
 and quality lenses this skill references by section. For this DOCUMENT-mode skill the binding
 sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safety rails), §12
-(SSOT and registers), and §13 (doc standard). Read those five. The fan-out and fix machinery
-(§1, §5 to §8, §11) does not apply here.
+(SSOT and registers), §13 (doc standard), and §14 (writing standard). Read those six. The fan-out and fix machinery
+(§1, §5 to §8, §11) does not apply here. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces:** `AGENTS.md`, written or updated in place, plus a drift report
 at a checkpoint when the run is in MAINTAIN mode.
 

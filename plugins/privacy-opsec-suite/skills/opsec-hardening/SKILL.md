@@ -4,11 +4,11 @@ description: "Use when a LEAK_REGISTER.md exists and you want its leaks fixed sa
 
 # OpSec hardening: implement the fixes safely
 
-**Invoked as `/privacy-opsec-suite:opsec-hardening`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
+**Invoked as `/privacy-opsec-suite:opsec-hardening`.** Read §A, §1, §3, §4, §6, §9, §10, §11, §12, and §13 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
-references by section.
+references by section. Leave the rest of that file unread.
 
 - **Mode:** IMPLEMENT.
 - **Consumes:** `LEAK_REGISTER.md`.

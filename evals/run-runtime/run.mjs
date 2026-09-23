@@ -173,7 +173,7 @@ try {
   });
   writeFileSync(contractPath, `${JSON.stringify(orchestrated, null, 2)}\n`);
   r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
-  check('version 4 enforces a frontier lead and parallel operative plan', r.status === 0, r.out);
+  check('version 4 enforces a parallel operative plan', r.status === 0, r.out);
   const sharedRole = structuredClone(orchestrated);
   sharedRole.units[1].role = sharedRole.units[0].role;
   writeFileSync(contractPath, `${JSON.stringify(sharedRole, null, 2)}\n`);
@@ -272,7 +272,7 @@ try {
   orchestrated.units[1].model = 'gpt-5.6-sol';
   writeFileSync(contractPath, `${JSON.stringify(orchestrated, null, 2)}\n`);
   r = run(CONTRACT, ['check', '--contract', contractPath, '--root', root], root);
-  check('version 4 rejects an ordinary operative at the lead tier', r.status === 1 && /below the lead tier/.test(r.out), r.out);
+  check('version 4 permits an operative at the lead tier', r.status === 0, r.out);
   writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId);
 
   const indexedLink = join(root, 'prefix-link.txt');

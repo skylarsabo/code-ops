@@ -558,14 +558,18 @@ export function handoffPeakBand(path) {
 // Context ceiling shared by `hooks/dispatch-guard.mjs`, which gates new dispatches at and past
 // it, and `hooks/handoff-card.mjs`, which says so in its band nudge. `CODE_OPS_CONTEXT_CEILING`
 // takes `off`, `0`, or `false` (case-insensitive) to disable the gate (null), an integer of at
-// least 150,000 to override the default, and anything else reads as the 300,000 default.
+// least 150,000 to override the default, and anything else reads as the host default: 200,000
+// under Grok (`GROK_PLUGIN_ROOT` set, the sibling hooks' host test), whose price doubles above
+// that line, and 300,000 elsewhere. The 150,000-token band rule is the same on every host.
 export const CONTEXT_CEILING_DEFAULT = 300_000;
+export const CONTEXT_CEILING_GROK = 200_000;
 export const CONTEXT_CEILING_MIN = 150_000;
-export function contextCeiling(raw = process.env.CODE_OPS_CONTEXT_CEILING) {
+export function contextCeiling(raw = process.env.CODE_OPS_CONTEXT_CEILING, grok = Boolean(process.env.GROK_PLUGIN_ROOT)) {
   const value = String(raw ?? '').trim();
   if (/^(off|0|false)$/i.test(value)) return null;
   const n = /^[0-9]+$/.test(value) ? Number(value) : NaN;
-  return Number.isSafeInteger(n) && n >= CONTEXT_CEILING_MIN ? n : CONTEXT_CEILING_DEFAULT;
+  if (Number.isSafeInteger(n) && n >= CONTEXT_CEILING_MIN) return n;
+  return grok ? CONTEXT_CEILING_GROK : CONTEXT_CEILING_DEFAULT;
 }
 
 // The ceiling band a context sits in: 0 below the ceiling, then 1 plus one per further

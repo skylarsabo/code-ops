@@ -1,5 +1,11 @@
 # Changelog — researcher
 
+## 0.13.30
+- **TODO** — describe the change.
+
+## 0.13.30
+- The gatherer and claim-checker agents carry a typed `## Contract` section. Skills read only the CONVENTIONS sections they cite, plus the writing standard.
+
 ## 0.13.29
 - An UNVERIFIED or UNSUPPORTED item must carry a `Searched` field that names the paths, installed docs, and URLs checked. Vendored scripts match the canonical copies.
 

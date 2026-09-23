@@ -4,11 +4,11 @@ description: "Use when you want a PR or diff reviewed at the verification bar, b
 
 # Deep review: the verification bar, applied to a change
 
-**Invoked as `/rigor:deep-review`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**Invoked as `/rigor:deep-review`.** Read §A, §B, §C, §D, §E, §G, §H, §I, §1, §3, §4, §7, and §11 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** REVIEW. It changes nothing unless you ask.
 - **Produces:** tiered `file:line` comments and a verdict. They go to the pull request when

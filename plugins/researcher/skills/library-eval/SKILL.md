@@ -4,10 +4,10 @@ description: "Use when you must decide whether to adopt a library or approach, c
 
 # Library evaluation: adopt it, build it, or keep the status quo
 
-**Invoked as `/researcher:library-eval`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**Invoked as `/researcher:library-eval`.** Read §A, §2, §3, §4, §7, §8, §10, §11, §12, §13, and §14 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the evidence and citation discipline, the hand-off map, and
-the lenses, referenced by section.
+the lenses, referenced by section. Leave the rest of that file unread.
 
 - **Mode:** REVIEW.
 - **Produces:** a comparison and recommendation brief in `LIBRARY_EVAL.md`, on the `§13`

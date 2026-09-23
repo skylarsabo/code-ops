@@ -4,10 +4,10 @@ description: "Use when something is measurably slow or you want hot paths optimi
 
 # Performance optimization: measure, optimize, verify
 
-**Invoked as `/code-ops-suite:performance`.** First read the
+**Invoked as `/code-ops-suite:performance`.** First read §1, §3, §4, §7, §10, §14, and §15 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT · **Produces:** optimizations, each commit carrying before-and-after numbers,
 plus `PERFORMANCE_REPORT.md`. Remaining opportunities go to `FINDINGS_REGISTER.md`.
 

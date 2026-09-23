@@ -4,10 +4,10 @@ description: "Use when deep review, OpSec review, or judgment evals should run l
 
 # Local review gate: review before the PR exists
 
-**Invoked as `/code-ops-suite:local-review-gate`.** First read the
+**Invoked as `/code-ops-suite:local-review-gate`.** First read §1, §7, §9, §10, §12, and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Five sections govern this skill:
 the operating model (`§1`), evidence and refutation (`§7`), artifact safety (`§9`), the quality
-lenses (`§10`), and the run ledgers (`§12`).
+lenses (`§10`), and the run ledgers (`§12`). Leave the rest of that file unread.
 
 **Mode:** REVIEW. **Consumes:** one clean, committed feature branch and its target base.
 **Produces:** two ignored review reports, a SHA-bound plan, a hash-chained receipt set, and

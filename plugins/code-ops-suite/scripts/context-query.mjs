@@ -101,8 +101,19 @@ const toPosix = (p) => p.replace(/\\/g, '/');
 
 // ---------------------------------------------------------------- index build and refresh
 
+// A `plugins/<name>/scripts/<file>` whose staged blob equals `scripts/<file>` is a vendored copy
+// and would double every hit, so only the canonical file is indexed. A diverged copy stays.
 function trackedCodeFiles(excludes) {
-  return git(root, ['ls-files', '-z']).split('\0').filter((f) => f && isCodeExt(extname(f)) && !excludes.some((p) => f.startsWith(p)));
+  const blobs = new Map();
+  for (const line of git(root, ['ls-files', '-s', '-z']).split('\0')) {
+    const m = /^\d+ ([0-9a-f]+) \d+\t(.+)$/.exec(line);
+    if (m) blobs.set(m[2], m[1]);
+  }
+  const vendored = (f) => {
+    const m = /^plugins\/[^/]+\/(scripts\/.+)$/.exec(f);
+    return Boolean(m) && blobs.get(m[1]) === blobs.get(f);
+  };
+  return [...blobs.keys()].filter((f) => isCodeExt(extname(f)) && !excludes.some((p) => f.startsWith(p)) && !vendored(f));
 }
 
 function indexFile(file, exists, provided = null) {

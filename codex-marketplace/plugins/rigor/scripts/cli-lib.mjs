@@ -1,3 +1,4 @@
+// @ts-check
 // Shared CLI primitives for the repository's scripts: flag parsing, usage, exit, a git
 // wrapper, and a file walker.
 //
@@ -25,6 +26,7 @@ import { join, resolve } from 'node:path';
 // flag). A caller catches it and routes the message into its own usage text, so the library
 // never decides how a script reports a bad invocation.
 export class UsageError extends Error {
+  /** @param {string} message */
   constructor(message) {
     super(message);
     this.name = 'UsageError';
@@ -45,9 +47,18 @@ export class UsageError extends Error {
 //             its callers already pin
 // Everything that is not a known flag or its value becomes a positional. A bare `--` ends
 // flag parsing: every remaining argument is positional, including one that starts with a dash.
+/**
+ * @typedef {{ value?: boolean, default?: unknown, required?: boolean, many?: boolean, raw?: boolean, missing?: string }} FlagRule
+ * @param {string[]} argv
+ * @param {Record<string, FlagRule>} [spec]
+ * @returns {{ flags: Record<string, any>, positional: string[] }}
+ */
 export function parseFlags(argv, spec = {}) {
+  /** @type {Record<string, any>} */
   const flags = {};
+  /** @type {string[]} */
   const positional = [];
+  /** @type {(name: string, rule: FlagRule, value: string) => void} */
   const take = (name, rule, value) => { if (rule.many) flags[name].push(value); else flags[name] = value; };
   for (const [name, rule] of Object.entries(spec)) {
     if (rule && rule.many) flags[name] = [];
@@ -96,12 +107,20 @@ export function parseFlags(argv, spec = {}) {
 
 // Print usage lines to stderr and exit. Usage output belongs on stderr so a script's stdout
 // stays machine-readable even when the invocation was wrong.
+/**
+ * @param {string | string[]} lines
+ * @returns {never}
+ */
 export function usage(lines, code = 2) {
   for (const line of Array.isArray(lines) ? lines : [lines]) console.error(line);
   process.exit(code);
 }
 
 // Print one error line to stderr and exit. The `x ` prefix matches the existing gate scripts.
+/**
+ * @param {string} message
+ * @returns {never}
+ */
 export function die(message, code = 1) {
   console.error(`x ${message}`);
   process.exit(code);
@@ -110,6 +129,11 @@ export function die(message, code = 1) {
 // parseFlags, reported the way a gate script reports a caller error: `x <message>` on stderr,
 // the script's own usage line under it when one is given, exit 2. Every migrated script wants
 // that shape, so none of them keeps a private try/catch for it.
+/**
+ * @param {string[]} argv
+ * @param {Record<string, FlagRule>} spec
+ * @param {string | null} [usageLine]
+ */
 export function parseOrDie(argv, spec, usageLine = null) {
   try {
     return parseFlags(argv, spec);
@@ -121,6 +145,7 @@ export function parseOrDie(argv, spec, usageLine = null) {
 
 // Run git and return trimmed stdout. stderr is discarded and stdin is closed, so a git
 // subprocess can never block on a prompt or leak progress output into a report.
+/** @param {string[]} args */
 export function git(args, { cwd = process.cwd(), timeout = 10000, maxBuffer = 64 * 1024 * 1024 } = {}) {
   return execFileSync('git', args, { cwd, timeout, maxBuffer, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
 }
@@ -128,11 +153,16 @@ export function git(args, { cwd = process.cwd(), timeout = 10000, maxBuffer = 64
 // Walk `dir` and return absolute paths of the files `filter` accepts. `filter` receives the
 // absolute path; omit it to take every file. Directories are never returned. An unreadable
 // directory is skipped rather than fatal, because a walker is a discovery step, not a gate.
+/**
+ * @param {string} dir
+ * @param {(path: string) => boolean} [filter]
+ * @returns {string[]}
+ */
 export function walkFiles(dir, filter = () => true) {
   const out = [];
   const stack = [resolve(dir)];
   while (stack.length) {
-    const current = stack.pop();
+    const current = /** @type {string} */ (stack.pop());
     let entries;
     try { entries = readdirSync(current, { withFileTypes: true }); } catch { continue; }
     for (const entry of entries) {

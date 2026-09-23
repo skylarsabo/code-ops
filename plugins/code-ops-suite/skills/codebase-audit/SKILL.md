@@ -4,10 +4,10 @@ description: "Use when you want a broad, multi-lens review of an unfamiliar or d
 
 # Codebase audit: broad multi-lens review
 
-**Invoked as `/code-ops-suite:codebase-audit`.** First read the
+**Invoked as `/code-ops-suite:codebase-audit`.** First read §1, §3, §4, §6, §7, §9, §10, §11, §12, and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** AUDIT · **Produces:** `FINDINGS_REGISTER.md`, `FEATURE_OPPORTUNITIES.md` for any
 opportunities noticed, reconciled-doc notes, `EXECUTIVE_SUMMARY.md`, and `REMEDIATION_LOG.md`
 for applied NOW-SAFE fixes.
@@ -18,6 +18,10 @@ everything else as findings for the remediation prompt.
 
 ## Phase 0: discovery and scope  *(checkpoint)*
 
+Before broad reads, check the repo atlas when present with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98
+System/Atlas/`, fallback `atlas/`), and query the symbol index with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs context query find <symbol>` before loading a map.
 Dispatch an `explorer` operative to detect the stack and tooling and to build the real **service
 and module inventory**: purpose, entrypoints, public surface, dependencies, and data touched.
 Hand its summary onward. Capture the build, test, and lint **baseline**, including any

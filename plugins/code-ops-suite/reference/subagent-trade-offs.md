@@ -26,11 +26,11 @@ verdict rests on its output, and never route below an agent's lint-enforced floo
 
 | Task shape | Route to | Effort | Why |
 | --- | --- | --- | --- |
-| Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`, `mech`) — the one place the strong-tier default gives way, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis, and at least medium when the brief asks the operative to source or verify a name, because low effort answers from memory) | No judgment call to get wrong; cheapest tier that can do the read. |
+| Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`) for reads, and `sonnet`-floor agents (`mech`, `mech-review`) for exact edits, named gates, and mechanical diff checks — the one place the strong-tier default gives way, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis, and at least medium when the brief asks the operative to source or verify a name, because low effort answers from memory) | No judgment call to get wrong; cheapest tier that can do the read. |
 | Moderate judgment (single-claim research, execution-only work) | `sonnet`-floor `claim-checker` — the mid tier is the floor here, not the target: run it strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test. |
 | Scoped implementation (build, fix, or refactor one bounded unit) | code-ops `implementer` (`opus` floor), never a general-purpose agent | medium | The narrow tool surface starts each turn near 20,000 tokens, against near 57,000 for a general-purpose agent. See [What a dispatch costs](#what-a-dispatch-costs). |
 | High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | `opus`-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | `reviewer`/`privacy-reviewer` high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
-| Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The lead, at the highest tier present in the session | high; xhigh only for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop and is never down-tiered for this. |
+| Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The session lead: the model the operator started the session with, on any host | the host default (medium for Opus 5.5); raise it for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop. |
 
 Effort level names do not carry across model generations. When the lead model changes, re-run the effort sweep against the judgment evals before you trust the table above. Step a dispatch down only where quality held. Dispatch operatives in the background and continue independent work. Wait only when the next step depends on the result. On coding work, background dispatch lowers time to completion at similar quality and cost.
 
@@ -137,6 +137,7 @@ flowchart TD
 
 - **code-ops `reviewer`** (model: `opus`, tools add `Bash`): skeptical review of a specific diff, file, or file-group, returning findings grouped **Blocking / Should-fix / Nit**. Its `Bash` is for read-only verification only, such as running the existing tests or a linter. It never modifies and never commits. Like the `tracer`, it also runs in a **refutation mode** ([`§7`](../../../plugins/code-ops-suite/CONVENTIONS.md)): given a peer's Blocking candidate, it tries to kill it by finding the dominating guard elsewhere and returns REFUTED or SURVIVED. The [disconfirmation pass](disconfirmation-pass.md) describes that adversarial complement.
 - **privacy-opsec `privacy-reviewer`** (model: `opus`, tools add `Bash`): the same shape against the anonymity and opsec model. It flags a new egress path, a new identifier vector, or a weakened default as **Blocking**. Its `Bash` is likewise read-only.
+- **code-ops `mech-review`** (model: `sonnet`, tools add `Bash`): checks a small mechanical diff against its spec and returns PASS, FAIL, or ESCALATE. It escalates a judgment-heavy diff instead of reviewing it, and its `Bash` is read-only.
 - **researcher `claim-checker`** (model: `sonnet`): adversarial verifier. Given one load-bearing claim, it tries to kill the claim against the actual code and the cited sources, then returns **SUPPORTED / PARTIAL / UNSUPPORTED** with an evidence tier. Use one per claim, in parallel.
 
 Because none of these write, the orchestrator can run four code-ops `explorer`s and two `reviewer`s at once with no conflict risk. The reviewers' `Bash` is the only nuance. It runs read-only commands such as a test suite or a linter, so two reviewers running tests at once is a resource question rather than a correctness one.
@@ -160,9 +161,9 @@ Every agent definition also carries a `Report cap: at most N words` line: 600 fo
 
 ## The writing agents
 
-Two agents in the suite can write files and run arbitrary commands. **code-ops `implementer`** (model: `opus`, tools `Read, Edit, Write, Bash, Grep, Glob`) builds one bounded unit from a brief. It edits only inside the brief's Scope, never commits unless the brief grants it, and checkpoints to its Report path when it passes its round budget. Dispatch it for every build, fix, or refactor unit. A general-purpose agent loads the host's whole tool surface into every turn, and [What a dispatch costs](#what-a-dispatch-costs) gives the measured difference.
+Three agents in the suite can write files and run arbitrary commands. **code-ops `implementer`** (model: `opus`, tools `Read, Edit, Write, Bash, Grep, Glob`) builds one bounded unit from a brief. It edits only inside the brief's Scope, never commits unless the brief grants it, and checkpoints to its Report path when it passes its round budget. Dispatch it for every build, fix, or refactor unit. A general-purpose agent loads the host's whole tool surface into every turn, and [What a dispatch costs](#what-a-dispatch-costs) gives the measured difference.
 
-The other is **rigor `verifier`** (model: `opus`, tools `Read, Grep, Glob, Bash, Write`). It exists so that **CONFIRMED** means something. Given one candidate finding, it writes the smallest repro that would fail if the bug is real, runs it, observes the actual output, and assigns the tier accordingly. [The disconfirmation pass](disconfirmation-pass.md) covers that loop.
+The second is **rigor `verifier`** (model: `opus`, tools `Read, Grep, Glob, Bash, Write`). It exists so that **CONFIRMED** means something. Given one candidate finding, it writes the smallest repro that would fail if the bug is real, runs it, observes the actual output, and assigns the tier accordingly. [The disconfirmation pass](disconfirmation-pass.md) covers that loop.
 
 The `opus` floor here is a deliberate decision, not a token-saving candidate. A wrong CONFIRMED poisons every downstream consumer of the register (`AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs`), so nothing depends on this agent being cheap.
 
@@ -174,7 +175,17 @@ Hard rules in the agent definition fence its extra power:
 
 So the `verifier` is write-isolated from the code being judged. When a skill needs several verifiers, the fan-out rule from [§1](../../../plugins/code-ops-suite/CONVENTIONS.md) applies in full. Give each verifier a **disjoint** repro target so the artifacts cannot collide, and serialize anything that would touch a shared file.
 
+The third is **code-ops `mech`** (model: `sonnet`, tools `Read, Edit, Write, Bash, Grep, Glob`). It applies an exact edit spec, a vendored copy, or a config change, runs the gates the brief names, and returns PASS, FAIL, or ESCALATE with only the failing excerpt. Dispatch it only when the brief leaves nothing to decide. Any anchor that does not match the code returns as ESCALATE, never as a guess. Pair it with `mech-review` when the diff needs a check against its spec.
+
 ---
+
+## Run contract mechanics
+
+A version 4 `RUN_CONTRACT.json` records the session model in its `lead` block. The validator checks that block for shape only. A lead below strong, or a model the registry cannot place at its declared tier, prints a warning. The unit floors still fail closed.
+
+The contract also declares observed host capabilities, runtime policy, receipt path, and a bounded stable prefix. Earlier contract versions remain replayable legacy formats and must not start a new substantive run. A unit may declare positive input, output, and reasoning token caps. Initialize `HOST_CAPABILITIES.json` from observed host facts. Do not infer capabilities from a model name. Invoke `run-runtime.mjs init` before fan-out. Compile a verified unit view with `context-bundle.mjs view`, then build and verify the dispatched payload with `worker-brief.mjs`.
+
+At every phase boundary, reconcile `DISPATCH_LEDGER.md`, record partial acceptance, checkpoint the referenced artifacts, then replan or resume only through the receipt chain. Read `run-runtime.mjs status` instead of replaying prior prose. Increment `revision` when learning, context, or runtime binding changes. Never rewrite the plan merely to match an unplanned dispatch.
 
 ## A typical fan-out
 

@@ -4,11 +4,11 @@ description: "Use when the same concept is implemented divergently and you want 
 
 # Consistency closure: close it so it stays closed
 
-**Invoked as `/rigor:consistency-closure`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**Invoked as `/rigor:consistency-closure`.** Read §A, §B, §C, §E, §G, §H, §1, §3, §4, §9, §11, and §12 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** IMPLEMENT. Every closure change is confirmed with the developer.
 - **Produces:** `CONSISTENCY_REGISTER.md`, the migration diffs, the new enforcement, and a

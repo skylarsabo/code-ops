@@ -4,11 +4,11 @@ description: "Use when you want REAL bugs found and proven, not a list of guesse
 
 # Bug hunt: prove the bug, then find its whole class
 
-**Invoked as `/rigor:bug-hunt`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**Invoked as `/rigor:bug-hunt`.** Read §A, §B, §C, §E, §G, §H, §I, §1, §3, §4, §6, §7, and §11 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** AUDIT. It reads code and executes repros. It makes no source fixes.
 - **Produces:** tiered findings with proof in `FINDINGS_REGISTER.md`, and saved repro tests.
@@ -16,6 +16,10 @@ rails this skill follows.
 
 ## Phase 0: scope  *(checkpoint)*
 
+Before broad reads, when `code-ops-suite` is installed, check the repo atlas when present with
+its `atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98 System/Atlas/`, fallback
+`atlas/`), and query the symbol index with its `co.mjs context query find <symbol>` before
+loading a map.
 Pick one component or subsystem and go deep rather than wide. Hunting a whole large
 repository at once produces blind spots. Read `GROUND_TRUTH.md` so you do not re-derive
 facts or re-flag tool findings. If that file is absent, run `/rigor:ground-truth` first,

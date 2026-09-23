@@ -4,10 +4,10 @@ description: "Use when a FINDINGS_REGISTER.md already exists and you want its NE
 
 # Remediation implementation: execute the findings backlog
 
-**Invoked as `/code-ops-suite:remediation`.** First read the
+**Invoked as `/code-ops-suite:remediation`.** First read §1, §3, §4, §6, §7, §10, §11, §12, §14, and §15 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT · **Consumes:** `FINDINGS_REGISTER.md`, specifically its NEEDS-REVIEW and
 NEEDS-DESIGN items · **Produces:** verified fixes as branches or PRs, `IMPLEMENTATION_LOG.md`,
 and an updated register.

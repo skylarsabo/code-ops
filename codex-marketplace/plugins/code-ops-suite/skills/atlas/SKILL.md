@@ -7,10 +7,10 @@ description: "Use when a repo's atlas needs to be created, refreshed after the c
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:atlas`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoke in Codex by naming `code-ops-suite:atlas`.** First read §1, §3, §4, §9, §12, and §14 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model (`§1`), the evidence standard (`§9`), and the
 single-source-of-truth conventions (`§12`) that this skill extends from one run's artifacts to a
-durable artifact the repo keeps. Then read
+durable artifact the repo keeps. Leave the rest of that file unread. Then read
 `<plugin-root>/reference/atlas.md` for the manifest schema, the checker's
 modes, and the trust doctrine.
 **Mode:** DOCUMENT · **Consumes:** the target repo and its existing atlas, when it has one ·

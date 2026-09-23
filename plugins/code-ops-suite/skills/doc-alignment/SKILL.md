@@ -4,10 +4,10 @@ description: "Use when docs have drifted from code and you want them reconciled 
 
 # Documentation alignment: reconcile drift, establish one source of truth
 
-**Invoked as `/code-ops-suite:doc-alignment`.** First read the
+**Invoked as `/code-ops-suite:doc-alignment`.** First read §1, §3, §4, §7, §10, and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces:** reconciled docs edited in place, `DRIFT_REPORT.md`,
 `SSOT_MAP.md`, and `OPEN_QUESTIONS.md`.
 

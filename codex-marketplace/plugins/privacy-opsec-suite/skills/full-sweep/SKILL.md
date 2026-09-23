@@ -7,9 +7,9 @@ description: "Use when you want the whole privacy-opsec-suite run end-to-end as 
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `privacy-opsec-suite:full-sweep`.** Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file, and section A above all, which carries the central
-anonymity and OpSec model every phase enforces.
+**Invoke in Codex by naming `privacy-opsec-suite:full-sweep`.** Read §A, §1, §3, §4, §6, and §12 of
+`<plugin-root>/CONVENTIONS.md`, and section A above all, which carries the central
+anonymity and OpSec model every phase enforces. Leave the rest of that file unread.
 
 This skill orchestrates the other skills in sequence as one developer-in-the-loop pipeline.
 It runs them in order, carries `LEAK_REGISTER.md` forward, keeps a master plan, and checks

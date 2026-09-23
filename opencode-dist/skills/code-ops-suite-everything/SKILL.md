@@ -14,8 +14,8 @@ three code-ops plugins into one exhaustive pipeline. It does not replace the ind
 It runs them in the right order, deduplicated, carrying every register and a growing **proof
 set** forward, and checking in at phase boundaries.
 
-**Prerequisites:** `code-ops-suite`, `rigor`, and `privacy-opsec-suite` all installed. First read
-this plugin's `<plugin-root>/CONVENTIONS.md`. Then load the `CONVENTIONS.md` from the
+**Prerequisites:** `code-ops-suite`, `rigor`, and `privacy-opsec-suite` all installed. First read §1, §2, §3, §4, §7, §10, §12, §13, and §14 of
+this plugin's `<plugin-root>/CONVENTIONS.md`. Leave the rest of that file unread. Then load the `CONVENTIONS.md` from the
 **rigor** and **privacy-opsec-suite** plugins, searching the plugin directories for them. Do not
 preload skill files, because they load themselves at invocation. Each phase then applies its
 governing methodology, and especially rigor's verification-first rules: the evidence tiers, the

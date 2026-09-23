@@ -4,11 +4,11 @@ description: "Use when you want a pre-merge gate that blocks any change adding e
 
 # OpSec pull request gate: block anonymity regressions before merge
 
-**Invoked as `/privacy-opsec-suite:opsec-pr-gate`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. Search the plugin directory for it if the path does
+**Invoked as `/privacy-opsec-suite:opsec-pr-gate`.** Read §A, §1, §3, §4, §6, §9, and §12 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. Search the plugin directory for it if the path does
 not resolve. It defines the operating model, the central anonymity and OpSec model (`§A`),
 the interaction protocol, the safety rails, the schemas, and the lenses this skill
-references by section.
+references by section. Leave the rest of that file unread.
 
 - **Mode:** REVIEW. Name the pull request, branch, or diff.
 - **Produces:** a prioritized review and a verdict. They go to the pull request when a

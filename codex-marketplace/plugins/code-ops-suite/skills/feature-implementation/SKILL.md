@@ -7,10 +7,10 @@ description: "Use when feature specs already exist and you want them built incre
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:feature-implementation`.** First read the
+**Invoke in Codex by naming `code-ops-suite:feature-implementation`.** First read §1, §3, §4, §7, §10, §11, §14, and §15 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT · **Consumes:** the feature specs, `FEATURE_OPPORTUNITIES.md`, and
 `FEATURE_ROADMAP.md` · **Produces:** shipped features as flagged branches or PRs, `BUILD_LOG.md`,
 and an updated register.

@@ -1,20 +1,31 @@
+// @ts-check
 // Shared partial acceptance semantics; completion remains the finalizer's concern.
 import { existsSync, readFileSync } from 'node:fs';
 import { TIER_RANK, modelRankOf } from './model-tiers.mjs';
 
 export const ACCEPT_HEADER = '| criterion | attempt | verdict | proof | accepted by | reason |\n| --- | --- | --- | --- | --- | --- |\n';
 
+/** @typedef {{ id: string, owner: string }} Criterion */
+
+/**
+ * @param {Criterion} criterion
+ * @param {string} actor
+ */
 export function actorError(criterion, actor) {
   if (criterion.owner === 'tool' && actor !== 'tool') return 'actor does not match criterion owner';
   if (criterion.owner === 'user' && actor !== 'user') return 'actor does not match criterion owner';
   if (['lead', 'reviewer'].includes(criterion.owner)) {
     const match = actor.match(/^([^@]+)@(.+)$/);
     const rank = match && modelRankOf(match[2]);
-    if (!match || match[1] !== criterion.owner || !Number.isInteger(rank) || rank < TIER_RANK.strong) return 'actor must be owner@strong-or-better-model';
+    if (!match || match[1] !== criterion.owner || !Number.isInteger(rank) || /** @type {number} */ (rank) < TIER_RANK.strong) return 'actor must be owner@strong-or-better-model';
   }
   return null;
 }
 
+/**
+ * @param {string} path
+ * @param {{ quality: { criteria: Criterion[] } }} contract
+ */
 export function parseAcceptance(path, contract) {
   if (!existsSync(path)) return [];
   const text = readFileSync(path, 'utf8');

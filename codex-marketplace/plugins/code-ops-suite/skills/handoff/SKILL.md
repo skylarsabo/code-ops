@@ -7,9 +7,9 @@ description: "Use when a long run needs a continue, compact, or transfer decisio
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:handoff`.** Read §3, §4, §9, and §12 of the
+**Invoke in Codex by naming `code-ops-suite:handoff`.** Read §3, §4, §9, §12, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin: the interaction protocol, the
-safety rails, the evidence standard, and the shared-artifact rules. Leave the rest unread.
+safety rails, the evidence standard, the shared-artifact rules, and the writing standard. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces and consumes:** `HANDOFF.md` in the run's dated artifact folder
 (`§12`), beside the live checklist `TASKS.md`.
 

@@ -21,11 +21,12 @@
 //     --no-stale-check suppresses it;
 //   - unknown symbols exit 1, bad flags exit 2, --json parses;
 //   - the hook is on by default, silent under off, re-indexes the edited file, and fails open;
+//   - a byte-identical vendored copy under plugins/*/scripts/ is indexed once;
 //   - `--provider none` spawns nothing, a missing provider says so on stderr and still indexes,
 //     and a provider definition joins a file only on a line the rules left free.
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -232,6 +233,27 @@ try {
       `the line rules keep line 1, got ${JSON.stringify(defs.filter((d) => d.line === 1))}`);
     console.log('ok   a ctags shim merges only free lines, mapped to the index kinds');
   }
+
+  // A byte-identical vendored copy under plugins/*/scripts/ is one definition, not two; a
+  // diverged copy is its own code and is indexed.
+  const dup = 'export function vendoredOnce() {\n  return 1;\n}\n';
+  for (const dir of ['scripts', 'plugins/p/scripts']) {
+    mkdirSync(join(work, dir), { recursive: true });
+    writeFileSync(join(work, dir, 'dup.mjs'), dup);
+  }
+  git('add', '-A');
+  git('commit', '-q', '-m', 'vendored copy');
+  q('refresh');
+  const once = qj('find', 'vendoredOnce').j;
+  expect(once?.definitions?.length === 1 && JSON.stringify(once.definitions).includes('scripts/dup.mjs') && !JSON.stringify(once.definitions).includes('plugins/'),
+    `a vendored copy identical to scripts/ is indexed once at the canonical path, got ${JSON.stringify(once)}`);
+  writeFileSync(join(work, 'plugins/p/scripts/dup.mjs'), `${dup}// diverged\n`);
+  git('add', '-A');
+  git('commit', '-q', '-m', 'diverge');
+  q('refresh');
+  const twice = qj('find', 'vendoredOnce').j;
+  expect(twice?.definitions?.length === 2, `a diverged copy is indexed beside the canonical file, got ${JSON.stringify(twice)}`);
+  console.log('ok   a byte-identical vendored copy is indexed once');
 } finally {
   for (const dir of [work, store, providerStore, stubStore, stubBin]) rmSync(dir, { recursive: true, force: true });
 }

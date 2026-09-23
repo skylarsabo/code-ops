@@ -9,10 +9,10 @@ description: "Use when critical paths lack meaningful coverage or tests are flak
 
 **Invoked as `/code-ops-suite-test-hardening`, or by the model through the `skill` tool as `code-ops-suite-test-hardening`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §3, §4, §7, §10, §14, and §15 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT · **Produces:** committed tests and `TEST_COVERAGE_REPORT.md`. Bugs exposed
 go to `FINDINGS_REGISTER.md`.
 

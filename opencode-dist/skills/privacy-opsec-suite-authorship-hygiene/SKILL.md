@@ -9,10 +9,10 @@ description: "Use when a commit, PR, or branch must carry no AI or tooling trace
 
 **Invoked as `/privacy-opsec-suite-authorship-hygiene`, or by the model through the `skill` tool as `privacy-opsec-suite-authorship-hygiene`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the anonymity and OpSec model (`§A`),
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §A, §3, §4, §9, §12, and §13 of
+`<plugin-root>/CONVENTIONS.md`. It defines the anonymity and OpSec model (`§A`),
 including the tooling-trace non-negotiable, plus the interaction protocol, the safety rails,
-and the lenses this skill follows.
+and the lenses this skill follows. Leave the rest of that file unread.
 
 - **Mode:** REVIEW to audit, then IMPLEMENT to scrub.
 - **Scope:** a commit range, a pull request body, and the working diff you name.

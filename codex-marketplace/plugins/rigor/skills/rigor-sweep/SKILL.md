@@ -7,11 +7,11 @@ description: "Use when you want the whole rigor suite run end-to-end as a checkp
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `rigor:rigor-sweep`.** Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**Invoke in Codex by naming `rigor:rigor-sweep`.** Read §A, §B, §C, §G, §H, §1, §3, §4, §10, and §11 of
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 This skill orchestrates the other skills in sequence as one developer-in-the-loop pipeline.
 It does not replace them. It carries the registers and a growing proof set forward, keeps a

@@ -1,3 +1,4 @@
+// @ts-check
 // Dependency-free symbol primitives shared by repo-map.mjs, import-graph.mjs, skim.mjs, and
 // context-query.mjs: the per-language definition rules, definition spans, call sites, and import
 // edges for one file's text. This file is the single source of all four.
@@ -10,12 +11,14 @@
 
 import { posix } from 'node:path';
 
+/** @type {[RegExp, string][]} */
 const JS_DEFS = [
   [/^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/, 'fn'],
   [/^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/, 'class'],
   [/^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=/, 'const'],
 ];
 const JS = { defs: JS_DEFS, imports: /^\s*(?:import[\s({]|(?:const|let|var)\s+.*\brequire\()/, exports: /^\s*(?:export\b|module\.exports\b)/, scope: 'braces' };
+/** @type {Record<string, { defs: [RegExp, string][], imports: RegExp, exports: RegExp | null, scope: string }>} */
 export const CODE = {
   '.js': JS, '.mjs': JS, '.cjs': JS, '.jsx': JS, '.ts': JS, '.tsx': JS,
   '.py': { defs: [[/^(?:async\s+)?def\s+(\w+)/, 'def'], [/^class\s+(\w+)/, 'class']], imports: /^\s*(?:import|from)\s/, exports: null, scope: 'indent' },
@@ -32,6 +35,7 @@ export const CODE = {
   '.cs': { defs: [[/^\s{0,4}(?:public|internal|protected|private)?\s*(?:abstract\s+|static\s+|sealed\s+|partial\s+)*(?:class|interface|record|struct|enum)\s+(\w+)/, 'type']], imports: /^\s*using\s+[A-Za-z_]/, exports: null, scope: 'braces' },
 };
 
+/** @param {string} ext */
 export const isCodeExt = (ext) => Object.hasOwn(CODE, ext);
 
 const COMMENT_LINE = /^\s*(?:\/\/|#|\*|\/\*)/;
@@ -42,10 +46,17 @@ const BARE_CALL = /(?<![\w$.])([A-Za-z_$][\w$]*)\s*\(/g;
 const MEMBER_CALL = /\.([A-Za-z_$][\w$]*)\s*\(/g;
 
 // Definitions with spans: [{ name, kind, line, end, sig }], 1-based and inclusive.
+/**
+ * @typedef {{ name: string, kind: string, line: number, end: number, sig: string }} Definition
+ * @param {string} text
+ * @param {string} ext
+ * @returns {Definition[]}
+ */
 export function definitions(text, ext) {
   const rules = CODE[ext];
   if (!rules) return [];
   const lines = text.split('\n');
+  /** @type {Definition[]} */
   const defs = [];
   for (let i = 0; i < lines.length; i++) {
     for (const [re, kind] of rules.defs) {
@@ -63,6 +74,12 @@ export function definitions(text, ext) {
 
 // Where a definition's body ends: braces balance for the brace languages, the first later line
 // at the same or a lesser indent for Python, and never past the next definition.
+/**
+ * @param {string[]} lines
+ * @param {number} start
+ * @param {number} limit
+ * @param {string} scope
+ */
 function spanEnd(lines, start, limit, scope) {
   if (scope === 'indent') {
     const indent = lines[start].search(/\S/);
@@ -86,12 +103,18 @@ function spanEnd(lines, start, limit, scope) {
 }
 
 // Removes string literals and a trailing line comment, so a brace inside them does not count.
+/** @param {string} line */
 function stripStringsAndComments(line) {
   return line.replace(/(["'`])(?:\\.|(?!\1).)*\1/g, '""').replace(/\/\/.*$|#.*$/, '');
 }
 
 // Call sites: [{ name, line, member, from }] where `from` is the name of the enclosing
 // definition, or null at top level.
+/**
+ * @param {string} text
+ * @param {string} ext
+ * @param {Definition[]} [defs]
+ */
 export function calls(text, ext, defs = definitions(text, ext)) {
   const rules = CODE[ext];
   if (!rules) return [];
@@ -143,6 +166,8 @@ const RESOLVE_EXTS = [...JS_FAMILY, '.json'];
 // generator's scope and the library's coverage cannot drift apart.
 export const IMPORT_EXTS = [...JS_FAMILY, '.py', '.go', '.rs'];
 
+/** @typedef {{ local: string, imported: string }} ImportName */
+/** @type {(clause: string | undefined) => ImportName[]} */
 const names = (clause) => {
   if (!clause) return [];
   const inner = clause.includes('{') ? clause.slice(clause.indexOf('{') + 1, clause.indexOf('}')) : clause;
@@ -150,7 +175,7 @@ const names = (clause) => {
   return inner.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
     const m = /^([\w$*]+)(?:\s+as\s+([\w$]+))?$/.exec(s);
     return m ? { local: m[2] ?? m[1], imported: m[1] } : null;
-  }).filter(Boolean);
+  }).filter((n) => n !== null);
 };
 
 // Import edges for one file: [{ spec, target, names: [{ local, imported }], relative, dynamic }].
@@ -159,15 +184,25 @@ const names = (clause) => {
 // unresolved relative path from a package name it was never going to resolve. `dynamic` marks a
 // non-literal `import(...)` argument, whose `spec` is the argument text as written: the edge is
 // listed rather than dropped, because a reader has to know the file loads something.
+/**
+ * @param {string} text
+ * @param {string} ext
+ * @param {string} file
+ * @param {(path: string) => boolean} exists
+ */
 export function imports(text, ext, file, exists) {
+  /** @type {{ spec: string, target: string | null, names: ImportName[], relative: boolean, dynamic: boolean }[]} */
   const out = [];
   const dir = posix.dirname(file);
+  /** @type {(candidates: string[]) => string | null} */
   const first = (candidates) => candidates.find((c) => exists(c)) ?? null;
+  /** @type {(spec: string, target: string | null, edgeNames: ImportName[], relative: boolean, dynamic?: boolean) => void} */
   const edge = (spec, target, edgeNames, relative, dynamic = false) => out.push({ spec, target, names: edgeNames, relative, dynamic });
 
   // A relative JavaScript specifier lands on itself when it already carries a resolvable
   // extension, then on the extension appended, then on an index file under it. A bare path is
   // never a candidate on its own, because a directory of that name is not a file.
+  /** @type {(spec: string) => string | null} */
   const resolveJs = (spec) => {
     if (!spec.startsWith('.')) return null;
     const base = posix.normalize(posix.join(dir, spec));
@@ -179,12 +214,13 @@ export function imports(text, ext, file, exists) {
   // Leading-dot depth first (one dot is the current package), then `<path>.py` and the package
   // `__init__.py`. An absolute module resolves the same way, so a module inside the tree is an
   // edge, while a third-party one simply finds nothing.
+  /** @type {(mod: string) => string | null} */
   const resolvePy = (mod) => {
     if (!mod.startsWith('.')) {
       const path = mod.split('.').join('/');
       return first([`${path}.py`, posix.join(path, '__init__.py')]);
     }
-    const dots = /^\.+/.exec(mod)[0].length;
+    const dots = /** @type {RegExpExecArray} */ (/^\.+/.exec(mod))[0].length;
     let base = dir;
     for (let i = 1; i < dots; i++) base = posix.dirname(base);
     const rest = mod.slice(dots).split('.').filter(Boolean).join('/');
@@ -195,9 +231,11 @@ export function imports(text, ext, file, exists) {
   // A Go specifier names a package, and only a dot-relative one names a place in this tree. The
   // coarse rule maps it to the sibling file of that name. A package is a directory, so a
   // specifier that names one stays unresolved rather than guessing the file inside it.
+  /** @type {(spec: string) => string | null} */
   const resolveGo = (spec) => (spec.startsWith('.') ? first([`${posix.normalize(posix.join(dir, spec))}.go`]) : null);
   // `mod x;` names a sibling source file, the one Rust form worth resolving here. A `use` path
   // needs crate-root knowledge (src/lib.rs against src/main.rs), so it stays a bare specifier.
+  /** @type {(name: string) => string | null} */
   const resolveRustMod = (name) => first([posix.join(dir, `${name}.rs`), posix.join(dir, name, 'mod.rs')]);
 
   if (JS_FAMILY.includes(ext)) {

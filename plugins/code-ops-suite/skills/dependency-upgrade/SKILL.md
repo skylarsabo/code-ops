@@ -4,10 +4,10 @@ description: "Use when dependencies are outdated or carry known CVEs and you wan
 
 # Dependency upgrade: safe supply-chain maintenance
 
-**Invoked as `/code-ops-suite:dependency-upgrade`.** First read the
+**Invoked as `/code-ops-suite:dependency-upgrade`.** First read §1, §3, §4, §7, §10, §14, and §15 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT · **Produces:** verified upgrade PRs, `DEPENDENCY_REPORT.md`, and an updated
 lockfile.
 

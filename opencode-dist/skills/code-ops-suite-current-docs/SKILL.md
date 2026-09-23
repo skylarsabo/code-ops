@@ -9,10 +9,10 @@ description: "Use when you need current, version-accurate docs for a library or 
 
 **Invoked as `/code-ops-suite-current-docs`, or by the model through the `skill` tool as `code-ops-suite-current-docs`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §2 and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. This skill implements its
 documentation and reference lookup capability (`§2`) in-house: local-first, with no third-party
-indexer and no query egress.
+indexer and no query egress. Leave the rest of that file unread.
 **Mode:** AUDIT, read-only. **Use it** before writing code against an unfamiliar or
 version-sensitive API, instead of relying on training-data memory.
 
