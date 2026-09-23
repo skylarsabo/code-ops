@@ -5,7 +5,7 @@ It carries one entry per command: how it works, why it is useful, when to reach 
 Read it when you are picking an engineering command, or when you need the bundled scripts and hooks a run leans on.
 
 The `code-ops-suite` plugin is the spine of the marketplace. It packages broad-breadth
-engineering workflows for any codebase as 34 namespaced skills, invoked as
+engineering workflows for any codebase as 31 namespaced skills, invoked as
 `/code-ops-suite:<name>`. Every skill reads the shared
 [`CONVENTIONS.md`](../../../../plugins/code-ops-suite/CONVENTIONS.md) first. That file defines
 the operating model, the developer-in-the-loop interaction protocol, the safety rails (branch,
@@ -43,12 +43,9 @@ freshness check.
 - [`pr-split`](#code-ops-suitepr-split): carve a big branch into a clean, traceless stack
 
 **Review (REVIEW)**
-- [`pr-review`](#code-ops-suitepr-review): rigorous pre-merge review against all lenses
 - [`local-review-gate`](#code-ops-suitelocal-review-gate): opt-in local deep review, the OpSec gate, and judgment-eval receipts before PR creation
 
 **Document (DOCUMENT)**
-- [`adopt-standards`](#code-ops-suiteadopt-standards): bootstrap or maintain a repo's `CLAUDE.md` standards contract
-- [`adopt-global-standards`](#code-ops-suiteadopt-global-standards): maintain the user-wide standards contract from marketplace doctrine
 - [`doc-alignment`](#code-ops-suitedoc-alignment): reconcile doc drift and establish the single source of truth
 - [`repo-docs`](#code-ops-suiterepo-docs): refresh the affected manifest-owned documentation domains
 - [`onboarding`](#code-ops-suiteonboarding): verified orientation guide with a diagram
@@ -60,7 +57,7 @@ freshness check.
 - [`ops-docs`](#code-ops-suiteops-docs): the operator's runbook
 - [`handoff`](#code-ops-suitehandoff): capture or resume a run's verifiable session state
 - [`atlas`](#code-ops-suiteatlas): the repo's durable cache of judgment, with mechanical freshness
-- [`conform`](#code-ops-suiteconform): assess and repair the complete code-ops standard
+- [`conform`](#code-ops-suiteconform): assess and repair the complete code-ops standard, including the repo contract; `global` scope maintains the user-wide contracts
 - [`vault`](#code-ops-suitevault): create, migrate, or check the repository documentation vault
 
 **Meta and suite self-audit**
@@ -69,7 +66,6 @@ freshness check.
 - [`provider-parity-audit`](#code-ops-suiteprovider-parity-audit): audit every suite surface across Claude, Codex, Grok, and OpenCode
 
 **Orchestrators**
-- [`full-sweep`](#code-ops-suitefull-sweep): the whole suite end to end (intra-plugin)
 - [`everything`](#code-ops-suiteeverything): the cross-plugin superset (all three plugins)
 - [`ship`](#code-ops-suiteship): implement one change end to end at full rigor
 - [`debug`](#code-ops-suitedebug): drive a bug from symptom to a proven root-cause fix
@@ -235,7 +231,7 @@ never re-lists items already fixed in code.
 safely. Do not use it without a register, because it consumes one as input.
 
 **Prerequisites and hand-offs.** It requires a `FINDINGS_REGISTER.md`. It consumes the
-register's NEEDS-REVIEW and NEEDS-DESIGN items, and feeds its PRs to `pr-review`.
+register's NEEDS-REVIEW and NEEDS-DESIGN items, and feeds its PRs to `rigor:deep-review bar: standard`.
 
 ### `/code-ops-suite:feature-implementation`
 **Mode:** IMPLEMENT
@@ -259,7 +255,7 @@ use it for unspecified ideas, because `feature-discovery` comes first. Do not us
 single ad-hoc change end to end, which is `ship`.
 
 **Prerequisites and hand-offs.** It requires feature specs, plus
-`FEATURE_OPPORTUNITIES.md` and `FEATURE_ROADMAP.md`. It feeds its PRs to `pr-review`.
+`FEATURE_OPPORTUNITIES.md` and `FEATURE_ROADMAP.md`. It feeds its PRs to `rigor:deep-review bar: standard`.
 
 ### `/code-ops-suite:performance`
 **Mode:** IMPLEMENT
@@ -348,34 +344,36 @@ findings. It feeds residual items back to the register.
 ### `/code-ops-suite:normalize`
 **Mode:** IMPLEMENT (behavior-preserving)
 
-**How it works.** Two phases:
+**How it works.** It has two modes. The default `normalize` runs the whole-repo pass in two
+phases. `normalize concept <name>` runs the concept mode instead.
 
 - **Phase 0** (required checkpoint) detects tooling, derives the house style from the codebase's dominant patterns, and inventories the tells of hasty or generated code, the inconsistencies, and the modularization opportunities. It baselines tests, build, lint, and coverage, and captures the ratified standard in `STYLE_GUIDE.md`. A tells checklist drives the hunt: narration comments, tutorial voice, placeholder and disclaimer comments, emoji, inflated prose, debug residue, generic names, over-defensive ceremony, over-engineered indirection, section-divider mega-functions, commented-out code, and inconsistent terminology.
 - **Phase 1** fans out conflict-aware across nine workstreams: style and formatting, naming, comments, dead-code removal, standardizing recurring operations, modularization, method clarity, README and docs, and version-control history. It commits in reviewable logical chunks and finishes with a hostile-reviewer pass.
+- **Concept mode** closes the divergent implementations of one concept, such as error handling, data access, validation, the naming of one idea, or one API response shape. It scopes the concept at a checkpoint and inventories every variant at `file:line`. It proposes one canonical form per group for the developer to approve, then migrates every other site with a test for each. It adds a mechanical enforcement (a lint rule, a codemod or CI check, a shared type, or a test) so the divergence cannot recur unnoticed.
 
 Behavior preservation is absolute. Tests stay green at every step, and where coverage is thin,
 characterization tests come first.
 
 **Produces** the normalized codebase, `STYLE_GUIDE.md`, an enforced linter and formatter
 config with a recommended pre-commit or CI gate, `NORMALIZATION_LOG.md`, and a separate list of
-behavior-changing issues found and not fixed here.
+behavior-changing issues found and not fixed here. The concept mode produces
+`CONSISTENCY_REGISTER.md`, the migration diffs, and the enforcement. The register must pass
+`revalidate-register.mjs --strict --profile consistency --min-items 1` before the run is done.
 
 **Why it's useful.** It makes the codebase read as the consistent work of one experienced
 team, and hold up under line-by-line review. The standard is machine-enforced, so consistency
 cannot silently rot again.
 
 **When to use it.** Use it when a codebase has inconsistent style or the artifacts of hasty or
-generated code and you want one professional standard. Do not use it to close divergent
-implementations of a concept, meaning two competing ways to do the same thing, which is
-`rigor:consistency-closure`.
+generated code and you want one professional standard. Use the concept mode when one concept
+is implemented two or more competing ways and you want it closed for good. Do not choose a
+canonical form without adding the enforcement, because the enforcement is the point.
 
-**Sibling disambiguation, `normalize` against `rigor:consistency-closure`.**
-`code-ops-suite:normalize` is about surface and style: one coherent voice everywhere, tells
-removed, dead code gone, recurring operations done the same way, enforced by a linter and
-formatter config. `rigor:consistency-closure` is about semantic convergence. When a concept is
-implemented several divergent ways, it picks one canonical form, migrates every site, and adds
-enforcement so the divergence cannot recur. Use `normalize` to make the code look like one
-team wrote it, and `consistency-closure` to make a concept behave one way everywhere.
+**Mode disambiguation, the whole-repo pass against the concept mode.** The whole-repo pass is
+about surface and style: one coherent voice everywhere, tells removed, dead code gone,
+recurring operations done the same way, enforced by a linter and formatter config. The concept
+mode is about semantic convergence of one concept. Use the whole-repo pass to make the code
+look like one team wrote it, and the concept mode to make a concept behave one way everywhere.
 
 **Prerequisites and hand-offs.** It has no prerequisites, and uses `test-hardening`-style
 characterization where coverage is thin. It routes behavior-changing finds to a separate list
@@ -400,59 +398,16 @@ independently green PRs scrubbed of AI and tooling trace. Review becomes fast, a
 authorship hygiene stays airtight.
 
 **When to use it.** Use it when you have one big branch to carve into a reviewable stack. Do
-not use it to review someone's diff, which is `pr-review`, or to implement from scratch.
+not use it to review someone's diff, which is `rigor:deep-review bar: standard`, or to implement from scratch.
 
 **Prerequisites and hand-offs.** It requires `rigor` and `privacy-opsec-suite`, and the local
 review gate when the operator opts in. It composes
 `privacy-opsec-suite:authorship-hygiene` fail-closed before any push. It is the finish stage
-that `ship`, `debug`, `full-sweep`, and `everything` delegate to.
+that `ship`, `debug`, and `everything` delegate to.
 
 ---
 
 ## Review
-
-### `/code-ops-suite:pr-review`
-**Mode:** REVIEW
-
-**How it works.** Two phases:
-
-- **Phase 0** pulls the PR, branch, or diff and its intent, meaning the description, the linked issue, finding, or spec, and the surrounding code context. It reviews the diff against the code it changes. It traces the change's reach first, covering dependents and call sites of changed exported symbols, shared types and schemas, and API and database contracts. It scales reviewer fan-out and depth to that reach rather than to diff size, because a small diff in a shared contract is a large review. For a large PR it fans out parallel reviewers per file-group and synthesizes one coherent review.
-- **Phase 1** applies the relevant lenses (`§10`) scoped to the diff plus the context it needs: correctness and intricate bugs, design and modularity, performance and efficiency regressions, security introduced, privacy and data-handling regressions (blocking, scaled to data sensitivity), user interface, theming, and accessibility, tests, docs, and conventions.
-
-**Produces** a prioritized review. Each comment sits at `file:line` with a concrete suggested
-change, labeled Blocking, Should-fix, or Nit. It ends with a verdict of approve,
-approve-with-nits, or request-changes, plus a two-line or three-line summary, with the blocking
-items first. Before any item ships as Blocking it goes through independent refutation (`§7`),
-where a fresh `reviewer` or `tracer` that did not raise it tries to kill it by locating a
-dominating guard or handler elsewhere. A refuted item drops or downgrades, citing the guard.
-Each comment quotes a verbatim Anchor (`§9`) of its cited line, so the citation is checkable.
-Comments post to the PR when a version-control tool is connected, and otherwise land in
-`REVIEW.md`. It is review-only by default, and switches to the implementation loop only if you
-ask it to fix.
-
-**Why it's useful.** It is a senior-level pre-merge gate that catches the bugs, regressions,
-and missing tests that matter. Each comment carries a concrete fix and a clear merge verdict.
-
-**When to use it.** Use it before merging any specific change. Wire it into CI on every PR
-with the reviewed immutable action pin in the plugin's
-[`examples/github-pr-review.yml`](../../../../plugins/code-ops-suite/examples/github-pr-review.yml).
-Do not use it for a verification-bar review that blocks only on reproduced defects, which is
-`rigor:deep-review`, or for an anonymity gate, which is
-`privacy-opsec-suite:opsec-pr-gate`.
-
-**Sibling disambiguation among the three review gates.** All three review a change before
-merge, at different bars. `code-ops-suite:pr-review` is the broad senior review across all
-quality lenses, producing prioritized comments and a verdict, and it will flag should-fixes and
-nits. `rigor:deep-review` is the verification-first review, blocking only on reproduced
-defects with evidence tiers, trading breadth for a high-signal, low-noise gate.
-`privacy-opsec-suite:opsec-pr-gate` is the anonymity gate, blocking a change that introduces a
-new leak, egress, identifier, or fingerprint, or that weakens fail-closed posture. Run
-`pr-review` for general merge readiness, `deep-review` when you want only proven blockers, and
-`opsec-pr-gate` on any change touching an anonymity surface.
-
-**Prerequisites and hand-offs.** It has no prerequisites, and uses a version-control tool when
-connected. It consumes the PRs from `remediation` and `feature-implementation`. When asked to
-fix, it enters the implementation loop.
 
 ### `/code-ops-suite:local-review-gate`
 **Mode:** REVIEW
@@ -490,69 +445,6 @@ scorer. `ship` invokes Track A when the operator opted in.
 ---
 
 ## Document
-
-### `/code-ops-suite:adopt-standards`
-**Mode:** DOCUMENT
-
-**How it works.** Phase 0 (checkpoint) detects the mode. BOOTSTRAP applies when no `CLAUDE.md`
-exists, or when an existing one fails a quick audit. MAINTAIN applies when a sound one already
-exists.
-
-In BOOTSTRAP mode it audits the repo, then writes `CLAUDE.md` in the house style. The audit
-covers the real build, test, lint, and gate commands, run read-only or cited to the CI workflow
-at `file:line` and never invented, the architecture worth three to five lines, the non-obvious
-gotchas, and the doc-lifecycle rules.
-
-In MAINTAIN mode it re-verifies every claim against reality. Commands still run. The gate chain
-still mirrors CI step for step. Enforcement claims are truthful. Line citations are swept
-mechanically against the current tree rather than eyeballed. Cited paths still exist. It fixes
-the drift and reports what was stale.
-
-The house style is fixed. `## Never (no gate will save you)` comes first and carries only real,
-repo-specific, backstop-free rules. `## Before declaring any change done` carries the verified
-command chain mirroring CI, noting any unenforced convention. Post-edit chores follow when the
-repo has them. `## Invariants the gates will catch` follows. A local-only or gitignored docs
-  note follows when it applies. It never duplicates the user-wide Claude or Codex contracts.
-
-**Why it's useful.** It keeps a repo's standards contract mechanically true rather than
-aspirational. The commands it lists actually run, the gates it claims actually gate, and the
-citations it makes actually resolve, so the next operator can trust it cold.
-
-**When to use it.** Use it when a repo has no `CLAUDE.md` and needs one bootstrapped from
-verified reality, or when an existing one is suspected stale, meaning commands that no longer
-run, citations that have drifted, or a gate chain that no longer matches CI. Do not use it to
-write general engineering advice, because every line must be project-specific and verified.
-
-**Prerequisites and hand-offs.** It has no prerequisites, and uses CI workflow files and
-version-control history as evidence sources. It complements `doc-alignment`, which reconciles
-the rest of the docs, because `adopt-standards` owns the standards contract specifically.
-
-### `/code-ops-suite:adopt-global-standards`
-**Mode:** DOCUMENT
-
-**How it works.** Five phases:
-
-- **Phase 0** (checkpoint) resolves the Claude global pair, the Codex global `AGENTS.md`, and the marketplace checkout they cache. It detects BOOTSTRAP against MAINTAIN and states every path plus the marketplace commit being verified.
-- **Phase 1** builds the current-doctrine baseline by reading the SSOT pages themselves, anchoring each claim to `file:line`. It reads `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md` for the routing table, the tier and effort rule, and the declared exception. It reads `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and `AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs` for the enforced floors. It reads `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and the `CONVENTIONS.md` §7 and §9 schemas for the reporting standard.
-- **Phase 2** classifies every divergence into one of five buckets. CONTRADICTS means the global file states a rule the SSOT now states differently, which is worse than silence because sessions follow it. STALE and MISSING are what they say. REPO-LOCAL means repo facts leaked upward, and they are handed back to `adopt-standards`. LOCAL-DOCTRINE means cross-repo rules the file already carries that no SSOT page states, which are kept, never pruned, and listed as candidates to promote into the marketplace. Line citations are swept mechanically.
-- **Phase 3** checkpoints with the classified drift and the exact proposed edit before any write. It names every removal with the bucket justifying it, and it refuses to touch settings, hooks, permissions, or keybindings.
-- **Phase 4** preserves surviving meaning while consolidating repeated prose. It writes a small provider-neutral core plus deliberate Claude and Codex host deltas. The Claude pair remains byte-identical; the Codex file may differ. The run records the marketplace revision without forcing transient revision text into every prompt.
-
-**Why it's useful.** The global contract is a cache of the marketplace's doctrine, and a stale
-cache mis-routes every session in every repo, silently. An inverted tier rule down-tiers work
-the SSOT routes to the strong tier, and nothing in a normal session surfaces that. This is the
-only command that re-verifies the cache against its source.
-
-**When to use it.** Use it after the suite's SSOT pages move, meaning a routing-table change, a
-tier or effort revision, or a new enforcement mechanism. Use it when the global file has no
-commit stamp, so its age is unknowable, or when a session's routing seems to contradict the
-handbook. Do not use it to configure the harness, because `settings.json`, hooks, and
-permissions are out of scope.
-
-**Prerequisites and hand-offs.** It needs a local checkout of this marketplace as its ground
-truth. The repo-side counterpart is `adopt-standards`. Between the two, each fact lives in
-exactly one place, and `adopt-global-standards` hands any repo-local content it finds back to
-it.
 
 ### `/code-ops-suite:doc-alignment`
 **Mode:** DOCUMENT
@@ -921,8 +813,40 @@ sections in the same session, while the change rationale is still recoverable.
 **How it works.** Three phases:
 
 - **Phase A** assesses five standardization surfaces read-only, in dependency order, and records each as CONFORMANT, DRIFTED, ABSENT, or UNKNOWN with the checker output that decided it. Surface 1 is the repo's standards contract: the pair exists, matches an accepted parity mode, and carries the routing section. Surface 2 is the docs vault: `<repo>-docs/` exists and `check-vault-standard.mjs` exits 0. Surface 3 is the atlas: `code-ops-docs/98 System/Atlas/` exists, its manifest parses, and `atlas-check.mjs check` reports each section FRESH or STALE. Surface 4 is doc alignment, assessed only when the first three surfaced a drift signal. Surface 5 is the user's global contract, off by default and never touched without asking. The verdicts go to `CONFORMANCE_REPORT.md`, written to the vault's `80 Runs/` folder when the repo has a vault, and to its dated-docs convention when it does not.
-- **Phase B** repairs the approved surfaces one at a time. It delegates each surface to the skill that owns it and checkpoints between them, because repairing one surface changes what the next one reads.
+- **Phase B** repairs the approved surfaces one at a time. It delegates surfaces 2 to 4 to the skill that owns each and checkpoints between them, because repairing one surface changes what the next one reads. It repairs surface 1 itself, through the repo contract procedure described below.
 - **Phase C** re-runs every mechanical check and re-writes the report in place, one row per surface, with the opening verdict noted in that row's evidence cell.
+
+**The repo contract procedure (surface 1).** Contract Phase 0 (checkpoint) detects the mode.
+BOOTSTRAP applies when no `CLAUDE.md` exists, or when an existing one fails a quick audit.
+MAINTAIN applies when a sound one already exists. In BOOTSTRAP mode it audits the repo, then
+writes `CLAUDE.md` in the house style. The audit covers the real build, test, lint, and gate
+commands, run read-only or cited to the CI workflow at `file:line` and never invented, the
+architecture worth three to five lines, the non-obvious gotchas, and the doc-lifecycle rules.
+In MAINTAIN mode it re-verifies every claim against reality. Commands still run. The gate chain
+still mirrors CI step for step. Enforcement claims are truthful. Line citations are swept
+mechanically against the current tree rather than eyeballed. Cited paths still exist. It fixes
+the drift and reports what was stale.
+
+The house style is fixed. `## Never (no gate will save you)` comes first and carries only real,
+repo-specific, backstop-free rules. `## Before declaring any change done` carries the verified
+command chain mirroring CI, noting any unenforced convention. Post-edit chores follow when the
+repo has them. `## Invariants the gates will catch` follows. A local-only or gitignored docs
+note follows when it applies. It never duplicates the user-wide Claude or Codex contracts.
+
+**Global scope.** `/code-ops-suite:conform global` maintains the user-wide contracts instead of
+a repo, in five phases:
+
+- **Phase 0** (checkpoint) resolves the Claude global pair, the Codex global `AGENTS.md`, and the marketplace checkout they cache. It detects BOOTSTRAP against MAINTAIN and states every path plus the marketplace commit being verified.
+- **Phase 1** builds the current-doctrine baseline by reading the SSOT pages themselves, anchoring each claim to `file:line`. It reads `code-ops-docs/40 Engineering/Handbook/11-standard-operating-mode.md` for the routing table, the tier and effort rule, and the declared exception. It reads `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md` and `AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs` for the enforced floors. It reads `code-ops-docs/40 Engineering/Techniques/writing-standard.md` and the `CONVENTIONS.md` §7 and §9 schemas for the reporting standard.
+- **Phase 2** classifies every divergence into one of five buckets. CONTRADICTS means the global file states a rule the SSOT now states differently, which is worse than silence because sessions follow it. STALE and MISSING are what they say. REPO-LOCAL means repo facts leaked upward, and they are handed back to a `repo`-scope run in the owning repo. LOCAL-DOCTRINE means cross-repo rules the file already carries that no SSOT page states, which are kept, never pruned, and listed as candidates to promote into the marketplace. Line citations are swept mechanically.
+- **Phase 3** checkpoints with the classified drift and the exact proposed edit before any write. It names every removal with the bucket justifying it, and it refuses to touch settings, hooks, permissions, or keybindings.
+- **Phase 4** preserves surviving meaning while consolidating repeated prose. It writes a small provider-neutral core plus deliberate Claude and Codex host deltas. The Claude pair remains byte-identical; the Codex file may differ. The run records the marketplace revision without forcing transient revision text into every prompt.
+
+The global contract is a cache of the marketplace's doctrine, and a stale cache mis-routes every
+session in every repo, silently. Use global scope after the suite's SSOT pages move, when the
+global file has no commit stamp, or when a session's routing seems to contradict the handbook.
+It needs a local checkout of this marketplace as its ground truth. Between the two scopes, each
+fact lives in exactly one place.
 
 Fleet mode turns on when the run is handed a `FLEET.json`, or when one sits at the invocation
 root. A fleet run is the per-repo run performed member by member, under one report. The layout,
@@ -941,7 +865,7 @@ itself, because every fix is delegated, so a surface it cannot delegate is repor
 improvised.
 
 **Prerequisites and hand-offs.** It needs nothing beyond the repo. It composes
-`adopt-standards`, `vault`, `atlas`, `doc-alignment`, and, opt-in, `adopt-global-standards`.
+`vault`, `atlas`, and `doc-alignment`, and owns the repo and global contract procedures itself.
 `code-ops-suite:everything` runs it assess-only inside phase 0, as its standardization
 preflight. See [the skill-composition map](../../Techniques/skill-composition.md).
 
@@ -971,7 +895,7 @@ admit committed evidence into an existing collection. Do not move a governed rec
 archival. Use curation and a canonical hub document instead.
 
 **Prerequisites and hand-offs.** It needs nothing beyond the repo itself.
-`code-ops-suite:adopt-standards` owns the `CLAUDE.md` and `AGENTS.md` contract that routes
+`code-ops-suite:conform`, through its repo contract procedure, owns the `CLAUDE.md` and `AGENTS.md` contract that routes
 agents to the vault's `Standard.md`. Run it after a SCAFFOLD or MIGRATE, rather than editing
 the contract from the vault skill.
 
@@ -985,7 +909,7 @@ the contract from the vault skill.
 **How it works.** Five phases:
 
 - **Phase 0** (checkpoint) confirms the target repo, that the session is a fresh isolated context, that the run is `assess-only`, and the one-way channel rule, where only a sanitized note returns (`code-ops-docs/40 Engineering/Techniques/calibration-protocol.md`). It runs `preflight.mjs`.
-- **Phase 1** runs the atlas leg with `atlas-check.mjs check`, or `init` when the target keeps no atlas. It hands each section's FRESH or STALE state into the sweep briefs, then dispatches `full-sweep`, or `rigor:rigor-sweep`, in the `assess-only` track against the target, letting it run its own phases and checkpoints.
+- **Phase 1** runs the atlas leg with `atlas-check.mjs check`, or `init` when the target keeps no atlas. It hands each section's FRESH or STALE state into the sweep briefs, then dispatches `everything plugins: suite`, or `code-ops-suite:everything plugins: rigor`, in the `assess-only` track against the target, letting it run its own phases and checkpoints.
 - **Phase 2** extracts the quality, token, orchestration, and standardization metrics with `calibration-metrics.mjs --artifacts`.
 - **Phase 3** fills the sanitized-note template from the extracted metrics, meaning counts, deltas against the prior table row, and lessons, with zero paths, code, or URLs. It validates the note fail-closed with `calibration-metrics.mjs --validate-note`.
 - **Phase 4** gates the note, ingests it into the calibration store under `evals/calibration/`, re-renders `evals/CALIBRATION_TABLE.md` from the store, and validates the graph.
@@ -1063,54 +987,6 @@ Orchestrators do not replace the individual skills. They run them in a sensible 
 the shared registers forward fresh, maintain a master plan, and check in with you at every
 phase boundary.
 
-### `/code-ops-suite:full-sweep`
-**Mode:** orchestrator
-
-**How it works.** It is the intra-plugin pipeline. Phase 0 (checkpoint) scopes the run, meaning
-the track (`assess-only`, `full`, or a custom subset), the scope, the risk tolerance, the PR
-preference, and the automation level (`§4`). It compiles the objective, quality vector, budget,
-work graph, routing, and scopes into `RUN_CONTRACT.json`. It opens a master todo and a running
-`EXECUTIVE_SUMMARY.md`, carrying registers forward fresh (`§12`). Each later wave reconciles the
-contract against `DISPATCH_LEDGER.md`, and a declared learning trigger produces a new contract
-revision.
-
-The phases run in order:
-
-- **1 Ground truth**: `doc-alignment`.
-- **2 Assess**: `codebase-audit`, then `security-privacy-audit`, with findings evidence-tiered and disconfirmed, merged into `FINDINGS_REGISTER.md`.
-- **3 Safety net**: `test-hardening`.
-- **4 Fix**: `remediation`, re-validating the register first.
-- **5 Deep dives**: `performance` and `dependency-upgrade`.
-- **6 Consistency**: `normalize`.
-- **7 Document**: `doc-alignment`, then the generators `architecture`, `data-model`, `api-docs`, `ops-docs`, `adr`, and `onboarding`, each self-scoping.
-- **8 Ship**: `pr-split`.
-
-A separate feature track, `/code-ops-suite:full-sweep feature`, runs `feature-discovery`, then
-`feature-implementation`, then `pr-review`, then `pr-split`. Finalization writes
-`RUN_CONTRACT_RESULT.json` only after every blocking criterion is accepted with replayable
-proof. Checkpoints remain at every phase boundary, and nothing code-changing happens without
-your approval.
-
-**Why it's useful.** It runs the whole code-ops-suite end to end as one coherent, checkpointed
-pipeline, from assess to safety-net to fix to polish to document. It carries the registers
-forward, so nothing already fixed is re-shown.
-
-**When to use it.** Use it when you want the whole suite on one codebase as a guided pipeline.
-Do not reach for it when you want the cross-plugin superset with rigor's verification layer and
-the privacy track, which is `everything`.
-
-**Sibling disambiguation, `full-sweep` (intra-plugin) against `everything` (cross-plugin).**
-`full-sweep` orchestrates only code-ops-suite skills. It needs nothing else installed and is
-the right default for a thorough single-plugin pass. `everything` is the superset across all
-three plugins. It weaves in rigor's verification methodology, meaning evidence tiers,
-disconfirmation, and the regression guard, plus the privacy-opsec anonymity track, and it
-requires `rigor` and `privacy-opsec-suite` installed. `everything` is deliberately the most
-thorough and most token-expensive option, and `full-sweep` is the lighter, self-contained one.
-
-**Prerequisites and hand-offs.** It requires no external plugins, and uses `rigor:ground-truth`
-only inside the `pr-split` ship phase, when `rigor` is installed. It orchestrates the full
-code-ops-suite, and ends by shipping with `pr-split`.
-
 ### `/code-ops-suite:everything`
 **Mode:** orchestrator
 
@@ -1130,7 +1006,7 @@ The phases run in order:
 - **5 Safety net**: rigor `safety-net`.
 - **6 Consolidated review**: the main go or no-go checkpoint.
 - **7 Remediate**: rigor `fix-verified`, code-ops `remediation`, and privacy-opsec `opsec-hardening`.
-- **8 Close inconsistencies**: rigor `consistency-closure`.
+- **8 Close inconsistencies**: code-ops `normalize concept`.
 - **9 Improve**: rigor `improve-measured`, code-ops `performance`, and `dependency-upgrade`.
 - **10 Normalize and document**: code-ops `normalize` plus the doc generators.
 - **11 Final verification, report, and ship**: `pr-split` with `authorship-hygiene`.
@@ -1143,7 +1019,7 @@ governing methodology in the right order, deduplicated, with one growing proof s
 
 **When to use it.** Use it when you want the deepest possible pass and accept the token cost.
 It is phased with checkpoints rather than a blind firehose, so you can widen or narrow scope at
-Phase 0. Do not reach for it for a single-plugin pass, which is `full-sweep`, or for a single
+Phase 0. Do not reach for it for a single-plugin pass, which is `everything plugins: suite`, or for a single
 change, which is `ship`.
 
 **Prerequisites and hand-offs.** It requires `code-ops-suite`, `rigor`, and

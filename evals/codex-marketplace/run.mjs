@@ -134,7 +134,7 @@ expect(sessionEndTimeouts.length > 0 && sessionEndTimeouts.every((timeout) => ti
 const routingCard = read(join(pluginsDir, 'code-ops-suite', 'hooks', 'routing-card.mjs'));
 expect(!/\/(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/.test(routingCard), 'routing card retains Claude slash-command syntax');
 expect(routingCard.includes('code-ops-suite:debug'), 'routing card does not name the Codex workflow syntax');
-expect(routingCard.includes('privacy-opsec-suite:full-sweep'), 'routing card does not name a valid privacy workflow');
+expect(routingCard.includes('code-ops-suite:everything plugins: privacy'), 'routing card does not name a valid privacy workflow');
 
 // Skills cite vendored execution specs at <plugin-root>/reference/, so each canonical spec must
 // reach the package. Only lines naming a host-specific token may differ from the canonical text.
@@ -180,11 +180,10 @@ expect(contextAudit.includes("const opt = { host: 'codex'"), 'context audit does
 expect(transcriptLib.includes("join(homedir(), '.claude', 'projects'"), 'transcript library corrupted its explicit Claude transcript branch');
 expect(transcriptLib.includes("join(homedir(), '.codex')"), 'transcript library lost its explicit Codex transcript branch');
 
-const adoptGlobal = read(join(pluginsDir, 'code-ops-suite', 'skills', 'adopt-global-standards', 'SKILL.md'));
-const adoptRepo = read(join(pluginsDir, 'code-ops-suite', 'skills', 'adopt-standards', 'SKILL.md'));
-expect(adoptGlobal.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'global-standards render collapsed the three host-specific contract paths');
-expect(adoptRepo.includes('`CLAUDE.md` and `AGENTS.md`'), 'repo-standards render collapsed the accepted two-file parity modes');
-expect(adoptRepo.includes('Claude reads the global pair under `~/.claude/`') && adoptRepo.includes('Codex reads `~/.codex/AGENTS.md`'), 'repo-standards render collapsed the distinct global contract homes');
+const conform = read(join(pluginsDir, 'code-ops-suite', 'skills', 'conform', 'SKILL.md'));
+expect(conform.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'global-standards render collapsed the three host-specific contract paths');
+expect(conform.includes('`CLAUDE.md` and `AGENTS.md`'), 'repo-standards render collapsed the accepted two-file parity modes');
+expect(conform.includes('Claude reads the global pair under `~/.claude/`') && conform.includes('Codex reads `~/.codex/AGENTS.md`'), 'repo-standards render collapsed the distinct global contract homes');
 
 if (fails.length) {
   console.error('FAIL — Codex marketplace eval:');

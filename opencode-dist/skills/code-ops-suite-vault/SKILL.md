@@ -134,7 +134,7 @@ The repo's standards-contract pair carries a documentation section routing agent
 `Standard.md`. Two conformance modes are accepted: a byte-identical pair, or a pointer pair where
 one file is the contract and the other names it as required reading. Each host reads the filename
 it expects, so a drifted pair makes vault behavior differ by host.
-`/code-ops-suite-adopt-standards` owns that contract, so hand it the vault path rather than
+`/code-ops-suite-conform` owns that contract through its repo contract procedure, so hand it the vault path rather than
 editing the contract from here.
 
 ## Done when

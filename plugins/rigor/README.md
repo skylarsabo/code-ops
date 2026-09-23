@@ -1,6 +1,6 @@
 # rigor
 
-Verification-first workflows for finding real bugs, closing inconsistencies, and making
+Verification-first workflows for finding real bugs, fixing them at root cause, and making
 measured improvements. This repository authors the package for Claude Code and renders it
 into a native Codex package. Invoke `/rigor:<name>` in Claude Code, or name `rigor:<name>`
 in Codex.
@@ -27,8 +27,9 @@ in the code-ops repository.
 - **Proof artifacts instead of assertions.** A CONFIRMED bug ships a runnable repro. A fix
   ships a regression test that fails before and passes after. An improvement shows a
   before-and-after measurement.
-- **Closure with enforcement.** An inconsistency gets one canonical form, every site
-  migrated, and a lint rule or test, so the divergence cannot return unnoticed.
+- **Fixes that stay fixed.** A fixed bug gets a regression test and, where its class can
+  recur, a lint rule or test that stops it returning unnoticed. To close an inconsistent
+  concept to one canonical form, use `code-ops-suite:normalize concept <name>`.
 
 ### Version 2 additions
 
@@ -65,16 +66,12 @@ model can also route to one through the standard-operating-mode routing card.
   changes.
 - `quality-scan`. Report high-signal, defect-causing quality issues with evidence, a tier,
   and an impact. No cosmetics.
-- `consistency-closure`. Pick a canonical form, migrate every site, and add an enforcement.
 - `improve-measured`. Ship improvements that carry a baseline, a result, and a delta.
   Behavior-preserving, with no speculative refactors.
 - `fix-verified`. Fix CONFIRMED bugs at root cause with a failing-then-passing regression
   test, the regression guard, a sibling sweep, and an enforcement.
 - `deep-review`. Review a pull request or diff at the verification bar, blocking only on a
   CONFIRMED defect or regression.
-- `rigor-sweep`. The orchestrator. It runs ground-truth, then test-suite-audit, then
-  bug-hunt with quality-scan, then safety-net, then, on approval, fix-verified,
-  consistency-closure, and measured improvements.
 
 ## The methodology
 
@@ -91,7 +88,8 @@ reads first:
 - the regression guard (`§H`)
 - the defect-oriented lenses (`§7`)
 - the fix-prove-guard loop (`§8`)
-- consistency closure (`§9`)
+- the consistency-closure protocol (`§9`), which no rigor skill runs now, because
+  `code-ops-suite:normalize concept` owns closure
 
 ## Subagents
 
@@ -103,8 +101,8 @@ reads first:
 
 ## Running it
 
-- **The whole pipeline:** `/rigor:rigor-sweep`. Start on the `assess-only` track to get
-  proven findings before anything changes.
+- **The whole pipeline:** `/code-ops-suite:everything plugins: rigor`, with code-ops-suite
+  installed. Start on the `assess-only` track to get proven findings before anything changes.
 - **Bugs only:** `/rigor:ground-truth`, then `/rigor:bug-hunt` on the riskiest subsystem.
 - **On every pull request:** wire `deep-review` into CI with the Claude Code action pinned
   to a reviewed commit. See `examples/github-deep-review.yml`.

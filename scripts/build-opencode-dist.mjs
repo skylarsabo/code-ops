@@ -4,7 +4,7 @@
 // WHY: opencode discovers skills, agents, and commands from flat, separate directories
 // under a config root — not from a plugin bundle. Its skill names are also restricted to
 // `^[a-z0-9]+(-[a-z0-9]+)*$`, so the Claude `plugin:skill` spelling is not expressible and
-// the flat namespace collides (`full-sweep` ships in two plugins, `explorer` in two more).
+// the flat namespace collides (`explorer` ships as an agent in two plugins).
 // Hand-maintaining that mapping would let the hosts drift apart silently, so it is rendered
 // deterministically and `--check` catches the drift in CI, exactly as the Codex renderer does.
 //
@@ -103,8 +103,8 @@ function walkFiles(root) {
 }
 
 // The flat opencode namespace has no plugin scoping, so every discoverable name carries
-// its plugin as a prefix. This is also what keeps the two `full-sweep` skills and the two
-// `explorer` agents from overwriting each other on install.
+// its plugin as a prefix. This is also what keeps the two `explorer` agents from
+// overwriting each other on install.
 function qualify(pluginName, slug) {
   return `${pluginName}-${slug}`;
 }
@@ -114,10 +114,9 @@ function assertDiscoverableName(name, what) {
   if (name.length > OPENCODE_NAME_MAX) throw new Error(`${what}: "${name}" is ${name.length} characters, over opencode's ${OPENCODE_NAME_MAX}-character limit`);
 }
 
-function portableText(contents, { preserveClaudeContract = false, preservePairedContracts = false } = {}) {
+function portableText(contents, { preservePairedContracts = false } = {}) {
   let guarded = contents;
-  if (preserveClaudeContract) guarded = guarded.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL);
-  else if (preservePairedContracts) {
+  if (preservePairedContracts) {
     guarded = guarded.split('\n').map((line) => line.includes('CLAUDE.md') && line.includes('AGENTS.md')
       ? line.replaceAll('CLAUDE.md', CLAUDE_CONTRACT_SENTINEL)
       : line).join('\n');
@@ -190,8 +189,7 @@ function transformSkill(pluginName, slug, contents, path) {
   ].join('\n');
 
   const transformed = portableText(body.replace(marker, rule), {
-    preserveClaudeContract: pluginName === 'code-ops-suite' && slug === 'adopt-global-standards',
-    preservePairedContracts: pluginName === 'code-ops-suite' && slug === 'adopt-standards',
+    preservePairedContracts: pluginName === 'code-ops-suite' && slug === 'conform',
   });
   return ['---', `name: ${name}`, `description: ${yamlString(description)}`, '---', transformed].join('\n');
 }
@@ -632,7 +630,7 @@ function generatedReadme(skills, agents) {
     '',
     "opencode's skill and agent namespaces are flat and its names cannot contain a colon, so",
     'every name is prefixed with its plugin: `/code-ops-suite:ship` becomes `/code-ops-suite-ship`.',
-    'The prefix is load-bearing — `full-sweep` ships in two plugins and `explorer` in two more.',
+    'The prefix is load-bearing — `explorer` ships as an agent in two plugins.',
     '',
     'See `MODEL_TIERS.md` for model bindings and `PLATFORM_COMPATIBILITY.md` for the full',
     'list of host transforms.',
@@ -652,7 +650,7 @@ function compatibilityNotes() {
     '- **Names are plugin-prefixed.** opencode discovers skills and agents into one flat',
     '  namespace and its name grammar (`^[a-z0-9]+(-[a-z0-9]+)*$`) has no colon, so',
     '  `code-ops-suite:ship` renders as `code-ops-suite-ship`. Without the prefix the two',
-    '  `full-sweep` skills and the two `explorer` agents would collide on install.',
+    '  `explorer` agents would collide on install.',
     '- **Skills and commands are both generated.** A skill is model-invocable through',
     "  opencode's `skill` tool; a command is the user-facing slash entry point that names it.",
     '  Claude Code collapses both into one surface, opencode does not.',
@@ -852,10 +850,9 @@ function validate({ files, skills, agents }) {
     expect(sibling?.includes('routing and compaction have no off switch'), `${pluginName} conventions overstate OpenCode runtime switches`);
     expect(!sibling?.includes('.claude/settings.json'), `${pluginName} conventions retain the Claude settings location`);
   }
-  const adoptGlobal = files.get('skills/code-ops-suite-adopt-global-standards/SKILL.md');
-  const adoptRepo = files.get('skills/code-ops-suite-adopt-standards/SKILL.md');
-  expect(adoptGlobal?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed host-specific contract paths');
-  expect(adoptRepo?.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted parity modes');
+  const conform = files.get('skills/code-ops-suite-conform/SKILL.md');
+  expect(conform?.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'OpenCode global-standards render collapsed host-specific contract paths');
+  expect(conform?.includes('`CLAUDE.md` and `AGENTS.md`'), 'OpenCode repo-standards render collapsed the accepted parity modes');
 
   const config = JSON.parse(files.get('opencode.json'));
   for (const agent of agents) {

@@ -10,7 +10,7 @@ counts as finishing. Read it before starting substantive work in any repository.
 | --- | --- |
 | Debug a bug | `/code-ops-suite:debug` |
 | Ship a feature or change | `/code-ops-suite:ship` |
-| Audit or quality sweep | `/code-ops-suite:full-sweep` or `/rigor:rigor-sweep` |
+| Audit or quality sweep | `/code-ops-suite:everything plugins: suite` or `/code-ops-suite:everything plugins: rigor` |
 | Privacy or leak concern | `/privacy-opsec-suite` skills |
 | Library or dependency decision | `/researcher:library-eval` |
 | Claim verification | `/researcher:research-verify` |

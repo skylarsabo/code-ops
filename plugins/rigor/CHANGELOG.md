@@ -1,5 +1,11 @@
 # Changelog — rigor
 
+## 3.0.0
+- Breaking: the plugin ships 9 skills.
+- `deep-review` takes `bar: verified` (the default) or `bar: standard`, which absorbs the former `code-ops-suite:pr-review`. `scan-overbuild` is now vendored with the plugin.
+- `consistency-closure` is removed. Use `code-ops-suite:normalize concept <name>`.
+- `rigor-sweep` is removed. Use `code-ops-suite:everything` with `plugins: rigor`.
+
 ## 2.20.1
 - The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
 

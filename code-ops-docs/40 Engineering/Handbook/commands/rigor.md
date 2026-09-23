@@ -24,7 +24,7 @@ The shared methodology lives in
 reads it first. The suite overview is in
 [`plugins/rigor/README.md`](../../../../plugins/rigor/README.md).
 
-This plugin ships **11 skills**, namespaced `/rigor:<name>`. Invoke a skill by slash command,
+This plugin ships **9 skills**, namespaced `/rigor:<name>`. Invoke a skill by slash command,
 or let the model route to it under the standard-operating-mode routing card.
 Side-effect-bearing phases keep their checkpoints, and nothing ever auto-merges. If you are
 new to the handbook, read the orientation lines under each entry. If you already run the
@@ -55,16 +55,14 @@ Foundation and discovery (AUDIT and IMPLEMENT-tests):
 - [`/rigor:regression-hunt`](#rigorregression-hunt): bisect a bug to its origin commit, then hunt regressions in recent changes.
 - [`/rigor:quality-scan`](#rigorquality-scan): high-signal, defect-causing quality issues with evidence and a tier. No cosmetics.
 
-Closure, improvement, fix, and review (IMPLEMENT and REVIEW):
+Improvement, fix, and review (IMPLEMENT and REVIEW):
 
-- [`/rigor:consistency-closure`](#rigorconsistency-closure): one canonical form, every site migrated, an enforcement added.
 - [`/rigor:improve-measured`](#rigorimprove-measured): behavior-preserving improvements with a baseline, a result, and a delta.
 - [`/rigor:fix-verified`](#rigorfix-verified): fix CONFIRMED bugs at root cause with a failing-to-passing regression test and a guard.
 - [`/rigor:deep-review`](#rigordeep-review): review a PR or diff at the verification bar, blocking only on CONFIRMED defects and regressions.
 
 Orchestrator:
 
-- [`/rigor:rigor-sweep`](#rigorrigor-sweep): the whole suite end to end as a checkpointed pipeline.
 
 ---
 
@@ -240,46 +238,16 @@ short, high-signal list rather than padding.
 logic bugs, found with evidence. It complements `bug-hunt` in a discovery phase. Do not use
 it for cosmetic cleanup, which is out of scope. Do not use it for deep correctness bugs that
 need a derived-invariant trace, which is `bug-hunt`. Do not use it for closing divergent
-implementations of one concept, which is `consistency-closure`.
+implementations of one concept, which is the concept mode of
+`code-ops-suite:normalize`.
 
 **Prerequisites and hand-offs.** It reads `GROUND_TRUTH.md`, so run `ground-truth` first. It
 produces tiered `FINDINGS_REGISTER.md` entries that feed `fix-verified` for defects, and that
-may seed `consistency-closure` for divergence.
+may seed the `normalize concept` mode for divergence.
 
 ---
 
-## Closure, improvement, fix, and review
-
-### `/rigor:consistency-closure`
-**Mode:** IMPLEMENT (closure changes are confirmed with you)
-
-**How it works.** It follows the closure protocol `§9` in four phases:
-
-- **Phase 0** scopes the concept space at a checkpoint. Examples are error handling, data access, validation, the naming of one idea, and API response shape.
-- **Phase 1** inventories the variants, grouped by concept, each variant shown with `file:line`: divergent implementations of the same concept, drifted duplication, inconsistent return, error, and null conventions, contract drift across call sites, and inconsistent naming.
-- **Phase 2** proposes one canonical form per group with a rationale. The developer approves before any migration, at an explicit checkpoint that is a real decision.
-- **Phase 3** migrates every other site behavior-preservingly and conflict-aware, each site tested and committed. It then adds a mechanical enforcement (a lint rule, a codemod or CI check, a shared type, or a test) so the divergence cannot recur unnoticed, verifying nothing regressed through the regression guard `§H`.
-
-**Produces** `CONSISTENCY_REGISTER.md` mapping concept to canonical form to sites migrated to
-enforcement, plus the diffs and the enforcement config. The finished register must pass
-`revalidate-register.mjs` clean before the run is done.
-
-**Why it's useful.** "Closed" means the divergence is mechanically prevented from returning,
-not fixed once. You get one canonical form, every site converged, and a guard that keeps it
-that way.
-
-**When to use it.** Use it when the same concept is implemented divergently and you want it
-closed for good. Compared with `code-ops-suite:normalize`, reach for `consistency-closure` to
-pick one canonical form for a specific concept, migrate every site, and add an enforcement at
-the verification bar. Reach for `normalize` for whole-repo style normalization. Do not use it
-to choose a canonical form without then adding the enforcement, because the enforcement is
-the point.
-
-**Prerequisites and hand-offs.** It may be seeded by divergence findings from `quality-scan`
-or `bug-hunt`. It produces `CONSISTENCY_REGISTER.md` and the enforcement. Its migrations are
-protected by the regression guard alongside the rest of the proof set.
-
----
+## Improvement, fix, and review
 
 ### `/rigor:improve-measured`
 **Mode:** IMPLEMENT (through the fix-prove-guard loop `§8`)
@@ -335,7 +303,7 @@ fixes stay fixed.
 **When to use it.** Use it when CONFIRMED bugs exist and you want them fixed with proof. It
 fixes CONFIRMED items only. A PROBABLE item must be reproduced, and so promoted to CONFIRMED,
 first. Do not use it to discover bugs, which is `bug-hunt`. Do not use it to make non-bug
-improvements, which are `improve-measured` and `consistency-closure`.
+improvements, which are `improve-measured` and the `normalize concept` mode of code-ops-suite.
 
 **Prerequisites and hand-offs.** It consumes a `FINDINGS_REGISTER.md` of CONFIRMED items from
 `bug-hunt`, `regression-hunt`, or `quality-scan`. It benefits from a `safety-net` and a
@@ -349,7 +317,13 @@ destructive operations, and public contracts.
 ### `/rigor:deep-review`
 **Mode:** REVIEW (no changes unless asked)
 
-**How it works.** Two phases plus an output step:
+**How it works.** It runs at one of two bars. `bar: verified`, the default, is the verification
+bar described below; `code-ops-suite:local-review-gate` and the `local-deep-review` status always
+use it. `bar: standard` is the broad senior review across all quality lenses: it adds design and
+modularity, size and boundary (backed by `co.mjs scan overbuild`), performance, security, privacy
+and data handling, user interface and accessibility, tests, docs, and conventions. At that bar an
+unreproduced finding stays advisory, as Should-fix or Nit, and never blocks. Two phases plus an
+output step:
 
 - **Phase 0** understands the change. It pulls the diff, its intent, and the surrounding code. It runs the `GROUND_TRUTH` tooling on the branch (typecheck, lint, tests) so the review starts from facts, and it fans out to the tracer and verifier subagents for large diffs. Changed exported symbols and shared contracts get their dependents traced, so ranking reflects demonstrated reach (`§D`) rather than diff size.
 - **Phase 1** reviews against the correctness, failure-handling, consistency, and defect-causing-maintainability lenses (`§7`). Each concern is reproduced with a failing test or a trace where feasible, which makes it CONFIRMED, and otherwise tiered PROBABLE or SPECULATIVE. The disconfirmation pass (`§B`) runs on every concern. It checks that the change does not introduce an inconsistency, regress an existing enforcement or prior proof (`§H`), or land behavior without a test. It runs a quick bisect or history check when the change looks like it reverts a past fix.
@@ -366,7 +340,7 @@ a reproduced defect. The result is calibrated rather than opinion.
 **When to use it.** Use it when you want a PR or diff reviewed with reproduced, tiered
 concerns. Among the three review gates, `rigor:deep-review` is the high-rigor counterpart that
 reproduces and tiers concerns and blocks only on CONFIRMED defects and regressions.
-`code-ops-suite:pr-review` is the broad-coverage PR review.
+`bar: standard` is the broad-coverage PR review, flagging should-fixes and nits across every lens.
 `privacy-opsec-suite:opsec-pr-gate` is the anonymity and leak gate for projects with opsec
 needs. Use `deep-review` when proof-grade review of correctness and regressions is what you
 want. Do not use it to apply fixes, because it produces a review. Switch to `fix-verified` to
@@ -382,46 +356,3 @@ It hands CONFIRMED defects to `fix-verified`.
 
 ## Orchestrator
 
-### `/rigor:rigor-sweep`
-**Mode:** orchestrator
-
-**How it works.** It orchestrates the other rigor skills in sequence as one
-developer-in-the-loop pipeline, and it does not replace them. It carries the registers and a
-growing proof set forward, keeps a master plan and a coverage map, and checks in at every
-phase boundary:
-
-- **Phase 0** scopes the run. It detects stack and size, confirms the track and the scope, opens a master todo, a running `EXECUTIVE_SUMMARY.md`, and a coverage map, and surfaces any CONFIRMED critical finding immediately. The tracks are `assess-only` for facts and proven findings with no code changes, `full` to also fix, close, and improve, or a custom subset.
-- **Phase 1** runs `ground-truth`.
-- **Phase 2** runs `test-suite-audit`.
-- **Phase 3** finds read-only with proofs through `bug-hunt`, going deep per subsystem, and `quality-scan`, using `regression-hunt` to bisect any confirmed regression. It then checkpoints on the CONFIRMED-led register.
-- **Phase 4** runs `safety-net` on blind spots and on anything queued for change.
-- **Phase 5** runs `fix-verified` on CONFIRMED bugs. This phase writes code, requires approval, and checkpoints per batch.
-- **Phase 6** runs `consistency-closure`.
-- **Phase 7** optionally runs `improve-measured`.
-
-The master `EXECUTIVE_SUMMARY.md` separates CONFIRMED from PROBABLE and SPECULATIVE, and
-states coverage.
-
-**Why it's useful.** It runs the whole verification suite end to end as a checkpointed
-pipeline, with the proof set and the registers carried forward. Nothing code-changing happens
-without approval, and the trustworthiness of the suite is established before fixes lean on it.
-
-**When to use it.** Use it when you want the entire rigor suite on a repo or subsystem. Start
-with `assess-only` to get proven findings before changing anything, then re-run `full`.
-`rigor:rigor-sweep` is the intra-plugin orchestrator that runs only rigor's own skills end to
-end, the same way each suite has its own orchestrator. The cross-plugin `everything`
-orchestrator in `code-ops-suite` composes across plugins. Reach for `rigor-sweep` when the
-work is purely verification-first, and for `everything` when you want breadth, rigor, and the
-other layers composed in one pass. Do not use it as a substitute for pointing `bug-hunt` at
-one subsystem when that is all you need.
-
-**Prerequisites and hand-offs.** It drives all ten other rigor skills in order, and needs
-whatever each phase needs. `regression-hunt` needs version-control history, and a connected
-version-control tool matters only if you later review. It produces every per-skill artifact
-plus the master `EXECUTIVE_SUMMARY.md`. The automation level set at the start governs every
-code-changing step, with the always-gated categories per `§4`. The levels are `gated` by
-default, then `auto-safe`, then `auto-all`.
-
----
-
-*Verified-at: b0ffede*

@@ -32,13 +32,10 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `normalize`: one consistent professional style repo-wide, behavior-preserving, with the artifacts of hasty or generated code removed.
 
 **Gate**
-- `pr-review`: rigorous pre-merge review of one PR or diff against all lenses, ending in prioritized comments and a verdict.
 - `local-review-gate`: runs deep review and OpSec judgment locally against the final committed diff, records SHA-bound receipts, and publishes optional commit statuses before a PR exists. It also plans and scores local judgment evals.
 - `pr-split`: carves an existing big branch into a clean stack of small, independently-green PRs, scrubbed of AI and tooling trace (composes `privacy-opsec-suite:authorship-hygiene`, fail-closed). It never auto-merges.
 
 **Docs and knowledge**
-- `adopt-standards`: bootstraps or maintains a repo's `CLAUDE.md` standards contract, so the contract is mechanically kept rather than aspirational.
-- `adopt-global-standards`: the cross-repo counterpart. It re-verifies the user's global `~/.claude/CLAUDE.md` against the marketplace's SSOT pages, classifies every divergence, and rewrites the file under checkpoint.
 - `doc-alignment`: reconciles doc drift against code and establishes a clean single source of truth.
 - `repo-docs`: extracts and refreshes only the affected documentation domains from one manifest-owned documentation hub.
 - `onboarding`: generates a verified, code-grounded orientation guide with an architecture diagram.
@@ -63,10 +60,9 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `ops-docs`: the operator's runbook. It covers deploy and rollback, the configuration reference, incident runbooks, and health and observability.
 
 **Orchestrators**
-- `full-sweep`: runs the whole suite end-to-end as one developer-in-the-loop pipeline, pausing at each phase boundary. Intra-plugin.
-- `everything`: the cross-plugin superset. It orchestrates every phase across all three plugins and requires `rigor` and `privacy-opsec-suite` installed. It is the most thorough and most token-expensive option.
+- `everything`: the whole-suite pipeline. `plugins: suite,rigor,privacy` selects the plugins, and the default is every installed one. It runs only the installed plugins' phases and names the skipped ones. With all three selected it is the most thorough and most token-expensive option. Tracks: `assess-only`, `full`, and `feature`.
 - `ship`: implements one change (feature or one-off) end-to-end at full rigor, from design-check to a traceless PR. It requires `rigor` and the local review dependencies.
-- `conform`: assesses every standardization surface of a repo in one read-only pass, writes `CONFORMANCE_REPORT.md`, then repairs surface by surface under checkpoint by delegating to the skill that owns each one.
+- `conform`: assesses every standardization surface of a repo in one read-only pass, writes `CONFORMANCE_REPORT.md`, then repairs surface by surface under checkpoint. It bootstraps or maintains the repo's `CLAUDE.md` standards contract itself and delegates the other surfaces to the skill that owns each one. Its `global` scope re-verifies the user's global Claude and Codex contracts against the marketplace's SSOT pages, classifies every divergence, and rewrites them under checkpoint.
 - `debug`: drives a bug from symptom to a proven root-cause fix, ending in a traceless PR. It requires `rigor`.
 
 ## Subagents
@@ -124,8 +120,8 @@ says otherwise. Set a switch to `off`, `0`, or `false` in the host environment.
 ## How the skills chain
 
 Registers are live backlogs with stable IDs (`PERF-007` → register → commit or PR → log):
-- `codebase-audit` / `security-privacy-audit` / deep-dives → `FINDINGS_REGISTER.md` → `remediation` → `pr-review`
-- `feature-discovery` → specs → `feature-implementation` → `pr-review`
+- `codebase-audit` / `security-privacy-audit` / deep-dives → `FINDINGS_REGISTER.md` → `remediation` → `rigor:deep-review` (`bar: standard`)
+- `feature-discovery` → specs → `feature-implementation` → `rigor:deep-review` (`bar: standard`)
 - every build skill keeps docs current, `doc-alignment` establishes the SSOT, and `onboarding` sits inside it
 
 ## Notes

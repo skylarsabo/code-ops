@@ -1,6 +1,6 @@
 # Rigor suite: shared conventions (verification-first, v2)
 
-A toolkit for **finding real bugs, closing inconsistencies, and making measured improvements** with a capable agentic coding agent. It ships with the **rigor** plugin. Each skill is a namespaced slash command, for example `/rigor-bug-hunt`, and reads this file first, referencing it by section instead of repeating it. Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it. A skill invoked by an orchestrator that already loaded it inherits the in-context copy. After eviction, re-read as usual.
+A toolkit for **finding real bugs, fixing them at root cause, and making measured improvements** with a capable agentic coding agent. It ships with the **rigor** plugin. Each skill is a namespaced slash command, for example `/rigor-bug-hunt`, and reads this file first, referencing it by section instead of repeating it. Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it. A skill invoked by an orchestrator that already loaded it inherits the in-context copy. After eviction, re-read as usual.
 
 This suite trades breadth and speed for **signal and proof**. It finds fewer things than a broad audit. The things it reports are real, the things it fixes stay fixed, and the tests that prove them are themselves verified.
 

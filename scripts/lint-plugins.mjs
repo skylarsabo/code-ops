@@ -41,7 +41,7 @@
 //  13. The register-producing skills' Done-when keeps running revalidate-register.mjs
 //      (the producer-side anchor gate cannot silently regress out of the wiring). The rigor
 //      finding producers run it under --strict --profile finding-rigor (CONFIRMED needs a
-//      resolvable proof), and consistency-closure runs it with --min-items.
+//      resolvable proof), and normalize's concept mode runs it with --min-items.
 //  14. SHARED_PASSAGES: the deliberately-duplicated doctrine cores are pinned byte-identically
 //      across every file that carries them — a partial doctrine rollout fails CI.
 //  15. Each code-ops-docs/40 Engineering/Handbook/commands/README.md "Per-plugin command references" bullet's bolded
@@ -119,15 +119,16 @@ const readText = (p) => readFileSync(p, 'utf8').replace(/^﻿/, ''); // tolerate
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // `everything` is the cross-plugin orchestrator (references skills across all plugins);
-// full-sweep / rigor-sweep are intra-plugin (must reference only their OWN plugin's skills).
+// research-sweep and conform are intra-plugin (must reference only their OWN plugin's skills).
 const CROSS_PLUGIN_ORCH = new Set(['everything', 'local-review-gate']);
-const INTRA_PLUGIN_ORCH = new Set(['full-sweep', 'rigor-sweep', 'research-sweep', 'conform']);
+const INTRA_PLUGIN_ORCH = new Set(['research-sweep', 'conform']);
 // Lowercase slug-shaped tokens that legitimately appear emphasized in an orchestrator but
 // are NOT skills (track names, automation levels, plugin names, opsec terms, phase words).
 const ORCH_TOKEN_ALLOWLIST = new Set([
   'assess-only', 'audit-only', 'auto-all', 'auto-safe', 'auto-fix', 'fail-closed', 'gated',
   'code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher',
   'full', 'track', // emphasized prose words in the sweeps ("the full pass", "per track"), not skills
+  'suite', 'privacy', 'feature', // the plugin-selector values and feature track of everything, not skills
   'deep-research', 'lib-docs', 'code-ops-docs', // external skill / bundled script / MCP server the researcher composes, not researcher skills
   'local-deep-review', 'local-opsec-gate', // GitHub commit-status contexts, not skills
   'available', 'unavailable', // judgment execution-policy values, not skills
@@ -831,7 +832,7 @@ for (const p of plugins) {
 const PRODUCER_SELFCHECK = [
   'plugins/rigor/skills/bug-hunt/SKILL.md',
   'plugins/rigor/skills/quality-scan/SKILL.md',
-  'plugins/rigor/skills/consistency-closure/SKILL.md',
+  'plugins/code-ops-suite/skills/normalize/SKILL.md',
   'plugins/code-ops-suite/skills/codebase-audit/SKILL.md',
 ];
 for (const rel of PRODUCER_SELFCHECK) {
@@ -849,7 +850,7 @@ const PRODUCER_STRICT = [
   ['plugins/rigor/skills/bug-hunt/SKILL.md', '--strict --profile finding-rigor'],
   ['plugins/rigor/skills/quality-scan/SKILL.md', '--strict --profile finding-rigor'],
   ['plugins/rigor/skills/deep-review/SKILL.md', '--strict --profile finding-rigor'],
-  ['plugins/rigor/skills/consistency-closure/SKILL.md', '--strict --profile consistency --min-items 1'],
+  ['plugins/code-ops-suite/skills/normalize/SKILL.md', '--strict --profile consistency --min-items 1'],
 ];
 for (const [rel, flags] of PRODUCER_STRICT) {
   const f = join(ROOT, ...rel.split('/'));

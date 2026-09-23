@@ -34,7 +34,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # If the code-ops-suite plugin is installed in CI (e.g. via a seeded
           # plugins dir or extraKnownMarketplaces), you can invoke the skill
-          # directly: "/code-ops-suite:pr-review for this pull request".
+          # directly: "/rigor:deep-review bar: standard for this pull request".
           # Otherwise, inline the review criteria so the action is self-contained:
           prompt: |
             Review this pull request before merge, held to a senior engineering bar.

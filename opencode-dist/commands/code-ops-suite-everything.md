@@ -1,5 +1,5 @@
 ---
-description: "Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed."
+description: "Use when you want a whole-suite, checkpointed pass over one or more installed plugins, from one plugin pipeline up to the exhaustive cross-plugin superset. Select them with plugins: suite, rigor, or privacy (default: every installed one). Phases of an absent plugin are skipped and named. Tracks: assess-only, full, feature."
 ---
 
 Use the `code-ops-suite-everything` skill for this task, following it end to end.

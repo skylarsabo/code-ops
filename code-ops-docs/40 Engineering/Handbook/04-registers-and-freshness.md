@@ -17,7 +17,7 @@ The standard registers, one per plugin lens:
 | Register | Plugin | Schema source | Holds |
 | --- | --- | --- | --- |
 | `FINDINGS_REGISTER.md` | code-ops-suite, rigor | [code-ops CONVENTIONS §7](../../../plugins/code-ops-suite/CONVENTIONS.md) and [rigor §6](../../../plugins/rigor/CONVENTIONS.md) | Audit, review, and bug findings |
-| `CONSISTENCY_REGISTER.md` | rigor | [rigor CONVENTIONS §6, §9](../../../plugins/rigor/CONVENTIONS.md) | Variants of one concept to be closed to a canonical form |
+| `CONSISTENCY_REGISTER.md` | code-ops-suite (`normalize concept`) | [rigor CONVENTIONS §6, §9](../../../plugins/rigor/CONVENTIONS.md) | Variants of one concept to be closed to a canonical form |
 | `LEAK_REGISTER.md` | privacy-opsec-suite | [privacy CONVENTIONS §6](../../../plugins/privacy-opsec-suite/CONVENTIONS.md) | Anonymity and leak findings |
 | `RESEARCH_FINDINGS.md` | researcher | [researcher CONVENTIONS §6](../../../plugins/researcher/CONVENTIONS.md) | Code-grounded research claims (`RSCH-NNN`) |
 | `IDEAS_REGISTER.md` | researcher | [researcher CONVENTIONS §6](../../../plugins/researcher/CONVENTIONS.md) | Proposed features and ideas (`IDEA-NNN`) |
@@ -35,7 +35,7 @@ If you read nothing else: **a register is only as trustworthy as its last revali
 All four plugins share the same backbone, and their `CONVENTIONS.md` files state it nearly verbatim (code-ops §12, rigor §10, privacy §11, researcher §12):
 
 - **Registers are live backlogs and the SSOT.** Discovery and audit skills *write* them. Implementation skills *update* them as items ship. There is no second copy of the truth, because the register *is* the work graph.
-- **Stable IDs across the lifecycle.** An item keeps its ID from the moment it is discovered, through the register, the commit that fixes it, and the run log. `PERF-007` is the same thing everywhere it appears. That stability is what lets `full-sweep` hand a finding from its audit phase to its remediation phase, and lets a commit message reference exactly what it closed.
+- **Stable IDs across the lifecycle.** An item keeps its ID from the moment it is discovered, through the register, the commit that fixes it, and the run log. `PERF-007` is the same thing everywhere it appears. That stability is what lets `everything plugins: suite` hand a finding from its audit phase to its remediation phase, and lets a commit message reference exactly what it closed.
 - **Registers live in a dated run folder** under the repo's docs location, `docs/<area>/<date>/` (for example `docs/rigor/<date>/` or `docs/privacy/<date>/`), or at repo root if the repo has no docs convention. In a repo that carries a `<repo>-docs/` Obsidian vault ([vault standard](../Techniques/vault-standard.md)), they go to the vault's `80 Runs/YYYY-MM-DD slug/` instead, keeping the same filenames. Authoritative reference docs (threat models, privacy promises, architecture docs) are SSOT in the repo's existing docs location and reconciled in place, while registers are run artifacts.
 - **Registers stay fresh.** Before a finding is written, re-presented across a phase boundary, or consumed by an implementation skill, it is re-confirmed against the current tree. That rule is what the rest of this chapter operationalizes.
 
@@ -108,7 +108,7 @@ Two rails sit *above* the track and cannot be overridden by it. **Always gated, 
 
 The dangerous moment is the **phase boundary**, when one phase or one skill hands a register to the next. Copying an item forward unchanged is a bug. The proven field failure, stated at the top of every `revalidate-register.mjs`, is exactly that: a register re-lists items already fixed in code, the stale findings get re-ranked and re-shown, and someone works them again.
 
-So "carry forward" means "re-validate, then carry forward what survives." Concretely, before any phase consumes a finding (code-ops §12, and the orchestrators' own instructions in `full-sweep` and `everything`):
+So "carry forward" means "re-validate, then carry forward what survives." Concretely, before any phase consumes a finding (code-ops §12, and the orchestrators' own instructions in `everything plugins: suite` and `everything`):
 
 1. **Run the mechanical pre-filter**, `revalidate-register.mjs` (§4). It is fast and catches the cheap cases, such as a cited file deleted or a line number now out of range.
 2. **Re-read the survivors.** The script is a *floor, not a proof*. `FRESH` means the cited location still exists, **not** that the original defect is still there. Confirm each survivor by reading it on the current code.

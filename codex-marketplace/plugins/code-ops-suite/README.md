@@ -2,7 +2,7 @@
 
 > Generated in the code-ops repository (https://github.com/skylarsabo/code-ops) by `scripts/build-codex-marketplace.mjs` from the canonical Claude source. Do not edit this directory directly.
 
-Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.
+Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, local review gates, doc alignment, onboarding, and code and concept normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.
 
 ## Use
 
@@ -10,31 +10,27 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 
 ## Skills
 
-- `adopt-global-standards` — Use when the user's Claude or Codex global standards contract needs to be created, aligned to current doctrine, or re-verified after the marketplace moves.
-- `adopt-standards` — Use when a repo's CLAUDE.md standards contract needs to be created, brought up to the house style, or re-verified against reality.
 - `adr` — Use when you need to capture the reasons behind a codebase's architecture as decision records, either backfilling load-bearing past decisions or authoring an ADR for a current one.
 - `api-docs` — Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory.
 - `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.
 - `atlas` — Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See its bundled atlas reference.
 - `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See its bundled calibration protocol reference.
 - `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes.
-- `conform` — Use when you want to know whether a repo is on the code-ops standard at all, how far out of conformance it is, and then have it brought back. It assesses the standards contract, the docs vault, the atlas, and doc drift in one pass, then repairs under checkpoint.
+- `conform` — Use to assess and repair a repo's standards contract, vault, atlas, and doc drift, or with scope global to align the user-wide Claude or Codex contract.
 - `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory.
 - `data-model` — Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations.
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.
 - `dependency-upgrade` — Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps.
 - `doc-alignment` — Use when docs have drifted from code and you want them reconciled into a clean single source of truth.
-- `everything` — Use when you want the most exhaustive end-to-end pass across all three plugins. It is token-expensive and checkpointed. It is the cross-plugin superset, and requires code-ops-suite, rigor, and privacy-opsec-suite installed.
+- `everything` — Use when you want a whole-suite, checkpointed pass over one or more installed plugins, from one plugin pipeline up to the exhaustive cross-plugin superset. Select them with plugins: suite, rigor, or privacy (default: every installed one). Phases of an absent plugin are skipped and named. Tracks: assess-only, full, feature.
 - `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code.
 - `feature-implementation` — Use when feature specs already exist and you want them built incrementally. It requires specs as input.
-- `full-sweep` — Use when you want the whole code-ops-suite run end-to-end on one codebase as a guided, checkpointed pipeline. It is the intra-plugin orchestrator. For the cross-plugin superset use everything.
 - `handoff` — Use when a long run needs a continue, compact, or transfer decision. A transfer captures verifiable state as HANDOFF.md; resume re-verifies every claim.
 - `local-review-gate` — Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication.
-- `normalize` — Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. To close divergent implementations of a concept, see rigor:consistency-closure.
+- `normalize` — Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. Use the concept mode (normalize concept NAME) when one concept is implemented divergently and you want it closed for good in one canonical form with mechanical enforcement.
 - `onboarding` — Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor.
 - `ops-docs` — Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it.
 - `performance` — Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured.
-- `pr-review` — Use when you want a rigorous pre-merge review of one PR or diff against all quality lenses. For a verification-bar review that blocks only on reproduced defects, use rigor:deep-review. For an anonymity gate, use privacy-opsec-suite:opsec-pr-gate.
 - `pr-split` — Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless.
 - `provider-parity-audit` — Use when the marketplace must be audited across Claude, Codex, installed Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, generated projections, and documentation.
 - `remediation` — Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input.

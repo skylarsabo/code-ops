@@ -137,7 +137,7 @@ In Claude Code, invoke a workflow as a namespaced slash command:
 
 ```text
 /code-ops-suite:codebase-audit
-/code-ops-suite:pr-review for the current branch
+/rigor:deep-review bar: standard for the current branch
 /privacy-opsec-suite:anonymity-threat-model
 /privacy-opsec-suite:tor-egress-audit
 ```
@@ -155,9 +155,9 @@ Each plugin reads its bundled `CONVENTIONS.md` first, which holds the shared ope
 
 The three general plugins compose into one flow. Run as much or as little of it as a task needs:
 
-1. `code-ops-suite:full-sweep`, or `code-ops-suite:codebase-audit` alone, maps the codebase and takes a first findings pass.
-2. `rigor:rigor-sweep`, started `assess-only`, establishes ground truth, validates the test suite, and proves the real bugs.
-3. `privacy-opsec-suite:full-sweep` runs only on a project with anonymity or opsec requirements.
+1. `code-ops-suite:everything plugins: suite`, or `code-ops-suite:codebase-audit` alone, maps the codebase and takes a first findings pass.
+2. `code-ops-suite:everything plugins: rigor`, started `assess-only`, establishes ground truth, validates the test suite, and proves the real bugs.
+3. `code-ops-suite:everything plugins: privacy` runs only on a project with anonymity or opsec requirements.
 4. `code-ops-suite:local-review-gate` runs on the final committed diff before the PR opens.
 
 To run every phase in one command, invoke `/code-ops-suite:everything`. It orchestrates all three plugins end to end, from the map through ground truth, proof, leak audits, safety nets, review, remediation, and the final report. It is the most thorough and most token-expensive option, and it runs phased with checkpoints. Phase 0 takes a remediation automation level. `gated` is the default, `auto-safe` applies only CONFIRMED and NOW-SAFE fixes on a branch, and `auto-all` is not recommended. Security, secrets, data migrations, public contracts, and destructive changes stay gated at every level. Nothing ever auto-merges. All three plugins must be installed.
@@ -273,9 +273,9 @@ Put a recurring scan on a schedule with Routines (`/schedule`), covering depende
 
 Four plugins ship from one repository:
 
-- **`code-ops-suite`** covers general engineering for any codebase: audit, security and privacy threat assessment, remediation, feature discovery and build, performance, tests, dependencies, PR review, local review gates, repo docs, standards adoption, onboarding, normalization, PR splitting, ship, debug, current docs, architecture and API and data-model and ADR and ops documentation, run handoff, the atlas, the docs vault, the conformance pass, and the suite's own calibration, cost, and parity audits. (34 skills)
-- **`privacy-opsec-suite`** covers the privacy, anonymity, and OpSec specialization: the anonymity threat model, anonymous sessions, Tor and proxy egress with leak prevention, metadata minimization, fingerprint and traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, the opsec PR gate, and authorship hygiene. (14 skills)
-- **`rigor`** covers verification-first quality: find real bugs and prove each with a repro, validate the test suite with flaky and mutation testing, lock behavior with characterization safety nets, fix at root cause with a regression guard, close inconsistencies with enforcement, and ship measured improvements. Prove it or do not report it. (11 skills)
+- **`code-ops-suite`** covers general engineering for any codebase: audit, security and privacy threat assessment, remediation, feature discovery and build, performance, tests, dependencies, local review gates, repo docs, standards adoption and conformance, onboarding, normalization and concept closure, PR splitting, ship, debug, current docs, architecture and API and data-model and ADR and ops documentation, run handoff, the atlas, the docs vault, and the suite's own calibration, cost, and parity audits. (30 skills)
+- **`privacy-opsec-suite`** covers the privacy, anonymity, and OpSec specialization: the anonymity threat model, anonymous sessions, Tor and proxy egress with leak prevention, metadata minimization, fingerprint and traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, the opsec PR gate, and authorship hygiene. (13 skills)
+- **`rigor`** covers verification-first quality: find real bugs and prove each with a repro, validate the test suite with flaky and mutation testing, lock behavior with characterization safety nets, fix at root cause with a regression guard, and ship measured improvements. Prove it or do not report it. (9 skills)
 - **`researcher`** covers code-grounded research: ground in the codebase or the given materials, gather external knowledge, then propose improvements, design briefs, library evaluations, ideas, and an ecosystem watch. Every claim is cited and tiered, sourcing is local-first with disclosed fail-closed egress, and implementation hands off to the other suites. (7 skills)
 
 Install `code-ops-suite` on any project for breadth. Add `privacy-opsec-suite` when the project has anonymity or opsec requirements, such as anonymous sessions, Tor routing, or strong metadata minimization. Reach for `rigor` when you want proven bugs and enforced consistency rather than a long list. The three compose: a broad `code-ops-suite:codebase-audit` for the map, then `rigor:bug-hunt` to prove the real defects, then `privacy-opsec-suite:tor-egress-audit` for the anonymity pass.
@@ -295,9 +295,9 @@ code-ops/
 ├── evals/                                # regression and judgment eval harness
 ├── code-ops-docs/                        # the documentation hub and Obsidian vault
 └── plugins/
-    ├── code-ops-suite/                   # 34 skills, explorer + reviewer + implementer, hooks/
-    ├── privacy-opsec-suite/              # 14 skills, explorer + privacy-reviewer
-    ├── rigor/                            # 11 skills, tracer + verifier
+    ├── code-ops-suite/                   # 30 skills, explorer + reviewer + implementer, hooks/
+    ├── privacy-opsec-suite/              # 13 skills, explorer + privacy-reviewer
+    ├── rigor/                            # 9 skills, tracer + verifier
     └── researcher/                       # 7 skills, gatherer + claim-checker
 ```
 

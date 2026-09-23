@@ -96,10 +96,10 @@ disk, and the executive summary records the last clean boundary.
 
 The cardinal rule: re-validate the carried registers against current `HEAD` before you
 resume. That rule is the orchestrators' own Phase 0 behavior, not an extra step you bolt
-on. The Phase 0 instruction of `full-sweep` carries the registers forward fresh. Before
+on. The Phase 0 instruction of `everything` carries the registers forward fresh. Before
 any phase consumes a finding it re-validates that finding against current `HEAD`, and a
 finding fixed earlier in the run is marked `OBSOLETE-AT <sha>` and never re-shown
-(`plugins/code-ops-suite/skills/full-sweep/SKILL.md:13`). The danger when resuming is
+(`plugins/code-ops-suite/skills/everything/SKILL.md`). The danger when resuming is
 sharper than in a fresh run. Time has passed, commits may have landed, and the register's
 `Verified-at` shas are now demonstrably behind.
 
@@ -124,7 +124,7 @@ never evidence that the run state survived.
 0. **Check for a dispatch ledger first.** If the run folder has a `DISPATCH_LEDGER.md`, read it before touching phase boundaries. A dangling row means a specific subagent dispatch died or hung, and that unit can often be resumed on its own without re-entering the whole phase. See "Per-unit resume via the dispatch ledger" below.
 1. **Re-enter the orchestrator at Phase 0** with the same scope and track. Point it at the existing run folder, so it re-opens the master plan and the running `EXECUTIVE_SUMMARY.md` rather than starting a fresh folder. Phase 0 is a checkpoint by design. It re-scopes and re-confirms the automation level before any phase consumes anything.
 2. **Let it revalidate first, or do it yourself.** The orchestrator carries the registers forward fresh. Every register it inherits runs through `revalidate-register.mjs`, and the non-`FRESH` items are re-triaged before any phase acts on them. If you are driving the recovery by hand, run the §4 revalidate command yourself before resuming a phase.
-3. **Resume from the last clean phase boundary** named in the executive summary. Phases consume registers rather than in-memory state, so a phase that was mid-batch when cancelled is safe to re-run from its start. Both `remediation` and `fix-verified` re-validate the register and drop anything already fixed, so a half-applied fix batch is not double-applied ([full-sweep Phase 4](../../../plugins/code-ops-suite/skills/full-sweep/SKILL.md) for `remediation`, and the rigor [fix-verified Phase 0](../../../plugins/rigor/skills/fix-verified/SKILL.md) for `fix-verified`).
+3. **Resume from the last clean phase boundary** named in the executive summary. Phases consume registers rather than in-memory state, so a phase that was mid-batch when cancelled is safe to re-run from its start. Both `remediation` and `fix-verified` re-validate the register and drop anything already fixed, so a half-applied fix batch is not double-applied ([everything plugins: suite Phase 4](../../../plugins/code-ops-suite/skills/everything/SKILL.md) for `remediation`, and the rigor [fix-verified Phase 0](../../../plugins/rigor/skills/fix-verified/SKILL.md) for `fix-verified`).
 
 ### Per-unit resume via the dispatch ledger
 

@@ -67,8 +67,9 @@ rather than after it. Record four counts as you go: sections, consumed FRESH, re
 **falsified**. A falsified section is one whose claim the sweep disproved, which is a false
 premise handed to a run rather than ordinary staleness.
 
-Then dispatch `/code-ops-suite-full-sweep` in the **`assess-only`** track against the target, or
-`/rigor-rigor-sweep` when `rigor` is the mechanism under calibration. Let the sweep run its own
+Then dispatch `/code-ops-suite-everything` in the **`assess-only`** track against the target,
+with `plugins: suite`, or `plugins: rigor` when `rigor` is the mechanism under calibration.
+Let the sweep run its own
 phases and checkpoints. This run's artifacts (registers, `DISPATCH_LEDGER.md`,
 `EXECUTIVE_SUMMARY.md`) stay inside the run folder. They are the raw material Phase 2 extracts
 from, and are never quoted here directly.

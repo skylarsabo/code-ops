@@ -18,8 +18,8 @@ The layout is deliberate. `plugins/code-ops-traceless.js` resolves its scanner t
 
 ## What lands where
 
-- `skills/` — 66 skills, discovered by the model through opencode's `skill` tool.
-- `commands/` — 66 slash commands, one per skill, for user invocation.
+- `skills/` — 59 skills, discovered by the model through opencode's `skill` tool.
+- `commands/` — 59 slash commands, one per skill, for user invocation.
 - `agents/` — 11 subagents, with their Claude tool allowlists translated to opencode permissions.
 - `code-ops/` — per-plugin `CONVENTIONS.md`, reference specs that skills cite, runtime
   scripts, and non-discoverable tier-floor carriers for the vendored preflight scripts.
@@ -32,7 +32,7 @@ The layout is deliberate. `plugins/code-ops-traceless.js` resolves its scanner t
 
 opencode's skill and agent namespaces are flat and its names cannot contain a colon, so
 every name is prefixed with its plugin: `/code-ops-suite:ship` becomes `/code-ops-suite-ship`.
-The prefix is load-bearing — `full-sweep` ships in two plugins and `explorer` in two more.
+The prefix is load-bearing — `explorer` ships as an agent in two plugins.
 
 See `MODEL_TIERS.md` for model bindings and `PLATFORM_COMPATIBILITY.md` for the full
 list of host transforms.

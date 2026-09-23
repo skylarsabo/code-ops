@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.0.0
+- Breaking: `full-sweep` is removed, and the plugin ships 13 skills. Use `code-ops-suite:everything` with `plugins: privacy`, which carries the leak incident path.
+
 ## 1.20.28
 - The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
 
