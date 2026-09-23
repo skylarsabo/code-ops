@@ -623,7 +623,10 @@ function readTail(path) {
 // The last assistant-turn usage record in the tail window, or null. Claude writes one line per
 // content block of the same message, each repeating `usage`, and the last one carries the final
 // counts (see the header), so the first assistant usage line found scanning backward from the
-// end of the file is already the turn's final number; no dedup pass needed.
+// end of the file is already the turn's final number; no dedup pass needed. A compaction marker
+// newer than every usage record (Claude's `compact_boundary` system row, Codex's `compacted`
+// row) returns null: the usage before it is the pre-compaction size, and the true size stays
+// unknown until the first post-compaction turn records usage.
 function lastContextSize(text) {
   const lines = text.split('\n');
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -632,6 +635,7 @@ function lastContextSize(text) {
     let o;
     try { o = JSON.parse(line); } catch { continue; }
     if (!o || typeof o !== 'object') continue;
+    if ((o.type === 'system' && o.subtype === 'compact_boundary') || o.type === 'compacted') return null;
     if (o.type === 'assistant' && o.message && typeof o.message === 'object') {
       const u = normalizeUsage(o.message.usage);
       if (u && typeof u.input === 'number' && typeof u.cacheRead === 'number' && typeof u.cacheCreate === 'number') {
