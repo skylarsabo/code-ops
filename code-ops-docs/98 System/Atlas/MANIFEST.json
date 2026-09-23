@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "6b74dfe2ae37028386232fd28aac5bfdd4397489b46f7a0c1d5d08b13e098727",
+      "verifiedAt": "01404b2d98b1b46f4bb9149dd805a8ab40ed863a",
+      "verifiedDigest": "33739895d454a65eeb35bf1a3cd8f58914ad8d2b2df765e5ff428c71a615f524",
       "claims": [
         {
           "file": "scripts/citation-lib.mjs",
@@ -121,8 +121,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "0b9a267ffea816ed91f5211c11f86d5e0afd00f2cc2c9180ef98bcc219b2e59c",
+      "verifiedAt": "01404b2d98b1b46f4bb9149dd805a8ab40ed863a",
+      "verifiedDigest": "31cf0c254a1d384b1489714216989ea7f3640b676e2cf96872d1dd4a7c0c39a2",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -225,8 +225,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "7c8c522675bddcefe03f8b5683955db7353407122d83c1faf7eedce7eef7f6ae"
+      "verifiedAt": "01404b2d98b1b46f4bb9149dd805a8ab40ed863a",
+      "verifiedDigest": "3b816934fbe5b602063c39af8377c480f0b6cdd64471e42ff7f041f689782c7d"
     },
     {
       "slug": "docs-doctrine",
