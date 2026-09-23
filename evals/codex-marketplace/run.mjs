@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLAUDE_ALIAS_TIER } from '../../scripts/model-tiers.mjs';
 import { COMMAND_CASES } from '../ai-tells/command-cases.mjs';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -18,8 +19,7 @@ const sourcePluginsDir = join(root, 'plugins');
 const pluginNames = ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'];
 const read = (path) => readFileSync(path, 'utf8');
 const run = (file, input = '') => spawnSync(process.execPath, [file], { input, encoding: 'utf8' });
-const fails = [];
-const expect = (condition, message) => { if (!condition) fails.push(message); };
+const { fails, expect } = tally();
 
 for (const plugin of pluginNames) {
   const sourceSkills = readdirSync(join(sourcePluginsDir, plugin, 'skills'), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();

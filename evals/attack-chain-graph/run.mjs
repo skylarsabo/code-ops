@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally, withDetail } from '../harness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const script = join(root, 'scripts', 'attack-chain-graph.mjs');
@@ -20,8 +21,7 @@ writeFileSync(capabilitiesPath, `${JSON.stringify({ version: 1, host: 'eval', pr
 const snapshotPath = join(runDir, 'CONTEXT_SNAPSHOT.json');
 execFileSync(process.execPath, [join(root, 'scripts', 'context-snapshot.mjs'), 'prepare', '--root', root, '--out', snapshotPath, '--cache', join(runDir, 'cache'), '--untracked', 'exclude'], { cwd: root, encoding: 'utf8' });
 const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8')); const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-const failures = [];
-const check = (name, pass, detail = '') => { console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`); if (!pass) failures.push(`${name}: ${detail}`); };
+const { fails: failures, check } = tally(withDetail);
 const run = (mode = 'check', extra = []) => { try { return { status: 0, out: execFileSync(process.execPath, [script, mode, '--campaign', campaignPath, '--contract', contractPath, '--ledger', ledgerPath, '--root', root, ...extra], { cwd: root, encoding: 'utf8' }) }; } catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; } };
 const save = (value) => writeFileSync(campaignPath, `${JSON.stringify(value, null, 2)}\n`);
 const reference = () => structuredClone(evidenceRef);

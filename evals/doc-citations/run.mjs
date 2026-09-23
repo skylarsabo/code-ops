@@ -5,16 +5,13 @@ import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from 'nod
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally, withDetail } from '../harness.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT = join(REPO, 'scripts', 'check-doc-citations.mjs');
 const RECORD_LIB = join(REPO, 'scripts', 'record-lib.mjs');
 const work = mkdtempSync(join(tmpdir(), 'coh-doc-citations-'));
-const failures = [];
-const check = (name, pass, detail = '') => {
-  console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!pass) failures.push(`${name}: ${detail}`);
-};
+const { fails: failures, check } = tally(withDetail);
 const run = (script, cwd, args = []) => {
   try { return { status: 0, out: execFileSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' }) }; }
   catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; }

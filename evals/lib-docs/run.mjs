@@ -16,6 +16,7 @@ import { join, dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { getDocs } from '../../scripts/lib-docs.mjs';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const engine = resolve(here, '..', '..', 'scripts', 'lib-docs.mjs');
@@ -45,8 +46,7 @@ writeFileSync(join(pkg, 'index.d.ts'), [
   'export declare function makeWidget(opts: WidgetOptions): Widget;',
 ].join('\n'));
 
-const fails = [];
-const expect = (c, m) => { if (!c) fails.push(m); };
+const { fails, expect } = tally();
 const tmp = mkdtempSync(join(tmpdir(), 'lib-docs-eco-'));
 const env = { ...process.env, VIRTUAL_ENV: '', CARGO_HOME: join(tmp, 'cargo'), GOMODCACHE: join(tmp, 'gomod'), NUGET_PACKAGES: join(tmp, 'nuget') };
 const run = (args) => spawnSync('node', [engine, ...args], { encoding: 'utf8', env });

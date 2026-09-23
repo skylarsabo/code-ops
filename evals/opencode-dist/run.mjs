@@ -11,6 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { COMMAND_CASES } from '../ai-tells/command-cases.mjs';
 import { CLAUDE_ALIAS_TIER, DEFAULT_PROVIDER, PROVIDER_SPECIALISTS, PROVIDER_TIERS, TIER_ORDER, leadInherits } from '../../scripts/model-tiers.mjs';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -42,8 +43,7 @@ if (unsafeRender.status === 0 || !/must be a \.render-\*/.test(`${unsafeRender.s
 const sourcePluginsDir = join(root, 'plugins');
 const pluginNames = ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'];
 const read = (path) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
-const fails = [];
-const expect = (condition, message) => { if (!condition) fails.push(message); };
+const { fails, expect } = tally();
 
 expect(PROVIDER_TIERS.anthropic.models.frontier === 'claude-fable-5-1', 'Anthropic frontier must bind to Fable 5.1');
 

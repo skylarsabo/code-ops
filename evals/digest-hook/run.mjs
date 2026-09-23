@@ -31,14 +31,14 @@ import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const hook = join(root, 'plugins', 'code-ops-suite', 'hooks', 'digest-rewrite.mjs');
 const cli = join(root, 'scripts', 'digest.mjs');
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 
 const payloadFor = (command, extra = {}) => JSON.stringify({
   session_id: 'sess-digest-hook',

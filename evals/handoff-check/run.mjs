@@ -15,13 +15,13 @@ import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync
 import { dirname, resolve, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const checker = join(REPO, 'scripts', 'check-handoff.mjs');
 
-const fails = [];
-const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
+const { fails, check } = tally();
 // Every run binds an explicit --root, because the L-062 pointer check resolves citations against
 // a tree and a cwd-relative default would make these assertions depend on where CI invoked node.
 const run = (args, root = REPO) => spawnSync('node', [checker, ...args, '--root', root], { encoding: 'utf8' });

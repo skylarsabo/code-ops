@@ -36,13 +36,13 @@ import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { handoffMarkerPath, handoffPeakBand, residentContext, residentContextReading } from '../../scripts/transcript-lib.mjs';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const hook = join(root, 'plugins', 'code-ops-suite', 'hooks', 'handoff-card.mjs');
 
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 
 // Each test gets its own fake HOME so the marker store never touches the real operator's
 // `~/.claude/code-ops/handoff/`, the same isolation technique evals/digest-hook/run.mjs uses

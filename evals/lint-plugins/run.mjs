@@ -50,6 +50,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, cpSy
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -59,8 +60,7 @@ const REAL_LINT = join(REPO, 'scripts', 'lint-plugins.mjs');
 // control): the agent-model-floor cases only mean something against the actual ladder.
 const REAL_MODEL_TIERS = join(REPO, 'scripts', 'model-tiers.mjs');
 
-const fails = [];
-const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
+const { fails, check } = tally();
 
 // Spawn the real, unmodified script (copied into the fixture's own scripts/ dir, since it
 // resolves its ROOT from its own file location one level up). Never a shell string.

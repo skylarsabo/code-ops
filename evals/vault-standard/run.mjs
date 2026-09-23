@@ -15,12 +15,12 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const checker = resolve(here, '..', '..', 'scripts', 'check-vault-standard.mjs');
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (dir) => {
   const r = spawnSync('node', [checker, dir], { encoding: 'utf8' });
   return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };

@@ -18,6 +18,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileStablePrefix, replayRuntimeReceipts } from '../../scripts/runtime-lib.mjs';
 import { ACCEPT_HEADER } from '../../scripts/acceptance-lib.mjs';
+import { tally, withDetail } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -26,12 +27,8 @@ const CAPABILITIES = join(REPO, 'scripts', 'host-capabilities.mjs');
 const CONTRACT = join(REPO, 'scripts', 'run-contract.mjs');
 const SNAPSHOT = join(REPO, 'scripts', 'context-snapshot.mjs');
 const LEDGER = join(REPO, 'scripts', 'dispatch-ledger.mjs');
-const failures = [];
+const { fails: failures, check } = tally(withDetail);
 
-function check(name, pass, detail = '') {
-  console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!pass) failures.push(`${name}: ${detail}`);
-}
 
 function run(script, args, cwd) {
   const result = spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' });
