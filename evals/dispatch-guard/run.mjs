@@ -520,6 +520,17 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   r = runHook(subagentCall('agent-ceil', { tool_name: 'Agent', tool_input: clean, transcript_path: transcriptAt(dir, 900_000, 'big.jsonl') }), { home });
   expect(r.status === 0 && r.stdout === '', `a subagent call must not meet the main-thread ceiling gate, got ${JSON.stringify(r.stdout)}`);
 
+  // A compact boundary newer than the last usage record makes the pre-compaction size stale:
+  // the context reads as unknown, and the first post-boundary usage record gates again.
+  const boundary = JSON.stringify({ type: 'system', subtype: 'compact_boundary', content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 900_000 } }) + '\n';
+  const compacted = join(dir, 'compacted.jsonl');
+  writeFileSync(compacted, readFileSync(transcriptAt(dir, 900_000, 'pre.jsonl'), 'utf8') + boundary);
+  r = runHook(dispatchCall(clean, { cwd, session_id: 'sess-compact', transcript_path: compacted }), { home });
+  expect(r.status === 0 && r.stdout === '', `a stale pre-compaction size must not gate, got ${JSON.stringify(r.stdout)}`);
+  writeFileSync(compacted, readFileSync(compacted, 'utf8') + readFileSync(transcriptAt(dir, 310_000, 'post.jsonl'), 'utf8'));
+  out = parseOut(runHook(dispatchCall(clean, { cwd, session_id: 'sess-compact', transcript_path: compacted }), { home }));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `a post-boundary usage record past the ceiling must deny, got ${JSON.stringify(out)}`);
+
   // Grok: camelCase keys and `spawn_subagent`, whose schema has no agent-type field. The
   // ceiling still gates it; the missing type alone is not a wide-type deny.
   const grokSpawn = (context, sessionId, toolInput = { prompt: 'Round budget: 5' }) => runHook({

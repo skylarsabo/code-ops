@@ -155,6 +155,44 @@ function parseOut(r) {
   console.log('ok   crossing prints once, the same band stays silent, the next band prints, and dropping below 150,000 re-arms it');
 }
 
+// ---------------------------------------------------------------- compaction boundary
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-compact-'));
+  const sessionId = 'sess-compact';
+  const marker = handoffMarkerPath('C:/fixture-project', sessionId, home);
+  const boundary = JSON.stringify({ type: 'system', subtype: 'compact_boundary', content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 320_000 } }) + '\n';
+
+  // Band 1 recorded before the compaction.
+  runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(160_000), 'pre.jsonl'), sessionId }), { home });
+  const before = readFileSync(marker, 'utf8');
+
+  // The first prompt after /compact: the only usage record predates the boundary, so the size is
+  // unknown. The hook stays silent and leaves the marker untouched rather than writing a stale band
+  // (a stale read of this band-2 size would print and record band 2).
+  let content = assistantLine(319_000) + boundary;
+  let r = runHook(payloadFor({ transcript: writeTranscript(dir, content, 'compact.jsonl'), sessionId }), { home });
+  expect(r.status === 0 && r.stdout === '', `a pre-boundary usage record must not print a stale size, got ${JSON.stringify(r.stdout)}`);
+  expect(readFileSync(marker, 'utf8') === before, 'an unknown post-compaction size must not rewrite the marker');
+
+  // The first post-boundary usage record is read as usual: under 150,000 it re-arms the band.
+  content += assistantLine(75_919);
+  r = runHook(payloadFor({ transcript: writeTranscript(dir, content, 'compact.jsonl'), sessionId }), { home });
+  expect(r.status === 0 && r.stdout === '', `a post-boundary size under the threshold must stay silent, got ${JSON.stringify(r.stdout)}`);
+  const stored = JSON.parse(readFileSync(marker, 'utf8'));
+  expect(stored.band === 0 && stored.peak === 1, `a post-boundary size must re-arm the band, got ${JSON.stringify(stored)}`);
+
+  // Codex writes a `compacted` row; a token_count before it is equally stale.
+  const codexCompacted = codexTokenLine(230_000) + JSON.stringify({ type: 'compacted', payload: { message: '' } }) + '\n';
+  r = runHook(payloadFor({ transcript: writeTranscript(dir, codexCompacted, 'codex.jsonl'), sessionId: 'sess-codex-compact' }), { home });
+  expect(r.status === 0 && r.stdout === '', `a Codex token_count before a compacted row must not print, got ${JSON.stringify(r.stdout)}`);
+
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   a compaction boundary newer than the last usage record reads as unknown, and the next usage record re-arms the band');
+}
+
 // ---------------------------------------------------------------- lifecycle assessment reminder
 
 {

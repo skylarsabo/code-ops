@@ -572,7 +572,8 @@ code blocks and erases the prompt on this event; a nudge is advisory only. Evide
 The context metric is the last assistant turn's usage record — input plus cache-read plus
 cache-creation tokens — read from only the last 256 KiB of the transcript, never the whole file,
 reusing `normalizeUsage`, `handoffMarkerPath`, and `handoffPeakBand` from
-`scripts/transcript-lib.mjs` for the token math and the storage-path convention. A small
+`scripts/transcript-lib.mjs` for the token math and the storage-path convention. A compaction
+marker newer than that record makes the metric unknown until the next turn records usage. A small
 per-session marker at `<host home>/code-ops/handoff/<project slug>/<session id>.json` records the
 band already nudged (`band = floor(context / 150000)`) and `peak`, the highest band the session
 ever reached; the hook nudges again only on a higher band, and re-arms (sets the band to 0, never
