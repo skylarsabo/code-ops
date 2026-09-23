@@ -699,10 +699,25 @@ unobserved. This receipt is not a provider usage record. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
 On the main thread the hook acts only on a dispatch tool: `Agent`, the older `Task`, or
-`Workflow`. Two gates can deny there, and `warn` turns each deny into an advisory. The wide-type
+`Workflow`. Three gates can deny there, and `warn` turns each deny into an advisory. The wide-type
 gate denies a `subagent_type` of `general-purpose`, `claude`, or `fork`, or no type at all,
 unless the prompt carries a line starting `Wide-surface reason:` with the reason on it. It denies a `Workflow` script that calls
-`agent(` with no `agentType` on the same terms. The context-ceiling gate reads the lead's
+`agent(` with no `agentType` on the same terms.
+
+The brief-contract gate reads the target agent's own contract. A `subagent_type` of the form
+`<plugin>:<agent>` resolves when the plugin is `code-ops-suite`, `rigor`,
+`privacy-opsec-suite`, or `researcher`. The file is `agents/<agent>.md` in that sibling plugin.
+In the repo the sibling is `../<plugin>/` beside the hook's plugin root. In the installed cache
+it is `../../<plugin>/<version>/`, and the highest all-numeric version directory wins. When
+the `## Contract` section of that file has a `Brief requires:` line, the gate denies a
+dispatch whose prompt lacks any listed field and names each missing field. A field is present
+when its label, case-insensitive and not inside a longer word, is followed on the same line by
+a colon. Optional `**` or `__` markers and a parenthetical qualifier may sit between them, as
+in `Scope (edit authority):`. A markdown heading line that starts with the label also counts.
+A bare, unknown, or non-suite type passes, and so does an unreadable file or an agent with no
+`Brief requires:` line in its Contract. The gate does not read `Workflow` scripts.
+
+The context-ceiling gate reads the lead's
 resident context from the transcript tail. At or above the ceiling it denies a new dispatch until
 the session records a handoff assessment for the current band. The first band starts at the
 ceiling, and each further 150,000 tokens starts a new band that gates again.
@@ -721,7 +736,7 @@ no-op behavior.
 Explicit controller bindings have separate validation and conflict handling. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
-The guard's wide-type deny, context-ceiling gate, and round stop are the enforcement layer.
+The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round stop are the enforcement layer.
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.
 Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
