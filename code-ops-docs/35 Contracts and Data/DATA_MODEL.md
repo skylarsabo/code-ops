@@ -147,7 +147,7 @@ sig}`, a `calls` list of `{name, line, member, from}`, and an `imports` list of 
 names}` where `names` pairs a local binding with the exported name. A file over 512 KB or holding
 a NUL byte keeps only its `sha`, `size`, and a `skipped` reason. The index holds no file body: a
 signature is one trimmed line capped at 120 characters. Evidence: `scripts/context-query.mjs:94-102`
-and `scripts/symbol-lib.mjs:46-64`.
+and `scripts/symbol-lib.mjs:46-76`.
 
 ## Retention and sensitivity
 
