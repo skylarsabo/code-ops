@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.28
+- The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
+
 ## 1.20.27
 - The explorer and privacy-reviewer agents carry a typed `## Contract` section. Skills read only the CONVENTIONS sections they cite, plus the writing standard.
 

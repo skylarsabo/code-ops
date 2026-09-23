@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 2.20.1
+- The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
+
 ## 2.20.0
 - The tracer and verifier agents carry a typed `## Contract` section.
 - Skills read only the CONVENTIONS sections they cite, plus the writing standard. bug-hunt, quality-scan, ground-truth, and regression-hunt consult the atlas and the symbol index when code-ops-suite is installed.

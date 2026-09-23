@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.13.31
+- The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
+
 ## 0.13.30
 - The gatherer and claim-checker agents carry a typed `## Contract` section. Skills read only the CONVENTIONS sections they cite, plus the writing standard.
 
