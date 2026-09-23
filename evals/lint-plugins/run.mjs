@@ -895,6 +895,33 @@ No completion heading here on purpose (case 3 mutation).
   check('16b. a TODO placeholder line exits 1', r16b.status === 1 && r16b.all.includes('plugins/rigor/CHANGELOG.md:4: placeholder "**TODO**" line'));
   const r16c = withChangelog('case16c-changelog-duplicate', '## 0.1.0\n- Fixture entry.\n\n## 0.1.0\n- Same version again.\n');
   check('16c. a duplicated version heading exits 1', r16c.status === 1 && r16c.all.includes('plugins/rigor/CHANGELOG.md:6: duplicate "## 0.1.0" heading'));
+
+  // 17a/17b. SHARD AGGREGATE WIRING (check 23) — the rule runs only for the code-ops
+  // marketplace, so each case names it and adds the dependency-policy files. A gate job
+  // that needs every shard passes. A shard missing from needs: fails closed.
+  const withShards = (label, needs) => {
+    const dir = clone(label);
+    const mp = JSON.parse(readIn(dir, '.claude-plugin/marketplace.json'));
+    put(dir, '.claude-plugin/marketplace.json', JSON.stringify({ name: 'code-ops', ...mp }, null, 2));
+    for (const path of ['.node-version', '.github/actions-lock.json', '.github/dependabot.yml', 'scripts/check-action-pins.mjs']) put(dir, path, '\n');
+    const job = (id, os) => [`  ${id}:`, `    runs-on: ${os}`, '    steps:', '      - run: node scripts/check-action-pins.mjs'];
+    const shard = (id) => [`  ${id}:`, '    runs-on: ubuntu-latest', '    steps:', '      - run: node scripts/lint-plugins.mjs'];
+    const gate = (id, shardIds) => [`  ${id}:`, '    if: always()', `    needs: [${shardIds.join(', ')}]`, '    runs-on: ubuntu-latest', '    steps:', '      - run: node -e \'if (Object.keys(needs).filter((id) => needs[id].result !== "success").length) process.exit(1)\''];
+    put(dir, '.github/workflows/validate.yml', [
+      'name: validate (fixture)', 'on: [push]', 'jobs:',
+      ...job('pins-linux', 'ubuntu-latest'), ...job('pins-windows', 'windows-latest'),
+      ...shard('structural-lint-shard-1'), ...shard('structural-lint-shard-2'),
+      ...gate('structural-lint', needs),
+      ...shard('structural-lint-windows-shard-1'),
+      ...gate('structural-lint-windows', ['structural-lint-windows-shard-1']),
+      '      - run: node evals/fixture-check/run.mjs', '',
+    ].join('\n'));
+    return runLint(dir);
+  };
+  const r17a = withShards('case17a-shards-wired', ['structural-lint-shard-1', 'structural-lint-shard-2']);
+  check('17a. a gate job needing every shard exits 0', r17a.status === 0);
+  const r17b = withShards('case17b-shard-unwired', ['structural-lint-shard-1']);
+  check('17b. a shard missing from the gate needs: exits 1', r17b.status === 1 && r17b.all.includes('structural-lint must need exactly its shards in flow form (needs [structural-lint-shard-1], shards [structural-lint-shard-1, structural-lint-shard-2])'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
