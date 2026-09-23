@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
-      "verifiedDigest": "951797a9a1ea266b4eea0e888996104886ffc4670909d700930cc8f0b5ab680b",
+      "verifiedAt": "4c8042656ebcb3e5a9c09202924de76f47fce8ed",
+      "verifiedDigest": "0e04f4751b4c495844998cc0a191bd2ac796d8294721f93db3629f109c5ab230",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -122,6 +122,11 @@
           "file": "scripts/build-codex-marketplace.mjs",
           "line": 294,
           "anchor": "['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff a"
+        },
+        {
+          "file": "scripts/sync-global.mjs",
+          "line": 115,
+          "anchor": "function classify(file, source, state) {"
         }
       ]
     },
@@ -131,8 +136,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "6df21a6194e756dba7f9cd115be5491c949cb3c5",
-      "verifiedDigest": "fd57aeea9be6571edf0fa75437fd3adda0b16928a115c2303a6ff2b93e1ceac5",
+      "verifiedAt": "4c8042656ebcb3e5a9c09202924de76f47fce8ed",
+      "verifiedDigest": "bfc1758cf4ed6877117520426aeceaa799bb30e8382eee01ff15039739df0a9e",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -307,8 +312,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "a5bff586fa75920bc63487103290c0f496ae292d",
-      "verifiedDigest": "39eef0a2695a2044c401c54a05a824f72b21d3e952e5590dd02466276bebb463"
+      "verifiedAt": "4c8042656ebcb3e5a9c09202924de76f47fce8ed",
+      "verifiedDigest": "57626bd530721cf733e1259f0c9c5624dc8175968293412097b2ecb4287aec9b"
     },
     {
       "slug": "runtime-toolchain",
