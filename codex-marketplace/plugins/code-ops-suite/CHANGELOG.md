@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.2.0
+- `run-contract.mjs init --run <ignored run dir> --lead-model <id>` starts a version 4 run contract. It prepares the context snapshot, writes host capabilities with every state `unknown`, and derives `head`, `runId`, the lead tier, and the runtime block. It leaves the objective, non-goals, quality, and units empty, so `check` fails until the lead fills them. It refuses to overwrite without `--force`. `co run contract init` reaches it.
+- `CONVENTIONS.md`, `everything`, and the vendored run-contract references now name the init path.
+
 ## 2.1.1
 - The resident context reads a compact boundary's `postTokens` as the post-compaction size, labeled `compaction`, until the next usage record.
 

@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.1.0
+- The vendored artifact grammar reference now starts `RUN_CONTRACT.json` with `run-contract.mjs init`.
+
 ## 2.0.0
 - Breaking: `full-sweep` is removed, and the plugin ships 13 skills. Use `code-ops-suite:everything` with `plugins: privacy`, which carries the leak incident path.
 

@@ -48,6 +48,20 @@ binding. Version 3 adds a required runtime binding and `runtime-drift` to the ca
 replan triggers. Version 4 adds the enforced lead-and-operatives policy. Evidence:
 `scripts/run-contract.mjs`.
 
+`run-contract.mjs init --run <dir> --lead-model <id>` starts a version 4 contract. The run
+directory must sit inside the repository and be ignored by Git. Its name becomes `runId`.
+Init prepares `CONTEXT_SNAPSHOT.json` and writes `HOST_CAPABILITIES.json` with source
+`host-probe`. Every capability state is `unknown`, because a script cannot observe a host
+feature. Init takes `head` from Git and the lead tier from the model registry. The lead
+effort defaults to `high`. An unplaced model needs `--lead-tier`. Init also fills
+`replanOn`, the context and runtime blocks, default budgets, the orchestration floor, and
+task-based routing. The stable prefix defaults to the tracked `AGENTS.md`, or else
+`CLAUDE.md`. Init leaves `objective`, `nonGoals`, `quality.dimensions`, `quality.criteria`,
+and `units` empty, so `check` fails until the lead fills them. Init refuses to overwrite an
+existing contract, snapshot, or capability receipt without `--force`. The façade form is
+`co run contract init`. Evidence: `scripts/run-contract.mjs` and
+`evals/run-contract/run.mjs`.
+
 Each contract declares these top-level concerns:
 
 - `quality` defines ordered criteria, proof, oracle, owner, and blocking status.

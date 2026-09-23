@@ -82,6 +82,9 @@ Then set up the run:
 For this multi-phase substantive run, use a version 4 `RUN_CONTRACT.json` with an exact context
 snapshot, verified unit bundles, a frontier lead, lower-tier parallel work operatives,
 independent validation for each work unit, an observed host-capability descriptor, and bounded runtime policy.
+Start it with `node <plugin-root>/scripts/run-contract.mjs init --root . --run <ignored run folder> --lead-model <session model>`,
+which captures the snapshot, host capabilities, and runtime block. Fill the objective, non-goals,
+quality criteria, and units it leaves empty.
 Run `node <plugin-root>/scripts/run-contract.mjs check --root . --contract <contract>`,
 then `node <plugin-root>/scripts/run-runtime.mjs init --root . --contract <contract>`
 once. An existing version 1, 2, or 3 contract remains replayable but cannot start new substantive work without an explicit version 4 replan.
