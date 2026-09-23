@@ -13,14 +13,20 @@
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
 // is `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
 // `.claude/settings.json` sets at user or repository scope; rendered hosts use their documented
-// process environment. No other switch exists: the threshold is fixed by design, not tunable.
+// process environment. The 150,000-token threshold is fixed by design, not tunable.
+//
+// CEILING SENTENCE. When the nudge fires at or above the dispatch guard's context ceiling
+// (`contextCeiling` in scripts/transcript-lib.mjs: 300,000 by default, overridden or disabled by
+// `CODE_OPS_CONTEXT_CEILING`), the message gains one sentence saying new dispatches are now
+// gated until the assessment runs. That variable changes only this sentence, never the bands.
+// Grok never gets it, because the guard cannot name that host's dispatch tool.
 //
 // METRIC. The context size is the last assistant turn's usage record: input plus cache-read
 // plus cache-creation tokens, read from only the last 256 KiB of the transcript the payload
 // names, never the whole file, so the hook stays inside a tens-of-milliseconds budget
-// regardless of transcript size. `normalizeUsage` and `projectSlug`
-// (scripts/transcript-lib.mjs) do the token math and the storage-path convention this hook
-// reuses; the bounded tail read is the only new parsing this file adds.
+// regardless of transcript size. `residentContext` (scripts/transcript-lib.mjs) owns that
+// bounded tail read and the per-host usage parsing, shared with hooks/dispatch-guard.mjs;
+// `handoffMarkerPath` there owns the storage-path convention.
 //
 // ONCE PER CROSSING. A small per-session marker under `<host home>/code-ops/handoff/<project
 // slug>/<session id>.json` remembers the highest band already nudged, where
@@ -46,59 +52,13 @@
 // tail window carries no assistant usage, or any thrown error exits 0 with no output. The hook
 // never blocks a prompt (never exits 2) and never spawns a process.
 
-import { existsSync, mkdirSync, openSync, readSync, closeSync, statSync, readFileSync, writeFileSync, writeSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, writeSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const THRESHOLD = 150_000;
-const TAIL_BYTES = 256 * 1024;
-
-// The last TAIL_BYTES of the file, with a possibly-truncated leading partial line dropped.
-function readTail(path) {
-  const size = statSync(path).size;
-  const length = Math.min(size, TAIL_BYTES);
-  const offset = size - length;
-  const buf = Buffer.allocUnsafe(length);
-  const fd = openSync(path, 'r');
-  try { readSync(fd, buf, 0, length, offset); } finally { closeSync(fd); }
-  const text = buf.toString('utf8');
-  if (offset === 0) return text;
-  const nl = text.indexOf('\n');
-  return nl < 0 ? '' : text.slice(nl + 1);
-}
-
-// The last assistant-turn usage record in the tail window, or null. Claude writes one line per
-// content block of the same message, each repeating `usage`, and the last one carries the final
-// counts (scripts/transcript-lib.mjs:11-12), so the first assistant usage line found scanning
-// backward from the end of the file is already the turn's final number; no dedup pass needed.
-function lastContextSize(text, normalizeUsage) {
-  const lines = text.split('\n');
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    let o;
-    try { o = JSON.parse(line); } catch { continue; }
-    if (!o || typeof o !== 'object') continue;
-    if (o.type === 'assistant' && o.message && typeof o.message === 'object') {
-      const u = normalizeUsage(o.message.usage);
-      if (u && typeof u.input === 'number' && typeof u.cacheRead === 'number' && typeof u.cacheCreate === 'number') {
-        return u.input + u.cacheRead + u.cacheCreate;
-      }
-      return null;
-    }
-    // Codex best-effort branch: the host's own last-turn usage snapshot, read directly rather
-    // than through normalizeUsage's codex path (scripts/transcript-lib.mjs:258-264), because
-    // Codex's own contextAtEnd is the raw, cache-inclusive input_tokens field, not the
-    // cache-excluded `input` normalizeUsage computes.
-    if (o.type === 'event_msg' && o.payload?.type === 'token_count') {
-      const n = o.payload.info?.last_token_usage?.input_tokens;
-      return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? n : null;
-    }
-  }
-  return null;
-}
-
+const HANDOFF_COMMAND = /code-ops-suite[:-]handoff/;
 // The marker's live band, which a re-arm resets to 0. `handoffPeakBand` (transcript-lib.mjs)
 // reads the other field, the highest band the session ever reached.
 function lastBand(path) {
@@ -110,41 +70,6 @@ function lastBand(path) {
 function writeBand(path, band, peak) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify({ v: 1, band, peak: Math.max(peak, band), ts: new Date().toISOString() }));
-}
-
-// Last Grok usage snapshot in the tail. `inputTokens` already includes cache tokens;
-// `transcript-lib.mjs` uses that field as resident context.
-function lastGrokContext(text) {
-  const lines = text.split('\n');
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim();
-    if (!line || !line.includes('inputTokens')) continue;
-    let o;
-    try { o = JSON.parse(line); } catch { continue; }
-    const n = o?.params?.update?.usage?.inputTokens;
-    if (typeof n === 'number' && Number.isSafeInteger(n) && n >= 0) return n;
-  }
-  return null;
-}
-
-// Claude and Codex name a transcript. Grok names `updates.jsonl`, or `chat_history.jsonl`
-// with that stream beside it. A missing path falls back to the session directory.
-function measureFile(payload, grok) {
-  const transcript = payload?.transcript_path ?? payload?.transcriptPath ?? payload?.transcript?.path;
-  if (typeof transcript === 'string' && transcript) {
-    if (grok && /chat_history\.jsonl$/i.test(transcript)) {
-      const updates = join(dirname(transcript), 'updates.jsonl');
-      if (existsSync(updates)) return { path: updates, grok: true };
-    }
-    if (existsSync(transcript)) return { path: transcript, grok: grok && /updates\.jsonl$/i.test(transcript) };
-  }
-  if (!grok) return null;
-  const sessionId = payload?.session_id ?? payload?.sessionId;
-  const cwd = typeof payload?.cwd === 'string' ? payload.cwd : '';
-  if (typeof sessionId !== 'string' || !sessionId || !cwd) return null;
-  const home = process.env.GROK_HOME || join(homedir(), '.grok');
-  const candidate = join(home, 'sessions', encodeURIComponent(cwd), sessionId, 'updates.jsonl');
-  return existsSync(candidate) ? { path: candidate, grok: true } : null;
 }
 
 async function main() {
@@ -159,17 +84,20 @@ async function main() {
     if (event !== 'PostToolUse') return;
   } else if (event && event !== 'UserPromptSubmit') return;
   const sessionId = payload?.session_id ?? payload?.sessionId;
-  const file = measureFile(payload, grok);
-  if (!file || typeof sessionId !== 'string' || !sessionId) return;
+  if (typeof sessionId !== 'string' || !sessionId) return;
 
   const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
-  const { normalizeUsage, handoffMarkerPath, handoffPeakBand } = await import(pathToFileURL(libPath).href);
-  const text = readTail(file.path);
-  const context = file.grok ? lastGrokContext(text) : lastContextSize(text, normalizeUsage);
+  const { residentContext, contextCeiling, handoffMarkerPath, handoffPeakBand, recordCeilingAssessment } = await import(pathToFileURL(libPath).href);
+  const context = residentContext(payload, { grok, home: homedir() });
   if (typeof context !== 'number') return;
 
   const band = Math.floor(context / THRESHOLD);
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
+  // A typed handoff command expands without a Skill tool call, so the dispatch guard never sees
+  // it. Recording it here unlocks the context-ceiling gate the same way.
+  if (!grok && typeof payload.prompt === 'string' && HANDOFF_COMMAND.test(payload.prompt)) {
+    try { recordCeilingAssessment(cwd, sessionId, context, contextCeiling(), homedir()); } catch { /* fail open */ }
+  }
   const marker = handoffMarkerPath(cwd, sessionId, homedir());
   const seen = lastBand(marker);
   const peak = handoffPeakBand(marker);
@@ -183,9 +111,15 @@ async function main() {
 
   const approx = Math.round(context / 10_000) * 10_000;
   const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context. `;
-  const message = band === 1
+  // The dispatch guard gates Agent, Task, and Workflow dispatches at and past the ceiling. This
+  // repository does not document Grok's dispatch tool name, so the guard cannot gate it there
+  // and the sentence stays off that host.
+  const ceiling = contextCeiling();
+  const gated = !grok && ceiling !== null && context >= ceiling
+    ? ' New dispatches are now gated until that assessment runs.' : '';
+  const message = (band === 1
     ? held + 'At the next safe boundary, run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF. Continue a short coherent finish; checkpoint durable state before compacting; use explicit write only for a transfer or recovery.'
-    : held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.';
+    : held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.') + gated;
   const body = grok
     ? { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: message } }
     : {

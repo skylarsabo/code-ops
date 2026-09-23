@@ -4,6 +4,17 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.89.0
+- The dispatch guard gates the lead's own dispatch past a context ceiling. At 300,000 tokens of resident context, a new `Agent`, `Task`, or `Workflow` dispatch is denied until `/code-ops-suite:handoff assess` runs. The assessment unlocks dispatch until the next 150,000-token band. `CODE_OPS_CONTEXT_CEILING` takes `off` to disable the gate or an integer of at least 150,000 to move it. A host without a skill tool records the assessment with `dispatch-guard.mjs assessed --session <id> --band <n>`. OpenCode records it from the `skill` tool or the typed handoff command. A 10-day audit found lead turns above 300,000 tokens spending 2.68 billion of 3.69 billion lead input tokens.
+- The dispatch guard denies a `general-purpose`, `claude`, `fork`, or unnamed agent type unless the brief carries a `Wide-surface reason:` line. A `Workflow` script whose `agent(` call names no `agentType` is denied the same way. General-purpose operatives carried 29% of the audit's input tokens.
+- The unregistered round stop moves from three times to twice the round budget on every host. Reviewers averaged about 90 rounds, under the old 120-round stop.
+- `CODE_OPS_DISPATCH_GUARD=warn` turns each deny into an advisory, except a deny for a malformed or unavailable controller binding.
+- The handoff nudge adds that new dispatches stay gated once context reaches the ceiling.
+- Each agent definition carries a `Report cap: at most N words` line: 600 for `reviewer` and `implementer`, 400 for `explorer`. Lint check 25 fails an agent with no cap or a cap outside 100 to 800 words.
+- Run Contract version 4 accepts an optional `orchestration.singleUnitReason` of at most 20 words, which lowers `minOperatives` and `minParallel` to 1. Without it the two-operative floor holds.
+- `check-handoff.mjs` prints `same-tree: Verified-at matches HEAD on a clean tree` when the handoff's sha is HEAD and only the handoff file is dirty. A same-tree resume accepts FRESH anchors without re-reading each file. Register revalidation still runs.
+- The dispatch brief template gains `Report cap` and `Wide-surface reason` lines. `MEASUREMENTS.md` pre-registers the ceiling gate and wide-type deny against the audit baseline and records the startup-context split with its operator levers.
+
 ## 1.88.0
 - The session routing card stays a short route list. `full-sweep` reads only the convention sections its opening paragraph names.
 - On Grok Build, headless Grok, and the ACP agent, the handoff nudge is a PostToolUse note read from `updates.jsonl`. UserPromptSubmit stdout stays discarded. The session receipt records `handoffCard` from its switch. The handoff skill reads four convention sections instead of the whole file.

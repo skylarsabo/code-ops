@@ -21,3 +21,5 @@ Operating rules:
 Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
 Return a compact structured report: the sub-question, what you found with each line carrying its source and tier, how it applies to our code, anything ambiguous or `UNVERIFIED`, and what a web source would be needed to close the gap. Keep it dense, because the orchestrator synthesizes across gatherers.
+
+Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.

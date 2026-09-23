@@ -26,7 +26,8 @@ const UNIT = new Set(['id', 'phase', 'wave', 'lens', 'mode', 'role', 'kind', 'mo
 const UNIT_V4 = new Set([...UNIT, 'validates', 'independentOf', 'routingRationale', 'peerException']);
 const OPTIONAL_UNIT = new Set(['tokenBudget']);
 const OPTIONAL_UNIT_V4 = new Set([...OPTIONAL_UNIT, 'routingRationale', 'peerException']);
-const ORCHESTRATION = new Set(['mode', 'minOperatives', 'minParallel']);
+const ORCHESTRATION = new Set(['mode', 'minOperatives', 'minParallel', 'singleUnitReason']);
+const OPTIONAL_ORCHESTRATION = new Set(['singleUnitReason']);
 const TOKEN_BUDGET = new Set(['input', 'output', 'reasoning']);
 const DIMENSIONS = new Set(['correctness', 'evidence', 'coverage', 'security', 'privacy', 'usability', 'performance', 'documentation', 'efficiency', 'maintainability']);
 const ORACLES = new Set(['command', 'receipt', 'review', 'artifact']);
@@ -166,9 +167,16 @@ function validate(c, root) {
   if (!Array.isArray(c.units) || !c.units.length) errors.push('units must be nonempty');
   if (c.units?.length > c.budget?.maxDispatches) errors.push('units exceed maxDispatches');
   if (c.version === 4) {
-    exact(c.orchestration, ORCHESTRATION, 'orchestration', errors);
+    exact(c.orchestration, ORCHESTRATION, 'orchestration', errors, OPTIONAL_ORCHESTRATION);
     if (c.orchestration?.mode !== 'lead-and-operatives') errors.push('orchestration.mode must be lead-and-operatives');
-    for (const key of ['minOperatives', 'minParallel']) if (!Number.isInteger(c.orchestration?.[key]) || c.orchestration[key] < 2) errors.push(`orchestration.${key} must be an integer of at least 2`);
+    // WHY: a split made only to satisfy the two-operative floor costs each extra operative its
+    // startup context plus its turns. A recorded singleUnitReason lowers the floor to one; the
+    // reason contradicts a plan that still demands two or more of both.
+    const singleUnit = c.orchestration && 'singleUnitReason' in c.orchestration;
+    if (singleUnit && (typeof c.orchestration.singleUnitReason !== 'string' || !c.orchestration.singleUnitReason.trim() || words(c.orchestration.singleUnitReason) > 20)) errors.push('orchestration.singleUnitReason must be a nonempty string of at most twenty words');
+    const floor = singleUnit ? 1 : 2;
+    for (const key of ['minOperatives', 'minParallel']) if (!Number.isInteger(c.orchestration?.[key]) || c.orchestration[key] < floor) errors.push(`orchestration.${key} must be an integer of at least ${floor}${singleUnit ? '' : '; record orchestration.singleUnitReason to plan a single unit'}`);
+    if (singleUnit && c.orchestration?.minOperatives >= 2 && c.orchestration?.minParallel >= 2) errors.push('orchestration.singleUnitReason contradicts minOperatives and minParallel of at least 2');
     if (c.orchestration?.minOperatives > c.budget?.maxDispatches) errors.push('orchestration.minOperatives exceeds maxDispatches');
     if (c.orchestration?.minParallel > c.budget?.maxParallel) errors.push('orchestration.minParallel exceeds maxParallel');
   }

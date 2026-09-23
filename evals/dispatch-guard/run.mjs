@@ -6,14 +6,19 @@
 //   - inside a subagent (`agent_id` present) the hook counts tool calls, stays silent under the
 //     budget, warns exactly at the budget and at every further 20 rounds, and names both the
 //     rounds used and the checkpoint-and-return instruction;
-//   - at three times the budget it denies with a reason telling the operative to report now,
-//     and `CODE_OPS_DISPATCH_GUARD=warn` lifts only that hard stop;
+//   - at twice the budget it denies with a reason telling the operative to report now, and
+//     `CODE_OPS_DISPATCH_GUARD=warn` lifts only that hard stop;
 //   - concurrent subagents never share a counter, and `CODE_OPS_ROUND_BUDGET` overrides 40;
-//   - a dispatch (tool_name Agent, and legacy Task) is never denied, and earns one advisory for
-//     a `model` override (naming the agent's declared tier when a definition declares one), one
-//     for a wide-surface or context-inheriting type or a missing type, and one for a prompt with
-//     no Round budget, combined into one short output;
+//   - a dispatch (tool_name Agent, and legacy Task) with a wide-surface, context-inheriting, or
+//     missing type is denied unless the brief carries a "Wide-surface reason:" line, and a
+//     Workflow script with an agent() call but no agentType is denied the same way; a `model`
+//     override (naming the agent's declared tier when a definition declares one) and a prompt
+//     with no Round budget stay advisory clauses in the same output, and warn mode downgrades
+//     every denial to an advisory;
 //   - a dispatch that names a narrow agent, no model, and a Round budget is silent;
+//   - at and past the context ceiling (300,000 by default, CODE_OPS_CONTEXT_CEILING overrides
+//     or disables it), a main-thread dispatch is denied until a handoff Skill call or the
+//     `assessed` CLI verb records the current 150,000-token band, and the next band re-gates;
 //   - the off switch silences every branch, and bad JSON, another event name, empty stdin, and a
 //     missing agent id all fail open with no output and exit 0.
 //
@@ -41,11 +46,14 @@ function fakeHome() {
   return { home, cleanup: () => rmSync(home, { recursive: true, force: true }) };
 }
 
-function runHook(payload, { home, guard, budget, pluginRoot = suite } = {}) {
+function runHook(payload, { home, guard, budget, ceiling, pluginRoot = suite } = {}) {
   const env = { ...process.env };
   delete env.CODE_OPS_DISPATCH_GUARD;
   delete env.CODE_OPS_ROUND_BUDGET;
+  delete env.CODE_OPS_CONTEXT_CEILING;
+  delete env.GROK_PLUGIN_ROOT;
   if (guard !== undefined) env.CODE_OPS_DISPATCH_GUARD = guard;
+  if (ceiling !== undefined) env.CODE_OPS_CONTEXT_CEILING = ceiling;
   if (budget !== undefined) env.CODE_OPS_ROUND_BUDGET = String(budget);
   if (home) { env.HOME = home; env.USERPROFILE = home; }
   env.CLAUDE_PLUGIN_ROOT = pluginRoot;
@@ -81,6 +89,7 @@ function parseOut(r) {
 }
 
 const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?.additionalContext : undefined);
+const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?.permissionDecisionReason : undefined);
 
 // ---------------------------------------------------------------- main thread, ordinary tool call
 
@@ -100,7 +109,7 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
   const { home, cleanup } = fakeHome();
   const budget = 4;
   const outputs = [];
-  for (let i = 1; i <= budget * 3; i++) outputs.push(parseOut(runHook(subagentCall('agent-A'), { home, budget })));
+  for (let i = 1; i <= budget * 2; i++) outputs.push(parseOut(runHook(subagentCall('agent-A'), { home, budget })));
 
   for (let i = 1; i < budget; i++) {
     expect(outputs[i - 1] === null, `round ${i} under the budget must be silent, got ${JSON.stringify(outputs[i - 1])}`);
@@ -113,15 +122,20 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
   expect(outputs[budget - 1]?.hookSpecificOutput?.hookEventName === 'PreToolUse', 'the warning must name hookEventName PreToolUse');
   expect(outputs[budget] === null, `the round after the budget must be silent, got ${JSON.stringify(outputs[budget])}`);
 
-  // At three times the budget: deny, with a reason that tells the operative to report now.
-  const stop = outputs[budget * 3 - 1];
+  // At twice the budget, and not one round earlier: deny, with a reason that tells the
+  // operative to report now.
+  expect(outputs.slice(0, budget * 2 - 1).every((out) => out?.hookSpecificOutput?.permissionDecision !== 'deny'),
+    `no round before twice the budget may deny, got ${JSON.stringify(outputs)}`);
+  const stop = outputs[budget * 2 - 1];
   const hso = stop && stop !== 'unparsable' ? stop.hookSpecificOutput ?? {} : {};
-  expect(hso.permissionDecision === 'deny', `three times the budget must deny, got ${JSON.stringify(stop)}`);
+  expect(hso.permissionDecision === 'deny', `twice the budget must deny, got ${JSON.stringify(stop)}`);
+  expect(/8 tool rounds used, 2 times the 4-round budget/.test(hso.permissionDecisionReason ?? ''),
+    `the stop reason must cite the 2x multiple, got ${hso.permissionDecisionReason}`);
   expect(typeof hso.permissionDecisionReason === 'string' && /report now/i.test(hso.permissionDecisionReason),
     `the deny reason must tell the operative to return its report now, got ${hso.permissionDecisionReason}`);
   expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(JSON.stringify(outputs)), 'no hook output carries an emoji');
   cleanup();
-  console.log('ok   under the budget is silent, the budget round warns, and three times the budget denies');
+  console.log('ok   under the budget is silent, the budget round warns, and twice the budget denies');
 }
 
 // Every further 20 rounds warns again, on the default 40-round budget.
@@ -178,15 +192,35 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
 {
   const { home, cleanup } = fakeHome();
 
-  // All three leaks at once: an override, a wide type, and no Round budget.
-  let out = parseOut(runHook(dispatchCall({ description: 'do a thing', prompt: 'Fix the parser.', subagent_type: 'general-purpose', model: 'haiku' }), { home }));
-  let text = contextOf(out);
-  expect(typeof text === 'string', `a leaky dispatch must print an advisory, got ${JSON.stringify(out)}`);
-  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision'), 'a dispatch advisory must never deny');
-  expect(/model override/i.test(text ?? ''), `the advisory must flag the model override, got ${text}`);
-  expect(/general-purpose/.test(text ?? '') && /code-ops-suite:implementer/.test(text ?? ''), `the advisory must flag the wide type and name the narrow choice, got ${text}`);
-  expect(/Round budget/.test(text ?? '') && /40/.test(text ?? '') && /120/.test(text ?? ''), `the advisory must flag the missing Round budget and name both limits, got ${text}`);
-  expect((text ?? '').length <= 320, `the combined advisory must stay short, got ${(text ?? '').length} characters`);
+  // All three leaks at once: an override, a wide type, and no Round budget. The wide type
+  // denies, and the reason still carries the two advisory clauses.
+  const leaky = { description: 'do a thing', prompt: 'Fix the parser.', subagent_type: 'general-purpose', model: 'haiku' };
+  let out = parseOut(runHook(dispatchCall(leaky), { home }));
+  let text = reasonOf(out);
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && typeof text === 'string', `a wide dispatch with no reason must deny, got ${JSON.stringify(out)}`);
+  expect(/model override/i.test(text ?? ''), `the reason must flag the model override, got ${text}`);
+  expect(/general-purpose/.test(text ?? '') && /code-ops-suite:implementer/.test(text ?? '') && /Wide-surface reason: <why>/.test(text ?? ''),
+    `the reason must flag the wide type, name the narrow choice, and name the escape line, got ${text}`);
+  expect(/Round budget/.test(text ?? '') && /40/.test(text ?? '') && /80/.test(text ?? '') && !/120/.test(text ?? ''),
+    `the reason must flag the missing Round budget and name both limits at 2x, got ${text}`);
+  expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text ?? ''), 'the deny reason carries no emoji');
+
+  // Warn mode keeps the same clauses as one short advisory, never a decision.
+  out = parseOut(runHook(dispatchCall(leaky), { home, guard: 'warn' }));
+  text = contextOf(out);
+  expect(typeof text === 'string' && !Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /general-purpose/.test(text),
+    `warn mode must downgrade the wide deny to an advisory, got ${JSON.stringify(out)}`);
+  expect((text ?? '').length <= 400, `the combined advisory must stay short, got ${(text ?? '').length} characters`);
+
+  // A same-line Wide-surface reason allows the wide type; the other clauses stay advisory.
+  out = parseOut(runHook(dispatchCall({ ...leaky, prompt: 'Fix the parser.\nWide-surface reason: needs the MCP browser tools.' }), { home }));
+  text = contextOf(out) ?? '';
+  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /model override/i.test(text) && !/general-purpose/.test(text),
+    `a stated Wide-surface reason must allow the dispatch and drop the wide clause, got ${JSON.stringify(out)}`);
+  out = parseOut(runHook(dispatchCall({ ...leaky, prompt: 'Fix the parser.\nWide-surface reason:\n' }), { home }));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `an empty Wide-surface reason must still deny, got ${JSON.stringify(out)}`);
+  out = parseOut(runHook(dispatchCall({ ...leaky, prompt: 'Round budget: 5\n  Wide-surface reason: indented' }), { home }));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `the reason must start its own line, got ${JSON.stringify(out)}`);
 
   // A code-ops-suite agent's declared tier is named from its own definition.
   out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 20 rounds', subagent_type: 'code-ops-suite:explorer', model: 'opus' }), { home }));
@@ -200,20 +234,39 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
   text = contextOf(out) ?? '';
   expect(/model override/i.test(text) && !/\(/.test(text), `a missing definition drops the tier, got ${text}`);
 
-  // A missing subagent_type reads as the default surface.
+  // A missing subagent_type reads as the default surface, and denies.
   out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 10 rounds' }), { home }));
-  text = contextOf(out) ?? '';
-  expect(/large default or inherited context/.test(text), `an absent subagent_type must be flagged, got ${text}`);
+  text = reasonOf(out) ?? '';
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && /An unnamed type starts from a large default or inherited context/.test(text),
+    `an absent subagent_type must deny, got ${JSON.stringify(out)}`);
 
   // Legacy tool name.
   out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 10 rounds', subagent_type: 'fork' }, { tool_name: 'Task' }), { home }));
-  expect(/inherited context/.test(contextOf(out) ?? ''), `the legacy Task tool name must be advised too, got ${JSON.stringify(out)}`);
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && /inherited context/.test(reasonOf(out) ?? ''),
+    `the legacy Task tool name must be denied too, got ${JSON.stringify(out)}`);
+
+  // Workflow: an agent() call with no agentType denies; agentType or a stated reason allows.
+  const workflow = (script, guard) => parseOut(runHook(dispatchCall({ script }, { tool_name: 'Workflow' }), { home, guard }));
+  out = workflow("const r = await agent({ prompt: 'scan the repo' });");
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && /no agentType/.test(reasonOf(out) ?? ''),
+    `a Workflow agent() call without agentType must deny, got ${JSON.stringify(out)}`);
+  out = workflow("const r = await agent({ prompt: 'scan the repo' });", 'warn');
+  expect(/no agentType/.test(contextOf(out) ?? '') && !Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision'),
+    `warn mode must downgrade the Workflow deny, got ${JSON.stringify(out)}`);
+  for (const allowed of [
+    "const r = await agent({ agentType: 'code-ops-suite:explorer', prompt: 'scan' });",
+    "// Wide-surface reason: needs browser tools\nconst r = await agent({ prompt: 'scan' });",
+    "const x = 1;",
+  ]) {
+    const r = runHook(dispatchCall({ script: allowed }, { tool_name: 'Workflow' }), { home });
+    expect(r.status === 0 && r.stdout === '', `a Workflow with agentType, a stated reason, or no agent() call must be silent, got ${JSON.stringify(r.stdout)}`);
+  }
 
   // A clean dispatch: narrow agent, no override, a Round budget in the brief.
   const clean = runHook(dispatchCall({ description: 'build it', prompt: 'Scope: one file.\nRound budget: 25 tool rounds', subagent_type: 'code-ops-suite:implementer' }), { home });
   expect(clean.status === 0 && clean.stdout === '', `a clean dispatch must be silent, got ${clean.status}/${JSON.stringify(clean.stdout)}`);
   cleanup();
-  console.log('ok   a leaky dispatch earns one short advisory and a clean dispatch is silent');
+  console.log('ok   a wide dispatch denies unless it states a reason, warn downgrades it, and a clean dispatch is silent');
 }
 
 // ---------------------------------------------------------------- explicit controller bindings
@@ -285,9 +338,9 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
   const legacyId = 'legacy-agent';
   const legacy = join(home, '.claude', 'code-ops', 'dispatch', legacySlug(cwd));
   mkdirSync(legacy, { recursive: true });
-  writeFileSync(join(legacy, `${legacySlug(legacyId)}.rounds`), '.'.repeat(119));
+  writeFileSync(join(legacy, `${legacySlug(legacyId)}.rounds`), '.'.repeat(79));
   const migrated = parseOut(runHook(subagentCall(legacyId, { cwd }), { home, budget: 40 }));
-  expect(migrated?.hookSpecificOutput?.permissionDecision === 'deny', `a legacy count of 119 must deny on its next call after hashed-state rollout, got ${JSON.stringify(migrated)}`);
+  expect(migrated?.hookSpecificOutput?.permissionDecision === 'deny', `a legacy count of 79 must deny on its next call after hashed-state rollout, got ${JSON.stringify(migrated)}`);
   const invalid = runControl(['register', '--agent-id', 'invalid-agent', '--budget', '0'], { home, budget: 3, cwd });
   expect(invalid.status === 2 && invalid.stderr.trim() === 'dispatch-guard INVALID_ARGUMENT',
     `an invalid registration must return a concise nonsecret failure, got ${invalid.status}/${JSON.stringify(invalid.stderr)}`);
@@ -304,7 +357,7 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
   const { home, cleanup } = fakeHome();
   const cwd = root;
   for (const id of ['bound-A', 'bound-B']) runControl(['register', '--agent-id', id, '--budget', '99', '--allowance', '4'], { home, budget: 3, cwd });
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 5; i++) {
     for (const id of ['bound-A', 'bound-B']) {
       const out = parseOut(runHook(subagentCall(id, { cwd }), { home, budget: 3 }));
       expect(out?.hookSpecificOutput?.permissionDecision !== 'deny', `concurrent bound counters must not share a cap for ${id}, got ${JSON.stringify(out)}`);
@@ -340,6 +393,135 @@ const contextOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput
     `a receipt must report unavailable counter state as UNKNOWN, got ${JSON.stringify(receipt)}`);
   cleanup();
   console.log('ok   a registered counter I/O failure denies and its receipt stays unknown');
+}
+
+// ---------------------------------------------------------------- the context ceiling gate
+
+// A one-line Claude transcript whose last assistant usage record sums to `context` tokens.
+function transcriptAt(dir, context, name = 'transcript.jsonl') {
+  const path = join(dir, name);
+  writeFileSync(path, JSON.stringify({
+    type: 'assistant',
+    message: { id: 'msg_1', model: 'claude-test', usage: {
+      input_tokens: 1000, cache_read_input_tokens: context - 1000, cache_creation_input_tokens: 0, output_tokens: 5,
+    } },
+  }) + '\n');
+  return path;
+}
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'dispatch-ceiling-'));
+  const cwd = root;
+  const session = 'sess-ceil';
+  const clean = { description: 'build it', prompt: 'Scope: one file.\nRound budget: 25 tool rounds', subagent_type: 'code-ops-suite:implementer' };
+  const dispatchAt = (context, opts = {}, sessionId = session) => runHook(dispatchCall(clean, {
+    cwd, session_id: sessionId, transcript_path: transcriptAt(dir, context, `t-${context}.jsonl`),
+  }), { home, ...opts });
+  const skillAt = (context, skill) => runHook({
+    hook_event_name: 'PreToolUse', cwd, session_id: session, tool_name: 'Skill', tool_use_id: 'tu-3',
+    tool_input: { skill, args: 'assess' }, transcript_path: transcriptAt(dir, context, `s-${context}.jsonl`),
+  }, { home });
+
+  // Under the ceiling a clean dispatch stays silent; at and past it, it denies.
+  let r = dispatchAt(290_000);
+  expect(r.status === 0 && r.stdout === '', `a clean dispatch under the ceiling must be silent, got ${JSON.stringify(r.stdout)}`);
+  let out = parseOut(dispatchAt(310_000));
+  let reason = reasonOf(out) ?? '';
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `a dispatch past the ceiling must deny, got ${JSON.stringify(out)}`);
+  expect(/about 10,000 tokens past the 300,000-token context ceiling/.test(reason)
+    && reason.includes('/code-ops-suite:handoff assess (CONTINUE, COMPACT, or HANDOFF) before dispatching new work')
+    && /unlocks dispatch until the next 150,000-token band/.test(reason),
+  `the ceiling reason must name the overage, the assessment, and the band unlock, got ${reason}`);
+  expect(reason.includes(`\`node "${hook}" assessed --session ${session} --band 1\`.`),
+    `the ceiling reason must carry the exact CLI unlock command, got ${reason}`);
+  out = parseOut(dispatchAt(300_000));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `exactly the ceiling must deny, got ${JSON.stringify(out)}`);
+  out = parseOut(dispatchAt(310_000, { guard: 'warn' }));
+  expect(/context ceiling/.test(contextOf(out) ?? '') && !Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision'),
+    `warn mode must downgrade the ceiling deny to an advisory, got ${JSON.stringify(out)}`);
+
+  // A non-handoff skill unlocks nothing; the handoff skill records the band and unlocks it.
+  expect(skillAt(310_000, 'code-ops-suite:repo-docs').stdout === '', 'another skill call must stay silent');
+  expect(parseOut(dispatchAt(310_000))?.hookSpecificOutput?.permissionDecision === 'deny', 'another skill must not unlock dispatch');
+  r = skillAt(310_000, 'code-ops-suite:handoff');
+  expect(r.status === 0 && r.stdout === '', `the handoff skill call itself must be silent, got ${JSON.stringify(r.stdout)}`);
+  const marker = join(home, '.claude', 'code-ops', 'dispatch', stateKey(cwd), `${stateKey(session)}.assessed.json`);
+  let stored = null;
+  try { stored = JSON.parse(readFileSync(marker, 'utf8')); } catch { /* checked below */ }
+  expect(stored?.version === 1 && stored?.band === 1, `the handoff skill must record band 1, got ${JSON.stringify(stored)}`);
+  r = dispatchAt(440_000);
+  expect(r.stdout === '', `an assessed band must unlock dispatch until the next band, got ${JSON.stringify(r.stdout)}`);
+
+  // The next 150,000-token band re-gates, with the new band in the unlock command.
+  out = parseOut(dispatchAt(460_000));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && (reasonOf(out) ?? '').includes(`--session ${session} --band 2`),
+    `the next band must re-gate and name band 2, got ${JSON.stringify(out)}`);
+
+  // The CLI verb unlocks from the project root, only ever raises the marker, and validates input.
+  r = runControl(['assessed', '--session', session, '--band', '2'], { home, cwd });
+  expect(r.status === 0 && r.stdout === '', `the assessed verb must be silent on success, got ${r.status}/${r.stdout}/${r.stderr}`);
+  expect(dispatchAt(460_000).stdout === '', 'the CLI assessment must unlock band 2');
+  runControl(['assessed', '--session', session, '--band', '1'], { home, cwd });
+  expect(dispatchAt(460_000).stdout === '', 'a lower CLI band must never lower the recorded assessment');
+  expect(skillAt(310_000, 'code-ops-suite:handoff').stdout === '' && dispatchAt(460_000).stdout === '',
+    'a lower handoff-skill band must never lower the recorded assessment');
+  for (const args of [
+    ['assessed', '--session', session],
+    ['assessed', '--session', session, '--band', '0'],
+    ['assessed', '--session', session, '--band', 'two'],
+    ['assessed', '--session', 'bad session', '--band', '1'],
+    ['assessed', '--band', '1'],
+  ]) {
+    const bad = runControl(args, { home, cwd });
+    expect(bad.status === 2 && bad.stderr.trim() === 'dispatch-guard INVALID_ARGUMENT',
+      `invalid assessed arguments must fail concisely, got ${bad.status}/${JSON.stringify(bad.stderr)} for ${args.join(' ')}`);
+  }
+
+  // A second session in the same project is gated on its own.
+  out = parseOut(dispatchAt(460_000, {}, 'sess-other'));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `another session must not inherit an assessment, got ${JSON.stringify(out)}`);
+
+  // CODE_OPS_CONTEXT_CEILING: off values disable, an integer of at least 150,000 overrides, and
+  // anything else reads as the 300,000 default.
+  for (const value of ['off', '0', 'false', 'OFF']) {
+    expect(dispatchAt(900_000, { ceiling: value }, 'sess-env').stdout === '', `CODE_OPS_CONTEXT_CEILING=${value} must disable the gate`);
+  }
+  expect(dispatchAt(460_000, { ceiling: '500000' }, 'sess-env').stdout === '', 'an overridden ceiling must admit context under it');
+  out = parseOut(dispatchAt(510_000, { ceiling: '500000' }, 'sess-env'));
+  expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonOf(out) ?? ''), `an overridden ceiling must gate at its own value, got ${JSON.stringify(out)}`);
+  out = parseOut(dispatchAt(160_000, { ceiling: '150000' }, 'sess-env'));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `the 150,000 minimum override must gate, got ${JSON.stringify(out)}`);
+  for (const value of ['abc', '100000', '2.5', '-400000', '']) {
+    out = parseOut(dispatchAt(310_000, { ceiling: value }, 'sess-env'));
+    expect(/past the 300,000-token context ceiling/.test(reasonOf(out) ?? ''), `CODE_OPS_CONTEXT_CEILING=${value} must fall back to 300,000, got ${JSON.stringify(out)}`);
+    expect(dispatchAt(290_000, { ceiling: value }, 'sess-env').stdout === '', `CODE_OPS_CONTEXT_CEILING=${value} must not gate under 300,000`);
+  }
+
+  // The ceiling and a wide type deny together in one reason; the off switch silences both.
+  out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: 'general-purpose' }, {
+    cwd, session_id: 'sess-both', transcript_path: transcriptAt(dir, 310_000, 'both.jsonl'),
+  }), { home }));
+  reason = reasonOf(out) ?? '';
+  expect(/context ceiling/.test(reason) && /general-purpose/.test(reason), `one deny must carry both reasons, got ${reason}`);
+  expect(dispatchAt(900_000, { guard: 'off' }, 'sess-both').stdout === '', 'CODE_OPS_DISPATCH_GUARD=off must silence the ceiling gate');
+
+  // Fail open: unreadable context, an absent or unsafe session id, and subagent calls.
+  r = runHook(dispatchCall(clean, { cwd, session_id: session, transcript_path: join(dir, 'missing.jsonl') }), { home });
+  expect(r.status === 0 && r.stdout === '', `an unreadable transcript must fail open, got ${JSON.stringify(r.stdout)}`);
+  writeFileSync(join(dir, 'no-usage.jsonl'), JSON.stringify({ type: 'user', message: { content: 'hi' } }) + '\n');
+  r = runHook(dispatchCall(clean, { cwd, session_id: session, transcript_path: join(dir, 'no-usage.jsonl') }), { home });
+  expect(r.status === 0 && r.stdout === '', `a transcript with no usage must fail open, got ${JSON.stringify(r.stdout)}`);
+  for (const sessionId of [undefined, 'bad session id', '']) {
+    r = runHook(dispatchCall(clean, { cwd, session_id: sessionId, transcript_path: transcriptAt(dir, 900_000, 'big.jsonl') }), { home });
+    expect(r.status === 0 && r.stdout === '', `session id ${JSON.stringify(sessionId)} must fail open, got ${JSON.stringify(r.stdout)}`);
+  }
+  r = runHook(subagentCall('agent-ceil', { tool_name: 'Agent', tool_input: clean, transcript_path: transcriptAt(dir, 900_000, 'big.jsonl') }), { home });
+  expect(r.status === 0 && r.stdout === '', `a subagent call must not meet the main-thread ceiling gate, got ${JSON.stringify(r.stdout)}`);
+
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   the context ceiling denies dispatch until a handoff assessment records the band, and each switch behaves');
 }
 
 // ---------------------------------------------------------------- the off switch

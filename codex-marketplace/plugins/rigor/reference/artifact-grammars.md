@@ -390,7 +390,8 @@ infer those states from the model name. A required unavailable capability fails 
 Version 4 retains the version 3 bindings and requires `lead-and-operatives` mode. Its lead
 is frontier tier. It plans at least two operatives, demonstrates a parallel wave of at least
 two units, preserves all role floors, and makes validators depend on a role-independent
-discovery unit. Without `routingPolicy`, ordinary operatives stay below the lead tier for
+discovery unit. An optional `orchestration.singleUnitReason` of at most 20 words lowers
+`minOperatives` and `minParallel` to 1; the reason is invalid while both stay at 2 or more. Without `routingPolicy`, ordinary operatives stay below the lead tier for
 compatibility. `routingPolicy: "task-based"` selects each unit by role and ambiguity, requires
 a routing rationale, and allows one frontier peer only with its explicit bounded exception and
 a linked lead-owned blocking criterion. Finalization refuses missing or empty operative artifacts.

@@ -29,3 +29,5 @@ Rules:
 Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
 Return the question asked, the trace, invariants, or sites with `file:line` evidence, explicit inferences against facts, and the specific spots the next step (a repro, a fix) should target. Keep the report dense and evidence-cited, with no raw dumps. The orchestrator turns your trace into a proven finding.
+
+Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.

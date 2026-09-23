@@ -140,7 +140,9 @@ const AGENT_DENSE_EVIDENCE = 'Reports must stay dense and evidence-cited, with n
 const AGENT_BATCH = 'Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.';
 const AGENT_TIER_BOUNDARY = "Tier at the evidence you have: label a finding CONFIRMED only when an executed repro or trace appears in your own transcript. A finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.";
 
-const agentBody = (name, model, texts) => `---
+// Every fixture agent carries a report cap line (lint check 25); cases 7b and 7c mutate it.
+const AGENT_REPORT_CAP = 'Report cap: at most 400 words; return only the conclusion, evidence anchors, and next action.';
+const agentBody = (name, model, texts, cap = AGENT_REPORT_CAP) => `---
 name: ${name}
 description: "Fixture agent for the lint-plugins regression eval."
 tools: Read, Grep, Glob
@@ -152,7 +154,7 @@ model: ${model}
 Fixture agent; not a real agent. Read-only investigation for the fixture task.
 
 ${texts.join('\n\n')}
-`;
+${cap ? `\n${cap}\n` : ''}`;
 
 // Builds a MINIMAL tree that scripts/lint-plugins.mjs (copied in, unmodified) passes.
 // Two plugins, named/shaped exactly as PRODUCER_SELFCHECK and SHARED_PASSAGES require
@@ -446,6 +448,20 @@ No completion heading here on purpose (case 3 mutation).
   const r7 = runLint(d7);
   check('7. agent passage drift exits 1', r7.status === 1);
   check('7. message mentions the drifted agent passage', r7.all.includes('agent-escalate-dont-guess') && r7.all.includes('plugins/rigor/agents/tracer.md'));
+
+  // 7b/7c. AGENT REPORT CAP — an agent body with no "Report cap" line, or a cap above the
+  // 800-word ceiling, must fail closed and name the file (lint check 25).
+  const tracerTexts = [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY];
+  const d7b = clone('case7b-agent-report-cap-missing');
+  put(d7b, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', tracerTexts, ''));
+  const r7b = runLint(d7b);
+  check('7b. missing agent report cap exits 1', r7b.status === 1);
+  check('7b. message names the uncapped agent', r7b.all.includes('plugins/rigor/agents/tracer.md: agent body has no "Report cap: at most N words" line'));
+  const d7c = clone('case7c-agent-report-cap-oversized');
+  put(d7c, 'plugins/rigor/agents/tracer.md', agentBody('tracer', 'opus', tracerTexts, 'Report cap: at most 5000 words.'));
+  const r7c = runLint(d7c);
+  check('7c. oversized agent report cap exits 1', r7c.status === 1);
+  check('7c. message names the oversized cap', r7c.all.includes('plugins/rigor/agents/tracer.md: report cap of 5000 words is outside 100-800'));
 
   // 8. BOGUS COMPOSITION EDGE — code-ops-docs/40 Engineering/Techniques/skill-composition.md table cell names a
   // plugin:skill edge that does not resolve to a real plugins/<plugin>/skills/<skill>/ dir.

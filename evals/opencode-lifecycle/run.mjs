@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Proves the OpenCode lifecycle plugin: a stable system prefix, tail notes, a
-// fail-closed chooser, and a cost ledger the report can gate.
+// fail-closed chooser, a cost ledger the report can gate, the context-ceiling
+// dispatch gate with its handoff unlock, and the subagent stop at twice the budget.
 //
 //   node evals/opencode-lifecycle/run.mjs
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
@@ -51,6 +52,12 @@ delete process.env.CODE_OPS_LADDER_CARD;
 delete process.env.CODE_OPS_HANDOFF_CARD;
 delete process.env.CODE_OPS_HANDOFF_PICKUP;
 delete process.env.CODE_OPS_DISPATCH_GUARD;
+delete process.env.CODE_OPS_CONTEXT_CEILING;
+delete process.env.CODE_OPS_CONTEXT_THRESHOLD;
+// Round counters and assessment markers live under the home directory; keep
+// them inside the scratch tree.
+process.env.HOME = work;
+process.env.USERPROFILE = work;
 
 const overlay = await import(pathToFileURL(join(work, 'code-ops-lifecycle.js')).href);
 expect(Object.keys(overlay).length === 1, `lifecycle exported ${Object.keys(overlay).join(', ')}`);
@@ -107,6 +114,76 @@ try {
   blocked = String(error?.message ?? '').includes('is not a suite subagent');
 }
 expect(blocked, 'a general dispatch was not blocked');
+
+// Context ceiling: past 300,000 tokens the lead assesses before it dispatches.
+const setContext = (hooksFor, sessionID, input, id) => hooksFor.event({
+  event: { type: 'message.updated', properties: { info: { role: 'assistant', sessionID, id, tokens: { input, output: 0, cache: { read: 0, write: 0 } } } } },
+});
+const dispatch = async (hooksFor, sessionID) => {
+  try {
+    await hooksFor['tool.execute.before']({ tool: 'task', sessionID, callID: 'd' }, { args: { prompt: 'Round budget: 5. do it', subagent_type: 'code-ops-suite-implementer' } });
+    return null;
+  } catch (error) {
+    return String(error?.message ?? error);
+  }
+};
+await setContext(hooks, 'ceil', 320000, 'c1');
+const ceilTurn = { parts: [{ type: 'text', text: 'keep going' }] };
+await hooks['chat.message']({ sessionID: 'ceil', agent: 'build' }, ceilTurn);
+expect(ceilTurn.parts[0].text.includes('New dispatches are gated until that assessment runs.'), 'the handoff note did not name the dispatch gate');
+let gate = await dispatch(hooks, 'ceil');
+expect(gate?.startsWith('Dispatch guard:') && gate.includes('300,000-token context ceiling') && gate.includes('/code-ops-suite-handoff assess'), `past the ceiling a dispatch was not gated: ${gate}`);
+await hooks['tool.execute.before']({ tool: 'skill', sessionID: 'ceil', callID: 's' }, { args: { name: 'code-ops-suite-handoff' } });
+gate = await dispatch(hooks, 'ceil');
+expect(gate === null, `the handoff skill did not unlock dispatch: ${gate}`);
+const marker = join(work, '.claude', 'code-ops', 'dispatch');
+expect(existsSync(marker), 'no assessment marker was written');
+await setContext(hooks, 'ceil', 460000, 'c2');
+gate = await dispatch(hooks, 'ceil');
+expect(gate?.includes('past the 300,000-token context ceiling'), `the next band did not re-gate: ${gate}`);
+// A user-typed handoff command on a later prompt counts as the assessment too.
+await hooks['chat.message']({ sessionID: 'ceil', agent: 'build' }, { parts: [{ type: 'text', text: '/code-ops-suite-handoff assess' }] });
+gate = await dispatch(hooks, 'ceil');
+expect(gate === null, `a typed handoff did not unlock dispatch: ${gate}`);
+// The assessed band survives a host restart.
+const restarted = await overlay.CodeOpsLifecycle({ directory: work, client: { session: { get: async () => ({}) } } });
+await setContext(restarted, 'ceil', 470000, 'c3');
+gate = await dispatch(restarted, 'ceil');
+expect(gate === null, `the assessment did not survive a restart: ${gate}`);
+
+const ceilingCase = async (value, sessionID, input) => {
+  if (value === undefined) delete process.env.CODE_OPS_CONTEXT_CEILING; else process.env.CODE_OPS_CONTEXT_CEILING = value;
+  await setContext(hooks, sessionID, input, `${sessionID}-1`);
+  const result = await dispatch(hooks, sessionID);
+  delete process.env.CODE_OPS_CONTEXT_CEILING;
+  return result;
+};
+expect(await ceilingCase('off', 'env-off', 900000) === null, 'CODE_OPS_CONTEXT_CEILING=off still gated');
+expect(await ceilingCase('0', 'env-zero', 900000) === null, 'CODE_OPS_CONTEXT_CEILING=0 still gated');
+expect(await ceilingCase('400000', 'env-under', 320000) === null, 'an override of 400000 gated at 320,000 tokens');
+expect((await ceilingCase('400000', 'env-over', 410000))?.includes('400,000-token context ceiling'), 'an override of 400000 did not gate at 410,000 tokens');
+expect((await ceilingCase('1000', 'env-small', 320000))?.includes('300,000-token context ceiling'), 'an override below 150000 did not fall back to the default');
+expect((await ceilingCase('lots', 'env-junk', 320000))?.includes('300,000-token context ceiling'), 'a junk override did not fall back to the default');
+
+process.env.CODE_OPS_DISPATCH_GUARD = 'warn';
+await setContext(hooks, 'warned', 320000, 'w1');
+gate = await dispatch(hooks, 'warned');
+const warnOut = { output: 'done' };
+await hooks['tool.execute.after']({ tool: 'task', sessionID: 'warned', callID: 'd' }, warnOut);
+delete process.env.CODE_OPS_DISPATCH_GUARD;
+expect(gate === null && warnOut.output.includes('context ceiling'), `warn mode did not downgrade the gate to a note: ${gate} / ${warnOut.output}`);
+
+// A subagent stops at twice its round budget (CODE_OPS_ROUND_BUDGET=2 above).
+const rounds = [];
+for (let i = 0; i < 4; i += 1) {
+  try {
+    await hooks['tool.execute.before']({ tool: 'read', sessionID: 'child', callID: `r${i}` }, { args: {} });
+    rounds.push(null);
+  } catch (error) {
+    rounds.push(String(error?.message ?? error));
+  }
+}
+expect(rounds.slice(0, 3).every((r) => r === null) && rounds[3]?.includes('4 tool rounds used, twice the 2-round budget'), `the subagent stop was not at twice the budget: ${JSON.stringify(rounds)}`);
 
 const again = {
   role: 'assistant', sessionID: 'costlead', id: 'msg-1', cost: 2, providerID: 'xai', modelID: 'grok-4.7',

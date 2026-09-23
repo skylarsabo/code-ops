@@ -19,3 +19,5 @@ Rules:
 Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
 Return findings grouped by priority: **Blocking** (any anonymity or leak regression), **Should-fix**, and **Nit**, dense and evidence-cited, with no raw dumps, plus a one-line risk read. Do not endorse a change that weakens anonymity. The orchestrator merges your report with others.
+
+Report cap: at most 600 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.

@@ -79,6 +79,9 @@
 //      and OpenCode projections when present, no shipped text names a hub path, a repository-root
 //      command, or a missing repository-root file unless a code-ops repository marker covers
 //      it, and every plugin-root path names a file the plugin ships.
+//  25. Every bundled agent body carries a "Report cap: at most N words" line with N from
+//      REPORT_CAP_WORDS. An operative report re-enters the lead's context and is re-read on
+//      every later turn, so an unbounded report is a recurring cost no other gate sees.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -674,6 +677,23 @@ for (const p of plugins) {
           fail(`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
       }
     }
+  }
+}
+
+// ---- 25. agent report cap ------------------------------------------------------
+// A separate pass from check 12, so an agent that check 12 skips still gets this check.
+const REPORT_CAP_WORDS = { min: 100, max: 800 };
+for (const p of plugins) {
+  const agentsDir = join(p.dir, 'agents');
+  if (!existsSync(agentsDir)) continue;
+  for (const f of readdirSync(agentsDir)) {
+    if (!f.endsWith('.md')) continue;
+    const path = join(agentsDir, f);
+    const body = readText(path).replace(/^---\r?\n[\s\S]*?\r?\n---/, '');
+    const cap = body.match(/^Report cap: at most (\d+) words/m);
+    if (!cap) fail(`${rel(path)}: agent body has no "Report cap: at most N words" line — bound the report the lead re-reads every turn`);
+    else if (+cap[1] < REPORT_CAP_WORDS.min || +cap[1] > REPORT_CAP_WORDS.max)
+      fail(`${rel(path)}: report cap of ${cap[1]} words is outside ${REPORT_CAP_WORDS.min}-${REPORT_CAP_WORDS.max}`);
   }
 }
 

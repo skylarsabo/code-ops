@@ -54,6 +54,10 @@ still lacks. Do not create a new user-owned task without an explicit request.
 pending versus completed host action in the existing run log. It does not create `HANDOFF.md`
 unless the assessment selects HANDOFF.
 
+Invoking `handoff assess` also records the assessment that unlocks the dispatch guard's context
+ceiling. The gate closes at 300,000 tokens by default and re-arms at each further 150,000-token
+band. `CODE_OPS_CONTEXT_CEILING` overrides the ceiling or disables the gate.
+
 ## The explicit directions
 
 - **Write.** An explicit `write` request, or an assessment selecting HANDOFF, captures the state.
@@ -127,7 +131,13 @@ check over the handoff's own pointers, then read what it reports. A `DRIFTED` po
 state, not an instruction, and a `MOVED` one names the line the anchor sits on now. Re-run the
 deterministic baseline when the tree moved.
 
-Then re-plan from what verified. The traps-and-dead-ends section prunes the search space.
+The check prints `same-tree: Verified-at matches HEAD on a clean tree` when the handoff's
+`Verified-at` sha is HEAD and only the handoff file is dirty. On a same-tree resume, accept each
+FRESH anchor without re-reading its file, and keep the handoff's plan instead of re-deriving it.
+Still run register revalidation, because closed register items can drift. Still verify every
+claim the handoff marks unverified.
+
+Otherwise, re-plan from what verified. The traps-and-dead-ends section prunes the search space.
 Recorded decisions carry forward unless current code contradicts them. Surface a contradiction at
 a checkpoint (`§3`) instead of silently re-deciding.
 

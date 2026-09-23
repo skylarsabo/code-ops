@@ -19,7 +19,10 @@
 //     PostToolUse and no systemMessage;
 //   - each band requests a CONTINUE, COMPACT, or HANDOFF assessment; a higher band asks before a
 //     new workstream without claiming an earlier warning
-//     was received.
+//     was received;
+//   - a crossing at or past the context ceiling (CODE_OPS_CONTEXT_CEILING, default 300,000)
+//     ends with one sentence saying new dispatches are gated; off drops only that sentence, an
+//     override moves it, an invalid value falls back to 300,000, and Grok never gets it.
 //
 // It also covers the other half of the handoff loop, the pending-handoff pickup line
 // plugins/code-ops-suite/hooks/routing-card.mjs injects at SessionStart: which sources get it,
@@ -74,11 +77,13 @@ function payloadFor({ transcript, sessionId = 'sess-1', cwd = 'C:/fixture-projec
   return JSON.stringify({ hook_event_name: eventName, session_id: sessionId, transcript_path: transcript, cwd, prompt: 'continue', ...extra });
 }
 
-function runHook(input, { home, switchValue, grok = false } = {}) {
+function runHook(input, { home, switchValue, grok = false, ceiling } = {}) {
   const env = { ...process.env };
   delete env.CODE_OPS_HANDOFF_CARD;
   delete env.GROK_PLUGIN_ROOT;
+  delete env.CODE_OPS_CONTEXT_CEILING;
   if (switchValue !== undefined) env.CODE_OPS_HANDOFF_CARD = switchValue;
+  if (ceiling !== undefined) env.CODE_OPS_CONTEXT_CEILING = ceiling;
   if (home) { env.HOME = home; env.USERPROFILE = home; }
   if (grok) env.GROK_PLUGIN_ROOT = join(root, 'plugins', 'code-ops-suite');
   return spawnSync('node', [hook], { input, encoding: 'utf8', env });
@@ -166,6 +171,60 @@ function parseOut(r) {
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   both bands request a lifecycle assessment; the higher band asks before a new workstream');
+}
+
+// ---------------------------------------------------------------- context ceiling sentence
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-ceiling-'));
+  const gated = /New dispatches are now gated until that assessment runs\./;
+  const messageAt = (context, sessionId, ceiling) => {
+    const env = ceiling === undefined ? {} : { ceiling };
+    return (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(context), `${sessionId}.jsonl`), sessionId }), { home, ...env })) || {}).systemMessage || '';
+  };
+  const below = messageAt(160_000, 'sess-ceil-below');
+  expect(/handoff assess/.test(below) && !gated.test(below), `a crossing under the ceiling must not claim a dispatch gate, got ${below}`);
+  const above = messageAt(310_000, 'sess-ceil-above');
+  expect(gated.test(above) && above.trim().endsWith('assessment runs.'), `a crossing at or past the ceiling must end with the gate sentence, got ${above}`);
+  expect(gated.test(messageAt(300_000, 'sess-ceil-exact')), 'a crossing exactly at the ceiling must name the gate');
+  for (const value of ['off', '0', 'false']) {
+    const off = messageAt(310_000, `sess-ceil-off-${value}`, value);
+    expect(/handoff assess/.test(off) && !gated.test(off), `CODE_OPS_CONTEXT_CEILING=${value} must drop only the gate sentence, got ${off}`);
+  }
+  expect(gated.test(messageAt(160_000, 'sess-ceil-override', '150000')), 'an overridden 150,000 ceiling must name the gate at band 1');
+  expect(!gated.test(messageAt(460_000, 'sess-ceil-high', '500000')), 'context under an overridden ceiling must not name the gate');
+  expect(gated.test(messageAt(310_000, 'sess-ceil-invalid', '100000')), 'an invalid ceiling must fall back to 300,000');
+  const grok = runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(310_000), 'updates.jsonl'), sessionId: 'sess-ceil-grok', eventName: 'PostToolUse' }), { home, grok: true });
+  const grokNote = (parseOut(grok) || {}).hookSpecificOutput?.additionalContext || '';
+  expect(/handoff assess/.test(grokNote) && !gated.test(grokNote), `Grok must not claim a dispatch gate it cannot enforce, got ${grokNote}`);
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   a crossing at or past the context ceiling says new dispatches are gated, except on Grok');
+}
+
+// ---------------------------------------------------------------- typed handoff command unlocks the guard
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-typed-'));
+  const guard = join(root, 'plugins', 'code-ops-suite', 'hooks', 'dispatch-guard.mjs');
+  const transcript = writeTranscript(dir, assistantLine(310_000), 'typed.jsonl');
+  const dispatch = JSON.stringify({ hook_event_name: 'PreToolUse', session_id: 'sess-typed', transcript_path: transcript, cwd: 'C:/fixture-project',
+    tool_name: 'Agent', tool_input: { subagent_type: 'code-ops-suite:explorer', prompt: 'Round budget: 10 rounds' } });
+  const runGuard = () => {
+    const env = { ...process.env, HOME: home, USERPROFILE: home };
+    delete env.CODE_OPS_CONTEXT_CEILING; delete env.CODE_OPS_DISPATCH_GUARD; delete env.GROK_PLUGIN_ROOT;
+    return (parseOut(spawnSync('node', [guard], { input: dispatch, encoding: 'utf8', env })) || {}).hookSpecificOutput?.permissionDecision;
+  };
+  expect(runGuard() === 'deny', 'the guard must deny a dispatch past the ceiling before any assessment');
+  runHook(payloadFor({ transcript, sessionId: 'sess-typed', extra: { prompt: 'plain request' } }), { home });
+  expect(runGuard() === 'deny', 'a prompt that does not name the handoff command must not unlock the guard');
+  runHook(payloadFor({ transcript, sessionId: 'sess-typed', extra: { prompt: '/code-ops-suite:handoff assess' } }), { home });
+  expect(runGuard() !== 'deny', 'a typed handoff command must unlock the guard for the current band');
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   a typed handoff command records the assessment the dispatch guard reads');
 }
 
 // ---------------------------------------------------------------- Codex token-count fixture

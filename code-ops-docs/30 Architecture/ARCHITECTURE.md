@@ -50,7 +50,8 @@ The canonical manifest registers eight commands across six events. Three command
 `PreToolUse`: `enforce-traceless.mjs` blocks publishing commands that carry an attribution
 trace, `digest-rewrite.mjs` wraps an allowlisted command with `digest.mjs` through the
 host's input-rewrite contract, and `dispatch-guard.mjs` holds a subagent to its brief's Round
-budget and advises the lead's own dispatch. `index-refresh.mjs` runs after supported edit tools.
+budget and gates the lead's own dispatch. It denies a wide-surface agent type whose brief names no
+reason, and a new dispatch past the context ceiling until the handoff assessment runs. `index-refresh.mjs` runs after supported edit tools.
 `handoff-card.mjs` runs at `UserPromptSubmit`, once per operator prompt, and nudges toward
 `/code-ops-suite:handoff` once resident context crosses 150,000 tokens and again every further
 150,000-token band. `routing-card.mjs`, `session-receipt.mjs`, and `ladder-card.mjs` run at
@@ -61,13 +62,14 @@ restore instruction when `source=compact` instead.
 
 Host parity is capability-based. Claude and Codex consume routing, ladder, and handoff-card
 context. The installed Grok 1.0.13 command-hook contract consumes the digest `updatedInput` and
-runs the index and receipt side effects, but passive routing, ladder, and handoff-card stdout is
-unavailable; paired `CLAUDE.md` and `AGENTS.md` files carry that doctrine. OpenCode ports
+runs the index and receipt side effects. Passive routing and ladder stdout is unavailable, and the
+handoff note arrives as `PostToolUse` context instead; paired `CLAUDE.md` and `AGENTS.md` files carry that doctrine. OpenCode ports
 traceless publishing, model floors, digest, index, routing, compaction, and the documentation
-MCP, but its current plugin API has no ladder, transcript-receipt, handoff-card, or dispatch-guard
-callback: it carries no transcript or token-usage data to compute the metric from, and no
-pre-tool-call agent identity. Its routing card ships as text baked at build time, so it carries no
-pending-handoff line either. The [infrastructure
+MCP. Its generated lifecycle plugin also carries the ladder, a handoff note, a cost ledger, and a
+dispatch guard with the round stop, the context-ceiling gate, and a suite-only Task allowlist,
+all computed from `message.updated` usage rather than a transcript. Its routing card ships as
+text baked at build time, and the lifecycle plugin adds the pending-handoff line on the first lead
+system transform. The [infrastructure
 reference](../50%20Platform/INFRASTRUCTURE.md) owns this matrix and the switches. The
 [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns exact payload and
 failure behavior. Evidence: `plugins/code-ops-suite/hooks/hooks.json`,

@@ -292,7 +292,7 @@ const HOOK_PURPOSES = new Map([
   ['session-receipt.mjs', 'appends a local session receipt row with token usage, tool calls, and model mix'],
   ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
   ['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band'],
-  ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget and flags a dispatch that overrides a declared tier or starts from a wide default context'],
+  ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier'],
 ]);
 
 function bundledHooks(pluginName) {

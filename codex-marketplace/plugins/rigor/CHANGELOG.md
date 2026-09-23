@@ -1,5 +1,9 @@
 # Changelog — rigor
 
+## 2.18.24
+- `tracer` and `verifier` each carry a 400-word report cap; the verifier's cap binds a report it returns inline. Lint check 25 now requires a `Report cap:` line on every agent, between 100 and 800 words.
+- The artifact-grammars reference documents the optional Run Contract `orchestration.singleUnitReason`, which lowers the two-operative floor to one.
+
 ## 2.18.23
 - Each skill reads only the convention sections its opening paragraph names.
 

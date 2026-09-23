@@ -139,7 +139,7 @@ function transformConventions(contents) {
   const portable = portableText(contents);
   return portable.replace(
     /^\*\*Context economy runs under the session, not under a skill\.\*\*.*$/m,
-    '**OpenCode runtime limits.** This distribution runs traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration. `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, `CODE_OPS_HANDOFF_CARD`, `CODE_OPS_HANDOFF_PICKUP`, `CODE_OPS_DISPATCH_GUARD`, `CODE_OPS_RECEIPTS`, and `CODE_OPS_COST_LEDGER` are process-environment switches. The lifecycle plugin keeps one stable system prefix and carries handoff and dispatch notes on the next tool result or user turn.',
+    '**OpenCode runtime limits.** This distribution runs traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration. `CODE_OPS_DIGEST`, `CODE_OPS_INDEX`, `CODE_OPS_LADDER_CARD`, `CODE_OPS_HANDOFF_CARD`, `CODE_OPS_HANDOFF_PICKUP`, `CODE_OPS_DISPATCH_GUARD`, `CODE_OPS_RECEIPTS`, and `CODE_OPS_COST_LEDGER` are process-environment switches, and `CODE_OPS_CONTEXT_CEILING` moves or disables the dispatch guard’s context ceiling. The lifecycle plugin keeps one stable system prefix and carries handoff and dispatch notes on the next tool result or user turn. Past the ceiling it denies a new Task dispatch until the handoff skill or command runs.',
   ).replace(
     /^Where `code-ops-suite` is installed beside this plugin, its (?:supported )?session mechanisms run under the same session[.:].*$/m,
     '**OpenCode sibling runtime.** Where `code-ops-suite` is installed beside this plugin, its OpenCode adapters provide digest rewrite, symbol-index refresh, routing guidance, compaction preservation, and the lifecycle plugin. `CODE_OPS_DIGEST` and `CODE_OPS_INDEX` are process-environment switches; routing and compaction have no off switch. The lifecycle plugin covers the ladder card, the handoff note, the dispatch guard, and the cost ledger for the whole host. The adapters remain local and make no network request.',
@@ -654,8 +654,9 @@ function compatibilityNotes() {
     '- **The typed subagent-start callback, transcript path, and pre-tool `agent_id` are',
     '  intentionally unavailable here.** `plugins/code-ops-lifecycle.js` covers those outcomes',
     '  on the events OpenCode does expose: a stable system prefix, the ladder on the implementer,',
-    '  handoff and dispatch notes on the next tool result or user turn, a pending-handoff line',
-    '  on the first lead system transform, and a cost ledger at session idle.',
+    '  handoff and dispatch notes on the next tool result or user turn, a Task gate past the',
+    '  context ceiling until the handoff assessment, a pending-handoff line on the first lead',
+    '  system transform, and a cost ledger at session idle.',
     '- **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin',
     '  derives their absolute local commands from its own module URL and adds typed local MCP',
     '  entries without overwriting operator-defined entries.',

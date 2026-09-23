@@ -35,22 +35,16 @@ to break silently.
 ## Model roles
 
 The user-wide contract owns general model behavior. This repository adds only these
-deltas: `scripts/model-tiers.mjs` owns provider bindings and `AGENT_MODEL_FLOORS` owns
-agent floors. A substantive run uses a frontier lead, delegates every independently briefable
-unit, and launches at least two disjoint units in parallel when the graph permits. It then
-selects each operative's role, model tier, and effort from the task. Strong is the normal
-floor for judgment work; mechanical and breadth work may use their lower declared floors. A
-task-based Run Contract records each selection rationale. One frontier peer is allowed only
-for a bounded, explicitly justified architecture, refutation, mathematics, or synthesis
-decision. The lead owns synthesis, reprioritization, final verdicts, and acceptance; it
-records why any genuinely trivial or indivisible step stayed inline. Effort follows
-ambiguity, never low for review and never highest for breadth.
+deltas. `scripts/model-tiers.mjs` owns provider bindings and `AGENT_MODEL_FLOORS` owns
+agent floors. A version-4 Run Contract needs two work operatives in parallel unless
+`orchestration.singleUnitReason` records why one unit suffices. Dispatch a suite agent,
+never a wide-surface type: the dispatch guard denies `general-purpose` and unnamed types
+unless the brief carries a `Wide-surface reason:` line. Above the context ceiling (300,000
+tokens by default) the guard also denies new dispatches until `code-ops-suite:handoff`
+assess runs. Each agent definition carries a `Report cap:` line that lint enforces.
 
-Operative reports remain evidence, not acceptance. The lead reads the relevant diff,
-checks the required gates, and issues verdicts at the highest tier present. Lead reports
-state the outcome and evidence without repeating transcripts. Keep executive summaries to
-roughly one page and put detail in the registers. The routing card, dispatch ledger, and
-narration scan are advisories rather than enforcement gates.
+The routing card, dispatch ledger, and narration scan are advisories. The dispatch guard's
+wide-type deny, context-ceiling gate, and round stop are enforcement.
 
 ## One contract, two filenames
 
@@ -99,16 +93,9 @@ documented environment switches. Use
 contracts, and measured effects live in `INFRASTRUCTURE.md`, `CONTRACTS.md`, and
 `MEASUREMENTS.md` under `code-ops-docs/`.
 
-Host coverage differs, and `INFRASTRUCTURE.md` holds the per-host table. Claude and Codex
-register all eight commands. Grok prints nothing for the routing and ladder cards. The handoff
-nudge reaches the model as a PostToolUse note once a context band is crossed. UserPromptSubmit
-stdout stays discarded. Instruction files carry the routing and ladder guidance. On Grok the
-lead also assesses CONTINUE, COMPACT, or HANDOFF at 150,000 tokens and again before 200,000,
-because Grok 4.7 bills double above that line. The dispatch guard counts a subagent's rounds only where the hook payload carries an
-`agent_id`, so its round counter is inert on a host that omits that field, and its dispatch
-advisories still run. OpenCode carries publishing, routing,
-compaction, digest, index, the implementer ladder, a handoff note, a dispatch guard, and a
-cost ledger in the generated lifecycle plugin.
+Host coverage differs; `INFRASTRUCTURE.md` holds the per-host table. On Grok the lead
+assesses CONTINUE, COMPACT, or HANDOFF at 150,000 tokens and again before 200,000, because
+Grok 4.7 bills double above that line.
 
 ## Before declaring any change done
 
@@ -158,14 +145,8 @@ so do not downgrade them to save tokens.
 
 ## The documentation hub
 
-`code-ops-docs/` is the only authored documentation hub and the Obsidian vault for this
-repository. Follow `code-ops-docs/Standard.md`. The shared layout SSOT is
-`code-ops-docs/40 Engineering/Techniques/vault-standard.md`. The sole topic and source
-registry is `code-ops-docs/98 System/DOCS_MANIFEST.json`. Run
-`node scripts/docs-manifest.mjs check` before trusting it, and use
-`code-ops-suite:repo-docs` for delta-based extraction. Code, schemas, workflows, plugin
-manifests, and skills remain executable evidence, not competing documentation trees.
-Manifest-v2 record collections may preserve immutable evidence at permanent historical
-paths, and their inventory, citations, curation, and semantic index remain hub-governed. Run
-`node scripts/records.mjs check --collection <id>` for each registered collection.
+`code-ops-docs/` is the only authored documentation hub and Obsidian vault; follow
+`code-ops-docs/Standard.md`. `code-ops-docs/98 System/DOCS_MANIFEST.json` is the sole topic
+and source registry: run `node scripts/docs-manifest.mjs check` before trusting it, and
+`node scripts/records.mjs check --collection <id>` for each record collection.
 `code-ops-docs/80 Runs/` is gitignored run scratch (ADR 0001 treatment).

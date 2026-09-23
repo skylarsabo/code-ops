@@ -57,7 +57,9 @@ Each contract declares these top-level concerns:
 - `runtime` binds version 3 work to host-capability evidence, runtime receipts, a stable
   prompt prefix, a prefix byte budget, and one policy per capability.
 - `orchestration` binds version 4 work to a frontier lead, at least two operatives, and a
-  parallel wave of at least two disjoint units.
+  parallel wave of at least two disjoint units. An optional `singleUnitReason` of at most 20
+  words lets `minOperatives` and `minParallel` fall to 1. The validator rejects the reason when
+  both values stay at 2 or more, because the plan then contradicts it.
 
 The version 4 validator requires a frontier lead and routes every operative below that
 tier. Judgment stays at the strong tier. A review or refutation unit names both the unit it
@@ -572,7 +574,7 @@ per-session marker at `<host home>/code-ops/handoff/<project slug>/<session id>.
 band already nudged (`band = floor(context / 150000)`) and `peak`, the highest band the session
 ever reached; the hook nudges again only on a higher band, and re-arms (sets the band to 0, never
 the peak) once context falls back under 150,000, which a compaction typically causes. The session
-receipt reads the peak. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:40-91` and
+receipt reads the peak. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:62-110` and
 `scripts/transcript-lib.mjs:539-555`.
 
 Codex documents an equivalent `UserPromptSubmit` event (OpenAI's `developers.openai.com/codex/hooks`,
@@ -591,9 +593,13 @@ usage. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections
 Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
 receipt, or cost proof. It directs the lead to run `handoff assess` at a safe boundary and choose
 CONTINUE, COMPACT, or HANDOFF; a higher band asks for that assessment before a new workstream.
+At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated
+until that assessment runs; Grok omits that sentence because the guard cannot gate its dispatch
+tool. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
+so this hook records the ceiling assessment for it.
 The marker proves only that the hook wrote a prior message. It does not prove that the host
 displayed it, that a boundary existed, or that any action was chosen. Evidence:
-`plugins/code-ops-suite/hooks/handoff-card.mjs:184-188`.
+`plugins/code-ops-suite/hooks/handoff-card.mjs:112-124`.
 
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant
@@ -618,6 +624,13 @@ bullet needs `Owner:` and `Done when:`, must not open with an imperative verb, a
 lists violations on stderr, and `2` is a usage error. Evidence: `scripts/check-handoff.mjs:13-54`
 and `evals/handoff-check/run.mjs`.
 
+One status line never gates. When the `Verified-at:` sha is HEAD and `git status --porcelain`
+lists nothing but the handoff file itself, the check prints `same-tree: Verified-at matches HEAD
+on a clean tree` on stderr. The resume direction then accepts each FRESH anchor without
+re-reading its file. Register revalidation still runs, because closed register items can drift.
+Any git failure leaves the line unprinted, which only costs the successor the slow path.
+Evidence: `scripts/check-handoff.mjs` and `evals/handoff-check/run.mjs`.
+
 `--consume` writes `HANDOFF.consumed` beside the file, holding one ISO timestamp line, and only
 after every check above passes. The resume direction writes it once verification finishes, so a
 marker means a session read and verified that state. The `SessionStart` routing card treats the
@@ -630,9 +643,11 @@ caller asked for it. Evidence: `scripts/check-handoff.mjs:45-48` and
 
 `hooks/dispatch-guard.mjs` runs at `PreToolUse` with no matcher, so it sees every tool call, and
 carries worker enforcement and dispatch advice under one registration. It reads `agent_id`, `cwd`, `tool_name`, and
-`tool_input.model`, `tool_input.subagent_type`, and `tool_input.prompt` from the payload. It is on
+`tool_input.model`, `tool_input.subagent_type`, `tool_input.prompt`, `tool_input.script`,
+`tool_input.skill`, `session_id`, and `transcript_path` from the payload. It is on
 by default. `CODE_OPS_DISPATCH_GUARD` of `off`, `0`, or `false` disables the whole hook, and `warn`
-keeps every advisory while lifting the hard stop. `CODE_OPS_ROUND_BUDGET` overrides the 40-round
+keeps every advisory while turning each deny into an advisory, except a deny for a malformed or
+unavailable controller binding. `CODE_OPS_ROUND_BUDGET` overrides the 40-round
 default and takes a positive integer only. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and
 `plugins/code-ops-suite/hooks/hooks.json`.
@@ -641,8 +656,8 @@ Inside a subagent, which the host marks by an `agent_id` the main thread never c
 counts that subagent's attempted tool calls, including denied attempts. With no explicit binding,
 at the environment budget and every further 20 calls, it returns one
 `hookSpecificOutput.additionalContext` line telling the operative to checkpoint to its report and
-return. At three times the budget it returns `permissionDecision: deny` with the same instruction.
-It never denies a main-thread tool call. New state keys hash the working directory and exact
+return. At twice the budget it returns `permissionDecision: deny` with the same instruction.
+New state keys hash the working directory and exact
 agent ID. Legacy counters remain readable and are retained during migration. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
@@ -657,10 +672,26 @@ no raw identity, path, prompt, or command. Model requests and token usage remain
 unobserved. This receipt is not a provider usage record. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
-On the main thread the hook acts only on the dispatch tool, `Agent` or the older `Task`, and never
-denies. It adds at most three advisory clauses: a `model` override that replaces the agent's
-declared tier, a wide-surface or context-inheriting `subagent_type`, and a brief whose prompt
-names no Round budget. Absent or malformed host payloads preserve the legacy no-op behavior.
+On the main thread the hook acts only on a dispatch tool: `Agent`, the older `Task`, or
+`Workflow`. Two gates can deny there, and `warn` turns each deny into an advisory. The wide-type
+gate denies a `subagent_type` of `general-purpose`, `claude`, or `fork`, or no type at all,
+unless the prompt carries a line starting `Wide-surface reason:` with the reason on it. It denies a `Workflow` script that calls
+`agent(` with no `agentType` on the same terms. The context-ceiling gate reads the lead's
+resident context from the transcript tail. At or above the ceiling it denies a new dispatch until
+the session records a handoff assessment for the current band. The first band starts at the
+ceiling, and each further 150,000 tokens starts a new band that gates again.
+`CODE_OPS_CONTEXT_CEILING` of `off`, `0`, or `false` disables this gate, and an integer of at
+least 150,000 replaces the 300,000 default. A main-thread `Skill` tool call that loads
+`code-ops-suite:handoff` records the band current at that call, and the handoff card records a typed
+`/code-ops-suite:handoff` prompt. `assessed --session <id> --band <n>`, run from the project root, records it on a host without a skill tool. The marker lives at
+`<sha256 cwd>/<sha256 session id>.assessed.json` in the dispatch store. Unreadable context, a
+missing transcript, or an unsafe session id fails open. The
+marker only rises, so a stale write never re-locks an unlocked band. The hook also adds at
+most two advisory clauses: a `model` override that replaces the agent's declared tier, and a
+brief whose prompt names no Round budget. Every deny and advisory for one dispatch lands in one
+output. It never
+denies any other main-thread tool call. Absent or malformed host payloads preserve the legacy
+no-op behavior.
 Explicit controller bindings have separate validation and conflict handling. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
 
