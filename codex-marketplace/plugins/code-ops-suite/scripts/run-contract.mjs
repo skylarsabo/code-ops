@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Fail-closed compiler for a bounded, auditable multi-agent run contract.
-import { appendFileSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { TIER_ORDER, TIER_RANK, modelRankOf, modelSupportsTier } from './model-tiers.mjs';
+import { fileURLToPath } from 'node:url';
+import { TIER_ORDER, TIER_RANK, modelRankOf, modelSupportsTier, providerOfConfigSlug } from './model-tiers.mjs';
 import { LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-grammar.mjs';
-import { scopesIntersect, verifySnapshotReceipt } from './context-index-lib.mjs';
+import { git, repoRelative, scopesIntersect, verifySnapshotReceipt } from './context-index-lib.mjs';
 import { validateRuntimeConfig, verifyRuntimeConfig } from './runtime-lib.mjs';
 import { ACCEPT_HEADER, actorError, parseAcceptance as readAcceptance } from './acceptance-lib.mjs';
 
@@ -42,16 +43,17 @@ const REPLAN_V2 = [...REPLAN, 'context-drift'];
 const REPLAN_V3 = [...REPLAN_V2, 'runtime-drift'];
 
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
-function usage() { die('usage: run-contract.mjs check --contract <path> [--root <dir>]\n       run-contract.mjs reconcile --contract <path> --ledger <path> [--strict | --in-flight] [--root <dir>]\n       run-contract.mjs record --contract <path> --acceptance <path> --criterion Q-NNN --verdict PASS|FAIL|UNKNOWN|N/A --proof <text> --actor <role@model|tool|user> [--reason <text>]\n       run-contract.mjs finalize --contract <path> --acceptance <path> --dispatch-ledger <path> --result <path> [--root <dir>]', 2); }
-function flags(args, known, booleans = new Set()) {
+function usage() { die('usage: run-contract.mjs init --run <ignored run dir> --lead-model <id> [--lead-tier <tier>] [--lead-effort <effort>] [--host <name>] [--untracked metadata|exclude] [--atlas <dir>] [--stable-prefix <path>]... [--root <dir>] [--force]\n       run-contract.mjs check --contract <path> [--root <dir>]\n       run-contract.mjs reconcile --contract <path> --ledger <path> [--strict | --in-flight] [--root <dir>]\n       run-contract.mjs record --contract <path> --acceptance <path> --criterion Q-NNN --verdict PASS|FAIL|UNKNOWN|N/A --proof <text> --actor <role@model|tool|user> [--reason <text>]\n       run-contract.mjs finalize --contract <path> --acceptance <path> --dispatch-ledger <path> --result <path> [--root <dir>]', 2); }
+function flags(args, known, booleans = new Set(), repeated = new Set()) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
     const key = args[i];
-    if (!known.has(key) || out[key] !== undefined) usage();
+    if (!known.has(key) || (!repeated.has(key) && out[key] !== undefined)) usage();
     if (booleans.has(key)) { out[key] = true; continue; }
     const value = args[++i];
     if (!value || value.startsWith('--')) usage();
-    out[key] = value;
+    if (repeated.has(key)) (out[key] ??= []).push(value);
+    else out[key] = value;
   }
   return out;
 }
@@ -408,9 +410,79 @@ function parseAcceptance(path, contract) {
 function cleanCell(value) { return value.replace(/[|\r\n]/g, ' ').trim(); }
 function atomicWrite(path, contents) { const temp = `${path}.tmp-${process.pid}`; writeFileSync(temp, contents); renameSync(temp, path); }
 
+// WHY (OI-10): a version 4 run needs a snapshot receipt, host capabilities, and a runtime block
+// before check can pass, and leads skipped the contract rather than capture them by hand. init
+// fills every field the tree can answer and leaves the judgment fields empty, so check keeps
+// failing until the lead writes them. It generates input for validate and never relaxes it.
+const INIT_FILES = { contract: 'RUN_CONTRACT.json', snapshot: 'CONTEXT_SNAPSHOT.json', capabilities: 'HOST_CAPABILITIES.json', receipts: 'RUN_RUNTIME_RECEIPTS.jsonl' };
+const LEAD_FIELDS = ['objective', 'nonGoals', 'quality.dimensions', 'quality.criteria', 'units'];
+const CAPABILITY_FLAGS = ['--prompt-caching', '--compaction', '--context-editing', '--host-memory', '--task-budget'];
+function runSibling(script, args, root) {
+  try { execFileSync(process.execPath, [fileURLToPath(new URL(`./${script}`, import.meta.url)), ...args], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000, maxBuffer: 64 * 1024 * 1024 }); }
+  catch (error) { die(`${script} failed: ${String(error.stderr || error.stdout || error.message).trim()}`); }
+}
+function tracked(root, path) { try { return git(root, ['ls-files', '--', path]).length > 0; } catch { return false; } }
+function init(f) {
+  const root = resolve(f['--root'] || process.cwd());
+  const runDir = resolve(f['--run']);
+  let runRel;
+  try { runRel = repoRelative(root, runDir); } catch { die('--run must name a directory inside --root'); }
+  const runId = basename(runDir);
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(runId)) die(`run directory name ${runId} must be kebab-case, because it becomes runId`);
+  const rel = (name) => `${runRel}/${name}`;
+  try { git(root, ['check-ignore', '-q', '--no-index', '--', rel(INIT_FILES.contract)]); }
+  catch { die(`run directory ${runRel} must be ignored by Git, because runtime receipts must stay untracked`); }
+  const contractPath = resolve(runDir, INIT_FILES.contract);
+  const existing = [INIT_FILES.contract, INIT_FILES.snapshot, INIT_FILES.capabilities].filter((name) => existsSync(resolve(runDir, name)));
+  if (existing.length && !f['--force']) die(`refusing to overwrite ${existing.join(', ')} in ${runRel} without --force`);
+  const model = f['--lead-model'];
+  const rank = modelRankOf(model);
+  // Only the registry or the operator places the lead; an unplaced model is never guessed.
+  const tier = f['--lead-tier'] || (rank === undefined ? null : TIER_ORDER[rank]);
+  if (!TIER_ORDER.includes(tier)) die(`lead model ${model} is not placed by the model registry; pass --lead-tier ${TIER_ORDER.join('|')}`);
+  const effort = f['--lead-effort'] || 'high';
+  if (!EFFORTS.has(effort)) die(`--lead-effort must be one of ${[...EFFORTS].join(', ')}`);
+  const untracked = f['--untracked'] || 'metadata';
+  if (!['metadata', 'exclude'].includes(untracked)) die('--untracked must be metadata or exclude; an allowlist run is written by hand');
+  const stablePrefix = f['--stable-prefix'] || ['AGENTS.md', 'AGENTS.md'].filter((path) => tracked(root, path)).slice(0, 1);
+  if (!stablePrefix.length) die('no tracked AGENTS.md or AGENTS.md; name the stable prefix with --stable-prefix');
+  const head = gitHead(root);
+  if (!head) die('cannot resolve current git HEAD');
+  if (existing.includes(INIT_FILES.capabilities)) rmSync(resolve(runDir, INIT_FILES.capabilities));
+  const prepare = ['prepare', '--root', root, '--out', resolve(runDir, INIT_FILES.snapshot), '--cache', resolve(runDir, 'cache'), '--untracked', untracked];
+  if (f['--atlas']) prepare.push('--atlas', f['--atlas']);
+  runSibling('context-snapshot.mjs', prepare, root);
+  // A script cannot observe caching, compaction, context editing, host memory, or task budgets,
+  // so every state is unknown. The lead edits the receipt only with real host evidence.
+  const host = f['--host'] || (process.env.CLAUDECODE === '1' ? 'claude-code' : 'unknown');
+  runSibling('host-capabilities.mjs', ['init', '--root', root, '--out', rel(INIT_FILES.capabilities), '--host', host, '--provider', providerOfConfigSlug(model) || 'unknown', '--model', model, '--source', 'host-probe', ...CAPABILITY_FLAGS.flatMap((flag) => [flag, 'unknown'])], root);
+  const receipt = readJson(resolve(runDir, INIT_FILES.snapshot));
+  const contract = {
+    version: 4, revision: 1, runId, head,
+    objective: '', nonGoals: [],
+    lead: { model, tier, effort },
+    quality: { dimensions: [], criteria: [] },
+    budget: { maxDispatches: 4, maxParallel: 2, maxRetriesPerUnit: 1 },
+    sharedContext: stablePrefix,
+    replanOn: REPLAN_V3,
+    units: [],
+    context: { snapshot: INIT_FILES.snapshot, snapshotId: receipt.snapshotId, bundleDir: 'bundles', untrackedPolicy: untracked, maxBundleBytes: 1000000, maxAtlasExcerptBytes: 100000 },
+    runtime: { capabilities: rel(INIT_FILES.capabilities), receipts: rel(INIT_FILES.receipts), stablePrefix, maxStablePrefixBytes: 100000, policy: { promptCaching: 'prefer', compaction: 'prefer', contextEditing: 'prefer', hostMemory: 'prefer', taskBudget: 'prefer' } },
+    orchestration: { mode: 'lead-and-operatives', minOperatives: 2, minParallel: 2 },
+    routingPolicy: 'task-based',
+  };
+  verifyContext(contract, contractPath, root);
+  atomicWrite(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+  console.log(`ok initialized ${runId} at ${rel(INIT_FILES.contract)}`);
+  console.log(`! lead must fill ${LEAD_FIELDS.join(', ')}; check fails until they are set`);
+}
+
 const command = process.argv[2];
 if (!command) usage();
-if (command === 'check') {
+if (command === 'init') {
+  const f = flags(process.argv.slice(3), new Set(['--run', '--root', '--lead-model', '--lead-tier', '--lead-effort', '--host', '--untracked', '--atlas', '--stable-prefix', '--force']), new Set(['--force']), new Set(['--stable-prefix'])); if (!f['--run'] || !f['--lead-model']) usage();
+  init(f);
+} else if (command === 'check') {
   const f = flags(process.argv.slice(3), new Set(['--contract', '--root'])); if (!f['--contract']) usage();
   const root = resolve(f['--root'] || process.cwd()); const contract = loadContract(resolve(f['--contract']), root); console.log(`ok contract ${contract.runId} revision ${contract.revision}`);
 } else if (command === 'reconcile') {

@@ -348,8 +348,9 @@ lead.
 
 ## (f) RUN_CONTRACT.json and RUN_CONTRACT_RESULT.json
 
-`RUN_CONTRACT.json` is the run's versioned intent and work graph. Generate it after Phase 0,
-then run `scripts/run-contract.mjs check` before fan-out. Version 2 is the bounded-run
+`RUN_CONTRACT.json` is the run's versioned intent and work graph. Generate it after Phase 0
+with `scripts/run-contract.mjs init`, fill the judgment fields it leaves empty, then run
+`scripts/run-contract.mjs check` before fan-out. Version 2 is the bounded-run
 contract. Version 3 adds runtime state for multi-phase or resumable runs. Version 4 adds
 mechanically enforced orchestrator and operative separation. Its top-level
 fields are:

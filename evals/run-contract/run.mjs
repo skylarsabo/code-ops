@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -121,6 +121,30 @@ try {
   r = run(['record', '--contract', path, '--acceptance', acceptance, '--criterion', 'Q-002', '--verdict', 'PASS', '--proof', 'astra review', '--actor', 'reviewer@gpt-6-astra']); check('Astra specialist acceptance records', r.status === 0, r.out);
   r = run(['record', '--contract', path, '--acceptance', acceptance, '--criterion', 'Q-002', '--verdict', 'PASS', '--proof', 'collapsed ladder review', '--actor', 'reviewer@grok-4.6']); check('collapsed ladder uses its highest supported rank', r.status === 0, r.out);
   r = run(['finalize', '--contract', path, '--acceptance', acceptance, '--dispatch-ledger', ledger, '--result', result, '--root', REPO]); check('finalize writes pass result', r.status === 0 && existsSync(result) && JSON.parse(readFileSync(result, 'utf8')).status === 'PASS', r.out);
+
+  // init: the mechanical fields verify on a temp repo, and only the lead's judgment fields fail.
+  const repo = join(root, 'repo'); mkdirSync(repo); const sh = (args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' });
+  sh(['init', '-q']); sh(['config', 'core.autocrlf', 'false']); writeFileSync(join(repo, 'AGENTS.md'), '# Contract\n'); writeFileSync(join(repo, 'a.js'), 'export const a = 1;\n'); writeFileSync(join(repo, '.gitignore'), 'runs/\n');
+  sh(['add', '.']); sh(['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', 'commit', '-qm', 'init']);
+  const runDir = join(repo, 'runs', 'init-eval'); const initPath = join(runDir, 'RUN_CONTRACT.json');
+  const tool = (script, args) => { try { return { status: 0, out: execFileSync(process.execPath, [join(REPO, 'scripts', script), ...args], { cwd: repo, encoding: 'utf8' }) }; } catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; } };
+  const initArgs = ['init', '--root', repo, '--run', runDir, '--lead-model', 'claude-opus-5-5'];
+  r = run(initArgs); check('init writes a contract, snapshot, and host capabilities', r.status === 0 && existsSync(initPath) && existsSync(join(runDir, 'CONTEXT_SNAPSHOT.json')) && existsSync(join(runDir, 'HOST_CAPABILITIES.json')), r.out);
+  const initial = JSON.parse(readFileSync(initPath, 'utf8'));
+  check('init derives runId, head, lead tier, and the canonical replan set', initial.version === 4 && initial.runId === 'init-eval' && initial.head === sh(['rev-parse', 'HEAD']).trim() && initial.lead.tier === 'strong' && initial.replanOn.includes('runtime-drift') && initial.routingPolicy === 'task-based', JSON.stringify(initial));
+  r = tool('context-snapshot.mjs', ['verify', '--root', repo, '--snapshot', join(runDir, 'CONTEXT_SNAPSHOT.json')]); check('init snapshot receipt verifies', r.status === 0, r.out);
+  r = tool('host-capabilities.mjs', ['check', '--root', repo, '--file', 'runs/init-eval/HOST_CAPABILITIES.json']); const capabilities = JSON.parse(readFileSync(join(runDir, 'HOST_CAPABILITIES.json'), 'utf8'));
+  check('init host capabilities verify and claim no capability', r.status === 0 && capabilities.source === 'host-probe' && Object.values(capabilities.capabilities).every((state) => state === 'unknown'), r.out);
+  r = run(['check', '--contract', initPath, '--root', repo]); const initErrors = r.out.split(/\r?\n/).filter((line) => line.startsWith('  - ')).map((line) => line.slice(4));
+  const placeholderErrors = ['objective must be nonempty', 'nonGoals must be a nonempty string array', 'quality dimensions must be unique supported dimensions', 'quality criteria must be nonempty', 'units must be nonempty', 'planned work operatives do not meet orchestration.minOperatives; review and refutation units do not count', 'work-operative plan does not meet orchestration.minParallel; review and refutation units do not count'];
+  check('check on an init contract fails only on the lead placeholders', r.status === 1 && initErrors.length === placeholderErrors.length && placeholderErrors.every((error) => initErrors.includes(error)), r.out);
+  const initUnit = (id, wave, kind, scope, validates = []) => ({ id, phase: wave === 1 ? 'build' : 'review', wave, lens: `${kind}-${id}`, mode: 'read', role: kind === 'review' ? 'reviewer' : 'implementer', kind, model: 'claude-opus-5-5', tier: 'strong', effort: kind === 'review' ? 'high' : 'medium', brief: `${kind} the target`, scope, artifact: `runs/init-eval/${id}.md`, dependsOn: validates, qualityCriteria: ['Q-001'], validates, independentOf: validates, routingRationale: 'role floor and task ambiguity' });
+  const filled = { ...initial, objective: 'Pin the init path.', nonGoals: ['No network.'], quality: { dimensions: ['correctness'], criteria: [{ id: 'Q-001', dimension: 'correctness', description: 'Checks pass.', oracle: 'command', proof: 'node eval', blocking: true, owner: 'tool' }] }, units: [initUnit('D-001', 1, 'judgment', ['a.js']), initUnit('D-002', 1, 'judgment', ['AGENTS.md']), initUnit('D-003', 2, 'review', ['a.js'], ['D-001']), initUnit('D-004', 2, 'review', ['AGENTS.md'], ['D-002'])] };
+  writeFileSync(initPath, `${JSON.stringify(filled, null, 2)}\n`); r = run(['check', '--contract', initPath, '--root', repo]); check('an init contract with its placeholders filled checks', r.status === 0 && /ok contract init-eval revision 1/.test(r.out), r.out);
+  r = run(initArgs); check('init refuses to overwrite an existing contract without --force', r.status === 1 && /refusing to overwrite/.test(r.out) && JSON.parse(readFileSync(initPath, 'utf8')).objective === 'Pin the init path.', r.out);
+  r = run([...initArgs, '--force']); check('init --force regenerates the contract', r.status === 0 && JSON.parse(readFileSync(initPath, 'utf8')).objective === '', r.out);
+  r = run(['init', '--root', repo, '--run', join(runDir, '..', 'placed-eval'), '--lead-model', 'unregistered-model']); check('init refuses an unplaced lead model without --lead-tier', r.status === 1 && /not placed by the model registry/.test(r.out), r.out);
+  r = run(['init', '--root', repo, '--run', join(repo, 'tracked-run'), '--lead-model', 'claude-opus-5-5']); check('init refuses a run directory Git does not ignore', r.status === 1 && /must be ignored by Git/.test(r.out) && !existsSync(join(repo, 'tracked-run')), r.out);
 } finally { rmSync(root, { recursive: true, force: true }); }
 if (failures.length) { console.error(`\n${failures.length} failure(s):\n${failures.join('\n')}`); process.exit(1); }
 console.log('\nrun-contract eval passed');

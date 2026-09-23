@@ -64,7 +64,9 @@ and line counts, so a brief reads one range instead of the whole file.
 For a multi-phase resumable run with `code-ops-suite` installed, locate its scripts directory
 as `<runtime scripts>` and compile a version 4 run contract. Declare the frontier lead,
 lower-tier parallel work operatives, and independent validation for every work unit. Record observed host capabilities,
-the exact context snapshot, verified unit bundles, and bounded runtime policy. Run
+the exact context snapshot, verified unit bundles, and bounded runtime policy. Start the
+contract with `node <runtime scripts>/run-contract.mjs init --root . --run <ignored run folder> --lead-model <session model>`,
+which captures those mechanical fields, then fill the judgment fields it leaves empty. Run
 `node <runtime scripts>/run-contract.mjs check --root . --contract <contract>`, then initialize
 the receipt chain once with `node <runtime scripts>/run-runtime.mjs init --root . --contract <contract>`.
 

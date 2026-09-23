@@ -183,6 +183,8 @@ The third is **code-ops `mech`** (model: `sonnet`, tools `Read, Edit, Write, Bas
 
 A version 4 `RUN_CONTRACT.json` records the session model in its `lead` block. The validator checks that block for shape only. A lead below strong, or a model the registry cannot place at its declared tier, prints a warning. The unit floors still fail closed.
 
+Start the contract with `run-contract.mjs init --run <ignored run dir> --lead-model <id>`. It captures the snapshot, host capabilities, head, lead tier, and runtime block. The lead then fills the objective, non-goals, quality criteria, and units, and `check` fails until they do.
+
 The contract also declares observed host capabilities, runtime policy, receipt path, and a bounded stable prefix. Earlier contract versions remain replayable legacy formats and must not start a new substantive run. A unit may declare positive input, output, and reasoning token caps. Initialize `HOST_CAPABILITIES.json` from observed host facts. Do not infer capabilities from a model name. Invoke `run-runtime.mjs init` before fan-out. Compile a verified unit view with `context-bundle.mjs view`, then build and verify the dispatched payload with `worker-brief.mjs`.
 
 At every phase boundary, reconcile `DISPATCH_LEDGER.md`, record partial acceptance, checkpoint the referenced artifacts, then replan or resume only through the receipt chain. Read `run-runtime.mjs status` instead of replaying prior prose. Increment `revision` when learning, context, or runtime binding changes. Never rewrite the plan merely to match an unplanned dispatch.
