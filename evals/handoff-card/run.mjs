@@ -35,7 +35,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { handoffMarkerPath, handoffPeakBand } from '../../scripts/transcript-lib.mjs';
+import { handoffMarkerPath, handoffPeakBand, residentContext, residentContextReading } from '../../scripts/transcript-lib.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -191,6 +191,40 @@ function parseOut(r) {
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   a compaction boundary newer than the last usage record reads as unknown, and the next usage record re-arms the band');
+}
+
+// ---------------------------------------------------------------- compaction postTokens
+// A boundary that carries compactMetadata.postTokens (real Claude transcripts do) reads as that
+// size, labeled `compaction`, until a newer usage record replaces it. The hook re-arms the band
+// on the first prompt after /compact instead of waiting for a turn.
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-posttokens-'));
+  const sessionId = 'sess-posttokens';
+  const marker = handoffMarkerPath('C:/fixture-project', sessionId, home);
+  const boundary = JSON.stringify({ type: 'system', subtype: 'compact_boundary', content: 'Conversation compacted', compactMetadata: { trigger: 'auto', preTokens: 320_000, postTokens: 14_788 } }) + '\n';
+  const read = (content, name) => residentContextReading({ transcript_path: writeTranscript(dir, content, name) }, { home });
+
+  runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(160_000), 'pre.jsonl'), sessionId }), { home });
+  let content = assistantLine(319_000) + boundary;
+  const atBoundary = read(content, 'boundary.jsonl');
+  expect(atBoundary?.tokens === 14_788 && atBoundary.source === 'compaction', `a boundary with postTokens must read as a compaction size, got ${JSON.stringify(atBoundary)}`);
+  expect(residentContext({ transcript_path: join(dir, 'boundary.jsonl') }, { home }) === 14_788, 'residentContext must return the postTokens size');
+  const r = runHook(payloadFor({ transcript: join(dir, 'boundary.jsonl'), sessionId }), { home });
+  expect(r.status === 0 && r.stdout === '', `a small post-compaction size must stay silent, got ${JSON.stringify(r.stdout)}`);
+  const stored = JSON.parse(readFileSync(marker, 'utf8'));
+  expect(stored.band === 0 && stored.peak === 1, `a postTokens size must re-arm the band, got ${JSON.stringify(stored)}`);
+
+  content += assistantLine(75_919);
+  const after = read(content, 'after.jsonl');
+  expect(after?.tokens === 76_919 && after.source === 'usage', `a newer usage record must replace the compaction size, got ${JSON.stringify(after)}`);
+
+  const bare = JSON.stringify({ type: 'system', subtype: 'compact_boundary', compactMetadata: { trigger: 'manual', preTokens: 320_000, postTokens: 'n/a' } }) + '\n';
+  expect(read(assistantLine(319_000) + bare, 'bad.jsonl') === null, 'a non-numeric postTokens must read as unknown');
+
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   a boundary postTokens reads as a compaction-labeled size until the next usage record');
 }
 
 // ---------------------------------------------------------------- lifecycle assessment reminder
