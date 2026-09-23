@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.14.0
+- `research-sweep` starts its version 4 run contract with `run-contract.mjs init`, which captures the snapshot, host capabilities, and runtime block.
+
 ## 0.13.31
 - The changelog drops a placeholder entry and repeated version headings. Structural lint now rejects both.
 

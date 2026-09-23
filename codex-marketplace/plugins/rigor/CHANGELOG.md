@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.1.0
+- The vendored artifact grammar reference now starts `RUN_CONTRACT.json` with `run-contract.mjs init`.
+
 ## 3.0.0
 - Breaking: the plugin ships 9 skills.
 - `deep-review` takes `bar: verified` (the default) or `bar: standard`, which absorbs the former `code-ops-suite:pr-review`. `scan-overbuild` is now vendored with the plugin.

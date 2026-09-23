@@ -105,7 +105,7 @@
         },
         {
           "file": "scripts/run-contract.mjs",
-          "line": 113,
+          "line": 115,
           "anchor": "if ('requiredViewSections' in (c.context || {}) && (!Array.isArray(c.context.req"
         },
         {
@@ -274,7 +274,7 @@
         },
         {
           "file": "scripts/run-contract.mjs",
-          "line": 113,
+          "line": 115,
           "anchor": "if ('requiredViewSections' in (c.context || {}) && (!Array.isArray(c.context.req"
         },
         {

@@ -68,7 +68,7 @@ The symbol primitives have one owner. `symbol-lib.mjs` holds the definition rule
 `dispatch-ledger.mjs update --status reported` can gate an operative report file before the row turns terminal. With `--report`, a missing, empty, or whitespace-only file is refused. With `--sections`, a named heading that is absent or holds no body outside subheadings is refused, and headings inside code fences do not count. A refusal writes neither the ledger nor its journal. The flag is optional, and evidence quality stays with the lead.
 
 Cost attribution separates input, cache-read, cache-write, and output before it makes numeric model subtotals at `scripts/estimate-run-cost.mjs:242` and `scripts/estimate-run-cost.mjs:361`.
-Contracts validate a unique worker-view allowlist, and views reject selections that omit a required section at `scripts/run-contract.mjs:113` and `scripts/context-bundle.mjs:139`.
+Contracts validate a unique worker-view allowlist, and views reject selections that omit a required section at `scripts/run-contract.mjs:115` and `scripts/context-bundle.mjs:139`.
 Selected views retain canonical binding, scope, completeness, and omission metadata at `scripts/context-bundle.mjs:264`.
 Generated hook text defines a safe-boundary lifecycle assessment instead of an automatic handoff at `scripts/build-codex-marketplace.mjs:294`.
 
