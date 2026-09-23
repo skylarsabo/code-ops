@@ -1,12 +1,12 @@
 # Code-Ops, an engineering plugin marketplace
 
-One repository ships four plugins of adaptive, multi-agent engineering workflows. Claude Code and Grok Build read the canonical packages under `plugins/`. Codex and opencode each read a tracked render of that same source.
+This repository ships four plugins that help a coding agent audit, fix, review, and ship code in steps you can check. Claude Code and Grok Build install the plugins from `plugins/`. Codex and opencode install generated copies of the same plugins.
 
-Installing `code-ops-suite` gives three things with no further configuration:
+Installing `code-ops-suite` gives you three things with no extra setup:
 
-- **Quality discipline.** Skills and their subagents run audit, proof, review, and ship as checkpointed workflows.
-- **Token use, measured honestly.** Supported hosts append local receipts, and the output digest, symbol index, and ladder card are designed to reduce carried context. Their defaults remain subject to the pre-registered control-arm test; fixture byte savings are not presented as provider-token or dollar savings.
-- **Governed documentation.** The docs vault and the per-repo atlas give a repository one documentation hub.
+- **Careful workflows.** Each skill works in stages and pauses so you can check its results before it continues.
+- **Honest cost tracking.** Supported hosts log token use on your machine. Some features try to keep less text in the agent's context. Their savings are still under test, so this README does not claim token or dollar savings.
+- **One place for docs.** The docs vault and a per-repository map keep a project's documentation together.
 
 Add the marketplace once, then install the plugins a project needs:
 
@@ -14,7 +14,17 @@ Add the marketplace once, then install the plugins a project needs:
 /plugin marketplace add skylarsabo/code-ops
 ```
 
-New here? Start with the handbook in [`code-ops-docs/40 Engineering/Handbook/`](code-ops-docs/40 Engineering/Handbook/).
+New here? Read [the getting-started guide](code-ops-docs/40 Engineering/Handbook/01-getting-started.md), then browse the handbook in [`code-ops-docs/40 Engineering/Handbook/`](code-ops-docs/40 Engineering/Handbook/).
+
+## Try first
+
+After you install `code-ops-suite`, try one of these skills:
+
+| Skill | Slash command | Use it to |
+|---|---|---|
+| `code-ops-suite:codebase-audit` | `/code-ops-suite:codebase-audit` | Get a ranked list of problems in a codebase you do not know yet. |
+| `code-ops-suite:ship` | `/code-ops-suite:ship` | Take one change from start to finish as a clean pull request. |
+| `code-ops-suite:handoff` | `/code-ops-suite:handoff` | Decide whether a long run continues, compacts, or hands off to a new session. |
 
 ---
 
@@ -315,6 +325,17 @@ code-ops/
     ├── rigor/                            # 9 skills, tracer + verifier
     └── researcher/                       # 7 skills, gatherer + claim-checker
 ```
+
+### Derived paths
+
+Do not edit these paths by hand. Edit the source, then run the command. `.gitattributes` marks them as generated, so GitHub collapses them in pull request diffs and leaves them out of language stats.
+
+| Path | Command | Source |
+|---|---|---|
+| `codex-marketplace/` | `node scripts/build-codex-marketplace.mjs` | `plugins/` |
+| `.agents/plugins/marketplace.json` | `node scripts/build-codex-marketplace.mjs` | `plugins/` |
+| `opencode-dist/` | `node scripts/build-opencode-dist.mjs` | `plugins/` |
+| `plugins/*/scripts/` | `node scripts/sync-vendored.mjs` | `scripts/` (vendored copies) |
 
 Every plugin directory holds `.claude-plugin/plugin.json`, `CONVENTIONS.md`, `README.md`, `CHANGELOG.md`, `skills/`, `agents/`, and `scripts/`. Three of them also ship an `examples/` workflow, and only `code-ops-suite` ships `hooks/`.
 

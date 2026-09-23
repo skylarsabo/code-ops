@@ -1,2 +1,8 @@
 # Normalize all text to LF in the repo (scripts run cross-platform; keep diffs clean).
 * text=auto eol=lf
+
+# Derived artifacts: collapse them in diffs and exclude them from language stats.
+codex-marketplace/** linguist-generated=true
+opencode-dist/** linguist-generated=true
+.agents/plugins/** linguist-generated=true
+plugins/*/scripts/** linguist-generated=true
