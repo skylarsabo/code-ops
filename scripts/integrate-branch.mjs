@@ -18,8 +18,8 @@
 //      judgment item - this script prints the section and the stamp command and never stamps it;
 //      only a human (or an agent that has actually re-verified the prose) should run that.
 //   5. Gates: the structural chain from CLAUDE.md "Before declaring any change done" always runs,
-//      plus every applicable step from the first job (structural-lint) of
-//      .github/workflows/validate.yml - applicable meaning its `run:` text names a changed path,
+//      plus every applicable step from the required structural-lint job of
+//      .github/workflows/validate.yml and the shard jobs its `needs:` lists - applicable meaning its `run:` text names a changed path,
 //      or it runs an eval under evals/<dir>/ where either a changed file lives under that dir or
 //      a file in that dir references a changed scripts/<name>.mjs basename. --full runs every
 //      runnable step regardless of the changed set. A step guarded by `if:`, one that needs
@@ -308,6 +308,38 @@ export function parseWorkflowJobSteps(yamlText, jobName) {
   return steps;
 }
 
+// Reads one job's `needs:` list, in either the flow form (`needs: [a, b]`), the scalar form
+// (`needs: a`), or the block form (`needs:` followed by `- a` items). Same fixed-indent
+// scanning as parseWorkflowJobSteps.
+export function parseWorkflowJobNeeds(yamlText, jobName) {
+  const lines = yamlText.split('\n').map((l) => l.replace(/\r$/, ''));
+  const start = lines.indexOf(`  ${jobName}:`);
+  if (start === -1) return [];
+  for (let i = start + 1; i < lines.length && !/^ {2}\S/.test(lines[i]); i++) {
+    const m = /^ {4}needs:\s*(.*?)\s*$/.exec(lines[i]);
+    if (!m) continue;
+    if (m[1].startsWith('[')) return m[1].replace(/^\[|\]$/g, '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (m[1]) return [m[1]];
+    const items = [];
+    for (let j = i + 1; j < lines.length && /^ {6}- /.test(lines[j]); j++) items.push(lines[j].replace(/^ {6}- /, '').trim());
+    return items;
+  }
+  return [];
+}
+
+// The steps a gate job covers: the steps of every job it needs (its shards), in `needs:` order,
+// then its own. A needed job that has no steps is an error, so a renamed shard cannot silently
+// drop its steps out of selection.
+export function parseWorkflowGateSteps(yamlText, jobName) {
+  const steps = [];
+  for (const need of parseWorkflowJobNeeds(yamlText, jobName)) {
+    const shardSteps = parseWorkflowJobSteps(yamlText, need);
+    if (!shardSteps.length) throw new Error(`workflow job ${jobName} needs ${need}, which has no named steps`);
+    steps.push(...shardSteps);
+  }
+  return steps.concat(parseWorkflowJobSteps(yamlText, jobName));
+}
+
 // Whether a step's run: text is something this runner can execute: no if:/env: guard, no
 // unresolved `${{ }}` expression, and every non-blank/non-comment line is a plain `node ...`
 // invocation - this runner never shells out, so a bash construct (a for-loop, `command -v`, a
@@ -458,7 +490,7 @@ async function main() {
 
   console.log('\n== step 5 selection (workflow steps) ==');
   const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
-  const steps = parseWorkflowJobSteps(readFileSync(workflowPath, 'utf8'), 'structural-lint');
+  const steps = parseWorkflowGateSteps(readFileSync(workflowPath, 'utf8'), 'structural-lint');
   const { selected, skipped } = selectSteps({ steps, changedPaths: changed, full, evalDirRefersToScript: makeEvalDirRefersToScript() });
   for (const { step, reason } of selected) console.log(`  select  ${step.name}  - ${reason}`);
   for (const { step, reason } of skipped) console.log(`  skip    ${step.name}  - ${reason}`);

@@ -26,13 +26,97 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  structural-lint:
+  # The ubuntu checks run as parallel shards balanced by measured step time; the required
+  # structural-lint job below passes only when every shard succeeded. Every shard repeats the
+  # same pinned setup: SHAs per the suite's own supply-chain-trust skill, so a moved tag cannot
+  # inject code into CI; the trailing comment tracks the version. fetch-depth: 0 (full history)
+  # lets the PR-only plugin-bump check diff against origin/<base_ref>.
+  # Shard 1: the record-collection eval (about 70 s) and the PR-only publishing gates.
+  structural-lint-shard-1:
     runs-on: ubuntu-latest
     steps:
-      # Pinned to commit SHAs (per the suite's own supply-chain-trust skill) so a moved tag
-      # cannot inject code into CI. Bump deliberately; the trailing comment tracks the version.
-      # fetch-depth: 0 (full history) so the PR-only plugin-bump check below can diff against
-      # origin/<base_ref> — a shallow clone would not have the base branch's history available.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: ""
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Documentation manifest freshness
+        run: node scripts/docs-manifest.mjs check
+
+      - name: Documentation extraction regression eval
+        run: node evals/docs-manifest/run.mjs
+
+      - name: Durable record-collection regression eval
+        run: |
+          node evals/record-collections/run.mjs
+          node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
+
+      - name: Plugin version-bump gate (PR only)
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-plugin-bump.mjs --base "origin/${{ github.base_ref }}"
+
+      # The fail-closed backstop behind the enforce-traceless tool hook. The range is exactly
+      # the PR's commits (base tip to PR head, not the synthetic merge commit), and the
+      # title and body travel through env, never interpolated into the script.
+      - name: Traceless publishing (PR commits, title, body)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          pr_text="$RUNNER_TEMP/pr-title-body.md"
+          node -e 'require("node:fs").writeFileSync(process.argv[1], `${process.env.PR_TITLE}\n\n${process.env.PR_BODY}\n`)' "$pr_text"
+          node scripts/scan-ai-tells.mjs --git "$BASE_SHA..$HEAD_SHA" "$pr_text"
+
+  # Shard 2: the slow orchestration and runtime evals (about 70 s).
+  structural-lint-shard-2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: ""
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Attack-chain graph regression eval
+        run: node evals/attack-chain-graph/run.mjs
+
+      - name: Long-horizon runtime regression eval
+        run: node evals/run-runtime/run.mjs
+
+      - name: Local review and judgment orchestration evals
+        run: |
+          node evals/local-review-gate/run.mjs
+          node evals/judgment-orchestration/run.mjs
+
+      - name: Context snapshot and bundle regression evals
+        run: |
+          node evals/context-snapshot/run.mjs
+          node evals/context-bundle/run.mjs
+          node evals/worker-brief/run.mjs
+
+      - name: Ladder card hook eval (opt-in switch + implementer filter)
+        run: node evals/ladder-card/run.mjs
+
+      - name: Dispatch guard hook eval (round budget + dispatch advisories)
+        run: node evals/dispatch-guard/run.mjs
+
+      - name: Atlas-check regression eval
+        run: node evals/atlas-check/run.mjs
+
+  # Shard 3: the structural gates and the remaining evals (about 60 s).
+  structural-lint-shard-3:
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -75,9 +159,6 @@ jobs:
 
       - name: Vault conformance (this repo's own vault)
         run: node scripts/check-vault-standard.mjs code-ops-docs
-
-      - name: Documentation manifest freshness
-        run: node scripts/docs-manifest.mjs check
 
       - name: Vault-standard regression eval
         run: node evals/vault-standard/run.mjs
@@ -172,58 +253,39 @@ jobs:
       - name: Run-contract regression eval
         run: node evals/run-contract/run.mjs
 
-      - name: Attack-chain graph regression eval
-        run: node evals/attack-chain-graph/run.mjs
-
-      - name: Long-horizon runtime regression eval
-        run: node evals/run-runtime/run.mjs
-
-      - name: Local review and judgment orchestration evals
-        run: |
-          node evals/local-review-gate/run.mjs
-          node evals/judgment-orchestration/run.mjs
-
-      - name: Context snapshot and bundle regression evals
-        run: |
-          node evals/context-snapshot/run.mjs
-          node evals/context-bundle/run.mjs
-          node evals/worker-brief/run.mjs
-
-      - name: Documentation extraction regression eval
-        run: node evals/docs-manifest/run.mjs
-
-      - name: Durable record-collection regression eval
-        run: |
-          node evals/record-collections/run.mjs
-          node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
-
       - name: Pre-run cost estimator eval
         run: node evals/estimate-run-cost/run.mjs
 
       - name: Run-artifact narration scanner eval
         run: node evals/scan-narration/run.mjs
+
       - name: Context audit eval (transcript parser + SessionEnd receipt hook)
         run: node evals/context-audit/run.mjs
+
       - name: Script facade eval (co.mjs verb table + cli-lib)
         run: node evals/co-facade/run.mjs
+
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs
+
       - name: Output-digest eval (shape detectors + must-keep contract)
         run: node evals/digest/run.mjs
+
       - name: Digest rewrite hook eval (opt-in switch + simple-command contract)
         run: node evals/digest-hook/run.mjs
+
       - name: Over-build scanner eval (decoy garden + mutation control)
         run: node evals/overbuild-garden/run.mjs
+
       - name: Deferral harvest eval (register shape + stable ids)
         run: node evals/deferral-harvest/run.mjs
-      - name: Ladder card hook eval (opt-in switch + implementer filter)
-        run: node evals/ladder-card/run.mjs
+
       - name: Handoff card hook eval (opt-in switch + context-band threshold)
         run: node evals/handoff-card/run.mjs
-      - name: Dispatch guard hook eval (round budget + dispatch advisories)
-        run: node evals/dispatch-guard/run.mjs
+
       - name: Context query eval (symbol index, call edges, stale banner, refresh hook, providers)
         run: node evals/context-query/run.mjs
+
       - name: Context query MCP eval (stdio server, two tools, JSON-RPC errors)
         run: node evals/context-query-mcp/run.mjs
 
@@ -232,9 +294,6 @@ jobs:
 
       - name: Calibration-graph regression eval
         run: node evals/calibration-graph/run.mjs
-
-      - name: Atlas-check regression eval
-        run: node evals/atlas-check/run.mjs
 
       - name: Atlas freshness (this repo's own Atlas)
         run: node scripts/atlas-check.mjs check --atlas "code-ops-docs/98 System/Atlas" --gate
@@ -261,24 +320,24 @@ jobs:
             echo "claude CLI not on runner; structural-lint is the gate."
           fi
 
-      - name: Plugin version-bump gate (PR only)
-        if: github.event_name == 'pull_request'
-        run: node scripts/check-plugin-bump.mjs --base "origin/${{ github.base_ref }}"
-
-      # The fail-closed backstop behind the enforce-traceless tool hook. The range is exactly
-      # the PR's commits (base tip to PR head, not the synthetic merge commit), and the
-      # title and body travel through env, never interpolated into the script.
-      - name: Traceless publishing (PR commits, title, body)
-        if: github.event_name == 'pull_request'
+  # The one required status context. It fails unless every shard it needs reports success, so a
+  # failed, skipped, or cancelled shard fails it, and it covers every step the unsharded job ran.
+  structural-lint:
+    if: always()
+    needs: [structural-lint-shard-1, structural-lint-shard-2, structural-lint-shard-3]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every shard to succeed
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          pr_text="$RUNNER_TEMP/pr-title-body.md"
-          node -e 'require("node:fs").writeFileSync(process.argv[1], `${process.env.PR_TITLE}\n\n${process.env.PR_BODY}\n`)' "$pr_text"
-          node scripts/scan-ai-tells.mjs --git "$BASE_SHA..$HEAD_SHA" "$pr_text"
+          node -e '
+            const needs = JSON.parse(process.env.NEEDS_JSON);
+            const ids = Object.keys(needs);
+            for (const id of ids) console.log(`${id}: ${needs[id].result}`);
+            const bad = ids.filter((id) => needs[id].result !== "success");
+            if (ids.length === 0 || bad.length) { console.error(`shards not successful: ${bad.join(", ") || "none reported"}`); process.exit(1); }
+          '
 
 
   # The two devices in use are Windows and macOS. Ubuntu and Windows run on every change; macOS
@@ -308,14 +367,124 @@ jobs:
       - run: node evals/deferral-harvest/run.mjs
       - run: node evals/atlas-check/run.mjs
 
-  structural-lint-windows:
+  # The Windows shards mirror the ubuntu checks so a platform-specific regression (path handling,
+  # shell quoting, line endings) is caught before merge instead of surfacing only for a Windows
+  # contributor. They use the same pinned setup as the ubuntu shards and are balanced by measured
+  # Windows step time.
+  # Shard 1: attack-chain, snapshot, and extraction evals (about 105 s).
+  structural-lint-windows-shard-1:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      # Same pinned actions as structural-lint above — see that job's comment for the SHA-pin
-      # rationale. This job mirrors the ubuntu structural-lint checks on Windows so a
-      # platform-specific regression (path handling, shell quoting, line endings) is caught
-      # before merge instead of surfacing only for a Windows contributor.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: ""
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Attack-chain graph regression eval
+        run: node evals/attack-chain-graph/run.mjs
+
+      - name: Context snapshot and bundle regression evals
+        run: |
+          node evals/context-snapshot/run.mjs
+          node evals/context-bundle/run.mjs
+
+      - name: Documentation extraction regression eval
+        run: node evals/docs-manifest/run.mjs
+
+  # Shard 2: runtime and review orchestration evals (about 100 s).
+  structural-lint-windows-shard-2:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: ""
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Long-horizon runtime regression eval
+        run: node evals/run-runtime/run.mjs
+
+      - name: Local review and judgment orchestration evals
+        run: |
+          node evals/local-review-gate/run.mjs
+          node evals/judgment-orchestration/run.mjs
+
+  # Shard 3: atlas, lint-gate, and dispatch-guard evals (about 105 s) plus the path-gated record eval.
+  structural-lint-windows-shard-3:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: ""
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Dispatch guard hook eval (round budget + dispatch advisories)
+        run: node evals/dispatch-guard/run.mjs
+
+      - name: Lint-gate fixture eval
+        run: node evals/lint-plugins/run.mjs
+
+      - name: Doc-citation checker eval
+        run: node evals/doc-citations/run.mjs
+
+      # The record eval dominates this leg (about 754 s of a 960 s job on the measured runs, against
+      # 73 s on Ubuntu). It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
+      # so it runs here only when the range under test touched those inputs, the generated record
+      # authority, or this workflow. The documentation manifest is deliberately not on the list: it
+      # re-syncs on nearly every change, and a manifest-only edit cannot alter record behavior
+      # that the Ubuntu copy of the same eval would miss. Ubuntu still runs it on every change, and
+      # the weekly schedule and manual dispatch run it here unconditionally.
+      - name: Detect record-collection inputs
+        id: records
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -e
+          decide() { echo "changed=$1" >> "$GITHUB_OUTPUT"; echo "record-collection inputs changed: $1"; }
+          case "$EVENT" in
+            pull_request) git fetch -q origin "$BASE_REF"; range="origin/$BASE_REF...HEAD" ;;
+            push) case "$BEFORE" in ''|0000000000000000000000000000000000000000) decide true; exit 0 ;; esac; range="$BEFORE..$HEAD_SHA" ;;
+            schedule) decide true; exit 0 ;;
+            *) decide false; exit 0 ;;
+          esac
+          files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
+          # The workflow counts only when the changed lines are the record eval's own invocation
+          # lines, so adding an unrelated eval step does not pay for the Windows run.
+          invocation=$(git diff -U0 "$range" -- .github/workflows/validate.yml 2>/dev/null | grep -E "^[+-][^+-].*(node evals/record-collections/run\.mjs|'scripts/records\.mjs')" || true)
+          if [ -n "$files" ] || [ -n "$invocation" ]; then decide true; else decide false; fi
+
+      - name: Durable record-collection regression eval
+        if: steps.records.outputs.changed == 'true'
+        run: |
+          node evals/record-collections/run.mjs
+          node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
+
+      - name: Atlas-check regression eval
+        run: node evals/atlas-check/run.mjs
+
+  # Shard 4: the structural gates and the remaining evals (about 105 s).
+  structural-lint-windows-shard-4:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -350,28 +519,37 @@ jobs:
 
       - name: Vault conformance (this repo's own vault)
         run: node scripts/check-vault-standard.mjs code-ops-docs
+
       - name: Context audit eval (transcript parser + SessionEnd receipt hook)
         run: node evals/context-audit/run.mjs
+
       - name: Script facade eval (co.mjs verb table + cli-lib)
         run: node evals/co-facade/run.mjs
+
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs
+
       - name: Output-digest eval (shape detectors + must-keep contract)
         run: node evals/digest/run.mjs
+
       - name: Digest rewrite hook eval (opt-in switch + simple-command contract)
         run: node evals/digest-hook/run.mjs
+
       - name: Over-build scanner eval (decoy garden + mutation control)
         run: node evals/overbuild-garden/run.mjs
+
       - name: Deferral harvest eval (register shape + stable ids)
         run: node evals/deferral-harvest/run.mjs
+
       - name: Ladder card hook eval (opt-in switch + implementer filter)
         run: node evals/ladder-card/run.mjs
+
       - name: Handoff card hook eval (opt-in switch + context-band threshold)
         run: node evals/handoff-card/run.mjs
-      - name: Dispatch guard hook eval (round budget + dispatch advisories)
-        run: node evals/dispatch-guard/run.mjs
+
       - name: Context query eval (symbol index, call edges, stale banner, refresh hook, providers)
         run: node evals/context-query/run.mjs
+
       - name: Context query MCP eval (stdio server, two tools, JSON-RPC errors)
         run: node evals/context-query-mcp/run.mjs
 
@@ -396,14 +574,8 @@ jobs:
       - name: Repo-map regression eval
         run: node evals/repo-map/run.mjs
 
-      - name: Lint-gate fixture eval
-        run: node evals/lint-plugins/run.mjs
-
       - name: Release-tooling eval
         run: node evals/release-tooling/run.mjs
-
-      - name: Doc-citation checker eval
-        run: node evals/doc-citations/run.mjs
 
       - name: Documentation link gate and regression eval
         run: |
@@ -427,65 +599,26 @@ jobs:
       - name: Run-contract regression eval
         run: node evals/run-contract/run.mjs
 
-      - name: Attack-chain graph regression eval
-        run: node evals/attack-chain-graph/run.mjs
-
-      - name: Long-horizon runtime regression eval
-        run: node evals/run-runtime/run.mjs
-
-      - name: Local review and judgment orchestration evals
-        run: |
-          node evals/local-review-gate/run.mjs
-          node evals/judgment-orchestration/run.mjs
-
-      - name: Context snapshot and bundle regression evals
-        run: |
-          node evals/context-snapshot/run.mjs
-          node evals/context-bundle/run.mjs
-
-      - name: Documentation extraction regression eval
-        run: node evals/docs-manifest/run.mjs
-
-      # The record eval dominates this leg (about 754 s of a 960 s job on the measured runs, against
-      # 73 s on Ubuntu). It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
-      # so it runs here only when the range under test touched those inputs, the generated record
-      # authority, or this workflow. The documentation manifest is deliberately not on the list: it
-      # re-syncs on nearly every change, and a manifest-only edit cannot alter record behavior
-      # that the Ubuntu copy of the same eval would miss. Ubuntu still runs it on every change, and
-      # the weekly schedule and manual dispatch run it here unconditionally.
-      - name: Detect record-collection inputs
-        id: records
-        shell: bash
-        env:
-          EVENT: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
-          BEFORE: ${{ github.event.before }}
-          HEAD_SHA: ${{ github.sha }}
-        run: |
-          set -e
-          decide() { echo "changed=$1" >> "$GITHUB_OUTPUT"; echo "record-collection inputs changed: $1"; }
-          case "$EVENT" in
-            pull_request) git fetch -q origin "$BASE_REF"; range="origin/$BASE_REF...HEAD" ;;
-            push) case "$BEFORE" in ''|0000000000000000000000000000000000000000) decide true; exit 0 ;; esac; range="$BEFORE..$HEAD_SHA" ;;
-            schedule) decide true; exit 0 ;;
-            *) decide false; exit 0 ;;
-          esac
-          files=$(git diff --name-only "$range" -- scripts/records.mjs scripts/record-lib.mjs scripts/docs-manifest.mjs evals/record-collections "code-ops-docs/98 System/Records" 2>/dev/null) || { decide true; exit 0; }
-          # The workflow counts only when the changed lines are the record eval's own invocation
-          # lines, so adding an unrelated eval step does not pay for the Windows run.
-          invocation=$(git diff -U0 "$range" -- .github/workflows/validate.yml 2>/dev/null | grep -E "^[+-][^+-].*(node evals/record-collections/run\.mjs|'scripts/records\.mjs')" || true)
-          if [ -n "$files" ] || [ -n "$invocation" ]; then decide true; else decide false; fi
-      - name: Durable record-collection regression eval
-        if: steps.records.outputs.changed == 'true'
-        run: |
-          node evals/record-collections/run.mjs
-          node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
-
-      - name: Atlas-check regression eval
-        run: node evals/atlas-check/run.mjs
-
       - name: Atlas freshness (this repo's own Atlas)
         run: node scripts/atlas-check.mjs check --atlas "code-ops-docs/98 System/Atlas" --gate
 
       - name: Performance measurement regression eval
         run: node evals/benchmark-command/run.mjs
+
+  # One Windows status that fails unless every Windows shard reports success.
+  structural-lint-windows:
+    if: always()
+    needs: [structural-lint-windows-shard-1, structural-lint-windows-shard-2, structural-lint-windows-shard-3, structural-lint-windows-shard-4]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every shard to succeed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const needs = JSON.parse(process.env.NEEDS_JSON);
+            const ids = Object.keys(needs);
+            for (const id of ids) console.log(`${id}: ${needs[id].result}`);
+            const bad = ids.filter((id) => needs[id].result !== "success");
+            if (ids.length === 0 || bad.length) { console.error(`shards not successful: ${bad.join(", ") || "none reported"}`); process.exit(1); }
+          '
