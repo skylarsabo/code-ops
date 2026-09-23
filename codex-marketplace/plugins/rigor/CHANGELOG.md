@@ -1,5 +1,9 @@
 # Changelog — rigor
 
+## 3.1.1
+- Skill descriptions are 160 characters or fewer, under the new lint cap.
+- The vendored `cli-lib.mjs` owns the shared spawn and hash helpers; `run-proof` and `check-proof-integrity` use them.
+
 ## 3.1.0
 - The vendored artifact grammar reference now starts `RUN_CONTRACT.json` with `run-contract.mjs init`.
 

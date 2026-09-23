@@ -1,5 +1,5 @@
 ---
-description: "Use for a pre-merge review of a PR or diff. bar verified (default) blocks only on CONFIRMED defects; bar standard reviews every quality lens with unproven items advisory."
+description: "Use for pre-merge review of a PR or diff. bar verified (default) blocks only on CONFIRMED defects; bar standard reviews every lens; unproven items are advisory."
 ---
 
 Use the `rigor-deep-review` skill for this task, following it end to end.

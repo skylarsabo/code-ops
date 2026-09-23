@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.3.0
+- The dispatch guard denies a suite-agent dispatch whose brief lacks a field from that agent's `Brief requires:` line. It resolves agents across all four plugins, and `CODE_OPS_DISPATCH_GUARD=warn` turns the denial into a warning.
+- A new advisory `SubagentStop` hook, `subagent-report.mjs`, notes a report whose first line lacks a declared verdict token or that exceeds its Report cap. `CODE_OPS_SUBAGENT_REPORT=off` disables it.
+- Session receipts record a `skills` count per skill id, and `context-audit receipts` totals them.
+- Skill descriptions are 160 characters or fewer; lint enforces the cap.
+- The vendored `cli-lib.mjs` owns the shared Windows shim spawn helper and `sha256`; `run-proof`, `digest`, and `sync-global` use it.
+
 ## 2.2.0
 - `run-contract.mjs init --run <ignored run dir> --lead-model <id>` starts a version 4 run contract. It prepares the context snapshot, writes host capabilities with every state `unknown`, and derives `head`, `runId`, the lead tier, and the runtime block. It leaves the objective, non-goals, quality, and units empty, so `check` fails until the lead fills them. It refuses to overwrite without `--force`. `co run contract init` reaches it.
 - `CONVENTIONS.md`, `everything`, and the vendored run-contract references now name the init path.

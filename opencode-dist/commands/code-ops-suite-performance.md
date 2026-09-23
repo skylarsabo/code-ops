@@ -1,5 +1,5 @@
 ---
-description: "Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see /rigor-improve-measured."
+description: "Use when something is measurably slow or hot paths need optimization with proof. Profiles first. For broad measured wins, use /rigor-improve-measured."
 ---
 
 Use the `code-ops-suite-performance` skill for this task, following it end to end.

@@ -1,5 +1,5 @@
 ---
-description: "Use when you want grounded, external-best-practice improvements proposed for our existing code, not a generic checklist. Writes no code, and proposes and hands off instead."
+description: "Use for improvements to our existing code grounded in external best practice, not a generic checklist. Writes no code, and proposes and hands off instead."
 ---
 
 Use the `researcher-research-improve` skill for this task, following it end to end.

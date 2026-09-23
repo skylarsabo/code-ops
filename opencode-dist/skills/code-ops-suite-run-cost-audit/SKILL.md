@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-run-cost-audit
-description: "Use when you want to audit a completed orchestrated run's cost discipline, covering dispatch counts, artifact sizes, and tier and effort mix, against the suite's own bounded-wave and routing doctrine. It consumes a finished run's artifact folder, not a live one."
+description: "Use to audit a finished run's cost discipline: dispatch counts, artifact sizes, and tier and effort mix. Requires its artifact folder, not a live run."
 ---
 
 # Run cost audit: cost discipline over a completed run

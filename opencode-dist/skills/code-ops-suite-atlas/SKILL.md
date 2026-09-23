@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-atlas
-description: "Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See its bundled atlas reference."
+description: "Use to create a repo's atlas, its durable cache of codebase judgment, refresh it after code moves, or consolidate inbox notes. atlas-check sets freshness."
 ---
 
 # Atlas: the repo's durable cache of judgment

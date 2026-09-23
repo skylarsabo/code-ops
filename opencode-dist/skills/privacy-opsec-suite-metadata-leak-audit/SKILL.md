@@ -1,6 +1,6 @@
 ---
 name: privacy-opsec-suite-metadata-leak-audit
-description: "Use when you need to find personal data or identifiers leaking in logs, telemetry, errors, response headers, or embedded file metadata. Owns at-rest and in-band metadata, not timing or size side channels, which traffic-analysis-resistance owns."
+description: "Use to find PII or identifiers leaking in logs, telemetry, errors, headers, or file metadata. Timing and size side channels go to traffic-analysis-resistance."
 ---
 
 # Metadata leak audit: minimize what leaks

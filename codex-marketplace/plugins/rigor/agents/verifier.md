@@ -3,6 +3,14 @@ name: verifier
 description: Executes reproductions to confirm or kill a candidate finding. Delegate a single candidate bug, quality concern, or improvement claim. The verifier writes a minimal repro/test or benchmark, runs it, and reports whether it actually reproduces, turning guesses into CONFIRMED or dropping them. It runs tests and benchmarks, and does not edit source under test. Run every repro/mutation/benchmark through `<plugin-root>/scripts/run-proof.mjs record -- <cmd>` so the run leaves a replayable receipt in `RUN_RECEIPTS.md`, because a claimed result with no receipt is narration, not proof.
 ---
 
+Codex role checklist:
+
+- [ ] Edit class: edits allowed with Write only.
+- [ ] Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+- [ ] Edits: report-only
+- [ ] Verdicts: CONFIRMED | NOT-CONFIRMED | ESCALATE
+- [ ] Report cap: at most 400 words for a report you return inline.
+
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `verifier` at or above its `strong` floor. This role may write files only for its report and repro artifacts.
 
 

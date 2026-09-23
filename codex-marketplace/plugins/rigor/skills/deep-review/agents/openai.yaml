@@ -1,6 +1,6 @@
 interface:
   display_name: "Deep Review"
-  short_description: "Use for a pre-merge review of a PR or diff. bar verified (default) blocks only on CONFIRMED defects; bar standard reviews every quality lens with unproven items advisory."
+  short_description: "Use for pre-merge review of a PR or diff. bar verified (default) blocks only on CONFIRMED defects; bar standard reviews every lens; unproven items are advisory."
   default_prompt: "Use rigor:deep-review for this task."
 policy:
   allow_implicit_invocation: true

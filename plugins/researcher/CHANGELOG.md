@@ -1,5 +1,9 @@
 # Changelog — researcher
 
+## 0.14.1
+- Skill descriptions are 160 characters or fewer, under the new lint cap.
+- The vendored `cli-lib.mjs` carries the shared spawn and hash helpers.
+
 ## 0.14.0
 - `research-sweep` starts its version 4 run contract with `run-contract.mjs init`, which captures the snapshot, host capabilities, and runtime block.
 

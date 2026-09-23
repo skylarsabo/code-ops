@@ -10,11 +10,11 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 
 ## Skills
 
-- `adr` — Use when you need to capture the reasons behind a codebase's architecture as decision records, either backfilling load-bearing past decisions or authoring an ADR for a current one.
+- `adr` — Use to capture the reasons behind a codebase's architecture as decision records, by backfilling load-bearing past decisions or writing an ADR for a current one.
 - `api-docs` — Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory.
 - `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.
-- `atlas` — Use when a repo's atlas needs to be created, refreshed after the code moved, or consolidated from inbox observations. The atlas is the repo's durable cache of judgment about the codebase. Freshness is decided mechanically by atlas-check.mjs. See its bundled atlas reference.
-- `calibration-run` — Use when you want a standardized real-scale calibration run of the suite against a target repo, in an isolated assess-only session, ending in a sanitized trend-table entry. It never quotes the target's internals back into this repo. See its bundled calibration protocol reference.
+- `atlas` — Use to create a repo's atlas, its durable cache of codebase judgment, refresh it after code moves, or consolidate inbox notes. atlas-check sets freshness.
+- `calibration-run` — Use for a standard, isolated assess-only calibration run against a real-scale target repo. Ends in a sanitized trend entry and never quotes target internals.
 - `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes.
 - `conform` — Use to assess and repair a repo's standards contract, vault, atlas, and doc drift, or with scope global to align the user-wide Claude or Codex contract.
 - `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory.
@@ -22,23 +22,23 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.
 - `dependency-upgrade` — Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps.
 - `doc-alignment` — Use when docs have drifted from code and you want them reconciled into a clean single source of truth.
-- `everything` — Use when you want a whole-suite, checkpointed pass over one or more installed plugins, from one plugin pipeline up to the exhaustive cross-plugin superset. Select them with plugins: suite, rigor, or privacy (default: every installed one). Phases of an absent plugin are skipped and named. Tracks: assess-only, full, feature.
+- `everything` — Use for a checkpointed pass over installed plugins, from one plugin pipeline to the cross-plugin superset. Pick plugins and a track: assess-only, full, feature.
 - `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code.
 - `feature-implementation` — Use when feature specs already exist and you want them built incrementally. It requires specs as input.
 - `handoff` — Use when a long run needs a continue, compact, or transfer decision. A transfer captures verifiable state as HANDOFF.md; resume re-verifies every claim.
 - `local-review-gate` — Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication.
-- `normalize` — Use when a codebase has inconsistent style or the artifacts of hasty or generated code, and you want one professional, behavior-preserving standard. Use the concept mode (normalize concept NAME) when one concept is implemented divergently and you want it closed for good in one canonical form with mechanical enforcement.
+- `normalize` — Use when code has inconsistent style or hasty-code artifacts and needs a behavior-preserving standard. Concept mode unifies a divergent concept and enforces it.
 - `onboarding` — Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor.
 - `ops-docs` — Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it.
-- `performance` — Use when something is measurably slow or you want hot paths optimized with proof. It profiles first. For broad behavior-preserving measured wins, see rigor:improve-measured.
+- `performance` — Use when something is measurably slow or hot paths need optimization with proof. Profiles first. For broad measured wins, use rigor:improve-measured.
 - `pr-split` — Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless.
-- `provider-parity-audit` — Use when the marketplace must be audited across Claude, Codex, installed Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, generated projections, and documentation.
-- `remediation` — Use when a FINDINGS_REGISTER.md already exists and you want its NEEDS-REVIEW and NEEDS-DESIGN items implemented safely with tests. It requires a register as input.
+- `provider-parity-audit` — Use to audit the suite on Claude, Codex, Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, and docs.
+- `remediation` — Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register as input.
 - `repo-docs` — Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub.
-- `run-cost-audit` — Use when you want to audit a completed orchestrated run's cost discipline, covering dispatch counts, artifact sizes, and tier and effort mix, against the suite's own bounded-wave and routing doctrine. It consumes a finished run's artifact folder, not a live one.
-- `security-privacy-audit` — Use when you need an adversarial security and privacy threat assessment of attack surface and deanonymization paths, deeper than the audit's security lens. For anonymity-specific egress, metadata, and fingerprint work, use the privacy-opsec-suite.
+- `run-cost-audit` — Use to audit a finished run's cost discipline: dispatch counts, artifact sizes, and tier and effort mix. Requires its artifact folder, not a live run.
+- `security-privacy-audit` — Use for an adversarial security and privacy threat model deeper than the audit's lens. Anonymity egress, metadata, and fingerprints go to privacy-opsec-suite.
 - `ship` — Use when you want to implement one change, a feature or a one-off, end to end at high quality, shipped as a clean traceless PR.
-- `test-hardening` — Use when critical paths lack meaningful coverage or tests are flaky. It builds characterization and regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit.
+- `test-hardening` — Use when critical paths lack coverage or tests are flaky. Builds characterization and regression tests. To audit fault detection, use rigor:test-suite-audit.
 - `vault` — Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance.
 
 ## Packaging notes
@@ -47,7 +47,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - Claude-specific GitHub Action examples are intentionally not bundled here.
 - Root-level `agents/*.md` files are collaboration-subagent briefing templates. Their machine-readable minimum tiers are in `agents/model-floors.json`; the lead selects a supported runtime model before dispatch.
 - The package bundles optional, plugin-scoped MCP servers: `code-ops-docs`, `code-ops-query`.
-- The package bundles 9 hook commands. Codex requires the user to review and trust plugin hooks before they run.
+- The package bundles 10 hook commands. Codex requires the user to review and trust plugin hooks before they run.
   - `PreToolUse` `enforce-traceless.mjs`: blocks a commit or pull-request command whose published text carries attribution traces.
   - `PreToolUse` `digest-rewrite.mjs`: routes a simple shell command through the output digest so long output arrives compressed.
   - `PreToolUse` `dispatch-guard.mjs`: holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier.
@@ -57,5 +57,6 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
   - `SessionStart` `routing-card.mjs`: prints the routing card at session start, a restore instruction after compaction, and the newest pending handoff on a fresh session.
   - `SessionEnd` `session-receipt.mjs`: appends a local session receipt row with token usage, tool calls, and model mix.
   - `SubagentStart` `ladder-card.mjs`: hands an implementer subagent the code-economy ladder card.
+  - `SubagentStop` `subagent-report.mjs`: notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap.
 
 For source history and release notes, see the generated `CHANGELOG.md` and the repository root.

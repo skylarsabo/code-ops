@@ -1,6 +1,6 @@
 ---
 name: test-hardening
-description: "Use when critical paths lack meaningful coverage or tests are flaky. It builds characterization and regression tests. To audit whether existing tests actually catch faults, use rigor:test-suite-audit."
+description: "Use when critical paths lack coverage or tests are flaky. Builds characterization and regression tests. To audit fault detection, use rigor:test-suite-audit."
 ---
 
 # Test hardening: build and strengthen the test suite

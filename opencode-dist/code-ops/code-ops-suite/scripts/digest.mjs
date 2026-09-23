@@ -48,18 +48,16 @@
 //
 // Exit: the wrapped command's exit code; 2 on usage error; 127 when the executable cannot spawn.
 
-import { spawn, execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, appendFileSync, existsSync, statSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { mkdirSync, writeFileSync, appendFileSync, statSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sha256, spawnSpec } from './cli-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const lib = await import(pathToFileURL(join(HERE, 'digest-lib.mjs')).href);
 const { DEFAULTS, SHAPES, detectShape, digestText } = lib;
-
-const sha256 = (s) => createHash('sha256').update(s).digest('hex');
 
 function usage(message) {
   if (message) console.error(`x ${message}`);
@@ -68,70 +66,6 @@ function usage(message) {
   console.error('                  [--passthrough-below <bytes>] -- <exe> [args...]');
   console.error(`shapes: auto, ${Object.keys(SHAPES).join(', ')}`);
   process.exit(2);
-}
-
-// ---------------------------------------------------------------- windows .cmd shims
-//
-// Transplanted from scripts/run-proof.mjs (`wherePath`, `spawnSpec`, `escapeCmdShim`,
-// `escapeCmdArg`) so the digest spawns the same set of commands the receipt ledger can.
-// Node refuses to spawn a .cmd/.bat file without a shell (EINVAL, CVE-2024-27980 hardening) and
-// a bare shim name like `npm` does not resolve at all. Handing the line to a shell would break
-// the no-shell contract, so instead: resolve the executable, and only when it IS a .cmd/.bat
-// shim, rewrite the spawn to `cmd.exe /d /s /c "<line>"` with quote-for-argv plus a SINGLE caret
-// pass. The single pass is deliberate — see the note in run-proof.mjs for why it beats
-// cross-spawn's double pass through both shim styles.
-
-const CMD_META_RE = /([()\][%!^"`<>&|;, *?])/g;
-const escapeCmdShim = (s) => s.replace(CMD_META_RE, '^$1');
-
-function escapeCmdArg(s) {
-  let a = String(s).replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, '$1$1');
-  a = `"${a}"`;
-  return a.replace(CMD_META_RE, '^$1');
-}
-
-// PATH-only lookup: the `$path:` pattern prefix stops `where` searching the working directory,
-// so a repo under audit cannot plant a shim that hijacks a bare-name command.
-function wherePath(exe) {
-  try {
-    return execFileSync('where', [`$path:${exe}`], { stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 })
-      .toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  } catch { return []; }
-}
-
-// A token that names (or resolves to) an EXISTING .cmd/.bat shim is rewritten through cmd.exe;
-// anything that resolves to a real executable — or does not resolve at all — spawns unchanged, so
-// the ordinary "cannot spawn" path still fires (exit 127) for a missing command. cmd.exe must
-// never be handed a name it cannot find, because cmd itself exits 1 and that would report a
-// command failure for a command that never ran.
-function spawnSpec(exe, args, cwd = process.cwd()) {
-  const plain = { file: exe, args, options: {} };
-  if (process.platform !== 'win32' || /[*?]/.test(exe)) return plain;
-  let shim = null;
-  if (!/[\\/]/.test(exe) && !/\.[a-z0-9]+$/i.test(exe)) {
-    for (const hit of wherePath(exe)) {
-      if (/\.(exe|com)$/i.test(hit)) return plain;
-      if (/\.(cmd|bat)$/i.test(hit)) { shim = hit; break; }
-    }
-    if (!shim) return plain;
-  } else if (/\.(cmd|bat)$/i.test(exe)) {
-    if (/[\\/]/.test(exe)) {
-      const abs = resolve(cwd, exe);
-      if (!existsSync(abs)) return plain;
-      shim = abs;
-    } else {
-      const local = resolve(cwd, exe);
-      if (existsSync(local)) shim = local;
-      else shim = wherePath(exe).find((h) => /\.(cmd|bat)$/i.test(h)) ?? null;
-      if (!shim) return plain;
-    }
-  } else return plain;
-  const line = [escapeCmdShim(shim), ...args.map(escapeCmdArg)].join(' ');
-  return {
-    file: process.env.ComSpec || 'cmd.exe',
-    args: ['/d', '/s', '/c', `"${line}"`],
-    options: { windowsVerbatimArguments: true },
-  };
 }
 
 // ---------------------------------------------------------------- arguments
