@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.1.0
+- `conform` global scope now edits the marketplace's `global-contracts/` sources and installs them with `scripts/sync-global.mjs`, instead of editing the home files in place. The approval checkpoint is unchanged.
+- The global targets now include the Grok Build rule `~/.grok/rules/code-ops-global.md`, because Grok ignores the Claude global files.
+- The repo contract procedure names the `@AGENTS.md` import form as the preferred pointer pair, because Grok Build loads both file names.
+
 ## 2.0.0
 - Breaking: four overlapping skills are merged, and the plugin ships 30 skills.
 - `conform` absorbs `adopt-standards` and `adopt-global-standards`. Choose `scope: repo` (the default) or `scope: global` for the user-wide contracts.

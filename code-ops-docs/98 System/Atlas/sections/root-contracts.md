@@ -8,6 +8,8 @@ The routing contract defers general model behavior to the user-wide contract and
 
 The root contract keeps model review gates opt-in and rare. The deterministic chain and the lead's diff read apply to every change. Exact-SHA deep-review and OpSec receipts apply only when the operator requests them or the brief names a high-risk surface. Hosted Actions retain deterministic checks, and any new commit or updated base invalidates an existing local-review boundary.
 
+The user-wide contracts have their source in `global-contracts/`: `AGENTS.md` for Claude Code and Grok Build, `AGENTS.codex.md` for Codex. `scripts/sync-global.mjs` installs them in each host home and refreshes the installed plugin caches. It refuses to overwrite a contract it did not write unless the operator passes `--force` or `--capture`. The repository contract makes that script the post-merge step.
+
 The documentation clause names the hub as the sole authored authority and the manifest as its registry. It routes verification of each record collection to the shared records engine.
 
 The root README is an orientation surface for the whole marketplace. Plugin READMEs remain installation surfaces because a single-plugin install does not include the repository README. Root counts and plugin command counts are mechanically coupled to skill directories and handbook routing. The code-ops-suite plugin exposes 30 skills, including the local review boundary and long-horizon runtime support, and the marketplace ships 59 across its four plugins.

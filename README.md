@@ -131,6 +131,21 @@ GitHub Copilot bills AI Credits from token counts, at 100 credits per dollar. Co
 
 The traceless-publishing gate ships as `opencode-dist/plugins/code-ops-traceless.js`, ported from the Claude hook to opencode's `tool.execute.before` hook. It resolves its scanner through the distribution layout, so keep the directories together. The repository CI gate stays the fail-closed backstop.
 
+### Keep this machine current
+
+Run one command from a checkout of this repo after every merge to main:
+
+```bash
+node scripts/sync-global.mjs            # add --dry-run to preview, --check to detect drift
+```
+
+It does two things for Claude Code, Codex, and Grok Build:
+
+- **Global contracts.** It installs `global-contracts/AGENTS.md` as `~/.claude/CLAUDE.md` and `~/.claude/AGENTS.md`, and as the Grok global rule `~/.grok/rules/code-ops-global.md`. It installs `global-contracts/AGENTS.codex.md` as `~/.codex/AGENTS.md`. `CODEX_HOME` and `GROK_HOME` move the last two.
+- **Plugin caches.** It refreshes the `code-ops` marketplace on each host and updates each code-ops plugin already installed there. The hosts pull from GitHub, so the caches get merged main, not your working tree.
+
+The script never replaces a contract you wrote yourself. It records what it last wrote in `~/.claude/code-ops/global-sync.json`. A file with other edits stops that host, and the script names two ways forward: `--force` backs up the file and overwrites it, and `--capture` copies it into `global-contracts/`. A host whose home directory or CLI is missing is skipped. `--only contracts|caches` and `--hosts claude,codex,grok` narrow the run.
+
 ## Use
 
 In Claude Code, invoke a workflow as a namespaced slash command:

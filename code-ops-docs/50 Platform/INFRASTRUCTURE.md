@@ -33,6 +33,8 @@ GitHub Actions provides CI. GitHub hosts pull requests, branch protection, and t
 
 Git hooks can regenerate derived host distributions and reject unsafe staging conditions. CI remains the backstop when hooks are missing or bypassed. Evidence: `AGENTS.md:106-108`.
 
+`scripts/sync-global.mjs` keeps one operator machine current after a merge. It installs the user-wide contracts from `global-contracts/` for Claude Code, Codex, and Grok Build, and it refreshes the installed code-ops plugin caches on each host. It refuses to overwrite a contract it did not write unless the operator passes `--force` or `--capture`. `evals/sync-global/run.mjs` covers it. See the README section "Keep this machine current".
+
 ## Host hook switches
 
 The code-ops-suite package registers eight commands across six events in
