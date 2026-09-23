@@ -296,8 +296,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "4239a1d87a46d5e60b778baef9069a2da45bffc964301036e0bfbabd5e61a196"
+      "verifiedAt": "aa4de6edb477a29f7858d0bf3c85be7814e00960"
     },
     {
       "slug": "runtime-toolchain",
