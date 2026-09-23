@@ -379,7 +379,7 @@ plans and receipts rather than extending v1, v2, or v3 contracts. Evidence:
 `digest.mjs` spawns the command after `--` directly, with no shell, and captures stdout and
 stderr apart. The child's exit code becomes the digest's exit code on every path, including a
 signal kill. A missing `--` exits 2 with usage. An executable that cannot spawn exits 127 and
-names itself. Evidence: `scripts/cli-lib.mjs:243`, `scripts/digest.mjs:83-104`, `scripts/digest.mjs:147-150`, and
+names itself. Evidence: `scripts/cli-lib.mjs:244`, `scripts/digest.mjs:83-104`, `scripts/digest.mjs:147-150`, and
 `scripts/digest.mjs:157-158`.
 
 `--cwd <dir>` names the directory the command runs in, so a caller that would otherwise write
@@ -394,8 +394,8 @@ One shape is chosen per invocation. The detectors run in a fixed order, and the 
 bias only the cases the detectors leave open. Nine shapes exist: `json`, `diff`, `test`,
 `diagnostics`, `stack`, `log`, `table`, `listing`, and `plain`. `plain` is the fallback, and it
 passes output through under a line cap rather than filtering it. Evidence:
-`scripts/digest-lib.mjs:372-423`, `scripts/digest-lib.mjs:425`, and
-`scripts/digest-lib.mjs:447-461`.
+`scripts/digest-lib.mjs:458-509`, `scripts/digest-lib.mjs:511`, and
+`scripts/digest-lib.mjs:541-557`.
 
 The must-keep contract is fixed before any stage runs. `mustKeep(shape, raw, digested)` requires
 every raw line matching `error`, `fail`, `failed`, `failure`, `exception`, `panic`, `fatal`,
@@ -405,9 +405,9 @@ every raw line matching `error`, `fail`, `failed`, `failure`, `exception`, `pani
 diagnostic, and states the totals. Past 200 matching lines the digest keeps the first 200 and
 states the total. Comparison allows for a fold count appended to a line and for truncation to the
 first `--line` characters. `digestText` enforces the same set by construction, so no stage may
-drop or rewrite a protected line. Evidence: `scripts/digest-lib.mjs:26-31`,
-`scripts/digest-lib.mjs:463-489`, `scripts/digest-lib.mjs:490-524`, and
-`scripts/digest-lib.mjs:526-559`.
+drop or rewrite a protected line. Evidence: `scripts/digest-lib.mjs:43-48`,
+`scripts/digest-lib.mjs:564-590`, `scripts/digest-lib.mjs:597-634`, and
+`scripts/digest-lib.mjs:640-680`.
 
 Every elided region prints `[elided N lines: sed -n 'A,Bp' <raw path>]`, or `[elided N lines]`
 under `--no-store`. The ranges ascend, never overlap, and never cover a kept line. An output of
@@ -418,7 +418,7 @@ field. Otherwise the final
 printed line is always the trailer
 `[exit <code> · <shape> · <rawLines> lines → <outLines> · raw <path> · sha256:<first 12>]`, with
 `raw -` when nothing was stored. A stderr digest offsets its line numbers past the stdout section,
-so its recovery hints address the raw file. Evidence: `scripts/digest-lib.mjs:102-108`,
+so its recovery hints address the raw file. Evidence: `scripts/digest-lib.mjs:135-141`,
 `scripts/digest.mjs:178-186`, and `scripts/digest.mjs:170-176`.
 
 Raw bytes go to `--store`, else `$CODE_OPS_DIGEST_DIR`, else
@@ -502,7 +502,7 @@ The `scan` domain runs on the shared CLI library, and the skills reach its scrip
 error goes through `parseOrDie`, which prints `x <message>` on stderr and exits 2. A flag rule
 declares `many` for a repeatable flag and `raw` for a flag whose own check must see a smuggled
 option. The `missing` key carries the wording a caller already pins, so no flag, exit code, or
-message changed. Evidence: `scripts/cli-lib.mjs:38-47`, `scripts/cli-lib.mjs:111-122`,
+message changed. Evidence: `scripts/cli-lib.mjs:38-47`, `scripts/cli-lib.mjs:112-123`,
 `scripts/check-autofix-scope.mjs:50-57`, and `evals/co-facade/run.mjs:101-117`.
 
 ## File skim
@@ -800,7 +800,7 @@ definition of that name in the tree, marked ambiguous, else unresolved. A dynami
 path, a string-built name, or a type-dispatched call stays ambiguous or unresolved by contract.
 A result that touches a file whose content changed since the index was built carries a stale
 banner, and `--no-stale-check` suppresses the check. Evidence: `scripts/symbol-lib.mjs:45`,
-`scripts/symbol-lib.mjs:95`, `scripts/symbol-lib.mjs:144`, `scripts/symbol-lib.mjs:162`,
+`scripts/symbol-lib.mjs:108`, `scripts/symbol-lib.mjs:158`, `scripts/symbol-lib.mjs:176`,
 `scripts/repo-map.mjs:39`, `scripts/import-graph.mjs:44`, `scripts/import-graph.mjs:74`,
 `scripts/skim.mjs:132`, `scripts/context-query.mjs:281`, `scripts/context-query.mjs:336`, and
 `scripts/context-query.mjs:357`.
