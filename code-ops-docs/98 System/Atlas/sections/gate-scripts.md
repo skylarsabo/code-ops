@@ -46,6 +46,11 @@ OpenCode has no transcript callback. `context-audit.mjs` is the sanitized CLI, a
 repository tree. Grouped receipts are descriptive until a pre-registered matched control
 supports a causal claim.
 
+The resident-context reader shared by the handoff card and the dispatch guard reads only the
+newest usage record. It returns unknown when a compaction marker, the Claude `compact_boundary`
+row or the Codex `compacted` row, sits after that record, so a pre-compaction size never reaches
+either hook (`scripts/transcript-lib.mjs:623`).
+
 Register citations are confined by what they resolve to, not only by their text. `citation-lib.mjs` flags a backslash or drive-letter prefix directly at `scripts/citation-lib.mjs:150`, restores a dropped forward-slash prefix from a bounded window that fails closed when a path-shaped run fills it, and requires a cited file's real path to stay under the root's real path. `revalidate-register.mjs` and `check-handoff.mjs` both import it at `scripts/check-handoff.mjs:67`, so the register gate and the handoff gate rank a pointer FRESH, MOVED, DRIFTED, GONE, or AMBIGUOUS under one rule. The handoff gate also requires the six sections that answer an operator's resume questions, a verbatim `Request:` line, a confidence label on every Key findings bullet, no leftover `[FILL:` draft placeholder, and an 8 KB ceiling; its `--consume` flag writes `HANDOFF.consumed` only after every check passes, which retires that handoff from the routing card's pickup line. When `Verified-at` matches HEAD on a clean tree, it prints a non-gating `same-tree` status. `integrate-branch.mjs` runs the per-change bump, host renders, manifest sync, and atlas report, then selects `validate.yml` steps from the changed paths; stamping and changelog text stay manual.
 
 The narration scanner reports mannered prose (metaphor standing in for a literal phrase) as an advisory category beside filler.

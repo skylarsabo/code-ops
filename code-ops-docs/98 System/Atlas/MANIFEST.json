@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "9acc274223807231fcb8f60bd05a90f7de70f2669f7cc2e57805ee138229b520",
+      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
+      "verifiedDigest": "1c33cd164234b84328c06efb341d1686496f3a70381f2ed1d8d396e2b582f8f0",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -55,9 +55,14 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "4a1ce676b9609e66533334aed53452fb2727820d",
-      "verifiedDigest": "0787fae6617cb3e0d7841870db445df2e5d7df7bcdcb30e444132c9133989815",
+      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
+      "verifiedDigest": "1c8736c98af0b7382b7e9bed1c0e7c37b2b2f5b4a81477e8c54b39e7006eda65",
       "claims": [
+        {
+          "file": "scripts/transcript-lib.mjs",
+          "line": 623,
+          "anchor": "// The last assistant-turn usage record in the tail window, or null. Claude writ"
+        },
         {
           "file": "scripts/citation-lib.mjs",
           "line": 150,
@@ -121,8 +126,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "4a1ce676b9609e66533334aed53452fb2727820d",
-      "verifiedDigest": "6b34defb2829ad5ce889d53c57f2f57d737b1733923a0280cfa81827ff115f91",
+      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
+      "verifiedDigest": "1260c5e52d60a5af1bc987f76ef3cc183462c572b20231745859f8ba70ff55ff",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -161,12 +166,12 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 167,
+          "line": 205,
           "anchor": "expect(/handoff assess/.test(m1) && /CONTINUE, COMPACT, or HANDOFF/.test(m1) &&"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 237,
+          "line": 275,
           "anchor": "a Codex token_count transcript must receive lifecycle guidance, got ${r.status}/"
         }
       ]
@@ -179,8 +184,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "ffa352515d18c84617bd2256d7c399db497bd8de",
-      "verifiedDigest": "ddaada0a6cfa56ec4d6133557ad6ded0dc82cbf2520bf602bbfd4da5de14cf3f",
+      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
+      "verifiedDigest": "313aca4ae67d428d348b9849e394633bb88ec0fc8287e28d6f4e6369bfca6642",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -249,8 +254,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "4a1ce676b9609e66533334aed53452fb2727820d",
-      "verifiedDigest": "d3fc78a525dcbc2f76a95d5e31c2f6ca8d34933acbbf433921931a5b69636347",
+      "verifiedAt": "8a1ff979145f38a5a58eae66c78118f5339a7185",
+      "verifiedDigest": "ff907249f34cbf2c061a3cf106d0c91b0927e4d54c9134ed2272a1092ddfef4c",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
