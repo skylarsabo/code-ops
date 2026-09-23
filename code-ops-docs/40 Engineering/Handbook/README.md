@@ -6,7 +6,7 @@ This page is the front door. It names the plugin that owns the job in front of y
 
 ## The four-plugin mental model
 
-- **code-ops-suite is the spine.** Broad-breadth engineering for any repo (audit, remediation, feature discovery and build, performance, tests, dependencies, PR review, normalization, pr-split) plus all reference-doc generators (architecture, api-docs, data-model, adr, ops-docs, onboarding) plus the orchestrators (everything plugins: suite, everything, ship, debug). Start here when the task is ordinary engineering.
+- **code-ops-suite is the spine.** Broad-breadth engineering for any repo (audit, remediation, feature discovery and build, performance, tests, dependencies, local review gates, normalization, pr-split) plus all reference-doc generators (architecture, api-docs, data-model, adr, ops-docs, onboarding) plus the orchestrators (everything plugins: suite, everything, ship, debug). Start here when the task is ordinary engineering.
 - **rigor is the verification layer.** Prove it or do not report it. Evidence tiers (CONFIRMED, PROBABLE, SPECULATIVE), a disconfirmation pass, ground truth first, runnable repros, a regression guard, and closure with enforcement. It is the high-signal counterpart to code-ops breadth (`rigor:bug-hunt` against `codebase-audit`, `rigor:deep-review` at its default verification bar). Reach for it when you want proven findings rather than a long list.
 - **privacy-opsec-suite is the anonymity track.** Install it only for projects with anonymity or opsec needs. The keystone `anonymity-threat-model` frames six parallel leak audits, which feed `LEAK_REGISTER.md`, which drives `opsec-hardening` (fail-closed), guarded by `opsec-pr-gate` and `authorship-hygiene`. Its stance is defensive privacy engineering: protect your own users, anonymous by default.
 - **researcher is the proposal layer.** Code-grounded research, local-first with disclosed, fail-closed egress. It proposes registers and design briefs, then hands off to the other three. It never edits code.
@@ -59,7 +59,7 @@ Every page below sits under `code-ops-docs/` and is tracked in the repo.
 **Handbook (orientation and reference)**
 - [01-getting-started.md](01-getting-started.md): install, first run, and how to read a checkpoint.
 - [02-mental-model.md](02-mental-model.md): the four-plugin model and how the plugins compose, with a C4 diagram and the glossary.
-- [03-orchestrators.md](03-orchestrators.md). It covers `everything`, `ship`, `debug`, `research-sweep`, and the `everything plugins: privacy`, with when to use which, their phases, and relative cost.
+- [03-orchestrators.md](03-orchestrators.md). It covers `everything` with its plugin selector and tracks, `ship`, `debug`, and `research-sweep`, with when to use which, their phases, and relative cost.
 - [04-registers-and-freshness.md](04-registers-and-freshness.md): the FINDINGS, CONSISTENCY, LEAK, RESEARCH_FINDINGS, IDEAS, DEFERRALS, and EGRESS_MANIFEST schemas, the NOW-SAFE, NEEDS-REVIEW, and NEEDS-DESIGN tracks, Verified-at stamps, `revalidate-register.mjs`, OBSOLETE-AT, and recovery.
 - [05-evidence-and-tiers.md](05-evidence-and-tiers.md): CONFIRMED, PROBABLE, and SPECULATIVE, plus the disconfirmation pass as lived practice.
 - [06-privacy-opsec-primer.md](06-privacy-opsec-primer.md): orientation to the anonymity track, covering when a repo needs it and why anonymity is a stronger property than privacy.

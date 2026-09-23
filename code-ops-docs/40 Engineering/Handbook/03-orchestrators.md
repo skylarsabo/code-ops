@@ -7,8 +7,8 @@
 > | Implement one change end-to-end, proven and shipped clean | [`/code-ops-suite:ship`](#ship-code-ops-suite) | code-ops-suite |
 > | Take a bug symptom to a proven root-cause fix | [`/code-ops-suite:debug`](#debug-code-ops-suite) | code-ops-suite |
 > | Run the whole engineering suite on one repo | [`/code-ops-suite:everything plugins: suite`](#everything-code-ops-suite) | code-ops-suite |
-> | Run the whole verification suite on one repo | [`/code-ops-suite:everything plugins: rigor`](#everything-code-ops-suite) | rigor |
-> | Run the whole anonymity and opsec suite on one repo | [`/code-ops-suite:everything plugins: privacy`](#everything-code-ops-suite) | privacy-opsec-suite |
+> | Run the whole verification suite on one repo | [`/code-ops-suite:everything plugins: rigor`](#everything-code-ops-suite) | code-ops-suite + rigor |
+> | Run the whole anonymity and opsec suite on one repo | [`/code-ops-suite:everything plugins: privacy`](#everything-code-ops-suite) | code-ops-suite + privacy-opsec-suite |
 > | Run code-grounded research end-to-end (proposes, never edits) | [`/researcher:research-sweep`](#research-sweep-researcher) | researcher |
 > | The most exhaustive cross-plugin pass there is | [`/code-ops-suite:everything`](#everything-code-ops-suite) | code-ops-suite |
 >
@@ -175,7 +175,7 @@ sequenceDiagram
 | Audit or harden an anonymity-sensitive or opsec-sensitive repo | `/code-ops-suite:everything plugins: privacy` | threat-model, leak audits, harden, gate |
 | A leak is *suspected* right now | `privacy-opsec-suite:leak-incident-response` | triage, contain, scope, plan, feeding the leak register |
 | Decide what to do or what to adopt, with no code yet | `/researcher:research-sweep` | proposes registers and briefs, hands off, never edits |
-| The deepest possible end-to-end pass on a critical repo | `/code-ops-suite:everything` | cross-plugin superset, needs all three engineering plugins |
+| The deepest possible end-to-end pass on a critical repo | `/code-ops-suite:everything` | cross-plugin superset, skipping the phases of any plugin not installed |
 
 When two fit, prefer the **narrowest**: a single skill over an intra-plugin sweep, and an intra-plugin sweep over `everything`.
 

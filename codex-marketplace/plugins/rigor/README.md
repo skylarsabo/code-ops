@@ -2,7 +2,7 @@
 
 > Generated in the code-ops repository (https://github.com/skylarsabo/code-ops) by `scripts/build-codex-marketplace.mjs` from the canonical Claude source. Do not edit this directory directly.
 
-Verification-first workflows for finding real bugs, closing inconsistencies, and making measured improvements. Prove-it-or-don't-report-it: every finding carries an evidence tier and a proof artifact, fixes ship a failing-then-passing regression test fixed at root cause, and inconsistencies are closed with a mechanical enforcement. v2 adds test-suite validation (flaky + mutation testing), characterization safety nets, root-cause sibling sweeps, regression bisection, and a regression guard.
+Verification-first workflows for finding real bugs, fixing them at root cause, and making measured improvements. Prove-it-or-don't-report-it: every finding carries an evidence tier and a proof artifact, and fixes ship a failing-then-passing regression test fixed at root cause. v2 adds test-suite validation (flaky + mutation testing), characterization safety nets, root-cause sibling sweeps, regression bisection, and a regression guard.
 
 ## Use
 

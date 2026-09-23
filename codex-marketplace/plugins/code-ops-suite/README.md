@@ -2,7 +2,7 @@
 
 > Generated in the code-ops repository (https://github.com/skylarsabo/code-ops) by `scripts/build-codex-marketplace.mjs` from the canonical Claude source. Do not edit this directory directly.
 
-Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, PR review, doc alignment, onboarding, and code normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.
+Adaptive, multi-agent engineering workflows for any codebase: audit, security/privacy threat assessment, remediation, feature discovery & build, performance, tests, dependencies, local review gates, doc alignment, onboarding, and code and concept normalization. Developer-in-the-loop, behavior-preserving, with shared conventions.
 
 ## Use
 

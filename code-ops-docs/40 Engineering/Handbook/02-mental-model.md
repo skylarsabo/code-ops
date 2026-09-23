@@ -44,7 +44,7 @@ If you read nothing else, read the diagram below and the [glossary](#glossary).
   one-way sanitized channel), `run-cost-audit` (audits a completed run's cost discipline), and
   `provider-parity-audit` (audits hooks, agents, skills, scripts, settings, renderers, generated
   distributions, documentation, and installed-host evidence across all four supported hosts).
-- **Orchestrators**: `everything plugins: suite` (the whole suite end to end, intra-plugin), `everything` (the cross-plugin superset across all three engineering and anonymity plugins), `ship` (one change at full rigor), `debug` (symptom to proven root-cause fix).
+- **Orchestrators**: `everything` (one plugin's pipeline with `plugins: suite`, `rigor`, or `privacy`, up to the cross-plugin superset across all three engineering and anonymity plugins), `ship` (one change at full rigor), `debug` (symptom to proven root-cause fix).
 
 It fans work out to two bundled subagents: `explorer` (read-only, parallel investigation) and `reviewer` (strong-tier, parallel review). Neither ever edits.
 

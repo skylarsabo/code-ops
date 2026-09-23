@@ -31,7 +31,7 @@ Anonymity-affecting phases stay gated at every automation level. Every skill rea
 for the leak and finding schema, §9 for the quality lenses, §10 for the implementation loop,
 and §11 for registers as the single source of truth with `Verified-at` freshness.
 
-This page documents all 14 skills. If you are new, read the intro above, then jump to the
+This page documents all 13 skills. If you are new, read the intro above, then jump to the
 audit you need. If you already run the suite fluently, the per-command **Prerequisites and
 hand-offs** lines and the sibling disambiguations carry the load-bearing detail.
 
@@ -353,7 +353,7 @@ because it consumes one as input. Because it changes the anonymity and opsec pos
 is always gated (`§4`). Never auto-merge.
 
 **Prerequisites and hand-offs.** It requires a populated `LEAK_REGISTER.md` from the audits,
-from `everything plugins: privacy` Phase 2, or from `leak-incident-response`. The default automation level is
+from `everything plugins: privacy` Phase 4, or from `leak-incident-response`. The default automation level is
 `gated`, and the always-gated categories hold regardless: egress, logging, identifiers,
 defaults, secrets, migrations, and public contracts. Its closed leaks are then guarded by
 `opsec-pr-gate`.
@@ -407,7 +407,7 @@ durable fix goes through `opsec-hardening` with the developer's go-ahead.
 
 **Prerequisites and hand-offs.** It requires the plugin installed. It feeds its tracked entry
 into `LEAK_REGISTER.md` and its report into `OPSEC_RUNBOOK.md`, and `opsec-hardening` then
-carries out the remediation. In `everything plugins: privacy` this is the separate incident entry point.
+carries out the remediation. In `everything`, this skill starts the incident path.
 
 ### `/privacy-opsec-suite:authorship-hygiene`
 **Mode:** REVIEW (audit) and IMPLEMENT (scrub)

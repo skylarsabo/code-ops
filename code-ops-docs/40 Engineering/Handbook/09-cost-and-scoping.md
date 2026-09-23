@@ -123,9 +123,8 @@ the cheapest high-signal starting move in the whole suite.
 Some phases run only if you select them at Phase 0. The two most expensive optional
 phases are performance and dependency-upgrade:
 
-- In `everything plugins: suite`, Phase 5 runs performance or dependency-upgrade only if selected.
-- In `everything plugins: rigor`, Phase 7 (`improve-measured`) is optional, and only changes with a before-and-after metric ship.
-- In `everything`, the improve phase (`improve-measured`, `performance`, `dependency-upgrade`) ships measured deltas only.
+- In `everything`, Phase 9 (the improvements) runs only if selected, and `assess-only` skips it.
+- In that phase, `performance`, `dependency-upgrade`, and rigor's `improve-measured` ship measured deltas only.
 
 Defer these on a first pass. They are valuable and rarely urgent, and each adds cost
 without changing your correctness or security verdict. Run them later, scoped, once the

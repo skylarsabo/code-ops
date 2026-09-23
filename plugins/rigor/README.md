@@ -1,6 +1,6 @@
 # rigor
 
-Verification-first workflows for finding real bugs, closing inconsistencies, and making
+Verification-first workflows for finding real bugs, fixing them at root cause, and making
 measured improvements. This repository authors the package for Claude Code and renders it
 into a native Codex package. Invoke `/rigor:<name>` in Claude Code, or name `rigor:<name>`
 in Codex.
@@ -27,8 +27,9 @@ in the code-ops repository.
 - **Proof artifacts instead of assertions.** A CONFIRMED bug ships a runnable repro. A fix
   ships a regression test that fails before and passes after. An improvement shows a
   before-and-after measurement.
-- **Closure with enforcement.** An inconsistency gets one canonical form, every site
-  migrated, and a lint rule or test, so the divergence cannot return unnoticed.
+- **Fixes that stay fixed.** A fixed bug gets a regression test and, where its class can
+  recur, a lint rule or test that stops it returning unnoticed. To close an inconsistent
+  concept to one canonical form, use `code-ops-suite:normalize concept <name>`.
 
 ### Version 2 additions
 
@@ -87,7 +88,8 @@ reads first:
 - the regression guard (`§H`)
 - the defect-oriented lenses (`§7`)
 - the fix-prove-guard loop (`§8`)
-- consistency closure (`§9`)
+- the consistency-closure protocol (`§9`), which no rigor skill runs now, because
+  `code-ops-suite:normalize concept` owns closure
 
 ## Subagents
 

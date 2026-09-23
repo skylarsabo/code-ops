@@ -77,11 +77,11 @@ The four plugins install independently, so most people run a subset. This sectio
 
 | Installed | What you get | What you do not get |
 | --- | --- | --- |
-| `code-ops-suite` alone | Every breadth route: `codebase-audit`, `remediation`, `feature-discovery`, `feature-implementation`, `normalize`, `pr-split`, `dependency-upgrade`, `conform`, `atlas`, `vault`, the doc generators, and `everything plugins: suite`. | `ship`, `debug`, and `everything`. `performance` and `test-hardening` lose their ground-truth baseline step. |
-| `code-ops-suite` + `rigor` | The above plus `ship`, `debug`, the whole verification layer, and `everything plugins: rigor`. `ship` and `debug` fall back to the bundled `scan-ai-tells.mjs` for the traceless gate. | `everything`, and every anonymity route. |
-| `code-ops-suite` + `rigor` + `privacy-opsec-suite` | `everything`, the anonymity track, and the anonymity PR gate. | The research routes. |
-| `rigor` alone | The proof journey end to end: `ground-truth`, `test-suite-audit`, `bug-hunt`, `quality-scan`, `safety-net`, `fix-verified`, `deep-review`, `everything plugins: rigor`. | The build and doc routes it hands off to. |
-| `privacy-opsec-suite` alone | The whole anonymity track: the threat model, the six leak audits, `opsec-hardening`, `opsec-pr-gate`, `authorship-hygiene`, and its own `everything plugins: suite`. | The build hand-offs (`feature-implementation`, `normalize`). |
+| `code-ops-suite` alone | Every breadth route: `codebase-audit`, `remediation`, `feature-discovery`, `feature-implementation`, `normalize`, `pr-split`, `dependency-upgrade`, `conform`, `atlas`, `vault`, the doc generators, and `everything plugins: suite`. | `ship`, `debug`, and the rigor and privacy phases of `everything`. `performance` and `test-hardening` lose their ground-truth baseline step. |
+| `code-ops-suite` + `rigor` | The above plus `ship`, `debug`, the whole verification layer, and `everything plugins: rigor`. `ship` and `debug` fall back to the bundled `scan-ai-tells.mjs` for the traceless gate. | The privacy phases of `everything`, and every anonymity route. |
+| `code-ops-suite` + `rigor` + `privacy-opsec-suite` | Every phase of `everything`, the anonymity track, and the anonymity PR gate. | The research routes. |
+| `rigor` alone | The proof journey end to end: `ground-truth`, `test-suite-audit`, `bug-hunt`, `quality-scan`, `safety-net`, `fix-verified`, and `deep-review`. | `everything`, which lives in code-ops-suite, and the build and doc routes it hands off to. |
+| `privacy-opsec-suite` alone | The whole anonymity track: the threat model, the six leak audits, `opsec-hardening`, `opsec-pr-gate`, and `authorship-hygiene`. | `everything plugins: privacy`, which lives in code-ops-suite, and the build hand-offs (`feature-implementation`, `normalize`). |
 | `researcher` alone | Every research route: `research-spike`, `research-improve`, `research-ideate`, `library-eval`, `research-verify`, `ecosystem-watch`, `research-sweep`. It requires nothing beyond itself. | The implementation hand-offs. The proposals are written, and nothing picks them up. |
 
 Two behaviors govern a missing plugin, and neither is silent:

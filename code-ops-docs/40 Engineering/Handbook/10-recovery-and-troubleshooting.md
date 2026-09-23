@@ -96,7 +96,7 @@ disk, and the executive summary records the last clean boundary.
 
 The cardinal rule: re-validate the carried registers against current `HEAD` before you
 resume. That rule is the orchestrators' own Phase 0 behavior, not an extra step you bolt
-on. The Phase 0 instruction of `everything plugins: suite` carries the registers forward fresh. Before
+on. The Phase 0 instruction of `everything` carries the registers forward fresh. Before
 any phase consumes a finding it re-validates that finding against current `HEAD`, and a
 finding fixed earlier in the run is marked `OBSOLETE-AT <sha>` and never re-shown
 (`plugins/code-ops-suite/skills/everything/SKILL.md`). The danger when resuming is
