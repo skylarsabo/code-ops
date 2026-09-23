@@ -4,10 +4,10 @@ description: "Use when you want to know what changed in OUR stack that we should
 
 # Ecosystem watch: what changed in our stack
 
-**Invoked as `/researcher:ecosystem-watch`.** Read only the sections named in this paragraph of
-`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**Invoked as `/researcher:ecosystem-watch`.** Read §A, §2, §3, §4, §6, §7, §8, §10, §11, §12, and §14 of
+`${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
-section.
+section. Leave the rest of that file unread.
 
 - **Mode:** DISCOVERY.
 - **Produces:** `ECOSYSTEM_WATCH.md` as a tiered, cited register, plus `EGRESS_MANIFEST.md`

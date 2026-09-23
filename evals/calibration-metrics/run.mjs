@@ -53,6 +53,7 @@ import { cpSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:f
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { modelClassOf } from '../../scripts/model-tiers.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -633,6 +634,11 @@ try {
   check('mcm. model-class mix names every class in ladder order',
     /model-class mix: light 1, mid 1, strong 2, frontier 1, ambiguous 1, unclassified 1/.test(mcm.stdout), mcm.stdout);
   check('mcm. an id serving several rungs is `ambiguous`, never one of them', /grok-4\.6 1/.test(mcm.stdout), mcm.stdout);
+
+  // The mix lines above read modelClassOf; pin its class for reference ids directly.
+  for (const [id, want] of [['gpt-6-sol', 'frontier'], ['grok-4.7', 'ambiguous'], ['claude-opus-5.5', 'strong'], ['grok-build-0.1', 'light'], ['not-a-model', 'unclassified']]) {
+    check(`class. modelClassOf(${id}) is ${want}`, modelClassOf(id) === want, modelClassOf(id));
+  }
 
   const bare = run(['--artifacts', join(HERE, 'bare-ledger')]);
   check('bare. bare pre-stamp ledger still exits 0', bare.status === 0, bare.stdout + bare.stderr);

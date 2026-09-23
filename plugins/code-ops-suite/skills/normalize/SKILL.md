@@ -4,10 +4,10 @@ description: "Use when a codebase has inconsistent style or the artifacts of has
 
 # Code normalization: one consistent, professional, hand-crafted codebase
 
-**Invoked as `/code-ops-suite:normalize`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
+**Invoked as `/code-ops-suite:normalize`.** First read §1, §3, §4, §7, §10, §11, §14, and §15 of the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin. Search the plugin directory for it if needed. It defines the operating
 model, interaction protocol, safety rails, schemas, and quality lenses this skill references by
-section.
+section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT, behavior-preserving · **Produces:** the normalized codebase,
 `STYLE_GUIDE.md`, an enforced linter and formatter config, and `NORMALIZATION_LOG.md`.
 Behavior-changing issues go to a separate list.

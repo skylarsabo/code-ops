@@ -8,6 +8,12 @@
     "code-ops-suite-implementer": {
       "model": "moonshotai/kimi-k3"
     },
+    "code-ops-suite-mech-review": {
+      "model": "moonshotai/kimi-k2.7-code"
+    },
+    "code-ops-suite-mech": {
+      "model": "moonshotai/kimi-k2.7-code"
+    },
     "code-ops-suite-reviewer": {
       "model": "moonshotai/kimi-k3"
     },

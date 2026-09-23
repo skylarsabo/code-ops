@@ -16,10 +16,9 @@
 // process environment. The 150,000-token threshold is fixed by design, not tunable.
 //
 // CEILING SENTENCE. When the nudge fires at or above the dispatch guard's context ceiling
-// (`contextCeiling` in scripts/transcript-lib.mjs: 300,000 by default, overridden or disabled by
-// `CODE_OPS_CONTEXT_CEILING`), the message gains one sentence saying new dispatches are now
-// gated until the assessment runs. That variable changes only this sentence, never the bands.
-// Grok never gets it, because the guard cannot name that host's dispatch tool.
+// (`contextCeiling` in scripts/transcript-lib.mjs: 200,000 on Grok and 300,000 elsewhere by
+// default, overridden or disabled by `CODE_OPS_CONTEXT_CEILING`), the message gains one
+// sentence saying new dispatches are now gated until the assessment runs. That variable changes only this sentence, never the bands.
 //
 // METRIC. The context size is the last assistant turn's usage record: input plus cache-read
 // plus cache-creation tokens, read from only the last 256 KiB of the transcript the payload
@@ -111,11 +110,10 @@ async function main() {
 
   const approx = Math.round(context / 10_000) * 10_000;
   const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context. `;
-  // The dispatch guard gates Agent, Task, and Workflow dispatches at and past the ceiling. This
-  // repository does not document Grok's dispatch tool name, so the guard cannot gate it there
-  // and the sentence stays off that host.
+  // The dispatch guard gates Agent, Task, Workflow, and Grok's spawn_subagent dispatches at and
+  // past the ceiling, so every host gets the sentence.
   const ceiling = contextCeiling();
-  const gated = !grok && ceiling !== null && context >= ceiling
+  const gated = ceiling !== null && context >= ceiling
     ? ' New dispatches are now gated until that assessment runs.' : '';
   const message = (band === 1
     ? held + 'At the next safe boundary, run code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF. Continue a short coherent finish; checkpoint durable state before compacting; use explicit write only for a transfer or recovery.'

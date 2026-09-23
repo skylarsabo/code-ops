@@ -123,7 +123,7 @@ description: "Fixture skill for the lint-plugins regression eval."
 
 # ${title} (FIXTURE)
 
-Read the bundled CONVENTIONS.md first. This is fixture content; it is not a real skill.
+Read the bundled CONVENTIONS.md first. Leave the rest of that file unread. This is fixture content; it is not a real skill.
 ${extra}
 ## Done when
 The fixture task is complete${doneRevalidate ? ` and revalidate-register.mjs ${doneFlags} has been re-run clean` : ''}.
@@ -145,10 +145,23 @@ const AGENT_TIER_BOUNDARY = "Tier at the evidence you have: label a finding CONF
 
 // Every fixture agent carries a report cap line (lint check 25); cases 7b and 7c mutate it.
 const AGENT_REPORT_CAP = 'Report cap: at most 400 words; return only the conclusion, evidence anchors, and next action.';
-const agentBody = (name, model, texts, cap = AGENT_REPORT_CAP) => `---
+// Every fixture agent carries a check 26 contract; cases 15a-15d mutate it.
+const FENCE = '```';
+const agentContract = (edits = 'none') => `
+## Contract
+
+Brief requires: Scope, Objective, Round budget, Report cap, Expected return
+Edits: ${edits}
+Verdicts: ANSWERED | ESCALATE
+
+${FENCE}text
+ANSWERED: fixture answer with evidence anchors
+${FENCE}
+`;
+const agentBody = (name, model, texts, cap = AGENT_REPORT_CAP, { tools = 'Read, Grep, Glob', contract = agentContract() } = {}) => `---
 name: ${name}
 description: "Fixture agent for the lint-plugins regression eval."
-tools: Read, Grep, Glob
+tools: ${tools}
 model: ${model}
 ---
 
@@ -157,7 +170,8 @@ model: ${model}
 Fixture agent; not a real agent. Read-only investigation for the fixture task.
 
 ${texts.join('\n\n')}
-${cap ? `\n${cap}\n` : ''}`;
+${cap ? `\n${cap}\n` : ''}${contract}`;
+const MECH_OPTS = { tools: 'Read, Edit, Write, Bash, Grep, Glob', contract: agentContract('scope') };
 
 // Builds a MINIMAL tree that scripts/lint-plugins.mjs (copied in, unmodified) passes.
 // Two plugins, named/shaped exactly as PRODUCER_SELFCHECK and SHARED_PASSAGES require
@@ -213,6 +227,8 @@ function buildBaseline(root) {
   put(root, 'plugins/code-ops-suite/agents/explorer.md', agentBody('explorer', 'haiku', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL]));
   put(root, 'plugins/code-ops-suite/agents/reviewer.md', agentBody('reviewer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY]));
   put(root, 'plugins/code-ops-suite/agents/implementer.md', agentBody('implementer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/code-ops-suite/agents/mech.md', agentBody('mech', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT], AGENT_REPORT_CAP, MECH_OPTS));
+  put(root, 'plugins/code-ops-suite/agents/mech-review.md', agentBody('mech-review', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
 
   // -- rigor: bug-hunt, quality-scan, consistency-closure (all PRODUCER_SELFCHECK) --
   put(root, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify({ name: 'rigor', version: '0.1.0', description: 'fixture rigor plugin' }, null, 2));
@@ -342,7 +358,7 @@ description: "Fixture skill for the lint-plugins regression eval."
 
 # BUG HUNT (FIXTURE)
 
-Read the bundled CONVENTIONS.md first. This is fixture content; it is not a real skill.
+Read the bundled CONVENTIONS.md first. Leave the rest of that file unread. This is fixture content; it is not a real skill.
 No completion heading here on purpose (case 3 mutation).
 `);
   const r3 = runLint(d3);
@@ -800,6 +816,47 @@ No completion heading here on purpose (case 3 mutation).
   check('14b. deep-review with the strict flags outside its Done-when exits 1', r14b.status === 1 && r14b.all.includes('deep-review/SKILL.md: Done-when no longer runs revalidate-register.mjs with --strict'));
   const r14c = withProducerBody('case14c-closure-no-min-items', 'plugins/rigor/skills/consistency-closure/SKILL.md', 'CONSISTENCY CLOSURE', { doneFlags: '--strict --profile consistency' });
   check('14c. consistency-closure Done-when without --min-items exits 1', r14c.status === 1 && r14c.all.includes('with --strict --profile consistency --min-items 1'));
+
+  // 15. AGENT CONTRACT (check 26), DISPATCH PROSE (check 27), BOUNDED CONVENTIONS READ (check 28).
+  const mechWith = (label, contract, tools = MECH_OPTS.tools) => {
+    const dir = clone(label);
+    put(dir, 'plugins/code-ops-suite/agents/mech.md', agentBody('mech', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT], AGENT_REPORT_CAP, { tools, contract }));
+    return runLint(dir);
+  };
+  const r15a = mechWith('case15a-no-contract', '');
+  check('15a. an agent with no Contract section exits 1', r15a.status === 1 && r15a.all.includes('plugins/code-ops-suite/agents/mech.md: agent has no "## Contract" section'));
+  const r15b = mechWith('case15b-edits-none-with-edit', agentContract('none'));
+  check('15b. Edits: none with Edit and Write in tools exits 1', r15b.status === 1 && r15b.all.includes('declares "Edits: none" but tools grant Edit, Write'));
+  check('15b. Edits: none with read-only tools exits 0', mechWith('case15b-edits-none-read-only', agentContract('none'), 'Read, Grep, Glob, Bash').status === 0);
+  const r15c = mechWith('case15c-two-tokens-in-first-line', MECH_OPTS.contract.replace('ANSWERED: fixture answer', 'ANSWERED | ESCALATE: fixture answer'));
+  check('15c. a fenced first line naming two verdict tokens before ":" exits 1', r15c.status === 1 && r15c.all.includes('must begin with exactly one declared verdict token followed by ":"'));
+  check('15c. a fenced first line naming exactly one verdict token exits 0', mechWith('case15c-single-token', MECH_OPTS.contract).status === 0);
+  const r15d = mechWith('case15d-bad-brief-field', MECH_OPTS.contract.replace('Expected return', 'Vibes'));
+  check('15d. an unknown brief field exits 1', r15d.status === 1 && r15d.all.includes('names brief field "Vibes"'));
+
+  const withTech = (label, text) => {
+    const dir = clone(label);
+    put(dir, 'code-ops-docs/40 Engineering/Techniques/fixture-routing.md', `# Fixture routing\n\n${text}\n`);
+    return runLint(dir);
+  };
+  check('15e. a dispatch list of shipped agents exits 0', withTech('case15e-list-ok', 'Dispatch code-ops-suite:implementer, reviewer, or mech, or add a reason line.').status === 0);
+  const r15f = withTech('case15f-list-unshipped', 'Dispatch code-ops-suite:implementer, reviewer, or wrangler, or add a reason line.');
+  check('15f. an unshipped name in a dispatch list exits 1', r15f.status === 1 && r15f.all.includes('fixture-routing.md:3: dispatch list after "code-ops-suite:implementer" names "wrangler"'));
+  const r15g = withTech('case15g-qualified-unshipped', 'Run `rigor:ghost-hunt` first.');
+  check('15g. a qualified name with no skill or agent exits 1', r15g.status === 1 && r15g.all.includes('"rigor:ghost-hunt" names no shipped skill or agent of rigor'));
+  const r15h = withTech('case15h-floor-list', 'Route to `sonnet`-floor agents (`mech`, `wrangler`).');
+  check('15h. a floor list naming an unshipped agent exits 1', r15h.status === 1 && r15h.all.includes('floor list names agent "wrangler"') && !r15h.all.includes('agent "mech"'));
+  const d15i = clone('case15i-hook-unshipped');
+  put(d15i, 'plugins/code-ops-suite/hooks/fixture-guard.mjs', "export const DENY = 'dispatch code-ops-suite:implementer, reviewer, or wrangler instead';\n");
+  const r15i = runLint(d15i);
+  check('15i. a hook deny text naming an unshipped agent exits 1', r15i.status === 1 && r15i.all.includes('hooks/fixture-guard.mjs:1: dispatch list after'));
+
+  // Check 3 requires every skill to cite CONVENTIONS.md, so the baseline, which carries the
+  // bound sentence, is 15j's passing partner.
+  const d15j = clone('case15j-conventions-unbounded');
+  put(d15j, BUG_HUNT, skillBody('BUG HUNT').replace(' Leave the rest of that file unread.', ''));
+  const r15j = runLint(d15j);
+  check('15j. a skill citing CONVENTIONS.md without the bound sentence exits 1', r15j.status === 1 && r15j.all.includes('bug-hunt/SKILL.md: cites CONVENTIONS.md without the sentence "Leave the rest of that file unread."'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

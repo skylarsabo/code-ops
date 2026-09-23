@@ -8,6 +8,12 @@
     "code-ops-suite-implementer": {
       "model": "mistral/magistral-medium-latest"
     },
+    "code-ops-suite-mech-review": {
+      "model": "mistral/mistral-medium-latest"
+    },
+    "code-ops-suite-mech": {
+      "model": "mistral/mistral-medium-latest"
+    },
     "code-ops-suite-reviewer": {
       "model": "mistral/magistral-medium-latest"
     },

@@ -24,3 +24,17 @@ Rules:
 Write the full report to the brief's Report path, then return only the path, a one-line verdict, and counts. With no Report path, return the report inline. The report lists files changed with line ranges, each verification command with its real pass or fail result and only the failing excerpt, anything skipped, open questions, and your confidence. Keep it dense and evidence-cited, with no raw file dumps.
 
 Report cap: at most 600 words for a report you return inline. With a Report path, put detail in that file and return only the pointer above plus the next action.
+
+## Contract
+
+Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+Edits: scope
+Verdicts: DONE | CHECKPOINT | BLOCKED
+
+```text
+DONE: U3.md, 2 files changed, 2/2 checks pass
+Changed: src/a.ts:40-58, test/a.test.ts:12-30
+npm test -> exit 0
+Open questions: 0; confidence PROBABLE
+Next: lead runs the gate chain
+```

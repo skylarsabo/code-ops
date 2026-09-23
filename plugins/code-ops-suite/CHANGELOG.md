@@ -4,6 +4,17 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 1.91.0
+- **TODO** — describe the change.
+
+## 1.91.0
+- The session model leads. A run contract records the lead model, tier, and effort; a lead below strong prints a warning, and every operative floor still holds. Convention §1 and the routing card follow the same rule.
+- The suite ships `mech` for exact edits and gate runs, and `mech-review` for checking a mechanical diff against its spec, both at the sonnet floor. Every agent carries a `## Contract` section with the brief fields it requires, its edit class, its verdict tokens, and a return example that lint checks.
+- Each skill reads only the CONVENTIONS sections it cites, plus the writing standard. Exploring skills consult the atlas and the symbol index first, and the index skips vendored script copies.
+- The context ceiling defaults to 200,000 tokens on Grok and 300,000 elsewhere. The round stop keys on the Grok child session. `modelClassOf` places `gpt-6-sol` as frontier. The OpenCode chooser lets a specialist row set a tier only when no ladder row binds the model.
+- `co handoff draft` summarizes dirty paths by directory and lists at most 20 hand-authored paths.
+- CI type-checks opted-in scripts with TypeScript 7.0.2 under `strict`. The code standard names TypeScript 7 as the TypeScript floor.
+
 ## 1.90.0
 - The OpenCode distribution ships a model ladder for a metered GitHub provider, with a starter profile and per-model prices. The lifecycle chooser ranks candidates by measured cost first, then by priced workload cost, then by name pattern. The cost report prices cache writes.
 - `co handoff draft` writes a handoff note with the mechanical facts filled and `[FILL: ...]` placeholders for judgment. `co handoff resume` runs the redaction scan, register revalidation, runtime status, and handoff check in order. The handoff skill is smaller, opens with the assess step, and adopts a `TASKS.md` convention. The handoff check rejects a note that still carries an unfilled placeholder.

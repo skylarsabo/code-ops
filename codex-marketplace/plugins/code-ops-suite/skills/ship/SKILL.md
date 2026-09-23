@@ -7,10 +7,10 @@ description: "Use when you want to implement one change, a feature or a one-off,
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:ship`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoke in Codex by naming `code-ops-suite:ship`.** First read §1, §3, §4, §10, §11, §12, §14, and §15 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails
 including the automation-level ladder (`§4`), the quality lenses (`§10`), and the implementation
-loop (`§11`) this skill follows.
+loop (`§11`) this skill follows. Leave the rest of that file unread.
 **Mode:** IMPLEMENT. **Consumes:** an intent, meaning a ticket, a request, or a spec.
 **Produces:** the change, proven and shipped as a clean, traceless PR or stack. **Composes,** when
 installed: `rigor` for the safety net, the proof, and the regression guard,

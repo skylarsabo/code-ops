@@ -61,7 +61,7 @@ change to reach it.
 
 | Language | Strictness floor |
 |---|---|
-| TypeScript | `strict` and `noUncheckedIndexedAccess` in `tsconfig.json`; no new `any`. |
+| TypeScript | TypeScript 7 with `strict: true` and `noUncheckedIndexedAccess` in `tsconfig.json`; no new `any`. JavaScript in this repository opts in per file with `// @ts-check` and JSDoc types. |
 | Python | `pyright --strict` or `mypy --strict`. |
 | Go | `go vet ./...` and `staticcheck ./...` clean. |
 | Rust | `cargo clippy -- -D warnings`. |

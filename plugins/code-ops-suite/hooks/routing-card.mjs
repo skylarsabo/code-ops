@@ -77,7 +77,7 @@ function main() {
     'library/dependency decision -> /researcher:library-eval',
     'claim verification -> /researcher:research-verify',
     'everything (broad/multi-domain) -> /code-ops-suite:everything',
-    'substantive work -> frontier lead, task-based tiers, disjoint units in parallel when the graph allows; strong is the judgment floor',
+    'substantive work -> session lead, task-based tiers, disjoint units in parallel when the graph allows; strong is the judgment floor',
     'a dispatch costs context times turns: code-ops-suite:implementer for build work, a round budget, breadth agents at their declared tier',
     'one frontier peer only for a bounded architecture, refutation, mathematics, or synthesis decision; the lead keeps the verdict',
     'say what you are about to do, then close with a recap that stands on its own',

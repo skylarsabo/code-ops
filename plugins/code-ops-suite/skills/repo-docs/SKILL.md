@@ -4,8 +4,8 @@ description: "Use when repository documentation must be extracted, refreshed, or
 
 # Repo docs: manifest-governed documentation extraction
 
-**Invoked as `/code-ops-suite:repo-docs`.** First read `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`,
-and its orchestration, evidence, and documentation sections.
+**Invoked as `/code-ops-suite:repo-docs`.** First read §1, §3, §4, §9, §13, and §14 of `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`: its
+orchestration, evidence, and documentation sections. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces:** updated manifest-owned documents, an extraction plan, and
 freshness proof.
 

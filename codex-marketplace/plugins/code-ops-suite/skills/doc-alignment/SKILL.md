@@ -7,10 +7,10 @@ description: "Use when docs have drifted from code and you want them reconciled 
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:doc-alignment`.** First read the
+**Invoke in Codex by naming `code-ops-suite:doc-alignment`.** First read §1, §3, §4, §7, §10, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces:** reconciled docs edited in place, `DRIFT_REPORT.md`,
 `SSOT_MAP.md`, and `OPEN_QUESTIONS.md`.
 

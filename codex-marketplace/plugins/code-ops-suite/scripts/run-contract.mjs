@@ -70,7 +70,7 @@ function tierFor(model, declared) { return modelSupportsTier(model, declared); }
 function isValidator(unit) { return ['review', 'refutation'].includes(unit.kind); }
 function gitHead(root) { try { return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); } catch { return null; } }
 function readJson(path) { try { return JSON.parse(readFileSync(path, 'utf8')); } catch (error) { die(`cannot parse ${path}: ${error.message}`); } }
-function loadContract(path, root) { const contract = readJson(path); const errors = validate(contract, root); if (errors.length) die(`contract invalid:\n${errors.map((x) => `  - ${x}`).join('\n')}`); verifyContext(contract, path, root); return contract; }
+function loadContract(path, root) { const contract = readJson(path); const warnings = []; const errors = validate(contract, root, warnings); for (const warning of warnings) console.log(`! ${warning}`); if (errors.length) die(`contract invalid:\n${errors.map((x) => `  - ${x}`).join('\n')}`); verifyContext(contract, path, root); return contract; }
 
 function verifyContext(contract, contractPath, root) {
   if (contract.version < 2) return;
@@ -92,7 +92,7 @@ function verifyContext(contract, contractPath, root) {
   }
 }
 
-function validate(c, root) {
+function validate(c, root, warnings = []) {
   const errors = [];
   if (!c || Array.isArray(c) || typeof c !== 'object') return ['contract must be an object'];
   exact(c, c.version === 1 ? new Set(TOP_V1) : c.version === 2 ? TOP_V2 : c.version === 3 ? TOP_V3 : TOP_V4, 'contract', errors, OPTIONAL_TOP_V4);
@@ -119,14 +119,20 @@ function validate(c, root) {
   if (typeof c.objective !== 'string' || !c.objective.trim()) errors.push('objective must be nonempty');
   if (!Array.isArray(c.nonGoals) || !c.nonGoals.length || c.nonGoals.some((x) => typeof x !== 'string' || !x.trim())) errors.push('nonGoals must be a nonempty string array');
   exact(c.lead, LEAD, 'lead', errors);
-  if (!TIER_ORDER.includes(c.lead?.tier) || TIER_RANK[c.lead?.tier] < TIER_RANK.strong || !tierFor(c.lead?.model, c.lead?.tier)) errors.push('lead model must support declared strong or frontier tier');
-  if (c.lead?.effort !== 'high') errors.push('lead effort must be high');
+  // WHY (operator decision, 2026-09-23): the lead block records the session model, which the
+  // operator chose before any contract existed. It is validated for shape only; a weak or
+  // unplaceable lead is a warning, and the unit floors below carry the quality guarantee.
+  if (typeof c.lead?.model !== 'string' || !c.lead.model.trim() || !TIER_ORDER.includes(c.lead?.tier) || !EFFORTS.has(c.lead?.effort)) errors.push('lead must record a nonempty model, a known tier, and a known effort');
+  else {
+    if (TIER_RANK[c.lead.tier] < TIER_RANK.strong) warnings.push(`lead tier ${c.lead.tier} is below strong; keep judgment and review in strong operatives`);
+    if (!tierFor(c.lead.model, c.lead.tier)) warnings.push(`lead model ${c.lead.model} is not placed at tier ${c.lead.tier} by the model registry`);
+  }
   let calibrated = false;
   const taskBased = c.version === 4 && 'routingPolicy' in c;
   if (taskBased && c.routingPolicy !== 'task-based') errors.push('routingPolicy must be task-based');
   if (c.version === 4 && 'calibration' in c) {
     // The pre-registered calibration arms b and c run a strong lead on the assess-only track.
-    // A valid block waives the frontier-lead rule and lets units run at, never above, the
+    // A valid block lets units run at, never above, the
     // lead tier, only for read-mode units whose artifacts land outside every assessed scope.
     // A lead model that also serves the frontier rung runs the frontier model, so the arm
     // could not measure the strong-versus-frontier gap it exists to measure.
@@ -134,6 +140,7 @@ function validate(c, root) {
     exact(c.calibration, CALIBRATION, 'calibration', errors);
     if (!CALIBRATION_ARMS.has(c.calibration?.arm)) errors.push('calibration.arm must be b or c');
     if (c.calibration?.track !== 'assess-only') errors.push('calibration.track must be assess-only');
+    if (c.lead?.effort !== 'high') errors.push('calibration requires lead effort high');
     if (c.lead?.tier !== 'strong') errors.push('calibration requires a strong lead; a frontier lead declares no calibration block');
     else if (modelSupportsTier(c.lead.model, 'strong') && modelSupportsTier(c.lead.model, 'frontier')) errors.push(`calibration arm needs a lead model distinct from the frontier model; ${c.lead.model} serves both`);
     const units = Array.isArray(c.units) ? c.units : [];
@@ -144,7 +151,7 @@ function validate(c, root) {
       if (safePath(unit?.artifact) && scopesIntersect([unit.artifact], scopes)) errors.push(`${label} artifact must stay outside every assessed scope on the assess-only calibration track`);
     });
     calibrated = errors.length === before;
-  } else if (c.version === 4 && c.lead?.tier !== 'frontier') errors.push('version 4 requires a frontier lead');
+  }
   if (taskBased && 'calibration' in c) errors.push('routingPolicy task-based cannot combine with calibration');
   exact(c.quality, QUALITY, 'quality', errors);
   if (!Array.isArray(c.quality?.dimensions) || !c.quality.dimensions.length || new Set(c.quality.dimensions).size !== c.quality.dimensions.length || c.quality.dimensions.some((x) => !DIMENSIONS.has(x))) errors.push('quality dimensions must be unique supported dimensions');
@@ -188,8 +195,7 @@ function validate(c, root) {
     if (!['read', 'write'].includes(unit.mode) || !KINDS.has(unit.kind) || !EFFORTS.has(unit.effort) || !TIER_ORDER.includes(unit.tier) || !tierFor(unit.model, unit.tier)) errors.push(`${unit.id || expected} has invalid routing fields`);
     const rank = TIER_RANK[unit.tier];
     const peerAtXhigh = taskBased && unit.peerException !== undefined && unit.tier === 'frontier' && unit.effort === 'xhigh';
-    if (calibrated) { if (rank > TIER_RANK[c.lead.tier]) errors.push(`${unit.id || expected} must not run above the lead tier`); }
-    else if (c.version === 4 && !taskBased && rank >= TIER_RANK[c.lead?.tier]) errors.push(`${unit.id || expected} must run below the lead tier`);
+    if (calibrated && rank > TIER_RANK[c.lead.tier]) errors.push(`${unit.id || expected} must not run above the lead tier`);
     if (unit.kind === 'execution' && (rank < TIER_RANK.mid || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates execution routing floor`);
     if (unit.kind === 'judgment' && (rank < TIER_RANK.strong || !['medium', 'high', ...(peerAtXhigh ? ['xhigh'] : [])].includes(unit.effort))) errors.push(`${unit.id || expected} violates judgment routing floor`);
     if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || (unit.effort !== 'high' && !peerAtXhigh))) errors.push(`${unit.id || expected} violates review routing floor`);

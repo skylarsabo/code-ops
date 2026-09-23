@@ -56,13 +56,16 @@ Each contract declares these top-level concerns:
 - `context` binds version 2 work to a snapshot, bundle location, untracked-file policy, and byte budgets.
 - `runtime` binds version 3 work to host-capability evidence, runtime receipts, a stable
   prompt prefix, a prefix byte budget, and one policy per capability.
-- `orchestration` binds version 4 work to a frontier lead, at least two operatives, and a
+- `orchestration` binds version 4 work to at least two operatives and a
   parallel wave of at least two disjoint units. An optional `singleUnitReason` of at most 20
   words lets `minOperatives` and `minParallel` fall to 1. The validator rejects the reason when
   both values stay at 2 or more, because the plan then contradicts it.
 
-The version 4 validator requires a frontier lead and routes every operative below that
-tier. Judgment stays at the strong tier. A review or refutation unit names both the unit it
+The `lead` block records the session model: the model the operator started the session
+with, on any host. The validator checks it for shape only: a nonempty model, a known tier,
+and a known effort. A lead below strong, or a model the registry cannot place at its declared
+tier, prints a warning and never fails the contract. The session lead owns acceptance. Unit
+floors still fail closed, so judgment, review, and refutation stay at the strong tier. A review or refutation unit names both the unit it
 validates and the role-independent relationship. Finalization also requires each planned
 operative artifact to exist and contain evidence. Earlier contract versions retain their
 original compatibility rules for replay only. Every newly authored substantive run uses
@@ -70,9 +73,9 @@ version 4; versions 1 through 3 are historical inputs, not new-run templates. Ev
 `scripts/run-contract.mjs`.
 
 A version 4 contract may carry an optional `calibration` block with exactly `arm` and
-`track`. It exists for the pre-registered calibration arms (b) and (c). A valid block waives the
-frontier-lead rule and lets a unit run at the lead tier, never above it. The validator requires arm `b` or `c`, track `assess-only`, and a strong
-lead. It rejects the block when the lead model also serves the frontier rung, since that
+`track`. It exists for the pre-registered calibration arms (b) and (c). A valid block lets a unit
+run at the lead tier, never above it. The validator requires arm `b` or `c`, track
+`assess-only`, and a strong lead at high effort. It rejects the block when the lead model also serves the frontier rung, since that
 arm cannot measure a strong-versus-frontier gap. Every unit must use read mode, and no unit artifact may fall inside any unit scope.
 Earlier versions reject the key. Evidence: `scripts/run-contract.mjs`.
 

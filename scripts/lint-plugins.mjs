@@ -84,6 +84,17 @@
 //  25. Every bundled agent body carries a "Report cap: at most N words" line with N from
 //      REPORT_CAP_WORDS. An operative report re-enters the lead's context and is re-read on
 //      every later turn, so an unbounded report is a recurring cost no other gate sees.
+//  26. Every bundled agent carries a parsable `## Contract` section: a `Brief requires:` list
+//      drawn from BRIEF_FIELDS, an `Edits: none | report-only | scope` line, a `Verdicts:`
+//      pipe list, and one fenced return example that shows every verdict token. `Edits: none`
+//      forbids Edit, Write, and MultiEdit in `tools:`.
+//  27. Dispatch prose resolves. In plugins/*/hooks/*.mjs, CLAUDE.md, and the Techniques pages,
+//      every `<plugin>:<name>` names a shipped skill or agent of that plugin, the bare names
+//      listed after a qualified agent ("code-ops-suite:implementer, explorer, or mech") are
+//      shipped agents of that plugin, and every backticked name in a "-floor agents (...)"
+//      list is a shipped agent.
+//  28. A SKILL.md whose body mentions CONVENTIONS.md carries the exact sentence in
+//      CONVENTIONS_READ_BOUND, so a skill never loads the whole file by default.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -594,6 +605,7 @@ for (const p of plugins) {
 // pass via the allowlist. Non-determiner prose ("each sub-agent") is not matched.
 const AGENT_PROSE_ALLOWLIST = new Set(['fresh', 'parallel']);
 const AGENT_REF_RE = /\b(?:the|a|an)\s+([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*)\s+sub-?agents?\b/gi;
+const bundledAgents = new Map(); // plugin name -> Set of agents/*.md frontmatter names (check 27 reuses it)
 for (const p of plugins) {
   const agentNames = new Set();
   const agentsDir = join(p.dir, 'agents');
@@ -605,6 +617,7 @@ for (const p of plugins) {
       agentNames.add(nm ? nm[1] : f.slice(0, -3));
     }
   }
+  bundledAgents.set(p.name, agentNames);
   for (const f of docFiles(p)) {
     const lines = readText(f).split('\n');
     for (let i = 0; i < lines.length; i++) {
@@ -640,6 +653,8 @@ const AGENT_MODEL_FLOORS = {
   'code-ops-suite/implementer': 'opus',
   'privacy-opsec-suite/privacy-reviewer': 'opus',
   'researcher/claim-checker': 'sonnet',
+  'code-ops-suite/mech': 'sonnet',
+  'code-ops-suite/mech-review': 'sonnet',
   'code-ops-suite/explorer': 'haiku',
   'privacy-opsec-suite/explorer': 'haiku',
   'researcher/gatherer': 'haiku',
@@ -696,6 +711,100 @@ for (const p of plugins) {
     if (!cap) fail(`${rel(path)}: agent body has no "Report cap: at most N words" line — bound the report the lead re-reads every turn`);
     else if (+cap[1] < REPORT_CAP_WORDS.min || +cap[1] > REPORT_CAP_WORDS.max)
       fail(`${rel(path)}: report cap of ${cap[1]} words is outside ${REPORT_CAP_WORDS.min}-${REPORT_CAP_WORDS.max}`);
+  }
+}
+
+// ---- 26. agent contract -----------------------------------------------------------
+// A brief writer and a report gate both read this section, so it has one grammar.
+const BRIEF_FIELDS = new Set(['Scope', 'Objective', 'Round budget', 'Report cap', 'Report path', 'Expected return']);
+for (const p of plugins) {
+  const agentsDir = join(p.dir, 'agents');
+  if (!existsSync(agentsDir)) continue;
+  for (const f of readdirSync(agentsDir)) {
+    if (!f.endsWith('.md')) continue;
+    const path = join(agentsDir, f);
+    const text = readText(path);
+    const where = `${rel(path)}: ## Contract`;
+    const section = text.split(/^## Contract[ \t]*\r?$/m)[1]?.split(/^## /m)[0];
+    if (section === undefined) { fail(`${rel(path)}: agent has no "## Contract" section — declare Brief requires, Edits, Verdicts, and a fenced return example`); continue; }
+    const brief = section.match(/^Brief requires: (.+)$/m);
+    const edits = section.match(/^Edits: (none|report-only|scope)[ \t]*$/m);
+    const verdicts = section.match(/^Verdicts: (.+)$/m);
+    const fences = [...section.matchAll(/^```[a-z]*\r?\n([\s\S]*?)^```/gm)];
+    if (!brief) fail(`${where} has no "Brief requires: <fields>" line`);
+    else for (const field of brief[1].split(',').map((s) => s.trim()))
+      if (!BRIEF_FIELDS.has(field)) fail(`${where} names brief field "${field}", which is not one of ${[...BRIEF_FIELDS].join(', ')}`);
+    if (!edits) fail(`${where} has no "Edits: none | report-only | scope" line`);
+    if (!verdicts) fail(`${where} has no "Verdicts: A | B" line`);
+    if (fences.length !== 1) fail(`${where} has ${fences.length} fenced return examples; it needs exactly one`);
+    const tools = text.match(/^---\r?\n[\s\S]*?^tools:[ \t]*(.*)$/m)?.[1] ?? '';
+    if (edits?.[1] === 'none' && /\b(?:Edit|Write|MultiEdit)\b/.test(tools))
+      fail(`${where} declares "Edits: none" but tools grant ${tools.match(/\b(?:Edit|Write|MultiEdit)\b/g).join(', ')}`);
+    if (verdicts && fences.length === 1) {
+      const tokens = verdicts[1].split('|').map((s) => s.trim());
+      for (const token of tokens) if (!/^[A-Z][A-Z-]*$/.test(token)) fail(`${where} verdict "${token}" is not an uppercase token`);
+      // The lead token must own the colon alone; a line like "PASS | FAIL:" fails every
+      // alternative in turn because a second token sits between the first token and ":".
+      const firstLine = fences[0][1].split(/\r?\n/, 1)[0];
+      if (!new RegExp(`^(?:${tokens.map(escapeRe).join('|')}):`).test(firstLine))
+        fail(`${where} fenced return example's first line must begin with exactly one declared verdict token followed by ":", with no second declared token before the ":"`);
+    }
+  }
+}
+
+// ---- 27. dispatch prose resolves to shipped agents ------------------------------------
+// The dispatch guard's deny text and the routing pages tell the lead which agent to
+// dispatch. A name the suite does not ship sends the lead to an agent that fails at spawn.
+{
+  const allAgents = new Set([...bundledAgents.values()].flatMap((s) => [...s]));
+  const techDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques');
+  const targets = [
+    join(ROOT, 'CLAUDE.md'),
+    ...plugins.flatMap((p) => {
+      const hooksDir = join(p.dir, 'hooks');
+      return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.mjs')).map((f) => join(hooksDir, f)) : [];
+    }),
+    ...(existsSync(techDir) ? readdirSync(techDir).filter((f) => f.endsWith('.md')).map((f) => join(techDir, f)) : []),
+  ].filter(existsSync);
+  const WORD = '[a-z][a-z0-9-]*';
+  // A list continues a qualified agent only through commas and ends at its "or"/"and" item,
+  // so prose after the list ("..., or mech, or add a line") is never read as a name.
+  const LIST_TAIL_RE = new RegExp(`^((?:,\\s*${WORD})+),?\\s+(?:or|and)\\s+(${WORD})`);
+  const FLOOR_LIST_RE = /-floor agents? \(([^)]*)\)/g;
+  for (const f of targets) {
+    const lines = readText(f).split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const at = `${rel(f)}:${i + 1}`;
+      const line = lines[i].replaceAll('`', '');
+      for (const m of QUALIFIED_RE ? line.matchAll(QUALIFIED_RE) : []) {
+        const p = pluginByName.get(m[1]);
+        const agents = bundledAgents.get(m[1]);
+        if (!p.skills.includes(m[2]) && !agents.has(m[2])) {
+          fail(`${at}: "${m[1]}:${m[2]}" names no shipped skill or agent of ${m[1]}`);
+          continue;
+        }
+        if (!agents.has(m[2])) continue;
+        const tail = line.slice(m.index + m[0].length).match(LIST_TAIL_RE);
+        if (!tail) continue;
+        for (const name of [...tail[1].split(',').map((s) => s.trim()).filter(Boolean), tail[2]])
+          if (!agents.has(name)) fail(`${at}: dispatch list after "${m[1]}:${m[2]}" names "${name}", which ${m[1]} does not ship as an agent`);
+      }
+      for (const m of lines[i].matchAll(FLOOR_LIST_RE))
+        for (const n of m[1].matchAll(/`([a-z][a-z0-9-]*)`/g))
+          if (!allAgents.has(n[1])) fail(`${at}: floor list names agent "${n[1]}", which no plugin ships`);
+    }
+  }
+}
+
+// ---- 28. bounded CONVENTIONS.md reads -----------------------------------------------
+const CONVENTIONS_READ_BOUND = 'Leave the rest of that file unread.';
+for (const p of plugins) {
+  for (const slug of p.skills) {
+    const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
+    if (!existsSync(skPath)) continue;
+    const body = readText(skPath).replace(/^---\r?\n[\s\S]*?\r?\n---/, '');
+    if (body.includes('CONVENTIONS.md') && !body.includes(CONVENTIONS_READ_BOUND))
+      fail(`${rel(skPath)}: cites CONVENTIONS.md without the sentence "${CONVENTIONS_READ_BOUND}"`);
   }
 }
 
@@ -811,6 +920,7 @@ const SHARED_PASSAGES = [
 const AGENTS = (...paths) => paths;
 const AGENT_SHARED_PASSAGES = [
   { id: 'agent-escalate-dont-guess', files: AGENTS(
+      'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
       'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
       'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
@@ -821,13 +931,16 @@ const AGENT_SHARED_PASSAGES = [
       'plugins/researcher/agents/gatherer.md', 'plugins/rigor/agents/tracer.md'),
     text: 'Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.' },
   { id: 'agent-redact-secrets-short', files: AGENTS(
+      'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
       'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/rigor/agents/verifier.md'),
     text: 'Redact secrets/PII.' },
   { id: 'agent-dense-evidence-cited', files: AGENTS(
+      'plugins/code-ops-suite/agents/mech-review.md',
       'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md', 'plugins/rigor/agents/tracer.md'),
     text: 'dense and evidence-cited' },
   { id: 'agent-batch-tool-calls', files: AGENTS(
+      'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
       'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
       'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
       'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',

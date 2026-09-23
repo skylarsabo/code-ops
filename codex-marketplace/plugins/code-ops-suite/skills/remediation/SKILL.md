@@ -7,10 +7,10 @@ description: "Use when a FINDINGS_REGISTER.md already exists and you want its NE
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:remediation`.** First read the
+**Invoke in Codex by naming `code-ops-suite:remediation`.** First read §1, §3, §4, §6, §7, §10, §11, §12, §14, and §15 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT · **Consumes:** `FINDINGS_REGISTER.md`, specifically its NEEDS-REVIEW and
 NEEDS-DESIGN items · **Produces:** verified fixes as branches or PRs, `IMPLEMENTATION_LOG.md`,
 and an updated register.

@@ -9,11 +9,11 @@ description: "Use when you want REAL bugs found and proven, not a list of guesse
 
 **Invoked as `/rigor-bug-hunt`, or by the model through the `skill` tool as `rigor-bug-hunt`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §A, §B, §C, §E, §G, §H, §I, §1, §3, §4, §6, §7, and §11 of
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** AUDIT. It reads code and executes repros. It makes no source fixes.
 - **Produces:** tiered findings with proof in `FINDINGS_REGISTER.md`, and saved repro tests.
@@ -21,6 +21,10 @@ rails this skill follows.
 
 ## Phase 0: scope  *(checkpoint)*
 
+Before broad reads, when `code-ops-suite` is installed, check the repo atlas when present with
+its `atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98 System/Atlas/`, fallback
+`atlas/`), and query the symbol index with its `co.mjs context query find <symbol>` before
+loading a map.
 Pick one component or subsystem and go deep rather than wide. Hunting a whole large
 repository at once produces blind spots. Read `GROUND_TRUTH.md` so you do not re-derive
 facts or re-flag tool findings. If that file is absent, run `/rigor-ground-truth` first,

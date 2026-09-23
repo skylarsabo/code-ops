@@ -83,6 +83,33 @@ try {
   check('resume names the drifted pointer', /DRIFTED src\.txt:1/.test(drifted.stdout));
   check('resume does not write HANDOFF.consumed on failure', !existsSync(join(run, 'HANDOFF.consumed')));
   check('resume reports it did not consume', drifted.stdout.includes('not consumed'));
+
+  // ---- draft on a large dirty tree stays under the 8 KB handoff cap ----
+  // 190 tracked files with long names, 150 of them derived (host dists and vendored scripts);
+  // the earlier src.txt edit and the untracked runs/ folder bring the non-derived count to 42.
+  const dirs = { 'opencode-dist/skills': 60, '.agents/plugins': 30, 'plugins/code-ops-suite/scripts': 60, 'scripts': 25, 'evals/case': 15 };
+  const tracked = [];
+  for (const [dir, n] of Object.entries(dirs)) {
+    mkdirSync(join(tmp, dir), { recursive: true });
+    for (let i = 0; i < n; i++) {
+      const path = `${dir}/a-deliberately-long-file-name-for-the-cap-${String(i).padStart(3, '0')}.mjs`;
+      writeFileSync(join(tmp, path), 'one\n');
+      tracked.push(path);
+    }
+  }
+  gitIn('add', '--', ...Object.keys(dirs));
+  gitIn('commit', '-q', '-m', 'wide');
+  for (const path of tracked) writeFileSync(join(tmp, path), 'two\n');
+  const wide = node([co, 'handoff', 'draft', '--run', 'runs/r1']);
+  const bytes = Buffer.byteLength(wide.stdout);
+  check(`large dirty draft exits 0 and stays under 8 KB (${bytes} B)`, wide.status === 0 && bytes < 8 * 1024);
+  check('large dirty draft counts paths per top-level directory',
+    wide.stdout.includes('`.agents/` 30') && wide.stdout.includes('`opencode-dist/` 60') && wide.stdout.includes('`plugins/` 60') && wide.stdout.includes('`scripts/` 25'));
+  check('large dirty draft omits derived paths', !/- Dirty: `[^`]*(opencode-dist|\.agents|plugins\/code-ops-suite\/scripts)\//.test(wide.stdout)
+    && wide.stdout.includes('Derived dirty paths not listed: 150'));
+  const listedLines = wide.stdout.split('\n').filter((l) => l.startsWith('- Dirty: `'));
+  check('large dirty draft lists at most 20 paths and a +N more line',
+    listedLines.length === 20 && wide.stdout.includes('- +22 more non-derived dirty path(s)'));
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

@@ -4,10 +4,10 @@ description: "Use when you want grounded, high-value feature ideas mined from th
 
 # Feature discovery: find and specify high-value improvements
 
-**Invoked as `/code-ops-suite:feature-discovery`.** First read the
+**Invoked as `/code-ops-suite:feature-discovery`.** First read §1, §3, §4, §7, §8, §10, and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** DISCOVERY · **Produces:** `FEATURE_OPPORTUNITIES.md` as a ranked register, top-feature
 specs in `TOP_FEATURES.md` or `specs/`, `FEATURE_ROADMAP.md`, and `EXECUTIVE_SUMMARY.md`.
 
@@ -16,6 +16,10 @@ Produce no generic wishlist. This skill discovers and specifies only, and implem
 
 ## Phase 0: the product read and the direction  *(checkpoint)*
 
+Before broad reads, check the repo atlas when present with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98
+System/Atlas/`, fallback `atlas/`), and query the symbol index with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs context query find <symbol>` before loading a map.
 Dispatch an `explorer` operative to detect the stack and the **latent capabilities**, meaning
 data already present and services or libraries that could do more cheaply. Map the **current
 feature set and the main user flows**. Infer the product intent and the target users from the

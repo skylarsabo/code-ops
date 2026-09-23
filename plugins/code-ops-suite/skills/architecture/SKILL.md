@@ -8,14 +8,18 @@ description: "Use when you need a deep, diagram-rich architecture reference for 
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`: the operating model, the quality lenses, the
 **documentation quality standard (`§13`)** this doc obeys, and the SSOT and freshness rules
 (`§12`). For this DOCUMENT-mode skill the binding sections are §2 (tools and in-house docs
-lookup), §3 (interaction), §4 (safety rails), §12 (SSOT and registers), and §13 (doc standard).
-Read those five. The fan-out and fix machinery (§1, §5 to §8, §11) does not apply here.
+lookup), §3 (interaction), §4 (safety rails), §12 (SSOT and registers), §13 (doc standard), and §14 (writing standard).
+Read those six. The fan-out and fix machinery (§1, §5 to §8, §11) does not apply here. Leave the rest of that file unread.
 **Mode:** DOCUMENT. This skill writes docs only. Log any code issue as a finding rather than
 fixing it here. **Produces:** a diagram-rich, code-grounded `ARCHITECTURE.md` in the repo's docs
 location.
 
 ## Phase 0: the inventory  *(checkpoint)*
 
+Before broad reads, check the repo atlas when present with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98
+System/Atlas/`, fallback `atlas/`), and query the symbol index with
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs context query find <symbol>` before loading a map.
 Dispatch an `explorer` operative to detect the stack and build the real inventory: deployable
 units, modules, entrypoints, public surfaces, external systems, datastores, and deployment
 topology. Hand its summary onward. Pick the **3-5 runtime flows** that matter most to document.

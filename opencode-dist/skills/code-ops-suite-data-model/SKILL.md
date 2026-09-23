@@ -12,8 +12,8 @@ description: "Use when you need a clear data-model reference for a codebase, gen
 **OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the `<plugin-root>/CONVENTIONS.md`,
 and especially the **documentation quality standard (`§13`)**. For this DOCUMENT-mode skill the
 binding sections are §2 (tools and in-house docs lookup), §3 (interaction), §4 (safety rails),
-§12 (SSOT and registers), and §13 (doc standard). Read those five. The fan-out and fix machinery
-(§1, §5 to §8, §11) does not apply here.
+§12 (SSOT and registers), §13 (doc standard), and §14 (writing standard). Read those six. The fan-out and fix machinery
+(§1, §5 to §8, §11) does not apply here. Leave the rest of that file unread.
 **Mode:** DOCUMENT. **Produces:** `DATA-MODEL.md` in the repo's docs location.
 
 ## Phase 0: the schema source of truth  *(checkpoint)*

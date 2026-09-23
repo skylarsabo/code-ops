@@ -8,6 +8,12 @@
     "code-ops-suite-implementer": {
       "model": "deepseek/deepseek-v4-pro"
     },
+    "code-ops-suite-mech-review": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
+    "code-ops-suite-mech": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
     "code-ops-suite-reviewer": {
       "model": "deepseek/deepseek-v4-pro"
     },

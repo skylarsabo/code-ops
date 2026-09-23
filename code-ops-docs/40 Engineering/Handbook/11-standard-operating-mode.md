@@ -35,8 +35,8 @@ drops a tier, and nothing runs below the lint-enforced `AGENT_MODEL_FLOORS`.
 
 Set effort by ambiguity, not by importance. Mechanical work runs at low effort.
 Single-claim and execution-only work runs at medium. Hard-to-reverse tracing and review
-run at high. Verdicts and acceptance of an operative's report stay with the lead, at the
-highest tier present in the session. Tier and effort partially substitute for one
+run at high. Verdicts and acceptance of an operative's report stay with the session lead,
+the model the operator started the session with. Tier and effort partially substitute for one
 another, so a stronger model at medium approximates a mid model at high. See
 [subagent-trade-offs.md](../Techniques/subagent-trade-offs.md) for the table backing this
 rule and for the floor values themselves.
@@ -44,8 +44,8 @@ rule and for the floor values themselves.
 Every new non-calibration substantive orchestrated run uses Run Contract version 4 with
 `routingPolicy: "task-based"`. It requires a rationale for every unit and permits one
 explicit, bounded frontier peer. Calibration arms and earlier versions retain their existing
-rules for their registered use or replay. The contract makes the frontier lead, disjoint
-parallel wave, independent validation, and operative evidence mechanical.
+rules for their registered use or replay. The contract records the session lead and makes
+the disjoint parallel wave, independent validation, and operative evidence mechanical.
 
 ## The ordered objective and the code-economy ladder
 

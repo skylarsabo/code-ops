@@ -9,9 +9,9 @@ description: "Use when you want a standardized real-scale calibration run of the
 
 **Invoked as `/code-ops-suite-calibration-run`, or by the model through the `skill` tool as `code-ops-suite-calibration-run`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §4, §9, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. It defines the operating model,
-the safety rails, and the evidence standard this skill extends to run measurement. Then read
+the safety rails, and the evidence standard this skill extends to run measurement. Leave the rest of that file unread. Then read
 `<plugin-root>/reference/calibration-protocol.md` for the one-way channel rule,
 the metric table, and the sanitized-note template this skill fills in.
 **Mode:** ASSESS · **Consumes:** a target repo, real-scale rather than a toy fixture ·

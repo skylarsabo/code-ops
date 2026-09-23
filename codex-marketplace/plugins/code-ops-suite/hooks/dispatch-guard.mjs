@@ -45,15 +45,19 @@
 // unavailable controller binding into advisory text. One variable carries both so an
 // operator has one name to remember; the default is on, with every denial.
 // `CODE_OPS_CONTEXT_CEILING` sets the ceiling: `off`, `0`, or `false` disables only the gate,
-// an integer of at least 150,000 overrides the 300,000 default, and anything else reads as
-// the default (`contextCeiling` in scripts/transcript-lib.mjs, shared with the handoff card).
+// an integer of at least 150,000 overrides the default (200,000 on Grok, 300,000 elsewhere),
+// and anything else reads as the default (`contextCeiling` in scripts/transcript-lib.mjs,
+// shared with the handoff card).
 //
 // HOST COVERAGE. The ceiling gate and the dispatch review key on the dispatch tool names: Claude's
 // `Agent`, `Task`, and `Workflow`, and Grok's `spawn_subagent` (~/.grok/docs/user-guide
 // 16-subagents.md). Grok sends camelCase `toolName`, `toolInput`, and `sessionId`
-// (10-hooks.md), which main() maps onto the snake_case keys. Codex's dispatch tool name is
-// UNVERIFIED, so there both behaviours stay inert unless that tool shares a name; the round
-// counters keep the per-host coverage INFRASTRUCTURE.md records.
+// (10-hooks.md), which main() maps onto the snake_case keys. Grok sends no `agent_id`; inside
+// a subagent the payload carries `subagentType` and the child session's own `sessionId`, which
+// main() uses as the round counter's agent key (PROBABLE: the docs state the child session and
+// the field, not a captured payload). Codex's dispatch tool name is UNVERIFIED, so there both
+// behaviours stay inert unless that tool shares a name; the round counters keep the per-host
+// coverage INFRASTRUCTURE.md records.
 // Codex transcripts are measured through their token_count snapshots, Grok's through
 // updates.jsonl, as residentContext documents. OpenCode runs its own lifecycle guard.
 //
@@ -484,9 +488,13 @@ async function main() {
 
   const budget = roundBudget();
   const hardStop = !/^warn$/i.test(setting);
-  const agentId = payload.agent_id;
+  // Grok sends no `agent_id`. A subagent there runs in its own child session, and every event
+  // that fires inside it carries `subagentType` (10-hooks.md), so that child's `sessionId` keys
+  // its counter.
+  const agentId = payload.agent_id
+    ?? (typeof payload.subagentType === 'string' && payload.subagentType ? payload.session_id : undefined);
   if (typeof agentId === 'string' && agentId) {
-    guardSubagent(payload, budget, hardStop);
+    guardSubagent({ ...payload, agent_id: agentId }, budget, hardStop);
     return;
   }
   await guardMainThread(payload, budget, hardStop);

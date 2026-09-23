@@ -333,11 +333,37 @@ export const MODEL_CLASS_ORDER = [...TIER_ORDER, 'ambiguous', 'unclassified'];
 //   - `unclassified`, when the id is in no ladder. A model this repo has not pinned cannot
 //     be placed on the ladder by shape, and a wrong placement would read as a routing
 //     verdict — the same reason providerOfConfigSlug leaves an unmatched slug unattributed.
+// A ladder or accepted entry that binds the id to several rungs carries no class signal of its
+// own, so a lineup that collapses rungs (Copilot binds `gpt-6-sol` to strong and frontier) does
+// not erase the single rung another ladder gives the id. Specialist rungs are role placements
+// on one host, so they classify only an id no ladder or accepted entry places.
+const CLASS_BY_MODEL_ID = (() => {
+  const placed = new Map();
+  const signal = new Map();
+  const note = (id, tiers) => {
+    if (!placed.has(id)) placed.set(id, new Set());
+    for (const tier of tiers) placed.get(id).add(tier);
+    if (tiers.length !== 1) return;
+    if (!signal.has(id)) signal.set(id, new Set());
+    signal.get(id).add(tiers[0]);
+  };
+  for (const provider of Object.values(PROVIDER_TIERS)) {
+    const byId = new Map();
+    for (const [tier, id] of Object.entries(provider.models)) byId.set(id, [...(byId.get(id) ?? []), tier]);
+    for (const [id, tiers] of byId) note(id, tiers);
+  }
+  for (const [id, tiers] of Object.entries(ACCEPTED_MODELS)) note(id, tiers);
+  const classes = new Map();
+  for (const [id, rungs] of RUNGS_BY_MODEL_ID) {
+    const basis = signal.get(id) ?? placed.get(id) ?? rungs;
+    classes.set(id, basis.size === 1 ? [...basis][0] : 'ambiguous');
+  }
+  return classes;
+})();
+
 export function modelClassOf(modelId) {
   if (typeof modelId !== 'string') return 'unclassified';
-  const rungs = RUNGS_BY_MODEL_ID.get(modelId.trim());
-  if (!rungs) return 'unclassified';
-  return rungs.size === 1 ? [...rungs][0] : 'ambiguous';
+  return CLASS_BY_MODEL_ID.get(modelId.trim()) ?? 'unclassified';
 }
 
 // Authorization needs the highest rung a model can serve. Reporting keeps returning

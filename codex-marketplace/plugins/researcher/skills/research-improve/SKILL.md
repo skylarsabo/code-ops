@@ -7,10 +7,10 @@ description: "Use when you want grounded, external-best-practice improvements pr
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `researcher:research-improve`.** Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**Invoke in Codex by naming `researcher:research-improve`.** Read §A, §2, §3, §4, §6, §7, §8, §10, §11, §12, and §14 of
+`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the schemas, the tiers, and the lenses, referenced by
-section.
+section. Leave the rest of that file unread.
 
 - **Mode:** DISCOVERY.
 - **Produces:** `RESEARCH_FINDINGS.md` with `RSCH-NNN` entries, `EGRESS_MANIFEST.md` when

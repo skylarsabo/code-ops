@@ -8,6 +8,12 @@
     "code-ops-suite-implementer": {
       "model": "google/gemini-3.1-pro-preview"
     },
+    "code-ops-suite-mech-review": {
+      "model": "google/gemini-3.6-flash"
+    },
+    "code-ops-suite-mech": {
+      "model": "google/gemini-3.6-flash"
+    },
     "code-ops-suite-reviewer": {
       "model": "google/gemini-3.1-pro-preview"
     },

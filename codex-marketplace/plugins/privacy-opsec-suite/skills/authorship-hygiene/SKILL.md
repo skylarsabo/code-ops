@@ -7,10 +7,10 @@ description: "Use when a commit, PR, or branch must carry no AI or tooling trace
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `privacy-opsec-suite:authorship-hygiene`.** Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the anonymity and OpSec model (`§A`),
+**Invoke in Codex by naming `privacy-opsec-suite:authorship-hygiene`.** Read §A, §3, §4, §9, §12, and §13 of
+`<plugin-root>/CONVENTIONS.md`. It defines the anonymity and OpSec model (`§A`),
 including the tooling-trace non-negotiable, plus the interaction protocol, the safety rails,
-and the lenses this skill follows.
+and the lenses this skill follows. Leave the rest of that file unread.
 
 - **Mode:** REVIEW to audit, then IMPLEMENT to scrub.
 - **Scope:** a commit range, a pull request body, and the working diff you name.

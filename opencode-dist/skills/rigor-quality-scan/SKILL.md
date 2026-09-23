@@ -9,11 +9,11 @@ description: "Use when you want high-signal, defect-causing quality issues with 
 
 **Invoked as `/rigor-quality-scan`, or by the model through the `skill` tool as `rigor-quality-scan`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. Read §A, §B, §C, §D, §E, §G, §H, §1, §3, §4, §7, and §11 of
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** AUDIT. It reads code and runs light execution.
 - **Produces:** tiered findings in `FINDINGS_REGISTER.md`, plus a summary.
@@ -22,6 +22,10 @@ rails this skill follows.
 
 ## Phase 0: scope  *(checkpoint)*
 
+Before broad reads, when `code-ops-suite` is installed, check the repo atlas when present with
+its `atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98 System/Atlas/`, fallback
+`atlas/`), and query the symbol index with its `co.mjs context query find <symbol>` before
+loading a map.
 Pick the area. Read `GROUND_TRUTH.md` so you skip what the linter and the type checker
 already enforce. If that file is absent, run `/rigor-ground-truth` first, or harvest the
 `§C` toolchain baseline for the area yourself before scanning. Never reason ahead of the

@@ -29,7 +29,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'nod
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -46,7 +46,7 @@ function fakeHome() {
   return { home, cleanup: () => rmSync(home, { recursive: true, force: true }) };
 }
 
-function runHook(payload, { home, guard, budget, ceiling, pluginRoot = suite } = {}) {
+function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRoot = suite } = {}) {
   const env = { ...process.env };
   delete env.CODE_OPS_DISPATCH_GUARD;
   delete env.CODE_OPS_ROUND_BUDGET;
@@ -55,6 +55,7 @@ function runHook(payload, { home, guard, budget, ceiling, pluginRoot = suite } =
   if (guard !== undefined) env.CODE_OPS_DISPATCH_GUARD = guard;
   if (ceiling !== undefined) env.CODE_OPS_CONTEXT_CEILING = ceiling;
   if (budget !== undefined) env.CODE_OPS_ROUND_BUDGET = String(budget);
+  if (grok) env.GROK_PLUGIN_ROOT = pluginRoot;
   if (home) { env.HOME = home; env.USERPROFILE = home; }
   env.CLAUDE_PLUGIN_ROOT = pluginRoot;
   const input = typeof payload === 'string' ? payload : JSON.stringify(payload);
@@ -539,6 +540,62 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   the context ceiling denies dispatch until a handoff assessment records the band, and each switch behaves');
+}
+
+// ---------------------------------------------------------------- Grok: host ceiling and child-session counter
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'dispatch-grok-'));
+  const cwd = root;
+  // Grok's session log: cumulative usage snapshots whose inputTokens is the resident context.
+  const updatesAt = (context) => {
+    mkdirSync(join(dir, String(context)), { recursive: true });
+    const path = join(dir, String(context), 'updates.jsonl');
+    writeFileSync(path, JSON.stringify({ timestamp: 1, params: { update: { prompt_id: 'p1', usage: {
+      inputTokens: context, cachedReadTokens: 10, cacheCreationTokens: 0, outputTokens: 5, totalTokens: context + 5,
+    } } } }) + '\n');
+    return path;
+  };
+  const spawnAt = (context, opts = {}) => runHook({
+    hook_event_name: 'PreToolUse', hookEventName: 'pre_tool_use', sessionId: 'sess-grok-host', cwd,
+    toolName: 'spawn_subagent', toolInput: { prompt: 'Round budget: 5' }, transcriptPath: updatesAt(context),
+  }, { home, grok: true, ...opts });
+
+  // Grok bills double above 200,000 tokens, so its default ceiling sits there; the override wins.
+  let out = parseOut(spawnAt(210_000));
+  expect(/about 10,000 tokens past the 200,000-token context ceiling/.test(reasonOf(out) ?? ''),
+    `a Grok spawn past 200,000 must deny at the Grok ceiling, got ${JSON.stringify(out)}`);
+  let r = spawnAt(190_000);
+  expect(r.status === 0 && r.stdout === '', `a Grok spawn under 200,000 must be silent, got ${JSON.stringify(r.stdout)}`);
+  expect(spawnAt(210_000, { ceiling: '300000' }).stdout === '', 'CODE_OPS_CONTEXT_CEILING must override the Grok default');
+  const lib = await import(pathToFileURL(join(root, 'scripts', 'transcript-lib.mjs')).href);
+  expect(lib.contextCeiling('', true) === 200_000 && lib.contextCeiling('', false) === 300_000
+    && lib.contextCeiling('250000', true) === 250_000 && lib.contextCeiling('off', true) === null,
+  'contextCeiling must default to 200,000 on Grok, 300,000 elsewhere, and honour the override');
+
+  // No agent_id on Grok: a subagent's tool call carries subagentType and its child sessionId,
+  // which keys the round counter; the main thread (no subagentType) is never counted.
+  const budget = 2;
+  const childCall = (sessionId) => runHook({
+    hook_event_name: 'PreToolUse', hookEventName: 'pre_tool_use', sessionId, cwd, subagentType: 'code-ops-suite-implementer',
+    toolName: 'read_file', toolInput: { path: 'a.txt' },
+  }, { home, budget, grok: true });
+  const seen = [];
+  for (let i = 0; i < budget * 2; i++) seen.push(parseOut(childCall('child-1')));
+  expect(/2 tool rounds used against a 2-round budget/.test(contextOf(seen[budget - 1]) ?? ''),
+    `a Grok subagent must warn at its budget, got ${JSON.stringify(seen[budget - 1])}`);
+  expect(seen[budget * 2 - 1]?.hookSpecificOutput?.permissionDecision === 'deny',
+    `a Grok subagent must stop at twice its budget, got ${JSON.stringify(seen[budget * 2 - 1])}`);
+  expect(childCall('child-2').stdout === '', 'another Grok subagent must keep its own counter');
+  for (let i = 0; i < budget * 2; i++) {
+    r = runHook({ hook_event_name: 'PreToolUse', sessionId: 'main-grok', cwd, toolName: 'read_file', toolInput: {} }, { home, budget, grok: true });
+    expect(r.stdout === '', `a Grok main-thread tool call must never be counted, got ${JSON.stringify(r.stdout)}`);
+  }
+
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   Grok gates at its 200,000-token ceiling and counts rounds per child session');
 }
 
 // ---------------------------------------------------------------- the off switch

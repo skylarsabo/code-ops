@@ -9,10 +9,10 @@ description: "Use when you want to audit a completed orchestrated run's cost dis
 
 **Invoked as `/code-ops-suite-run-cost-audit`, or by the model through the `skill` tool as `code-ops-suite-run-cost-audit`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §12, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin, and specifically the
 bounded-wave fan-out rule and the model and effort routing (`§1`), plus the artifact-size length
-discipline (`§12`) this skill audits against.
+discipline (`§12`) this skill audits against. Leave the rest of that file unread.
 **Mode:** ASSESS · **Consumes:** a completed run's artifact folder, holding the registers,
 `DISPATCH_LEDGER.md`, `EXECUTIVE_SUMMARY.md`, and their siblings · **Produces:** `COST_AUDIT.md`
 and `RUN_CONFORMANCE.md`.

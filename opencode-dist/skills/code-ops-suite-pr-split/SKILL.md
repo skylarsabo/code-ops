@@ -9,10 +9,10 @@ description: "Use when you have one big branch you want carved into a clean, rev
 
 **Invoked as `/code-ops-suite-pr-split`, or by the model through the `skill` tool as `code-ops-suite-pr-split`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the `<plugin-root>/CONVENTIONS.md`
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §3, §4, §11, §14, and §15 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails
 including the automation-level ladder (`§4`), and the implementation loop (`§11`) this skill
-follows.
+follows. Leave the rest of that file unread.
 **Mode:** IMPLEMENT. **Consumes:** the current branch, compared against its trunk. **Produces:** a
 stack of small, independently-green PRs, opened with trace-free, voice-matched metadata.
 **Composes:** `/privacy-opsec-suite-authorship-hygiene` and `/code-ops-suite-local-review-gate`,

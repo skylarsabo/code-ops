@@ -20,3 +20,16 @@ Before each tool round, list what you still need, then request every item that d
 Return findings grouped by priority: **Blocking** (any anonymity or leak regression), **Should-fix**, and **Nit**, dense and evidence-cited, with no raw dumps, plus a one-line risk read. Do not endorse a change that weakens anonymity. The orchestrator merges your report with others.
 
 Report cap: at most 600 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.
+
+## Contract
+
+Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+Edits: none
+Verdicts: APPROVE | CHANGES | ESCALATE
+
+```text
+APPROVE: risk high; 1 Blocking, 0 Should-fix, 1 Nit
+Blocking: src/net.ts:30 `direct: true` fallback bypasses the proxy; adversary: network observer; PROBABLE
+Nit: src/log.ts:9 debug label names the host
+Next: fail closed at src/net.ts:30
+```

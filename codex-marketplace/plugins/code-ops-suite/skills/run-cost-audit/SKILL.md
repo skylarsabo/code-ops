@@ -7,10 +7,10 @@ description: "Use when you want to audit a completed orchestrated run's cost dis
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:run-cost-audit`.** First read the
+**Invoke in Codex by naming `code-ops-suite:run-cost-audit`.** First read §1, §12, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin, and specifically the
 bounded-wave fan-out rule and the model and effort routing (`§1`), plus the artifact-size length
-discipline (`§12`) this skill audits against.
+discipline (`§12`) this skill audits against. Leave the rest of that file unread.
 **Mode:** ASSESS · **Consumes:** a completed run's artifact folder, holding the registers,
 `DISPATCH_LEDGER.md`, `EXECUTIVE_SUMMARY.md`, and their siblings · **Produces:** `COST_AUDIT.md`
 and `RUN_CONFORMANCE.md`.

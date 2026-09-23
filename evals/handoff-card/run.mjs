@@ -22,7 +22,7 @@
 //     was received;
 //   - a crossing at or past the context ceiling (CODE_OPS_CONTEXT_CEILING, default 300,000)
 //     ends with one sentence saying new dispatches are gated; off drops only that sentence, an
-//     override moves it, an invalid value falls back to 300,000, and Grok never gets it.
+//     override moves it, an invalid value falls back to 300,000, and Grok gets it from 200,000.
 //
 // It also covers the other half of the handoff loop, the pending-handoff pickup line
 // plugins/code-ops-suite/hooks/routing-card.mjs injects at SessionStart: which sources get it,
@@ -195,12 +195,12 @@ function parseOut(r) {
   expect(gated.test(messageAt(160_000, 'sess-ceil-override', '150000')), 'an overridden 150,000 ceiling must name the gate at band 1');
   expect(!gated.test(messageAt(460_000, 'sess-ceil-high', '500000')), 'context under an overridden ceiling must not name the gate');
   expect(gated.test(messageAt(310_000, 'sess-ceil-invalid', '100000')), 'an invalid ceiling must fall back to 300,000');
-  const grok = runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(310_000), 'updates.jsonl'), sessionId: 'sess-ceil-grok', eventName: 'PostToolUse' }), { home, grok: true });
+  const grok = runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(210_000), 'updates.jsonl'), sessionId: 'sess-ceil-grok', eventName: 'PostToolUse' }), { home, grok: true });
   const grokNote = (parseOut(grok) || {}).hookSpecificOutput?.additionalContext || '';
-  expect(/handoff assess/.test(grokNote) && !gated.test(grokNote), `Grok must not claim a dispatch gate it cannot enforce, got ${grokNote}`);
+  expect(/handoff assess/.test(grokNote) && gated.test(grokNote), `Grok past its 200,000-token ceiling must name the spawn_subagent gate, got ${grokNote}`);
   rmSync(dir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   a crossing at or past the context ceiling says new dispatches are gated, except on Grok');
+  console.log('ok   a crossing at or past the context ceiling says new dispatches are gated, on Grok from 200,000');
 }
 
 // ---------------------------------------------------------------- typed handoff command unlocks the guard

@@ -7,8 +7,8 @@ description: "Use when repository documentation must be extracted, refreshed, or
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:repo-docs`.** First read `<plugin-root>/CONVENTIONS.md`,
-and its orchestration, evidence, and documentation sections.
+**Invoke in Codex by naming `code-ops-suite:repo-docs`.** First read §1, §3, §4, §9, §13, and §14 of `<plugin-root>/CONVENTIONS.md`: its
+orchestration, evidence, and documentation sections. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces:** updated manifest-owned documents, an extraction plan, and
 freshness proof.
 

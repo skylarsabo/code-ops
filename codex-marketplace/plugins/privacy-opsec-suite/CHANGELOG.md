@@ -1,5 +1,11 @@
 # Changelog — privacy-opsec-suite
 
+## 1.20.27
+- **TODO** — describe the change.
+
+## 1.20.27
+- The explorer and privacy-reviewer agents carry a typed `## Contract` section. Skills read only the CONVENTIONS sections they cite, plus the writing standard.
+
 ## 1.20.26
 - Vendored scripts match the canonical copies.
 

@@ -4,10 +4,10 @@ description: "Use when you have one big branch you want carved into a clean, rev
 
 # PR split: carve a big branch into a clean, traceless stack
 
-**Invoked as `/code-ops-suite:pr-split`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
+**Invoked as `/code-ops-suite:pr-split`.** First read §1, §3, §4, §11, §14, and §15 of the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails
 including the automation-level ladder (`§4`), and the implementation loop (`§11`) this skill
-follows.
+follows. Leave the rest of that file unread.
 **Mode:** IMPLEMENT. **Consumes:** the current branch, compared against its trunk. **Produces:** a
 stack of small, independently-green PRs, opened with trace-free, voice-matched metadata.
 **Composes:** `privacy-opsec-suite:authorship-hygiene` and `code-ops-suite:local-review-gate`,

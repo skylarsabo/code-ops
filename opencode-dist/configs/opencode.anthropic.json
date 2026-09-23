@@ -8,6 +8,12 @@
     "code-ops-suite-implementer": {
       "model": "anthropic/claude-opus-5-5"
     },
+    "code-ops-suite-mech-review": {
+      "model": "anthropic/claude-sonnet-5"
+    },
+    "code-ops-suite-mech": {
+      "model": "anthropic/claude-sonnet-5"
+    },
     "code-ops-suite-reviewer": {
       "model": "anthropic/claude-opus-5-5"
     },

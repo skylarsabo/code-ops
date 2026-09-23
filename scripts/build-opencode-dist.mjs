@@ -368,6 +368,11 @@ function modelFloorPlugin(agents, routingCard) {
   for (const [providerId, specialists] of Object.entries(PROVIDER_SPECIALISTS)) {
     for (const specialist of specialists) consider(providerId, specialist.model, specialist.tier);
   }
+  // The lifecycle chooser needs to tell specialist rows from ladder rows, which KNOWN_MODELS merges.
+  const specialistModels = Object.fromEntries(Object.entries(PROVIDER_SPECIALISTS).map(([providerId, specialists]) => {
+    const ladder = new Set(Object.values(Object.values(PROVIDER_TIERS).find((provider) => provider.id === providerId)?.models ?? {}));
+    return [providerId, specialists.map((specialist) => specialist.model).filter((model) => !ladder.has(model))];
+  }));
   for (const [model, tiers] of Object.entries(ACCEPTED_MODELS)) {
     const highest = [...tiers].sort((a, b) => rank[a] - rank[b]).at(-1);
     consider('accepted', model, highest);
@@ -387,6 +392,7 @@ const REQUIRED = ${JSON.stringify(required, null, 2)};
 const RANK = ${JSON.stringify(rank, null, 2)};
 const KNOWN_MODELS = ${JSON.stringify(knownModels, null, 2)};
 const TIER_BY_ID = ${JSON.stringify(tierById, null, 2)};
+const SPECIALIST_MODELS = ${JSON.stringify(specialistModels, null, 2)};
 // Read by the lifecycle chooser and the cost report, never by this gate.
 const MODEL_PRICES = ${JSON.stringify(PROVIDER_PRICES, null, 2)};
 const ROUTING_CARD = ${JSON.stringify(routingCard)};

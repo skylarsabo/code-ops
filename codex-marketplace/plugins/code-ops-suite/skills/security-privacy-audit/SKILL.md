@@ -7,10 +7,10 @@ description: "Use when you need an adversarial security and privacy threat asses
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:security-privacy-audit`.** First read the
+**Invoke in Codex by naming `code-ops-suite:security-privacy-audit`.** First read §1, §3, §4, §7, §10, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** AUDIT · **Produces:** `THREAT_MODEL.md`, `SECURITY_PRIVACY_FINDINGS.md`, and
 `EXECUTIVE_SUMMARY.md`. It feeds NEEDS-REVIEW and NEEDS-DESIGN items into
 `FINDINGS_REGISTER.md`.
@@ -24,6 +24,10 @@ missing security header, a cookie flag, or the redaction of a leaky log.
 
 ## Phase 0: the attack and data surface  *(checkpoint)*
 
+Before broad reads, check the repo atlas when present with
+`node <plugin-root>/scripts/atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98
+System/Atlas/`, fallback `atlas/`), and query the symbol index with
+`node <plugin-root>/scripts/co.mjs context query find <symbol>` before loading a map.
 Dispatch an `explorer` operative to enumerate the **attack surface**: every entry point, input,
 deserialization, upload, auth boundary, admin or debug surface, and client code. Have it define
 the **trust boundaries** and the relevant **adversaries**: an external attacker, a passive or

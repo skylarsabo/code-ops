@@ -9,10 +9,10 @@ description: "Use when you want to implement one change, a feature or a one-off,
 
 **Invoked as `/code-ops-suite-ship`, or by the model through the `skill` tool as `code-ops-suite-ship`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the `<plugin-root>/CONVENTIONS.md`
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §3, §4, §10, §11, §12, §14, and §15 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model, the interaction protocol, the safety rails
 including the automation-level ladder (`§4`), the quality lenses (`§10`), and the implementation
-loop (`§11`) this skill follows.
+loop (`§11`) this skill follows. Leave the rest of that file unread.
 **Mode:** IMPLEMENT. **Consumes:** an intent, meaning a ticket, a request, or a spec.
 **Produces:** the change, proven and shipped as a clean, traceless PR or stack. **Composes,** when
 installed: `rigor` for the safety net, the proof, and the regression guard,

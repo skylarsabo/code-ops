@@ -21,3 +21,16 @@ Before each tool round, list what you still need, then request every item that d
 Return your findings as a compact structured report: what you were asked, what you found with `file:line` evidence, anything ambiguous or unverified, and, if asked, the specific entities (files, symbols, owners) relevant to the next step. Keep it dense and skimmable, because the orchestrator will synthesize across multiple explorers.
 
 Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.
+
+## Contract
+
+Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+Edits: none
+Verdicts: ANSWERED | PARTIAL | ESCALATE
+
+```text
+ANSWERED: where is the session token validated?
+Found: src/auth/session.ts:41 `verifyToken(raw)` called from src/server.ts:88
+Unverified: refresh path; Searched: src/auth/refresh*
+Next: trace src/auth/session.ts:41-60
+```

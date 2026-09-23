@@ -37,8 +37,11 @@ const DEFAULT_BUDGET = 40;
 const WARN_EVERY = 20;
 const STOP_MULTIPLE = 2;
 // Past this context size the lead must run the handoff assessment before it
-// dispatches new work. Each later THRESHOLD-sized band gates again.
+// dispatches new work. Each later THRESHOLD-sized band gates again. Grok
+// prices double above 200,000 tokens, so a session on a Grok model gates there.
 const CEILING = 300_000;
+const GROK_CEILING = 200_000;
+const GROK_MODEL = /(^|\/)grok-/i;
 const PENDING_DAYS = 14;
 const DISPATCH_TOOLS = new Set(['task', 'Task', 'agent', 'Agent']);
 const WIDE_TYPES = new Set(['general-purpose', 'general', 'claude', 'fork', 'explore', 'scout']);
@@ -245,13 +248,15 @@ function contextThreshold(profile) {
 }
 
 // CODE_OPS_CONTEXT_CEILING: off|0|false disables the gate, an integer of at
-// least THRESHOLD overrides it, anything else keeps the default. The ceiling
-// never sits below the handoff band the profile set.
-function contextCeiling(profile) {
+// least THRESHOLD overrides it, anything else keeps the default for the
+// session's latest model. The ceiling never sits below the handoff band the
+// profile set.
+function contextCeiling(profile, row) {
   const raw = String(process.env.CODE_OPS_CONTEXT_CEILING ?? '').trim();
   if (/^(off|0|false)$/i.test(raw)) return null;
   const n = Number(raw);
-  const ceiling = raw && Number.isSafeInteger(n) && n >= THRESHOLD ? n : CEILING;
+  const ceiling = raw && Number.isSafeInteger(n) && n >= THRESHOLD ? n
+    : GROK_MODEL.test(row?.model ?? '') ? GROK_CEILING : CEILING;
   return Math.max(ceiling, contextThreshold(profile));
 }
 
@@ -465,6 +470,8 @@ const bareId = (fullId) => {
 // The floor gate owns the verified tier table. Reading it from the sibling file
 // keeps one table. A model reached through a reseller is the same model, so the
 // lookup also goes by bare id and takes the lowest tier any provider row gives.
+// A specialist row prices one provider's premium placement, not the model, so
+// it decides the bare-id tier only when no ladder row binds that model.
 let gateTable;
 function gateTier(fullId) {
   if (gateTable === undefined) {
@@ -472,12 +479,17 @@ function gateTier(fullId) {
     try {
       const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'code-ops-model-floors.js'), 'utf8');
       const known = JSON.parse(/const KNOWN_MODELS = (\{[\s\S]*?\n\});/.exec(text)[1]);
+      const specialistText = /const SPECIALIST_MODELS = (\{[\s\S]*?\n\});/.exec(text);
+      const specialists = specialistText ? JSON.parse(specialistText[1]) : {};
       const byId = {};
-      for (const models of Object.values(known)) {
+      const bySpecialist = {};
+      for (const [provider, models] of Object.entries(known)) {
         for (const [id, tier] of Object.entries(models)) {
-          if (byId[id] === undefined || TIER_RANK[tier] < TIER_RANK[byId[id]]) byId[id] = tier;
+          const target = specialists[provider]?.includes(id) ? bySpecialist : byId;
+          if (target[id] === undefined || TIER_RANK[tier] < TIER_RANK[target[id]]) target[id] = tier;
         }
       }
+      for (const [id, tier] of Object.entries(bySpecialist)) byId[id] ??= tier;
       const prices = /const MODEL_PRICES = (\{[\s\S]*?\n\});/.exec(text);
       gateTable = { known, byId, prices: prices ? JSON.parse(prices[1]) : {} };
     } catch { /* fall back to the family classifier */ }
@@ -796,6 +808,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         agent: null,
         cwd: directory,
         models: new Set(),
+        model: null,
         toolCalls: Object.create(null),
         toolResultChars: 0,
         messages: new Map(),
@@ -846,7 +859,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
   };
 
   const recordAssessment = (row) => {
-    const band = gateBand(row.contextAtEnd, contextCeiling(profile));
+    const band = gateBand(row.contextAtEnd, contextCeiling(profile, row));
     if (band <= assessedBand(row)) return;
     row.assessedBand = band;
     try {
@@ -955,7 +968,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
     writeBand(marker, band, peak);
     const approx = Math.round(context / 10_000) * 10_000;
     const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context, and every turn re-reads all of it. ${spendLine(sessionCost(row) + row.childCost, profile)}`;
-    const ceiling = contextCeiling(profile);
+    const ceiling = contextCeiling(profile, row);
     const gated = on('CODE_OPS_DISPATCH_GUARD') && hardStop() && ceiling && context >= ceiling
       && assessedBand(row) < gateBand(context, ceiling)
       ? ' New dispatches are gated until that assessment runs.'
@@ -1089,8 +1102,8 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         if (!row) return;
         if (typeof input?.agent === 'string' && input.agent) row.agent = input.agent;
         const model = input?.model;
-        if (model?.providerID && model?.id) row.models.add(`${model.providerID}/${model.id}`);
-        else if (model?.id) row.models.add(model.id);
+        if (model?.providerID && model?.id) row.models.add(row.model = `${model.providerID}/${model.id}`);
+        else if (model?.id) row.models.add(row.model = model.id);
         row.lastTs = Date.now();
         if (!on('CODE_OPS_EFFORT_ROUTING') || !suiteAgent(row.agent) || !output || typeof output !== 'object') return;
         const fullId = `${model?.providerID}/${model?.id}`;
@@ -1230,7 +1243,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
               `Dispatch guard: ${type || 'an unnamed type'} is not a suite subagent. Dispatch code-ops-suite-implementer, code-ops-suite-explorer, code-ops-suite-reviewer, rigor-tracer, rigor-verifier, privacy-opsec-suite-explorer, privacy-opsec-suite-privacy-reviewer, researcher-claim-checker, or researcher-gatherer.`,
             );
           }
-          const ceiling = contextCeiling(profile);
+          const ceiling = contextCeiling(profile, row);
           const band = gateBand(row.contextAtEnd, ceiling);
           if (band >= 1 && assessedBand(row) < band) {
             const approx = Math.round(row.contextAtEnd / 10_000) * 10_000;
@@ -1311,7 +1324,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           if (!info || info.role !== 'assistant') return;
           const row = record(info.sessionID);
           if (!row) return;
-          if (info.providerID && info.modelID) row.models.add(`${info.providerID}/${info.modelID}`);
+          if (info.providerID && info.modelID) row.models.add(row.model = `${info.providerID}/${info.modelID}`);
           const key = info.id ?? `at-${info.time?.created ?? row.messages.size}`;
           row.messages.set(key, { tokens: info.tokens, cost: Number(info.cost) > 0 ? Number(info.cost) : 0 });
           const size = contextSize(info.tokens);

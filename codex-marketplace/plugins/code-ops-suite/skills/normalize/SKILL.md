@@ -7,10 +7,10 @@ description: "Use when a codebase has inconsistent style or the artifacts of has
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:normalize`.** First read the `<plugin-root>/CONVENTIONS.md`
+**Invoke in Codex by naming `code-ops-suite:normalize`.** First read §1, §3, §4, §7, §10, §11, §14, and §15 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin. Search the plugin directory for it if needed. It defines the operating
 model, interaction protocol, safety rails, schemas, and quality lenses this skill references by
-section.
+section. Leave the rest of that file unread.
 **Mode:** IMPLEMENT, behavior-preserving · **Produces:** the normalized codebase,
 `STYLE_GUIDE.md`, an enforced linter and formatter config, and `NORMALIZATION_LOG.md`.
 Behavior-changing issues go to a separate list.

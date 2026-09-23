@@ -7,11 +7,11 @@ description: "Use when you want the factual baseline before any analysis. Runs t
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `rigor:ground-truth`.** Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It defines the verification-first methodology
+**Invoke in Codex by naming `rigor:ground-truth`.** Read §A, §B, §C, §G, §H, §1, §3, §4, and §11 of
+`<plugin-root>/CONVENTIONS.md`. It defines the verification-first methodology
 (evidence tiers, the disconfirmation pass, ground truth first, root cause over symptom, and
 the regression guard), plus the operating model, the interaction protocol, and the safety
-rails this skill follows.
+rails this skill follows. Leave the rest of that file unread.
 
 - **Mode:** AUDIT. It runs tooling and edits no source.
 - **Produces:** `GROUND_TRUTH.md`, and seeds CONFIRMED items into `FINDINGS_REGISTER.md`.
@@ -19,6 +19,10 @@ rails this skill follows.
 
 ## Phase 0: detect the toolchain  *(checkpoint if ambiguous)*
 
+Before broad reads, when `code-ops-suite` is installed, check the repo atlas when present with
+its `atlas-check.mjs check --atlas <atlas dir>` (`<repo>-docs/98 System/Atlas/`, fallback
+`atlas/`), and query the symbol index with its `co.mjs context query find <symbol>` before
+loading a map.
 Identify what the repository has: a build or typecheck step, linters, the test runner and
 its coverage tool, a benchmark harness, a mutation-testing tool, and any static analyzer.
 Note what is missing.

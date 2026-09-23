@@ -12,6 +12,16 @@
       "minimumTier": "strong"
     },
     {
+      "name": "mech",
+      "sourceModel": "sonnet",
+      "minimumTier": "mid"
+    },
+    {
+      "name": "mech-review",
+      "sourceModel": "sonnet",
+      "minimumTier": "mid"
+    },
+    {
       "name": "reviewer",
       "sourceModel": "opus",
       "minimumTier": "strong"

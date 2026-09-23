@@ -4,8 +4,8 @@ description: "Use when you need to capture the reasons behind a codebase's archi
 
 # ADR: architecture decision records
 
-**Invoked as `/code-ops-suite:adr`.** First read the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and
-especially the **documentation quality standard (`§13`)**.
+**Invoked as `/code-ops-suite:adr`.** First read §3, §4, §12, §13, and §14 of the `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md`, and
+especially the **documentation quality standard (`§13`)**. Leave the rest of that file unread.
 **Mode:** DOCUMENT. **Produces:** numbered ADRs in `<repo>-docs/20 Decisions/ADRs/`. Match an
 existing ADR convention when the repo already has one.
 

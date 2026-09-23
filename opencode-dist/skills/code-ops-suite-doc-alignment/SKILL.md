@@ -9,10 +9,10 @@ description: "Use when docs have drifted from code and you want them reconciled 
 
 **Invoked as `/code-ops-suite-doc-alignment`, or by the model through the `skill` tool as `code-ops-suite-doc-alignment`.**
 
-**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read the
+**OpenCode runtime note:** Traceless publishing, model-floor enforcement, digest rewrite, index refresh, routing guidance, compaction preservation, the lifecycle plugin, and local documentation MCP registration run automatically. The lifecycle plugin keeps a stable system prefix and writes the cost ledger. Handoff and dispatch notes ride on the next tool result or user turn. First read §1, §3, §4, §7, §10, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. Search the plugin directory for
 it if needed. It defines the operating model, interaction protocol, safety rails, schemas, and
-quality lenses this skill references by section.
+quality lenses this skill references by section. Leave the rest of that file unread.
 **Mode:** DOCUMENT · **Produces:** reconciled docs edited in place, `DRIFT_REPORT.md`,
 `SSOT_MAP.md`, and `OPEN_QUESTIONS.md`.
 

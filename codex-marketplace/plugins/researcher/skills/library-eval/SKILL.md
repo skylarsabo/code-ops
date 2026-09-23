@@ -7,10 +7,10 @@ description: "Use when you must decide whether to adopt a library or approach, c
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `researcher:library-eval`.** Read only the sections named in this paragraph of
-`<plugin-root>/CONVENTIONS.md`, and do not load the rest of that file. It carries the research-integrity and egress model
+**Invoke in Codex by naming `researcher:library-eval`.** Read §A, §2, §3, §4, §7, §8, §10, §11, §12, §13, and §14 of
+`<plugin-root>/CONVENTIONS.md`. It carries the research-integrity and egress model
 (`§A`), the protocol, the rails, the evidence and citation discipline, the hand-off map, and
-the lenses, referenced by section.
+the lenses, referenced by section. Leave the rest of that file unread.
 
 - **Mode:** REVIEW.
 - **Produces:** a comparison and recommendation brief in `LIBRARY_EVAL.md`, on the `§13`

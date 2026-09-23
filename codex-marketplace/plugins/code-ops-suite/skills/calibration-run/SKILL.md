@@ -7,9 +7,9 @@ description: "Use when you want a standardized real-scale calibration run of the
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Invoke in Codex by naming `code-ops-suite:calibration-run`.** First read the
+**Invoke in Codex by naming `code-ops-suite:calibration-run`.** First read §1, §4, §9, and §14 of the
 `<plugin-root>/CONVENTIONS.md` bundled with this plugin. It defines the operating model,
-the safety rails, and the evidence standard this skill extends to run measurement. Then read
+the safety rails, and the evidence standard this skill extends to run measurement. Leave the rest of that file unread. Then read
 `<plugin-root>/reference/calibration-protocol.md` for the one-way channel rule,
 the metric table, and the sanitized-note template this skill fills in.
 **Mode:** ASSESS · **Consumes:** a target repo, real-scale rather than a toy fixture ·

@@ -4,10 +4,10 @@ description: "Use when you want to audit a completed orchestrated run's cost dis
 
 # Run cost audit: cost discipline over a completed run
 
-**Invoked as `/code-ops-suite:run-cost-audit`.** First read the
+**Invoked as `/code-ops-suite:run-cost-audit`.** First read §1, §12, and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin, and specifically the
 bounded-wave fan-out rule and the model and effort routing (`§1`), plus the artifact-size length
-discipline (`§12`) this skill audits against.
+discipline (`§12`) this skill audits against. Leave the rest of that file unread.
 **Mode:** ASSESS · **Consumes:** a completed run's artifact folder, holding the registers,
 `DISPATCH_LEDGER.md`, `EXECUTIVE_SUMMARY.md`, and their siblings · **Produces:** `COST_AUDIT.md`
 and `RUN_CONFORMANCE.md`.
