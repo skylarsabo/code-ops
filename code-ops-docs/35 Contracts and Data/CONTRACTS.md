@@ -612,10 +612,10 @@ usage, or any thrown error exits 0 with no output. Evidence: `evals/handoff-card
 ## Handoff write and consumption
 
 `check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors] [--consume]` is the structural
-floor under the handoff skill's write contract. Eleven headings are required, matched by prefix:
-Goal and state of play, Scope and constraints, Work completed, Key findings, In-flight boundaries,
+floor under the handoff skill's write contract. Twelve headings are required, matched by prefix:
+Program, Goal and state of play, Scope and constraints, Work completed, Key findings, In-flight boundaries,
 Open items, Registers and artifacts, Decisions made, Traps and dead ends, Authority, and Carried
-context. The first six answer what an operator asks a resumed session: what was worked on, what
+context. Goal through Open items answer what an operator asks a resumed session: what was worked on, what
 was found, what is in progress, what is left, and what the scope and constraints are. Order is
 documentation only; presence gates. Evidence: `scripts/check-handoff.mjs:85-97`.
 
@@ -625,8 +625,16 @@ carry a confidence label of `CONFIRMED`, `PROBABLE`, or `SPECULATIVE`. The file 
 under 8 KB, because detail belongs in the run-folder files the handoff points at. Every Open items
 bullet needs `Owner:` and `Done when:`, must not open with an imperative verb, and every
 `path:line · Anchor:` pointer must resolve against the working tree. Exit `0` is conformant, `1`
-lists violations on stderr, and `2` is a usage error. Evidence: `scripts/check-handoff.mjs:13-54`
+lists violations on stderr, and `2` is a usage error. Evidence: `scripts/check-handoff.mjs:13-57`
 and `evals/handoff-check/run.mjs`.
+
+The program lineage check also fails closed. `## Program` carries `Program: <path>` and
+`Predecessor: <path | none>`. The Program path resolves to a `PROGRAM.md` of at most 32 KB with
+Program goal, Request history, Scope documents, Decisions ledger, and Closed items. Every
+scope-document path exists, and the handoff's own request sits in Request history. Every Open
+items bullet carries a stable id such as `OI-7`. With a predecessor, its request sits in Request
+history, and each of its open-item ids stays open or appears in Closed items. A dropped id fails
+by name.
 
 One status line never gates. When the `Verified-at:` sha is HEAD and `git status --porcelain`
 lists nothing but the handoff file itself, the check prints `same-tree: Verified-at matches HEAD

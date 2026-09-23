@@ -35,8 +35,8 @@ try {
 
   const run = join(tmp, 'runs', 'r1');
   mkdirSync(run, { recursive: true });
-  const operatorItem = '- [ ] Merge decision: awaiting answer · Owner: operator · Done when: operator replies yes or no · Pointer: src.txt';
-  const agentItem = '- [ ] Beta rewrite: not started · Owner: agent · Done when: src.txt line 2 reads beta v2 · Pointer: src.txt:2';
+  const operatorItem = '- [ ] OI-2 Merge decision: awaiting answer · Owner: operator · Done when: operator replies yes or no · Pointer: src.txt';
+  const agentItem = '- [ ] OI-1 Beta rewrite: not started · Owner: agent · Done when: src.txt line 2 reads beta v2 · Pointer: src.txt:2';
   writeFileSync(join(run, 'TASKS.md'), `# Tasks\n\n${agentItem}\n- [x] Alpha audit: done · Owner: agent · Done when: audit noted · Pointer: src.txt:1\n${operatorItem}\n`);
   writeFileSync(join(run, 'FINDINGS_REGISTER.md'), '# Findings\n\n### FND-001 alpha is present\n- Location: src.txt:1 · Anchor: `alpha line`\n');
 
@@ -59,7 +59,16 @@ try {
   check('unfilled skeleton fails on the unlabelled finding', unfilled.stderr.includes('Key findings entry carries no confidence label'));
 
   // ---- resume on a good handoff ----
+  // The writer adds the Program section and keeps the durable ledger beside the run folders,
+  // because the draft carries no program lineage of its own.
+  const programDir = join(tmp, 'runs', 'programs', 'p1');
+  mkdirSync(programDir, { recursive: true });
+  writeFileSync(join(programDir, 'PROGRAM.md'), ['# PROGRAM: p1', '', '## Program goal', '', 'Keep alpha and rewrite beta.', '',
+    '## Request history', '', '- 2026-09-23: keep alpha and rewrite beta.', '', '## Scope documents', '',
+    '- `src.txt` · Status: current · Role: the file under change', '', '## Decisions ledger', '', '- 2026-09-23: alpha stays.', '',
+    '## Closed items', '', '- OI-0 alpha audit: closed-with-proof in the fixture', ''].join('\n'));
   const filled = skeleton
+    .replace(/^(Verified-at:[^\n]*\n)/m, '$1\n## Program\n\nProgram: runs/programs/p1/PROGRAM.md\nPredecessor: none\n')
     .replace(/^Request:\n\[FILL:[^\n]*\]/m, 'Request: keep alpha and rewrite beta.')
     .replace(/^- \[FILL: one line per finding[^\n]*$/m, '- CONFIRMED: alpha is on line 1. Pointer: runs/r1/FINDINGS_REGISTER.md')
     .replace(/^\[FILL: the done-against[^\n]*$/m, '- Alpha kept. Pointer: src.txt:1 · Anchor: `alpha line`')
