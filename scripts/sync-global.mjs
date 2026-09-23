@@ -39,12 +39,11 @@
 // --check found drift; 2 = bad invocation.
 
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseOrDie, usage } from './cli-lib.mjs';
+import { parseOrDie, sha256 as sha, spawnSpec, usage } from './cli-lib.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_DIR = join(ROOT, 'global-contracts');
@@ -94,7 +93,6 @@ const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return 
 // ---------------------------------------------------------------- contracts
 
 const lf = (text) => text.replace(/\r\n/g, '\n');
-const sha = (text) => createHash('sha256').update(text).digest('hex');
 const readLf = (path) => (existsSync(path) ? lf(readFileSync(path, 'utf8')) : null);
 
 function loadState() {
@@ -225,17 +223,14 @@ const SAFE_ARG = /^[A-Za-z0-9@._:/+-]+$/;
 
 function run(exe, args) {
   if (args.some((a) => !SAFE_ARG.test(a))) return { status: null, error: `unsafe argument in ${JSON.stringify(args)}` };
-  let file = exe;
-  let argv = args;
-  const options = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: CMD_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 };
-  // Node refuses to spawn a .cmd/.bat shim without a shell (CVE-2024-27980 hardening).
-  if (process.platform === 'win32' && /^\.(cmd|bat)$/i.test(extname(exe))) {
-    if (/["%^&|<>]/.test(exe)) return { status: null, error: `shim path has cmd metacharacters: ${exe}` };
-    file = process.env.ComSpec || 'cmd.exe';
-    argv = ['/d', '/s', '/c', `""${exe}" ${args.join(' ')}"`];
-    options.windowsVerbatimArguments = true;
+  // Stricter than the shared rewrite, which escapes: a shim path carrying cmd metacharacters is
+  // refused outright, because every path here comes from PATH and none should need escaping.
+  if (process.platform === 'win32' && /^\.(cmd|bat)$/i.test(extname(exe)) && /["%^&|<>]/.test(exe)) {
+    return { status: null, error: `shim path has cmd metacharacters: ${exe}` };
   }
-  const r = spawnSync(file, argv, options);
+  // Node refuses to spawn a .cmd/.bat shim without a shell (CVE-2024-27980 hardening).
+  const spec = spawnSpec(exe, args);
+  const r = spawnSync(spec.file, spec.args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: CMD_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024, ...spec.options });
   if (r.error) return { status: null, error: r.error.message };
   return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '' };
 }

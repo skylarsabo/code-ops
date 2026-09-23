@@ -28,10 +28,9 @@
 // Exit: non-zero on any missing/tampered/escaping pin or unparseable line, unless --report-only.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { resolve, relative, isAbsolute, sep } from 'node:path';
+import { sha256 } from './cli-lib.mjs';
 
-const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
 function usage() {
   console.error('usage: check-proof-integrity.mjs record <PROOF_MANIFEST.md> <finding-id> <path...>');
