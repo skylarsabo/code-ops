@@ -319,6 +319,7 @@ const HOOK_PURPOSES = new Map([
   ['routing-card.mjs', 'prints the routing card at session start, a restore instruction after compaction, and the newest pending handoff on a fresh session'],
   ['session-receipt.mjs', 'appends a local session receipt row with token usage, tool calls, and model mix'],
   ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
+  ['subagent-report.mjs', 'notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap'],
   ['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band'],
   ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier'],
 ]);

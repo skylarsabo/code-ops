@@ -32,6 +32,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Over-build scanner](#over-build-scanner)
 - [Deferral harvest](#deferral-harvest)
 - [Ladder card hook](#ladder-card-hook)
+- [Subagent report hook](#subagent-report-hook)
 - [Handoff card hook](#handoff-card-hook)
 - [Handoff write and consumption](#handoff-write-and-consumption)
 - [Dispatch guard hook](#dispatch-guard-hook)
@@ -572,6 +573,25 @@ hook returns no permission decision. On installed Grok 1.0.13 it emits nothing b
 `SubagentStart` stdout is ignored; `CLAUDE.md` and `AGENTS.md` carry the same ladder doctrine.
 OpenCode has no typed subagent-start callback. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
 `plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
+
+## Subagent report hook
+
+`hooks/subagent-report.mjs` runs at `SubagentStop` and checks a suite subagent's final report
+against that agent's `## Contract` block. The first non-empty line must start with a token from
+the `Verdicts:` line, and the report must fit the body's `Report cap: at most N words` line. A
+miss prints one `systemMessage` note, which the host shows to the operator. The hook is on by
+default and does nothing when `CODE_OPS_SUBAGENT_REPORT` is `off`, `0`, or `false`.
+
+The hook is advisory. It never returns `decision`, `continue`, or `additionalContext`, so it
+cannot keep a subagent running. Only a plugin-qualified type whose agent file resolves is
+checked; a bare or custom type gets nothing. The Claude host contract was read from the
+installed 2.1.276 bundle: the input carries `agent_id`, `agent_type`, `agent_transcript_path`,
+and `last_assistant_message` (offset 203499373). When `last_assistant_message` is absent, the
+hook reads the last assistant text from `agent_transcript_path`. Bad JSON, a missing field, an
+unreadable file, or another event name exits 0 with no output. The Grok and OpenCode
+`SubagentStop` contracts are UNVERIFIED, so the hook is silent under the Grok adapter and
+OpenCode has no port. Evidence: `plugins/code-ops-suite/hooks/subagent-report.mjs:1-25` and
+`evals/subagent-report/run.mjs:3-14`.
 
 ## Handoff card hook
 
