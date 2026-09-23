@@ -264,8 +264,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
-      "verifiedDigest": "a042f833db35df2d82b2d53bc5c79be244fdc6065bcc3c48890f568ebca848cb",
+      "verifiedAt": "50e322f6a7d35f7c00268ee552bb6a6cc0a611eb",
+      "verifiedDigest": "30876f880969e71dd10839038a8418939102392cd8545280b0f6c11790e139a5",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",

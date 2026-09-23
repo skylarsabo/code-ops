@@ -42,7 +42,7 @@
         "evals/**"
       ],
       "sourceDigest": "e8dd0b26cdc4c1983324ef220f8bba82e3e277ecae528df2fc80ef60c68470ff",
-      "contentDigest": "e94136776e4d2e6e220d0ed16ad36acb154f6cc856c4bf54d900d208cbfc3219"
+      "contentDigest": "1f9853080e4b3e3378b9ffd3e618542733337ef01f65f5f349a98cd756d61c4d"
     },
     {
       "id": "data-model",
@@ -54,7 +54,7 @@
         "evals/**"
       ],
       "sourceDigest": "e8dd0b26cdc4c1983324ef220f8bba82e3e277ecae528df2fc80ef60c68470ff",
-      "contentDigest": "22e301e96f7dfbe1a8f4f805d92afbc48df108dcb657769b7740482cf31e3256"
+      "contentDigest": "4a85f6629cdf6ce0566102850aaad1b4a81d86d08fadfe2df6230f5810b96731"
     },
     {
       "id": "engineering-standards",
@@ -75,7 +75,7 @@
         "scripts/digest.mjs"
       ],
       "sourceDigest": "bd7eadf00eb1302a007882fca4a32de300a188cc8b9fab0758c043eaf04c9d44",
-      "contentDigest": "cfd09c4c2b234827e983171c197fcb9d92d566ed5ef27ac893ce360f44608d62"
+      "contentDigest": "27f8e2de6299329f8c58ad29342fd7702b3bd39113b0b2d45f2005f516b77fab"
     },
     {
       "id": "handbook",
@@ -132,7 +132,7 @@
         "scripts/build-*.mjs"
       ],
       "sourceDigest": "964c8084744802e0be9e7928f876f6581ccbd6ce3068924f19433cd6f654f634",
-      "contentDigest": "37d879d207b3adb60643ebed144120e21d6ca9785a42ee9bf7f72555bc5c0eab"
+      "contentDigest": "b74e815d6dbad58240d3a072ae8dc52d4e61255eeb77ada28d10b0781b874d31"
     },
     {
       "id": "observability",
@@ -143,7 +143,7 @@
         ".github/workflows/**"
       ],
       "sourceDigest": "b5fcc8628d8bc1fd28086294caeaf61abf5c8eae94895c3349a5f2bbdd557891",
-      "contentDigest": "e0ae2a432d19a361522dd0d4ebd1aea4914a2341946ef74718d525074fbce059"
+      "contentDigest": "7fe683e52ea5d4b137982430a14c43152ee7b5fb1f2d17aa449f4d58cfd13e66"
     },
     {
       "id": "performance",
