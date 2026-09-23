@@ -12,13 +12,13 @@ import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const co = join(REPO, 'scripts', 'co.mjs');
 const checker = join(REPO, 'scripts', 'check-handoff.mjs');
 
-const fails = [];
-const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
+const { fails, check } = tally();
 const tmp = mkdtempSync(join(tmpdir(), 'handoff-state-'));
 const node = (args) => spawnSync(process.execPath, args, { cwd: tmp, encoding: 'utf8' });
 const gitIn = (...args) => execFileSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.com', ...args], { cwd: tmp, stdio: 'ignore' });

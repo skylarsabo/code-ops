@@ -32,13 +32,13 @@ import { mkdtempSync, mkdirSync, writeFileSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const checker = resolve(here, '..', '..', 'scripts', 'check-fleet.mjs');
 const fixture = join(here, 'fleet');
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (manifest) => {
   const r = spawnSync(process.execPath, [checker, manifest], { encoding: 'utf8' });
   return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };

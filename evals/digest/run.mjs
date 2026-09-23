@@ -26,6 +26,7 @@ import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -33,8 +34,7 @@ const cli = join(root, 'scripts', 'digest.mjs');
 const corpus = join(here, 'corpus');
 const lib = await import(pathToFileURL(join(root, 'scripts', 'digest-lib.mjs')).href);
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (args, opts = {}) => spawnSync('node', args, { encoding: 'utf8', cwd: root, ...opts });
 const ELIDE_RE = /^\[elided (\d+) lines(?:: sed -n '(\d+),(\d+)p' (.+))?\]$/;
 

@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally, withDetail } from '../harness.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const snapshotScript = join(repo, 'scripts', 'context-snapshot.mjs');
@@ -12,8 +13,7 @@ const outer = mkdtempSync(join(tmpdir(), 'coh-bundle-'));
 const root = join(outer, 'repo');
 const runDir = join(root, 'run');
 const cache = join(outer, 'cache');
-const failures = [];
-const check = (name, pass, detail = '') => { console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`); if (!pass) failures.push(`${name}: ${detail}`); };
+const { fails: failures, check } = tally(withDetail);
 const run = (script, args) => { try { return { status: 0, out: execFileSync(process.execPath, [script, ...args], { encoding: 'utf8' }) }; } catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; } };
 try {
   mkdirSync(join(root, 'src'), { recursive: true }); mkdirSync(join(root, 'other')); mkdirSync(runDir); mkdirSync(join(root, 'docs', 'atlas', 'sections'), { recursive: true });

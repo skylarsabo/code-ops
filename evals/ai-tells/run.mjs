@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMMAND_CASES } from './command-cases.mjs';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const scanner = resolve(here, '..', '..', 'scripts', 'scan-ai-tells.mjs');
@@ -38,8 +39,7 @@ const unrelatedRevision = execFileSync('git', ['-c', 'user.name=Fixture', '-c', 
 writeFileSync(historyTarget, `${inheritedText}\nThe implementation now follows the approved topology.\n`);
 copyFileSync(historyTarget, copiedTarget);
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 
 // --command: a published argument value is scanned as its own line block, and a phrase
 // outside any published argument is not.

@@ -15,14 +15,14 @@ import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const redaction = join(REPO, 'scripts', 'scan-redaction.mjs');
 const injection = join(REPO, 'scripts', 'scan-injection-tells.mjs');
 
-const fails = [];
-const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
+const { fails, check } = tally();
 const run = (script, args) => spawnSync('node', [script, ...args], { encoding: 'utf8' });
 const outOf = (r) => (r.stdout || '') + (r.stderr || '');
 

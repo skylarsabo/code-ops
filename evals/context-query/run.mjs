@@ -30,13 +30,13 @@ import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeF
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const query = join(root, 'scripts', 'context-query.mjs');
 const hook = join(root, 'plugins', 'code-ops-suite', 'hooks', 'index-refresh.mjs');
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 
 const work = mkdtempSync(join(tmpdir(), 'context-query-'));
 const store = mkdtempSync(join(tmpdir(), 'context-index-'));

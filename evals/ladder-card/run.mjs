@@ -18,12 +18,12 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const hook = join(root, 'plugins', 'code-ops-suite', 'hooks', 'ladder-card.mjs');
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 
 function runHook(input, sw) {
   const env = { ...process.env };

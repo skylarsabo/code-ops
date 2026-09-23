@@ -4,11 +4,11 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { tally, withDetail } from '../harness.mjs';
 
 const ROOT = process.cwd();
 const work = mkdtempSync(join(tmpdir(), 'coh-docs-manifest-'));
-const failures = [];
-const check = (name, pass, detail = '') => { console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`); if (!pass) failures.push(`${name}: ${detail}`); };
+const { fails: failures, check } = tally(withDetail);
 const run = (script, args, cwd) => {
   try { return { status: 0, out: execFileSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' }) }; }
   catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; }

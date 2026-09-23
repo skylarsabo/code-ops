@@ -34,14 +34,14 @@ import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const suite = join(root, 'plugins', 'code-ops-suite');
 const hook = join(suite, 'hooks', 'dispatch-guard.mjs');
 
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 
 // Each case gets its own fake HOME so the round counters never touch the real operator's
 // `~/.claude/code-ops/dispatch/`, the isolation evals/handoff-card/run.mjs uses for its markers.
