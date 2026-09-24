@@ -1,7 +1,7 @@
 # Changelog — privacy-opsec-suite
 
 ## 2.1.2
-- **TODO** — describe the change.
+- The vendored `citation-lib`, `symbol-lib`, and `cli-lib` pass `noUncheckedIndexedAccess` through guards and destructuring. Their behavior is unchanged.
 
 ## 2.1.1
 - Skill descriptions are 160 characters or fewer, under the new lint cap.

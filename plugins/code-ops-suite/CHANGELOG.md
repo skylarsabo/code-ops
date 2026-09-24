@@ -5,7 +5,10 @@ All notable changes to this plugin are documented here. Versions track
 
 
 ## 2.3.1
-- **TODO** — describe the change.
+- Conform surface 3 runs `atlas-check.mjs check --gate --claims-gate`. A STALE section, or a claim that is MOVED, DRIFTED, or GONE, makes the surface DRIFTED, never CONFORMANT.
+- `CONVENTIONS.md`, the vault standard, and the atlas reference state that a FRESH section does not vouch for a claim reported DRIFTED or GONE. That claim is a lead, and its cited line is re-read before use.
+- The vendored `digest-lib.mjs` rejects a prototype key such as `toString` as a shape name and applies the default head and tail when a count is missing. It is now type-checked.
+- The vendored `acceptance-lib`, `citation-lib`, `symbol-lib`, and `cli-lib` pass `noUncheckedIndexedAccess` through guards and destructuring. Their behavior is unchanged.
 
 ## 2.3.0
 - The dispatch guard denies a suite-agent dispatch whose brief lacks a field from that agent's `Brief requires:` line. It resolves agents across all four plugins, and `CODE_OPS_DISPATCH_GUARD=warn` turns the denial into a warning. A field counts only as a label at the start of a line or as a heading, so `Out of scope:` does not satisfy Scope. The implementer and mech agents no longer describe required brief fields as optional.

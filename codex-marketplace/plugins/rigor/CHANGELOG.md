@@ -1,7 +1,7 @@
 # Changelog — rigor
 
 ## 3.1.2
-- **TODO** — describe the change.
+- The vendored `citation-lib`, `symbol-lib`, and `cli-lib` pass `noUncheckedIndexedAccess` through guards and destructuring. Their behavior is unchanged.
 
 ## 3.1.1
 - The verifier agent always writes its report to the brief's Report path, which its Contract requires.
