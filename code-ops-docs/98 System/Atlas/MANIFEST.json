@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8ce464fd1c08f4a66fb73e338da83781e5a86bf4",
-      "verifiedDigest": "0ba6b7d109accc1728fe00611d17ed4118fa17bb10e43d39700cadbc1d9d4c30",
+      "verifiedAt": "71935b57d05e0035c5074b33f14324e2cd0519f0",
+      "verifiedDigest": "d5496d090a7874390b2a5dc29d396d9cb3a6bd70f8026f42c3f9d81412773214",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -55,12 +55,12 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8ce464fd1c08f4a66fb73e338da83781e5a86bf4",
-      "verifiedDigest": "c133c045563cffc1c5039869a48006a9442a5b2325332b86058fea8c3d8de93e",
+      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
+      "verifiedDigest": "dc7c998bc56ab35334e27c541b5cfd818cdb8e32bab93d58e3eaa6aff2d334f2",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 840,
+          "line": 868,
           "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
         },
         {
@@ -85,7 +85,7 @@
         },
         {
           "file": "scripts/symbol-lib.mjs",
-          "line": 55,
+          "line": 67,
           "anchor": "export function definitions(text, ext) {"
         },
         {
@@ -136,8 +136,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8ce464fd1c08f4a66fb73e338da83781e5a86bf4",
-      "verifiedDigest": "233c5060ac82788275d04900d09260e80697849f4a6c3147a16d5a99be9c68df",
+      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
+      "verifiedDigest": "7efe00f8113ea458cdffd2642553bf35e6b9a0f494173767c4aa38150c27572a",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -156,12 +156,12 @@
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 63,
+          "line": 64,
           "anchor": "const requiredSections = calibration(); requiredSections.context.requiredViewSec"
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 78,
+          "line": 79,
           "anchor": "const taskBased = () => { const value = calibration(); delete value.calibration;"
         },
         {
@@ -171,7 +171,7 @@
         },
         {
           "file": "evals/estimate-run-cost/run.mjs",
-          "line": 265,
+          "line": 262,
           "anchor": "check('s. dated operator prices expose each charge component and retain the exac"
         },
         {
@@ -194,8 +194,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8ce464fd1c08f4a66fb73e338da83781e5a86bf4",
-      "verifiedDigest": "62c7df1b7c9bf3df87cb9eb7e28fd2ad864984a14d18188cd28df1ec67533abc",
+      "verifiedAt": "71935b57d05e0035c5074b33f14324e2cd0519f0",
+      "verifiedDigest": "5ac0a14429a901c1a6b8836b809a00042dfa8f4d0e75bbc796abdfc8e73c716e",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -240,8 +240,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
-      "verifiedDigest": "b0111a94e036a45c2522521020a9bd50b5b14dd0590af0bcd805f0ad45a38483"
+      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
+      "verifiedDigest": "4fae5c98a4d4d3abe8a3a8aa1e5c3098ac77bd89081e573040aeb9d2bb3e8d47"
     },
     {
       "slug": "docs-doctrine",
@@ -264,8 +264,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "01cceaa84fd83b82aaf9e0bb6b0594e9800f14cb",
-      "verifiedDigest": "c7c4649605c07e7149e891a61cfff126230e85f38c25990f08e31f0d54664c0b",
+      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
+      "verifiedDigest": "4d6d838635c891e6d26b634f839dea7f25af4fe4872e19ac30f83388134ddac9",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
@@ -322,8 +322,8 @@
         ".node-version",
         "tsconfig.json"
       ],
-      "verifiedAt": "61247c23f900306f7b7c11da522bbca7587deacc",
-      "verifiedDigest": "1dfff4d57d83adf5a0a7d144e980777ec5d1f4ac686a34f0f892282df293a7ff"
+      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
+      "verifiedDigest": "a04339cae0628fda917d0b88c6a7c3bc2f733b40925b9f7f12f72c0cae7052bf"
     }
   ]
 }

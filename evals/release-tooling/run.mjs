@@ -15,13 +15,13 @@ import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, existsSync
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const SCRIPTS_DIR = join(REPO, 'scripts');
 
-const fails = [];
-const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
+const { fails, check } = tally();
 
 // Spawn the real script directly (never a shell string); capture status via the thrown
 // error's .status on non-zero exit, per execFileSync semantics.

@@ -28,16 +28,13 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'no
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally, trimmed } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const SCRIPT = join(REPO, 'scripts', 'dispatch-ledger.mjs');
 
-const fails = [];
-const check = (name, cond, detail) => {
-  console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!cond) fails.push(detail ? `${name} — ${String(detail).slice(0, 200)}` : name);
-};
+const { fails, check } = tally(trimmed(200));
 
 // Spawn the real script directly (never a shell string); capture status via the
 // thrown error's .status on non-zero exit, per execFileSync semantics.

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-03
+updated: 2026-09-23
 ---
 
 # Engineering Standards
@@ -17,6 +17,8 @@ Edit canonical source under `plugins/` and `scripts/`. Treat host projections as
 Before declaring a change complete, run the required local gate listed in `AGENTS.md`. That gate includes structural lint, dependency policy, and both generated-output drift checks. Evidence: `AGENTS.md:86-89`.
 
 The structural lint validates package shape, changelog entries, documentation references, and generated contracts. The dependency guard rejects third-party module specifiers. Evidence: `scripts/lint-plugins.mjs:4-5`, `scripts/lint-plugins.mjs:10-28`, and `scripts/check-no-deps.mjs:24-28`.
+
+Scripts share one exit-code contract: 0 means pass, 1 means a check failed, and 2 means a usage error. `die` in `scripts/cli-lib.mjs` exits 1 by default, and `usage` exits 2 by default. `parseOrDie` sends a bad flag through `usage`, so a caller error never exits 1. A script that needs another code documents that code in its own header. Evidence: `scripts/cli-lib.mjs:115-118`, `scripts/cli-lib.mjs:125-128`, and `scripts/cli-lib.mjs:138-143`.
 
 Run the regression eval that owns any modified behavior. Fixtures that have an answer key require `node evals/score.mjs <ANSWER_KEY.json> --check`. Evidence: `AGENTS.md:88-89`.
 

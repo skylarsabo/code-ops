@@ -22,14 +22,14 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const pluginsDir = join(root, 'plugins');
 const pluginNames = ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'];
 const read = (path) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
-const fails = [];
-const expect = (condition, message) => { if (!condition) fails.push(message); };
+const { fails, expect } = tally();
 
 // src/plugins/manifest.rs — MANIFEST_PATHS, in resolution order.
 const MANIFEST_PATHS = ['plugin.json', '.grok-plugin/plugin.json', '.claude-plugin/plugin.json'];

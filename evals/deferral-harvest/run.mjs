@@ -21,13 +21,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const harvest = join(root, 'scripts', 'harvest-deferrals.mjs');
 const revalidate = join(root, 'scripts', 'revalidate-register.mjs');
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (args, cwd) => spawnSync('node', args, { encoding: 'utf8', cwd });
 
 const work = mkdtempSync(join(tmpdir(), 'deferral-harvest-'));

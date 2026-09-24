@@ -11,6 +11,7 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const scanner = resolve(here, '..', '..', 'scripts', 'scan-narration.mjs');
@@ -30,8 +31,7 @@ const registerProseIds = join(here, 'register-prose-ids.md');
 const registerCoveredNegative = join(here, 'register-covered-negative.md');
 const run = (args) => spawnSync('node', [scanner, ...args], { encoding: 'utf8' });
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 
 // Clean compact summary: no hits, exit 0.
 const c = run([clean]);

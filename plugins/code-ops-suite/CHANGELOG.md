@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.5.0
+- Conform surface 3 runs `atlas-check.mjs check --gate --claims-gate`. A STALE section, or a claim that is MOVED, DRIFTED, or GONE, makes the surface DRIFTED, never CONFORMANT.
+- `CONVENTIONS.md`, the vault standard, and the atlas reference state that a FRESH section does not vouch for a claim reported DRIFTED or GONE. That claim is a lead, and its cited line is re-read before use.
+- The vendored `digest-lib.mjs` rejects a prototype key such as `toString` as a shape name and applies the default head and tail when a count is missing. It is now type-checked.
+- The vendored `acceptance-lib`, `citation-lib`, `symbol-lib`, and `cli-lib` pass `noUncheckedIndexedAccess` through guards and destructuring. Their behavior is unchanged.
+
 ## 2.4.1
 - `records.mjs re-review` accepts a prior review whose source commit sits on a side branch rather than in the history of HEAD, as long as the commit still exists. The examined commits then start at its merge base with HEAD. It still refuses a prior source commit that no longer exists.
 

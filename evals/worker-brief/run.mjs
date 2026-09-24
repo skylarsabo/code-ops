@@ -4,11 +4,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally, withDetail } from '../harness.mjs';
 
 const script = resolve(dirname(fileURLToPath(import.meta.url)), '../../scripts/worker-brief.mjs');
 const scratch = mkdtempSync(join(tmpdir(), 'co-worker-brief-'));
-const failures = [];
-const check = (name, pass, detail = '') => { console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`); if (!pass) failures.push(`${name}: ${detail}`); };
+const { fails: failures, check } = tally(withDetail);
 const run = (args) => { try { return { status: 0, out: execFileSync(process.execPath, [script, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; } };
 try {
   const invariant = join(scratch, 'doctrine.md'); const unit = join(scratch, 'unit.md');

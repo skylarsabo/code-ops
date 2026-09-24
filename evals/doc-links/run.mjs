@@ -4,9 +4,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'); const script = join(repo, 'scripts', 'check-doc-links.mjs'); const outer = mkdtempSync(join(tmpdir(), 'coh-links-')); const hub = join(outer, 'repo-docs'); const failures = [];
+import { tally, withDetail } from '../harness.mjs';
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'); const script = join(repo, 'scripts', 'check-doc-links.mjs'); const outer = mkdtempSync(join(tmpdir(), 'coh-links-')); const hub = join(outer, 'repo-docs'); const { fails: failures, check } = tally(withDetail);
 const run = () => { try { return { status: 0, out: execFileSync(process.execPath, [script, '--root', outer, '--hub', 'repo-docs'], { encoding: 'utf8' }) }; } catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; } };
-const check = (name, pass, detail = '') => { console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`); if (!pass) failures.push(`${name}: ${detail}`); };
 try {
   mkdirSync(join(hub, 'Area'), { recursive: true }); mkdirSync(join(hub, 'Elsewhere'), { recursive: true }); mkdirSync(join(hub, 'Notes'), { recursive: true });
   writeFileSync(join(hub, 'Area', 'Target.md'), '# Target\n\n## Deep section\n\n## Foo\n\n## Foo-1\n\n## Foo\n'); writeFileSync(join(hub, 'Area', 'README.md'), '# Area\n'); writeFileSync(join(hub, 'Elsewhere', 'Target.md'), '# Other target\n'); writeFileSync(join(hub, 'Notes', 'Unique.md'), '# Unique\n');

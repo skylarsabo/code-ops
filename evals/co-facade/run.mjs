@@ -24,14 +24,14 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from '
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const co = join(root, 'scripts', 'co.mjs');
 const cliLib = join(root, 'scripts', 'cli-lib.mjs');
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (args, opts = {}) => spawnSync('node', args, { encoding: 'utf8', cwd: root, ...opts });
 
 // The domains the eval knows about. Pinned here rather than read from co.mjs so that removing

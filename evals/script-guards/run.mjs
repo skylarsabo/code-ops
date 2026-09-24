@@ -14,12 +14,12 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSy
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const FIX = join(HERE, 'fixtures');
-const fails = [];
-const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
+const { fails, check } = tally();
 const runNode = (args) => {
   try { return { code: 0, out: execFileSync('node', args, { encoding: 'utf8' }) }; }
   catch (e) { return { code: e.status ?? 1, out: (e.stdout || '') + (e.stderr || '') }; }

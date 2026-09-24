@@ -36,16 +36,13 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { receiptSha256 } from '../../scripts/runtime-lib.mjs';
 import { sha256 } from '../../scripts/context-index-lib.mjs';
+import { tally, trimmed } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const SCRIPT = join(REPO, 'scripts', 'estimate-run-cost.mjs');
 
-const fails = [];
-const check = (name, cond, detail) => {
-  console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!cond) fails.push(detail ? `${name} — ${String(detail).slice(0, 300)}` : name);
-};
+const { fails, check } = tally(trimmed(300));
 
 const run = (args) => {
   try {

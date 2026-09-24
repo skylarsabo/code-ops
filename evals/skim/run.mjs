@@ -17,14 +17,14 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const cli = join(root, 'scripts', 'skim.mjs');
 const fixture = (name) => join(here, 'fixture', name);
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (args) => spawnSync('node', [cli, ...args], { encoding: 'utf8', cwd: root });
 const rows = (stdout) => stdout.split('\n').filter((l) => l !== '');
 // The fixture's own line number for the first line matching `re`, counting from 1.
