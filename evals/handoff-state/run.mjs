@@ -3,15 +3,20 @@
 // repository with a fixture run folder, it asserts that draft fills the mechanical facts and that
 // its unfilled skeleton FAILS check-handoff.mjs; that resume passes, writes HANDOFF.consumed, and
 // prints operator-owned items first on a good handoff; and that resume refuses to consume once an
-// anchor drifted.
+// anchor drifted. The chain cases pin `co run open`, Session and Hop numbering 1 then 2, resume
+// by session name with the seeded successor run and the version 2 consumed marker, the ambiguous
+// name refusal, the draft refusals, the legacy marker, and `co handoff live` walking two hops.
+// Every fixture lives in an OS temp dir, and CODE_OPS_HOME points the session records at a temp
+// home, so nothing writes under the repository or the real home.
 //
 //   node evals/handoff-state/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { sessionRecordPath } from '../../scripts/transcript-lib.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const co = join(REPO, 'scripts', 'co.mjs');
@@ -20,7 +25,12 @@ const checker = join(REPO, 'scripts', 'check-handoff.mjs');
 const fails = [];
 const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
 const tmp = mkdtempSync(join(tmpdir(), 'handoff-state-'));
-const node = (args) => spawnSync(process.execPath, args, { cwd: tmp, encoding: 'utf8' });
+const home = mkdtempSync(join(tmpdir(), 'handoff-state-home-'));
+// A scrubbed environment: no host session id leaks in, and session records land in the temp home.
+const env = { ...process.env, CODE_OPS_HOME: home };
+delete env.CLAUDE_CODE_SESSION_ID;
+delete env.CODEX_SESSION_ID;
+const node = (args, cwd = tmp) => spawnSync(process.execPath, args, { cwd, encoding: 'utf8', env });
 const gitIn = (...args) => execFileSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.com', ...args], { cwd: tmp, stdio: 'ignore' });
 
 try {
@@ -72,6 +82,8 @@ try {
   const filled = skeleton
     .replace(/^Program: \[FILL:[^\n]*$/m, 'Program: runs/programs/p1/PROGRAM.md')
     .replace(/^Predecessor: \[FILL:[^\n]*$/m, 'Predecessor: none')
+    .replace(/^Session: [^\n]*$/m, 'Session: p1 HO 1')
+    .replace(/^Hop: [^\n]*$/m, 'Hop: 1')
     .replace(/^Request:\n\[FILL:[^\n]*\]/m, 'Request: keep alpha and rewrite beta.')
     .replace(/^- \[FILL: one line per finding[^\n]*$/m, '- CONFIRMED: alpha is on line 1. Pointer: runs/r1/FINDINGS_REGISTER.md')
     .replace(/^\[FILL: the done-against[^\n]*$/m, '- Alpha kept. Pointer: src.txt:1 · Anchor: `alpha line`')
@@ -150,6 +162,130 @@ try {
     listedLines.length === 20 && wide.stdout.includes('- +22 more non-derived dirty path(s)'));
 } finally {
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ---- the session chain: run open, Session and Hop, resume by name, successor runs, live head ----
+const repo = realpathSync(mkdtempSync(join(tmpdir(), 'handoff-chain-')));
+const gitAt = (...args) => execFileSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.com', ...args], { cwd: repo, stdio: 'ignore' });
+const inRepo = (args) => node(args, repo);
+const json = (p) => JSON.parse(readFileSync(join(repo, p), 'utf8'));
+const record = (sid) => JSON.parse(readFileSync(sessionRecordPath(repo, sid, home), 'utf8'));
+const REQ1 = 'start the ledger program.';
+const REQ2 = 'continue the ledger program.';
+// Fills a draft the way a writer does: the judgment placeholders only. Session and Hop stay as drafted.
+const fill = (draftText, request) => draftText
+  .replace(/^Program: \[FILL:[^\n]*$/m, 'Program: 80 Runs/programs/ledger2/PROGRAM.md')
+  .replace(/^Request:\n\[FILL:[^\n]*\]/m, `Request: ${request}`)
+  .replace(/^- \[FILL: one line per finding[^\n]*$/m, '- CONFIRMED: alpha is on line 1. Pointer: src.txt:1')
+  .replace(/^\[FILL: the done-against[^\n]*$/m, '- Alpha kept. Pointer: src.txt:1 · Anchor: `alpha line`')
+  .replace(/^\[FILL:[^\n]*\]$/gm, 'Recorded in the fixture.');
+try {
+  writeFileSync(join(repo, 'src.txt'), 'alpha line\n');
+  gitAt('init', '-q');
+  gitAt('add', 'src.txt');
+  gitAt('commit', '-q', '-m', 'base');
+  mkdirSync(join(repo, '80 Runs', 'programs', 'ledger2'), { recursive: true });
+  writeFileSync(join(repo, '80 Runs', 'programs', 'ledger2', 'PROGRAM.md'), ['# PROGRAM: Ledger2 AMM', '', '## Program goal', '', 'Keep alpha.', '',
+    '## Request history', '', `- 2026-09-23: ${REQ1}`, `- 2026-09-24: ${REQ2}`, '', '## Scope documents', '',
+    '- `src.txt` · Status: current · Role: the file under change', '', '## Decisions ledger', '', '- 2026-09-23: alpha stays.', '',
+    '## Closed items', '', '- OI-0 setup: closed in the fixture', ''].join('\n'));
+
+  // run open: a new session's own folder, SESSION.json, TASKS.md, RUN_LOG.md, and the session record.
+  const opened = inRepo([co, 'run', 'open', 'ledger', '--name', 'Ledger2 AMM', '--session', 'sess-zero-0000']);
+  const run0 = opened.stdout.trim();
+  check('run open exits 0 and prints a dated folder under 80 Runs', opened.status === 0 && /^80 Runs\/\d{4}-\d{2}-\d{2}-ledger$/.test(run0));
+  const s0 = existsSync(join(repo, run0, 'SESSION.json')) ? json(`${run0}/SESSION.json`) : {};
+  check('run open writes SESSION.json with hop 0 and no predecessor',
+    s0.v === 1 && s0.sessionId === 'sess-zero-0000' && s0.name === 'Ledger2 AMM' && s0.hop === 0 && s0.predecessor === null);
+  check('run open writes a header-only TASKS.md and a RUN_LOG.md',
+    existsSync(join(repo, run0, 'TASKS.md')) && readFileSync(join(repo, run0, 'TASKS.md'), 'utf8') === '# Tasks\n' && existsSync(join(repo, run0, 'RUN_LOG.md')));
+  const r0 = existsSync(sessionRecordPath(repo, 'sess-zero-0000', home)) ? record('sess-zero-0000') : {};
+  check('run open writes the session record in the temp home',
+    r0.v === 1 && r0.runDir === run0 && r0.resumed === null && r0.hop === 0 && r0.name === 'Ledger2 AMM');
+  const again = inRepo([co, 'run', 'open', 'ledger', '--session', 'sess-other-0000']);
+  check('run open suffixes a taken folder name with -2', again.stdout.trim() === `${run0}-2`);
+
+  // hop 1: the first handoff names its successor "Ledger2 AMM HO 1".
+  const item = '- [ ] OI-1 Beta rewrite: not started · Owner: agent · Done when: src.txt holds beta · Pointer: src.txt:1';
+  writeFileSync(join(repo, run0, 'TASKS.md'), `# Tasks\n\n${item}\n`);
+  const d1 = inRepo([co, 'handoff', 'draft', '--run', run0, '--session', 'sess-zero-0000']);
+  check('draft on a run-open folder sets Predecessor none, Session HO 1, and Hop 1',
+    /^Predecessor: none$/m.test(d1.stdout) && /^Session: Ledger2 AMM HO 1$/m.test(d1.stdout) && /^Hop: 1$/m.test(d1.stdout));
+  writeFileSync(join(repo, run0, 'HANDOFF.md'), fill(d1.stdout, REQ1));
+  gitAt('add', '-A');
+  gitAt('commit', '-q', '-m', 'hop 1');
+
+  // resume by name, case-insensitively: successor folder seeded, v2 marker, session record.
+  const res1 = inRepo([co, 'handoff', 'resume', 'ledger2 amm ho 1', '--session', 'sess-one-11111', '--root', '.']);
+  const succ1 = /^successor run: (.+)$/m.exec(res1.stdout)?.[1];
+  check('resume by session name passes and prints the session name', res1.status === 0 && res1.stdout.includes('session name: Ledger2 AMM HO 1'));
+  check('resume names a successor run <date>-<program slug>-ho1', /^80 Runs\/\d{4}-\d{2}-\d{2}-ledger2-ho1$/.test(succ1 ?? ''));
+  const s1 = succ1 && existsSync(join(repo, succ1, 'SESSION.json')) ? json(`${succ1}/SESSION.json`) : {};
+  check('successor SESSION.json names the session, its hop, and the predecessor handoff',
+    s1.sessionId === 'sess-one-11111' && s1.name === 'Ledger2 AMM HO 1' && s1.hop === 1 && s1.predecessor === `${run0}/HANDOFF.md`);
+  check('successor TASKS.md is seeded with the open items verbatim', Boolean(succ1) && readFileSync(join(repo, succ1, 'TASKS.md'), 'utf8').includes(item));
+  const mark1 = json(`${run0}/HANDOFF.consumed`);
+  check('HANDOFF.consumed is the v2 body naming the session and successor',
+    mark1.v === 2 && mark1.bySession === 'sess-one-11111' && mark1.successorRun === succ1 && mark1.name === 'Ledger2 AMM HO 1' && typeof mark1.consumedAt === 'string');
+  const r1 = record('sess-one-11111');
+  check('resume writes the session record with runDir, resumed, and hop',
+    r1.runDir === succ1 && r1.resumed === `${run0}/HANDOFF.md` && r1.hop === 1 && r1.name === 'Ledger2 AMM HO 1');
+
+  // draft refusals: a consumed folder, and a folder another session owns.
+  const refusedConsumed = inRepo([co, 'handoff', 'draft', '--run', run0, '--out', `${run0}/HANDOFF-2.md`]);
+  check('draft refuses an --out folder holding HANDOFF.consumed',
+    refusedConsumed.status === 1 && refusedConsumed.stderr.includes('HANDOFF.consumed') && !existsSync(join(repo, run0, 'HANDOFF-2.md')));
+  const refusedOwner = inRepo([co, 'handoff', 'draft', '--run', succ1, '--out', `${succ1}/HANDOFF.md`, '--session', 'sess-intruder-9']);
+  check("draft refuses an --out folder whose SESSION.json names another session",
+    refusedOwner.status === 1 && refusedOwner.stderr.includes('sess-one-11111') && !existsSync(join(repo, succ1, 'HANDOFF.md')));
+
+  // hop 2: the predecessor comes from SESSION.json and the Hop counts up.
+  const d2 = inRepo([co, 'handoff', 'draft', '--run', succ1, '--out', `${succ1}/HANDOFF.md`, '--session', 'sess-one-11111']);
+  const d2text = existsSync(join(repo, succ1, 'HANDOFF.md')) ? readFileSync(join(repo, succ1, 'HANDOFF.md'), 'utf8') : '';
+  check('draft takes the predecessor from SESSION.json and numbers Session HO 2 and Hop 2',
+    d2.status === 0 && d2text.includes(`Predecessor: ${run0}/HANDOFF.md`) && /^Session: Ledger2 AMM HO 2$/m.test(d2text) && /^Hop: 2$/m.test(d2text));
+  writeFileSync(join(repo, succ1, 'HANDOFF.md'), fill(d2text, REQ2));
+  gitAt('add', '-A');
+  gitAt('commit', '-q', '-m', 'hop 2');
+  const res2 = inRepo([co, 'handoff', 'resume', 'Ledger2 AMM HO 2', '--session', 'sess-two-22222']);
+  const succ2 = /^successor run: (.+)$/m.exec(res2.stdout)?.[1];
+  check('the second resume passes and names a -ho2 successor', res2.status === 0 && /-ledger2-ho2$/.test(succ2 ?? ''));
+
+  // live walks two hops from the first handoff, from a session name, and from a session id.
+  const liveFromPath = inRepo([co, 'handoff', 'live', `${run0}/HANDOFF.md`]);
+  check('live walks two hops from the first handoff to the live head',
+    liveFromPath.status === 0 && liveFromPath.stdout.includes('head session: Ledger2 AMM HO 2') && liveFromPath.stdout.includes('session id: sess-two-22222')
+    && liveFromPath.stdout.includes(`run dir: ${succ2}`) && liveFromPath.stdout.includes('state: live') && liveFromPath.stdout.includes('hops walked: 2'));
+  const liveFromName = inRepo([co, 'handoff', 'live', 'ledger2 amm ho 1']);
+  check('live from a session name walks from that session to the head',
+    liveFromName.stdout.includes('session id: sess-two-22222') && liveFromName.stdout.includes('hops walked: 1'));
+  const liveFromId = inRepo([co, 'handoff', 'live', 'sess-zer']);
+  check('live from a unique 8-character session id prefix reaches the head', liveFromId.stdout.includes('head session: Ledger2 AMM HO 2'));
+  writeFileSync(join(repo, succ2, 'HANDOFF.md'), '# HANDOFF\n\n## Program\n\nSession: Ledger2 AMM HO 3\nHop: 3\n');
+  const liveAwaiting = inRepo([co, 'handoff', 'live', `${run0}/HANDOFF.md`]);
+  check('live marks a head that wrote an unconsumed handoff as awaiting resume',
+    liveAwaiting.stdout.includes('state: awaiting resume') && liveAwaiting.stdout.includes('Ledger2 AMM HO 3'));
+
+  // a legacy consumed body is still consumed, with no successor link to follow.
+  writeFileSync(join(repo, succ2, 'HANDOFF.consumed'), '2026-09-01T00:00:00.000Z\n');
+  const liveLegacy = inRepo([co, 'handoff', 'live', `${run0}/HANDOFF.md`]);
+  check('live accepts a legacy consumed body and stops at it', liveLegacy.status === 0 && liveLegacy.stdout.includes('state: unknown: a legacy HANDOFF.consumed'));
+  const legacyByName = inRepo([co, 'handoff', 'resume', 'Ledger2 AMM HO 3']);
+  check('resume by name skips a handoff with a legacy consumed body', legacyByName.status === 1 && legacyByName.stderr.includes('no file or unconsumed handoff'));
+
+  // an ambiguous name lists the candidates and exits 1; so does an unknown one.
+  for (const n of ['a', 'b']) {
+    mkdirSync(join(repo, '80 Runs', `dup-${n}`));
+    writeFileSync(join(repo, '80 Runs', `dup-${n}`, 'HANDOFF.md'), '# HANDOFF\n\n## Program\n\nSession: Dup HO 1\nHop: 1\n');
+  }
+  const dup = inRepo([co, 'handoff', 'resume', 'dup ho 1']);
+  check('resume by an ambiguous name exits 1 and lists both candidates',
+    dup.status === 1 && dup.stderr.includes('ambiguous session name') && dup.stderr.includes('dup-a/HANDOFF.md') && dup.stderr.includes('dup-b/HANDOFF.md'));
+  const none = inRepo([co, 'handoff', 'resume', 'Nobody HO 9']);
+  check('resume by an unknown name exits 1 and lists the unconsumed handoffs', none.status === 1 && none.stderr.includes('Dup HO 1 -> 80 Runs/dup-a/HANDOFF.md'));
+} finally {
+  rmSync(repo, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true });
 }
 
 if (fails.length) { console.error(`\n${fails.length} assertion(s) failed`); process.exit(1); }

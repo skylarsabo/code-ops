@@ -6,7 +6,8 @@
 // the operator's five resume questions, the verbatim `Request:` line, the confidence label every
 // Key findings bullet carries, and that `--consume` writes `HANDOFF.consumed` only on a pass.
 // Check 9 cases pin the Program lineage: the ledger's shape and cap, scope documents on the
-// tree, and that a predecessor's request and open-item ids carry forward.
+// tree, and that a predecessor's request and open-item ids carry forward. Check 10 cases pin the
+// Session and Hop pair, and the consume cases pin the version 2 HANDOFF.consumed body.
 //
 //   node evals/handoff-check/run.mjs   (exit 0 = all assertions pass)
 
@@ -24,7 +25,11 @@ const fails = [];
 const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
 // Every run binds an explicit --root, because the L-062 pointer check resolves citations against
 // a tree and a cwd-relative default would make these assertions depend on where CI invoked node.
-const run = (args, root = REPO) => spawnSync('node', [checker, ...args, '--root', root], { encoding: 'utf8' });
+// The host session id env vars are scrubbed, so `--consume` records only what a case passes.
+const env = { ...process.env };
+delete env.CLAUDE_CODE_SESSION_ID;
+delete env.CODEX_SESSION_ID;
+const run = (args, root = REPO) => spawnSync('node', [checker, ...args, '--root', root], { encoding: 'utf8', env });
 const outOf = (r) => (r.stdout || '') + (r.stderr || '');
 
 // A conformant Open items bullet, held in one place so every fixture below mutates a single
@@ -120,6 +125,19 @@ const rGood = run([good]);
 check('conformant fixture exits 0', rGood.status === 0);
 check('conformant fixture reports OK', /^OK —/.test(rGood.stdout));
 
+// === check 10: Session and Hop come as a pair; a handoff without both is legacy and passes ===
+const withChain = (lines) => write(`chain-${lines.join('-').replace(/[^a-z0-9]+/gi, '-')}.md`,
+  buildHandoff({ program: BASE_PROGRAM_SECTION.replace(/Predecessor: none\n/, `Predecessor: none\n${lines.join('\n')}\n`) }));
+check('Session HO 1 with Hop 1 passes', run([withChain(['Session: Ledger2 AMM HO 1', 'Hop: 1'])]).status === 0);
+const rHopZero = run([withChain(['Session: Ledger2 AMM HO 0', 'Hop: 0'])]);
+check('Hop 0 fails as not a positive integer', rHopZero.status === 1 && /Hop: must be a positive integer/.test(outOf(rHopZero)));
+const rMismatch = run([withChain(['Session: Ledger2 AMM HO 1', 'Hop: 2'])]);
+check('a Session line not ending in HO <Hop> fails', rMismatch.status === 1 && /Session: must end with " HO 2"/.test(outOf(rMismatch)));
+const rNoHop = run([withChain(['Session: Ledger2 AMM HO 1'])]);
+check('a Session line without a Hop line fails', rNoHop.status === 1 && /found: no Hop line/.test(outOf(rNoHop)));
+const rNoBase = run([withChain(['Session: HO 1', 'Hop: 1'])]);
+check('a Session line with no base name fails', rNoBase.status === 1 && /Session: must end with " HO 1"/.test(outOf(rNoBase)));
+
 // === unfilled draft placeholder ===
 const unfilled = write('unfilled.md', buildHandoff({ carriedContext: '## Carried context\n\n- [FILL: analyses the successor needs]\n' }));
 const rUnfilled = run([unfilled]);
@@ -201,8 +219,14 @@ const rConsume = run([consumeGood, '--consume']);
 const marker = join(consumeDir, 'HANDOFF.consumed');
 check('--consume on a passing check exits 0', rConsume.status === 0);
 check('--consume writes HANDOFF.consumed beside the file', existsSync(marker));
-check('the marker holds one ISO timestamp line', existsSync(marker)
-  && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z\n$/.test(readFileSync(marker, 'utf8')));
+const markBody = existsSync(marker) ? JSON.parse(readFileSync(marker, 'utf8')) : {};
+check('the marker is the v2 body with null links when no session or successor is given',
+  markBody.v === 2 && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(markBody.consumedAt) && markBody.bySession === null && markBody.successorRun === null && markBody.name === null);
+rmSync(marker);
+const rLinked = run([consumeGood, '--consume', '--session', 'sess-1', '--successor', '80 Runs/2026-09-24-p-ho1', '--name', 'P HO 1']);
+const linked = existsSync(marker) ? JSON.parse(readFileSync(marker, 'utf8')) : {};
+check('--consume records --session, --successor, and --name in the v2 body',
+  rLinked.status === 0 && linked.bySession === 'sess-1' && linked.successorRun === '80 Runs/2026-09-24-p-ho1' && linked.name === 'P HO 1');
 
 const failDir = mkdtempSync(join(tmpdir(), 'coh-consume-fail-'));
 const consumeBad = join(failDir, 'HANDOFF.md');

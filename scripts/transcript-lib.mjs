@@ -572,6 +572,14 @@ export function handoffMarkerPath(cwd, sessionId, home = homedir()) {
   return join(home, '.claude', 'code-ops', 'handoff', projectSlug(cwd), `${projectSlug(sessionId)}.json`);
 }
 
+// Session record store, which binds a live session to its run folder. `scripts/handoff-state.mjs`
+// writes it on `run open` and on a passing `handoff resume`, and the SessionStart card reads it on
+// compaction. Path: `<home>/.claude/code-ops/sessions/<project slug>/<session slug>.json`; body
+// `{ v: 1, sessionId, name, runDir, resumed, hop, updatedAt }`, with repo-relative paths.
+export function sessionRecordPath(cwd, sessionId, home = homedir()) {
+  return join(home, '.claude', 'code-ops', 'sessions', projectSlug(cwd), `${projectSlug(sessionId)}.json`);
+}
+
 // The highest band a marker records, or 0 for a missing, unreadable, or malformed marker. A
 // marker written before `peak` existed reports its `band`.
 export function handoffPeakBand(path) {
