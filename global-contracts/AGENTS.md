@@ -110,6 +110,10 @@ the scope and design documents with their revisions, decisions, and closed items
 handoff names the ledger and its predecessor and carries every open item forward or closes
 it. A handoff restates one session, and the ledger holds the whole program.
 
+A new session is new work unless the operator resumes a handoff, and each session keeps its
+own run folder. Address a peer session by its program session name, and resolve the live
+successor with `co handoff live` before messaging, because a handed-off session is finished.
+
 ## Change and publishing standards
 
 Prefer the smallest readable correct change. Preserve behavior unless the requested change
