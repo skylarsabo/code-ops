@@ -675,7 +675,9 @@ Program goal, Request history, Scope documents, Decisions ledger, and Closed ite
 scope-document path exists, and the handoff's own request sits in Request history. Every Open
 items bullet carries a stable id such as `OI-7`. With a predecessor, its request sits in Request
 history, and each of its open-item ids stays open or appears in Closed items. A dropped id fails
-by name.
+by name. `## Program` may also carry `Session: <base name> HO <n>`, the name the successor session
+takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When either is present,
+both must be: Hop is a positive integer, and the Session line ends with ` HO <Hop>`.
 
 One status line never gates. When the `Verified-at:` sha is HEAD and `git status --porcelain`
 lists nothing but the handoff file itself, the check prints `same-tree: Verified-at matches HEAD
@@ -684,13 +686,35 @@ re-reading its file. Register revalidation still runs, because closed register i
 Any git failure leaves the line unprinted, which only costs the successor the slow path.
 Evidence: `scripts/check-handoff.mjs` and `evals/handoff-check/run.mjs`.
 
-`--consume` writes `HANDOFF.consumed` beside the file, holding one ISO timestamp line, and only
-after every check above passes. The resume direction writes it once verification finishes, so a
-marker means a session read and verified that state. The `SessionStart` routing card treats the
-marker's presence as already picked up, which retires the handoff from discovery. A failed check
-writes nothing, and a marker that cannot be written is reported rather than swallowed, because the
-caller asked for it. Evidence: `scripts/check-handoff.mjs:45-48` and
-`scripts/check-handoff.mjs:231-246`.
+`--consume` writes `HANDOFF.consumed` beside the file only after every check above passes. Its
+body is the version 2 JSON `{"v":2,"consumedAt","bySession","successorRun","name"}`. `bySession`
+comes from `--session`, else `CLAUDE_CODE_SESSION_ID`, else `CODEX_SESSION_ID`, else null.
+`successorRun` and `name` come from `--successor` and `--name`, else null. Readers still accept the
+legacy body of one ISO timestamp line, and the file's existence alone means consumed. The resume
+direction writes it once verification finishes, so a marker means a session read and verified
+that state. The `SessionStart` routing card treats the marker's presence as already picked up,
+which retires the handoff from discovery. A failed check writes nothing, and a marker that cannot
+be written is reported rather than swallowed, because the caller asked for it. Evidence:
+`scripts/check-handoff.mjs` and `evals/handoff-check/run.mjs`.
+
+One run folder belongs to one session. `co run open <slug> [--name <name>] [--session <id>]`
+creates `<hub>/80 Runs/<YYYY-MM-DD>-<slug>/`, suffixed `-2` or `-3` when taken, with `SESSION.json`
+(`{"v":1,"sessionId","name","hop","predecessor","createdAt"}`), a header-only `TASKS.md`, and
+`RUN_LOG.md`. With a session id, it also writes the session record at
+`<home>/.claude/code-ops/sessions/<project slug>/<session slug>.json`, with body
+`{"v":1,"sessionId","name","runDir","resumed","hop","updatedAt"}` and repo-relative paths. The id
+source order matches the consumed marker's. Without an id, the record is skipped. `CODE_OPS_HOME`
+replaces the home directory. `co handoff draft` takes the predecessor from the run's `SESSION.json`
+before its sibling heuristic, fills `Session:` and `Hop:` (the predecessor's Hop plus 1, or 1), and
+refuses an `--out` folder that holds `HANDOFF.consumed` or whose `SESSION.json` names another
+session. `co handoff resume` also accepts a session name, matched case-insensitively against the
+`Session:` lines of unconsumed handoffs. No match or several list the candidates and exit 1. A
+passing resume creates the successor run `<date>-<program slug>-ho<n>`, seeds its `TASKS.md` with
+the open items verbatim, writes its `SESSION.json` and the session record, and names it in the
+marker. `co handoff live <name | path | session id>` walks the marker successor links to the
+chain head. It prints the head's session name, id, and run folder, and marks the head as awaiting
+resume when that run already wrote an unconsumed `HANDOFF.md`. Evidence: `scripts/handoff-state.mjs`
+and `evals/handoff-state/run.mjs`.
 
 ## Dispatch guard hook
 
