@@ -712,7 +712,11 @@ Write applies when assessment selects HANDOFF or the operator explicitly request
 the run's true state as `HANDOFF.md` in the dated artifact folder. `co handoff draft --run <dir>
 --base <ref>` pre-fills every mechanical fact (`Verified-at`, branch, dirty paths, the range, Open
 items from unchecked `TASKS.md` lines, and stamped artifact, contract, and receipt paths) and leaves
-`[FILL: ...]` placeholders for judgment, which fail the handoff check until filled. The first six sections answer
+`[FILL: ...]` placeholders for judgment, which fail the handoff check until filled. It also fills
+`Session: <base name> HO <n>` and `Hop: <n>` in the Program section, taking the predecessor from
+the run's `SESSION.json`, and it refuses a folder that holds `HANDOFF.consumed` or belongs to
+another session. A new session is new work unless the operator resumes a handoff, and each
+substantive run opens its own folder with `co run open <slug> --name "<program name>"`. The first six sections answer
 what an operator asks a resumed session: the goal and the state of play (phases complete, in
 flight, and not started, the automation level, the operator steering, and a `Request:` line
 holding the original request verbatim), the scope and constraints (repository, branch, the areas
@@ -734,12 +738,12 @@ are the mechanical floor under the secrets rule and under the file's required sh
 handoff travels further than a register. The rule throughout is state, not instructions. Describe
 what is true, such as "the leak gate is implemented, the register sweep is not started", and
 never what to do next. Write ends with one paste-ready line for the operator,
-`/code-ops-suite:handoff resume "<path>"`. Pickup is discovery only: it requires enabled trusted
+`/code-ops-suite:handoff resume "<Session name>"`, or the path when that name is not unique. Pickup is discovery only: it requires enabled trusted
 hooks, a supported host, `startup` or `clear`, accessible run folders, no `HANDOFF.consumed`
 sibling, and a file under 14 days. It never consumes or resumes the file itself.
 
 Resume treats every claim as context to verify rather than fact to trust. Its single
-verification step, `co handoff resume <HANDOFF.md>`, runs the redaction scan, `revalidate-register.mjs`
+verification step, `co handoff resume <HANDOFF.md or session name>`, runs the redaction scan, `revalidate-register.mjs`
 on every named register, `run-runtime.mjs status` and `resume` for a version 3 or newer contract,
 and the anchored-pointer check, where a `DRIFTED` pointer is stale state. It writes
 `HANDOFF.consumed` beside the file only when every step passes, so later sessions stop being
@@ -751,7 +755,9 @@ contradictions at a checkpoint instead of silently re-deciding. Its reply opens 
 blocked on the operator, then a five-heading recap (work completed, key findings, in progress,
 left to do, project scope and constraints) marking every claim verified, moved, or drifted. It
 asks the operator to re-grant any authority still needed before publishing, merging, or another
-consequential action.
+consequential action. A passing resume also creates the successor run folder and prints the
+session name to use. Peers address a program session by that name and resolve its live head with
+`co handoff live "<name>"` before messaging, because a handed-off session is finished.
 
 **Why it's useful.** Registers carry findings across phases, but nothing else carried
 decisions, rejected approaches, and in-flight boundaries across a context limit. That is the

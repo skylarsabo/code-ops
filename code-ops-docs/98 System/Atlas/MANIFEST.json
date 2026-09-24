@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "71935b57d05e0035c5074b33f14324e2cd0519f0",
-      "verifiedDigest": "d5496d090a7874390b2a5dc29d396d9cb3a6bd70f8026f42c3f9d81412773214",
+      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
+      "verifiedDigest": "c4b0eec18111707a87e73b86bef0bab22538395e48c1e672174c76f769144b63",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -22,6 +22,11 @@
           "anchor": ": held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 148,
+          "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 13,
           "anchor": "// FOUR BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comman"
@@ -32,18 +37,23 @@
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 142,
+          "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
+        },
+        {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
           "line": 20,
           "anchor": ". Legacy replay packets and calibration arms retain their existing rules. Every"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 53,
+          "line": 69,
           "anchor": "For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF."
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 136,
+          "line": 162,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -55,8 +65,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
-      "verifiedDigest": "dc7c998bc56ab35334e27c541b5cfd818cdb8e32bab93d58e3eaa6aff2d334f2",
+      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
+      "verifiedDigest": "eeb6ef7dfbaef4334c504e4d8fa17ecd599111268beae33efa9e36ef22ce05e2",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -65,7 +75,7 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 736,
+          "line": 744,
           "anchor": "export function residentContextReading(payload, { grok = false, home = homedir()"
         },
         {
@@ -75,7 +85,7 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 80,
+          "line": 87,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
@@ -136,8 +146,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
-      "verifiedDigest": "7efe00f8113ea458cdffd2642553bf35e6b9a0f494173767c4aa38150c27572a",
+      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
+      "verifiedDigest": "71a32d8b5101e557deb62d3cba129d6f80b6d559d7181c4cefe0fc7ae5669223",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -194,8 +204,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "71935b57d05e0035c5074b33f14324e2cd0519f0",
-      "verifiedDigest": "5ac0a14429a901c1a6b8836b809a00042dfa8f4d0e75bbc796abdfc8e73c716e",
+      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
+      "verifiedDigest": "cebe5a872a688ea03f6548168325282efd3feade6de82808b3a1b00f94bc4574",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -229,7 +239,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 141,
+          "line": 167,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -264,12 +274,12 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
-      "verifiedDigest": "4d6d838635c891e6d26b634f839dea7f25af4fe4872e19ac30f83388134ddac9",
+      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
+      "verifiedDigest": "38a9b2f5bd887593b466e45faa8bf5447ac10d4090e1f5caf57647599c03e881",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 42,
+          "line": 58,
           "anchor": "- **COMPACT** when the same task needs context relief. First persist decisions,"
         },
         {
@@ -284,7 +294,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 45,
+          "line": 61,
           "anchor": "a callable host capability; otherwise report the documented"
         },
         {

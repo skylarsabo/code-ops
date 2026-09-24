@@ -2,7 +2,8 @@
 // HANDOFF.md structural checker: the mechanical floor under the handoff skill's write
 // contract (plugins/code-ops-suite/skills/handoff/SKILL.md).
 //
-//   node scripts/check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors] [--consume]
+//   node scripts/check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors]
+//     [--consume [--session <id>] [--successor <run dir>] [--name <session name>]]
 //
 // WHY: a handoff whose Open items carry no owner, whose Authority section is missing, or that
 // grew past what a fresh session reads before acting degrades unnoticed until a resumed
@@ -55,9 +56,15 @@
 //      carries an id. When Predecessor is a path, it must resolve, its `Request:` text must sit
 //      in Request history, and each of its open-item ids must appear as the id of a bullet in
 //      this handoff's Open items or in PROGRAM.md Closed items. A dropped item fails by id.
+//  10. Session chain. "## Program" may carry `Session: <base name> HO <n>`, the name the successor
+//      session takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When
+//      either is present, both must be: Hop is a positive integer and Session ends with ` HO <Hop>`.
 //
-// `--consume` writes `HANDOFF.consumed` beside the file, holding one ISO timestamp line, and
-// only when every check above passes. The resume direction writes it once verification
+// `--consume` writes `HANDOFF.consumed` beside the file only when every check above passes. Its
+// body is the version 2 JSON `{"v":2,"consumedAt","bySession","successorRun","name"}`. bySession is
+// `--session`, else env CLAUDE_CODE_SESSION_ID, else CODEX_SESSION_ID, else null; successorRun and
+// name come from `--successor` and `--name`, else null. Readers still accept the legacy body of
+// one ISO timestamp line, and the file's existence alone means consumed. The resume direction writes it once verification
 // finishes, and the SessionStart routing card treats its presence as "already picked up", so a
 // consumed handoff stops being advertised to later sessions.
 //
@@ -79,11 +86,14 @@ import { parseOrDie, usage, git } from './cli-lib.mjs';
 // plugins/code-ops-suite/scripts/, and the library ships beside it.
 import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLineAt } from './citation-lib.mjs';
 
-const USAGE = 'usage: check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors] [--consume]';
+const USAGE = 'usage: check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors] [--consume [--session <id>] [--successor <run dir>] [--name <session name>]]';
 const { flags, positional } = parseOrDie(process.argv.slice(2), {
   root: { value: true, default: '.', missing: 'needs a path' },
   'strict-anchors': { value: false },
   consume: { value: false },
+  session: { value: true },
+  successor: { value: true },
+  name: { value: true },
 }, USAGE);
 if (positional.length !== 1) usage(USAGE);
 const [target] = positional;
@@ -290,6 +300,13 @@ if (programSection) {
       }
     }
   }
+  // ---- 10. session chain: Session and Hop come as a pair, or not at all (legacy) ----
+  const session = labelValue(programSection.body, 'Session');
+  const hop = labelValue(programSection.body, 'Hop');
+  if (session !== null || hop !== null) {
+    if (!/^[1-9]\d*$/.test(hop ?? '')) violations.push(`"## Program" Hop: must be a positive integer beside Session:, found: ${hop ?? 'no Hop line'}`);
+    else if (!session || !new RegExp(`\\S HO ${hop}$`).test(session)) violations.push(`"## Program" Session: must end with " HO ${hop}" to match Hop: ${hop}, found: ${session ?? 'no Session line'}`);
+  }
 }
 
 // ---- 6. anchored pointers resolve against the working tree ----
@@ -364,7 +381,9 @@ if (violations.length) {
 if (flags.consume === true) {
   const marker = join(dirname(target), 'HANDOFF.consumed');
   try {
-    writeFileSync(marker, `${new Date().toISOString()}\n`);
+    const bySession = flags.session || process.env.CLAUDE_CODE_SESSION_ID || process.env.CODEX_SESSION_ID || null;
+    const body = { v: 2, consumedAt: new Date().toISOString(), bySession, successorRun: flags.successor ?? null, name: flags.name ?? null };
+    writeFileSync(marker, `${JSON.stringify(body)}\n`);
     console.error(`  consumed: wrote ${marker}`);
   } catch (err) {
     console.error(`x cannot write ${marker}: ${err.message}`);

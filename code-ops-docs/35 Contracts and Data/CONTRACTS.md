@@ -268,16 +268,28 @@ the paired instruction files carry the routing doctrine. Any error exits `0` sil
 Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs` and
 `evals/grok-build-compat/run.mjs`.
 
-On a fresh session, a `source` of `startup` or `clear`, the same card appends one pending-handoff
-line. The line names the newest pending `HANDOFF.md` and the date it was written, and it directs
-the session to resume from it, verify its claims, and open the reply with a five-heading recap.
-A compact resume gets the restore instruction instead, never the pickup line. Discovery reads two
-bounded directory levels: the dated run folders under each `<repo>-docs/80 Runs/` beside the
-repository root and under the repository's own `80 Runs/`. A handoff counts as pending when its
-run folder holds no `HANDOFF.consumed` beside it and the `HANDOFF.md` mtime falls inside 14 days.
-`CODE_OPS_HANDOFF_PICKUP` of `off`, `0`, or `false` drops the line and leaves the rest of the card.
-Every read is guarded, so an unreadable directory yields no line rather than an error. Evidence:
-`plugins/code-ops-suite/hooks/routing-card.mjs:9-65` and `evals/handoff-card/run.mjs`.
+On a fresh session, a `source` of `startup` or `clear`, the same card appends one passive line. It
+lists up to 3 pending handoffs, newest first. Each entry is the handoff's `Session:` name, or its
+run folder name for a legacy handoff, followed by its repo-relative path. The line states that the
+session is new work unless the operator resumes one, and it never directs a resume. Discovery
+reads two bounded directory levels: the dated run folders under each `<repo>-docs/80 Runs/` beside
+the repository root, and under the repository's own `80 Runs/`. A handoff counts as pending when
+its run folder holds no `HANDOFF.consumed`, whatever that marker's body, and the `HANDOFF.md`
+mtime falls inside 14 days. `CODE_OPS_HANDOFF_PICKUP` of `off`, `0`, or `false` drops the line and
+leaves the rest of the card. When the payload carries `session_id`, every source also gets
+`this session: <first 8 characters>`. Every read is guarded, so an unreadable directory yields no
+line rather than an error. The OpenCode lifecycle plugin emits the same passive line. Evidence:
+`plugins/code-ops-suite/hooks/routing-card.mjs:29-150`, `scripts/opencode-lifecycle.js:168-213`,
+and `evals/handoff-card/run.mjs`.
+
+A compact resume never gets the pickup line. It gets the restore instruction, and it then reads
+the session record at
+`<home>/.claude/code-ops/sessions/<projectSlug(cwd)>/<projectSlug(session id)>.json`. When the
+record holds a valid name and run folder, the card adds one line. That line names the session and
+its run folder, and it forbids resuming the handoff the session already resumed or any earlier
+one. It then directs a reload of `TASKS.md` and `RUN_LOG.md` from the run folder. When the record
+is absent, unreadable, or holds a control character, the card instead adds that a handoff resumed
+earlier in the session stays consumed and must never be resumed again.
 
 The `PreToolUse` hook `enforce-traceless.mjs` is the tool-layer backstop for the
 traceless-publishing rule. When the Bash command about to run matches a `git commit` or a `gh
@@ -680,7 +692,9 @@ Program goal, Request history, Scope documents, Decisions ledger, and Closed ite
 scope-document path exists, and the handoff's own request sits in Request history. Every Open
 items bullet carries a stable id such as `OI-7`. With a predecessor, its request sits in Request
 history, and each of its open-item ids stays open or appears in Closed items. A dropped id fails
-by name.
+by name. `## Program` may also carry `Session: <base name> HO <n>`, the name the successor session
+takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When either is present,
+both must be: Hop is a positive integer, and the Session line ends with ` HO <Hop>`.
 
 One status line never gates. When the `Verified-at:` sha is HEAD and `git status --porcelain`
 lists nothing but the handoff file itself, the check prints `same-tree: Verified-at matches HEAD
@@ -689,13 +703,35 @@ re-reading its file. Register revalidation still runs, because closed register i
 Any git failure leaves the line unprinted, which only costs the successor the slow path.
 Evidence: `scripts/check-handoff.mjs` and `evals/handoff-check/run.mjs`.
 
-`--consume` writes `HANDOFF.consumed` beside the file, holding one ISO timestamp line, and only
-after every check above passes. The resume direction writes it once verification finishes, so a
-marker means a session read and verified that state. The `SessionStart` routing card treats the
-marker's presence as already picked up, which retires the handoff from discovery. A failed check
-writes nothing, and a marker that cannot be written is reported rather than swallowed, because the
-caller asked for it. Evidence: `scripts/check-handoff.mjs:45-48` and
-`scripts/check-handoff.mjs:231-246`.
+`--consume` writes `HANDOFF.consumed` beside the file only after every check above passes. Its
+body is the version 2 JSON `{"v":2,"consumedAt","bySession","successorRun","name"}`. `bySession`
+comes from `--session`, else `CLAUDE_CODE_SESSION_ID`, else `CODEX_SESSION_ID`, else null.
+`successorRun` and `name` come from `--successor` and `--name`, else null. Readers still accept the
+legacy body of one ISO timestamp line, and the file's existence alone means consumed. The resume
+direction writes it once verification finishes, so a marker means a session read and verified
+that state. The `SessionStart` routing card treats the marker's presence as already picked up,
+which retires the handoff from discovery. A failed check writes nothing, and a marker that cannot
+be written is reported rather than swallowed, because the caller asked for it. Evidence:
+`scripts/check-handoff.mjs` and `evals/handoff-check/run.mjs`.
+
+One run folder belongs to one session. `co run open <slug> [--name <name>] [--session <id>]`
+creates `<hub>/80 Runs/<YYYY-MM-DD>-<slug>/`, suffixed `-2` or `-3` when taken, with `SESSION.json`
+(`{"v":1,"sessionId","name","hop","predecessor","createdAt"}`), a header-only `TASKS.md`, and
+`RUN_LOG.md`. With a session id, it also writes the session record at
+`<home>/.claude/code-ops/sessions/<project slug>/<session slug>.json`, with body
+`{"v":1,"sessionId","name","runDir","resumed","hop","updatedAt"}` and repo-relative paths. The id
+source order matches the consumed marker's. Without an id, the record is skipped. `CODE_OPS_HOME`
+replaces the home directory. `co handoff draft` takes the predecessor from the run's `SESSION.json`
+before its sibling heuristic, fills `Session:` and `Hop:` (the predecessor's Hop plus 1, or 1), and
+refuses an `--out` folder that holds `HANDOFF.consumed` or whose `SESSION.json` names another
+session. `co handoff resume` also accepts a session name, matched case-insensitively against the
+`Session:` lines of unconsumed handoffs. No match or several list the candidates and exit 1. A
+passing resume creates the successor run `<date>-<program slug>-ho<n>`, seeds its `TASKS.md` with
+the open items verbatim, writes its `SESSION.json` and the session record, and names it in the
+marker. `co handoff live <name | path | session id>` walks the marker successor links to the
+chain head. It prints the head's session name, id, and run folder, and marks the head as awaiting
+resume when that run already wrote an unconsumed `HANDOFF.md`. Evidence: `scripts/handoff-state.mjs`
+and `evals/handoff-state/run.mjs`.
 
 ## Dispatch guard hook
 
