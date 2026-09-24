@@ -99,12 +99,14 @@ uses agent type or timing. Registration is local state; installation alone does 
 host correlation capability. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
 On a trusted, supported host with enabled pickup hooks, a fresh `startup` or `clear` session can
-receive one line naming the newest pending handoff in accessible run folders. Discovery reads two
-bounded directory levels, the dated run folders under each `<repo>-docs/80 Runs/` and under the
+receive one passive line listing up to 3 pending handoffs, newest first, each as its `Session:`
+name (the run folder name for a legacy handoff) and path. The line states that the session is new
+work unless the operator resumes one, and it never directs a resume. Discovery reads two bounded
+directory levels, the dated run folders under each `<repo>-docs/80 Runs/` and under the
 repository's own `80 Runs/`, never a recursive walk. Pending means the run folder has no
-`HANDOFF.consumed` beside its `HANDOFF.md` and that file's mtime falls inside 14 days. Discovery
-does not consume, resume, or reconstruct the handoff. Evidence:
-`plugins/code-ops-suite/hooks/routing-card.mjs:22-65`.
+`HANDOFF.consumed` beside its `HANDOFF.md`, whatever that marker holds, and the file's mtime falls
+inside 14 days. Discovery does not consume, resume, or reconstruct the handoff. Evidence:
+`plugins/code-ops-suite/hooks/routing-card.mjs:29-89` and `scripts/opencode-lifecycle.js:168-213`.
 
 Two variables name a storage path:
 

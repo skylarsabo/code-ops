@@ -54,6 +54,7 @@ const TABLE = {
     capabilities: 'host-capabilities.mjs',
     cost: 'estimate-run-cost.mjs',
     bench: 'benchmark-command.mjs',
+    open: { script: 'handoff-state.mjs', cmd: 'open' },
   },
   security: {
     chains: 'attack-chain-graph.mjs',
@@ -94,6 +95,7 @@ const TABLE = {
   handoff: {
     draft: { script: 'handoff-state.mjs', cmd: 'draft' },
     resume: { script: 'handoff-state.mjs', cmd: 'resume' },
+    live: { script: 'handoff-state.mjs', cmd: 'live' },
   },
   calibrate: {
     graph: 'calibration-graph.mjs',

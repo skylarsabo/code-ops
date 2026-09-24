@@ -35,7 +35,7 @@ writeFileSync(join(work, 'cost-report.mjs'), readFileSync(join(root, 'scripts', 
 
 const runs = join(work, 'code-ops-docs', '80 Runs', '2026-09-22 pending');
 mkdirSync(runs, { recursive: true });
-writeFileSync(join(runs, 'HANDOFF.md'), '# pending\n\n## Program\n\nProgram: `code-ops-docs/80 Runs/PROGRAM.md`\nPredecessor: none\n\n## Next\n');
+writeFileSync(join(runs, 'HANDOFF.md'), '# pending\n\n## Program\n\nProgram: `code-ops-docs/80 Runs/PROGRAM.md`\nPredecessor: none\nSession: Ledger2 AMM HO 1\nHop: 1\n\n## Next\n');
 
 process.env.CODE_OPS_RECEIPTS = join(work, 'session-receipts.jsonl');
 process.env.CODE_OPS_COST_LEDGER = join(work, 'opencode-cost.jsonl');
@@ -66,7 +66,7 @@ process.env.USERPROFILE = work;
 
 const overlay = await import(pathToFileURL(join(work, 'code-ops-lifecycle.js')).href);
 expect(Object.keys(overlay).length === 1, `lifecycle exported ${Object.keys(overlay).join(', ')}`);
-const { classifyChooserModel, pickChooserModel, buildChooserLadder, pendingHandoff } = overlay.CodeOpsLifecycle.internals;
+const { classifyChooserModel, pickChooserModel, buildChooserLadder, pendingHandoffs } = overlay.CodeOpsLifecycle.internals;
 const catalog = process.env.CODE_OPS_OPENCODE_MODELS.split('\n');
 expect(classifyChooserModel('provider-b/gpt-6-luna') === 'light', 'gpt-6-luna should be light');
 expect(classifyChooserModel('provider-a/claude-opus-5-5') === 'strong', 'opus 5.5 should be strong');
@@ -83,6 +83,16 @@ const ladder = buildChooserLadder(catalog);
 expect(!Object.values(ladder.agents).some((id) => String(id).includes('muse-spark')), 'chooser bound the Zen fallback');
 expect(ladder.agents['code-ops-suite-explorer'] === 'provider-b/gpt-6-luna', 'explorer should bind luna');
 expect(ladder.agents['code-ops-suite-implementer'] === 'provider-a/claude-opus-5-5', 'implementer should bind opus 5.5');
+expect(ladder.warning === null, `an absent enabled list warned: ${ladder.warning}`);
+
+// An enabled list that names nothing this host offers enables nothing: no
+// catalog fallback, no binding, and a warning that names the profile path.
+const unmatched = buildChooserLadder(catalog, { enabled: ['other-host/claude-opus-5'] });
+expect(Object.keys(unmatched.agents).length === 0, `an unmatched enabled list bound ${JSON.stringify(unmatched.agents)}`);
+expect(Object.values(unmatched.byTier).every((id) => !id), `an unmatched enabled list filled the ladder: ${JSON.stringify(unmatched.byTier)}`);
+expect(unmatched.warning?.includes(process.env.CODE_OPS_MODEL_PROFILE), `the unmatched-list warning should name the profile path: ${unmatched.warning}`);
+const narrowed = buildChooserLadder(catalog, { enabled: ['gpt-6-luna'] });
+expect(Object.values(narrowed.agents).every((id) => id === 'provider-b/gpt-6-luna') && narrowed.warning === null, `a matching enabled list should bind only its models: ${JSON.stringify(narrowed.agents)}`);
 
 // GitHub Copilot: the shipped floor plugin carries prices, so the chooser ranks
 // the priced catalog by workload cost and the cost report prices cache writes.
@@ -251,18 +261,24 @@ writeFileSync(profile, JSON.stringify({ credits_per_usd: 40, cost_gates: { max_c
 const tight = spawnSync(process.execPath, [join(work, 'cost-report.mjs'), '--ledger', process.env.CODE_OPS_COST_LEDGER, '--profile', profile, '--check'], { encoding: 'utf8' });
 expect(tight.status === 1 && tight.stdout.includes('max_context_peak'), `cost report did not fail the gate: ${tight.stdout}`);
 
-// Pickup names the program ledger when the handoff has a Program section, and
-// omits the clause when it has none.
+// Pickup is passive: it lists pending handoffs by Session name (the folder name for a legacy
+// handoff) and never tells a new session to resume one.
 const pickupTurn = { parts: [{ type: 'text', text: 'hello' }] };
 await hooks['chat.message']({ sessionID: 'pickup', agent: 'build' }, pickupTurn);
 const pickupText = pickupTurn.parts[0].text;
-expect(pickupText.includes('pending handoff: code-ops-docs/80 Runs/2026-09-22 pending/HANDOFF.md')
-  && pickupText.includes('Program ledger: code-ops-docs/80 Runs/PROGRAM.md; read it first.'), `pickup did not name the program ledger: ${pickupText}`);
+expect(pickupText.includes('handoffs awaiting resume (this session is new work unless the operator resumes one): Ledger2 AMM HO 1 -> code-ops-docs/80 Runs/2026-09-22 pending/HANDOFF.md')
+  && !pickupText.includes('Before other work'), `pickup was not the passive session-named list: ${pickupText}`);
 const bare = join(work, 'bare');
 mkdirSync(join(bare, '80 Runs', '2026-09-22 bare'), { recursive: true });
 writeFileSync(join(bare, '80 Runs', '2026-09-22 bare', 'HANDOFF.md'), '# pending\n\n## Next\n');
-const barePending = pendingHandoff(bare);
-expect(barePending?.path === '80 Runs/2026-09-22 bare/HANDOFF.md' && barePending.program === null, `a handoff without a Program section gave ${JSON.stringify(barePending)}`);
+const barePending = pendingHandoffs(bare);
+expect(barePending.length === 1 && barePending[0].path === '80 Runs/2026-09-22 bare/HANDOFF.md' && barePending[0].name === '2026-09-22 bare',
+  `a legacy handoff must be named by its folder, got ${JSON.stringify(barePending)}`);
+for (const n of [3, 4, 5, 6]) {
+  mkdirSync(join(bare, '80 Runs', `2026-09-2${n} extra`), { recursive: true });
+  writeFileSync(join(bare, '80 Runs', `2026-09-2${n} extra`, 'HANDOFF.md'), '# pending\n');
+}
+expect(pendingHandoffs(bare).length === 3, 'pickup must list at most 3 pending handoffs');
 
 rmSync(work, { recursive: true, force: true });
 if (fails.length) {

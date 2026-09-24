@@ -83,7 +83,7 @@ const ASSESS_CARD = [
   'OpenCode compact is callable through the host compacting hook after that checkpoint. Do not claim a compact ran from a shell.',
   'HANDOFF for a new workstream, host or operator change, explicit session end, or recovery after failed compaction. Write HANDOFF.md only then.',
   'Do not create HANDOFF.md for CONTINUE or COMPACT. A v3/v4 run checkpoints with run-runtime.mjs before COMPACT or HANDOFF.',
-  'Pickup advertises a pending HANDOFF.md; it does not resume it. Resume is /code-ops-suite-handoff resume "<path>".',
+  'Startup lists up to 3 pending handoffs by session name; the session is new work unless the operator resumes one. Resume is /code-ops-suite-handoff resume "<path>".',
 ].join('\n');
 const COMPACT_CHECKPOINT = [
   'Before this compact summary is used, durable run artifacts are the authority.',
@@ -165,15 +165,20 @@ function localDate(ms) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function pendingHandoff(cwd) {
+// Pending handoffs, newest first, at most PENDING_LIST. This mirrors pendingHandoffs() and
+// sessionName() in plugins/code-ops-suite/hooks/routing-card.mjs, which this standalone plugin
+// cannot import: two bounded directory levels, a sibling HANDOFF.consumed of any body retires a
+// handoff, and a handoff older than PENDING_DAYS is history.
+const PENDING_LIST = 3;
+function pendingHandoffs(cwd) {
   const roots = [cwd];
   let entries;
-  try { entries = readdirSync(cwd, { withFileTypes: true }); } catch { return null; }
+  try { entries = readdirSync(cwd, { withFileTypes: true }); } catch { return []; }
   for (const entry of entries) {
     if (entry.isDirectory() && entry.name.endsWith('-docs')) roots.push(join(cwd, entry.name));
   }
   const cutoff = Date.now() - PENDING_DAYS * 86_400_000;
-  let best = null;
+  const found = [];
   for (const root of roots) {
     const runs = join(root, '80 Runs');
     let folders;
@@ -185,26 +190,25 @@ function pendingHandoff(cwd) {
       const file = join(dir, 'HANDOFF.md');
       let mtime;
       try { mtime = statSync(file).mtimeMs; } catch { continue; }
-      if (mtime < cutoff) continue;
-      if (!best || mtime > best.mtime) best = { file, mtime };
+      if (mtime >= cutoff) found.push({ file, folder: folder.name, mtime });
     }
   }
-  if (!best) return null;
-  return { path: relative(cwd, best.file).split(sep).join('/'), written: localDate(best.mtime), program: programPath(best.file) };
+  return found.sort((a, b) => b.mtime - a.mtime).slice(0, PENDING_LIST).map((h) => ({
+    path: relative(cwd, h.file).split(sep).join('/'), written: localDate(h.mtime), name: sessionName(h.file) ?? h.folder,
+  }));
 }
 
-// The `Program:` path under the handoff's `## Program` heading, or null. This mirrors
-// programPath() in plugins/code-ops-suite/hooks/routing-card.mjs, which this standalone
-// plugin cannot import. Only the first PROGRAM_SCAN_BYTES are read. A path longer than
-// PROGRAM_PATH_CHARS or still a `[FILL:` placeholder is left off the pickup line.
-const PROGRAM_SCAN_BYTES = 8192;
-const PROGRAM_PATH_CHARS = 200;
-function programPath(file) {
+// The `Session:` name under the handoff's `## Program` heading, or null for a legacy handoff.
+// Only the first SESSION_SCAN_BYTES are read. A name longer than SESSION_NAME_CHARS, still a
+// `[FILL:` placeholder, or holding a control character is left off the pickup line.
+const SESSION_SCAN_BYTES = 8192;
+const SESSION_NAME_CHARS = 120;
+function sessionName(file) {
   let text;
-  try { text = readFileSync(file, 'utf8').slice(0, PROGRAM_SCAN_BYTES); } catch { return null; }
+  try { text = readFileSync(file, 'utf8').slice(0, SESSION_SCAN_BYTES); } catch { return null; }
   const section = /^##[ \t]+Program[ \t]*\r?$([\s\S]*?)(?=^##[ \t]|(?![\s\S]))/m.exec(text)?.[1] ?? '';
-  const value = /^[-*\t ]*Program:[^\S\r\n]*(.*)$/m.exec(section)?.[1].trim().replace(/^`(.*)`$/, '$1').trim();
-  if (!value || value.length > PROGRAM_PATH_CHARS || value.includes('[FILL:') || /[\u0000-\u001f]/.test(value)) return null;
+  const value = /^[-*\t ]*Session:[^\S\r\n]*(.*)$/m.exec(section)?.[1].trim().replace(/^`(.*)`$/, '$1').trim();
+  if (!value || value.length > SESSION_NAME_CHARS || value.includes('[FILL:') || /[\u0000-\u001f\u007f]/.test(value)) return null;
   return value;
 }
 
@@ -466,11 +470,12 @@ async function refreshChooserCache(client) {
 
 // The operator's model profile: measured quality, cost, and speed per model id,
 // the enabled list, and the ranking weights. Absent file, absent behavior.
+const profilePath = () => process.env.CODE_OPS_MODEL_PROFILE?.trim()
+  || join(homedir(), '.claude', 'code-ops', 'opencode-model-profile.json');
+
 function readProfile() {
-  const path = process.env.CODE_OPS_MODEL_PROFILE?.trim()
-    || join(homedir(), '.claude', 'code-ops', 'opencode-model-profile.json');
   try {
-    const data = JSON.parse(readFileSync(path, 'utf8'));
+    const data = JSON.parse(readFileSync(profilePath(), 'utf8'));
     return data && typeof data === 'object' ? data : {};
   } catch {
     return {};
@@ -560,16 +565,20 @@ function valueScore(row, profile) {
   return index / (cost ** w.cost * (tokens > 0 ? tokens / 1000 : 30) ** w.speed);
 }
 
+// The operator's enabled list, or null when the profile has none.
+function allowList(profile) {
+  if (!Array.isArray(profile?.enabled) || !profile.enabled.length) return null;
+  const allow = new Set(profile.enabled.map((id) => String(id).toLowerCase()));
+  return (id) => allow.has(id.toLowerCase()) || allow.has(bareId(id));
+}
+
 // Enabled means: on the operator's list when the profile has one, and never a
-// model the desktop app's Models settings hide.
+// model the desktop app's Models settings hide. A list that names nothing this
+// host offers enables nothing, so a model the operator disabled is never bound.
 function enabledModels(catalog, profile) {
   let ids = catalog;
-  if (Array.isArray(profile?.enabled) && profile.enabled.length) {
-    const allow = new Set(profile.enabled.map((id) => String(id).toLowerCase()));
-    // A list that names nothing this host offers describes another host.
-    const listed = ids.filter((id) => allow.has(id.toLowerCase()) || allow.has(bareId(id)));
-    if (listed.length) ids = listed;
-  }
+  const allowed = allowList(profile);
+  if (allowed) ids = ids.filter(allowed);
   try {
     const home = homedir();
     const stores = process.env.CODE_OPS_DESKTOP_STORE?.trim()
@@ -682,7 +691,11 @@ function buildChooserLadder(catalog = listChooserModels(), profile = readProfile
     const model = byTier[floor];
     if (model) agents[agent] = model;
   }
-  return { byTier, agents, catalog: ids, profile };
+  const allowed = allowList(profile);
+  const warning = allowed && catalog.length && !catalog.some(allowed)
+    ? `code-ops: the enabled list in ${profilePath()} names no model this host offers. Suite agents keep their configured models.`
+    : null;
+  return { byTier, agents, catalog: ids, profile, warning };
 }
 
 function chooserKnownModels(catalog) {
@@ -1018,10 +1031,9 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
       return null;
     }
     row.pickupDone = true;
-    const pending = pendingHandoff(row.cwd);
-    if (!pending) return null;
-    const ledger = pending.program ? ` Program ledger: ${pending.program}; read it first.` : '';
-    return `pending handoff: ${pending.path} (written ${pending.written}).${ledger} Pickup is discovery, not resume. Before other work, run /code-ops-suite-handoff resume "${pending.path}", verify its claims, and open your reply with a recap under five headings: work completed, key findings, in progress, left to do, project scope and constraints. If the operator's first request is unrelated, name the pending handoff in one line and proceed with their request.`;
+    const pending = pendingHandoffs(row.cwd);
+    if (!pending.length) return null;
+    return `handoffs awaiting resume (this session is new work unless the operator resumes one): ${pending.map((h) => `${h.name} -> ${h.path}`).join('; ')}`;
   };
 
   const mergeChildReceipt = (row) => {
@@ -1048,6 +1060,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
   let live = null;
   let byTier = {};
   let profile = {};
+  let chooserWarning = null;
   const clones = new Set();
   const agentModels = {};
 
@@ -1098,6 +1111,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         }
         byTier = ladder.byTier;
         profile = ladder.profile;
+        chooserWarning = ladder.warning;
         if (on('CODE_OPS_TIER_ROUTING')) buildClones(config);
         for (const name of ['build', 'plan']) {
           const agent = config.agent[name] ??= {};
@@ -1320,6 +1334,11 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         // Any event means the host finished startup. Not awaited: discovery must
         // never hold up the host.
         chooserRefreshed = true;
+        if (chooserWarning) {
+          Promise.resolve()
+            .then(() => client?.tui?.showToast?.({ body: { message: chooserWarning, variant: 'warning' } }))
+            .catch(() => { /* fail open */ });
+        }
         refreshChooserCache(client).then((result) => {
           if (result?.ids) live = { ids: new Set(result.ids), variants: result.variants };
           if (!result?.changed || process.env.CODE_OPS_OPENCODE_MODELS) return;
@@ -1369,7 +1388,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         output.context.push(COMPACT_CHECKPOINT);
         const row = record(input?.sessionID);
         if (row) {
-          const pending = pendingHandoff(row.cwd);
+          const [pending] = pendingHandoffs(row.cwd);
           if (pending) output.context.push(`Named durable artifact: ${pending.path} (written ${pending.written}). Point at it; do not restate it.`);
         }
       } catch { /* fail open */ }
@@ -1390,5 +1409,5 @@ CodeOpsLifecycle.internals = {
   routeTier,
   resolveEffort,
   pickVariant,
-  pendingHandoff,
+  pendingHandoffs,
 };
