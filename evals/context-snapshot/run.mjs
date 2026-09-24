@@ -5,9 +5,9 @@ import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { safeRelative } from '../../scripts/context-index-lib.mjs';
+import { tally, withDetail } from '../harness.mjs';
 
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'); const script = join(repo, 'scripts', 'context-snapshot.mjs'); const outer = mkdtempSync(join(tmpdir(), 'coh-context-')); const root = join(outer, 'repo'); mkdirSync(root); const failures = [];
-const check = (name, pass, detail = '') => { console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`); if (!pass) failures.push(`${name}: ${detail}`); };
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'); const script = join(repo, 'scripts', 'context-snapshot.mjs'); const outer = mkdtempSync(join(tmpdir(), 'coh-context-')); const root = join(outer, 'repo'); mkdirSync(root); const { fails: failures, check } = tally(withDetail);
 const run = (args) => { try { return { status: 0, out: execFileSync(process.execPath, [script, ...args], { encoding: 'utf8' }) }; } catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; } };
 try {
   check('shared path guard rejects traversal', safeRelative('src/a.js') && !safeRelative('../a.js'));

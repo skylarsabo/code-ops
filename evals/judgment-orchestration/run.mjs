@@ -7,16 +7,13 @@ import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { digestJson } from '../../scripts/context-index-lib.mjs';
+import { tally, trimmed } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SOURCE = resolve(HERE, '..', '..');
 const SCRIPT = join(SOURCE, 'scripts', 'judgment-evals.mjs');
-const fails = [];
+const { fails, check } = tally(trimmed(240));
 
-function check(name, condition, detail = '') {
-  console.log(`${condition ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!condition) fails.push(`${name}${detail ? ` — ${String(detail).slice(0, 240)}` : ''}`);
-}
 function git(root, args) { return execFileSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: root, encoding: 'utf8', timeout: 15000 }).trim(); }
 function run(args, root) {
   try { return { status: 0, stdout: execFileSync(process.execPath, [SCRIPT, ...args], { cwd: root, encoding: 'utf8', timeout: 30000, maxBuffer: 16 * 1024 * 1024 }), stderr: '' }; }

@@ -52,6 +52,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSyn
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { tally, trimmed } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -60,11 +61,7 @@ const REAL_STORE = join(REPO, 'evals', 'calibration');
 const REAL_TABLE = join(REPO, 'evals', 'CALIBRATION_TABLE.md');
 const NOTES = join(HERE, 'notes');
 
-const fails = [];
-const check = (name, cond, detail) => {
-  console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!cond) fails.push(detail ? `${name} — ${String(detail).slice(0, 400)}` : name);
-};
+const { fails, check } = tally(trimmed(400));
 
 const run = (args) => {
   try {

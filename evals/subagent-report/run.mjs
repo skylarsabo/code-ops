@@ -20,13 +20,13 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const suite = join(root, 'plugins', 'code-ops-suite');
 const hook = join(suite, 'hooks', 'subagent-report.mjs');
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 
 function runHook(input, extraEnv = {}) {
   const env = { ...process.env, CLAUDE_PLUGIN_ROOT: suite };

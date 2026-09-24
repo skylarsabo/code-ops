@@ -17,13 +17,13 @@ import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { sessionRecordPath } from '../../scripts/transcript-lib.mjs';
+import { tally } from '../harness.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const co = join(REPO, 'scripts', 'co.mjs');
 const checker = join(REPO, 'scripts', 'check-handoff.mjs');
 
-const fails = [];
-const check = (name, cond) => { console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`); if (!cond) fails.push(name); };
+const { fails, check } = tally();
 const tmp = mkdtempSync(join(tmpdir(), 'handoff-state-'));
 const home = mkdtempSync(join(tmpdir(), 'handoff-state-home-'));
 // A scrubbed environment: no host session id leaks in, and session records land in the temp home.

@@ -4,6 +4,7 @@
     "checkJs": false,
     "noEmit": true,
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "es2023",

@@ -90,7 +90,7 @@ const WIDEN_MAX_WORDS = 8;  // bounds the existsSync attempts per match (nearest
 export function widenSpacedPath(before, root, matchedPath) {
   const window = before.length > WIDEN_SCAN_MAX ? before.slice(before.length - WIDEN_SCAN_MAX) : before;
   let start = window.length;
-  while (start > 0 && WIDEN_ALLOWED_RE.test(window[start - 1])) start--;
+  while (start > 0 && WIDEN_ALLOWED_RE.test(window.charAt(start - 1))) start--;
   const raw = window.slice(start).replace(/^ +/, '');
   if (!raw) return null;
   /** @type {(prefix: string) => string | null} */
@@ -152,7 +152,7 @@ export function restoreCitationPrefix(before, matched) {
   let escaping = false;
   let i = window.length - 1;
   for (; i >= 0; i--) {
-    const c = window[i];
+    const c = window.charAt(i);
     if (c === '\\' || (c === ':' && /[A-Za-z]/.test(window[i - 1] ?? ''))) { escaping = true; break; }
     if (!/[\w.\-\\/:]/.test(c)) break; // left the path-shaped run immediately before the match
   }
@@ -174,10 +174,11 @@ export function restoreCitationPrefix(before, matched) {
 export function extractRefs(text, root) {
   const refs = [];
   for (const m of text.matchAll(REF_RE)) {
+    const matchedPath = m[1] ?? ''; // REF_RE's path group is mandatory, so every match sets it
     // SEC-004/PAR-003 (fix): see restoreCitationPrefix — restores a dropped forward-slash
     // prefix and flags a backslash/drive-letter one directly, so the confinement check
     // classifies every escaping form AMBIGUOUS instead of FRESH.
-    const restored = restoreCitationPrefix(text.slice(0, m.index), m[1]);
+    const restored = restoreCitationPrefix(text.slice(0, m.index), matchedPath);
     let path = restored.path;
     // L-045/R-011: every non-escaping match gets a widen attempt (see widenSpacedPath)
     // BEFORE the unwidened literal tail is used — PR-140's backtick reading always preferred the
@@ -185,7 +186,7 @@ export function extractRefs(text, root) {
     // exist at the literal tail wins over the real, longer path the citation names (L-045). An
     // already-escaping match is never widened, so a traversal ref keeps reading AMBIGUOUS.
     if (!restored.escaping) {
-      const widened = widenSpacedPath(text.slice(0, m.index), root, m[1]);
+      const widened = widenSpacedPath(text.slice(0, m.index), root, matchedPath);
       if (widened) path = widened;
       // else: keep the literal tail as restored above — resolved by resolveRef directly if it
       // exists, or by bare name (BUG-008) if not.
@@ -296,10 +297,11 @@ export function resolveRef(resolver, ref) {
   }
   // BUG-008: literal path missing — resolve by name before declaring GONE.
   const found = resolver.findByName(ref.path);
-  if (found.length === 1) {
-    const lc = lineCount(found[0]);
-    if (lc >= 0 && ref.line > lc) return { status: 'MOVED', note: `${ref.path} (as ${found[0].slice(root.length + 1)}):${ref.line} > ${lc} lines`, target: null };
-    return { status: 'FRESH', note: null, target: found[0] };
+  const only = found.length === 1 ? found[0] : undefined;
+  if (only !== undefined) {
+    const lc = lineCount(only);
+    if (lc >= 0 && ref.line > lc) return { status: 'MOVED', note: `${ref.path} (as ${only.slice(root.length + 1)}):${ref.line} > ${lc} lines`, target: null };
+    return { status: 'FRESH', note: null, target: only };
   }
   if (found.length > 1) return { status: 'AMBIGUOUS', note: `${ref.path}: ${found.length} files match by name — verify by hand`, target: null };
   return { status: 'GONE', note: `${ref.path} missing`, target: null };

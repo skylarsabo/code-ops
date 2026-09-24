@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.14.2
+- The vendored `citation-lib`, `symbol-lib`, and `cli-lib` pass `noUncheckedIndexedAccess` through guards and destructuring. Their behavior is unchanged.
+
 ## 0.14.1
 - Skill descriptions are 160 characters or fewer, under the new lint cap.
 - The vendored `cli-lib.mjs` carries the shared spawn and hash helpers.

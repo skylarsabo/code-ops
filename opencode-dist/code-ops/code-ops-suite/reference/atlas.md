@@ -149,7 +149,7 @@ citation is.
 
 The two verdicts are independent, and both directions carry information:
 
-- A FRESH digest with a drifted claim is a lead, not a proof. Nothing in scope moved that
+- A FRESH digest with a DRIFTED or GONE claim is a lead for that claim, not a proof. Nothing in scope moved that
   the digest could see, and a cited line still moved out from under the prose. The cause is
   an edit staged and reverted, a file the scope does not cover, or a citation that was
   wrong when it was written. Re-read that line before using the sentence that cites it.

@@ -12,14 +12,14 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const checker = resolve(here, '..', '..', 'scripts', 'revalidate-register.mjs');
 const register = join(here, 'FINDINGS_REGISTER.seed.md');
 const repo = join(here, 'repo');
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 
 // Report-only run: capture the classification of each item.
 const r = spawnSync('node', [checker, register, '--root', repo, '--report-only'], { encoding: 'utf8' });
