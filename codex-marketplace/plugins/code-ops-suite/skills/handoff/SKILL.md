@@ -25,6 +25,22 @@ sections are Program goal, Request history (append-only, each request verbatim w
 path, `Status:`, and `Role:`), Decisions ledger (append-only; mark superseded entries, never
 delete them), and Closed items (id, how closed, pointer). Its cap is 32 KB.
 
+## Sessions and names
+
+A new session is new work. It is not a handoff unless the operator resumes one. Each substantive
+run opens its own folder, so simultaneous sessions never share one:
+`node <plugin-root>/scripts/co.mjs run open <slug> --name "<program name>"`. One run folder
+belongs to one session, which its `SESSION.json` records.
+
+Each hop names the next session in sequence: `Ledger2 AMM`, then `Ledger2 AMM HO 1`, then
+`Ledger2 AMM HO 2`. The handoff's `Session:` line holds the successor's name, and `Hop:` holds its
+number.
+
+Peers address a program session by its name, never by a bare session id. Before messaging a peer,
+resolve the live head with `node <plugin-root>/scripts/co.mjs handoff live "<name>"`: a
+handed-off session is finished, and its successor holds the work. Record holds against the program
+name.
+
 ## Assess the lifecycle first
 
 Default invocation assesses **CONTINUE**, **COMPACT**, or **HANDOFF** at a phase boundary, a
@@ -71,9 +87,13 @@ into Closed items. Then write the handoff.
 Run `node <plugin-root>/scripts/co.mjs handoff draft --run <run dir> --base <ref> --out <run dir>/HANDOFF.md`.
 It fills every mechanical fact: `Verified-at`, branch, dirty paths, the `base..HEAD` range, Open
 items from the unchecked `TASKS.md` lines, each artifact stamped `Verified-at`, and the contract
-and receipt paths. Replace each `[FILL: ...]` placeholder with judgment, held to `§9`:
+and receipt paths. It takes the predecessor from the run's `SESSION.json` and fills `Session:` and
+`Hop:`. It refuses a folder that holds `HANDOFF.consumed` or belongs to another session, so a
+resumed session writes into its own successor run folder. Replace each `[FILL: ...]` placeholder
+with judgment, held to `§9`:
 - **Program:** added first, above Goal, because it points at the context every other section sits
-  in. It holds `Program: <path to PROGRAM.md>` and `Predecessor: <path to prior HANDOFF.md | none>`.
+  in. It holds `Program: <path to PROGRAM.md>`, `Predecessor: <path to prior HANDOFF.md | none>`,
+  `Session: <base name> HO <n>`, and `Hop: <n>`.
 - **Goal and state of play:** a `Request:` line with the operator's request verbatim, the phases complete, in flight, and not started, the automation level, and any steering (`§3`).
 - **Scope and constraints:** areas in and out of scope, and the operator's constraints in their exact words.
 - **Key findings:** one line each with `CONFIRMED`, `PROBABLE`, or `SPECULATIVE` and a pointer to its evidence.
@@ -103,19 +123,25 @@ Close by noting that pickup is conditional: enabled and trusted hooks, a support
 `startup` or `clear` event, accessible run folders, no `HANDOFF.consumed` sibling, and a file within
 14 days. Pickup advertises a file; it does not resume it. End the reply with exactly one line:
 
-`code-ops-suite:handoff resume "<path to HANDOFF.md>"`
+`code-ops-suite:handoff resume "<Session name>"`
+
+Use the path to `HANDOFF.md` in place of the name when another unconsumed handoff has the same
+`Session:` line.
 
 ## Resume: verify, then continue
 
 Treat every claim as **context to verify against the tree, not fact to trust.** Read the
 handoff's `PROGRAM.md` before the handoff itself: the goal, the request history, and the scope
 documents show the whole program, not only the last session. Run
-`node <plugin-root>/scripts/co.mjs handoff resume <HANDOFF.md> --root .` as the single
-verification step. It runs the redaction scan, revalidates every named register, runs
+`node <plugin-root>/scripts/co.mjs handoff resume <HANDOFF.md or session name> --root .` as
+the single verification step. It runs the redaction scan, revalidates every named register, runs
 `run-runtime.mjs status` and `resume` for a version 3 or newer contract, checks every anchor, and
 writes `HANDOFF.consumed` only when every step passes. Its summary gives the same-tree flag, anchor
 counts with each non-FRESH pointer, non-FRESH register items, then open items with operator-owned
-ones first. A non-zero exit leaves the handoff unconsumed.
+ones first. A non-zero exit leaves the handoff unconsumed. A pass also creates this session's
+successor run folder, seeded with the open items, and prints `session name:` and
+`successor run:`. Work and the next handoff go in that folder. Rename the session to the printed
+name where the host allows it; in the Claude desktop app, set the session title.
 
 Read the summary as state. `DRIFTED` marks stale state and `MOVED` names the anchor's current line.
 Runtime drift requires a revised contract and `run-runtime.mjs replan`, never a bypass. Re-triage
@@ -146,11 +172,13 @@ For a **Write**:
 - `HANDOFF.md`, drafted by `co.mjs handoff draft`, states the goal with the operator's request verbatim, the scope and constraints in their exact words, the work completed as revision ranges and paths, the key findings each with a confidence label, the in-flight boundaries with anchored `file:line` pointers, the open items each carrying an owner and an observable done-when check, the decisions with their rejected alternatives, the traps and dead ends, the authority scope and limits, and every register path with a `Verified-at` stamp.
 - The file is state throughout, with no instructions, no `[FILL: ...]` placeholder, and nothing secret.
 - `node <plugin-root>/scripts/co.mjs check handoff HANDOFF.md` passes, beside the redaction scan above.
-- The reply ends with the one paste-ready resume line and qualifies startup pickup as discovery,
-  not automatic resume.
+- The `## Program` section carries the successor's `Session:` name and its `Hop:`.
+- The reply ends with the one paste-ready resume line, by session name when that name is unique,
+  and qualifies startup pickup as discovery, not automatic resume.
 
 For a **Resume**:
 - `co.mjs handoff resume` passed before any work continued: registers revalidated, anchors checked, runtime status and resume run for a version 3 or newer contract, and `HANDOFF.consumed` written by that passing run.
+- Work continues in the successor run folder that resume printed, under the printed session name.
 - Contradictions were surfaced rather than silently resolved.
 - `PROGRAM.md` was read before the handoff.
 - The reply opens with the program goal and scope documents, then the operator-blocked items, then the five-heading recap, every claim marked verified, moved, or drifted.
