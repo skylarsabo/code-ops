@@ -83,7 +83,7 @@ const ASSESS_CARD = [
   'OpenCode compact is callable through the host compacting hook after that checkpoint. Do not claim a compact ran from a shell.',
   'HANDOFF for a new workstream, host or operator change, explicit session end, or recovery after failed compaction. Write HANDOFF.md only then.',
   'Do not create HANDOFF.md for CONTINUE or COMPACT. A v3/v4 run checkpoints with run-runtime.mjs before COMPACT or HANDOFF.',
-  'Pickup advertises a pending HANDOFF.md; it does not resume it. Resume is /code-ops-suite-handoff resume "<path>".',
+  'Startup lists up to 3 pending handoffs by session name; the session is new work unless the operator resumes one. Resume is /code-ops-suite-handoff resume "<path>".',
 ].join('\n');
 const COMPACT_CHECKPOINT = [
   'Before this compact summary is used, durable run artifacts are the authority.',

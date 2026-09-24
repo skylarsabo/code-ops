@@ -268,16 +268,28 @@ the paired instruction files carry the routing doctrine. Any error exits `0` sil
 Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs` and
 `evals/grok-build-compat/run.mjs`.
 
-On a fresh session, a `source` of `startup` or `clear`, the same card appends one pending-handoff
-line. The line names the newest pending `HANDOFF.md` and the date it was written, and it directs
-the session to resume from it, verify its claims, and open the reply with a five-heading recap.
-A compact resume gets the restore instruction instead, never the pickup line. Discovery reads two
-bounded directory levels: the dated run folders under each `<repo>-docs/80 Runs/` beside the
-repository root and under the repository's own `80 Runs/`. A handoff counts as pending when its
-run folder holds no `HANDOFF.consumed` beside it and the `HANDOFF.md` mtime falls inside 14 days.
-`CODE_OPS_HANDOFF_PICKUP` of `off`, `0`, or `false` drops the line and leaves the rest of the card.
-Every read is guarded, so an unreadable directory yields no line rather than an error. Evidence:
-`plugins/code-ops-suite/hooks/routing-card.mjs:9-65` and `evals/handoff-card/run.mjs`.
+On a fresh session, a `source` of `startup` or `clear`, the same card appends one passive line. It
+lists up to 3 pending handoffs, newest first. Each entry is the handoff's `Session:` name, or its
+run folder name for a legacy handoff, followed by its repo-relative path. The line states that the
+session is new work unless the operator resumes one, and it never directs a resume. Discovery
+reads two bounded directory levels: the dated run folders under each `<repo>-docs/80 Runs/` beside
+the repository root, and under the repository's own `80 Runs/`. A handoff counts as pending when
+its run folder holds no `HANDOFF.consumed`, whatever that marker's body, and the `HANDOFF.md`
+mtime falls inside 14 days. `CODE_OPS_HANDOFF_PICKUP` of `off`, `0`, or `false` drops the line and
+leaves the rest of the card. When the payload carries `session_id`, every source also gets
+`this session: <first 8 characters>`. Every read is guarded, so an unreadable directory yields no
+line rather than an error. The OpenCode lifecycle plugin emits the same passive line. Evidence:
+`plugins/code-ops-suite/hooks/routing-card.mjs:29-150`, `scripts/opencode-lifecycle.js:168-213`,
+and `evals/handoff-card/run.mjs`.
+
+A compact resume never gets the pickup line. It gets the restore instruction, and it then reads
+the session record at
+`<home>/.claude/code-ops/sessions/<projectSlug(cwd)>/<projectSlug(session id)>.json`. When the
+record holds a valid name and run folder, the card adds one line. That line names the session and
+its run folder, and it forbids resuming the handoff the session already resumed or any earlier
+one. It then directs a reload of `TASKS.md` and `RUN_LOG.md` from the run folder. When the record
+is absent, unreadable, or holds a control character, the card instead adds that a handoff resumed
+earlier in the session stays consumed and must never be resumed again.
 
 The `PreToolUse` hook `enforce-traceless.mjs` is the tool-layer backstop for the
 traceless-publishing rule. When the Bash command about to run matches a `git commit` or a `gh

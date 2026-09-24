@@ -54,7 +54,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
   - `PostToolUse` `index-refresh.mjs`: re-indexes a file right after a tool edits it, so context queries read the live tree.
   - `PostToolUse` `handoff-card.mjs`: prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band.
   - `UserPromptSubmit` `handoff-card.mjs`: prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band.
-  - `SessionStart` `routing-card.mjs`: prints the routing card at session start, a restore instruction after compaction, and the newest pending handoff on a fresh session.
+  - `SessionStart` `routing-card.mjs`: prints the routing card at session start, a restore instruction after compaction, and up to 3 pending handoffs by session name on a fresh session, where the session is new work unless the operator resumes one.
   - `SessionEnd` `session-receipt.mjs`: appends a local session receipt row with token usage, tool calls, and model mix.
   - `SubagentStart` `ladder-card.mjs`: hands an implementer subagent the code-economy ladder card.
   - `SubagentStop` `subagent-report.mjs`: notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap.
