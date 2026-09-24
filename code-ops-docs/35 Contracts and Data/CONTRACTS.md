@@ -505,6 +505,11 @@ option. The `missing` key carries the wording a caller already pins, so no flag,
 message changed. Evidence: `scripts/cli-lib.mjs:38-47`, `scripts/cli-lib.mjs:112-123`,
 `scripts/check-autofix-scope.mjs:50-57`, and `evals/co-facade/run.mjs:101-117`.
 
+A script that passes a usage line to `parseOrDie`, or calls `exitOnHelp`, answers `--help` or
+`-h` with its usage on stdout and exit 0, before any other work. `check-no-deps`,
+`lint-plugins`, and `records` do the same inline, so a help request never runs a gate.
+Evidence: `scripts/cli-lib.mjs:138-155` and `evals/script-guards/run.mjs`.
+
 ## File skim
 
 `skim.mjs <file>` prints one header line and an outline, so a reader can request a line
