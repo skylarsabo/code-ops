@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
-      "verifiedDigest": "c4b0eec18111707a87e73b86bef0bab22538395e48c1e672174c76f769144b63",
+      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
+      "verifiedDigest": "f0eedb7dee413d86d7455cc400dd10243f17ac30c31454c083cec37df42119a6",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -65,12 +65,12 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
-      "verifiedDigest": "eeb6ef7dfbaef4334c504e4d8fa17ecd599111268beae33efa9e36ef22ce05e2",
+      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
+      "verifiedDigest": "a757995657ce3c09355c02d72578c68aba8747eec75f26812c6319ea8e1c2e3a",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 868,
+          "line": 870,
           "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
         },
         {
@@ -87,6 +87,16 @@
           "file": "scripts/check-handoff.mjs",
           "line": 87,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
+        },
+        {
+          "file": "scripts/cli-lib.mjs",
+          "line": 138,
+          "anchor": "export function exitOnHelp(argv, usageLine) {"
+        },
+        {
+          "file": "scripts/integrate-branch.mjs",
+          "line": 431,
+          "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/atlas-check.mjs",
@@ -146,8 +156,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
-      "verifiedDigest": "71a32d8b5101e557deb62d3cba129d6f80b6d559d7181c4cefe0fc7ae5669223",
+      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
+      "verifiedDigest": "0c529388671e23857ae951f9263daf3fd412f2ac615a95b61d0a7473f00b13a9",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -204,8 +214,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
-      "verifiedDigest": "cebe5a872a688ea03f6548168325282efd3feade6de82808b3a1b00f94bc4574",
+      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
+      "verifiedDigest": "8cd8aec7d9cde9576dfd875eac3fbf8a376f799b442208cb6354b8ac82efd1fd",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -274,9 +284,14 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "082937a02c1b160a9b9c30cde2f3695fc54555a5",
-      "verifiedDigest": "38a9b2f5bd887593b466e45faa8bf5447ac10d4090e1f5caf57647599c03e881",
+      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
+      "verifiedDigest": "b6b1088a8ea30f48875ea30edb25cb8e23a335a6821d60eecc1085b9f4bc987a",
       "claims": [
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 156,
+          "anchor": "try { out = git(['ls-files', '--others', '--ignored', '--exclude-standard', '--d"
+        },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 58,
