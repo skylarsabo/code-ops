@@ -94,3 +94,5 @@ New substantive version-4 runs route each unit by assigned task, role floor, and
 Each of the four conventions now ends with a pinned Code standard section holding one core clause. The section carries no hub path because the packages ship to repositories without this hub; the full rules and their backstops live in the hub's code-standard technique page.
 
 Explicit dispatch registration uses hashed working-directory and agent keys, refuses replacement, and preserves legacy call counts. Bound workers receive a small checkpoint allowance without extending the legacy cap. Receipts expose attempted-call counts; unavailable provider usage and effective runtime budget remain UNKNOWN.
+
+`conform` checks surface 3 with `atlas-check.mjs check --gate --claims-gate`. A STALE section, or a claim that is MOVED, DRIFTED, or GONE, makes the surface DRIFTED, never CONFORMANT. The suite's atlas trust rule matches: a FRESH section does not vouch for a claim reported DRIFTED or GONE.

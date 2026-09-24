@@ -73,3 +73,5 @@ Selected views retain canonical binding, scope, completeness, and omission metad
 Generated hook text defines a safe-boundary lifecycle assessment instead of an automatic handoff at `scripts/build-codex-marketplace.mjs:323`.
 
 The global sync script installs the user-wide contracts and refreshes host plugin caches. It spawns each host CLI with allow-listed arguments and records the hash it last wrote, so it can refuse to overwrite a contract edited by hand at `scripts/sync-global.mjs:113`.
+
+`lint-plugins.mjs` runs each numbered check as a named function, and `main` calls them in order. Messages, ordering, and exit codes did not change in the split. The script exit-code contract lives in `code-ops-docs/40 Engineering/ENGINEERING_STANDARDS.md`.
