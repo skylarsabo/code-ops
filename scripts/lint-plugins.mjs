@@ -109,6 +109,8 @@ import { fileURLToPath } from 'node:url';
 import * as vendoredManifest from './vendored-manifest.mjs';
 import { CLAUDE_ALIAS_TIER, TIER_RANK } from './model-tiers.mjs';
 
+// Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
+if (process.argv.includes('--help') || process.argv.includes('-h')) { console.log('usage: lint-plugins.mjs'); process.exit(0); }
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { RUNTIME_SCRIPTS } = vendoredManifest;
 const errors = [];

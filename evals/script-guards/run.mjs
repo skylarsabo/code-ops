@@ -364,6 +364,16 @@ try {
   rmSync(work, { recursive: true, force: true });
 }
 
+// A help request is a success: --help and -h print the usage line to stdout and exit 0, even on
+// the scripts whose own parser used to reject it as an unknown flag or ignore it and run the gate.
+for (const script of ['preflight', 'repo-map', 'records', 'worker-brief', 'import-graph', 'integrate-branch', 'check-no-deps', 'lint-plugins']) {
+  for (const flag of ['--help', '-h']) {
+    const r = runNode([join(REPO, 'scripts', `${script}.mjs`), flag]);
+    check(`${script} ${flag} exits 0 with usage`, r.code === 0 && r.out.startsWith(`usage: ${script}.mjs`));
+  }
+}
+check('repo-map unknown flag still exits 1', runNode([join(REPO, 'scripts', 'repo-map.mjs'), '--bogus']).code === 1);
+
 if (fails.length) {
   console.error(`\nFAIL — ${fails.length} script-guard regression check(s) failed: ${fails.join(', ')}`);
   process.exit(1);
