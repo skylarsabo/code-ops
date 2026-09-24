@@ -11,8 +11,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, extname } from 'node:path';
 import { CODE } from './symbol-lib.mjs';
+import { exitOnHelp } from './cli-lib.mjs';
 
 const argv = process.argv.slice(2);
+exitOnHelp(argv, 'usage: repo-map.mjs [--root <dir>] [--out <file>] [--max-file-kb <n>]');
 let root = '.', out = null, maxKb = 512;
 for (let i = 0; i < argv.length; i++) {
   const need = (f) => {

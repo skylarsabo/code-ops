@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.6.1
+- The vendored `cli-lib.mjs` adds `exitOnHelp`, so the vendored `preflight.mjs`, `repo-map.mjs`, `import-graph.mjs`, `worker-brief.mjs`, and `records.mjs` print their usage line and exit 0 on `--help` or `-h`.
+- The vendored `check-vault-standard.mjs` skips notes that git ignores, found with one `git ls-files --others --ignored` call. Tracked notes are always checked.
+
 ## 2.6.0
 - The SessionStart card lists up to 3 pending handoffs by session name on a fresh session and treats the session as new work unless the operator resumes one. It prints a `this session:` line.
 - After compaction, the card names the session's own run folder from its session record.

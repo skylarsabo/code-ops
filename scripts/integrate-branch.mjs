@@ -426,13 +426,17 @@ function tokenizeRunLine(line) {
   return tokens;
 }
 
+// One CI step may run for up to 30 minutes. The record-collections eval alone takes about
+// 10 minutes on Windows, where each fixture spawns many git processes.
+const STEP_TIMEOUT_MS = 30 * 60 * 1000;
+
 function runSelectedStep(step, log) {
   const codeLines = step.run.split('\n').map((l) => l.trim()).filter((l) => l !== '' && !l.startsWith('#'));
   let output = '';
   for (const line of codeLines) {
     const tokens = tokenizeRunLine(line); // tokens[0] is the literal "node" from the workflow text
     try {
-      output += execFileSync(process.execPath, tokens.slice(1), { cwd: ROOT, encoding: 'utf8', timeout: 600000, maxBuffer: 64 * 1024 * 1024 });
+      output += execFileSync(process.execPath, tokens.slice(1), { cwd: ROOT, encoding: 'utf8', timeout: STEP_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
     } catch (e) {
       output += (e.stdout || '') + (e.stderr || '');
       log(`  FAIL ${step.name}`);

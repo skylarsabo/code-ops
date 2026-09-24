@@ -128,6 +128,21 @@ export function die(message, code = 1) {
   process.exit(code);
 }
 
+// `--help` or `-h` before a bare `--` prints the usage text to stdout and exits 0. A help
+// request is a success, not a caller error, so it skips the stderr path `usage` takes. A
+// script with its own parser calls this first, so every script answers help the same way.
+/**
+ * @param {string[]} argv
+ * @param {string} usageLine
+ */
+export function exitOnHelp(argv, usageLine) {
+  const end = argv.indexOf('--');
+  const head = end === -1 ? argv : argv.slice(0, end);
+  if (!head.includes('--help') && !head.includes('-h')) return;
+  console.log(usageLine);
+  process.exit(0);
+}
+
 // parseFlags, reported the way a gate script reports a caller error: `x <message>` on stderr,
 // the script's own usage line under it when one is given, exit 2. Every migrated script wants
 // that shape, so none of them keeps a private try/catch for it.
@@ -137,6 +152,7 @@ export function die(message, code = 1) {
  * @param {string | null} [usageLine]
  */
 export function parseOrDie(argv, spec, usageLine = null) {
+  if (usageLine !== null) exitOnHelp(argv, usageLine);
   try {
     return parseFlags(argv, spec);
   } catch (error) {

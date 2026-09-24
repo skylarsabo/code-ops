@@ -1875,7 +1875,10 @@ function classifyCommand(context) {
   if (problems.length) throw new Error(`invalid collection classification: ${problems.map((row) => row.path).join(', ')}`);
 }
 
+// Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
+const RECORDS_USAGE = 'usage: records.mjs <classify|plan-adoption|adopt|re-review|curate|append|render|check|verify-history|reindex-locators> [--root <dir>] [--manifest <file>] [--collection <id>] [command options]';
 const [command, ...argv] = process.argv.slice(2);
+if (argv.concat(command).some((a) => a === '--help' || a === '-h')) { console.log(RECORDS_USAGE); process.exit(0); }
 try {
   const options = parseArgs(argv);
   validateInvocation(command, options);

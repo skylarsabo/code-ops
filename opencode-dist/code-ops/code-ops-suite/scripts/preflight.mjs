@@ -12,14 +12,16 @@
 // The step never fails the preflight — a missing agents dir is normal off-plugin.
 //   node scripts/preflight.mjs [--need gh] [--artifact-dir <dir>]
 // Exit 0 = go (advisories allowed), 1 = hard requirement missing or bad invocation (unknown
-// flag, or a missing/blank value for --need / --artifact-dir).
+// flag, or a missing/blank value for --need / --artifact-dir). `--help` prints usage and exits 0.
 
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, rmSync, mkdirSync, readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname, basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exitOnHelp } from './cli-lib.mjs';
 
 const argv = process.argv.slice(2);
+exitOnHelp(argv, 'usage: preflight.mjs [--need <tool>]... [--artifact-dir <dir>]');
 const needs = [];
 let artifactDir = null;
 for (let i = 0; i < argv.length; i++) {
