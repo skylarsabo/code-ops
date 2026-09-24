@@ -7,17 +7,14 @@ import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { samePhysicalFile } from '../../scripts/context-index-lib.mjs';
+import { tally, trimmed } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const SCRIPT = join(REPO, 'scripts', 'local-review-gate.mjs');
 const GIT_CONFIG = ['-c', 'core.autocrlf=false', '-c', 'core.safecrlf=false'];
-const fails = [];
+const { fails, check } = tally(trimmed(240));
 
-function check(name, condition, detail = '') {
-  console.log(`${condition ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!condition) fails.push(`${name}${detail ? ` — ${String(detail).slice(0, 240)}` : ''}`);
-}
 
 function run(args, cwd) {
   try {

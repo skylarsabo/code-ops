@@ -45,6 +45,18 @@ const KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', '
 const BARE_CALL = /(?<![\w$.])([A-Za-z_$][\w$]*)\s*\(/g;
 const MEMBER_CALL = /\.([A-Za-z_$][\w$]*)\s*\(/g;
 
+// Capture group `n` of a match whose pattern makes that group mandatory, so a match always sets
+// it. The throw marks a pattern edit that broke that invariant.
+/**
+ * @param {RegExpMatchArray} m
+ * @param {number} n
+ */
+function group(m, n) {
+  const value = m[n];
+  if (value === undefined) throw new Error(`capture group ${n} is unset in match ${JSON.stringify(m[0])}`);
+  return value;
+}
+
 // Definitions with spans: [{ name, kind, line, end, sig }], 1-based and inclusive.
 /**
  * @typedef {{ name: string, kind: string, line: number, end: number, sig: string }} Definition
@@ -58,16 +70,16 @@ export function definitions(text, ext) {
   const lines = text.split('\n');
   /** @type {Definition[]} */
   const defs = [];
-  for (let i = 0; i < lines.length; i++) {
+  for (const [i, line] of lines.entries()) {
     for (const [re, kind] of rules.defs) {
-      const m = re.exec(lines[i]);
-      if (m) { defs.push({ name: m[1], kind, line: i + 1, end: i + 1, sig: lines[i].trim().slice(0, 120) }); break; }
+      const m = re.exec(line);
+      if (m) { defs.push({ name: group(m, 1), kind, line: i + 1, end: i + 1, sig: line.trim().slice(0, 120) }); break; }
     }
   }
-  for (let d = 0; d < defs.length; d++) {
-    const start = defs[d].line - 1;
-    const limit = d + 1 < defs.length ? defs[d + 1].line - 2 : lines.length - 1;
-    defs[d].end = spanEnd(lines, start, limit, rules.scope) + 1;
+  for (const [d, def] of defs.entries()) {
+    const next = defs[d + 1];
+    const limit = next ? next.line - 2 : lines.length - 1;
+    def.end = spanEnd(lines, def.line - 1, limit, rules.scope) + 1;
   }
   return defs;
 }
@@ -81,10 +93,11 @@ export function definitions(text, ext) {
  * @param {string} scope
  */
 function spanEnd(lines, start, limit, scope) {
+  // Every caller passes start and limit inside lines, so each `?? ''` below never applies.
   if (scope === 'indent') {
-    const indent = lines[start].search(/\S/);
+    const indent = (lines[start] ?? '').search(/\S/);
     for (let i = start + 1; i <= limit; i++) {
-      const line = lines[i];
+      const line = lines[i] ?? '';
       if (!line.trim()) continue;
       if (line.search(/\S/) <= indent) return i - 1;
     }
@@ -93,11 +106,12 @@ function spanEnd(lines, start, limit, scope) {
   let depth = 0;
   let opened = false;
   for (let i = start; i <= limit; i++) {
-    for (const ch of stripStringsAndComments(lines[i])) {
+    const line = lines[i] ?? '';
+    for (const ch of stripStringsAndComments(line)) {
       if (ch === '{') { depth++; opened = true; } else if (ch === '}') depth--;
     }
     if (opened && depth <= 0) return i;
-    if (!opened && i > start && /^\S/.test(lines[i])) return i - 1;
+    if (!opened && i > start && /^\S/.test(line)) return i - 1;
   }
   return limit;
 }
@@ -121,22 +135,22 @@ export function calls(text, ext, defs = definitions(text, ext)) {
   const lines = text.split('\n');
   const out = [];
   let d = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (const [i, line] of lines.entries()) {
     if (COMMENT_LINE.test(line)) continue;
-    while (d < defs.length && defs[d].end < i + 1) d++;
+    let current = defs[d];
+    while (current && current.end < i + 1) current = defs[++d];
     const from = defs.find((x, k) => k >= d && x.line <= i + 1 && x.end >= i + 1) ?? null;
     const own = defs.find((x) => x.line === i + 1);
     const seen = new Set();
     const clean = stripStringsAndComments(line);
     for (const m of clean.matchAll(BARE_CALL)) {
-      const name = m[1];
+      const name = group(m, 1);
       if (KEYWORDS.has(name) || (own && own.name === name) || seen.has(name)) continue;
       seen.add(name);
       out.push({ name, line: i + 1, member: false, from: from ? from.name : null });
     }
     for (const m of clean.matchAll(MEMBER_CALL)) {
-      const name = m[1];
+      const name = group(m, 1);
       if (seen.has(`.${name}`)) continue;
       seen.add(`.${name}`);
       out.push({ name, line: i + 1, member: true, from: from ? from.name : null });
@@ -174,7 +188,7 @@ const names = (clause) => {
   // `a as b` binds b locally to the exported a; a bare `a` binds a to a.
   return inner.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
     const m = /^([\w$*]+)(?:\s+as\s+([\w$]+))?$/.exec(s);
-    return m ? { local: m[2] ?? m[1], imported: m[1] } : null;
+    return m ? { local: m[2] ?? group(m, 1), imported: group(m, 1) } : null;
   }).filter((n) => n !== null);
 };
 
@@ -240,27 +254,47 @@ export function imports(text, ext, file, exists) {
 
   if (JS_FAMILY.includes(ext)) {
     for (const m of text.matchAll(JS_STATIC)) {
-      const spec = m[2] ?? m[3];
+      // The pattern's two alternatives set group 2 or group 3.
+      const spec = m[2] ?? group(m, 3);
       edge(spec, resolveJs(spec), names(m[1]), spec.startsWith('.'));
     }
     // A re-export binds no local name, so it carries an edge and no names.
-    for (const m of text.matchAll(JS_EXPORT_FROM)) edge(m[1], resolveJs(m[1]), [], m[1].startsWith('.'));
-    for (const m of text.matchAll(JS_REQUIRE)) edge(m[2], resolveJs(m[2]), names(m[1]), m[2].startsWith('.'));
+    for (const m of text.matchAll(JS_EXPORT_FROM)) {
+      const spec = group(m, 1);
+      edge(spec, resolveJs(spec), [], spec.startsWith('.'));
+    }
+    for (const m of text.matchAll(JS_REQUIRE)) {
+      const spec = group(m, 2);
+      edge(spec, resolveJs(spec), names(m[1]), spec.startsWith('.'));
+    }
     for (const m of text.matchAll(JS_DYNAMIC)) {
-      const arg = m[1].trim();
+      const arg = group(m, 1).trim();
       const literal = JS_DYNAMIC_LITERAL.exec(arg);
-      if (literal) edge(literal[1], resolveJs(literal[1]), [], literal[1].startsWith('.'));
-      else edge(arg, null, [], false, true);
+      if (literal) {
+        const spec = group(literal, 1);
+        edge(spec, resolveJs(spec), [], spec.startsWith('.'));
+      } else edge(arg, null, [], false, true);
     }
   } else if (ext === '.py') {
-    for (const m of text.matchAll(PY_FROM)) edge(m[1], resolvePy(m[1]), names(m[2].replace(/[()]/g, '')), m[1].startsWith('.'));
-    for (const m of text.matchAll(PY_IMPORT)) edge(m[1], resolvePy(m[1]), [], false);
+    for (const m of text.matchAll(PY_FROM)) {
+      const mod = group(m, 1);
+      edge(mod, resolvePy(mod), names(group(m, 2).replace(/[()]/g, '')), mod.startsWith('.'));
+    }
+    for (const m of text.matchAll(PY_IMPORT)) edge(group(m, 1), resolvePy(group(m, 1)), [], false);
   } else if (ext === '.go') {
-    for (const m of text.matchAll(GO_BLOCK)) for (const q of m[1].matchAll(GO_QUOTED)) edge(q[1], resolveGo(q[1]), [], q[1].startsWith('.'));
-    for (const m of text.matchAll(GO_SINGLE)) edge(m[1], resolveGo(m[1]), [], m[1].startsWith('.'));
+    for (const m of text.matchAll(GO_BLOCK)) {
+      for (const q of group(m, 1).matchAll(GO_QUOTED)) {
+        const spec = group(q, 1);
+        edge(spec, resolveGo(spec), [], spec.startsWith('.'));
+      }
+    }
+    for (const m of text.matchAll(GO_SINGLE)) {
+      const spec = group(m, 1);
+      edge(spec, resolveGo(spec), [], spec.startsWith('.'));
+    }
   } else if (ext === '.rs') {
-    for (const m of text.matchAll(RUST_MOD)) edge(m[1], resolveRustMod(m[1]), [], true);
-    for (const m of text.matchAll(RUST_USE)) edge(m[1].replace(/\s+/g, ''), null, [], false);
+    for (const m of text.matchAll(RUST_MOD)) edge(group(m, 1), resolveRustMod(group(m, 1)), [], true);
+    for (const m of text.matchAll(RUST_USE)) edge(group(m, 1).replace(/\s+/g, ''), null, [], false);
   }
   return out;
 }

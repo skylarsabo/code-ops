@@ -24,7 +24,7 @@ The human-facing surfaces are:
 
 The context tools use explicit subcommands and strict flag parsing. Evidence: `scripts/context-snapshot.mjs:25-47` and `scripts/context-bundle.mjs:25-39`.
 
-One command-line convention is load-bearing for the agent surfaces: a tool answers with `file:line` anchors and bounded outlines instead of file bodies, so a reader or an agent asks for a range next. `skim.mjs` prints a header and an outline, `context-query.mjs` prints anchors and edge lists, and `digest.mjs` prints kept lines with a recovery hint for every elided region. The [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each output format. Evidence: `scripts/skim.mjs:11-20`, `scripts/context-query.mjs:8-21`, and `scripts/digest-lib.mjs:102-108`.
+One command-line convention is load-bearing for the agent surfaces: a tool answers with `file:line` anchors and bounded outlines instead of file bodies, so a reader or an agent asks for a range next. `skim.mjs` prints a header and an outline, `context-query.mjs` prints anchors and edge lists, and `digest.mjs` prints kept lines with a recovery hint for every elided region. The [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each output format. Evidence: `scripts/skim.mjs:11-20`, `scripts/context-query.mjs:8-21`, and `scripts/digest-lib.mjs:135-141`.
 
 ## Textual design standard
 

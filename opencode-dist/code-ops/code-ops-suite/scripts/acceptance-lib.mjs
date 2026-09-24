@@ -7,6 +7,12 @@ export const ACCEPT_HEADER = '| criterion | attempt | verdict | proof | accepted
 
 /** @typedef {{ id: string, owner: string }} Criterion */
 
+const STRONG_RANK = (() => {
+  const rank = TIER_RANK.strong;
+  if (rank === undefined) throw new Error('model-tiers TIER_ORDER no longer names the strong tier');
+  return rank;
+})();
+
 /**
  * @param {Criterion} criterion
  * @param {string} actor
@@ -17,7 +23,7 @@ export function actorError(criterion, actor) {
   if (['lead', 'reviewer'].includes(criterion.owner)) {
     const match = actor.match(/^([^@]+)@(.+)$/);
     const rank = match && modelRankOf(match[2]);
-    if (!match || match[1] !== criterion.owner || !Number.isInteger(rank) || /** @type {number} */ (rank) < TIER_RANK.strong) return 'actor must be owner@strong-or-better-model';
+    if (!match || match[1] !== criterion.owner || !Number.isInteger(rank) || /** @type {number} */ (rank) < STRONG_RANK) return 'actor must be owner@strong-or-better-model';
   }
   return null;
 }
@@ -37,11 +43,13 @@ export function parseAcceptance(path, contract) {
     if (!line) continue;
     const cells = line.split('|').slice(1, -1).map((cell) => cell.trim());
     const label = `acceptance ledger row ${index + 3}`;
-    if (!line.startsWith('|') || !line.endsWith('|') || cells.length !== 6 || !/^Q-\d{3}$/.test(cells[0])
-      || !/^\d+$/.test(cells[1]) || !['PASS', 'FAIL', 'UNKNOWN', 'N/A'].includes(cells[2])) {
+    // The defaults never apply to a row that passes the six-cell check below.
+    const [criterionId = '', attempt = '', verdict = '', proof = '', actor = '', reason = ''] = cells;
+    if (!line.startsWith('|') || !line.endsWith('|') || cells.length !== 6 || !/^Q-\d{3}$/.test(criterionId)
+      || !/^\d+$/.test(attempt) || !['PASS', 'FAIL', 'UNKNOWN', 'N/A'].includes(verdict)) {
       throw new Error(`acceptance ledger has malformed row ${index + 3}`);
     }
-    const row = { criterion: cells[0], attempt: Number(cells[1]), verdict: cells[2], proof: cells[3], actor: cells[4], reason: cells[5] };
+    const row = { criterion: criterionId, attempt: Number(attempt), verdict, proof, actor, reason };
     const criterion = criteria.get(row.criterion);
     if (!criterion) throw new Error(`${label} names unknown criterion ${row.criterion}`);
     const expected = (attempts.get(row.criterion) || 0) + 1;

@@ -10,12 +10,12 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const work = mkdtempSync(join(tmpdir(), 'oc-lifecycle-'));
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 
 const floors = `const KNOWN_MODELS = {
   "anthropic": { "claude-haiku-4-5-20251001": "light", "claude-sonnet-5": "mid", "claude-opus-5-5": "strong", "claude-fable-5-1": "frontier" },

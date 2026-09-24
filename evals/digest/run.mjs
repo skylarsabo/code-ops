@@ -26,6 +26,7 @@ import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -33,8 +34,7 @@ const cli = join(root, 'scripts', 'digest.mjs');
 const corpus = join(here, 'corpus');
 const lib = await import(pathToFileURL(join(root, 'scripts', 'digest-lib.mjs')).href);
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (args, opts = {}) => spawnSync('node', args, { encoding: 'utf8', cwd: root, ...opts });
 const ELIDE_RE = /^\[elided (\d+) lines(?:: sed -n '(\d+),(\d+)p' (.+))?\]$/;
 
@@ -198,6 +198,11 @@ expect(/^digest: cannot spawn a-command-that-does-not-exist-42/m.test(spawnErr.s
 expect(run([cli, 'node', '-e', '1']).status === 2, 'a command without -- must exit 2');
 expect(run([cli]).status === 2, 'no arguments must exit 2');
 expect(run([cli, '--shape', 'nosuchshape', '--', 'node', '-e', '1']).status === 2, 'an unknown shape must exit 2');
+{
+  let message = '';
+  try { lib.digestText('a\nb\n', { shape: 'toString' }); } catch (e) { message = String(e?.message); }
+  expect(message === 'unknown shape: toString', 'a prototype key such as toString must be rejected as an unknown shape');
+}
 
 // A synthetic error line survives the CLI verbatim, even when the surrounding output is capped.
 const errRun = run([cli, '--no-store', '--', 'node', '-e',

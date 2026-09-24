@@ -26,6 +26,7 @@ import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { summarizeTranscript, mergeSummaries, normalizeUsage, subagentFilesFor, measurementTranscriptFor, projectSlug } from '../../scripts/transcript-lib.mjs';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -34,8 +35,7 @@ const hook = join(root, 'plugins', 'code-ops-suite', 'hooks', 'session-receipt.m
 const fixture = join(here, 'fixture');
 const mainFile = join(fixture, 'sess-1.jsonl');
 
-const fails = [];
-const expect = (cond, msg) => { if (!cond) fails.push(msg); };
+const { fails, expect } = tally();
 const run = (args, opts = {}) => spawnSync('node', args, { encoding: 'utf8', ...opts });
 
 const jsonl = (rows) => rows.map((r) => JSON.stringify(r)).join('\n');

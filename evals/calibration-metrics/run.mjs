@@ -54,16 +54,13 @@ import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { modelClassOf } from '../../scripts/model-tiers.mjs';
+import { tally, trimmed } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
 const SCRIPT = join(REPO, 'scripts', 'calibration-metrics.mjs');
 
-const fails = [];
-const check = (name, cond, detail) => {
-  console.log(`${cond ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!cond) fails.push(detail ? `${name} — ${String(detail).slice(0, 300)}` : name);
-};
+const { fails, check } = tally(trimmed(300));
 
 const run = (args) => {
   try {

@@ -18,13 +18,13 @@ import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const server = join(root, 'scripts', 'context-query-mcp.mjs');
 const fixture = join(root, 'evals', 'context-query', 'fixture');
-const fails = [];
-const expect = (ok, msg) => { if (!ok) fails.push(msg); };
+const { fails, expect } = tally();
 
 const work = mkdtempSync(join(tmpdir(), 'context-query-mcp-'));
 const store = mkdtempSync(join(tmpdir(), 'context-index-mcp-'));

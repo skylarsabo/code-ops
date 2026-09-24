@@ -2,14 +2,11 @@
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tally, withDetail } from '../harness.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const script = resolve(repo, 'scripts', 'benchmark-command.mjs');
-const failures = [];
-const check = (name, pass, detail = '') => {
-  console.log(`${pass ? 'ok  ' : 'FAIL'} ${name}`);
-  if (!pass) failures.push(`${name}: ${detail}`);
-};
+const { fails: failures, check } = tally(withDetail);
 const run = (args) => {
   try {
     return { status: 0, out: execFileSync(process.execPath, [script, ...args], { cwd: repo, encoding: 'utf8' }) };

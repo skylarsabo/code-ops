@@ -165,850 +165,881 @@ function mentions(text, slug) {
 }
 
 // ---- 1. marketplace + manifests --------------------------------------------
-const mpPath = join(ROOT, '.claude-plugin', 'marketplace.json');
-if (!existsSync(mpPath)) fail('missing .claude-plugin/marketplace.json');
-const mp = existsSync(mpPath) ? readJSON(mpPath) : null;
+function checkManifests() {
+  const mpPath = join(ROOT, '.claude-plugin', 'marketplace.json');
+  if (!existsSync(mpPath)) fail('missing .claude-plugin/marketplace.json');
+  const mp = existsSync(mpPath) ? readJSON(mpPath) : null;
 
-const plugins = []; // { name, dir, manifest, skills, readme }
-const seenNames = new Set();
-const seenSources = new Set();
-const registeredSources = new Set();
-if (mp && Array.isArray(mp.plugins)) {
-  for (const entry of mp.plugins) {
-    if (seenNames.has(entry.name)) fail(`duplicate marketplace entry name "${entry.name}"`);
-    seenNames.add(entry.name);
-    if (typeof entry.source !== 'string') {
-      warn(`marketplace entry "${entry.name}": non-local source, skipping path checks`);
-      continue;
-    }
-    if (seenSources.has(entry.source)) fail(`duplicate marketplace source "${entry.source}"`);
-    seenSources.add(entry.source);
-    const dir = resolve(ROOT, entry.source);
-    registeredSources.add(dir);
-    if (!existsSync(dir)) {
-      fail(`marketplace entry "${entry.name}": source dir missing (${entry.source})`);
-      continue;
-    }
-    const manPath = join(dir, '.claude-plugin', 'plugin.json');
-    const manifest = existsSync(manPath) ? readJSON(manPath) : null;
-    if (!manifest) {
-      fail(`"${entry.name}": missing .claude-plugin/plugin.json`);
-    } else {
-      for (const f of ['name', 'version', 'description']) {
-        if (typeof manifest[f] !== 'string' || !manifest[f].trim()) fail(`"${entry.name}": plugin.json missing non-empty ${f}`);
+  const plugins = []; // { name, dir, manifest, skills, readme }
+  const seenNames = new Set();
+  const seenSources = new Set();
+  const registeredSources = new Set();
+  if (mp && Array.isArray(mp.plugins)) {
+    for (const entry of mp.plugins) {
+      if (seenNames.has(entry.name)) fail(`duplicate marketplace entry name "${entry.name}"`);
+      seenNames.add(entry.name);
+      if (typeof entry.source !== 'string') {
+        warn(`marketplace entry "${entry.name}": non-local source, skipping path checks`);
+        continue;
       }
-      if (manifest.name !== entry.name)
-        fail(`name mismatch: marketplace "${entry.name}" vs plugin.json "${manifest.name}"`);
-      if (entry.version !== manifest.version)
-        fail(`version mismatch for "${entry.name}": marketplace ${entry.version} vs plugin.json ${manifest.version}`);
+      if (seenSources.has(entry.source)) fail(`duplicate marketplace source "${entry.source}"`);
+      seenSources.add(entry.source);
+      const dir = resolve(ROOT, entry.source);
+      registeredSources.add(dir);
+      if (!existsSync(dir)) {
+        fail(`marketplace entry "${entry.name}": source dir missing (${entry.source})`);
+        continue;
+      }
+      const manPath = join(dir, '.claude-plugin', 'plugin.json');
+      const manifest = existsSync(manPath) ? readJSON(manPath) : null;
+      if (!manifest) {
+        fail(`"${entry.name}": missing .claude-plugin/plugin.json`);
+      } else {
+        for (const f of ['name', 'version', 'description']) {
+          if (typeof manifest[f] !== 'string' || !manifest[f].trim()) fail(`"${entry.name}": plugin.json missing non-empty ${f}`);
+        }
+        if (manifest.name !== entry.name)
+          fail(`name mismatch: marketplace "${entry.name}" vs plugin.json "${manifest.name}"`);
+        if (entry.version !== manifest.version)
+          fail(`version mismatch for "${entry.name}": marketplace ${entry.version} vs plugin.json ${manifest.version}`);
+      }
+      if (!existsSync(join(dir, 'CONVENTIONS.md')))
+        fail(`"${entry.name}": missing CONVENTIONS.md (every skill references it)`);
+      const readmePath = join(dir, 'README.md');
+      if (!existsSync(readmePath)) warn(`"${entry.name}": no README.md`);
+      plugins.push({
+        name: entry.name,
+        dir,
+        manifest,
+        skills: listSkillDirs(join(dir, 'skills')),
+        readme: existsSync(readmePath) ? readText(readmePath) : '',
+      });
     }
-    if (!existsSync(join(dir, 'CONVENTIONS.md')))
-      fail(`"${entry.name}": missing CONVENTIONS.md (every skill references it)`);
-    const readmePath = join(dir, 'README.md');
-    if (!existsSync(readmePath)) warn(`"${entry.name}": no README.md`);
-    plugins.push({
-      name: entry.name,
-      dir,
-      manifest,
-      skills: listSkillDirs(join(dir, 'skills')),
-      readme: existsSync(readmePath) ? readText(readmePath) : '',
-    });
+  } else if (mp) {
+    fail('marketplace.json has no "plugins" array');
   }
-} else if (mp) {
-  fail('marketplace.json has no "plugins" array');
-}
 
-// Any on-disk plugin dir not registered in the marketplace is invisible to every check above.
-for (const d of listDirs(join(ROOT, 'plugins'))) {
-  if (!registeredSources.has(resolve(ROOT, 'plugins', d))) fail(`plugins/${d} is not registered in marketplace.json`);
-}
+  // Any on-disk plugin dir not registered in the marketplace is invisible to every check above.
+  for (const d of listDirs(join(ROOT, 'plugins'))) {
+    if (!registeredSources.has(resolve(ROOT, 'plugins', d))) fail(`plugins/${d} is not registered in marketplace.json`);
+  }
 
-const allSlugs = new Set(plugins.flatMap((p) => p.skills));
-const pluginByName = new Map(plugins.map((p) => [p.name, p]));
-const QUALIFIED_RE = plugins.length
-  ? new RegExp(`\\b(${plugins.map((p) => escapeRe(p.name)).join('|')}):([a-z0-9-]+)`, 'g')
-  : null;
+  const allSlugs = new Set(plugins.flatMap((p) => p.skills));
+  const pluginByName = new Map(plugins.map((p) => [p.name, p]));
+  const QUALIFIED_RE = plugins.length
+    ? new RegExp(`\\b(${plugins.map((p) => escapeRe(p.name)).join('|')}):([a-z0-9-]+)`, 'g')
+    : null;
+  return { mp, plugins, allSlugs, pluginByName, QUALIFIED_RE };
+}
 
 // ---- 2/3/5. per-plugin: README mentions, SKILL.md structure, orchestrator refs
-const DESCRIPTION_MAX = 160;
-for (const p of plugins) {
-  for (const slug of p.skills) {
-    if (p.readme && !mentions(p.readme, slug))
-      fail(`${p.name}/README.md does not mention skill "${slug}"`);
-  }
-  for (const slug of p.skills) {
-    const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
-    if (!existsSync(skPath)) {
-      fail(`${p.name}/${slug}: missing SKILL.md`);
-      continue;
+function checkSkills({ plugins, allSlugs, pluginByName, QUALIFIED_RE }) {
+  const DESCRIPTION_MAX = 160;
+  for (const p of plugins) {
+    for (const slug of p.skills) {
+      if (p.readme && !mentions(p.readme, slug))
+        fail(`${p.name}/README.md does not mention skill "${slug}"`);
     }
-    const body = readText(skPath);
-    const fm = body.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!fm) fail(`${p.name}/${slug}: missing YAML frontmatter`);
-    else if (!/^description:[ \t]*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`); // [ \t] not \s: \s spans the newline and matches the next key
-    if (fm) {
-      // Every description loads into the system prompt at discovery, so each one costs
-      // context on every turn of every session. Cap its length. A block scalar counts its
-      // joined continuation lines, a plain or quoted scalar counts its first line plus any
-      // indented continuation lines, and surrounding quotes do not count. A blank line stays
-      // inside the scalar when an indented line follows it.
-      const dm = fm[1].match(/^description:[ \t]*(.*?)[ \t]*\r?$/m);
-      if (dm) {
-        let desc = dm[1];
-        const after = fm[1].slice(dm.index + dm[0].length).split('\n').slice(1).map((raw) => raw.replace(/\r$/, ''));
-        const cont = [];
-        for (let i = 0; i < after.length; i++) {
-          if (/^[ \t]+\S/.test(after[i])) { cont.push(after[i].trim()); continue; }
-          const next = after.slice(i + 1).find((raw) => raw.trim() !== '');
-          if (after[i].trim() === '' && next !== undefined && /^[ \t]+\S/.test(next)) continue;
-          break;
-        }
-        if (/^[|>]/.test(desc)) desc = cont.join(' ');
-        else {
-          desc = [desc, ...cont].join(' ');
-          if (/^(["']).*\1$/.test(desc)) desc = desc.slice(1, -1);
-        }
-        if (desc.length > DESCRIPTION_MAX)
-          fail(`${p.name}/${slug}: frontmatter description is ${desc.length} characters (max ${DESCRIPTION_MAX}) — shorten it and keep its trigger, sibling distinction, and required inputs`);
+    for (const slug of p.skills) {
+      const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
+      if (!existsSync(skPath)) {
+        fail(`${p.name}/${slug}: missing SKILL.md`);
+        continue;
       }
-      // An unquoted scalar containing ": " (colon-space) or a trailing colon breaks
-      // the YAML parser, so the frontmatter silently loads as EMPTY metadata at runtime.
-      for (const raw of fm[1].split('\n')) {
-        const line = raw.replace(/\r$/, '');
-        const kv = line.match(/^([A-Za-z0-9_-]+):[ \t]+(.+?)[ \t]*$/);
-        if (!kv) continue;
-        const val = kv[2];
-        if (!/^["'[{|>&*]/.test(val)) { // quoted / block / flow scalars are exempt from the colon check only
-          if (val.includes(': ') || /:$/.test(val))
-            fail(`${p.name}/${slug}: frontmatter "${kv[1]}" has an unquoted colon — wrap the value in double quotes (breaks YAML; metadata silently dropped at runtime)`);
+      const body = readText(skPath);
+      const fm = body.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      if (!fm) fail(`${p.name}/${slug}: missing YAML frontmatter`);
+      else if (!/^description:[ \t]*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`); // [ \t] not \s: \s spans the newline and matches the next key
+      if (fm) {
+        // Every description loads into the system prompt at discovery, so each one costs
+        // context on every turn of every session. Cap its length. A block scalar counts its
+        // joined continuation lines, a plain or quoted scalar counts its first line plus any
+        // indented continuation lines, and surrounding quotes do not count. A blank line stays
+        // inside the scalar when an indented line follows it.
+        const dm = fm[1].match(/^description:[ \t]*(.*?)[ \t]*\r?$/m);
+        if (dm) {
+          let desc = dm[1];
+          const after = fm[1].slice(dm.index + dm[0].length).split('\n').slice(1).map((raw) => raw.replace(/\r$/, ''));
+          const cont = [];
+          for (let i = 0; i < after.length; i++) {
+            if (/^[ \t]+\S/.test(after[i])) { cont.push(after[i].trim()); continue; }
+            const next = after.slice(i + 1).find((raw) => raw.trim() !== '');
+            if (after[i].trim() === '' && next !== undefined && /^[ \t]+\S/.test(next)) continue;
+            break;
+          }
+          if (/^[|>]/.test(desc)) desc = cont.join(' ');
+          else {
+            desc = [desc, ...cont].join(' ');
+            if (/^(["']).*\1$/.test(desc)) desc = desc.slice(1, -1);
+          }
+          if (desc.length > DESCRIPTION_MAX)
+            fail(`${p.name}/${slug}: frontmatter description is ${desc.length} characters (max ${DESCRIPTION_MAX}) — shorten it and keep its trigger, sibling distinction, and required inputs`);
         }
-        // Frontmatter values are injected verbatim into the system prompt at discovery
-        // time (before the body is ever read), so angle-bracketed markup in one is a
-        // prompt-injection surface no body-level guard ever sees. Quoting does not help.
-        if (/[<>]/.test(val) && !/^[|>]/.test(val))
-          fail(`${p.name}/${slug}: frontmatter "${kv[1]}" contains "<" or ">" — angle brackets inject into the system prompt at discovery; rephrase without them`);
+        // An unquoted scalar containing ": " (colon-space) or a trailing colon breaks
+        // the YAML parser, so the frontmatter silently loads as EMPTY metadata at runtime.
+        for (const raw of fm[1].split('\n')) {
+          const line = raw.replace(/\r$/, '');
+          const kv = line.match(/^([A-Za-z0-9_-]+):[ \t]+(.+?)[ \t]*$/);
+          if (!kv) continue;
+          const val = kv[2];
+          if (!/^["'[{|>&*]/.test(val)) { // quoted / block / flow scalars are exempt from the colon check only
+            if (val.includes(': ') || /:$/.test(val))
+              fail(`${p.name}/${slug}: frontmatter "${kv[1]}" has an unquoted colon — wrap the value in double quotes (breaks YAML; metadata silently dropped at runtime)`);
+          }
+          // Frontmatter values are injected verbatim into the system prompt at discovery
+          // time (before the body is ever read), so angle-bracketed markup in one is a
+          // prompt-injection surface no body-level guard ever sees. Quoting does not help.
+          if (/[<>]/.test(val) && !/^[|>]/.test(val))
+            fail(`${p.name}/${slug}: frontmatter "${kv[1]}" contains "<" or ">" — angle brackets inject into the system prompt at discovery; rephrase without them`);
+        }
       }
-    }
-    if (!/^##\s+Done when/im.test(body)) fail(`${p.name}/${slug}: missing "## Done when" section`);
-    if (!body.includes('CONVENTIONS.md')) fail(`${p.name}/${slug}: does not reference CONVENTIONS.md`);
+      if (!/^##\s+Done when/im.test(body)) fail(`${p.name}/${slug}: missing "## Done when" section`);
+      if (!body.includes('CONVENTIONS.md')) fail(`${p.name}/${slug}: does not reference CONVENTIONS.md`);
 
-    // Qualified <plugin>:<skill> references must resolve (checked in every skill, not just orchestrators).
-    if (QUALIFIED_RE) {
-      for (const m of body.matchAll(QUALIFIED_RE)) {
-        const target = pluginByName.get(m[1]);
-        if (target && !target.skills.includes(m[2]))
-          fail(`${p.name}/${slug}: references ${m[1]}:${m[2]} but "${m[2]}" is not a skill in ${m[1]}`);
+      // Qualified <plugin>:<skill> references must resolve (checked in every skill, not just orchestrators).
+      if (QUALIFIED_RE) {
+        for (const m of body.matchAll(QUALIFIED_RE)) {
+          const target = pluginByName.get(m[1]);
+          if (target && !target.skills.includes(m[2]))
+            fail(`${p.name}/${slug}: references ${m[1]}:${m[2]} but "${m[2]}" is not a skill in ${m[1]}`);
+        }
       }
-    }
 
-    // Bare emphasized skill tokens in an orchestrator must be in scope.
-    const validSet = CROSS_PLUGIN_ORCH.has(slug) ? allSlugs : (INTRA_PLUGIN_ORCH.has(slug) ? new Set(p.skills) : null);
-    if (validSet) {
-      for (const tok of emphasizedSlugTokens(body)) {
-        if (!validSet.has(tok) && !ORCH_TOKEN_ALLOWLIST.has(tok))
-          fail(`${p.name}/${slug}: references unknown skill-like token "${tok}" — not a skill in scope (rename it, or add to ORCH_TOKEN_ALLOWLIST if intentional)`);
+      // Bare emphasized skill tokens in an orchestrator must be in scope.
+      const validSet = CROSS_PLUGIN_ORCH.has(slug) ? allSlugs : (INTRA_PLUGIN_ORCH.has(slug) ? new Set(p.skills) : null);
+      if (validSet) {
+        for (const tok of emphasizedSlugTokens(body)) {
+          if (!validSet.has(tok) && !ORCH_TOKEN_ALLOWLIST.has(tok))
+            fail(`${p.name}/${slug}: references unknown skill-like token "${tok}" — not a skill in scope (rename it, or add to ORCH_TOKEN_ALLOWLIST if intentional)`);
+        }
       }
     }
   }
 }
 
 // ---- 4. root README skill-count parity (scoped to the plugin's own bullet line) ----
-const rootReadmePath = join(ROOT, 'README.md');
-if (existsSync(rootReadmePath)) {
-  const rr = readText(rootReadmePath);
-  for (const p of plugins) {
-    let count = null;
-    for (const line of rr.split('\n')) {
-      if (line.includes('`' + p.name + '`')) { const m = line.match(/\((\d+)\s+skills\)/); if (m) { count = Number(m[1]); break; } }
+function checkRootReadmeCounts({ plugins }) {
+  const rootReadmePath = join(ROOT, 'README.md');
+  if (existsSync(rootReadmePath)) {
+    const rr = readText(rootReadmePath);
+    for (const p of plugins) {
+      let count = null;
+      for (const line of rr.split('\n')) {
+        if (line.includes('`' + p.name + '`')) { const m = line.match(/\((\d+)\s+skills\)/); if (m) { count = Number(m[1]); break; } }
+      }
+      if (count === null) { warn(`root README: no "(N skills)" count found on the \`${p.name}\` line`); continue; }
+      if (count !== p.skills.length) fail(`root README count for ${p.name}: says ${count}, actual ${p.skills.length}`);
     }
-    if (count === null) { warn(`root README: no "(N skills)" count found on the \`${p.name}\` line`); continue; }
-    if (count !== p.skills.length) fail(`root README count for ${p.name}: says ${count}, actual ${p.skills.length}`);
+  } else {
+    warn('no root README.md');
   }
-} else {
-  warn('no root README.md');
 }
 
 // ---- 6. bundled runtime scripts must match the canonical (copy-on-build) ----
-// Skills invoke these via ${CLAUDE_PLUGIN_ROOT}/scripts/, so each must ship inside
-// every plugin that references it and stay byte-identical to the repo-root source.
-// RUNTIME_SCRIPTS itself lives in ./vendored-manifest.mjs (imported above) — the same
-// table scripts/sync-vendored.mjs uses to actually copy the files.
-// RUNTIME_SCRIPTS plugin names must be real (a typo silently disables the missing-script check).
-for (const rs of RUNTIME_SCRIPTS) for (const pn of rs.plugins) if (!pluginByName.has(pn)) fail(`RUNTIME_SCRIPTS lists unknown plugin "${pn}" for ${rs.name}`);
-for (const rs of RUNTIME_SCRIPTS) {
-  const canonical = join(ROOT, 'scripts', rs.name);
-  if (!existsSync(canonical)) { fail(`missing canonical scripts/${rs.name}`); continue; }
-  const canon = readFileSync(canonical, 'utf8');
+function checkBundledScripts({ plugins, pluginByName }) {
+  // Skills invoke these via ${CLAUDE_PLUGIN_ROOT}/scripts/, so each must ship inside
+  // every plugin that references it and stay byte-identical to the repo-root source.
+  // RUNTIME_SCRIPTS itself lives in ./vendored-manifest.mjs (imported above) — the same
+  // table scripts/sync-vendored.mjs uses to actually copy the files.
+  // RUNTIME_SCRIPTS plugin names must be real (a typo silently disables the missing-script check).
+  for (const rs of RUNTIME_SCRIPTS) for (const pn of rs.plugins) if (!pluginByName.has(pn)) fail(`RUNTIME_SCRIPTS lists unknown plugin "${pn}" for ${rs.name}`);
+  for (const rs of RUNTIME_SCRIPTS) {
+    const canonical = join(ROOT, 'scripts', rs.name);
+    if (!existsSync(canonical)) { fail(`missing canonical scripts/${rs.name}`); continue; }
+    const canon = readFileSync(canonical, 'utf8');
+    for (const p of plugins) {
+      const copy = join(p.dir, 'scripts', rs.name);
+      const mustHave = rs.plugins.includes(p.name);
+      if (mustHave && !existsSync(copy)) fail(`${p.name}: missing bundled scripts/${rs.name} (a skill references it)`);
+      else if (existsSync(copy) && readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: scripts/${rs.name} has drifted from the canonical scripts/${rs.name} — re-copy it`);
+    }
+  }
+  // Reverse check: every bundled runtime script must be declared for that plugin. Without this,
+  // an extra stale copy can survive forever because the forward manifest walk never sees it.
   for (const p of plugins) {
-    const copy = join(p.dir, 'scripts', rs.name);
-    const mustHave = rs.plugins.includes(p.name);
-    if (mustHave && !existsSync(copy)) fail(`${p.name}: missing bundled scripts/${rs.name} (a skill references it)`);
-    else if (existsSync(copy) && readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: scripts/${rs.name} has drifted from the canonical scripts/${rs.name} — re-copy it`);
-  }
-}
-// Reverse check: every bundled runtime script must be declared for that plugin. Without this,
-// an extra stale copy can survive forever because the forward manifest walk never sees it.
-for (const p of plugins) {
-  const scriptsDir = join(p.dir, 'scripts');
-  if (!existsSync(scriptsDir)) continue;
-  for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith('.mjs')) continue;
-    const declared = RUNTIME_SCRIPTS.some((runtime) => runtime.name === entry.name && runtime.plugins.includes(p.name));
-    if (!declared) fail(`${p.name}: bundled scripts/${entry.name} is not declared for this plugin in RUNTIME_SCRIPTS`);
-  }
-}
-// Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a plugin-owned prompt,
-// agent, README, or manifest surface must be bundled and byte-identical.
-const SCRIPT_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([\w.-]+\.mjs)/g;
-// A façade reference runs a sibling script, so it is a reference to that script. The verb
-// table is read from the canonical scripts/co.mjs rather than restated here, so a table edit
-// cannot leave this check resolving verbs that no longer exist.
-const FACADE_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/co\.mjs\s+([a-z][a-z-]*)\s+([a-z][a-z-]*)/g;
-const coTable = new Map();
-{
-  const coPath = join(ROOT, 'scripts', 'co.mjs');
-  const source = existsSync(coPath) ? readText(coPath) : '';
-  const start = source.indexOf('const TABLE = {');
-  const block = start === -1 ? '' : source.slice(start, source.indexOf('\n};', start));
-  let domain = null;
-  for (const line of block.split('\n')) {
-    const d = /^ {2}([a-z][a-z-]*): \{$/.exec(line);
-    if (d) { domain = d[1]; continue; }
-    const v = /^ {4}'?([a-z][a-z-]*)'?: (?:'([\w.-]+\.mjs)'|\{ script: '([\w.-]+\.mjs)')/.exec(line);
-    if (domain && v) coTable.set(`${domain} ${v[1]}`, v[2] ?? v[3]);
-  }
-}
-for (const p of plugins) {
-  const refd = new Map();
-  const bodies = [
-    ...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')),
-    join(p.dir, 'CONVENTIONS.md'),
-    join(p.dir, 'README.md'),
-    join(p.dir, '.claude-plugin', 'plugin.json'),
-    ...walkFiles(join(p.dir, 'agents')),
-    ...p.skills.flatMap((s) => walkFiles(join(p.dir, 'skills', s, 'agents'))),
-  ];
-  for (const f of bodies) if (existsSync(f)) {
-    const text = readText(f);
-    for (const m of text.matchAll(SCRIPT_REF_RE)) {
-      if (!refd.has(m[1])) refd.set(m[1], new Set());
-      refd.get(m[1]).add(rel(f));
-    }
-    for (const m of text.matchAll(FACADE_REF_RE)) {
-      const verb = `${m[1]} ${m[2]}`;
-      const resolved = coTable.get(verb);
-      if (!resolved) { fail(`${p.name}: ${rel(f)} references \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs ${verb}, which is not in the co.mjs verb table`); continue; }
-      if (!refd.has(resolved)) refd.set(resolved, new Set());
-      refd.get(resolved).add(`${rel(f)} (via co.mjs ${verb})`);
+    const scriptsDir = join(p.dir, 'scripts');
+    if (!existsSync(scriptsDir)) continue;
+    for (const entry of readdirSync(scriptsDir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.mjs')) continue;
+      const declared = RUNTIME_SCRIPTS.some((runtime) => runtime.name === entry.name && runtime.plugins.includes(p.name));
+      if (!declared) fail(`${p.name}: bundled scripts/${entry.name} is not declared for this plugin in RUNTIME_SCRIPTS`);
     }
   }
-  for (const [name, sources] of refd) {
-    const copy = join(p.dir, 'scripts', name);
-    const canonical = join(ROOT, 'scripts', name);
-    const sourceList = [...sources].join(', ');
-    if (!existsSync(copy)) fail(`${p.name}: ${sourceList} references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
-    else if (!existsSync(canonical)) fail(`${p.name}: ${sourceList} references bundled scripts/${name}, which has no canonical scripts/${name} at the repo root`);
-    else if (readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
+  // Derived check: every ${CLAUDE_PLUGIN_ROOT}/scripts/X referenced by a plugin-owned prompt,
+  // agent, README, or manifest surface must be bundled and byte-identical.
+  const SCRIPT_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([\w.-]+\.mjs)/g;
+  // A façade reference runs a sibling script, so it is a reference to that script. The verb
+  // table is read from the canonical scripts/co.mjs rather than restated here, so a table edit
+  // cannot leave this check resolving verbs that no longer exist.
+  const FACADE_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/co\.mjs\s+([a-z][a-z-]*)\s+([a-z][a-z-]*)/g;
+  const coTable = new Map();
+  {
+    const coPath = join(ROOT, 'scripts', 'co.mjs');
+    const source = existsSync(coPath) ? readText(coPath) : '';
+    const start = source.indexOf('const TABLE = {');
+    const block = start === -1 ? '' : source.slice(start, source.indexOf('\n};', start));
+    let domain = null;
+    for (const line of block.split('\n')) {
+      const d = /^ {2}([a-z][a-z-]*): \{$/.exec(line);
+      if (d) { domain = d[1]; continue; }
+      const v = /^ {4}'?([a-z][a-z-]*)'?: (?:'([\w.-]+\.mjs)'|\{ script: '([\w.-]+\.mjs)')/.exec(line);
+      if (domain && v) coTable.set(`${domain} ${v[1]}`, v[2] ?? v[3]);
+    }
+  }
+  for (const p of plugins) {
+    const refd = new Map();
+    const bodies = [
+      ...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')),
+      join(p.dir, 'CONVENTIONS.md'),
+      join(p.dir, 'README.md'),
+      join(p.dir, '.claude-plugin', 'plugin.json'),
+      ...walkFiles(join(p.dir, 'agents')),
+      ...p.skills.flatMap((s) => walkFiles(join(p.dir, 'skills', s, 'agents'))),
+    ];
+    for (const f of bodies) if (existsSync(f)) {
+      const text = readText(f);
+      for (const m of text.matchAll(SCRIPT_REF_RE)) {
+        if (!refd.has(m[1])) refd.set(m[1], new Set());
+        refd.get(m[1]).add(rel(f));
+      }
+      for (const m of text.matchAll(FACADE_REF_RE)) {
+        const verb = `${m[1]} ${m[2]}`;
+        const resolved = coTable.get(verb);
+        if (!resolved) { fail(`${p.name}: ${rel(f)} references \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs ${verb}, which is not in the co.mjs verb table`); continue; }
+        if (!refd.has(resolved)) refd.set(resolved, new Set());
+        refd.get(resolved).add(`${rel(f)} (via co.mjs ${verb})`);
+      }
+    }
+    for (const [name, sources] of refd) {
+      const copy = join(p.dir, 'scripts', name);
+      const canonical = join(ROOT, 'scripts', name);
+      const sourceList = [...sources].join(', ');
+      if (!existsSync(copy)) fail(`${p.name}: ${sourceList} references \${CLAUDE_PLUGIN_ROOT}/scripts/${name} but it is not bundled in this plugin`);
+      else if (!existsSync(canonical)) fail(`${p.name}: ${sourceList} references bundled scripts/${name}, which has no canonical scripts/${name} at the repo root`);
+      else if (readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
+    }
   }
 }
 
 // ---- 7. no skill copy-pastes a long passage of its CONVENTIONS (drift guard) ----
-// A skill restating a whole CONVENTIONS section drifts when that section is edited.
-// Flag any 40+ contiguous-word run a skill shares verbatim with its CONVENTIONS;
-// reference the section by number instead.
-const DUP_NGRAM = 40;
-const normWords = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
-for (const p of plugins) {
-  const convPath = join(p.dir, 'CONVENTIONS.md');
-  if (!existsSync(convPath)) continue;
-  const conv = normWords(readText(convPath));
-  if (conv.length < DUP_NGRAM) continue;
-  const grams = new Set();
-  for (let i = 0; i + DUP_NGRAM <= conv.length; i++) grams.add(conv.slice(i, i + DUP_NGRAM).join(' '));
-  for (const slug of p.skills) {
-    const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
-    if (!existsSync(skPath)) continue;
-    const w = normWords(readText(skPath));
-    for (let i = 0; i + DUP_NGRAM <= w.length; i++) {
-      if (grams.has(w.slice(i, i + DUP_NGRAM).join(' '))) {
-        fail(`${p.name}/${slug}: copies a ${DUP_NGRAM}+ word passage verbatim from CONVENTIONS ('${w.slice(i, i + 8).join(' ')}...') — reference the section instead`);
-        break;
+function checkConventionsCopies({ plugins }) {
+  // A skill restating a whole CONVENTIONS section drifts when that section is edited.
+  // Flag any 40+ contiguous-word run a skill shares verbatim with its CONVENTIONS;
+  // reference the section by number instead.
+  const DUP_NGRAM = 40;
+  const normWords = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+  for (const p of plugins) {
+    const convPath = join(p.dir, 'CONVENTIONS.md');
+    if (!existsSync(convPath)) continue;
+    const conv = normWords(readText(convPath));
+    if (conv.length < DUP_NGRAM) continue;
+    const grams = new Set();
+    for (let i = 0; i + DUP_NGRAM <= conv.length; i++) grams.add(conv.slice(i, i + DUP_NGRAM).join(' '));
+    for (const slug of p.skills) {
+      const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
+      if (!existsSync(skPath)) continue;
+      const w = normWords(readText(skPath));
+      for (let i = 0; i + DUP_NGRAM <= w.length; i++) {
+        if (grams.has(w.slice(i, i + DUP_NGRAM).join(' '))) {
+          fail(`${p.name}/${slug}: copies a ${DUP_NGRAM}+ word passage verbatim from CONVENTIONS ('${w.slice(i, i + 8).join(' ')}...') — reference the section instead`);
+          break;
+        }
       }
     }
   }
 }
 
 // ---- 8. handbook command reference parity (per-plugin page + router table) ----
-// The handbook is the human-facing front door; it drifts the moment a skill is added or
-// renamed without touching docs. For every skill we require BOTH:
-//   a) an entry heading of the exact form `### ` + "`/<plugin>:<skill>`" in
-//      code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md, and
-//   b) a qualified `/<plugin>:<skill>` reference in the README router table.
-// The reverse also has to hold: every `### `/<plugin>:<skill>`` heading must name a real skill.
-const handbookDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Handbook', 'commands');
-if (existsSync(handbookDir)) {
-  // Router table: the `## The task → command router` section of the index, sliced off at the
-  // next `##` heading so the per-plugin reference list below it does not count as "in the router".
-  const routerReadmePath = join(handbookDir, 'README.md');
-  let routerText = null;
-  let routerReadmeFull = null;
-  if (!existsSync(routerReadmePath)) {
-    fail(`handbook: missing ${rel(routerReadmePath)} (the command router index)`);
-  } else {
-    const rr = readText(routerReadmePath);
-    routerReadmeFull = rr;
-    const start = rr.search(/^##\s+The task .* command router\s*$/m);
-    if (start === -1) {
-      fail(`handbook: ${rel(routerReadmePath)} has no "## The task → command router" section`);
+function checkHandbookCommands({ plugins }) {
+  // The handbook is the human-facing front door; it drifts the moment a skill is added or
+  // renamed without touching docs. For every skill we require BOTH:
+  //   a) an entry heading of the exact form `### ` + "`/<plugin>:<skill>`" in
+  //      code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md, and
+  //   b) a qualified `/<plugin>:<skill>` reference in the README router table.
+  // The reverse also has to hold: every `### `/<plugin>:<skill>`` heading must name a real skill.
+  const handbookDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Handbook', 'commands');
+  if (existsSync(handbookDir)) {
+    // Router table: the `## The task → command router` section of the index, sliced off at the
+    // next `##` heading so the per-plugin reference list below it does not count as "in the router".
+    const routerReadmePath = join(handbookDir, 'README.md');
+    let routerText = null;
+    let routerReadmeFull = null;
+    if (!existsSync(routerReadmePath)) {
+      fail(`handbook: missing ${rel(routerReadmePath)} (the command router index)`);
     } else {
-      const rest = rr.slice(start + 1);
-      const next = rest.search(/^##\s+/m);
-      routerText = next === -1 ? rr.slice(start) : rr.slice(start, start + 1 + next);
+      const rr = readText(routerReadmePath);
+      routerReadmeFull = rr;
+      const start = rr.search(/^##\s+The task .* command router\s*$/m);
+      if (start === -1) {
+        fail(`handbook: ${rel(routerReadmePath)} has no "## The task → command router" section`);
+      } else {
+        const rest = rr.slice(start + 1);
+        const next = rest.search(/^##\s+/m);
+        routerText = next === -1 ? rr.slice(start) : rr.slice(start, start + 1 + next);
+      }
     }
-  }
 
-  for (const p of plugins) {
-    const pagePath = join(handbookDir, `${p.name}.md`);
-    if (!existsSync(pagePath)) {
-      fail(`handbook: missing ${rel(pagePath)} (referenced for every ${p.name} skill)`);
-    } else {
-      const page = readText(pagePath);
-      // Collect every `### `/<plugin>:<skill>`` heading on this page (exact form), then diff
-      // against the real skill set in both directions.
-      const headingRe = new RegExp(`^###\\s+\`/${escapeRe(p.name)}:([a-z0-9-]+)\`\\s*$`, 'gm');
-      const headedSkills = new Set();
-      for (const m of page.matchAll(headingRe)) headedSkills.add(m[1]);
-      for (const slug of p.skills) {
-        if (!headedSkills.has(slug))
-          fail(`handbook: ${rel(pagePath)} has no entry heading "### \`/${p.name}:${slug}\`" for skill "${slug}"`);
-      }
-      for (const slug of headedSkills) {
-        if (!p.skills.includes(slug))
-          fail(`handbook: ${rel(pagePath)} has entry heading "### \`/${p.name}:${slug}\`" but "${slug}" is not a skill in ${p.name}`);
-      }
-    }
-    // Router-table membership: a qualified `/<plugin>:<skill>` reference inside the router slice.
-    if (routerText !== null) {
-      for (const slug of p.skills) {
-        if (!mentions(routerText, `/${p.name}:${slug}`))
-          fail(`handbook: README router table does not reference "/${p.name}:${slug}"`);
-      }
-    }
-  }
-
-  // ---- 15. "Per-plugin command references" bullet count parity -----------
-  // Each bullet in that section reads `[<plugin>.md](<plugin>.md) — **N commands**: ...`;
-  // N must match the plugin's actual skill count, the same drift class as the root
-  // README "(N skills)" count (check 4) but for the handbook's own front door.
-  if (routerReadmeFull !== null) {
     for (const p of plugins) {
-      const lineRe = new RegExp(`\\[${escapeRe(p.name)}\\.md\\][^\\n]*`, 'm');
-      const lineMatch = routerReadmeFull.match(lineRe);
-      if (!lineMatch) {
-        fail(`handbook: ${rel(routerReadmePath)} has no per-plugin bullet line for "${p.name}.md" in "Per-plugin command references"`);
-        continue;
+      const pagePath = join(handbookDir, `${p.name}.md`);
+      if (!existsSync(pagePath)) {
+        fail(`handbook: missing ${rel(pagePath)} (referenced for every ${p.name} skill)`);
+      } else {
+        const page = readText(pagePath);
+        // Collect every `### `/<plugin>:<skill>`` heading on this page (exact form), then diff
+        // against the real skill set in both directions.
+        const headingRe = new RegExp(`^###\\s+\`/${escapeRe(p.name)}:([a-z0-9-]+)\`\\s*$`, 'gm');
+        const headedSkills = new Set();
+        for (const m of page.matchAll(headingRe)) headedSkills.add(m[1]);
+        for (const slug of p.skills) {
+          if (!headedSkills.has(slug))
+            fail(`handbook: ${rel(pagePath)} has no entry heading "### \`/${p.name}:${slug}\`" for skill "${slug}"`);
+        }
+        for (const slug of headedSkills) {
+          if (!p.skills.includes(slug))
+            fail(`handbook: ${rel(pagePath)} has entry heading "### \`/${p.name}:${slug}\`" but "${slug}" is not a skill in ${p.name}`);
+        }
       }
-      const countMatch = lineMatch[0].match(/\*\*(\d+)\s+commands\*\*/);
-      if (!countMatch) {
-        fail(`handbook: ${rel(routerReadmePath)} bullet for "${p.name}.md" has no "**N commands**" count`);
-        continue;
+      // Router-table membership: a qualified `/<plugin>:<skill>` reference inside the router slice.
+      if (routerText !== null) {
+        for (const slug of p.skills) {
+          if (!mentions(routerText, `/${p.name}:${slug}`))
+            fail(`handbook: README router table does not reference "/${p.name}:${slug}"`);
+        }
       }
-      const declared = Number(countMatch[1]);
-      if (declared !== p.skills.length)
-        fail(`handbook: ${rel(routerReadmePath)} says "${p.name}.md" has **${declared} commands** but ${p.name} actually has ${p.skills.length} skill(s) — update the count`);
+    }
+
+    // ---- 15. "Per-plugin command references" bullet count parity -----------
+    // Each bullet in that section reads `[<plugin>.md](<plugin>.md) — **N commands**: ...`;
+    // N must match the plugin's actual skill count, the same drift class as the root
+    // README "(N skills)" count (check 4) but for the handbook's own front door.
+    if (routerReadmeFull !== null) {
+      for (const p of plugins) {
+        const lineRe = new RegExp(`\\[${escapeRe(p.name)}\\.md\\][^\\n]*`, 'm');
+        const lineMatch = routerReadmeFull.match(lineRe);
+        if (!lineMatch) {
+          fail(`handbook: ${rel(routerReadmePath)} has no per-plugin bullet line for "${p.name}.md" in "Per-plugin command references"`);
+          continue;
+        }
+        const countMatch = lineMatch[0].match(/\*\*(\d+)\s+commands\*\*/);
+        if (!countMatch) {
+          fail(`handbook: ${rel(routerReadmePath)} bullet for "${p.name}.md" has no "**N commands**" count`);
+          continue;
+        }
+        const declared = Number(countMatch[1]);
+        if (declared !== p.skills.length)
+          fail(`handbook: ${rel(routerReadmePath)} says "${p.name}.md" has **${declared} commands** but ${p.name} actually has ${p.skills.length} skill(s) — update the count`);
+      }
     }
   }
 }
 
 // ---- 21. handbook techniques index parity -------------------------------------
-// code-ops-docs/40 Engineering/Handbook/README.md's techniques list is the only index of code-ops-docs/40 Engineering/Techniques/. A page
-// added without a list entry is written and unread; an entry left behind by a deleted or
-// renamed page is a dead link in the handbook's front door; and the written-out count in the
-// "N techniques" claim is a third copy of the same fact that drifts independently of both.
-// Guarded on both paths existing, so the plugin-fixture evals (which ship no docs/ tree) are
-// unaffected.
-{
-  const hbReadmePath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Handbook', 'README.md');
-  const techDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques');
-  if (existsSync(hbReadmePath) && existsSync(techDir)) {
-    // Built, not listed: a hand-written table silently stops recognizing the correct count once
-    // code-ops-docs/40 Engineering/Techniques/ outgrows it, and the operator is then told to add a count that is already
-    // there. Units and tens generate every value through ninety-nine.
-    const UNITS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
-    const TEENS = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
-      'seventeen', 'eighteen', 'nineteen'];
-    const TENS = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-    const NUMBER_WORDS = {};
-    UNITS.forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
-    TEENS.forEach((w, i) => { NUMBER_WORDS[w] = i + 10; });
-    TENS.forEach((tw, ti) => {
-      const base = (ti + 2) * 10;
-      NUMBER_WORDS[tw] = base;
-      UNITS.forEach((uw, ui) => { NUMBER_WORDS[`${tw}-${uw}`] = base + ui + 1; });
-    });
-    const files = readdirSync(techDir).filter((f) => f.endsWith('.md')).sort();
-    const text = readText(hbReadmePath);
-    // Scope the link scan to the techniques list block itself — from its bold heading to the next
-    // blank-line-delimited section. A cross-reference elsewhere in the page must not satisfy the
-    // index requirement, because the list is what the handbook's front door actually presents.
-    const listStart = text.indexOf('**Techniques');
-    let listBlock = '';
-    if (listStart !== -1) {
-      const after = text.slice(listStart);
-      const nl = after.indexOf('\n');
-      const body = nl === -1 ? '' : after.slice(nl + 1);
-      const end = body.search(/\n\s*\n/);
-      listBlock = end === -1 ? body : body.slice(0, end);
+function checkTechniquesIndex() {
+  // code-ops-docs/40 Engineering/Handbook/README.md's techniques list is the only index of code-ops-docs/40 Engineering/Techniques/. A page
+  // added without a list entry is written and unread; an entry left behind by a deleted or
+  // renamed page is a dead link in the handbook's front door; and the written-out count in the
+  // "N techniques" claim is a third copy of the same fact that drifts independently of both.
+  // Guarded on both paths existing, so the plugin-fixture evals (which ship no docs/ tree) are
+  // unaffected.
+  {
+    const hbReadmePath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Handbook', 'README.md');
+    const techDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques');
+    if (existsSync(hbReadmePath) && existsSync(techDir)) {
+      // Built, not listed: a hand-written table silently stops recognizing the correct count once
+      // code-ops-docs/40 Engineering/Techniques/ outgrows it, and the operator is then told to add a count that is already
+      // there. Units and tens generate every value through ninety-nine.
+      const UNITS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+      const TEENS = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+        'seventeen', 'eighteen', 'nineteen'];
+      const TENS = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+      const NUMBER_WORDS = {};
+      UNITS.forEach((w, i) => { NUMBER_WORDS[w] = i + 1; });
+      TEENS.forEach((w, i) => { NUMBER_WORDS[w] = i + 10; });
+      TENS.forEach((tw, ti) => {
+        const base = (ti + 2) * 10;
+        NUMBER_WORDS[tw] = base;
+        UNITS.forEach((uw, ui) => { NUMBER_WORDS[`${tw}-${uw}`] = base + ui + 1; });
+      });
+      const files = readdirSync(techDir).filter((f) => f.endsWith('.md')).sort();
+      const text = readText(hbReadmePath);
+      // Scope the link scan to the techniques list block itself — from its bold heading to the next
+      // blank-line-delimited section. A cross-reference elsewhere in the page must not satisfy the
+      // index requirement, because the list is what the handbook's front door actually presents.
+      const listStart = text.indexOf('**Techniques');
+      let listBlock = '';
+      if (listStart !== -1) {
+        const after = text.slice(listStart);
+        const nl = after.indexOf('\n');
+        const body = nl === -1 ? '' : after.slice(nl + 1);
+        const end = body.search(/\n\s*\n/);
+        listBlock = end === -1 ? body : body.slice(0, end);
+      }
+      const listed = new Set();
+      for (const m of listBlock.matchAll(/\.\.\/Techniques\/([A-Za-z0-9._-]+\.md)/g)) listed.add(m[1]);
+      if (listStart === -1)
+        fail(`handbook: ${rel(hbReadmePath)} has no "**Techniques" list block — the index of code-ops-docs/40 Engineering/Techniques/ is missing`);
+
+      for (const f of files)
+        if (!listed.has(f))
+          fail(`handbook: code-ops-docs/40 Engineering/Techniques/${f} has no entry in the techniques list of ${rel(hbReadmePath)} — an unindexed technique page is written and unread`);
+      for (const f of [...listed].sort())
+        if (!existsSync(join(techDir, f)))
+          fail(`handbook: ${rel(hbReadmePath)} links ../Techniques/${f}, which does not exist — remove or repoint the entry`);
+
+      // Two failure modes, reported apart: no count word at all, versus a count word the vocabulary
+      // does not recognize. The second should be unreachable below 100 now that the words are
+      // generated, so seeing it means the claim itself is malformed, not that the table is short.
+      const words = [...text.matchAll(/\b([a-z]+(?:-[a-z]+)?)\s+techniques\b/gi)].map((m) => m[1].toLowerCase());
+      const claims = words.filter((w) => w in NUMBER_WORDS);
+      // Number-shaped: either half of a hyphenated word is a known number word (`thirty-eleven`),
+      // or the word names a magnitude the vocabulary stops short of (`hundred`, `thousand`).
+      const numberShaped = words.filter((w) => !(w in NUMBER_WORDS)
+        && (w.split('-').some((part) => part in NUMBER_WORDS) || /^(hundred|thousand|million)$/.test(w)));
+      if (claims.length === 0 && numberShaped.length > 0)
+        fail(`handbook: ${rel(hbReadmePath)} states a "${numberShaped[0]} techniques" count, which is not a recognized written-out number (expected "${files.length}" spelled out)`);
+      else if (claims.length === 0)
+        fail(`handbook: ${rel(hbReadmePath)} states no written-out "N techniques" count (expected "${files.length}" spelled out)`);
+      else for (const w of claims)
+        if (NUMBER_WORDS[w] !== files.length)
+          fail(`handbook: ${rel(hbReadmePath)} claims "${w} techniques" but code-ops-docs/40 Engineering/Techniques/ holds ${files.length} page(s) — update the count`);
     }
-    const listed = new Set();
-    for (const m of listBlock.matchAll(/\.\.\/Techniques\/([A-Za-z0-9._-]+\.md)/g)) listed.add(m[1]);
-    if (listStart === -1)
-      fail(`handbook: ${rel(hbReadmePath)} has no "**Techniques" list block — the index of code-ops-docs/40 Engineering/Techniques/ is missing`);
-
-    for (const f of files)
-      if (!listed.has(f))
-        fail(`handbook: code-ops-docs/40 Engineering/Techniques/${f} has no entry in the techniques list of ${rel(hbReadmePath)} — an unindexed technique page is written and unread`);
-    for (const f of [...listed].sort())
-      if (!existsSync(join(techDir, f)))
-        fail(`handbook: ${rel(hbReadmePath)} links ../Techniques/${f}, which does not exist — remove or repoint the entry`);
-
-    // Two failure modes, reported apart: no count word at all, versus a count word the vocabulary
-    // does not recognize. The second should be unreachable below 100 now that the words are
-    // generated, so seeing it means the claim itself is malformed, not that the table is short.
-    const words = [...text.matchAll(/\b([a-z]+(?:-[a-z]+)?)\s+techniques\b/gi)].map((m) => m[1].toLowerCase());
-    const claims = words.filter((w) => w in NUMBER_WORDS);
-    // Number-shaped: either half of a hyphenated word is a known number word (`thirty-eleven`),
-    // or the word names a magnitude the vocabulary stops short of (`hundred`, `thousand`).
-    const numberShaped = words.filter((w) => !(w in NUMBER_WORDS)
-      && (w.split('-').some((part) => part in NUMBER_WORDS) || /^(hundred|thousand|million)$/.test(w)));
-    if (claims.length === 0 && numberShaped.length > 0)
-      fail(`handbook: ${rel(hbReadmePath)} states a "${numberShaped[0]} techniques" count, which is not a recognized written-out number (expected "${files.length}" spelled out)`);
-    else if (claims.length === 0)
-      fail(`handbook: ${rel(hbReadmePath)} states no written-out "N techniques" count (expected "${files.length}" spelled out)`);
-    else for (const w of claims)
-      if (NUMBER_WORDS[w] !== files.length)
-        fail(`handbook: ${rel(hbReadmePath)} claims "${w} techniques" but code-ops-docs/40 Engineering/Techniques/ holds ${files.length} page(s) — update the count`);
   }
 }
 
 // ---- 9/10. section-reference + agent-name integrity (SKILL.md + agents/*.md) ----
-// Skills and agents cite CONVENTIONS sections (`§9`, `CONVENTIONS §A`, `rigor §H`) and
-// bundled subagents ("fan out to the privacy-reviewer subagent") by name. A renumbered
-// section or a renamed/unbundled agent silently orphans every such reference — the
-// pointer reads fine and resolves to nothing at runtime.
-const docFiles = (p) => [
-  ...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')),
-  ...(existsSync(join(p.dir, 'agents'))
-    ? readdirSync(join(p.dir, 'agents')).filter((f) => f.endsWith('.md')).map((f) => join(p.dir, 'agents', f))
-    : []),
-].filter(existsSync);
+function checkSectionRefsAndAgentNames({ plugins }) {
+  // Skills and agents cite CONVENTIONS sections (`§9`, `CONVENTIONS §A`, `rigor §H`) and
+  // bundled subagents ("fan out to the privacy-reviewer subagent") by name. A renumbered
+  // section or a renamed/unbundled agent silently orphans every such reference — the
+  // pointer reads fine and resolves to nothing at runtime.
+  const docFiles = (p) => [
+    ...p.skills.map((s) => join(p.dir, 'skills', s, 'SKILL.md')),
+    ...(existsSync(join(p.dir, 'agents'))
+      ? readdirSync(join(p.dir, 'agents')).filter((f) => f.endsWith('.md')).map((f) => join(p.dir, 'agents', f))
+      : []),
+  ].filter(existsSync);
 
-// 9. §<id> tokens resolve against the owning plugin's CONVENTIONS section ids, or —
-// for cross-plugin prose like "rigor §4" — against a plugin named earlier on the same
-// line. A subsection form (§11.9) resolves on the part before the dot.
-const sectionIds = new Map(); // plugin name -> Set of `## <id> ·` heading ids
-for (const p of plugins) {
-  const ids = new Set();
-  const convPath = join(p.dir, 'CONVENTIONS.md');
-  if (existsSync(convPath)) for (const m of readText(convPath).matchAll(/^##\s+(\S+)\s*·/gm)) ids.add(m[1]);
-  sectionIds.set(p.name, ids);
-}
-const SECTION_TOKEN_RE = /§([A-Za-z0-9]+(?:\.[0-9]+)?)/g;
-for (const p of plugins) {
-  const own = sectionIds.get(p.name);
-  for (const f of docFiles(p)) {
-    const lines = readText(f).split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      for (const m of lines[i].matchAll(SECTION_TOKEN_RE)) {
-        const base = m[1].split('.')[0];
-        if (own.has(base)) continue;
-        const before = lines[i].slice(0, m.index);
-        if (plugins.some((q) => sectionIds.get(q.name).has(base) && mentions(before, q.name))) continue;
-        fail(`${rel(f)}:${i + 1}: references §${m[1]} but no "## ${base} ·" section exists in ${p.name}/CONVENTIONS.md (or in a plugin named earlier on the line)`);
-      }
-    }
+  // 9. §<id> tokens resolve against the owning plugin's CONVENTIONS section ids, or —
+  // for cross-plugin prose like "rigor §4" — against a plugin named earlier on the same
+  // line. A subsection form (§11.9) resolves on the part before the dot.
+  const sectionIds = new Map(); // plugin name -> Set of `## <id> ·` heading ids
+  for (const p of plugins) {
+    const ids = new Set();
+    const convPath = join(p.dir, 'CONVENTIONS.md');
+    if (existsSync(convPath)) for (const m of readText(convPath).matchAll(/^##\s+(\S+)\s*·/gm)) ids.add(m[1]);
+    sectionIds.set(p.name, ids);
   }
-}
-
-// 10. "the <name> subagent" prose must name an agent bundled in the plugin (built from
-// agents/*.md frontmatter `name:`). Handles slash-joined lists ("the tracer/verifier
-// subagents") and backticked names; generic determiner-phrases ("a fresh sub-agent")
-// pass via the allowlist. Non-determiner prose ("each sub-agent") is not matched.
-const AGENT_PROSE_ALLOWLIST = new Set(['fresh', 'parallel']);
-const AGENT_REF_RE = /\b(?:the|a|an)\s+([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*)\s+sub-?agents?\b/gi;
-const bundledAgents = new Map(); // plugin name -> Set of agents/*.md frontmatter names (check 27 reuses it)
-for (const p of plugins) {
-  const agentNames = new Set();
-  const agentsDir = join(p.dir, 'agents');
-  if (existsSync(agentsDir)) {
-    for (const f of readdirSync(agentsDir)) {
-      if (!f.endsWith('.md')) continue;
-      const fm = readText(join(agentsDir, f)).match(/^---\r?\n([\s\S]*?)\r?\n---/);
-      const nm = fm && fm[1].match(/^name:[ \t]*(\S+)/m);
-      agentNames.add(nm ? nm[1] : f.slice(0, -3));
-    }
-  }
-  bundledAgents.set(p.name, agentNames);
-  for (const f of docFiles(p)) {
-    const lines = readText(f).split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      for (const m of lines[i].replaceAll('`', '').matchAll(AGENT_REF_RE)) {
-        for (const name of m[1].toLowerCase().split('/')) {
-          if (!agentNames.has(name) && !AGENT_PROSE_ALLOWLIST.has(name))
-            fail(`${rel(f)}:${i + 1}: prose names "the ${name} subagent" but ${p.name} bundles ${agentNames.size ? [...agentNames].join(', ') : 'no agents'} — rename it, or add to AGENT_PROSE_ALLOWLIST if it's a generic word`);
+  const SECTION_TOKEN_RE = /§([A-Za-z0-9]+(?:\.[0-9]+)?)/g;
+  for (const p of plugins) {
+    const own = sectionIds.get(p.name);
+    for (const f of docFiles(p)) {
+      const lines = readText(f).split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        for (const m of lines[i].matchAll(SECTION_TOKEN_RE)) {
+          const base = m[1].split('.')[0];
+          if (own.has(base)) continue;
+          const before = lines[i].slice(0, m.index);
+          if (plugins.some((q) => sectionIds.get(q.name).has(base) && mentions(before, q.name))) continue;
+          fail(`${rel(f)}:${i + 1}: references §${m[1]} but no "## ${base} ·" section exists in ${p.name}/CONVENTIONS.md (or in a plugin named earlier on the line)`);
         }
       }
     }
   }
+
+  // 10. "the <name> subagent" prose must name an agent bundled in the plugin (built from
+  // agents/*.md frontmatter `name:`). Handles slash-joined lists ("the tracer/verifier
+  // subagents") and backticked names; generic determiner-phrases ("a fresh sub-agent")
+  // pass via the allowlist. Non-determiner prose ("each sub-agent") is not matched.
+  const AGENT_PROSE_ALLOWLIST = new Set(['fresh', 'parallel']);
+  const AGENT_REF_RE = /\b(?:the|a|an)\s+([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*)\s+sub-?agents?\b/gi;
+  const bundledAgents = new Map(); // plugin name -> Set of agents/*.md frontmatter names (check 27 reuses it)
+  for (const p of plugins) {
+    const agentNames = new Set();
+    const agentsDir = join(p.dir, 'agents');
+    if (existsSync(agentsDir)) {
+      for (const f of readdirSync(agentsDir)) {
+        if (!f.endsWith('.md')) continue;
+        const fm = readText(join(agentsDir, f)).match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        const nm = fm && fm[1].match(/^name:[ \t]*(\S+)/m);
+        agentNames.add(nm ? nm[1] : f.slice(0, -3));
+      }
+    }
+    bundledAgents.set(p.name, agentNames);
+    for (const f of docFiles(p)) {
+      const lines = readText(f).split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        for (const m of lines[i].replaceAll('`', '').matchAll(AGENT_REF_RE)) {
+          for (const name of m[1].toLowerCase().split('/')) {
+            if (!agentNames.has(name) && !AGENT_PROSE_ALLOWLIST.has(name))
+              fail(`${rel(f)}:${i + 1}: prose names "the ${name} subagent" but ${p.name} bundles ${agentNames.size ? [...agentNames].join(', ') : 'no agents'} — rename it, or add to AGENT_PROSE_ALLOWLIST if it's a generic word`);
+          }
+        }
+      }
+    }
+  }
+  return bundledAgents;
 }
 
 // ---- 12. agent model floors -------------------------------------------------
-// The verification core (verifier, refutation-mode reviewers/tracers) is only as strong
-// as the model tier behind it. Each bundled agent declares a `model:` alias; this floor
-// table makes a downgrade a VISIBLE diff (the floor must be edited in the same change)
-// instead of a silent frontmatter tweak. Also keeps the handbook's "(model: `X`)"
-// annotations in code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md in sync with the frontmatter.
-//
-// The ordering comes from scripts/model-tiers.mjs so the gate and the provider-agnostic
-// doctrine (frontier > strong > mid) cannot describe different ladders. Frontmatter still
-// declares Anthropic aliases, because Claude Code reads that field directly; the canonical
-// rung is what the other host renderers translate.
-const MODEL_TIER = Object.fromEntries(
-  Object.entries(CLAUDE_ALIAS_TIER).map(([alias, tier]) => [alias, TIER_RANK[tier]]),
-);
-const MODEL_ALIASES = Object.keys(MODEL_TIER).join('|');
-const AGENT_MODEL_FLOORS = {
-  'rigor/verifier': 'opus',
-  'rigor/tracer': 'opus',
-  'code-ops-suite/reviewer': 'opus',
-  'code-ops-suite/implementer': 'opus',
-  'privacy-opsec-suite/privacy-reviewer': 'opus',
-  'researcher/claim-checker': 'sonnet',
-  'code-ops-suite/mech': 'sonnet',
-  'code-ops-suite/mech-review': 'sonnet',
-  'code-ops-suite/explorer': 'haiku',
-  'privacy-opsec-suite/explorer': 'haiku',
-  'researcher/gatherer': 'haiku',
-};
-const agentModelByName = new Map();
-for (const p of plugins) {
-  const agentsDir = join(p.dir, 'agents');
-  if (!existsSync(agentsDir)) continue;
-  for (const f of readdirSync(agentsDir)) {
-    if (!f.endsWith('.md')) continue;
-    const fm = readText(join(agentsDir, f)).match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    const nm = fm && fm[1].match(/^name:[ \t]*(\S+)/m);
-    const md = fm && fm[1].match(/^model:[ \t]*(\S+)/m);
-    const agentKey = `${p.name}/${nm ? nm[1] : f.slice(0, -3)}`;
-    if (!md) { fail(`${agentKey}: agents/${f} has no frontmatter model: field — declare the tier explicitly`); continue; }
-    agentModelByName.set(agentKey, md[1]);
-    const floor = AGENT_MODEL_FLOORS[agentKey];
-    if (floor === undefined) { fail(`${agentKey}: not in AGENT_MODEL_FLOORS — add it with a deliberate tier floor`); continue; }
-    if (!(md[1] in MODEL_TIER)) { fail(`${agentKey}: model "${md[1]}" is not a known tier alias (${MODEL_ALIASES})`); continue; }
-    if (MODEL_TIER[md[1]] < MODEL_TIER[floor])
-      fail(`${agentKey}: model "${md[1]}" is below its declared floor "${floor}" — downgrading the verification core requires editing AGENT_MODEL_FLOORS in the same change`);
+function checkAgentModelFloors({ plugins }) {
+  // The verification core (verifier, refutation-mode reviewers/tracers) is only as strong
+  // as the model tier behind it. Each bundled agent declares a `model:` alias; this floor
+  // table makes a downgrade a VISIBLE diff (the floor must be edited in the same change)
+  // instead of a silent frontmatter tweak. Also keeps the handbook's "(model: `X`)"
+  // annotations in code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md in sync with the frontmatter.
+  //
+  // The ordering comes from scripts/model-tiers.mjs so the gate and the provider-agnostic
+  // doctrine (frontier > strong > mid) cannot describe different ladders. Frontmatter still
+  // declares Anthropic aliases, because Claude Code reads that field directly; the canonical
+  // rung is what the other host renderers translate.
+  const MODEL_TIER = Object.fromEntries(
+    Object.entries(CLAUDE_ALIAS_TIER).map(([alias, tier]) => [alias, TIER_RANK[tier]]),
+  );
+  const MODEL_ALIASES = Object.keys(MODEL_TIER).join('|');
+  const AGENT_MODEL_FLOORS = {
+    'rigor/verifier': 'opus',
+    'rigor/tracer': 'opus',
+    'code-ops-suite/reviewer': 'opus',
+    'code-ops-suite/implementer': 'opus',
+    'privacy-opsec-suite/privacy-reviewer': 'opus',
+    'researcher/claim-checker': 'sonnet',
+    'code-ops-suite/mech': 'sonnet',
+    'code-ops-suite/mech-review': 'sonnet',
+    'code-ops-suite/explorer': 'haiku',
+    'privacy-opsec-suite/explorer': 'haiku',
+    'researcher/gatherer': 'haiku',
+  };
+  const agentModelByName = new Map();
+  for (const p of plugins) {
+    const agentsDir = join(p.dir, 'agents');
+    if (!existsSync(agentsDir)) continue;
+    for (const f of readdirSync(agentsDir)) {
+      if (!f.endsWith('.md')) continue;
+      const fm = readText(join(agentsDir, f)).match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      const nm = fm && fm[1].match(/^name:[ \t]*(\S+)/m);
+      const md = fm && fm[1].match(/^model:[ \t]*(\S+)/m);
+      const agentKey = `${p.name}/${nm ? nm[1] : f.slice(0, -3)}`;
+      if (!md) { fail(`${agentKey}: agents/${f} has no frontmatter model: field — declare the tier explicitly`); continue; }
+      agentModelByName.set(agentKey, md[1]);
+      const floor = AGENT_MODEL_FLOORS[agentKey];
+      if (floor === undefined) { fail(`${agentKey}: not in AGENT_MODEL_FLOORS — add it with a deliberate tier floor`); continue; }
+      if (!(md[1] in MODEL_TIER)) { fail(`${agentKey}: model "${md[1]}" is not a known tier alias (${MODEL_ALIASES})`); continue; }
+      if (MODEL_TIER[md[1]] < MODEL_TIER[floor])
+        fail(`${agentKey}: model "${md[1]}" is below its declared floor "${floor}" — downgrading the verification core requires editing AGENT_MODEL_FLOORS in the same change`);
+    }
   }
-}
-{
-  const tradeoffs = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'subagent-trade-offs.md');
-  if (existsSync(tradeoffs)) {
-    const lines = readText(tradeoffs).split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      // The doc writes shorthand plugin prefixes ("code-ops `explorer`"); resolve the
-      // prefix to a real plugin name so the two `explorer` agents cannot collide.
-      for (const m of lines[i].matchAll(/\*\*([a-z-]+) `([a-z-]+)`\*\*[^(]*\(model: `([a-z-]+)`/g)) {
-        const pluginName = plugins.some((p) => p.name === m[1]) ? m[1]
-          : plugins.some((p) => p.name === `${m[1]}-suite`) ? `${m[1]}-suite` : null;
-        if (!pluginName) continue;
-        const actual = agentModelByName.get(`${pluginName}/${m[2]}`);
-        if (actual && actual !== m[3])
-          fail(`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
+  {
+    const tradeoffs = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'subagent-trade-offs.md');
+    if (existsSync(tradeoffs)) {
+      const lines = readText(tradeoffs).split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        // The doc writes shorthand plugin prefixes ("code-ops `explorer`"); resolve the
+        // prefix to a real plugin name so the two `explorer` agents cannot collide.
+        for (const m of lines[i].matchAll(/\*\*([a-z-]+) `([a-z-]+)`\*\*[^(]*\(model: `([a-z-]+)`/g)) {
+          const pluginName = plugins.some((p) => p.name === m[1]) ? m[1]
+            : plugins.some((p) => p.name === `${m[1]}-suite`) ? `${m[1]}-suite` : null;
+          if (!pluginName) continue;
+          const actual = agentModelByName.get(`${pluginName}/${m[2]}`);
+          if (actual && actual !== m[3])
+            fail(`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
+        }
       }
     }
   }
 }
 
 // ---- 25. agent report cap ------------------------------------------------------
-// A separate pass from check 12, so an agent that check 12 skips still gets this check.
-const REPORT_CAP_WORDS = { min: 100, max: 800 };
-for (const p of plugins) {
-  const agentsDir = join(p.dir, 'agents');
-  if (!existsSync(agentsDir)) continue;
-  for (const f of readdirSync(agentsDir)) {
-    if (!f.endsWith('.md')) continue;
-    const path = join(agentsDir, f);
-    const body = readText(path).replace(/^---\r?\n[\s\S]*?\r?\n---/, '');
-    const cap = body.match(/^Report cap: at most (\d+) words/m);
-    if (!cap) fail(`${rel(path)}: agent body has no "Report cap: at most N words" line — bound the report the lead re-reads every turn`);
-    else if (+cap[1] < REPORT_CAP_WORDS.min || +cap[1] > REPORT_CAP_WORDS.max)
-      fail(`${rel(path)}: report cap of ${cap[1]} words is outside ${REPORT_CAP_WORDS.min}-${REPORT_CAP_WORDS.max}`);
+function checkAgentReportCaps({ plugins }) {
+  // A separate pass from check 12, so an agent that check 12 skips still gets this check.
+  const REPORT_CAP_WORDS = { min: 100, max: 800 };
+  for (const p of plugins) {
+    const agentsDir = join(p.dir, 'agents');
+    if (!existsSync(agentsDir)) continue;
+    for (const f of readdirSync(agentsDir)) {
+      if (!f.endsWith('.md')) continue;
+      const path = join(agentsDir, f);
+      const body = readText(path).replace(/^---\r?\n[\s\S]*?\r?\n---/, '');
+      const cap = body.match(/^Report cap: at most (\d+) words/m);
+      if (!cap) fail(`${rel(path)}: agent body has no "Report cap: at most N words" line — bound the report the lead re-reads every turn`);
+      else if (+cap[1] < REPORT_CAP_WORDS.min || +cap[1] > REPORT_CAP_WORDS.max)
+        fail(`${rel(path)}: report cap of ${cap[1]} words is outside ${REPORT_CAP_WORDS.min}-${REPORT_CAP_WORDS.max}`);
+    }
   }
 }
 
 // ---- 26. agent contract -----------------------------------------------------------
-// A brief writer and a report gate both read this section, so it has one grammar.
-const BRIEF_FIELDS = new Set(['Scope', 'Objective', 'Round budget', 'Report cap', 'Report path', 'Expected return']);
-for (const p of plugins) {
-  const agentsDir = join(p.dir, 'agents');
-  if (!existsSync(agentsDir)) continue;
-  for (const f of readdirSync(agentsDir)) {
-    if (!f.endsWith('.md')) continue;
-    const path = join(agentsDir, f);
-    const text = readText(path);
-    const where = `${rel(path)}: ## Contract`;
-    const section = text.split(/^## Contract[ \t]*\r?$/m)[1]?.split(/^## /m)[0];
-    if (section === undefined) { fail(`${rel(path)}: agent has no "## Contract" section — declare Brief requires, Edits, Verdicts, and a fenced return example`); continue; }
-    const brief = section.match(/^Brief requires: (.+)$/m);
-    const edits = section.match(/^Edits: (none|report-only|scope)[ \t]*$/m);
-    const verdicts = section.match(/^Verdicts: (.+)$/m);
-    const fences = [...section.matchAll(/^```[a-z]*\r?\n([\s\S]*?)^```/gm)];
-    if (!brief) fail(`${where} has no "Brief requires: <fields>" line`);
-    else for (const field of brief[1].split(',').map((s) => s.trim()))
-      if (!BRIEF_FIELDS.has(field)) fail(`${where} names brief field "${field}", which is not one of ${[...BRIEF_FIELDS].join(', ')}`);
-    if (!edits) fail(`${where} has no "Edits: none | report-only | scope" line`);
-    if (!verdicts) fail(`${where} has no "Verdicts: A | B" line`);
-    if (fences.length !== 1) fail(`${where} has ${fences.length} fenced return examples; it needs exactly one`);
-    const tools = text.match(/^---\r?\n[\s\S]*?^tools:[ \t]*(.*)$/m)?.[1] ?? '';
-    if (edits?.[1] === 'none' && /\b(?:Edit|Write|MultiEdit)\b/.test(tools))
-      fail(`${where} declares "Edits: none" but tools grant ${tools.match(/\b(?:Edit|Write|MultiEdit)\b/g).join(', ')}`);
-    if (verdicts && fences.length === 1) {
-      const tokens = verdicts[1].split('|').map((s) => s.trim());
-      for (const token of tokens) if (!/^[A-Z][A-Z-]*$/.test(token)) fail(`${where} verdict "${token}" is not an uppercase token`);
-      // The lead token must own the colon alone; a line like "PASS | FAIL:" fails every
-      // alternative in turn because a second token sits between the first token and ":".
-      const firstLine = fences[0][1].split(/\r?\n/, 1)[0];
-      if (!new RegExp(`^(?:${tokens.map(escapeRe).join('|')}):`).test(firstLine))
-        fail(`${where} fenced return example's first line must begin with exactly one declared verdict token followed by ":", with no second declared token before the ":"`);
+function checkAgentContracts({ plugins }) {
+  // A brief writer and a report gate both read this section, so it has one grammar.
+  const BRIEF_FIELDS = new Set(['Scope', 'Objective', 'Round budget', 'Report cap', 'Report path', 'Expected return']);
+  for (const p of plugins) {
+    const agentsDir = join(p.dir, 'agents');
+    if (!existsSync(agentsDir)) continue;
+    for (const f of readdirSync(agentsDir)) {
+      if (!f.endsWith('.md')) continue;
+      const path = join(agentsDir, f);
+      const text = readText(path);
+      const where = `${rel(path)}: ## Contract`;
+      const section = text.split(/^## Contract[ \t]*\r?$/m)[1]?.split(/^## /m)[0];
+      if (section === undefined) { fail(`${rel(path)}: agent has no "## Contract" section — declare Brief requires, Edits, Verdicts, and a fenced return example`); continue; }
+      const brief = section.match(/^Brief requires: (.+)$/m);
+      const edits = section.match(/^Edits: (none|report-only|scope)[ \t]*$/m);
+      const verdicts = section.match(/^Verdicts: (.+)$/m);
+      const fences = [...section.matchAll(/^```[a-z]*\r?\n([\s\S]*?)^```/gm)];
+      if (!brief) fail(`${where} has no "Brief requires: <fields>" line`);
+      else for (const field of brief[1].split(',').map((s) => s.trim()))
+        if (!BRIEF_FIELDS.has(field)) fail(`${where} names brief field "${field}", which is not one of ${[...BRIEF_FIELDS].join(', ')}`);
+      if (!edits) fail(`${where} has no "Edits: none | report-only | scope" line`);
+      if (!verdicts) fail(`${where} has no "Verdicts: A | B" line`);
+      if (fences.length !== 1) fail(`${where} has ${fences.length} fenced return examples; it needs exactly one`);
+      const tools = text.match(/^---\r?\n[\s\S]*?^tools:[ \t]*(.*)$/m)?.[1] ?? '';
+      if (edits?.[1] === 'none' && /\b(?:Edit|Write|MultiEdit)\b/.test(tools))
+        fail(`${where} declares "Edits: none" but tools grant ${tools.match(/\b(?:Edit|Write|MultiEdit)\b/g).join(', ')}`);
+      if (verdicts && fences.length === 1) {
+        const tokens = verdicts[1].split('|').map((s) => s.trim());
+        for (const token of tokens) if (!/^[A-Z][A-Z-]*$/.test(token)) fail(`${where} verdict "${token}" is not an uppercase token`);
+        // The lead token must own the colon alone; a line like "PASS | FAIL:" fails every
+        // alternative in turn because a second token sits between the first token and ":".
+        const firstLine = fences[0][1].split(/\r?\n/, 1)[0];
+        if (!new RegExp(`^(?:${tokens.map(escapeRe).join('|')}):`).test(firstLine))
+          fail(`${where} fenced return example's first line must begin with exactly one declared verdict token followed by ":", with no second declared token before the ":"`);
+      }
     }
   }
 }
 
 // ---- 27. dispatch prose resolves to shipped agents ------------------------------------
-// The dispatch guard's deny text and the routing pages tell the lead which agent to
-// dispatch. A name the suite does not ship sends the lead to an agent that fails at spawn.
-{
-  const allAgents = new Set([...bundledAgents.values()].flatMap((s) => [...s]));
-  const techDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques');
-  const targets = [
-    join(ROOT, 'CLAUDE.md'),
-    ...plugins.flatMap((p) => {
-      const hooksDir = join(p.dir, 'hooks');
-      return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.mjs')).map((f) => join(hooksDir, f)) : [];
-    }),
-    ...(existsSync(techDir) ? readdirSync(techDir).filter((f) => f.endsWith('.md')).map((f) => join(techDir, f)) : []),
-  ].filter(existsSync);
-  const WORD = '[a-z][a-z0-9-]*';
-  // A list continues a qualified agent only through commas and ends at its "or"/"and" item,
-  // so prose after the list ("..., or mech, or add a line") is never read as a name.
-  const LIST_TAIL_RE = new RegExp(`^((?:,\\s*${WORD})+),?\\s+(?:or|and)\\s+(${WORD})`);
-  const FLOOR_LIST_RE = /-floor agents? \(([^)]*)\)/g;
-  for (const f of targets) {
-    const lines = readText(f).split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const at = `${rel(f)}:${i + 1}`;
-      const line = lines[i].replaceAll('`', '');
-      for (const m of QUALIFIED_RE ? line.matchAll(QUALIFIED_RE) : []) {
-        const p = pluginByName.get(m[1]);
-        const agents = bundledAgents.get(m[1]);
-        if (!p.skills.includes(m[2]) && !agents.has(m[2])) {
-          fail(`${at}: "${m[1]}:${m[2]}" names no shipped skill or agent of ${m[1]}`);
-          continue;
+function checkDispatchProse({ plugins, pluginByName, QUALIFIED_RE, bundledAgents }) {
+  // The dispatch guard's deny text and the routing pages tell the lead which agent to
+  // dispatch. A name the suite does not ship sends the lead to an agent that fails at spawn.
+  {
+    const allAgents = new Set([...bundledAgents.values()].flatMap((s) => [...s]));
+    const techDir = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques');
+    const targets = [
+      join(ROOT, 'CLAUDE.md'),
+      ...plugins.flatMap((p) => {
+        const hooksDir = join(p.dir, 'hooks');
+        return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.mjs')).map((f) => join(hooksDir, f)) : [];
+      }),
+      ...(existsSync(techDir) ? readdirSync(techDir).filter((f) => f.endsWith('.md')).map((f) => join(techDir, f)) : []),
+    ].filter(existsSync);
+    const WORD = '[a-z][a-z0-9-]*';
+    // A list continues a qualified agent only through commas and ends at its "or"/"and" item,
+    // so prose after the list ("..., or mech, or add a line") is never read as a name.
+    const LIST_TAIL_RE = new RegExp(`^((?:,\\s*${WORD})+),?\\s+(?:or|and)\\s+(${WORD})`);
+    const FLOOR_LIST_RE = /-floor agents? \(([^)]*)\)/g;
+    for (const f of targets) {
+      const lines = readText(f).split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const at = `${rel(f)}:${i + 1}`;
+        const line = lines[i].replaceAll('`', '');
+        for (const m of QUALIFIED_RE ? line.matchAll(QUALIFIED_RE) : []) {
+          const p = pluginByName.get(m[1]);
+          const agents = bundledAgents.get(m[1]);
+          if (!p.skills.includes(m[2]) && !agents.has(m[2])) {
+            fail(`${at}: "${m[1]}:${m[2]}" names no shipped skill or agent of ${m[1]}`);
+            continue;
+          }
+          if (!agents.has(m[2])) continue;
+          const tail = line.slice(m.index + m[0].length).match(LIST_TAIL_RE);
+          if (!tail) continue;
+          for (const name of [...tail[1].split(',').map((s) => s.trim()).filter(Boolean), tail[2]])
+            if (!agents.has(name)) fail(`${at}: dispatch list after "${m[1]}:${m[2]}" names "${name}", which ${m[1]} does not ship as an agent`);
         }
-        if (!agents.has(m[2])) continue;
-        const tail = line.slice(m.index + m[0].length).match(LIST_TAIL_RE);
-        if (!tail) continue;
-        for (const name of [...tail[1].split(',').map((s) => s.trim()).filter(Boolean), tail[2]])
-          if (!agents.has(name)) fail(`${at}: dispatch list after "${m[1]}:${m[2]}" names "${name}", which ${m[1]} does not ship as an agent`);
+        for (const m of lines[i].matchAll(FLOOR_LIST_RE))
+          for (const n of m[1].matchAll(/`([a-z][a-z0-9-]*)`/g))
+            if (!allAgents.has(n[1])) fail(`${at}: floor list names agent "${n[1]}", which no plugin ships`);
       }
-      for (const m of lines[i].matchAll(FLOOR_LIST_RE))
-        for (const n of m[1].matchAll(/`([a-z][a-z0-9-]*)`/g))
-          if (!allAgents.has(n[1])) fail(`${at}: floor list names agent "${n[1]}", which no plugin ships`);
     }
   }
 }
 
 // ---- 28. bounded CONVENTIONS.md reads -----------------------------------------------
-const CONVENTIONS_READ_BOUND = 'Leave the rest of that file unread.';
-for (const p of plugins) {
-  for (const slug of p.skills) {
-    const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
-    if (!existsSync(skPath)) continue;
-    const body = readText(skPath).replace(/^---\r?\n[\s\S]*?\r?\n---/, '');
-    if (body.includes('CONVENTIONS.md') && !body.includes(CONVENTIONS_READ_BOUND))
-      fail(`${rel(skPath)}: cites CONVENTIONS.md without the sentence "${CONVENTIONS_READ_BOUND}"`);
+function checkConventionsReadBound({ plugins }) {
+  const CONVENTIONS_READ_BOUND = 'Leave the rest of that file unread.';
+  for (const p of plugins) {
+    for (const slug of p.skills) {
+      const skPath = join(p.dir, 'skills', slug, 'SKILL.md');
+      if (!existsSync(skPath)) continue;
+      const body = readText(skPath).replace(/^---\r?\n[\s\S]*?\r?\n---/, '');
+      if (body.includes('CONVENTIONS.md') && !body.includes(CONVENTIONS_READ_BOUND))
+        fail(`${rel(skPath)}: cites CONVENTIONS.md without the sentence "${CONVENTIONS_READ_BOUND}"`);
+    }
   }
 }
 
 // ---- 29. CHANGELOG placeholders and duplicate version headings ----------------------
-for (const p of plugins) {
-  const path = join(p.dir, 'CHANGELOG.md');
-  if (!existsSync(path)) continue;
-  const seen = new Set();
-  readText(path).split(/\r?\n/).forEach((line, i) => {
-    if (/^\s*-\s*\*\*TODO\*\*/.test(line)) fail(`${rel(path)}:${i + 1}: placeholder "**TODO**" line — write the real change description`);
-    const heading = line.match(/^##\s+(\S+)/);
-    if (!heading) return;
-    if (seen.has(heading[1])) fail(`${rel(path)}:${i + 1}: duplicate "## ${heading[1]}" heading — merge the entries under one heading`);
-    seen.add(heading[1]);
-  });
+function checkChangelogs({ plugins }) {
+  for (const p of plugins) {
+    const path = join(p.dir, 'CHANGELOG.md');
+    if (!existsSync(path)) continue;
+    const seen = new Set();
+    readText(path).split(/\r?\n/).forEach((line, i) => {
+      if (/^\s*-\s*\*\*TODO\*\*/.test(line)) fail(`${rel(path)}:${i + 1}: placeholder "**TODO**" line — write the real change description`);
+      const heading = line.match(/^##\s+(\S+)/);
+      if (!heading) return;
+      if (seen.has(heading[1])) fail(`${rel(path)}:${i + 1}: duplicate "## ${heading[1]}" heading — merge the entries under one heading`);
+      seen.add(heading[1]);
+    });
+  }
 }
 
 // ---- 13. producer register self-check wiring ---------------------------------
-// The register-producing skills must gate their own Done-when on revalidate-register
-// (the producer-side anchor gate) — this guard keeps that wiring from silently
-// regressing in a later edit, the same pattern as the runtime-script checks.
-const PRODUCER_SELFCHECK = [
-  'plugins/rigor/skills/bug-hunt/SKILL.md',
-  'plugins/rigor/skills/quality-scan/SKILL.md',
-  'plugins/code-ops-suite/skills/normalize/SKILL.md',
-  'plugins/code-ops-suite/skills/codebase-audit/SKILL.md',
-];
-for (const rel of PRODUCER_SELFCHECK) {
-  const f = join(ROOT, ...rel.split('/'));
-  if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_SELFCHECK)'); continue; }
-  const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
-  if (!dw.includes('revalidate-register.mjs'))
-    fail(rel + ': Done-when no longer runs revalidate-register.mjs — the producer-side anchor gate must not silently regress');
-}
-// The strict legs of that gate, pinned per skill: without --strict --profile finding-rigor a
-// CONFIRMED finding with no proof, or an unexecuted command as its proof, passes the Done-when;
-// without --min-items a citation-less consistency register passes. Each flag must sit in the
-// same revalidate-register.mjs invocation, so a separate mention cannot satisfy the pin.
-const PRODUCER_STRICT = [
-  ['plugins/rigor/skills/bug-hunt/SKILL.md', '--strict --profile finding-rigor'],
-  ['plugins/rigor/skills/quality-scan/SKILL.md', '--strict --profile finding-rigor'],
-  ['plugins/rigor/skills/deep-review/SKILL.md', '--strict --profile finding-rigor'],
-  ['plugins/code-ops-suite/skills/normalize/SKILL.md', '--strict --profile consistency --min-items 1'],
-];
-for (const [rel, flags] of PRODUCER_STRICT) {
-  const f = join(ROOT, ...rel.split('/'));
-  if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_STRICT)'); continue; }
-  const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
-  const invocations = dw.match(/revalidate-register\.mjs[^`\n]*/g) ?? [];
-  if (!invocations.some((inv) => inv.includes(flags)))
-    fail(`${rel}: Done-when no longer runs revalidate-register.mjs with ${flags} — the strict producer gate must not silently regress`);
+function checkProducerSelfCheck() {
+  // The register-producing skills must gate their own Done-when on revalidate-register
+  // (the producer-side anchor gate) — this guard keeps that wiring from silently
+  // regressing in a later edit, the same pattern as the runtime-script checks.
+  const PRODUCER_SELFCHECK = [
+    'plugins/rigor/skills/bug-hunt/SKILL.md',
+    'plugins/rigor/skills/quality-scan/SKILL.md',
+    'plugins/code-ops-suite/skills/normalize/SKILL.md',
+    'plugins/code-ops-suite/skills/codebase-audit/SKILL.md',
+  ];
+  for (const rel of PRODUCER_SELFCHECK) {
+    const f = join(ROOT, ...rel.split('/'));
+    if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_SELFCHECK)'); continue; }
+    const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
+    if (!dw.includes('revalidate-register.mjs'))
+      fail(rel + ': Done-when no longer runs revalidate-register.mjs — the producer-side anchor gate must not silently regress');
+  }
+  // The strict legs of that gate, pinned per skill: without --strict --profile finding-rigor a
+  // CONFIRMED finding with no proof, or an unexecuted command as its proof, passes the Done-when;
+  // without --min-items a citation-less consistency register passes. Each flag must sit in the
+  // same revalidate-register.mjs invocation, so a separate mention cannot satisfy the pin.
+  const PRODUCER_STRICT = [
+    ['plugins/rigor/skills/bug-hunt/SKILL.md', '--strict --profile finding-rigor'],
+    ['plugins/rigor/skills/quality-scan/SKILL.md', '--strict --profile finding-rigor'],
+    ['plugins/rigor/skills/deep-review/SKILL.md', '--strict --profile finding-rigor'],
+    ['plugins/code-ops-suite/skills/normalize/SKILL.md', '--strict --profile consistency --min-items 1'],
+  ];
+  for (const [rel, flags] of PRODUCER_STRICT) {
+    const f = join(ROOT, ...rel.split('/'));
+    if (!existsSync(f)) { fail(rel + ': producer skill missing (PRODUCER_STRICT)'); continue; }
+    const dw = readText(f).split(/^##[ 	]+Done when/im)[1] ?? '';
+    const invocations = dw.match(/revalidate-register\.mjs[^`\n]*/g) ?? [];
+    if (!invocations.some((inv) => inv.includes(flags)))
+      fail(`${rel}: Done-when no longer runs revalidate-register.mjs with ${flags} — the strict producer gate must not silently regress`);
+  }
 }
 
 // ---- 14. shared doctrine passages: intentional duplication gets a drift gate ----
-// Each entry pins a CORE span (a clause or sentence, free of per-plugin § references) that
-// must appear byte-identically in every listed file. Rolling out a doctrine change means
-// editing every copy in the same commit — this check makes a partial rollout fail CI
-// instead of silently diverging (the enabler for inlining rules at point of use).
-const CONVS = (...names) => names.map((p) => `plugins/${p}/CONVENTIONS.md`);
-const SHARED_PASSAGES = [
-  { id: 'fanout-throttle', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: "A broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run. Do not rely on the platform's concurrency cap as the limiter" },
-  { id: 'skim-then-deepen', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: 'skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end' },
-  { id: 'skipped-set', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: "take the union of every slice's skipped/traced note. A high-risk area that no slice covered is itself a finding (a coverage gap), not silence" },
-  { id: 'intent-annotation', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: "read the cited line's immediate neighbors and any referenced ticket/finding id for an explicit by-design / accepted-deferred / KNOWN annotation, or a docstring/comment that matches the observed behavior" },
-  { id: 'locate-the-handler', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: 'must actively LOCATE the would-be handler (the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement)' },
-  { id: 'headless-default', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'do not block: auto-scope from the repo, proceed on the safe default' },
-  { id: 'headless-defer', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: 'are deferred and reported, never silently applied. Surface every decision and critical finding in the final report instead of pausing' },
-  { id: 'circuit-breaker-core', files: CONVS('code-ops-suite', 'rigor'),
-    text: 'stop the fix loop. A cascading cluster is evidence of an architectural problem, not a bug collection' },
-  { id: 'circuit-breaker-checkpoint', files: CONVS('code-ops-suite', 'rigor'),
-    text: 'present options at a checkpoint instead of attempting the next fix. In a headless run, defer the remaining cluster and report it' },
-  { id: 'non-secret-anchor', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value). If no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.' },
-  { id: 'terminal-forms', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: 'A consumed item ends in exactly one pinned terminal form (`closed-with-proof <commit/PR>`, `deferred-with-reason <reason>`, or `OBSOLETE-AT <sha>`) and never silently disappears' },
-  { id: 'read-once', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it' },
-  { id: 'prefilter-first', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'Pre-filter first, read narrow: at a phase boundary run the checker BEFORE any wholesale register read, then read only the non-FRESH/DRIFTED entries in full' },
-  { id: 'repanel-skip', files: CONVS('code-ops-suite', 'rigor'),
-    text: 'is NOT re-paneled. The receipts are the verdict, and any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline, never the full register' },
-  { id: 'map-once', files: CONVS('code-ops-suite', 'rigor'),
-    text: 'hand the verified context artifact to every operative brief. Operatives consult it first and use search only to go deeper than it reaches, never to re-derive layout or find definitions it already lists' },
-  { id: 'always-gated-core', files: ['plugins/code-ops-suite/CONVENTIONS.md', 'plugins/code-ops-suite/skills/everything/SKILL.md'],
-    text: '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge' },
-  { id: 'operative-failure', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: "failed dispatch, not a weak signal. Never synthesize around a missing report or fill its gap from the orchestrator's own assumptions" },
-  { id: 'failure-ladder', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'redispatch once with a tightened, smaller brief. Then escalate at the next checkpoint' },
-  { id: 'ledger-atomicity', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: 'The row is written **at dispatch time**, atomically with the dispatch call itself, never a turn earlier or later, because a row written before its dispatch is a phantom indistinguishable from a hung operative' },
-  { id: 'report-persistence', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: "Every operative report lands as a file in the run's artifact folder, at the exact path its brief names. That path governs over any default reporting instruction in the agent definition. An operative with a file-write tool writes its full report to that path and returns only a pointer: the path, a one-line verdict, and counts. The lead verifies that file through the shape gate and never re-emits its body. It reads the body only when synthesis needs it. An operative without a write tool returns its report inline. The lead writes that report to the named path in the turn it arrives, before any other work. A report that exists only in the conversation is one blocked turn away from being lost." },
-  { id: 'report-shape-gate', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'A brief that never reached its operative is indistinguishable in the dispatch record from a completed dispatch until the report is read. Gate every report on shape (expected sections present, non-empty, evidence attached) before its unit counts as covered. A pointed-to report file that is missing, empty, or malformed fails that gate exactly as a malformed inline report does.' },
-  { id: 'tier-boundary', files: CONVS('code-ops-suite', 'rigor'),
-    text: "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript. A finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence" },
-  { id: 'panel-lens-diversity', files: CONVS('code-ops-suite', 'rigor'),
-    text: "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics. Identical readers repeat one another's misreads, and diversity catches what redundancy cannot." },
-  { id: 'tier-floor-carrier', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'On a host that ignores agent `model:` frontmatter the lead acknowledges that printed floor table and routes every dispatch at or above its floor by hand. A below-floor dispatch is a doctrine violation that `run-cost-audit` records as a `tier-routing` FAIL.' },
-  { id: 'last-paragraph-check', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.' },
-  { id: 'scope-discipline', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: 'A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.' },
-  { id: 'ordered-objective', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: 'The objective is ordered: correctness and the safety floor, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines wins only between candidates equal on the first four.' },
-  { id: 'ladder-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
-    text: "Before writing code, climb the ladder in order: does it need to exist (scope is the request), does it exist here (search before you write), does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory), does it fit inside the owning module (extend before you add a file), and is there evidence to extract (a second caller, a unit that needs its own test, or a file past the repository's own size norm). Then write the minimum edge-case-correct implementation." },
-  { id: 'writing-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: 'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.' },
-  { id: 'code-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-    text: "Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed." },
-];
+function checkSharedPassages() {
+  // Each entry pins a CORE span (a clause or sentence, free of per-plugin § references) that
+  // must appear byte-identically in every listed file. Rolling out a doctrine change means
+  // editing every copy in the same commit — this check makes a partial rollout fail CI
+  // instead of silently diverging (the enabler for inlining rules at point of use).
+  const CONVS = (...names) => names.map((p) => `plugins/${p}/CONVENTIONS.md`);
+  const SHARED_PASSAGES = [
+    { id: 'fanout-throttle', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: "A broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run. Do not rely on the platform's concurrency cap as the limiter" },
+    { id: 'skim-then-deepen', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: 'skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end' },
+    { id: 'skipped-set', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: "take the union of every slice's skipped/traced note. A high-risk area that no slice covered is itself a finding (a coverage gap), not silence" },
+    { id: 'intent-annotation', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: "read the cited line's immediate neighbors and any referenced ticket/finding id for an explicit by-design / accepted-deferred / KNOWN annotation, or a docstring/comment that matches the observed behavior" },
+    { id: 'locate-the-handler', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: 'must actively LOCATE the would-be handler (the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement)' },
+    { id: 'headless-default', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'do not block: auto-scope from the repo, proceed on the safe default' },
+    { id: 'headless-defer', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: 'are deferred and reported, never silently applied. Surface every decision and critical finding in the final report instead of pausing' },
+    { id: 'circuit-breaker-core', files: CONVS('code-ops-suite', 'rigor'),
+      text: 'stop the fix loop. A cascading cluster is evidence of an architectural problem, not a bug collection' },
+    { id: 'circuit-breaker-checkpoint', files: CONVS('code-ops-suite', 'rigor'),
+      text: 'present options at a checkpoint instead of attempting the next fix. In a headless run, defer the remaining cluster and report it' },
+    { id: 'non-secret-anchor', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value). If no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.' },
+    { id: 'terminal-forms', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: 'A consumed item ends in exactly one pinned terminal form (`closed-with-proof <commit/PR>`, `deferred-with-reason <reason>`, or `OBSOLETE-AT <sha>`) and never silently disappears' },
+    { id: 'read-once', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it' },
+    { id: 'prefilter-first', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'Pre-filter first, read narrow: at a phase boundary run the checker BEFORE any wholesale register read, then read only the non-FRESH/DRIFTED entries in full' },
+    { id: 'repanel-skip', files: CONVS('code-ops-suite', 'rigor'),
+      text: 'is NOT re-paneled. The receipts are the verdict, and any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline, never the full register' },
+    { id: 'map-once', files: CONVS('code-ops-suite', 'rigor'),
+      text: 'hand the verified context artifact to every operative brief. Operatives consult it first and use search only to go deeper than it reaches, never to re-derive layout or find definitions it already lists' },
+    { id: 'always-gated-core', files: ['plugins/code-ops-suite/CONVENTIONS.md', 'plugins/code-ops-suite/skills/everything/SKILL.md'],
+      text: '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge' },
+    { id: 'operative-failure', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: "failed dispatch, not a weak signal. Never synthesize around a missing report or fill its gap from the orchestrator's own assumptions" },
+    { id: 'failure-ladder', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'redispatch once with a tightened, smaller brief. Then escalate at the next checkpoint' },
+    { id: 'ledger-atomicity', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: 'The row is written **at dispatch time**, atomically with the dispatch call itself, never a turn earlier or later, because a row written before its dispatch is a phantom indistinguishable from a hung operative' },
+    { id: 'report-persistence', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: "Every operative report lands as a file in the run's artifact folder, at the exact path its brief names. That path governs over any default reporting instruction in the agent definition. An operative with a file-write tool writes its full report to that path and returns only a pointer: the path, a one-line verdict, and counts. The lead verifies that file through the shape gate and never re-emits its body. It reads the body only when synthesis needs it. An operative without a write tool returns its report inline. The lead writes that report to the named path in the turn it arrives, before any other work. A report that exists only in the conversation is one blocked turn away from being lost." },
+    { id: 'report-shape-gate', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'A brief that never reached its operative is indistinguishable in the dispatch record from a completed dispatch until the report is read. Gate every report on shape (expected sections present, non-empty, evidence attached) before its unit counts as covered. A pointed-to report file that is missing, empty, or malformed fails that gate exactly as a malformed inline report does.' },
+    { id: 'tier-boundary', files: CONVS('code-ops-suite', 'rigor'),
+      text: "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript. A finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence" },
+    { id: 'panel-lens-diversity', files: CONVS('code-ops-suite', 'rigor'),
+      text: "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics. Identical readers repeat one another's misreads, and diversity catches what redundancy cannot." },
+    { id: 'tier-floor-carrier', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'On a host that ignores agent `model:` frontmatter the lead acknowledges that printed floor table and routes every dispatch at or above its floor by hand. A below-floor dispatch is a doctrine violation that `run-cost-audit` records as a `tier-routing` FAIL.' },
+    { id: 'last-paragraph-check', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.' },
+    { id: 'scope-discipline', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: 'A pre-existing bug, performance concern, or behavior the task does not name is reported as a follow-up, never fixed, optimized, or extended in this change unless the requested behavior cannot work without it.' },
+    { id: 'ordered-objective', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: 'The objective is ordered: correctness and the safety floor, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines wins only between candidates equal on the first four.' },
+    { id: 'ladder-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite'),
+      text: "Before writing code, climb the ladder in order: does it need to exist (scope is the request), does it exist here (search before you write), does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory), does it fit inside the owning module (extend before you add a file), and is there evidence to extract (a second caller, a unit that needs its own test, or a file past the repository's own size norm). Then write the minimum edge-case-correct implementation." },
+    { id: 'writing-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: 'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.' },
+    { id: 'code-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
+      text: "Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed." },
+  ];
 
-// Same drift gate as SHARED_PASSAGES, but for the operative agent definitions
-// (plugins/*/agents/*.md) rather than CONVENTIONS.md — these carry their own
-// near-identical doctrine clauses (escalate-don't-guess, redact-secrets,
-// dense/evidence-cited-report) with no other mechanical backstop.
-const AGENTS = (...paths) => paths;
-const AGENT_SHARED_PASSAGES = [
-  { id: 'agent-escalate-dont-guess', files: AGENTS(
-      'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
-      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
-      'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
-      'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
-      'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
-    text: 'return the open question to the orchestrator instead of guessing' },
-  { id: 'agent-redact-secrets-full', files: AGENTS(
-      'plugins/code-ops-suite/agents/explorer.md', 'plugins/researcher/agents/claim-checker.md',
-      'plugins/researcher/agents/gatherer.md', 'plugins/rigor/agents/tracer.md'),
-    text: 'Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.' },
-  { id: 'agent-redact-secrets-short', files: AGENTS(
-      'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
-      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/rigor/agents/verifier.md'),
-    text: 'Redact secrets/PII.' },
-  { id: 'agent-dense-evidence-cited', files: AGENTS(
-      'plugins/code-ops-suite/agents/mech-review.md',
-      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
-      'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md', 'plugins/rigor/agents/tracer.md'),
-    text: 'dense and evidence-cited' },
-  { id: 'agent-batch-tool-calls', files: AGENTS(
-      'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
-      'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
-      'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
-      'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
-      'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
-    text: 'Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.' },
-  { id: 'agent-tier-boundary', files: AGENTS(
-      'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
-      'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
-    text: "label a finding CONFIRMED only when an executed repro or trace appears in your own transcript. A finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call" },
-];
-for (const p of [...SHARED_PASSAGES, ...AGENT_SHARED_PASSAGES]) {
-  for (const f of p.files) {
-    const abs = join(ROOT, ...f.split('/'));
-    if (!existsSync(abs)) { fail(`SHARED_PASSAGES ${p.id}: listed file missing: ${f}`); continue; }
-    if (!readText(abs).includes(p.text))
-      fail(`${f}: shared passage "${p.id}" is absent or has drifted — doctrine cores are edited in every listed copy in the same commit (SHARED_PASSAGES in this linter)`);
+  // Same drift gate as SHARED_PASSAGES, but for the operative agent definitions
+  // (plugins/*/agents/*.md) rather than CONVENTIONS.md — these carry their own
+  // near-identical doctrine clauses (escalate-don't-guess, redact-secrets,
+  // dense/evidence-cited-report) with no other mechanical backstop.
+  const AGENTS = (...paths) => paths;
+  const AGENT_SHARED_PASSAGES = [
+    { id: 'agent-escalate-dont-guess', files: AGENTS(
+        'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
+        'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
+        'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+        'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
+        'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
+      text: 'return the open question to the orchestrator instead of guessing' },
+    { id: 'agent-redact-secrets-full', files: AGENTS(
+        'plugins/code-ops-suite/agents/explorer.md', 'plugins/researcher/agents/claim-checker.md',
+        'plugins/researcher/agents/gatherer.md', 'plugins/rigor/agents/tracer.md'),
+      text: 'Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.' },
+    { id: 'agent-redact-secrets-short', files: AGENTS(
+        'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
+        'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/rigor/agents/verifier.md'),
+      text: 'Redact secrets/PII.' },
+    { id: 'agent-dense-evidence-cited', files: AGENTS(
+        'plugins/code-ops-suite/agents/mech-review.md',
+        'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+        'plugins/researcher/agents/claim-checker.md', 'plugins/rigor/agents/verifier.md', 'plugins/rigor/agents/tracer.md'),
+      text: 'dense and evidence-cited' },
+    { id: 'agent-batch-tool-calls', files: AGENTS(
+        'plugins/code-ops-suite/agents/mech.md', 'plugins/code-ops-suite/agents/mech-review.md',
+        'plugins/code-ops-suite/agents/explorer.md', 'plugins/code-ops-suite/agents/reviewer.md', 'plugins/code-ops-suite/agents/implementer.md',
+        'plugins/privacy-opsec-suite/agents/explorer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+        'plugins/researcher/agents/claim-checker.md', 'plugins/researcher/agents/gatherer.md',
+        'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
+      text: 'Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.' },
+    { id: 'agent-tier-boundary', files: AGENTS(
+        'plugins/code-ops-suite/agents/reviewer.md', 'plugins/privacy-opsec-suite/agents/privacy-reviewer.md',
+        'plugins/rigor/agents/tracer.md', 'plugins/rigor/agents/verifier.md'),
+      text: "label a finding CONFIRMED only when an executed repro or trace appears in your own transcript. A finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call" },
+  ];
+  for (const p of [...SHARED_PASSAGES, ...AGENT_SHARED_PASSAGES]) {
+    for (const f of p.files) {
+      const abs = join(ROOT, ...f.split('/'));
+      if (!existsSync(abs)) { fail(`SHARED_PASSAGES ${p.id}: listed file missing: ${f}`); continue; }
+      if (!readText(abs).includes(p.text))
+        fail(`${f}: shared passage "${p.id}" is absent or has drifted — doctrine cores are edited in every listed copy in the same commit (SHARED_PASSAGES in this linter)`);
+    }
   }
 }
 
 // ---- 16. advisory: root scripts with no reference under evals/ (never gates) ----
-// Mirrors revalidate-register.mjs's --dispatch-ledger block: this is informational only
-// and must never affect the exit code. A script with zero evals/ hits is a candidate for
-// a regression eval, not a structural problem.
 function walkFiles(dir, out = []) {
   if (!existsSync(dir)) return out;
   for (const d of readdirSync(dir, { withFileTypes: true })) {
@@ -1018,54 +1049,62 @@ function walkFiles(dir, out = []) {
   }
   return out;
 }
-{
-  const evalsDir = join(ROOT, 'evals');
-  const evalsContent = walkFiles(evalsDir).filter((f) => f.endsWith('.mjs')).map((f) => readFileSync(f, 'utf8')).join('\n');
-  const scriptsDir = join(ROOT, 'scripts');
-  if (existsSync(scriptsDir)) {
-    for (const f of readdirSync(scriptsDir)) {
-      if (!f.endsWith('.mjs')) continue;
-      if (!evalsContent.includes(f))
-        warn(`scripts/${f} has no reference under evals/ — consider a regression eval`);
+
+function adviseUnevaluatedScripts() {
+  // Mirrors revalidate-register.mjs's --dispatch-ledger block: this is informational only
+  // and must never affect the exit code. A script with zero evals/ hits is a candidate for
+  // a regression eval, not a structural problem.
+  {
+    const evalsDir = join(ROOT, 'evals');
+    const evalsContent = walkFiles(evalsDir).filter((f) => f.endsWith('.mjs')).map((f) => readFileSync(f, 'utf8')).join('\n');
+    const scriptsDir = join(ROOT, 'scripts');
+    if (existsSync(scriptsDir)) {
+      for (const f of readdirSync(scriptsDir)) {
+        if (!f.endsWith('.mjs')) continue;
+        if (!evalsContent.includes(f))
+          warn(`scripts/${f} has no reference under evals/ — consider a regression eval`);
+      }
     }
   }
 }
 
 // ---- 17. skill-composition.md edge resolution -------------------------------
-// The composition map's table rows ("From skill" / "Invokes" columns) name
-// `<plugin>:<skill>` edges in backticks. Each side must resolve to a real
-// plugins/<plugin>/skills/<skill>/ directory — the same drift class as the
-// qualified-reference check (5) above, but for the standalone doc instead of a
-// SKILL.md body, since nothing else re-derives this map from the skill tree.
-// Scope note: this check deliberately validates rows PAGE-WIDE — any table row
-// anywhere on the page must name resolvable skills. Check 22 below is narrower on
-// purpose: it derives the edge set only from the rows under "## The edges", and
-// separately refuses edge-shaped rows parked outside that section. Both loops skip
-// fenced code blocks, so a markdown example on the page is not read as page structure.
-{
-  const compPath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'skill-composition.md');
-  if (existsSync(compPath)) {
-    const lines = readText(compPath).split('\n');
-    // A fenced example is illustration, not page structure, so its rows are skipped —
-    // the same treatment check-doc-citations.mjs gives fences in its own line loop. The
-    // page-wide scope outside fences is unchanged.
-    let inFence = false;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (/^\s{0,3}```/.test(line)) { inFence = !inFence; continue; }
-      if (inFence) continue;
-      if (!line.trim().startsWith('|')) continue;
-      if (/^\|[\s:-]+\|/.test(line)) continue; // header separator row (---|---)
-      const cells = line.split('|');
-      // "From skill" is cells[1], "Invokes" is cells[2] (cells[0] is the empty prefix before the first pipe).
-      for (const cell of [cells[1], cells[2]]) {
-        if (!cell) continue;
-        for (const m of cell.matchAll(/`([a-z0-9-]+):([a-z0-9-]+)`/g)) {
-          const [, pn, sn] = m;
-          const target = pluginByName.get(pn);
-          if (!target) fail(`${rel(compPath)}:${i + 1}: edge references unknown plugin "${pn}" in "${pn}:${sn}"`);
-          else if (!target.skills.includes(sn))
-            fail(`${rel(compPath)}:${i + 1}: edge references unresolvable skill "${pn}:${sn}" — no plugins/${pn}/skills/${sn}/ directory`);
+function checkCompositionEdges({ pluginByName }) {
+  // The composition map's table rows ("From skill" / "Invokes" columns) name
+  // `<plugin>:<skill>` edges in backticks. Each side must resolve to a real
+  // plugins/<plugin>/skills/<skill>/ directory — the same drift class as the
+  // qualified-reference check (5) above, but for the standalone doc instead of a
+  // SKILL.md body, since nothing else re-derives this map from the skill tree.
+  // Scope note: this check deliberately validates rows PAGE-WIDE — any table row
+  // anywhere on the page must name resolvable skills. Check 22 below is narrower on
+  // purpose: it derives the edge set only from the rows under "## The edges", and
+  // separately refuses edge-shaped rows parked outside that section. Both loops skip
+  // fenced code blocks, so a markdown example on the page is not read as page structure.
+  {
+    const compPath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'skill-composition.md');
+    if (existsSync(compPath)) {
+      const lines = readText(compPath).split('\n');
+      // A fenced example is illustration, not page structure, so its rows are skipped —
+      // the same treatment check-doc-citations.mjs gives fences in its own line loop. The
+      // page-wide scope outside fences is unchanged.
+      let inFence = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^\s{0,3}```/.test(line)) { inFence = !inFence; continue; }
+        if (inFence) continue;
+        if (!line.trim().startsWith('|')) continue;
+        if (/^\|[\s:-]+\|/.test(line)) continue; // header separator row (---|---)
+        const cells = line.split('|');
+        // "From skill" is cells[1], "Invokes" is cells[2] (cells[0] is the empty prefix before the first pipe).
+        for (const cell of [cells[1], cells[2]]) {
+          if (!cell) continue;
+          for (const m of cell.matchAll(/`([a-z0-9-]+):([a-z0-9-]+)`/g)) {
+            const [, pn, sn] = m;
+            const target = pluginByName.get(pn);
+            if (!target) fail(`${rel(compPath)}:${i + 1}: edge references unknown plugin "${pn}" in "${pn}:${sn}"`);
+            else if (!target.skills.includes(sn))
+              fail(`${rel(compPath)}:${i + 1}: edge references unresolvable skill "${pn}:${sn}" — no plugins/${pn}/skills/${sn}/ directory`);
+          }
         }
       }
     }
@@ -1073,391 +1112,435 @@ function walkFiles(dir, out = []) {
 }
 
 // ---- 18. eval-wired-to-CI gate ----------------------------------------------
-// (check name: `eval-wired-to-ci`)
-// A regression eval that isn't invoked in CI provides no real backstop — it can silently
-// rot with nobody noticing it stopped running. For every evals/<name>/ directory that
-// contains a run.mjs, the literal string `node evals/<name>/run.mjs` must appear somewhere
-// in .github/workflows/validate.yml. Judgment-eval dirs without a run.mjs (e.g. ones that
-// are only ever driven by evals/score.mjs against an ANSWER_KEY) are naturally out of scope
-// — the glob keys on run.mjs existing, not on the directory existing.
-{
-  const evalsRootDir = join(ROOT, 'evals');
-  const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
-  if (!existsSync(workflowPath)) {
-    fail(`missing ${rel(workflowPath)} — cannot verify evals are wired into CI`);
-  } else {
-    const workflowText = readText(workflowPath);
-    for (const name of listDirs(evalsRootDir)) {
-      const runPath = join(evalsRootDir, name, 'run.mjs');
-      if (!existsSync(runPath)) continue; // no run.mjs -> not an eval this check tracks
-      const needle = `node evals/${name}/run.mjs`;
-      if (!workflowText.includes(needle))
-        fail(`evals/${name}/run.mjs exists but is not invoked in ${rel(workflowPath)} (expected the literal string "${needle}")`);
+function checkEvalsWired() {
+  // (check name: `eval-wired-to-ci`)
+  // A regression eval that isn't invoked in CI provides no real backstop — it can silently
+  // rot with nobody noticing it stopped running. For every evals/<name>/ directory that
+  // contains a run.mjs, the literal string `node evals/<name>/run.mjs` must appear somewhere
+  // in .github/workflows/validate.yml. Judgment-eval dirs without a run.mjs (e.g. ones that
+  // are only ever driven by evals/score.mjs against an ANSWER_KEY) are naturally out of scope
+  // — the glob keys on run.mjs existing, not on the directory existing.
+  {
+    const evalsRootDir = join(ROOT, 'evals');
+    const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
+    if (!existsSync(workflowPath)) {
+      fail(`missing ${rel(workflowPath)} — cannot verify evals are wired into CI`);
+    } else {
+      const workflowText = readText(workflowPath);
+      for (const name of listDirs(evalsRootDir)) {
+        const runPath = join(evalsRootDir, name, 'run.mjs');
+        if (!existsSync(runPath)) continue; // no run.mjs -> not an eval this check tracks
+        const needle = `node evals/${name}/run.mjs`;
+        if (!workflowText.includes(needle))
+          fail(`evals/${name}/run.mjs exists but is not invoked in ${rel(workflowPath)} (expected the literal string "${needle}")`);
+      }
     }
   }
 }
 
 // ---- 23. repository CI dependency-policy wiring ----------------------------
-// This rule belongs to the marketplace repository, not to the portable plugin linter.
-// Synthetic consumers omit marketplace.name and therefore do not inherit this repo's CI files.
-if (mp?.name === 'code-ops') {
-  const required = [
-    '.node-version',
-    '.github/actions-lock.json',
-    '.github/dependabot.yml',
-    'scripts/check-action-pins.mjs',
-  ];
-  for (const path of required) if (!existsSync(join(ROOT, ...path.split('/')))) fail(`missing repository CI dependency-policy file: ${path}`);
+function checkDependencyPolicy({ mp }) {
+  // This rule belongs to the marketplace repository, not to the portable plugin linter.
+  // Synthetic consumers omit marketplace.name and therefore do not inherit this repo's CI files.
+  if (mp?.name === 'code-ops') {
+    const required = [
+      '.node-version',
+      '.github/actions-lock.json',
+      '.github/dependabot.yml',
+      'scripts/check-action-pins.mjs',
+    ];
+    for (const path of required) if (!existsSync(join(ROOT, ...path.split('/')))) fail(`missing repository CI dependency-policy file: ${path}`);
 
-  const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
-  if (!existsSync(workflowPath)) fail('missing .github/workflows/validate.yml — cannot verify action-pin gate wiring');
-  else {
-    const workflowText = readText(workflowPath);
-    const needle = 'node scripts/check-action-pins.mjs';
-    const count = workflowText.split(needle).length - 1;
-    if (count !== 2) fail(`.github/workflows/validate.yml must invoke "${needle}" once per platform (expected 2, found ${count})`);
+    const workflowPath = join(ROOT, '.github', 'workflows', 'validate.yml');
+    if (!existsSync(workflowPath)) fail('missing .github/workflows/validate.yml — cannot verify action-pin gate wiring');
+    else {
+      const workflowText = readText(workflowPath);
+      const needle = 'node scripts/check-action-pins.mjs';
+      const count = workflowText.split(needle).length - 1;
+      if (count !== 2) fail(`.github/workflows/validate.yml must invoke "${needle}" once per platform (expected 2, found ${count})`);
 
-    // Sharded gate wiring: each aggregate gate job must need exactly its <gate>-shard-<n> jobs,
-    // run under if: always(), and fail unless every needed result is success. Otherwise a new
-    // shard left out of needs:, or a skipped or cancelled shard, would pass the required status.
-    const wfLines = workflowText.split(/\r?\n/);
-    const jobIds = wfLines.map((l) => /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(l)?.[1]).filter(Boolean);
-    const jobBlock = (id) => { const s = wfLines.indexOf(`  ${id}:`); let e = s + 1; while (e < wfLines.length && !/^ {2}\S/.test(wfLines[e])) e++; return wfLines.slice(s + 1, e); };
-    for (const gate of ['structural-lint', 'structural-lint-windows']) {
-      if (!jobIds.includes(gate)) { fail(`.github/workflows/validate.yml is missing the ${gate} gate job`); continue; }
-      const block = jobBlock(gate);
-      const shards = jobIds.filter((id) => new RegExp(`^${gate}-shard-\\d+$`).test(id)).sort();
-      const needsLine = block.map((l) => /^ {4}needs:\s*\[(.*)\]\s*$/.exec(l)).find(Boolean);
-      const needs = needsLine ? needsLine[1].split(',').map((s) => s.trim()).filter(Boolean).sort() : [];
-      if (!shards.length) fail(`.github/workflows/validate.yml: ${gate} has no ${gate}-shard-<n> jobs`);
-      if (JSON.stringify(needs) !== JSON.stringify(shards)) fail(`.github/workflows/validate.yml: ${gate} must need exactly its shards in flow form (needs [${needs.join(', ')}], shards [${shards.join(', ')}])`);
-      if (!block.some((l) => /^ {4}if: always\(\)\s*$/.test(l))) fail(`.github/workflows/validate.yml: ${gate} must run with if: always() so a failed or skipped shard fails it`);
-      if (!block.some((l) => l.includes('needs[id].result !== "success"'))) fail(`.github/workflows/validate.yml: ${gate} must fail unless every needed shard result is success`);
+      // Sharded gate wiring: each aggregate gate job must need exactly its <gate>-shard-<n> jobs,
+      // run under if: always(), and fail unless every needed result is success. Otherwise a new
+      // shard left out of needs:, or a skipped or cancelled shard, would pass the required status.
+      const wfLines = workflowText.split(/\r?\n/);
+      const jobIds = wfLines.map((l) => /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(l)?.[1]).filter(Boolean);
+      const jobBlock = (id) => { const s = wfLines.indexOf(`  ${id}:`); let e = s + 1; while (e < wfLines.length && !/^ {2}\S/.test(wfLines[e])) e++; return wfLines.slice(s + 1, e); };
+      for (const gate of ['structural-lint', 'structural-lint-windows']) {
+        if (!jobIds.includes(gate)) { fail(`.github/workflows/validate.yml is missing the ${gate} gate job`); continue; }
+        const block = jobBlock(gate);
+        const shards = jobIds.filter((id) => new RegExp(`^${gate}-shard-\\d+$`).test(id)).sort();
+        const needsLine = block.map((l) => /^ {4}needs:\s*\[(.*)\]\s*$/.exec(l)).find(Boolean);
+        const needs = needsLine ? needsLine[1].split(',').map((s) => s.trim()).filter(Boolean).sort() : [];
+        if (!shards.length) fail(`.github/workflows/validate.yml: ${gate} has no ${gate}-shard-<n> jobs`);
+        if (JSON.stringify(needs) !== JSON.stringify(shards)) fail(`.github/workflows/validate.yml: ${gate} must need exactly its shards in flow form (needs [${needs.join(', ')}], shards [${shards.join(', ')}])`);
+        if (!block.some((l) => /^ {4}if: always\(\)\s*$/.test(l))) fail(`.github/workflows/validate.yml: ${gate} must run with if: always() so a failed or skipped shard fails it`);
+        if (!block.some((l) => l.includes('needs[id].result !== "success"'))) fail(`.github/workflows/validate.yml: ${gate} must fail unless every needed shard result is success`);
+      }
     }
   }
 }
 
 // ---- 19. auto-merge denylist ------------------------------------------------
-// SHARED_PASSAGES 'always-gated-core' pins "**Never auto-merge" as doctrine; this backs it
-// with a mechanical scan of the surfaces that could actually WIRE auto-merge into a
-// workflow, script, or hook: plugins/**/*.mjs, scripts/*.mjs, .github/workflows/*.yml,
-// plugins/**/hooks/*.json. .md files are deliberately excluded — doctrine prose legitimately
-// talks ABOUT never auto-merging.
-//
-// The denylist tokens below are built via concatenation — never written as a single
-// contiguous literal anywhere in this file, including in the fail messages (which reference
-// the token variables via interpolation rather than retyping them) — so this check's own
-// source in scripts/lint-plugins.mjs can never trip its own denylist when scripts/*.mjs is
-// scanned. Same self-exclusion problem scan-ai-tells.mjs sidesteps by simply never
-// containing the tells it looks for; here the tells ARE representable in code, so they're
-// split instead.
-{
-  const TOK_GH_MERGE = 'gh' + ' pr ' + 'merge';
-  const TOK_AUTO_FLAG = '--' + 'auto';
-  const TOK_AUTO_MERGE_KEY = 'auto' + '_merge';
-  const TOK_ENABLE_AUTOMERGE = 'enablePullRequestAuto' + 'Merge';
-  const autoFlagRe = new RegExp(escapeRe(TOK_AUTO_FLAG) + '(?![a-zA-Z0-9-])');
-  const autoMergeKeyRe = new RegExp(escapeRe(TOK_AUTO_MERGE_KEY) + '\\s*[:=]\\s*(true|"true"|\'true\'|1|yes)\\b', 'i');
+function checkAutoMergeDenylist() {
+  // SHARED_PASSAGES 'always-gated-core' pins "**Never auto-merge" as doctrine; this backs it
+  // with a mechanical scan of the surfaces that could actually WIRE auto-merge into a
+  // workflow, script, or hook: plugins/**/*.mjs, scripts/*.mjs, .github/workflows/*.yml,
+  // plugins/**/hooks/*.json. .md files are deliberately excluded — doctrine prose legitimately
+  // talks ABOUT never auto-merging.
+  //
+  // The denylist tokens below are built via concatenation — never written as a single
+  // contiguous literal anywhere in this file, including in the fail messages (which reference
+  // the token variables via interpolation rather than retyping them) — so this check's own
+  // source in scripts/lint-plugins.mjs can never trip its own denylist when scripts/*.mjs is
+  // scanned. Same self-exclusion problem scan-ai-tells.mjs sidesteps by simply never
+  // containing the tells it looks for; here the tells ARE representable in code, so they're
+  // split instead.
+  {
+    const TOK_GH_MERGE = 'gh' + ' pr ' + 'merge';
+    const TOK_AUTO_FLAG = '--' + 'auto';
+    const TOK_AUTO_MERGE_KEY = 'auto' + '_merge';
+    const TOK_ENABLE_AUTOMERGE = 'enablePullRequestAuto' + 'Merge';
+    const autoFlagRe = new RegExp(escapeRe(TOK_AUTO_FLAG) + '(?![a-zA-Z0-9-])');
+    const autoMergeKeyRe = new RegExp(escapeRe(TOK_AUTO_MERGE_KEY) + '\\s*[:=]\\s*(true|"true"|\'true\'|1|yes)\\b', 'i');
 
-  const autoMergeTargets = [];
-  for (const f of walkFiles(join(ROOT, 'plugins'))) {
-    const r = f.replaceAll('\\', '/');
-    if (r.endsWith('.mjs') || (r.endsWith('.json') && /\/hooks\/[^/]+\.json$/.test(r))) autoMergeTargets.push(f);
-  }
-  const amScriptsDir = join(ROOT, 'scripts');
-  if (existsSync(amScriptsDir)) for (const f of readdirSync(amScriptsDir)) if (f.endsWith('.mjs')) autoMergeTargets.push(join(amScriptsDir, f));
-  const amWorkflowsDir = join(ROOT, '.github', 'workflows');
-  if (existsSync(amWorkflowsDir)) for (const f of readdirSync(amWorkflowsDir)) if (f.endsWith('.yml')) autoMergeTargets.push(join(amWorkflowsDir, f));
+    const autoMergeTargets = [];
+    for (const f of walkFiles(join(ROOT, 'plugins'))) {
+      const r = f.replaceAll('\\', '/');
+      if (r.endsWith('.mjs') || (r.endsWith('.json') && /\/hooks\/[^/]+\.json$/.test(r))) autoMergeTargets.push(f);
+    }
+    const amScriptsDir = join(ROOT, 'scripts');
+    if (existsSync(amScriptsDir)) for (const f of readdirSync(amScriptsDir)) if (f.endsWith('.mjs')) autoMergeTargets.push(join(amScriptsDir, f));
+    const amWorkflowsDir = join(ROOT, '.github', 'workflows');
+    if (existsSync(amWorkflowsDir)) for (const f of readdirSync(amWorkflowsDir)) if (f.endsWith('.yml')) autoMergeTargets.push(join(amWorkflowsDir, f));
 
-  for (const f of autoMergeTargets) {
-    const lines = readText(f).split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.includes(TOK_GH_MERGE) && autoFlagRe.test(line))
-        fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_GH_MERGE}" combined with "${TOK_AUTO_FLAG}" on the same line (never auto-merge)`);
-      if (autoMergeKeyRe.test(line))
-        fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_AUTO_MERGE_KEY}" set to a true-ish value (never auto-merge)`);
-      if (line.includes(TOK_ENABLE_AUTOMERGE))
-        fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_ENABLE_AUTOMERGE}" referenced (never auto-merge)`);
+    for (const f of autoMergeTargets) {
+      const lines = readText(f).split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes(TOK_GH_MERGE) && autoFlagRe.test(line))
+          fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_GH_MERGE}" combined with "${TOK_AUTO_FLAG}" on the same line (never auto-merge)`);
+        if (autoMergeKeyRe.test(line))
+          fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_AUTO_MERGE_KEY}" set to a true-ish value (never auto-merge)`);
+        if (line.includes(TOK_ENABLE_AUTOMERGE))
+          fail(`${rel(f)}:${i + 1}: auto-merge denylist — "${TOK_ENABLE_AUTOMERGE}" referenced (never auto-merge)`);
+      }
     }
   }
 }
 
 // ---- 20. standards contract import ---------------------------------------------
-// The repo's standards contract ships under two names because hosts read different files:
-// Claude Code reads CLAUDE.md; Codex reads AGENTS.md; opencode reads AGENTS.md and only
-// falls back to CLAUDE.md when AGENTS.md is ABSENT; Grok Build reads both. Two full copies
-// cost Grok the contract twice per turn, and a divergence is invisible on the hosts that
-// read the other copy (the writing-standard section once lived in CLAUDE.md alone). So
-// AGENTS.md holds the only copy and CLAUDE.md is exactly Claude Code's import line for it.
-// Anything else in CLAUDE.md, including a full copy, fails closed.
-{
-  const claudeMd = join(ROOT, 'CLAUDE.md');
-  const agentsMd = join(ROOT, 'AGENTS.md');
-  const IMPORT_LINE = '@AGENTS.md';
-  if (!existsSync(agentsMd)) fail('AGENTS.md is missing — it carries the repo standards contract that Codex, opencode, and Grok Build read and that CLAUDE.md imports');
-  else if (readText(agentsMd).trim() === '') fail('AGENTS.md is empty — it carries the repo standards contract that every host reads directly or through the CLAUDE.md import');
-  if (!existsSync(claudeMd)) fail('CLAUDE.md is missing — Claude Code reads it and must find the import line `@AGENTS.md` there');
-  else {
-    const text = readText(claudeMd);
-    if (text !== IMPORT_LINE && text !== `${IMPORT_LINE}\n`) {
-      fail('CLAUDE.md must be exactly the import line `@AGENTS.md` with at most one trailing newline — AGENTS.md holds the only copy of the contract. Edit AGENTS.md and restore CLAUDE.md to the import line.');
+function checkStandardsContract() {
+  // The repo's standards contract ships under two names because hosts read different files:
+  // Claude Code reads CLAUDE.md; Codex reads AGENTS.md; opencode reads AGENTS.md and only
+  // falls back to CLAUDE.md when AGENTS.md is ABSENT; Grok Build reads both. Two full copies
+  // cost Grok the contract twice per turn, and a divergence is invisible on the hosts that
+  // read the other copy (the writing-standard section once lived in CLAUDE.md alone). So
+  // AGENTS.md holds the only copy and CLAUDE.md is exactly Claude Code's import line for it.
+  // Anything else in CLAUDE.md, including a full copy, fails closed.
+  {
+    const claudeMd = join(ROOT, 'CLAUDE.md');
+    const agentsMd = join(ROOT, 'AGENTS.md');
+    const IMPORT_LINE = '@AGENTS.md';
+    if (!existsSync(agentsMd)) fail('AGENTS.md is missing — it carries the repo standards contract that Codex, opencode, and Grok Build read and that CLAUDE.md imports');
+    else if (readText(agentsMd).trim() === '') fail('AGENTS.md is empty — it carries the repo standards contract that every host reads directly or through the CLAUDE.md import');
+    if (!existsSync(claudeMd)) fail('CLAUDE.md is missing — Claude Code reads it and must find the import line `@AGENTS.md` there');
+    else {
+      const text = readText(claudeMd);
+      if (text !== IMPORT_LINE && text !== `${IMPORT_LINE}\n`) {
+        fail('CLAUDE.md must be exactly the import line `@AGENTS.md` with at most one trailing newline — AGENTS.md holds the only copy of the contract. Edit AGENTS.md and restore CLAUDE.md to the import line.');
+      }
     }
   }
 }
 
 // ---- 22. skill-composition.md edge completeness ------------------------------
-// (check name: `composition-map-parity`)
-// Check 17 proves each named edge RESOLVES; it never proves the map matches the tree.
-// This one closes that gap in both directions, using the page's own derivation rule:
-// every qualified `<plugin>:<skill>` reference (leading slash optional) in a
-// plugins/*/skills/*/SKILL.md, excluding the skill's own name, must have a table row,
-// and every table row must have such a reference. A skill's self-declaring "Invoked as"
-// line needs no special case: the only reference it carries is the skill's own name,
-// which the self-exclusion already drops. Guarded on the page existing so a checkout
-// without it still lints. The table scan derives edges only from the rows under the
-// page's "## The edges" heading (subheadings nested below it stay inside the section),
-// and an edge-shaped row anywhere else on the page fails outright, so the scoping is
-// not an escape hatch. Fenced code blocks are skipped: an example is not structure.
-{
-  const compPath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'skill-composition.md');
-  if (existsSync(compPath)) {
-    const known = new Set();
-    for (const p of plugins) for (const s of p.skills) known.add(`${p.name}:${s}`);
+function checkCompositionCompleteness({ plugins }) {
+  // (check name: `composition-map-parity`)
+  // Check 17 proves each named edge RESOLVES; it never proves the map matches the tree.
+  // This one closes that gap in both directions, using the page's own derivation rule:
+  // every qualified `<plugin>:<skill>` reference (leading slash optional) in a
+  // plugins/*/skills/*/SKILL.md, excluding the skill's own name, must have a table row,
+  // and every table row must have such a reference. A skill's self-declaring "Invoked as"
+  // line needs no special case: the only reference it carries is the skill's own name,
+  // which the self-exclusion already drops. Guarded on the page existing so a checkout
+  // without it still lints. The table scan derives edges only from the rows under the
+  // page's "## The edges" heading (subheadings nested below it stay inside the section),
+  // and an edge-shaped row anywhere else on the page fails outright, so the scoping is
+  // not an escape hatch. Fenced code blocks are skipped: an example is not structure.
+  {
+    const compPath = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'skill-composition.md');
+    if (existsSync(compPath)) {
+      const known = new Set();
+      for (const p of plugins) for (const s of p.skills) known.add(`${p.name}:${s}`);
 
-    // Edges present in the skill tree.
-    const inTree = new Map(); // "from>to" -> "path:line"
-    for (const p of plugins) {
-      for (const s of p.skills) {
-        const skPath = join(p.dir, 'skills', s, 'SKILL.md');
-        if (!existsSync(skPath)) continue;
-        const self = `${p.name}:${s}`;
-        const lines = readText(skPath).split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          for (const m of lines[i].matchAll(/\/?([a-z0-9-]+):([a-z0-9-]+)/g)) {
-            const target = `${m[1]}:${m[2]}`;
-            if (!known.has(target) || target === self) continue;
-            const key = `${self}>${target}`;
-            if (!inTree.has(key)) inTree.set(key, `${rel(skPath)}:${i + 1}`);
+      // Edges present in the skill tree.
+      const inTree = new Map(); // "from>to" -> "path:line"
+      for (const p of plugins) {
+        for (const s of p.skills) {
+          const skPath = join(p.dir, 'skills', s, 'SKILL.md');
+          if (!existsSync(skPath)) continue;
+          const self = `${p.name}:${s}`;
+          const lines = readText(skPath).split('\n');
+          for (let i = 0; i < lines.length; i++) {
+            for (const m of lines[i].matchAll(/\/?([a-z0-9-]+):([a-z0-9-]+)/g)) {
+              const target = `${m[1]}:${m[2]}`;
+              if (!known.has(target) || target === self) continue;
+              const key = `${self}>${target}`;
+              if (!inTree.has(key)) inTree.set(key, `${rel(skPath)}:${i + 1}`);
+            }
           }
         }
       }
-    }
 
-    // Edges claimed by the table under "## The edges" — the section the page declares as
-    // the map. Rows outside it (a future second table) are not edges. To keep that scoping
-    // from becoming an escape hatch, an edge-SHAPED row (backticked qualified skill names
-    // in both of the first two cells) found outside the section fails outright instead of
-    // going quiet: it is either a relocated edge or a row that should reword its cells.
-    const inTable = new Map(); // "from>to" -> line number
-    const compLines = readText(compPath).split('\n');
-    let inEdges = false;
-    let edgesLevel = 0;
-    // Fenced blocks are examples, not structure: a heading or an edge-shaped row inside
-    // one must not open, close, or populate the edges section.
-    let inFence = false;
-    for (let i = 0; i < compLines.length; i++) {
-      const line = compLines[i];
-      if (/^\s{0,3}```/.test(line)) { inFence = !inFence; continue; }
-      if (inFence) continue;
-      const heading = line.match(/^(#{1,6})\s+(.*)$/);
-      if (heading) {
-        // A subheading nested under "## The edges" stays inside the section; only a
-        // heading at the same or a higher level closes it.
-        const level = heading[1].length;
-        // A degenerate second "The edges" nested inside the first must not deepen the
-        // level, or a later sibling subheading would close the section early.
-        if (heading[2].trim().toLowerCase() === 'the edges') {
-          if (!inEdges) edgesLevel = level;
-          inEdges = true;
-        } else if (inEdges && level <= edgesLevel) {
-          inEdges = false;
+      // Edges claimed by the table under "## The edges" — the section the page declares as
+      // the map. Rows outside it (a future second table) are not edges. To keep that scoping
+      // from becoming an escape hatch, an edge-SHAPED row (backticked qualified skill names
+      // in both of the first two cells) found outside the section fails outright instead of
+      // going quiet: it is either a relocated edge or a row that should reword its cells.
+      const inTable = new Map(); // "from>to" -> line number
+      const compLines = readText(compPath).split('\n');
+      let inEdges = false;
+      let edgesLevel = 0;
+      // Fenced blocks are examples, not structure: a heading or an edge-shaped row inside
+      // one must not open, close, or populate the edges section.
+      let inFence = false;
+      for (let i = 0; i < compLines.length; i++) {
+        const line = compLines[i];
+        if (/^\s{0,3}```/.test(line)) { inFence = !inFence; continue; }
+        if (inFence) continue;
+        const heading = line.match(/^(#{1,6})\s+(.*)$/);
+        if (heading) {
+          // A subheading nested under "## The edges" stays inside the section; only a
+          // heading at the same or a higher level closes it.
+          const level = heading[1].length;
+          // A degenerate second "The edges" nested inside the first must not deepen the
+          // level, or a later sibling subheading would close the section early.
+          if (heading[2].trim().toLowerCase() === 'the edges') {
+            if (!inEdges) edgesLevel = level;
+            inEdges = true;
+          } else if (inEdges && level <= edgesLevel) {
+            inEdges = false;
+          }
+          continue;
         }
-        continue;
+        if (!line.trim().startsWith('|')) continue;
+        if (/^\|[\s:-]+\|/.test(line)) continue;
+        const cells = line.split('|');
+        const pick = (cell) => {
+          const m = cell ? cell.match(/`([a-z0-9-]+):([a-z0-9-]+)`/) : null;
+          return m ? `${m[1]}:${m[2]}` : null;
+        };
+        const from = pick(cells[1]);
+        const to = pick(cells[2]);
+        if (!from || !to) continue;
+        if (!inEdges) {
+          fail(`${rel(compPath)}:${i + 1}: edge-shaped row outside the edges section — "${from}" -> "${to}" sits outside "## The edges", where the map is derived; move it in or reword the cells`);
+          continue;
+        }
+        const key = `${from}>${to}`;
+        if (inTable.has(key)) fail(`${rel(compPath)}:${i + 1}: duplicate edge row "${from}" -> "${to}"`);
+        inTable.set(key, i + 1);
       }
-      if (!line.trim().startsWith('|')) continue;
-      if (/^\|[\s:-]+\|/.test(line)) continue;
-      const cells = line.split('|');
-      const pick = (cell) => {
-        const m = cell ? cell.match(/`([a-z0-9-]+):([a-z0-9-]+)`/) : null;
-        return m ? `${m[1]}:${m[2]}` : null;
-      };
-      const from = pick(cells[1]);
-      const to = pick(cells[2]);
-      if (!from || !to) continue;
-      if (!inEdges) {
-        fail(`${rel(compPath)}:${i + 1}: edge-shaped row outside the edges section — "${from}" -> "${to}" sits outside "## The edges", where the map is derived; move it in or reword the cells`);
-        continue;
-      }
-      const key = `${from}>${to}`;
-      if (inTable.has(key)) fail(`${rel(compPath)}:${i + 1}: duplicate edge row "${from}" -> "${to}"`);
-      inTable.set(key, i + 1);
-    }
 
-    for (const [key, where] of inTree) {
-      if (!inTable.has(key)) {
-        const [from, to] = key.split('>');
-        fail(`${where}: qualified reference "${to}" from "${from}" has no edge row in ${rel(compPath)}`);
+      for (const [key, where] of inTree) {
+        if (!inTable.has(key)) {
+          const [from, to] = key.split('>');
+          fail(`${where}: qualified reference "${to}" from "${from}" has no edge row in ${rel(compPath)}`);
+        }
       }
-    }
-    for (const [key, ln] of inTable) {
-      if (!inTree.has(key)) {
-        const [from, to] = key.split('>');
-        fail(`${rel(compPath)}:${ln}: edge row "${from}" -> "${to}" matches no qualified reference in any SKILL.md`);
+      for (const [key, ln] of inTable) {
+        if (!inTree.has(key)) {
+          const [from, to] = key.split('>');
+          fail(`${rel(compPath)}:${ln}: edge row "${from}" -> "${to}" matches no qualified reference in any SKILL.md`);
+        }
       }
     }
   }
 }
 
 // ---- 24. shipped references resolve outside a code-ops checkout -------------
-// (check name: `shipped-reference-integrity`)
-// An installed plugin cannot read the documentation hub, so a spec a skill executes against
-// ships inside the plugin as a vendored copy. The hub page stays the source of truth, and the
-// copy is derived, so it must stay byte-identical, the same contract as check 6 for scripts.
-{
-  const sourceDir = vendoredManifest.REFERENCE_SOURCE_DIR ?? '';
-  const references = vendoredManifest.VENDORED_REFERENCES ?? [];
-  for (const ref of references) for (const pn of ref.plugins) if (!pluginByName.has(pn)) fail(`VENDORED_REFERENCES lists unknown plugin "${pn}" for ${ref.name}`);
-  for (const ref of references) {
-    const canonical = join(ROOT, ...sourceDir.split('/'), ref.name);
-    if (!existsSync(canonical)) { fail(`missing canonical ${sourceDir}/${ref.name} for VENDORED_REFERENCES`); continue; }
-    const canon = readFileSync(canonical, 'utf8');
+function checkShippedReferences({ plugins, pluginByName }) {
+  // (check name: `shipped-reference-integrity`)
+  // An installed plugin cannot read the documentation hub, so a spec a skill executes against
+  // ships inside the plugin as a vendored copy. The hub page stays the source of truth, and the
+  // copy is derived, so it must stay byte-identical, the same contract as check 6 for scripts.
+  {
+    const sourceDir = vendoredManifest.REFERENCE_SOURCE_DIR ?? '';
+    const references = vendoredManifest.VENDORED_REFERENCES ?? [];
+    for (const ref of references) for (const pn of ref.plugins) if (!pluginByName.has(pn)) fail(`VENDORED_REFERENCES lists unknown plugin "${pn}" for ${ref.name}`);
+    for (const ref of references) {
+      const canonical = join(ROOT, ...sourceDir.split('/'), ref.name);
+      if (!existsSync(canonical)) { fail(`missing canonical ${sourceDir}/${ref.name} for VENDORED_REFERENCES`); continue; }
+      const canon = readFileSync(canonical, 'utf8');
+      for (const p of plugins) {
+        if (!ref.plugins.includes(p.name)) continue;
+        const copy = join(p.dir, 'reference', ref.name);
+        if (!existsSync(copy)) fail(`${p.name}: missing vendored reference/${ref.name} — run node scripts/sync-vendored.mjs`);
+        else if (readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: reference/${ref.name} has drifted from the canonical ${sourceDir}/${ref.name} — edit the hub page, then run node scripts/sync-vendored.mjs`);
+      }
+    }
     for (const p of plugins) {
-      if (!ref.plugins.includes(p.name)) continue;
-      const copy = join(p.dir, 'reference', ref.name);
-      if (!existsSync(copy)) fail(`${p.name}: missing vendored reference/${ref.name} — run node scripts/sync-vendored.mjs`);
-      else if (readFileSync(copy, 'utf8') !== canon) fail(`${p.name}: reference/${ref.name} has drifted from the canonical ${sourceDir}/${ref.name} — edit the hub page, then run node scripts/sync-vendored.mjs`);
-    }
-  }
-  for (const p of plugins) {
-    for (const file of walkFiles(join(p.dir, 'reference'))) {
-      const name = rel(file).slice(rel(join(p.dir, 'reference')).length + 1);
-      const declared = references.some((ref) => ref.name === name && ref.plugins.includes(p.name));
-      if (!declared) fail(`${p.name}: reference/${name} is not declared for this plugin in VENDORED_REFERENCES`);
-    }
-  }
-
-  // Tokens that name a code-ops checkout path. The lookbehind skips a token that continues a
-  // longer path or URL (`<marketplace>/code-ops-docs/`, `.../blob/main/scripts/x.mjs`) or follows
-  // a placeholder root (`<runtime scripts>/`, `${CLAUDE_PLUGIN_ROOT}/`).
-  const GUARD = String.raw`(?<![\w/>}$.-])`;
-  const HUB_RE = new RegExp(`${GUARD}code-ops-docs/(?=[\\w .-])`, 'g');
-  const CMD_RE = new RegExp(`${GUARD}node\\s+(?:scripts|evals)/[\\w./-]+`, 'g');
-  const CITE_RE = new RegExp(`${GUARD}((?:scripts|evals|\\.github)/(?:[\\w.-]+/)*[\\w-]+\\.[A-Za-z]\\w*)`, 'g');
-  // A backslash ends the path: a JSON-escaped quote (`\"`) must not join it, because POSIX keeps
-  // a trailing backslash in the file name while Windows drops it as a separator.
-  const PLUGIN_ROOT_RE = /(\$\{CLAUDE_PLUGIN_ROOT\}|\$\{PLUGIN_ROOT\}|<plugin-root>)\/([^\s`'"\\)\]]+)/g;
-  const PLACEHOLDER_RE = /[<>*{}$]|\.\.\./;
-  // A reference is legitimate where the text says it runs in the code-ops repository: in the
-  // same Markdown block, on the same line of code or data, or through a file-level marker on a
-  // skill's Mode line for a skill whose whole subject is this repository.
-  const MARKER_RE = /\bcode-ops repo(?:sitory)?\b|github\.com\/skylarsabo\/code-ops\b/i;
-  const FILE_MARKER_RE = /^\*\*Mode:\*\*.*\*\*Runs in:\*\* the code-ops repository\b/m;
-  const SCANNED_RE = /\.(md|mjs|js|json|ya?ml|toml)$/;
-  const CODE_RE = /\.(mjs|js)$/;
-  const UNREACHABLE = 'resolves only inside a code-ops checkout — link it "in the code-ops repository", ship it under the plugin root, or mark the passage';
-
-  // Markdown blocks: a blank line, a heading, or a `---` rule ends a block, and each frontmatter
-  // line is a block of its own. A fence joins the paragraph directly above it, and a blank line
-  // inside a fence does not end the block. Each line maps to the text of its block.
-  const markdownBlocks = (lines) => {
-    const blockOf = new Array(lines.length);
-    let start = 0;
-    let inFence = false;
-    const close = (end) => {
-      const text = lines.slice(start, end).join('\n');
-      for (let k = start; k < end; k++) blockOf[k] = text;
-    };
-    let i = 0;
-    const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
-    for (; i <= frontmatterEnd; i++) blockOf[i] = lines[i];
-    start = i;
-    for (; i < lines.length; i++) {
-      const line = lines[i];
-      if (/^\s*(```|~~~)/.test(line)) {
-        if (!inFence && !(i > start && lines[i - 1].trim() !== '')) { close(i); start = i; }
-        inFence = !inFence;
-        continue;
-      }
-      if (inFence) continue;
-      if (line.trim() === '' || /^#{1,6}\s/.test(line) || line === '---') {
-        close(i);
-        blockOf[i] = line;
-        start = i + 1;
+      for (const file of walkFiles(join(p.dir, 'reference'))) {
+        const name = rel(file).slice(rel(join(p.dir, 'reference')).length + 1);
+        const declared = references.some((ref) => ref.name === name && ref.plugins.includes(p.name));
+        if (!declared) fail(`${p.name}: reference/${name} is not declared for this plugin in VENDORED_REFERENCES`);
       }
     }
-    close(lines.length);
-    return blockOf;
-  };
 
-  const scanShipped = (surface, file, pluginDir) => {
-    const text = readText(file);
-    const markdown = file.endsWith('.md');
-    if (markdown && FILE_MARKER_RE.test(text)) return;
-    const code = CODE_RE.test(file);
-    const lines = text.split(/\r?\n/);
-    const scopes = markdown ? markdownBlocks(lines) : lines;
-    const report = (i, kind, token, why) => fail(`check 24 [${surface}] ${rel(file)}:${i + 1}: ${kind} reference "${token}" ${why}`);
-    lines.forEach((line, i) => {
-      if (code && /^\s*(\/\/|\/\*|\*)/.test(line)) return; // a source comment never reaches a user
-      if (MARKER_RE.test(scopes[i] ?? line)) return;
-      for (const m of line.matchAll(HUB_RE)) report(i, 'hub', line.slice(m.index).split(/[`'")\]]/)[0].slice(0, 90), UNREACHABLE);
-      for (const m of line.matchAll(CMD_RE)) report(i, 'cmd', m[0], UNREACHABLE);
-      if (!code) {
-        for (const m of line.matchAll(CITE_RE)) {
-          if (PLACEHOLDER_RE.test(m[1]) || /node\s+$/.test(line.slice(0, m.index))) continue;
-          if (pluginDir && existsSync(join(pluginDir, ...m[1].split('/')))) continue; // a plugin-relative name of a bundled file
-          report(i, 'cite', m[1], UNREACHABLE);
+    // Tokens that name a code-ops checkout path. The lookbehind skips a token that continues a
+    // longer path or URL (`<marketplace>/code-ops-docs/`, `.../blob/main/scripts/x.mjs`) or follows
+    // a placeholder root (`<runtime scripts>/`, `${CLAUDE_PLUGIN_ROOT}/`).
+    const GUARD = String.raw`(?<![\w/>}$.-])`;
+    const HUB_RE = new RegExp(`${GUARD}code-ops-docs/(?=[\\w .-])`, 'g');
+    const CMD_RE = new RegExp(`${GUARD}node\\s+(?:scripts|evals)/[\\w./-]+`, 'g');
+    const CITE_RE = new RegExp(`${GUARD}((?:scripts|evals|\\.github)/(?:[\\w.-]+/)*[\\w-]+\\.[A-Za-z]\\w*)`, 'g');
+    // A backslash ends the path: a JSON-escaped quote (`\"`) must not join it, because POSIX keeps
+    // a trailing backslash in the file name while Windows drops it as a separator.
+    const PLUGIN_ROOT_RE = /(\$\{CLAUDE_PLUGIN_ROOT\}|\$\{PLUGIN_ROOT\}|<plugin-root>)\/([^\s`'"\\)\]]+)/g;
+    const PLACEHOLDER_RE = /[<>*{}$]|\.\.\./;
+    // A reference is legitimate where the text says it runs in the code-ops repository: in the
+    // same Markdown block, on the same line of code or data, or through a file-level marker on a
+    // skill's Mode line for a skill whose whole subject is this repository.
+    const MARKER_RE = /\bcode-ops repo(?:sitory)?\b|github\.com\/skylarsabo\/code-ops\b/i;
+    const FILE_MARKER_RE = /^\*\*Mode:\*\*.*\*\*Runs in:\*\* the code-ops repository\b/m;
+    const SCANNED_RE = /\.(md|mjs|js|json|ya?ml|toml)$/;
+    const CODE_RE = /\.(mjs|js)$/;
+    const UNREACHABLE = 'resolves only inside a code-ops checkout — link it "in the code-ops repository", ship it under the plugin root, or mark the passage';
+
+    // Markdown blocks: a blank line, a heading, or a `---` rule ends a block, and each frontmatter
+    // line is a block of its own. A fence joins the paragraph directly above it, and a blank line
+    // inside a fence does not end the block. Each line maps to the text of its block.
+    const markdownBlocks = (lines) => {
+      const blockOf = new Array(lines.length);
+      let start = 0;
+      let inFence = false;
+      const close = (end) => {
+        const text = lines.slice(start, end).join('\n');
+        for (let k = start; k < end; k++) blockOf[k] = text;
+      };
+      let i = 0;
+      const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
+      for (; i <= frontmatterEnd; i++) blockOf[i] = lines[i];
+      start = i;
+      for (; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^\s*(```|~~~)/.test(line)) {
+          if (!inFence && !(i > start && lines[i - 1].trim() !== '')) { close(i); start = i; }
+          inFence = !inFence;
+          continue;
+        }
+        if (inFence) continue;
+        if (line.trim() === '' || /^#{1,6}\s/.test(line) || line === '---') {
+          close(i);
+          blockOf[i] = line;
+          start = i + 1;
         }
       }
-      if (!pluginDir) return;
-      for (const m of line.matchAll(PLUGIN_ROOT_RE)) {
-        const path = m[2].replace(/[.,;:]+$/, '');
-        if (PLACEHOLDER_RE.test(path)) continue;
-        if (!existsSync(join(pluginDir, ...path.split('/')))) report(i, 'root', `${m[1]}/${path}`, 'names a file this plugin does not ship');
-      }
-    });
-  };
+      close(lines.length);
+      return blockOf;
+    };
 
-  // Vendored reference/ copies are held to byte parity with their hub page above. They document
-  // this repository in its own terms, so the pattern scan does not read them.
-  const isShipped = (file, base) => {
-    const inside = rel(file).slice(rel(base).length + 1);
-    return SCANNED_RE.test(file) && !/(^|\/)CHANGELOG\.md$/.test(inside) && !inside.startsWith('reference/');
-  };
-  for (const p of plugins) {
-    for (const file of walkFiles(p.dir)) if (isShipped(file, p.dir)) scanShipped('claude', file, p.dir);
-  }
-  const codexPlugins = join(ROOT, 'codex-marketplace', 'plugins');
-  if (existsSync(codexPlugins)) for (const p of plugins) {
-    const base = join(codexPlugins, p.name);
-    for (const file of walkFiles(base)) if (isShipped(file, base)) scanShipped('codex', file, base);
-  }
-  const opencodeDist = join(ROOT, 'opencode-dist');
-  if (existsSync(opencodeDist)) {
-    // OpenCode flattens skills, agents, and commands into `<plugin>-<name>` entries, so the
-    // longest plugin-name prefix decides which plugin root a reference resolves against. A file
-    // no plugin owns still takes the hub, command, and citation scan.
-    const byLength = [...plugins].sort((a, b) => b.name.length - a.name.length);
-    for (const file of walkFiles(opencodeDist)) {
-      const inside = rel(file).slice(rel(opencodeDist).length + 1);
-      const [top, entry = '', next = ''] = inside.split('/');
-      let owner = null;
-      if (top === 'code-ops') owner = plugins.find((p) => p.name === entry) ?? null;
-      else if (['skills', 'agents', 'commands'].includes(top)) owner = byLength.find((p) => entry.startsWith(`${p.name}-`)) ?? null;
-      if (top === 'code-ops' && next === 'reference') continue;
-      if (!SCANNED_RE.test(file) || /(^|\/)CHANGELOG\.md$/.test(inside)) continue;
-      scanShipped('opencode', file, owner ? join(opencodeDist, 'code-ops', owner.name) : null);
+    const scanShipped = (surface, file, pluginDir) => {
+      const text = readText(file);
+      const markdown = file.endsWith('.md');
+      if (markdown && FILE_MARKER_RE.test(text)) return;
+      const code = CODE_RE.test(file);
+      const lines = text.split(/\r?\n/);
+      const scopes = markdown ? markdownBlocks(lines) : lines;
+      const report = (i, kind, token, why) => fail(`check 24 [${surface}] ${rel(file)}:${i + 1}: ${kind} reference "${token}" ${why}`);
+      lines.forEach((line, i) => {
+        if (code && /^\s*(\/\/|\/\*|\*)/.test(line)) return; // a source comment never reaches a user
+        if (MARKER_RE.test(scopes[i] ?? line)) return;
+        for (const m of line.matchAll(HUB_RE)) report(i, 'hub', line.slice(m.index).split(/[`'")\]]/)[0].slice(0, 90), UNREACHABLE);
+        for (const m of line.matchAll(CMD_RE)) report(i, 'cmd', m[0], UNREACHABLE);
+        if (!code) {
+          for (const m of line.matchAll(CITE_RE)) {
+            if (PLACEHOLDER_RE.test(m[1]) || /node\s+$/.test(line.slice(0, m.index))) continue;
+            if (pluginDir && existsSync(join(pluginDir, ...m[1].split('/')))) continue; // a plugin-relative name of a bundled file
+            report(i, 'cite', m[1], UNREACHABLE);
+          }
+        }
+        if (!pluginDir) return;
+        for (const m of line.matchAll(PLUGIN_ROOT_RE)) {
+          const path = m[2].replace(/[.,;:]+$/, '');
+          if (PLACEHOLDER_RE.test(path)) continue;
+          if (!existsSync(join(pluginDir, ...path.split('/')))) report(i, 'root', `${m[1]}/${path}`, 'names a file this plugin does not ship');
+        }
+      });
+    };
+
+    // Vendored reference/ copies are held to byte parity with their hub page above. They document
+    // this repository in its own terms, so the pattern scan does not read them.
+    const isShipped = (file, base) => {
+      const inside = rel(file).slice(rel(base).length + 1);
+      return SCANNED_RE.test(file) && !/(^|\/)CHANGELOG\.md$/.test(inside) && !inside.startsWith('reference/');
+    };
+    for (const p of plugins) {
+      for (const file of walkFiles(p.dir)) if (isShipped(file, p.dir)) scanShipped('claude', file, p.dir);
+    }
+    const codexPlugins = join(ROOT, 'codex-marketplace', 'plugins');
+    if (existsSync(codexPlugins)) for (const p of plugins) {
+      const base = join(codexPlugins, p.name);
+      for (const file of walkFiles(base)) if (isShipped(file, base)) scanShipped('codex', file, base);
+    }
+    const opencodeDist = join(ROOT, 'opencode-dist');
+    if (existsSync(opencodeDist)) {
+      // OpenCode flattens skills, agents, and commands into `<plugin>-<name>` entries, so the
+      // longest plugin-name prefix decides which plugin root a reference resolves against. A file
+      // no plugin owns still takes the hub, command, and citation scan.
+      const byLength = [...plugins].sort((a, b) => b.name.length - a.name.length);
+      for (const file of walkFiles(opencodeDist)) {
+        const inside = rel(file).slice(rel(opencodeDist).length + 1);
+        const [top, entry = '', next = ''] = inside.split('/');
+        let owner = null;
+        if (top === 'code-ops') owner = plugins.find((p) => p.name === entry) ?? null;
+        else if (['skills', 'agents', 'commands'].includes(top)) owner = byLength.find((p) => entry.startsWith(`${p.name}-`)) ?? null;
+        if (top === 'code-ops' && next === 'reference') continue;
+        if (!SCANNED_RE.test(file) || /(^|\/)CHANGELOG\.md$/.test(inside)) continue;
+        scanShipped('opencode', file, owner ? join(opencodeDist, 'code-ops', owner.name) : null);
+      }
     }
   }
 }
 
 // ---- report ----------------------------------------------------------------
-for (const w of warnings) console.log(`  advisory: ${w}`);
-if (errors.length) {
-  console.error(`\nFAIL — ${errors.length} structural problem(s):`);
-  for (const e of errors) console.error(`  x ${e}`);
-  process.exit(1);
+function printReport({ plugins, allSlugs }) {
+  for (const w of warnings) console.log(`  advisory: ${w}`);
+  if (errors.length) {
+    console.error(`\nFAIL — ${errors.length} structural problem(s):`);
+    for (const e of errors) console.error(`  x ${e}`);
+    process.exit(1);
+  }
+  const totalCommands = plugins.reduce((n, p) => n + p.skills.length, 0);
+  console.log(`OK — ${plugins.length} plugins, ${totalCommands} commands (${allSlugs.size} unique skills), no structural problems.`);
 }
-const totalCommands = plugins.reduce((n, p) => n + p.skills.length, 0);
-console.log(`OK — ${plugins.length} plugins, ${totalCommands} commands (${allSlugs.size} unique skills), no structural problems.`);
+
+function main() {
+  const ctx = checkManifests();
+  checkSkills(ctx);
+  checkRootReadmeCounts(ctx);
+  checkBundledScripts(ctx);
+  checkConventionsCopies(ctx);
+  checkHandbookCommands(ctx);
+  checkTechniquesIndex();
+  ctx.bundledAgents = checkSectionRefsAndAgentNames(ctx);
+  checkAgentModelFloors(ctx);
+  checkAgentReportCaps(ctx);
+  checkAgentContracts(ctx);
+  checkDispatchProse(ctx);
+  checkConventionsReadBound(ctx);
+  checkChangelogs(ctx);
+  checkProducerSelfCheck();
+  checkSharedPassages();
+  adviseUnevaluatedScripts();
+  checkCompositionEdges(ctx);
+  checkEvalsWired();
+  checkDependencyPolicy(ctx);
+  checkAutoMergeDenylist();
+  checkStandardsContract();
+  checkCompositionCompleteness(ctx);
+  checkShippedReferences(ctx);
+  printReport(ctx);
+}
+
+main();

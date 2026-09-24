@@ -41,7 +41,7 @@ and doc alignment reconciles what the first three surfaces reference.
 | --- | --- | --- | --- |
 | 1 | Repo standards contract | The contract pair exists, matches one accepted parity mode (byte-identical, or a pointer file naming the contract as required reading), and carries the routing section | The repo contract procedure below |
 | 2 | Documentation hub | `<repo>-docs/` exists; vault and manifest checks exit 0; manifest-v2 collections also pass `records check` | `/code-ops-suite:vault` in the mode Phase B detects |
-| 3 | Atlas | `<repo>-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node ${CLAUDE_PLUGIN_ROOT}/scripts/atlas-check.mjs check --atlas <atlas dir>` reports each section FRESH or STALE | `/code-ops-suite:atlas` |
+| 3 | Atlas | `<repo>-docs/98 System/Atlas/` exists (fallback `atlas/`), its manifest parses, and `node ${CLAUDE_PLUGIN_ROOT}/scripts/atlas-check.mjs check --atlas <atlas dir> --gate --claims-gate` exits 0. A STALE section, or a claim that is not FRESH (MOVED, DRIFTED, or GONE), makes the surface DRIFTED, never CONFORMANT | `/code-ops-suite:atlas` |
 | 4 | Doc alignment | Only when surfaces 1-3 surfaced drift signals: a contract, vault note, or repo doc referencing something the others contradict or no longer carry | `/code-ops-suite:doc-alignment` |
 | 5 | Global contract *(optional, ask first)* | The user's global contracts (`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.grok/rules/code-ops-global.md`) match current marketplace doctrine, and `<marketplace>/scripts/sync-global.mjs --check` exits 0 | `/code-ops-suite:conform` in global scope |
 

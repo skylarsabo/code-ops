@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const tool = resolve(here, '..', '..', 'scripts', 'research-manifest.mjs');
@@ -17,8 +18,7 @@ const dir = mkdtempSync(join(tmpdir(), 'research-manifest-'));
 const manifest = join(dir, 'EGRESS_MANIFEST.md');
 const run = (args) => spawnSync('node', [tool, ...args], { encoding: 'utf8' });
 
-const fails = [];
-const expect = (c, m) => { if (!c) fails.push(m); };
+const { fails, expect } = tally();
 
 // record an external request
 const rec = run(['record', '--tool', 'deep-research', '--url', 'https://example.com/guide', '--why', 'researching X', '--manifest', manifest]);
