@@ -466,11 +466,12 @@ async function refreshChooserCache(client) {
 
 // The operator's model profile: measured quality, cost, and speed per model id,
 // the enabled list, and the ranking weights. Absent file, absent behavior.
+const profilePath = () => process.env.CODE_OPS_MODEL_PROFILE?.trim()
+  || join(homedir(), '.claude', 'code-ops', 'opencode-model-profile.json');
+
 function readProfile() {
-  const path = process.env.CODE_OPS_MODEL_PROFILE?.trim()
-    || join(homedir(), '.claude', 'code-ops', 'opencode-model-profile.json');
   try {
-    const data = JSON.parse(readFileSync(path, 'utf8'));
+    const data = JSON.parse(readFileSync(profilePath(), 'utf8'));
     return data && typeof data === 'object' ? data : {};
   } catch {
     return {};
@@ -560,16 +561,20 @@ function valueScore(row, profile) {
   return index / (cost ** w.cost * (tokens > 0 ? tokens / 1000 : 30) ** w.speed);
 }
 
+// The operator's enabled list, or null when the profile has none.
+function allowList(profile) {
+  if (!Array.isArray(profile?.enabled) || !profile.enabled.length) return null;
+  const allow = new Set(profile.enabled.map((id) => String(id).toLowerCase()));
+  return (id) => allow.has(id.toLowerCase()) || allow.has(bareId(id));
+}
+
 // Enabled means: on the operator's list when the profile has one, and never a
-// model the desktop app's Models settings hide.
+// model the desktop app's Models settings hide. A list that names nothing this
+// host offers enables nothing, so a model the operator disabled is never bound.
 function enabledModels(catalog, profile) {
   let ids = catalog;
-  if (Array.isArray(profile?.enabled) && profile.enabled.length) {
-    const allow = new Set(profile.enabled.map((id) => String(id).toLowerCase()));
-    // A list that names nothing this host offers describes another host.
-    const listed = ids.filter((id) => allow.has(id.toLowerCase()) || allow.has(bareId(id)));
-    if (listed.length) ids = listed;
-  }
+  const allowed = allowList(profile);
+  if (allowed) ids = ids.filter(allowed);
   try {
     const home = homedir();
     const stores = process.env.CODE_OPS_DESKTOP_STORE?.trim()
@@ -682,7 +687,11 @@ function buildChooserLadder(catalog = listChooserModels(), profile = readProfile
     const model = byTier[floor];
     if (model) agents[agent] = model;
   }
-  return { byTier, agents, catalog: ids, profile };
+  const allowed = allowList(profile);
+  const warning = allowed && catalog.length && !catalog.some(allowed)
+    ? `code-ops: the enabled list in ${profilePath()} names no model this host offers. Suite agents keep their configured models.`
+    : null;
+  return { byTier, agents, catalog: ids, profile, warning };
 }
 
 function chooserKnownModels(catalog) {
@@ -1048,6 +1057,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
   let live = null;
   let byTier = {};
   let profile = {};
+  let chooserWarning = null;
   const clones = new Set();
   const agentModels = {};
 
@@ -1098,6 +1108,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         }
         byTier = ladder.byTier;
         profile = ladder.profile;
+        chooserWarning = ladder.warning;
         if (on('CODE_OPS_TIER_ROUTING')) buildClones(config);
         for (const name of ['build', 'plan']) {
           const agent = config.agent[name] ??= {};
@@ -1320,6 +1331,11 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         // Any event means the host finished startup. Not awaited: discovery must
         // never hold up the host.
         chooserRefreshed = true;
+        if (chooserWarning) {
+          Promise.resolve()
+            .then(() => client?.tui?.showToast?.({ body: { message: chooserWarning, variant: 'warning' } }))
+            .catch(() => { /* fail open */ });
+        }
         refreshChooserCache(client).then((result) => {
           if (result?.ids) live = { ids: new Set(result.ids), variants: result.variants };
           if (!result?.changed || process.env.CODE_OPS_OPENCODE_MODELS) return;

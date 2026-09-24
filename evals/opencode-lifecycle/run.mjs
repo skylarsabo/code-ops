@@ -83,6 +83,16 @@ const ladder = buildChooserLadder(catalog);
 expect(!Object.values(ladder.agents).some((id) => String(id).includes('muse-spark')), 'chooser bound the Zen fallback');
 expect(ladder.agents['code-ops-suite-explorer'] === 'provider-b/gpt-6-luna', 'explorer should bind luna');
 expect(ladder.agents['code-ops-suite-implementer'] === 'provider-a/claude-opus-5-5', 'implementer should bind opus 5.5');
+expect(ladder.warning === null, `an absent enabled list warned: ${ladder.warning}`);
+
+// An enabled list that names nothing this host offers enables nothing: no
+// catalog fallback, no binding, and a warning that names the profile path.
+const unmatched = buildChooserLadder(catalog, { enabled: ['other-host/claude-opus-5'] });
+expect(Object.keys(unmatched.agents).length === 0, `an unmatched enabled list bound ${JSON.stringify(unmatched.agents)}`);
+expect(Object.values(unmatched.byTier).every((id) => !id), `an unmatched enabled list filled the ladder: ${JSON.stringify(unmatched.byTier)}`);
+expect(unmatched.warning?.includes(process.env.CODE_OPS_MODEL_PROFILE), `the unmatched-list warning should name the profile path: ${unmatched.warning}`);
+const narrowed = buildChooserLadder(catalog, { enabled: ['gpt-6-luna'] });
+expect(Object.values(narrowed.agents).every((id) => id === 'provider-b/gpt-6-luna') && narrowed.warning === null, `a matching enabled list should bind only its models: ${JSON.stringify(narrowed.agents)}`);
 
 // GitHub Copilot: the shipped floor plugin carries prices, so the chooser ranks
 // the priced catalog by workload cost and the cost report prices cache writes.
