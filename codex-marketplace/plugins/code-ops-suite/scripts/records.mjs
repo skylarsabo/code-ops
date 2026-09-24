@@ -1104,7 +1104,8 @@ function reReview(context, options) {
     const prior = coverage.candidates.get(path);
     if (!prior) throw new Error(`re-review requires an admitted path with a review receipt: ${path}`);
     const priorSourceHead = coverage.sources.get(path);
-    if (!commitIsReachable(context.root, priorSourceHead)) throw new Error(`re-review requires a reachable prior review source: ${path}`);
+    const examinedBase = reviewBase(context.root, priorSourceHead);
+    if (!examinedBase) throw new Error(`re-review requires a reachable prior review source: ${path}`);
     const candidateRows = collect(context).rows.filter((row) => coverage.candidates.has(row.path));
     const current = adoptionHistoryProfiles(context.root, context.collection, candidateRows,
       { history: adoptionHistory(context.root, candidateRows) }).get(path);
@@ -1116,7 +1117,7 @@ function reReview(context, options) {
     const sourceHead = headOid(context.root);
     const receipt = {
       version: 1, path, candidate: reviewAuthority(current), priorHistoryDigest: prior.historyDigest, priorSourceHead,
-      sourceHead, examinedCommits: pathCommitsBetween(context.root, priorSourceHead, sourceHead, path),
+      sourceHead, examinedCommits: pathCommitsBetween(context.root, examinedBase, sourceHead, path),
       manifestSha256: manifestSha256(context), reviewer: options.reviewer.trim(), rationale: options.rationale.trim(),
       reviewedAt: options.at || new Date().toISOString(),
     };
@@ -1166,6 +1167,14 @@ function validateReviewReceipt(review, collectionUuid, expectedVersion) {
   for (const candidate of candidates.values()) if (candidate.adoptionReadiness === 'review-required'
     && !reviewed.has(candidate.path)) throw new Error(`missing reviewed adoption candidate: ${candidate.path}`);
   return { candidates, reviewed };
+}
+
+// A review made on a side branch stays valid when its commit still exists: the examined range then
+// starts at the merge base, so every commit that reached HEAD since the branch split is listed.
+function reviewBase(root, commit) {
+  if (commitIsReachable(root, commit)) return commit;
+  try { return git(root, ['merge-base', commit, 'HEAD']).trim() || null; }
+  catch { return null; }
 }
 
 function commitIsReachable(root, commit) {

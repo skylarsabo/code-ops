@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.4.1
+- `records.mjs re-review` accepts a prior review whose source commit sits on a side branch rather than in the history of HEAD, as long as the commit still exists. The examined commits then start at its merge base with HEAD. It still refuses a prior source commit that no longer exists.
+
 ## 2.4.0
 - `records.mjs re-review --collection <id> --record <path> --reviewer <name> --rationale <text> [--at <iso>]` re-reviews one admitted path whose current bytes equal the reviewed digest but whose history gained content transitions, such as an edit later restored. Before this release, `check` reported `adoption review history drift` for that path, and no command could clear it.
 - The command appends a receipt to inventory `reReviews` and leaves the original review in place. The receipt records the new history profile, the prior profile digest and source commit, the path commits examined, the reviewer, and the rationale. It refuses a dirty worktree, a path without a review receipt, changed bytes, an unreachable prior source, and history without new transitions.
