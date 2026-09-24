@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.14.2
+- **TODO** — describe the change.
+
 ## 0.14.1
 - Skill descriptions are 160 characters or fewer, under the new lint cap.
 - The vendored `cli-lib.mjs` carries the shared spawn and hash helpers.

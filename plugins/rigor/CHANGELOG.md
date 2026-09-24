@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.1.2
+- **TODO** — describe the change.
+
 ## 3.1.1
 - The verifier agent always writes its report to the brief's Report path, which its Contract requires.
 - Skill descriptions are 160 characters or fewer, under the new lint cap.
