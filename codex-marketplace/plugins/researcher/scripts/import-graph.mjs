@@ -15,8 +15,10 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, extname, relative, sep } from 'node:path';
 import { IMPORT_EXTS, imports as importEdges } from './symbol-lib.mjs';
+import { exitOnHelp } from './cli-lib.mjs';
 
 const argv = process.argv.slice(2);
+exitOnHelp(argv, 'usage: import-graph.mjs [--root <dir>] [--out <file>] [--focus <path>] [--max-file-kb <n>]');
 let root = '.', out = null, maxKb = 512, focus = null;
 for (let i = 0; i < argv.length; i++) {
   const need = (f) => {

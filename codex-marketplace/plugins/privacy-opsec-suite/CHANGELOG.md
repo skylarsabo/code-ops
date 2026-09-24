@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.1.4
+- The vendored `cli-lib.mjs` adds `exitOnHelp`, so the vendored `preflight.mjs`, `repo-map.mjs`, and `import-graph.mjs` print their usage line and exit 0 on `--help` or `-h`.
+
 ## 2.1.3
 - The vendored `co.mjs` adds the `run open` and `handoff live` verbs, which route to `handoff-state.mjs`.
 

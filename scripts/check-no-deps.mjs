@@ -68,6 +68,8 @@ function walk(dir, bad) {
 
 // Run the gate only when invoked directly — kept importable so evals can unit-test the matchers.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
+  if (process.argv.includes('--help') || process.argv.includes('-h')) { console.log('usage: check-no-deps.mjs'); process.exit(0); }
   const bad = [];
   walk(ROOT, bad); // SCR-018: scan the whole repo (node_modules/.git/docs skipped) so a new top-level code dir or root-level file is covered, matching the "any import" guarantee
   if (bad.length) {
