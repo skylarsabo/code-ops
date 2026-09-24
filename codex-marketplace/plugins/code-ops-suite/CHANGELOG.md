@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.4.0
+- `records.mjs re-review --collection <id> --record <path> --reviewer <name> --rationale <text> [--at <iso>]` re-reviews one admitted path whose current bytes equal the reviewed digest but whose history gained content transitions, such as an edit later restored. Before this release, `check` reported `adoption review history drift` for that path, and no command could clear it.
+- The command appends a receipt to inventory `reReviews` and leaves the original review in place. The receipt records the new history profile, the prior profile digest and source commit, the path commits examined, the reviewer, and the rationale. It refuses a dirty worktree, a path without a review receipt, changed bytes, an unreachable prior source, and history without new transitions.
+- `check` compares a re-reviewed path against its newest receipt and holds the `reReviews` chain append-only. Every other drift still fails.
+
 ## 2.3.0
 - The dispatch guard denies a suite-agent dispatch whose brief lacks a field from that agent's `Brief requires:` line. It resolves agents across all four plugins, and `CODE_OPS_DISPATCH_GUARD=warn` turns the denial into a warning. A field counts only as a label at the start of a line or as a heading, so `Out of scope:` does not satisfy Scope. The implementer and mech agents no longer describe required brief fields as optional.
 - A new advisory `SubagentStop` hook, `subagent-report.mjs`, notes a report whose first line lacks a declared verdict token or that exceeds its Report cap. `CODE_OPS_SUBAGENT_REPORT=off` disables it.

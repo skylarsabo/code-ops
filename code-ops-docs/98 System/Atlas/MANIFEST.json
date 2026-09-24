@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
-      "verifiedDigest": "870cc1d2ffcfd8354edab30f08249e6ebfedda69ef0b4c5ae2f47992e3d6d6bc",
+      "verifiedAt": "01cceaa84fd83b82aaf9e0bb6b0594e9800f14cb",
+      "verifiedDigest": "c13e8159d36ded705e4e13e0b00277280b66aae717f0e4e8ae03ff270e9a1a30",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -55,8 +55,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
-      "verifiedDigest": "3490eedbbb261cc00aa6ffb87f6dd450e219ed694a4e0e0fd7cfb6e67e3ce0e2",
+      "verifiedAt": "01cceaa84fd83b82aaf9e0bb6b0594e9800f14cb",
+      "verifiedDigest": "5ab1ee372bdda26010dea806d5946f8130b08a62fb112d56280376e5ca5ff5b9",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -136,8 +136,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
-      "verifiedDigest": "bde2a56521eef494b0887ced0afb9f98831b0c66600a3abe9e6d62f575ae9d2e",
+      "verifiedAt": "01cceaa84fd83b82aaf9e0bb6b0594e9800f14cb",
+      "verifiedDigest": "157ca026e37524f31a948059b4e360987a49daf48052239b824134097383b045",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -194,8 +194,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "0025040d154ba0c7a310573008b0e1a894d15c31",
-      "verifiedDigest": "fca8d26e9b23dfacf184ba906e929bae93ae42d858eaf02208655f1678b91411",
+      "verifiedAt": "01cceaa84fd83b82aaf9e0bb6b0594e9800f14cb",
+      "verifiedDigest": "b85800deefdf2f4a0f9fa6d628c7779bfb1797dfe71682e019d8bace6beb354f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -264,8 +264,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "50e322f6a7d35f7c00268ee552bb6a6cc0a611eb",
-      "verifiedDigest": "30876f880969e71dd10839038a8418939102392cd8545280b0f6c11790e139a5",
+      "verifiedAt": "01cceaa84fd83b82aaf9e0bb6b0594e9800f14cb",
+      "verifiedDigest": "c7c4649605c07e7149e891a61cfff126230e85f38c25990f08e31f0d54664c0b",
       "claims": [
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",

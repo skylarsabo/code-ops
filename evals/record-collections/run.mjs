@@ -14,7 +14,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 239 : 242;
+const expectedCases = process.platform === 'win32' ? 247 : 250;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -1989,6 +1989,54 @@ try {
   result = run(['check', '--root', revertedHistoryRepo, ...COLLECTION], revertedHistoryRepo);
   check('retained reviewed transitions expose a post-adoption edit and revert', result.status === 1
     && result.output.includes('adoption review history drift'), result.output);
+
+  const reReviewArgs = (root, path) => ['re-review', '--root', root, ...COLLECTION, '--record', path,
+    '--reviewer', 'operator', '--rationale', 'restored bytes equal the reviewed bytes', '--at', '2026-09-24T00:00:00Z'];
+  const reReviewFork = (name) => { const target = join(work, name); cpSync(revertedHistoryRepo, target, { recursive: true }); return target; };
+  result = run(reReviewArgs(repo, 'records/one.md'), repo);
+  check('re-review refuses a path whose history gained no content transitions', result.status === 1
+    && result.output.includes('history gained no content transitions'), result.output);
+  const reReviewBytesRepo = reReviewFork('re-review-bytes-differ');
+  write(reReviewBytesRepo, 'records/one.md', `${originalRecord}\nlasting rewrite\n`);
+  commit(reReviewBytesRepo, 'rewrite adopted record after restore');
+  result = run(reReviewArgs(reReviewBytesRepo, 'records/one.md'), reReviewBytesRepo);
+  check('re-review refuses current bytes that differ from the reviewed digest', result.status === 1
+    && result.output.includes('current bytes differ from the reviewed digest'), result.output);
+  const reReviewDirtyRepo = reReviewFork('re-review-dirty');
+  write(reReviewDirtyRepo, 'records/one.md', `${originalRecord}\nuncommitted\n`);
+  result = run(reReviewArgs(reReviewDirtyRepo, 'records/one.md'), reReviewDirtyRepo);
+  check('re-review refuses a dirty worktree', result.status === 1
+    && result.output.includes('re-review requires a clean worktree'), result.output);
+  const reReviewRepo = reReviewFork('re-review-accept');
+  result = run(reReviewArgs(reReviewRepo, 'records/missing.md'), reReviewRepo);
+  check('re-review refuses a path that is not admitted', result.status === 1
+    && result.output.includes('re-review requires an admitted path'), result.output);
+  result = run(reReviewArgs(reReviewRepo, 'records/one.md'), reReviewRepo);
+  const reReviewCheck = run(['check', '--root', reReviewRepo, ...COLLECTION], reReviewRepo);
+  const reReviewInventory = JSON.parse(readFileSync(generated(reReviewRepo, 'inventory.json'), 'utf8'));
+  const reReceipt = reReviewInventory.reReviews?.[0];
+  check('re-review records a receipt that preserves the original review and clears drift', result.status === 0
+    && reReviewCheck.status === 0 && reReviewInventory.adoptionReview?.candidates?.some((item) => item.path === 'records/one.md')
+    && reReceipt?.reviewer === 'operator' && reReceipt.examinedCommits.length === 2
+    && reReceipt.candidate.history.contentTransitions > 0, `${result.output}\n${reReviewCheck.output}`);
+  commit(reReviewRepo, 'record re-review');
+  result = run(['check', '--root', reReviewRepo, ...COLLECTION], reReviewRepo);
+  check('a committed re-review keeps check green', result.status === 0, result.output);
+  const reTamperRepo = join(work, 're-review-tamper'); cpSync(reReviewRepo, reTamperRepo, { recursive: true });
+  const reTamperInventory = JSON.parse(readFileSync(generated(reTamperRepo, 'inventory.json'), 'utf8'));
+  reTamperInventory.reReviews[0].rationale = 'forged';
+  writeFileSync(generated(reTamperRepo, 'inventory.json'), `${JSON.stringify(reTamperInventory, null, 2)}\n`);
+  result = run(['check', '--root', reTamperRepo, ...COLLECTION], reTamperRepo);
+  check('a tampered re-review receipt fails', result.status === 1
+    && result.output.includes('invalid record re-review receipt'), result.output);
+  const { receiptDigest: _forgedDigest, ...forgedReceipt } = {
+    ...reTamperInventory.reReviews[0], rationale: reReceipt.rationale, reviewer: 'someone else',
+  };
+  reTamperInventory.reReviews[0] = { ...forgedReceipt, receiptDigest: digestJson(forgedReceipt) };
+  writeFileSync(generated(reTamperRepo, 'inventory.json'), `${JSON.stringify(reTamperInventory, null, 2)}\n`);
+  result = run(['check', '--root', reTamperRepo, ...COLLECTION], reTamperRepo);
+  check('a re-digested committed re-review cannot be rewritten', result.status === 1
+    && result.output.includes('record re-review chain changed at entry 1'), result.output);
 
   const receiptDigestRepo = join(work, 'receipt-digest-mismatch'); cpSync(repo, receiptDigestRepo, { recursive: true });
   const receiptDigestPath = generated(receiptDigestRepo, 'inventory.json');

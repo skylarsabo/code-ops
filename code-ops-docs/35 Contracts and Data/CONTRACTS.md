@@ -870,11 +870,13 @@ Legacy paths contain `path`, `disposition`, hub-owned `target`, and qualifying `
 
 ## Record operations
 
-`records.mjs` exposes `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Every authority mutation is a fail-closed transaction. Strict history failure is infrastructure failure. Evidence loss requires complete history.
+`records.mjs` exposes `classify`, `plan-adoption`, `adopt`, `re-review`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Every authority mutation is a fail-closed transaction. Strict history failure is infrastructure failure. Evidence loss requires complete history.
 
 `classify` reports partition validity and historical adoption readiness. Invalid classification reports `classification-invalid` even when history is unavailable. Uncommitted index candidates report `pending-commit` without invalidating structural classification. An immutable path outside authority blocks `check` as `pending-admission`.
 
 Genesis `plan-adoption` writes only to a repository-relative ignored path. Every record operation parses classification policy from canonical Git-index manifest bytes. Authority mutations revalidate that index snapshot before binding a batch and again after post-write verification. The plan binds `HEAD`, that manifest, candidate bytes, and path history. Historically revised immutable candidates require a `freeze-current` disposition and rationale. `adopt --review` recomputes every binding.
+
+`re-review --record <path> --reviewer <name> --rationale <text> [--at <iso>]` re-reviews one admitted path whose current bytes equal the reviewed digest but whose history gained content transitions, such as an edit later restored. It refuses a dirty worktree, a path without a review receipt, changed bytes, an unreachable prior review source, and history without new transitions. It appends a receipt to inventory `reReviews` and leaves the original review in place. The receipt stores the current history profile, the prior profile digest and source, the path commits between that source and `HEAD`, the reviewer, the rationale, and a `receiptDigest`. `check` then compares that path against the newest receipt. The chain is append-only and covers one path per receipt, so every other drift still fails.
 
 `plan-adoption --incremental` writes a version 2 plan with `mode: "incremental"`. Its `baseBindings` cover inventory, citations, curation, index, and the authority-batch head. `adopt` infers incremental mode only from this receipt.
 

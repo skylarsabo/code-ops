@@ -26,7 +26,7 @@ function fail(message, code = 1) {
 
 function parseArgs(argv) {
   const options = {}; const flags = new Set(['strict', 'no-stage', 'legacy', 'incremental', 'require-delta']);
-  const values = new Set(['root', 'manifest', 'collection', 'record', 'state', 'at', 'out', 'review']);
+  const values = new Set(['root', 'manifest', 'collection', 'record', 'state', 'at', 'out', 'review', 'reviewer', 'rationale']);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith('--')) throw new Error(`unexpected argument ${token}`);
@@ -48,10 +48,11 @@ function validateInvocation(command, options) {
     classify: shared, adopt: [...shared, 'review'],
     'plan-adoption': [...shared, 'out', 'incremental', 'require-delta'], append: [...shared, 'record', 'no-stage'],
     curate: [...shared, 'record', 'state', 'at'], render: [...shared, 'legacy'],
+    're-review': [...shared, 'record', 'reviewer', 'rationale', 'at'],
     check: shared, 'verify-history': [...shared, 'strict'], 'reindex-locators': shared,
   };
   const allowed = commandOptions[command];
-  if (!allowed) throw new Error('commands: classify plan-adoption adopt curate append render check verify-history reindex-locators');
+  if (!allowed) throw new Error('commands: classify plan-adoption adopt re-review curate append render check verify-history reindex-locators');
   for (const key of Object.keys(options)) {
     if (!allowed.includes(key)) throw new Error(`--${key} is not valid for ${command}`);
   }
@@ -473,7 +474,7 @@ function authoritativeJsonVersions(context, key, authority = (value) => value) {
     catch { throw new Error(`${key} has invalid committed JSON at ${version.commit}`); }
     parsed.push({
       commit: version.commit, version: document.version, collectionUuid: document.collectionUuid,
-      adoptionReview: document.adoptionReview,
+      adoptionReview: document.adoptionReview, reReviews: document.reReviews,
       entries: (document.entries || []).map(authority), artifacts: document.artifacts || [],
       authorityBatches: document.authorityBatches || [],
     });
@@ -510,6 +511,7 @@ function inventoryVersionDocument(version, batchCount = null) {
   const document = {
     version: version.version, collectionUuid: version.collectionUuid,
     ...(version.adoptionReview === undefined ? {} : { adoptionReview: structuredClone(version.adoptionReview) }),
+    ...(version.reReviews === undefined ? {} : { reReviews: structuredClone(version.reReviews) }),
     entries: structuredClone(version.entries || []), artifacts: structuredClone(version.artifacts || []),
   };
   if (version.version !== 3) return document;
@@ -641,7 +643,7 @@ function assertBaseline(context, inventory, citations, ledgerText, historyComple
   const inventoryVersions = authoritativeJsonVersions(context, 'inventory');
   inventoryVersions.push({
     commit: 'current', version: inventory.version, collectionUuid: inventory.collectionUuid,
-    adoptionReview: inventory.adoptionReview,
+    adoptionReview: inventory.adoptionReview, reReviews: inventory.reReviews,
     entries: inventory.entries || [], artifacts: inventory.artifacts || [],
     authorityBatches: inventory.authorityBatches || [],
   });
@@ -656,6 +658,7 @@ function assertBaseline(context, inventory, citations, ledgerText, historyComple
     if (canonical(inventoryVersions[index - 1].adoptionReview) !== canonical(inventoryVersions[index].adoptionReview)) {
       throw new Error('record adoption review changed after introduction');
     }
+    assertCanonicalPrefix('record re-review chain', inventoryVersions[index - 1].reReviews || [], inventoryVersions[index].reReviews || []);
     assertCanonicalPrefix('record inventory', inventoryVersions[index - 1].entries, inventoryVersions[index].entries);
     assertCanonicalPrefix('artifact inventory', inventoryVersions[index - 1].artifacts, inventoryVersions[index].artifacts);
     if (priorVersion === 3) {
@@ -1070,6 +1073,66 @@ function adopt(context, options) {
   });
 }
 
+function validReviewCandidate(candidate) {
+  const history = candidate?.history;
+  return Boolean(candidate && Object.keys(candidate).sort().join(',') === 'adoptionReadiness,currentSha256,history,historyDigest,kind,path,policy,reason'
+    && safePath(candidate.path)
+    && /^[0-9a-f]{64}$/.test(candidate.currentSha256 || '') && /^[0-9a-f]{64}$/.test(candidate.historyDigest || '')
+    && ['ready', 'review-required'].includes(candidate.adoptionReadiness)
+    && ['stable-so-far', 'historically-revised', 'deleted-readded'].includes(candidate.reason)
+    && history && Object.keys(history).sort().join(',') === 'admittedCommit,baselineCommit,contentTransitions,firstRelevantCommit,lastRelevantCommit,priorIncarnations'
+    && ['admittedCommit', 'baselineCommit', 'firstRelevantCommit', 'lastRelevantCommit'].every((key) => /^[0-9a-f]{40,64}$/.test(history[key] || ''))
+    && Number.isInteger(history.contentTransitions) && history.contentTransitions >= 0
+    && Number.isInteger(history.priorIncarnations) && history.priorIncarnations >= 0
+    && candidateRiskIsConsistent(candidate));
+}
+
+function reReview(context, options) {
+  if (!['record', 'reviewer', 'rationale'].every((key) => typeof options[key] === 'string' && options[key].trim())) {
+    throw new Error('re-review requires --record, --reviewer, and --rationale');
+  }
+  if (!cleanWorktree(context.root)) throw new Error('re-review requires a clean worktree');
+  const history = context.history;
+  if (!history.ok) throw new HistoryUnavailableError(`re-review refused: ${history.reason}`);
+  const path = posix(options.record);
+  withMutationLock(context, (lease) => {
+    if (!cleanWorktree(context.root)) throw new Error('re-review state changed before mutation lock acquisition');
+    const inventory = readJson(context.output.inventory);
+    if (![2, 3].includes(inventory.version)) throw new Error('re-review requires inventory v2 or v3');
+    const coverage = reviewCoverage(context, inventory, true);
+    applyReReviews(inventory, coverage);
+    const prior = coverage.candidates.get(path);
+    if (!prior) throw new Error(`re-review requires an admitted path with a review receipt: ${path}`);
+    const priorSourceHead = coverage.sources.get(path);
+    if (!commitIsReachable(context.root, priorSourceHead)) throw new Error(`re-review requires a reachable prior review source: ${path}`);
+    const candidateRows = collect(context).rows.filter((row) => coverage.candidates.has(row.path));
+    const current = adoptionHistoryProfiles(context.root, context.collection, candidateRows,
+      { history: adoptionHistory(context.root, candidateRows) }).get(path);
+    if (!current) throw new Error(`re-review requires an admitted path with a review receipt: ${path}`);
+    if (current.currentSha256 !== prior.currentSha256) throw new Error(`re-review refused: current bytes differ from the reviewed digest: ${path}`);
+    if (current.history.contentTransitions <= prior.history.contentTransitions) {
+      throw new Error(`re-review refused: history gained no content transitions since review: ${path}`);
+    }
+    const sourceHead = headOid(context.root);
+    const receipt = {
+      version: 1, path, candidate: reviewAuthority(current), priorHistoryDigest: prior.historyDigest, priorSourceHead,
+      sourceHead, examinedCommits: pathCommitsBetween(context.root, priorSourceHead, sourceHead, path),
+      manifestSha256: manifestSha256(context), reviewer: options.reviewer.trim(), rationale: options.rationale.trim(),
+      reviewedAt: options.at || new Date().toISOString(),
+    };
+    receipt.receiptDigest = digestJson(receipt);
+    const next = { ...inventory, reReviews: [...(inventory.reReviews || []), receipt] };
+    writeVerified([[context.output.inventory, `${JSON.stringify(next, null, 2)}
+`]],
+      () => runCheck(context, { allowPending: true }), () => assertMutationLease(lease));
+    console.log(JSON.stringify({
+      path, priorContentTransitions: prior.history.contentTransitions,
+      contentTransitions: current.history.contentTransitions, examinedCommits: receipt.examinedCommits,
+      receiptDigest: receipt.receiptDigest,
+    }));
+  });
+}
+
 function validateReviewReceipt(review, collectionUuid, expectedVersion) {
   const versionOneKeys = 'candidates,collectionUuid,manifestSha256,receiptDigest,reviewed,sourceHead,version';
   const versionTwoKeys = 'baseBindings,candidates,collectionUuid,manifestSha256,mode,receiptDigest,reviewed,sourceHead,version';
@@ -1085,17 +1148,7 @@ function validateReviewReceipt(review, collectionUuid, expectedVersion) {
   if (receiptDigest !== digestJson(authority)) throw new Error('record adoption review digest mismatch');
   const candidates = new Map(); const reviewed = new Map();
   for (const candidate of review.candidates) {
-    const history = candidate?.history;
-    if (!candidate || Object.keys(candidate).sort().join(',') !== 'adoptionReadiness,currentSha256,history,historyDigest,kind,path,policy,reason'
-      || !safePath(candidate.path) || candidates.has(candidate.path)
-      || !/^[0-9a-f]{64}$/.test(candidate.currentSha256 || '') || !/^[0-9a-f]{64}$/.test(candidate.historyDigest || '')
-      || !['ready', 'review-required'].includes(candidate.adoptionReadiness)
-      || !['stable-so-far', 'historically-revised', 'deleted-readded'].includes(candidate.reason)
-      || !history || Object.keys(history).sort().join(',') !== 'admittedCommit,baselineCommit,contentTransitions,firstRelevantCommit,lastRelevantCommit,priorIncarnations'
-      || !['admittedCommit', 'baselineCommit', 'firstRelevantCommit', 'lastRelevantCommit'].every((key) => /^[0-9a-f]{40,64}$/.test(history[key] || ''))
-      || !Number.isInteger(history.contentTransitions) || history.contentTransitions < 0
-      || !Number.isInteger(history.priorIncarnations) || history.priorIncarnations < 0
-      || !candidateRiskIsConsistent(candidate)) throw new Error('invalid adoption review candidate');
+    if (!validReviewCandidate(candidate) || candidates.has(candidate.path)) throw new Error('invalid adoption review candidate');
     candidates.set(candidate.path, candidate);
   }
   for (const item of review.reviewed) {
@@ -1227,28 +1280,71 @@ function validateAuthorityBatches(inventory, { root = null, historyComplete = fa
   return incrementalReviews;
 }
 
-function checkInventory(context, rows, inventory, state, historyComplete = true) {
-  if (![1, 2, 3].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
-  if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
-  const reviewCandidates = new Map(); const reviewedCandidates = new Map(); const reviewSources = new Map();
-  const originalReviewPaths = new Set();
+function reviewCoverage(context, inventory, historyComplete) {
+  const candidates = new Map(); const reviewed = new Map(); const sources = new Map(); const originalPaths = new Set();
   if ([2, 3].includes(inventory.version)) {
     const review = inventory.adoptionReview;
     const parsed = validateReviewReceipt(review, inventory.collectionUuid, 1);
     for (const [path, candidate] of parsed.candidates) {
-      originalReviewPaths.add(path); reviewCandidates.set(path, candidate); reviewSources.set(path, review.sourceHead);
+      originalPaths.add(path); candidates.set(path, candidate); sources.set(path, review.sourceHead);
     }
-    for (const [path, reviewed] of parsed.reviewed) reviewedCandidates.set(path, reviewed);
+    for (const [path, item] of parsed.reviewed) reviewed.set(path, item);
   }
   if (inventory.version === 3) {
     for (const parsed of validateAuthorityBatches(inventory, { root: context.root, historyComplete })) {
       for (const [path, candidate] of parsed.candidates) {
-        if (reviewCandidates.has(path)) throw new Error(`adoption candidate has duplicate receipt coverage: ${path}`);
-        reviewCandidates.set(path, candidate); reviewSources.set(path, parsed.review.sourceHead);
+        if (candidates.has(path)) throw new Error(`adoption candidate has duplicate receipt coverage: ${path}`);
+        candidates.set(path, candidate); sources.set(path, parsed.review.sourceHead);
       }
-      for (const [path, reviewed] of parsed.reviewed) reviewedCandidates.set(path, reviewed);
+      for (const [path, item] of parsed.reviewed) reviewed.set(path, item);
     }
   }
+  return { candidates, reviewed, sources, originalPaths };
+}
+
+const RE_REVIEW_KEYS = 'candidate,examinedCommits,manifestSha256,path,priorHistoryDigest,priorSourceHead,rationale,receiptDigest,reviewedAt,reviewer,sourceHead,version';
+
+function validReReviewShape(receipt) {
+  if (!receipt || typeof receipt !== 'object' || Object.keys(receipt).sort().join(',') !== RE_REVIEW_KEYS) return false;
+  const { receiptDigest, ...authority } = receipt;
+  const nonEmpty = (value) => typeof value === 'string' && Boolean(value.trim());
+  return receipt.version === 1 && receiptDigest === digestJson(authority) && validReviewCandidate(receipt.candidate)
+    && receipt.candidate.path === receipt.path && receipt.candidate.adoptionReadiness === 'review-required'
+    && ['sourceHead', 'priorSourceHead'].every((key) => /^[0-9a-f]{40,64}$/.test(receipt[key] || ''))
+    && /^[0-9a-f]{64}$/.test(receipt.manifestSha256 || '') && /^[0-9a-f]{64}$/.test(receipt.priorHistoryDigest || '')
+    && Array.isArray(receipt.examinedCommits) && receipt.examinedCommits.every((commit) => /^[0-9a-f]{40,64}$/.test(commit || ''))
+    && nonEmpty(receipt.reviewer) && nonEmpty(receipt.rationale) && nonEmpty(receipt.reviewedAt);
+}
+
+// A re-review supersedes the effective review of one admitted path whose bytes are unchanged but whose
+// history gained content transitions. The original receipt stays in place; each re-review chains to the
+// review it extends, so check compares current history against the latest reviewed profile.
+function applyReReviews(inventory, coverage) {
+  if (inventory.reReviews === undefined) return;
+  if (!Array.isArray(inventory.reReviews) || ![2, 3].includes(inventory.version)) throw new Error('invalid record re-review chain');
+  for (const receipt of inventory.reReviews) {
+    if (!validReReviewShape(receipt)) throw new Error('invalid record re-review receipt');
+    const prior = coverage.candidates.get(receipt.path); const next = receipt.candidate;
+    if (!prior || receipt.priorHistoryDigest !== prior.historyDigest || receipt.priorSourceHead !== coverage.sources.get(receipt.path)
+      || ['kind', 'policy', 'currentSha256'].some((key) => next[key] !== prior[key])
+      || next.history.priorIncarnations !== prior.history.priorIncarnations
+      || next.history.contentTransitions <= prior.history.contentTransitions) {
+      throw new Error(`record re-review does not extend its prior review: ${receipt.path}`);
+    }
+    coverage.candidates.set(receipt.path, next); coverage.sources.set(receipt.path, receipt.sourceHead);
+    coverage.reviewed.set(receipt.path, {
+      path: receipt.path, currentSha256: next.currentSha256, historyDigest: next.historyDigest,
+      disposition: 'freeze-current', rationale: receipt.rationale,
+    });
+  }
+}
+
+function checkInventory(context, rows, inventory, state, historyComplete = true) {
+  if (![1, 2, 3].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
+  if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
+  const coverage = reviewCoverage(context, inventory, historyComplete);
+  const { candidates: reviewCandidates, reviewed: reviewedCandidates, sources: reviewSources } = coverage;
+  const originalReviewPaths = coverage.originalPaths;
   const recordRows = new Map(rows.filter((row) => row.kind === 'record').map((row) => [row.path, row]));
   const ids = new Set();
   for (const entry of inventory.entries || []) {
@@ -1304,7 +1400,9 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
   if (!pendingAdmissionProblem && immutableRows.size) {
     pendingAdmissionProblem = `frozen artifact missing from inventory: ${[...immutableRows.keys()][0]}`;
   }
+  if (inventory.version === 1 && Object.hasOwn(inventory, 'reReviews')) throw new Error('inventory v1 cannot contain a re-review');
   if ([2, 3].includes(inventory.version)) {
+    applyReReviews(inventory, coverage);
     const expectedCandidatePaths = adoptionCandidatePaths(context, inventory, historyComplete);
     for (const path of expectedCandidatePaths) if (!reviewCandidates.has(path)) {
       throw new Error(`adoption review is missing original candidate: ${path}`);
@@ -1777,6 +1875,7 @@ try {
   if (command === 'classify') classifyCommand(context);
   else if (command === 'plan-adoption') planAdoption(context, options);
   else if (command === 'adopt') adopt(context, options);
+  else if (command === 're-review') reReview(context, options);
   else if (command === 'append') appendRecord(context, options);
   else if (command === 'curate') curate(context, options);
   else if (command === 'render') render(context, options);

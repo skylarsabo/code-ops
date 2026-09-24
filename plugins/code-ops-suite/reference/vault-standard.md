@@ -118,6 +118,8 @@ An immutable record that cites a mutable artifact stores authoritative `targetSh
 
 `plan-adoption --out <repo-relative-ignored-path>` binds genesis review to `HEAD`, the manifest, current content, and canonical history. Historically revised candidates require `disposition: "freeze-current"` and a rationale. `adopt --review <repo-relative-ignored-path>` recomputes every binding before writing. Absolute paths are rejected because review receipts stay inside the repository's ignored run boundary.
 
+`re-review --record <path> --reviewer <name> --rationale <text> [--at <iso>]` re-reviews one admitted path whose current bytes equal the reviewed digest but whose history gained content transitions, such as an edit later restored. It refuses a dirty worktree, a path without a review receipt, changed bytes, an unreachable prior review source, and history without new transitions. It appends a receipt to inventory `reReviews` and leaves the original review in place. The receipt stores the current history profile, the prior profile digest and source, the path commits between that source and `HEAD`, the reviewer, the rationale, and a `receiptDigest`. `check` then compares that path against the newest receipt. The chain is append-only and covers one path per receipt, so every other drift still fails.
+
 With complete history, later checks require:
 
 - exact-once authority-batch membership and exact candidate coverage within each reviewed batch
@@ -146,7 +148,7 @@ A legacy pointer is eligible only when a registered immutable record mechanicall
 
 An `_archive` directory inside a record collection is not a relocation target. Classify its tracked content before admission. After admission, freeze each path in place. Use curation to supersede meaning without archival-by-move.
 
-The canonical tool provides `classify`, `plan-adoption`, `adopt`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Every authority writer uses the collection mutation lock and optimistic authority bindings. By default, `append` stages the record and artifact snapshot, validates the staged state, atomically writes inventory, citations, and index, stages only those generated paths, runs staged-tree checks, and prints staged paths. `--no-stage` is an advanced override.
+The canonical tool provides `classify`, `plan-adoption`, `adopt`, `re-review`, `curate`, `append`, `render`, `check`, `verify-history --strict`, and `reindex-locators`. Every authority writer uses the collection mutation lock and optimistic authority bindings. By default, `append` stages the record and artifact snapshot, validates the staged state, atomically writes inventory, citations, and index, stages only those generated paths, runs staged-tree checks, and prints staged paths. `--no-stage` is an advanced override.
 
 Reject append when the record is unstaged, staged and working trees diverge, generated files contain unrelated edits, classification is incomplete, or a mutable target lacks its digest.
 
