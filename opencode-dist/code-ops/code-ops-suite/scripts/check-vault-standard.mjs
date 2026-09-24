@@ -55,6 +55,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
+import { git } from './cli-lib.mjs';
 
 const MACHINERY = ['00 Inbox', '80 Runs', '90 Templates', '95 Attachments', '98 System', '99 Archive'];
 // `80 Runs` is the one machinery folder a profile may leave off disk (gitignored run artifacts).
@@ -145,13 +146,25 @@ function profileStatuses(standardText) {
   return found;
 }
 
+// Untracked paths git ignores under the vault, relative to it, with a wholly ignored directory
+// ending in `/`. Local scratch such as `80 Runs/` is absent from CI, so ruling on it would make
+// a local run fail where CI passes. `--others` lists only untracked paths, so a tracked note is
+// never skipped even when an ignore pattern matches it. Outside a git work tree, or when git
+// fails, the set is empty and every note is checked, so a git failure can only widen coverage.
+function gitIgnored(dir) {
+  let out;
+  try { out = git(['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z', '--', '.'], { cwd: dir }); }
+  catch { return new Set(); }
+  return new Set(out.split('\0').filter((p) => p !== '' && p !== './'));
+}
+
 function walkNotes(dir, vault, acc) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const abs = join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (SKIP_DIRS.has(entry.name)) continue;
+      if (SKIP_DIRS.has(entry.name) || ignored.has(`${rel(abs)}/`)) continue;
       walkNotes(abs, vault, acc);
-    } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md') && !ignored.has(rel(abs))) {
       acc.push(abs);
     }
   }
@@ -180,6 +193,7 @@ if (!existsSync(vault) || !statSync(vault).isDirectory()) {
   console.error(`x not a directory: ${vault}`);
   process.exit(2);
 }
+const ignored = gitIgnored(vault);
 const rel = (p) => p.slice(vault.length + 1).replaceAll('\\', '/');
 const manifestOwned = new Set();
 const generatedRecords = new Set();

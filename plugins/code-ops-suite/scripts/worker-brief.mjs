@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite, digestJson, samePathTarget, sha256 } from './context-index-lib.mjs';
+import { exitOnHelp } from './cli-lib.mjs';
 
 const compilerSha256 = sha256(readFileSync(fileURLToPath(import.meta.url)));
 function compile(sources, limits) {
@@ -31,6 +32,7 @@ function compile(sources, limits) {
   receipt.receiptId = digestJson(receipt);
   return { prompt, receipt };
 }
+const USAGE = 'usage: worker-brief.mjs build --invariant <file> [--invariant <file> ...] --unit-file <file> [--unit-file <file> ...] --max-prefix-bytes <integer> --max-unit-bytes <integer> --max-bytes <integer> --out <file> --receipt <file>\n       worker-brief.mjs verify --out <file> --receipt <file>';
 function parse(args) {
   const sources = [];
   const flags = {};
@@ -47,6 +49,7 @@ function parse(args) {
   }
   return { sources, flags };
 }
+exitOnHelp(process.argv.slice(2), USAGE);
 try {
   const command = process.argv[2];
   const { sources, flags } = parse(process.argv.slice(3));
@@ -74,5 +77,5 @@ try {
     const result = compile(receipt.sources, receipt.limits);
     if (digestJson(receipt) !== digestJson(result.receipt) || !readFileSync(out).equals(result.prompt)) throw new Error('brief or source drift; rebuild before dispatch');
     console.log(`ok worker brief ${receipt.receiptId}`);
-  } else throw new Error('usage: worker-brief.mjs build --invariant <file> [--invariant <file> ...] --unit-file <file> [--unit-file <file> ...] --max-prefix-bytes <integer> --max-unit-bytes <integer> --max-bytes <integer> --out <file> --receipt <file>\n       worker-brief.mjs verify --out <file> --receipt <file>');
+  } else throw new Error(USAGE);
 } catch (error) { console.error(`x ${error.message}`); process.exitCode = 1; }

@@ -196,6 +196,28 @@ const quoted = run(scaffold({
 expect(quoted.status === 0,
   `quoted YAML scalars must validate like bare ones, got ${quoted.status}:\n${quoted.out}`);
 
+// A note git ignores is local scratch that CI never sees, so the walk skips it; ruling on it made
+// a local run fail where CI passed. The skip must never narrow tracked coverage: the same notes,
+// force-added so an ignore pattern still matches them, fail, and outside a git repo they fail too.
+const gitIn = (dir, args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+const scratch = {
+  '.gitignore': 'scratch/\nLocal note.md\n',
+  '10 Design/scratch/Unfronted.md': '# ignored directory scratch\n',
+  '10 Design/Local note.md': '# ignored file scratch\n',
+};
+const noGit = run(scaffold(scratch));
+expect(noGit.status === 1 && /Unfronted\.md/.test(noGit.out) && /Local note\.md/.test(noGit.out),
+  `outside a git repo every note must still be checked, got ${noGit.status}:\n${noGit.out}`);
+const ignoredVault = scaffold(scratch);
+gitIn(ignoredVault, ['init', '-q']);
+const skipped = run(ignoredVault);
+expect(skipped.status === 0, `git-ignored notes must be skipped, got ${skipped.status}:\n${skipped.out}`);
+gitIn(ignoredVault, ['add', '-f', '--', '10 Design/scratch/Unfronted.md', '10 Design/Local note.md']);
+const tracked = run(ignoredVault);
+expect(tracked.status === 1 && /Unfronted\.md: no YAML frontmatter block/.test(tracked.out)
+  && /Local note\.md: no YAML frontmatter block/.test(tracked.out),
+  `a tracked note matching an ignore pattern must still fail, got ${tracked.status}:\n${tracked.out}`);
+
 if (fails.length) {
   console.error('FAIL — vault-standard eval:');
   for (const f of fails) console.error('  x ' + f);
