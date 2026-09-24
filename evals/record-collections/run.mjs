@@ -14,7 +14,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 247 : 250;
+const expectedCases = process.platform === 'win32' ? 248 : 251;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -2022,6 +2022,18 @@ try {
   commit(reReviewRepo, 'record re-review');
   result = run(['check', '--root', reReviewRepo, ...COLLECTION], reReviewRepo);
   check('a committed re-review keeps check green', result.status === 0, result.output);
+  const sideRepo = reReviewFork('re-review-side-branch');
+  const sideSource = JSON.parse(readFileSync(generated(sideRepo, 'inventory.json'), 'utf8')).adoptionReview.sourceHead;
+  const sideBranch = git(['rev-parse', '--abbrev-ref', 'HEAD'], sideRepo).trim();
+  const evalIdentity = ['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval'];
+  git(['checkout', '-q', '--detach', sideSource], sideRepo);
+  git([...evalIdentity, 'commit', '-q', '--amend', '--allow-empty', '-m', 'rewritten review source'], sideRepo);
+  git([...evalIdentity, 'cherry-pick', '--allow-empty', '--keep-redundant-commits', `${sideSource}..${sideBranch}`], sideRepo);
+  git(['checkout', '-q', '-B', sideBranch], sideRepo);
+  result = run(reReviewArgs(sideRepo, 'records/one.md'), sideRepo);
+  const sideReceipt = JSON.parse(readFileSync(generated(sideRepo, 'inventory.json'), 'utf8')).reReviews?.[0];
+  check('re-review accepts a prior review source left on a side branch', result.status === 0
+    && sideReceipt?.priorSourceHead === sideSource && sideReceipt.examinedCommits.length >= 2, result.output);
   const reTamperRepo = join(work, 're-review-tamper'); cpSync(reReviewRepo, reTamperRepo, { recursive: true });
   const reTamperInventory = JSON.parse(readFileSync(generated(reTamperRepo, 'inventory.json'), 'utf8'));
   reTamperInventory.reReviews[0].rationale = 'forged';
