@@ -1,6 +1,6 @@
 {
   "name": "rigor",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "Verification-first workflows for finding real bugs, fixing them at root cause, and making measured improvements. Prove-it-or-don't-report-it: every finding carries an evidence tier and a proof artifact, and fixes ship a failing-then-passing regression test fixed at root cause. v2 adds test-suite validation (flaky + mutation testing), characterization safety nets, root-cause sibling sweeps, regression bisection, and a regression guard.",
   "author": {
     "name": "Skylar",

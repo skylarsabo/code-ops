@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.1.3
+- The vendored `co.mjs` adds the `run open` and `handoff live` verbs, which route to `handoff-state.mjs`.
+
 ## 3.1.2
 - The vendored `citation-lib`, `symbol-lib`, and `cli-lib` pass `noUncheckedIndexedAccess` through guards and destructuring. Their behavior is unchanged.
 

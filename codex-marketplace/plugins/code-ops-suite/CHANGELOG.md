@@ -4,6 +4,14 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.6.0
+- The SessionStart card lists up to 3 pending handoffs by session name on a fresh session and treats the session as new work unless the operator resumes one. It prints a `this session:` line.
+- After compaction, the card names the session's own run folder from its session record.
+- `co run open` opens a run folder and writes the session record. `co handoff resume` accepts a session name, seeds a successor run folder, and writes a version 2 `HANDOFF.consumed` that records the session, the successor run, and the name.
+- A handoff may carry `Session: <name> HO <n>` and `Hop: <n>` lines. `check-handoff.mjs` requires the two as a pair, with the Session name ending in `HO <Hop>`. A handoff without them still passes.
+- `co handoff draft` refuses to write into a consumed run folder or one another session owns. `co handoff live` finds the live head of a handoff chain.
+- On OpenCode, an `enabled` list that matches no host model binds no chooser model and warns. It no longer falls back to the full catalog.
+
 ## 2.5.0
 - Conform surface 3 runs `atlas-check.mjs check --gate --claims-gate`. A STALE section, or a claim that is MOVED, DRIFTED, or GONE, makes the surface DRIFTED, never CONFORMANT.
 - `CONVENTIONS.md`, the vault standard, and the atlas reference state that a FRESH section does not vouch for a claim reported DRIFTED or GONE. That claim is a lead, and its cited line is re-read before use.
