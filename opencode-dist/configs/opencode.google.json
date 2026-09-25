@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "google/gemini-3.6-flash"
     },
+    "code-ops-suite-probe": {
+      "model": "google/gemini-3.6-flash"
+    },
     "code-ops-suite-reviewer": {
       "model": "google/gemini-3.1-pro-preview"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "google/gemini-3.6-flash"
     },
     "privacy-opsec-suite-explorer": {
       "model": "google/gemini-3.1-flash-lite"

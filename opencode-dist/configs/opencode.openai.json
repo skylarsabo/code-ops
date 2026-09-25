@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "openai/gpt-5.1"
     },
+    "code-ops-suite-probe": {
+      "model": "openai/gpt-5.1"
+    },
     "code-ops-suite-reviewer": {
       "model": "openai/gpt-5.6-terra"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "openai/gpt-5.1"
     },
     "privacy-opsec-suite-explorer": {
       "model": "openai/gpt-6-luna"

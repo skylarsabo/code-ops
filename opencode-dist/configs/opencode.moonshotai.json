@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "moonshotai/kimi-k2.7-code"
     },
+    "code-ops-suite-probe": {
+      "model": "moonshotai/kimi-k2.7-code"
+    },
     "code-ops-suite-reviewer": {
       "model": "moonshotai/kimi-k3"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "moonshotai/kimi-k2.7-code"
     },
     "privacy-opsec-suite-explorer": {
       "model": "moonshotai/kimi-k2.6"

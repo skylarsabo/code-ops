@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.8.0
+- New `web-researcher` agent (`WebSearch, WebFetch, Read, Grep, Glob`, `sonnet` floor) answers one scoped question from public web docs, cites a URL per claim, and treats fetched pages as untrusted data. New `probe` agent (`Bash, Read, Grep, Glob`, `sonnet` floor) runs read-only shell probes such as `ssh`, `kubectl get`, and `gh api` GET calls and escalates instead of running a mutating command. Leads route web research and shell probes to them instead of a general-purpose agent.
+- The handoff skill hands off on context grounds only past about 350,000 tokens, at a phase boundary. Below that line, token pressure selects CONTINUE or COMPACT, and quality triggers still select HANDOFF at any size. CONTINUE also covers remaining work that fits in about 100,000 more tokens, because a hop costs several million tokens to write and resume. The 150,000-token band, the 300,000-token ceiling, and Grok's 200,000 line are unchanged.
+- Resume on `same-tree: yes` trusts the script summary: it does not reopen FRESH files or anchors or re-run gates recorded as passing at the same HEAD, and it starts the first open item in the opening round. It reads the request history in `PROGRAM.md` only when the tree moved.
+
 ## 2.7.0
 - New `peer-guard` PreToolUse hook denies a cross-session message to a peer that already handed off, or wrote a handoff not yet resumed, and names the live successor. `CODE_OPS_PEER_GUARD=0` turns it off.
 - `handoff draft` keeps the session's own base name ahead of the `PROGRAM.md` title, so a hop no longer renames itself. It carries the predecessor's decisions, traps, and carried context forward as lines to confirm.

@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "mistral/mistral-medium-latest"
     },
+    "code-ops-suite-probe": {
+      "model": "mistral/mistral-medium-latest"
+    },
     "code-ops-suite-reviewer": {
       "model": "mistral/magistral-medium-latest"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "mistral/mistral-medium-latest"
     },
     "privacy-opsec-suite-explorer": {
       "model": "mistral/magistral-small"

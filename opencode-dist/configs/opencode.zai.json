@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "zai/glm-5.1"
     },
+    "code-ops-suite-probe": {
+      "model": "zai/glm-5.1"
+    },
     "code-ops-suite-reviewer": {
       "model": "zai/glm-5.2"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "zai/glm-5.1"
     },
     "privacy-opsec-suite-explorer": {
       "model": "zai/glm-5"

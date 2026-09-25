@@ -98,7 +98,9 @@ Each bundled agent states its required tier in its own file. For reference:
 | `code-ops-suite-implementer` | `strong` |
 | `code-ops-suite-mech-review` | `mid` |
 | `code-ops-suite-mech` | `mid` |
+| `code-ops-suite-probe` | `mid` |
 | `code-ops-suite-reviewer` | `strong` |
+| `code-ops-suite-web-researcher` | `mid` |
 | `privacy-opsec-suite-explorer` | `light` |
 | `privacy-opsec-suite-privacy-reviewer` | `strong` |
 | `rigor-tracer` | `strong` |

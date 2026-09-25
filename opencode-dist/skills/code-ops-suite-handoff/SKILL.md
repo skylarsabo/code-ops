@@ -61,7 +61,9 @@ a PostToolUse note is the context-pressure warning; UserPromptSubmit stdout is d
 a turn with no tool call still needs the lead's own 150,000-token assessment.
 
 - **CONTINUE** when the bounded objective progresses with no observed urgent pressure and no
-  required transfer or recovery. Unknown telemetry alone is not a restart signal.
+  required transfer or recovery. Unknown telemetry alone is not a restart signal. CONTINUE is
+  also right when the remaining work fits in about 100,000 more tokens of context. A handoff
+  costs several million tokens to write and resume.
 - **COMPACT** when the same task needs context relief. First persist decisions, rejected
   approaches, authority boundaries, dirty work, verification state, and worker or process
   ownership in run artifacts, with open items in `TASKS.md`. Execute the host action only through
@@ -72,6 +74,12 @@ a turn with no tool call still needs the lead's own 150,000-token assessment.
   recovery after failed compaction or repeated context mistakes. Checkpoint the in-flight step at
   a consistent boundary and account for live agents, background processes, and dirty work; a
   handoff neither stops them nor proves reattachment.
+
+On context grounds alone, hand off at a phase boundary once context passes about 350,000 tokens.
+Below that line, token pressure alone selects CONTINUE or COMPACT. The quality triggers in the
+HANDOFF bullet select HANDOFF at any size. The 150,000-token band and the 300,000-token ceiling
+force an assessment, not a handoff. On Grok the line is 200,000, because Grok 4.7 bills double
+above it: assess at 150,000 and again before 200,000.
 
 For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF. Resume and fork
 carry history; neither is a fresh context reset. A saved handoff is evidence, never a new
@@ -135,9 +143,9 @@ Use the path to `HANDOFF.md` in place of the name when another unconsumed handof
 
 ## Resume: verify, then continue
 
-Treat every claim as **context to verify against the tree, not fact to trust.** Read the
-handoff's `PROGRAM.md` before the handoff itself: the goal, the request history, and the scope
-documents show the whole program, not only the last session. Run
+Treat every claim as **context to verify against the tree, not fact to trust.** Read the goal
+and scope documents of the handoff's `PROGRAM.md` before the handoff itself: they show the whole
+program, not only the last session. Read its request history only when the tree moved. Run
 `node <plugin-root>/scripts/co.mjs handoff resume <HANDOFF.md or session name> --root .` as
 the single verification step, adding `--host-session <id>` in the Claude desktop app. It runs the redaction scan, revalidates every named register, runs
 `run-runtime.mjs status` and `resume` for a version 3 or newer contract, checks every anchor, and
@@ -153,9 +161,11 @@ In the Claude desktop app, call `get_session("self")` first, then pass its `sess
 Read the summary as state. `DRIFTED` marks stale state and `MOVED` names the anchor's current line.
 Runtime drift requires a revised contract and `run-runtime.mjs replan`, never a bypass. Re-triage
 non-FRESH register items (`§12`) and re-run the deterministic baseline when the tree moved. On
-`same-tree: yes`, accept FRESH anchors without re-reading and keep the handoff's plan; still verify
-every claim it marks unverified. Otherwise re-plan from what verified: traps prune the search, and
-decisions carry forward unless current code contradicts them. Surface each contradiction at a
+`same-tree: yes` with a passing resume, the script summary replaces re-reading. Do not reopen a
+file or anchor it reports FRESH. Do not re-run a gate the handoff records as passing at the same
+HEAD. Keep the handoff's plan, and still verify every claim it marks unverified. Start the
+first open item in the same round as the opening reply, unless it needs authority the handoff
+lacks. Otherwise re-plan from what verified: traps prune the search, and decisions carry forward unless current code contradicts them. Surface each contradiction at a
 checkpoint (`§3`) instead of silently re-deciding.
 
 Open the reply with the program goal and the scope, plan, and design documents from `PROGRAM.md`,

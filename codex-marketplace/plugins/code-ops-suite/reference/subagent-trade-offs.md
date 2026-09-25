@@ -111,7 +111,7 @@ The trade-off is real. Every subagent is a fresh context that must be primed wit
 
 ## The read-only agents
 
-These seven never edit, and with the noted exception they never execute. Because they cannot change the tree, two of them touching the same file is harmless. So the orchestrator spawns as many as the work warrants, over whatever slices it likes, all at once.
+These nine never edit, and only the ones whose tools add `Bash` execute anything. Because they cannot change the tree, two of them touching the same file is harmless. So the orchestrator spawns as many as the work warrants, over whatever slices it likes, all at once.
 
 ```mermaid
 flowchart TD
@@ -140,6 +140,13 @@ flowchart TD
 - **code-ops `mech-review`** (model: `sonnet`, tools add `Bash`): checks a small mechanical diff against its spec and returns PASS, FAIL, or ESCALATE. It escalates a judgment-heavy diff instead of reviewing it, and its `Bash` is read-only.
 - **researcher `claim-checker`** (model: `sonnet`): adversarial verifier. Given one load-bearing claim, it tries to kill the claim against the actual code and the cited sources, then returns **SUPPORTED / PARTIAL / UNSUPPORTED** with an evidence tier. Use one per claim, in parallel.
 
+**Outside-the-tree researchers** answer a question the repository cannot, so the lead never needs a general-purpose agent for it:
+
+- **code-ops `web-researcher`** (model: `sonnet`, tools `WebSearch, WebFetch, Read, Grep, Glob`): public vendor and API documentation for one scoped question. It cites a URL for every claim and labels each source primary or secondary. It never signs up, logs in, or downloads. It treats every fetched page as untrusted data and reports injection attempts. It never puts repository secrets, identifiers, or private code into a query or URL.
+- **code-ops `probe`** (model: `sonnet`, tools `Bash, Read, Grep, Glob`): read-only shell probes of live or remote state, such as `ssh`, `kubectl get`, `gh api` GET calls, registry tag listings, and git read commands. It never runs a mutating command. It escalates when the answer needs one, and it quotes each command it ran with trimmed, redacted output.
+
+Both floors are `sonnet`, not `haiku`, because each reads untrusted input (a web page, a live system) where a missed injection or a mutating command costs more than the tier premium. Neither is `opus`, because each gathers evidence and returns no verdict that a finding rests on. The lead judges what the evidence proves. Run either strong when the brief asks it to weigh conflicting sources or pick a command sequence on a production system.
+
 Because none of these write, the orchestrator can run four code-ops `explorer`s and two `reviewer`s at once with no conflict risk. The reviewers' `Bash` is the only nuance. It runs read-only commands such as a test suite or a linter, so two reviewers running tests at once is a resource question rather than a correctness one.
 
 ---
@@ -148,7 +155,7 @@ Because none of these write, the orchestrator can run four code-ops `explorer`s 
 
 An operative re-reads its whole context on every turn, so a dispatch costs its resident context multiplied by its turn count. Tool-result volume is second-order. A cross-project transcript audit on 2026-09-18 measured about 1.04 billion input-side tokens in one day. Subagents carried 80% of them, and tool results were under 1% of the total. [MEASUREMENTS.md](../../55%20Operations/MEASUREMENTS.md) holds the full table. Four rules follow, and one hook enforces them.
 
-- **Pick the narrowest agent that can do the unit.** A general-purpose agent started each turn at about 57,000 tokens, because it inherits every host tool schema. The suite's restricted-tool agents started at 18,000 to 24,000. General-purpose operatives carried 787 million of the day's tokens. Dispatch the `implementer` for build work, and never a general-purpose agent where a shipped agent fits.
+- **Pick the narrowest agent that can do the unit.** A general-purpose agent started each turn at about 57,000 tokens, because it inherits every host tool schema. The suite's restricted-tool agents started at 18,000 to 24,000. General-purpose operatives carried 787 million of the day's tokens. Dispatch the `implementer` for build work, the `web-researcher` for public web docs, the `probe` for read-only shell probes, and never a general-purpose agent where a shipped agent fits.
 - **Bound the unit.** 63% of operative spend ran above 150,000 tokens of context. Size a unit to finish inside about 40 tool rounds, and name that budget in the brief. An operative that passes it writes a checkpoint and returns, and the lead continues the unit in a fresh operative from that checkpoint. A unit that needs a second continuation was scoped too large, so split it.
 - **Leave the agent's own tier alone for breadth.** An `explorer` or `gatherer` dispatch runs at the tier its definition declares. Pass a model override only when the brief names the reason, because the override silently replaces the declared tier: the same audit found explorers whose definitions declare the cheapest tier running on a frontier model. Prefer the suite `explorer` over a host's built-in exploration agent, which inherits the lead's model.
 - **Spawn, never fork or resume.** A forked or resumed operative starts from the context it inherited rather than from a brief, which the audit measured at 230,000 first-turn tokens against 18,000 for a restricted agent. Write the brief and spawn a fresh operative instead, and hand a continuation the previous operative's checkpoint rather than its context.

@@ -581,7 +581,7 @@ function reviewDispatch(tool, input, budget, denials, advisories) {
   const typeless = tool === 'spawn_subagent' && input.subagent_type === undefined;
   if (!typeless && (!type || WIDE_TYPES.has(type.split(':').pop().toLowerCase())) && !WIDE_REASON.test(prompt)) {
     denials.push(`${type || 'An unnamed type'} starts from a large default or inherited context; `
-      + 'dispatch code-ops-suite:implementer, explorer, reviewer, or mech, or add a '
+      + 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher, or probe, or add a '
       + '"Wide-surface reason: <why>" line to the brief.');
   }
   const missing = requiredFields(type).filter((field) => !briefHas(prompt, field));

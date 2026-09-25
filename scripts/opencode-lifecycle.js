@@ -47,7 +47,7 @@ const DISPATCH_TOOLS = new Set(['task', 'Task', 'agent', 'Agent']);
 const WIDE_TYPES = new Set(['general-purpose', 'general', 'claude', 'fork', 'explore', 'scout']);
 const READ_ONLY = new Set([
   'explorer', 'reviewer', 'tracer', 'verifier', 'gatherer', 'claim-checker',
-  'privacy-reviewer', 'mech-review', 'plan', 'explore',
+  'privacy-reviewer', 'mech-review', 'web-researcher', 'probe', 'plan', 'explore',
 ]);
 const PLUGIN_PREFIXES = ['code-ops-suite-', 'privacy-opsec-suite-', 'rigor-', 'researcher-'];
 const SUITE_TASK = {
