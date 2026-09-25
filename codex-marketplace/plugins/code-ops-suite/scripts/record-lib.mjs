@@ -25,6 +25,10 @@ const MAX_HISTORY_BATCH_PATHS = 128;
 const MAX_HISTORY_COMMAND_UNITS = 24000;
 const MAX_BLOB_BATCH_BYTES = 32 * 1024 * 1024;
 const OBJECT_FORMATS = new Map();
+// Objects named by full object ID never change, so one process reuses their reads (see objectStore).
+const OBJECT_STORES = new Map();
+const MAX_CACHED_BLOB_BYTES = 64 * 1024 * 1024;
+const OBJECT_ID_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonical = (value) => Array.isArray(value)
@@ -79,7 +83,7 @@ export function physicalRoot(value) {
   }
 }
 
-function objectFormat(root) {
+export function objectFormat(root) {
   const key = physicalRoot(root);
   if (!OBJECT_FORMATS.has(key)) OBJECT_FORMATS.set(key, git(root, ['rev-parse', '--show-object-format']).trim());
   return OBJECT_FORMATS.get(key);
@@ -107,21 +111,128 @@ export class GitStateError extends Error {}
 function literalPath(path) { return `:(literal)${path}`; }
 function oidInput(oids) { return Buffer.from(`${oids.join('\n')}\n`, 'ascii'); }
 
+// Per-process reads that depend only on immutable objects. The index, the worktree, and
+// symbolic refs such as HEAD are never cached, because they can change while a command runs.
+function objectStore(root) {
+  const key = physicalRoot(root);
+  if (!OBJECT_STORES.has(key)) {
+    OBJECT_STORES.set(key, { metadata: new Map(), blobs: new Map(), blobBytes: 0, revisions: new Map(), queries: new Map() });
+  }
+  return OBJECT_STORES.get(key);
+}
+
+// Runs a read-only Git query and reuses its result when every named revision is a full object ID.
+// A nonzero Git exit is reused as the same thrown error; a spawn failure or timeout is not reused.
+export function gitObjectQuery(root, revisions, args, binary = false) {
+  if (!revisions.every((revision) => OBJECT_ID_RE.test(revision))) return git(root, args, binary);
+  const queries = objectStore(root).queries; const key = `${binary}\0${args.join('\0')}`;
+  if (!queries.has(key)) {
+    try { queries.set(key, { value: git(root, args, binary) }); }
+    catch (error) {
+      if (typeof error.status !== 'number') throw error;
+      queries.set(key, { error });
+    }
+  }
+  const entry = queries.get(key);
+  if (entry.error) throw entry.error;
+  return entry.value;
+}
+
+export function isAncestorCommit(root, ancestor, descendant) {
+  try { gitObjectQuery(root, [ancestor, descendant], ['merge-base', '--is-ancestor', ancestor, descendant]); return true; }
+  catch { return false; }
+}
+
+function retainBlobBytes(cache, bytes) {
+  if (cache.blobBytes + bytes.length > MAX_CACHED_BLOB_BYTES) return false;
+  cache.blobBytes += bytes.length;
+  return true;
+}
+
+function batchableRevision(spec) {
+  const split = typeof spec === 'string' ? spec.indexOf(':') : -1;
+  return split > 0 && OBJECT_ID_RE.test(spec.slice(0, split))
+    && safePath(spec.slice(split + 1)) && !/[\0\r\n]/.test(spec);
+}
+
+function parseRevisionBatch(output, specs) {
+  const objects = new Map(); let offset = 0;
+  for (const spec of specs) {
+    const lineEnd = output.indexOf(10, offset);
+    if (lineEnd < 0) return null;
+    const line = output.subarray(offset, lineEnd).toString('utf8');
+    offset = lineEnd + 1;
+    if (line === `${spec} missing`) { objects.set(spec, { missing: true }); continue; }
+    if (line === `${spec} ambiguous`) { objects.set(spec, { fallback: true }); continue; }
+    const match = /^([0-9a-f]+) (\S+) (\d+)$/.exec(line);
+    if (!match) return null;
+    const end = offset + Number(match[3]);
+    if (end >= output.length || output[end] !== 10) return null;
+    objects.set(spec, match[2] === 'blob'
+      ? { oid: match[1], bytes: Buffer.from(output.subarray(offset, end)) } : { fallback: true });
+    offset = end + 1;
+  }
+  return offset === output.length ? objects : null;
+}
+
+// Resolves `<object-id>:<path>` specs through one `cat-file --batch`. Each value is `{ oid, bytes }`
+// for a blob, `{ missing: true }` when Git cannot resolve the spec, or `{ fallback: true }` when the
+// caller must run its original per-spec command, which then decides the result and error exactly.
+export function revisionObjects(root, specs) {
+  const cache = objectStore(root); const store = cache.revisions; const objects = new Map(); const pending = [];
+  for (const spec of new Set(specs)) {
+    if (store.has(spec)) objects.set(spec, store.get(spec));
+    else if (batchableRevision(spec)) pending.push(spec);
+    else objects.set(spec, { fallback: true });
+  }
+  if (!pending.length) return objects;
+  let parsed = null;
+  try { parsed = parseRevisionBatch(gitInput(root, ['cat-file', '--batch'], Buffer.from(`${pending.join('\n')}\n`, 'utf8'), true), pending); }
+  catch { parsed = null; }
+  for (const spec of pending) {
+    const object = parsed?.get(spec) || { fallback: true };
+    if (object.missing || (object.bytes && retainBlobBytes(cache, object.bytes))) store.set(spec, object);
+    objects.set(spec, object);
+  }
+  return objects;
+}
+
+// Equivalent to `git show <spec>` for each spec: the bytes on success, or undefined where it fails.
+export function revisionBlobs(root, specs) {
+  const blobs = new Map();
+  for (const [spec, object] of revisionObjects(root, specs)) {
+    if (object.bytes) { blobs.set(spec, object.bytes); continue; }
+    if (object.missing) { blobs.set(spec, undefined); continue; }
+    try { blobs.set(spec, git(root, ['show', spec], true)); } catch { blobs.set(spec, undefined); }
+  }
+  return blobs;
+}
+
+// A read that must fail as `git show <spec>` fails: a spec it cannot resolve reruns that command.
+export function showRevision(root, spec, blobs = revisionBlobs(root, [spec])) {
+  return blobs.get(spec) ?? git(root, ['show', spec], true);
+}
+
 function objectMetadata(root, oids) {
   if (!oids.length) return [];
-  let output;
-  try {
-    output = gitInput(root, ['cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize)'], oidInput(oids));
-  } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading object metadata: ${error.message}`); }
-  const lines = output.trim().split(/\r?\n/);
-  if (lines.length !== oids.length) throw new GitStateError('git-state: malformed cat-file batch metadata');
-  return lines.map((line, index) => {
-    const match = /^([0-9a-f]+) (\S+) (\d+)$/.exec(line);
-    if (!match || match[1] !== oids[index]) {
-      throw new GitStateError(`git-state: malformed cat-file batch response for ${oids[index]}`);
-    }
-    return { oid: match[1], type: match[2], size: Number(match[3]) };
-  });
+  const store = objectStore(root).metadata;
+  const pending = oids.filter((oid) => !store.has(oid));
+  if (pending.length) {
+    let output;
+    try {
+      output = gitInput(root, ['cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize)'], oidInput(pending));
+    } catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading object metadata: ${error.message}`); }
+    const lines = output.trim().split(/\r?\n/);
+    if (lines.length !== pending.length) throw new GitStateError('git-state: malformed cat-file batch metadata');
+    lines.forEach((line, index) => {
+      const match = /^([0-9a-f]+) (\S+) (\d+)$/.exec(line);
+      if (!match || match[1] !== pending[index]) {
+        throw new GitStateError(`git-state: malformed cat-file batch response for ${pending[index]}`);
+      }
+      store.set(match[1], { oid: match[1], type: match[2], size: Number(match[3]) });
+    });
+  }
+  return oids.map((oid) => ({ ...store.get(oid) }));
 }
 
 function blobMetadata(root, oids) {
@@ -170,22 +281,40 @@ function readBlobBatch(root, batch) {
   return blobs;
 }
 
+// Reads blob content through the per-process object store. `withBytes` false needs only digests.
+function readBlobs(root, metadata, withBytes = true) {
+  const cache = objectStore(root); const blobs = new Map(); const pending = [];
+  for (const entry of metadata) {
+    const cached = cache.blobs.get(entry.oid);
+    if (cached && (!withBytes || cached.bytes)) blobs.set(entry.oid, cached);
+    else pending.push(entry);
+  }
+  for (const batch of blobBatches(pending)) {
+    for (const [oid, blob] of readBlobBatch(root, batch)) {
+      cache.blobs.set(oid, retainBlobBytes(cache, blob.bytes) ? blob : { targetSha256: blob.targetSha256 });
+      blobs.set(oid, blob);
+    }
+  }
+  return blobs;
+}
+
 function historicalBlobDigests(root, metadata) {
-  const digests = new Map(); const batched = [];
+  const digests = new Map(); const batched = []; const cache = objectStore(root);
   for (const entry of metadata) {
     if (entry.size <= MAX_BLOB_BATCH_BYTES) {
       batched.push(entry);
       continue;
     }
+    const cached = cache.blobs.get(entry.oid);
+    if (cached) { digests.set(entry.oid, cached.targetSha256); continue; }
     let bytes;
     try { bytes = git(root, ['cat-file', '-p', entry.oid], true); }
     catch (error) { throw new GitStateError(`git-state: Git subprocess failed while reading historical object content: ${error.message}`); }
     if (bytes.length !== entry.size) throw new GitStateError(`git-state: historical blob size changed while reading: ${entry.oid}`);
     digests.set(entry.oid, sha256(bytes));
+    cache.blobs.set(entry.oid, { targetSha256: digests.get(entry.oid) });
   }
-  for (const batch of blobBatches(batched)) {
-    for (const [oid, blob] of readBlobBatch(root, batch)) digests.set(oid, blob.targetSha256);
-  }
+  for (const [oid, blob] of readBlobs(root, batched, false)) digests.set(oid, blob.targetSha256);
   return digests;
 }
 
@@ -223,8 +352,7 @@ export function indexSnapshot(root, paths) {
     const path = [...entries].find(([, entry]) => entry.blobOid === oversized.oid)?.[0] || oversized.oid;
     throw new GitStateError(`git-state: blob exceeds ${MAX_BLOB_BATCH_BYTES}-byte limit: ${path}`);
   }
-  const blobs = new Map();
-  for (const batch of blobBatches(metadata)) for (const [oid, blob] of readBlobBatch(root, batch)) blobs.set(oid, blob);
+  const blobs = readBlobs(root, metadata);
   for (const [path, entry] of entries) Object.assign(entry, blobs.get(entry.blobOid));
   return entries;
 }
@@ -730,7 +858,8 @@ export function adoptionHistoryProfiles(root, collection, rows, {
   return profiles;
 }
 export function treePathsAt(root, commit) {
-  return gitPaths(root, ['ls-tree', '-r', '-z', '--name-only', commit]);
+  return gitObjectQuery(root, [commit], ['ls-tree', '-r', '-z', '--name-only', commit], true)
+    .toString('utf8').split('\0').filter(Boolean).map(posix);
 }
 export function targetsAt(root, commit, paths) {
   const tree = treeBlobOids(root, commit, paths);
@@ -741,10 +870,13 @@ export function targetsAt(root, commit, paths) {
     objectFormat: format, blobOid, commitOid: commit, path, targetSha256: digests.get(blobOid),
   } : null]));
 }
-export function targetAt(root, commit, path) {
+export function targetAt(root, commit, path, objects = null) {
   try {
-    const blobOid = git(root, ['rev-parse', commit + ':' + path]).trim();
-    const content = git(root, ['cat-file', '-p', blobOid], true);
+    const spec = commit + ':' + path;
+    const object = (objects || revisionObjects(root, [spec])).get(spec);
+    if (object.missing) return null;
+    const blobOid = object.bytes ? object.oid : git(root, ['rev-parse', spec]).trim();
+    const content = object.bytes || git(root, ['cat-file', '-p', blobOid], true);
     return { objectFormat: objectFormat(root), blobOid, commitOid: commit, path, targetSha256: sha256(content) };
   } catch { return null; }
 }
@@ -803,17 +935,17 @@ export function findBlobByDigest(root, digest) {
 }
 export function historicalTarget(root, path, boundCommit) {
   let commits = [];
-  try { commits = git(root, ['rev-list', boundCommit, '--', path]).trim().split(/\s+/).filter(Boolean); } catch { return null; }
+  try {
+    commits = gitObjectQuery(root, [boundCommit], ['rev-list', boundCommit, '--', path]).trim().split(/\s+/).filter(Boolean);
+  } catch { return null; }
+  const objects = revisionObjects(root, commits.map((commit) => commit + ':' + path));
   const candidates = [];
   for (const commit of commits) {
-    const target = targetAt(root, commit, path);
+    const target = targetAt(root, commit, path, objects);
     if (target) candidates.push(target);
   }
-  const maximal = candidates.filter((candidate) => !candidates.some((other) => {
-    if (candidate.commitOid === other.commitOid) return false;
-    try { git(root, ['merge-base', '--is-ancestor', candidate.commitOid, other.commitOid]); return true; }
-    catch { return false; }
-  }));
+  const maximal = candidates.filter((candidate) => !candidates.some((other) => candidate.commitOid !== other.commitOid
+    && isAncestorCommit(root, candidate.commitOid, other.commitOid)));
   const byDigest = new Map();
   for (const target of maximal.sort((left, right) => left.commitOid.localeCompare(right.commitOid))) {
     if (!byDigest.has(target.targetSha256)) byDigest.set(target.targetSha256, target);

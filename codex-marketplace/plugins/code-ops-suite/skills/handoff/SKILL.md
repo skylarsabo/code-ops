@@ -30,11 +30,13 @@ delete them), and Closed items (id, how closed, pointer). Its cap is 32 KB.
 A new session is new work. It is not a handoff unless the operator resumes one. Each substantive
 run opens its own folder, so simultaneous sessions never share one:
 `node <plugin-root>/scripts/co.mjs run open <slug> --name "<program name>"`. One run folder
-belongs to one session, which its `SESSION.json` records.
+belongs to one session, which its `SESSION.json` records. In the Claude desktop app, the host
+session id (`local_<uuid>`) differs from the session id. Add `--host-session <id>` to `run open` and
+to `handoff resume` there, so peers can find the session by either id.
 
 Each hop names the next session in sequence: `Ledger2 AMM`, then `Ledger2 AMM HO 1`, then
 `Ledger2 AMM HO 2`. The handoff's `Session:` line holds the successor's name, and `Hop:` holds its
-number.
+number. The base name keeps its recorded case and never changes to the `PROGRAM.md` title.
 
 Peers address a program session by its name, never by a bare session id. Before messaging a peer,
 resolve the live head with `node <plugin-root>/scripts/co.mjs handoff live "<name>"`: a
@@ -89,8 +91,9 @@ It fills every mechanical fact: `Verified-at`, branch, dirty paths, the `base..H
 items from the unchecked `TASKS.md` lines, each artifact stamped `Verified-at`, and the contract
 and receipt paths. It takes the predecessor from the run's `SESSION.json` and fills `Session:` and
 `Hop:`. It refuses a folder that holds `HANDOFF.consumed` or belongs to another session, so a
-resumed session writes into its own successor run folder. Replace each `[FILL: ...]` placeholder
-with judgment, held to `§9`:
+resumed session writes into its own successor run folder. It carries the predecessor's decisions,
+traps, and carried-context bullets as `[FILL: confirm still true]` lines: keep each one that still
+holds and delete the rest. Replace each `[FILL: ...]` placeholder with judgment, held to `§9`:
 - **Program:** added first, above Goal, because it points at the context every other section sits
   in. It holds `Program: <path to PROGRAM.md>`, `Predecessor: <path to prior HANDOFF.md | none>`,
   `Session: <base name> HO <n>`, and `Hop: <n>`.
@@ -134,14 +137,16 @@ Treat every claim as **context to verify against the tree, not fact to trust.** 
 handoff's `PROGRAM.md` before the handoff itself: the goal, the request history, and the scope
 documents show the whole program, not only the last session. Run
 `node <plugin-root>/scripts/co.mjs handoff resume <HANDOFF.md or session name> --root .` as
-the single verification step. It runs the redaction scan, revalidates every named register, runs
+the single verification step, adding `--host-session <id>` in the Claude desktop app. It runs the redaction scan, revalidates every named register, runs
 `run-runtime.mjs status` and `resume` for a version 3 or newer contract, checks every anchor, and
 writes `HANDOFF.consumed` only when every step passes. Its summary gives the same-tree flag, anchor
 counts with each non-FRESH pointer, non-FRESH register items, then open items with operator-owned
 ones first. A non-zero exit leaves the handoff unconsumed. A pass also creates this session's
 successor run folder, seeded with the open items, and prints `session name:` and
-`successor run:`. Work and the next handoff go in that folder. Rename the session to the printed
-name where the host allows it; in the Claude desktop app, set the session title.
+`successor run:`, a `links:` block, and last a `set title: "<name>"` line. Work and the next
+handoff go in that folder. Set the session title to that name exactly, where the host allows it.
+In the Claude desktop app, call `get_session("self")` first, then pass its `session_id` to
+`set_session_title`; the call fails without it, and an untitled session gets an automatic title.
 
 Read the summary as state. `DRIFTED` marks stale state and `MOVED` names the anchor's current line.
 Runtime drift requires a revised contract and `run-runtime.mjs replan`, never a bypass. Re-triage
@@ -151,10 +156,12 @@ every claim it marks unverified. Otherwise re-plan from what verified: traps pru
 decisions carry forward unless current code contradicts them. Surface each contradiction at a
 checkpoint (`§3`) instead of silently re-deciding.
 
-Open the reply with the program goal and the scope-document list from `PROGRAM.md`, then the
-**Blocked on operator** items, then a recap under five headings: work
-completed, key findings, in progress, left to do, and project scope and constraints. Mark each
-claim **verified**, **moved**, or **drifted**. Preserve the recorded authority limits and ask only
+Open the reply with the program goal and the scope, plan, and design documents from `PROGRAM.md`,
+each as a markdown link from the `links:` block. Then list every open item, never a summary, as a
+link to its pointer with its owner and done-when, **Blocked on operator** items first. Then give a
+recap under five headings: work completed, key findings, in progress, left to do, and project scope
+and constraints. Close with the next actions. Mark each claim **verified**, **moved**, or
+**drifted**. Preserve the recorded authority limits and ask only
 for authority the next consequential action lacks (`§3`, `§4`).
 
 ## Done when
@@ -178,8 +185,8 @@ For a **Write**:
 
 For a **Resume**:
 - `co.mjs handoff resume` passed before any work continued: registers revalidated, anchors checked, runtime status and resume run for a version 3 or newer contract, and `HANDOFF.consumed` written by that passing run.
-- Work continues in the successor run folder that resume printed, under the printed session name.
+- Work continues in the successor run folder that resume printed, under the printed session name, set as the session title where the host allows it.
 - Contradictions were surfaced rather than silently resolved.
 - `PROGRAM.md` was read before the handoff.
-- The reply opens with the program goal and scope documents, then the operator-blocked items, then the five-heading recap, every claim marked verified, moved, or drifted.
+- The reply opens with the program goal and linked scope documents, then every open item linked with its owner and done-when, operator-blocked first, then the five-heading recap and the next actions, every claim marked verified, moved, or drifted.
 - Authority needed for the next consequential action was confirmed without treating the handoff as a new grant.

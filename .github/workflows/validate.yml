@@ -219,6 +219,9 @@ jobs:
       - name: Handoff draft and resume eval
         run: node evals/handoff-state/run.mjs
 
+      - name: Peer guard hook eval (handed-off peer redirect)
+        run: node evals/peer-guard/run.mjs
+
       - name: Fixture-drift guard (answer keys still match their fixtures)
         run: |
           for k in evals/*/ANSWER_KEY.json; do
@@ -425,7 +428,8 @@ jobs:
           node evals/local-review-gate/run.mjs
           node evals/judgment-orchestration/run.mjs
 
-  # Shard 3: atlas, lint-gate, and dispatch-guard evals (about 105 s) plus the path-gated record eval.
+  # Shard 3: the path-gated record eval alone. It is the longest Windows leg whenever it runs, so
+  # the evals it used to share this job with (about 95 s) moved to shard 5 and no longer extend it.
   structural-lint-windows-shard-3:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -439,17 +443,8 @@ jobs:
           node-version-file: '.node-version'
           package-manager-cache: false
 
-      - name: Dispatch guard hook eval (round budget + dispatch advisories)
-        run: node evals/dispatch-guard/run.mjs
-
-      - name: Lint-gate fixture eval
-        run: node evals/lint-plugins/run.mjs
-
-      - name: Doc-citation checker eval
-        run: node evals/doc-citations/run.mjs
-
-      # The record eval dominates this leg (about 754 s of a 960 s job on the measured runs, against
-      # 73 s on Ubuntu). It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
+      # The record eval dominates this leg (about 693 s on the measured runs, against
+      # 72 s on Ubuntu). It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
       # so it runs here only when the range under test touched those inputs, the generated record
       # authority, or this workflow. The documentation manifest is deliberately not on the list: it
       # re-syncs on nearly every change, and a manifest-only edit cannot alter record behavior
@@ -483,6 +478,29 @@ jobs:
         run: |
           node evals/record-collections/run.mjs
           node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
+
+  # Shard 5: atlas, lint-gate, dispatch-guard, and doc-citation evals (about 95 s).
+  structural-lint-windows-shard-5:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: ""
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+
+      - name: Dispatch guard hook eval (round budget + dispatch advisories)
+        run: node evals/dispatch-guard/run.mjs
+
+      - name: Lint-gate fixture eval
+        run: node evals/lint-plugins/run.mjs
+
+      - name: Doc-citation checker eval
+        run: node evals/doc-citations/run.mjs
 
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
@@ -621,7 +639,7 @@ jobs:
   # One Windows status that fails unless every Windows shard reports success.
   structural-lint-windows:
     if: always()
-    needs: [structural-lint-windows-shard-1, structural-lint-windows-shard-2, structural-lint-windows-shard-3, structural-lint-windows-shard-4]
+    needs: [structural-lint-windows-shard-1, structural-lint-windows-shard-2, structural-lint-windows-shard-3, structural-lint-windows-shard-4, structural-lint-windows-shard-5]
     runs-on: ubuntu-latest
     steps:
       - name: Require every shard to succeed

@@ -21,6 +21,15 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dispatch-guard.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "mcp__ccd_session_mgmt__send_message|SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/peer-guard.mjs\""
+          }
+        ]
       }
     ],
     "PostToolUse": [

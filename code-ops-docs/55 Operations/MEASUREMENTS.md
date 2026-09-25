@@ -248,7 +248,7 @@ proves a handoff, compaction, delivery, or cost outcome.
 
 `hooks/dispatch-guard.mjs` (switch `CODE_OPS_DISPATCH_GUARD`) counts attempted subagent tool calls.
 Its unregistered fallback warns at the environment budget and every further 20 calls, then denies
-at twice that budget. A brief's number alone does not bind the hook. The 40-call default and the
+at twice that budget. A brief's `Round budget: <n>` line binds the unregistered counter: the hook reads the subagent's first transcript entry once, clamps above 120, and falls back to the environment budget without a readable line. The 40-call default and the
 twice-budget stop are **SPECULATIVE**:
 both come from the 2026-09-18 cross-project audit above, where one operative spent 71 tool uses
 against a 40-round budget, not from a matched on/off comparison. The stop moved from three times

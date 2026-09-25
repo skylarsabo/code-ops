@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.7.0
+- New `peer-guard` PreToolUse hook denies a cross-session message to a peer that already handed off, or wrote a handoff not yet resumed, and names the live successor. `CODE_OPS_PEER_GUARD=0` turns it off.
+- `handoff draft` keeps the session's own base name ahead of the `PROGRAM.md` title, so a hop no longer renames itself. It carries the predecessor's decisions, traps, and carried context forward as lines to confirm.
+- `handoff resume` and `run open` accept `--host-session <id>` and record it as `hostSessionId`; `handoff live` resolves it. Resume prints a `links:` block of markdown links and a closing `set title:` line.
+- The dispatch guard binds a brief's `Round budget:` line, read once from the subagent's first transcript entry and clamped to 120. Its warning and stop require a checkpoint of done items, dirty paths, the next edit, and gates run. The implementer agent stops new edits on the warning.
+- The vendored `records.mjs` and `record-lib.mjs` batch and cache fixed-object git reads, cutting git process starts per call by about 31%.
+
 ## 2.6.1
 - The vendored `cli-lib.mjs` adds `exitOnHelp`, so the vendored `preflight.mjs`, `repo-map.mjs`, `import-graph.mjs`, `worker-brief.mjs`, and `records.mjs` print their usage line and exit 0 on `--help` or `-h`.
 - The vendored `check-vault-standard.mjs` skips notes that git ignores, found with one `git ls-files --others --ignored` call. Tracked notes are always checked.

@@ -37,17 +37,18 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers nine commands across seven events in
+The code-ops-suite package registers ten commands across seven events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
 trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
 its budget boundary or when its explicit controller binding is invalid. It can also deny a lead
 dispatch of a wide-surface type that names no reason, and a lead dispatch past the context
 ceiling before the handoff assessment. Unbound infrastructure failures retain the previous
-fail-open behavior. The `SubagentStop` return check is advisory and never blocks.
-Seven commands carry an off switch, read from the canonical `.claude/settings.json`
-environment. A seventh variable governs only the routing card's pending-handoff line, and an
-eighth sets or disables the dispatch guard's context ceiling.
+fail-open behavior. The peer guard denies a message to a peer session that already handed off.
+The `SubagentStop` return check is advisory and never blocks.
+Eight commands carry an off switch, read from the canonical `.claude/settings.json`
+environment. A ninth variable governs only the routing card's pending-handoff line, and a
+tenth sets or disables the dispatch guard's context ceiling.
 Rendered hosts use their documented process environment:
 
 ```json
@@ -65,15 +66,16 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
 | `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |
 | `CODE_OPS_CONTEXT_CEILING` | `off`, `0`, or `false` | the context-ceiling dispatch gate inside `dispatch-guard.mjs`; an integer of at least 150,000 replaces the 300,000-token default |
+| `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` deny of a message to a handed-off peer session, `peer-guard.mjs` |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
 
 `CODE_OPS_DISPATCH_GUARD=warn` is the one middle setting: it keeps every advisory and turns each
 deny into an advisory, except a deny for a malformed or unavailable controller binding. `CODE_OPS_ROUND_BUDGET` overrides the guard's 40-round default and takes a
-positive integer only. The guard injects one line at the budget and at every further 20 rounds,
-telling the operative to checkpoint to its report and return. At twice the budget it denies
-further tool calls with the same instruction. This is the unregistered fallback; a number written
-in a brief does not bind a worker automatically. It counts rounds only inside a subagent, which
+positive integer only. An unregistered worker takes its budget from the brief's `Round budget:`
+line, read once and clamped to 120, before that default. The guard injects one line at the budget
+and at every further 20 rounds, telling the operative to start no new edit and write a checkpoint.
+At twice the budget it denies further tool calls and requires the same checkpoint. It counts rounds only inside a subagent, which
 the host marks by an `agent_id` in the hook payload. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
@@ -205,6 +207,7 @@ byte-identical packaging.
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
 | Handoff card | Native | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff | Projected hook; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage |
 | Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Lifecycle line on the first lead system transform |
+| Peer guard | Native `PreToolUse` deny on `SendMessage` and `mcp__ccd_session_mgmt__send_message` | Registered; reads camelCase `toolName` and `toolInput`; inert unless a messaging tool shares a name (UNVERIFIED) | Projected hook without a matcher; inert unless a messaging tool shares a name (UNVERIFIED) | Not ported |
 | Dispatch guard | Native, with the wide-type and context-ceiling dispatch gates | Registered; the dispatch gates read the camelCase `toolName`, `toolInput`, and `sessionId` and cover `spawn_subagent`; its schema has no agent-type field, so the wide-type gate denies only a named wide type; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id`, and the dispatch gates stay inert unless the dispatch tool shares Claude's name (UNVERIFIED) | Lifecycle guard keyed by child `sessionID`, a suite-only Task allowlist, and a context-ceiling gate unlocked by the `skill` tool or the typed handoff command |
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter

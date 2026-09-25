@@ -3,7 +3,7 @@
 // helper (human or agent) only has to make the judgment calls this script cannot make for it.
 //
 //   node scripts/integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]...
-//                                      [--full] [--dry-run]
+//                                      [--full] [--dry-run] [--jobs <n>]
 //
 // Default --base is origin/main. Steps, in order:
 //   1. Plugin version bump - any plugins/<name>/ path in the changed set whose version still
@@ -25,8 +25,12 @@
 //      runnable step regardless of the changed set. A step guarded by `if:`, one that needs
 //      env/secrets, or one whose `run:` is not a plain sequence of `node ...` invocations is
 //      skipped and named, because this runner never shells out - every command is spawned via
-//      execFileSync(process.execPath, ...), so quoting is argv-exact and identical on Windows and
+//      execFile or execFileSync on process.execPath, so quoting is argv-exact and identical on Windows and
 //      POSIX (see the atlas step's quoted `"code-ops-docs/98 System/Atlas"` path).
+//
+//      Gates run as a pool of --jobs concurrent processes (default: up to 4, bounded by the
+//      available CPUs). Each is a read-only check or an eval that builds its fixtures in a private
+//      temporary or pid-scoped directory, and --jobs 1 restores serial execution.
 //
 // A pending judgment item (a plugin needing a --bump nobody supplied, a stale atlas section, or a
 // plugin CHANGELOG.md still carrying bump-plugin-version.mjs's "- **TODO** - describe the
@@ -40,17 +44,19 @@
 // this is a verdict on the preview); 1 = a step failed or a judgment item is pending; 2 = bad
 // invocation.
 
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { availableParallelism } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { parseOrDie, walkFiles } from './cli-lib.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // This repository's own atlas (CLAUDE.md "The documentation hub"; the same path
 // .github/workflows/validate.yml's "Atlas freshness" step stamps against).
 const ATLAS_DIR = 'code-ops-docs/98 System/Atlas';
-const USAGE = 'usage: integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]... [--full] [--dry-run]';
+const USAGE = 'usage: integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]... [--full] [--dry-run] [--jobs <n>]';
 
 // ---------------------------------------------------------------- git plumbing
 
@@ -430,22 +436,36 @@ function tokenizeRunLine(line) {
 // 10 minutes on Windows, where each fixture spawns many git processes.
 const STEP_TIMEOUT_MS = 30 * 60 * 1000;
 
-function runSelectedStep(step, log) {
-  const codeLines = step.run.split('\n').map((l) => l.trim()).filter((l) => l !== '' && !l.startsWith('#'));
+const execFileAsync = promisify(execFile);
+
+// Runs one gate's node invocations in order and stops at the first failure. The pass or fail
+// line and its failure excerpt print as one block, so concurrent gates never interleave output.
+async function runGate(name, commands, timeout) {
   let output = '';
-  for (const line of codeLines) {
-    const tokens = tokenizeRunLine(line); // tokens[0] is the literal "node" from the workflow text
+  for (const args of commands) {
     try {
-      output += execFileSync(process.execPath, tokens.slice(1), { cwd: ROOT, encoding: 'utf8', timeout: STEP_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 });
+      output += (await execFileAsync(process.execPath, args, { cwd: ROOT, encoding: 'utf8', timeout, maxBuffer: 64 * 1024 * 1024 })).stdout;
     } catch (e) {
-      output += (e.stdout || '') + (e.stderr || '');
-      log(`  FAIL ${step.name}`);
-      for (const l of output.trim().split('\n').slice(-20)) log(`    ${l}`);
-      return { ok: false, output };
+      output += (e.stdout || '') + (e.stderr || '') + (e.killed ? `\ntimed out after ${timeout} ms\n` : '');
+      console.log([`  FAIL ${name}`, ...output.trim().split('\n').slice(-20).map((l) => `    ${l}`)].join('\n'));
+      return { name, ok: false };
     }
   }
-  log(`  ok ${step.name}`);
-  return { ok: true, output };
+  console.log(`  ok ${name}`);
+  return { name, ok: true };
+}
+
+function selectedStepCommands(step) {
+  const codeLines = step.run.split('\n').map((l) => l.trim()).filter((l) => l !== '' && !l.startsWith('#'));
+  return codeLines.map((line) => tokenizeRunLine(line).slice(1)); // tokens[0] is the literal "node" from the workflow text
+}
+
+// A bounded worker pool. Results keep the input order whatever order the tasks finish in.
+async function runPool(tasks, jobs) {
+  const results = new Array(tasks.length); let next = 0;
+  const worker = async () => { while (next < tasks.length) { const index = next++; results[index] = await tasks[index](); } };
+  await Promise.all(Array.from({ length: Math.min(jobs, tasks.length) }, worker));
+  return results;
 }
 
 const STRUCTURAL_CHAIN = [
@@ -463,11 +483,14 @@ async function main() {
     bump: { value: true, many: true },
     full: { value: false },
     'dry-run': { value: false },
+    jobs: { value: true },
   }, USAGE);
 
   const base = flags.base;
   const dryRun = Boolean(flags['dry-run']);
   const full = Boolean(flags.full);
+  const jobs = flags.jobs === undefined ? Math.max(1, Math.min(4, availableParallelism())) : Number(flags.jobs);
+  if (!Number.isInteger(jobs) || jobs < 1) { console.error(`x --jobs ${flags.jobs} must be a positive integer`); process.exit(2); }
   const bumpMap = new Map();
   for (const spec of flags.bump) {
     const m = /^([^:]+):(major|minor|patch)$/.exec(spec);
@@ -519,16 +542,11 @@ async function main() {
   const atlas = runAtlasStep((l) => console.log(l));
   judgmentItems.push(...atlas.judgmentItems);
 
-  console.log('\n== step 5: gates ==');
-  const gateResults = [];
-  for (const gate of STRUCTURAL_CHAIN) {
-    const r = runNode(gate.args, { label: gate.label, log: (l) => console.log(l) });
-    gateResults.push({ name: gate.label, ok: r.ok });
-  }
-  for (const { step } of selected) {
-    const r = runSelectedStep(step, (l) => console.log(l));
-    gateResults.push({ name: step.name, ok: r.ok });
-  }
+  console.log(`\n== step 5: gates (${jobs} concurrent) ==`);
+  const gateResults = await runPool([
+    ...STRUCTURAL_CHAIN.map((gate) => () => runGate(gate.label, [gate.args], 300000)),
+    ...selected.map(({ step }) => () => runGate(step.name, selectedStepCommands(step), STEP_TIMEOUT_MS)),
+  ], jobs);
   const failedGates = gateResults.filter((g) => !g.ok);
   if (failedGates.length) anyFailed = true;
 

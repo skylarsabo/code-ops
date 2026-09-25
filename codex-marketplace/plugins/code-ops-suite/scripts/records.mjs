@@ -8,7 +8,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import {
   adoptionHistory, adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
   completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
-  gitPaths, historicalTarget, indexSemantic, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
+  gitObjectQuery, gitPaths, historicalTarget, isAncestorCommit, objectFormat, revisionBlobs, showRevision, indexSemantic, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
   maskMarkdownFenceAndTopLevelIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetsAt, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
@@ -121,7 +121,7 @@ function collect(context, { allowProblems = false } = {}) {
 
 function outputRepoPath(context, key) { return relativeRoot(context.root, context.output[key]); }
 
-function gitObjectFormat(root) { return git(root, ['rev-parse', '--show-object-format']).trim(); }
+function gitObjectFormat(root) { return objectFormat(root); }
 function headOid(root) { return git(root, ['rev-parse', 'HEAD']).trim(); }
 function stagedPaths(root) { return new Set(gitPaths(root, ['diff', '--cached', '--name-only', '-z'])); }
 function literalPath(path) { return `:(literal)${path}`; }
@@ -405,19 +405,20 @@ const MANIFEST_GLOB = ':(glob)**/98 System/DOCS_MANIFEST.json';
 
 function committedManifestAt(root, commit, candidatePaths = null) {
   if (candidatePaths) {
-    const found = [];
-    for (const path of candidatePaths) {
-      try { found.push({ commit, path, bytes: git(root, ['show', `${commit}:${path}`], true) }); }
-      catch { /* absent at this commit */ }
-    }
+    const blobs = revisionBlobs(root, candidatePaths.map((path) => `${commit}:${path}`));
+    const found = candidatePaths.flatMap((path) => {
+      const bytes = blobs.get(`${commit}:${path}`);
+      return bytes === undefined ? [] : [{ commit, path, bytes }];
+    });
     if (found.length > 1) throw new Error(`multiple documentation manifests exist at ${commit}: ${found.map((item) => item.path).join(', ')}`);
     return found[0] || { commit, path: null, bytes: null };
   }
-  const paths = gitPaths(root, ['ls-tree', '-r', '--name-only', '-z', commit])
+  const paths = gitObjectQuery(root, [commit], ['ls-tree', '-r', '--name-only', '-z', commit], true)
+    .toString('utf8').split(' ').filter(Boolean).map(posix)
     .filter((path) => path.endsWith('/98 System/DOCS_MANIFEST.json'));
   if (paths.length > 1) throw new Error(`multiple documentation manifests exist at ${commit}: ${paths.join(', ')}`);
   if (!paths.length) return { commit, path: null, bytes: null };
-  return { commit, path: paths[0], bytes: git(root, ['show', `${commit}:${paths[0]}`], true) };
+  return { commit, path: paths[0], bytes: showRevision(root, `${commit}:${paths[0]}`) };
 }
 
 function committedManifestVersions(root) {
@@ -449,11 +450,12 @@ function committedFileVersions(root, paths) {
   let commits = [];
   try { commits = git(root, ['log', '--format=%H', '--reverse', '--', ...candidates.map(literalPath)]).trim().split(/\s+/).filter(Boolean); }
   catch (error) { throw new Error(`cannot read generated-file history: ${error.message}`); }
+  const blobs = revisionBlobs(root, commits.flatMap((commit) => candidates.map((path) => `${commit}:${path}`)));
   return commits.map((commit) => {
-    const found = [];
-    for (const path of candidates) {
-      try { found.push({ path, bytes: git(root, ['show', `${commit}:${path}`], true) }); } catch { /* absent */ }
-    }
+    const found = candidates.flatMap((path) => {
+      const bytes = blobs.get(`${commit}:${path}`);
+      return bytes === undefined ? [] : [{ path, bytes }];
+    });
     if (found.length > 1) throw new Error(`multiple historical ${candidates.join(' / ')} authorities exist at ${commit}`);
     return found.length ? { commit, ...found[0] } : { commit, path: null, bytes: null };
   });
@@ -482,20 +484,23 @@ function authoritativeJsonVersions(context, key, authority = (value) => value) {
   return parsed;
 }
 
-function historicalOutputBytes(context, key, commit, paths = collectionOutputPaths(context, key)) {
-  const found = [];
-  for (const path of paths) {
-    try { found.push({ path, bytes: git(context.root, ['show', `${commit}:${path}`], true) }); }
-    catch { /* absent at this commit */ }
-  }
+function historicalOutputBytes(context, key, commit, paths = collectionOutputPaths(context, key), blobs = null) {
+  const available = blobs || revisionBlobs(context.root, paths.map((path) => `${commit}:${path}`));
+  const found = paths.flatMap((path) => {
+    const bytes = available.get(`${commit}:${path}`);
+    return bytes === undefined ? [] : [{ path, bytes }];
+  });
   if (found.length > 1) throw new Error(`multiple historical ${key} authorities exist at ${commit}`);
   return found[0]?.bytes ?? null;
 }
 
 function generatedStateAt(context, commit, outputPaths = {}) {
-  const inventoryBytes = historicalOutputBytes(context, 'inventory', commit, outputPaths.inventory);
-  const citationBytes = historicalOutputBytes(context, 'citations', commit, outputPaths.citations);
-  const ledgerBytes = historicalOutputBytes(context, 'curationLedger', commit, outputPaths.curationLedger);
+  const paths = Object.fromEntries(['inventory', 'citations', 'curationLedger']
+    .map((key) => [key, outputPaths[key] === undefined ? collectionOutputPaths(context, key) : outputPaths[key]]));
+  const blobs = revisionBlobs(context.root, Object.values(paths).flat().map((path) => `${commit}:${path}`));
+  const inventoryBytes = historicalOutputBytes(context, 'inventory', commit, paths.inventory, blobs);
+  const citationBytes = historicalOutputBytes(context, 'citations', commit, paths.citations, blobs);
+  const ledgerBytes = historicalOutputBytes(context, 'curationLedger', commit, paths.curationLedger, blobs);
   if (inventoryBytes === null || citationBytes === null || ledgerBytes === null) return null;
   let inventory; let citations; let events;
   try {
@@ -526,16 +531,15 @@ function inventoryVersionDocument(version, batchCount = null) {
 }
 
 function pathHasHistoryAt(root, commit, path) {
-  return Boolean(git(root, ['log', '--full-history', '--format=%H', commit, '--', literalPath(path)]).trim());
+  return Boolean(gitObjectQuery(root, [commit], ['log', '--full-history', '--format=%H', commit, '--', literalPath(path)]).trim());
 }
 
 function commitIsAncestor(root, ancestor, descendant) {
-  try { git(root, ['merge-base', '--is-ancestor', ancestor, descendant]); return true; }
-  catch { return false; }
+  return isAncestorCommit(root, ancestor, descendant);
 }
 
 function pathCommitsBetween(root, from, to, path) {
-  return git(root, ['log', '--full-history', '--format=%H', `${from}..${to}`, '--', literalPath(path)])
+  return gitObjectQuery(root, [from, to], ['log', '--full-history', '--format=%H', `${from}..${to}`, '--', literalPath(path)])
     .trim().split(/\s+/).filter(Boolean);
 }
 
@@ -1002,8 +1006,9 @@ function adopt(context, options) {
       }));
       validateAuthorityBatches(inventory, { root: context.root, historyComplete: true });
       const citationInventory = { version: 1, collectionUuid: context.collection.collectionUuid, entries: [] };
+      const sources = revisionBlobs(context.root, entries.map((entry) => `${entry.baselineCommit}:${entry.path}`));
       for (const entry of entries) {
-        const sourceText = git(context.root, ['show', `${entry.baselineCommit}:${entry.path}`], true).toString('utf8');
+        const sourceText = showRevision(context.root, `${entry.baselineCommit}:${entry.path}`, sources).toString('utf8');
         const known = treePathsAt(context.root, entry.baselineCommit);
         citationInventory.entries.push(...citationEntries(context, entry, sourceText, known, rows, 'adopt'));
       }
@@ -1053,8 +1058,9 @@ function adopt(context, options) {
     addAuthorityBatch(context, inventory, 'incremental-adoption', beforeAdmission,
       [...newEntries, ...newArtifacts].map((item) => item.path), { review, baseBindings: admissionBaseBindings });
     validateAuthorityBatches(inventory, { root: context.root, historyComplete: true });
+    const sources = revisionBlobs(context.root, newEntries.map((entry) => `${entry.baselineCommit}:${entry.path}`));
     for (const entry of newEntries) {
-      const sourceText = git(context.root, ['show', `${entry.baselineCommit}:${entry.path}`], true).toString('utf8');
+      const sourceText = showRevision(context.root, `${entry.baselineCommit}:${entry.path}`, sources).toString('utf8');
       const known = treePathsAt(context.root, entry.baselineCommit);
       citations.entries.push(...citationEntries(context, entry, sourceText, known, rows, 'adopt'));
     }
@@ -1488,7 +1494,7 @@ function verifyLocator(root, target, history) {
   if (!target?.targetSha256) return { state: 'digest-mismatch' };
   if (target.blobOid) {
     try {
-      const bytes = git(root, ['cat-file', '-p', target.blobOid], true);
+      const bytes = gitObjectQuery(root, [target.blobOid], ['cat-file', '-p', target.blobOid], true);
       if (sha256(bytes) === target.targetSha256) return { state: 'resolved', target };
     } catch { /* content digest lookup decides the semantic result */ }
   }

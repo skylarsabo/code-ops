@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
-      "verifiedDigest": "f0eedb7dee413d86d7455cc400dd10243f17ac30c31454c083cec37df42119a6",
+      "verifiedAt": "901a62bac479af94cfc56a2956817cec64fa3a38",
+      "verifiedDigest": "781b3750b7f381d8e6eb7809a1260cd634fba6213b200b52380fc6782253f7b9",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -28,13 +28,28 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 155,
+          "anchor": "const MAX_BRIEF_BUDGET = 120;"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 164,
+          "anchor": "const CHECKPOINT = 'done items with file:line evidence, each dirty (uncommitted)"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 13,
           "anchor": "// FOUR BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comman"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 489,
+          "line": 600,
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
+          "line": 17,
+          "anchor": "// DECISION. The hook denies only when the matched record's run folder holds HAN"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -48,12 +63,12 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 69,
+          "line": 71,
           "anchor": "For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF."
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 162,
+          "line": 169,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -65,13 +80,18 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
-      "verifiedDigest": "a757995657ce3c09355c02d72578c68aba8747eec75f26812c6319ea8e1c2e3a",
+      "verifiedAt": "901a62bac479af94cfc56a2956817cec64fa3a38",
+      "verifiedDigest": "22578666f4f02020e8f02b4fe844fc1775598bdc0f556be422124b7d587b9b10",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
           "line": 870,
           "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 126,
+          "anchor": "export function gitObjectQuery(root, revisions, args, binary = false) {"
         },
         {
           "file": "scripts/transcript-lib.mjs",
@@ -89,14 +109,24 @@
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
+          "file": "scripts/handoff-state.mjs",
+          "line": 321,
+          "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
+        },
+        {
           "file": "scripts/cli-lib.mjs",
           "line": 138,
           "anchor": "export function exitOnHelp(argv, usageLine) {"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 431,
+          "line": 437,
           "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
+        },
+        {
+          "file": "scripts/integrate-branch.mjs",
+          "line": 464,
+          "anchor": "async function runPool(tasks, jobs) {"
         },
         {
           "file": "scripts/atlas-check.mjs",
@@ -156,8 +186,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
-      "verifiedDigest": "0c529388671e23857ae951f9263daf3fd412f2ac615a95b61d0a7473f00b13a9",
+      "verifiedAt": "901a62bac479af94cfc56a2956817cec64fa3a38",
+      "verifiedDigest": "8a549574e7e9b5c06f0c9d75418d148f447c5ed8482aeceb71fb888fcf091468",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -214,23 +244,28 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
-      "verifiedDigest": "8cd8aec7d9cde9576dfd875eac3fbf8a376f799b442208cb6354b8ac82efd1fd",
+      "verifiedAt": "901a62bac479af94cfc56a2956817cec64fa3a38",
+      "verifiedDigest": "57fb2fedbfce976ad66f8bcc3bbfb7044551e5ee136567b74197a3e9bb7b977c",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 542,
-          "anchor": "and the matching entry in the marketplace.', 'the source plugin manifest and mat"
+          "line": 544,
+          "anchor": "addSourceTree(sourcePath(spec.name, 'scripts'),"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 544,
+          "line": 545,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
         },
         {
           "file": "opencode-dist/PLATFORM_COMPATIBILITY.md",
           "line": 36,
           "anchor": "- **The typed subagent-start callback, transcript path, and pre-tool"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
+          "line": 9,
+          "anchor": "// Codex projection drops matchers and runs this hook on every tool call."
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -244,12 +279,12 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
-          "line": 17,
+          "line": 18,
           "anchor": ": prompts the lead to assess continue, compact, or handoff at a safe boundary wh"
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 167,
+          "line": 174,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -260,8 +295,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "77d6c3c6aedf1b077d7bc124147fdff125f43191",
-      "verifiedDigest": "4fae5c98a4d4d3abe8a3a8aa1e5c3098ac77bd89081e573040aeb9d2bb3e8d47"
+      "verifiedAt": "901a62bac479af94cfc56a2956817cec64fa3a38",
+      "verifiedDigest": "bd1bc7a2727fe1c916beca3e048070cc85b41b34c25ae55f6b19fb270fe88bf8"
     },
     {
       "slug": "docs-doctrine",
@@ -284,8 +319,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "137ad2d737f51f2c2bbdd4c20d662c3304f809a0",
-      "verifiedDigest": "b6b1088a8ea30f48875ea30edb25cb8e23a335a6821d60eecc1085b9f4bc987a",
+      "verifiedAt": "901a62bac479af94cfc56a2956817cec64fa3a38",
+      "verifiedDigest": "190080c46b2092922a1fe6caaaba95ad264d5b3865d5a456bb78de64753ce74b",
       "claims": [
         {
           "file": "scripts/check-vault-standard.mjs",
@@ -294,7 +329,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 58,
+          "line": 60,
           "anchor": "- **COMPACT** when the same task needs context relief. First persist decisions,"
         },
         {
@@ -309,7 +344,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 61,
+          "line": 63,
           "anchor": "a callable host capability; otherwise report the documented"
         },
         {

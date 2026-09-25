@@ -36,6 +36,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Handoff card hook](#handoff-card-hook)
 - [Handoff write and consumption](#handoff-write-and-consumption)
 - [Dispatch guard hook](#dispatch-guard-hook)
+- [Peer guard hook](#peer-guard-hook)
 - [Symbol index and query](#symbol-index-and-query)
 - [Atlas claims and scope suggestion](#atlas-claims-and-scope-suggestion)
 - [Documentation manifest](#documentation-manifest)
@@ -748,9 +749,15 @@ default and takes a positive integer only. Evidence:
 
 Inside a subagent, which the host marks by an `agent_id` the main thread never carries, the hook
 counts that subagent's attempted tool calls, including denied attempts. With no explicit binding,
-at the environment budget and every further 20 calls, it returns one
-`hookSpecificOutput.additionalContext` line telling the operative to checkpoint to its report and
-return. At twice the budget it returns `permissionDecision: deny` with the same instruction.
+the budget is the `Round budget:` line of the subagent's brief, read once from the first entry of
+its own transcript and cached, clamped to 120, else `CODE_OPS_ROUND_BUDGET` or 40. At that budget
+and every further 20 calls, the hook returns one `hookSpecificOutput.additionalContext` line. The
+line names the call where the hard stop lands and tells the operative to start no new edit and to
+finish or revert the partial edit. It then asks for a checkpoint written to the brief's Report
+path, or to the run folder. The checkpoint lists done items with file:line evidence, each dirty
+path marked complete or partial, the exact next edit, and each gate run with its result. At twice
+the budget the hook returns `permissionDecision: deny`, forbids further edits, and requires the
+same checkpoint in the final report.
 New state keys hash the working directory and exact
 agent ID. Legacy counters remain readable and are retained during migration. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
@@ -812,6 +819,40 @@ The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.
 Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
+
+## Peer guard hook
+
+`hooks/peer-guard.mjs` runs at `PreToolUse` with the matcher
+`mcp__ccd_session_mgmt__send_message|SendMessage`. It denies a message to a peer session that
+already handed off, and names the live successor to resend to. It is on by default and does
+nothing when `CODE_OPS_PEER_GUARD` is `off`, `0`, or `false`. The target is `tool_input.session_id`
+for `send_message` and `tool_input.to` for `SendMessage`, with a trailing ` [<ref>]` suffix
+stripped from the latter. Evidence:
+`plugins/code-ops-suite/hooks/peer-guard.mjs:1-35` and `plugins/code-ops-suite/hooks/hooks.json`.
+
+The hook reads the session records at `sessionRecordPath` (`scripts/transcript-lib.mjs`), keyed
+by the payload `cwd`, under `CODE_OPS_HOME` when set, else the OS home. The target matches a
+record's `hostSessionId` or `sessionId` first, then its `name`, newest `updatedAt` first. Every
+comparison is case-insensitive and exact. The hook denies only when the matched record's run
+folder holds `HANDOFF.consumed` or `HANDOFF.md`, because either means that session handed off.
+It walks successor links the way `handoff-state.mjs live` does:
+
+- A live head: the reason names the head's session name, its host session id when a record
+  carries one, and its run folder, and tells the sender to resend there.
+- A head with an unconsumed `HANDOFF.md`, the target itself included: the reason says the
+  handoff has not been resumed yet and names the successor from its `Session:` line.
+- A legacy marker, a loop, or a missing successor run: the reason asks the sender to run
+  `co handoff live` first.
+
+An unknown target, an absent record store, or a run folder with neither file passes with no
+output. Bad JSON, another event or tool, a missing field, or any thrown error exits 0 with no
+output. The hook reads one directory and a few small files, and never spawns a process. Evidence:
+`plugins/code-ops-suite/hooks/peer-guard.mjs:52-104` and `evals/peer-guard/run.mjs`.
+
+Grok's camelCase `toolName` and `toolInput` map onto the same checks. The Codex projection drops
+the matcher, so the hook filters the tool name before it reads any file. No Grok or Codex
+messaging tool with either name is verified, so the hook is inert there (UNVERIFIED). OpenCode
+does not run it.
 
 ## Symbol index and query
 

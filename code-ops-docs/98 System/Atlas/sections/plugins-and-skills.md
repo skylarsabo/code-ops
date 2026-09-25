@@ -34,7 +34,7 @@ The traceless scanner is one canonical script shared by the code-ops and privacy
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.
 
-The canonical package registers nine hook commands across seven events. `handoff-card.mjs` runs
+The canonical package registers ten hook commands across seven events. `handoff-card.mjs` runs
 at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and asks the lead to
 assess CONTINUE, COMPACT, or HANDOFF at each 150,000-token band; it does not execute a transition
 or prove that the host displayed the advice (plugins/code-ops-suite/hooks/handoff-card.mjs:4,
@@ -44,12 +44,18 @@ note on Claude and Codex adds that new dispatches are gated. OpenCode carries th
 round stop, the wide-type deny, and the ceiling gate in its lifecycle plugin. `routing-card.mjs` lists, but does not resume, up to 3 unconsumed pending handoffs by session
 name on a fresh session, and treats that session as new work unless the operator resumes one
 (plugins/code-ops-suite/hooks/routing-card.mjs:148). `dispatch-guard.mjs` runs at `PreToolUse` on every thread: inside a subagent it counts
-attempted tool calls against an explicit host-agent binding, or the legacy environment/default
-budget when no binding exists, and stops the unbound counter at twice the budget. On the lead's
+attempted tool calls against an explicit host-agent binding or, when no binding exists, the
+`Round budget:` line of the subagent's own brief, read once from its transcript and clamped to
+120, else the environment/default budget. It stops the unbound counter at twice the budget, and
+its warning and stop both ask for a checkpoint written to the brief's report path
+(plugins/code-ops-suite/hooks/dispatch-guard.mjs:155, plugins/code-ops-suite/hooks/dispatch-guard.mjs:164). On the lead's
 own dispatch (Claude's `Agent`, `Task`, or `Workflow`, or Grok's `spawn_subagent`) it denies a wide-surface or unnamed agent type whose brief has no `Wide-surface
 reason:` line, denies a suite-agent dispatch whose brief lacks a field the target agent's
 `## Contract` lists on its `Brief requires:` line, and denies new dispatches past the context
-ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:489).
+ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:600).
+`peer-guard.mjs` also runs at `PreToolUse`. It denies a `SendMessage` or desktop `send_message`
+call to a peer session whose run folder holds `HANDOFF.md` or `HANDOFF.consumed`, and names the
+live successor to resend to (plugins/code-ops-suite/hooks/peer-guard.mjs:17).
 `session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
 Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex
@@ -90,9 +96,9 @@ lifecycle action or proves an outcome. The arm set also carries pending-handoff 
 dispatch guard, each read from its own switch, and a guard set to `warn` records the arm on.
 `context-audit.mjs receipts --by-arm` groups that evidence, but causal token or workflow claims
 remain pending until a pre-registered matched control is complete.
-Report persistence is pinned across all four conventions. A brief's report path governs over an agent definition's default reporting instruction. An operative with a write tool writes its report to that path and returns only a pointer, and a read-only operative returns its report inline for the lead to persist. Three of the eleven shipped agents hold a file-write tool. The sonnet-floor `mech` and `mech-review` agents take mechanical work and its review, and every agent carries a `## Contract` section that lint check 26 parses. The verifier writes its report to a named path and never edits the source under evaluation. The implementer edits only inside its brief's Scope and writes its report to the brief's path. A dispatch costs context times turns, so the code-ops-suite conventions bind build, fix, and refactor units to the shipped implementer rather than a general-purpose agent, and every brief names a round budget, 40 tool rounds by default. Every agent definition carries a `Report cap:` line that lint check 25 holds between 100 and 800 words. The hook enforces a custom budget only after explicit registration against a known host agent ID; otherwise it retains the legacy fallback. A missing, empty, or malformed report file fails the pinned shape gate exactly as a malformed inline report does.
+Report persistence is pinned across all four conventions. A brief's report path governs over an agent definition's default reporting instruction. An operative with a write tool writes its report to that path and returns only a pointer, and a read-only operative returns its report inline for the lead to persist. Three of the eleven shipped agents hold a file-write tool. The sonnet-floor `mech` and `mech-review` agents take mechanical work and its review, and every agent carries a `## Contract` section that lint check 26 parses. The verifier writes its report to a named path and never edits the source under evaluation. The implementer edits only inside its brief's Scope and writes its report to the brief's path. A dispatch costs context times turns, so the code-ops-suite conventions bind build, fix, and refactor units to the shipped implementer rather than a general-purpose agent, and every brief names a round budget, 40 tool rounds by default. Every agent definition carries a `Report cap:` line that lint check 25 holds between 100 and 800 words. The hook enforces a registered budget only after explicit registration against a known host agent ID; otherwise it binds the brief's `Round budget:` line, then the legacy fallback. A missing, empty, or malformed report file fails the pinned shape gate exactly as a malformed inline report does.
 
-New substantive version-4 runs route each unit by assigned task, role floor, and ambiguity; each records its rationale, while a frontier peer remains a bounded exception with lead-owned stopping and blocking criteria (plugins/code-ops-suite/CONVENTIONS.md:20). Lifecycle assessment preserves the same task's recorded authority limits, requires a durable checkpoint before compact or handoff, and treats unavailable host actions and unobserved telemetry as unavailable or `UNKNOWN`, never as completed work (plugins/code-ops-suite/skills/handoff/SKILL.md:69, plugins/code-ops-suite/skills/handoff/SKILL.md:162).
+New substantive version-4 runs route each unit by assigned task, role floor, and ambiguity; each records its rationale, while a frontier peer remains a bounded exception with lead-owned stopping and blocking criteria (plugins/code-ops-suite/CONVENTIONS.md:20). Lifecycle assessment preserves the same task's recorded authority limits, requires a durable checkpoint before compact or handoff, and treats unavailable host actions and unobserved telemetry as unavailable or `UNKNOWN`, never as completed work (plugins/code-ops-suite/skills/handoff/SKILL.md:71, plugins/code-ops-suite/skills/handoff/SKILL.md:169).
 Each of the four conventions now ends with a pinned Code standard section holding one core clause. The section carries no hub path because the packages ship to repositories without this hub; the full rules and their backstops live in the hub's code-standard technique page.
 
 Explicit dispatch registration uses hashed working-directory and agent keys, refuses replacement, and preserves legacy call counts. Bound workers receive a small checkpoint allowance without extending the legacy cap. Receipts expose attempted-call counts; unavailable provider usage and effective runtime budget remain UNKNOWN.

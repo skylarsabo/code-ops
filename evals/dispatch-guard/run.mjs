@@ -5,10 +5,18 @@
 //   - a main-thread tool call that is not a dispatch is silent, whatever the tool;
 //   - inside a subagent (`agent_id` present) the hook counts tool calls, stays silent under the
 //     budget, warns exactly at the budget and at every further 20 rounds, and names both the
-//     rounds used and the checkpoint-and-return instruction;
-//   - at twice the budget it denies with a reason telling the operative to report now, and
+//     rounds used, the call the stop lands on, and the checkpoint-and-return instruction: start
+//     no new edit, settle the partial one, and write done items, each dirty path marked complete
+//     or partial, the exact next edit, and gates run to the Report path;
+//   - at twice the budget it denies with a reason telling the operative to report now with that
+//     checkpoint, and
 //     `CODE_OPS_DISPATCH_GUARD=warn` lifts only that hard stop;
 //   - concurrent subagents never share a counter, and `CODE_OPS_ROUND_BUDGET` overrides 40;
+//   - the `Round budget:` line of the subagent's brief, the first line of its own transcript,
+//     binds its counter (60 warns at 60 and stops at 120), clamps above 120 with one advisory,
+//     falls back on zero or conflicting values with an advisory, and keeps the default without a
+//     line or a readable transcript; later transcript text never moves the cached value, and a
+//     controller binding outranks the brief;
 //   - a dispatch (tool_name Agent, and legacy Task) with a wide-surface, context-inheriting, or
 //     missing type is denied unless the brief carries a "Wide-surface reason:" line, and a
 //     Workflow script with an agent() call but no agentType is denied the same way; a `model`
@@ -29,7 +37,7 @@
 //   node evals/dispatch-guard/run.mjs
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -145,6 +153,23 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(JSON.stringify(outputs)), 'no hook output carries an emoji');
   cleanup();
   console.log('ok   under the budget is silent, the budget round warns, and twice the budget denies');
+
+  // The warning asks for a written checkpoint before the stop, and the stop requires the same
+  // checkpoint in the final report, so a stopped operative never leaves unrecorded dirty work.
+  const checkpointFields = [/each dirty \(uncommitted\) path marked complete or partial/, /exact next edit/, /each gate run with its result/, /file:line/];
+  for (const field of checkpointFields) {
+    expect(field.test(atBudget ?? ''), `the warning must require the checkpoint field ${field}, got ${atBudget}`);
+    expect(field.test(hso.permissionDecisionReason ?? ''), `the stop must require the checkpoint field ${field}, got ${hso.permissionDecisionReason}`);
+  }
+  expect(/Start no new edit/.test(atBudget ?? '') && /Finish or revert the partial edit/.test(atBudget ?? ''),
+    `the warning must stop new edits and settle the partial one, got ${atBudget}`);
+  expect(/write a checkpoint to the brief's Report path \(or the run folder\)/.test(atBudget ?? ''),
+    `the warning must direct the checkpoint to the Report path before the stop, got ${atBudget}`);
+  expect((atBudget ?? '').includes('hard stop denies every tool call from call 8'),
+    `the warning must name the call the stop lands on, got ${atBudget}`);
+  expect(/Make no further edits/.test(hso.permissionDecisionReason ?? '') && /checkpoint/.test(hso.permissionDecisionReason ?? ''),
+    `the stop must forbid further edits and name the checkpoint, got ${hso.permissionDecisionReason}`);
+  console.log('ok   the warning requires a written checkpoint before the stop, and the stop requires it in the report');
 }
 
 // Every further 20 rounds warns again, on the default 40-round budget.
@@ -171,6 +196,8 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     `warn mode must never deny, got ${JSON.stringify(outputs)}`);
   expect(typeof contextOf(outputs[budget - 1]) === 'string' && contextOf(outputs[budget - 1]).includes('3 tool rounds used'),
     `warn mode still warns at the budget, got ${JSON.stringify(outputs[budget - 1])}`);
+  expect(!/hard stop/.test(contextOf(outputs[budget - 1]) ?? '') && /checkpoint/.test(contextOf(outputs[budget - 1]) ?? ''),
+    `warn mode has no stop to name but still asks for the checkpoint, got ${contextOf(outputs[budget - 1])}`);
   cleanup();
   console.log('ok   CODE_OPS_DISPATCH_GUARD=warn keeps the warnings and lifts the hard stop');
 }
@@ -389,6 +416,12 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(bound[2] === null && bound[3] === null, `the two-call allowance must execute after the bound budget, got ${JSON.stringify(bound.slice(2, 4))}`);
   expect(bound[4]?.hookSpecificOutput?.permissionDecision === 'deny' && /attempted tool calls/.test(bound[4]?.hookSpecificOutput?.permissionDecisionReason ?? ''),
     `the call after the allowance must deny and label attempted calls, got ${JSON.stringify(bound[4])}`);
+  const boundWarning = contextOf(bound[1]) ?? '';
+  expect(boundWarning.includes('hard stop denies every tool call from call 5') && /controller replan/.test(boundWarning)
+    && /marked complete or partial/.test(boundWarning) && /Report path/.test(boundWarning),
+    `the bound warning must name its stop call, the replan, and the checkpoint, got ${boundWarning}`);
+  expect(/marked complete or partial/.test(bound[4]?.hookSpecificOutput?.permissionDecisionReason ?? ''),
+    `the bound stop must require the checkpoint, got ${JSON.stringify(bound[4])}`);
 
   const receipt = parseOut(runControl(['read', '--agent-id', boundId], { home, cwd }));
   const measured = receipt?.measurement ?? {};
@@ -702,6 +735,87 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   Grok gates at its 200,000-token ceiling and counts rounds per child session');
+}
+
+// ---------------------------------------------------------------- the brief's Round budget binds
+
+{
+  const { home, cleanup } = fakeHome();
+  const project = join(home, 'project');
+  const leadTranscript = join(project, 'sess-1.jsonl');
+  // The host layout: the lead transcript arrives as transcript_path, and the subagent's own
+  // transcript sits under `<session id>/subagents/`, its first line the lead's brief.
+  const transcriptOf = (id) => join(project, 'sess-1', 'subagents', `agent-${id}.jsonl`);
+  const briefEntry = (id, content) => JSON.stringify({ parentUuid: null, isSidechain: true, agentId: id, type: 'user', message: { role: 'user', content } });
+  const writeBrief = (id, content, rest = '') => {
+    mkdirSync(dirname(transcriptOf(id)), { recursive: true });
+    writeFileSync(transcriptOf(id), `${briefEntry(id, content)}\n${rest}`);
+  };
+  const briefCall = (id) => subagentCall(id, { transcript_path: leadTranscript });
+
+  // Brief 60: silent to 59, warns at 60 as brief-bound, denies first at 120.
+  writeBrief('brief-60', `${FULL_BRIEF.replace('Round budget: 25 tool rounds', 'Round budget: 60')}`);
+  const outs = [];
+  for (let i = 1; i <= 120; i++) outs.push(parseOut(runHook(briefCall('brief-60'), { home })));
+  expect(outs.slice(0, 59).every((out) => out === null), `rounds 1-59 of a 60-round brief must be silent, got ${JSON.stringify(outs.slice(0, 59).find((o) => o !== null))}`);
+  const warn60 = contextOf(outs[59]);
+  expect(typeof warn60 === 'string' && warn60.includes('60 tool rounds used against a brief-bound 60-round budget') && warn60.includes('from call 120'),
+    `a 60-round brief must warn at 60 and name stop call 120, got ${warn60}`);
+  expect(typeof warn60 === 'string' && !warn60.includes('If your brief names a larger budget'), 'a brief-bound warning must not invite a larger brief budget');
+  expect(outs.slice(0, 119).every((out) => out?.hookSpecificOutput?.permissionDecision !== 'deny'), 'no call before 120 may deny under a 60-round brief');
+  expect(/120 tool rounds used, 2 times the 60-round budget/.test(reasonOf(outs[119]) ?? ''), `call 120 must deny, got ${JSON.stringify(outs[119])}`);
+  expect(contextOf(outs[79])?.includes('80 tool rounds used against a brief-bound 60-round budget'),
+    `a 60-round brief warns again at 80 rather than stopping there, got ${JSON.stringify(outs[79])}`);
+  console.log('ok   a 60-round brief warns at 60 and stops at 120, not at the 40-round default');
+
+  // Above the maximum: clamped to 120, with one advisory on the first call only.
+  writeBrief('brief-500', 'Scope: x\nRound budget: 500 rounds\n');
+  const first = contextOf(parseOut(runHook(briefCall('brief-500'), { home })));
+  expect(typeof first === 'string' && first.includes("brief's 500-round budget exceeds the 120-round maximum") && first.includes('uses 120'),
+    `a brief above the maximum must clamp with an advisory, got ${first}`);
+  const second = runHook(briefCall('brief-500'), { home });
+  expect(second.stdout === '', `the clamp advisory must appear once, got ${second.stdout}`);
+  const cache = JSON.parse(readFileSync(join(home, '.claude', 'code-ops', 'dispatch', stateKey('C:/fixture-project'), `${stateKey('brief-500')}.brief.json`), 'utf8'));
+  expect(cache.budget === 120 && cache.status === 'CLAMPED' && !JSON.stringify(cache).includes('Scope'),
+    `the cache must hold the clamped number and no brief text, got ${JSON.stringify(cache)}`);
+  console.log('ok   a brief budget above 120 clamps to 120 with one advisory');
+
+  // Zero and two different values keep the environment budget, with an advisory.
+  for (const [id, content] of [['brief-zero', 'Round budget: 0'], ['brief-two', 'Round budget: 5\n- **Round budget:** 9']]) {
+    writeBrief(id, content);
+    const out = contextOf(parseOut(runHook(briefCall(id), { home, budget: 1 })));
+    expect(typeof out === 'string' && out.includes('not one whole number from 1 to 120') && out.includes('1 tool rounds used against a 1-round budget'),
+      `${id}: an invalid brief budget must fall back to the environment budget with an advisory, got ${out}`);
+  }
+  console.log('ok   a zero or conflicting brief budget keeps the environment budget with an advisory');
+
+  // No Round budget line, a missing transcript, and a missing transcript_path keep the default.
+  writeBrief('brief-none', 'Scope: x\nObjective: y');
+  for (const [name, payload] of [['no line', briefCall('brief-none')], ['missing transcript', briefCall('brief-absent')], ['no transcript_path', subagentCall('brief-nopath')]]) {
+    const runs = [1, 2, 3].map(() => parseOut(runHook(payload, { home, budget: 3 })));
+    expect(runs[0] === null && runs[1] === null && contextOf(runs[2])?.includes('3 tool rounds used against a 3-round budget'),
+      `${name}: must keep the environment budget silently, got ${JSON.stringify(runs)}`);
+  }
+  console.log('ok   no budget line or no readable transcript keeps the default budget');
+
+  // Array content blocks carry the brief too; later transcript text never moves the bound value.
+  writeBrief('brief-late', [{ type: 'text', text: 'Round budget: 3' }]);
+  runHook(briefCall('brief-late'), { home });
+  writeBrief('brief-late', 'Round budget: 999', `${JSON.stringify({ type: 'user', message: { content: 'tool output: Round budget: 999' } })}\n`);
+  const late = [2, 3].map(() => contextOf(parseOut(runHook(briefCall('brief-late'), { home }))));
+  expect(late[0] === undefined && late[1]?.includes('3 tool rounds used against a brief-bound 3-round budget'),
+    `a later "Round budget: 999" must not change the cached budget, got ${JSON.stringify(late)}`);
+  console.log('ok   the first call binds the brief budget; later transcript text does not move it');
+
+  // A controller binding outranks the brief and never reads it.
+  writeBrief('brief-bound', 'Round budget: 60');
+  runControl(['register', '--agent-id', 'brief-bound', '--budget', '2', '--allowance', '1'], { home, cwd: root });
+  const boundOuts = [1, 2].map(() => contextOf(parseOut(runHook(subagentCall('brief-bound', { cwd: root, transcript_path: leadTranscript }), { home }))));
+  expect(boundOuts[0] === undefined && boundOuts[1]?.includes('against a controller-bound 2-round budget'),
+    `a register binding must override the brief, got ${JSON.stringify(boundOuts)}`);
+  expect(!existsSync(join(home, '.claude', 'code-ops', 'dispatch', stateKey(root), `${stateKey('brief-bound')}.brief.json`)), 'a bound agent must not read its brief');
+  console.log('ok   a controller binding overrides the brief budget');
+  cleanup();
 }
 
 // ---------------------------------------------------------------- the off switch

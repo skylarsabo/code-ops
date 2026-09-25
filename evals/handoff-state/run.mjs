@@ -6,6 +6,9 @@
 // anchor drifted. The chain cases pin `co run open`, Session and Hop numbering 1 then 2, resume
 // by session name with the seeded successor run and the version 2 consumed marker, the ambiguous
 // name refusal, the draft refusals, the legacy marker, and `co handoff live` walking two hops.
+// The continuity cases pin the established session name outranking the PROGRAM.md title, the
+// host session id in SESSION.json, the record, and `live`, the resume links block and title line,
+// and the predecessor's judgment bullets carried forward under the 8 KB cap.
 // Every fixture lives in an OS temp dir, and CODE_OPS_HOME points the session records at a temp
 // home, so nothing writes under the repository or the real home.
 //
@@ -172,8 +175,10 @@ const json = (p) => JSON.parse(readFileSync(join(repo, p), 'utf8'));
 const record = (sid) => JSON.parse(readFileSync(sessionRecordPath(repo, sid, home), 'utf8'));
 const REQ1 = 'start the ledger program.';
 const REQ2 = 'continue the ledger program.';
-// Fills a draft the way a writer does: the judgment placeholders only. Session and Hop stay as drafted.
+// Fills a draft the way a writer does: the judgment placeholders only, confirming each carried
+// bullet. Session and Hop stay as drafted.
 const fill = (draftText, request) => draftText
+  .replace(/^- \[FILL: confirm still true\] /gm, '- ')
   .replace(/^Program: \[FILL:[^\n]*$/m, 'Program: 80 Runs/programs/ledger2/PROGRAM.md')
   .replace(/^Request:\n\[FILL:[^\n]*\]/m, `Request: ${request}`)
   .replace(/^- \[FILL: one line per finding[^\n]*$/m, '- CONFIRMED: alpha is on line 1. Pointer: src.txt:1')
@@ -202,8 +207,11 @@ try {
   const r0 = existsSync(sessionRecordPath(repo, 'sess-zero-0000', home)) ? record('sess-zero-0000') : {};
   check('run open writes the session record in the temp home',
     r0.v === 1 && r0.runDir === run0 && r0.resumed === null && r0.hop === 0 && r0.name === 'Ledger2 AMM');
-  const again = inRepo([co, 'run', 'open', 'ledger', '--session', 'sess-other-0000']);
+  const again = inRepo([co, 'run', 'open', 'ledger', '--session', 'sess-other-0000', '--host-session', 'local_open-0000']);
   check('run open suffixes a taken folder name with -2', again.stdout.trim() === `${run0}-2`);
+  check('run open stores --host-session in SESSION.json and the session record',
+    s0.hostSessionId === null && json(`${run0}-2/SESSION.json`).hostSessionId === 'local_open-0000'
+    && record('sess-other-0000').hostSessionId === 'local_open-0000' && r0.hostSessionId === null);
 
   // hop 1: the first handoff names its successor "Ledger2 AMM HO 1".
   const item = '- [ ] OI-1 Beta rewrite: not started · Owner: agent · Done when: src.txt holds beta · Pointer: src.txt:1';
@@ -211,7 +219,11 @@ try {
   const d1 = inRepo([co, 'handoff', 'draft', '--run', run0, '--session', 'sess-zero-0000']);
   check('draft on a run-open folder sets Predecessor none, Session HO 1, and Hop 1',
     /^Predecessor: none$/m.test(d1.stdout) && /^Session: Ledger2 AMM HO 1$/m.test(d1.stdout) && /^Hop: 1$/m.test(d1.stdout));
-  writeFileSync(join(repo, run0, 'HANDOFF.md'), fill(d1.stdout, REQ1));
+  // The hop 1 writer records one bullet in each judgment section, for the carry-forward case.
+  const JUDGED = { 'Decisions made': 'Alpha stays because beta reads it.', 'Traps and dead ends': 'Sorting src.txt breaks the anchor.', 'Carried context': 'Analysis sits in notes.md.' };
+  let h1 = fill(d1.stdout, REQ1);
+  for (const [heading, bullet] of Object.entries(JUDGED)) h1 = h1.replace(`## ${heading}\n\nRecorded in the fixture.\n`, `## ${heading}\n\nRecorded in the fixture.\n- ${bullet}\n`);
+  writeFileSync(join(repo, run0, 'HANDOFF.md'), h1);
   gitAt('add', '-A');
   gitAt('commit', '-q', '-m', 'hop 1');
 
@@ -230,6 +242,12 @@ try {
   const r1 = record('sess-one-11111');
   check('resume writes the session record with runDir, resumed, and hop',
     r1.runDir === succ1 && r1.resumed === `${run0}/HANDOFF.md` && r1.hop === 1 && r1.name === 'Ledger2 AMM HO 1');
+  const enc = (p) => p.replace(/ /g, '%20');
+  check('resume links the program, scope documents, handoff, successor run, and pointers as markdown',
+    res1.stdout.includes('\nlinks:\n') && res1.stdout.includes('  program: [80 Runs/programs/ledger2/PROGRAM.md](80%20Runs/programs/ledger2/PROGRAM.md)')
+    && res1.stdout.includes('  scope document: [src.txt](src.txt)') && res1.stdout.includes(`  handoff: [${run0}/HANDOFF.md](${enc(run0)}/HANDOFF.md)`)
+    && res1.stdout.includes(`  successor run: [${succ1}](${enc(succ1 ?? '')})`) && res1.stdout.includes('  OI-1 pointer: [src.txt:1](src.txt)'));
+  check('a passing resume ends with the set title action line', res1.stdout.trimEnd().endsWith('set title: "Ledger2 AMM HO 1"'));
 
   // draft refusals: a consumed folder, and a folder another session owns.
   const refusedConsumed = inRepo([co, 'handoff', 'draft', '--run', run0, '--out', `${run0}/HANDOFF-2.md`]);
@@ -244,18 +262,38 @@ try {
   const d2text = existsSync(join(repo, succ1, 'HANDOFF.md')) ? readFileSync(join(repo, succ1, 'HANDOFF.md'), 'utf8') : '';
   check('draft takes the predecessor from SESSION.json and numbers Session HO 2 and Hop 2',
     d2.status === 0 && d2text.includes(`Predecessor: ${run0}/HANDOFF.md`) && /^Session: Ledger2 AMM HO 2$/m.test(d2text) && /^Hop: 2$/m.test(d2text));
+  check("draft carries the predecessor's judgment bullets as confirm placeholders",
+    Object.values(JUDGED).every((b) => d2text.includes(`- [FILL: confirm still true] ${b}`))
+    && d2text.indexOf('Alpha stays because') > d2text.indexOf('## Decisions made') && d2text.indexOf('Alpha stays because') < d2text.indexOf('## Traps and dead ends'));
   writeFileSync(join(repo, succ1, 'HANDOFF.md'), fill(d2text, REQ2));
   gitAt('add', '-A');
   gitAt('commit', '-q', '-m', 'hop 2');
-  const res2 = inRepo([co, 'handoff', 'resume', 'Ledger2 AMM HO 2', '--session', 'sess-two-22222']);
+  const res2 = inRepo([co, 'handoff', 'resume', 'Ledger2 AMM HO 2', '--session', 'sess-two-22222', '--host-session', 'local_host-2222']);
   const succ2 = /^successor run: (.+)$/m.exec(res2.stdout)?.[1];
   check('the second resume passes and names a -ho2 successor', res2.status === 0 && /-ledger2-ho2$/.test(succ2 ?? ''));
+  check('resume stores --host-session in the successor SESSION.json and the session record',
+    Boolean(succ2) && json(`${succ2}/SESSION.json`).hostSessionId === 'local_host-2222' && record('sess-two-22222').hostSessionId === 'local_host-2222'
+    && record('sess-two-22222').runDir === succ2 && record('sess-one-11111').hostSessionId === null);
+
+  // Name drift: a PROGRAM.md title that differs from the established session name never renames the hop.
+  const ledger = join(repo, '80 Runs', 'programs', 'ledger2', 'PROGRAM.md');
+  const ledgerText = readFileSync(ledger, 'utf8');
+  writeFileSync(ledger, ledgerText.replace('# PROGRAM: Ledger2 AMM', '# PROGRAM: Platform operations'));
+  const d3 = inRepo([co, 'handoff', 'draft', '--run', succ2, '--session', 'sess-two-22222']).stdout;
+  check("draft keeps the predecessor's Session base name over a different PROGRAM.md title",
+    /^Session: Ledger2 AMM HO 3$/m.test(d3) && /^Hop: 3$/m.test(d3) && !d3.includes('Platform operations'));
+  writeFileSync(ledger, ledgerText);
 
   // live walks two hops from the first handoff, from a session name, and from a session id.
   const liveFromPath = inRepo([co, 'handoff', 'live', `${run0}/HANDOFF.md`]);
   check('live walks two hops from the first handoff to the live head',
     liveFromPath.status === 0 && liveFromPath.stdout.includes('head session: Ledger2 AMM HO 2') && liveFromPath.stdout.includes('session id: sess-two-22222')
     && liveFromPath.stdout.includes(`run dir: ${succ2}`) && liveFromPath.stdout.includes('state: live') && liveFromPath.stdout.includes('hops walked: 2'));
+  check('live prints the head host session when recorded', liveFromPath.stdout.includes('host session: local_host-2222'));
+  const liveFromHost = inRepo([co, 'handoff', 'live', 'local_host-2222']);
+  check('live from a host session id finds that session', liveFromHost.status === 0 && liveFromHost.stdout.includes('head session: Ledger2 AMM HO 2'));
+  const liveNoHost = inRepo([co, 'handoff', 'live', `${run0}/HANDOFF.md`, '--host-session', 'x']);
+  check('live rejects --host-session', liveNoHost.status === 2);
   const liveFromName = inRepo([co, 'handoff', 'live', 'ledger2 amm ho 1']);
   check('live from a session name walks from that session to the head',
     liveFromName.stdout.includes('session id: sess-two-22222') && liveFromName.stdout.includes('hops walked: 1'));
@@ -283,6 +321,19 @@ try {
     dup.status === 1 && dup.stderr.includes('ambiguous session name') && dup.stderr.includes('dup-a/HANDOFF.md') && dup.stderr.includes('dup-b/HANDOFF.md'));
   const none = inRepo([co, 'handoff', 'resume', 'Nobody HO 9']);
   check('resume by an unknown name exits 1 and lists the unconsumed handoffs', none.status === 1 && none.stderr.includes('Dup HO 1 -> 80 Runs/dup-a/HANDOFF.md'));
+
+  // A long predecessor: carried judgment bullets stop at the 8 KB cap and count the rest.
+  mkdirSync(join(repo, '80 Runs', 'cap-pred'));
+  mkdirSync(join(repo, '80 Runs', 'cap-run'));
+  const many = Array.from({ length: 200 }, (_, i) => `- Decision ${i}: a deliberately long line that fills the handoff past its cap quickly.`);
+  writeFileSync(join(repo, '80 Runs', 'cap-pred', 'HANDOFF.md'), `# HANDOFF\n\n## Program\n\nSession: Single tap ledger2 data HO 1\nHop: 1\n\n## Decisions made\n\n${many.join('\n')}\n\n## Traps and dead ends\n\n- Trap kept?\n`);
+  writeFileSync(join(repo, '80 Runs', 'cap-run', 'SESSION.json'), JSON.stringify({ v: 1, sessionId: null, name: 'Single tap ledger2 data HO 1', hop: 1, predecessor: '80 Runs/cap-pred/HANDOFF.md' }));
+  const capped = inRepo([co, 'handoff', 'draft', '--run', '80 Runs/cap-run']).stdout;
+  const kept = capped.split('\n').filter((l) => l.startsWith('- [FILL: confirm still true] Decision ')).length;
+  const left = Number(/\[FILL: (\d+) more predecessor bullet\(s\) not carried under the 8 KB cap/.exec(capped)?.[1]);
+  check(`a long predecessor's carried bullets stay under 8 KB and count the rest (${Buffer.byteLength(capped)} B, ${kept} kept)`,
+    Buffer.byteLength(capped) < 8 * 1024 && kept > 0 && kept + left === many.length && capped.includes('80 Runs/cap-pred/HANDOFF.md'));
+  check('draft keeps the recorded case of the session base name', /^Session: Single tap ledger2 data HO 2$/m.test(capped));
 } finally {
   rmSync(repo, { recursive: true, force: true });
   rmSync(home, { recursive: true, force: true });
