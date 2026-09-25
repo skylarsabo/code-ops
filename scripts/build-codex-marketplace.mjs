@@ -321,6 +321,7 @@ const HOOK_PURPOSES = new Map([
   ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
   ['subagent-report.mjs', 'notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap'],
   ['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff at a safe boundary when resident context crosses each 150,000-token band'],
+  ['peer-guard.mjs', 'denies a message to a peer session that already handed off and names the live successor to resend to'],
   ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, denies a suite-agent dispatch whose brief lacks a field the agent’s contract requires, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier'],
 ]);
 

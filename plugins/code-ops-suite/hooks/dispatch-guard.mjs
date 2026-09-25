@@ -19,8 +19,15 @@
 //      The hook warns at that unit's bound budget and denies after a two-call checkpoint
 //      allowance. `receipt --agent-id <id>` emits only allowlisted local measurements.
 //   2. LEGACY ROUND COUNTER, inside every other subagent (`agent_id` present). It keeps the
-//      environment budget and warning cadence and stops at twice the budget, the safe fallback
-//      when exact controller registration is unavailable. A bound allowance never extends it.
+//      warning cadence and stops at twice the budget, the safe fallback when exact controller
+//      registration is unavailable. A bound allowance never extends it. The budget is the
+//      `Round budget: <n>` line of the subagent's own brief, the first user entry of its host
+//      transcript, which the lead wrote. The hook reads that entry once per agent, on its first
+//      counted call, and caches the result, so text the operative later reads or writes never
+//      moves it. A brief budget above MAX_BRIEF_BUDGET clamps to it; a zero, conflicting, or
+//      absent line, an unreadable transcript, and Grok (whose transcript layout is unverified)
+//      keep the environment budget. Each fallback except an absent line or transcript adds one
+//      advisory line on that first call.
 //   3. CONTEXT CEILING GATE, on the main thread only (`agent_id` absent), for the dispatch tools
 //      `Agent`, `Task` (its name before the host renamed it), and `Workflow`. Resident context
 //      comes from `residentContext` (scripts/transcript-lib.mjs), the bounded transcript-tail
@@ -51,7 +58,17 @@
 //      advisory clauses; the Round budget advisory is dropped when a field denial already names
 //      it. Every denial and advisory for one dispatch lands in one output.
 //
+// The warning asks for a written checkpoint (done items, each dirty path marked complete or
+// partial, the exact next edit, gates run) before the stop, and the stop asks for it in the final
+// report, so a runaway still stops but never leaves unrecorded half-applied work. The default
+// stays role-blind: the audits above measure overruns, not a per-role need for more rounds, and
+// `register --budget` and the brief's own Round budget line already bind a larger budget for one
+// unit. MAX_BRIEF_BUDGET is 120: the largest measured spend is the reviewers' mean of about 90
+// rounds, so a 120-round warning covers it with a third to spare, and the 240-call stop still
+// bounds a runaway brief at six times the default.
+//
 // SWITCHES. `CODE_OPS_ROUND_BUDGET` overrides the 40-round default (a positive integer only).
+// A readable brief budget overrides both; a controller binding overrides the brief.
 // `CODE_OPS_DISPATCH_GUARD` takes `off`, `0`, or `false` (case-insensitive) to disable the
 // whole hook, ceiling gate included, and `warn` to turn every denial except a malformed or
 // unavailable controller binding into advisory text. One variable carries both so an
@@ -90,6 +107,12 @@
 //     come from the operator's brief, not from a located declaration in that bundle
 //     (UNVERIFIED), and a `Skill` call's `tool_input.skill` names the skill, as the Claude
 //     host's Skill tool documents.
+//   - A subagent's hook input carries the lead session's `transcript_path` (`<project>/<session
+//     id>.jsonl`, 203510159), not its own. The host writes the subagent transcript at
+//     `<project>/<session id>/subagents/agent-<agent_id>.jsonl` (198245300), or in a named
+//     subdirectory of `subagents` (a workflow agent), which this hook does not resolve and so
+//     reads as absent. Its first line is the brief: a `user` entry with a null `parentUuid`, the
+//     same `agentId`, and `message.content` as a string (observed on 2.1.276).
 //   That an injected `additionalContext` on an allowed subagent tool call lands in the
 //   subagent's own context, rather than the lead's, is PROBABLE rather than confirmed: the
 //   host collects hook `additionalContexts` independently of the permission decision
@@ -97,7 +120,9 @@
 //   but no single declaration states it for this event.
 //
 // STATE. One counter and optional binding per exact `(cwd, agent_id)` under `<host
-// home>/.claude/code-ops/dispatch/<sha256 cwd>/<sha256 agent id>.{rounds,binding.json}`, and
+// home>/.claude/code-ops/dispatch/<sha256 cwd>/<sha256 agent id>.{rounds,binding.json}`, one
+// parsed brief budget per agent beside them (`.brief.json`, numbers and a status only, never
+// brief text), and
 // one assessment marker per session at `<sha256 cwd>/<sha256 session id>.assessed.json`
 // (`{version: 1, band}`), the storage convention `handoffMarkerPath`
 // (scripts/transcript-lib.mjs) sets for the sibling hooks. The count is the file's byte
@@ -115,7 +140,7 @@
 // controller binding instead fails closed for that id: it must never silently grant a larger
 // budget than the controller record intended.
 
-import { appendFileSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { appendFileSync, closeSync, constants, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -127,6 +152,17 @@ const WARN_EVERY = 20;
 const STOP_MULTIPLE = 2;
 const DEFAULT_CHECKPOINT_ALLOWANCE = 2;
 const MAX_CHECKPOINT_ALLOWANCE = 4;
+const MAX_BRIEF_BUDGET = 120;
+// Only the brief's first line is read, and only this much of the transcript.
+const BRIEF_HEAD_BYTES = 262_144;
+const SAFE_AGENT = /^[A-Za-z0-9_-]{1,128}$/;
+// A `Round budget:` label line, in the forms briefHas accepts, with the number after the colon.
+const BRIEF_BUDGET = /^[ \t]*(?:(?:[-*]|\d+\.)[ \t]+)?(?:\*\*|__)?Round[ \t]+budget(?:\*\*|__)?[ \t]*(?:\([^)\n]*\))?[ \t]*(?:\*\*|__)?[ \t]*:[ \t]*(?:\*\*|__)?[ \t]*(\d+)/gim;
+const BRIEF_STATUSES = new Set(['BRIEF', 'CLAMPED', 'INVALID', 'NONE', 'MISSING']);
+// The checkpoint the warning asks for and the stop requires, so a fresh operative resumes from
+// recorded state instead of rediscovering half-applied dirty work.
+const CHECKPOINT = 'done items with file:line evidence, each dirty (uncommitted) path marked complete or partial, '
+  + 'the exact next edit, and each gate run with its result';
 const DISPATCH_TOOLS = new Set(['Agent', 'Task', 'Workflow', 'spawn_subagent']);
 // Agent types that start from the host's full tool surface or inherit the lead's context.
 const WIDE_TYPES = new Set(['general-purpose', 'claude', 'fork']);
@@ -250,6 +286,63 @@ function boundLimits(binding, fallbackBudget) {
   return { allowance, effectiveBudget, permitted: effectiveBudget + allowance };
 }
 
+// The first line of the subagent's own transcript, or null when it is absent or longer than
+// BRIEF_HEAD_BYTES.
+function transcriptHead(payload) {
+  const lead = payload.transcript_path;
+  if (typeof lead !== 'string' || !lead.endsWith('.jsonl') || !SAFE_AGENT.test(payload.agent_id)) return null;
+  const path = join(lead.slice(0, -'.jsonl'.length), 'subagents', `agent-${payload.agent_id}.jsonl`);
+  let fd;
+  try {
+    fd = openSync(path, 'r');
+    const buffer = Buffer.alloc(BRIEF_HEAD_BYTES);
+    const size = readSync(fd, buffer, 0, BRIEF_HEAD_BYTES, 0);
+    const text = buffer.subarray(0, size).toString('utf8');
+    const end = text.indexOf('\n');
+    return end >= 0 ? text.slice(0, end) : size < BRIEF_HEAD_BYTES ? text : null;
+  } catch { return null; } finally {
+    if (fd !== undefined) try { closeSync(fd); } catch { /* fail open */ }
+  }
+}
+
+// The Round budget the lead's brief states: BRIEF within 1..MAX_BRIEF_BUDGET, CLAMPED above it,
+// INVALID for zero or two different values, NONE without a line, MISSING without a readable brief.
+function parseBrief(payload) {
+  let entry;
+  try { entry = JSON.parse(transcriptHead(payload) ?? ''); } catch { return { status: 'MISSING' }; }
+  if (entry?.type !== 'user' || entry.parentUuid !== null
+    || (entry.agentId !== undefined && entry.agentId !== payload.agent_id)) return { status: 'MISSING' };
+  const content = entry.message?.content;
+  const text = typeof content === 'string' ? content : Array.isArray(content)
+    ? content.filter((block) => block?.type === 'text' && typeof block.text === 'string').map((block) => block.text).join('\n')
+    : '';
+  const values = [...new Set([...text.matchAll(BRIEF_BUDGET)].map((match) => Number(match[1])))];
+  if (!values.length) return { status: 'NONE' };
+  if (values.length > 1 || values[0] < 1) return { status: 'INVALID' };
+  const requested = Math.min(values[0], Number.MAX_SAFE_INTEGER);
+  return requested > MAX_BRIEF_BUDGET
+    ? { status: 'CLAMPED', requested, budget: MAX_BRIEF_BUDGET }
+    : { status: 'BRIEF', budget: requested };
+}
+
+function validBrief(record, agentId) {
+  return record?.version === 1 && record.key === stateKey(agentId) && BRIEF_STATUSES.has(record.status)
+    && (record.budget === undefined || (Number.isSafeInteger(record.budget) && record.budget >= 1 && record.budget <= MAX_BRIEF_BUDGET));
+}
+
+// The brief budget record for this agent, parsed from the transcript on the first call only and
+// cached beside the counter; `fresh` marks the call that parsed it.
+function briefBudget(cwd, payload) {
+  const path = join(stateDir(cwd), `${stateKey(payload.agent_id)}.brief.json`);
+  let prior = null;
+  try { prior = JSON.parse(readFileSync(path, 'utf8')); } catch { /* parse the brief */ }
+  if (validBrief(prior, payload.agent_id)) return prior;
+  // Concurrent first calls parse the same immutable first line, so either write is the same record.
+  const record = { version: 1, key: stateKey(payload.agent_id), ...parseBrief(payload) };
+  try { writeFileSync(path, JSON.stringify(record) + '\n'); } catch { /* fail open: parse again next call */ }
+  return { ...record, fresh: true };
+}
+
 function registerBinding(cwd, agentId, budget, allowance) {
   const current = bindingState(cwd, agentId);
   if (current.status === 'BOUND') return 'CONFLICT';
@@ -305,7 +398,7 @@ function emit(body) {
 }
 
 // Behaviour 1: the subagent's own tool call.
-function guardSubagent(payload, fallbackBudget, hardStop) {
+function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
   const state = bindingState(cwd, payload.agent_id);
   if (state.status === 'INVALID') {
@@ -317,7 +410,6 @@ function guardSubagent(payload, fallbackBudget, hardStop) {
   }
   const binding = state.binding;
   const limits = binding ? boundLimits(binding, fallbackBudget) : null;
-  const budget = limits?.effectiveBudget ?? fallbackBudget;
   const bound = state.status === 'BOUND';
   let used;
   try { used = countRound(counterPath(cwd, payload.agent_id), legacyCounterPath(cwd, payload.agent_id)); } catch {
@@ -327,8 +419,19 @@ function guardSubagent(payload, fallbackBudget, hardStop) {
     } });
     return;
   }
+  // A controller binding outranks the brief, so a bound agent never reads its transcript.
+  const brief = !bound && readBrief ? briefBudget(cwd, payload) : null;
+  const briefBound = brief?.budget !== undefined && brief?.budget !== null;
+  const unboundBudget = briefBound ? brief.budget : fallbackBudget;
+  const budget = limits?.effectiveBudget ?? unboundBudget;
+  const note = !brief?.fresh ? ''
+    : brief.status === 'CLAMPED' ? `Dispatch guard: the brief's ${brief.requested}-round budget exceeds the `
+      + `${MAX_BRIEF_BUDGET}-round maximum a brief can bind; the guard uses ${MAX_BRIEF_BUDGET}.`
+    : brief.status === 'INVALID' ? 'Dispatch guard: the brief\'s Round budget is not one whole number from 1 to '
+      + `${MAX_BRIEF_BUDGET}; the guard uses the ${fallbackBudget}-round default.`
+    : '';
 
-  const legacyCap = fallbackBudget * STOP_MULTIPLE;
+  const legacyCap = unboundBudget * STOP_MULTIPLE;
   const exceedsBoundAllowance = bound && used > limits.permitted;
   if (hardStop && (exceedsBoundAllowance || (!bound && used >= legacyCap))) {
     emit({ hookSpecificOutput: {
@@ -336,20 +439,28 @@ function guardSubagent(payload, fallbackBudget, hardStop) {
       permissionDecision: 'deny',
       permissionDecisionReason: (bound
         ? `Dispatch guard: ${used} attempted tool calls used after the ${limits.allowance}-call checkpoint `
-          + `allowance following the controller-bound ${budget}-round budget. Return your report now: what is done with file:line evidence, what `
-        : `Dispatch guard: ${used} tool rounds used, ${STOP_MULTIPLE} times the ${budget}-round budget. Return your report now: what is done with file:line evidence, what `)
-        + 'remains, the exact next action, and any uncommitted state.',
+          + `allowance following the controller-bound ${budget}-round budget. `
+        : `Dispatch guard: ${used} tool rounds used, ${STOP_MULTIPLE} times the ${budget}-round budget. `)
+        + `Make no further edits. Return your report now with the checkpoint: ${CHECKPOINT}.`,
     } });
     return;
   }
-  if (used !== budget && (used < budget || (used - budget) % WARN_EVERY !== 0)) return;
+  if (used !== budget && (used < budget || (used - budget) % WARN_EVERY !== 0)) {
+    if (note) emit({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: note } });
+    return;
+  }
+  // The first denied call: one past the bound allowance, or the legacy cap itself.
+  const stopAt = bound ? limits.permitted + 1 : legacyCap;
   emit({ hookSpecificOutput: {
     hookEventName: 'PreToolUse',
-    additionalContext: `Dispatch guard: ${used} tool rounds used against ${bound ? 'a controller-bound' : 'a'} ${budget}-round budget. `
-      + (bound ? 'Request a controller replan; ' : 'Unless your brief names a larger budget, ')
-      + 'stop at the next consistent state and checkpoint to '
-      + 'your report: what is done with file:line evidence, what remains, and the exact next action. '
-      + 'Then return, so the lead continues this unit in a fresh operative.',
+    additionalContext: (note ? `${note} ` : '')
+      + `Dispatch guard: ${used} tool rounds used against ${bound ? 'a controller-bound' : briefBound ? 'a brief-bound' : 'a'} ${budget}-round budget`
+      + (hardStop ? `; the hard stop denies every tool call from call ${stopAt}. ` : '. ')
+      + 'Start no new edit. Finish or revert the partial edit to reach a consistent state, then write a '
+      + `checkpoint to the brief's Report path (or the run folder): ${CHECKPOINT}. `
+      + (bound ? 'Then request a controller replan and return, ' : 'Then return, ')
+      + 'so the lead continues this unit in a fresh operative from the checkpoint.'
+      + (bound || briefBound ? '' : ' If your brief names a larger budget, continue instead and keep the checkpoint current.'),
   } });
 }
 
@@ -537,7 +648,8 @@ async function main() {
   const agentId = payload.agent_id
     ?? (typeof payload.subagentType === 'string' && payload.subagentType ? payload.session_id : undefined);
   if (typeof agentId === 'string' && agentId) {
-    guardSubagent({ ...payload, agent_id: agentId }, budget, hardStop);
+    // Only the host's own `agent_id` locates a subagent transcript; Grok's layout is unverified.
+    guardSubagent({ ...payload, agent_id: agentId }, budget, hardStop, agentId === payload.agent_id);
     return;
   }
   await guardMainThread(payload, budget, hardStop);

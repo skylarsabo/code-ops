@@ -3,17 +3,19 @@
 // handoff on resume in a single pass. It also opens a session's own run folder and finds the live
 // head of a handoff chain.
 //
-//   node scripts/handoff-state.mjs open <slug> [--name <name>] [--session <id>] [--hub <dir>] [--root <repo>]
+//   node scripts/handoff-state.mjs open <slug> [--name <name>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]
 //   node scripts/handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--session <id>] [--root <repo>]
-//   node scripts/handoff-state.mjs resume <HANDOFF.md | session name> [--session <id>] [--root <repo>]
-//   node scripts/handoff-state.mjs live <HANDOFF.md | session name | session id> [--root <repo>]
+//   node scripts/handoff-state.mjs resume <HANDOFF.md | session name> [--session <id>] [--host-session <id>] [--root <repo>]
+//   node scripts/handoff-state.mjs live <HANDOFF.md | session name | session id | host session id> [--root <repo>]
 //
 // SESSIONS. One run folder belongs to one session. Its SESSION.json holds
-// `{"v":1,"sessionId","name","hop","predecessor","createdAt"}`. The session id is `--session`, else
-// env CLAUDE_CODE_SESSION_ID, else CODEX_SESSION_ID, else null. With an id, `open` and a passing
-// `resume` also write the session record at transcript-lib.mjs sessionRecordPath(cwd, id), under
-// env CODE_OPS_HOME when set (evals point it at a temp dir), else the OS home directory. Without
-// an id, the record is skipped silently.
+// `{"v":1,"sessionId","hostSessionId","name","hop","predecessor","createdAt"}`. The session id is
+// `--session`, else env CLAUDE_CODE_SESSION_ID, else CODEX_SESSION_ID, else null. hostSessionId is
+// `--host-session`, else null: the host's own id when it differs from the session id, such as a
+// Claude desktop app `local_<uuid>`. With a session id, `open` and a passing `resume` also write
+// the session record at transcript-lib.mjs sessionRecordPath(cwd, id), under env CODE_OPS_HOME
+// when set (evals point it at a temp dir), else the OS home directory. Without an id, the record
+// is skipped silently.
 //
 // OPEN creates `<hub>/80 Runs/<YYYY-MM-DD>-<slug>/` (suffix -2, -3 when taken) with SESSION.json
 // (hop 0, no predecessor), a header-only TASKS.md, and RUN_LOG.md, then prints the folder. The hub
@@ -21,9 +23,9 @@
 // SessionStart card scans them.
 //
 // LIVE walks HANDOFF.consumed successor links from a handoff's run folder, or from the run folder
-// of a session named by id, id prefix, or name, to the head of the chain. It prints the head's
-// session name, id, and run folder, and marks the head "awaiting resume" when that run already
-// wrote an unconsumed HANDOFF.md.
+// of a session named by id, id prefix, host session id, or name, to the head of the chain. It
+// prints the head's session name, id, host session id when recorded, and run folder, and marks the
+// head "awaiting resume" when that run already wrote an unconsumed HANDOFF.md.
 //
 // WHY: writing a handoff was hand-assembled at the highest context of the run, and resuming one
 // took a separate tool turn per check. Each turn re-reads the whole context, so the turn count
@@ -40,8 +42,12 @@
 // placeholder carries no confidence label. The run folder's SESSION.json `predecessor` sets the
 // lineage before the heuristic does: null means Predecessor none. Draft fills `Session: <base
 // name> HO <n>` and `Hop: <n>`, where n is the predecessor's Hop plus 1, or 1 without a
-// predecessor. The base name is `--name`, else the PROGRAM.md `# PROGRAM:` title, else the
-// SESSION.json name without its ` HO <n>` suffix. Draft refuses an `--out` whose folder holds
+// predecessor. The base name is `--name`, else the predecessor handoff's Session line, else the
+// SESSION.json name, each without its ` HO <n>` suffix and in its recorded case, else the
+// PROGRAM.md `# PROGRAM:` title, so a hop never renames itself after the ledger. A known
+// predecessor's Decisions made, Traps and dead ends, and Carried context bullets carry forward as
+// `- [FILL: confirm still true] <bullet>` lines, as many as fit the 8 KB cap, then a count of the
+// rest. Draft refuses an `--out` whose folder holds
 // HANDOFF.consumed, or whose SESSION.json names a different session id than the current one.
 //
 // TASKS.md is the run's live checklist, one line per item:
@@ -59,6 +65,9 @@
 // folder `<date>-<program slug>-ho<n>` beside the handoff's folder, where n is the handoff's Hop
 // (1 for a legacy handoff). It writes that folder's SESSION.json, a TASKS.md seeded with the open
 // items verbatim, RUN_LOG.md, and the session record, and the version 2 HANDOFF.consumed names it.
+// The summary ends with a `links:` block of markdown links, relative to --root with spaces as
+// %20: the Program file, each PROGRAM.md scope document, the handoff, the successor run, and each
+// open item's Pointer. A passing resume prints `set title: "<session name>"` as its last line.
 //
 // Exit: 0 = done; 1 = a step failed, --out exists or is refused, or a name matched no single
 // handoff; 2 = usage error.
@@ -73,10 +82,10 @@ import { sessionRecordPath } from './transcript-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = [
-  'usage: handoff-state.mjs open <slug> [--name <name>] [--session <id>] [--hub <dir>] [--root <repo>]',
+  'usage: handoff-state.mjs open <slug> [--name <name>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
   '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--session <id>] [--root <repo>]',
-  '       handoff-state.mjs resume <HANDOFF.md | session name> [--session <id>] [--root <repo>]',
-  '       handoff-state.mjs live <HANDOFF.md | session name | session id> [--root <repo>]',
+  '       handoff-state.mjs resume <HANDOFF.md | session name> [--session <id>] [--host-session <id>] [--root <repo>]',
+  '       handoff-state.mjs live <HANDOFF.md | session name | session id | host session id> [--root <repo>]',
 ];
 
 // Splits markdown into { heading, body } pairs on `## ` headings, as check-handoff.mjs does.
@@ -98,6 +107,12 @@ const readJson = (file) => { try { return JSON.parse(readFileSync(file, 'utf8'))
 const writeJson = (file, body) => writeFileSync(file, `${JSON.stringify(body)}\n`);
 const sessionIdOf = (flags) => flags.session || process.env.CLAUDE_CODE_SESSION_ID || process.env.CODEX_SESSION_ID || null;
 const programTitle = (file) => (file && existsSync(file) ? /^# PROGRAM:[^\S\r\n]*(.+?)\s*$/m.exec(readFileSync(file, 'utf8'))?.[1] : null) ?? null;
+// A session name without its trailing ` HO <n>`, in its recorded case; null for a blank name or
+// an unfilled placeholder.
+const baseName = (name) => (typeof name === 'string' && name.trim() && !name.includes('[FILL:') ? name.trim().replace(/ HO \d+$/, '') : null);
+// A markdown link to a root-relative path: forward slashes, each segment percent-encoded, so a
+// space reads %20 and the link stays clickable.
+const mdLink = (label, path) => `[${label}](${path.split('/').map(encodeURIComponent).join('/')})`;
 const hopOf = (text) => { const n = Number(pathValue(sectionBody(text, 'program'), 'Hop')); return Number.isInteger(n) && n > 0 ? n : null; };
 
 // HANDOFF.consumed in `dir`, or null when absent. The version 2 body is JSON; the legacy body is one
@@ -150,11 +165,11 @@ function handoffsIn(root) {
 
 // The session record for `sid`, keyed by this process's cwd as the hooks key it by theirs.
 const recordFile = (sid) => sessionRecordPath(process.cwd(), sid, process.env.CODE_OPS_HOME || homedir());
-function writeSessionRecord(sid, { name, runDir, resumed, hop }) {
+function writeSessionRecord(sid, { hostSessionId, name, runDir, resumed, hop }) {
   if (!sid) return;
   const file = recordFile(sid);
   mkdirSync(dirname(file), { recursive: true });
-  writeJson(file, { v: 1, sessionId: sid, name, runDir, resumed, hop, updatedAt: new Date().toISOString() });
+  writeJson(file, { v: 1, sessionId: sid, hostSessionId, name, runDir, resumed, hop, updatedAt: new Date().toISOString() });
 }
 
 // The program lineage for a new handoff. Candidates are the consumed HANDOFF.md files in sibling
@@ -190,11 +205,12 @@ function lineage(runDir, root, repoPath) {
   return fromPredecessor(first.file, root, repoPath);
 }
 
-// The lineage a known predecessor handoff implies: its Program, its Hop, and its open items not
-// yet closed in PROGRAM.md.
+// The lineage a known predecessor handoff implies: its Program, its Hop, its Session name, its
+// open items not yet closed in PROGRAM.md, and its judgment bullets to confirm.
 function fromPredecessor(file, root, repoPath) {
   const text = readFileSync(file, 'utf8');
   const program = pathValue(sectionBody(text, 'program'), 'Program');
+  const session = pathValue(sectionBody(text, 'program'), 'Session');
   const programFile = program && (isAbsolute(program) ? program : resolve(root, program));
   const known = Boolean(programFile) && existsSync(programFile);
   const closed = new Set(known ? bullets(sectionBody(readFileSync(programFile, 'utf8'), 'closed items')).map(itemId).filter(Boolean) : []);
@@ -203,7 +219,9 @@ function fromPredecessor(file, root, repoPath) {
     programFile: known ? programFile : null,
     predecessor: repoPath(file),
     priorHop: hopOf(text),
+    priorSession: session,
     carried: bullets(sectionBody(text, 'open items')).filter((l) => !closed.has(itemId(l))),
+    judgment: Object.fromEntries(JUDGMENT.map(([key, heading]) => [key, bullets(sectionBody(text, heading))])),
     closedKnown: known,
   };
 }
@@ -217,6 +235,11 @@ function declaredLineage(session, root, repoPath) {
   if (!existsSync(file)) return { program: "[FILL: path to this program's PROGRAM.md ledger]", predecessor: `[FILL: SESSION.json names predecessor ${session.predecessor}, which does not resolve]`, carried: [] };
   return fromPredecessor(file, root, repoPath);
 }
+
+// The judgment sections a draft carries forward from a known predecessor, as [key, heading].
+const JUDGMENT = [['decisions', 'decisions made'], ['traps', 'traps and dead ends'], ['context', 'carried context']];
+const HANDOFF_CAP = 8 * 1024; // check-handoff.mjs SIZE_CAP_BYTES.
+const CONFIRM = '- [FILL: confirm still true] ';
 
 // Regenerated host distributions and vendored script copies: their source edits already show
 // elsewhere in the dirty list, so the draft counts them instead of listing them.
@@ -294,7 +317,8 @@ function draft(flags) {
   const hop = lin.predecessor === 'none' ? 1
     : lin.predecessor.startsWith('[FILL:') ? null
       : (lin.priorHop ?? (Number(own?.hop) || 1)) + 1;
-  const base = flags.name || programTitle(lin.programFile) || (typeof own?.name === 'string' ? own.name.replace(/ HO \d+$/, '') : null)
+  // The established session name outranks the ledger title, so a hop keeps its name.
+  const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) || programTitle(lin.programFile)
     || '[FILL: the program base name, the PROGRAM.md "# PROGRAM:" title]';
   const hopText = hop ?? '[FILL: the predecessor\'s Hop plus 1, or 1 without a predecessor]';
 
@@ -308,7 +332,7 @@ function draft(flags) {
     artifacts.push(`- Contract: \`${repoPath(contractPath)}\` (version ${contract.version})${receipts}`);
   }
 
-  const text = [
+  const render = (carry) => [
     `# HANDOFF: ${basename(runDir)}`,
     '',
     `Verified-at: ${head} (${branch}, ${dirty.length ? `${dirty.length} dirty path(s)` : 'clean'})`,
@@ -354,10 +378,12 @@ function draft(flags) {
     '## Decisions made',
     '',
     '[FILL: each decision with its reason and the options rejected]',
+    ...carry.decisions,
     '',
     '## Traps and dead ends',
     '',
     '[FILL: approaches that failed and tempting mistakes]',
+    ...carry.traps,
     '',
     '## Authority',
     '',
@@ -366,8 +392,28 @@ function draft(flags) {
     '## Carried context',
     '',
     '[FILL: pointers to run-folder files holding analysis the next session needs]',
+    ...carry.context,
     '',
   ].join('\n');
+
+  // The predecessor's judgment bullets, in section order, as many as fit under the cap; each
+  // section then counts what it left out, so nothing drops silently.
+  const carry = { decisions: [], traps: [], context: [] };
+  let room = HANDOFF_CAP - Buffer.byteLength(render(carry)) - 160 * JUDGMENT.length;
+  for (const [key] of JUDGMENT) {
+    const list = lin.judgment?.[key] ?? [];
+    let kept = 0;
+    for (const line of list) {
+      const out = `${CONFIRM}${line.replace(/^[-*]\s+/, '')}`;
+      const cost = Buffer.byteLength(out) + 1;
+      if (cost > room) break;
+      carry[key].push(out);
+      room -= cost;
+      kept++;
+    }
+    if (kept < list.length) carry[key].push(`[FILL: ${list.length - kept} more predecessor bullet(s) not carried under the 8 KB cap; confirm them in ${lin.predecessor}]`);
+  }
+  const text = render(carry);
 
   if (!flags.out) { process.stdout.write(text); return 0; }
   if (existsSync(flags.out)) die(`refusing to overwrite ${flags.out}`);
@@ -439,6 +485,7 @@ function resume(arg, flags) {
   const name = pathValue(program, 'Session') || `${programTitle(programFile) ?? slug} HO ${hop}`;
   const successor = freeDir(dirname(dirname(resolve(target))), `${today()}-${slug}-ho${hop}`);
   const sid = sessionIdOf(flags);
+  const hostSessionId = flags['host-session'] || null;
   const consume = ['--consume', '--successor', repoPath(successor), '--name', name, ...(sid ? ['--session', sid] : [])];
 
   const check = step('check-handoff.mjs', [target, '--root', root, ...(failures === 0 ? consume : [])]);
@@ -447,10 +494,10 @@ function resume(arg, flags) {
     const created = new Date().toISOString();
     const openLines = bullets(sectionBody(text, 'open items'));
     mkdirSync(successor, { recursive: true });
-    writeJson(join(successor, 'SESSION.json'), { v: 1, sessionId: sid, name, hop, predecessor: repoPath(resolve(target)), createdAt: created });
+    writeJson(join(successor, 'SESSION.json'), { v: 1, sessionId: sid, hostSessionId, name, hop, predecessor: repoPath(resolve(target)), createdAt: created });
     writeFileSync(join(successor, 'TASKS.md'), `# Tasks\n${openLines.length ? `\n${openLines.join('\n')}\n` : ''}`);
     writeFileSync(join(successor, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} resumed ${repoPath(resolve(target))}.\n`);
-    writeSessionRecord(sid, { name, runDir: repoPath(successor), resumed: repoPath(resolve(target)), hop });
+    writeSessionRecord(sid, { hostSessionId, name, runDir: repoPath(successor), resumed: repoPath(resolve(target)), hop });
   }
   const anchors = [...check.err.matchAll(/^ {2}(FRESH|MOVED|DRIFTED|GONE|AMBIGUOUS|NO-REF)\s+(.*)$/gm)];
   const counts = {};
@@ -467,6 +514,25 @@ function resume(arg, flags) {
     lines.push(`consumed: ${join(dirname(target), 'HANDOFF.consumed')}`, `session name: ${name}`, `successor run: ${repoPath(successor)}`);
   } else lines.push(`not consumed: ${failures} step(s) failed`);
 
+  // Clickable links for the operator: the ledger, its scope documents, the handoff, the successor
+  // run, and each open item's Pointer, with any :line suffix kept in the label only.
+  const links = [];
+  if (programFile && existsSync(programFile)) {
+    links.push(`  program: ${mdLink(repoPath(programFile), repoPath(programFile))}`);
+    for (const doc of bullets(sectionBody(readFileSync(programFile, 'utf8'), 'scope documents'))) {
+      const path = /`([^`]+)`/.exec(doc)?.[1];
+      if (path) links.push(`  scope document: ${mdLink(path, repoPath(resolve(root, path)))}`);
+    }
+  }
+  links.push(`  handoff: ${mdLink(repoPath(resolve(target)), repoPath(resolve(target)))}`);
+  if (failures === 0) links.push(`  successor run: ${mdLink(repoPath(successor), repoPath(successor))}`);
+  for (const item of open) {
+    const pointer = /\bPointer:\s*`?([^`·]+?)`?\s*(?:·|$)/.exec(item)?.[1];
+    if (pointer) links.push(`  ${itemId(item) ?? 'open item'} pointer: ${mdLink(pointer, repoPath(resolve(root, pointer.replace(/:\d+(?:-\d+)?$/, ''))))}`);
+  }
+  lines.push('links:', ...links);
+  if (failures === 0) lines.push(`set title: "${name}"`);
+
   console.log(lines.join('\n'));
   return failures === 0 ? 0 : 1;
 }
@@ -481,18 +547,20 @@ function open(slug, flags) {
   mkdirSync(runs, { recursive: true });
   mkdirSync(dir);
   const sid = sessionIdOf(flags);
+  const hostSessionId = flags['host-session'] || null;
   const name = flags.name || slug;
   const created = new Date().toISOString();
-  writeJson(join(dir, 'SESSION.json'), { v: 1, sessionId: sid, name, hop: 0, predecessor: null, createdAt: created });
+  writeJson(join(dir, 'SESSION.json'), { v: 1, sessionId: sid, hostSessionId, name, hop: 0, predecessor: null, createdAt: created });
   writeFileSync(join(dir, 'TASKS.md'), '# Tasks\n');
   writeFileSync(join(dir, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} opened this run as new work.\n`);
-  writeSessionRecord(sid, { name, runDir: repoPath(dir), resumed: null, hop: 0 });
+  writeSessionRecord(sid, { hostSessionId, name, runDir: repoPath(dir), resumed: null, hop: 0 });
   console.log(repoPath(dir));
   return 0;
 }
 
 // The run folder a live-head walk starts from: a handoff's own folder, or the run folder of the
-// session named by exact id, a unique id prefix of 8 or more characters, or name.
+// session named by exact id, exact host session id, a unique id prefix of 8 or more characters, or
+// name.
 function liveStart(arg, root) {
   if (existsSync(arg) && statSync(arg).isFile()) return dirname(resolve(arg));
   const store = dirname(recordFile('x'));
@@ -502,7 +570,7 @@ function liveStart(arg, root) {
   const prefixed = arg.length >= 8 ? records.filter((r) => String(r.sessionId).startsWith(arg)) : [];
   const named = records.filter((r) => typeof r.name === 'string' && r.name.toLowerCase() === want)
     .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
-  const rec = records.find((r) => r.sessionId === arg) ?? (prefixed.length === 1 ? prefixed[0] : null) ?? named[0];
+  const rec = records.find((r) => r.sessionId === arg) ?? records.find((r) => r.hostSessionId === arg) ?? (prefixed.length === 1 ? prefixed[0] : null) ?? named[0];
   if (rec) return resolve(root, rec.runDir);
   const hits = handoffsIn(root).filter((h) => h.session && h.session.toLowerCase() === want);
   if (hits.length === 1) return hits[0].dir;
@@ -536,6 +604,7 @@ function live(arg, flags) {
   console.log([
     `head session: ${session.name ?? 'unknown'}`,
     `session id: ${session.sessionId ?? 'unknown'}`,
+    ...(session.hostSessionId ? [`host session: ${session.hostSessionId}`] : []),
     `run dir: ${repoPath(dir)}`,
     `state: ${state}`,
     `hops walked: ${hops}`,
@@ -552,10 +621,12 @@ const { flags, positional } = parseOrDie(rest, {
   name: { value: true },
   session: { value: true },
   hub: { value: true },
+  'host-session': { value: true },
 }, USAGE.join('\n'));
 const noDraftFlags = !flags.run && !flags.base && !flags.out;
-if (command === 'draft' && positional.length === 0 && !flags.hub) process.exit(draft(flags));
+const host = flags['host-session'];
+if (command === 'draft' && positional.length === 0 && !flags.hub && !host) process.exit(draft(flags));
 if (command === 'resume' && positional.length === 1 && noDraftFlags && !flags.name && !flags.hub) process.exit(resume(positional[0], flags));
 if (command === 'open' && positional.length === 1 && noDraftFlags) process.exit(open(positional[0], flags));
-if (command === 'live' && positional.length === 1 && noDraftFlags && !flags.name && !flags.session && !flags.hub) process.exit(live(positional[0], flags));
+if (command === 'live' && positional.length === 1 && noDraftFlags && !flags.name && !flags.session && !flags.hub && !host) process.exit(live(positional[0], flags));
 usage(USAGE);
