@@ -31,12 +31,15 @@ for a genuinely trivial or indivisible step; state the reason instead of silentl
 busy work. Parallel edits require disjoint files; serialize shared files and dependency edges.
 
 A dispatch costs its resident context on every turn. Use the narrowest agent that fits the
-unit: `code-ops-suite:implementer` for build work, never a general-purpose agent where a
-restricted one fits. Name a round budget and a report cap in each brief, keep breadth agents
-at their declared tier, and hand off a lead session near 150,000 tokens of context. A unit too
-small to repay an operative's startup context stays inline, with the reason recorded. Past
-300,000 tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess
-runs; run the assessment instead of raising or disabling the ceiling.
+unit: `code-ops-suite:implementer` for build work, `code-ops-suite:web-researcher` for
+read-only web research, `code-ops-suite:probe` for read-only shell probes, never a
+general-purpose agent where a restricted one fits. Name a round budget and a report cap in
+each brief, and keep breadth agents at their declared tier. Assess a lead session at 150,000
+tokens of context, and hand off at a phase boundary past about 350,000 or earlier for a
+quality reason. A unit too small to repay an operative's startup context stays inline, with
+the reason recorded. Past 300,000
+tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;
+run the assessment instead of raising or disabling the ceiling.
 
 Every new non-calibration substantive run uses a task-based Run Contract. Select each
 unit's role, model tier, and effort from its work and ambiguity. Record the routing rationale

@@ -14,7 +14,13 @@
     "code-ops-suite-mech": {
       "model": "xai/grok-4.7"
     },
+    "code-ops-suite-probe": {
+      "model": "xai/grok-4.7"
+    },
     "code-ops-suite-reviewer": {
+      "model": "xai/grok-4.7"
+    },
+    "code-ops-suite-web-researcher": {
       "model": "xai/grok-4.7"
     },
     "privacy-opsec-suite-explorer": {

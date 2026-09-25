@@ -22,9 +22,19 @@
       "minimumTier": "mid"
     },
     {
+      "name": "probe",
+      "sourceModel": "sonnet",
+      "minimumTier": "mid"
+    },
+    {
       "name": "reviewer",
       "sourceModel": "opus",
       "minimumTier": "strong"
+    },
+    {
+      "name": "web-researcher",
+      "sourceModel": "sonnet",
+      "minimumTier": "mid"
     }
   ]
 }

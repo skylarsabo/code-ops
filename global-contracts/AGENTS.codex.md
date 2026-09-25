@@ -47,7 +47,9 @@ fits the unit. Name a round budget and a report cap in every brief. At the budge
 to the report path and continue in a fresh operative rather than fork or resume its context.
 A unit too small to repay an operative's startup context stays inline, with the reason
 recorded. Past 300,000 tokens of context, run `code-ops-suite:handoff` assess before any new
-dispatch; do not raise or disable the ceiling to avoid it.
+dispatch; do not raise or disable the ceiling to avoid it. Assess a lead session at 150,000
+tokens of context. Codex auto-compacts near 215,000 tokens of its 258,000-token window, so
+compaction is the context relief here, and a handoff is for a quality reason.
 
 An explicit budget constrains scope, never the quality floor. When it would force a lower tier
 or effort, return a checkpointed smaller unit or request a scope decision.

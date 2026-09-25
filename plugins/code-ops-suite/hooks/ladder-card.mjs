@@ -16,7 +16,7 @@
 // `hooks.json` with no matcher fires for every type and the filter below decides.
 //
 // Only an implementer-class type gets the card. A read-only operative (explorer, reviewer,
-// tracer, verifier, gatherer, claim-checker, privacy-reviewer, mech-review, and any type that
+// tracer, verifier, gatherer, claim-checker, privacy-reviewer, mech-review, web-researcher, probe, and any type that
 // ends in `explorer` or `reviewer`) never writes code, so the card would cost tokens for
 // nothing. A plugin-qualified type (`code-ops-suite:explorer`) is judged by its last segment.
 //
@@ -25,7 +25,7 @@
 
 import { readFileSync, writeSync } from 'node:fs';
 
-const READ_ONLY = new Set(['explorer', 'reviewer', 'tracer', 'verifier', 'gatherer', 'claim-checker', 'privacy-reviewer', 'mech-review', 'plan', 'explore']);
+const READ_ONLY = new Set(['explorer', 'reviewer', 'tracer', 'verifier', 'gatherer', 'claim-checker', 'privacy-reviewer', 'mech-review', 'web-researcher', 'probe', 'plan', 'explore']);
 
 const CARD = [
   'Code-economy ladder (code-ops):',

@@ -231,6 +231,8 @@ function buildBaseline(root) {
   put(root, 'plugins/code-ops-suite/agents/implementer.md', agentBody('implementer', 'opus', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
   put(root, 'plugins/code-ops-suite/agents/mech.md', agentBody('mech', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT], AGENT_REPORT_CAP, MECH_OPTS));
   put(root, 'plugins/code-ops-suite/agents/mech-review.md', agentBody('mech-review', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE]));
+  put(root, 'plugins/code-ops-suite/agents/web-researcher.md', agentBody('web-researcher', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE], AGENT_REPORT_CAP, { tools: 'WebSearch, WebFetch, Read, Grep, Glob' }));
+  put(root, 'plugins/code-ops-suite/agents/probe.md', agentBody('probe', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_FULL, AGENT_DENSE_EVIDENCE], AGENT_REPORT_CAP, { tools: 'Bash, Read, Grep, Glob' }));
 
   // -- rigor: bug-hunt, quality-scan (PRODUCER_SELFCHECK), deep-review (PRODUCER_STRICT) --
   put(root, 'plugins/rigor/.claude-plugin/plugin.json', JSON.stringify({ name: 'rigor', version: '0.1.0', description: 'fixture rigor plugin' }, null, 2));

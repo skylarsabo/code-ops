@@ -37,8 +37,8 @@ function runGrokHook(input) {
 const payload = (type, extra = {}) => JSON.stringify({ hook_event_name: 'SubagentStart', agent_id: 'a1', agent_type: type, ...extra });
 
 const IMPLEMENTERS = ['general-purpose', 'mech', 'claude', 'implementer', 'my-team:builder', 'code-ops-suite:fixer'];
-const READ_ONLY = ['explorer', 'reviewer', 'tracer', 'verifier', 'gatherer', 'claim-checker', 'privacy-reviewer', 'mech-review', 'Explore', 'Plan',
-  'code-ops-suite:explorer', 'code-ops-suite:reviewer', 'rigor:tracer', 'rigor:verifier', 'researcher:gatherer', 'researcher:claim-checker',
+const READ_ONLY = ['explorer', 'reviewer', 'tracer', 'verifier', 'gatherer', 'claim-checker', 'privacy-reviewer', 'mech-review', 'web-researcher', 'probe', 'Explore', 'Plan',
+  'code-ops-suite:explorer', 'code-ops-suite:reviewer', 'code-ops-suite:web-researcher', 'code-ops-suite:probe', 'rigor:tracer', 'rigor:verifier', 'researcher:gatherer', 'researcher:claim-checker',
   'privacy-opsec-suite:privacy-reviewer', 'privacy-opsec-suite:explorer', 'acme:schema-explorer', 'acme:diff-reviewer'];
 
 // ---------------------------------------------------------------- the off switch

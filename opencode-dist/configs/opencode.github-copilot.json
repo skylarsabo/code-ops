@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "github-copilot/gemini-3.8-flash"
     },
+    "code-ops-suite-probe": {
+      "model": "github-copilot/gemini-3.8-flash"
+    },
     "code-ops-suite-reviewer": {
       "model": "github-copilot/gpt-6-sol"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "github-copilot/gemini-3.8-flash"
     },
     "privacy-opsec-suite-explorer": {
       "model": "github-copilot/gpt-6-luna"

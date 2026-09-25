@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "anthropic/claude-sonnet-5"
     },
+    "code-ops-suite-probe": {
+      "model": "anthropic/claude-sonnet-5"
+    },
     "code-ops-suite-reviewer": {
       "model": "anthropic/claude-opus-5-5"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "anthropic/claude-sonnet-5"
     },
     "privacy-opsec-suite-explorer": {
       "model": "anthropic/claude-haiku-4-5-20251001"

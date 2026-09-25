@@ -14,8 +14,14 @@
     "code-ops-suite-mech": {
       "model": "deepseek/deepseek-v4-flash"
     },
+    "code-ops-suite-probe": {
+      "model": "deepseek/deepseek-v4-flash"
+    },
     "code-ops-suite-reviewer": {
       "model": "deepseek/deepseek-v4-pro"
+    },
+    "code-ops-suite-web-researcher": {
+      "model": "deepseek/deepseek-v4-flash"
     },
     "privacy-opsec-suite-explorer": {
       "model": "deepseek/deepseek-v4-flash"

@@ -316,6 +316,34 @@ clicked through, and the ceiling moves down or the gate goes. The wide-type deny
 wide-surface share of operative input falls with no rise in failed units. A deny that most briefs
 answer with a boilerplate `Wide-surface reason:` refutes it.
 
+## Handoff cost and the handoff line, 2026-09-24
+
+Transcripts from two adopting repositories held 70 handoff hops. A hop cost about 3 to 5 million
+tokens. The successor's resume phase took a median of 21 turns at about 2.9 million tokens, and
+writing the handoff took about 1.7 million. Successor sessions started at a median of about
+80,000 tokens of context.
+
+The net saving per hop depended on the context the ending session would have carried:
+
+| Context the ending session would carry | Net saving per hop | Hops that saved |
+| --- | --- | --- |
+| under 200,000 | +0.2M | not split out |
+| 200,000 to 300,000 | about zero | 7 of 12 |
+| 300,000 to 450,000 | +0.4M | not split out |
+| over 450,000 | +1.5M | 18 of 21 |
+
+Overall, the chains used 22% fewer lead tokens, about 18% price-weighted, than one continuous
+session that auto-compacts near 994,000. The repository with short chains came out 11% worse
+price-weighted.
+
+These figures set the handoff skill's context line. On context grounds alone, a lead hands off at a
+phase boundary past about 350,000 tokens. CONTINUE is right when the remaining work fits in about
+100,000 more tokens. Quality triggers still select HANDOFF at any size. The 150,000-token band and
+the 300,000-token ceiling stay as assessment points, and Grok keeps its 200,000 line. The figures
+are **CONFIRMED** transcript measurements. The 350,000 and 100,000 values read from them are
+**PROBABLE**, because no matched on/off comparison exists. Evidence:
+`plugins/code-ops-suite/skills/handoff/SKILL.md`, "Assess the lifecycle first".
+
 ## Startup context
 
 A lead's first turn measured 62,000 to 72,000 tokens. About 50,000 of that is the host system
