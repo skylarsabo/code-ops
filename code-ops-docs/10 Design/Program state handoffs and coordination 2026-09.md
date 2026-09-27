@@ -475,7 +475,7 @@ One command writes all four, so the ledger and the register cannot disagree. The
 
 Program-level commands move under `co program`, because they act on a program and not on one hop. `co handoff` keeps the per-hop verbs: `draft`, `check`, `resume`, and `live`.
 
-- **`archive`.** It moves closed items, and decisions whose disposition is not `pending`, to `programs/<slug>/PROGRAM.archive.md`. That sibling holds only the Decisions ledger and Closed items headings. It refuses a `pending` decision, so size management never buries an unsettled one. Checks 13, 14, and 18 read both files. It replaces the unstandardized `CLOSED-ARCHIVE.md` files in murmuration programs.
+- **`archive`.** It moves closed items, and decisions whose disposition is not `pending`, to `programs/<slug>/PROGRAM.archive.md`. It also moves Request history entries verbatim, except the first request and the last ten. Request history is 65% of the largest murmuration ledger, so archiving decisions alone cannot keep a ledger under its cap. That sibling holds only the Request history, Decisions ledger, and Closed items headings. It refuses a `pending` decision, so size management never buries an unsettled one. Checks 13, 14, and 18, and the request-lineage check, read both files. It replaces the unstandardized `CLOSED-ARCHIVE.md` files in murmuration programs.
 - **`split <slug> --into <a>,<b>`.** It writes a grammar-2 ledger per child. It assigns each open item and each pending decision to exactly one child as `Forwarded-to: <child>/<id>`, and it refuses while any is unassigned. Check 9 follows `Forwarded-to:`. It replaces sidecar files such as `SPLIT-SINGLE-TAP.md`.
 - **`merge <from> --into <to>`.** It is the inverse of split. It appends the source's requests to the target's Request history with a source tag, and adds its scope documents. It gives each imported open item and decision the next free id with `Was: <from>/<id>`. It marks the source ledger `Status: merged into <to>` and each source item `Forwarded-to:`. It refuses while the source's live head session is running, unless the operator passes `--head-ended`. Checks 9 and 13 follow `Was:`.
 - **`close <slug>`.** Preconditions: no `pending` decision, no open item except those forwarded to a named successor with `Owner: operator`, and no unconsumed handoff in the chain. It writes `programs/<slug>/CLOSEOUT.md` with goal, outcome, revision range, each promoted decision linked to its register line, and counts of closed items and local decisions. It adds `Status: closed` under the goal, and it updates `80 Runs/INDEX.md`.
@@ -571,7 +571,8 @@ U5 of the handoff-fidelity draft moved to O3.
 - **PowerShell form.** When a command needs shell syntax, give a `powershell` block that PowerShell 5.1 accepts: `;` or separate lines instead of `&&`, `$env:NAME` instead of `export`, `Remove-Item` instead of `rm`, and double quotes around paths with spaces. Give a bash variant only when the operator also uses a POSIX shell.
 - **Detection.** No hook payload carries the shell, and only Claude Code names it to the model. The SessionStart routing card therefore adds one line on the other hosts, such as `operator shell: PowerShell (win32)`. It derives the value from `process.platform`, and `CODE_OPS_OPERATOR_SHELL` overrides it. The line costs about 15 tokens. On Grok, where passive stdout is unavailable, the doctrine rule is the floor.
 - **Doctrine.** Section 4 of `CONVENTIONS.md` gains the rule beside `Detect the shell and OS.`, and the global contract gains one sentence. The section-4 text is not a pinned passage, so each plugin's copy changes on its own.
-- **Run button.** The Claude desktop app asks for `bash` blocks to attach its Run button, and a filed issue reports that a `powershell` block's Run button runs bash. A neutral command runs correctly either way. A PowerShell-only command is copied into the terminal. DSN-9 settles the button's behavior with a live check.
+- **Run button.** The Claude desktop app attaches its Run button to `bash` blocks only. A `powershell` block has no Run button, as the operator reported on 2026-09-27 (DSN-9). So a neutral command goes in a `bash` block and keeps the button. A PowerShell-only command goes in a `powershell` block, and the operator copies it. The shell that a `bash` block's Run button starts is UNVERIFIED, and a neutral command runs correctly in either.
+- **Version floor.** The operator's shell measured PowerShell 7.6.6 on 2026-09-27. PowerShell 5.1 syntax stays the floor, because it also runs in 7.
 
 ### O2. Replies link what they cite
 
@@ -596,7 +597,7 @@ W8's read notice, C2, and C3 add behavior to the most frequent tool events. Each
 
 A project-wide profile is too coarse for a repository that mixes research with routine work. Murmuration runs include research evidence the operator calls extremely important, beside build and cleanup runs. So retention is set per run, and the project profile supplies only the default.
 
-This section is a proposal built from a survey of 164 murmuration run folders (DSN-4). It waits on operator acceptance.
+This section is built from a survey of 164 murmuration run folders and 83 murmuration handoffs. The operator accepted it on 2026-09-27 as recommended, with amendments drawn from how handoffs use run folders (DSN-4). The amendments are the last three rules.
 
 ### What the survey showed
 
@@ -605,6 +606,7 @@ This section is a proposal built from a survey of 164 murmuration run folders (D
 - **Mixed runs are common.** 46 non-research runs hold findings, results, evidence, or receipt files.
 - **Citation does reveal use.** 112 of 164 runs (68%) are cited from tracked files outside `80 Runs/`.
 - **No run carries a marker today.** 21 runs hold `SESSION.json`, and none records a kind.
+- **Handoffs lean on run files.** The 83 murmuration handoffs have a median size of 8,011 bytes against the checker's 8,192-byte cap. So a handoff keeps its detail in the run files it points at, and those files carry the chain.
 
 So recognition cannot be automatic from content. It needs an explicit class plus a citation check.
 
@@ -617,6 +619,9 @@ So recognition cannot be automatic from content. It needs an explicit class plus
 - **Only the operator lowers a class.** An agent may raise one.
 - **Untracking waits for program close.** Later hops cite earlier runs, so a `working` run keeps its files until its program closes.
 - **A profile change never untracks a committed run.** Untracking an existing run needs its own classification pass and operator sign-off, recorded per run.
+- **A hop inherits its predecessor's class.** `co handoff resume` opens the successor run with the predecessor run's class. The `handoff` skill has no class of its own. Without this rule, a `ship` program opens hop 0 as `working` and every later hop as `evidence`, through the unmapped-skill default.
+- **Program ledgers are always evidence.** `PROGRAM.md`, `PROGRAM.archive.md`, and the program's `CLOSEOUT.md` hold the decisions, the least recoverable state. No profile trims them, and the `closeout` profile never applies to them.
+- **Under `ignored`, ledgers live on one machine until close.** Code-ops keeps them untracked, because a ledger holds the operator's requests verbatim. `co program close` promotes each non-local decision to a committed register line. A decision marked `local` stays in the untracked ledger only.
 
 | Profile | `evidence` run | `working` run |
 | --- | --- | --- |
@@ -632,7 +637,7 @@ Keep `tracked`. The design already stops runs from costing agent context, becaus
 
 ## State budgets
 
-This section is a proposal built from murmuration measurements (DSN-5). It waits on operator acceptance. Budgets count words. One 3,000-word read costs about 4,000 tokens.
+This section is built from murmuration measurements. The operator accepted it on 2026-09-27 as recommended, with the `PROGRAM.md` row added from handoff use (DSN-5). Budgets count words. One 3,000-word read costs about 4,000 tokens.
 
 | Surface | Budget | Basis |
 | --- | --- | --- |
@@ -644,6 +649,7 @@ This section is a proposal built from murmuration measurements (DSN-5). It waits
 | `00 Home.md` | 600 | 237 in murmuration, 463 in code-ops |
 | `80 Runs/INDEX.md` | 3,000 | Open programs and runs from the last 30 days. Older rows move to a history index |
 | `98 System/TRIAGE.md` | 2,000 | One `maintain` pass must be able to work it |
+| `programs/<slug>/PROGRAM.md` | 3,000 | Every resume reads it. Four of seven murmuration ledgers hold 3,648 to 4,437 words, near the 32 KB hard cap of about 4,600 words. Over budget, a ledger gets a triage item, and `co program archive` clears it. The 32 KB cap stays the hard failure |
 
 **Research and routine share one set of budgets.** State holds rules and pointers for both. Research depth lives in history, which has no budget, and a synthesis page reaches it through `sources:`.
 
@@ -818,6 +824,12 @@ The operator accepted every recommendation of the docs-state review on 2026-09-2
 
 On 2026-09-27 the operator asked to combine the two programs and improve each, to receive PowerShell commands on Windows, and to have every reference linked. Collision handling stays "Warn only (Recommended)".
 
+On 2026-09-27 the operator settled three more items:
+
+- DSN-4 "Retention by run class" is accepted as recommended, with three amendments from handoff use: a hop inherits its predecessor's class, program ledgers are always evidence, and `ignored` ledgers reach the register at close.
+- DSN-5 "State budgets" is accepted as recommended, with a `PROGRAM.md` budget of 3,000 words and request archiving in `co program archive`.
+- DSN-9 A `powershell` block has no Run button in the Claude desktop app, which the operator uses most.
+
 ## Rejected alternatives
 
 - **Logical unification, keeping `docs/` on disk.** Rejected by the operator. Agents inevitably read the old tree, and nothing on disk tells them a record is superseded.
@@ -846,9 +858,6 @@ On 2026-09-27 the operator asked to combine the two programs and improve each, t
 - DSN-1 The collision and message-traffic join was not measured · Owner: agent · Done when: a pass joins git-mutating calls to peer sends by repo and time, and the Evidence section records the result
 - DSN-2 OpenCode's bash-tool argument mutation has conflicting evidence, which touches the digest port and C4 · Owner: agent · Done when: PR 10 records a live-payload eval on OpenCode and Grok, and a failing host keeps the deny
 - DSN-3 The handoff-point replay is a model · Owner: agent · Done when: `MEASUREMENTS.md` records the window method before PR 3, and the comparison runs one week after it lands
-- DSN-4 The retention proposal waits on the operator. It rests on a survey of 164 murmuration runs · Owner: operator · Done when: the operator accepts or amends "Retention by run class"
-- DSN-5 The budget proposal waits on the operator. It rests on measured register, index, and synthesis sizes · Owner: operator · Done when: the operator accepts or amends "State budgets"
 - DSN-7 The Grok read tool's name is UNVERIFIED, so the read-notice matcher may miss Grok reads · Owner: agent · Done when: PR 12 records the name from a live Grok payload or drops Grok from the Read matcher
 - DSN-8 Retention defaults map skills by family, not by name · Owner: agent · Done when: PR 13 lists each skill's default class and lint checks the list is total
-- DSN-9 The desktop Run button's behavior on a `powershell` block rests on a secondary report · Owner: operator · Done when: the operator reports which shell runs a `powershell` block from the Run button
 - DSN-10 Hook latency has no baseline · Owner: agent · Done when: `MEASUREMENTS.md` records p50 and p95 per event before PR 11
