@@ -1,7 +1,7 @@
 ---
 type: design
 status: superseded
-superseded-by: "[[Program state, handoffs, and coordination 2026-09]]"
+superseded-by: "[[Program state handoffs and coordination 2026-09]]"
 updated: 2026-09-27
 tags:
   - design
@@ -12,7 +12,7 @@ tags:
 
 # Docs state and history 2026-09
 
-> Superseded on 2026-09-27 by [[Program state, handoffs, and coordination 2026-09]], which merges this draft with its sibling. This file stays as evidence.
+> Superseded on 2026-09-27 by [[Program state handoffs and coordination 2026-09]], which merges this draft with its sibling. This file stays as evidence.
 
 Source: a read-only review of the murmuration documentation on 2026-09-25, then a map of the code-ops record, manifest, vault, and handoff tooling. Seven explorers ran over disjoint slices. The lead verified every load-bearing claim with direct probes. Findings about murmuration name paths and counts only.
 

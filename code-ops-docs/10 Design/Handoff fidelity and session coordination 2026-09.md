@@ -1,7 +1,7 @@
 ---
 type: design
 status: superseded
-superseded-by: "[[Program state, handoffs, and coordination 2026-09]]"
+superseded-by: "[[Program state handoffs and coordination 2026-09]]"
 updated: 2026-09-27
 tags:
   - design
@@ -12,7 +12,7 @@ tags:
 
 # Handoff fidelity and session coordination 2026-09
 
-> Superseded on 2026-09-27 by [[Program state, handoffs, and coordination 2026-09]], which merges this draft with its sibling. This file stays as evidence.
+> Superseded on 2026-09-27 by [[Program state handoffs and coordination 2026-09]], which merges this draft with its sibling. This file stays as evidence.
 
 Source: a measurement session on 2026-09-27. It compared two 72-hour windows of Claude transcripts across all projects. It then ran six read-only probes over 2026-09-20..2026-09-27: handoff decay, peer coordination, trigger overshoot and resume cost, dispatch friction, hook friction, and peer message content. The operator asked for two improvements and for more improvements from observed usage. The operator chose warn-only collision handling.
 
