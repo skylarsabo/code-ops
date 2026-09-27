@@ -122,8 +122,8 @@ Three gaps in code-ops explain these observations:
 ### Operator-facing output
 
 - The operator reported on 2026-09-27 that handed commands are usually bash on a Windows workstation, and that agents sometimes name work without linking to it. CONFIRMED as a report.
-- No suite rule governs the shell of a command handed to the operator. `CONVENTIONS.md:59` says `Detect the shell and OS. Do not assume bash.`, which governs the agent's own commands. CONFIRMED (`80 Runs/2026-09-27-handoff-fidelity-ho1/reports/D-001.md`).
-- No host tells the model or a hook the operator's shell. Claude Code, Codex, and Grok hook payloads carry `cwd` and no shell field. CONFIRMED for Grok and PROBABLE for the others (`reports/D-002.md`).
+- No suite rule governs the shell of a command handed to the operator. `CONVENTIONS.md:59` tells the agent to detect the shell and OS and not assume bash, which governs the agent's own commands. CONFIRMED (`80 Runs/2026-09-27-handoff-fidelity-ho1/reports/D-001.md`).
+- No hook payload carries the operator's shell. Claude Code, Codex, and Grok payloads carry `cwd` and no shell field. CONFIRMED for Grok and PROBABLE for the others (`reports/D-002.md`). Claude Code does name the shell in the model's environment block, as this session observed.
 - The Claude desktop app asks for `bash`-tagged blocks to attach its Run button. A filed issue reports that a `powershell` block's Run button runs bash. PROBABLE, secondary source only.
 - Only the handoff resume reply requires links (`plugins/code-ops-suite/skills/handoff/SKILL.md:166`). Section 9 of `CONVENTIONS.md` requires `file:line` citations in artifacts, not links in replies. CONFIRMED.
 - 16 identical bash-versus-PowerShell quoting errors occurred in the lead's own tool calls in one week. CONFIRMED.
@@ -133,7 +133,7 @@ Three gaps in code-ops explain these observations:
 - Both drafts listed `plugins/code-ops-suite/skills/handoff/SKILL.md` and `scripts/check-handoff.mjs` as scope documents. Nothing warned either chain. CONFIRMED.
 - Both program ledgers minted `DEC-1` to `DEC-8`. A merge by hand had to renumber 16 imported decisions. CONFIRMED.
 - The docs-state design sat on a local-only branch for two days, with its chain's status still reading live. CONFIRMED.
-- Resume printed `same-tree: no` at an unchanged HEAD. The only dirty path was the one the handoff itself recorded. `scripts/check-handoff.mjs:369` prints yes only on a clean tree. CONFIRMED.
+- Resume printed `same-tree: no` at an unchanged HEAD. The only dirty path was the one the handoff itself recorded. `scripts/check-handoff.mjs:369` reports same-tree only on a tree clean apart from the handoff file, and `scripts/handoff-state.mjs:505` prints the flag. CONFIRMED.
 - The documented 350k handoff point also sits in `global-contracts/AGENTS.md` and `code-ops-docs/55 Operations/MEASUREMENTS.md`, which H6 did not list. CONFIRMED.
 - The docs-state draft said `integrate-branch.mjs` never seals (W2) and also that it runs `records seal` (W6). The two statements contradict. CONFIRMED.
 
@@ -432,12 +432,14 @@ A decision carries a stable id, its hop, and a disposition:
 | 12. Disposition age | An entry made at a hop before the current `Hop:` must not be `pending` | W5 | New. One hop of grace |
 | 13. Decision carry-forward | Every `DEC` id in the predecessor's `## Decisions made` appears in the ledger, its archive, or a `Was:` trail | W5 | Check 9 |
 | 14. Promotion resolves | Every `promoted:<id>` resolves in `state.json` or in intake on the working tree | W5 | Check 9 for scope documents |
-| 15. Handoff points, not copies | Each `## Decisions made` and `## Open items` bullet in `HANDOFF.md` leads with its id and adds at most one clause | W5, H2 | New |
+| 15. Handoff points, not copies | Each `## Decisions made` and `## Open items` bullet in `HANDOFF.md` leads with its id. A decision adds at most one clause. An active open item keeps its full line, and a carried one shows id and title | W5, H2 | New |
 | 16. Every pointer anchored | Every `Pointer:` in the ledger's Open items and in the handoff carries an `Anchor:` | H1 | Check 6 |
 | 17. Revisions recorded | An item whose `Owner:` or `Done when:` differs from the predecessor's carries `Revised:` | H2 | New |
 | 18. Ids unique | No `DEC` or `OI` id appears twice across the ledger and its archive | New | Check 4 |
 
 Check 16 also ships early as a warning for grammar-1 ledgers. It warns rather than fails there, because existing chains carry bare pointers.
+
+Under grammar 2, check 4 reads `Owner:` and `Done when:` for a carried item from the ledger, because the handoff shows only its id and title.
 
 Check 18 is the mechanical backstop for id uniqueness. The docs-state draft relied on the peer guard allowing one live head per program. The peer guard cannot see a session in another worktree until C1 rekeys the session store.
 
@@ -457,11 +459,11 @@ A promoted record lands only when its branch merges. So check 14 reads the worki
 3. It sets the ledger disposition to `promoted:<record id>`.
 4. It renders the register.
 
-One command writes all four, so the ledger and the register cannot disagree. The seal runs later, on the base branch, as W2 describes.
+One command writes all four, so the ledger and the register cannot disagree. The seal runs later, on the base branch, as W2 describes. The Write section of the handoff skill gains one sentence routing to this command.
 
 ### L4. Resume
 
-- **Same tree.** Resume reports `same-tree: yes` when HEAD equals `Verified-at` and the dirty set equals the handoff's recorded dirty paths. Today it requires a clean tree (`scripts/check-handoff.mjs:369`), which sends an unchanged resume through a full re-read.
+- **Same tree.** Resume reports `same-tree: yes` when HEAD equals `Verified-at` and the dirty set equals the handoff's recorded dirty paths. Today it requires a tree clean apart from the handoff file (`scripts/check-handoff.mjs:369`, printed at `scripts/handoff-state.mjs:505`), which sends an unchanged resume through a full re-read.
 - **Scope digests.** The handoff records, per scope document, a content hash and a one-paragraph digest with `Verified-at:`. Resume skips an unchanged document and flags a changed one for re-reading. Target: the median resume cost falls from 36.7k to under 25k input tokens.
 - **Re-anchoring.** Resume re-resolves every carried pointer. A MOVED anchor is rewritten to its new line in the successor's draft. A DRIFTED or GONE anchor becomes `[FILL: re-anchor or disposition]`, so the next hop cannot carry it silently.
 - **Forwarding.** A scope-document path or anchor that misses on the tree falls back to `FORWARDING.json`. A forwarded hit reports MOVED, which warns, not GONE, which fails.
@@ -499,7 +501,7 @@ After a close or a merge, `co handoff live` reports the program's status and nam
 ### H6. Handoff point and follow-through
 
 - Move the documented handoff point from about 350k to about 225k (DEC-3). The 150k card bands stay.
-- Every copy of the rule changes in one commit: `plugins/code-ops-suite/skills/handoff/SKILL.md:73`, `global-contracts/AGENTS.md`, and the H6 entry in `code-ops-docs/55 Operations/MEASUREMENTS.md`. `node scripts/sync-global.mjs` then refreshes the machine's global contract. CHANGELOG history stays as written.
+- Every copy of the rule changes in one commit: `plugins/code-ops-suite/skills/handoff/SKILL.md:73`, `global-contracts/AGENTS.md`, and the PR #184 savings paragraph at `code-ops-docs/55 Operations/MEASUREMENTS.md:340`. `node scripts/sync-global.mjs` then refreshes the machine's global contract. CHANGELOG history stays as written.
 - The dispatch guard's 300k ceiling stays. It now sits past the handoff point, so it forces an assessment on a session that chose CONTINUE and overran.
 - When no operator prompt has arrived since the last card, the session runs autonomously. There the card at the handoff point says to write the handoff at the next boundary, instead of assessing again.
 - An assessment that returns CONTINUE past the handoff point records a `Continue-until:` bound, in turns or in context. The card fires again past it.
@@ -532,9 +534,11 @@ All state stays on the local machine under `<home>/.claude/code-ops/`. Nothing a
 ### C4. Redirect stale messages
 
 - When the peer guard finds that the target has handed off to a live head, it rewrites the message's target to that head and adds a notice. It no longer denies (DEC-4).
-- The rewrite uses PreToolUse input modification. Host documentation settles two hosts (`80 Runs/2026-09-27-handoff-fidelity-ho1/reports/D-002.md`):
-  - Claude Code and Codex document `hookSpecificOutput.updatedInput`. CONFIRMED from primary docs. They redirect.
-  - OpenCode documents mutation of `output.args`, but a filed issue reports the mutation is ignored. Grok's primary hooks page shows only a deny decision. Both keep today's deny until a live-payload eval shows the rewrite takes effect (DSN-2).
+- The rewrite uses PreToolUse input modification, which the digest hook already relies on:
+  - Claude Code and Codex document `hookSpecificOutput.updatedInput`. CONFIRMED from primary docs (`80 Runs/2026-09-27-handoff-fidelity-ho1/reports/D-002.md`).
+  - Installed Grok 1.0.13 accepts the same shape (`code-ops-docs/35 Contracts and Data/CONTRACTS.md:450`). CONFIRMED in-tree, although Grok's public hooks page shows only a deny decision.
+  - The OpenCode port assigns `output.args` from `updatedInput` (`scripts/build-opencode-dist.mjs:448`). A filed issue reports that OpenCode ignores the mutation for its bash tool. If that holds, the digest port is affected too, so DSN-2 covers both.
+  - A host whose live-payload eval fails keeps today's deny.
 - A filed Claude Code issue reports that hooks sometimes miss subagent tool calls. The peer guard therefore stays a lead-side guard, and nothing relies on it firing inside a subagent.
 
 ### C5. Derived-file conflicts
@@ -565,7 +569,7 @@ U5 of the handoff-fidelity draft moved to O3.
 - **Rule.** A command handed to the operator runs in the operator's shell. On Windows, that shell is PowerShell unless the operator names another.
 - **Neutral first.** Prefer a command that runs unchanged in PowerShell 5.1, PowerShell 7, and bash, such as `node scripts/lint-plugins.mjs`. Most suite commands are already neutral.
 - **PowerShell form.** When a command needs shell syntax, give a `powershell` block that PowerShell 5.1 accepts: `;` or separate lines instead of `&&`, `$env:NAME` instead of `export`, `Remove-Item` instead of `rm`, and double quotes around paths with spaces. Give a bash variant only when the operator also uses a POSIX shell.
-- **Detection.** No host tells the model or a hook the operator's shell. The SessionStart routing card therefore adds one line, such as `operator shell: PowerShell (win32)`. It derives the value from `process.platform`, and `CODE_OPS_OPERATOR_SHELL` overrides it. The line costs about 15 tokens. On Grok, where passive stdout is unavailable, the doctrine rule is the floor.
+- **Detection.** No hook payload carries the shell, and only Claude Code names it to the model. The SessionStart routing card therefore adds one line on the other hosts, such as `operator shell: PowerShell (win32)`. It derives the value from `process.platform`, and `CODE_OPS_OPERATOR_SHELL` overrides it. The line costs about 15 tokens. On Grok, where passive stdout is unavailable, the doctrine rule is the floor.
 - **Doctrine.** Section 4 of `CONVENTIONS.md` gains the rule beside `Detect the shell and OS.`, and the global contract gains one sentence. The section-4 text is not a pinned passage, so each plugin's copy changes on its own.
 - **Run button.** The Claude desktop app asks for `bash` blocks to attach its Run button, and a filed issue reports that a `powershell` block's Run button runs bash. A neutral command runs correctly either way. A PowerShell-only command is copied into the terminal. DSN-9 settles the button's behavior with a live check.
 
@@ -649,7 +653,7 @@ Two murmuration compendia hold 32,509 and 24,389 words. No page budget fits them
 
 The operator's first concern is breaking working repositories. These guarantees bind every workstream:
 
-1. **Nothing changes in an adopter until it opts in.** A code-ops upgrade adds commands and checks, but an adopting repository sees no new gate until `conform` installs it there.
+1. **Nothing changes in an adopter until it opts in.** A code-ops upgrade adds commands and checks, but an adopting repository sees no new docs gate until `conform` installs it there. Hook and dispatch-guard changes (U4, C4, H6) apply at upgrade, as suite hook changes do today, each under its existing off switch.
 2. **In-flight programs stay resumable.** Ledger checks 11 to 18 apply only to a `PROGRAM.md` that declares `Grammar: 2`. A new program starts at grammar 2 only where the manifest is v3. Docs-state revision 1 started every new program there, which would have added checks in a repository that never opted in.
 3. **Every mutating command plans first.** `relocate`, `backfill`, and the `co program` commands each have a plan mode that writes only to the run folder. The operator reviews the plan before `apply`.
 4. **Each apply wave is one revertable commit.** `git revert` of that commit restores the prior tree while no later commit depends on it. A wave therefore lands alone.
@@ -666,8 +670,8 @@ Each guarantee has a named eval case that must pass before the PR that could bre
 | Guarantee | Eval case | Suite | PR |
 | --- | --- | --- | --- |
 | 1 | `upgrade-without-conform-adds-no-failure`: a v2-manifest fixture passes the old and new gate chains alike | `evals/docs-manifest` | 9 |
-| 2 | `grammar1-ledger-resumes-unchanged`: the existing ledger fixtures pass checks 1 to 10 and skip 11 to 18; a new program under a v2 manifest opens at grammar 1 | `evals/handoff-check` | 6 |
-| 3 | `plan-writes-run-folder-only`: after each plan mode, `git status` shows changes only under the run folder | new `evals/docs-relocate`, `evals/handoff-check` | 12, 7 |
+| 2 | `grammar1-ledger-resumes-unchanged`: the existing ledger fixtures pass checks 1 to 10, skip 11 to 15, 17, and 18, and warn on 16; a new program under a v2 manifest opens at grammar 1 | `evals/handoff-check` | 6 |
+| 3 | `plan-writes-run-folder-only`: after each plan mode, `git status` shows changes only under the run folder | new `evals/docs-relocate`, `evals/handoff-check` | 12, 6, 7 |
 | 4 | `apply-wave-revert-restores-tree`: the tree hash after `git revert` equals the hash before apply | `evals/docs-relocate` | 12 |
 | 5 | `apply-preserves-every-blob`; `archive-moves-not-deletes`; `merge-forwards-every-item` | `evals/docs-relocate`, `evals/handoff-check` | 12, 6, 7 |
 | 6 | `apply-refuses-failing-tests`: a fixture test reads a moved manifest, and apply stops in rehearsal when it fails | `evals/docs-relocate` | 12 |
@@ -711,7 +715,7 @@ The move rewrites about 930 references in 327 code files, in two waves: `docs/au
 
 ## Delivery
 
-One stack replaces the two 7-PR stacks. PR numbers are new. Each PR bumps `code-ops-suite`, regenerates host distributions, and carries its own eval cases.
+One stack replaces the two 7-PR stacks. PR numbers are new. Each PR bumps `code-ops-suite`, regenerates host distributions, and carries its own eval cases. `co docs gate` grows by PR: PR 9 ships steps 1 to 5 and 8, PR 12 adds step 6, and PR 13 adds step 7.
 
 | PR | Content | Risk surface | Depends on |
 | --- | --- | --- | --- |
@@ -719,23 +723,23 @@ One stack replaces the two 7-PR stacks. PR numbers are new. Each PR bumps `code-
 | 2 | L4 same-tree fix and scope digests | Handoff resume | None |
 | 3 | H6 handoff point, global contract, card follow-through, `Continue-until:` | Hook behavior, global contract | DSN-3 pre-registration |
 | 4 | W1: Standard v5, manifest v3, decision note D-004 | Public contract | None |
-| 5 | W2: record fields, status set, `amends`, typed events, identity through moves, intake and seal, register rendering | Record chains | 4 |
-| 6 | L1, L2 checks 11 to 13 and 15 to 18, L3 draft changes, `co program archive` | Handoff contract | 1 |
-| 7 | L5 `co program split`, `merge`, and `close` | Handoff contract | 6 |
-| 8 | L3 `co decide promote`, check 14, L4 forwarding and register drift | Handoff contract, records | 5, 6 |
-| 9 | W4 vault rules, generalized staleness, W6 `co docs gate` and ratchet | Gates | 4, 5 |
-| 10 | C1 board and session-store rekey, C4 redirect on Claude Code and Codex | Hooks, public contract | None |
-| 11 | C2 warnings, C3 feed and seal events, C6 overlap warning, hook-cost measurement | Hooks | 10 |
-| 12 | W3 `co docs relocate`, the legacy-path hook, W8 read notice | Hooks, file moves | 5, 9 |
-| 13 | W7 `distill`, `conform` installation of the gate and merge driver, routing-card register line, `integrate-branch` docs step | Skills, adopter install | 8, 9, 12 |
-| 14 | C5 merge driver in code-ops, U3 push sync, U4 round-budget checkpoint | Git configuration, ship skill, dispatch guard | 11 |
+| 5 | W2: record fields, status set, `amends`, typed events, identity through moves, intake and seal, register rendering, and the `FORWARDING.json` schema | Record chains | 4 |
+| 6 | L1, L2 checks 11 to 13 and 15 to 18, L3 draft changes, `co program archive` | Handoff contract | 1, 4 |
+| 7 | L5 `co program split` and `merge` | Handoff contract | 6 |
+| 8 | L3 `co decide promote`, check 14, L4 forwarding and register drift, L5 `co program close` | Handoff contract, records | 5, 6 |
+| 9 | W4 vault rules, generalized staleness, W6 `co docs gate` steps 1 to 5 and 8, and the ratchet | Gates | 4, 5, 6, 8 |
+| 10 | C1 board and session-store rekey, C4 redirect on each host whose live-payload eval passes | Hooks, public contract | None |
+| 11 | C2 warnings, C3 feed and seal events, C6 overlap warning, hook-cost measurement | Hooks | 5, 10 |
+| 12 | W3 `co docs relocate`, the legacy-path hook, W8 read notice, gate step 6 | Hooks, file moves | 5, 9 |
+| 13 | W7 `distill`, retention classes with gate step 7, C5 merge driver in code-ops and through `conform`, routing-card register line, `integrate-branch` docs step | Skills, adopter install, git configuration | 8, 9, 12 |
+| 14 | U3 push sync, U4 round-budget checkpoint | Ship skill, dispatch guard | None |
 
 Phases:
 
-- **A. Quick wins:** PRs 1 to 3. They need no new data model and address the most frequent friction.
-- **B. Foundations:** PRs 4, 5, 6, and 10. They can proceed in parallel, on disjoint files.
+- **A. Quick wins:** PRs 1 to 3 and 14. They need no new data model and address the most frequent friction.
+- **B. Foundations:** PRs 4, 5, 6, and 10. PR 10 proceeds in parallel with the chain 4, 5, 6, on disjoint files.
 - **C. Lifecycle and gate:** PRs 7, 8, 9, and 11.
-- **D. Adoption surface:** PRs 12 to 14.
+- **D. Adoption surface:** PRs 12 and 13.
 - **E. Murmuration adoption,** as a calibration run.
 
 PRs 5, 6, 8, 10, 11, and 12 touch public contracts, record chains, or hooks. The operator decides at each checkpoint whether `code-ops-suite:local-review-gate` runs on them.
@@ -761,7 +765,7 @@ Record these in `MEASUREMENTS.md` before the named PR lands. Re-measure with the
 | Brief-field denials per 100 dispatches | 224 of 239 denials | Under a third of today's rate | 1 |
 | Share of Windows-session operator command blocks with POSIX-only syntax | To measure from transcripts | Under 10% | 1 |
 | Share of repo paths and PR numbers named in final replies without a link | To measure from transcripts | Under 10% | 1 |
-| Non-fast-forward push rejections and merge conflicts per overlap-hour | 67 rejections, 5 conflicts | A fall | 11, 14 |
+| Non-fast-forward push rejections and merge conflicts per overlap-hour | 67 rejections, 5 conflicts | A fall | 11, 13, 14 |
 | Added hook latency per tool call, p50 and p95 | To measure | Under 50 ms at p95 | 11, 12 |
 
 ## What changed from the source drafts
@@ -773,6 +777,7 @@ To the docs-state draft:
 - Check 15 covers open items as well as decisions, so the handoff never copies either.
 - `integrate-branch.mjs` renders and gates but never seals. This removes the W2 and W6 contradiction.
 - The merge driver and union attribute reach adopters through `conform`, because a pre-commit hook does not run during a merge.
+- The delivery table fixes dependencies the docs-state stack inherited: the gate grows by PR, retention has a PR, and `close` lands with promotion.
 - Program commands group under `co program`, and `merge` joins `split`, `archive`, and `close`.
 - Serial seals announce themselves on the feed, so a second sealer learns before it starts.
 
@@ -780,7 +785,7 @@ To the handoff-fidelity draft:
 
 - Resume counts a tree with only the recorded dirty paths as the same tree.
 - H6 names every copy of the handoff-point rule, including the global contract.
-- C4 redirects on Claude Code and Codex from primary docs, and keeps the deny on OpenCode and Grok.
+- C4 cites the in-tree evidence for Grok and OpenCode input rewrite, and a live-payload eval settles each host.
 - C6 warns when two live programs share a scope document.
 - `co program merge` handles the inverse of a split, with a `Was:` trail.
 - U5 widened into workstream O, which covers operator commands and reply links.
@@ -833,13 +838,13 @@ On 2026-09-27 the operator asked to combine the two programs and improve each, t
 - **Raising the 8 KB handoff cap.** Tiering keeps the cap and stops the compression.
 - **Two programs with a cross-reference.** Both claimed one checker and one skill, numbered checks by hand, and collided on every `DEC` id.
 - **A second grammar switch for open items.** Two switches double the rollout states for no gain.
-- **Reading the operator's shell from the host payload.** No host provides it.
+- **Reading the operator's shell from the hook payload.** No host's payload provides it.
 - **Always printing bash and PowerShell variants.** It doubles every command block. Neutral commands need neither.
 
 ## Open items
 
 - DSN-1 The collision and message-traffic join was not measured · Owner: agent · Done when: a pass joins git-mutating calls to peer sends by repo and time, and the Evidence section records the result
-- DSN-2 PreToolUse input rewrite on OpenCode and Grok has conflicting evidence · Owner: agent · Done when: PR 10 records a live-payload eval per host, or keeps the deny there
+- DSN-2 OpenCode's bash-tool argument mutation has conflicting evidence, which touches the digest port and C4 · Owner: agent · Done when: PR 10 records a live-payload eval on OpenCode and Grok, and a failing host keeps the deny
 - DSN-3 The handoff-point replay is a model · Owner: agent · Done when: `MEASUREMENTS.md` records the window method before PR 3, and the comparison runs one week after it lands
 - DSN-4 The retention proposal waits on the operator. It rests on a survey of 164 murmuration runs · Owner: operator · Done when: the operator accepts or amends "Retention by run class"
 - DSN-5 The budget proposal waits on the operator. It rests on measured register, index, and synthesis sizes · Owner: operator · Done when: the operator accepts or amends "State budgets"
