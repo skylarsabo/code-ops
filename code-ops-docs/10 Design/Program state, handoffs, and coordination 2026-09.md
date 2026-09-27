@@ -536,7 +536,7 @@ All state stays on the local machine under `<home>/.claude/code-ops/`. Nothing a
 - When the peer guard finds that the target has handed off to a live head, it rewrites the message's target to that head and adds a notice. It no longer denies (DEC-4).
 - The rewrite uses PreToolUse input modification, which the digest hook already relies on:
   - Claude Code and Codex document `hookSpecificOutput.updatedInput`. CONFIRMED from primary docs (`80 Runs/2026-09-27-handoff-fidelity-ho1/reports/D-002.md`).
-  - Installed Grok 1.0.13 accepts the same shape (`code-ops-docs/35 Contracts and Data/CONTRACTS.md:450`). CONFIRMED in-tree, although Grok's public hooks page shows only a deny decision.
+  - Installed Grok 1.0.13 accepts the same shape (`code-ops-docs/35 Contracts and Data/CONTRACTS.md:450`). PROBABLE: the record is contract prose, not a payload run, although Grok's public hooks page shows only a deny decision.
   - The OpenCode port assigns `output.args` from `updatedInput` (`scripts/build-opencode-dist.mjs:448`). A filed issue reports that OpenCode ignores the mutation for its bash tool. If that holds, the digest port is affected too, so DSN-2 covers both.
   - A host whose live-payload eval fails keeps today's deny.
 - A filed Claude Code issue reports that hooks sometimes miss subagent tool calls. The peer guard therefore stays a lead-side guard, and nothing relies on it firing inside a subagent.
@@ -671,7 +671,7 @@ Each guarantee has a named eval case that must pass before the PR that could bre
 | --- | --- | --- | --- |
 | 1 | `upgrade-without-conform-adds-no-failure`: a v2-manifest fixture passes the old and new gate chains alike | `evals/docs-manifest` | 9 |
 | 2 | `grammar1-ledger-resumes-unchanged`: the existing ledger fixtures pass checks 1 to 10, skip 11 to 15, 17, and 18, and warn on 16; a new program under a v2 manifest opens at grammar 1 | `evals/handoff-check` | 6 |
-| 3 | `plan-writes-run-folder-only`: after each plan mode, `git status` shows changes only under the run folder | new `evals/docs-relocate`, `evals/handoff-check` | 12, 6, 7 |
+| 3 | `plan-writes-run-folder-only`: after each plan mode, `git status` shows changes only under the run folder | new `evals/docs-relocate`, `evals/handoff-check` | 12, 6, 7, 8, 13 |
 | 4 | `apply-wave-revert-restores-tree`: the tree hash after `git revert` equals the hash before apply | `evals/docs-relocate` | 12 |
 | 5 | `apply-preserves-every-blob`; `archive-moves-not-deletes`; `merge-forwards-every-item` | `evals/docs-relocate`, `evals/handoff-check` | 12, 6, 7 |
 | 6 | `apply-refuses-failing-tests`: a fixture test reads a moved manifest, and apply stops in rehearsal when it fails | `evals/docs-relocate` | 12 |
@@ -724,12 +724,12 @@ One stack replaces the two 7-PR stacks. PR numbers are new. Each PR bumps `code-
 | 3 | H6 handoff point, global contract, card follow-through, `Continue-until:` | Hook behavior, global contract | DSN-3 pre-registration |
 | 4 | W1: Standard v5, manifest v3, decision note D-004 | Public contract | None |
 | 5 | W2: record fields, status set, `amends`, typed events, identity through moves, intake and seal, register rendering, and the `FORWARDING.json` schema | Record chains | 4 |
-| 6 | L1, L2 checks 11 to 13 and 15 to 18, L3 draft changes, `co program archive` | Handoff contract | 1, 4 |
+| 6 | L1, L2 checks 11 to 13 and 15 to 18 plus the check-4 change for carried items, L3 draft changes, `co program archive` | Handoff contract | 1, 4 |
 | 7 | L5 `co program split` and `merge` | Handoff contract | 6 |
 | 8 | L3 `co decide promote`, check 14, L4 forwarding and register drift, L5 `co program close` | Handoff contract, records | 5, 6 |
 | 9 | W4 vault rules, generalized staleness, W6 `co docs gate` steps 1 to 5 and 8, and the ratchet | Gates | 4, 5, 6, 8 |
 | 10 | C1 board and session-store rekey, C4 redirect on each host whose live-payload eval passes | Hooks, public contract | None |
-| 11 | C2 warnings, C3 feed and seal events, C6 overlap warning, hook-cost measurement | Hooks | 5, 10 |
+| 11 | C2 warnings, C3 feed and seal events, C6 overlap warning, hook-cost measurement | Hooks | 5, 7, 10 |
 | 12 | W3 `co docs relocate`, the legacy-path hook, W8 read notice, gate step 6 | Hooks, file moves | 5, 9 |
 | 13 | W7 `distill`, retention classes with gate step 7, C5 merge driver in code-ops and through `conform`, routing-card register line, `integrate-branch` docs step | Skills, adopter install, git configuration | 8, 9, 12 |
 | 14 | U3 push sync, U4 round-budget checkpoint | Ship skill, dispatch guard | None |
