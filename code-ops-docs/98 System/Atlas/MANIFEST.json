@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
-      "verifiedDigest": "382ef41b8ac60e36f79014b41fecf0fdbd563bdb87cb91e3d2403abfd3ab0e4c",
+      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
+      "verifiedDigest": "58bac57609cf645d21c3bdcea87960b7f8c81dcd8f696db5d1f5f5349c6eebee",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -78,13 +78,18 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 101,
+          "line": 104,
           "anchor": "board: {"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 306,
+          "line": 348,
           "anchor": "export function sessionRecords(cwd, home = storeHome()) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/co.mjs",
+          "line": 101,
+          "anchor": "program: {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
@@ -138,7 +143,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 194,
+          "line": 207,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         }
       ]
@@ -150,8 +155,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
-      "verifiedDigest": "a80498babd6dc5d7717f56ffe3a4ff28db9da40700b403111569462017138569",
+      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
+      "verifiedDigest": "0e8538fc6a5bb6cff0ccf5d4335c18e2b1e421520359173eeb3272ac63226e28",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -210,12 +215,17 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 97,
+          "line": 119,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
+          "file": "scripts/check-handoff.mjs",
+          "line": 66,
+          "anchor": "// LEDGER GRAMMAR 2 (design Workstream L). A PROGRAM.md with a"
+        },
+        {
           "file": "scripts/handoff-state.mjs",
-          "line": 589,
+          "line": 652,
           "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
         },
         {
@@ -224,8 +234,13 @@
           "anchor": "// BOARD. The presence board holds one record per session and repository at"
         },
         {
+          "file": "scripts/handoff-state.mjs",
+          "line": 828,
+          "anchor": "const PROGRAM_CAP = 32 * 1024; // check-handoff.mjs PROGRAM_CAP_BYTES."
+        },
+        {
           "file": "scripts/co.mjs",
-          "line": 132,
+          "line": 135,
           "anchor": "const DEFAULT_VERB = { board: 'list' };"
         },
         {
@@ -301,8 +316,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
-      "verifiedDigest": "5df1b9bc02e33fa2d020bd852da808322e37e61cf030202c4f752a454db90c98",
+      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
+      "verifiedDigest": "89395bc2df7a86cf7d862998e0dcc471103f994d1bd843839673502f405bd7da",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -409,8 +424,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
-      "verifiedDigest": "138b26fdfb5b4fec844d131affc23f463b950ec947e39ea66f4f7fc7fe057b6e",
+      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
+      "verifiedDigest": "e2be16b2405f2f66db48a6c2291ebaa1801bef5b168435ebfd0af018eed683df",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -464,7 +479,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 199,
+          "line": 212,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         }
       ]
@@ -499,8 +514,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
-      "verifiedDigest": "1d40128f02d6c3a47ae6ddb5323ccd2b9af8fae6d812495e2963871ebc195340",
+      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
+      "verifiedDigest": "9a317f9cf820ed311a918295b97cc852b884418c301ee7920a8333b5ecb2734a",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -529,7 +544,7 @@
         },
         {
           "file": "Data/CONTRACTS.md",
-          "line": 934
+          "line": 971
         },
         {
           "file": "scripts/run-contract.mjs",

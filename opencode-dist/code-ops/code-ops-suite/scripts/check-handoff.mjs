@@ -60,8 +60,30 @@
 //      session takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When
 //      either is present, both must be: Hop is a positive integer and Session ends with ` HO <Hop>`.
 //  16. Every `Pointer:` in "## Open items", here and in PROGRAM.md when the ledger has that
-//      section, carries a delimited `Anchor:`. This check warns and never gates, because existing
-//      chains carry bare pointers. Enforcement arrives with the grammar 2 ledger.
+//      section, carries a delimited `Anchor:`. Under grammar 1 this warns and never gates, because
+//      existing chains carry bare pointers. Under grammar 2 it fails closed.
+//
+// LEDGER GRAMMAR 2 (design Workstream L). A PROGRAM.md with a `Grammar: 2` line opts in. A ledger
+// without the line is grammar 1, and checks 11 to 18 do not run, so older chains stay resumable.
+// Grammar 2 requires a sixth ledger section, "## Open items", whose bullets lead with an id and carry
+// `Owner:` and `Done when:`. `PROGRAM.archive.md` beside the ledger, written by `co program
+// archive`, holds moved Request history, Decisions ledger, and Closed items bullets. Check 9's
+// request lineage and closed ids, and checks 13 and 18, read both files whenever the archive exists.
+//  11. Every Decisions ledger bullet leads with `DEC-<n>` and carries `Hop: <n>` and
+//      `Disposition: pending|local|dropped|promoted:<record id>`.
+//  12. A decision's Hop is the hop of the session that made it: its handoff's `Hop:` minus one,
+//      because a handoff's Hop names its successor. A decision older than that must not be
+//      `pending`, which gives one hop of grace. A grammar 2 handoff must carry `Hop:`.
+//  13. Every DEC id in the predecessor's "## Decisions made" appears in the ledger, its archive,
+//      or a `Was: <program>/<id>` trail.
+//  15. Every "## Decisions made" and "## Open items" bullet here leads with its id. A decision adds
+//      at most one clause: no ` · ` field, no `Rejected:`, and no second sentence or semicolon. An
+//      active open item keeps its full line. A carried one shows only id and title, and check 4
+//      reads its `Owner:` and `Done when:` from the ledger's Open items.
+//  17. An open item whose `Owner:` or `Done when:` differs from the predecessor's line carries
+//      `Revised:` on its handoff line or its ledger line.
+//  18. No DEC or OI id leads two bullets across the ledger and its archive.
+// Check 14 (a promoted id resolves) is not implemented yet.
 //
 // `--consume` writes `HANDOFF.consumed` beside the file only when every check above passes. Its
 // body is the version 2 JSON `{"v":2,"consumedAt","bySession","successorRun","name"}`. bySession is
@@ -158,6 +180,12 @@ const PROGRAM_HEADINGS = ['Program goal', 'Request history', 'Scope documents', 
 // A stable item id such as OI-7, PAR-100, or FEAT-012. The first one on a bullet is its id.
 const ITEM_ID_RE = /\b[A-Z][A-Z0-9]*-\d+\b/;
 const itemId = (line) => ITEM_ID_RE.exec(line)?.[0] ?? null;
+// Grammar 2 (checks 11 to 18): the id must lead the bullet, after an optional checkbox.
+const leadId = (line) => /^[-*]\s+(?:\[[ xX]\]\s+)?([A-Z][A-Z0-9]*-\d+)\b/.exec(line)?.[1] ?? null;
+const ARCHIVE_NAME = 'PROGRAM.archive.md';
+const DISPOSITION_RE = /\bDisposition:\s*(pending|local|dropped|promoted:[^\s·]+)\s*(?:·|$)/;
+const ownerOf = (line) => /\bOwner:\s*(agent|operator)\b/i.exec(line)?.[1].toLowerCase() ?? null;
+const doneWhenOf = (line) => { const m = /\bDone when:([^·]*)/.exec(line); return m ? squash(m[1]) : null; };
 const bulletsOf = (body) => body.split('\n').filter((l) => /^[-*]\s+/.test(l));
 const findSection = (list, name) => list.find((s) => s.heading.toLowerCase().startsWith(name.toLowerCase()));
 // The text after `<label>:` on its own line, bulleted or not, or null when the line is absent.
@@ -181,17 +209,24 @@ const violations = [];
 const warnings = [];
 const secs = sections(text);
 
-// ---- 16. every Open items Pointer: carries an Anchor: (warning only) ----
+// ---- 16. every Open items Pointer: carries an Anchor: (a warning under grammar 1) ----
 // Each text run after a `Pointer:` label, up to the next one, must hold a delimited Anchor:.
-function unanchoredPointers(body, source) {
+function unanchoredPointers(body, source, gate) {
   for (const line of body.split('\n')) {
     for (const run of line.split(/\bPointer:/).slice(1)) {
       if (ANCHOR_RE.test(run)) continue;
       const pointer = `Pointer: ${run.split('·')[0].trim().slice(0, 70)}`;
-      warnings.push(`check 16: ${source} Open items pointer carries no delimited Anchor: ${[itemId(line), pointer].filter(Boolean).join(' ')}`);
+      (gate ? violations : warnings).push(`check 16: ${source} Open items pointer carries no delimited Anchor: ${[itemId(line), pointer].filter(Boolean).join(' ')}`);
     }
   }
 }
+
+// The ledger loads before check 4, because under grammar 2 a carried open item takes its Owner:
+// and Done when: from the ledger's Open items.
+const programSection = findSection(secs, 'Program');
+const programPath = programSection ? pathValue(programSection.body, 'Program') : null;
+const program = programPath && isFile(inRoot(programPath)) ? checkProgram(inRoot(programPath), programPath) : null;
+const grammar2 = program?.grammar2 === true;
 
 // ---- 1. required headings ----
 for (const required of REQUIRED_HEADINGS) {
@@ -214,11 +249,21 @@ if (openSection) {
   const bullets = openSection.body.split('\n').filter((l) => /^[-*]\s+/.test(l));
   for (const line of bullets) {
     const shown = line.trim().slice(0, 70);
-    if (!/\bOwner:\s*(agent|operator)\b/i.test(line)) {
-      violations.push(`Open items entry missing "Owner: agent|operator": ${shown}`);
+    // Grammar 2: a bullet with neither label is a carried item, and its full line is the ledger's.
+    const carried = grammar2 && !/\bOwner:/i.test(line) && !/\bDone when:/i.test(line);
+    const full = carried ? program.openById.get(leadId(line)) : line;
+    if (carried && !full) {
+      violations.push(`check 4: carried open item ${leadId(line) ?? shown} is not in PROGRAM.md "## Open items", so its Owner: and Done when: cannot be read`);
+    } else {
+      if (!/\bOwner:\s*(agent|operator)\b/i.test(full)) {
+        violations.push(`Open items entry missing "Owner: agent|operator": ${shown}`);
+      }
+      if (!/\bDone when:/i.test(full)) {
+        violations.push(`Open items entry missing "Done when:": ${shown}`);
+      }
     }
-    if (!/\bDone when:/i.test(line)) {
-      violations.push(`Open items entry missing "Done when:": ${shown}`);
+    if (grammar2 && itemId(line) && !leadId(line)) {
+      violations.push(`check 15: Open items entry does not lead with its id: ${shown}`);
     }
     if (IMPERATIVE_RE.test(line)) {
       violations.push(`Open items entry opens with an imperative verb: ${shown}`);
@@ -227,7 +272,7 @@ if (openSection) {
       violations.push(`Open items entry carries no stable id token such as OI-7: ${shown}`);
     }
   }
-  unanchoredPointers(openSection.body, 'HANDOFF.md');
+  unanchoredPointers(openSection.body, 'HANDOFF.md', grammar2);
 }
 
 // ---- 7. the operator's original request, verbatim, inside Goal and state of play ----
@@ -262,9 +307,16 @@ function checkProgram(file, shown) {
     violations.push(`${tag} is ${bytes} bytes, over the ${PROGRAM_CAP_BYTES}-byte cap. Move superseded detail into pointed-at files`);
   }
   const ps = sections(body);
-  for (const h of PROGRAM_HEADINGS) {
+  const grammar = labelValue(body, 'Grammar');
+  if (grammar !== null && !/^[12]$/.test(grammar)) violations.push(`${tag} "Grammar:" must be 1 or 2, found: ${grammar}`);
+  const grammar2 = grammar === '2';
+  for (const h of grammar2 ? [...PROGRAM_HEADINGS, 'Open items'] : PROGRAM_HEADINGS) {
     if (!findSection(ps, h)) violations.push(`${tag} missing required heading: "## ${h}"`);
   }
+  // The archive `co program archive` writes beside the ledger. Its bullets count as the ledger's.
+  const archiveFile = join(dirname(file), ARCHIVE_NAME);
+  const as = isFile(archiveFile) ? sections(readFileSync(archiveFile, 'utf8')) : [];
+  const archived = (h) => bulletsOf(findSection(as, h)?.body ?? '');
   const goal = findSection(ps, 'Program goal');
   if (goal && !goal.body.trim()) violations.push(`${tag} "## Program goal" is empty`);
   const history = findSection(ps, 'Request history');
@@ -283,27 +335,61 @@ function checkProgram(file, shown) {
     if (!/\bStatus:\s*\S/.test(line) || !/\bRole:\s*\S/.test(line)) violations.push(`${tag} Scope documents entry missing "Status:" or "Role:": ${shownLine}`);
   }
   const closed = new Set();
-  for (const line of bulletsOf(findSection(ps, 'Closed items')?.body ?? '')) {
+  const closedLines = bulletsOf(findSection(ps, 'Closed items')?.body ?? '');
+  for (const line of closedLines) {
     const id = itemId(line);
     if (id) closed.add(id);
     else violations.push(`${tag} Closed items entry carries no stable id token: ${line.trim().slice(0, 70)}`);
   }
+  for (const line of archived('Closed items')) if (itemId(line)) closed.add(itemId(line));
   const ledgerOpen = findSection(ps, 'Open items');
-  if (ledgerOpen) unanchoredPointers(ledgerOpen.body, `PROGRAM.md (${shown})`);
-  return { history: squash(history?.body ?? ''), closed };
+  if (ledgerOpen) unanchoredPointers(ledgerOpen.body, `PROGRAM.md (${shown})`, grammar2);
+  const requests = [history?.body ?? '', ...archived('Request history')].join('\n');
+  const result = { history: squash(requests), closed, grammar2, openById: new Map(), decisions: [], decisionIds: new Set() };
+  if (!grammar2) return result;
+
+  // L1: a grammar 2 open item keeps today's line and leads with its id.
+  for (const line of bulletsOf(ledgerOpen?.body ?? '')) {
+    const shownLine = line.trim().slice(0, 70);
+    const id = leadId(line);
+    if (!id) violations.push(`${tag} Open items entry does not lead with a stable id token: ${shownLine}`);
+    else result.openById.set(id, line);
+    if (!ownerOf(line) || doneWhenOf(line) === null) violations.push(`${tag} Open items entry missing "Owner: agent|operator" or "Done when:": ${shownLine}`);
+  }
+  // ---- 11. every decision carries a DEC id, a Hop, and a Disposition ----
+  const decisionLines = bulletsOf(findSection(ps, 'Decisions ledger')?.body ?? '');
+  for (const line of decisionLines) {
+    const shownLine = line.trim().slice(0, 70);
+    const id = /^[-*]\s+(DEC-\d+)\b/.exec(line)?.[1];
+    const hop = /\bHop:\s*(\d+)\s*(?:·|$)/.exec(line)?.[1];
+    const disposition = DISPOSITION_RE.exec(line)?.[1];
+    if (!id || hop === undefined || !disposition) {
+      violations.push(`check 11: ${tag} Decisions ledger entry needs a leading DEC-<n>, "Hop: <n>", and "Disposition: pending|local|dropped|promoted:<id>": ${shownLine}`);
+    }
+    if (id && hop !== undefined && disposition) result.decisions.push({ id, hop: Number(hop), disposition });
+  }
+  // ---- 13 and 18 read the ledger and its archive; a Was: trail names an imported id ----
+  const archivedDecisions = archived('Decisions ledger');
+  for (const line of [...decisionLines, ...archivedDecisions]) {
+    const id = /^[-*]\s+(DEC-\d+)\b/.exec(line)?.[1];
+    if (id) result.decisionIds.add(id);
+    for (const m of line.matchAll(/\bWas:\s*(?:\S+\/)?(DEC-\d+)\b/g)) result.decisionIds.add(m[1]);
+  }
+  // ---- 18. no DEC or OI id leads two bullets across the ledger and its archive ----
+  const seen = new Map();
+  for (const line of [...decisionLines, ...bulletsOf(ledgerOpen?.body ?? ''), ...closedLines, ...archivedDecisions, ...archived('Closed items')]) {
+    const id = leadId(line);
+    if (id && /^(DEC|OI)-/.test(id)) seen.set(id, (seen.get(id) ?? 0) + 1);
+  }
+  for (const [id, n] of seen) if (n > 1) violations.push(`check 18: ${id} leads ${n} bullets across ${tag} and ${ARCHIVE_NAME}; ids are unique within a program`);
+  return result;
 }
 
-const programSection = findSection(secs, 'Program');
 if (programSection) {
-  const programPath = pathValue(programSection.body, 'Program');
   const predecessor = pathValue(programSection.body, 'Predecessor');
   if (!programPath) violations.push('"## Program" has no non-empty "Program: <path>" line');
   if (!predecessor) violations.push('"## Program" has no "Predecessor: <path to prior HANDOFF.md | none>" line');
-  let program = null;
-  if (programPath) {
-    if (isFile(inRoot(programPath))) program = checkProgram(inRoot(programPath), programPath);
-    else violations.push(`Program path does not resolve to a file: ${programPath}`);
-  }
+  if (programPath && !program) violations.push(`Program path does not resolve to a file: ${programPath}`);
   const ownRequest = labelValue(goalSection?.body ?? '', 'Request');
   if (program && ownRequest && !program.history.includes(squash(ownRequest))) {
     violations.push(`this handoff's Request: text is not in PROGRAM.md "## Request history": ${ownRequest.slice(0, 70)}`);
@@ -324,6 +410,7 @@ if (programSection) {
         if (!id) violations.push(`predecessor open item carries no id, so its carry-forward cannot be checked: ${line.trim().slice(0, 70)}`);
         else if (!carried.has(id)) violations.push(`predecessor open item ${id} was dropped: it is in neither "## Open items" nor PROGRAM.md "## Closed items"`);
       }
+      if (grammar2) grammar2Lineage(prior, predecessor);
     }
   }
   // ---- 10. session chain: Session and Hop come as a pair, or not at all (legacy) ----
@@ -332,6 +419,50 @@ if (programSection) {
   if (session !== null || hop !== null) {
     if (!/^[1-9]\d*$/.test(hop ?? '')) violations.push(`"## Program" Hop: must be a positive integer beside Session:, found: ${hop ?? 'no Hop line'}`);
     else if (!session || !new RegExp(`\\S HO ${hop}$`).test(session)) violations.push(`"## Program" Session: must end with " HO ${hop}" to match Hop: ${hop}, found: ${session ?? 'no Session line'}`);
+  }
+  // ---- 12. no decision older than the writing session's hop stays pending ----
+  if (grammar2) {
+    if (!/^[1-9]\d*$/.test(hop ?? '')) violations.push('check 12: a handoff on a grammar 2 ledger needs "Hop: <n>" in "## Program"');
+    else {
+      const writer = Number(hop) - 1;
+      for (const d of program.decisions) {
+        if (d.disposition === 'pending' && d.hop < writer) violations.push(`check 12: ${d.id} from hop ${d.hop} is still pending at hop ${writer}; settle its Disposition`);
+      }
+    }
+  }
+}
+
+// ---- 15. Decisions made bullets point at the ledger, never copy it ----
+// One clause: no ledger field separator, no Rejected: list, and no second sentence or semicolon.
+if (grammar2) {
+  for (const line of bulletsOf(findSection(secs, 'Decisions made')?.body ?? '')) {
+    const shown = line.trim().slice(0, 70);
+    const lead = /^[-*]\s+DEC-\d+\b(.*)$/.exec(line.replace(/\r$/, ''));
+    if (!lead) violations.push(`check 15: Decisions made entry does not lead with its DEC id: ${shown}`);
+    else if (/ · |\bRejected:|[.;!?]\s+\S|;/.test(lead[1])) violations.push(`check 15: Decisions made entry adds more than one clause; the ledger holds the reason and rejected options: ${shown}`);
+  }
+}
+
+// Checks 13 and 17 compare the predecessor handoff against this one and the grammar 2 ledger.
+function grammar2Lineage(prior, predecessor) {
+  // ---- 13. every DEC id the predecessor made reaches the ledger, its archive, or a Was: trail ----
+  const priorDecisions = findSection(prior, 'Decisions made')?.body ?? '';
+  for (const id of new Set(priorDecisions.match(/(?<![\w/-])DEC-\d+\b/g) ?? [])) {
+    if (!program.decisionIds.has(id)) violations.push(`check 13: predecessor decision ${id} is in neither PROGRAM.md "## Decisions ledger", ${ARCHIVE_NAME}, nor a Was: trail`);
+  }
+  // ---- 17. a changed Owner: or Done when: carries Revised: ----
+  const current = new Map(bulletsOf(openSection?.body ?? '').map((l) => [leadId(l), l]));
+  for (const was of bulletsOf(findSection(prior, 'Open items')?.body ?? '')) {
+    const id = leadId(was);
+    const line = current.get(id);
+    // A carried predecessor line holds no labels to compare, and an absent id is check 9's.
+    if (!id || !line || !ownerOf(was) || doneWhenOf(was) === null) continue;
+    const ledger = program.openById.get(id) ?? '';
+    const now = ownerOf(line) ? line : ledger;
+    if (ownerOf(now) === ownerOf(was) && doneWhenOf(now) === doneWhenOf(was)) continue;
+    if (!/\bRevised:\s*hop\s+\d+/i.test(line) && !/\bRevised:\s*hop\s+\d+/i.test(ledger)) {
+      violations.push(`check 17: open item ${id} changed its Owner: or Done when: since ${predecessor} but carries no "Revised: hop <n> · <reason>"`);
+    }
   }
 }
 

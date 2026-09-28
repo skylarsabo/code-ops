@@ -9,7 +9,8 @@
 // tree, and that a predecessor's request and open-item ids carry forward. Check 10 cases pin the
 // Session and Hop pair, and the consume cases pin the version 2 HANDOFF.consumed body. Check 16
 // cases pin the non-gating warning for an Open items Pointer, in the handoff or the ledger, that
-// carries no Anchor.
+// carries no Anchor. Grammar 2 cases pin one pass and one fail per check 11, 12, 13, 15, 16, 17,
+// and 18, the check 4 read of a carried item from the ledger, and the archive read.
 //
 //   node evals/handoff-check/run.mjs   (exit 0 = all assertions pass)
 
@@ -86,9 +87,11 @@ const BASE_PROGRAM_SECTION = programSection(programAt('PROGRAM.md'));
 // the conformant case exercises the L-062 resolution against a file that really exists.
 const BASE_POINTER = '- Nothing in flight. Pointer: scripts/check-handoff.mjs:2 · Anchor: `HANDOFF.md structural checker`';
 
+const BASE_DECISIONS = '- Used a synthetic fixture instead of a real handoff, because a real one is private run scratch.';
+
 // Builds a full, otherwise-conformant HANDOFF.md from the variable sections above, so a test
 // case swaps in exactly one broken section and leaves every other check clean.
-function buildHandoff({ program = BASE_PROGRAM_SECTION, goal = BASE_GOAL, scope = BASE_SECTIONS.scope, workCompleted = BASE_SECTIONS.workCompleted, keyFindings = BASE_SECTIONS.keyFindings, authority = BASE_SECTIONS.authority, openItems = BASE_SECTIONS.openItems, carriedContext = BASE_SECTIONS.carriedContext, inFlight = BASE_POINTER, filler = '' } = {}) {
+function buildHandoff({ program = BASE_PROGRAM_SECTION, goal = BASE_GOAL, scope = BASE_SECTIONS.scope, workCompleted = BASE_SECTIONS.workCompleted, keyFindings = BASE_SECTIONS.keyFindings, authority = BASE_SECTIONS.authority, openItems = BASE_SECTIONS.openItems, carriedContext = BASE_SECTIONS.carriedContext, inFlight = BASE_POINTER, decisions = BASE_DECISIONS, filler = '' } = {}) {
   return [
     '# HANDOFF: check-handoff eval fixture',
     '',
@@ -105,7 +108,7 @@ function buildHandoff({ program = BASE_PROGRAM_SECTION, goal = BASE_GOAL, scope 
     '',
     '## Decisions made',
     '',
-    '- Used a synthetic fixture instead of a real handoff, because a real one is private run scratch.',
+    decisions,
     '',
     '## Traps and dead ends',
     '',
@@ -305,6 +308,51 @@ check('the dropped-item case names only the dropped id', !/open item OI-1 was dr
 const forgetsPrior = programAt('ledger-forgets.md', { history: [`- 2026-09-23: ${BASE_REQUEST}`], closed: ['- OI-2 closed-with-proof abc1234 · Pointer: docs page'] });
 expectFail('a ledger missing the predecessor request', write('succ-no-prior-request.md', buildHandoff({ program: programSection(forgetsPrior, prior), openItems: keptOpen })), /the predecessor's Request: text is not in PROGRAM\.md "## Request history"/);
 expectFail('a Predecessor path that does not resolve', write('succ-pred-gone.md', buildHandoff({ program: programSection(closesTwo, join(work, 'no-such-HANDOFF.md')), openItems: keptOpen })), /Predecessor path does not resolve to a file/);
+
+// === ledger grammar 2: checks 11 to 18 and the check 4 carried-item read ===
+// The passing pair: the predecessor (Hop 1) left OI-1 and OI-2 open and made DEC-2. The successor
+// (Hop 2, written by hop 1) keeps OI-1 active, carries OI-3 by id and title, and closes OI-2.
+// Each failing case changes one piece of that pair. Archive cases get their own folder, because
+// PROGRAM.archive.md sits beside the ledger it belongs to.
+const ANCHORED = 'Pointer: scripts/check-handoff.mjs:2 · Anchor: `HANDOFF.md structural checker`';
+const G2_OI1 = `- [ ] OI-1 ledger check in progress · Owner: agent · Done when: eval passes · ${ANCHORED}`;
+const G2_OI3 = `- [ ] OI-3 archive command not started · Owner: agent · Done when: archive case passes · ${ANCHORED}`;
+const G2_DEC1 = '- DEC-1 2026-09-22 One ledger per program · Rejected: a ledger per hop · Hop: 0 · Disposition: local';
+const G2_DEC2 = '- DEC-2 2026-09-23 Fixtures live in a temp dir · Rejected: committed fixtures · Hop: 1 · Disposition: pending';
+function buildProgram2({ open = [G2_OI1, G2_OI3], decisions = [G2_DEC1, G2_DEC2], closed = ['- OI-2 closed-with-proof abc1234 · Pointer: docs page'], history } = {}) {
+  return buildProgram({ closed, ...(history ? { history } : {}) })
+    .replace('# PROGRAM: check-handoff eval\n', '# PROGRAM: check-handoff eval\n\nGrammar: 2\n')
+    .replace(/## Decisions ledger\n\n.*\n/, `## Open items\n\n${open.join('\n')}\n\n## Decisions ledger\n\n${decisions.join('\n')}\n`);
+}
+const g2Prior = write('g2-prior-HANDOFF.md', buildHandoff({ goal: priorGoal, openItems: priorOpen, decisions: '- DEC-2 fixtures live in a temp dir' }));
+const g2Program = (ledger, hop = 2) => `## Program\n\nProgram: ${ledger}\nPredecessor: ${g2Prior}\nSession: G2 HO ${hop}\nHop: ${hop}\n\n`;
+const G2_OPEN_SECTION = `## Open items\n\n${G2_OI1}\n- [ ] OI-3 archive command not started\n\n`;
+const G2_DECISIONS = '- DEC-2 stays pending until the archive case lands';
+const g2 = (name, { ledger = buildProgram2(), hop, openItems = G2_OPEN_SECTION, decisions = G2_DECISIONS, archive = null } = {}) => {
+  const dir = join(work, `g2-${name}`);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'PROGRAM.md'), ledger);
+  if (archive) writeFileSync(join(dir, 'PROGRAM.archive.md'), archive);
+  return write(`g2-${name}.md`, buildHandoff({ program: g2Program(join(dir, 'PROGRAM.md'), hop), openItems, decisions }));
+};
+expectPass('a grammar 2 successor with an active and a carried item', g2('good'));
+expectFail('check 11: a decision without a Disposition', g2('c11', { ledger: buildProgram2({ decisions: [G2_DEC1, G2_DEC2.replace(' · Disposition: pending', '')] }) }), /check 11: .* Decisions ledger entry needs a leading DEC-<n>/);
+expectFail('check 12: a hop-1 decision still pending at hop 2', g2('c12', { hop: 3 }), /check 12: DEC-2 from hop 1 is still pending at hop 2/);
+expectFail('check 12: a grammar 2 handoff without Hop', write('g2-c12-nohop.md', buildHandoff({ program: g2Program(join(work, 'g2-good', 'PROGRAM.md')).replace(/Session:.*\nHop:.*\n/, ''), openItems: G2_OPEN_SECTION, decisions: G2_DECISIONS })), /check 12: a handoff on a grammar 2 ledger needs "Hop: <n>"/);
+expectFail('check 13: a predecessor decision missing from the ledger', g2('c13', { ledger: buildProgram2({ decisions: [G2_DEC1] }), decisions: '' }), /check 13: predecessor decision DEC-2 is in neither/);
+expectPass('check 13: a predecessor decision reached through a Was: trail', g2('c13-was', { ledger: buildProgram2({ decisions: [G2_DEC1, '- DEC-5 2026-09-23 Fixtures live in a temp dir · Hop: 1 · Disposition: pending · Was: other-program/DEC-2'] }), decisions: '- DEC-5 imported from other-program' }));
+expectFail('check 15: a decision that does not lead with its id', g2('c15-lead', { decisions: '- Fixtures stay in a temp dir (DEC-2)' }), /check 15: Decisions made entry does not lead with its DEC id/);
+expectFail('check 15: a decision copying the ledger fields', g2('c15-copy', { decisions: '- DEC-2 Fixtures live in a temp dir · Rejected: committed fixtures' }), /check 15: Decisions made entry adds more than one clause/);
+expectFail('check 15: an open item that does not lead with its id', g2('c15-open', { openItems: `## Open items\n\n${G2_OI1.replace('OI-1 ledger check', 'Ledger check OI-1')}\n- [ ] OI-3 archive command not started\n\n` }), /check 15: Open items entry does not lead with its id/);
+expectFail('check 16: a bare pointer in a grammar 2 ledger fails', g2('c16', { ledger: buildProgram2({ open: [G2_OI1, G2_OI3.replace(/ · Anchor: .*$/, '')] }) }), /check 16: PROGRAM\.md .* Open items pointer carries no delimited Anchor: OI-3/);
+expectFail('check 17: a changed Done when without Revised', g2('c17', { openItems: G2_OPEN_SECTION.replace('Done when: eval passes', 'Done when: eval and lint pass') }), /check 17: open item OI-1 changed its Owner: or Done when:/);
+expectPass('check 17: a changed Done when that carries Revised', g2('c17-revised', { openItems: G2_OPEN_SECTION.replace('Done when: eval passes', 'Done when: eval and lint pass · Revised: hop 1 · lint joined the gate') }));
+expectFail('check 18: an id both open and closed in the ledger', g2('c18', { ledger: buildProgram2({ closed: ['- OI-2 closed-with-proof abc1234 · Pointer: docs page', '- OI-3 closed early · Pointer: docs page'] }) }), /check 18: OI-3 leads 2 bullets/);
+const G2_ARCHIVE = `# PROGRAM archive: check-handoff eval\n\n## Request history\n\n- 2026-09-22: ${PRIOR_REQUEST}\n\n## Decisions ledger\n\n${G2_DEC1}\n\n## Closed items\n\n- OI-2 closed-with-proof abc1234 · Pointer: docs page\n`;
+expectFail('check 18: an id in both the ledger and its archive', g2('c18-archive', { archive: G2_ARCHIVE }), /check 18: DEC-1 leads 2 bullets/);
+expectPass('checks 9, 13, and 18 read the archive', g2('archive', { ledger: buildProgram2({ decisions: [G2_DEC2], closed: [], history: [`- 2026-09-23: ${BASE_REQUEST}`] }), archive: G2_ARCHIVE }));
+expectFail('check 4: a carried item missing from the ledger Open items', g2('c4', { ledger: buildProgram2({ open: [G2_OI1] }) }), /check 4: carried open item OI-3 is not in PROGRAM\.md "## Open items"/);
+expectFail('a grammar 2 ledger without an Open items section', g2('no-open', { ledger: buildProgram2().replace(/## Open items\n\n[\s\S]*?\n\n(?=## Decisions)/, '') }), /missing required heading: "## Open items"/);
 
 // === usage errors ===
 const rNoArgs = run([]);
