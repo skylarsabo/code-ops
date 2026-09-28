@@ -21,6 +21,7 @@
 //   node evals/handoff-state/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync, execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -65,7 +66,12 @@ try {
   check('draft exits 0', d.status === 0);
   check('draft stamps Verified-at with HEAD', skeleton.includes(`Verified-at: ${head}`));
   check('draft records the base..HEAD range', skeleton.includes(`${base}..${head}, 1 commit(s)`));
-  check('draft lists the dirty run folder', /- Dirty: `\?\? runs\/`/.test(skeleton));
+  // --untracked-files=all lists each file of the untracked run folder, each with the first 16 hex
+  // of the sha256 of its bytes, so check-handoff.mjs can tell a later edit from the drafted tree.
+  check('draft lists each file of the untracked run folder', /^- Dirty: `\?\? runs\/r1\/TASKS\.md`/m.test(skeleton)
+    && !/^- Dirty: `\?\? runs\/`/m.test(skeleton));
+  const tasksHash = createHash('sha256').update(readFileSync(join(run, 'TASKS.md'))).digest('hex').slice(0, 16);
+  check('draft records the content hash of each dirty path', skeleton.includes(`- Dirty: \`?? runs/r1/TASKS.md\` · sha256:${tasksHash}\n`));
   check('draft maps unchecked TASKS.md lines verbatim', skeleton.includes(agentItem) && skeleton.includes(operatorItem));
   check('draft omits checked TASKS.md lines', !skeleton.includes('Alpha audit'));
   check('draft stamps each artifact', skeleton.includes(`\`runs/r1/FINDINGS_REGISTER.md\` · Verified-at: ${head}`));
@@ -145,7 +151,7 @@ try {
 
   // ---- draft on a large dirty tree stays under the 8 KB handoff cap ----
   // 190 tracked files with long names, 150 of them derived (host dists and vendored scripts);
-  // the earlier src.txt edit and the untracked runs/ folder bring the non-derived count to 42.
+  // the files of the untracked runs/ folder add to the non-derived count, which git status reports.
   const dirs = { 'opencode-dist/skills': 60, '.agents/plugins': 30, 'plugins/code-ops-suite/scripts': 60, 'scripts': 25, 'evals/case': 15 };
   const tracked = [];
   for (const [dir, n] of Object.entries(dirs)) {
@@ -167,8 +173,10 @@ try {
   check('large dirty draft omits derived paths', !/- Dirty: `[^`]*(opencode-dist|\.agents|plugins\/code-ops-suite\/scripts)\//.test(wide.stdout)
     && wide.stdout.includes('Derived dirty paths not listed: 150'));
   const listedLines = wide.stdout.split('\n').filter((l) => l.startsWith('- Dirty: `'));
-  check('large dirty draft lists at most 20 paths and a +N more line',
-    listedLines.length === 20 && wide.stdout.includes('- +22 more non-derived dirty path(s)'));
+  const nonDerived = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: tmp, encoding: 'utf8' })
+    .split('\n').filter((l) => l && !/^.{3}(opencode-dist|\.agents|plugins\/[^/]+\/scripts)\//.test(l)).length;
+  check(`large dirty draft lists at most 20 paths and a +N more line (${nonDerived} non-derived)`,
+    nonDerived > 40 && listedLines.length === 20 && wide.stdout.includes(`- +${nonDerived - 20} more non-derived dirty path(s)`));
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

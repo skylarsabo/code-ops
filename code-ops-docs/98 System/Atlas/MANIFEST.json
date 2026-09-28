@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
-      "verifiedDigest": "4b20d6a3ffcb11383f633c1bb70514b2c3ac064450c0ed2291af5251b383f06f",
+      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
+      "verifiedDigest": "e6c7ade279401b633be5e1d2e1188c79806d7c6a1fd4e0e2afe43f19849d91b6",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -93,7 +93,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 193,
+          "line": 194,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -105,8 +105,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "704cbc4bb42a4407e4216c089df63c946f8847e7",
-      "verifiedDigest": "6caabfea1f09e1e171e65a7d79c18e0a8fe63de4fd6976e8fd2d34ce3e18af42",
+      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
+      "verifiedDigest": "a2b7abc7b62b7dc405a52367f6e0c1ec6de33bd71988ee5e95878ff03f55a9aa",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -130,12 +130,12 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 94,
+          "line": 97,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 384,
+          "line": 407,
           "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
         },
         {
@@ -211,8 +211,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
-      "verifiedDigest": "82075a1fd5e6bbb8ba65d7efd17cffb441cc675ae056664c0e071ec8a49ddde7",
+      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
+      "verifiedDigest": "f6805b314affffe7d4d06f012e49d019038e45d05fe1415b593a8dd197f7e4b4",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -269,8 +269,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
-      "verifiedDigest": "1849cfb736f0cefe16b7b7a1018982737c3a854fb581e734e16d6c2e9c537c96",
+      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
+      "verifiedDigest": "7e81cc135c3445a1fcfa7c5f7796bcaa88257da47af686edb7a8e6d57e93481f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -309,7 +309,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 198,
+          "line": 199,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -344,8 +344,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
-      "verifiedDigest": "f6ae0a05915418f64d11cc9d44d94580d02a8271df7b5c8b1c9ad82ad3e702f9",
+      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
+      "verifiedDigest": "64fe70b2bd1eb71f80f66fa06fc993933e94ce332db63514046d6a61ba65900c",
       "claims": [
         {
           "file": "scripts/check-vault-standard.mjs",
