@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.18.0
+- `co program split <slug> --into <a>,<b> --assign <id>=<child>,...` writes a grammar-2 ledger per child and marks each parent open item and pending decision `Forwarded-to: <child>/<id>`. It refuses while any item is unassigned.
+- `co program merge <from> --into <to>` imports the source's requests, scope documents, open items, and pending decisions under fresh ids with `Was: <from>/<id>`, marks the source `Status: merged into <to>`, and lists each imported pending decision to settle. It refuses a running head without `--head-ended`.
+- Handoff check 9 accepts an id carried by a `Forwarded-to:` or `Was:` trail. Checks 9 and 13 read the predecessor's ledger when a split or merge changed the program.
+
 ## 2.17.2
 - Lint resolves `co.mjs` commands that take no verb, such as `co brief`, to their script. It fails a reference to a domain the verb table does not carry.
 - `check-vault-standard.mjs` validates `drafts.statuses` with the same slug pattern as `docs-manifest.mjs`, so the two scripts accept the same values. A digit-led slug is valid, and a trailing or doubled hyphen is not.
