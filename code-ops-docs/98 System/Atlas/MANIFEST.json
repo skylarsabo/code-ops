@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
-      "verifiedDigest": "fb71e8ba9b447587738137eac3f9ef1ed0e34e12d54be54a30a65b38aac65af2",
+      "verifiedAt": "119c4a7e3e69ae470a3d3899d9dc5611f8687b2b",
+      "verifiedDigest": "9acf3240e418a8db45fe0fd5cf59b5b24c41f23670121a6a75e41b2722bf702b",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -165,13 +165,13 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
-      "verifiedDigest": "22a168a26bc82f7333039300fcf963231bb3149e4b1315cdb87345f451976fc4",
+      "verifiedAt": "e2323b31e0d2f8183528d380dd91401d2ff3ae61",
+      "verifiedDigest": "e4a8ae7d3e20cf1e4696bd4500fc0d72ecc02ab9a909d328322aec89a221e893",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
           "line": 872,
-          "anchor": "const tail = line.slice(m.index + m[0].length).match(LIST_TAIL_RE);"
+          "anchor": "for (const m of QUALIFIED_RE ? line.matchAll(QUALIFIED_RE) : []) {"
         },
         {
           "file": "scripts/docs-manifest.mjs",
@@ -180,8 +180,8 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 81,
-          "anchor": "function inspectProfileV3(manifest, errors) {"
+          "line": 80,
+          "anchor": "// Manifest v3 profile blocks. This function validates their shape. Only"
         },
         {
           "file": "scripts/docs-manifest.mjs",
@@ -191,7 +191,7 @@
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 223,
-          "anchor": "fail('manifest version 3 has no valid drafts.statuses array');"
+          "anchor": "if (!Array.isArray(listed) || !listed.length || !listed.every((s) => typeof s =="
         },
         {
           "file": "scripts/check-doc-citations.mjs",
@@ -206,7 +206,7 @@
         {
           "file": "scripts/docs-manifest.mjs",
           "line": 219,
-          "anchor": "const legacyPaths = new Set((Array.isArray(manifest.legacyPaths) ? manifest.lega"
+          "anchor": ".filter((collection) => collection && typeof collection === 'object' && !Array.i"
         },
         {
           "file": "scripts/record-lib.mjs",
@@ -356,18 +356,18 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
-      "verifiedDigest": "c14a76ceb96994f6f958abfb3f08390af2ee2403021d55d818b1636153b762df",
+      "verifiedAt": "e2323b31e0d2f8183528d380dd91401d2ff3ae61",
+      "verifiedDigest": "6b756685acb146f7d31db8b9a064d5f4c6aacd5d51d744565fc094f1869dac22",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
           "line": 161,
-          "anchor": "const v3Cases = ["
+          "anchor": "writeFileSync(standardPath, '---\\nstandard-version: 5\\n---\\n\\n# Standard\\n');"
         },
         {
           "file": "evals/docs-manifest/run.mjs",
           "line": 206,
-          "anchor": "${label} null legacy path entry is a validation error, not a crash"
+          "anchor": "const probe = checkManifest(candidate);"
         },
         {
           "file": "evals/vault-standard/run.mjs",
@@ -464,8 +464,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
-      "verifiedDigest": "3082ae462129e26a6e5a2098bbf1901ee356d11aac45398713a59c3141a1f9b4",
+      "verifiedAt": "119c4a7e3e69ae470a3d3899d9dc5611f8687b2b",
+      "verifiedDigest": "6d378a3cb4a392264e8b167143e4db1ee49e100a1fde090d53bfdad442f469b9",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -564,8 +564,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
-      "verifiedDigest": "15609d3a5bf133c99e1eee8f110bd29da4d22b88d2ad1b6c848d3737ba586f06",
+      "verifiedAt": "e2323b31e0d2f8183528d380dd91401d2ff3ae61",
+      "verifiedDigest": "9bde5230c75796180725bf9d582d66d00643c30a45528b972b47725402cf905f",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -585,7 +585,7 @@
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 157,
-          "anchor": "try { out = git(['ls-files', '--others', '--ignored', '--exclude-standard', '--d"
+          "anchor": "let out;"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
