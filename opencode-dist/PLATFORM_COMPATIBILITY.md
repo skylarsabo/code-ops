@@ -29,6 +29,9 @@ Rebuild it there with `node scripts/build-opencode-dist.mjs`; CI uses `--check` 
 - **Digest rewrite and index refresh are ported.** OpenCode exposes mutable
   `tool.execute.before` arguments and typed `file.edited` events. The adapters call the
   canonical bundled digest and context-query scripts and preserve their off switches.
+- **Presence board edits are ported.** `tool.execute.after` carries the tool name,
+  arguments, and session id, so the adapter passes each `edit`, `write`, or `multiedit`
+  call to the canonical edit hook with the index off. `CODE_OPS_PEER_GUARD` turns it off.
 - **Routing guidance and pre-compaction preservation are ported.** OpenCode exposes
   `experimental.chat.system.transform` and
   `experimental.session.compacting`, so the generated runtime plugin appends the

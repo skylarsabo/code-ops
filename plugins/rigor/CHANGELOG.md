@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.2.2
+- The vendored `co.mjs` gains the `board` domain from code-ops-suite 2.13.0.
+
 ## 3.2.1
 - The vendored `citation-lib.mjs` resolves a `file:line` citation whose path holds a comma, and re-checks confinement after widening a spaced or comma path, so an escaping path such as `../a,b/x.md:1` reads AMBIGUOUS instead of FRESH.
 

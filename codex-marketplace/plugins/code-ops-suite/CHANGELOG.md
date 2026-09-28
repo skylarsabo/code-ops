@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.13.0
+- A repo-keyed presence board records each live session: name, host session id, branch, worktree, run folder, claimed paths, recent edits, a one-line task, and a heartbeat. It lives under `<home>/.claude/code-ops/`, one file per session, and holds repo-relative paths only. A record with no heartbeat for 30 minutes reads as idle.
+- `co board` lists the board, and `co board claim`, `release`, and `task` record explicit claims and the task line. A resume claims the program's scope documents.
+- The session record store moves to the repository key, so `co handoff live` and the peer guard see sessions in linked worktrees. Readers still read the old working-directory key.
+- On Claude and Codex the peer guard rewrites a message to a handed-off session so it reaches the live head, with a notice, instead of denying it. Grok keeps the deny, and OpenCode runs no peer guard. `CODE_OPS_PEER_GUARD` switches off the redirect and every board write.
+- The edit hook and SessionEnd write the board, and the OpenCode build records edits through `tool.execute.after`. Measured added latency stays under 50 ms at p95 on each path (MEASUREMENTS.md).
+
 ## 2.12.1
 - The handoff card gives the write-the-handoff advice for an autonomous session only on Grok, where prompts are counted apart from cards. Where the card runs at prompt submit, each card follows an operator prompt, so two cards in a row no longer claim that no prompt arrived.
 - The ship skill rebases onto the base only before the first push. A published branch merges the base in instead, and a non-fast-forward rejection fetches, merges the remote branch and the base, and pushes once more. It still never force-pushes.

@@ -388,6 +388,33 @@ after it. The point stays when both baseline measures fall. When neither falls, 
 with the new windows as evidence. A mixed result is recorded here before any change. The
 comparison closes DSN-3 in every case.
 
+## Presence board hook latency, 2026-09-28
+
+This row is the OI-18 baseline for these three hook events only. It measures the hook cost of the
+presence board and the peer-guard redirect (design PR 10). The limit is 50 ms added at p95 per
+tool call. Source: `code-ops-docs/10 Design/Program state handoffs and coordination 2026-09.md`,
+"Cross-cutting: hook cost".
+
+**Environment.** Node v24.16.0 on Windows 11 Pro (win32). A local bench script spawned each hook
+with `spawnSync` and timed the wall clock. Each case ran 2 warmups, then 100 timed runs. The cases
+ran interleaved in one loop. The fixture was a temporary repository and home, with
+`CODE_OPS_HOME` set, `CODE_OPS_PEER_GUARD=on`, and `CODE_OPS_INDEX=off`. The redirect case
+targeted a handed-off session whose successor has a host session id, and the output confirmed
+`updatedInput`. "Added" is the case percentile minus the baseline percentile.
+
+| Event | p50 ms | p95 ms | Added p50 ms | Added p95 ms | Within 50 ms p95 |
+| --- | --- | --- | --- | --- | --- |
+| Baseline `node -e 0` | 40.8 | 70.2 | 0 | 0 | not applicable |
+| Peer guard, redirect path | 56.4 | 89.2 | 15.6 | 19.0 | yes |
+| Peer guard, non-message tool (`Bash`) | 45.4 | 97.4 | 4.6 | 27.1 | yes |
+| Edit hook, board write only | 56.3 | 94.9 | 15.5 | 24.7 | yes |
+
+All three events are within the limit. The figures are **CONFIRMED** for this machine and run. An
+earlier run with 20 samples put the redirect path at 50.3 ms added at p95. With 20 samples, p95 is
+the 19th value, so that run was noisy. The 100-sample run supersedes it. The redirect path runs
+only on a message to a handed-off peer. The non-message path runs on every tool call on Codex,
+because the Codex projection drops the matcher. The edit hook runs on every edit.
+
 ## Startup context
 
 A lead's first turn measured 62,000 to 72,000 tokens. About 50,000 of that is the host system

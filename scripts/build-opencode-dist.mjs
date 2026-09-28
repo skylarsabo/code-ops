@@ -398,6 +398,7 @@ const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url));
 const SUITE_ROOT = join(PLUGIN_DIR, '..', 'code-ops', 'code-ops-suite');
 const DIGEST_HOOK = join(SUITE_ROOT, 'hooks', 'digest-rewrite.mjs');
 const QUERY = join(SUITE_ROOT, 'scripts', 'context-query.mjs');
+const EDIT_HOOK = join(SUITE_ROOT, 'hooks', 'index-refresh.mjs');
 const COMPACTION_CONTEXT = [
   'Compaction summary: the next context continues this work without redoing it or being told the constraints again. Preserve, in this order:',
   '(1) every problem met and how each was handled or resolved;',
@@ -447,6 +448,16 @@ export const CodeOpsModelFloors = async ({ directory = process.cwd() } = {}) => 
       const updated = JSON.parse(run.stdout).hookSpecificOutput?.updatedInput;
       if (updated && typeof updated === 'object') output.args = updated;
     } catch { /* canonical hook is fail-open */ }
+  },
+  // The presence board records this session's edits through the canonical edit hook. The
+  // file.edited handler keeps the index refresh, so the hook runs here with the index off.
+  'tool.execute.after': async (input) => {
+    if (!/^(edit|write|multiedit)$/.test(input?.tool ?? '') || /^(off|0|false)$/i.test(process.env.CODE_OPS_PEER_GUARD ?? '')) return;
+    if (typeof input.sessionID !== 'string' || !input.sessionID) return;
+    spawnSync('node', [EDIT_HOOK], {
+      cwd: directory, encoding: 'utf8', timeout: 2000, env: { ...process.env, CODE_OPS_INDEX: 'off' },
+      input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: input.tool, tool_input: input.args, session_id: input.sessionID, cwd: directory }),
+    });
   },
   event: async ({ event }) => {
     if (event?.type !== 'file.edited' || /^(off|0|false)$/i.test(process.env.CODE_OPS_INDEX ?? '')) return;
@@ -671,6 +682,9 @@ function compatibilityNotes() {
     '- **Digest rewrite and index refresh are ported.** OpenCode exposes mutable',
     '  `tool.execute.before` arguments and typed `file.edited` events. The adapters call the',
     '  canonical bundled digest and context-query scripts and preserve their off switches.',
+    '- **Presence board edits are ported.** `tool.execute.after` carries the tool name,',
+    '  arguments, and session id, so the adapter passes each `edit`, `write`, or `multiedit`',
+    '  call to the canonical edit hook with the index off. `CODE_OPS_PEER_GUARD` turns it off.',
     '- **Routing guidance and pre-compaction preservation are ported.** OpenCode exposes',
     '  `experimental.chat.system.transform` and',
     '  `experimental.session.compacting`, so the generated runtime plugin appends the',
@@ -750,7 +764,9 @@ function buildExpectedFiles() {
     for (const file of walkFiles(sourcePath(pluginName, 'scripts'))) {
       add(`code-ops/${pluginName}/scripts/${toPosix(relative(sourcePath(pluginName, 'scripts'), file))}`, readText(file));
     }
-    if (pluginName === 'code-ops-suite') add('code-ops/code-ops-suite/hooks/digest-rewrite.mjs', readText(sourcePath(pluginName, 'hooks', 'digest-rewrite.mjs')));
+    if (pluginName === 'code-ops-suite') {
+      for (const hook of ['digest-rewrite.mjs', 'index-refresh.mjs']) add(`code-ops/code-ops-suite/hooks/${hook}`, readText(sourcePath(pluginName, 'hooks', hook)));
+    }
   }
 
   add('plugins/code-ops-traceless.js', tracelessPlugin());

@@ -98,6 +98,12 @@ const TABLE = {
     resume: { script: 'handoff-state.mjs', cmd: 'resume' },
     live: { script: 'handoff-state.mjs', cmd: 'live' },
   },
+  board: {
+    list: { script: 'handoff-state.mjs', cmd: 'board' },
+    claim: { script: 'handoff-state.mjs', cmd: 'board-claim' },
+    release: { script: 'handoff-state.mjs', cmd: 'board-release' },
+    task: { script: 'handoff-state.mjs', cmd: 'board-task' },
+  },
   calibrate: {
     graph: 'calibration-graph.mjs',
     metrics: 'calibration-metrics.mjs',
@@ -121,6 +127,9 @@ const TABLE = {
   // after `brief` to brief-template.mjs. `co context brief` is a different verb.
   brief: 'brief-template.mjs',
 };
+
+// A domain named here runs this verb when the caller gives none, so `co board` lists the board.
+const DEFAULT_VERB = { board: 'list' };
 
 const entryOf = (v) => (typeof v === 'string' ? { script: v, sub: null, cmd: null } : v);
 const domains = () => Object.keys(TABLE);
@@ -197,7 +206,7 @@ if (!command && (argv[1] === '--help' || argv[1] === '-h')) {
   console.log(helpLines(domain).join('\n'));
   process.exit(0);
 }
-const verb = command ? null : argv[1];
+const verb = command ? null : argv[1] ?? DEFAULT_VERB[domain];
 if (!command && (verb === undefined || !Object.hasOwn(TABLE[domain], verb))) {
   fail([
     verb === undefined ? `co: ${domain} needs a verb` : `co: unknown verb: ${domain} ${verb}`,

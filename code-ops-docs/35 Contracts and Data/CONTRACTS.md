@@ -866,36 +866,108 @@ Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
 ## Peer guard hook
 
 `hooks/peer-guard.mjs` runs at `PreToolUse` with the matcher
-`mcp__ccd_session_mgmt__send_message|SendMessage`. It denies a message to a peer session that
-already handed off, and names the live successor to resend to. It is on by default and does
-nothing when `CODE_OPS_PEER_GUARD` is `off`, `0`, or `false`. The target is `tool_input.session_id`
-for `send_message` and `tool_input.to` for `SendMessage`, with a trailing ` [<ref>]` suffix
-stripped from the latter. Evidence:
-`plugins/code-ops-suite/hooks/peer-guard.mjs:1-35` and `plugins/code-ops-suite/hooks/hooks.json`.
+`mcp__ccd_session_mgmt__send_message|SendMessage`. It acts on a message to a peer session that
+already handed off. When the live successor is known, the hook redirects the message there. When
+it is not, the hook denies the message. The hook is on by default. `CODE_OPS_PEER_GUARD` of `off`,
+`0`, or `false` turns it off. The target is `tool_input.session_id` for `send_message` and
+`tool_input.to` for `SendMessage`. The hook strips a trailing ` [<ref>]` suffix from `to`.
+Evidence: `plugins/code-ops-suite/hooks/peer-guard.mjs:1-48` and
+`plugins/code-ops-suite/hooks/hooks.json`.
 
-The hook reads the session records at `sessionRecordPath` (`scripts/transcript-lib.mjs`), keyed
-by the payload `cwd`, under `CODE_OPS_HOME` when set, else the OS home. The target matches a
-record's `hostSessionId` or `sessionId` first, then its `name`, newest `updatedAt` first. Every
-comparison is case-insensitive and exact. The hook denies only when the matched record's run
-folder holds `HANDOFF.consumed` or `HANDOFF.md`, because either means that session handed off.
-It walks successor links the way `handoff-state.mjs live` does:
+**Lookup.** `sessionRecords()` in `scripts/handoff-state.mjs` reads the session records for the
+repository that the payload `cwd` belongs to. It reads the repository-keyed store first, then the
+older store keyed by the working directory (`sessionRecordPath` in `scripts/transcript-lib.mjs`).
+It keeps one record per session id. Both stores sit under `CODE_OPS_HOME` when set, else the OS
+home. The target matches a record's `hostSessionId` or `sessionId` first, then its `name`, newest
+`updatedAt` first. Every comparison is case-insensitive and exact. A record's `runDir` resolves
+against its `worktree` under the repository root. An older record without `worktree` resolves
+against `cwd`. Evidence: `scripts/handoff-state.mjs:302-322`.
 
-- A live head: the reason names the head's session name, its host session id when a record
-  carries one, and its run folder, and tells the sender to resend there.
+**Decision.** The hook acts only when the matched record's run folder holds `HANDOFF.consumed` or
+`HANDOFF.md`, because either means that session handed off. It walks successor links the way
+`handoff-state.mjs live` does:
+
+- A live head that carries the id the tool needs: the hook redirects. The id is the host session
+  id for `session_id` and the session name for `to`.
+- A live head without that id: the reason names the head's session name, its host session id
+  when a record carries one, and its run folder, and tells the sender to resend there.
 - A head with an unconsumed `HANDOFF.md`, the target itself included: the reason says the
   handoff has not been resumed yet and names the successor from its `Session:` line.
 - A legacy marker, a loop, or a missing successor run: the reason asks the sender to run
   `co handoff live` first.
 
-An unknown target, an absent record store, or a run folder with neither file passes with no
-output. Bad JSON, another event or tool, a missing field, or any thrown error exits 0 with no
-output. The hook reads one directory and a few small files, and never spawns a process. Evidence:
-`plugins/code-ops-suite/hooks/peer-guard.mjs:52-104` and `evals/peer-guard/run.mjs`.
+**Redirect shape.** The output is `hookSpecificOutput` with `hookEventName: "PreToolUse"`,
+`updatedInput`, and `additionalContext`. `updatedInput` is the whole tool input with the target
+field replaced by the head's id. `additionalContext` is a notice that names the old target and
+the head's name, host session id, and run folder. Like the digest rewrite hook, the output has no
+`permissionDecision`, so the host's own permission rules still decide the call. A denial is
+`permissionDecision: "deny"` with the reason in `permissionDecisionReason`. Evidence:
+`plugins/code-ops-suite/hooks/peer-guard.mjs:98-157`.
 
-Grok's camelCase `toolName` and `toolInput` map onto the same checks. The Codex projection drops
-the matcher, so the hook filters the tool name before it reads any file. No Grok or Codex
-messaging tool with either name is verified, so the hook is inert there (UNVERIFIED). OpenCode
-does not run it.
+**When the deny stays.** Claude Code and Codex document `updatedInput` (CONFIRMED), so both get
+the redirect. The hook detects Grok by `GROK_PLUGIN_ROOT` or by a camelCase payload (`toolName`,
+`toolInput`). Grok always gets the deny, even when a redirect is possible. No live Grok payload
+has shown an input rewrite take effect (OI-10, DSN-2, UNVERIFIED). OpenCode does not run this
+hook, so it gets neither the redirect nor the deny. Its input rewrite is also unverified (DSN-2,
+UNVERIFIED). No Grok or Codex messaging tool with either name is verified, so the hook is likely
+inert there (UNVERIFIED). The Codex projection drops the matcher, so the hook filters the tool
+name before it reads any file.
+
+**Fail-open.** An unknown target, no record store, or a run folder with neither file passes with
+no output. Bad JSON, another event or tool, a missing field, or any thrown error exits 0 with no
+output. The hook reads at most two directories and a few small files, and never spawns a process.
+Evidence: `plugins/code-ops-suite/hooks/peer-guard.mjs:130-160` and `evals/peer-guard/run.mjs`.
+
+**Repository key.** The key is the repository folder name plus the first 12 hex of the SHA-256 of
+the git common directory. The path is lowercased on Windows before the hash. `repoIdentity()`
+walks up to the first `.git`. A worktree's `.git` file names `<common>/worktrees/<name>`, so one
+file read gives the common directory, with no git process. Every worktree of a repository
+therefore shares one key. Outside a repository, the directory itself keys the store. The hash
+keeps the absolute path out of every file name. Evidence: `scripts/handoff-state.mjs:257-292`.
+
+**Session store rekey.** `open` and a passing `resume` write the session record to
+`<home>/.claude/code-ops/sessions/<repo key>/<session id>.json`. The record adds `worktree`, the
+worktree top relative to the repository root. Readers fall back to the older working-directory
+store, so records written before the rekey still resolve. Evidence:
+`scripts/handoff-state.mjs:11-21,324-330`.
+
+**Presence board.** The board holds one file per session at
+`<home>/.claude/code-ops/board/<repo key>/<session id>.json`. A record holds `sessionId`,
+`hostSessionId`, `name`, `branch`, `worktree`, `runDir`, `claims`, `edits` (path and time, newest
+20), `task` (one line, at most 200 characters), `heartbeat`, and `ended`. Every path is relative to
+the worktree top, and no record holds an absolute path. A path outside the worktree is dropped. A
+record whose heartbeat is older than 30 minutes lists as idle. An ended record lists as ended.
+These actions write the board:
+
+- `open` and a passing `resume` write the record. A resume also claims the program's scope
+  documents.
+- The `PostToolUse` edit hook (`index-refresh.mjs`) records edited paths. It runs the board write
+  even when `CODE_OPS_INDEX` is off.
+- The `SessionEnd` hook (`session-receipt.mjs`) marks an existing record ended.
+- `co board` lists the board. `co board claim <path...>`, `co board release [<path...>]`, and
+  `co board task <text...>` change the session's own record. A release with no path releases all
+  claims. Claims are advisory, and no command refuses another session's claim.
+
+Every write refreshes the heartbeat. A missing or corrupt record starts fresh. The board is
+advisory, so a board write never fails the command or hook that made it. Evidence:
+`scripts/handoff-state.mjs:23-37,332-419`, `plugins/code-ops-suite/hooks/index-refresh.mjs:14-16,46-61`,
+and `plugins/code-ops-suite/hooks/session-receipt.mjs:70-91`.
+
+**Switch coverage.** `CODE_OPS_PEER_GUARD` off turns off the redirect, the deny, and every board
+write: open and resume, the edit hook, the `SessionEnd` mark, and the OpenCode adapter. The `co
+board` commands still run when an operator calls them.
+
+**OpenCode port.** The OpenCode adapter adds a `tool.execute.after` handler. For `edit`, `write`,
+and `multiedit` with a `sessionID`, it spawns the bundled `hooks/index-refresh.mjs` with a
+`PostToolUse` payload and `CODE_OPS_INDEX=off`. It ignores the result and times out after 2
+seconds. The existing `file.edited` handler keeps the index refresh. Two limits apply. First, the
+board record uses OpenCode's `sessionID`, while `handoff-state.mjs` reads only `--session`,
+`CLAUDE_CODE_SESSION_ID`, or `CODEX_SESSION_ID`. So an OpenCode `open` or `resume` record joins
+the edit record only when `--session` passes the same id. Second, `apply_patch` edits are not
+recorded. Evidence: `scripts/build-opencode-dist.mjs:401,452-461,685-687` and
+`evals/opencode-dist/run.mjs`.
+
+**Cost.** MEASUREMENTS.md, "Presence board hook latency, 2026-09-28", records the added latency.
 
 ## Symbol index and query
 

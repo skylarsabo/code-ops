@@ -26,7 +26,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, realpa
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { sessionRecordPath } from '../../scripts/transcript-lib.mjs';
+import { repoIdentity } from '../../scripts/handoff-state.mjs';
 import { tally } from '../harness.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -186,6 +186,8 @@ const repo = realpathSync(mkdtempSync(join(tmpdir(), 'handoff-chain-')));
 const gitAt = (...args) => execFileSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.com', ...args], { cwd: repo, stdio: 'ignore' });
 const inRepo = (args) => node(args, repo);
 const json = (p) => JSON.parse(readFileSync(join(repo, p), 'utf8'));
+// The repository-keyed session record store handoff-state.mjs writes.
+const sessionRecordPath = (cwd, sid, root) => join(root, '.claude', 'code-ops', 'sessions', repoIdentity(cwd).key, `${sid.replace(/[^A-Za-z0-9]/g, '-')}.json`);
 const record = (sid) => JSON.parse(readFileSync(sessionRecordPath(repo, sid, home), 'utf8'));
 const enc = (p) => p.replace(/ /g, '%20');
 const REQ1 = 'start the ledger program.';

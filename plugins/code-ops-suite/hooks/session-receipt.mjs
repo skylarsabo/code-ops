@@ -11,6 +11,8 @@
 // file on purpose, so it can never be committed by accident. `CODE_OPS_RECEIPTS=off` (or `0`,
 // `false`) disables the hook. Read the ledger with `node scripts/context-audit.mjs receipts`.
 //
+// The hook also marks the session's presence board record ended (see endBoard below).
+//
 // Fail-open on every path: bad stdin, missing transcript, unwritable ledger → exit 0 silently.
 // stdin may never close on some Windows shells, so a short timer finishes with what arrived.
 //
@@ -65,7 +67,28 @@ function finish() {
   return pending;
 }
 
+// Marks this session's presence board record ended, through updateBoard() in
+// scripts/handoff-state.mjs. Only an existing record changes. `CODE_OPS_PEER_GUARD` off skips it,
+// independent of `CODE_OPS_RECEIPTS`.
+async function endBoard() {
+  try {
+    if (!on('CODE_OPS_PEER_GUARD')) return;
+    const payload = JSON.parse(input.replace(/^﻿/, ''));
+    const sid = payload?.session_id ?? payload?.sessionId;
+    if (typeof sid !== 'string' || !sid) return;
+    const cwd = typeof payload.cwd === 'string' && existsSync(payload.cwd) ? payload.cwd : process.cwd();
+    const home = process.env.CODE_OPS_HOME || homedir();
+    const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'handoff-state.mjs');
+    const { readBoard, updateBoard } = await import(pathToFileURL(libPath).href);
+    if (!readBoard(cwd, home).some((r) => r.sessionId === sid)) return;
+    updateBoard(cwd, sid, (rec) => { rec.ended = new Date().toISOString(); }, home);
+  } catch {
+    // fail open
+  }
+}
+
 async function doFinish() {
+  await endBoard();
   try {
     if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECEIPTS || '')) return;
     const payload = JSON.parse(input.replace(/^\uFEFF/, ''));

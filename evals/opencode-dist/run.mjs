@@ -211,9 +211,11 @@ if (!strongAgent || anthropic.models.light === null || anthropic.models.strong =
   fails.push('fixture drift: need an Anthropic strong agent and distinct model rungs for the floor probe');
 } else {
   const indexDir = join(dist, '.index-probe');
+  const boardHome = join(dist, '.board-home');
   const floorProbe = `
 import { CodeOpsModelFloors } from ${JSON.stringify(pathToFileURL(floorPluginPath).href)};
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 const hooks = await CodeOpsModelFloors({ directory: ${JSON.stringify(root)} });
 const run = async (model) => {
   try {
@@ -228,6 +230,17 @@ await hooks['experimental.chat.system.transform']({}, system);
 const digest = { args: { command: 'git diff --stat' } };
 await hooks['tool.execute.before']({ tool: 'bash' }, digest);
 await hooks.event({ event: { type: 'file.edited', properties: { file: ${JSON.stringify(join(root, 'scripts', 'co.mjs'))} } } });
+const boardDir = ${JSON.stringify(join(boardHome, '.claude', 'code-ops', 'board'))};
+const boardEdits = () => {
+  try {
+    return readdirSync(boardDir).flatMap((key) => readdirSync(join(boardDir, key))
+      .map((f) => JSON.parse(readFileSync(join(boardDir, key, f), 'utf8'))));
+  } catch { return []; }
+};
+await hooks['tool.execute.after']({ tool: 'edit', sessionID: 'ses_probe', callID: 'c1', args: { filePath: ${JSON.stringify(join(root, 'scripts', 'co.mjs'))} } }, {});
+const boardOn = boardEdits();
+process.env.CODE_OPS_PEER_GUARD = 'off';
+await hooks['tool.execute.after']({ tool: 'edit', sessionID: 'ses_off', callID: 'c2', args: { filePath: ${JSON.stringify(join(root, 'scripts', 'co.mjs'))} } }, {});
 const config = {};
 await hooks.config(config);
 console.log(JSON.stringify({
@@ -238,10 +251,12 @@ console.log(JSON.stringify({
   routed: system.system.some((line) => line.includes('code-ops standard operating mode')),
   digested: digest.args.command.includes('digest.mjs'),
   indexed: existsSync(${JSON.stringify(indexDir)}),
+  boarded: boardOn.length === 1 && boardOn[0].sessionId === 'ses_probe' && boardOn[0].edits?.[0]?.path === 'scripts/co.mjs',
+  boardOff: boardEdits().length === 1,
   mcp: Object.keys(config.mcp ?? {}).sort(),
 }));
 `;
-  const floorResult = spawnSync(process.execPath, ['--input-type=module', '-e', floorProbe], { encoding: 'utf8', env: { ...process.env, CODE_OPS_DIGEST: 'on', CODE_OPS_INDEX_DIR: indexDir } });
+  const floorResult = spawnSync(process.execPath, ['--input-type=module', '-e', floorProbe], { encoding: 'utf8', env: { ...process.env, CODE_OPS_DIGEST: 'on', CODE_OPS_INDEX_DIR: indexDir, CODE_OPS_HOME: boardHome, CODE_OPS_PEER_GUARD: 'on' } });
   if (floorResult.status !== 0) {
     fails.push(`model-floor plugin probe failed to run: ${(floorResult.stderr || '').trim().split('\n').slice(-3).join(' ')}`);
   } else {
@@ -253,6 +268,8 @@ console.log(JSON.stringify({
     expect(verdicts.routed === true, 'OpenCode runtime plugin did not inject routing guidance');
     expect(verdicts.digested === true, 'OpenCode runtime plugin did not apply the canonical digest rewrite');
     expect(verdicts.indexed === true, 'OpenCode runtime plugin did not refresh the edited-file index');
+    expect(verdicts.boarded === true, 'OpenCode runtime plugin did not record the edit on the presence board');
+    expect(verdicts.boardOff === true, 'OpenCode runtime plugin wrote a board record with CODE_OPS_PEER_GUARD off');
     expect(JSON.stringify(verdicts.mcp) === JSON.stringify(['code-ops-docs', 'code-ops-query']), `OpenCode runtime plugin did not auto-configure both MCP servers: ${JSON.stringify(verdicts.mcp)}`);
   }
 }

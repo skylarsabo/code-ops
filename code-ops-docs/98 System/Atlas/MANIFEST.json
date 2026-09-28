@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
-      "verifiedDigest": "e37f36a956364074cb871b92e4bcb6b62c336231664436f6f830dc729e72561e",
+      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
+      "verifiedDigest": "80205df8663a42fd6375821ef89905b326d5d8dd87eb15e55a5e2b5cdfd656b6",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -63,8 +63,33 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
-          "line": 17,
-          "anchor": "// DECISION. The hook denies only when the matched record's run folder holds HAN"
+          "line": 39,
+          "anchor": "// HOST COVERAGE. Claude Code and Codex document"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
+          "line": 23,
+          "anchor": "// BOARD. The presence board holds one record per session and repository at"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/co.mjs",
+          "line": 101,
+          "anchor": "board: {"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
+          "line": 306,
+          "anchor": "export function sessionRecords(cwd, home = storeHome()) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
+          "line": 13,
+          "anchor": "// PRESENCE BOARD. The same call records the edited paths, relative to the workt"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
+          "line": 73,
+          "anchor": "async function endBoard() {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -120,8 +145,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
-      "verifiedDigest": "5e123dea7ec433cf517e715791c9ce4732c772ab3364af42a4bb14947b736373",
+      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
+      "verifiedDigest": "18198b7779b0cb3a479cc3b65d772d7f0c4c06282c0d8b55b4e3c94821f60d44",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -150,8 +175,18 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 407,
+          "line": 589,
           "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
+        },
+        {
+          "file": "scripts/handoff-state.mjs",
+          "line": 23,
+          "anchor": "// BOARD. The presence board holds one record per session and repository at"
+        },
+        {
+          "file": "scripts/co.mjs",
+          "line": 132,
+          "anchor": "const DEFAULT_VERB = { board: 'list' };"
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -226,9 +261,14 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
-      "verifiedDigest": "fecb8aa370452572a1c237ca3148409487f2f4d43487fda0272026eaebd386ef",
+      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
+      "verifiedDigest": "0dcd7cb96ccfb1e6c14b3063d4fc04f29a46dcb6bbd0ca71a46f2b4bb0acf6e9",
       "claims": [
+        {
+          "file": "evals/opencode-dist/run.mjs",
+          "line": 271,
+          "anchor": "expect(verdicts.boarded === true, 'OpenCode runtime plugin did not record the ed"
+        },
         {
           "file": "evals/codex-marketplace/run.mjs",
           "line": 167,
@@ -236,13 +276,38 @@
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 280,
+          "line": 297,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
           "file": "scripts/judgment-evals.mjs",
           "line": 155,
           "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
+        },
+        {
+          "file": "evals/peer-guard/run.mjs",
+          "line": 87,
+          "anchor": "check('redirect-rewrites-target: hostSessionId target is rewritten to the head ("
+        },
+        {
+          "file": "evals/peer-guard/run.mjs",
+          "line": 134,
+          "anchor": "check('deny-kept-on-unverified-host: Grok camelCase payload is denied, not rewri"
+        },
+        {
+          "file": "evals/peer-guard/run.mjs",
+          "line": 161,
+          "anchor": "check('worktree resolves to repo key: a linked worktree shares the main key', a."
+        },
+        {
+          "file": "evals/peer-guard/run.mjs",
+          "line": 180,
+          "anchor": "check('co board from the main worktree lists the linked session', r.status === 0"
+        },
+        {
+          "file": "evals/peer-guard/run.mjs",
+          "line": 192,
+          "anchor": "check('SessionEnd marks the board record ended', r.status === 0 && r.stdout ==="
         },
         {
           "file": "evals/run-contract/run.mjs",
@@ -284,8 +349,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
-      "verifiedDigest": "c8a55e14f6e4263bdfe2a382454c3ef514b982599ba668cdf584af55a9f69fc2",
+      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
+      "verifiedDigest": "63259ce86a9a8255ba11ac1de2c98c22b9ab276f48e60ecb6e4cd67ca9a687a5",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -299,13 +364,18 @@
         },
         {
           "file": "opencode-dist/PLATFORM_COMPATIBILITY.md",
-          "line": 36,
+          "line": 39,
           "anchor": "- **The typed subagent-start callback, transcript path, and pre-tool"
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
-          "line": 9,
+          "line": 10,
           "anchor": "// Codex projection drops matchers and runs this hook on every tool call."
+        },
+        {
+          "file": "scripts/build-opencode-dist.mjs",
+          "line": 454,
+          "anchor": "'tool.execute.after': async (input) => {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -359,8 +429,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
-      "verifiedDigest": "6e369492b4c5538a0e9140bf39297057ac115978c56436ceac6464411bafc435",
+      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
+      "verifiedDigest": "c3ece363926eaf35fc800848ffc097b087e8e0f5f325c89487745b025c9e8945",
       "claims": [
         {
           "file": "scripts/check-vault-standard.mjs",
@@ -371,6 +441,10 @@
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 62,
           "anchor": "- **COMPACT** when the same task needs context relief. First persist decisions,"
+        },
+        {
+          "file": "Data/CONTRACTS.md",
+          "line": 934
         },
         {
           "file": "scripts/run-contract.mjs",
@@ -394,7 +468,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 94,
+          "line": 117,
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ]
