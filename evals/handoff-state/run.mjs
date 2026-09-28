@@ -14,7 +14,10 @@
 // pin SCOPE_DIGESTS.md from `draft --out`: placeholders with no predecessor entry, an unchanged
 // entry's digest carried forward and a changed one reset, the overwrite refusal, resume refusing
 // an unfilled file, the unchanged, changed, and missing summary lines, and a legacy handoff with
-// no file resuming without them.
+// no file resuming without them. The program cases pin `co program archive`, `split`, and `merge`:
+// split refusing while an item is unassigned, both children and the Forwarded-to trail, merge
+// renumbering across the ledger and archive with a Was: trail, the running-head refusal, and check 9
+// following Forwarded-to and Was:.
 // Every fixture lives in an OS temp dir, and CODE_OPS_HOME points the session records at a temp
 // home, so nothing writes under the repository or the real home.
 //
@@ -540,6 +543,169 @@ try {
   const proseText2 = readFileSync(proseArchive, 'utf8');
   check('prior archive prose survives a second archive run', proseAgain.status === 0 && proseKept(proseText2)
     && proseText2.includes(paragraph.join('\n')) && proseText2.includes('- OI-5 closed later'));
+
+  // ---- co program split and merge (design L5) ----
+  const ANCHORED = 'Pointer: scripts/check-handoff.mjs:2 · Anchor: `HANDOFF.md structural checker`';
+  const item = (id, title) => `- [ ] ${id} ${title} · Owner: agent · Done when: ${title} is done · ${ANCHORED}`;
+  const decision = (id, hop, disposition) => `- ${id} 2026-09-2${hop} Decision ${id} · Hop: ${hop} · Disposition: ${disposition}`;
+  const ledgerOf = (slug, { requests, open, decisions, scope = ['scripts/check-handoff.mjs'] }) => {
+    const file = join(hub, 'programs', slug, 'PROGRAM.md');
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, [`# PROGRAM: ${slug}`, '', 'Grammar: 2', '', '## Program goal', '', `Goal of ${slug}.`, '', '## Request history', '', ...requests, '',
+      '## Scope documents', '', ...scope.map((s) => `- \`${s}\` · Status: current · Role: fixture`), '', '## Open items', '', ...open, '',
+      '## Decisions ledger', '', ...decisions, '', '## Closed items', '', ''].join('\n'));
+    return file;
+  };
+  const readAt = (slug, name = 'PROGRAM.md') => readFileSync(join(hub, 'programs', slug, name), 'utf8');
+  const splitFixture = { requests: ['- 2026-09-20: start the split program.', '- 2026-09-21: keep the split going.'], open: [item('OI-1', 'alpha'), item('OI-2', 'beta')],
+    decisions: [decision('DEC-1', 1, 'pending'), decision('DEC-2', 0, 'local'), decision('DEC-3', 1, 'pending')] };
+  const splitArchive = ['# PROGRAM archive: sp', '', '## Request history', '', '- 2026-09-01: older archived request.', '', '## Decisions ledger', '', '## Closed items', ''].join('\n');
+  const spFile = ledgerOf('sp', splitFixture);
+  writeFileSync(join(dirname(spFile), 'PROGRAM.archive.md'), splitArchive);
+  const spBefore = readFileSync(spFile, 'utf8');
+  const split = (...args) => inG2([co, 'program', 'split', ...args, '--root', '.']);
+
+  const partial = split('sp', '--into', 'sa,sb', '--assign', 'OI-1=sa,DEC-1=sa');
+  check('split-refuses-unassigned exits 1 and names every unassigned id and only those', partial.status === 1 && partial.stderr.includes('unassigned: OI-2, DEC-3')
+    && !partial.stderr.includes('DEC-2'));
+  check('split-refuses-unassigned writes no child and leaves the parent as it was', !existsSync(join(hub, 'programs', 'sa')) && readFileSync(spFile, 'utf8') === spBefore);
+  const stray = split('sp', '--into', 'sa,sb', '--assign', 'OI-1=zz,OI-2=sb,DEC-1=sa,DEC-3=sb');
+  check('split refuses an assignment to a child --into does not name', stray.status === 1 && stray.stderr.includes('OI-1 is assigned to zz') && readFileSync(spFile, 'utf8') === spBefore);
+
+  const done = split('sp', '--into', 'sa,sb', '--assign', 'OI-1=sa,DEC-1=sa,OI-2=sb,DEC-3=sb');
+  const [sa, sb, spAfter] = existsSync(join(hub, 'programs', 'sb', 'PROGRAM.md')) ? [readAt('sa'), readAt('sb'), readFileSync(spFile, 'utf8')] : ['', '', ''];
+  check('split writes both children as grammar 2 ledgers with the goal, every request, and the scope documents', done.status === 0
+    && [sa, sb].every((t) => /^Grammar: 2$/m.test(t) && t.includes('Split-from: sp') && t.includes('Goal of sp.') && t.includes('- 2026-09-20: start the split program.')
+      && t.includes('- 2026-09-21: keep the split going.') && t.includes('- 2026-09-01: older archived request.') && t.includes('- `scripts/check-handoff.mjs` · Status: current')));
+  check('split gives each child only its assigned items, with their original ids and lines', sa.includes(splitFixture.open[0]) && sa.includes(splitFixture.decisions[0])
+    && sb.includes(splitFixture.open[1]) && sb.includes(splitFixture.decisions[2])
+    && !/OI-2|DEC-3|DEC-2/.test(sa) && !/OI-1|DEC-1|DEC-2/.test(sb));
+  check('split marks each parent open item and pending decision Forwarded-to and leaves the settled one alone',
+    spAfter.includes(`${splitFixture.open[0]} · Forwarded-to: sa/OI-1`) && spAfter.includes(`${splitFixture.open[1]} · Forwarded-to: sb/OI-2`)
+    && spAfter.includes(`${splitFixture.decisions[0]} · Forwarded-to: sa/DEC-1`) && spAfter.includes(`${splitFixture.decisions[2]} · Forwarded-to: sb/DEC-3`)
+    && !spAfter.split('\n').find((l) => l.startsWith('- DEC-2')).includes('Forwarded-to'));
+  const twin = ledgerOf('sp2', splitFixture);
+  const twinBefore = readFileSync(twin, 'utf8');
+  const clash = split('sp2', '--into', 'sa,sc', '--assign', 'OI-1=sa,DEC-1=sa,OI-2=sc,DEC-3=sc');
+  check('split refuses an existing child ledger and writes nothing', clash.status === 1 && /sa already has a ledger/.test(clash.stderr)
+    && readFileSync(twin, 'utf8') === twinBefore && !existsSync(join(hub, 'programs', 'sc')));
+
+  // A CRLF parent keeps its line ending in the parent and in each child.
+  const crFile = ledgerOf('spcr', splitFixture);
+  writeFileSync(crFile, readFileSync(crFile, 'utf8').replace(/\n/g, '\r\n'));
+  const crSplit = split('spcr', '--into', 'ca,cb', '--assign', 'OI-1=ca,DEC-1=ca,OI-2=ca,DEC-3=ca');
+  const crTexts = [readFileSync(crFile, 'utf8'), readAt('ca'), readAt('cb')];
+  check('split keeps CRLF in the parent and both children', crSplit.status === 0 && crTexts.every((t) => t.includes('\r\n') && !/(^|[^\r])\n/.test(t))
+    && crTexts[0].includes('Forwarded-to: ca/OI-2'));
+
+  // Check 9 (design L5): a predecessor item a split or a merge moved does not count as dropped.
+  const handoffText = ({ program, predecessor = 'none', request, hop, open = '', decisions = 'None this hop.' }) => ['# HANDOFF: split eval', '', 'Verified-at: abc1234 (main, clean).', '',
+    `## Program\n\nProgram: ${program}\nPredecessor: ${predecessor}\nSession: Sp HO ${hop}\nHop: ${hop}\n`,
+    `## Goal and state of play\n\nRequest: ${request}\n\n- Objective: exercise the split and merge cases. History: base..head (no exceptions).\n`,
+    '## Scope and constraints\n\n- Repository: this fixture. Branch: none. Out of scope: prose quality.\n',
+    '## Work completed\n\n- base..head across scripts/handoff-state.mjs: fixture shape.\n',
+    '## Key findings\n\n- CONFIRMED: the fixture checks lineage. Pointer: scripts/check-handoff.mjs:5\n',
+    '## Registers and artifacts\n\n- FINDINGS_REGISTER.md: fixture register, pointed at rather than re-pasted. Verified-at: abc1234.\n',
+    `## Decisions made\n\n${decisions}\n`, '## Traps and dead ends\n\n- None encountered in this fixture.\n',
+    `## In-flight boundaries\n\n- Nothing in flight. ${ANCHORED}\n`, `## Open items\n\n${open}\n`,
+    '## Authority\n\n- No grants recorded in this fixture. None carries into a resumed session.\n',
+    '## Carried context\n\n- Nothing carried; this fixture needs no analysis file.\n'].join('\n');
+  const wr = (name, text) => { const p = join(g2, name); writeFileSync(p, text); return p; };
+  const coh = (file) => spawnSync(process.execPath, [checker, file, '--root', REPO], { encoding: 'utf8', env });
+  const ledgerPath = (slug) => join(hub, 'programs', slug, 'PROGRAM.md');
+  const chain = (name, { from, to, fromRequest, toRequest, open }) => {
+    const prior = wr(`${name}-prior.md`, handoffText({ program: ledgerPath(from), request: fromRequest, hop: 1, open }));
+    return coh(wr(`${name}-next.md`, handoffText({ program: ledgerPath(to), predecessor: prior, request: toRequest, hop: 2 })));
+  };
+  const priorOpen = `${splitFixture.open[0]}\n${splitFixture.open[1]}`;
+  const forwarded = chain('fwd', { from: 'sp', to: 'sp', fromRequest: 'start the split program.', toRequest: 'keep the split going.', open: priorOpen });
+  check('check 9 passes a predecessor item that the ledger carries with Forwarded-to', forwarded.status === 0);
+  if (forwarded.status !== 0) console.error(forwarded.stdout + forwarded.stderr);
+  ledgerOf('sp3', splitFixture);
+  const unforwarded = chain('unfwd', { from: 'sp', to: 'sp3', fromRequest: 'start the split program.', toRequest: 'keep the split going.', open: priorOpen });
+  check('check 9 still fails an item the ledger neither carries nor forwards', unforwarded.status === 1
+    && /predecessor open item OI-1 was dropped/.test(unforwarded.stderr) && /predecessor open item OI-2 was dropped/.test(unforwarded.stderr));
+  const childChain = coh(wr('child.md', handoffText({ program: ledgerPath('sa'), request: 'keep the split going.', hop: 1 })));
+  check('a split child ledger passes check-handoff', childChain.status === 0);
+  if (childChain.status !== 0) console.error(childChain.stdout + childChain.stderr);
+
+  // A split child's first hop resumes the parent's last handoff: ids the parent forwarded to the child or to a
+  // sibling pass checks 9 and 13 with the sibling's items absent, and an id forwarded nowhere still fails.
+  const parentLast = ({ open = '', decisions = '' } = {}) => wr('parent-last.md', handoffText({ program: ledgerPath('sp'), request: 'start the split program.', hop: 1,
+    open: [priorOpen, open].filter(Boolean).join('\n'), decisions: ['- DEC-1 alpha choice', '- DEC-3 beta choice', decisions].filter(Boolean).join('\n') }));
+  const childFirst = (slug, predecessor) => coh(wr(`first-${slug}.md`, handoffText({ program: ledgerPath(slug), predecessor, request: 'keep the split going.', hop: 2 })));
+  const firstA = childFirst('sa', parentLast());
+  check('a split child first handoff passes checks 9 and 13 with the sibling-assigned ids absent', firstA.status === 0);
+  if (firstA.status !== 0) console.error(firstA.stdout + firstA.stderr);
+  const firstB = childFirst('sb', parentLast());
+  check('the sibling child passes the same way', firstB.status === 0);
+  const strayItem = `- [ ] OI-7 stray · Owner: agent · Done when: never · ${ANCHORED}`;
+  const notForwarded = childFirst('sa', parentLast({ open: strayItem, decisions: '- DEC-2 settled locally' }));
+  check('a split child first handoff fails an open item and a decision the parent forwarded nowhere',
+    notForwarded.status === 1 && /predecessor open item OI-7 was dropped/.test(notForwarded.stderr) && /check 13: predecessor decision DEC-2 /.test(notForwarded.stderr)
+    && !/OI-[12] was dropped|decision DEC-[13] /.test(notForwarded.stderr));
+  ledgerOf('sx', { requests: splitFixture.requests, open: [], decisions: [] });
+  const unrelated = childFirst('sx', parentLast());
+  check('a ledger that is neither the forward target nor a Split-from child gets no pass for the parent forwards', unrelated.status === 1
+    && /predecessor open item OI-1 was dropped/.test(unrelated.stderr) && /check 13: predecessor decision DEC-3 /.test(unrelated.stderr));
+
+  // merge-renumbers-with-was: both ledgers hold DEC-1 and OI-1, and the target's archive holds OI-6 and DEC-4.
+  const merge = (...args) => inG2([co, 'program', 'merge', ...args, '--root', '.']);
+  const maFile = ledgerOf('ma', { requests: ['- 2026-09-20: keep the target going.'], open: [item('OI-1', 'target alpha')], decisions: [decision('DEC-1', 1, 'pending')] });
+  writeFileSync(join(dirname(maFile), 'PROGRAM.archive.md'), ['# PROGRAM archive: ma', '', '## Request history', '', '## Decisions ledger', '', decision('DEC-4', 0, 'local'), '',
+    '## Closed items', '', '- OI-6 closed earlier · closed by DEC-4', ''].join('\n'));
+  const beta = `- [ ] OI-2 source beta blocked by OI-1 · Owner: agent · Done when: OI-1 lands · ${ANCHORED}`;
+  const mbFile = ledgerOf('mb', { requests: ['- 2026-09-21: finish the source program.'], scope: ['scripts/check-handoff.mjs', 'scripts/handoff-state.mjs'],
+    open: [item('OI-1', 'source alpha'), beta], decisions: [decision('DEC-1', 1, 'pending'), decision('DEC-2', 0, 'local')] });
+  const merged = merge('mb', '--into', 'ma');
+  const ma = readAt('ma');
+  const mb = readAt('mb');
+  check('merge exits 0 and reports each renumbered id', merged.status === 0 && merged.stdout.includes('OI-1 -> OI-7 (Was: mb/OI-1)') && merged.stdout.includes('DEC-1 -> DEC-5 (Was: mb/DEC-1)'));
+  check('merge gives each imported item the next free id across the ledger and its archive, with a Was: trail',
+    ma.includes(`${item('OI-7', 'source alpha')} · Was: mb/OI-1`) && ma.includes(`${decision('DEC-5', 1, 'pending')} · Was: mb/DEC-1`)
+    && ma.includes(`- [ ] OI-8 source beta blocked by OI-7 · Owner: agent · Done when: OI-7 lands · ${ANCHORED} · Was: mb/OI-2`)
+    && ma.includes(item('OI-1', 'target alpha')) && ma.includes(decision('DEC-1', 1, 'pending')) && !ma.includes('DEC-2'));
+  const leading = [ma, readAt('ma', 'PROGRAM.archive.md')].flatMap((t) => t.split('\n')).map((l) => /^[-*]\s+(?:\[[ xX]\]\s+)?((?:DEC|OI)-\d+)\b/.exec(l)?.[1]).filter(Boolean);
+  check('merge leaves every DEC and OI id unique across the target and its archive', leading.length === 7 && new Set(leading).size === leading.length);
+  check('merge tags each source request and adds only the scope documents the target lacks',
+    ma.includes('- 2026-09-21 [from mb]: finish the source program.') && ma.includes('- 2026-09-20: keep the target going.')
+    && ma.split('`scripts/check-handoff.mjs`').length === 2 && ma.split('`scripts/handoff-state.mjs`').length === 2);
+  check('merge marks the source merged and each imported source item Forwarded-to', /## Program goal\n\nStatus: merged into ma\n/.test(mb)
+    && mb.includes(`${item('OI-1', 'source alpha')} · Forwarded-to: ma/OI-7`) && mb.includes(`· Forwarded-to: ma/OI-8`) && mb.includes(`${decision('DEC-1', 1, 'pending')} · Forwarded-to: ma/DEC-5`)
+    && !mb.split('\n').find((l) => l.startsWith('- DEC-2')).includes('Forwarded-to'));
+  const remerge = merge('mb', '--into', 'ma');
+  check('merge refuses a source that is already merged', remerge.status === 1 && remerge.stderr.includes('Status: merged into ma') && readAt('ma') === ma);
+  const mbPrior = wr('was-prior.md', handoffText({ program: mbFile, request: 'finish the source program.', hop: 1, open: `${item('OI-1', 'source alpha')}\n${beta}` }));
+  const wasNext = (program, predecessor) => coh(wr('was-next.md', handoffText({ program, predecessor, request: 'keep the target going.', hop: 2 })));
+  const wasPass = wasNext(maFile, mbPrior);
+  check('check 9 passes a predecessor item a Was: trail names, and check 18 holds on the merged ledger', wasPass.status === 0);
+  if (wasPass.status !== 0) console.error(wasPass.stdout + wasPass.stderr);
+  const otherPrior = wr('was-other-prior.md', handoffText({ program: join(hub, 'programs', 'zz', 'PROGRAM.md'), request: 'finish the source program.', hop: 1, open: item('OI-1', 'source alpha') }));
+  const wasOther = wasNext(maFile, otherPrior);
+  check('check 9 does not let a Was: trail satisfy an id of another program', wasOther.status === 1 && /predecessor open item OI-1 was dropped/.test(wasOther.stderr));
+
+  // A running source head blocks a merge until --head-ended: an unconsumed handoff, or a consumed one whose successor run has no handoff yet.
+  const one = (n) => ({ requests: [`- 2026-09-22: request of ${n}.`], open: [item('OI-1', n)], decisions: [] });
+  const heads = (slug, consumed) => {
+    const dir = join(hub, `${slug}-r1`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'HANDOFF.md'), `# HANDOFF\n\n## Program\n\nProgram: 80 Runs/programs/${slug}/PROGRAM.md\nPredecessor: none\n`);
+    if (consumed) {
+      mkdirSync(join(hub, `${slug}-r2`), { recursive: true });
+      writeFileSync(join(dir, 'HANDOFF.consumed'), JSON.stringify({ v: 2, consumedAt: 'now', bySession: null, successorRun: `80 Runs/${slug}-r2`, name: null }));
+    }
+  };
+  for (const [source, consumed, state] of [['rs', false, 'awaiting resume'], ['cs', true, 'live']]) {
+    const sFile = ledgerOf(source, one(source));
+    const tFile = ledgerOf(`${source}t`, one(`${source}t`));
+    heads(source, consumed);
+    const [sBefore, tBefore] = [readFileSync(sFile, 'utf8'), readFileSync(tFile, 'utf8')];
+    const blockedMerge = merge(source, '--into', `${source}t`);
+    check(`merge refuses a source whose head is ${state} without --head-ended and writes nothing`, blockedMerge.status === 1
+      && blockedMerge.stderr.includes('head session looks running') && blockedMerge.stderr.includes(state) && readFileSync(sFile, 'utf8') === sBefore && readFileSync(tFile, 'utf8') === tBefore);
+    const ended = merge(source, '--into', `${source}t`, '--head-ended');
+    check(`merge --head-ended proceeds past a ${state} head`, ended.status === 0 && readFileSync(sFile, 'utf8').includes(`Status: merged into ${source}t`));
+  }
 } finally {
   rmSync(g2, { recursive: true, force: true });
 }
