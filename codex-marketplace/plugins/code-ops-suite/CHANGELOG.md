@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.16.0
+- Records carry meaning (W2). Under manifest v3, inventory entries gain a `meaning` object (`kind`, `title`, `topic`, `key`, `decides`), records gain `amends`, and curation validates the closed decision status set. Curation events are typed: an event with no type reads as `curate`, and `relocate-root` moves a whole collection while each record keeps its identity path, with membership, check, history, and lineage following the moved root.
+- Intake and seal: `records intake` stages a record or curation change outside the chains, and `records seal` admits it in one commit on the base head. A stale basis is refused with both lines named, and `records curate` under v3 routes to intake off the base head. `records render --register` writes `20 Decisions/REGISTER.md` and `98 System/Records/state.json` with pending-seal marks. The library validates the `FORWARDING.json` schema.
+- `records.mjs` accepts manifest v3 (closeout tracking, `removed` legacy entries without a target); it rejected every v3 manifest before.
+
 ## 2.15.0
 - Ledger grammar 2: a `PROGRAM.md` with `Grammar: 2` gains an Open items section, and `check-handoff.mjs` runs checks 11 to 13 and 15 to 18 on it (decision ids, hops, and dispositions; no stale pending decision; predecessor decisions carried; one-clause decision lines; `Revised:` on a changed owner or done-when; unique ids). Check 16 fails closed under grammar 2 and still warns under grammar 1, and check 4 reads a carried item's owner and done-when from the ledger.
 - `co handoff draft` fills each open item's `Anchor:` from its cited line on a grammar-2 ledger, writes active lines back to the ledger, and lists stale pending decisions for disposition. `--program` gives a first hop its scope digests.

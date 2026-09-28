@@ -8,13 +8,23 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
-      "verifiedDigest": "58bac57609cf645d21c3bdcea87960b7f8c81dcd8f696db5d1f5f5349c6eebee",
+      "verifiedAt": "ef18b2a44931a58dbc4ce1c5db42da81c18d3d91",
+      "verifiedDigest": "b5391172f47b2849b21f7641b080147520a3970746cdea32fd1c81da83630b5d",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
           "line": 15,
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/record-lib.mjs",
+          "line": 1336,
+          "anchor": "export function recordMeaning(text) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/records.mjs",
+          "line": 2063,
+          "anchor": "function seal(context, options) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -155,8 +165,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
-      "verifiedDigest": "0e8538fc6a5bb6cff0ccf5d4335c18e2b1e421520359173eeb3272ac63226e28",
+      "verifiedAt": "ef18b2a44931a58dbc4ce1c5db42da81c18d3d91",
+      "verifiedDigest": "1e9bade7e1afb8c0c0643b0626a6043e8adcff019df48a64f1ab1123b89d220e",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -202,6 +212,36 @@
           "file": "scripts/record-lib.mjs",
           "line": 126,
           "anchor": "export function gitObjectQuery(root, revisions, args, binary = false) {"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 1336,
+          "anchor": "export function recordMeaning(text) {"
+        },
+        {
+          "file": "scripts/records.mjs",
+          "line": 2008,
+          "anchor": "function intakeRecord(context, options) {"
+        },
+        {
+          "file": "scripts/records.mjs",
+          "line": 2063,
+          "anchor": "function seal(context, options) {"
+        },
+        {
+          "file": "scripts/records.mjs",
+          "line": 2113,
+          "anchor": "function relocateRoot(context, options) {"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 1394,
+          "anchor": "export function forwardingErrors(document) {"
+        },
+        {
+          "file": "scripts/records.mjs",
+          "line": 2180,
+          "anchor": "function renderRegister(context, records) {"
         },
         {
           "file": "scripts/transcript-lib.mjs",
@@ -316,8 +356,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
-      "verifiedDigest": "89395bc2df7a86cf7d862998e0dcc471103f994d1bd843839673502f405bd7da",
+      "verifiedAt": "ef18b2a44931a58dbc4ce1c5db42da81c18d3d91",
+      "verifiedDigest": "1d0283282bfd31b9e9d45e648b44d25ba7f5b381818a51966f13904e7da193e1",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -424,8 +464,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
-      "verifiedDigest": "e2be16b2405f2f66db48a6c2291ebaa1801bef5b168435ebfd0af018eed683df",
+      "verifiedAt": "ef18b2a44931a58dbc4ce1c5db42da81c18d3d91",
+      "verifiedDigest": "5e4ae00754f96cbae1877f2c7e4316e032ea2a4bb43328a2174470f78ee65952",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -436,6 +476,16 @@
           "file": "scripts/build-codex-marketplace.mjs",
           "line": 545,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
+        },
+        {
+          "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
+          "line": 2063,
+          "anchor": "function seal(context, options) {"
+        },
+        {
+          "file": "opencode-dist/code-ops/code-ops-suite/scripts/records.mjs",
+          "line": 2063,
+          "anchor": "function seal(context, options) {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -514,8 +564,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "f4cc2d75d4b4cd9b1223c8dc1cb2fed656409896",
-      "verifiedDigest": "9a317f9cf820ed311a918295b97cc852b884418c301ee7920a8333b5ecb2734a",
+      "verifiedAt": "ef18b2a44931a58dbc4ce1c5db42da81c18d3d91",
+      "verifiedDigest": "c7625747ccd01b2d055109996edbba53d3cfec0fbecfc703ac536afa7d3f1f4a",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

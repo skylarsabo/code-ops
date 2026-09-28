@@ -8,13 +8,14 @@ import {
   adoptionHistoryProfiles, citationAuthority, digestJson, extractCitations, historyPathBatches, indexSemantic,
   indexSnapshot, jsonl, recordId, resolvePrefix, sha256, targetsAt, writeAtomically,
 } from '../../scripts/record-lib.mjs';
+import { runW2Cases } from './w2-cases.mjs';
 
 const ROOT = process.cwd();
 const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 248 : 251;
+const expectedCases = process.platform === 'win32' ? 267 : 270;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let work;
@@ -2918,6 +2919,7 @@ supersedes: []
   const pointerRender = result;
   result = run(['check', '--root', recordPointerRepo, ...COLLECTION], recordPointerRepo);
   check('record-qualified pointer migration preserves pinned history and passes', pointerRender.status === 0 && result.status === 0, `${pointerRender.output}\n${result.output}`);
+  runW2Cases({ work, check, run, git, commit, write, generated, rehashAuthorityChain });
   if (executedCases !== expectedCases) throw new Error(`expected ${expectedCases} cases but executed ${executedCases}`);
   if (failures.length) throw new Error(failures.join('\n'));
   console.log(`\nrecord-collections eval passed (${executedCases}/${expectedCases} cases)`);
