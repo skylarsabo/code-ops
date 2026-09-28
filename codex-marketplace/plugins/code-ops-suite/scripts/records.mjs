@@ -12,6 +12,8 @@ import {
   maskMarkdownFenceAndTopLevelIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetsAt, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
+  curationStateErrors, eventType, foldedCuration, foldRootPath, intakeId, intakeLineErrors, lastRecordEventDigest,
+  recordMeaning, relocationChain, unfoldRootPath,
 } from './record-lib.mjs';
 import { assertNoTrackedPortableAlias } from './context-index-lib.mjs';
 
@@ -25,8 +27,9 @@ function fail(message, code = 1) {
 }
 
 function parseArgs(argv) {
-  const options = {}; const flags = new Set(['strict', 'no-stage', 'legacy', 'incremental', 'require-delta']);
-  const values = new Set(['root', 'manifest', 'collection', 'record', 'state', 'at', 'out', 'review', 'reviewer', 'rationale']);
+  const options = {}; const flags = new Set(['strict', 'no-stage', 'legacy', 'incremental', 'require-delta', 'register']);
+  const values = new Set(['root', 'manifest', 'collection', 'record', 'state', 'at', 'out', 'review', 'reviewer', 'rationale',
+    'base', 'from']);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith('--')) throw new Error(`unexpected argument ${token}`);
@@ -47,12 +50,14 @@ function validateInvocation(command, options) {
   const commandOptions = {
     classify: shared, adopt: [...shared, 'review'],
     'plan-adoption': [...shared, 'out', 'incremental', 'require-delta'], append: [...shared, 'record', 'no-stage'],
-    curate: [...shared, 'record', 'state', 'at'], render: [...shared, 'legacy'],
+    curate: [...shared, 'record', 'state', 'at', 'base'], render: [...shared, 'legacy', 'register'],
     're-review': [...shared, 'record', 'reviewer', 'rationale', 'at'],
     check: shared, 'verify-history': [...shared, 'strict'], 'reindex-locators': shared,
+    intake: [...shared, 'record', 'at'], seal: [...shared, 'base', 'at'], 'relocate-root': [...shared, 'from', 'at'],
   };
   const allowed = commandOptions[command];
-  if (!allowed) throw new Error('commands: classify plan-adoption adopt re-review curate append render check verify-history reindex-locators');
+  if (!allowed) throw new Error('commands: classify plan-adoption adopt re-review curate append render check verify-history reindex-locators intake seal relocate-root');
+  if (options.legacy && options.register) throw new Error('--legacy and --register are separate render targets');
   for (const key of Object.keys(options)) {
     if (!allowed.includes(key)) throw new Error(`--${key} is not valid for ${command}`);
   }
@@ -67,16 +72,17 @@ function manifestPath(root, options) {
   return nativePath(root, matches[0]);
 }
 
-function loadContext(root, options) {
+function loadContext(root, options, pendingRelocationFrom = null) {
   const manifestFile = manifestPath(root, options);
   const manifestRepoPath = relativeRoot(root, manifestFile);
   const manifestIndex = indexSnapshot(root, [manifestRepoPath]).get(manifestRepoPath);
   let manifest;
   try { manifest = JSON.parse(manifestIndex.bytes.toString('utf8')); }
   catch { throw new Error(`documentation manifest has invalid Git-index JSON: ${manifestRepoPath}`); }
-  if (manifest.version !== 2) throw new Error('record collections require documentation manifest v2');
-  if (!manifest.runs || !['ignored', 'tracked'].includes(manifest.runs.tracking)) {
-    throw new Error('manifest v2 requires runs.tracking as ignored or tracked');
+  if (![2, 3].includes(manifest.version)) throw new Error('record collections require documentation manifest v2 or v3');
+  const trackingModes = manifest.version === 3 ? ['ignored', 'tracked', 'closeout'] : ['ignored', 'tracked'];
+  if (!manifest.runs || !trackingModes.includes(manifest.runs.tracking)) {
+    throw new Error(`manifest v${manifest.version} requires runs.tracking as ${trackingModes.join(', ')}`);
   }
   const collections = manifest.recordCollections || [];
   const collectionRoots = collections.map((candidate) => candidate.root.toLowerCase());
@@ -84,8 +90,10 @@ function loadContext(root, options) {
     .map((key) => `${manifest.hub}/${candidate[key]}`.toLowerCase())));
   for (const entry of manifest.legacyPaths || []) {
     const foldedPath = entry?.path?.toLowerCase();
-    if (!entry || !safePath(entry.path) || !safePath(entry.target)
-      || !entry.target.startsWith(`${manifest.hub}/`)
+    // A v3 removed root names no target; every other disposition keeps the v2 target rule.
+    const needsTarget = !(manifest.version === 3 && entry?.disposition === 'removed');
+    if (!entry || !safePath(entry.path)
+      || (needsTarget && (!safePath(entry.target) || !entry.target.startsWith(`${manifest.hub}/`)))
       || collectionRoots.some((recordRoot) => foldedPath === recordRoot || foldedPath.startsWith(`${recordRoot}/`))
       || generatedPaths.has(foldedPath)) throw new Error(`legacy path overlaps governed records or generated metadata: ${entry?.path}`);
   }
@@ -99,13 +107,21 @@ function loadContext(root, options) {
   const history = completeHistory(root);
   const context = {
     root, manifest, manifestFile, manifestRepoPath, manifestIndex, hub: manifest.hub, collection, output,
-    history, manifestVersions: null,
+    history, manifestVersions: null, pendingRelocationFrom,
   };
   if (history.ok) {
     context.manifestVersions = committedManifestVersions(root);
     assertManifestHistory(context, context.manifestVersions);
   }
   return context;
+}
+
+// Only pointer and tombstone entries have generated bytes. Manifest v3 relocated and removed roots have none.
+function renderedLegacyPaths(context) {
+  const entries = context.manifest.legacyPaths || [];
+  return context.manifest.version === 3
+    ? entries.filter((entry) => ['pointer', 'tombstone'].includes(entry.disposition))
+    : entries;
 }
 
 function collect(context, { allowProblems = false } = {}) {
@@ -628,6 +644,18 @@ function assertManifestHistory(context, manifestVersions = context.manifestVersi
       catch { throw new Error(`documentation manifest has invalid committed JSON at ${version.commit}`); }
     });
   versions.push({ commit: 'current', manifest: context.manifest });
+  // A root may change only as a whole-collection move that the collection's own ledger records.
+  const relocated = new Set();
+  for (const collection of context.manifest.recordCollections || []) {
+    const ledger = nativePath(context.root, `${context.hub}/${collection.curationLedger}`);
+    for (const event of readJsonl(ledger)) {
+      if (eventType(event) === 'relocate-root') relocated.add(canonical([collection.collectionUuid, event.fromRoot, event.toRoot]));
+    }
+  }
+  // relocate-root is the one command that runs before its own event exists; it verifies bytes before appending.
+  if (context.pendingRelocationFrom) {
+    relocated.add(canonical([context.collection.collectionUuid, context.pendingRelocationFrom, context.collection.root]));
+  }
   const permanent = ['collectionUuid', 'identityVersion', 'root', 'inventory', 'citations', 'curationLedger', 'index'];
   for (let index = 1; index < versions.length; index += 1) {
     const priorCollections = new Map((versions[index - 1].manifest.recordCollections || []).map((item) => [item.collectionUuid, item]));
@@ -636,6 +664,7 @@ function assertManifestHistory(context, manifestVersions = context.manifestVersi
       const next = nextCollections.get(uuid);
       if (!next) throw new Error(`permanent record collection ${uuid} was removed after ${versions[index - 1].commit}`);
       for (const field of permanent) {
+        if (field === 'root' && relocated.has(canonical([uuid, prior.root, next.root]))) continue;
         if (canonical(prior[field]) !== canonical(next[field])) throw new Error(`permanent record collection ${uuid} changed ${field}`);
       }
     }
@@ -715,7 +744,55 @@ function recordFrontmatter(text) {
   try { ids = JSON.parse(supersedes[1]); } catch { throw new Error('supersedes must be a JSON array'); }
   if (!Array.isArray(ids) || ids.some((id) => !FULL_ID_RE.test(id))) throw new Error('supersedes must contain full record IDs');
   if (new Set(ids).size !== ids.length) throw new Error('supersedes contains duplicate record IDs');
-  return { recordSchema: 1, supersedes: ids };
+  const amendsLine = /^amends:[ \t]*(.*?)[ \t]*$/m.exec(match[1]);
+  if (!amendsLine) return { recordSchema: 1, supersedes: ids };
+  let amends;
+  try { amends = JSON.parse(amendsLine[1]); } catch { throw new Error('amends must be a JSON array'); }
+  if (!Array.isArray(amends) || !amends.length || amends.some((id) => !FULL_ID_RE.test(id))) {
+    throw new Error('amends must be a non-empty array of full record IDs');
+  }
+  if (new Set(amends).size !== amends.length) throw new Error('amends contains duplicate record IDs');
+  return { recordSchema: 1, supersedes: ids, amends };
+}
+
+function rootChain(context) {
+  return relocationChain(readJsonl(context.output.curationLedger), context.collection.root);
+}
+
+function manifestDomainIds(context) {
+  return new Set((context.manifest.domains || []).map((domain) => domain.id));
+}
+
+// Meaning lives in the record bytes. The inventory copy must equal what the bytes declare.
+function assertEntryMeaning(context, entry, text, knownIds) {
+  // A v2 inventory may hold entries admitted before meaning existed. Manifest v3 requires the copy.
+  if (entry.meaning === undefined && context.manifest.version === 2) return;
+  const meaning = recordMeaning(text);
+  if (canonical(entry.meaning ?? null) !== canonical(meaning)) throw new Error(`record meaning drift: ${entry.path}`);
+  if (entry.amends !== undefined && (!Array.isArray(entry.amends) || entry.amends.some((id) => !knownIds.has(id)))) {
+    throw new Error(`amends references an unknown record: ${entry.path}`);
+  }
+  if (meaning?.kind === 'amendment' && !entry.amends?.length) throw new Error(`amendment record must name amends: ${entry.path}`);
+}
+
+// Admission checks meaning against the live manifest domains and the records it amends.
+function admissionMeaning(context, text, amends, inventory) {
+  const meaning = recordMeaning(text);
+  if (!meaning && context.manifest.version === 3) throw new Error('native record under manifest v3 requires a known kind');
+  if (!meaning) return null;
+  if (meaning.key && !manifestDomainIds(context).has(meaning.key.split('/')[0])) {
+    throw new Error(`record key domain is not a manifest domain: ${meaning.key}`);
+  }
+  if (meaning.kind === 'amendment') {
+    if (!amends?.length) throw new Error('amendment record must name amends');
+    for (const id of amends) {
+      const amended = (inventory.entries || []).find((entry) => entry.id === id);
+      if (amended?.meaning?.key && amended.meaning.key !== meaning.key) {
+        throw new Error(`amendment key ${meaning.key} differs from amended record key ${amended.meaning.key}`);
+      }
+    }
+  }
+  return meaning;
 }
 
 function citationEntries(context, entry, sourceText, knownPaths, policyRows, mode) {
@@ -1354,6 +1431,28 @@ function applyReReviews(inventory, coverage) {
   }
 }
 
+// Review profiles compare identity paths. A relocated collection profiles each identity path at the
+// parent of the commit that recorded its first move, against the live index bytes. A move that
+// relocate-root has only staged has no such commit yet, so HEAD still holds the identity paths.
+// The caller builds one review history from every candidate row, because a copy reading needs
+// events that other candidate paths discover.
+function identityHistory(context, chain, rows) {
+  const revision = chain.moves.length ? firstRelocationParent(context) : 'HEAD';
+  const identityRows = rows.map((row) => ({ ...row, path: unfoldRootPath(row.path, chain) }));
+  return { revision, history: adoptionHistory(context.root, identityRows, revision) };
+}
+function identityProfiles(context, chain, rows, { revision, history, ...options }) {
+  const profileRows = rows.map((row) => ({ ...row, path: unfoldRootPath(row.path, chain) }));
+  const liveIndex = indexSnapshot(context.root, rows.map((row) => row.path));
+  const indexed = new Map(rows.map((row, index) => [profileRows[index].path, liveIndex.get(row.path)]));
+  return adoptionHistoryProfiles(context.root, context.collection, profileRows, { ...options, indexed, revision, history });
+}
+function firstRelocationParent(context) {
+  const commits = git(context.root, ['log', '--reverse', '--format=%H', '-G', '"type":"relocate-root"', 'HEAD', '--',
+    literalPath(outputRepoPath(context, 'curationLedger'))]).split(/\r?\n/).filter(Boolean);
+  return commits.length ? `${commits[0]}^` : 'HEAD';
+}
+
 function checkInventory(context, rows, inventory, state, historyComplete = true) {
   if (![1, 2, 3].includes(inventory.version) || inventory.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid record inventory header');
   if (inventory.version === 1 && Object.hasOwn(inventory, 'adoptionReview')) throw new Error('inventory v1 cannot contain an adoption review');
@@ -1362,15 +1461,20 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
   const originalReviewPaths = coverage.originalPaths;
   const recordRows = new Map(rows.filter((row) => row.kind === 'record').map((row) => [row.path, row]));
   const ids = new Set();
+  // Identity keeps the adoption path. Every current-tree lookup folds the relocated root prefix.
+  const chain = rootChain(context);
+  const knownIds = new Set((inventory.entries || []).map((entry) => entry.id));
   for (const entry of inventory.entries || []) {
-    const row = recordRows.get(entry.path);
+    const livePath = foldRootPath(entry.path, chain);
+    const row = recordRows.get(livePath);
     if (!row) throw new Error(`immutable record deleted, renamed, or reclassified: ${entry.path}`);
     if (!FULL_ID_RE.test(entry.id) || entry.id !== recordId(context.collection.collectionUuid, entry.path)
       || entry.identityVersion !== context.collection.identityVersion) throw new Error(`record identity drift: ${entry.path}`);
     if (!['adopted', 'native'].includes(entry.provenance) || entry.kind !== row.kind || entry.policy !== row.policy) {
       throw new Error(`invalid record provenance or classification: ${entry.path}`);
     }
-    if (!fileMatches(state, entry.path, entry.sha256)) throw new Error(`immutable record drift: ${entry.path}`);
+    if (!fileMatches(state, livePath, entry.sha256)) throw new Error(`immutable record drift: ${livePath}`);
+    assertEntryMeaning(context, entry, state.files.get(livePath).bytes.toString('utf8'), knownIds);
     if (entry.provenance === 'adopted') {
       if (!/^[0-9a-f]{40,64}$/.test(entry.introducedCommit || '') || 'introducedIndexHead' in entry || 'supersedes' in entry) {
         throw new Error(`invalid adopted record metadata: ${entry.path}`);
@@ -1386,22 +1490,24 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
       }
       if (inventory.version === 1 && 'baselineCommit' in entry) throw new Error(`inventory v1 record has a baseline commit: ${entry.path}`);
     } else {
-      const metadata = recordFrontmatter(state.files.get(entry.path).bytes.toString('utf8'));
+      const metadata = recordFrontmatter(state.files.get(livePath).bytes.toString('utf8'));
       if (entry.introducedCommit !== null || !/^[0-9a-f]{40,64}$/.test(entry.introducedIndexHead || '')
-        || canonical(entry.supersedes) !== canonical(metadata.supersedes)) throw new Error(`invalid native record metadata: ${entry.path}`);
+        || canonical(entry.supersedes) !== canonical(metadata.supersedes)
+        || canonical(entry.amends) !== canonical(metadata.amends)) throw new Error(`invalid native record metadata: ${entry.path}`);
     }
-    ids.add(entry.id); recordRows.delete(entry.path);
+    ids.add(entry.id); recordRows.delete(livePath);
   }
   const pendingAdmission = [...recordRows.keys()];
   let pendingAdmissionProblem = recordRows.size ? `record missing from inventory: ${pendingAdmission[0]}` : null;
   if (ids.size !== (inventory.entries || []).length) throw new Error('duplicate record identity');
   const immutableRows = new Map(rows.filter((row) => ['frozen', 'superseded'].includes(row.policy)).map((row) => [row.path, row]));
   for (const artifact of inventory.artifacts || []) {
-    const row = immutableRows.get(artifact.path);
+    const livePath = foldRootPath(artifact.path, chain);
+    const row = immutableRows.get(livePath);
     if (!row || artifact.kind !== row.kind || artifact.policy !== row.policy) {
       throw new Error(`frozen artifact deleted, renamed, or reclassified: ${artifact.path}`);
     }
-    if (!fileMatches(state, artifact.path, artifact.sha256)) throw new Error(`frozen artifact drift: ${artifact.path}`);
+    if (!fileMatches(state, livePath, artifact.sha256)) throw new Error(`frozen artifact drift: ${livePath}`);
     if (inventory.version === 3 && artifact.provenance === 'adopted' && 'introducedIndexHead' in artifact) {
       throw new Error(`invalid adopted artifact metadata: ${artifact.path}`);
     }
@@ -1409,7 +1515,7 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
       && !/^[0-9a-f]{40,64}$/.test(artifact.introducedIndexHead || '')) {
       throw new Error(`invalid native artifact metadata: ${artifact.path}`);
     }
-    immutableRows.delete(artifact.path);
+    immutableRows.delete(livePath);
   }
   pendingAdmission.push(...immutableRows.keys());
   if (!pendingAdmissionProblem && immutableRows.size) {
@@ -1437,9 +1543,9 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
       }
     }
     if (historyComplete) {
-      const candidateRows = rows.filter((row) => reviewCandidates.has(row.path));
-      const history = adoptionHistory(context.root, candidateRows);
-      const currentProfiles = adoptionHistoryProfiles(context.root, context.collection, candidateRows, { history });
+      const candidateRows = rows.filter((row) => reviewCandidates.has(unfoldRootPath(row.path, chain)));
+      const reviewHistory = identityHistory(context, chain, candidateRows);
+      const currentProfiles = identityProfiles(context, chain, candidateRows, reviewHistory);
       const pathsBySource = new Map();
       for (const candidate of reviewCandidates.values()) {
         const sourceHead = reviewSources.get(candidate.path);
@@ -1469,8 +1575,9 @@ function checkInventory(context, rows, inventory, state, historyComplete = true)
         }
         return sourceCommits.get(sourceHead).has(commit);
       };
-      const legacyProfiles = legacyPaths.size ? adoptionHistoryProfiles(context.root, context.collection,
-        candidateRows.filter((row) => legacyPaths.has(row.path)), { history, legacyCopyBound }) : new Map();
+      const legacyProfiles = legacyPaths.size ? identityProfiles(context, chain,
+        candidateRows.filter((row) => legacyPaths.has(unfoldRootPath(row.path, chain))), { ...reviewHistory, legacyCopyBound })
+        : new Map();
       for (const candidate of reviewCandidates.values()) {
         const current = currentProfiles.get(candidate.path);
         const sourceHead = reviewSources.get(candidate.path);
@@ -1564,7 +1671,7 @@ function legacyMatches(context, entry) {
 }
 
 function checkLegacy(context, citations, ids) {
-  for (const entry of context.manifest.legacyPaths || []) {
+  for (const entry of renderedLegacyPaths(context)) {
     if (!legacyEligible(context, entry, citations, ids)) throw new Error(`ineligible legacy path: ${entry.path}`);
     if (!legacyMatches(context, entry)) throw new Error(`legacy path drift: ${entry.path}`);
   }
@@ -1580,11 +1687,15 @@ function runCheck(context, {
   const citations = readJson(context.output.citations);
   const events = readJsonl(context.output.curationLedger);
   const ledgerText = jsonl(events);
+  validateLedger(events, context.collection.collectionUuid);
+  if (context.manifest.version === 3) readIntake(context);
+  const chain = relocationChain(events, context.collection.root);
+  const liveTarget = (citation) => (citation.target?.path ? foldRootPath(citation.target.path, chain) : undefined);
   const current = new Set(trackedPaths(context.root));
   const statePaths = new Set([
     ...rows.map((row) => row.path),
-    ...(citations.entries || []).map((citation) => citation.target?.path).filter((path) => path && current.has(path)),
-    ...(context.manifest.legacyPaths || []).map((entry) => entry.path).filter((path) => current.has(path)),
+    ...(citations.entries || []).map((citation) => liveTarget(citation)).filter((path) => path && current.has(path)),
+    ...renderedLegacyPaths(context).map((entry) => entry.path).filter((path) => current.has(path)),
   ]);
   const state = indexedState(context.root, [...statePaths]);
   const history = context.history;
@@ -1593,6 +1704,7 @@ function runCheck(context, {
   if (citations.version !== 1 || citations.collectionUuid !== context.collection.collectionUuid) throw new Error('invalid citation inventory header');
   validateLedger(events, context.collection.collectionUuid);
   for (const event of events) {
+    if (eventType(event) !== 'curate') continue;
     if (!FULL_ID_RE.test(event.recordId) || !ids.has(event.recordId)) throw new Error(`curation event references unknown record ${event.recordId}`);
   }
   if (strict && !history.ok) throw new HistoryUnavailableError(`infrastructure history unavailable: ${history.reason}`);
@@ -1615,21 +1727,21 @@ function runCheck(context, {
     if (citation.target && !/^[0-9a-f]{64}$/.test(citation.target.targetSha256 || '')) {
       throw new Error(`digest-mismatch: ${citation.normalizedTarget}`);
     }
-    const legacyEntry = (context.manifest.legacyPaths || []).find((entry) => entry.path === citation.target?.path);
+    const legacyEntry = renderedLegacyPaths(context).find((entry) => entry.path === citation.target?.path);
     const exactLegacyReplacement = legacyEntry && current.has(legacyEntry.path)
       && legacyMatches(context, legacyEntry)
       && legacyEligible(context, legacyEntry, citations.entries || [], allIds);
-    if (['resolved-immutable', 'resolved-mutable'].includes(citation.state) && !current.has(citation.target?.path)) {
+    if (['resolved-immutable', 'resolved-mutable'].includes(citation.state) && !current.has(liveTarget(citation))) {
       throw new Error(`resolved-to-dead citation regression: ${citation.normalizedTarget}`);
     }
-    if (citation.state === 'resolved-mutable' && current.has(citation.target?.path) && !exactLegacyReplacement) {
-      if (!fileMatches(state, citation.target.path, citation.target.targetSha256)) {
-        warnings.push(`mutable-drifted: ${citation.target.path}`);
+    if (citation.state === 'resolved-mutable' && current.has(liveTarget(citation)) && !exactLegacyReplacement) {
+      if (!fileMatches(state, liveTarget(citation), citation.target.targetSha256)) {
+        warnings.push(`mutable-drifted: ${liveTarget(citation)}`);
       }
     }
-    if (citation.state === 'resolved-immutable' && current.has(citation.target?.path) && !exactLegacyReplacement
-      && !fileMatches(state, citation.target.path, citation.target.targetSha256)) {
-      throw new Error(`digest-mismatch: ${citation.target.path}`);
+    if (citation.state === 'resolved-immutable' && current.has(liveTarget(citation)) && !exactLegacyReplacement
+      && !fileMatches(state, liveTarget(citation), citation.target.targetSha256)) {
+      throw new Error(`digest-mismatch: ${liveTarget(citation)}`);
     }
     if (citation.target) {
       const locator = verifyLocator(context.root, citation.target, history);
@@ -1641,7 +1753,7 @@ function runCheck(context, {
   if (!skipIndex) verifyIndex(readFileSync(context.output.index, 'utf8'), context.collection, inventory, events);
   scanRecordPrefixes(context, allIds);
   if (skipLegacyDrift) {
-    for (const entry of context.manifest.legacyPaths || []) {
+    for (const entry of renderedLegacyPaths(context)) {
       if (!legacyEligible(context, entry, citations.entries || [], allIds)) throw new Error(`ineligible legacy path: ${entry.path}`);
     }
   } else checkLegacy(context, citations.entries || [], allIds);
@@ -1661,28 +1773,46 @@ function runCheck(context, {
 
 function appendRecord(context, options) {
   if (!options.record) throw new Error('append requires --record');
-  const recordPath = posix(options.record);
-  if (!trackedPaths(context.root).includes(recordPath) || !stagedPaths(context.root).has(recordPath)) {
-    throw new Error('record must be tracked in the Git index and staged');
+  if (context.manifest.version === 3 && headOid(context.root) !== baseHead(context, options)) {
+    throw new Error('append under manifest v3 runs only on the base head; use records intake and seal');
   }
-  assertGeneratedUntouched(context);
   const history = context.history;
   if (!history.ok) throw new HistoryUnavailableError(`append refused: ${history.reason}`);
-  withMutationLock(context, (lease) => {
-    assertGeneratedUntouched(context);
+  withMutationLock(context, (lease) => admitNative(context, lease, [posix(options.record)], options));
+}
+
+// Admits staged native records in one authority batch. Seal admits every intake body this way.
+function admitNative(context, lease, recordPaths, options) {
+  const tracked = new Set(trackedPaths(context.root)); const stagedNow = stagedPaths(context.root);
+  for (const recordPath of recordPaths) {
+    if (!tracked.has(recordPath) || !stagedNow.has(recordPath)) throw new Error('record must be tracked in the Git index and staged');
+  }
+  assertGeneratedUntouched(context);
+  {
     runCheck(context, { allowPending: true });
     const { paths, rows } = collect(context);
-    const row = rows.find((candidate) => candidate.path === recordPath);
-    if (!row || row.kind !== 'record' || row.policy !== 'append-only') throw new Error('record is not classified as append-only');
-    if (pathHasHistory(context.root, recordPath)) {
-      throw new Error(`native append requires a new path with no reachable history: ${recordPath}; use reviewed adoption`);
-    }
+    const recordRows = recordPaths.map((recordPath) => {
+      const row = rows.find((candidate) => candidate.path === recordPath);
+      if (!row || row.kind !== 'record' || row.policy !== 'append-only') throw new Error(`record is not classified as append-only: ${recordPath}`);
+      if (pathHasHistory(context.root, recordPath)) {
+        throw new Error(`native append requires a new path with no reachable history: ${recordPath}; use reviewed adoption`);
+      }
+      return row;
+    });
     const currentInventory = readJson(context.output.inventory);
     const citations = readJson(context.output.citations);
     const events = readJsonl(context.output.curationLedger);
     const ledgerText = jsonl(events);
     validateLedger(events, context.collection.collectionUuid);
-    if ((currentInventory.entries || []).some((entry) => entry.path === recordPath)) throw new Error('record is already inventoried');
+    // deferred(relocated collections take no new records, fold identity paths in batch history at each introduction commit)
+    if (relocationChain(events, context.collection.root).moves.length) {
+      throw new Error('native admission into a relocated collection is not supported; admit into a native collection');
+    }
+    for (const recordPath of recordPaths) {
+      if ((currentInventory.entries || []).some((entry) => entry.path === recordPath)) {
+        throw new Error(`record is already inventoried: ${recordPath}`);
+      }
+    }
     const inventoriedArtifacts = new Set((currentInventory.artifacts || []).map((artifact) => artifact.path));
     const newArtifacts = rows.filter((candidate) => ['frozen', 'superseded'].includes(candidate.policy)
       && !inventoriedArtifacts.has(candidate.path));
@@ -1693,29 +1823,39 @@ function appendRecord(context, options) {
         throw new Error(`native append requires a new immutable artifact path with no reachable history: ${artifact.path}; use reviewed adoption`);
       }
     }
-    const immutablePaths = [recordPath, ...newArtifacts.map((artifact) => artifact.path)];
+    const immutablePaths = [...recordPaths, ...newArtifacts.map((artifact) => artifact.path)];
     const state = indexedState(context.root, immutablePaths);
-    if (state.dirty.has(recordPath)) throw new Error('staged record differs from working tree');
+    for (const recordPath of recordPaths) if (state.dirty.has(recordPath)) throw new Error(`staged record differs from working tree: ${recordPath}`);
     for (const artifact of newArtifacts) if (state.dirty.has(artifact.path)) {
       throw new Error(`staged artifact differs from working tree: ${artifact.path}`);
     }
-    const staged = state.files.get(recordPath).bytes;
-    const metadata = recordFrontmatter(staged.toString('utf8'));
-    const knownIds = new Set((currentInventory.entries || []).map((entry) => entry.id));
-    for (const id of metadata.supersedes) if (!knownIds.has(id)) throw new Error(`supersedes references unknown record ${id}`);
     const baseBindings = generatedBindings(context, currentInventory, citations, events);
     const inventory = currentInventory.version === 2
       ? migrateV2Inventory(context, currentInventory, baseBindings)
       : structuredClone(currentInventory);
     const beforeAdmission = structuredClone(inventory);
     const admissionBaseBindings = generatedBindings(context, beforeAdmission, citations, events);
-    const entry = inventoryEntry(context, row, 'native', null, state.files);
-    entry.supersedes = metadata.supersedes;
-    const additions = citationEntries(context, entry, staged.toString('utf8'), paths, rows, 'index');
-    for (const citation of additions) {
-      if (['dead-at-adoption', 'ambiguous', 'glob'].includes(citation.state)
-        || citation.resolvedVia.includes('glob-expanded')) throw new Error(`native record has unresolved citation: ${citation.rawTarget}`);
-      if (citation.state === 'resolved-mutable' && !citation.target?.targetSha256) throw new Error(`native mutable citation lacks a target digest: ${citation.rawTarget}`);
+    const admittedIds = new Set(recordRows.map((row) => recordId(context.collection.collectionUuid, row.path)));
+    const knownIds = new Set([...(currentInventory.entries || []).map((entry) => entry.id), ...admittedIds]);
+    const newEntries = []; const additions = [];
+    for (const row of recordRows) {
+      const text = state.files.get(row.path).bytes.toString('utf8');
+      const metadata = recordFrontmatter(text);
+      for (const id of [...metadata.supersedes, ...(metadata.amends || [])]) {
+        if (!knownIds.has(id) || id === recordId(context.collection.collectionUuid, row.path)) throw new Error(`record references unknown record ${id}`);
+      }
+      const entry = inventoryEntry(context, row, 'native', null, state.files);
+      entry.supersedes = metadata.supersedes;
+      if (metadata.amends) entry.amends = metadata.amends;
+      const meaning = admissionMeaning(context, text, metadata.amends, inventory);
+      if (meaning) entry.meaning = meaning;
+      const recordAdditions = citationEntries(context, entry, text, paths, rows, 'index');
+      for (const citation of recordAdditions) {
+        if (['dead-at-adoption', 'ambiguous', 'glob'].includes(citation.state)
+          || citation.resolvedVia.includes('glob-expanded')) throw new Error(`native record has unresolved citation: ${citation.rawTarget}`);
+        if (citation.state === 'resolved-mutable' && !citation.target?.targetSha256) throw new Error(`native mutable citation lacks a target digest: ${citation.rawTarget}`);
+      }
+      newEntries.push(entry); additions.push(...recordAdditions);
     }
     for (const artifact of newArtifacts) {
       inventory.artifacts.push({
@@ -1724,7 +1864,7 @@ function appendRecord(context, options) {
         introducedIndexHead: headOid(context.root),
       });
     }
-    inventory.entries.push(entry);
+    inventory.entries.push(...newEntries);
     if (inventory.version === 3) {
       addAuthorityBatch(context, inventory, 'native-append', beforeAdmission, immutablePaths,
         { baseBindings: admissionBaseBindings });
@@ -1757,11 +1897,11 @@ function appendRecord(context, options) {
       throw error;
     }
     console.log(JSON.stringify({
-      staged: options['no-stage'] ? [] : [recordPath, ...generated], written: generated,
+      staged: options['no-stage'] ? [] : [...recordPaths, ...generated], written: generated,
       migrated: currentInventory.version === 2,
       ...(inventory.version === 3 ? { authorityBatch: inventory.authorityBatches.at(-1).batchDigest } : {}),
     }));
-  });
+  }
 }
 
 function curate(context, options) {
@@ -1771,6 +1911,12 @@ function curate(context, options) {
   let state;
   try { state = JSON.parse(options.state); } catch { throw new Error('--state must be valid JSON'); }
   if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('--state must be a complete JSON object');
+  const v3 = context.manifest.version === 3;
+  if (v3) {
+    const errors = curationStateErrors(state);
+    if (errors.length) throw new Error(errors[0]);
+  }
+  const onBase = !v3 || headOid(context.root) === baseHead(context, options);
   withMutationLock(context, (lease) => {
     runCheck(context, { allowPending: true });
     const inventory = readJson(context.output.inventory);
@@ -1778,24 +1924,306 @@ function curate(context, options) {
     const record = FULL_ID_RE.test(options.record) ? options.record : resolvePrefix(options.record, ids);
     if (!ids.includes(record)) throw new Error(`unknown record ${record}`);
     const events = readJsonl(context.output.curationLedger);
-    const ledgerText = jsonl(events);
-    const previousEventDigest = validateLedger(events, context.collection.collectionUuid);
-    const previousRecordEventDigest = [...events].reverse().find((event) => event.recordId === record)?.eventDigest || null;
+    validateLedger(events, context.collection.collectionUuid);
+    // Off the base head a v3 branch never writes the chain. The change waits in intake for a seal.
+    if (!onBase) {
+      const prior = readIntake(context).filter((line) => line.type === 'curate' && line.recordId === record).at(-1);
+      const line = appendIntakeLine(context, {
+        type: 'curate', collection: context.collection.id, recordId: record, state,
+        basis: prior ? prior.intakeId : lastRecordEventDigest(events, record), createdAt: options.at || new Date().toISOString(),
+      }, lease);
+      console.log(JSON.stringify({ routed: 'intake', intakeId: line.intakeId, basis: line.basis }));
+      return;
+    }
+    const event = curationEvent(context, events, record, state, options.at);
+    appendCurationEvents(context, lease, inventory, events, [event]);
+    console.log(JSON.stringify({ sequence: event.sequence, eventDigest: event.eventDigest }));
+  });
+}
+
+function curationEvent(context, events, record, state, at) {
+  const event = {
+    collectionUuid: context.collection.collectionUuid, sequence: events.length + 1,
+    previousEventDigest: events.at(-1)?.eventDigest || null, recordId: record,
+    previousRecordEventDigest: lastRecordEventDigest(events, record),
+    ...(context.manifest.version === 3 ? { type: 'curate' } : {}),
+    state, curatedAt: at || new Date().toISOString(),
+  };
+  return { ...event, eventDigest: digestJson(event) };
+}
+
+function appendCurationEvents(context, lease, inventory, events, added) {
+  const nextText = jsonl(events) + jsonl(added);
+  const citations = readJson(context.output.citations);
+  assertBaseline(context, inventory, citations, nextText);
+  const writes = [
+    [context.output.curationLedger, nextText],
+    [context.output.index, renderCurrent(context, inventory, [...events, ...added])],
+  ];
+  writeVerified(writes, () => runCheck(context, { allowPending: true }), () => assertMutationLease(lease));
+}
+
+function baseHead(context, options) {
+  let ref = options.base;
+  if (!ref) {
+    try { git(context.root, ['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/HEAD']); ref = 'origin/HEAD'; } catch { ref = 'main'; }
+  }
+  try { return git(context.root, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).trim(); }
+  catch { throw new Error(`base ref ${ref} does not resolve; pass --base`); }
+}
+
+const INTAKE_DIR = '98 System/Records/intake';
+function intakeFile(context) { return nativePath(context.root, `${context.hub}/98 System/Records/intake.jsonl`); }
+function readIntake(context) {
+  const path = intakeFile(context);
+  if (!existsSync(path)) return [];
+  const text = readFileSync(path, 'utf8');
+  if (text && !text.endsWith('\n')) throw new Error('intake.jsonl must end with a newline');
+  return text.split('\n').filter(Boolean).map((raw, index) => {
+    let line;
+    try { line = JSON.parse(raw); } catch { throw new Error(`invalid intake JSONL at line ${index + 1}`); }
+    const errors = intakeLineErrors(line);
+    if (errors.length) throw new Error(`intake line ${index + 1}: ${errors[0]}`);
+    return line;
+  });
+}
+function appendIntakeLine(context, body, lease) {
+  const line = { ...body, intakeId: intakeId(body) };
+  const errors = intakeLineErrors(line);
+  if (errors.length) throw new Error(errors[0]);
+  const lines = readIntake(context);
+  if (lines.some((existing) => existing.intakeId === line.intakeId)) throw new Error(`intake line already exists: ${line.intakeId}`);
+  const path = intakeFile(context);
+  assertMutationLease(lease);
+  writeAtomically([[path, jsonl([...lines, line])]]);
+  git(context.root, ['add', '--', relativeRoot(context.root, path)]);
+  return line;
+}
+
+function assertManifestV3(context, command) {
+  if (context.manifest.version !== 3) throw new Error(`${command} requires documentation manifest v3`);
+}
+
+// A branch stages a record body under intake and names its target. The id is known before the seal.
+function intakeRecord(context, options) {
+  assertManifestV3(context, 'intake');
+  if (!options.record) throw new Error('intake requires --record with the staged intake body path');
+  const intakePath = posix(options.record);
+  const prefix = `${context.hub}/${INTAKE_DIR}/${context.collection.id}/`;
+  if (!intakePath.startsWith(prefix) || !safePath(intakePath)) throw new Error(`intake body must sit under ${prefix}`);
+  if (!trackedPaths(context.root).includes(intakePath) || !stagedPaths(context.root).has(intakePath)) {
+    throw new Error('intake body must be tracked in the Git index and staged');
+  }
+  const target = `${context.collection.root}/${intakePath.slice(prefix.length)}`;
+  const [row] = classify(context.collection, [target]);
+  if (!row || row.kind !== 'record' || row.policy !== 'append-only') throw new Error(`intake target is not an append-only record path: ${target}`);
+  if (trackedPaths(context.root).includes(target) || pathHasHistory(context.root, target)) {
+    throw new Error(`intake target already has history: ${target}`);
+  }
+  withMutationLock(context, (lease) => {
+    runCheck(context, { allowPending: true });
+    const events = readJsonl(context.output.curationLedger);
+    if (relocationChain(events, context.collection.root).moves.length) {
+      throw new Error('native admission into a relocated collection is not supported; admit into a native collection');
+    }
+    const state = indexedState(context.root, [intakePath]);
+    if (state.dirty.has(intakePath)) throw new Error('staged intake body differs from working tree');
+    const file = state.files.get(intakePath); const text = file.bytes.toString('utf8');
+    const metadata = recordFrontmatter(text);
+    admissionMeaning(context, text, metadata.amends, readJson(context.output.inventory));
+    if (readIntake(context).some((line) => line.type === 'record' && line.path === target)) throw new Error(`intake already names target ${target}`);
+    const line = appendIntakeLine(context, {
+      type: 'record', collection: context.collection.id, intakePath, path: target,
+      recordId: recordId(context.collection.collectionUuid, target), sha256: file.targetSha256,
+      createdAt: options.at || new Date().toISOString(),
+    }, lease);
+    console.log(JSON.stringify({ intakeId: line.intakeId, recordId: line.recordId, target }));
+  });
+}
+
+// Applies curate intake lines in file order. A line whose basis no longer matches its record head is refused.
+function sealCurationEvents(context, lines, events, knownIds, at) {
+  const heads = new Map(); const added = []; let ledger = [...events];
+  for (const line of lines) {
+    if (!knownIds.has(line.recordId)) throw new Error(`intake line ${line.intakeId} names unknown record ${line.recordId}`);
+    const head = heads.get(line.recordId) || { line: null, digest: lastRecordEventDigest(events, line.recordId) };
+    const expected = head.line ? head.line.intakeId : head.digest;
+    if (line.basis !== expected) {
+      const mover = head.line ? `intake line ${head.line.intakeId}` : `ledger head ${head.digest}`;
+      throw new Error(`seal refused: intake line ${line.intakeId} basis ${line.basis} no longer matches record ${line.recordId}; ${mover} moved it. Write one resolving intake line.`);
+    }
+    const event = curationEvent(context, ledger, line.recordId, line.state, at || line.createdAt);
+    ledger = [...ledger, event]; added.push(event);
+    heads.set(line.recordId, { line, digest: event.eventDigest });
+  }
+  return added;
+}
+
+// Seal runs on a fresh branch cut from the base head and stages one commit's worth of chain writes.
+function seal(context, options) {
+  assertManifestV3(context, 'seal');
+  if (!context.history.ok) throw new HistoryUnavailableError(`seal refused: ${context.history.reason}`);
+  if (headOid(context.root) !== baseHead(context, options)) throw new Error('seal runs only on a branch at the base head');
+  if (git(context.root, ['status', '--porcelain=v1', '--untracked-files=no']).trim()) throw new Error('seal requires a clean tracked tree');
+  withMutationLock(context, (lease) => {
+    runCheck(context, { allowPending: true });
+    const all = readIntake(context);
+    const sealed = all.filter((line) => line.collection === context.collection.id);
+    if (!sealed.length) throw new Error(`no intake lines for collection ${context.collection.id}`);
+    const recordLines = sealed.filter((line) => line.type === 'record');
+    const inventory = readJson(context.output.inventory);
+    const knownIds = new Set([...(inventory.entries || []).map((entry) => entry.id), ...recordLines.map((line) => line.recordId)]);
+    const events = readJsonl(context.output.curationLedger);
+    validateLedger(events, context.collection.collectionUuid);
+    sealCurationEvents(context, sealed.filter((line) => line.type === 'curate'), events, knownIds, options.at);
+    const intakeState = indexedState(context.root, recordLines.map((line) => line.intakePath));
+    for (const line of recordLines) {
+      if (!fileMatches(intakeState, line.intakePath, line.sha256)) throw new Error(`intake body drift: ${line.intakePath}`);
+      if (line.path !== `${context.collection.root}/${line.intakePath.slice(`${context.hub}/${INTAKE_DIR}/${context.collection.id}/`.length)}`) {
+        throw new Error(`intake line ${line.intakeId} target does not match its body path`);
+      }
+    }
+    try {
+      for (const line of recordLines) {
+        mkdirSync(dirname(nativePath(context.root, line.path)), { recursive: true });
+        git(context.root, ['mv', '--', line.intakePath, line.path]);
+      }
+      if (recordLines.length) admitNative(context, lease, recordLines.map((line) => line.path), {});
+      const admitted = readJson(context.output.inventory);
+      const ledger = readJsonl(context.output.curationLedger);
+      const added = sealCurationEvents(context, sealed.filter((line) => line.type === 'curate'), ledger, knownIds, options.at);
+      if (added.length) appendCurationEvents(context, lease, admitted, ledger, added);
+      const remaining = all.filter((line) => line.collection !== context.collection.id);
+      const intakeRepoPath = relativeRoot(context.root, intakeFile(context));
+      assertMutationLease(lease);
+      if (remaining.length) writeAtomically([[intakeFile(context), jsonl(remaining)]]);
+      else rmSync(intakeFile(context), { force: true });
+      git(context.root, ['add', '-A', '--', intakeRepoPath, ...['curationLedger', 'index'].map((key) => outputRepoPath(context, key))]);
+      runCheck(context);
+      console.log(JSON.stringify({ sealed: sealed.map((line) => line.intakeId), admitted: recordLines.length, events: added.length }));
+    } catch (error) {
+      // The seal began on a clean tracked tree, so resetting to HEAD restores exactly the pre-seal state.
+      git(context.root, ['reset', '--hard', '--quiet', 'HEAD']);
+      throw error;
+    }
+  });
+}
+
+// A whole collection moves with its root. Every record keeps its identity path and its bytes.
+function relocateRoot(context, options) {
+  if (!options.from) throw new Error('relocate-root requires --from with the previous collection root');
+  if (!context.history.ok) throw new HistoryUnavailableError(`relocation refused: ${context.history.reason}`);
+  const fromRoot = posix(options.from); const toRoot = context.collection.root;
+  if (!safePath(fromRoot) || fromRoot === toRoot) throw new Error('relocate-root needs a safe --from that differs from the manifest root');
+  withMutationLock(context, (lease) => {
+    const events = readJsonl(context.output.curationLedger);
+    validateLedger(events, context.collection.collectionUuid);
+    relocationChain(events, fromRoot);
+    const stranded = trackedPaths(context.root).filter((path) => path.startsWith(`${fromRoot}/`));
+    if (stranded.length) throw new Error(`relocate-root must move the whole root; still tracked: ${stranded[0]}`);
     const event = {
       collectionUuid: context.collection.collectionUuid, sequence: events.length + 1,
-      previousEventDigest, recordId: record, previousRecordEventDigest,
-      state, curatedAt: options.at || new Date().toISOString(),
+      previousEventDigest: events.at(-1)?.eventDigest || null, type: 'relocate-root', fromRoot, toRoot,
+      relocatedAt: options.at || new Date().toISOString(),
     };
-    event.eventDigest = digestJson(event);
-    const nextText = ledgerText + jsonl([event]);
-    const citations = readJson(context.output.citations);
-    assertBaseline(context, inventory, citations, nextText);
+    const added = { ...event, eventDigest: digestJson(event) };
+    const chain = relocationChain([...events, added], toRoot);
+    const inventory = readJson(context.output.inventory);
+    const pinned = [...(inventory.entries || []), ...(inventory.artifacts || [])];
+    const state = indexedState(context.root, pinned.map((item) => foldRootPath(item.path, chain)));
+    for (const item of pinned) {
+      const livePath = foldRootPath(item.path, chain);
+      if (!fileMatches(state, livePath, item.sha256)) throw new Error(`relocate-root rejected: bytes differ at ${livePath}`);
+    }
+    appendCurationEvents(context, lease, inventory, events, [added]);
+    console.log(JSON.stringify({ sequence: added.sequence, eventDigest: added.eventDigest, fromRoot, toRoot }));
+  });
+}
+
+function commitDate(root, commit) {
+  return commit ? git(root, ['show', '-s', '--format=%cs', commit]).trim() : '';
+}
+function registerCell(value) { return String(value).replace(/\|/g, '\\|').replace(/\r?\n/g, ' '); }
+
+// The register reads sealed state across every collection plus intake, and marks intake lines pending seal.
+function registerModel(context) {
+  const intake = context.manifest.version === 3 ? readIntake(context) : [];
+  const pendingCuration = new Map(intake.filter((line) => line.type === 'curate').map((line) => [line.recordId, line.intakeId]));
+  const records = [];
+  for (const collection of context.manifest.recordCollections || []) {
+    const inventory = readJson(nativePath(context.root, `${context.hub}/${collection.inventory}`), { entries: [] });
+    const events = readJsonl(nativePath(context.root, `${context.hub}/${collection.curationLedger}`));
+    const chain = relocationChain(events, collection.root); const states = foldedCuration(events);
+    for (const entry of inventory.entries || []) {
+      if (!entry.meaning) continue;
+      const kind = entry.meaning.kind;
+      records.push({
+        id: entry.id, collection: collection.id, path: foldRootPath(entry.path, chain), ...entry.meaning,
+        status: states.get(entry.id)?.status ?? (['decision', 'amendment'].includes(kind) ? 'in-force' : 'historical'),
+        amends: entry.amends || [], date: commitDate(context.root, entry.introducedCommit || entry.introducedIndexHead),
+        pendingSeal: pendingCuration.get(entry.id) || null,
+      });
+    }
+  }
+  for (const line of intake.filter((candidate) => candidate.type === 'record')) {
+    const meaning = recordMeaning(readFileSync(nativePath(context.root, line.intakePath), 'utf8'));
+    if (!meaning) continue;
+    const amends = recordFrontmatter(readFileSync(nativePath(context.root, line.intakePath), 'utf8')).amends || [];
+    records.push({
+      id: line.intakeId, collection: line.collection, path: line.intakePath, ...meaning,
+      status: 'in-force', amends, date: line.createdAt.slice(0, 10), pendingSeal: line.intakeId,
+    });
+  }
+  return records.sort((left, right) => (left.date === right.date ? left.id.localeCompare(right.id) : left.date.localeCompare(right.date)));
+}
+
+function renderRegister(context, records) {
+  const registerPath = `${context.hub}/20 Decisions/REGISTER.md`;
+  const link = (path) => `[${registerCell(path.split('/').at(-1))}](<${encodeURI(posix(relative(dirname(registerPath), path)))}>)`;
+  const label = (record) => {
+    if (!record.pendingSeal) return record.id;
+    return record.pendingSeal === record.id ? `${record.id} (pending seal)` : `${record.id} (pending seal ${record.pendingSeal})`;
+  };
+  const rules = records.filter((record) => record.kind === 'decision' && ['in-force', 'amended'].includes(record.status));
+  const topics = [...new Set(rules.map((record) => record.topic))].sort();
+  const lines = ['<!-- generated by records.mjs render --register v1 -->', '# Decision register', ''];
+  for (const topic of topics) {
+    lines.push(`## ${registerCell(topic)}`, '', '| Id | Decides | Date | Source | Amendments |', '| --- | --- | --- | --- | --- |');
+    for (const record of rules.filter((candidate) => candidate.topic === topic)) {
+      const amendments = records.filter((candidate) => candidate.kind === 'amendment' && candidate.amends.includes(record.id))
+        .map(label).join(', ');
+      lines.push(`| ${label(record)} | ${registerCell(record.decides)} | ${record.date} | ${link(record.path)} | ${amendments} |`);
+    }
+    lines.push('');
+  }
+  const summaries = records.filter((record) => record.kind === 'summary');
+  if (summaries.length) {
+    lines.push('## Summaries', '', '| Id | Title | Date | Source |', '| --- | --- | --- | --- |');
+    for (const record of summaries) lines.push(`| ${label(record)} | ${registerCell(record.title)} | ${record.date} | ${link(record.path)} |`);
+    lines.push('');
+  }
+  return { registerPath, text: `${lines.join('\n').replace(/\n+$/, '')}\n` };
+}
+
+function renderRegisterTargets(context) {
+  withMutationLock(context, (lease) => {
+    runCheck(context, { allowPending: true });
+    const records = registerModel(context);
+    const { registerPath, text } = renderRegister(context, records);
+    const state = {
+      version: 1,
+      records: records.map((record) => ({
+        id: record.id, collection: record.collection, path: record.path, kind: record.kind,
+        ...(record.key ? { key: record.key } : {}), status: record.status, pendingSeal: record.pendingSeal,
+      })).sort((left, right) => left.id.localeCompare(right.id)),
+    };
     const writes = [
-      [context.output.curationLedger, nextText],
-      [context.output.index, renderCurrent(context, inventory, [...events, event])],
+      [nativePath(context.root, registerPath), text],
+      [nativePath(context.root, `${context.hub}/98 System/Records/state.json`), `${JSON.stringify(state, null, 2)}\n`],
     ];
+    for (const [path] of writes) mkdirSync(dirname(path), { recursive: true });
     writeVerified(writes, () => runCheck(context, { allowPending: true }), () => assertMutationLease(lease));
-    console.log(JSON.stringify({ sequence: event.sequence, eventDigest: event.eventDigest }));
+    console.log(JSON.stringify({ written: writes.map(([path]) => relativeRoot(context.root, path)) }));
   });
 }
 
@@ -1809,7 +2237,7 @@ function render(context, options) {
     if (options.legacy) {
       citations = readJson(context.output.citations).entries || [];
       ids = allCollectionIds(context);
-      for (const entry of context.manifest.legacyPaths || []) {
+      for (const entry of renderedLegacyPaths(context)) {
         if (!legacyEligible(context, entry, citations, ids)) throw new Error(`ineligible legacy path: ${entry.path}`);
         writes.push([nativePath(context.root, entry.path), legacyContent(context, entry)]);
       }
@@ -1882,15 +2310,19 @@ function classifyCommand(context) {
 }
 
 // Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
-const RECORDS_USAGE = 'usage: records.mjs <classify|plan-adoption|adopt|re-review|curate|append|render|check|verify-history|reindex-locators> [--root <dir>] [--manifest <file>] [--collection <id>] [command options]';
+const RECORDS_USAGE = 'usage: records.mjs <classify|plan-adoption|adopt|re-review|curate|append|intake|seal|relocate-root|render [--register]|check|verify-history|reindex-locators> [--root <dir>] [--manifest <file>] [--collection <id>] [command options]';
 const [command, ...argv] = process.argv.slice(2);
 if (argv.concat(command).some((a) => a === '--help' || a === '-h')) { console.log(RECORDS_USAGE); process.exit(0); }
 try {
   const options = parseArgs(argv);
   validateInvocation(command, options);
   const root = physicalRoot(options.root || process.cwd());
-  const context = loadContext(root, options);
+  const context = loadContext(root, options, command === 'relocate-root' ? posix(options.from || '') : null);
   if (command === 'classify') classifyCommand(context);
+  else if (command === 'intake') intakeRecord(context, options);
+  else if (command === 'seal') seal(context, options);
+  else if (command === 'relocate-root') relocateRoot(context, options);
+  else if (command === 'render' && options.register) renderRegisterTargets(context);
   else if (command === 'plan-adoption') planAdoption(context, options);
   else if (command === 'adopt') adopt(context, options);
   else if (command === 're-review') reReview(context, options);

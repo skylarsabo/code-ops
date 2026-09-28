@@ -599,17 +599,17 @@ function parseHistory(output) {
   return events;
 }
 
-function pathHistory(root, path, follow = false) {
+function pathHistory(root, path, follow = false, revision = 'HEAD') {
   return parseHistory(git(root, [
     'log', '--topo-order', ...(follow ? ['--follow'] : []),
-    '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev',
+    '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev', revision,
     '--', `:(literal)${path}`,
   ], true).toString('utf8'));
 }
 
-function pathsHistory(root, paths) {
+function pathsHistory(root, paths, revision = 'HEAD') {
   return parseHistory(git(root, [
-    'log', '--topo-order', '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '--no-renames', '--no-abbrev',
+    'log', '--topo-order', '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '--no-renames', '--no-abbrev', revision,
     '--', ...paths.map((path) => `:(literal)${path}`),
   ], true).toString('utf8'));
 }
@@ -633,10 +633,11 @@ export function historyPathBatches(paths) {
   return batches;
 }
 
-function repositoryHistory(root, rows) {
+// `revision` bounds the walk. A relocated collection profiles its identity paths at the commit before the move.
+function repositoryHistory(root, rows, revision = 'HEAD') {
   const lineagePaths = new Set(rows.map((row) => row.path)); const discovered = new Map();
   for (const path of [...lineagePaths].sort()) {
-    for (const event of pathHistory(root, path, true)) {
+    for (const event of pathHistory(root, path, true, revision)) {
       discovered.set(canonical(event), event);
       if (event.status === 'R') { lineagePaths.add(event.oldPath); lineagePaths.add(event.newPath); }
       if (lineagePaths.size > MAX_HISTORY_PATHS) throw new Error(`record history profile exceeds ${MAX_HISTORY_PATHS} lineage paths`);
@@ -644,12 +645,12 @@ function repositoryHistory(root, rows) {
   }
   const exactPaths = [...lineagePaths].sort();
   for (const batch of historyPathBatches(exactPaths)) {
-    for (const event of pathsHistory(root, batch)) {
+    for (const event of pathsHistory(root, batch, revision)) {
       discovered.set(canonical(event), event);
       if (discovered.size > MAX_HISTORY_EVENTS) throw new Error(`record history profile exceeds ${MAX_HISTORY_EVENTS} relevant events`);
     }
   }
-  const commitRows = git(root, ['rev-list', '--topo-order', '--parents', 'HEAD']).trim().split(/\r?\n/)
+  const commitRows = git(root, ['rev-list', '--topo-order', '--parents', revision]).trim().split(/\r?\n/)
     .filter(Boolean).map((line) => line.split(/\s+/));
   const commitOrder = new Map(commitRows.map(([commit], index) => [commit, index]));
   const commitParents = new Map(commitRows.map(([commit, ...parents]) => [commit, parents]));
@@ -745,16 +746,16 @@ function treeBlobOids(root, commit, paths) {
 const immutableCandidates = (rows) => rows
   .filter((candidate) => candidate.kind === 'record' || ['frozen', 'superseded'].includes(candidate.policy));
 
-export function adoptionHistory(root, rows) { return repositoryHistory(root, immutableCandidates(rows)); }
+export function adoptionHistory(root, rows, revision = 'HEAD') { return repositoryHistory(root, immutableCandidates(rows), revision); }
 
 export function adoptionHistoryProfiles(root, collection, rows, {
-  allowUncommitted = false, indexed = null, history = null, legacyCopyBound = null,
+  allowUncommitted = false, indexed = null, history = null, legacyCopyBound = null, revision = 'HEAD',
 } = {}) {
   const immutable = immutableCandidates(rows);
-  const repository = history || repositoryHistory(root, immutable); const profiles = new Map(); const profileDrafts = [];
+  const repository = history || repositoryHistory(root, immutable, revision); const profiles = new Map(); const profileDrafts = [];
   const copyFreeEvents = legacyCopyBound ? null : rowHistoryEvents(repository, null, null);
   const currentIndex = indexed || indexSnapshot(root, immutable.map((row) => row.path));
-  const headBlobOids = treeBlobOids(root, 'HEAD', immutable.map((row) => row.path));
+  const headBlobOids = treeBlobOids(root, revision, immutable.map((row) => row.path));
   for (const row of immutable) {
     const events = copyFreeEvents || rowHistoryEvents(repository, row.path, legacyCopyBound);
     const exactEvents = events.flatMap((event, eventIndex) => {
@@ -1249,26 +1250,177 @@ export function readJsonl(path) {
   });
 }
 export function jsonl(events) { return events.map((event) => canonical(event) + '\n').join(''); }
+// An event with no type predates typed events and reads as curate, so v2 ledgers stay valid.
+export const CURATION_EVENT_TYPES = new Set(['curate', 'relocate-root']);
+export const CURATION_STATUSES = new Set(['in-force', 'amended', 'superseded', 'historical']);
+const RELOCATE_ROOT_KEYS = 'collectionUuid,eventDigest,fromRoot,previousEventDigest,relocatedAt,sequence,toRoot,type';
+export function eventType(event) { return event.type === undefined ? 'curate' : event.type; }
+export function curationStateErrors(state) {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return ['curation state must be a JSON object'];
+  if (!CURATION_STATUSES.has(state.status)) {
+    return [`curation status must be one of ${[...CURATION_STATUSES].join(', ')}`];
+  }
+  return [];
+}
+function validRelocation(event) {
+  return Object.keys(event).sort().join(',') === RELOCATE_ROOT_KEYS
+    && safePath(event.fromRoot) && safePath(event.toRoot) && event.fromRoot !== event.toRoot
+    && typeof event.relocatedAt === 'string' && event.relocatedAt.length > 0;
+}
 export function validateLedger(events, collectionUuid) {
   let previous = null; const perRecord = new Map();
   for (let index = 0; index < events.length; index += 1) {
-    const event = events[index]; const priorRecord = perRecord.get(event.recordId) || null;
+    const event = events[index]; const type = eventType(event);
+    if (!CURATION_EVENT_TYPES.has(type)) throw new Error(`curation ledger has unknown event type at sequence ${index + 1}`);
+    const typedValid = type === 'curate'
+      ? event.previousRecordEventDigest === (perRecord.get(event.recordId) || null)
+        && event.state && typeof event.state === 'object' && !Array.isArray(event.state)
+      : validRelocation(event);
     if (event.collectionUuid !== collectionUuid || event.sequence !== index + 1
-      || event.previousEventDigest !== previous || event.previousRecordEventDigest !== priorRecord
-      || !event.state || typeof event.state !== 'object' || Array.isArray(event.state)) {
+      || event.previousEventDigest !== previous || !typedValid) {
       throw new Error('curation ledger predecessor chain is invalid');
     }
     const copy = { ...event }; delete copy.eventDigest;
     const digest = digestJson(copy);
     if (event.eventDigest !== digest) throw new Error('curation ledger event digest mismatch');
-    previous = digest; perRecord.set(event.recordId, digest);
+    previous = digest;
+    if (type === 'curate') perRecord.set(event.recordId, digest);
   }
   return previous;
 }
+// The fold reads curate events only, so a relocation never overwrites a status.
 export function foldedCuration(events) {
   const state = new Map();
-  for (const event of events) state.set(event.recordId, event.state);
+  for (const event of events) if (eventType(event) === 'curate') state.set(event.recordId, event.state);
   return state;
+}
+export function lastRecordEventDigest(events, id) {
+  return [...events].reverse().find((event) => eventType(event) === 'curate' && event.recordId === id)?.eventDigest || null;
+}
+// Root relocations form one chain from the identity root to the manifest root. Each move swaps one prefix.
+export function relocationChain(events, currentRoot) {
+  const moves = events.filter((event) => eventType(event) === 'relocate-root');
+  let root = moves.length ? moves[0].fromRoot : currentRoot;
+  const identityRoot = root;
+  for (const move of moves) {
+    if (move.fromRoot !== root) throw new Error(`relocate-root chain is broken at sequence ${move.sequence}`);
+    root = move.toRoot;
+  }
+  if (root !== currentRoot) throw new Error(`manifest root ${currentRoot} does not match the relocated root ${root}`);
+  return { identityRoot, currentRoot, moves };
+}
+function swapRoot(path, from, to) {
+  if (from === to) return path;
+  if (path === from) return to;
+  return path.startsWith(`${from}/`) ? `${to}${path.slice(from.length)}` : path;
+}
+export function foldRootPath(path, chain) { return swapRoot(path, chain.identityRoot, chain.currentRoot); }
+export function unfoldRootPath(path, chain) { return swapRoot(path, chain.currentRoot, chain.identityRoot); }
+
+export const RECORD_KINDS = new Set(['decision', 'amendment', 'erratum', 'evidence', 'report', 'summary']);
+const KEYED_KINDS = new Set(['decision', 'amendment']);
+const KEY_PART_RE = /^[a-z0-9]+(?:-[a-z0-9]+){0,4}$/;
+const MAX_DECIDES_WORDS = 25;
+function frontmatterScalar(block, key) {
+  const lines = [...block.matchAll(new RegExp(`^${key}:[ \\t]*(.*?)[ \\t]*$`, 'gm'))];
+  if (lines.length > 1) throw new Error(`record frontmatter repeats ${key}`);
+  if (!lines.length) return undefined;
+  const value = lines[0][1];
+  if (/^".*"$/.test(value)) {
+    try { return JSON.parse(value); } catch { throw new Error(`record frontmatter ${key} is not a valid quoted string`); }
+  }
+  return /^'.*'$/.test(value) ? value.slice(1, -1).replace(/''/g, "'") : value;
+}
+// Meaning is read from the immutable bytes, so an inventory entry can never drift from its record.
+// A record without a known frontmatter kind carries no meaning, which keeps pre-W2 bytes valid.
+export function recordMeaning(text) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+  if (!match) return null;
+  const kind = frontmatterScalar(match[1], 'kind');
+  if (!RECORD_KINDS.has(kind)) return null;
+  const meaning = { kind };
+  for (const field of ['title', 'topic']) {
+    const value = frontmatterScalar(match[1], field);
+    if (typeof value !== 'string' || !value.trim()) throw new Error(`${kind} record requires a one-line ${field}`);
+    meaning[field] = value;
+  }
+  const key = frontmatterScalar(match[1], 'key'); const decides = frontmatterScalar(match[1], 'decides');
+  if (KEYED_KINDS.has(kind)) {
+    const [domain, subject, extra] = typeof key === 'string' ? key.split('/') : [];
+    if (!KEY_PART_RE.test(domain || '') || !KEY_PART_RE.test(subject || '') || extra !== undefined) {
+      throw new Error(`${kind} record requires key as <domain>/<subject>`);
+    }
+    if (typeof decides !== 'string' || !decides.trim()) throw new Error(`${kind} record requires a one-line decides`);
+    if (decides.trim().split(/\s+/).length > MAX_DECIDES_WORDS) {
+      throw new Error(`${kind} record decides exceeds ${MAX_DECIDES_WORDS} words`);
+    }
+    meaning.key = key; meaning.decides = decides;
+  } else if (key !== undefined || decides !== undefined) {
+    throw new Error(`${kind} record must not carry key or decides`);
+  }
+  return meaning;
+}
+
+// Intake lines hold branch work outside both chains until a seal on the base head admits them.
+const INTAKE_KEYS = {
+  record: 'collection,createdAt,intakeId,intakePath,path,recordId,sha256,type',
+  curate: 'basis,collection,createdAt,intakeId,recordId,state,type',
+};
+export function intakeId(line) {
+  const { intakeId: _intakeId, ...body } = line;
+  return `INT-${digestJson(body).slice(0, 20)}`;
+}
+export function intakeLineErrors(line) {
+  if (!line || typeof line !== 'object' || Array.isArray(line) || !Object.hasOwn(INTAKE_KEYS, line.type)) {
+    return ['intake line has an unknown type'];
+  }
+  const errors = [];
+  if (Object.keys(line).sort().join(',') !== INTAKE_KEYS[line.type]) errors.push(`intake ${line.type} line has invalid keys`);
+  if (line.intakeId !== intakeId(line)) errors.push('intake line id does not match its content');
+  if (!FULL_ID_RE.test(line.recordId || '')) errors.push('intake line needs a full record id');
+  if (line.type === 'record' && (!safePath(line.path) || !safePath(line.intakePath) || !/^[0-9a-f]{64}$/.test(line.sha256 || ''))) {
+    errors.push('intake record line needs safe paths and a sha256');
+  }
+  if (line.type === 'curate') {
+    errors.push(...curationStateErrors(line.state));
+    if (line.basis !== null && !/^[0-9a-f]{64}$/.test(line.basis || '') && !/^INT-[0-9a-f]{20}$/.test(line.basis || '')) {
+      errors.push('intake curate basis must be null, a record event digest, or an intake id');
+    }
+  }
+  return errors;
+}
+
+// FORWARDING.json maps each relocated path prefix to its new prefix, so history keeps resolving.
+export function forwardingErrors(document) {
+  if (!document || typeof document !== 'object' || Array.isArray(document)) return ['FORWARDING.json must be an object'];
+  const errors = [];
+  if (Object.keys(document).sort().join(',') !== 'forwards,version' || document.version !== 1) {
+    errors.push('FORWARDING.json needs exactly version 1 and forwards');
+  }
+  if (!Array.isArray(document.forwards)) return [...errors, 'FORWARDING.json forwards must be an array'];
+  const seen = new Set();
+  for (const [index, forward] of document.forwards.entries()) {
+    const label = `forwards[${index}]`;
+    if (!forward || Object.keys(forward).sort().join(',') !== 'from,movedAt,reason,to'
+      || !safePath(forward.from) || !safePath(forward.to) || forward.from === forward.to
+      || typeof forward.movedAt !== 'string' || typeof forward.reason !== 'string') {
+      errors.push(`${label} needs safe from and to paths, movedAt, and reason`);
+      continue;
+    }
+    if (seen.has(forward.from.toLowerCase())) errors.push(`${label} repeats from path ${forward.from}`);
+    seen.add(forward.from.toLowerCase());
+  }
+  return errors;
+}
+export function forwardPath(document, path) {
+  let current = path; const visited = new Set();
+  for (;;) {
+    const forward = document.forwards.find((entry) => current === entry.from || current.startsWith(`${entry.from}/`));
+    if (!forward) return current === path ? null : current;
+    if (visited.has(forward.from)) throw new Error(`FORWARDING.json has a cycle at ${forward.from}`);
+    visited.add(forward.from);
+    current = `${forward.to}${current.slice(forward.from.length)}`;
+  }
 }
 export function inventorySemantic(inventory, events = []) {
   const curation = foldedCuration(events);
@@ -1276,6 +1428,8 @@ export function inventorySemantic(inventory, events = []) {
     id: entry.id, identityVersion: entry.identityVersion, path: entry.path,
     provenance: entry.provenance, sha256: entry.sha256,
     supersedes: entry.provenance === 'native' ? entry.supersedes : null,
+    ...(entry.amends ? { amends: entry.amends } : {}),
+    ...(entry.meaning ? { meaning: entry.meaning } : {}),
     state: curation.get(entry.id) || null,
   })).sort((left, right) => left.id.localeCompare(right.id));
 }
@@ -1285,8 +1439,9 @@ export function indexSemantic(collection, inventory, events = []) {
 export function renderIndex(collection, hub, inventory, events = []) {
   const semantic = indexSemantic(collection, inventory, events); const digest = digestJson(semantic);
   const from = dirname(hub + '/' + collection.index);
+  const chain = relocationChain(events, collection.root);
   const rows = semantic.records.map((record) => {
-    const target = posix(relative(from, record.path));
+    const target = posix(relative(from, foldRootPath(record.path, chain)));
     const state = record.state ? ' — ' + JSON.stringify(record.state) : '';
     return '<a id="' + record.id + '"></a>\n- [' + record.id + '](<' + encodeURI(target) + '>)' + state;
   });
