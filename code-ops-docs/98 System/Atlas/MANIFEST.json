@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "119c4a7e3e69ae470a3d3899d9dc5611f8687b2b",
-      "verifiedDigest": "9acf3240e418a8db45fe0fd5cf59b5b24c41f23670121a6a75e41b2722bf702b",
+      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
+      "verifiedDigest": "9bb78d2d5ed537f0d11c9410683f2b08a94216944ed5d47cd825ddf09b10f44c",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -89,12 +89,12 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 104,
-          "anchor": "board: {"
+          "anchor": "merge: { script: 'handoff-state.mjs', cmd: 'program-merge' },"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
           "line": 348,
-          "anchor": "export function sessionRecords(cwd, home = storeHome()) {"
+          "anchor": "export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'st"
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
@@ -165,8 +165,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "e2323b31e0d2f8183528d380dd91401d2ff3ae61",
-      "verifiedDigest": "e4a8ae7d3e20cf1e4696bd4500fc0d72ecc02ab9a909d328322aec89a221e893",
+      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
+      "verifiedDigest": "6f535d3464d208c33321e89fb887c88590102abce94ac1991c5c88b703b8de3e",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -256,17 +256,17 @@
         {
           "file": "scripts/check-handoff.mjs",
           "line": 119,
-          "anchor": "// Imported by relative specifier: check-handoff.mjs ships vendored into"
+          "anchor": "//"
         },
         {
           "file": "scripts/check-handoff.mjs",
           "line": 66,
-          "anchor": "// LEDGER GRAMMAR 2 (design Workstream L). A PROGRAM.md with a"
+          "anchor": "//  10. Session chain. \"## Program\" may carry"
         },
         {
           "file": "scripts/handoff-state.mjs",
           "line": 652,
-          "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
+          "anchor": "// Check 12: a pending decision from before the writing session's hop needs a di"
         },
         {
           "file": "scripts/handoff-state.mjs",
@@ -276,12 +276,11 @@
         {
           "file": "scripts/handoff-state.mjs",
           "line": 912,
-          "anchor": "return bytes > PROGRAM_CAP ? 1 : 0;"
+          "anchor": "archived ${count('request history')} request(s), ${count('decisions ledger')} de"
         },
         {
           "file": "scripts/co.mjs",
-          "line": 135,
-          "anchor": "const DEFAULT_VERB = { board: 'list' };"
+          "line": 135
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -356,8 +355,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "e2323b31e0d2f8183528d380dd91401d2ff3ae61",
-      "verifiedDigest": "6b756685acb146f7d31db8b9a064d5f4c6aacd5d51d744565fc094f1869dac22",
+      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
+      "verifiedDigest": "846a165e66c562547c50f7bfaa4e2e3b127ef4340d73e67285e2714ab1991d09",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -464,8 +463,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "119c4a7e3e69ae470a3d3899d9dc5611f8687b2b",
-      "verifiedDigest": "6d378a3cb4a392264e8b167143e4db1ee49e100a1fde090d53bfdad442f469b9",
+      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
+      "verifiedDigest": "f295f2a4461a811da44b5f9693ee90f3776ea2d9b21dc8bbb2b5370b4e52ae47",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",

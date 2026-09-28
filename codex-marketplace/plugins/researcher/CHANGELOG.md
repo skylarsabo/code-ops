@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.1
+- Vendored `co.mjs` adds the `program split` and `program merge` verbs.
+
 ## 0.16.0
 - `claim-checker` declares effort `high`, and vendored `model-tiers.mjs` binds the Claude mid and strong rungs to Sonnet 5.5.
 

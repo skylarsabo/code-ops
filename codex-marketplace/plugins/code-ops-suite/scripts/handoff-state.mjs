@@ -78,7 +78,8 @@
 // writing session's hop (the handoff's Hop minus one) is listed as `- [FILL: disposition] <title>`.
 // `--program <PROGRAM.md>` names the ledger when the lineage names none, as on a first hop. Resume
 // seeds TASKS.md with the ledger line of each carried item. `program-archive` (`co program archive`)
-// is documented at archive() below.
+// is documented at archive() below, and `program-split` and `program-merge` (`co program split|merge`) at split()
+// and merge().
 //
 // SCOPE DIGESTS. With `--out` and a Program ledger that resolves, draft also writes
 // SCOPE_DIGESTS.md beside the handoff, which keeps them outside the handoff's 8 KB cap. It holds one
@@ -140,6 +141,8 @@ const USAGE = [
   'usage: handoff-state.mjs open <slug> [--name <name>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
   '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--root <repo>]',
   '       handoff-state.mjs program-archive <PROGRAM.md | program slug> [--root <repo>]',
+  '       handoff-state.mjs program-split <PROGRAM.md | program slug> --into <a>,<b>[,...] --assign <id>=<child>[,...] [--root <repo>]',
+  '       handoff-state.mjs program-merge <PROGRAM.md | program slug> --into <PROGRAM.md | program slug> [--head-ended] [--root <repo>]',
   '       handoff-state.mjs resume <HANDOFF.md | session name> [--session <id>] [--host-session <id>] [--root <repo>]',
   '       handoff-state.mjs live <HANDOFF.md | session name | session id | host session id> [--root <repo>]',
   '       handoff-state.mjs board | board-claim <path...> | board-release [<path...>] | board-task <text...> [--session <id>]',
@@ -185,13 +188,14 @@ const bulletLead = (line) => /^[-*]\s+(?:\[[ xX]\]\s+)?/.exec(line)?.[0] ?? '- '
 // An item's title: its text after the bullet and checkbox, up to the first ` · ` field.
 const titleOf = (line) => line.slice(bulletLead(line).length).split(' · ')[0].trim();
 const isGrammar2 = (text) => /^[-*\t ]*Grammar:[^\S\r\n]*2\s*$/m.test(text);
+const PENDING_RE = /\bDisposition:\s*pending\s*(?:·|$)/;
 const SETTLED_RE = /\bDisposition:\s*(local|dropped|promoted:[^\s·]+)\s*(?:·|$)/;
 function ledgerOf(programFile) {
   const text = programFile && existsSync(programFile) ? readFileSync(programFile, 'utf8') : '';
   return {
     grammar2: isGrammar2(text),
     open: new Map(bullets(sectionBody(text, 'open items')).map((l) => [leadId(l), l]).filter(([id]) => id)),
-    pending: bullets(sectionBody(text, 'decisions ledger')).filter((l) => /\bDisposition:\s*pending\s*(?:·|$)/.test(l))
+    pending: bullets(sectionBody(text, 'decisions ledger')).filter((l) => PENDING_RE.test(l))
       .map((line) => ({ line, hop: Number(/\bHop:\s*(\d+)/.exec(line)?.[1]) })),
   };
 }
@@ -830,12 +834,13 @@ const REQUESTS_KEPT = 10;
 const PROGRAM_CAP = 32 * 1024; // check-handoff.mjs PROGRAM_CAP_BYTES.
 // Each top-level bullet with its indented continuation lines, as { section, start, end } line
 // ranges, where section is the lower-cased archived heading it sits under, or null. Blank lines
-// belong to an entry only when an indented line follows them.
-function entriesOf(lines) {
+// belong to an entry only when an indented line follows them. `headingOf` maps a line to the section
+// name it opens: null for another heading, undefined for a non-heading.
+function entriesOf(lines, headingOf = archivedHeading) {
   const out = [];
   let section = null;
   lines.forEach((l, i) => {
-    const heading = archivedHeading(l);
+    const heading = headingOf(l);
     if (heading !== undefined) { section = heading; return; }
     if (/^[-*]\s+/.test(l)) out.push({ section, start: i, end: i + 1 });
     else if (/^\s+\S/.test(l) && out.length && lines.slice(out.at(-1).end, i).every((b) => !b.trim())) out.at(-1).end = i + 1;
@@ -908,6 +913,208 @@ function archive(arg, flags) {
     `${unsettled} unsettled decision(s) stay in the ledger`,
     `${repoPath(file)}: ${bytes} bytes against the ${PROGRAM_CAP}-byte cap${bytes > PROGRAM_CAP ? '; still over it' : ''}`,
     ...linksBlock([['program', repoPath(file)], ['archive', repoPath(target)]]),
+  ].join('\n'));
+  return bytes > PROGRAM_CAP ? 1 : 0;
+}
+
+// PROGRAM SPLIT AND MERGE (`co program split|merge`, design L5). Both read the ledger sections
+// through entriesOf() and keep each entry's indented continuation lines. A CRLF ledger keeps its line
+// ending. Both refuse a ledger with no "Grammar: 2" line or a `Status: merged into` or `Status: closed`
+// line under its goal, and each validates everything before it writes anything.
+//
+// split <slug> --into <a>,<b> --assign <id>=<child>,...: each open item and each pending decision
+// without `Forwarded-to:` goes to exactly one child, and the command exits 1 naming every unassigned
+// id. It writes programs/<child>/PROGRAM.md beside the parent, and refuses a child that already has
+// one. A child ledger holds `Split-from: <parent>` and the parent's goal, every parent request (the
+// archive's too, in date order), the parent's Scope documents, and its assigned items with their
+// original ids. The parent keeps every item and gains ` · Forwarded-to: <child>/<id>` on each. The
+// parent takes no further hops after a split, so its forwarded pending decisions stay pending.
+//
+// merge <from> --into <to> [--head-ended]: the inverse. It appends the source's requests to the
+// target's Request history tagged `[from <slug>]` after the date, adds the source's Scope documents
+// whose path the target lacks, and imports each open item and pending decision under the next free id
+// of its prefix across the target's ledger and archive, with ` · Was: <from>/<old id>`. An id named in
+// an imported line's text is renumbered with its target, except inside `Anchor:` and `Pointer:`. The
+// source gains `Status: merged into <to>` under its goal and ` · Forwarded-to: <to>/<new id>` on each
+// imported item. An imported decision keeps its source `Hop:`, so check 12 fails it at the target's next
+// handoff while it is pending: merge prints `settle <new id>: imported pending from <from>/<old id>;
+// check 12 fails it at the next handoff` for each one. It refuses while a handoff of the source has a running head: an unconsumed handoff
+// (awaiting resume) or a consumed chain whose last run folder has no handoff yet, as `live` reports,
+// unless `--head-ended` is passed. A source with no handoff on disk has no signal, so it merges.
+// Both exit 1 when a written ledger is over its 32 KB cap.
+const LEDGER_SECTIONS = ['program goal', 'request history', 'scope documents', 'open items', 'decisions ledger', 'closed items'];
+const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/i;
+const FORWARDED_RE = /\bForwarded-to:\s*\S/;
+const ledgerHeading = (l) => {
+  const h = /^##[ \t]+(.+)$/.exec(l);
+  return h ? LEDGER_SECTIONS.find((name) => h[1].trim().toLowerCase().startsWith(name)) ?? null : undefined;
+};
+const trimBlank = (ls) => {
+  let from = 0;
+  let to = ls.length;
+  while (from < to && !ls[from].trim()) from++;
+  while (to > from && !ls[to - 1].trim()) to--;
+  return ls.slice(from, to);
+};
+const sectionLines = (lines, name) => {
+  const at = lines.findIndex((l) => ledgerHeading(l) === name);
+  if (at < 0) return [];
+  const end = lines.findIndex((l, i) => i > at && /^##[ \t]/.test(l));
+  return lines.slice(at + 1, end < 0 ? lines.length : end);
+};
+// A ledger for split and merge: its lines, and its entries per section as { start, end, id, text }.
+// `movable` lists the open items and pending decisions not yet forwarded.
+function readProgram(arg, root, verb) {
+  const file = programFileOf(arg, root);
+  const shown = relative(root, file).replace(/\\/g, '/');
+  const { lines, eol } = linesOf(file);
+  const text = lines.join('\n');
+  if (!isGrammar2(text)) die(`refusing to ${verb} ${shown}: it has no "Grammar: 2" line`);
+  const ended = /^[-*\t ]*Status:[^\S\r\n]*(merged into .+?|closed)\s*$/m.exec(text)?.[1];
+  if (ended) die(`refusing to ${verb} ${shown}: it is already "Status: ${ended}"`);
+  const entries = entriesOf(lines, ledgerHeading).map((e) => ({ ...e, id: leadId(lines[e.start]), text: lines.slice(e.start, e.end) }));
+  const inSection = (name) => entries.filter((e) => e.section === name);
+  const open = inSection('open items');
+  const noId = open.filter((e) => !e.id);
+  if (noId.length) die(`refusing to ${verb} ${shown}: ${noId.length} open item(s) lead with no id, such as: ${noId[0].text[0].trim().slice(0, 70)}`);
+  const movable = [...open, ...inSection('decisions ledger').filter((e) => e.id && PENDING_RE.test(e.text[0]))].filter((e) => !FORWARDED_RE.test(e.text[0]));
+  return { file, shown, slug: basename(dirname(file)), lines, eol, inSection, movable };
+}
+// The ledger's Request history entries and its archive's, each as a block of lines, in date order.
+function requestBlocks(program) {
+  const archiveFile = join(dirname(program.file), ARCHIVE_NAME);
+  const blocksOf = (lines) => entriesOf(lines, ledgerHeading).filter((e) => e.section === 'request history').map((e) => lines.slice(e.start, e.end));
+  const dateOf = (block) => /^[-*]\s+(\d{4}-\d{2}-\d{2})/.exec(block[0])?.[1] ?? '';
+  return [...blocksOf(program.lines), ...(isFile(archiveFile) ? blocksOf(linesOf(archiveFile).lines) : [])].sort((a, b) => dateOf(a).localeCompare(dateOf(b)));
+}
+// Inserts `add` after the last entry under a ledger heading, else under the heading, else at the end.
+function appendTo(lines, name, add) {
+  if (!add.length) return;
+  const last = entriesOf(lines, ledgerHeading).filter((e) => e.section === name).at(-1);
+  if (last) { lines.splice(last.end, 0, ...add); return; }
+  const heading = lines.findIndex((l) => ledgerHeading(l) === name);
+  if (heading < 0) { lines.push('', `## ${titleCase(name)}`, '', ...add, ''); return; }
+  let at = heading + 1;
+  while (at < lines.length && !lines[at].trim()) at++;
+  lines.splice(at, 0, ...(at === heading + 1 ? [''] : []), ...add, '');
+}
+const markForwarded = (lines, entry, target) => { lines[entry.start] = `${lines[entry.start].trimEnd()} · Forwarded-to: ${target}`; };
+const ledgerBytes = (lines, eol) => Buffer.byteLength(lines.join(eol), 'utf8');
+const capNote = (bytes) => `${bytes} bytes against the ${PROGRAM_CAP}-byte cap${bytes > PROGRAM_CAP ? '; over it, run co program archive' : ''}`;
+
+function split(arg, flags) {
+  const root = resolve(flags.root);
+  const parent = readProgram(arg, root, 'split');
+  const children = flags.into.split(',').map((c) => c.trim()).filter(Boolean);
+  if (children.length < 2 || new Set(children).size !== children.length || !children.every((c) => SLUG_RE.test(c))) {
+    die(`--into needs two or more distinct child slugs of letters, digits, and hyphens: ${flags.into}`);
+  }
+  const problems = [];
+  const assigned = new Map();
+  for (const pair of flags.assign.split(',').map((p) => p.trim()).filter(Boolean)) {
+    const [id, child, ...rest] = pair.split('=').map((p) => p.trim());
+    if (!id || !child || rest.length) die(`--assign takes <id>=<child> pairs: ${pair}`);
+    if (assigned.has(id)) problems.push(`${id} is assigned twice`);
+    assigned.set(id, child);
+  }
+  const known = new Set(parent.movable.map((e) => e.id));
+  for (const [id, child] of assigned) {
+    if (!known.has(id)) problems.push(`${id} is neither an open item nor a pending decision of ${parent.slug}`);
+    if (!children.includes(child)) problems.push(`${id} is assigned to ${child}, which --into does not name`);
+  }
+  const unassigned = [...known].filter((id) => !assigned.has(id));
+  if (unassigned.length) problems.unshift(`${unassigned.length} item(s) unassigned: ${unassigned.join(', ')}`);
+  const dirOf = (child) => join(dirname(dirname(parent.file)), child);
+  for (const child of children) if (existsSync(join(dirOf(child), 'PROGRAM.md'))) problems.push(`${child} already has a ledger at ${relative(root, join(dirOf(child), 'PROGRAM.md')).replace(/\\/g, '/')}`);
+  if (problems.length) die(`refusing to split ${parent.shown}: ${problems.join('; ')}`);
+
+  const goal = trimBlank(sectionLines(parent.lines, 'program goal'));
+  const requests = requestBlocks(parent).flat();
+  const scope = parent.inSection('scope documents').flatMap((e) => e.text);
+  const section = (name, body) => [`## ${name}`, '', ...body, ...(body.length ? [''] : [])];
+  const written = children.map((child) => {
+    const mine = parent.movable.filter((e) => assigned.get(e.id) === child);
+    const ofSection = (name) => mine.filter((e) => e.section === name).flatMap((e) => e.text);
+    const lines = [`# PROGRAM: ${child}`, '', 'Grammar: 2', '', ...section('Program goal', [`Split-from: ${parent.slug}`, '', ...goal]),
+      ...section('Request history', requests), ...section('Scope documents', scope), ...section('Open items', ofSection('open items')),
+      ...section('Decisions ledger', ofSection('decisions ledger')), ...section('Closed items', [])];
+    return { child, file: join(dirOf(child), 'PROGRAM.md'), lines, open: mine.filter((e) => e.section === 'open items').length, decisions: mine.filter((e) => e.section === 'decisions ledger').length };
+  });
+  for (const e of parent.movable) markForwarded(parent.lines, e, `${assigned.get(e.id)}/${e.id}`);
+  for (const w of written) { mkdirSync(dirname(w.file), { recursive: true }); writeFileSync(w.file, w.lines.join(parent.eol)); }
+  writeFileSync(parent.file, parent.lines.join(parent.eol));
+  const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
+  const sizes = written.map((w) => ledgerBytes(w.lines, parent.eol));
+  console.log([
+    `split ${parent.shown} into ${children.join(', ')}; each parent item now carries Forwarded-to:`,
+    ...written.map((w, i) => `${repoPath(w.file)}: ${w.open} open item(s), ${w.decisions} pending decision(s), ${capNote(sizes[i])}`),
+    ...linksBlock([['parent', parent.shown], ...written.map((w) => [w.child, repoPath(w.file)])]),
+  ].join('\n'));
+  return sizes.some((n) => n > PROGRAM_CAP) ? 1 : 0;
+}
+
+// The first handoff of a program whose head is running, as walkHead() reports it, else null.
+function runningHead(programFile, root) {
+  for (const h of handoffsIn(root)) {
+    const ledger = pathValue(sectionBody(readFileSync(h.file, 'utf8'), 'program'), 'Program');
+    if (!ledger || resolve(root, ledger) !== programFile) continue;
+    const head = walkHead(h.dir, root, root);
+    if (head.running) return head;
+  }
+  return null;
+}
+
+function merge(arg, flags) {
+  const root = resolve(flags.root);
+  const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
+  const src = readProgram(arg, root, 'merge');
+  const dst = readProgram(flags.into, root, 'merge into');
+  if (src.file === dst.file) die(`refusing to merge ${src.shown} into itself`);
+  if (!flags['head-ended']) {
+    const head = runningHead(src.file, root);
+    if (head) die(`refusing to merge ${src.shown}: its head session looks running (${head.state}, run dir ${repoPath(head.dir)}); pass --head-ended once it has ended`);
+  }
+  // The next free id of each prefix, over every top-level bullet of the target's ledger and archive.
+  const archiveFile = join(dirname(dst.file), ARCHIVE_NAME);
+  const top = new Map();
+  for (const l of [...dst.lines, ...(isFile(archiveFile) ? linesOf(archiveFile).lines : [])]) {
+    const m = /^[-*]\s+(?:\[[ xX]\]\s+)?([A-Z][A-Z0-9]*)-(\d+)\b/.exec(l);
+    if (m) top.set(m[1], Math.max(top.get(m[1]) ?? 0, Number(m[2])));
+  }
+  const fresh = new Map();
+  for (const e of src.movable) {
+    const prefix = e.id.replace(/-\d+$/, '');
+    top.set(prefix, (top.get(prefix) ?? 0) + 1);
+    fresh.set(e.id, `${prefix}-${top.get(prefix)}`);
+  }
+  // Renumbers each mapped id in a line's fields, and in a continuation line, but not in an Anchor or Pointer.
+  const remap = (l) => l.split(' · ').map((f) => (/^(?:Anchor|Pointer):/.test(f) ? f : f.replace(/\b[A-Z][A-Z0-9]*-\d+\b/g, (id) => fresh.get(id) ?? id))).join(' · ');
+  const imported = (name) => src.movable.filter((e) => e.section === name)
+    .flatMap((e) => e.text.map((l, i) => (i ? remap(l) : `${remap(l).trimEnd()} · Was: ${src.slug}/${e.id}`)));
+  const tag = `[from ${src.slug}]`;
+  const requests = requestBlocks(src).flatMap((block) => block.map((l, i) => (i ? l
+    : /^[-*]\s+\d{4}-\d{2}-\d{2}/.test(l) ? l.replace(/^([-*]\s+\d{4}-\d{2}-\d{2})/, (_, lead) => `${lead} ${tag}`) : l.replace(/^([-*]\s+)/, (_, lead) => `${lead}${tag} `))));
+  const docPath = (block) => /`([^`]+)`/.exec(block.text[0])?.[1];
+  const held = new Set(dst.inSection('scope documents').map(docPath));
+  const scope = src.inSection('scope documents').filter((e) => !held.has(docPath(e))).flatMap((e) => e.text);
+  appendTo(dst.lines, 'request history', requests);
+  appendTo(dst.lines, 'scope documents', scope);
+  appendTo(dst.lines, 'open items', imported('open items'));
+  appendTo(dst.lines, 'decisions ledger', imported('decisions ledger'));
+  for (const e of src.movable) markForwarded(src.lines, e, `${dst.slug}/${fresh.get(e.id)}`);
+  const goal = src.lines.findIndex((l) => ledgerHeading(l) === 'program goal');
+  if (goal < 0) src.lines.push('', '## Program goal', '', `Status: merged into ${dst.slug}`, '');
+  else src.lines.splice(goal + 1, 0, '', `Status: merged into ${dst.slug}`);
+  writeFileSync(dst.file, dst.lines.join(dst.eol));
+  writeFileSync(src.file, src.lines.join(src.eol));
+  const bytes = ledgerBytes(dst.lines, dst.eol);
+  console.log([
+    `merged ${src.shown} into ${dst.shown}: ${requestBlocks(src).length} request(s), ${scope.filter((l) => /^[-*]\s/.test(l)).length} new scope document(s), ${fresh.size} item(s) renumbered`,
+    ...[...fresh].map(([old, now]) => `${old} -> ${now} (Was: ${src.slug}/${old})`),
+    ...src.movable.filter((e) => e.section === 'decisions ledger')
+      .map((e) => `settle ${fresh.get(e.id)}: imported pending from ${src.slug}/${e.id}; check 12 fails it at the next handoff`),
+    `${dst.shown}: ${capNote(bytes)}`,
+    ...linksBlock([['target', dst.shown], ['source', src.shown]]),
   ].join('\n'));
   return bytes > PROGRAM_CAP ? 1 : 0;
 }
@@ -1084,10 +1291,10 @@ function liveStart(arg, root) {
   die(hits.length ? `ambiguous session name: ${arg} matches ${hits.length} handoffs` : `no handoff, session record, or Session line matches: ${arg}`);
 }
 
-function live(arg, flags) {
-  const root = resolve(flags.root);
+// Walks consumed handoffs from a run folder to the head run folder. `running` is true when the head is
+// live (its folder has no handoff yet) or awaiting resume (its handoff is unconsumed).
+function walkHead(dir, base, root) {
   const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
-  let { dir, base } = liveStart(arg, root);
   const seen = new Set();
   let hops = 0;
   let state = 'live';
@@ -1107,6 +1314,14 @@ function live(arg, flags) {
     dir = next;
     hops++;
   }
+  return { dir, state, hops, running: state === 'live' || state.startsWith('awaiting resume') };
+}
+
+function live(arg, flags) {
+  const root = resolve(flags.root);
+  const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
+  const { dir: start, base } = liveStart(arg, root);
+  const { dir, state, hops } = walkHead(start, base, root);
   const session = readJson(join(dir, 'SESSION.json')) ?? {};
   console.log([
     `head session: ${session.name ?? 'unknown'}`,
@@ -1137,8 +1352,14 @@ if (isEntry()) {
     hub: { value: true },
     'host-session': { value: true },
     program: { value: true },
+    into: { value: true },
+    assign: { value: true },
+    'head-ended': { value: false },
   }, USAGE.join('\n'));
   if (flags.program && command !== 'draft') usage(USAGE);
+  const onlyFlags = (...names) => Object.keys(flags).every((k) => k === 'root' || names.includes(k));
+  if (command === 'program-split' && positional.length === 1 && flags.into && flags.assign && onlyFlags('into', 'assign')) process.exit(split(positional[0], flags));
+  if (command === 'program-merge' && positional.length === 1 && flags.into && onlyFlags('into', 'head-ended')) process.exit(merge(positional[0], flags));
   if (command === 'program-archive' && positional.length === 1 && Object.keys(flags).every((k) => k === 'root')) process.exit(archive(positional[0], flags));
   if (/^board(-claim|-release|-task)?$/.test(command ?? '') && !flags.run && !flags.base && !flags.out && !flags.name && !flags.hub && !flags['host-session']
     && (command === 'board' ? positional.length === 0 : command === 'board-release' || positional.length > 0)) process.exit(board(command, positional, flags));

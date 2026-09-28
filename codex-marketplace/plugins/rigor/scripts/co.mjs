@@ -100,6 +100,8 @@ const TABLE = {
   },
   program: {
     archive: { script: 'handoff-state.mjs', cmd: 'program-archive' },
+    split: { script: 'handoff-state.mjs', cmd: 'program-split' },
+    merge: { script: 'handoff-state.mjs', cmd: 'program-merge' },
   },
   board: {
     list: { script: 'handoff-state.mjs', cmd: 'board' },

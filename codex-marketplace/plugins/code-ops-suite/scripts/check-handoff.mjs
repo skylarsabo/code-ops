@@ -55,7 +55,14 @@
 //      a backticked path that exists, plus `Status:` and `Role:`. Every Closed items bullet
 //      carries an id. When Predecessor is a path, it must resolve, its `Request:` text must sit
 //      in Request history, and each of its open-item ids must appear as the id of a bullet in
-//      this handoff's Open items or in PROGRAM.md Closed items. A dropped item fails by id.
+//      this handoff's Open items or in PROGRAM.md Closed items. A dropped item fails by id. An id
+//      also passes when a PROGRAM.md Open items bullet, or an archive bullet, carries it with
+//      `Forwarded-to:` (a split or merge moved it), or when a PROGRAM.md Open items bullet carries
+//      `Was: <program>/<id>` naming the predecessor's own program and the id (a merge imported it).
+//      When the predecessor's `Program:` names another ledger (a split child's first hop, a merge
+//      target's first hop), forwardedIn() also reads that ledger and its archive: an id it forwards
+//      with `Forwarded-to: <slug>/<id>` passes when <slug> is this program, or when this ledger has
+//      `Split-from: <predecessor program>`, so a sibling's id passes. An id forwarded nowhere fails.
 //  10. Session chain. "## Program" may carry `Session: <base name> HO <n>`, the name the successor
 //      session takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When
 //      either is present, both must be: Hop is a positive integer and Session ends with ` HO <Hop>`.
@@ -75,7 +82,10 @@
 //      because a handoff's Hop names its successor. A decision older than that must not be
 //      `pending`, which gives one hop of grace. A grammar 2 handoff must carry `Hop:`.
 //  13. Every DEC id in the predecessor's "## Decisions made" appears in the ledger, its archive,
-//      or a `Was: <program>/<id>` trail.
+//      or a `Was: <program>/<id>` trail. A decision that a split or merge forwarded keeps its id
+//      leading its ledger bullet with `Forwarded-to:` appended, so it counts as in the ledger. A
+//      DEC id the predecessor's own ledger forwarded to this program or a sibling passes by the
+//      same forwardedIn() rule as check 9.
 //  15. Every "## Decisions made" and "## Open items" bullet here leads with its id. A decision adds
 //      at most one clause: no ` · ` field, no `Rejected:`, and no second sentence or semicolon. An
 //      active open item keeps its full line. A carried one shows only id and title, and check 4
@@ -114,7 +124,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve, isAbsolute } from 'node:path';
+import { basename, dirname, join, relative, resolve, isAbsolute } from 'node:path';
 import { parseOrDie, usage, git } from './cli-lib.mjs';
 // Imported by relative specifier: check-handoff.mjs ships vendored into
 // plugins/code-ops-suite/scripts/, and the library ships beside it.
@@ -347,7 +357,12 @@ function checkProgram(file, shown) {
   const ledgerOpen = findSection(ps, 'Open items');
   if (ledgerOpen) unanchoredPointers(ledgerOpen.body, `PROGRAM.md (${shown})`, grammar2);
   const requests = [history?.body ?? '', ...archived('Request history')].join('\n');
-  const result = { history: squash(requests), closed, grammar2, openById: new Map(), decisions: [], decisionIds: new Set() };
+  // Ids a split or merge moved: `Forwarded-to:` on an Open items or archive bullet, and `Was: <program>/<id>`
+  // on an Open items bullet, kept as `<program>/<id>` because the id is only unique within its program.
+  const openLines = bulletsOf(ledgerOpen?.body ?? '');
+  const forwarded = new Set([...openLines, ...as.flatMap((s) => bulletsOf(s.body))].filter((l) => /\bForwarded-to:\s*\S/.test(l)).map(itemId).filter(Boolean));
+  const was = new Set(openLines.flatMap((l) => [...l.matchAll(/\bWas:\s*([^\s/]+)\/([A-Z][A-Z0-9]*-\d+)\b/g)].map((m) => `${m[1]}/${m[2]}`)));
+  const result = { history: squash(requests), closed, grammar2, forwarded, was, openById: new Map(), decisions: [], decisionIds: new Set() };
   if (!grammar2) return result;
 
   // L1: a grammar 2 open item keeps today's line and leads with its id.
@@ -387,6 +402,28 @@ function checkProgram(file, shown) {
   return result;
 }
 
+// Ids the predecessor's own ledger forwarded to this program: when the predecessor's Program: names another
+// ledger (a split child's first hop, a merge target's first hop), its Open items, Decisions ledger, and archive
+// bullets that carry `Forwarded-to: <slug>/<id>` count as carried, when <slug> is this program, or when this
+// ledger has `Split-from: <predecessor program>`, which makes each forward target a sibling. Every other id
+// the predecessor holds is still checked, so an id forwarded nowhere still fails.
+function forwardedIn(priorPath) {
+  const none = new Set();
+  const [priorFile, ownFile] = [priorPath && inRoot(priorPath), programPath && inRoot(programPath)];
+  if (!priorFile || !isFile(priorFile) || !ownFile || resolve(priorFile) === resolve(ownFile)) return none;
+  const [priorSlug, ownSlug] = [basename(dirname(priorFile)), basename(dirname(ownFile))];
+  const splitFrom = pathValue(readFileSync(ownFile, 'utf8'), 'Split-from');
+  const archiveFile = join(dirname(priorFile), ARCHIVE_NAME);
+  const held = [...sections(readFileSync(priorFile, 'utf8')), ...(isFile(archiveFile) ? sections(readFileSync(archiveFile, 'utf8')) : [])];
+  const ids = new Set();
+  for (const line of held.flatMap((sec) => bulletsOf(sec.body))) {
+    const target = /\bForwarded-to:\s*([^\s/·]+)\//.exec(line)?.[1];
+    if (target && (target === ownSlug || splitFrom === priorSlug)) ids.add(itemId(line));
+  }
+  ids.delete(null);
+  return ids;
+}
+
 if (programSection) {
   const predecessor = pathValue(programSection.body, 'Predecessor');
   if (!programPath) violations.push('"## Program" has no non-empty "Program: <path>" line');
@@ -406,13 +443,16 @@ if (programSection) {
       else if (!program.history.includes(squash(priorRequest))) {
         violations.push(`the predecessor's Request: text is not in PROGRAM.md "## Request history": ${priorRequest.slice(0, 70)}`);
       }
-      const carried = new Set([...program.closed, ...bulletsOf(openSection?.body ?? '').map(itemId).filter(Boolean)]);
+      const priorPath = pathValue(findSection(prior, 'Program')?.body ?? '', 'Program') ?? '';
+      const priorProgram = basename(dirname(priorPath));
+      const movedIn = forwardedIn(priorPath);
+      const carried = new Set([...program.closed, ...program.forwarded, ...movedIn, ...bulletsOf(openSection?.body ?? '').map(itemId).filter(Boolean)]);
       for (const line of bulletsOf(findSection(prior, 'Open items')?.body ?? '')) {
         const id = itemId(line);
         if (!id) violations.push(`predecessor open item carries no id, so its carry-forward cannot be checked: ${line.trim().slice(0, 70)}`);
-        else if (!carried.has(id)) violations.push(`predecessor open item ${id} was dropped: it is in neither "## Open items" nor PROGRAM.md "## Closed items"`);
+        else if (!carried.has(id) && !program.was.has(`${priorProgram}/${id}`)) violations.push(`predecessor open item ${id} was dropped: it is in neither "## Open items", PROGRAM.md "## Closed items", nor a Forwarded-to: or Was: trail`);
       }
-      if (grammar2) grammar2Lineage(prior, predecessor);
+      if (grammar2) grammar2Lineage(prior, predecessor, movedIn);
     }
   }
   // ---- 10. session chain: Session and Hop come as a pair, or not at all (legacy) ----
@@ -465,11 +505,11 @@ function ancestorLine(from, id) {
 }
 
 // Checks 13 and 17 compare the predecessor handoff against this one and the grammar 2 ledger.
-function grammar2Lineage(prior, predecessor) {
+function grammar2Lineage(prior, predecessor, movedIn) {
   // ---- 13. every DEC id the predecessor made reaches the ledger, its archive, or a Was: trail ----
   const priorDecisions = findSection(prior, 'Decisions made')?.body ?? '';
   for (const id of new Set(priorDecisions.match(/(?<![\w/-])DEC-\d+\b/g) ?? [])) {
-    if (!program.decisionIds.has(id)) violations.push(`check 13: predecessor decision ${id} is in neither PROGRAM.md "## Decisions ledger", ${ARCHIVE_NAME}, nor a Was: trail`);
+    if (!program.decisionIds.has(id) && !movedIn.has(id)) violations.push(`check 13: predecessor decision ${id} is in neither PROGRAM.md "## Decisions ledger", ${ARCHIVE_NAME}, nor a Was: trail`);
   }
   // ---- 17. a changed Owner: or Done when: carries Revised: ----
   const current = new Map(bulletsOf(openSection?.body ?? '').map((l) => [leadId(l), l]));

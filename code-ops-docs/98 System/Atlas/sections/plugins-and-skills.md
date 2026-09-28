@@ -73,7 +73,8 @@ lists it, and `claim`, `release`, and `task` edit the caller's record
 readers fall back to the older working-directory store
 (plugins/code-ops-suite/scripts/handoff-state.mjs:348). Since 2.15.0, `co program archive` moves settled state
 from a grammar-2 program ledger to `PROGRAM.archive.md` beside it
-(plugins/code-ops-suite/scripts/co.mjs:101). The `index-refresh.mjs` edit hook records
+(plugins/code-ops-suite/scripts/co.mjs:101). Since 2.18.0, `co program split` and `merge` move open items
+and pending decisions between ledgers with `Forwarded-to:` and `Was:` trails. The `index-refresh.mjs` edit hook records
 edited paths on the board, `session-receipt.mjs` marks the record ended, and
 `CODE_OPS_PEER_GUARD` turns both writes off (plugins/code-ops-suite/hooks/index-refresh.mjs:13,
 plugins/code-ops-suite/hooks/session-receipt.mjs:73).

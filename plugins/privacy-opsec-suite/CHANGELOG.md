@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.3.1
+- Vendored `co.mjs` adds the `program split` and `program merge` verbs.
+
 ## 2.3.0
 - `privacy-reviewer` declares `claude-sonnet-5-5` at effort `high`, the Claude strong rung. Vendored `model-tiers.mjs` binds that rung to Sonnet 5.5.
 

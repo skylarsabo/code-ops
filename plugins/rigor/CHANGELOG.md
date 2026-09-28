@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.1
+- Vendored `co.mjs` adds the `program split` and `program merge` verbs.
+
 ## 3.3.0
 - `tracer` and `verifier` declare `claude-sonnet-5-5` at effort `high`, the Claude strong rung. Vendored `model-tiers.mjs` binds that rung to Sonnet 5.5.
 
