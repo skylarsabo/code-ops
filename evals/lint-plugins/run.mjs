@@ -456,6 +456,35 @@ No completion heading here on purpose (case 3 mutation).
   check('5h. a façade reference to an unknown verb exits 1', r5h.status === 1);
   check('5h. message names the verb table', r5h.all.includes('not in the co.mjs verb table'));
 
+  // 5i-k. VERB-LESS CO.MJS ENTRIES. A command such as `brief` has no verbs, so every word after
+  // it is an argument. The check must resolve it to its script (5i-j) and must still fail a
+  // domain the table does not carry, even when no verb word follows it (5k).
+  const REAL_BRIEF = join(REPO, 'scripts', 'brief-template.mjs');
+  const withCommandRef = (label, sentence, { bundleScript }) => {
+    const dir = clone(label);
+    copyFileSync(REAL_CO, join(dir, 'scripts', 'co.mjs'));
+    copyFileSync(REAL_CO, join(dir, 'plugins', 'rigor', 'scripts', 'co.mjs'));
+    const declared = [{ name: 'fixture-tool.mjs', plugins: ['rigor'] }, { name: 'co.mjs', plugins: ['rigor'] }];
+    if (bundleScript) {
+      copyFileSync(REAL_BRIEF, join(dir, 'scripts', 'brief-template.mjs'));
+      copyFileSync(REAL_BRIEF, join(dir, 'plugins', 'rigor', 'scripts', 'brief-template.mjs'));
+      declared.push({ name: 'brief-template.mjs', plugins: ['rigor'] });
+    }
+    put(dir, 'scripts/vendored-manifest.mjs', `export const RUNTIME_SCRIPTS = ${JSON.stringify(declared, null, 2)};\n`);
+    put(dir, 'plugins/rigor/agents/tracer.md', `${readIn(dir, 'plugins/rigor/agents/tracer.md')}\n${sentence}\n`);
+    return runLint(dir);
+  };
+  const BRIEF_REF = 'Run ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs brief rigor:tracer.';
+  const r5i = withCommandRef('case5i-facade-command-unbundled', BRIEF_REF, { bundleScript: false });
+  check('5i. a reference to a verb-less command whose script is unbundled exits 1', r5i.status === 1);
+  check('5i. message names the command script and the façade path',
+    r5i.all.includes('brief-template.mjs but it is not bundled') && r5i.all.includes('via co.mjs brief'));
+  const r5j = withCommandRef('case5j-facade-command-bundled', BRIEF_REF, { bundleScript: true });
+  check('5j. control: the same command reference passes once its script is bundled', r5j.status === 0);
+  const r5k = withCommandRef('case5k-facade-unknown-domain', 'Run ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs nosuchdomain <args>.', { bundleScript: true });
+  check('5k. a reference to a domain the table does not carry exits 1', r5k.status === 1);
+  check('5k. message names the verb table', r5k.all.includes('co.mjs nosuchdomain, which is not in the co.mjs verb table'));
+
   // 6. ADVISORY NON-GATING — an orphan root script with no evals/ reference is flagged
   // as advisory text but must NEVER fail the run.
   const d6 = clone('case6-advisory-orphan');

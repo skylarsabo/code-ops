@@ -77,7 +77,9 @@ function standardVersion(root, hub) {
   return value === undefined ? null : Number(value);
 }
 const uniqueArray = (value, valid) => Array.isArray(value) && value.every(valid) && new Set(value).size === value.length;
-// Manifest v3 profile blocks. Schema only: no code reads these values yet.
+// Manifest v3 profile blocks. This function validates their shape. Only `drafts.statuses` has a
+// reader, check-vault-standard.mjs (rule 9). No code reads `runs.tracking`, `runs.retain`,
+// `drafts.maxAgeDays`, or `state`.
 function inspectProfileV3(manifest, errors) {
   const { runs, drafts, state } = manifest;
   if (exactKeys(runs, new Set(['tracking', 'retain']), 'runs', errors)) {
