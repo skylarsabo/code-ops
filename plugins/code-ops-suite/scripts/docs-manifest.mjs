@@ -10,10 +10,16 @@ import { safePath, scopeValidationErrors } from './record-lib.mjs';
 const REQUIRED = new Set(['architecture', 'contracts', 'data-model', 'engineering-standards', 'api-reference', 'ci-delivery', 'infrastructure', 'observability', 'design-system', 'guides', 'atlas']);
 const TOP_KEYS_V1 = new Set(['version', 'hub', 'domains']);
 const TOP_KEYS_V2 = new Set(['version', 'hub', 'runs', 'recordCollections', 'legacyPaths', 'domains']);
+const TOP_KEYS_V3 = new Set([...TOP_KEYS_V2, 'drafts', 'state']);
+const TOP_KEYS = { 1: TOP_KEYS_V1, 2: TOP_KEYS_V2, 3: TOP_KEYS_V3 };
+const MIN_STANDARD = { 2: 4, 3: 5 };
+const LEGACY_DISPOSITIONS = { 2: ['pointer', 'tombstone'], 3: ['pointer', 'tombstone', 'relocated', 'removed'] };
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const KEYS = new Set(['id', 'path', 'status', 'evidence', 'sources', 'sourceDigest', 'contentDigest']);
 const COLLECTION_KEYS = new Set(['id', 'collectionUuid', 'identityVersion', 'root', 'inventory', 'citations', 'curationLedger', 'index', 'scopes']);
 const COLLECTION_KEYS_V2 = new Set([...COLLECTION_KEYS, 'classificationVersion']);
 const LEGACY_KEYS = new Set(['path', 'disposition', 'target', 'requiredBy']);
+const LEGACY_KEYS_REMOVED = new Set(['path', 'disposition', 'requiredBy']);
 const RECORDS_ROOT = '98 System/Records/';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
@@ -70,9 +76,34 @@ function standardVersion(root, hub) {
   const value = match[1].split(/\r?\n/).map((line) => /^standard-version:\s*["']?([^"']+?)["']?\s*$/.exec(line)).find(Boolean)?.[1];
   return value === undefined ? null : Number(value);
 }
-function inspectCollections(manifest, hub, files, tracked, errors) {
-  if (manifest.version !== 2) return;
-  if (!exactKeys(manifest.runs, new Set(['tracking']), 'runs', errors)
+const uniqueArray = (value, valid) => Array.isArray(value) && value.every(valid) && new Set(value).size === value.length;
+// Manifest v3 profile blocks. Schema only: no code reads these values yet.
+function inspectProfileV3(manifest, errors) {
+  const { runs, drafts, state } = manifest;
+  if (exactKeys(runs, new Set(['tracking', 'retain']), 'runs', errors)) {
+    if (!['tracked', 'closeout', 'ignored'].includes(runs.tracking)) errors.push('runs.tracking must be tracked, closeout, or ignored');
+    if (!uniqueArray(runs.retain, safeRelative)) errors.push('runs.retain must be an array of unique safe run-relative globs');
+    else if (runs.retain.length && runs.tracking !== 'closeout') errors.push('runs.retain applies only when runs.tracking is closeout');
+  }
+  if (exactKeys(drafts, new Set(['maxAgeDays', 'statuses']), 'drafts', errors)) {
+    if (!Number.isInteger(drafts.maxAgeDays) || drafts.maxAgeDays < 1) errors.push('drafts.maxAgeDays must be a positive integer');
+    if (!uniqueArray(drafts.statuses, (status) => typeof status === 'string' && SLUG_RE.test(status))
+      || !drafts.statuses.length) errors.push('drafts.statuses must be a non-empty array of unique slug statuses');
+  }
+  if (!state || typeof state !== 'object' || Array.isArray(state)) { errors.push('state must be an object'); return; }
+  const surfaces = new Set();
+  for (const [surface, spec] of Object.entries(state)) {
+    const folded = surface.toLowerCase();
+    if (!safeRelative(surface) || !folded.endsWith('.md') || /[*?]/.test(surface) || surfaces.has(folded)) errors.push(`state surface ${surface} must be a unique hub-relative Markdown path`);
+    surfaces.add(folded);
+    if (exactKeys(spec, new Set(['budgetWords']), `state surface ${surface}`, errors)
+      && (!Number.isInteger(spec.budgetWords) || spec.budgetWords < 1)) errors.push(`state surface ${surface} budgetWords must be a positive integer`);
+  }
+}
+function inspectCollections(root, manifest, hub, files, tracked, errors) {
+  if (manifest.version !== 2 && manifest.version !== 3) return;
+  if (manifest.version === 3) inspectProfileV3(manifest, errors);
+  else if (!exactKeys(manifest.runs, new Set(['tracking']), 'runs', errors)
     || !['tracked', 'ignored'].includes(manifest.runs?.tracking)) errors.push('runs.tracking must be tracked or ignored');
   if (!Array.isArray(manifest.recordCollections)) errors.push('recordCollections must be an array');
   if (!Array.isArray(manifest.legacyPaths)) errors.push('legacyPaths must be an array');
@@ -122,15 +153,22 @@ function inspectCollections(manifest, hub, files, tracked, errors) {
   }
   const legacy = new Set();
   for (const [index, entry] of legacyPaths.entries()) {
-    exactKeys(entry, LEGACY_KEYS, `legacy path ${index + 1}`, errors);
+    const disposition = LEGACY_DISPOSITIONS[manifest.version].includes(entry?.disposition) ? entry.disposition : null;
+    exactKeys(entry, disposition === 'removed' ? LEGACY_KEYS_REMOVED : LEGACY_KEYS, `legacy path ${index + 1}`, errors);
     if (!safeRelative(entry?.path) || legacy.has(entry.path?.toLowerCase())) errors.push(`legacy path ${index + 1} has an invalid or duplicate path`);
     else legacy.add(entry.path.toLowerCase());
-    if (!['pointer', 'tombstone'].includes(entry?.disposition)) errors.push(`legacy path ${index + 1} has an invalid disposition`);
+    if (!disposition) errors.push(`legacy path ${index + 1} has an invalid disposition`);
+    if (['relocated', 'removed'].includes(disposition) && safeRelative(entry.path) && existsSync(resolve(root, entry.path))) {
+      errors.push(`legacy path ${index + 1} is ${disposition} but still exists on disk`);
+    }
+    if (disposition === 'relocated' && safeRelative(entry.target) && !existsSync(resolve(root, entry.target))) {
+      errors.push(`legacy path ${index + 1} relocated target does not exist`);
+    }
     if (safeRelative(entry?.path) && roots.some((root) => entry.path.toLowerCase() === root || entry.path.toLowerCase().startsWith(`${root}/`))) {
       errors.push(`legacy path ${index + 1} overlaps an immutable record root`);
     }
     if (safeRelative(entry?.path) && generated.has(entry.path.toLowerCase())) errors.push(`legacy path ${index + 1} overlaps generated record metadata`);
-    if (!safeRelative(entry?.target) || !entry.target.startsWith(`${hub}/`)) errors.push(`legacy path ${index + 1} target must be inside the documentation hub`);
+    if (disposition !== 'removed' && (!safeRelative(entry?.target) || !entry.target.startsWith(`${hub}/`))) errors.push(`legacy path ${index + 1} target must be inside the documentation hub`);
     if (!Array.isArray(entry?.requiredBy) || !entry.requiredBy.length
       || entry.requiredBy.some((item) => !item || typeof item !== 'object' || Array.isArray(item)
         || !['record', 'commit', 'external'].includes(item.kind) || typeof item.ref !== 'string' || !item.ref.trim()
@@ -144,13 +182,13 @@ function inspect(root, manifest, hub) {
   const errors = [];
   const files = gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']);
   const tracked = gitPaths(root, ['ls-files', '-z']);
-  const topKeys = manifest.version === 2 ? TOP_KEYS_V2 : TOP_KEYS_V1;
+  const topKeys = TOP_KEYS[manifest.version] || TOP_KEYS_V1;
   for (const key of Object.keys(manifest)) if (!topKeys.has(key)) errors.push(`manifest has unknown key ${key}`);
   for (const key of topKeys) if (!(key in manifest)) errors.push(`manifest is missing ${key}`);
-  if (![1, 2].includes(manifest.version) || !safeRelative(hub) || !Array.isArray(manifest.domains)) errors.push('manifest must use version 1 or 2, a safe hub, and a domains array');
-  const claimedStandard = standardVersion(root, hub);
-  if (manifest.version === 2 && (!Number.isInteger(claimedStandard) || claimedStandard < 4)) errors.push('manifest version 2 requires Standard.md standard-version 4 or newer');
-  inspectCollections(manifest, hub, files, tracked, errors);
+  if (![1, 2, 3].includes(manifest.version) || !safeRelative(hub) || !Array.isArray(manifest.domains)) errors.push('manifest must use version 1, 2, or 3, a safe hub, and a domains array');
+  const claimedStandard = standardVersion(root, hub); const minStandard = MIN_STANDARD[manifest.version];
+  if (minStandard && (!Number.isInteger(claimedStandard) || claimedStandard < minStandard)) errors.push(`manifest version ${manifest.version} requires Standard.md standard-version ${minStandard} or newer`);
+  inspectCollections(root, manifest, hub, files, tracked, errors);
   const ids = new Set(); const paths = new Set();
   for (const domain of manifest.domains || []) {
     for (const key of Object.keys(domain)) if (!KEYS.has(key)) errors.push(`${domain.id || 'domain'} has unknown key ${key}`);
@@ -178,7 +216,7 @@ function inspect(root, manifest, hub) {
   const collectionRoots = (Array.isArray(manifest.recordCollections) ? manifest.recordCollections : [])
     .filter((collection) => collection && typeof collection === 'object' && !Array.isArray(collection))
     .map((collection) => `${collection.root}/`);
-  const legacyPaths = new Set((Array.isArray(manifest.legacyPaths) ? manifest.legacyPaths : []).map((entry) => entry.path));
+  const legacyPaths = new Set((Array.isArray(manifest.legacyPaths) ? manifest.legacyPaths : []).map((entry) => entry?.path));
   const legacy = files.filter((file) => file.startsWith('docs/') && /\.md$/i.test(file)
     && !collectionRoots.some((rootPath) => file.startsWith(rootPath)) && !legacyPaths.has(file));
   if (legacy.length) errors.push(`authored Markdown remains outside ${hub}: ${legacy.join(', ')}`);

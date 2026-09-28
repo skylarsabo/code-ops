@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.14.0
+- The vault Standard moves to version 5. It splits the hub into a state layer and a history layer, adds the four-clause decision invariant, the `<domain>/<subject>` topic key, and the closed decision status set. Record bytes stay irreversible, but a collection root may move by a `relocate-root` event (decision note D-004).
+- `docs-manifest.mjs` accepts manifest v3, which requires standard-version 5. It adds `runs.tracking: closeout` with `retain` globs, a `drafts` block with `maxAgeDays` and `statuses`, a `state` map of surfaces with word budgets, and the `relocated` and `removed` legacy-path dispositions. Every new field fails closed, and a v2 manifest validates unchanged.
+- `check-vault-standard.mjs`, `check-doc-citations.mjs`, and `docs-extract.mjs` read a v3 manifest. Under v3, draft statuses come from `drafts.statuses`.
+- A null `legacyPaths` entry is reported as a validation error instead of crashing the check.
+
 ## 2.13.0
 - A repo-keyed presence board records each live session: name, host session id, branch, worktree, run folder, claimed paths, recent edits, a one-line task, and a heartbeat. It lives under `<home>/.claude/code-ops/`, one file per session, and holds repo-relative paths only. A record with no heartbeat for 30 minutes reads as idle.
 - `co board` lists the board, and `co board claim`, `release`, and `task` record explicit claims and the task line. A resume claims the program's scope documents.

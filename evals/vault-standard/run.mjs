@@ -135,13 +135,14 @@ const publishedTargets = run(withManifest(scaffold({
 expect(publishedTargets.status === 0,
   `current and not-applicable published manifest targets must remain exempt, got ${publishedTargets.status}:\n${publishedTargets.out}`);
 
-const recordManifest = (standardVersion) => {
+const recordManifest = (standardVersion, manifestVersion = 2, extra = {}, files = {}, standardBody = '') => {
   const dir = scaffold({
-    'Standard.md': `---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: ${standardVersion}\n---\n\n# Standard\n`,
+    'Standard.md': `---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: ${standardVersion}\n---\n\n# Standard\n${standardBody}`,
     '98 System/Records/audit.md': '# Generated record index without note frontmatter\n',
+    ...files,
   });
   writeFileSync(join(dir, '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify({
-    version: 2,
+    version: manifestVersion,
     hub: basename(dir),
     runs: { tracking: 'ignored' },
     legacyPaths: [],
@@ -152,6 +153,7 @@ const recordManifest = (standardVersion) => {
       curationLedger: '98 System/Records/audit-curation.jsonl', index: '98 System/Records/audit.md',
       scopes: [{ pattern: '**/*.md', kind: 'record', policy: 'append-only' }],
     }],
+    ...extra,
   }, null, 2)}\n`);
   return dir;
 };
@@ -166,6 +168,30 @@ expect(generatedRecordSiblingResult.status === 1 && /Records\/ordinary\.md: no Y
 const incompatibleRecordManifest = run(recordManifest(3));
 expect(incompatibleRecordManifest.status === 1 && /standard-version: 4/.test(incompatibleRecordManifest.out),
   `manifest v2 must require vault standard v4, got ${incompatibleRecordManifest.status}:\n${incompatibleRecordManifest.out}`);
+
+// Manifest v3 (vault standard v5) is readable, keeps the generated-index exemption, and takes
+// its draft statuses from `drafts.statuses`. A v2 manifest still reads them from the prose.
+const V3 = { runs: { tracking: 'closeout', retain: [] }, drafts: { maxAgeDays: 21, statuses: ['recorded'] }, state: {} };
+const recordedNote = { '10 Design/Recorded.md': '---\ntype: design\nstatus: recorded\nupdated: 2026-08-18\n---\n\n# Recorded\n' };
+const legacyNote = { '10 Design/Legacy.md': '---\ntype: design\nstatus: legacy\nupdated: 2026-08-18\n---\n\n# Legacy\n' };
+const proseStatus = '\nThis profile adds the profile status `legacy`.\n';
+const v3Valid = run(recordManifest(5, 3, V3, recordedNote));
+expect(v3Valid.status === 0 && !/Records\/audit\.md/.test(v3Valid.out),
+  `a manifest-v3 vault under standard v5 must pass with drafts.statuses applied, got ${v3Valid.status}:\n${v3Valid.out}`);
+const v3OldStandard = run(recordManifest(4, 3, V3));
+expect(v3OldStandard.status === 1 && /standard-version: 5/.test(v3OldStandard.out),
+  `manifest v3 must require vault standard v5, got ${v3OldStandard.status}:\n${v3OldStandard.out}`);
+const v3IgnoresProse = run(recordManifest(5, 3, V3, legacyNote, proseStatus));
+expect(v3IgnoresProse.status === 1 && /Legacy\.md/.test(v3IgnoresProse.out),
+  `under manifest v3 a prose-only profile status must not be accepted, got ${v3IgnoresProse.status}:\n${v3IgnoresProse.out}`);
+const v3BadStatuses = run(recordManifest(5, 3, { ...V3, drafts: { maxAgeDays: 21, statuses: [] } }));
+expect(v3BadStatuses.status === 1 && /drafts\.statuses/.test(v3BadStatuses.out),
+  `manifest v3 without valid drafts.statuses must fail closed, got ${v3BadStatuses.status}:\n${v3BadStatuses.out}`);
+const v2Prose = run(recordManifest(5, 2, {}, legacyNote, proseStatus));
+expect(v2Prose.status === 0, `manifest v2 must still read profile statuses from the prose, got ${v2Prose.status}:\n${v2Prose.out}`);
+const v2IgnoresDrafts = run(recordManifest(5, 2, {}, recordedNote));
+expect(v2IgnoresDrafts.status === 1 && /Recorded\.md/.test(v2IgnoresDrafts.out),
+  `manifest v2 must not gain statuses it did not declare, got ${v2IgnoresDrafts.status}:\n${v2IgnoresDrafts.out}`);
 
 // Canonical run artifacts carry no frontmatter by design. All nine of the artifact table in
 // code-ops-docs/40 Engineering/Techniques/vault-standard.md must pass, `HANDOFF.md` included — its bare all-caps stem

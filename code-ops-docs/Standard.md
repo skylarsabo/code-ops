@@ -1,8 +1,8 @@
 ---
 type: standard
 status: current
-updated: 2026-09-03
-standard-version: 4
+updated: 2026-09-28
+standard-version: 5
 tags:
   - meta
   - standard
@@ -40,9 +40,48 @@ The shared standard lives at `code-ops-docs/40 Engineering/Techniques/vault-stan
 
 Version 2 also declares `recordCollections`, `legacyPaths`, and explicit `runs.tracking`. This repository registers no record collection today, so `recordCollections` is empty and the record checks have nothing to gate.
 
+Manifest version 3 requires standard version 5 and adds three profile blocks:
+
+- **`runs`** holds `tracking` and `retain`. `tracking` is `tracked`, `closeout`, or `ignored`. Under `closeout`, program folders and each `CLOSEOUT.md` are committed, and dated run folders are ignored except the `retain` globs. `retain` must be empty under the other two values.
+- **`drafts`** holds `maxAgeDays` and `statuses`. This list replaces draft statuses declared in profile prose.
+- **`state`** maps each hub-relative state surface to its `budgetWords`.
+
+Version 3 also adds two `legacyPaths` dispositions beside `pointer` and `tombstone`. `relocated` names a moved root and its target, which must exist. `removed` names a root that must not exist on disk, and it carries no target. A version 2 manifest keeps its version 2 rules, so an upgrade adds no failure until the repository opts in. This repository stays at manifest version 2.
+
 Run `node scripts/docs-manifest.mjs check` before trusting the hub. A matching source digest proves that the declared evidence paths have not moved since the document was reviewed. It does not prove coverage beyond those declared paths.
 
 Atlas prose is trusted only when `atlas-check.mjs` reports the section FRESH. Freshness now reaches claim granularity: `atlas-check.mjs stamp` records one claim per `path:line` citation, and `check` classifies each claim through the same rules a findings register uses. Add `--claims-gate` to exit non-zero on any claim the classifier did not call FRESH. [The atlas](40 Engineering/Techniques/atlas.md) owns the trust doctrine.
+
+## State and history
+
+The hub has two layers:
+
+| Layer | Contents | Mutability |
+| --- | --- | --- |
+| State | `00 Home.md`, `20 Decisions/REGISTER.md`, `10 Design/INDEX.md`, `80 Runs/INDEX.md`, `98 System/TRIAGE.md`, and synthesis pages that declare their sources | Rewritten in place, mostly generated |
+| History | Record collections, dated run folders, `PROGRAM.archive.md`, closed drafts, and `99 Archive/` | Append-only. Record bytes never change |
+
+A session reaches history through a state link. The manifest declares each state surface and its word budget.
+
+The register holds rules, not evidence. Four clauses bind it:
+
+1. Every decision in force has one register line.
+2. Every register line cites one history source: a record id, and a run or program id when it came from a run.
+3. Every program-ledger decision carries a disposition within one hop of being made.
+4. No two in-force register lines claim the same topic key without a `supersedes` or `amends` link.
+
+A topic key has the form `<domain>/<subject>`, such as `records/relocation`. The domain is the `id` of a manifest domain. The subject is a kebab-case slug of one to five words. A `decision` or `amendment` record carries a key, and other record kinds do not. An amendment carries the key of the record it amends. Clause 4 compares keys as exact strings.
+
+A decision has one of four statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `in-force` | The rule applies as written. |
+| `amended` | The rule applies with later amendments. |
+| `superseded` | A later record replaces the rule. |
+| `historical` | Evidence or a report, not a rule. |
+
+A status change is a curation event. Record bytes never change, so a write-once record can still read as amended in the register.
 
 ## Where new work goes
 
@@ -78,6 +117,8 @@ Only `v2-migration` may cover an artifact without provenance. It preserves the c
 The authority-batch chain records membership and provenance. The curation ledger records status and supersession. Never combine these chains or rewrite an accepted object in either chain.
 
 An adopted `_archive` path freezes in place. Move current authority through curation and a canonical hub document. Never archive a governed record by moving it.
+
+Admitted bytes stay irreversible, but a collection root may move. [[D-004 collection roots may relocate]] records this change. Each move is a `relocate-root` curation event. Every record keeps its bytes and its path relative to the root. A root may move more than once, and each move is one prefix swap. Until the record tooling records `relocate-root` events, no root moves.
 
 ## Runs and Git
 

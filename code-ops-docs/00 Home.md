@@ -1,7 +1,7 @@
 ---
 type: home
 status: current
-updated: 2026-09-03
+updated: 2026-09-28
 tags:
   - meta
 ---
@@ -63,3 +63,5 @@ The code-ops profile waives `30 Ops/`, because this repository operates no servi
 - [Context and code economy 2026-09](10%20Design/Context%20and%20code%20economy%202026-09.md), the design behind the digest, the index, the ladder, and the measurement loop. Every phase shipped on 2026-09-03.
 - [[D-001 adopt vault standard]]
 - [[D-002 vault adoption stays voluntary]]
+- [[D-003 consent parsing is a spec]]
+- [[D-004 collection roots may relocate]]

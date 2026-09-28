@@ -30,8 +30,9 @@
 //   7. At least one domain folder exists in the 10-79 band. A vault with only machinery holds
 //      no judgment, so nothing routes to it.
 //   8. Every `.md` note carries `type`, `status`, and `updated` frontmatter.
-//   9. `status` is one of `draft`, `current`, `accepted`, `superseded`, or a profile status the
-//      vault's own Standard.md declares.
+//   9. `status` is one of `draft`, `current`, `accepted`, `superseded`, or a profile status. Manifest
+//      v3 declares profile statuses in `drafts.statuses`; otherwise they come from the
+//      vault's own Standard.md prose.
 //  10. `updated` is a YYYY-MM-DD date.
 //
 // WHAT IT DELIBERATELY DOES NOT CHECK (and why)
@@ -198,21 +199,29 @@ const rel = (p) => p.slice(vault.length + 1).replaceAll('\\', '/');
 const manifestOwned = new Set();
 const generatedRecords = new Set();
 let docsManifestVersion = null;
+// Manifest v3 declares draft statuses in `drafts.statuses`, which replaces the profile prose.
+let manifestStatuses = null;
 const docsManifestPath = join(vault, '98 System', 'DOCS_MANIFEST.json');
 if (existsSync(docsManifestPath)) {
   try {
     const docsManifest = JSON.parse(readFileSync(docsManifestPath, 'utf8'));
     docsManifestVersion = docsManifest.version;
-    if (![1, 2].includes(docsManifest.version) || docsManifest.hub !== basename(vault) || !Array.isArray(docsManifest.domains)) {
-      fail('98 System/DOCS_MANIFEST.json does not declare this vault as its version 1 or 2 hub');
+    if (![1, 2, 3].includes(docsManifest.version) || docsManifest.hub !== basename(vault) || !Array.isArray(docsManifest.domains)) {
+      fail('98 System/DOCS_MANIFEST.json does not declare this vault as its version 1, 2, or 3 hub');
     } else for (const domain of docsManifest.domains) {
       if (isPublishedManifestTarget(domain)) manifestOwned.add(domain.path.replaceAll('\\', '/').replace(/\/$/, ''));
     }
-    if (docsManifest.version === 2) {
-      if (!Array.isArray(docsManifest.recordCollections)) fail('manifest version 2 has no recordCollections array');
+    if (docsManifest.version === 2 || docsManifest.version === 3) {
+      if (!Array.isArray(docsManifest.recordCollections)) fail(`manifest version ${docsManifest.version} has no recordCollections array`);
       for (const collection of docsManifest.recordCollections || []) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
         if (typeof collection?.[key] === 'string' && collection[key].startsWith('98 System/Records/')) generatedRecords.add(collection[key].replaceAll('\\', '/'));
       }
+    }
+    if (docsManifest.version === 3) {
+      const listed = docsManifest.drafts?.statuses;
+      if (!Array.isArray(listed) || !listed.length || !listed.every((s) => typeof s === 'string' && /^[a-z][a-z0-9-]*$/.test(s)))
+        fail('manifest version 3 has no valid drafts.statuses array');
+      else manifestStatuses = listed;
     }
   } catch (error) { fail(`98 System/DOCS_MANIFEST.json cannot be parsed: ${error.message}`); }
 }
@@ -237,8 +246,10 @@ if (!existsSync(standardPath)) {
       fail(`Standard.md claims \`standard-version: ${v}\`, below the current standard-version ${MIN_STANDARD_VERSION} — re-copy the body from reference/vault-standard.md bundled with the code-ops-suite plugin, re-append the profile, and bump the stamp`);
     else if (docsManifestVersion === 2 && v < 4)
       fail('Standard.md must claim `standard-version: 4` or newer when DOCS_MANIFEST.json uses version 2');
+    else if (docsManifestVersion === 3 && v < 5)
+      fail('Standard.md must claim `standard-version: 5` or newer when DOCS_MANIFEST.json uses version 3');
   }
-  for (const s of profileStatuses(standardText)) statuses.add(s);
+  for (const s of manifestStatuses ?? profileStatuses(standardText)) statuses.add(s);
 }
 
 // ---- 2. The two vault-root files ---------------------------------------------------

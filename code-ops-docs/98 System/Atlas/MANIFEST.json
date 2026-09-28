@@ -8,9 +8,14 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
-      "verifiedDigest": "80205df8663a42fd6375821ef89905b326d5d8dd87eb15e55a5e2b5cdfd656b6",
+      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
+      "verifiedDigest": "382ef41b8ac60e36f79014b41fecf0fdbd563bdb87cb91e3d2403abfd3ab0e4c",
       "claims": [
+        {
+          "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
+          "line": 15,
+          "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
+        },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 4,
@@ -145,13 +150,48 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
-      "verifiedDigest": "18198b7779b0cb3a479cc3b65d772d7f0c4c06282c0d8b55b4e3c94821f60d44",
+      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
+      "verifiedDigest": "a80498babd6dc5d7717f56ffe3a4ff28db9da40700b403111569462017138569",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
           "line": 872,
           "anchor": "// ---- 29. CHANGELOG placeholders and duplicate version headings --------------"
+        },
+        {
+          "file": "scripts/docs-manifest.mjs",
+          "line": 15,
+          "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
+        },
+        {
+          "file": "scripts/docs-manifest.mjs",
+          "line": 81,
+          "anchor": "function inspectProfileV3(manifest, errors) {"
+        },
+        {
+          "file": "scripts/docs-manifest.mjs",
+          "line": 16,
+          "anchor": "const LEGACY_DISPOSITIONS = { 2: ['pointer', 'tombstone'], 3: ['pointer', 'tombs"
+        },
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 223,
+          "anchor": "fail('manifest version 3 has no valid drafts.statuses array');"
+        },
+        {
+          "file": "scripts/check-doc-citations.mjs",
+          "line": 39,
+          "anchor": "if (!manifest || ![1, 2, 3].includes(manifest.version) || manifest.hub !== hub |"
+        },
+        {
+          "file": "scripts/docs-extract.mjs",
+          "line": 38,
+          "anchor": "const withRecords = plan.version === 2 || plan.version === 3;"
+        },
+        {
+          "file": "scripts/docs-manifest.mjs",
+          "line": 219,
+          "anchor": "const legacyPaths = new Set((Array.isArray(manifest.legacyPaths) ? manifest.lega"
         },
         {
           "file": "scripts/record-lib.mjs",
@@ -261,9 +301,29 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
-      "verifiedDigest": "0dcd7cb96ccfb1e6c14b3063d4fc04f29a46dcb6bbd0ca71a46f2b4bb0acf6e9",
+      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
+      "verifiedDigest": "5df1b9bc02e33fa2d020bd852da808322e37e61cf030202c4f752a454db90c98",
       "claims": [
+        {
+          "file": "evals/docs-manifest/run.mjs",
+          "line": 161,
+          "anchor": "const v3Cases = ["
+        },
+        {
+          "file": "evals/docs-manifest/run.mjs",
+          "line": 206,
+          "anchor": "${label} null legacy path entry is a validation error, not a crash"
+        },
+        {
+          "file": "evals/vault-standard/run.mjs",
+          "line": 180,
+          "anchor": "a manifest-v3 vault under standard v5 must pass with drafts.statuses applied, go"
+        },
+        {
+          "file": "evals/doc-citations/run.mjs",
+          "line": 58,
+          "anchor": "const f = buildCase('manifest-v3', 'See"
+        },
         {
           "file": "evals/opencode-dist/run.mjs",
           "line": 271,
@@ -349,8 +409,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
-      "verifiedDigest": "63259ce86a9a8255ba11ac1de2c98c22b9ab276f48e60ecb6e4cd67ca9a687a5",
+      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
+      "verifiedDigest": "138b26fdfb5b4fec844d131affc23f463b950ec947e39ea66f4f7fc7fe057b6e",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -361,6 +421,16 @@
           "file": "scripts/build-codex-marketplace.mjs",
           "line": 545,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
+        },
+        {
+          "file": "codex-marketplace/plugins/code-ops-suite/scripts/docs-manifest.mjs",
+          "line": 15,
+          "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
+        },
+        {
+          "file": "opencode-dist/code-ops/code-ops-suite/scripts/docs-manifest.mjs",
+          "line": 15,
+          "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
         },
         {
           "file": "opencode-dist/PLATFORM_COMPATIBILITY.md",
@@ -429,12 +499,27 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "c4cda784966260c76326b1f9425d2557be94cdfd",
-      "verifiedDigest": "c3ece363926eaf35fc800848ffc097b087e8e0f5f325c89487745b025c9e8945",
+      "verifiedAt": "c796cdf9e0b040ff67e4e0ca8e8069c27e7a655e",
+      "verifiedDigest": "1d40128f02d6c3a47ae6ddb5323ccd2b9af8fae6d812495e2963871ebc195340",
       "claims": [
         {
+          "file": "code-ops-docs/Standard.md",
+          "line": 66,
+          "anchor": "The register holds rules, not evidence. Four clauses bind it:"
+        },
+        {
+          "file": "code-ops-docs/Standard.md",
+          "line": 73,
+          "anchor": "record carries a key, and other record kinds do not. An amendment carries the ke"
+        },
+        {
+          "file": "code-ops-docs/Standard.md",
+          "line": 121,
+          "anchor": "curation event. Every record keeps its bytes and its path relative to the root."
+        },
+        {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 156,
+          "line": 157,
           "anchor": "try { out = git(['ls-files', '--others', '--ignored', '--exclude-standard', '--d"
         },
         {
