@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.11.1
+- `co handoff draft` records a sha256 prefix for each dirty path, and `check-handoff.mjs` reports `same-tree:` only when every recorded path still matches its hash. A dirty record without hashes never reports same-tree, so an older handoff re-verifies.
+- Both `git status` calls pass `--untracked-files=all` again, so a file added inside an untracked folder counts as a change. `SCOPE_DIGESTS.md` beside the handoff is left out of the comparison.
+
 ## 2.11.0
 - The handoff point moves from about 350,000 to about 225,000 tokens in the handoff skill, the global contract, and `MEASUREMENTS.md`, which pre-registers the window comparison that re-checks it one week after release. The 150,000-token bands and the 300,000-token ceiling are unchanged, and the ceiling now catches a session that chose CONTINUE and overran.
 - The handoff card fires on first reaching the handoff point (200,000 on Grok) and says to hand off at the next phase boundary. With no operator prompt since the last card, it says to write the handoff instead of assessing again.

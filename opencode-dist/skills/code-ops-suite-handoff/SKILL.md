@@ -122,7 +122,8 @@ holds and delete the rest. Replace each `[FILL: ...]` placeholder with judgment,
 - **Authority:** the operator's grants in their exact words, with scope, stating the handoff cannot broaden them.
 - **Carried context:** conversation analysis the successor needs, written to a run-folder file and pointed at, plus any session receipt for measured cost.
 
-With `--out`, draft also writes `SCOPE_DIGESTS.md` beside the handoff, outside its cap: for each
+With `--out`, and the Program ledger resolves, draft also writes `SCOPE_DIGESTS.md` beside the
+handoff, outside its cap: for each
 `PROGRAM.md` scope document, a sha256 of its bytes, `Verified-at:`, and a digest. A document
 unchanged since the predecessor keeps its digest. Replace each `[FILL: digest]` with one paragraph
 on what that document now holds.

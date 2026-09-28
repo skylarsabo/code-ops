@@ -14,6 +14,7 @@
 //   node evals/handoff-check/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -386,15 +387,30 @@ rmSync(join(tree, 'untracked.txt'));
 
 // same-tree-recorded-dirty-set: at the recorded HEAD with the recorded dirty paths the status
 // prints. One extra dirty path, one recorded path now clean, or a truncated record reports no.
+// `dirtyAt` is the draft's bullet: the porcelain line, then `sha256:` and the first 16 hex of the
+// file's bytes, or `none` for a path that is gone.
+const tokenOf = (rel) => (existsSync(join(tree, rel)) ? `sha256:${createHash('sha256').update(readFileSync(join(tree, rel))).digest('hex').slice(0, 16)}` : 'none');
+const dirtyAt = (line) => `- Dirty: \`${line}\` · ${tokenOf(line.slice(3))}`;
 writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
-stampHandoff(treeHead, ['- Dirty: ` M target.mjs`']);
+stampHandoff(treeHead, [dirtyAt(' M target.mjs')]);
 const rRecorded = run([treeHandoff], tree);
 check('the recorded dirty set at HEAD reports same-tree', rRecorded.status === 0 && SAME_TREE.test(outOf(rRecorded)));
+check('an unchanged dirty file whose hash matches the record keeps same-tree', SAME_TREE.test(outOf(run([treeHandoff], tree))));
+// B1: the path set alone matched a recorded dirty file edited after the draft.
+writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = "after the draft";\n');
+const rEdited = run([treeHandoff], tree);
+check('a recorded dirty path edited after the draft suppresses same-tree', rEdited.status === 0 && !/same-tree:/.test(outOf(rEdited)));
+writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
+// A record from before content hashes cannot prove the dirty bytes, so the resume re-verifies.
+stampHandoff(treeHead, ['- Dirty: ` M target.mjs`']);
+const rOldFormat = run([treeHandoff], tree);
+check('a dirty record without hashes (older format) suppresses same-tree', rOldFormat.status === 0 && !/same-tree:/.test(outOf(rOldFormat)));
+stampHandoff(treeHead, [dirtyAt(' M target.mjs')]);
 // The draft counts a derived path (a vendored plugin script) instead of listing it.
 writeFileSync(join(tree, 'plugins', 'p', 'scripts', 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
 const rUncounted = run([treeHandoff], tree);
 check('a derived dirty path the record does not count suppresses same-tree', rUncounted.status === 0 && !/same-tree:/.test(outOf(rUncounted)));
-stampHandoff(treeHead, ['- Dirty: ` M target.mjs`', '- Derived dirty paths not listed: 1 (host distributions and vendored plugin scripts).']);
+stampHandoff(treeHead, [dirtyAt(' M target.mjs'), '- Derived dirty paths not listed: 1 (host distributions and vendored plugin scripts).']);
 const rDerived = run([treeHandoff], tree);
 check('a derived dirty path the record counts reports same-tree', rDerived.status === 0 && SAME_TREE.test(outOf(rDerived)));
 gitIn('checkout', '-q', '--', 'plugins');
@@ -411,6 +427,38 @@ stampHandoff(treeHead, ['- Dirty: ` M target.mjs`']);
 const rCleaned = run([treeHandoff], tree);
 check('a recorded dirty path that is now clean suppresses same-tree', rCleaned.status === 0 && !/same-tree:/.test(outOf(rCleaned)));
 
+// Deleted files, untracked folders, and SCOPE_DIGESTS.md each move HEAD, so they run last.
+writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
+// A deleted file records the fixed `none` token.
+writeFileSync(join(tree, 'gone.mjs'), 'x\n'); gitIn('add', 'gone.mjs'); gitIn('commit', '-q', '-m', 'gone');
+const goneHead = gitIn('rev-parse', '--short', 'HEAD').stdout.trim();
+rmSync(join(tree, 'gone.mjs'));
+stampHandoff(goneHead, [dirtyAt(' M target.mjs'), dirtyAt(' D gone.mjs')]);
+check('a deleted dirty path recorded as none keeps same-tree', SAME_TREE.test(outOf(run([treeHandoff], tree))));
+gitIn('checkout', '-q', '--', 'gone.mjs');
+// S1: a file added inside a recorded untracked folder. With --untracked-files=all the folder's
+// files are listed one by one, so the new file is an unrecorded path.
+mkdirSync(join(tree, 'newdir'));
+writeFileSync(join(tree, 'newdir', 'a.txt'), 'a\n');
+stampHandoff(goneHead, [dirtyAt(' M target.mjs'), dirtyAt('?? newdir/a.txt')]);
+check('the recorded files of an untracked folder report same-tree', SAME_TREE.test(outOf(run([treeHandoff], tree))));
+writeFileSync(join(tree, 'newdir', 'b.txt'), 'b\n');
+const rAdded = run([treeHandoff], tree);
+check('a file added inside a recorded untracked folder suppresses same-tree', rAdded.status === 0 && !/same-tree:/.test(outOf(rAdded)));
+stampHandoff(goneHead, [dirtyAt(' M target.mjs'), '- Dirty: `?? newdir/`']);
+check('a folder-level untracked record never reports same-tree', !/same-tree:/.test(outOf(run([treeHandoff], tree))));
+rmSync(join(tree, 'newdir'), { recursive: true, force: true });
+// N2: in a repository that tracks its run folders, SCOPE_DIGESTS.md beside the handoff is written
+// after the draft reads the tree, so it is excluded like the handoff file itself.
+writeFileSync(join(tree, 'SCOPE_DIGESTS.md'), '# Scope digests\n');
+stampHandoff(goneHead, [dirtyAt(' M target.mjs')]);
+check('SCOPE_DIGESTS.md beside the handoff does not break same-tree', SAME_TREE.test(outOf(run([treeHandoff], tree))));
+gitIn('add', 'SCOPE_DIGESTS.md'); gitIn('commit', '-q', '-m', 'digests');
+writeFileSync(join(tree, 'SCOPE_DIGESTS.md'), '# Scope digests\n\nrewritten\n');
+stampHandoff(gitIn('rev-parse', '--short', 'HEAD').stdout.trim(), [dirtyAt(' M target.mjs')]);
+check('a tracked SCOPE_DIGESTS.md rewritten beside the handoff does not break same-tree', SAME_TREE.test(outOf(run([treeHandoff], tree))));
+gitIn('checkout', '-q', '--', 'SCOPE_DIGESTS.md');
+gitIn('checkout', '-q', '--', 'target.mjs');
 stampHandoff('abc1234');
 const rStaleTree = run([treeHandoff], tree);
 check('a clean tree with a stale Verified-at reports no same-tree', rStaleTree.status === 0 && !/same-tree:/.test(outOf(rStaleTree)) && /advisory: Verified-at abc1234/.test(outOf(rStaleTree)));

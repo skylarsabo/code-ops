@@ -75,9 +75,11 @@
 // session re-verifies before trusting the handoff's claims.
 //
 // Status (never gating): `same-tree: Verified-at matches HEAD and the dirty paths the handoff
-// recorded` prints when the `Verified-at:` sha is the current HEAD and `git status --porcelain`,
-// less the handoff file itself, names exactly the `- Dirty:` paths `co handoff draft` recorded.
-// A handoff with no such record needs a clean tree. Gitignored run scratch never appears there. A
+// recorded` prints when the `Verified-at:` sha is the current HEAD, `git status --porcelain
+// --untracked-files=all`, less the handoff file and the SCOPE_DIGESTS.md beside it, names exactly
+// the `- Dirty:` paths `co handoff draft` recorded, and each such path still matches its recorded
+// content hash. A record without hashes never matches. A handoff with no such record needs a
+// clean tree. Gitignored run scratch never appears there. A
 // resumed session may then take FRESH anchors without re-reading each file (handoff SKILL.md,
 // resume direction).
 //
@@ -86,6 +88,7 @@
 // one-line verdict. A warning never changes the exit code.
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path';
 import { parseOrDie, usage, git } from './cli-lib.mjs';
@@ -374,21 +377,40 @@ for (const s of statuses) {
 }
 
 // The dirty record `co handoff draft` writes (dirtyLines in scripts/handoff-state.mjs): one
-// "- Dirty: `<porcelain line>`" bullet per listed path, a count of the derived paths it leaves out,
-// and a "+N more" line when it truncates the list. Keep DERIVED and porcelainPath in step with it.
+// "- Dirty: `<porcelain line>` · <token>" bullet per listed path, a count of the derived paths it
+// leaves out, and a "+N more" line when it truncates the list. Keep DERIVED, porcelainPath, and
+// dirtyHash in step with it.
 const DERIVED = /^(codex-marketplace\/|opencode-dist\/|\.agents\/plugins\/|plugins\/[^/]+\/scripts\/)/;
+const DIRTY_HASH_HEX = 16;
 const porcelainPath = (line) => line.slice(3).split(' -> ').pop().replace(/^"|"$/g, '');
-// True when the porcelain lines name exactly the paths the handoff recorded. Derived paths match
-// by count because the draft counts them instead of listing them. A truncated list cannot be
-// compared, so it never matches. A handoff with no record matches only a clean tree.
-function sameDirtySet(handoff, dirty, own) {
+// The draft's content token for one porcelain line: `sha256:` and the first DIRTY_HASH_HEX hex of
+// the working-tree bytes, `none` for a path that is gone, null when it cannot be hashed.
+function dirtyHash(top, line) {
+  const raw = line.slice(3).split(' -> ').pop();
+  if (raw.startsWith('"')) return null;
+  let stat;
+  try { stat = statSync(join(top, raw)); } catch { return 'none'; }
+  if (!stat.isFile()) return null;
+  try {
+    return `sha256:${createHash('sha256').update(readFileSync(join(top, raw))).digest('hex').slice(0, DIRTY_HASH_HEX)}`;
+  } catch { return null; }
+}
+// True when the porcelain lines name exactly the paths the handoff recorded, and each recorded path
+// still hashes to its recorded token. Derived paths match by count because the draft counts them
+// instead of listing them. A truncated list cannot be compared, so it never matches. A recorded path
+// without a token (a record from before tokens, or an unhashable path) never matches, so the resume
+// re-verifies. A handoff with no record matches only a clean tree. `skip` holds the handoff file and
+// its SCOPE_DIGESTS.md, which the draft writes after it reads the tree.
+function sameDirtySet(handoff, dirty, skip, top) {
   if (/^- \+\d+ more non-derived dirty path/m.test(handoff)) return false;
-  const recorded = new Set([...handoff.matchAll(/^- Dirty: `(.+)`\s*$/gm)].map((m) => porcelainPath(m[1])));
-  recorded.delete(own);
+  const recorded = new Map([...handoff.matchAll(/^- Dirty: `(.+)`(?: · (sha256:[0-9a-f]+|none))?\s*$/gm)]
+    .map((m) => [porcelainPath(m[1]), m[2]]));
+  for (const p of skip) recorded.delete(p);
   const derived = Number(handoff.match(/^- Derived dirty paths not listed: (\d+)\b/m)?.[1] ?? 0);
-  const current = new Set(dirty.map(porcelainPath));
-  const unlisted = [...current].filter((p) => !recorded.has(p));
-  return [...recorded].every((p) => current.has(p)) && unlisted.length === derived && unlisted.every((p) => DERIVED.test(p));
+  const current = new Map(dirty.map((line) => [porcelainPath(line), line]));
+  const unlisted = [...current.keys()].filter((p) => !recorded.has(p));
+  return [...recorded].every(([p, hash]) => hash && current.has(p) && dirtyHash(top, current.get(p)) === hash)
+    && unlisted.length === derived && unlisted.every((p) => DERIVED.test(p));
 }
 
 // ---- advisory: the handoff's Verified-at sha is not the current HEAD ----
@@ -405,16 +427,21 @@ if (stamped && headSha && !stamped[1].startsWith(headSha) && !headSha.startsWith
 // The dirty set must equal the one the handoff recorded, so a resume on the tree the draft saw
 // takes the fast path even when the session left uncommitted work.
 else if (stamped && headSha) {
-  const own = relative(resolver.root, resolve(target)).replace(/\\/g, '/');
+  const repoRel = (p) => relative(resolver.root, p).replace(/\\/g, '/');
+  const own = repoRel(resolve(target));
+  const digests = repoRel(join(dirname(resolve(target)), 'SCOPE_DIGESTS.md'));
   const inRoot = own && !own.startsWith('../') && !isAbsolute(own);
   let dirty = null;
+  let top = null;
   try {
     // The same porcelain call as `co handoff draft`, so both sides use one path form. Not cli-lib's
     // git(): its trim would eat the first line's leading status column.
-    dirty = execFileSync('git', ['status', '--porcelain', ...(inRoot ? ['--', `:(exclude,literal)${own}`] : [])],
+    const exclude = inRoot ? ['--', `:(exclude,literal)${own}`, `:(exclude,literal)${digests}`] : [];
+    dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=all', ...exclude],
       { cwd: resolver.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').filter(Boolean);
+    top = git(['rev-parse', '--show-toplevel'], { cwd: resolver.root });
   } catch { /* not decidable */ }
-  if (dirty && sameDirtySet(text, dirty, own)) console.error('  same-tree: Verified-at matches HEAD and the dirty paths the handoff recorded');
+  if (dirty && top && sameDirtySet(text, dirty, [own, digests], top)) console.error('  same-tree: Verified-at matches HEAD and the dirty paths the handoff recorded');
 }
 
 for (const w of warnings) console.error(`  warning: ${w}`);
