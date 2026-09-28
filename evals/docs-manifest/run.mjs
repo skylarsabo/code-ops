@@ -142,6 +142,9 @@ try {
   versionThree.recordCollections = [validCollection()];
   result = checkManifest(versionThree);
   check('manifest v3 is valid under vault standard v5', result.status === 0, result.out);
+  const digitSlug = structuredClone(versionThree); digitSlug.drafts.statuses = ['9-lives'];
+  result = checkManifest(digitSlug);
+  check('manifest v3 accepts a digit-led draft status slug', result.status === 0, result.out);
   for (const [tracking, label] of [['tracked', 'tracked'], ['ignored', 'ignored']]) {
     const plain = structuredClone(versionThree); plain.runs = { tracking, retain: [] }; plain.state = {};
     result = checkManifest(plain);
@@ -176,6 +179,9 @@ try {
     ['v3 drafts max age is not a string', (m) => { m.drafts.maxAgeDays = '21'; }, 'drafts.maxAgeDays must be a positive integer'],
     ['v3 draft statuses are non-empty', (m) => { m.drafts.statuses = []; }, 'drafts.statuses must be a non-empty array of unique slug statuses'],
     ['v3 draft statuses are slugs', (m) => { m.drafts.statuses = ['Draft']; }, 'drafts.statuses must be a non-empty array of unique slug statuses'],
+    // Same slugs as evals/vault-standard/run.mjs, which pins check-vault-standard.mjs to this rule.
+    ['v3 draft statuses reject a trailing hyphen', (m) => { m.drafts.statuses = ['a-']; }, 'drafts.statuses must be a non-empty array of unique slug statuses'],
+    ['v3 draft statuses reject a doubled hyphen', (m) => { m.drafts.statuses = ['a--b']; }, 'drafts.statuses must be a non-empty array of unique slug statuses'],
     ['v3 draft statuses are unique', (m) => { m.drafts.statuses = ['draft', 'draft']; }, 'drafts.statuses must be a non-empty array of unique slug statuses'],
     ['v3 state is an object', (m) => { m.state = []; }, 'state must be an object'],
     ['v3 state surfaces are safe', (m) => { m.state = { '../escape.md': { budgetWords: 10 } }; }, 'must be a unique hub-relative Markdown path'],

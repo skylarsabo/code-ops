@@ -187,6 +187,17 @@ expect(v3IgnoresProse.status === 1 && /Legacy\.md/.test(v3IgnoresProse.out),
 const v3BadStatuses = run(recordManifest(5, 3, { ...V3, drafts: { maxAgeDays: 21, statuses: [] } }));
 expect(v3BadStatuses.status === 1 && /drafts\.statuses/.test(v3BadStatuses.out),
   `manifest v3 without valid drafts.statuses must fail closed, got ${v3BadStatuses.status}:\n${v3BadStatuses.out}`);
+// The slug rule is shared with docs-manifest.mjs (evals/docs-manifest/run.mjs pins the same three
+// slugs there): a digit-led slug is valid, a trailing or doubled hyphen is not.
+const digitNote = { '10 Design/Lives.md': '---\ntype: design\nstatus: 9-lives\nupdated: 2026-08-18\n---\n\n# Lives\n' };
+const v3DigitSlug = run(recordManifest(5, 3, { ...V3, drafts: { maxAgeDays: 21, statuses: ['9-lives'] } }, digitNote));
+expect(v3DigitSlug.status === 0,
+  `a digit-led drafts.statuses slug must be accepted like docs-manifest.mjs, got ${v3DigitSlug.status}:\n${v3DigitSlug.out}`);
+for (const badSlug of ['a-', 'a--b']) {
+  const badSlugResult = run(recordManifest(5, 3, { ...V3, drafts: { maxAgeDays: 21, statuses: [badSlug] } }));
+  expect(badSlugResult.status === 1 && /drafts\.statuses/.test(badSlugResult.out),
+    `drafts.statuses slug ${badSlug} must be rejected like docs-manifest.mjs, got ${badSlugResult.status}:\n${badSlugResult.out}`);
+}
 const v2Prose = run(recordManifest(5, 2, {}, legacyNote, proseStatus));
 expect(v2Prose.status === 0, `manifest v2 must still read profile statuses from the prose, got ${v2Prose.status}:\n${v2Prose.out}`);
 const v2IgnoresDrafts = run(recordManifest(5, 2, {}, recordedNote));

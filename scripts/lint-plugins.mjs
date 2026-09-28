@@ -373,9 +373,13 @@ function checkBundledScripts({ plugins, pluginByName }) {
   const SCRIPT_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/([\w.-]+\.mjs)/g;
   // A façade reference runs a sibling script, so it is a reference to that script. The verb
   // table is read from the canonical scripts/co.mjs rather than restated here, so a table edit
-  // cannot leave this check resolving verbs that no longer exist.
-  const FACADE_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/co\.mjs\s+([a-z][a-z-]*)\s+([a-z][a-z-]*)/g;
+  // cannot leave this check resolving verbs that no longer exist. A verb-less entry is a command
+  // (`co brief <agent>`): every word after it is an argument, so the reference resolves to its
+  // script whatever follows. A reference to a verbed domain resolves only through a listed verb.
+  const FACADE_REF_RE = /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/co\.mjs\s+([a-z][a-z-]*)(?:\s+([a-z][a-z-]*))?/g;
   const coTable = new Map();
+  const coCommands = new Map();
+  const coDomains = new Set();
   {
     const coPath = join(ROOT, 'scripts', 'co.mjs');
     const source = existsSync(coPath) ? readText(coPath) : '';
@@ -384,7 +388,9 @@ function checkBundledScripts({ plugins, pluginByName }) {
     let domain = null;
     for (const line of block.split('\n')) {
       const d = /^ {2}([a-z][a-z-]*): \{$/.exec(line);
-      if (d) { domain = d[1]; continue; }
+      if (d) { domain = d[1]; coDomains.add(domain); continue; }
+      const c = /^ {2}([a-z][a-z-]*): '([\w.-]+\.mjs)',?$/.exec(line);
+      if (c) { domain = null; coDomains.add(c[1]); coCommands.set(c[1], c[2]); continue; }
       const v = /^ {4}'?([a-z][a-z-]*)'?: (?:'([\w.-]+\.mjs)'|\{ script: '([\w.-]+\.mjs)')/.exec(line);
       if (domain && v) coTable.set(`${domain} ${v[1]}`, v[2] ?? v[3]);
     }
@@ -406,8 +412,10 @@ function checkBundledScripts({ plugins, pluginByName }) {
         refd.get(m[1]).add(rel(f));
       }
       for (const m of text.matchAll(FACADE_REF_RE)) {
-        const verb = `${m[1]} ${m[2]}`;
-        const resolved = coTable.get(verb);
+        const command = coCommands.get(m[1]);
+        const verb = command || !m[2] ? m[1] : `${m[1]} ${m[2]}`;
+        const resolved = command ?? coTable.get(verb);
+        if (!resolved && !m[2] && coDomains.has(m[1])) continue;
         if (!resolved) { fail(`${p.name}: ${rel(f)} references \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs ${verb}, which is not in the co.mjs verb table`); continue; }
         if (!refd.has(resolved)) refd.set(resolved, new Set());
         refd.get(resolved).add(`${rel(f)} (via co.mjs ${verb})`);

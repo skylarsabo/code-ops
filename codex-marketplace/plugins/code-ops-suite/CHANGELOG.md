@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.17.2
+- Lint resolves `co.mjs` commands that take no verb, such as `co brief`, to their script. It fails a reference to a domain the verb table does not carry.
+- `check-vault-standard.mjs` validates `drafts.statuses` with the same slug pattern as `docs-manifest.mjs`, so the two scripts accept the same values. A digit-led slug is valid, and a trailing or doubled hyphen is not.
+
 ## 2.17.1
 - `co program archive` exits 1 whenever the ledger stays over its 32 KB cap, including when nothing can move. It inserts moved entries into an existing `PROGRAM.archive.md` in place, so prior archive prose survives, and it keeps a moved entry's blank-line-separated continuation paragraphs. It reads CRLF ledgers and keeps each file's line ending.
 - Handoff check 17 compares a predecessor open item carried as id and title against the nearest ancestor handoff that holds its full line, so an owner or done-when change recorded only in the ledger needs `Revised:`.

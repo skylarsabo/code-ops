@@ -62,6 +62,7 @@ const MACHINERY = ['00 Inbox', '80 Runs', '90 Templates', '95 Attachments', '98 
 // `80 Runs` is the one machinery folder a profile may leave off disk (gitignored run artifacts).
 const OPTIONAL_MACHINERY = new Set(['80 Runs']);
 const BASE_STATUSES = ['draft', 'current', 'accepted', 'superseded'];
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // must match SLUG_RE in docs-manifest.mjs
 const NUMBERED_DIR = /^(\d{2}) (.+)$/;
 // The lowest `standard-version` this checker accepts. Bump it in the same change that makes a
 // vault-standard revision binding, and publish the new value in the SSOT prose
@@ -219,7 +220,7 @@ if (existsSync(docsManifestPath)) {
     }
     if (docsManifest.version === 3) {
       const listed = docsManifest.drafts?.statuses;
-      if (!Array.isArray(listed) || !listed.length || !listed.every((s) => typeof s === 'string' && /^[a-z][a-z0-9-]*$/.test(s)))
+      if (!Array.isArray(listed) || !listed.length || !listed.every((s) => typeof s === 'string' && SLUG_RE.test(s)))
         fail('manifest version 3 has no valid drafts.statuses array');
       else manifestStatuses = listed;
     }
