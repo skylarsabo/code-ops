@@ -117,7 +117,7 @@ holds and delete the rest. Replace each `[FILL: ...]` placeholder with judgment,
 - **Scope and constraints:** areas in and out of scope, and the operator's constraints in their exact words.
 - **Key findings:** one line each with `CONFIRMED`, `PROBABLE`, or `SPECULATIVE` and a pointer to its evidence.
 - **In-flight boundaries:** the done-against-not-done line and the load-bearing `file:line` pointers, each with a verbatim **Anchor** (`§9`).
-- **Decisions made:** each with its reason and the options rejected, the least recoverable session state.
+- **Decisions made:** each with its reason and the options rejected, the least recoverable session state. Under ledger grammar 2, the reason and rejected options go in the `PROGRAM.md` Decisions ledger, and this section lists each decision as `- DEC-<n> <one clause>`.
 - **Traps and dead ends:** approaches that failed, and what the successor will be tempted to do wrong.
 - **Authority:** the operator's grants in their exact words, with scope, stating the handoff cannot broaden them.
 - **Carried context:** conversation analysis the successor needs, written to a run-folder file and pointed at, plus any session receipt for measured cost.
@@ -128,6 +128,18 @@ handoff, outside its cap: for each
 unchanged since the predecessor keeps its digest. Replace each `[FILL: digest]` with one paragraph
 on what that document now holds.
 
+A `PROGRAM.md` with a `Grammar: 2` line opts in to ledger grammar 2. The ledger gains an Open
+items section, and it holds each decision and open item once. Each decision carries `DEC-<n>`,
+`Hop: <n>`, and `Disposition: pending|local|dropped|promoted:<record id>`. Each pointer carries an
+`Anchor:`. An item whose owner or done-when changes carries `Revised: hop <n> · <reason>`. Draft
+then fills each pointer's anchor from its cited line. It shows a carried open item as id and title,
+keeps the full line for an item changed this hop, and writes that line back to the ledger. It
+lists each pending decision from an earlier hop as `[FILL: disposition]`, which you settle in the
+ledger. A decision made this hop may stay `pending` for one hop. For a first hop, pass
+`--program <PROGRAM.md>` so draft can write scope digests. When the ledger nears its 32 KB cap, run
+`node <plugin-root>/scripts/co.mjs program archive <slug>`. It moves closed items, settled
+decisions, and all but the first and last ten requests to `PROGRAM.archive.md`.
+
 Open items stay one line of current state each, never an instruction; an unanswered operator
 decision is an item with `Owner: operator`. Keep `HANDOFF.md` under the checker's 8 KB cap, with
 detail in pointed-at files. The unfilled skeleton fails the check by design.
@@ -136,7 +148,8 @@ Redact secrets and PII (`§4`). Run `node <plugin-root>/scripts/co.mjs scan reda
 and `node <plugin-root>/scripts/co.mjs check handoff HANDOFF.md`. The check enforces the
 shape and resolves each anchored pointer: `GONE` or `DRIFTED` fails, `MOVED` warns
 (`--strict-anchors` fails it). It also checks the lineage: every scope-document path exists, both
-requests sit in Request history, and each predecessor open-item id stays open or is closed.
+requests sit in Request history, and each predecessor open-item id stays open or is closed. Under
+grammar 2 it also runs checks 11 to 13 and 15 to 18, and a bare pointer fails instead of warning.
 
 With a version 3 or newer contract, then run
 `node <plugin-root>/scripts/run-runtime.mjs checkpoint --root . --contract <contract> --ledger <dispatch ledger> --handoff <handoff>`,

@@ -70,6 +70,16 @@
 // rest. Draft refuses an `--out` whose folder holds
 // HANDOFF.consumed, or whose SESSION.json names a different session id than the current one.
 //
+// LEDGER GRAMMAR 2. When the Program ledger has a `Grammar: 2` line, draft shows an open item
+// whose line equals its ledger line, or that already shows only id and title, as id and title. Every
+// other item is active: it keeps its full line, gains an `Anchor:` copied from its `Pointer:
+// path:line`, or `[FILL: verbatim text from the cited line]` without a line, and with `--out` is
+// written back to the ledger's Open items by id. Each pending decision whose Hop is older than the
+// writing session's hop (the handoff's Hop minus one) is listed as `- [FILL: disposition] <title>`.
+// `--program <PROGRAM.md>` names the ledger when the lineage names none, as on a first hop. Resume
+// seeds TASKS.md with the ledger line of each carried item. `program-archive` (`co program archive`)
+// is documented at archive() below.
+//
 // SCOPE DIGESTS. With `--out` and a Program ledger that resolves, draft also writes
 // SCOPE_DIGESTS.md beside the handoff, which keeps them outside the handoff's 8 KB cap. It holds one
 // `## \`<path>\`` entry per PROGRAM.md scope document: `Hash: sha256:<hex>` of the working-tree
@@ -123,11 +133,13 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { fileURLToPath } from 'node:url';
 import { parseOrDie, usage, die, git, walkFiles } from './cli-lib.mjs';
 import { sessionRecordPath } from './transcript-lib.mjs';
+import { ANCHOR_RE } from './citation-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = [
   'usage: handoff-state.mjs open <slug> [--name <name>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
-  '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--session <id>] [--root <repo>]',
+  '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--root <repo>]',
+  '       handoff-state.mjs program-archive <PROGRAM.md | program slug> [--root <repo>]',
   '       handoff-state.mjs resume <HANDOFF.md | session name> [--session <id>] [--host-session <id>] [--root <repo>]',
   '       handoff-state.mjs live <HANDOFF.md | session name | session id | host session id> [--root <repo>]',
   '       handoff-state.mjs board | board-claim <path...> | board-release [<path...>] | board-task <text...> [--session <id>]',
@@ -166,6 +178,36 @@ const pointerEntries = (items, root, repoPath) => items.flatMap((item) => {
   const pointer = /\bPointer:\s*`?([^`·]+?)`?\s*(?:·|$)/.exec(item)?.[1];
   return pointer ? [[`${itemId(item) ?? 'open item'} pointer`, repoPath(resolve(root, pointer.replace(/:\d+(?:-\d+)?$/, ''))), pointer]] : [];
 });
+// Ledger grammar 2 (check-handoff.mjs checks 11 to 18): a PROGRAM.md with a `Grammar: 2` line.
+// Draft, resume, and archive read its Open items by leading id and its decisions' Hop and Disposition.
+const leadId = (line) => /^[-*]\s+(?:\[[ xX]\]\s+)?([A-Z][A-Z0-9]*-\d+)\b/.exec(line)?.[1] ?? null;
+const bulletLead = (line) => /^[-*]\s+(?:\[[ xX]\]\s+)?/.exec(line)?.[0] ?? '- ';
+// An item's title: its text after the bullet and checkbox, up to the first ` · ` field.
+const titleOf = (line) => line.slice(bulletLead(line).length).split(' · ')[0].trim();
+const isGrammar2 = (text) => /^[-*\t ]*Grammar:[^\S\r\n]*2\s*$/m.test(text);
+const SETTLED_RE = /\bDisposition:\s*(local|dropped|promoted:[^\s·]+)\s*(?:·|$)/;
+function ledgerOf(programFile) {
+  const text = programFile && existsSync(programFile) ? readFileSync(programFile, 'utf8') : '';
+  return {
+    grammar2: isGrammar2(text),
+    open: new Map(bullets(sectionBody(text, 'open items')).map((l) => [leadId(l), l]).filter(([id]) => id)),
+    pending: bullets(sectionBody(text, 'decisions ledger')).filter((l) => /\bDisposition:\s*pending\s*(?:·|$)/.test(l))
+      .map((line) => ({ line, hop: Number(/\bHop:\s*(\d+)/.exec(line)?.[1]) })),
+  };
+}
+// L3: an open item whose `Pointer: path:line` has no Anchor gains one, copied from the cited line.
+// A pointer without a line, or a blank or unquotable line, gains a placeholder, because check 16
+// fails a bare pointer under grammar 2.
+const ANCHOR_CHARS = 60;
+function anchored(item, root) {
+  if (!/\bPointer:/.test(item) || ANCHOR_RE.test(item)) return item;
+  const m = /\bPointer:\s*`?([^`·]+?):(\d+)(?:-\d+)?`?\s*(?:·|$)/.exec(item);
+  const file = m && resolve(root, m[1].trim());
+  const text = file && isFile(file) ? (readFileSync(file, 'utf8').split('\n')[Number(m[2]) - 1] ?? '').trim().slice(0, ANCHOR_CHARS).trim() : '';
+  if (text && !text.includes('`')) return `${item} · Anchor: \`${text}\``;
+  if (text && !text.includes('"')) return `${item} · Anchor: "${text}"`;
+  return `${item} · Anchor: [FILL: verbatim text from the cited line]`;
+}
 const hopOf = (text) => { const n = Number(pathValue(sectionBody(text, 'program'), 'Hop')); return Number.isInteger(n) && n > 0 ? n : null; };
 
 // The backticked scope-document paths of a PROGRAM.md, in ledger order.
@@ -569,7 +611,13 @@ function draft(flags) {
   // TASKS.md line. An id TASKS.md checks off belongs in PROGRAM.md Closed items, so it becomes a
   // placeholder instead of a silent drop.
   const own = readJson(join(runDir, 'SESSION.json'));
-  const lin = declaredLineage(own, root, repoPath) ?? lineage(runDir, root, repoPath);
+  let lin = declaredLineage(own, root, repoPath) ?? lineage(runDir, root, repoPath);
+  // A first hop has no predecessor to name its ledger, so --program names it (OI-29).
+  if (flags.program && !lin.programFile) {
+    const file = resolve(root, flags.program);
+    if (!isFile(file)) die(`--program does not resolve to a file: ${flags.program}`);
+    lin = { ...lin, program: repoPath(file), programFile: file };
+  }
   const taskIds = new Set(open.map(itemId).filter(Boolean));
   const carried = [];
   for (const line of lin.carried) {
@@ -578,13 +626,28 @@ function draft(flags) {
     else if (!id || !taskIds.has(id)) carried.push(line);
   }
   if (lin.carried.length && !lin.closedKnown) carried.push('[FILL: confirm the carried items against PROGRAM.md Closed items]');
-  const openItems = [...open, ...carried];
+  // Grammar 2 sorts open items into two tiers. A carried item, unchanged from its ledger line or
+  // shown as id and title, keeps only id and title here. An active item keeps its full line.
+  const ledger = ledgerOf(lin.programFile);
+  const active = [];
+  const openItems = [...open, ...carried].map((item) => {
+    const full = ledger.grammar2 ? ledger.open.get(leadId(item)) : null;
+    const same = full && (item.slice(bulletLead(item).length) === full.slice(bulletLead(full).length) || (!/\bOwner:/.test(item) && !/\bDone when:/.test(item)));
+    if (same) return `${bulletLead(item)}${titleOf(full)}`;
+    if (!ledger.grammar2) return item;
+    const line = anchored(item, root);
+    if (leadId(line) && !line.includes('[FILL:')) active.push(line);
+    return line;
+  });
 
   // The successor's name and hop. A predecessor without a Hop line is legacy: its successor took
   // the name `HO 1`, recorded as this run's SESSION.json hop when resume wrote it.
   const hop = lin.predecessor === 'none' ? 1
     : lin.predecessor.startsWith('[FILL:') ? null
       : (lin.priorHop ?? (Number(own?.hop) || 1)) + 1;
+  // Check 12: a pending decision from before the writing session's hop needs a disposition. The
+  // writing session is the handoff's Hop minus one, because a handoff's Hop names its successor.
+  const unsettled = ledger.grammar2 && hop ? ledger.pending.filter((d) => d.hop < hop - 1).map((d) => `- [FILL: disposition] ${titleOf(d.line)}`) : [];
   // The established session name outranks the ledger title, so a hop keeps its name.
   const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) || programTitle(lin.programFile)
     || '[FILL: the program base name, the PROGRAM.md "# PROGRAM:" title]';
@@ -661,7 +724,10 @@ function draft(flags) {
     '',
     '## Decisions made',
     '',
-    '[FILL: each decision with its reason and the options rejected]',
+    ledger.grammar2
+      ? '[FILL: one `- DEC-<n> <one clause>` line per decision made this hop; its reason and rejected options go in the PROGRAM.md Decisions ledger]'
+      : '[FILL: each decision with its reason and the options rejected]',
+    ...unsettled,
     ...carry.decisions,
     '',
     '## Traps and dead ends',
@@ -719,8 +785,108 @@ function draft(flags) {
     writeFileSync(digestsFile, [`# Scope digests: ${basename(runDir)}`, '',
       ...digests.flatMap((d) => [`## \`${d.path}\``, '', `Hash: ${d.hash}`, `Verified-at: ${d.verifiedAt}`, '', d.digest, ''])].join('\n'));
   }
-  console.log([`wrote ${flags.out}`, ...linksBlock(links)].join('\n'));
+  const written = active.length ? writeBack(lin.programFile, active) : 0;
+  console.log([`wrote ${flags.out}`, ...(written ? [`updated ${repoPath(lin.programFile)}: ${written} open item line(s)`] : []), ...linksBlock(links)].join('\n'));
   return 0;
+}
+
+// L1: an active item's line is the ledger's current line, so draft writes it back to the ledger's
+// Open items by id: it replaces a changed line and appends a new id. Returns the lines changed.
+function writeBack(programFile, items) {
+  const lines = readFileSync(programFile, 'utf8').split('\n');
+  const heading = lines.findIndex((l) => /^##[ \t]+open items/i.test(l));
+  if (heading < 0) return 0;
+  let end = lines.findIndex((l, i) => i > heading && /^##[ \t]/.test(l));
+  if (end < 0) end = lines.length;
+  let changed = 0;
+  for (const item of items) {
+    const at = lines.findIndex((l, i) => i > heading && i < end && leadId(l) === leadId(item));
+    if (at >= 0 && lines[at].replace(/\r$/, '') === item) continue;
+    if (at >= 0) lines[at] = item;
+    else {
+      let last = end;
+      while (last - 1 > heading && !lines[last - 1].trim()) last--;
+      lines.splice(last, 0, item);
+      end++;
+    }
+    changed++;
+  }
+  if (changed) writeFileSync(programFile, lines.join('\n'));
+  return changed;
+}
+
+// PROGRAM ARCHIVE (`co program archive`, design L5 and DEC-32): moves settled ledger state into
+// PROGRAM.archive.md beside a grammar 2 ledger, so the ledger stays under its 32 KB cap. It moves
+// every Closed items bullet, every decision whose Disposition is settled, and each Request history
+// entry except the first and the last REQUESTS_KEPT, each verbatim with its indented continuation
+// lines. A pending or dispositionless decision stays, so size management never buries an unsettled
+// one. The archive holds only the Request history, Decisions ledger, and Closed items headings,
+// and new entries append after the ones it already holds.
+const ARCHIVE_NAME = 'PROGRAM.archive.md';
+const ARCHIVED = ['request history', 'decisions ledger', 'closed items'];
+const REQUESTS_KEPT = 10;
+const PROGRAM_CAP = 32 * 1024; // check-handoff.mjs PROGRAM_CAP_BYTES.
+// Each top-level bullet with its indented continuation lines, as { section, start, end } line
+// ranges, where section is the lower-cased archived heading it sits under, or null.
+function entriesOf(lines) {
+  const out = [];
+  let section = null;
+  lines.forEach((l, i) => {
+    const h = /^##[ \t]+(.+)$/.exec(l);
+    if (h) { section = ARCHIVED.find((name) => h[1].trim().toLowerCase().startsWith(name)) ?? null; return; }
+    if (/^[-*]\s+/.test(l)) out.push({ section, start: i, end: i + 1 });
+    else if (/^\s+\S/.test(l) && out.at(-1)?.end === i) out.at(-1).end = i + 1;
+  });
+  return out;
+}
+function programFileOf(arg, root) {
+  const direct = resolve(root, arg);
+  if (isFile(direct)) return direct;
+  const found = runsRoots(root).map((r) => join(r, 'programs', arg, 'PROGRAM.md')).find(isFile);
+  return found ?? die(`no PROGRAM.md at ${arg} or under a hub's 80 Runs/programs/${arg}/`);
+}
+function archive(arg, flags) {
+  const root = resolve(flags.root);
+  const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
+  const file = programFileOf(arg, root);
+  const lines = readFileSync(file, 'utf8').split('\n');
+  if (!isGrammar2(lines.join('\n'))) die(`refusing to archive ${repoPath(file)}: it has no "Grammar: 2" line, so its decisions carry no disposition to read`);
+  const entries = entriesOf(lines);
+  const requests = entries.filter((e) => e.section === 'request history');
+  const keep = new Set([requests[0], ...requests.slice(-REQUESTS_KEPT)]);
+  const text = (e) => lines.slice(e.start, e.end);
+  const moving = entries.filter((e) => (e.section === 'request history' && !keep.has(e))
+    || (e.section === 'decisions ledger' && SETTLED_RE.test(lines[e.start]))
+    || e.section === 'closed items');
+  const unsettled = entries.filter((e) => e.section === 'decisions ledger' && !SETTLED_RE.test(lines[e.start])).length;
+  if (!moving.length) {
+    console.log(`nothing to archive in ${repoPath(file)}; ${unsettled} unsettled decision(s) stay`);
+    return 0;
+  }
+  const target = join(dirname(file), ARCHIVE_NAME);
+  const prior = isFile(target) ? readFileSync(target, 'utf8').split('\n') : [];
+  const priorEntries = entriesOf(prior);
+  const title = /^# PROGRAM:[^\S\r\n]*(.+?)\s*$/m.exec(lines.join('\n'))?.[1] ?? basename(dirname(file));
+  const body = [`# PROGRAM archive: ${title}`, ''];
+  for (const name of ARCHIVED) {
+    const heading = name[0].toUpperCase() + name.slice(1);
+    body.push(`## ${heading}`, '',
+      ...priorEntries.filter((e) => e.section === name).flatMap((e) => prior.slice(e.start, e.end)),
+      ...moving.filter((e) => e.section === name).flatMap(text), '');
+  }
+  const gone = new Set(moving.flatMap((e) => Array.from({ length: e.end - e.start }, (_, k) => e.start + k)));
+  const kept = lines.filter((_, i) => !gone.has(i)).join('\n');
+  writeFileSync(target, body.join('\n'));
+  writeFileSync(file, kept);
+  const count = (name) => moving.filter((e) => e.section === name).length;
+  const bytes = Buffer.byteLength(kept, 'utf8');
+  console.log([
+    `archived ${count('request history')} request(s), ${count('decisions ledger')} decision(s), and ${count('closed items')} closed item(s) into ${repoPath(target)}`,
+    `${unsettled} unsettled decision(s) stay in the ledger`,
+    `${repoPath(file)}: ${bytes} bytes against the ${PROGRAM_CAP}-byte cap${bytes > PROGRAM_CAP ? '; still over it' : ''}`,
+    ...linksBlock([['program', repoPath(file)], ['archive', repoPath(target)]]),
+  ].join('\n'));
+  return bytes > PROGRAM_CAP ? 1 : 0;
 }
 
 function step(script, args) {
@@ -811,7 +977,10 @@ function resume(arg, flags) {
   report('handoff check', check);
   if (failures === 0) {
     const created = new Date().toISOString();
-    const openLines = bullets(sectionBody(text, 'open items'));
+    // Grammar 2: a carried item shows only id and title, so TASKS.md takes its ledger line.
+    const ledger = ledgerOf(programFile);
+    const openLines = bullets(sectionBody(text, 'open items'))
+      .map((l) => (ledger.grammar2 && !/\bOwner:/.test(l) && ledger.open.get(leadId(l))) || l);
     mkdirSync(successor, { recursive: true });
     writeJson(join(successor, 'SESSION.json'), { v: 1, sessionId: sid, hostSessionId, name, hop, predecessor: repoPath(resolve(target)), createdAt: created });
     writeFileSync(join(successor, 'TASKS.md'), `# Tasks\n${openLines.length ? `\n${openLines.join('\n')}\n` : ''}`);
@@ -944,7 +1113,10 @@ if (isEntry()) {
     session: { value: true },
     hub: { value: true },
     'host-session': { value: true },
+    program: { value: true },
   }, USAGE.join('\n'));
+  if (flags.program && command !== 'draft') usage(USAGE);
+  if (command === 'program-archive' && positional.length === 1 && Object.keys(flags).every((k) => k === 'root')) process.exit(archive(positional[0], flags));
   if (/^board(-claim|-release|-task)?$/.test(command ?? '') && !flags.run && !flags.base && !flags.out && !flags.name && !flags.hub && !flags['host-session']
     && (command === 'board' ? positional.length === 0 : command === 'board-release' || positional.length > 0)) process.exit(board(command, positional, flags));
   const noDraftFlags = !flags.run && !flags.base && !flags.out;

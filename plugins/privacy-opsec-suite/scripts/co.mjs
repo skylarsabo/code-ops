@@ -98,6 +98,9 @@ const TABLE = {
     resume: { script: 'handoff-state.mjs', cmd: 'resume' },
     live: { script: 'handoff-state.mjs', cmd: 'live' },
   },
+  program: {
+    archive: { script: 'handoff-state.mjs', cmd: 'program-archive' },
+  },
   board: {
     list: { script: 'handoff-state.mjs', cmd: 'board' },
     claim: { script: 'handoff-state.mjs', cmd: 'board-claim' },

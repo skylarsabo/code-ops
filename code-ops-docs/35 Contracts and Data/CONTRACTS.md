@@ -699,7 +699,7 @@ Program, Goal and state of play, Scope and constraints, Work completed, Key find
 Open items, Registers and artifacts, Decisions made, Traps and dead ends, Authority, and Carried
 context. Goal through Open items answer what an operator asks a resumed session: what was worked on, what
 was found, what is in progress, what is left, and what the scope and constraints are. Order is
-documentation only; presence gates. Evidence: `scripts/check-handoff.mjs:85-97`.
+documentation only; presence gates. Evidence: `scripts/check-handoff.mjs:146-159`.
 
 Four other checks fail closed. "Goal and state of play" must carry a non-empty `Request:` line
 holding the operator's original request verbatim. Every top-level bullet under "Key findings" must
@@ -719,6 +719,43 @@ history, and each of its open-item ids stays open or appears in Closed items. A 
 by name. `## Program` may also carry `Session: <base name> HO <n>`, the name the successor session
 takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When either is present,
 both must be: Hop is a positive integer, and the Session line ends with ` HO <Hop>`.
+
+Ledger grammar 2 applies only to a `PROGRAM.md` with a `Grammar: 2` line, so grammar-1 chains stay
+resumable. The ledger then also needs `## Open items`, whose bullets lead with an id and carry
+`Owner:` and `Done when:`. `PROGRAM.archive.md` beside the ledger counts toward Request history,
+Closed items, and decision ids whenever it exists. These checks fail closed:
+
+- 11: every Decisions ledger bullet leads with `DEC-<n>` and carries `Hop: <n>` and
+  `Disposition: pending|local|dropped|promoted:<id>`.
+- 12: a decision's Hop is its writing session's hop, which is the handoff's `Hop:` minus one. A
+  decision older than that must not stay `pending`. A grammar-2 handoff must carry `Hop:`.
+- 13: every DEC id in the predecessor's Decisions made is in the ledger, the archive, or a
+  `Was: <program>/<id>` trail.
+- 15: every Decisions made and Open items bullet leads with its id. A decision adds one clause at
+  most: no ` · ` field, no `Rejected:`, and no second sentence or semicolon.
+- Check 4 reads `Owner:` and `Done when:` for a carried open item, shown as id and title only, from
+  the ledger's Open items. A carried id absent from the ledger fails.
+- 16: an Open items `Pointer:` without a delimited `Anchor:` fails, in the handoff and the ledger.
+  Under grammar 1 it only warns.
+- 17: an open item whose `Owner:` or `Done when:` differs from the predecessor's line carries
+  `Revised: hop <n>` on its handoff or ledger line.
+- 18: no `DEC` or `OI` id leads two bullets across the ledger and its archive.
+
+Check 14, promotion resolution, is not implemented yet. Evidence: `scripts/check-handoff.mjs` and
+`evals/handoff-check/run.mjs`.
+
+On a grammar-2 ledger, `co handoff draft` fills each open item's `Anchor:` from its cited line, or
+writes `[FILL: verbatim text from the cited line]` when the pointer has no line. It shows a carried
+item as id and title and keeps an active item's full line. With `--out`, it writes each active line
+back to the ledger's Open items by id. It lists each pending decision older than the writing
+session's hop as `- [FILL: disposition] <decision title>`. `--program <PROGRAM.md>` names the ledger
+for a hop without a predecessor, so that hop also gets scope digests. Resume seeds `TASKS.md` with
+the ledger line for each carried item. `co program archive <PROGRAM.md | slug>` refuses a ledger
+without `Grammar: 2`. It moves every Closed items bullet, every decision with a settled
+disposition, and each Request history entry except the first and the last ten, verbatim, to
+`PROGRAM.archive.md` (DEC-32). The archive holds only those three headings. A pending decision
+stays in the ledger. The command exits 1 when the ledger is still over 32 KB. Evidence:
+`scripts/handoff-state.mjs` and `evals/handoff-state/run.mjs`.
 
 One status line never gates. `co handoff draft` records each dirty path with a sha256 prefix:
 `- Dirty: \`<porcelain line>\` · sha256:<16 hex>`, or `· none` for a path since deleted. The check

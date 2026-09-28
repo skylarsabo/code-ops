@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.2.3
+- The vendored `co.mjs` gains the `program` domain from code-ops-suite 2.15.0.
+
 ## 3.2.2
 - The vendored `co.mjs` gains the `board` domain from code-ops-suite 2.13.0.
 

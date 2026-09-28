@@ -410,5 +410,85 @@ try {
   rmSync(home, { recursive: true, force: true });
 }
 
+// ---- ledger grammar 2: draft tiers, anchors, dispositions, write-back, and program archive ----
+const g2 = mkdtempSync(join(tmpdir(), 'handoff-g2-'));
+const inG2 = (args) => spawnSync(process.execPath, args, { cwd: g2, encoding: 'utf8', env });
+try {
+  const gitG2 = (...args) => execFileSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.com', ...args], { cwd: g2, stdio: 'ignore' });
+  writeFileSync(join(g2, 'src.txt'), 'alpha line\nbeta line\n');
+  gitG2('init', '-q');
+  gitG2('add', 'src.txt');
+  gitG2('commit', '-q', '-m', 'base');
+  const hub = join(g2, '80 Runs');
+  const ledgerFile = join(hub, 'programs', 'g2', 'PROGRAM.md');
+  mkdirSync(dirname(ledgerFile), { recursive: true });
+  const oi1 = '- [ ] OI-1 alpha kept · Owner: agent · Done when: alpha stays · Pointer: src.txt:1 · Anchor: `alpha line`';
+  const oi2 = '- [ ] OI-2 beta rewrite not started · Owner: agent · Done when: beta reads v2 · Pointer: src.txt:1 · Anchor: `alpha line`';
+  const ledgerText = (open) => ['# PROGRAM: G2', '', 'Grammar: 2', '', '## Program goal', '', 'Rewrite beta.', '', '## Request history', '',
+    '- 2026-09-20: rewrite beta.', '', '## Scope documents', '', '- `src.txt` · Status: current · Role: the file under change', '',
+    '## Open items', '', ...open, '', '## Decisions ledger', '',
+    '- DEC-1 2026-09-20 Beta keeps its name · Rejected: a rename · Hop: 0 · Disposition: pending',
+    '- DEC-2 2026-09-21 Beta moves to v2 · Rejected: v3 · Hop: 2 · Disposition: pending', '', '## Closed items', '', ''].join('\n');
+  writeFileSync(ledgerFile, ledgerText([oi1, oi2]));
+  const prior = join(hub, 'g2-r0');
+  mkdirSync(prior);
+  writeFileSync(join(prior, 'HANDOFF.md'), '# HANDOFF: g2-r0\n\n## Program\n\nProgram: 80 Runs/programs/g2/PROGRAM.md\nPredecessor: none\nSession: G2 HO 2\nHop: 2\n\n## Open items\n\n');
+  const runG2 = join(hub, 'g2-r1');
+  mkdirSync(runG2);
+  writeFileSync(join(runG2, 'SESSION.json'), JSON.stringify({ v: 1, sessionId: null, name: 'G2 HO 2', hop: 2, predecessor: '80 Runs/g2-r0/HANDOFF.md' }));
+  const oi2Now = '- [ ] OI-2 beta rewrite in progress · Owner: agent · Done when: beta reads v2 · Pointer: src.txt:2';
+  const oi3 = '- [ ] OI-3 gamma not started · Owner: agent · Done when: gamma exists · Pointer: src.txt';
+  writeFileSync(join(runG2, 'TASKS.md'), `# Tasks\n\n${oi1}\n${oi2Now}\n${oi3}\n`);
+  const dG2 = inG2([co, 'handoff', 'draft', '--run', '80 Runs/g2-r1', '--out', '80 Runs/g2-r1/HANDOFF.md']);
+  const g2Draft = existsSync(join(runG2, 'HANDOFF.md')) ? readFileSync(join(runG2, 'HANDOFF.md'), 'utf8') : '';
+  check('grammar 2 draft exits 0', dG2.status === 0);
+  check('grammar 2 draft shows a carried item as id and title only', g2Draft.includes('\n- [ ] OI-1 alpha kept\n'));
+  check('grammar 2 draft fills an active item Anchor from the cited line', g2Draft.includes(`${oi2Now} · Anchor: \`beta line\``));
+  check('grammar 2 draft marks a line-less pointer for an anchor', g2Draft.includes(`${oi3} · Anchor: [FILL: verbatim text from the cited line]`));
+  check('grammar 2 draft lists an earlier pending decision for a disposition, and only that one',
+    g2Draft.includes('- [FILL: disposition] DEC-1 2026-09-20 Beta keeps its name') && !g2Draft.includes('[FILL: disposition] DEC-2'));
+  check('grammar 2 draft asks for one-clause decision lines', g2Draft.includes('[FILL: one `- DEC-<n> <one clause>` line per decision made this hop'));
+  const ledgerAfter = readFileSync(ledgerFile, 'utf8');
+  check('grammar 2 draft writes the active item back to the ledger', dG2.stdout.includes('open item line(s)')
+    && ledgerAfter.includes(`${oi2Now} · Anchor: \`beta line\``) && ledgerAfter.includes(oi1) && !ledgerAfter.includes('OI-3'));
+
+  // OI-29: a first hop names its ledger with --program, so it gets scope digests.
+  const first = join(hub, 'g2-first');
+  mkdirSync(first);
+  writeFileSync(join(first, 'SESSION.json'), JSON.stringify({ v: 1, sessionId: null, name: 'G2', hop: 0, predecessor: null }));
+  const dFirst = inG2([co, 'handoff', 'draft', '--run', '80 Runs/g2-first', '--out', '80 Runs/g2-first/HANDOFF.md', '--program', '80 Runs/programs/g2/PROGRAM.md']);
+  check('a first-hop draft with --program names the ledger and writes scope digests', dFirst.status === 0
+    && readFileSync(join(first, 'HANDOFF.md'), 'utf8').includes('Program: 80 Runs/programs/g2/PROGRAM.md') && existsSync(join(first, 'SCOPE_DIGESTS.md')));
+
+  // ---- co program archive (DEC-32) ----
+  const bigFile = join(hub, 'programs', 'big', 'PROGRAM.md');
+  mkdirSync(dirname(bigFile), { recursive: true });
+  const requests = Array.from({ length: 30 }, (_, i) => `- 2026-09-${String(i % 28 + 1).padStart(2, '0')}: request ${i} ${'r'.repeat(1200)}`);
+  writeFileSync(bigFile, ['# PROGRAM: Big', '', 'Grammar: 2', '', '## Program goal', '', 'Stay under the cap.', '', '## Request history', '', ...requests, '',
+    '## Scope documents', '', '- `src.txt` · Status: current · Role: the file', '', '## Open items', '', oi1, '', '## Decisions ledger', '',
+    '- DEC-1 2026-09-20 Settled locally · Hop: 0 · Disposition: local', '- DEC-2 2026-09-21 Still open · Hop: 1 · Disposition: pending',
+    '- DEC-3 2026-09-21 Promoted · Hop: 1 · Disposition: promoted:D-001', '', '## Closed items', '', '- OI-4 closed · closed by DEC-1', '  continued proof line', ''].join('\n'));
+  check('the fixture ledger starts over the 32 KB cap', Buffer.byteLength(readFileSync(bigFile)) > 32 * 1024);
+  const arch = inG2([co, 'program', 'archive', 'big', '--root', '.']);
+  const bigAfter = readFileSync(bigFile, 'utf8');
+  const archFile = join(dirname(bigFile), 'PROGRAM.archive.md');
+  const archText = existsSync(archFile) ? readFileSync(archFile, 'utf8') : '';
+  check('program archive exits 0 and brings the ledger under 32 KB', arch.status === 0 && Buffer.byteLength(bigAfter) <= 32 * 1024);
+  check('program archive keeps the first and the last ten requests', bigAfter.includes(requests[0]) && requests.slice(-10).every((r) => bigAfter.includes(r))
+    && !bigAfter.includes(requests[1]) && !bigAfter.includes(requests[19]));
+  check('program archive moves the middle requests verbatim', requests.slice(1, 20).every((r) => archText.includes(r)) && !archText.includes(requests[0]));
+  check('program archive moves settled decisions and keeps the pending one', archText.includes('DEC-1 2026-09-20') && archText.includes('DEC-3 2026-09-21')
+    && !archText.includes('DEC-2') && bigAfter.includes('DEC-2 2026-09-21 Still open') && !bigAfter.includes('DEC-1 2026-09-20'));
+  check('program archive moves closed items with their continuation lines', archText.includes('- OI-4 closed · closed by DEC-1\n  continued proof line') && !bigAfter.includes('OI-4'));
+  check('the archive holds only the three archived headings', (archText.match(/^## .+$/gm) ?? []).join('|') === '## Request history|## Decisions ledger|## Closed items');
+  const again = inG2([co, 'program', 'archive', '80 Runs/programs/big/PROGRAM.md', '--root', '.']);
+  check('a second archive run has nothing to move', again.status === 0 && again.stdout.includes('nothing to archive') && readFileSync(archFile, 'utf8') === archText);
+  writeFileSync(join(hub, 'programs', 'big', 'G1.md'), bigAfter.replace('Grammar: 2\n', ''));
+  const g1 = inG2([co, 'program', 'archive', '80 Runs/programs/big/G1.md', '--root', '.']);
+  check('program archive refuses a grammar 1 ledger', g1.status === 1 && /no "Grammar: 2" line/.test(g1.stderr));
+} finally {
+  rmSync(g2, { recursive: true, force: true });
+}
+
 if (fails.length) { console.error(`\n${fails.length} assertion(s) failed`); process.exit(1); }
 console.log('\nhandoff-state eval: all assertions pass');
