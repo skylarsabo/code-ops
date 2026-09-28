@@ -16,7 +16,7 @@ entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in
 
 | Provider | `light` | `mid` | `strong` | `frontier` |
 | --- | --- | --- | --- | --- |
-| Anthropic (Claude) | `anthropic/claude-haiku-4-5-20251001` | `anthropic/claude-sonnet-5` | `anthropic/claude-opus-5-5` | `anthropic/claude-fable-5-1` |
+| Anthropic (Claude) | `anthropic/claude-haiku-4-5-20251001` | `anthropic/claude-sonnet-5-5` | `anthropic/claude-sonnet-5-5` | `anthropic/claude-fable-5-1` |
 | xAI (Grok) | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` |
 | OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-5.1` | `openai/gpt-5.6-terra` | `openai/gpt-6-sol` |
 | Google (Gemini) | `google/gemini-3.1-flash-lite` | `google/gemini-3.6-flash` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` |
@@ -32,7 +32,7 @@ the lower one. The collapse is recorded rather than papered over with an invente
 
 ## Provider notes
 
-- **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. `strong` binds to Claude Opus 5.5 ($4/$20 per million tokens, cache reads $0.20) and `frontier` stays Fable 5.1, lead-only. No bundled agent declares frontier as a floor.
+- **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is still accepted at the strong rung (ACCEPTED_MODELS) but no bundled agent declares it. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.
 - **xAI (Grok)** — Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the handoff assessment sits at 150,000. `grok-build-0.1` is the fast coding specialist, not a default rung.
 - **OpenAI (GPT)** — Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. Sol remains the default frontier from runs R-007 and R-008, and its token price now sits below Terra, so the large lead context is the cheaper model.
 - **Google (Gemini)** — The only Pro-class id in the registry carries a `-preview` suffix, so `strong` and `frontier` share it. Re-pin once a stable Pro id ships.

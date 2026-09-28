@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.17.0
+- The Claude strong and mid rungs bind to Sonnet 5.5 (`claude-sonnet-5-5`). Agents that declared `opus` now declare `claude-sonnet-5-5`, which serves the Claude strong rung, and every non-haiku agent declares `effort:` at most `high`. Lint check 30 rejects an agent effort above `high` and a non-haiku agent with no effort. Opus 5.5 stays accepted at the strong rung.
+
 ## 2.16.0
 - Records carry meaning (W2). Under manifest v3, inventory entries gain a `meaning` object (`kind`, `title`, `topic`, `key`, `decides`), records gain `amends`, and curation validates the closed decision status set. Curation events are typed: an event with no type reads as `curate`, and `relocate-root` moves a whole collection while each record keeps its identity path, with membership, check, history, and lineage following the moved root.
 - Intake and seal: `records intake` stages a record or curation change outside the chains, and `records seal` admits it in one commit on the base head. A stale basis is refused with both lines named, and `records curate` under v3 routes to intake off the base head. `records render --register` writes `20 Decisions/REGISTER.md` and `98 System/Records/state.json` with pending-seal marks. The library validates the `FORWARDING.json` schema.

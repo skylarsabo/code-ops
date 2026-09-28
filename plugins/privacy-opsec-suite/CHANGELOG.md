@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.3.0
+- `privacy-reviewer` declares `claude-sonnet-5-5` at effort `high`, the Claude strong rung. Vendored `model-tiers.mjs` binds that rung to Sonnet 5.5.
+
 ## 2.2.3
 - The vendored `co.mjs` gains the `program` domain from code-ops-suite 2.15.0.
 

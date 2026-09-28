@@ -3,12 +3,12 @@
   "roles": [
     {
       "name": "tracer",
-      "sourceModel": "opus",
+      "sourceModel": "claude-sonnet-5-5",
       "minimumTier": "strong"
     },
     {
       "name": "verifier",
-      "sourceModel": "opus",
+      "sourceModel": "claude-sonnet-5-5",
       "minimumTier": "strong"
     }
   ]

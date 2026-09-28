@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.0
+- `claim-checker` declares effort `high`, and vendored `model-tiers.mjs` binds the Claude mid and strong rungs to Sonnet 5.5.
+
 ## 0.15.3
 - The vendored `co.mjs` gains the `program` domain from code-ops-suite 2.15.0.
 
