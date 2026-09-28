@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "704cbc4bb42a4407e4216c089df63c946f8847e7",
-      "verifiedDigest": "9e806b872517a7568c1c2c8d915f08b429fdb29af930db480632778efd96897f",
+      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
+      "verifiedDigest": "4b20d6a3ffcb11383f633c1bb70514b2c3ac064450c0ed2291af5251b383f06f",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -18,8 +18,8 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 120,
-          "anchor": ": held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
+          "line": 219,
+          "anchor": "advice = 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -88,12 +88,12 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 79,
+          "line": 85,
           "anchor": "For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF."
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 187,
+          "line": 193,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -211,8 +211,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "704cbc4bb42a4407e4216c089df63c946f8847e7",
-      "verifiedDigest": "fb4eeecb6520e68365577825139fc8717cf8d19206964425dba89aa3790449a2",
+      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
+      "verifiedDigest": "82075a1fd5e6bbb8ba65d7efd17cffb441cc675ae056664c0e071ec8a49ddde7",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -251,12 +251,12 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 205,
+          "line": 209,
           "anchor": "const boundary = JSON.stringify({ type: 'system', subtype: 'compact_boundary', c"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 275,
+          "line": 279,
           "anchor": "console.log('ok   a crossing at or past the context ceiling says new dispatches"
         }
       ]
@@ -269,8 +269,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "704cbc4bb42a4407e4216c089df63c946f8847e7",
-      "verifiedDigest": "86592f412b020524e9e0c86a80bf2845478238bf2ca4b402782a42ac29b4d5f4",
+      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
+      "verifiedDigest": "1849cfb736f0cefe16b7b7a1018982737c3a854fb581e734e16d6c2e9c537c96",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -309,7 +309,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 192,
+          "line": 198,
           "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
         }
       ]
@@ -344,8 +344,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "704cbc4bb42a4407e4216c089df63c946f8847e7",
-      "verifiedDigest": "5f0c5d4dded7bb48209e25df59995cde72b16b1e66c3f397f66f0be344218045",
+      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
+      "verifiedDigest": "f6ae0a05915418f64d11cc9d44d94580d02a8271df7b5c8b1c9ad82ad3e702f9",
       "claims": [
         {
           "file": "scripts/check-vault-standard.mjs",
@@ -374,8 +374,8 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 120,
-          "anchor": ": held + 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
+          "line": 219,
+          "anchor": "advice = 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
@@ -397,8 +397,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "dc7930684513057585a99d08edbddd398e648f25",
-      "verifiedDigest": "e600647dba0db0a9d011b4f0a970f117312eaf8effedb48321d5d9e7138e527f"
+      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
+      "verifiedDigest": "b462834c49426a8465f83456358ac93a5dfb89b1861b08dec1cf2404e48bf4f1"
     },
     {
       "slug": "runtime-toolchain",
