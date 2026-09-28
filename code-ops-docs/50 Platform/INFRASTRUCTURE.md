@@ -44,7 +44,7 @@ trace and fails open on infrastructure errors. The dispatch guard can deny a sub
 its budget boundary or when its explicit controller binding is invalid. It can also deny a lead
 dispatch of a wide-surface type that names no reason, and a lead dispatch past the context
 ceiling before the handoff assessment. Unbound infrastructure failures retain the previous
-fail-open behavior. The peer guard denies a message to a peer session that already handed off.
+fail-open behavior. The peer guard redirects a message to a peer session that already handed off to its live successor on Claude and Codex, and denies it on Grok or when no live successor can take it.
 The `SubagentStop` return check is advisory and never blocks.
 Eight commands carry an off switch, read from the canonical `.claude/settings.json`
 environment. A ninth variable governs only the routing card's pending-handoff line, a
@@ -67,7 +67,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
 | `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |
 | `CODE_OPS_CONTEXT_CEILING` | `off`, `0`, or `false` | the context-ceiling dispatch gate inside `dispatch-guard.mjs`; an integer of at least 150,000 replaces the 300,000-token default |
-| `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` deny of a message to a handed-off peer session, `peer-guard.mjs` |
+| `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` redirect or deny of a message to a handed-off peer session, `peer-guard.mjs`, and every presence board write: `handoff-state.mjs` open and resume, the `index-refresh.mjs` edit record, the `session-receipt.mjs` `SessionEnd` mark, and the OpenCode `tool.execute.after` adapter |
 | `CODE_OPS_OPERATOR_SHELL` | not an off switch | the `operator shell:` line inside `routing-card.mjs` on hosts other than Claude Code; a value replaces the shell derived from `process.platform` |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
@@ -160,6 +160,21 @@ one small file per session holding the 150,000-token band already nudged and the
 session reached. It has no override variable and nothing purges it automatically; delete the
 directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:68-72` and
 `scripts/transcript-lib.mjs:565-581`.
+
+The session records live at `<home>/.claude/code-ops/sessions/<repo key>/<session id>.json`,
+one small file per session. A record holds the session id, host session id, name, worktree, run
+folder, hop, and update time. The repository key is the repository folder name plus the first 12
+hex of the SHA-256 of the git common directory, so every worktree of a repository shares it.
+Readers also read the older store keyed by the working directory. `<home>` is `CODE_OPS_HOME`
+when set, else the OS home.
+
+The presence board lives at `<home>/.claude/code-ops/board/<repo key>/<session id>.json`, one
+file per session. A record holds the session name and ids, branch, worktree, run folder, claimed
+paths, the 20 newest edited paths with times, a one-line task, a heartbeat, and `ended`. Every
+path is relative to the worktree top. No record holds file contents or an absolute path.
+`CODE_OPS_PEER_GUARD` off stops every automatic write. Nothing purges either store
+automatically; delete the directory to purge it. Evidence: `scripts/handoff-state.mjs:11-37` and
+`scripts/handoff-state.mjs:253-419`.
 
 The dispatch-guard store is `~/.claude/code-ops/dispatch/<cwd hash>/<agent hash>`. Each agent
 has a `.rounds` counter and may have a `.binding.json` controller record. Each lead session that

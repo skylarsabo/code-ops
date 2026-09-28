@@ -23,9 +23,12 @@ floors, digest, index, routing, native compaction, and MCP behavior. The OpenCod
 subagent-start callback, transcript path, or pre-tool `agent_id`. The lifecycle plugin covers
 those outcomes, including the implementer ladder, handoff and dispatch notes, a pending-handoff
 list by session name, a cost ledger, and dispatch-guard denials for the round stop at 1.5 times the budget, rounded down, a non-suite Task dispatch, and
-an unassessed dispatch past the context ceiling (opencode-dist/PLATFORM_COMPATIBILITY.md:36). The compatibility record
+an unassessed dispatch past the context ceiling (opencode-dist/PLATFORM_COMPATIBILITY.md:39). The compatibility record
 names every remaining gap instead of claiming parity. The Codex projection drops hook matchers, so the
 projected `peer-guard.mjs` filters its two messaging tools itself, and OpenCode does not port it
-(plugins/code-ops-suite/hooks/peer-guard.mjs:9).
+(plugins/code-ops-suite/hooks/peer-guard.mjs:10).
+The OpenCode runtime plugin records edits on the presence board: its `tool.execute.after`
+handler passes each `edit`, `write`, or `multiedit` call to the vendored edit hook with the index
+off (scripts/build-opencode-dist.mjs:454).
 
 The current projections include task-based contract routing, selective bounded worker views, separate cache cost components, and focused implementer verification guidance (codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:20, codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md:33). Codex projects the handoff card as an advisory lifecycle assessment, while OpenCode ships the same handoff doctrine through its skill and delivers the note from the lifecycle plugin. Neither projection may claim that advisory text performed compaction or a transfer (codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md:18, opencode-dist/skills/code-ops-suite-handoff/SKILL.md:199). The OpenCode lifecycle note does not yet carry the 225,000-token handoff point that the Claude, Codex, and Grok card gives.

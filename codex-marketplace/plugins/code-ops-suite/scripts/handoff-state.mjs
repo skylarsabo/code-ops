@@ -13,9 +13,28 @@
 // `--session`, else env CLAUDE_CODE_SESSION_ID, else CODEX_SESSION_ID, else null. hostSessionId is
 // `--host-session`, else null: the host's own id when it differs from the session id, such as a
 // Claude desktop app `local_<uuid>`. With a session id, `open` and a passing `resume` also write
-// the session record at transcript-lib.mjs sessionRecordPath(cwd, id), under env CODE_OPS_HOME
-// when set (evals point it at a temp dir), else the OS home directory. Without an id, the record
-// is skipped silently.
+// the session record at `<home>/.claude/code-ops/sessions/<repo key>/<id>.json` (see BOARD), under
+// env CODE_OPS_HOME when set (evals point it at a temp dir), else the OS home directory. The
+// record adds `worktree`, the worktree top relative to the repository root, so a session in any
+// worktree of one repository resolves its run folder. Readers also read the older store at
+// transcript-lib.mjs sessionRecordPath(cwd, id), keyed by the working directory, which records
+// written before the repository key still use. Without an id, the record is skipped silently.
+//
+// BOARD. The presence board holds one record per session and repository at
+// `<home>/.claude/code-ops/board/<repo key>/<session>.json`. The repository key is the repository
+// folder name plus a hash of its git common directory, which a worktree's `.git` file names in
+// one read, so every worktree of a repository shares one key without a git process. A record holds
+// the session id, host session id, name, branch, worktree, run folder, claimed paths, recent edits
+// with timestamps, a one-line task, a heartbeat, and `ended`. Every path is relative to the
+// worktree top, and no record holds an absolute path. `open` and a passing `resume` write the
+// record, and a resume claims the program's scope documents. The PostToolUse edit hook records
+// edits and the SessionEnd hook marks the record ended. A record whose heartbeat is older than 30
+// minutes lists as idle.
+//   node scripts/handoff-state.mjs board                      (list the board)
+//   node scripts/handoff-state.mjs board-claim <path...> [--session <id>]
+//   node scripts/handoff-state.mjs board-release [<path...>] [--session <id>]   (no path: all)
+//   node scripts/handoff-state.mjs board-task <text...> [--session <id>]
+// `co board`, `co board claim`, `co board release`, and `co board task` reach these.
 //
 // OPEN creates `<hub>/80 Runs/<YYYY-MM-DD>-<slug>/` (suffix -2, -3 when taken) with SESSION.json
 // (hop 0, no predecessor), a header-only TASKS.md, and RUN_LOG.md, then prints the folder. The hub
@@ -111,6 +130,7 @@ const USAGE = [
   '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--session <id>] [--root <repo>]',
   '       handoff-state.mjs resume <HANDOFF.md | session name> [--session <id>] [--host-session <id>] [--root <repo>]',
   '       handoff-state.mjs live <HANDOFF.md | session name | session id | host session id> [--root <repo>]',
+  '       handoff-state.mjs board | board-claim <path...> | board-release [<path...>] | board-task <text...> [--session <id>]',
 ];
 
 // Splits markdown into { heading, body } pairs on `## ` headings, as check-handoff.mjs does.
@@ -227,13 +247,175 @@ function handoffsIn(root) {
   return out;
 }
 
-// The session record for `sid`, keyed by this process's cwd as the hooks key it by theirs.
-const recordFile = (sid) => sessionRecordPath(process.cwd(), sid, process.env.CODE_OPS_HOME || homedir());
+const storeHome = () => process.env.CODE_OPS_HOME || homedir();
+const slugOf = (s) => String(s).replace(/[^A-Za-z0-9]/g, '-');
+const forward = (p) => p.replace(/\\/g, '/');
+const BOARD_IDLE_MS = 30 * 60 * 1000;
+const BOARD_EDITS = 20;
+const GIT_WALK_LIMIT = 64;
+
+// The repository a working directory belongs to. It walks up to the first `.git`; a worktree's
+// `.git` file names `<common>/worktrees/<name>`, so its parent's parent is the common directory,
+// one file read and no git process. Outside a repository the directory itself is the repository.
+// `top` is the worktree top and `worktree` is that top relative to the repository root.
+export function repoIdentity(cwd) {
+  let dir = resolve(cwd);
+  for (let i = 0; i < GIT_WALK_LIMIT; i++) {
+    const dotgit = join(dir, '.git');
+    let stat = null;
+    try { stat = statSync(dotgit); } catch { /* not here */ }
+    if (stat) {
+      let gitDir = dotgit;
+      let common = dotgit;
+      if (stat.isFile()) {
+        const m = /^gitdir:[^\S\r\n]*(.+?)\s*$/m.exec(readFileSync(dotgit, 'utf8'));
+        if (!m) break;
+        gitDir = resolve(dir, m[1]);
+        common = basename(dirname(gitDir)) === 'worktrees' ? dirname(dirname(gitDir)) : gitDir;
+      }
+      const repoRoot = basename(common) === '.git' ? dirname(common) : common;
+      return { key: repoKey(repoRoot, common), top: dir, repoRoot, gitDir, worktree: forward(relative(repoRoot, dir)) || '.' };
+    }
+    const up = dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  const top = resolve(cwd);
+  return { key: repoKey(top, top), top, repoRoot: top, gitDir: null, worktree: '.' };
+}
+
+// The folder name keeps the key readable; the hash keeps the absolute path out of every file name.
+function repoKey(repoRoot, common) {
+  const norm = forward(resolve(common));
+  const hash = createHash('sha256').update(process.platform === 'win32' ? norm.toLowerCase() : norm).digest('hex').slice(0, 12);
+  return `${slugOf(basename(repoRoot)) || 'repo'}-${hash}`;
+}
+
+const branchOf = (ident) => {
+  try {
+    const head = readFileSync(join(ident.gitDir, 'HEAD'), 'utf8').trim();
+    return head.startsWith('ref: refs/heads/') ? head.slice(16) : head.slice(0, 12);
+  } catch { return null; }
+};
+
+// The directory a record's run folder resolves against: its worktree when it names one.
+export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'string' ? resolve(ident.repoRoot, rec.worktree) : fallback);
+
+// Every session record for the repository `cwd` belongs to: the repository-keyed store first, then
+// the older working-directory store, one record per session id.
+export function sessionRecords(cwd, home = storeHome()) {
+  const ident = repoIdentity(cwd);
+  const stores = [join(home, '.codex', 'code-ops', 'sessions', ident.key), dirname(sessionRecordPath(cwd, 'x', home))];
+  const seen = new Set();
+  const out = [];
+  for (const store of stores) {
+    let files = [];
+    try { files = readdirSync(store).filter((f) => f.endsWith('.json')); } catch { continue; }
+    for (const f of files) {
+      const r = readJson(join(store, f));
+      if (!r || typeof r.runDir !== 'string' || !r.runDir || seen.has(r.sessionId ?? f)) continue;
+      seen.add(r.sessionId ?? f);
+      out.push(r);
+    }
+  }
+  return { ident, records: out };
+}
+
 function writeSessionRecord(sid, { hostSessionId, name, runDir, resumed, hop }) {
   if (!sid) return;
-  const file = recordFile(sid);
+  const ident = repoIdentity(process.cwd());
+  const file = join(storeHome(), '.codex', 'code-ops', 'sessions', ident.key, `${slugOf(sid)}.json`);
   mkdirSync(dirname(file), { recursive: true });
-  writeJson(file, { v: 1, sessionId: sid, hostSessionId, name, runDir, resumed, hop, updatedAt: new Date().toISOString() });
+  writeJson(file, { v: 1, sessionId: sid, hostSessionId, name, worktree: ident.worktree, runDir, resumed, hop, updatedAt: new Date().toISOString() });
+}
+
+const boardDir = (ident, home) => join(home, '.codex', 'code-ops', 'board', ident.key);
+
+// A path relative to the worktree top, or null for a path outside it.
+export function boardPath(ident, p) {
+  const rel = forward(relative(ident.top, resolve(ident.top, String(p))));
+  return !rel || rel.startsWith('../') || rel === '..' || isAbsolute(rel) ? null : rel;
+}
+
+// Reads, changes, and rewrites this session's board record. `change` edits the record in place.
+// A missing or corrupt record starts fresh. Every write refreshes the heartbeat.
+export function updateBoard(cwd, sid, change, home = storeHome()) {
+  if (!sid) return null;
+  const ident = repoIdentity(cwd);
+  const file = join(boardDir(ident, home), `${slugOf(sid)}.json`);
+  const prior = readJson(file);
+  const rec = prior && typeof prior === 'object' && !Array.isArray(prior) ? prior : {};
+  rec.v = 1;
+  rec.sessionId = sid;
+  rec.branch = ident.gitDir ? branchOf(ident) : null;
+  rec.worktree = ident.worktree;
+  if (!Array.isArray(rec.claims)) rec.claims = [];
+  if (!Array.isArray(rec.edits)) rec.edits = [];
+  change(rec, ident);
+  rec.heartbeat = new Date().toISOString();
+  mkdirSync(dirname(file), { recursive: true });
+  writeJson(file, rec);
+  return rec;
+}
+
+export const boardEdits = (paths) => (rec, ident) => {
+  const at = new Date().toISOString();
+  const fresh = paths.map((p) => boardPath(ident, p)).filter(Boolean);
+  rec.edits = [...fresh.map((path) => ({ path, at })), ...rec.edits.filter((e) => e && !fresh.includes(e.path))].slice(0, BOARD_EDITS);
+  rec.ended = null;
+};
+
+// Every record on the board for `cwd`'s repository, newest heartbeat first, each with `state`
+// live, idle, or ended. Unreadable records are skipped.
+export function readBoard(cwd, home = storeHome(), now = Date.now()) {
+  const ident = repoIdentity(cwd);
+  let files = [];
+  try { files = readdirSync(boardDir(ident, home)).filter((f) => f.endsWith('.json')); } catch { return []; }
+  return files.map((f) => readJson(join(boardDir(ident, home), f)))
+    .filter((r) => r && typeof r === 'object' && typeof r.sessionId === 'string')
+    .map((r) => ({ ...r, state: r.ended ? 'ended' : now - Date.parse(r.heartbeat) > BOARD_IDLE_MS || Number.isNaN(Date.parse(r.heartbeat)) ? 'idle' : 'live' }))
+    .sort((a, b) => String(b.heartbeat).localeCompare(String(a.heartbeat)));
+}
+
+function board(command, positional, flags) {
+  if (command === 'board') {
+    const rows = readBoard(process.cwd());
+    if (!rows.length) { console.log('board: no sessions recorded for this repository'); return 0; }
+    const list = (xs) => (Array.isArray(xs) && xs.length ? xs.join(', ') : 'none');
+    for (const r of rows) {
+      console.log(`${r.name ?? r.sessionId.slice(0, 8)} [${r.state}] branch ${r.branch ?? 'unknown'} · worktree ${r.worktree ?? '.'} · heartbeat ${r.heartbeat ?? 'never'}`);
+      console.log(`  session: ${r.sessionId}${r.hostSessionId ? ` · host session: ${r.hostSessionId}` : ''}${r.runDir ? ` · run: ${r.runDir}` : ''}`);
+      if (r.task) console.log(`  task: ${r.task}`);
+      console.log(`  claims: ${list(r.claims)}`);
+      console.log(`  recent edits: ${list((r.edits ?? []).slice(0, 5).map((e) => `${e.path} (${e.at})`))}`);
+    }
+    return 0;
+  }
+  const sid = sessionIdOf(flags);
+  if (!sid) die(`${command} needs a session id: --session <id>, or CLAUDE_CODE_SESSION_ID or CODEX_SESSION_ID in the environment`);
+  if (command === 'board-task') {
+    updateBoard(process.cwd(), sid, (rec) => { rec.task = positional.join(' ').replace(/\s+/g, ' ').trim().slice(0, 200) || null; });
+    return 0;
+  }
+  const rec = updateBoard(process.cwd(), sid, (r, ident) => {
+    const paths = positional.map((p) => boardPath(ident, p));
+    if (paths.includes(null)) die(`${command}: every path must sit inside the worktree`);
+    r.claims = command === 'board-claim' ? [...new Set([...r.claims, ...paths])]
+      : paths.length ? r.claims.filter((c) => !paths.includes(c)) : [];
+  });
+  console.log(`claims: ${rec.claims.length ? rec.claims.join(', ') : 'none'}`);
+  return 0;
+}
+
+// Board writes from open and resume never fail the command that made them.
+function boardNote(sid, fields, claims = []) {
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_PEER_GUARD ?? '')) return;
+  try {
+    updateBoard(process.cwd(), sid, (rec, ident) => {
+      Object.assign(rec, fields, { ended: null });
+      rec.claims = [...new Set([...rec.claims, ...claims.map((p) => boardPath(ident, p)).filter(Boolean)])];
+    });
+  } catch { /* the board is advisory */ }
 }
 
 // The program lineage for a new handoff. Candidates are the consumed HANDOFF.md files in sibling
@@ -635,6 +817,8 @@ function resume(arg, flags) {
     writeFileSync(join(successor, 'TASKS.md'), `# Tasks\n${openLines.length ? `\n${openLines.join('\n')}\n` : ''}`);
     writeFileSync(join(successor, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} resumed ${repoPath(resolve(target))}.\n`);
     writeSessionRecord(sid, { hostSessionId, name, runDir: repoPath(successor), resumed: repoPath(resolve(target)), hop });
+    boardNote(sid, { hostSessionId, name, runDir: repoPath(successor), task: `${programTitle(programFile) ?? name} (resumed hop ${hop})` },
+      docs.map((p) => resolve(root, p)));
   }
   const anchors = [...check.err.matchAll(/^ {2}(FRESH|MOVED|DRIFTED|GONE|AMBIGUOUS|NO-REF)\s+(.*)$/gm)];
   const counts = {};
@@ -686,6 +870,7 @@ function open(slug, flags) {
   writeFileSync(join(dir, 'TASKS.md'), '# Tasks\n');
   writeFileSync(join(dir, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} opened this run as new work.\n`);
   writeSessionRecord(sid, { hostSessionId, name, runDir: repoPath(dir), resumed: null, hop: 0 });
+  boardNote(sid, { hostSessionId, name, runDir: repoPath(dir), task: name });
   console.log([repoPath(dir), ...linksBlock([['run', repoPath(dir)]])].join('\n'));
   return 0;
 }
@@ -694,25 +879,23 @@ function open(slug, flags) {
 // session named by exact id, exact host session id, a unique id prefix of 8 or more characters, or
 // name.
 function liveStart(arg, root) {
-  if (existsSync(arg) && statSync(arg).isFile()) return dirname(resolve(arg));
-  const store = dirname(recordFile('x'));
-  let records = [];
-  try { records = readdirSync(store).filter((f) => f.endsWith('.json')).map((f) => readJson(join(store, f))).filter((r) => r && r.runDir); } catch { /* no records */ }
+  if (existsSync(arg) && statSync(arg).isFile()) return { dir: dirname(resolve(arg)), base: root };
+  const { ident, records } = sessionRecords(root);
   const want = arg.toLowerCase();
   const prefixed = arg.length >= 8 ? records.filter((r) => String(r.sessionId).startsWith(arg)) : [];
   const named = records.filter((r) => typeof r.name === 'string' && r.name.toLowerCase() === want)
     .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   const rec = records.find((r) => r.sessionId === arg) ?? records.find((r) => r.hostSessionId === arg) ?? (prefixed.length === 1 ? prefixed[0] : null) ?? named[0];
-  if (rec) return resolve(root, rec.runDir);
+  if (rec) { const base = recordBase(rec, ident, root); return { dir: resolve(base, rec.runDir), base }; }
   const hits = handoffsIn(root).filter((h) => h.session && h.session.toLowerCase() === want);
-  if (hits.length === 1) return hits[0].dir;
+  if (hits.length === 1) return { dir: hits[0].dir, base: root };
   die(hits.length ? `ambiguous session name: ${arg} matches ${hits.length} handoffs` : `no handoff, session record, or Session line matches: ${arg}`);
 }
 
 function live(arg, flags) {
   const root = resolve(flags.root);
   const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
-  let dir = liveStart(arg, root);
+  let { dir, base } = liveStart(arg, root);
   const seen = new Set();
   let hops = 0;
   let state = 'live';
@@ -726,7 +909,7 @@ function live(arg, flags) {
       state = `awaiting resume: ${repoPath(handoff)} is not consumed${next ? `; its successor takes the name ${next}` : ''}`;
       break;
     }
-    const next = mark.successorRun && resolve(root, mark.successorRun);
+    const next = mark.successorRun && resolve(base, mark.successorRun);
     if (!next) { state = 'unknown: a legacy HANDOFF.consumed names no successor run'; break; }
     if (seen.has(next) || !existsSync(next)) { state = `unknown: successor run ${mark.successorRun} ${seen.has(next) ? 'loops back' : 'is missing'}`; break; }
     dir = next;
@@ -762,6 +945,8 @@ if (isEntry()) {
     hub: { value: true },
     'host-session': { value: true },
   }, USAGE.join('\n'));
+  if (/^board(-claim|-release|-task)?$/.test(command ?? '') && !flags.run && !flags.base && !flags.out && !flags.name && !flags.hub && !flags['host-session']
+    && (command === 'board' ? positional.length === 0 : command === 'board-release' || positional.length > 0)) process.exit(board(command, positional, flags));
   const noDraftFlags = !flags.run && !flags.base && !flags.out;
   const host = flags['host-session'];
   if (command === 'draft' && positional.length === 0 && !flags.hub && !host) process.exit(draft(flags));

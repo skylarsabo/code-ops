@@ -59,9 +59,20 @@ own dispatch (Claude's `Agent`, `Task`, or `Workflow`, or Grok's `spawn_subagent
 reason:` line, denies a suite-agent dispatch whose brief lacks a field the target agent's
 `## Contract` lists on its `Brief requires:` line, and denies new dispatches past the context
 ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:619). The field denial names `co brief <agent>`, which prints the full brief template, and ends with one `Label:` line per missing field, ready to paste (plugins/code-ops-suite/hooks/dispatch-guard.mjs:616).
-`peer-guard.mjs` also runs at `PreToolUse`. It denies a `SendMessage` or desktop `send_message`
-call to a peer session whose run folder holds `HANDOFF.md` or `HANDOFF.consumed`, and names the
-live successor to resend to (plugins/code-ops-suite/hooks/peer-guard.mjs:17).
+`peer-guard.mjs` also runs at `PreToolUse`. It acts on a `SendMessage` or desktop `send_message`
+call to a peer session whose run folder holds `HANDOFF.md` or `HANDOFF.consumed`. On Claude and
+Codex it rewrites the target to the live successor through `updatedInput`. On Grok it keeps a
+denial that names the successor, and OpenCode runs no peer guard
+(plugins/code-ops-suite/hooks/peer-guard.mjs:39).
+`handoff-state.mjs` keeps a presence board with one record per session under a repository key
+that every worktree shares (plugins/code-ops-suite/scripts/handoff-state.mjs:23). `co board`
+lists it, and `claim`, `release`, and `task` edit the caller's record
+(plugins/code-ops-suite/scripts/co.mjs:101). Session records use the same repository key, and
+readers fall back to the older working-directory store
+(plugins/code-ops-suite/scripts/handoff-state.mjs:306). The `index-refresh.mjs` edit hook records
+edited paths on the board, `session-receipt.mjs` marks the record ended, and
+`CODE_OPS_PEER_GUARD` turns both writes off (plugins/code-ops-suite/hooks/index-refresh.mjs:13,
+plugins/code-ops-suite/hooks/session-receipt.mjs:73).
 The guard's deny text names `web-researcher` and `probe` beside the build and review agents (plugins/code-ops-suite/hooks/dispatch-guard.mjs:601). They exist because a `Wide-surface reason:` line was otherwise the only route to public web docs, which `gatherer` never fetches, and to read-only shell probes, which `explorer` cannot run. Their safety rests on prose, not a tool gate: `probe` holds a full `Bash` and is told never to mutate (plugins/code-ops-suite/agents/probe.md:13), and `web-researcher` treats every fetched page as untrusted data (plugins/code-ops-suite/agents/web-researcher.md:14).
 `session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
