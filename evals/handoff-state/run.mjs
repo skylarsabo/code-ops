@@ -10,7 +10,11 @@
 // host session id in SESSION.json, the record, and `live`, the resume links block and title line,
 // and the predecessor's judgment bullets carried forward under the 8 KB cap. The links cases pin
 // the `links:` block after `run open` and `draft --out`, on stderr for a bare draft, and the
-// check 16 warning that resume passes through for a bare open-item pointer.
+// check 16 warning that resume passes through for a bare open-item pointer. The scope-digest cases
+// pin SCOPE_DIGESTS.md from `draft --out`: placeholders with no predecessor entry, an unchanged
+// entry's digest carried forward and a changed one reset, the overwrite refusal, resume refusing
+// an unfilled file, the unchanged, changed, and missing summary lines, and a legacy handoff with
+// no file resuming without them.
 // Every fixture lives in an OS temp dir, and CODE_OPS_HOME points the session records at a temp
 // home, so nothing writes under the repository or the real home.
 //
@@ -189,13 +193,18 @@ const fill = (draftText, request) => draftText
   .replace(/^\[FILL:[^\n]*\]$/gm, 'Recorded in the fixture.');
 try {
   writeFileSync(join(repo, 'src.txt'), 'alpha line\n');
+  writeFileSync(join(repo, 'design.md'), '# Design\n\nAlpha stays.\n');
+  mkdirSync(join(repo, 'specs'));
+  writeFileSync(join(repo, 'specs', 'a.md'), 'spec a\n');
+  writeFileSync(join(repo, 'specs', 'b.md'), 'spec b\n');
   gitAt('init', '-q');
-  gitAt('add', 'src.txt');
+  gitAt('add', 'src.txt', 'design.md', 'specs');
   gitAt('commit', '-q', '-m', 'base');
   mkdirSync(join(repo, '80 Runs', 'programs', 'ledger2'), { recursive: true });
   writeFileSync(join(repo, '80 Runs', 'programs', 'ledger2', 'PROGRAM.md'), ['# PROGRAM: Ledger2 AMM', '', '## Program goal', '', 'Keep alpha.', '',
     '## Request history', '', `- 2026-09-23: ${REQ1}`, `- 2026-09-24: ${REQ2}`, '', '## Scope documents', '',
-    '- `src.txt` · Status: current · Role: the file under change', '', '## Decisions ledger', '', '- 2026-09-23: alpha stays.', '',
+    '- `src.txt` · Status: current · Role: the file under change', '- `design.md` · Status: current · Role: the design',
+    '- `specs` · Status: current · Role: the spec folder', '', '## Decisions ledger', '', '- 2026-09-23: alpha stays.', '',
     '## Closed items', '', '- OI-0 setup: closed in the fixture', ''].join('\n'));
 
   // run open: a new session's own folder, SESSION.json, TASKS.md, RUN_LOG.md, and the session record.
@@ -256,6 +265,8 @@ try {
     && res1.stdout.includes('  scope document: [src.txt](src.txt)') && res1.stdout.includes(`  handoff: [${run0}/HANDOFF.md](${enc(run0)}/HANDOFF.md)`)
     && res1.stdout.includes(`  successor run: [${succ1}](${enc(succ1 ?? '')})`) && res1.stdout.includes('  OI-1 pointer: [src.txt:1](src.txt)'));
   check('a passing resume ends with the set title action line', res1.stdout.trimEnd().endsWith('set title: "Ledger2 AMM HO 1"'));
+  check('a legacy handoff with no SCOPE_DIGESTS.md resumes with no digest step or scope status lines',
+    res1.status === 0 && !res1.stdout.includes('scope digests') && !/^ {2}(unchanged|changed|missing) /m.test(res1.stdout));
 
   // draft refusals: a consumed folder, and a folder another session owns.
   const refusedConsumed = inRepo([co, 'handoff', 'draft', '--run', run0, '--out', `${run0}/HANDOFF-2.md`]);
@@ -272,17 +283,41 @@ try {
     d2.status === 0 && d2text.includes(`Predecessor: ${run0}/HANDOFF.md`) && /^Session: Ledger2 AMM HO 2$/m.test(d2text) && /^Hop: 2$/m.test(d2text));
   check('draft --out prints wrote, then links to the draft, run, program, predecessor, and pointers',
     d2.stdout === [`wrote ${succ1}/HANDOFF.md`, 'links:', `  handoff draft: [${succ1}/HANDOFF.md](${enc(succ1)}/HANDOFF.md)`,
-      `  run: [${succ1}](${enc(succ1)})`, '  program: [80 Runs/programs/ledger2/PROGRAM.md](80%20Runs/programs/ledger2/PROGRAM.md)',
+      `  scope digests: [${succ1}/SCOPE_DIGESTS.md](${enc(succ1)}/SCOPE_DIGESTS.md)`, `  run: [${succ1}](${enc(succ1)})`, '  program: [80 Runs/programs/ledger2/PROGRAM.md](80%20Runs/programs/ledger2/PROGRAM.md)',
       `  predecessor: [${run0}/HANDOFF.md](${enc(run0)}/HANDOFF.md)`, '  OI-1 pointer: [src.txt:1](src.txt)', ''].join('\n'));
   check("draft carries the predecessor's judgment bullets as confirm placeholders",
     Object.values(JUDGED).every((b) => d2text.includes(`- [FILL: confirm still true] ${b}`))
     && d2text.indexOf('Alpha stays because') > d2text.indexOf('## Decisions made') && d2text.indexOf('Alpha stays because') < d2text.indexOf('## Traps and dead ends'));
+  // Scope digests: the predecessor wrote none, so every PROGRAM.md scope document is a placeholder.
+  const digests1 = join(repo, succ1, 'SCOPE_DIGESTS.md');
+  const dg1 = existsSync(digests1) ? readFileSync(digests1, 'utf8') : '';
+  const entryRe = (path) => new RegExp(`^## \`${path.replace(/\./g, '\\.')}\`\\n\\nHash: sha256:[0-9a-f]{64}\\nVerified-at: [0-9a-f]{7,}\\n\\n\\[FILL: digest\\]$`, 'm');
+  check('draft --out writes SCOPE_DIGESTS.md with a hashed placeholder entry per scope document',
+    ['src.txt', 'design.md', 'specs'].every((p) => entryRe(p).test(dg1)) && (dg1.match(/^## /gm) ?? []).length === 3);
+  check('the draft points Registers and artifacts at SCOPE_DIGESTS.md',
+    d2text.includes(`- Scope digests: \`${succ1}/SCOPE_DIGESTS.md\` · Verified-at: `) && d2text.includes('0 carried unchanged, 3 to write'));
   writeFileSync(join(repo, succ1, 'HANDOFF.md'), fill(d2text, REQ2));
   gitAt('add', '-A');
   gitAt('commit', '-q', '-m', 'hop 2');
+  const unfilledDigests = inRepo([co, 'handoff', 'resume', 'Ledger2 AMM HO 2', '--session', 'sess-two-22222']);
+  check('resume refuses a SCOPE_DIGESTS.md that still holds [FILL: digest] and does not consume',
+    unfilledDigests.status === 1 && /^x {2}scope digests$/m.test(unfilledDigests.stdout) && unfilledDigests.stdout.includes('3 line(s) still hold')
+    && unfilledDigests.stdout.includes('not consumed') && !existsSync(join(repo, succ1, 'HANDOFF.consumed')));
+  // The writer fills src.txt and specs and drops the design.md entry; specs then changes.
+  const pre = (path) => `(## \`${path}\`\\n\\nHash: [^\\n]*\\nVerified-at: [^\\n]*\\n\\n)\\[FILL: digest\\]\\n\\n?`;
+  writeFileSync(digests1, dg1.replace(new RegExp(pre('design\\.md')), '')
+    .replace(new RegExp(pre('src\\.txt')), '$1src.txt holds the alpha line.\n\n')
+    .replace(new RegExp(pre('specs')), '$1specs holds two notes.\n\n'));
+  writeFileSync(join(repo, 'specs', 'b.md'), 'spec b, revised\n');
+  gitAt('add', '-A');
+  gitAt('commit', '-q', '-m', 'digests');
   const res2 = inRepo([co, 'handoff', 'resume', 'Ledger2 AMM HO 2', '--session', 'sess-two-22222', '--host-session', 'local_host-2222']);
   const succ2 = /^successor run: (.+)$/m.exec(res2.stdout)?.[1];
   check('the second resume passes and names a -ho2 successor', res2.status === 0 && /-ledger2-ho2$/.test(succ2 ?? ''));
+  check('resume marks each scope document unchanged, changed, or missing against SCOPE_DIGESTS.md',
+    /^ok scope digests$/m.test(res2.stdout) && res2.stdout.includes(`scope documents (digests in ${succ1}/SCOPE_DIGESTS.md):\n`
+      + '  unchanged src.txt: read its digest, not the document\n  missing design.md: no digest entry; read the document\n  changed specs: re-read the document\n')
+    && res2.stdout.includes(`  scope digests: [${succ1}/SCOPE_DIGESTS.md](${enc(succ1)}/SCOPE_DIGESTS.md)`));
   check('resume stores --host-session in the successor SESSION.json and the session record',
     Boolean(succ2) && json(`${succ2}/SESSION.json`).hostSessionId === 'local_host-2222' && record('sess-two-22222').hostSessionId === 'local_host-2222'
     && record('sess-two-22222').runDir === succ2 && record('sess-one-11111').hostSessionId === null);
@@ -295,6 +330,20 @@ try {
   check("draft keeps the predecessor's Session base name over a different PROGRAM.md title",
     /^Session: Ledger2 AMM HO 3$/m.test(d3) && /^Hop: 3$/m.test(d3) && !d3.includes('Platform operations'));
   writeFileSync(ledger, ledgerText);
+
+  // Hop 3 digests: the unchanged src.txt keeps its digest and Verified-at; changed and missing reset.
+  const d3out = inRepo([co, 'handoff', 'draft', '--run', succ2, '--out', `${succ2}/HANDOFF.md`, '--session', 'sess-two-22222']);
+  const dg2 = existsSync(join(repo, succ2, 'SCOPE_DIGESTS.md')) ? readFileSync(join(repo, succ2, 'SCOPE_DIGESTS.md'), 'utf8') : '';
+  const priorSrc = /^## `src\.txt`\n\nHash: [^\n]*\nVerified-at: ([^\n]*)\n\nsrc\.txt holds the alpha line\.$/m.exec(readFileSync(digests1, 'utf8'))?.[1];
+  check('draft carries an unchanged entry forward with its digest and Verified-at',
+    d3out.status === 0 && Boolean(priorSrc) && new RegExp(`^## \`src\\.txt\`\\n\\nHash: sha256:[0-9a-f]{64}\\nVerified-at: ${priorSrc}\\n\\nsrc\\.txt holds the alpha line\\.$`, 'm').test(dg2));
+  check('draft resets a changed entry and a missing entry to [FILL: digest]',
+    entryRe('specs').test(dg2) && entryRe('design.md').test(dg2) && !dg2.includes('specs holds two notes')
+    && readFileSync(join(repo, succ2, 'HANDOFF.md'), 'utf8').includes('1 carried unchanged, 2 to write'));
+  rmSync(join(repo, succ2, 'HANDOFF.md'));
+  const redraft = inRepo([co, 'handoff', 'draft', '--run', succ2, '--out', `${succ2}/HANDOFF.md`, '--session', 'sess-two-22222']);
+  check('draft refuses to overwrite an existing SCOPE_DIGESTS.md',
+    redraft.status === 1 && redraft.stderr.includes('SCOPE_DIGESTS.md') && !existsSync(join(repo, succ2, 'HANDOFF.md')));
 
   // live walks two hops from the first handoff, from a session name, and from a session id.
   const liveFromPath = inRepo([co, 'handoff', 'live', `${run0}/HANDOFF.md`]);

@@ -50,6 +50,15 @@
 // rest. Draft refuses an `--out` whose folder holds
 // HANDOFF.consumed, or whose SESSION.json names a different session id than the current one.
 //
+// SCOPE DIGESTS. With `--out` and a Program ledger that resolves, draft also writes
+// SCOPE_DIGESTS.md beside the handoff, which keeps them outside the handoff's 8 KB cap. It holds one
+// `## \`<path>\`` entry per PROGRAM.md scope document: `Hash: sha256:<hex>` of the working-tree
+// bytes, `Verified-at: <sha>`, and a digest paragraph. A directory hashes each file's relative path,
+// size, and bytes in sorted path order; a path that does not exist hashes to `none`. An entry whose
+// hash equals the predecessor's SCOPE_DIGESTS.md entry keeps that digest and its Verified-at;
+// every other entry gets `[FILL: digest]` stamped with HEAD. The Registers and artifacts section
+// points at the file. Draft refuses to overwrite an existing SCOPE_DIGESTS.md.
+//
 // TASKS.md is the run's live checklist, one line per item:
 //   - [ ] <current state> · Owner: agent|operator · Done when: <observable check> · Pointer: <path[:line]>
 // and `- [x]` once done.
@@ -66,14 +75,19 @@
 // (1 for a legacy handoff). It writes that folder's SESSION.json, a TASKS.md seeded with the open
 // items verbatim, RUN_LOG.md, and the session record, and the version 2 HANDOFF.consumed names it.
 // The summary ends with a `links:` block of markdown links, relative to --root with spaces as
-// %20: the Program file, each PROGRAM.md scope document, the handoff, the successor run, and each
+// %20: the Program file, each PROGRAM.md scope document, SCOPE_DIGESTS.md when present, the
+// handoff, the successor run, and each
 // open item's Pointer. A passing resume prints `set title: "<session name>"` as its last line.
 // Each check-handoff.mjs `warning:` line, such as a check 16 unanchored pointer, prints in the
-// summary and never changes the exit code.
+// summary and never changes the exit code. When SCOPE_DIGESTS.md sits beside the handoff, a
+// `scope digests` step fails while it holds a `[FILL:` placeholder, and the summary marks each
+// PROGRAM.md scope document `unchanged` (its hash matches: read the digest, not the file),
+// `changed` (re-read it), or `missing` (no entry). A handoff without the file skips both.
 //
 // LINKS. `open`, `draft`, and `resume` each print a `links:` block through linksBlock(), the one
 // formatter; integrate-branch.mjs imports it too. `open` prints the run folder on its first line,
-// then links it. `draft` links the handoff file, the run folder, the Program file and the
+// then links it. `draft` links the handoff file, SCOPE_DIGESTS.md when it wrote one, the run
+// folder, the Program file and the
 // predecessor handoff when they resolve, and each open item's Pointer. With `--out` the block
 // follows `wrote <file>` on stdout; without it the block prints on stderr, so stdout stays the
 // skeleton alone. The command-line entry runs only when this file is the entry point.
@@ -82,6 +96,7 @@
 // handoff; 2 = usage error.
 
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -131,6 +146,37 @@ const pointerEntries = (items, root, repoPath) => items.flatMap((item) => {
   return pointer ? [[`${itemId(item) ?? 'open item'} pointer`, repoPath(resolve(root, pointer.replace(/:\d+(?:-\d+)?$/, ''))), pointer]] : [];
 });
 const hopOf = (text) => { const n = Number(pathValue(sectionBody(text, 'program'), 'Hop')); return Number.isInteger(n) && n > 0 ? n : null; };
+
+// The backticked scope-document paths of a PROGRAM.md, in ledger order.
+const scopeDocs = (programFile) => bullets(sectionBody(readFileSync(programFile, 'utf8'), 'scope documents'))
+  .map((doc) => /`([^`]+)`/.exec(doc)?.[1]).filter(Boolean);
+const DIGESTS = 'SCOPE_DIGESTS.md';
+const FILL_DIGEST = '[FILL: digest]';
+
+// The content hash of a scope document's working-tree bytes. The size prefix keeps a file boundary
+// from shifting inside a directory hash.
+function scopeHash(path) {
+  let stat;
+  try { stat = statSync(path); } catch { return 'none'; }
+  const hash = createHash('sha256');
+  const files = stat.isDirectory() ? walkFiles(path).sort() : [path];
+  for (const file of files) {
+    const bytes = readFileSync(file);
+    if (stat.isDirectory()) hash.update(`${relative(path, file).replace(/\\/g, '/')}\0${bytes.length}\0`);
+    hash.update(bytes);
+  }
+  return `sha256:${hash.digest('hex')}`;
+}
+
+// The entries of a SCOPE_DIGESTS.md, keyed by path, as { hash, verifiedAt, digest }.
+function readDigests(file) {
+  const entries = new Map();
+  for (const { heading, body } of sections(readFileSync(file, 'utf8'))) {
+    const digest = body.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => !/^(Hash|Verified-at):/.test(l)).join('\n').trim();
+    entries.set(heading.replace(/^`(.*)`$/, '$1'), { hash: pathValue(body, 'Hash'), verifiedAt: pathValue(body, 'Verified-at'), digest });
+  }
+  return entries;
+}
 
 // HANDOFF.consumed in `dir`, or null when absent. The version 2 body is JSON; the legacy body is one
 // ISO timestamp line, read as a marker with no successor link. Existence alone means consumed.
@@ -339,7 +385,7 @@ function draft(flags) {
     || '[FILL: the program base name, the PROGRAM.md "# PROGRAM:" title]';
   const hopText = hop ?? '[FILL: the predecessor\'s Hop plus 1, or 1 without a predecessor]';
 
-  const skip = new Set(['HANDOFF.md', 'HANDOFF.consumed']);
+  const skip = new Set(['HANDOFF.md', 'HANDOFF.consumed', DIGESTS]);
   const artifacts = walkFiles(runDir, (f) => !skip.has(basename(f))).map(repoPath).sort()
     .map((p) => `- \`${p}\` · Verified-at: ${head}`);
   const contractPath = join(runDir, 'RUN_CONTRACT.json');
@@ -347,6 +393,22 @@ function draft(flags) {
     const contract = JSON.parse(readFileSync(contractPath, 'utf8'));
     const receipts = contract.runtime?.receipts ? ` · Runtime receipts: \`${contract.runtime.receipts}\`` : '';
     artifacts.push(`- Contract: \`${repoPath(contractPath)}\` (version ${contract.version})${receipts}`);
+  }
+
+  // Scope digests beside --out: a document whose hash matches the predecessor's filled entry keeps
+  // that digest; every other document gets a placeholder, so the writer summarizes only changes.
+  const digestsFile = flags.out && lin.programFile ? join(dirname(resolve(flags.out)), DIGESTS) : null;
+  const priorFile = isFile(resolve(root, lin.predecessor)) ? join(dirname(resolve(root, lin.predecessor)), DIGESTS) : null;
+  const prior = priorFile && existsSync(priorFile) ? readDigests(priorFile) : new Map();
+  const digests = (digestsFile ? scopeDocs(lin.programFile) : []).map((path) => {
+    const hash = scopeHash(resolve(root, path));
+    const was = prior.get(path);
+    const kept = was && was.hash === hash && was.digest && !was.digest.includes('[FILL:');
+    return { path, hash, verifiedAt: kept ? was.verifiedAt : head, digest: kept ? was.digest : FILL_DIGEST };
+  });
+  if (digests.length) {
+    const toFill = digests.filter((d) => d.digest === FILL_DIGEST).length;
+    artifacts.push(`- Scope digests: \`${repoPath(digestsFile)}\` · Verified-at: ${head} · ${digests.length - toFill} carried unchanged, ${toFill} to write`);
   }
 
   const render = (carry) => [
@@ -434,6 +496,7 @@ function draft(flags) {
 
   const links = [
     ...(flags.out ? [['handoff draft', repoPath(resolve(flags.out))]] : []),
+    ...(digests.length ? [['scope digests', repoPath(digestsFile)]] : []),
     ['run', repoPath(runDir)],
     ...(lin.programFile ? [['program', repoPath(lin.programFile)]] : []),
     ...(isFile(resolve(root, lin.predecessor)) ? [['predecessor', lin.predecessor]] : []),
@@ -445,7 +508,12 @@ function draft(flags) {
     return 0;
   }
   if (existsSync(flags.out)) die(`refusing to overwrite ${flags.out}`);
+  if (digests.length && existsSync(digestsFile)) die(`refusing to overwrite ${repoPath(digestsFile)}`);
   writeFileSync(flags.out, text);
+  if (digests.length) {
+    writeFileSync(digestsFile, [`# Scope digests: ${basename(runDir)}`, '',
+      ...digests.flatMap((d) => [`## \`${d.path}\``, '', `Hash: ${d.hash}`, `Verified-at: ${d.verifiedAt}`, '', d.digest, ''])].join('\n'));
+  }
   console.log([`wrote ${flags.out}`, ...linksBlock(links)].join('\n'));
   return 0;
 }
@@ -516,6 +584,24 @@ function resume(arg, flags) {
   const hostSessionId = flags['host-session'] || null;
   const consume = ['--consume', '--successor', repoPath(successor), '--name', name, ...(sid ? ['--session', sid] : [])];
 
+  // Scope digests, before the check so an unfilled file blocks the consume. A handoff without the
+  // file resumes as before.
+  const digestsFile = join(dirname(resolve(target)), DIGESTS);
+  const hasDigests = existsSync(digestsFile);
+  const docs = programFile && existsSync(programFile) ? scopeDocs(programFile) : [];
+  const scope = [];
+  if (hasDigests) {
+    const unfilled = readFileSync(digestsFile, 'utf8').split('\n').filter((l) => l.includes('[FILL:')).length;
+    report('scope digests', { ok: unfilled === 0, all: `${repoPath(digestsFile)}: ${unfilled} line(s) still hold a "[FILL:" placeholder` });
+    const recorded = readDigests(digestsFile);
+    for (const path of docs) {
+      const entry = recorded.get(path);
+      if (!entry) scope.push(`  missing ${path}: no digest entry; read the document`);
+      else if (entry.hash === scopeHash(resolve(root, path))) scope.push(`  unchanged ${path}: read its digest, not the document`);
+      else scope.push(`  changed ${path}: re-read the document`);
+    }
+  }
+
   const check = step('check-handoff.mjs', [target, '--root', root, ...(failures === 0 ? consume : [])]);
   report('handoff check', check);
   if (failures === 0) {
@@ -534,6 +620,7 @@ function resume(arg, flags) {
   lines.push(`anchors: ${Object.entries(counts).map(([s, n]) => `${s} ${n}`).join(', ') || 'none'}`);
   lines.push(...anchors.filter(([, s]) => s !== 'FRESH').map(([, s, where]) => `   ${s} ${where}`));
   lines.push(...[...check.err.matchAll(/^ {2}warning: (.*)$/gm)].map(([, w]) => `warning: ${w}`));
+  if (hasDigests) lines.push(`scope documents (digests in ${repoPath(digestsFile)}):`, ...(scope.length ? scope : ['  none']));
 
   const open = bullets(sectionBody(text, 'open items'));
   const byOwner = (owner) => open.filter((l) => new RegExp(`\\bOwner:\\s*${owner}\\b`, 'i').test(l)).map((l) => `  ${l}`);
@@ -546,13 +633,9 @@ function resume(arg, flags) {
   // Clickable links for the operator: the ledger, its scope documents, the handoff, the successor
   // run, and each open item's Pointer, with any :line suffix kept in the label only.
   const links = [];
-  if (programFile && existsSync(programFile)) {
-    links.push(['program', repoPath(programFile)]);
-    for (const doc of bullets(sectionBody(readFileSync(programFile, 'utf8'), 'scope documents'))) {
-      const path = /`([^`]+)`/.exec(doc)?.[1];
-      if (path) links.push(['scope document', repoPath(resolve(root, path)), path]);
-    }
-  }
+  if (programFile && existsSync(programFile)) links.push(['program', repoPath(programFile)]);
+  links.push(...docs.map((path) => ['scope document', repoPath(resolve(root, path)), path]));
+  if (hasDigests) links.push(['scope digests', repoPath(digestsFile)]);
   links.push(['handoff', repoPath(resolve(target))]);
   if (failures === 0) links.push(['successor run', repoPath(successor)]);
   links.push(...pointerEntries(open, root, repoPath));

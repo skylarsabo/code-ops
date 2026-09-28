@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.15.1
+- The vendored `citation-lib.mjs` resolves a `file:line` citation whose path holds a comma, and re-checks confinement after widening a spaced or comma path, so an escaping path such as `../a,b/x.md:1` reads AMBIGUOUS instead of FRESH.
+
 ## 0.15.0
 - Section 4 of `CONVENTIONS.md` adds the operator-shell rule: a neutral command goes in a `bash` block, and a PowerShell-only command goes in a copy-only `powershell` block in PowerShell 5.1 syntax.
 - A new pinned passage requires every reply to link each repository file, run folder, open-item pointer, and PR it names.

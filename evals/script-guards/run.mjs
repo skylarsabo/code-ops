@@ -153,7 +153,7 @@ try {
   const r45 = join(work, 'r45');
   for (const p of ['app/users/[id]/page.tsx', 'app/(auth)/login/route.ts', 'pages/posts/[...slug].tsx',
     'app/[[...opt]]/page.tsx', 'docs/My Folder/guide.md', 'a/Folder/guide.md', 'b/Folder/guide.md', 'scripts/x.mjs',
-    'other/nested/My Room/notes.md', '40 Engineering/My Folder/guide.md']) {
+    'other/nested/My Room/notes.md', '40 Engineering/My Folder/guide.md', 'docs/Q1,Q2/plan.md', 'notes/x,y.md']) {
     mkdirSync(dirname(join(r45, p)), { recursive: true });
     writeFileSync(join(r45, p), 'l\n'.repeat(20));
   }
@@ -161,7 +161,9 @@ try {
   // widen must prefer the longest real extension (the target), never stop at a shorter real file
   // just because it happens to exist too. Each decoy's line count is picked below its citations'
   // line, so picking the decoy reads MOVED instead of FRESH — the check has teeth.
-  for (const [p, n] of [['Folder/guide.md', 1], ['Room/notes.md', 1], ['Engineering/My Folder/guide.md', 6]]) {
+  // OI-27: `Q2/plan.md` and `Q1,Q2/plan.md` are the same shorter decoys for the comma path.
+  for (const [p, n] of [['Folder/guide.md', 1], ['Room/notes.md', 1], ['Engineering/My Folder/guide.md', 6],
+    ['Q2/plan.md', 1], ['Q1,Q2/plan.md', 1]]) {
     mkdirSync(dirname(join(r45, p)), { recursive: true });
     writeFileSync(join(r45, p), 'l\n'.repeat(n));
   }
@@ -228,6 +230,17 @@ try {
     // tried first, so the full path wins even though a shorter real file is also reachable. Line 15
     // is out of range for the 6-line file, so picking it instead would read MOVED, not FRESH.
     ['BUG-903', '`40 Engineering/My Folder/guide.md:15`', 'FRESH', 'L-045 longest widened extension wins over a shorter real nested extension'],
+    // OI-27: a comma in a path widens like a space. REF_RE stops at the comma, so before the fix
+    // only the tail after it was read: GONE with no same-tail file, MOVED against a shorter decoy.
+    // Line 15 is out of range for both 1-line decoys, so picking either one reads MOVED.
+    ['BUG-904', 'docs/Q1,Q2/plan.md:15', 'FRESH', 'OI-27 unquoted comma path beats shorter same-tail decoys'],
+    ['BUG-905', '`docs/Q1,Q2/plan.md:15`', 'FRESH', 'OI-27 backticked comma path beats shorter same-tail decoys'],
+    ['BUG-906', 'notes/x,y.md:3', 'FRESH', 'OI-27 comma in the file name resolves'],
+    ['BUG-907', 'see docs/My Folder/guide.md:3, docs/Q1,Q2/plan.md:15', 'FRESH', 'OI-27 comma-separated citations each keep their own path'],
+    ['BUG-908', '../Q1,Q2/plan.md:1', 'AMBIGUOUS', 'OI-27 traversal before a comma path stays AMBIGUOUS'],
+    // The backslash sits before the comma, beyond the prefix restore's scan. The widened extent
+    // gets its own escape check, so the real `Q1,Q2/plan.md` decoy cannot read FRESH.
+    ['BUG-909', '..\\Q1,Q2/plan.md:1', 'AMBIGUOUS', 'OI-27 backslash traversal before a comma path stays AMBIGUOUS'],
   ];
   const reg45 = join(work, 'reg45.md');
   writeFileSync(reg45, cases45.map(([id, loc]) => `## ${id}\nLocation: ${loc}\n`).join('\n'));
