@@ -77,7 +77,7 @@ deny into an advisory, except a deny for a malformed or unavailable controller b
 positive integer only. An unregistered worker takes its budget from the brief's `Round budget:`
 line, read once and clamped to 120, before that default. The guard injects one line at the budget
 and at every further 20 rounds, telling the operative to start no new edit and write a checkpoint.
-At twice the budget it denies further tool calls and requires the same checkpoint. It counts rounds only inside a subagent, which
+At 1.5 times the budget, rounded down and at least one call past it, it denies further tool calls and requires the same checkpoint. It counts rounds only inside a subagent, which
 the host marks by an `agent_id` in the hook payload. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 

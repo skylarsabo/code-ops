@@ -791,8 +791,8 @@ and every further 20 calls, the hook returns one `hookSpecificOutput.additionalC
 line names the call where the hard stop lands and tells the operative to start no new edit and to
 finish or revert the partial edit. It then asks for a checkpoint written to the brief's Report
 path, or to the run folder. The checkpoint lists done items with file:line evidence, each dirty
-path marked complete or partial, the exact next edit, and each gate run with its result. At twice
-the budget the hook returns `permissionDecision: deny`, forbids further edits, and requires the
+path marked complete or partial, the exact next edit, and each gate run with its result. At 1.5
+times the budget, rounded down and at least one call past the budget, the hook returns `permissionDecision: deny`, forbids further edits, and requires the
 same checkpoint in the final report.
 New state keys hash the working directory and exact
 agent ID. Legacy counters remain readable and are retained during migration. Evidence:
