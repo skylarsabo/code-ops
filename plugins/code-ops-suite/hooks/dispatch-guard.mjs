@@ -54,7 +54,10 @@
 //      and `**` or `__`, and the label is followed by a colon, optionally after bold markers and
 //      a parenthetical qualifier (`Scope (edit authority):`), or when a markdown heading line
 //      starts with it. A bare, unknown, or non-suite type, an unreadable file, or an agent
-//      without that line passes. A `model` override and a brief with no Round budget stay
+//      without that line passes. The field denial names `co brief <type>`, which prints every
+//      field as a `Label:` line (scripts/brief-template.mjs), and the output then ends with one
+//      such line per missing field, ready to paste. Only the message helps; the label test above
+//      stays strict. A `model` override and a brief with no Round budget stay
 //      advisory clauses; the Round budget advisory is dropped when a field denial already names
 //      it. Every denial and advisory for one dispatch lands in one output.
 //
@@ -138,7 +141,8 @@
 //
 // FAIL-OPEN on host input and absent binding evidence. A present but malformed or conflicting
 // controller binding instead fails closed for that id: it must never silently grant a larger
-// budget than the controller record intended.
+// budget than the controller record intended. That denial, like an unavailable bound counter,
+// states the fix: report now, then re-dispatch under a new id bound with `register`.
 
 import { appendFileSync, closeSync, constants, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -174,6 +178,11 @@ const HANDOFF_SKILL = /code-ops-suite[:-]handoff/;
 // only a shell-safe id is gated; any other id fails open.
 const SAFE_SESSION = /^[A-Za-z0-9._-]{1,256}$/;
 const HOOK_PATH = fileURLToPath(import.meta.url);
+// The mechanical fix both controller-binding denials state. The agent cannot repair its own
+// binding, so it returns, and the unit restarts under a new identity with a fresh binding.
+const BOUND_FAILURE_FIX = `Make no further edits. Return your report now with the checkpoint: ${CHECKPOINT}. `
+  + 'The controller then re-dispatches the unit under a new agent identity and, before its first tool call, '
+  + `binds it from the project root: \`node "${HOOK_PATH}" register --agent-id <new agent id> --budget <rounds>\`.`;
 
 const stateKey = (value) => createHash('sha256').update(String(value)).digest('hex');
 const legacySlug = (value) => String(value).replace(/[^A-Za-z0-9]/g, '-');
@@ -404,7 +413,8 @@ function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
   if (state.status === 'INVALID') {
     emit({ hookSpecificOutput: {
       hookEventName: 'PreToolUse', permissionDecision: 'deny',
-      permissionDecisionReason: 'Dispatch guard: controller binding is malformed or conflicts. Return to the controller for a new agent identity.',
+      permissionDecisionReason: 'Dispatch guard: the controller binding is malformed or conflicts, so every tool call '
+        + `for this agent is denied. ${BOUND_FAILURE_FIX}`,
     } });
     return;
   }
@@ -415,7 +425,9 @@ function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
   try { used = countRound(counterPath(cwd, payload.agent_id), legacyCounterPath(cwd, payload.agent_id)); } catch {
     if (bound) emit({ hookSpecificOutput: {
       hookEventName: 'PreToolUse', permissionDecision: 'deny',
-      permissionDecisionReason: 'Dispatch guard: controller-bound counter is unavailable. Return to the controller for a new agent identity.',
+      permissionDecisionReason: 'Dispatch guard: the controller-bound counter is unavailable because its round file '
+        + `under ${stateDir(cwd)} cannot be updated, so every tool call for this agent is denied. `
+        + `The controller makes that directory writable first. ${BOUND_FAILURE_FIX}`,
     } });
     return;
   }
@@ -568,7 +580,7 @@ function reviewDispatch(tool, input, budget, denials, advisories) {
       denials.push('A Workflow agent() call with no agentType starts from the default surface; set agentType '
         + 'to a code-ops-suite agent, or add "Wide-surface reason: <why>" to the script.');
     }
-    return;
+    return [];
   }
   const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim() : '';
   const prompt = typeof input.prompt === 'string' ? input.prompt : '';
@@ -587,7 +599,8 @@ function reviewDispatch(tool, input, budget, denials, advisories) {
   const missing = requiredFields(type).filter((field) => !briefHas(prompt, field));
   if (missing.length) {
     denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `
-      + 'add each as a "Label:" line or a heading.');
+      + 'add each as a "Label:" line or a heading. The missing lines follow this message, ready to fill; '
+      + `\`node "${join(dirname(dirname(HOOK_PATH)), 'scripts', 'co.mjs')}" brief ${type}\` prints the full template.`);
   }
   // A field denial that already names Round budget makes this advisory a repeat.
   const deniedBudget = missing.some((field) => /^round budget$/i.test(field));
@@ -595,6 +608,7 @@ function reviewDispatch(tool, input, budget, denials, advisories) {
     advisories.push(`No Round budget in the brief; the guard warns at ${budget} rounds, `
       + `stops at ${budget * STOP_MULTIPLE}.`);
   }
+  return missing.map((field) => `${field}:`);
 }
 
 // Behaviours 3 and 4: the main thread. A handoff Skill call records the assessment; a dispatch
@@ -615,9 +629,11 @@ async function guardMainThread(payload, budget, hardStop) {
   if (gate && gate.band >= 1 && assessedBand(assessedPath(gate.cwd, gate.sessionId)) < gate.band) {
     denials.push(ceilingReason(gate));
   }
-  reviewDispatch(tool, input, budget, denials, advisories);
+  const skeleton = reviewDispatch(tool, input, budget, denials, advisories);
   if (!denials.length && !advisories.length) return;
-  const text = `Dispatch guard: ${[...denials, ...advisories].join(' ')}`;
+  // The skeleton closes the text, one label per line, so it pastes into the brief as it stands.
+  const text = `Dispatch guard: ${[...denials, ...advisories].join(' ')}`
+    + (skeleton.length ? `\n${skeleton.join('\n')}` : '');
   emit({ hookSpecificOutput: hardStop && denials.length
     ? { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: text }
     : { hookEventName: 'PreToolUse', additionalContext: text } });

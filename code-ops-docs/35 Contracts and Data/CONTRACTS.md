@@ -283,6 +283,15 @@ line rather than an error. The OpenCode lifecycle plugin emits the same passive 
 `plugins/code-ops-suite/hooks/routing-card.mjs:29-150`, `scripts/opencode-lifecycle.js:168-213`,
 and `evals/handoff-card/run.mjs`.
 
+The card always names `co brief <agent>` for a brief template. When a real host payload arrives
+on a host other than Claude Code, it adds `operator shell: <shell> (<platform>)`, derived from
+`process.platform`; `CODE_OPS_OPERATOR_SHELL` replaces the derived shell. On `win32` it adds one
+line telling the lead to write a multi-line script to a file and never to nest quotes in
+`node -e` inside bash. An empty payload, as the OpenCode build uses, gets neither line, so the
+baked OpenCode card does not depend on the build machine. Claude Code is detected by
+`CLAUDECODE=1`. Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs:109-151` and
+`evals/handoff-card/run.mjs`.
+
 A compact resume never gets the pickup line. It gets the restore instruction, and it then reads
 the session record at
 `<home>/.claude/code-ops/sessions/<projectSlug(cwd)>/<projectSlug(session id)>.json`. When the

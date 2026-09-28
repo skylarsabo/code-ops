@@ -40,6 +40,7 @@ Default: **when unsure, ask rather than guess.**
 - **Never silently egress** (`§A`). Confirm opt-in, record every request, and surface the manifest.
 - **Secrets and PII are radioactive.** Redact them to `<REDACTED:reason>` everywhere, including evidence. A discovered live secret is a critical hand-off finding, reported by location and rotation steps, never by value.
 - **Never fabricate** a source, capability, or quote. Mark anything unconfirmed `UNVERIFIED`. Detect the shell and OS, and stay in-repo for local work.
+- **Commands for the operator run in the operator's shell.** On Windows that shell is PowerShell unless the operator names another. Prefer a neutral command that runs unchanged in PowerShell 5.1, PowerShell 7, and bash. Put it in a `bash` block, which keeps the desktop Run button. Otherwise give a copy-only `powershell` block in PowerShell 5.1 syntax. That syntax uses `;` or separate lines instead of `&&`, `$env:NAME` instead of `export`, and `Remove-Item` instead of `rm`. Double-quote every path that holds a space. Give a bash variant only when the operator also uses a POSIX shell.
 
 ## 5 · Modes
 Each skill declares one mode: **DISCOVERY** gathers and proposes, producing a backlog or specs. **REVIEW** verifies or evaluates, producing a verdict or recommendation. **DOCUMENT** produces a brief and no code. None of them edits source.
@@ -86,6 +87,8 @@ A design brief is written for a senior engineer who will implement it. Lead with
 
 ## 14 · Writing standard
 Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.
+
+Every reply to the operator links each repository file, run folder, open-item pointer, and PR it names. A skill's final report is a reply. Write a file as `[name](repo-relative/path:line)` and a PR as its full URL. A bare `#123` is never enough. Artifacts keep backticked `file:line` citations with anchors, because the checkers parse them. §7 defines the anchor.
 
 Clarity outranks conformance. When a rule would obscure meaning, break it and say why.
 

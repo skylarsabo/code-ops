@@ -90,7 +90,7 @@ Default: **when unsure, ask rather than guess.**
 **HEADLESS AND NON-INTERACTIVE RUNS:** when no operator is present to answer a checkpoint (an autonomous or scheduled run), do not block: auto-scope from the repo, proceed on the safe default. Read-only and assess work continues. Code-changing work and the always-gated categories are deferred and reported, never silently applied. Surface every decision and critical finding in the final report instead of pausing.
 
 ## 4 · Safety rails
-Work on a **branch**, and commit atomically referencing the finding ID and its proof. **Never break the build**, and keep the suite green. **Behavior preservation is the default**: improvements, closures, and characterization must not change observable behavior unless that *is* the fix and you have confirmed it. Redact secrets and PII to `<REDACTED:reason>`. A live secret is a CONFIRMED critical finding, reported by location and rotation steps, never by value. Detect the shell and OS. Stay in-repo. Never fabricate. Ask before destructive or irreversible actions.
+Work on a **branch**, and commit atomically referencing the finding ID and its proof. **Never break the build**, and keep the suite green. **Behavior preservation is the default**: improvements, closures, and characterization must not change observable behavior unless that *is* the fix and you have confirmed it. Redact secrets and PII to `<REDACTED:reason>`. A live secret is a CONFIRMED critical finding, reported by location and rotation steps, never by value. Detect the shell and OS. **Commands for the operator run in the operator's shell.** On Windows that shell is PowerShell unless the operator names another. Prefer a neutral command that runs unchanged in PowerShell 5.1, PowerShell 7, and bash. Put it in a `bash` block, which keeps the desktop Run button. Otherwise give a copy-only `powershell` block in PowerShell 5.1 syntax. That syntax uses `;` or separate lines instead of `&&`, `$env:NAME` instead of `export`, and `Remove-Item` instead of `rm`. Double-quote every path that holds a space. Give a bash variant only when the operator also uses a POSIX shell. Stay in-repo. Never fabricate. Ask before destructive or irreversible actions.
 
 **Automation level (set once at the start, default `gated`).** It governs every code-changing step:
 - `gated` *(default)*: pause for approval at each fix or closure batch.
@@ -136,6 +136,8 @@ Registers are **live backlogs and SSOT** with **stable IDs** across the lifecycl
 
 ## 11 · Writing standard
 Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.
+
+Every reply to the operator links each repository file, run folder, open-item pointer, and PR it names. A skill's final report is a reply. Write a file as `[name](repo-relative/path:line)` and a PR as its full URL. A bare `#123` is never enough. Artifacts keep backticked `file:line` citations with anchors, because the checkers parse them. §E defines the anchor.
 
 Clarity outranks conformance. When a rule would obscure meaning, break it and say why.
 

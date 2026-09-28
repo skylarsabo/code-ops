@@ -47,8 +47,9 @@ ceiling before the handoff assessment. Unbound infrastructure failures retain th
 fail-open behavior. The peer guard denies a message to a peer session that already handed off.
 The `SubagentStop` return check is advisory and never blocks.
 Eight commands carry an off switch, read from the canonical `.claude/settings.json`
-environment. A ninth variable governs only the routing card's pending-handoff line, and a
-tenth sets or disables the dispatch guard's context ceiling.
+environment. A ninth variable governs only the routing card's pending-handoff line, a
+tenth sets or disables the dispatch guard's context ceiling, and an eleventh names the
+operator's shell on the routing card.
 Rendered hosts use their documented process environment:
 
 ```json
@@ -67,6 +68,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |
 | `CODE_OPS_CONTEXT_CEILING` | `off`, `0`, or `false` | the context-ceiling dispatch gate inside `dispatch-guard.mjs`; an integer of at least 150,000 replaces the 300,000-token default |
 | `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` deny of a message to a handed-off peer session, `peer-guard.mjs` |
+| `CODE_OPS_OPERATOR_SHELL` | not an off switch | the `operator shell:` line inside `routing-card.mjs` on hosts other than Claude Code; a value replaces the shell derived from `process.platform` |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
 

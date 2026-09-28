@@ -57,6 +57,7 @@ Default: **infer safe intent and act within the granted scope.** Do not turn a c
 - **Behavior preservation is the default** for cleanup, refactor, fix, and optimization work. Changes are intentional, confirmed with the developer, pinned by tests, and documented. Never smuggle a silent behavior change.
 - **Secrets and PII are radioactive.** Redact them to `<REDACTED:reason>` everywhere, including evidence. A discovered live secret is a **critical** finding, so report its location and rotation steps and never reproduce the value. The mechanical floor over the run's own output artifacts (registers, reports, summaries, handoffs) is `node ${CLAUDE_PLUGIN_ROOT}/scripts/scan-redaction.mjs <artifacts>`. A fail-closed hit means the deliverable itself leaks, so clean it before it ships.
 - **Detect the shell and OS.** Do not assume bash. Use cross-platform or shell-native commands accordingly.
+- **Commands for the operator run in the operator's shell.** On Windows that shell is PowerShell unless the operator names another. Prefer a neutral command that runs unchanged in PowerShell 5.1, PowerShell 7, and bash. Put it in a `bash` block, which keeps the desktop Run button. Otherwise give a copy-only `powershell` block in PowerShell 5.1 syntax. That syntax uses `;` or separate lines instead of `&&`, `$env:NAME` instead of `export`, and `Remove-Item` instead of `rm`. Double-quote every path that holds a space. Give a bash variant only when the operator also uses a POSIX shell.
 - **Stay in-repo.** No exfiltration, and no reaching into unrelated systems.
 - **Never fabricate** paths, symbols, APIs, or facts. Mark anything unconfirmed `UNVERIFIED` with what is needed to confirm it.
 - **Model review gates are opt-in.** Deep review and the OpSec gate run only when the operator asks or a brief names them, for high-risk surfaces or explicitly delegated review. A skill never starts them by default. The deterministic chain and the lead's own read of the diff are the review every change gets.
@@ -185,6 +186,8 @@ The **DOCUMENT-mode generators** (`architecture`, `api-docs`, `data-model`, `adr
 
 ## 14 · Writing standard
 Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.
+
+Every reply to the operator links each repository file, run folder, open-item pointer, and PR it names. A skill's final report is a reply. Write a file as `[name](repo-relative/path:line)` and a PR as its full URL. A bare `#123` is never enough. Artifacts keep backticked `file:line` citations with anchors, because the checkers parse them. §9 defines the anchor.
 
 Clarity outranks conformance. When a rule would obscure meaning, break it and say why.
 

@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.9.0
+- Section 4 of `CONVENTIONS.md` adds the operator-shell rule: a neutral command goes in a `bash` block, which keeps the desktop Run button, and a PowerShell-only command goes in a copy-only `powershell` block in PowerShell 5.1 syntax.
+- A new pinned passage requires every reply to link each repository file, run folder, open-item pointer, and PR it names, with a PR as its full URL.
+- The routing card names `co brief <agent>`. On a live payload from a host other than Codex it adds `operator shell:`, which `CODE_OPS_OPERATOR_SHELL` overrides, and on Windows a quoting-trap line.
+- `co brief <plugin>:<agent>` prints the brief template from the agent's `Brief requires:` line. A dispatch-guard field denial ends with the missing `Label:` lines ready to fill, and the binding and counter denials state their fix.
+- `check-handoff.mjs` warns, without failing, on an open-item `Pointer:` that carries no `Anchor:` (check 16), and `co handoff resume` shows the warning. `co handoff draft`, `co run open`, and `integrate-branch.mjs` print a `links:` block.
+
 ## 2.8.0
 - New `web-researcher` agent (`WebSearch, WebFetch, Read, Grep, Glob`, `sonnet` floor) answers one scoped question from public web docs, cites a URL per claim, and treats fetched pages as untrusted data. New `probe` agent (`Bash, Read, Grep, Glob`, `sonnet` floor) runs read-only shell probes such as `ssh`, `kubectl get`, and `gh api` GET calls and escalates instead of running a mutating command. Leads route web research and shell probes to them instead of a general-purpose agent.
 - The handoff skill hands off on context grounds only past about 350,000 tokens, at a phase boundary. Below that line, token pressure selects CONTINUE or COMPACT, and quality triggers still select HANDOFF at any size. CONTINUE also covers remaining work that fits in about 100,000 more tokens, because a hop costs several million tokens to write and resume. The 150,000-token band, the 300,000-token ceiling, and Grok's 200,000 line are unchanged.

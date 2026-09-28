@@ -106,10 +106,29 @@ function sessionRecord(cwd, sessionId) {
   return { name, runDir, resumed: cardValue(record?.resumed, PATH_CHARS) };
 }
 
+// Only Codex names the operator's shell to the model, so every other host gets the shell
+// line. CODE_OPS_OPERATOR_SHELL overrides the platform default. On Windows the lead's own bash
+// calls also get the quoting-trap line.
+const SHELL_CHARS = 40;
+const DEFAULT_SHELL = { win32: 'PowerShell', darwin: 'zsh' };
+function shellLines() {
+  const lines = [];
+  if (process.env.CLAUDECODE !== '1') {
+    const shell = cardValue(process.env.CODE_OPS_OPERATOR_SHELL, SHELL_CHARS) ?? DEFAULT_SHELL[process.platform] ?? 'bash';
+    lines.push(`operator shell: ${shell} (${process.platform})`);
+  }
+  if (process.platform === 'win32') {
+    lines.push('win32 shell trap: write a multi-line script to a file; never nest quotes in node -e inside bash');
+  }
+  return lines;
+}
+
 function main() {
   if (process.env.GROK_PLUGIN_ROOT) return 0;
+  let raw = '';
+  try { raw = readFileSync(0, 'utf8').replace(/^\uFEFF/, ''); } catch { /* no stdin */ }
   let payload = {};
-  try { payload = JSON.parse(readFileSync(0, 'utf8').replace(/^\uFEFF/, '') || '{}'); } catch { /* ordinary start */ }
+  try { payload = JSON.parse(raw || '{}'); } catch { /* ordinary start */ }
   const lines = [
     'code-ops standard operating mode',
     'debug a bug -> code-ops-suite:debug',
@@ -125,7 +144,11 @@ function main() {
     'say what you are about to do, then close with a recap that stands on its own',
     'only you see a command\'s output; put what the user needs to read in your reply',
     'context economy: read the named convention sections only, skim before a whole file, and query the symbol index before a map',
+    'brief template -> co brief <agent>',
   ];
+  // build-opencode-dist.mjs runs this hook with empty stdin and bakes the card into the dist, so
+  // the platform lines print only for a live host payload and the dist stays machine-independent.
+  if (raw.trim()) lines.push(...shellLines());
   const sessionId = typeof payload?.session_id === 'string' ? payload.session_id : '';
   const shortId = sessionId.slice(0, 8);
   if (/^[A-Za-z0-9_-]+$/.test(shortId)) lines.push(`this session: ${shortId}`);

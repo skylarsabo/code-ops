@@ -7,6 +7,7 @@
 // `co scan narration <file>` replaces the long path in every SKILL.md.
 //
 //   node scripts/co.mjs <domain> <verb> [args...]
+//   node scripts/co.mjs <command> [args...]      (a command has no verbs: `co brief <agent>`)
 //   node scripts/co.mjs --help | <domain> --help
 //   node scripts/co.mjs --version
 //
@@ -116,25 +117,33 @@ const TABLE = {
     bump: 'bump-plugin-version.mjs',
     hooks: 'install-git-hooks.mjs',
   },
+  // A command: one script and no verbs, so `co brief <plugin>:<agent>` passes every argument
+  // after `brief` to brief-template.mjs. `co context brief` is a different verb.
+  brief: 'brief-template.mjs',
 };
 
 const entryOf = (v) => (typeof v === 'string' ? { script: v, sub: null, cmd: null } : v);
 const domains = () => Object.keys(TABLE);
-const verbs = (domain) => Object.keys(TABLE[domain]);
+const isCommand = (domain) => typeof TABLE[domain] === 'string';
+const verbs = (domain) => (isCommand(domain) ? [] : Object.keys(TABLE[domain]));
+const bundledNote = (script) => (existsSync(join(HERE, script)) ? '' : '   (not bundled here)');
 
 function helpLines(only = null) {
   const lines = [
-    'usage: co <domain> <verb> [args...]',
+    'usage: co <domain> <verb> [args...] | co <command> [args...]',
     '       co --help | co <domain> --help | co --version',
     '',
   ];
   for (const domain of domains()) {
     if (only && domain !== only) continue;
+    if (isCommand(domain)) {
+      lines.push(`  ${domain.padEnd(14)} ${TABLE[domain]} (command)${bundledNote(TABLE[domain])}`);
+      continue;
+    }
     lines.push(`  ${domain}`);
     for (const verb of verbs(domain)) {
       const { script, sub, cmd } = entryOf(TABLE[domain][verb]);
-      const bundled = existsSync(join(HERE, script)) ? '' : '   (not bundled here)';
-      lines.push(`    ${verb.padEnd(12)} ${script}${sub ? ` (${sub} is the default subcommand)` : ''}${cmd ? ` ${cmd}` : ''}${bundled}`);
+      lines.push(`    ${verb.padEnd(12)} ${script}${sub ? ` (${sub} is the default subcommand)` : ''}${cmd ? ` ${cmd}` : ''}${bundledNote(script)}`);
     }
   }
   lines.push('');
@@ -182,25 +191,27 @@ const domain = argv[0];
 if (!Object.hasOwn(TABLE, domain)) {
   fail([`co: unknown domain: ${domain}`, `domains: ${domains().join(', ')}`]);
 }
-if (argv[1] === '--help' || argv[1] === '-h') {
+// A command takes no verb; its script answers its own --help.
+const command = isCommand(domain);
+if (!command && (argv[1] === '--help' || argv[1] === '-h')) {
   console.log(helpLines(domain).join('\n'));
   process.exit(0);
 }
-const verb = argv[1];
-if (verb === undefined || !Object.hasOwn(TABLE[domain], verb)) {
+const verb = command ? null : argv[1];
+if (!command && (verb === undefined || !Object.hasOwn(TABLE[domain], verb))) {
   fail([
     verb === undefined ? `co: ${domain} needs a verb` : `co: unknown verb: ${domain} ${verb}`,
     `${domain} verbs: ${verbs(domain).join(', ')}`,
   ]);
 }
 
-const { script, sub, cmd } = entryOf(TABLE[domain][verb]);
+const { script, sub, cmd } = entryOf(command ? TABLE[domain] : TABLE[domain][verb]);
 const target = resolve(HERE, script);
 if (!existsSync(target)) {
-  fail([`co: ${domain} ${verb} is not bundled in this plugin (${script})`]);
+  fail([`co: ${command ? domain : `${domain} ${verb}`} is not bundled in this plugin (${script})`]);
 }
 
-const rest = argv.slice(2);
+const rest = argv.slice(command ? 1 : 2);
 // A subcommand-driven script keeps its own grammar. Insert the default subcommand only when the
 // caller opened with a flag or supplied nothing, so an explicit subcommand always wins.
 if (sub && (rest.length === 0 || rest[0].startsWith('-'))) rest.unshift(sub);

@@ -59,6 +59,9 @@
 //  10. Session chain. "## Program" may carry `Session: <base name> HO <n>`, the name the successor
 //      session takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When
 //      either is present, both must be: Hop is a positive integer and Session ends with ` HO <Hop>`.
+//  16. Every `Pointer:` in "## Open items", here and in PROGRAM.md when the ledger has that
+//      section, carries a delimited `Anchor:`. This check warns and never gates, because existing
+//      chains carry bare pointers. Enforcement arrives with the grammar 2 ledger.
 //
 // `--consume` writes `HANDOFF.consumed` beside the file only when every check above passes. Its
 // body is the version 2 JSON `{"v":2,"consumedAt","bySession","successorRun","name"}`. bySession is
@@ -77,7 +80,8 @@
 // take FRESH anchors without re-reading each file (handoff SKILL.md, resume direction).
 //
 // Exit: 0 = conformant; 1 = at least one violation (listed on stderr); 2 = usage error.
-// Pointer statuses and advisories print on stderr, so stdout carries only the one-line verdict.
+// Pointer statuses, advisories, and `warning:` lines print on stderr, so stdout carries only the
+// one-line verdict. A warning never changes the exit code.
 
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path';
@@ -168,7 +172,20 @@ function sections(body) {
 }
 
 const violations = [];
+const warnings = [];
 const secs = sections(text);
+
+// ---- 16. every Open items Pointer: carries an Anchor: (warning only) ----
+// Each text run after a `Pointer:` label, up to the next one, must hold a delimited Anchor:.
+function unanchoredPointers(body, source) {
+  for (const line of body.split('\n')) {
+    for (const run of line.split(/\bPointer:/).slice(1)) {
+      if (ANCHOR_RE.test(run)) continue;
+      const pointer = `Pointer: ${run.split('·')[0].trim().slice(0, 70)}`;
+      warnings.push(`check 16: ${source} Open items pointer carries no delimited Anchor: ${[itemId(line), pointer].filter(Boolean).join(' ')}`);
+    }
+  }
+}
 
 // ---- 1. required headings ----
 for (const required of REQUIRED_HEADINGS) {
@@ -204,6 +221,7 @@ if (openSection) {
       violations.push(`Open items entry carries no stable id token such as OI-7: ${shown}`);
     }
   }
+  unanchoredPointers(openSection.body, 'HANDOFF.md');
 }
 
 // ---- 7. the operator's original request, verbatim, inside Goal and state of play ----
@@ -264,6 +282,8 @@ function checkProgram(file, shown) {
     if (id) closed.add(id);
     else violations.push(`${tag} Closed items entry carries no stable id token: ${line.trim().slice(0, 70)}`);
   }
+  const ledgerOpen = findSection(ps, 'Open items');
+  if (ledgerOpen) unanchoredPointers(ledgerOpen.body, `PROGRAM.md (${shown})`);
   return { history: squash(history?.body ?? ''), closed };
 }
 
@@ -368,6 +388,8 @@ else if (stamped && headSha) {
   try { dirty = git(['status', '--porcelain', '--untracked-files=all', '--', '.', ...exclude], { cwd: resolver.root }); } catch { /* not decidable */ }
   if (dirty === '') console.error('  same-tree: Verified-at matches HEAD on a clean tree');
 }
+
+for (const w of warnings) console.error(`  warning: ${w}`);
 
 if (violations.length) {
   console.error(`x ${target}: ${violations.length} violation(s)`);

@@ -19,7 +19,7 @@ Generated agent-floor records make the lead and operative tiers machine-readable
 The Codex projection carries the session receipt and follows child rollouts through
 `parent_thread_id`. It also projects the compact-resume routing card because plain
 `PreCompact` stdout cannot alter the summary. The OpenCode projection ports traceless publishing, model
-floors, digest, index, routing, native compaction, and MCP behavior. It has no typed
+floors, digest, index, routing, native compaction, and MCP behavior. The OpenCode renderer bakes the routing card from an empty payload, so the rendered card names `co brief <agent>` but carries no machine-specific operator-shell line. It has no typed
 subagent-start callback, transcript path, or pre-tool `agent_id`. The lifecycle plugin covers
 those outcomes, including the implementer ladder, handoff and dispatch notes, a pending-handoff
 list by session name, a cost ledger, and dispatch-guard denials for the round stop, a non-suite Task dispatch, and
