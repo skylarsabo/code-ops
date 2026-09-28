@@ -32,7 +32,7 @@ A profile may add domain folders in the `10` through `79` band. It may declare a
 
 Authored explanations, procedures, decisions, and references live in the hub. Source code, schemas, migrations, workflows, and configuration remain canonical for executable behavior. They feed documentation extraction but do not form a competing documentation tree. Host-required files such as `README.md`, `AGENTS.md`, and a package README may summarize or point into the hub.
 
-`98 System/DOCS_MANIFEST.json` is the sole registry for topic ownership and source coverage. It names each domain's canonical target, status, evidence paths, source digest, and content digest. Manifest v2 also declares record collections, legacy paths, and explicit run tracking. `docs-manifest.mjs check` fails when required domains are absent, a target is missing, a digest is stale, or substantive authored Markdown remains under the legacy `docs/` tree without registered ownership.
+`98 System/DOCS_MANIFEST.json` is the sole registry for topic ownership and source coverage. It names each domain's canonical target, status, evidence paths, source digest, and content digest. Manifest v2 also declares record collections, legacy paths, and explicit run tracking. Manifest v3 adds run retention, draft policy, and state surfaces. `docs-manifest.mjs check` fails when required domains are absent, a target is missing, a digest is stale, or substantive authored Markdown remains under the legacy `docs/` tree without registered ownership.
 
 ## Durable record collections
 
@@ -48,8 +48,52 @@ Use this compatibility matrix:
 | v4 | v1 without collections | Valid. |
 | v4 | v2 | Enables record collections. |
 | v3 | v2 | Invalid. |
+| v5 | v1 or v2 | Valid, with the rules of that manifest version. |
+| v5 | v3 | Enables run retention, draft policy, and state surfaces. |
+| v3 or v4 | v3 | Invalid. |
 
 The checker accepts standard version 3 while v4 adoption remains explicit. Manifest v1 retains its existing grammar, including `domains`. Manifest v2 retains `domains` and adds `recordCollections`, `legacyPaths`, and explicit `runs.tracking`.
+
+Manifest v3 keeps every v2 key and adds three required blocks:
+
+- **`runs`** holds exactly `tracking` and `retain`. `tracking` is `tracked`, `closeout`, or `ignored`. Under `closeout`, program folders and each `CLOSEOUT.md` are committed, and dated run folders are ignored except the `retain` globs. `retain` must be empty under the other two values.
+- **`drafts`** holds `maxAgeDays` and `statuses`. This list replaces draft statuses declared in profile prose.
+- **`state`** maps each hub-relative state surface to its `budgetWords`.
+
+Manifest v3 also adds two `legacyPaths` dispositions beside `pointer` and `tombstone`. `relocated` names a moved root and its target, which must exist. `removed` names a root that must not exist on disk, and it carries no target. A v2 manifest keeps its v2 rules, so a standard upgrade adds no failure until the repository opts in to v3.
+
+### State and history
+
+The hub has two layers:
+
+| Layer | Contents | Mutability |
+| --- | --- | --- |
+| State | `00 Home.md`, `20 Decisions/REGISTER.md`, `10 Design/INDEX.md`, `80 Runs/INDEX.md`, `98 System/TRIAGE.md`, and synthesis pages that declare their sources | Rewritten in place, mostly generated |
+| History | Record collections, dated run folders, `PROGRAM.archive.md`, closed drafts, and `99 Archive/` | Append-only. Record bytes never change |
+
+A session reaches history through a state link. The manifest declares each state surface and its word budget.
+
+The register holds rules, not evidence. Four clauses bind it:
+
+1. Every decision in force has one register line.
+2. Every register line cites one history source: a record id, and a run or program id when it came from a run.
+3. Every program-ledger decision carries a disposition within one hop of being made.
+4. No two in-force register lines claim the same topic key without a `supersedes` or `amends` link.
+
+A topic key has the form `<domain>/<subject>`, such as `records/relocation`. The domain is the `id` of a manifest domain. The subject is a kebab-case slug of one to five words. A `decision` or `amendment` record carries a key, and other record kinds do not. An amendment carries the key of the record it amends. Clause 4 compares keys as exact strings.
+
+A decision has one of four statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `in-force` | The rule applies as written. |
+| `amended` | The rule applies with later amendments. |
+| `superseded` | A later record replaces the rule. |
+| `historical` | Evidence or a report, not a rule. |
+
+A status change is a curation event. Record bytes never change, so a write-once record can still read as amended in the register.
+
+Admitted bytes stay irreversible, but a collection root may move. Each move is a `relocate-root` curation event. Every record keeps its bytes and its path relative to the root. A root may move more than once, and each move is one prefix swap. Until the record tooling records `relocate-root` events, no root moves.
 
 ### Collection identity and classification
 
@@ -174,7 +218,7 @@ Migrate in this order:
 10. Generate semantic indexes.
 11. Migrate authored documents in slices.
 12. Add eligible pointers and explicit tombstones.
-13. Add CI gates, stamp version 4, and run full verification.
+13. Add CI gates, stamp the current standard version, and run full verification.
 
 Required proof covers:
 
@@ -204,7 +248,7 @@ Trust code for behavior. Trust a manifest domain only when its source and conten
 
 Atlas freshness reaches claim granularity. A claim is one `path:line` citation inside a section's prose, stamped with an anchor copied verbatim from the cited line. `atlas-check.mjs check` classifies every claim through the same rules a findings register uses, and `--claims-gate` exits non-zero on any claim it did not call FRESH.
 
-Working notes use frontmatter: `type`, `status`, `updated`, and `tags`. Valid statuses are `draft`, `current`, `accepted`, and `superseded`, plus an explicitly declared profile status. Manifest-owned published references retain their reader-facing Markdown shape and use the manifest gate instead of note frontmatter.
+Working notes use frontmatter: `type`, `status`, `updated`, and `tags`. Valid statuses are `draft`, `current`, `accepted`, and `superseded`, plus an explicitly declared profile status. Under manifest v3, `drafts.statuses` replaces the profile prose as the status list. Manifest-owned published references retain their reader-facing Markdown shape and use the manifest gate instead of note frontmatter.
 
 ## Artifact routing
 
@@ -218,6 +262,6 @@ Every collection linked from inside the hub has an explicit Markdown index note.
 
 Migration moves authored docs into the hub, updates references, installs the manifest and extraction gates, then removes substantive legacy copies. Do not keep a permanent compatibility tree. A bounded pointer may remain only when the eligibility rule permits it.
 
-`check-vault-standard.mjs` enforces layout and working-note frontmatter. When a documentation manifest exists, it validates that the manifest belongs to the vault and exempts only declared reference targets and generated record indexes from note frontmatter. `docs-manifest.mjs` owns required-domain, legacy-tree, source-digest, and content-digest enforcement. Record tooling owns record classification, citation state, history, ledger, and semantic-index enforcement.
+`check-vault-standard.mjs` enforces layout and working-note frontmatter. When a documentation manifest exists, it validates that the manifest belongs to the vault and exempts only declared reference targets and generated record indexes from note frontmatter. Under manifest v3, it reads valid statuses from `drafts.statuses`. `docs-manifest.mjs` owns required-domain, legacy-tree, source-digest, and content-digest enforcement. Record tooling owns record classification, citation state, history, ledger, and semantic-index enforcement.
 
-The current standard version is **4**.
+The current standard version is **5**.

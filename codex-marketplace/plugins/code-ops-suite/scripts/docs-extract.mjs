@@ -35,13 +35,14 @@ const tasks = plan.domains.map((domain, index) => ({
     ? 'Revalidate the recorded non-applicability evidence.'
     : 'Extract current claims from the listed changed sources; update only this canonical target.',
 }));
+const withRecords = plan.version === 2 || plan.version === 3;
 const receipt = {
-  version: plan.version === 2 ? 2 : 1,
+  version: withRecords ? plan.version : 1,
   hub: plan.hub,
   manifestSha256: plan.manifestSha256,
   changedSha256: sha256(JSON.stringify(plan.changed)),
   tasks,
-  ...(plan.version === 2 ? {
+  ...(withRecords ? {
     records: (plan.records || []).map((collection) => ({
       id: collection.id,
       index: collection.index,

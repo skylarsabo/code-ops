@@ -55,6 +55,22 @@ try {
     check('manifest v2 targets receive the same citation gate', run(f.script, f.root).status === 0);
   }
   {
+    const f = buildCase('manifest-v3', 'See `scripts/target.mjs:3`.\n');
+    const path = join(f.root, 'project-docs', '98 System', 'DOCS_MANIFEST.json');
+    const manifest = JSON.parse(readFileSync(path, 'utf8'));
+    Object.assign(manifest, { version: 3, runs: { tracking: 'ignored', retain: [] }, recordCollections: [], legacyPaths: [],
+      drafts: { maxAgeDays: 21, statuses: ['draft'] }, state: {} });
+    writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    const ok = run(f.script, f.root);
+    check('manifest v3 targets receive the same citation gate', ok.status === 0 && ok.out.includes('manifest-owned'), ok.out);
+    setCurrentBody(f, 'See `scripts/nope.mjs:1`.\n');
+    const bad = run(f.script, f.root);
+    check('manifest v3 targets still fail closed on a broken citation', bad.status === 1 && bad.out.includes('target file does not exist'), bad.out);
+    writeFileSync(path, `${JSON.stringify({ ...manifest, version: 4 }, null, 2)}\n`);
+    const unknown = run(f.script, f.root);
+    check('unknown manifest versions still fail closed', unknown.status === 2 && unknown.out.includes('invalid version'), unknown.out);
+  }
+  {
     const f = buildCase('not-applicable', '# Current\n', 'Broken `scripts/nope.mjs:999` in recorded non-applicability evidence.\n');
     const r = run(f.script, f.root);
     check('not-applicable target remains citation-gated', r.status === 1 && r.out.includes('target file does not exist'), r.out);
