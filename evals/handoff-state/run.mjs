@@ -486,6 +486,60 @@ try {
   writeFileSync(join(hub, 'programs', 'big', 'G1.md'), bigAfter.replace('Grammar: 2\n', ''));
   const g1 = inG2([co, 'program', 'archive', '80 Runs/programs/big/G1.md', '--root', '.']);
   check('program archive refuses a grammar 1 ledger', g1.status === 1 && /no "Grammar: 2" line/.test(g1.stderr));
+
+  // An over-cap ledger with nothing settled to move fails closed instead of reporting success.
+  const overFile = join(hub, 'programs', 'over', 'PROGRAM.md');
+  mkdirSync(dirname(overFile), { recursive: true });
+  const overText = ['# PROGRAM: Over', '', 'Grammar: 2', '', '## Decisions ledger', '',
+    `- DEC-1 2026-09-20 Unsettled ${'d'.repeat(33 * 1024)} · Hop: 0 · Disposition: pending`, ''].join('\n');
+  writeFileSync(overFile, overText);
+  const over = inG2([co, 'program', 'archive', 'over', '--root', '.']);
+  check('an over-cap ledger with nothing movable exits 1 and reports it is over the cap', over.status === 1
+    && over.stdout.includes('nothing to archive') && over.stdout.includes('still over it') && readFileSync(overFile, 'utf8') === overText);
+
+  // Fixtures for the line-ending and prose checks: 13 requests so two move, a settled decision, and a closed item.
+  const smallReqs = Array.from({ length: 13 }, (_, i) => `- 2026-09-${String(i + 1).padStart(2, '0')}: small request ${i}`);
+  const smallLedger = (closed) => ['# PROGRAM: Small', '', 'Grammar: 2', '', '## Request history', '', ...smallReqs, '', '## Decisions ledger', '',
+    '- DEC-1 2026-09-20 Settled · Hop: 0 · Disposition: local', '- DEC-2 2026-09-21 Open · Hop: 1 · Disposition: pending', '', '## Closed items', '', ...closed, ''].join('\n');
+  const smallDir = (name) => { const d = join(hub, 'programs', name); mkdirSync(d, { recursive: true }); return d; };
+
+  // S3: a CRLF ledger archives the same entries as its LF twin and keeps its line ending.
+  const lfDir = smallDir('lf');
+  const crDir = smallDir('crlf');
+  writeFileSync(join(lfDir, 'PROGRAM.md'), smallLedger(['- OI-4 closed · closed by DEC-1', '  continued proof line']));
+  writeFileSync(join(crDir, 'PROGRAM.md'), smallLedger(['- OI-4 closed · closed by DEC-1', '  continued proof line']).replace(/\n/g, '\r\n'));
+  const lfRun = inG2([co, 'program', 'archive', 'lf', '--root', '.']);
+  const crRun = inG2([co, 'program', 'archive', 'crlf', '--root', '.']);
+  const readIn = (dir, name) => readFileSync(join(dir, name), 'utf8');
+  const crLedger = readIn(crDir, 'PROGRAM.md');
+  const crArchive = readIn(crDir, 'PROGRAM.archive.md');
+  check('a CRLF ledger archives the same entries as the LF ledger', lfRun.status === 0 && crRun.status === 0
+    && crLedger.replace(/\r\n/g, '\n') === readIn(lfDir, 'PROGRAM.md') && crArchive.replace(/\r\n/g, '\n') === readIn(lfDir, 'PROGRAM.archive.md')
+    && readIn(lfDir, 'PROGRAM.archive.md').includes('- OI-4 closed · closed by DEC-1\n  continued proof line') && readIn(lfDir, 'PROGRAM.archive.md').includes('small request 1')
+    && !readIn(lfDir, 'PROGRAM.md').includes('OI-4'));
+  check('a CRLF ledger and its archive keep CRLF line endings', crLedger.includes('\r\n') && crArchive.includes('\r\n')
+    && !/(^|[^\r])\n/.test(crLedger + crArchive));
+
+  // B2: prior archive prose survives a run, and a moved entry keeps a blank-separated continuation paragraph.
+  const proseDir = smallDir('prose');
+  const proseArchive = join(proseDir, 'PROGRAM.archive.md');
+  writeFileSync(proseArchive, ['# PROGRAM archive: Small', '', 'Intro paragraph the archive keeps.', '', '## Request history', '', '- 2026-08-01: older request',
+    'Prose under requests.', '', '## Decisions ledger', '', '## Closed items', '', '- OI-1 older closed', '', 'Trailing prose under closed items.', ''].join('\n'));
+  const paragraph = ['- OI-4 closed · closed by DEC-1', '  first continuation line', '', '  second paragraph after a blank line'];
+  writeFileSync(join(proseDir, 'PROGRAM.md'), smallLedger(paragraph));
+  const proseRun = inG2([co, 'program', 'archive', 'prose', '--root', '.']);
+  const proseText = readFileSync(proseArchive, 'utf8');
+  const proseKept = (t) => ['Intro paragraph the archive keeps.', 'Prose under requests.', 'Trailing prose under closed items.', '- 2026-08-01: older request', '- OI-1 older closed']
+    .every((s) => t.includes(s));
+  check('prior archive prose and entries survive an archive run', proseRun.status === 0 && proseKept(proseText)
+    && proseText.indexOf('older request') < proseText.indexOf('small request 1') && proseText.indexOf('- OI-1 older closed') < proseText.indexOf('- OI-4 closed'));
+  check('a moved entry keeps its blank-separated continuation paragraph', proseText.includes(`${paragraph.join('\n')}\n`)
+    && !readIn(proseDir, 'PROGRAM.md').includes('second paragraph'));
+  writeFileSync(join(proseDir, 'PROGRAM.md'), smallLedger(['- OI-5 closed later']));
+  const proseAgain = inG2([co, 'program', 'archive', 'prose', '--root', '.']);
+  const proseText2 = readFileSync(proseArchive, 'utf8');
+  check('prior archive prose survives a second archive run', proseAgain.status === 0 && proseKept(proseText2)
+    && proseText2.includes(paragraph.join('\n')) && proseText2.includes('- OI-5 closed later'));
 } finally {
   rmSync(g2, { recursive: true, force: true });
 }

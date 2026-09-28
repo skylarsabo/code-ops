@@ -81,7 +81,9 @@
 //      active open item keeps its full line. A carried one shows only id and title, and check 4
 //      reads its `Owner:` and `Done when:` from the ledger's Open items.
 //  17. An open item whose `Owner:` or `Done when:` differs from the predecessor's line carries
-//      `Revised:` on its handoff line or its ledger line.
+//      `Revised:` on its handoff line or its ledger line. A predecessor line carried as id and
+//      title compares against the nearest ancestor handoff that holds the full line; with no such
+//      ancestor on disk, the item is skipped.
 //  18. No DEC or OI id leads two bullets across the ledger and its archive.
 // Check 14 (a promoted id resolves) is not implemented yet.
 //
@@ -443,6 +445,25 @@ if (grammar2) {
   }
 }
 
+function labelled(line) { return ownerOf(line) !== null && doneWhenOf(line) !== null; }
+// Walks the Predecessor: chain from `from` for the first open item `id` that carries both labels.
+// deferred(ANCESTOR_HOPS, run scratch may be absent offline: a missing ancestor or a cycle ends the
+// walk and a change against it goes uncaught; upgrade path: record the baseline in the ledger)
+function ancestorLine(from, id) {
+  const ANCESTOR_HOPS = 25;
+  const seen = new Set();
+  let cursor = from;
+  for (let hops = 0; hops < ANCESTOR_HOPS; hops++) {
+    const next = pathValue(findSection(cursor, 'Program')?.body ?? '', 'Predecessor');
+    if (!next || /^none$/i.test(next) || seen.has(next) || !isFile(inRoot(next))) return null;
+    seen.add(next);
+    cursor = sections(readFileSync(inRoot(next), 'utf8'));
+    const held = bulletsOf(findSection(cursor, 'Open items')?.body ?? '').find((l) => leadId(l) === id);
+    if (held && labelled(held)) return held;
+  }
+  return null;
+}
+
 // Checks 13 and 17 compare the predecessor handoff against this one and the grammar 2 ledger.
 function grammar2Lineage(prior, predecessor) {
   // ---- 13. every DEC id the predecessor made reaches the ledger, its archive, or a Was: trail ----
@@ -452,11 +473,14 @@ function grammar2Lineage(prior, predecessor) {
   }
   // ---- 17. a changed Owner: or Done when: carries Revised: ----
   const current = new Map(bulletsOf(openSection?.body ?? '').map((l) => [leadId(l), l]));
-  for (const was of bulletsOf(findSection(prior, 'Open items')?.body ?? '')) {
-    const id = leadId(was);
+  for (const bullet of bulletsOf(findSection(prior, 'Open items')?.body ?? '')) {
+    const id = leadId(bullet);
     const line = current.get(id);
-    // A carried predecessor line holds no labels to compare, and an absent id is check 9's.
-    if (!id || !line || !ownerOf(was) || doneWhenOf(was) === null) continue;
+    if (!id || !line) continue; // an absent id is check 9's
+    // A predecessor line carried as id and title holds no labels, so the baseline is the nearest
+    // ancestor handoff that holds the full line. No ancestor on disk leaves nothing to compare.
+    const was = labelled(bullet) ? bullet : ancestorLine(prior, id);
+    if (!was) continue;
     const ledger = program.openById.get(id) ?? '';
     const now = ownerOf(line) ? line : ledger;
     if (ownerOf(now) === ownerOf(was) && doneWhenOf(now) === doneWhenOf(was)) continue;

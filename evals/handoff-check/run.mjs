@@ -347,6 +347,18 @@ expectFail('check 15: an open item that does not lead with its id', g2('c15-open
 expectFail('check 16: a bare pointer in a grammar 2 ledger fails', g2('c16', { ledger: buildProgram2({ open: [G2_OI1, G2_OI3.replace(/ · Anchor: .*$/, '')] }) }), /check 16: PROGRAM\.md .* Open items pointer carries no delimited Anchor: OI-3/);
 expectFail('check 17: a changed Done when without Revised', g2('c17', { openItems: G2_OPEN_SECTION.replace('Done when: eval passes', 'Done when: eval and lint pass') }), /check 17: open item OI-1 changed its Owner: or Done when:/);
 expectPass('check 17: a changed Done when that carries Revised', g2('c17-revised', { openItems: G2_OPEN_SECTION.replace('Done when: eval passes', 'Done when: eval and lint pass · Revised: hop 1 · lint joined the gate') }));
+// Check 17 against a predecessor that carried OI-1 as id and title only: the baseline is the last
+// ancestor handoff that holds the full labelled line. Its hop-0 ancestor holds OI-1 in full.
+const g2Mid = write('g2-mid-HANDOFF.md', buildHandoff({ goal: priorGoal, openItems: '## Open items\n\n- [ ] OI-1 ledger check in progress\n\n', decisions: '- DEC-2 fixtures live in a temp dir', program: `## Program\n\nProgram: ${join(work, 'PROGRAM.md')}\nPredecessor: ${g2Prior}\n\n` }));
+const g2Bare = (name, { ledgerOwner = 'agent', openItems = '## Open items\n\n- [ ] OI-1 ledger check in progress\n- [ ] OI-3 archive command not started\n\n', revised = '' } = {}) => {
+  const dir = join(work, `g2-${name}`);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'PROGRAM.md'), buildProgram2({ open: [G2_OI1.replace('Owner: agent', `Owner: ${ledgerOwner}`) + revised, G2_OI3] }));
+  return write(`g2-${name}.md`, buildHandoff({ program: g2Program(join(dir, 'PROGRAM.md')).replace(`Predecessor: ${g2Prior}`, `Predecessor: ${g2Mid}`), openItems, decisions: G2_DECISIONS }));
+};
+expectPass('check 17: a bare predecessor item whose ledger line is unchanged', g2Bare('c17-bare-same'));
+expectFail('check 17: a bare predecessor item whose ledger owner changed without Revised', g2Bare('c17-bare', { ledgerOwner: 'operator' }), /check 17: open item OI-1 changed its Owner: or Done when:/);
+expectPass('check 17: a bare predecessor item whose ledger owner changed with Revised', g2Bare('c17-bare-revised', { ledgerOwner: 'operator', revised: ' · Revised: hop 1 · the operator owns the merge' }));
 expectFail('check 18: an id both open and closed in the ledger', g2('c18', { ledger: buildProgram2({ closed: ['- OI-2 closed-with-proof abc1234 · Pointer: docs page', '- OI-3 closed early · Pointer: docs page'] }) }), /check 18: OI-3 leads 2 bullets/);
 const G2_ARCHIVE = `# PROGRAM archive: check-handoff eval\n\n## Request history\n\n- 2026-09-22: ${PRIOR_REQUEST}\n\n## Decisions ledger\n\n${G2_DEC1}\n\n## Closed items\n\n- OI-2 closed-with-proof abc1234 · Pointer: docs page\n`;
 expectFail('check 18: an id in both the ledger and its archive', g2('c18-archive', { archive: G2_ARCHIVE }), /check 18: DEC-1 leads 2 bullets/);

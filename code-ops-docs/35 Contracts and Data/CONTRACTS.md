@@ -738,7 +738,9 @@ Closed items, and decision ids whenever it exists. These checks fail closed:
 - 16: an Open items `Pointer:` without a delimited `Anchor:` fails, in the handoff and the ledger.
   Under grammar 1 it only warns.
 - 17: an open item whose `Owner:` or `Done when:` differs from the predecessor's line carries
-  `Revised: hop <n>` on its handoff or ledger line.
+  `Revised: hop <n>` on its handoff or ledger line. When the predecessor carries the item as id
+  and title only, the baseline is the nearest ancestor handoff with the full line. With no such
+  ancestor on disk, the check skips the item.
 - 18: no `DEC` or `OI` id leads two bullets across the ledger and its archive.
 
 Check 14, promotion resolution, is not implemented yet. Evidence: `scripts/check-handoff.mjs` and
