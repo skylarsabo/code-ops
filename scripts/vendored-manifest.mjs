@@ -92,6 +92,9 @@ export const RUNTIME_SCRIPTS = [
   // the handoff skill, so no other plugin needs this copy.
   { name: 'check-handoff.mjs', plugins: ['code-ops-suite'] },
   { name: 'handoff-state.mjs', plugins: ['code-ops-suite'] },
+  // `co brief`, which the dispatch guard's field denial names; only code-ops-suite ships the
+  // guard, as with the handoff scripts above.
+  { name: 'brief-template.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.

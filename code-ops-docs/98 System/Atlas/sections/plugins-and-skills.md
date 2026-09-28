@@ -43,20 +43,20 @@ receives the same note as PostToolUse additionalContext. At or above the context
 note on Claude and Codex adds that new dispatches are gated. OpenCode carries the note, the
 round stop, the wide-type deny, and the ceiling gate in its lifecycle plugin. `routing-card.mjs` lists, but does not resume, up to 3 unconsumed pending handoffs by session
 name on a fresh session, and treats that session as new work unless the operator resumes one
-(plugins/code-ops-suite/hooks/routing-card.mjs:148). `dispatch-guard.mjs` runs at `PreToolUse` on every thread: inside a subagent it counts
+(plugins/code-ops-suite/hooks/routing-card.mjs:171). Outside Claude Code, a live host payload also gets a line naming the operator's shell, and on Windows a quoting-trap line follows (plugins/code-ops-suite/hooks/routing-card.mjs:151). `dispatch-guard.mjs` runs at `PreToolUse` on every thread: inside a subagent it counts
 attempted tool calls against an explicit host-agent binding or, when no binding exists, the
 `Round budget:` line of the subagent's own brief, read once from its transcript and clamped to
 120, else the environment/default budget. It stops the unbound counter at twice the budget, and
 its warning and stop both ask for a checkpoint written to the brief's report path
-(plugins/code-ops-suite/hooks/dispatch-guard.mjs:155, plugins/code-ops-suite/hooks/dispatch-guard.mjs:164). On the lead's
+(plugins/code-ops-suite/hooks/dispatch-guard.mjs:159, plugins/code-ops-suite/hooks/dispatch-guard.mjs:168). On the lead's
 own dispatch (Claude's `Agent`, `Task`, or `Workflow`, or Grok's `spawn_subagent`) it denies a wide-surface or unnamed agent type whose brief has no `Wide-surface
 reason:` line, denies a suite-agent dispatch whose brief lacks a field the target agent's
 `## Contract` lists on its `Brief requires:` line, and denies new dispatches past the context
-ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:600).
+ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:614). The field denial names `co brief <agent>`, which prints the full brief template, and ends with one `Label:` line per missing field, ready to paste (plugins/code-ops-suite/hooks/dispatch-guard.mjs:611).
 `peer-guard.mjs` also runs at `PreToolUse`. It denies a `SendMessage` or desktop `send_message`
 call to a peer session whose run folder holds `HANDOFF.md` or `HANDOFF.consumed`, and names the
 live successor to resend to (plugins/code-ops-suite/hooks/peer-guard.mjs:17).
-The guard's deny text names `web-researcher` and `probe` beside the build and review agents (plugins/code-ops-suite/hooks/dispatch-guard.mjs:584). They exist because a `Wide-surface reason:` line was otherwise the only route to public web docs, which `gatherer` never fetches, and to read-only shell probes, which `explorer` cannot run. Their safety rests on prose, not a tool gate: `probe` holds a full `Bash` and is told never to mutate (plugins/code-ops-suite/agents/probe.md:13), and `web-researcher` treats every fetched page as untrusted data (plugins/code-ops-suite/agents/web-researcher.md:14).
+The guard's deny text names `web-researcher` and `probe` beside the build and review agents (plugins/code-ops-suite/hooks/dispatch-guard.mjs:596). They exist because a `Wide-surface reason:` line was otherwise the only route to public web docs, which `gatherer` never fetches, and to read-only shell probes, which `explorer` cannot run. Their safety rests on prose, not a tool gate: `probe` holds a full `Bash` and is told never to mutate (plugins/code-ops-suite/agents/probe.md:13), and `web-researcher` treats every fetched page as untrusted data (plugins/code-ops-suite/agents/web-researcher.md:14).
 `session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
 Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex
@@ -69,7 +69,7 @@ Codex projection registers it too. It checks a suite agent's final report agains
 There is no `PreCompact` command because Claude and Codex ignore plain stdout from that event.
 Their `SessionStart source=compact` path supplies a post-compaction durable-state restore
 instruction that names the session and its own run folder when a session record binds them
-(plugins/code-ops-suite/hooks/routing-card.mjs:142). Grok ignores passive routing and ladder stdout, so paired instruction files carry
+(plugins/code-ops-suite/hooks/routing-card.mjs:165). Grok ignores passive routing and ladder stdout, so paired instruction files carry
 that doctrine. OpenCode uses its native compaction port.
 
 `local-review-gate` is opt-in. `ship` and `pr-split` run the deterministic chain and the lead's diff read on every change and start the model gates only on an operator yes recorded at the checkpoint; the conventions carry the rule as a safety rail.
@@ -101,7 +101,8 @@ Report persistence is pinned across all four conventions. A brief's report path 
 
 New substantive version-4 runs route each unit by assigned task, role floor, and ambiguity; each records its rationale, while a frontier peer remains a bounded exception with lead-owned stopping and blocking criteria (plugins/code-ops-suite/CONVENTIONS.md:20). Lifecycle assessment preserves the same task's recorded authority limits, requires a durable checkpoint before compact or handoff, and treats unavailable host actions and unobserved telemetry as unavailable or `UNKNOWN`, never as completed work (plugins/code-ops-suite/skills/handoff/SKILL.md:79, plugins/code-ops-suite/skills/handoff/SKILL.md:179).
 Each of the four conventions now ends with a pinned Code standard section holding one core clause. The section carries no hub path because the packages ship to repositories without this hub; the full rules and their backstops live in the hub's code-standard technique page.
+A pinned `reply-links` passage in all four conventions requires every reply to the operator, including a skill's final report, to link each repository file, run folder, open-item pointer, and PR it names. Each safety-rails section also tells the lead to hand the operator commands in the operator's shell, which is PowerShell on Windows unless the operator names another.
 
-Explicit dispatch registration uses hashed working-directory and agent keys, refuses replacement, and preserves legacy call counts. Bound workers receive a small checkpoint allowance without extending the legacy cap. Receipts expose attempted-call counts; unavailable provider usage and effective runtime budget remain UNKNOWN.
+Explicit dispatch registration uses hashed working-directory and agent keys, refuses replacement, and preserves legacy call counts. Bound workers receive a small checkpoint allowance without extending the legacy cap. A malformed binding or an unwritable bound counter denies every call and states the fix: return the checkpoint now, and the controller re-dispatches under a new agent identity bound with `register`. Receipts expose attempted-call counts; unavailable provider usage and effective runtime budget remain UNKNOWN.
 
 `conform` checks surface 3 with `atlas-check.mjs check --gate --claims-gate`. A STALE section, or a claim that is MOVED, DRIFTED, or GONE, makes the surface DRIFTED, never CONFORMANT. The suite's atlas trust rule matches: a FRESH section does not vouch for a claim reported DRIFTED or GONE.

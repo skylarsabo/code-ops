@@ -7,7 +7,9 @@
 // Key findings bullet carries, and that `--consume` writes `HANDOFF.consumed` only on a pass.
 // Check 9 cases pin the Program lineage: the ledger's shape and cap, scope documents on the
 // tree, and that a predecessor's request and open-item ids carry forward. Check 10 cases pin the
-// Session and Hop pair, and the consume cases pin the version 2 HANDOFF.consumed body.
+// Session and Hop pair, and the consume cases pin the version 2 HANDOFF.consumed body. Check 16
+// cases pin the non-gating warning for an Open items Pointer, in the handoff or the ledger, that
+// carries no Anchor.
 //
 //   node evals/handoff-check/run.mjs   (exit 0 = all assertions pass)
 
@@ -124,6 +126,20 @@ const good = write('good.md', buildHandoff());
 const rGood = run([good]);
 check('conformant fixture exits 0', rGood.status === 0);
 check('conformant fixture reports OK', /^OK —/.test(rGood.stdout));
+
+// === check 16: an Open items Pointer without an Anchor warns on stderr and never gates ===
+const BARE_WARNING = '  warning: check 16: HANDOFF.md Open items pointer carries no delimited Anchor: PAR-100 Pointer: path:line\n';
+check('a bare open-item pointer exits 0 and warns on stderr', rGood.status === 0 && rGood.stderr.includes(BARE_WARNING) && !rGood.stdout.includes('warning:'));
+const anchoredItem = '- PAR-100 close-out: not started · Owner: agent · Done when: register item closed-with-proof · Pointer: scripts/check-handoff.mjs:2 · Anchor: `HANDOFF.md structural checker`';
+const anchoredOpen = `## Open items\n\n${anchoredItem}\n\n`;
+const rAnchoredItem = run([write('anchored-item.md', buildHandoff({ openItems: anchoredOpen }))]);
+check('an anchored open-item pointer exits 0 with no check 16 warning', rAnchoredItem.status === 0 && !outOf(rAnchoredItem).includes('check 16'));
+const ledgerOpen = '## Open items\n\n- OI-5 ledger audit: open · Owner: agent · Done when: the audit lands · Pointer: docs/audit.md\n';
+const rLedgerBare = run([write('ledger-bare.md', buildHandoff({ openItems: anchoredOpen, program: programSection(programAt('ledger-bare-open.md', { filler: ledgerOpen })) }))]);
+check('a bare pointer in the ledger Open items exits 0 and warns',
+  rLedgerBare.status === 0 && /^ {2}warning: check 16: PROGRAM\.md \(.*ledger-bare-open\.md\) Open items pointer carries no delimited Anchor: OI-5 Pointer: docs\/audit\.md$/m.test(rLedgerBare.stderr)
+  && !rLedgerBare.stderr.includes('HANDOFF.md Open items'));
+if (rLedgerBare.status !== 0) console.error(outOf(rLedgerBare));
 
 // === check 10: Session and Hop come as a pair; a handoff without both is legacy and passes ===
 const withChain = (lines) => write(`chain-${lines.join('-').replace(/[^a-z0-9]+/gi, '-')}.md`,

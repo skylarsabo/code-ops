@@ -12,6 +12,9 @@
 //   - every `scan` verb answers `--help` exactly as its script does — same exit code, same
 //     stdout, same stderr — which is the migration's contract: the scan scripts parse their
 //     flags through cli-lib now, and the façade still changes nothing a caller sees;
+//   - a command (a table key with one script and no verbs) is pinned and listed in --help, and
+//     `co brief <plugin>:<agent>` prints that agent's Contract fields as `Label:` lines, exits 2
+//     on a bare, unknown, or non-suite type, and leaves `co context brief` on worker-brief.mjs;
 //   - `co.mjs` copied alone into an empty directory reports the missing sibling as
 //     not-bundled with exit 2, which is what a plugin that vendors a partial script set does;
 //   - parseFlags separates flags from positionals and throws UsageError on an unknown flag,
@@ -116,12 +119,45 @@ for (const [verb, script] of SCAN_VERBS) {
   expect(viaCo.status === 0 || viaCo.status === 2, `co scan ${verb} --help must exit 0 or 2, got ${viaCo.status}`);
 }
 
+// Commands: a table key whose value is one script takes no verb. Pinned like DOMAINS.
+const COMMANDS = ['brief'];
+const tableCommands = [...tableBlock.matchAll(/^ {2}([a-z][a-z-]*): '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
+expect(tableCommands.join(',') === COMMANDS.join(','), `table commands ${JSON.stringify(tableCommands)} must equal the pinned list ${JSON.stringify(COMMANDS)}`);
+for (const command of COMMANDS) expect(new RegExp(`^ {2}${command} +\\S+\\.mjs \\(command\\)$`, 'm').test(help.stdout), `--help must list the ${command} command`);
+
+// `co brief <plugin>:<agent>` prints the agent's Contract fields, one `Label:` line each, byte
+// for byte as brief-template.mjs does, and `co context brief` still reaches worker-brief.mjs.
+const brief = run([co, 'brief', 'code-ops-suite:implementer']);
+const briefDirect = run([join(root, 'scripts', 'brief-template.mjs'), 'code-ops-suite:implementer']);
+expect(brief.status === 0 && brief.stdout === briefDirect.stdout
+  && brief.stdout === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\n',
+  `co brief must print the implementer template, got ${brief.status}/${JSON.stringify(brief.stdout)} ${brief.stderr}`);
+const siblingBrief = run([co, 'brief', 'rigor:tracer']);
+expect(siblingBrief.status === 0 && siblingBrief.stdout.startsWith('Scope:\n'), `co brief must resolve a sibling plugin's agent, got ${siblingBrief.status}: ${siblingBrief.stderr}`);
+for (const bad of [['implementer'], ['code-ops-suite:no-such-agent'], ['other-plugin:implementer'], []]) {
+  const r = run([co, 'brief', ...bad]);
+  expect(r.status === 2 && r.stdout === '', `co brief ${bad.join(' ')} must exit 2 with no template, got ${r.status}/${JSON.stringify(r.stdout)}`);
+}
+const briefHelp = run([co, 'brief', '--help']);
+expect(briefHelp.status === 0 && /brief-template\.mjs <plugin>:<agent>/.test(briefHelp.stdout), `co brief --help must reach the script's own usage, got ${briefHelp.status}`);
+const workerViaCo = run([co, 'context', 'brief', '--help']);
+const workerDirect = run([join(root, 'scripts', 'worker-brief.mjs'), '--help']);
+expect(workerViaCo.status === workerDirect.status && workerViaCo.stdout === workerDirect.stdout && /worker-brief\.mjs/.test(workerViaCo.stdout),
+  'co context brief must still reach worker-brief.mjs byte for byte');
+
 // co.mjs alone in an empty directory: every verb's script is a missing sibling.
 const lone = mkdtempSync(join(tmpdir(), 'co-lone-'));
 copyFileSync(co, join(lone, 'co.mjs'));
 const unbundled = run([join(lone, 'co.mjs'), 'scan', 'narration', 'x']);
 expect(unbundled.status === 2, `an unbundled verb should exit 2, got ${unbundled.status}`);
 expect(unbundled.stderr.includes('co: scan narration is not bundled in this plugin (scan-narration.mjs)'), `unbundled message, got: ${unbundled.stderr.trim()}`);
+const unbundledCommand = run([join(lone, 'co.mjs'), 'brief', 'code-ops-suite:implementer']);
+expect(unbundledCommand.status === 2 && unbundledCommand.stderr.includes('co: brief is not bundled in this plugin (brief-template.mjs)'),
+  `an unbundled command should exit 2 and name itself, got ${unbundledCommand.status}: ${unbundledCommand.stderr.trim()}`);
+// brief-template.mjs without its resolver, as in a plugin copy other than code-ops-suite.
+copyFileSync(join(root, 'scripts', 'brief-template.mjs'), join(lone, 'brief-template.mjs'));
+const noResolver = run([join(lone, 'co.mjs'), 'brief', 'code-ops-suite:implementer']);
+expect(noResolver.status === 2 && /agent-file\.mjs is not bundled/.test(noResolver.stderr), `a missing resolver must exit 2 and say so, got ${noResolver.status}: ${noResolver.stderr.trim()}`);
 const loneHelp = run([join(lone, 'co.mjs'), '--help']);
 expect(loneHelp.status === 0 && /not bundled here/.test(loneHelp.stdout), 'help from a partial copy must mark the missing verbs');
 

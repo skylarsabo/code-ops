@@ -36,6 +36,10 @@
 // plugin CHANGELOG.md still carrying bump-plugin-version.mjs's "- **TODO** - describe the
 // change." stub) is reported but never auto-resolved.
 //
+// Before the verdict line, a `links:` block of markdown links names each touched plugin's
+// plugin.json and CHANGELOG.md and each STALE atlas section file, the paths a relayed summary
+// cites. The formatter is handoff-state.mjs linksBlock(), shared with `co handoff resume`.
+//
 // --dry-run performs no write and runs no build/sync/gate step: it prints the changed set, the
 // bump plan, and the selected/skipped gate steps, using only git plumbing and the two read-only
 // checkers (check-plugin-bump.mjs, atlas-check.mjs check) to keep that preview accurate.
@@ -51,6 +55,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { parseOrDie, walkFiles } from './cli-lib.mjs';
+import { linksBlock } from './handoff-state.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // This repository's own atlas (CLAUDE.md "The documentation hub"; the same path
@@ -248,7 +253,19 @@ function runAtlasStep(log) {
   const judgmentItems = stale.map(
     (slug) => `atlas section '${slug}' is STALE - re-verify the prose, then: node scripts/atlas-check.mjs stamp --atlas "${ATLAS_DIR}" --section ${slug}`
   );
-  return { ok: r.ok !== false, judgmentItems };
+  return { ok: r.ok !== false, judgmentItems, stale };
+}
+
+// The `links:` entries, as [label, repo-relative path], for the files this run names: each touched
+// plugin's manifest and changelog, then each STALE atlas section. A path `exists` rejects is left out.
+export function integrationLinks({ touched, stale, exists }) {
+  return [
+    ...touched.flatMap((name) => [
+      [`${name} manifest`, `plugins/${name}/.claude-plugin/plugin.json`],
+      [`${name} changelog`, `plugins/${name}/CHANGELOG.md`],
+    ]),
+    ...stale.map((slug) => [`atlas section ${slug}`, `${ATLAS_DIR}/sections/${slug}.md`]),
+  ].filter(([, path]) => exists(path));
 }
 
 function execTry(args, opts = {}) {
@@ -503,6 +520,10 @@ async function main() {
   }
 
   const changed = changedSet(base);
+  const printLinks = (stale) => {
+    const entries = integrationLinks({ touched: touchedPlugins(changed), stale, exists: (p) => existsSync(join(ROOT, p)) });
+    if (entries.length) console.log(['', ...linksBlock(entries)].join('\n'));
+  };
   console.log(`# integrate-branch  base=${base}${dryRun ? '  (dry-run)' : ''}`);
   console.log(`changed set (${changed.length}):`);
   for (const p of changed) console.log(`  ${p}`);
@@ -529,6 +550,7 @@ async function main() {
     console.log('\n--dry-run: no build, docs-manifest, or gate step was executed.');
     const pending = judgmentItems.length > 0;
     if (pending) { console.log('\npending judgment item(s):'); for (const j of judgmentItems) console.log(`  - ${j}`); }
+    printLinks(atlas.stale);
     process.exit(anyFailed || pending ? 1 : 0);
   }
 
@@ -554,6 +576,7 @@ async function main() {
   for (const g of gateResults) console.log(`  ${g.ok ? 'PASS' : 'FAIL'}  ${g.name}`);
   const pending = judgmentItems.length > 0;
   if (pending) { console.log('\npending judgment item(s):'); for (const j of judgmentItems) console.log(`  - ${j}`); }
+  printLinks(atlas.stale);
   console.log(`\n${anyFailed ? 'FAILED' : 'OK'} - ${anyFailed ? 'one or more steps failed' : 'every step passed'}${pending ? '; judgment item(s) pending' : ''}.`);
   process.exit(anyFailed || pending ? 1 : 0);
 }

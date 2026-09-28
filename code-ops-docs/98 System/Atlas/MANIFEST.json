@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "cf3ec4cb95d543f930541acd87a627e5b8362498",
-      "verifiedDigest": "6dccb2b5093c0b0ab8ba4d97e0235ad9add3f55e55410c8ca603247caf2e2d4e",
+      "verifiedAt": "dc7930684513057585a99d08edbddd398e648f25",
+      "verifiedDigest": "a5e06e5cb021b1009fa6206946d6a9d3fced26a3229a21871ff90c6147e526be",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -23,17 +23,22 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 148,
+          "line": 171,
           "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 151,
+          "anchor": "if (raw.trim()) lines.push(...shellLines());"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 155,
+          "line": 159,
           "anchor": "const MAX_BRIEF_BUDGET = 120;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 164,
+          "line": 168,
           "anchor": "const CHECKPOINT = 'done items with file:line evidence, each dirty (uncommitted)"
         },
         {
@@ -43,8 +48,13 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 600,
+          "line": 614,
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 611,
+          "anchor": "return missing.map((field) =>"
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
@@ -53,7 +63,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 584,
+          "line": 596,
           "anchor": "+ 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher"
         },
         {
@@ -68,7 +78,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 142,
+          "line": 165,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
         },
         {
@@ -95,8 +105,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "cf3ec4cb95d543f930541acd87a627e5b8362498",
-      "verifiedDigest": "8122b739abc631cbc035a65a6198da8db0d4da0b7c9413f863933736507c16c6",
+      "verifiedAt": "dc7930684513057585a99d08edbddd398e648f25",
+      "verifiedDigest": "79820701f3ed4f9ff74c4eea142b36bfce7fab87e19d324222d166d5fd2da12b",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -120,12 +130,12 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 87,
+          "line": 91,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 321,
+          "line": 338,
           "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
         },
         {
@@ -135,12 +145,12 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 437,
+          "line": 454,
           "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 464,
+          "line": 481,
           "anchor": "async function runPool(tasks, jobs) {"
         },
         {
@@ -201,8 +211,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "cf3ec4cb95d543f930541acd87a627e5b8362498",
-      "verifiedDigest": "d66a8f9d5458339dbe3364443407574d149b9fba3d3dd8d52a6de25c0af5348e",
+      "verifiedAt": "dc7930684513057585a99d08edbddd398e648f25",
+      "verifiedDigest": "0c76cb1f7f181aedd194f636062cac2ff62a854bf59e21d67c5e9d80501005cc",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -259,8 +269,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "cf3ec4cb95d543f930541acd87a627e5b8362498",
-      "verifiedDigest": "17f8cd756390a2157c3a21146224e8e56be97ae7b67e18ec4e7c5237d157f079",
+      "verifiedAt": "dc7930684513057585a99d08edbddd398e648f25",
+      "verifiedDigest": "798171293eff5d16bdf0fbe61046f79126ecab8802db0cbf52dc67a2ce937e54",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -334,8 +344,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "cf3ec4cb95d543f930541acd87a627e5b8362498",
-      "verifiedDigest": "1b13f3eccb20bec79e47e01117f2de7f09dfa97172af329edab605c7e978b6d3",
+      "verifiedAt": "dc7930684513057585a99d08edbddd398e648f25",
+      "verifiedDigest": "525fbc3f5c1ac483665345b922cf8b5cfa530705c626cc6000f73076fd9fefca",
       "claims": [
         {
           "file": "scripts/check-vault-standard.mjs",
@@ -387,8 +397,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "cf3ec4cb95d543f930541acd87a627e5b8362498",
-      "verifiedDigest": "7021e24dc2587e2c2bb539f538067a80db7819095fee3a65fefe66a3627f6215"
+      "verifiedAt": "dc7930684513057585a99d08edbddd398e648f25",
+      "verifiedDigest": "e600647dba0db0a9d011b4f0a970f117312eaf8effedb48321d5d9e7138e527f"
     },
     {
       "slug": "runtime-toolchain",

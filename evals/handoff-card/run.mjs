@@ -413,13 +413,14 @@ function grokUsageLine(inputTokens) {
 
 {
   const routingCard = join(root, 'plugins', 'code-ops-suite', 'hooks', 'routing-card.mjs');
-  const runCard = (payload, { switchValue, home } = {}) => {
+  const runCard = (payload, { switchValue, home, extraEnv = {} } = {}) => {
     const env = { ...process.env };
-    delete env.CODE_OPS_HANDOFF_PICKUP;
-    delete env.GROK_PLUGIN_ROOT;
+    for (const key of ['CODE_OPS_HANDOFF_PICKUP', 'GROK_PLUGIN_ROOT', 'CLAUDECODE', 'CODE_OPS_OPERATOR_SHELL']) delete env[key];
     if (switchValue !== undefined) env.CODE_OPS_HANDOFF_PICKUP = switchValue;
     if (home) { env.HOME = home; env.USERPROFILE = home; }
-    return spawnSync('node', [routingCard], { input: JSON.stringify(payload), encoding: 'utf8', env });
+    Object.assign(env, extraEnv);
+    const input = payload === null ? '' : JSON.stringify(payload);
+    return spawnSync('node', [routingCard], { input, encoding: 'utf8', env });
   };
   const PREFIX = 'handoffs awaiting resume (this session is new work unless the operator resumes one): ';
   const pickupLine = (r) => (r.stdout || '').split('\n').find((l) => l.startsWith(PREFIX)) || null;
@@ -545,8 +546,33 @@ function grokUsageLine(inputTokens) {
   expect(broken.status === 0 && broken.stdout.includes('stays consumed; never resume it again'), 'a malformed record must fail open to the generic compact lines');
   rmSync(home, { recursive: true, force: true });
 
+  // Operator shell (O1), the win32 quoting trap (O3), and the brief-template pointer (U1). The shell
+  // line prints on every host but Claude Code; empty stdin, as build-opencode-dist.mjs runs the card,
+  // prints neither platform line, so the baked dist stays the same on every build machine.
+  const cardLines = (r) => (r.stdout || '').split(/\r?\n/);
+  const shellLine = (r) => cardLines(r).find((l) => l.startsWith('operator shell: ')) ?? null;
+  const TRAP = 'win32 shell trap: write a multi-line script to a file; never nest quotes in node -e inside bash';
+  const derived = { win32: 'PowerShell', darwin: 'zsh' }[process.platform] ?? 'bash';
+  const plain = runCard(startup);
+  expect(shellLine(plain) === `operator shell: ${derived} (${process.platform})`, `a non-Claude host must get the derived shell line, got ${shellLine(plain)}`);
+  expect(cardLines(plain).includes(TRAP) === (process.platform === 'win32'), `the quoting-trap line must print on win32 only, got ${JSON.stringify(plain.stdout)}`);
+  expect(cardLines(plain).includes('brief template -> co brief <agent>'), 'the card must name co brief <agent>');
+  expect(shellLine(runCard(startup, { extraEnv: { CODE_OPS_OPERATOR_SHELL: 'pwsh 7' } })) === `operator shell: pwsh 7 (${process.platform})`,
+    'CODE_OPS_OPERATOR_SHELL must override the derived shell');
+  for (const [label, value] of [['a control character', 'bash\ninjected line'], ['an overlong value', 'x'.repeat(41)], ['an empty value', '']]) {
+    expect(shellLine(runCard(startup, { extraEnv: { CODE_OPS_OPERATOR_SHELL: value } })) === `operator shell: ${derived} (${process.platform})`,
+      `an override with ${label} must fall back to the derived shell`);
+  }
+  const claude = runCard(startup, { extraEnv: { CLAUDECODE: '1' } });
+  expect(shellLine(claude) === null, 'Claude Code must not get the shell line');
+  expect(cardLines(claude).includes(TRAP) === (process.platform === 'win32'), 'Claude Code on win32 must still get the quoting-trap line');
+  const baked = runCard(null, { extraEnv: { CODE_OPS_OPERATOR_SHELL: 'pwsh' } });
+  expect(baked.status === 0 && /code-ops standard operating mode/.test(baked.stdout) && baked.stdout.includes('brief template -> co brief <agent>')
+    && shellLine(baked) === null && !cardLines(baked).includes(TRAP), `empty stdin must print the card without platform lines, got ${JSON.stringify(baked.stdout)}`);
+
   rmSync(project, { recursive: true, force: true });
   console.log('ok   the routing card lists pending handoffs passively, names the session, restates the session record after compaction, and honors its switch');
+  console.log('ok   the routing card names the operator shell off Claude Code, the win32 quoting trap, and co brief, and keeps empty-stdin output platform-free');
 }
 
 if (fails.length) {

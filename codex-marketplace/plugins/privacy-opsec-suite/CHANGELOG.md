@@ -1,5 +1,10 @@
 # Changelog — privacy-opsec-suite
 
+## 2.2.0
+- Section 4 of `CONVENTIONS.md` adds the operator-shell rule: a neutral command goes in a `bash` block, and a PowerShell-only command goes in a copy-only `powershell` block in PowerShell 5.1 syntax.
+- A new pinned passage requires every reply to link each repository file, run folder, open-item pointer, and PR it names.
+- The vendored `co.mjs` adds `co brief <plugin>:<agent>`.
+
 ## 2.1.4
 - The vendored `cli-lib.mjs` adds `exitOnHelp`, so the vendored `preflight.mjs`, `repo-map.mjs`, and `import-graph.mjs` print their usage line and exit 0 on `--help` or `-h`.
 

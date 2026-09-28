@@ -26,7 +26,11 @@
 //   - a dispatch to a suite agent (`<plugin>:<agent>` in any of the four plugins, resolved in the
 //     repo layout and the installed cache layout) whose prompt lacks a field its `## Contract`
 //     `Brief requires:` line lists is denied, warn mode downgrades it, and unknown, bare,
-//     non-suite, and contract-less agents pass;
+//     non-suite, and contract-less agents pass; the denial names the exact `co brief <type>`
+//     command and ends with one `Label:` line per missing field, and with every field missing
+//     those lines equal the template `co brief` prints;
+//   - a malformed controller binding and an unavailable bound counter deny with the fix: report
+//     now, then re-dispatch under a new agent id bound by the exact `register` command;
 //   - a dispatch that names a narrow agent, no model, and a complete brief is silent;
 //   - at and past the context ceiling (300,000 by default, CODE_OPS_CONTEXT_CEILING overrides
 //     or disables it), a main-thread dispatch is denied until a handoff Skill call or the
@@ -317,6 +321,25 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   let text = reasonOf(out) ?? '';
   expect(deny(out) && /missing: Report path;/.test(text) && /code-ops-suite:implementer Contract/.test(text),
     `a brief missing a Contract field must deny and name it, got ${JSON.stringify(out)}`);
+  // The denial ends with a skeleton of only the missing labels, one per line, and names the
+  // exact `co brief <type>` command for the full template.
+  expect(text.endsWith('\nReport path:') && text.split('\n').length === 2,
+    `the field denial must end with one skeleton line per missing label, got ${JSON.stringify(text)}`);
+  expect(text.includes(`"${join(suite, 'scripts', 'co.mjs')}" brief code-ops-suite:implementer\``),
+    `the field denial must name the exact co brief command, got ${JSON.stringify(text)}`);
+
+  // With every field missing, the skeleton is the full template `co brief` prints, in contract
+  // order, and the Round budget advisory does not split it.
+  out = parseOut(runHook(dispatchCall({ prompt: 'no labels here', subagent_type: 'code-ops-suite:implementer', model: 'x' }), { home }));
+  const template = spawnSync('node', [join(root, 'scripts', 'co.mjs'), 'brief', 'code-ops-suite:implementer'], { encoding: 'utf8' });
+  const skeleton = (reasonOf(out) ?? '').split('\n').slice(1).join('\n');
+  expect(deny(out) && template.status === 0 && skeleton === template.stdout.trimEnd()
+    && skeleton === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:',
+    `the full skeleton must equal co brief's template, got ${JSON.stringify(skeleton)} vs ${JSON.stringify(template.stdout)}`);
+  // An advisory-only output carries no skeleton.
+  out = parseOut(runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', model: 'x' }), { home }));
+  expect(!deny(out) && /model override/.test(contextOf(out) ?? '') && !(contextOf(out) ?? '').includes('\n'),
+    `an advisory-only dispatch must carry no skeleton, got ${JSON.stringify(out)}`);
 
   // Every field present passes, including loose forms: case, bold, a parenthetical, list
   // markers, leading whitespace, and a markdown heading.
@@ -353,7 +376,8 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
 
   // Warn mode downgrades the denial to an advisory.
   out = parseOut(runHook(dispatchCall({ prompt: brief('Objective'), subagent_type: 'code-ops-suite:implementer' }), { home, guard: 'warn' }));
-  expect(!deny(out) && /missing: Objective;/.test(contextOf(out) ?? ''), `warn mode must downgrade the field denial, got ${JSON.stringify(out)}`);
+  expect(!deny(out) && /missing: Objective;/.test(contextOf(out) ?? '') && (contextOf(out) ?? '').endsWith('\nObjective:'),
+    `warn mode must downgrade the field denial and keep its skeleton, got ${JSON.stringify(out)}`);
 
   // A sibling plugin's agent resolves from the repo layout.
   out = parseOut(runHook(dispatchCall({ prompt: brief('Scope'), subagent_type: 'rigor:tracer' }), { home }));
@@ -457,6 +481,12 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const malformed = parseOut(runHook(subagentCall(malformedId, { cwd }), { home, budget: 3 }));
   expect(malformed?.hookSpecificOutput?.permissionDecision === 'deny' && /binding is malformed/i.test(malformed?.hookSpecificOutput?.permissionDecisionReason ?? ''),
     `a malformed explicit binding must fail closed, got ${JSON.stringify(malformed)}`);
+  // The denial states the mechanical fix: report now, then re-dispatch under a new id bound
+  // with the exact register command.
+  const malformedReason = malformed?.hookSpecificOutput?.permissionDecisionReason ?? '';
+  expect(malformedReason.includes('Return your report now with the checkpoint: ')
+    && malformedReason.includes(`node "${hook}" register --agent-id <new agent id> --budget <rounds>`),
+    `a malformed binding denial must state the fix, got ${JSON.stringify(malformed)}`);
   const malformedWarn = parseOut(runHook(subagentCall(malformedId, { cwd }), { home, budget: 3, guard: 'warn' }));
   expect(malformedWarn?.hookSpecificOutput?.permissionDecision === 'deny',
     `warn mode must not fail open a malformed explicit binding, got ${JSON.stringify(malformedWarn)}`);
@@ -517,6 +547,11 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const unavailable = parseOut(runHook(subagentCall(id, { cwd }), { home, budget: 3 }));
   expect(unavailable?.hookSpecificOutput?.permissionDecision === 'deny' && /counter is unavailable/i.test(unavailable?.hookSpecificOutput?.permissionDecisionReason ?? ''),
     `a registered counter I/O failure must deny instead of bypassing its cap, got ${JSON.stringify(unavailable)}`);
+  const counterReason = unavailable?.hookSpecificOutput?.permissionDecisionReason ?? '';
+  expect(counterReason.includes(join(home, '.claude', 'code-ops', 'dispatch', stateKey(cwd)))
+    && counterReason.includes(`Return your report now with the checkpoint: `)
+    && counterReason.includes(`node "${hook}" register --agent-id <new agent id> --budget <rounds>`),
+    `an unavailable counter denial must name its directory and state the fix, got ${JSON.stringify(counterReason)}`);
   const receipt = parseOut(runControl(['receipt', '--agent-id', id], { home, cwd }));
   expect(receipt?.measurement?.status === 'UNAVAILABLE' && receipt?.measurement?.calls === 'UNKNOWN',
     `a receipt must report unavailable counter state as UNKNOWN, got ${JSON.stringify(receipt)}`);

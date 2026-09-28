@@ -347,7 +347,7 @@ try {
 
   // ================================================================================
   // 1f. integrate-branch.mjs — pure, git-free exports only (parseWorkflowJobSteps,
-  // classifyStep, selectSteps, pluginNeedsBump). Everything else in that script shells out
+  // classifyStep, selectSteps, pluginNeedsBump, integrationLinks). Everything else in that script shells out
   // to git and to the real gate/build scripts, which is what its --dry-run smoke run
   // (invoked directly, not through this eval) exercises instead.
   // ================================================================================
@@ -516,6 +516,22 @@ try {
     check('integrate-branch: pluginNeedsBump is false once the version has moved (idempotent re-run)', mod.pluginNeedsBump('1.2.3', '1.3.0') === false);
     check('integrate-branch: pluginNeedsBump treats a plugin absent at base as already differing', mod.pluginNeedsBump(null, '1.0.0') === false);
     check('integrate-branch: pluginNeedsBump returns null when the current version cannot be read', mod.pluginNeedsBump('1.2.3', null) === null);
+
+    // integrationLinks: each touched plugin's manifest and changelog, then each stale atlas
+    // section, in that order, keeping only paths the injected exists() confirms. The missing
+    // rigor changelog and the missing atlas section prove the filter drops absent files.
+    const present = new Set(['plugins/code-ops-suite/.claude-plugin/plugin.json', 'plugins/code-ops-suite/CHANGELOG.md',
+      'plugins/rigor/.claude-plugin/plugin.json', 'code-ops-docs/98 System/Atlas/sections/hooks.md']);
+    const links = mod.integrationLinks({ touched: ['code-ops-suite', 'rigor'], stale: ['hooks', 'gone'], exists: (p) => present.has(p) });
+    check('integrate-branch: integrationLinks links manifests, changelogs, and stale atlas sections that exist, in order',
+      JSON.stringify(links) === JSON.stringify([
+        ['code-ops-suite manifest', 'plugins/code-ops-suite/.claude-plugin/plugin.json'],
+        ['code-ops-suite changelog', 'plugins/code-ops-suite/CHANGELOG.md'],
+        ['rigor manifest', 'plugins/rigor/.claude-plugin/plugin.json'],
+        ['atlas section hooks', 'code-ops-docs/98 System/Atlas/sections/hooks.md'],
+      ]));
+    check('integrate-branch: integrationLinks is empty with nothing touched or stale',
+      mod.integrationLinks({ touched: [], stale: [], exists: () => true }).length === 0);
   }
 } finally {
   rmSync(work, { recursive: true, force: true });

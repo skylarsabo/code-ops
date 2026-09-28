@@ -8,7 +8,7 @@ The routing contract defers general model behavior to the user-wide contract and
 
 The root contract keeps model review gates opt-in and rare. The deterministic chain and the lead's diff read apply to every change. Exact-SHA deep-review and OpSec receipts apply only when the operator requests them or the brief names a high-risk surface. Hosted Actions retain deterministic checks, and any new commit or updated base invalidates an existing local-review boundary.
 
-The user-wide contracts have their source in `global-contracts/`: `AGENTS.md` for Claude Code and Grok Build, `AGENTS.codex.md` for Codex. `scripts/sync-global.mjs` installs them in each host home and refreshes the installed plugin caches. It refuses to overwrite a contract it did not write unless the operator passes `--force` or `--capture`. The repository contract makes that script the post-merge step.
+The user-wide contracts have their source in `global-contracts/`: `AGENTS.md` for Claude Code and Grok Build, `AGENTS.codex.md` for Codex. `scripts/sync-global.mjs` installs them in each host home and refreshes the installed plugin caches. It refuses to overwrite a contract it did not write unless the operator passes `--force` or `--capture`. The repository contract makes that script the post-merge step. Both user-wide contracts tell the lead to hand the operator commands in the operator's shell and to link every file, run folder, open item, and PR a reply names.
 
 The documentation clause names the hub as the sole authored authority and the manifest as its registry. It routes verification of each record collection to the shared records engine.
 

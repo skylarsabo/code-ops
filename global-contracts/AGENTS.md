@@ -10,6 +10,10 @@ outcome, a consequential trade-off needs the user, or new authority is required.
 Lead with the result. Use concise paragraphs, minimal formatting, and plain language.
 Give brief progress updates during tool work. Do not replace completed work with a plan.
 
+Hand the operator each command in the operator's shell, which is PowerShell on Windows unless
+the operator names another. Link every repository file, run folder, open item, and PR that a
+reply names, and give a PR as its full URL, never a bare `#123`.
+
 ## Respect authority
 
 Start reviews, diagnoses, and audits read-only. A request to change or build authorizes

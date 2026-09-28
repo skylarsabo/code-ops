@@ -68,12 +68,21 @@
 // The summary ends with a `links:` block of markdown links, relative to --root with spaces as
 // %20: the Program file, each PROGRAM.md scope document, the handoff, the successor run, and each
 // open item's Pointer. A passing resume prints `set title: "<session name>"` as its last line.
+// Each check-handoff.mjs `warning:` line, such as a check 16 unanchored pointer, prints in the
+// summary and never changes the exit code.
+//
+// LINKS. `open`, `draft`, and `resume` each print a `links:` block through linksBlock(), the one
+// formatter; integrate-branch.mjs imports it too. `open` prints the run folder on its first line,
+// then links it. `draft` links the handoff file, the run folder, the Program file and the
+// predecessor handoff when they resolve, and each open item's Pointer. With `--out` the block
+// follows `wrote <file>` on stdout; without it the block prints on stderr, so stdout stays the
+// skeleton alone. The command-line entry runs only when this file is the entry point.
 //
 // Exit: 0 = done; 1 = a step failed, --out exists or is refused, or a name matched no single
 // handoff; 2 = usage error.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,6 +112,7 @@ const pathValue = (body, label) => new RegExp(`^[-*\\t ]*${label}:[^\\S\\r\\n]*(
   .replace(/^`(.*)`$/, '$1').trim() || null;
 const CANDIDATES_SHOWN = 3;
 
+const isFile = (p) => { try { return statSync(p).isFile(); } catch { return false; } };
 const readJson = (file) => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const writeJson = (file, body) => writeFileSync(file, `${JSON.stringify(body)}\n`);
 const sessionIdOf = (flags) => flags.session || process.env.CLAUDE_CODE_SESSION_ID || process.env.CODEX_SESSION_ID || null;
@@ -113,6 +123,13 @@ const baseName = (name) => (typeof name === 'string' && name.trim() && !name.inc
 // A markdown link to a root-relative path: forward slashes, each segment percent-encoded, so a
 // space reads %20 and the link stays clickable.
 const mdLink = (label, path) => `[${label}](${path.split('/').map(encodeURIComponent).join('/')})`;
+// The `links:` block from [label, root-relative path, shown text] entries; shown defaults to the path.
+export const linksBlock = (entries) => ['links:', ...entries.map(([label, path, shown = path]) => `  ${label}: ${mdLink(shown, path)}`)];
+// One link entry per open item's Pointer, with any :line suffix kept in the shown text only.
+const pointerEntries = (items, root, repoPath) => items.flatMap((item) => {
+  const pointer = /\bPointer:\s*`?([^`·]+?)`?\s*(?:·|$)/.exec(item)?.[1];
+  return pointer ? [[`${itemId(item) ?? 'open item'} pointer`, repoPath(resolve(root, pointer.replace(/:\d+(?:-\d+)?$/, ''))), pointer]] : [];
+});
 const hopOf = (text) => { const n = Number(pathValue(sectionBody(text, 'program'), 'Hop')); return Number.isInteger(n) && n > 0 ? n : null; };
 
 // HANDOFF.consumed in `dir`, or null when absent. The version 2 body is JSON; the legacy body is one
@@ -415,10 +432,21 @@ function draft(flags) {
   }
   const text = render(carry);
 
-  if (!flags.out) { process.stdout.write(text); return 0; }
+  const links = [
+    ...(flags.out ? [['handoff draft', repoPath(resolve(flags.out))]] : []),
+    ['run', repoPath(runDir)],
+    ...(lin.programFile ? [['program', repoPath(lin.programFile)]] : []),
+    ...(isFile(resolve(root, lin.predecessor)) ? [['predecessor', lin.predecessor]] : []),
+    ...pointerEntries(openItems, root, repoPath),
+  ];
+  if (!flags.out) {
+    process.stdout.write(text);
+    console.error(linksBlock(links).join('\n'));
+    return 0;
+  }
   if (existsSync(flags.out)) die(`refusing to overwrite ${flags.out}`);
   writeFileSync(flags.out, text);
-  console.log(`wrote ${flags.out}`);
+  console.log([`wrote ${flags.out}`, ...linksBlock(links)].join('\n'));
   return 0;
 }
 
@@ -505,6 +533,7 @@ function resume(arg, flags) {
   lines.push(`same-tree: ${check.err.includes('same-tree:') ? 'yes' : 'no'}`);
   lines.push(`anchors: ${Object.entries(counts).map(([s, n]) => `${s} ${n}`).join(', ') || 'none'}`);
   lines.push(...anchors.filter(([, s]) => s !== 'FRESH').map(([, s, where]) => `   ${s} ${where}`));
+  lines.push(...[...check.err.matchAll(/^ {2}warning: (.*)$/gm)].map(([, w]) => `warning: ${w}`));
 
   const open = bullets(sectionBody(text, 'open items'));
   const byOwner = (owner) => open.filter((l) => new RegExp(`\\bOwner:\\s*${owner}\\b`, 'i').test(l)).map((l) => `  ${l}`);
@@ -518,19 +547,16 @@ function resume(arg, flags) {
   // run, and each open item's Pointer, with any :line suffix kept in the label only.
   const links = [];
   if (programFile && existsSync(programFile)) {
-    links.push(`  program: ${mdLink(repoPath(programFile), repoPath(programFile))}`);
+    links.push(['program', repoPath(programFile)]);
     for (const doc of bullets(sectionBody(readFileSync(programFile, 'utf8'), 'scope documents'))) {
       const path = /`([^`]+)`/.exec(doc)?.[1];
-      if (path) links.push(`  scope document: ${mdLink(path, repoPath(resolve(root, path)))}`);
+      if (path) links.push(['scope document', repoPath(resolve(root, path)), path]);
     }
   }
-  links.push(`  handoff: ${mdLink(repoPath(resolve(target)), repoPath(resolve(target)))}`);
-  if (failures === 0) links.push(`  successor run: ${mdLink(repoPath(successor), repoPath(successor))}`);
-  for (const item of open) {
-    const pointer = /\bPointer:\s*`?([^`·]+?)`?\s*(?:·|$)/.exec(item)?.[1];
-    if (pointer) links.push(`  ${itemId(item) ?? 'open item'} pointer: ${mdLink(pointer, repoPath(resolve(root, pointer.replace(/:\d+(?:-\d+)?$/, ''))))}`);
-  }
-  lines.push('links:', ...links);
+  links.push(['handoff', repoPath(resolve(target))]);
+  if (failures === 0) links.push(['successor run', repoPath(successor)]);
+  links.push(...pointerEntries(open, root, repoPath));
+  lines.push(...linksBlock(links));
   if (failures === 0) lines.push(`set title: "${name}"`);
 
   console.log(lines.join('\n'));
@@ -554,7 +580,7 @@ function open(slug, flags) {
   writeFileSync(join(dir, 'TASKS.md'), '# Tasks\n');
   writeFileSync(join(dir, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} opened this run as new work.\n`);
   writeSessionRecord(sid, { hostSessionId, name, runDir: repoPath(dir), resumed: null, hop: 0 });
-  console.log(repoPath(dir));
+  console.log([repoPath(dir), ...linksBlock([['run', repoPath(dir)]])].join('\n'));
   return 0;
 }
 
@@ -612,21 +638,29 @@ function live(arg, flags) {
   return 0;
 }
 
-const [command, ...rest] = process.argv.slice(2);
-const { flags, positional } = parseOrDie(rest, {
-  run: { value: true },
-  base: { value: true },
-  out: { value: true },
-  root: { value: true, default: '.', missing: 'needs a path' },
-  name: { value: true },
-  session: { value: true },
-  hub: { value: true },
-  'host-session': { value: true },
-}, USAGE.join('\n'));
-const noDraftFlags = !flags.run && !flags.base && !flags.out;
-const host = flags['host-session'];
-if (command === 'draft' && positional.length === 0 && !flags.hub && !host) process.exit(draft(flags));
-if (command === 'resume' && positional.length === 1 && noDraftFlags && !flags.name && !flags.hub) process.exit(resume(positional[0], flags));
-if (command === 'open' && positional.length === 1 && noDraftFlags) process.exit(open(positional[0], flags));
-if (command === 'live' && positional.length === 1 && noDraftFlags && !flags.name && !flags.session && !flags.hub && !host) process.exit(live(positional[0], flags));
-usage(USAGE);
+// co.mjs sets argv[1] to this file before importing it, so both entries pass. The module URL is
+// symlink-resolved, so argv[1] is resolved the same way before the compare.
+function isEntry() {
+  try { return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url); } catch { return false; }
+}
+
+if (isEntry()) {
+  const [command, ...rest] = process.argv.slice(2);
+  const { flags, positional } = parseOrDie(rest, {
+    run: { value: true },
+    base: { value: true },
+    out: { value: true },
+    root: { value: true, default: '.', missing: 'needs a path' },
+    name: { value: true },
+    session: { value: true },
+    hub: { value: true },
+    'host-session': { value: true },
+  }, USAGE.join('\n'));
+  const noDraftFlags = !flags.run && !flags.base && !flags.out;
+  const host = flags['host-session'];
+  if (command === 'draft' && positional.length === 0 && !flags.hub && !host) process.exit(draft(flags));
+  if (command === 'resume' && positional.length === 1 && noDraftFlags && !flags.name && !flags.hub) process.exit(resume(positional[0], flags));
+  if (command === 'open' && positional.length === 1 && noDraftFlags) process.exit(open(positional[0], flags));
+  if (command === 'live' && positional.length === 1 && noDraftFlags && !flags.name && !flags.session && !flags.hub && !host) process.exit(live(positional[0], flags));
+  usage(USAGE);
+}
