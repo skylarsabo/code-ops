@@ -673,6 +673,19 @@ The marker proves only that the hook wrote a prior message. It does not prove th
 displayed it, that a boundary existed, or that any action was chosen. Evidence:
 `plugins/code-ops-suite/hooks/handoff-card.mjs:112-124`.
 
+The handoff point is 225,000 tokens, or 200,000 on Grok. The first time context reaches it, the
+card fires even without a band rise and says to hand off at the next phase boundary. The marker
+also records `point`, `fired`, `prompts` (operator prompts since the last card), and `until`.
+When a card fires past the point after an earlier card and no operator prompt has arrived since,
+the card says to run `handoff write` instead of assessing again. The hook reads the latest
+`Continue-until: <N> tokens` or `Continue-until: <N> turns` line from the last 64 KiB of the
+run log named by the session record's `runDir`. While that bound is open, the card stays quiet.
+It fires once when context reaches N tokens or after N more hook calls. A malformed bound sets no
+bound. On Claude and Codex the card is prompt-driven, so an autonomous session with no prompts
+sees none of this until the dispatch guard's 300,000-token ceiling gates it. OpenCode's note does
+not yet carry the handoff point. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs`
+and `evals/handoff-card/run.mjs`.
+
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant
 usage, or any thrown error exits 0 with no output. Evidence: `evals/handoff-card/run.mjs`.

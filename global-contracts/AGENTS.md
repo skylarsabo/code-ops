@@ -39,7 +39,7 @@ unit: `code-ops-suite:implementer` for build work, `code-ops-suite:web-researche
 read-only web research, `code-ops-suite:probe` for read-only shell probes, never a
 general-purpose agent where a restricted one fits. Name a round budget and a report cap in
 each brief, and keep breadth agents at their declared tier. Assess a lead session at 150,000
-tokens of context, and hand off at a phase boundary past about 350,000 or earlier for a
+tokens of context, and hand off at a phase boundary past about 225,000 or earlier for a
 quality reason. A unit too small to repay an operative's startup context stays inline, with
 the reason recorded. Past 300,000
 tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;

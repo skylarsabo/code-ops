@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.11.0
+- The handoff point moves from about 350,000 to about 225,000 tokens in the handoff skill, the global contract, and `MEASUREMENTS.md`, which pre-registers the window comparison that re-checks it one week after release. The 150,000-token bands and the 300,000-token ceiling are unchanged, and the ceiling now catches a session that chose CONTINUE and overran.
+- The handoff card fires on first reaching the handoff point (200,000 on Grok) and says to hand off at the next phase boundary. With no operator prompt since the last card, it says to write the handoff instead of assessing again.
+- An assessment that returns CONTINUE past the point records `Continue-until: <N> tokens` or `Continue-until: <N> turns` in the run log. The card stays quiet until the bound passes, then fires once. A malformed bound sets no bound.
+
 ## 2.10.0
 - `co handoff draft` writes `SCOPE_DIGESTS.md`: a hash, `Verified-at:`, and a digest per scope document, carried forward while the hash is unchanged. `co handoff resume` refuses an unfilled digest and reports each document unchanged, changed, or missing, so an unchanged document is not re-read.
 - `check-handoff.mjs` reports `same-tree:` when HEAD matches and the dirty set equals the paths the handoff recorded, not only on a clean tree.

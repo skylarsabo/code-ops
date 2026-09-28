@@ -22,7 +22,11 @@
 //     was received;
 //   - a crossing at or past the context ceiling (CODE_OPS_CONTEXT_CEILING, default 300,000)
 //     ends with one sentence saying new dispatches are gated; off drops only that sentence, an
-//     override moves it, an invalid value falls back to 300,000, and Grok gets it from 200,000.
+//     override moves it, an invalid value falls back to 300,000, and Grok gets it from 200,000;
+//   - the card fires once more at the 225,000-token handoff point (200,000 on Grok) and says to
+//     hand off; with no operator prompt since the last card it says to write the handoff instead;
+//   - a Continue-until bound (tokens or turns) in the run's RUN_LOG.md holds the card until it
+//     passes, then the card fires once; a malformed bound sets none, and off still silences.
 //
 // It also covers the other half of the handoff loop, the pending-handoff pickup line
 // plugins/code-ops-suite/hooks/routing-card.mjs injects at SessionStart: which sources get it,
@@ -314,6 +318,89 @@ function parseOut(r) {
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   a Codex token-count transcript receives the lifecycle assessment reminder');
+}
+
+// ---------------------------------------------------------------- handoff point and Continue-until
+// The card fires once more at the 225,000-token handoff point (200,000 on Grok) and says to hand
+// off. With no operator prompt since the last card it says to write the handoff instead. A
+// Continue-until bound in the run log holds the card until the bound passes; a malformed bound
+// sets none.
+
+{
+  const { home, cleanup } = fakeHome();
+  const project = mkdtempSync(join(tmpdir(), 'handoff-point-'));
+  const message = (r) => { const o = parseOut(r); return o && o !== 'unparsable' ? (o.systemMessage || o.hookSpecificOutput?.additionalContext || '') : ''; };
+  const at = (context, sessionId, opts = {}) => runHook(payloadFor({ transcript: writeTranscript(project, assistantLine(context), `${sessionId}.jsonl`), sessionId, cwd: project }), { home, ...opts });
+  const handOff = /past the 225,000-token handoff point\. At the next phase boundary, run \/code-ops-suite:handoff assess and hand off\./;
+  const autonomousText = /no operator prompt has arrived since the last card\. At the next phase boundary, run \/code-ops-suite:handoff write instead of assessing again\./;
+
+  // A fresh session at 225,000 gets the handoff wording, not the plain band-1 assessment.
+  const first = message(at(225_000, 'sess-point-fresh'));
+  expect(handOff.test(first) && !autonomousText.test(first), `a card at 225,000 must say to hand off at the next phase boundary, got ${first}`);
+  expect(!/handoff point/.test(message(at(220_000, 'sess-point-under'))), 'a band-1 card under 225,000 must keep the plain assessment wording');
+  expect(message(at(226_000, 'sess-point-fresh')) === '', 'the handoff-point card must fire once per arm');
+
+  // Autonomous: a band-1 card, then no prompt until the point.
+  at(160_000, 'sess-auto');
+  const auto = message(at(230_000, 'sess-auto'));
+  expect(autonomousText.test(auto) && !/handoff assess/.test(auto), `no prompt since the last card must say to write the handoff, got ${auto}`);
+  // Operator-prompted: a silent prompt between the two cards.
+  at(160_000, 'sess-prompted');
+  expect(at(170_000, 'sess-prompted').stdout === '', 'a same-band prompt stays silent');
+  const prompted = message(at(230_000, 'sess-prompted'));
+  expect(handOff.test(prompted) && !autonomousText.test(prompted), `a prompt since the last card must keep the assess-and-hand-off wording, got ${prompted}`);
+  const band2 = message(at(310_000, 'sess-prompted'));
+  expect(autonomousText.test(band2), `band 2 right after the point card, with no prompt between, must say to write the handoff, got ${band2}`);
+
+  // Grok: the point is 200,000, and its silent UserPromptSubmit call records the prompt.
+  const grokAt = (context, sessionId, eventName = 'PostToolUse') => runHook(payloadFor({ transcript: writeTranscript(project, grokUsageLine(context), `${sessionId}-updates.jsonl`), sessionId, cwd: project, eventName }), { home, grok: true });
+  grokAt(160_000, 'sess-grok-point');
+  expect(grokAt(170_000, 'sess-grok-point', 'UserPromptSubmit').stdout === '', 'Grok UserPromptSubmit stays silent while it records the prompt');
+  const grokPoint = message(grokAt(205_000, 'sess-grok-point'));
+  expect(/past the 200,000-token handoff point\. At the next phase boundary/.test(grokPoint) && !autonomousText.test(grokPoint), `Grok past 200,000 with a prompt between must get the prompted handoff wording, got ${grokPoint}`);
+
+  // Continue-until: the session record names the run folder, whose RUN_LOG.md holds the bound.
+  const runDir = join(project, 'run');
+  mkdirSync(runDir, { recursive: true });
+  const bindRun = (sessionId, log) => {
+    const recordDir = join(home, '.claude', 'code-ops', 'sessions', project.replace(/[^A-Za-z0-9]/g, '-'));
+    mkdirSync(recordDir, { recursive: true });
+    writeFileSync(join(recordDir, `${sessionId.replace(/[^A-Za-z0-9]/g, '-')}.json`), JSON.stringify({ v: 1, sessionId, name: 'fixture', runDir: 'run' }));
+    writeFileSync(join(runDir, 'RUN_LOG.md'), log);
+  };
+  const passedText = /The Continue-until bound in the run log has passed\./;
+
+  bindRun('sess-until-tokens', '# RUN_LOG\n\n- Assessment: CONTINUE\n- Continue-until: 260,000 tokens\n');
+  expect(at(230_000, 'sess-until-tokens').stdout === '' && at(255_000, 'sess-until-tokens').stdout === '', 'a tokens bound must hold the card below it');
+  const tokensPassed = message(at(265_000, 'sess-until-tokens'));
+  expect(passedText.test(tokensPassed) && /handoff point/.test(tokensPassed), `past a tokens bound the card must fire again, got ${tokensPassed}`);
+  expect(at(270_000, 'sess-until-tokens').stdout === '', 'a passed bound fires once');
+  expect(message(at(310_000, 'sess-until-tokens')) !== '', 'after a passed bound the next band fires as usual');
+
+  bindRun('sess-until-turns', '# RUN_LOG\n\nContinue-until: 2 turns\n');
+  const turns = [at(230_000, 'sess-until-turns'), at(231_000, 'sess-until-turns'), at(232_000, 'sess-until-turns')];
+  expect(turns[0].stdout === '' && turns[1].stdout === '', 'a turns bound must hold the card for that many turns');
+  expect(passedText.test(message(turns[2])), `the turn after a turns bound must fire, got ${JSON.stringify(turns[2].stdout)}`);
+
+  for (const [label, log] of [
+    ['a bound without a unit', 'Continue-until: 260000\n'],
+    ['a zero bound', 'Continue-until: 0 turns\n'],
+    ['a prose bound', 'Continue-until: after the refactor\n'],
+    ['a malformed latest line after a valid one', 'Continue-until: 900000 tokens\nContinue-until: soon\n'],
+  ]) {
+    const sessionId = `sess-until-bad-${label.replace(/\W+/g, '-')}`;
+    bindRun(sessionId, log);
+    const bad = message(at(230_000, sessionId));
+    expect(handOff.test(bad) && !passedText.test(bad), `${label} must set no bound and fire as normal, got ${bad}`);
+  }
+
+  bindRun('sess-until-off', 'Continue-until: 100000 tokens\n');
+  expect(at(230_000, 'sess-until-off', { switchValue: 'off' }).stdout === '', 'the off switch must silence a passed bound too');
+  expect(at(230_000, 'sess-point-off', { switchValue: 'off' }).stdout === '', 'the off switch must silence the handoff-point card');
+
+  rmSync(project, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   the handoff point says to hand off, autonomous sessions are told to write it, and Continue-until holds the card until its bound');
 }
 
 // ---------------------------------------------------------------- the off switch

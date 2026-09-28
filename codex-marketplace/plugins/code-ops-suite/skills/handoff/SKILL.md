@@ -73,11 +73,17 @@ a turn with no tool call still needs the lead's own 150,000-token assessment.
   a consistent boundary and account for live agents, background processes, and dirty work; a
   handoff neither stops them nor proves reattachment.
 
-On context grounds alone, hand off at a phase boundary once context passes about 350,000 tokens.
+On context grounds alone, hand off at a phase boundary once context passes about 225,000 tokens.
 Below that line, token pressure alone selects CONTINUE or COMPACT. The quality triggers in the
-HANDOFF bullet select HANDOFF at any size. The 150,000-token band and the 300,000-token ceiling
-force an assessment, not a handoff. On Grok the line is 200,000, because Grok 4.7 bills double
-above it: assess at 150,000 and again before 200,000.
+HANDOFF bullet select HANDOFF at any size. The 150,000-token band forces an assessment, not a
+handoff. The 300,000-token ceiling sits past the handoff point, so it forces an assessment on a
+session that chose CONTINUE and overran. On Grok the line is 200,000, because Grok 4.7 bills
+double above it: assess at 150,000, and hand off by 200,000.
+
+An assessment that returns CONTINUE past the handoff point records a `Continue-until:` bound in
+the run log, as `Continue-until: <N> tokens` or `Continue-until: <N> turns`. The latest such line
+wins, and a malformed one sets no bound. The handoff card fires again past that bound. When no operator prompt has arrived since the last card, the session runs autonomously.
+There the card says to write the handoff at the next phase boundary, not to assess again.
 
 For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF. Resume and fork
 carry history; neither is a fresh context reset. A saved handoff is evidence, never a new

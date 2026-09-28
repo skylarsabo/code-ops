@@ -336,13 +336,50 @@ Overall, the chains used 22% fewer lead tokens, about 18% price-weighted, than o
 session that auto-compacts near 994,000. The repository with short chains came out 11% worse
 price-weighted.
 
-These figures set the handoff skill's context line. On context grounds alone, a lead hands off at a
-phase boundary past about 350,000 tokens. CONTINUE is right when the remaining work fits in about
+History: these figures first set the handoff skill's context line at about 350,000 tokens. The
+figures are **CONFIRMED** transcript measurements. The 350,000 value read from them was
+**PROBABLE**, because no matched on/off comparison exists.
+
+**Amendment, 2026-09-28 (DEC-3).** The line moved to about 225,000 tokens. The next section
+records why and pre-registers the check. On context grounds alone, a lead now hands off at a phase
+boundary past about 225,000 tokens. CONTINUE is right when the remaining work fits in about
 100,000 more tokens. Quality triggers still select HANDOFF at any size. The 150,000-token band and
-the 300,000-token ceiling stay as assessment points, and Grok keeps its 200,000 line. The figures
-are **CONFIRMED** transcript measurements. The 350,000 and 100,000 values read from them are
-**PROBABLE**, because no matched on/off comparison exists. Evidence:
+the 300,000-token ceiling stay as assessment points, and Grok hands off by its 200,000 line. The
+225,000 and 100,000 values stay **PROBABLE**. Evidence:
 `plugins/code-ops-suite/skills/handoff/SKILL.md`, "Assess the lifecycle first".
+
+## Pre-registered: handoff point
+
+DEC-3 moves the handoff point from about 350,000 to about 225,000 tokens. The 300,000-token
+dispatch-guard ceiling stays. It now sits past the handoff point, so it forces an assessment on a
+session that chose CONTINUE and overran. The 150,000-token card bands stay. This row pre-registers
+the check before the change (design PR 3) lands. Source: `code-ops-docs/10 Design/Program state
+handoffs and coordination 2026-09.md`, "Handoff economics", "H6", and open item DSN-3.
+
+**Baseline.** Two trailing 72-hour windows were compared, the latest against the one before it.
+All figures are **CONFIRMED** transcript measurements from the latest window:
+
+- Lead mean context per turn was 209,000 tokens (157,000 in the earlier window).
+- 19% of lead input sat above 300,000 tokens (0.5% in the earlier window).
+- Resume overhead fell from 11.8% to 6.8% of chain input.
+
+**Expected direction.** Both the lead mean context per turn and the share of lead input above
+300,000 fall. Resume overhead may rise with more hops, and the comparison reports it.
+
+**Window method.** Run `node "code-ops-docs/80 Runs/2026-09-27-handoff-fidelity-design/reports/handoff-windows.mjs" <now ISO>`.
+It compares two trailing 72-hour windows. It links chain hops through `HANDOFF.consumed`
+`bySession` and the `sessionId` in `SESSION.json`. `OLD_T` sets the replayed handoff point, so a
+sweep of `OLD_T` values models each candidate point.
+
+**Model, not measurement.** A replay of the recent window with a handoff at 209,000 cost 12-15%
+less price-weighted lead spend, including 98 extra handoffs. A sweep put the best point at
+200,000 to 240,000. This replay is a model and not a measurement. The 225,000 value therefore
+stays **PROBABLE** until the comparison below runs.
+
+**Decision rule.** Re-run the window method one week after PR 3 lands, over windows that start
+after it. The point stays when both baseline measures fall. When neither falls, DEC-3 reopens
+with the new windows as evidence. A mixed result is recorded here before any change. The
+comparison closes DSN-3 in every case.
 
 ## Startup context
 
