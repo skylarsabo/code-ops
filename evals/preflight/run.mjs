@@ -73,7 +73,7 @@ try {
   // `<plugin>/<agent>  <floor>` row per bundled agent, plus the routing rule the lead follows.
   const h = run([]);
   check('h. prints the tier-floor header', h.stdout.includes('tier floors (agent contract — route every dispatch at or above its floor):'));
-  check('h. rows are `<plugin>/<agent>  <floor>`', /^ {2}rigor\/verifier {2,}opus$/m.test(h.stdout));
+  check('h. rows are `<plugin>/<agent>  <floor>`', /^ {2}rigor\/verifier {2,}claude-sonnet-5-5$/m.test(h.stdout));
   check('h. lists every bundled agent', ['code-ops-suite/explorer', 'code-ops-suite/reviewer', 'privacy-opsec-suite/explorer', 'privacy-opsec-suite/privacy-reviewer', 'researcher/claim-checker', 'researcher/gatherer', 'rigor/tracer', 'rigor/verifier'].every((a) => h.stdout.includes(a)));
   check('h. names the measurement backstop', h.stdout.includes("run-cost-audit's tier-routing check"));
 
@@ -85,7 +85,7 @@ try {
     catch (e) { return { status: e.status ?? 1, stdout: e.stdout || '' }; }
   })();
   check('i. vendored copy exits 0', i.status === 0);
-  check('i. vendored copy prints its own plugin floors', /^ {2}rigor\/verifier {2,}opus$/m.test(i.stdout));
+  check('i. vendored copy prints its own plugin floors', /^ {2}rigor\/verifier {2,}claude-sonnet-5-5$/m.test(i.stdout));
   check('i. vendored copy omits other plugins', !i.stdout.includes('code-ops-suite/reviewer'));
 
   // j. The floor step never fails the preflight and never blocks a hard failure from

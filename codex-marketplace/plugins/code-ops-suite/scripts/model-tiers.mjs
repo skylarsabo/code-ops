@@ -29,6 +29,10 @@ export const CLAUDE_ALIAS_TIER = {
   haiku: 'light',
   sonnet: 'mid',
   opus: 'strong',
+  // Full model id, not an alias: operator decision 2026-09-28 rebinds the Claude strong
+  // rung to Sonnet 5.5. Agent frontmatter names it directly (Codex reads `model:`
+  // verbatim), so it must resolve here too, alongside the short aliases above.
+  'claude-sonnet-5-5': 'strong',
 };
 
 // Which concrete model serves each rung, per provider. A provider whose lineup has no
@@ -51,11 +55,11 @@ export const PROVIDER_TIERS = {
     aliases: { light: 'haiku', mid: 'sonnet', strong: 'opus', frontier: 'fable' },
     models: {
       light: 'claude-haiku-4-5-20251001',
-      mid: 'claude-sonnet-5',
-      strong: 'claude-opus-5-5',
+      mid: 'claude-sonnet-5-5',
+      strong: 'claude-sonnet-5-5',
       frontier: 'claude-fable-5-1',
     },
-    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. `strong` binds to Claude Opus 5.5 ($4/$20 per million tokens, cache reads $0.20) and `frontier` stays Fable 5.1, lead-only. No bundled agent declares frontier as a floor.',
+    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is still accepted at the strong rung (ACCEPTED_MODELS) but no bundled agent declares it. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.',
   },
   xai: {
     id: 'xai',
@@ -239,7 +243,10 @@ export const ACCEPTED_MODELS = {
   'claude-haiku-4-5': ['light'],
   'claude-haiku-4.5': ['light'],
   'claude-opus-5.5': ['strong'],
+  'claude-opus-5-5': ['strong'],
   'claude-fable-5.1': ['frontier'],
+  // Previous `mid`-rung pin, kept for a historical stamp now that `mid` moved to Sonnet 5.5.
+  'claude-sonnet-5': ['mid'],
 };
 
 export function modelSupportsTier(modelId, tier) {

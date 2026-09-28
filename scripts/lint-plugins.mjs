@@ -98,6 +98,9 @@
 //      CONVENTIONS_READ_BOUND, so a skill never loads the whole file by default.
 //  29. Every plugins/<plugin>/CHANGELOG.md is free of the bump script's `**TODO**` placeholder
 //      line and never repeats a `## <version>` heading, so an unwritten stub cannot ship.
+//  30. Every bundled agent's optional frontmatter `effort:` value, when present, is one of
+//      low | medium | high — xhigh and max are lead-only dials, never a subagent's declared
+//      floor (the operator's effort cap for every dispatched subagent).
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -737,7 +740,7 @@ function checkAgentModelFloors({ plugins }) {
       for (let i = 0; i < lines.length; i++) {
         // The doc writes shorthand plugin prefixes ("code-ops `explorer`"); resolve the
         // prefix to a real plugin name so the two `explorer` agents cannot collide.
-        for (const m of lines[i].matchAll(/\*\*([a-z-]+) `([a-z-]+)`\*\*[^(]*\(model: `([a-z-]+)`/g)) {
+        for (const m of lines[i].matchAll(/\*\*([a-z-]+) `([a-z-]+)`\*\*[^(]*\(model: `([a-z0-9.-]+)`/g)) {
           const pluginName = plugins.some((p) => p.name === m[1]) ? m[1]
             : plugins.some((p) => p.name === `${m[1]}-suite`) ? `${m[1]}-suite` : null;
           if (!pluginName) continue;
@@ -746,6 +749,30 @@ function checkAgentModelFloors({ plugins }) {
             fail(`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
         }
       }
+    }
+  }
+}
+
+// ---- 30. agent effort cap -----------------------------------------------------
+function checkAgentEffort({ plugins }) {
+  // `effort:` is optional frontmatter, but when present it must be one of the operator-capped
+  // values. `xhigh` and `max` exist in the provider vocabulary but are reserved for the lead's
+  // own dial (subagent-trade-offs.md), never a bundled subagent's declared floor.
+  const ALLOWED_EFFORT = new Set(['low', 'medium', 'high']);
+  for (const p of plugins) {
+    const agentsDir = join(p.dir, 'agents');
+    if (!existsSync(agentsDir)) continue;
+    for (const f of readdirSync(agentsDir)) {
+      if (!f.endsWith('.md')) continue;
+      const fm = readText(join(agentsDir, f)).match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      const em = fm && fm[1].match(/^effort:[ \t]*(\S+)/m);
+      const model = fm && fm[1].match(/^model:[ \t]*(\S+)/m);
+      // An omitted effort inherits the session dial, which may run above the cap.
+      if (!em && model && model[1] !== 'haiku')
+        fail(`${p.name}/${f}: model "${model[1]}" declares no effort — declare low, medium, or high so the agent never inherits a session dial above the operator cap`);
+      if (!em) continue;
+      if (!ALLOWED_EFFORT.has(em[1]))
+        fail(`${p.name}/${f}: effort "${em[1]}" exceeds the operator cap — a bundled subagent may declare at most "high" (xhigh and max are lead-only dials, never a subagent's declared floor)`);
     }
   }
 }
@@ -1532,6 +1559,7 @@ function main() {
   checkTechniquesIndex();
   ctx.bundledAgents = checkSectionRefsAndAgentNames(ctx);
   checkAgentModelFloors(ctx);
+  checkAgentEffort(ctx);
   checkAgentReportCaps(ctx);
   checkAgentContracts(ctx);
   checkDispatchProse(ctx);

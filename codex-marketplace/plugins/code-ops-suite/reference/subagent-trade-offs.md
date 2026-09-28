@@ -18,7 +18,10 @@ One rule governs all of them, and it lives in code-ops-suite [`CONVENTIONS.md` �
 **How ambiguity routes to a tier.** Routing is quality-first and independent of the
 lead's own tier. Select role, tier, and effort from the task. Judgment-bearing operative
 work runs at the **strong** tier. The rungs are provider-agnostic (frontier, then strong,
-then mid), and `opus` is the strong rung in this suite's Claude models. The economics drive
+then mid), and in this suite's Claude models `claude-sonnet-5-5` now binds both the `mid`
+and `strong` rungs by operator decision 2026-09-28 (Opus 5.5 is still accepted at `strong`,
+but no bundled agent declares it). Every bundled operative caps its `effort:` frontmatter at
+`high`; `xhigh` and `max` stay lead-only dials. The economics drive
 the rule: a shallow or failed report costs a redispatch round-trip plus the lead's attention,
 which is dearer than the strong tier's price premium. A tier below strong is for mechanical,
 execution-only work whose brief leaves no ambiguity. Never route work below strong when a
@@ -28,8 +31,8 @@ verdict rests on its output, and never route below an agent's lint-enforced floo
 | --- | --- | --- | --- |
 | Mechanical, low-ambiguity (structural mapping, transcription-style edits, leak-surface scans) | `haiku`-floor agents (`explorer`, `gatherer`) for reads, and `sonnet`-floor agents (`mech`, `mech-review`) for exact edits, named gates, and mechanical diff checks — the one place the strong-tier default gives way, permitted only where a lint-enforced floor sets it | low (medium if the brief demands cross-file synthesis, and at least medium when the brief asks the operative to source or verify a name, because low effort answers from memory) | No judgment call to get wrong; cheapest tier that can do the read. |
 | Moderate judgment (single-claim research, execution-only work) | `sonnet`-floor `claim-checker` — the mid tier is the floor here, not the target: run it strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test. |
-| Scoped implementation (build, fix, or refactor one bounded unit) | code-ops `implementer` (`opus` floor), never a general-purpose agent | medium | The narrow tool surface starts each turn near 20,000 tokens, against near 57,000 for a general-purpose agent. See [What a dispatch costs](#what-a-dispatch-costs). |
-| High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | `opus`-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | `reviewer`/`privacy-reviewer` high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
+| Scoped implementation (build, fix, or refactor one bounded unit) | code-ops `implementer` (strong floor, `claude-sonnet-5-5`), never a general-purpose agent | high | The narrow tool surface starts each turn near 20,000 tokens, against near 57,000 for a general-purpose agent. See [What a dispatch costs](#what-a-dispatch-costs). |
+| High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | strong-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
 | Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The session lead: the model the operator started the session with, on any host | the host default (medium for Opus 5.5); raise it for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop. |
 
 Effort level names do not carry across model generations. When the lead model changes, re-run the effort sweep against the judgment evals before you trust the table above. Step a dispatch down only where quality held. Dispatch operatives in the background and continue independent work. Wait only when the next step depends on the result. On coding work, background dispatch lowers time to completion at similar quality and cost.
@@ -54,7 +57,7 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 
 | Provider | `light` | `mid` | `strong` | `frontier` |
 | --- | --- | --- | --- | --- |
-| Anthropic (Claude) | `haiku` | `sonnet` | `opus` | `fable` |
+| Anthropic (Claude) | `haiku` | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `fable` |
 | xAI (Grok) | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` |
 | OpenAI (GPT) | `gpt-6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-6-sol` |
 | Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
@@ -70,7 +73,7 @@ million tokens and Astra at $10/$50. Use Astra only when the bounded decision ju
 premium. The binding and selected use remain visible in the run contract and dispatch ledger.
 See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
 
-The Anthropic `opus` alias binds to `claude-opus-5-5` at the strong rung. Opus 5.5 is $4/$20 per million tokens, with cache reads at $0.20, and its thinking stays on. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
+The Anthropic `mid` and `strong` rungs both bind to `claude-sonnet-5-5` (the `sonnet` alias, a dateless pinned snapshot), $2/$10 per million tokens, cache reads $0.20, 5-minute cache writes $2.50, 1M context. `claude-opus-5-5` (the `opus` alias) is still accepted at `strong`, $4/$20 per million tokens with cache reads $0.20, but no bundled agent declares it. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
 so the runtime controls effort and the instruction files do not imitate a reasoning trace.
 Keep the reusable instruction prefix stable, append task-specific turns, and avoid rewriting
 earlier messages. This preserves valid thinking blocks and maximizes cache reuse. Do not force
@@ -129,14 +132,14 @@ flowchart TD
 **Mappers and tracers** (`Read, Grep, Glob`, no `Bash`):
 
 - **code-ops `explorer`** (model: `haiku`): fast structural investigation. It maps structure, locates definitions and call-sites, traces flow, and gathers context. The definition says *"Use several in parallel to cover disjoint areas of a large codebase."*
-- **rigor `tracer`** (model: `opus`): bug-hunting investigator. It traces one control-flow or data-flow path end to end, derives the invariants a piece of code must uphold, or finds every site of a concept. It separates what it verified by reading from what it infers. It also runs in a **refutation mode** ([rigor `§I`](../../../plugins/rigor/CONVENTIONS.md)): handed a peer's load-bearing finding, its sole task is to kill it by locating a dominating guard in a different function, file, or boundary, and it returns REFUTED with a `file:line` or SURVIVED.
+- **rigor `tracer`** (model: `claude-sonnet-5-5`): bug-hunting investigator. It traces one control-flow or data-flow path end to end, derives the invariants a piece of code must uphold, or finds every site of a concept. It separates what it verified by reading from what it infers. It also runs in a **refutation mode** ([rigor `§I`](../../../plugins/rigor/CONVENTIONS.md)): handed a peer's load-bearing finding, its sole task is to kill it by locating a dominating guard in a different function, file, or boundary, and it returns REFUTED with a `file:line` or SURVIVED.
 - **privacy-opsec `explorer`** (model: `haiku`): leak-aware mapper. It finds egress paths, logging and telemetry, identifier and session handling, metadata sources, and proxy-bypass paths. It reports patterns rather than values, and it redacts identifiers and IP addresses.
 - **researcher `gatherer`** (model: `haiku`): sources evidence from the codebase, the version-control history, and installed-dependency docs. It **never reaches the network**, because web sourcing is orchestrated at the skill level under the egress manifest. A gatherer that needs a web source hands the gap back rather than fetching it.
 
 **Reviewers and checkers** stay read-only on the source while doing judgment work:
 
-- **code-ops `reviewer`** (model: `opus`, tools add `Bash`): skeptical review of a specific diff, file, or file-group, returning findings grouped **Blocking / Should-fix / Nit**. Its `Bash` is for read-only verification only, such as running the existing tests or a linter. It never modifies and never commits. Like the `tracer`, it also runs in a **refutation mode** ([`§7`](../../../plugins/code-ops-suite/CONVENTIONS.md)): given a peer's Blocking candidate, it tries to kill it by finding the dominating guard elsewhere and returns REFUTED or SURVIVED. The [disconfirmation pass](disconfirmation-pass.md) describes that adversarial complement.
-- **privacy-opsec `privacy-reviewer`** (model: `opus`, tools add `Bash`): the same shape against the anonymity and opsec model. It flags a new egress path, a new identifier vector, or a weakened default as **Blocking**. Its `Bash` is likewise read-only.
+- **code-ops `reviewer`** (model: `claude-sonnet-5-5`, tools add `Bash`): skeptical review of a specific diff, file, or file-group, returning findings grouped **Blocking / Should-fix / Nit**. Its `Bash` is for read-only verification only, such as running the existing tests or a linter. It never modifies and never commits. Like the `tracer`, it also runs in a **refutation mode** ([`§7`](../../../plugins/code-ops-suite/CONVENTIONS.md)): given a peer's Blocking candidate, it tries to kill it by finding the dominating guard elsewhere and returns REFUTED or SURVIVED. The [disconfirmation pass](disconfirmation-pass.md) describes that adversarial complement.
+- **privacy-opsec `privacy-reviewer`** (model: `claude-sonnet-5-5`, tools add `Bash`): the same shape against the anonymity and opsec model. It flags a new egress path, a new identifier vector, or a weakened default as **Blocking**. Its `Bash` is likewise read-only.
 - **code-ops `mech-review`** (model: `sonnet`, tools add `Bash`): checks a small mechanical diff against its spec and returns PASS, FAIL, or ESCALATE. It escalates a judgment-heavy diff instead of reviewing it, and its `Bash` is read-only.
 - **researcher `claim-checker`** (model: `sonnet`): adversarial verifier. Given one load-bearing claim, it tries to kill the claim against the actual code and the cited sources, then returns **SUPPORTED / PARTIAL / UNSUPPORTED** with an evidence tier. Use one per claim, in parallel.
 
@@ -168,11 +171,11 @@ Every agent definition also carries a `Report cap: at most N words` line: 600 fo
 
 ## The writing agents
 
-Three agents in the suite can write files and run arbitrary commands. **code-ops `implementer`** (model: `opus`, tools `Read, Edit, Write, Bash, Grep, Glob`) builds one bounded unit from a brief. It edits only inside the brief's Scope, never commits unless the brief grants it, and checkpoints to its Report path when it passes its round budget. Dispatch it for every build, fix, or refactor unit. A general-purpose agent loads the host's whole tool surface into every turn, and [What a dispatch costs](#what-a-dispatch-costs) gives the measured difference.
+Three agents in the suite can write files and run arbitrary commands. **code-ops `implementer`** (model: `claude-sonnet-5-5`, tools `Read, Edit, Write, Bash, Grep, Glob`) builds one bounded unit from a brief. It edits only inside the brief's Scope, never commits unless the brief grants it, and checkpoints to its Report path when it passes its round budget. Dispatch it for every build, fix, or refactor unit. A general-purpose agent loads the host's whole tool surface into every turn, and [What a dispatch costs](#what-a-dispatch-costs) gives the measured difference.
 
-The second is **rigor `verifier`** (model: `opus`, tools `Read, Grep, Glob, Bash, Write`). It exists so that **CONFIRMED** means something. Given one candidate finding, it writes the smallest repro that would fail if the bug is real, runs it, observes the actual output, and assigns the tier accordingly. [The disconfirmation pass](disconfirmation-pass.md) covers that loop.
+The second is **rigor `verifier`** (model: `claude-sonnet-5-5`, tools `Read, Grep, Glob, Bash, Write`). It exists so that **CONFIRMED** means something. Given one candidate finding, it writes the smallest repro that would fail if the bug is real, runs it, observes the actual output, and assigns the tier accordingly. [The disconfirmation pass](disconfirmation-pass.md) covers that loop.
 
-The `opus` floor here is a deliberate decision, not a token-saving candidate. A wrong CONFIRMED poisons every downstream consumer of the register (`AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs`), so nothing depends on this agent being cheap.
+The strong floor here is a deliberate decision, not a token-saving candidate. A wrong CONFIRMED poisons every downstream consumer of the register (`AGENT_MODEL_FLOORS` in `scripts/lint-plugins.mjs`), so nothing depends on this agent being cheap.
 
 Hard rules in the agent definition fence its extra power:
 

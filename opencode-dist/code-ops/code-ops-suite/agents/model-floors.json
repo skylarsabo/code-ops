@@ -8,7 +8,7 @@
     },
     {
       "name": "implementer",
-      "sourceModel": "opus",
+      "sourceModel": "claude-sonnet-5-5",
       "minimumTier": "strong"
     },
     {
@@ -28,7 +28,7 @@
     },
     {
       "name": "reviewer",
-      "sourceModel": "opus",
+      "sourceModel": "claude-sonnet-5-5",
       "minimumTier": "strong"
     },
     {

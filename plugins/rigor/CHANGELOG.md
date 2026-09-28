@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.0
+- `tracer` and `verifier` declare `claude-sonnet-5-5` at effort `high`, the Claude strong rung. Vendored `model-tiers.mjs` binds that rung to Sonnet 5.5.
+
 ## 3.2.3
 - The vendored `co.mjs` gains the `program` domain from code-ops-suite 2.15.0.
 

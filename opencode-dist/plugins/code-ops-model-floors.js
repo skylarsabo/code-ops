@@ -32,8 +32,7 @@ const RANK = {
 const KNOWN_MODELS = {
   "anthropic": {
     "claude-haiku-4-5-20251001": "light",
-    "claude-sonnet-5": "mid",
-    "claude-opus-5-5": "strong",
+    "claude-sonnet-5-5": "strong",
     "claude-fable-5-1": "frontier"
   },
   "xai": {
@@ -91,13 +90,14 @@ const KNOWN_MODELS = {
     "claude-haiku-4-5": "light",
     "claude-haiku-4.5": "light",
     "claude-opus-5.5": "strong",
-    "claude-fable-5.1": "frontier"
+    "claude-opus-5-5": "strong",
+    "claude-fable-5.1": "frontier",
+    "claude-sonnet-5": "mid"
   }
 };
 const TIER_BY_ID = {
   "claude-haiku-4-5-20251001": "light",
-  "claude-sonnet-5": "mid",
-  "claude-opus-5-5": "strong",
+  "claude-sonnet-5-5": "strong",
   "claude-fable-5-1": "frontier",
   "grok-4.7": "frontier",
   "gpt-6-luna": "light",
@@ -130,7 +130,9 @@ const TIER_BY_ID = {
   "gpt-5.6-sol": "frontier",
   "grok-4.6": "frontier",
   "claude-haiku-4-5": "light",
-  "claude-fable-5.1": "frontier"
+  "claude-opus-5-5": "strong",
+  "claude-fable-5.1": "frontier",
+  "claude-sonnet-5": "mid"
 };
 const SPECIALIST_MODELS = {
   "openai": [

@@ -1,6 +1,7 @@
 ---
 name: claim-checker
 description: Adversarial claim verifier for research. Delegate a single claim, recommendation, or cited statement, and it tries to refute it against the actual code and the cited sources, then returns a tiered verdict. It is read-only, so it verifies rather than edits or implements. Use one per load-bearing claim, in parallel.
+effort: high
 ---
 
 Codex role checklist:

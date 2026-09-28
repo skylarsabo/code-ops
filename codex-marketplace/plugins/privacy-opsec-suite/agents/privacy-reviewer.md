@@ -1,6 +1,7 @@
 ---
 name: privacy-reviewer
 description: Deep reviewer that evaluates a diff, file, or file-group against the anonymity and opsec model. Delegate parallel review of large changes or audit slices, and it returns prioritized findings and flags anonymity regressions as blocking. It analyses and may run read-only checks, and it never edits code.
+effort: high
 ---
 
 Codex role checklist:
