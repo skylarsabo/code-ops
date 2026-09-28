@@ -50,10 +50,12 @@
 // HANDOFF POINT (DEC-3, H6 of the program-state design). Inside the bands, the card fires once
 // more when context first reaches `HANDOFF_POINT` (225,000; 200,000 on Grok, where the price
 // doubles), and every card at or past that point says to hand off at the next phase boundary.
-// When no operator prompt arrived since the last card of this arm, the session runs
+// On Grok, when no operator prompt arrived since the last card of this arm, the session runs
 // autonomously, and the card says to write the handoff instead of assessing again. The marker
 // counts prompts: each `UserPromptSubmit` that shows no card adds one (on Grok the silent
-// UserPromptSubmit call records it), and each shown card resets the count.
+// UserPromptSubmit call records it), and each shown card resets the count. On Claude and Codex
+// the card itself fires on an operator prompt, so the hook cannot see an autonomous run there
+// and never gives that advice.
 //
 // CONTINUE-UNTIL. The session record (`sessionRecordPath` in transcript-lib.mjs) names the run
 // folder. When the last 64 KiB of its RUN_LOG.md end in a `Continue-until: <N> tokens` or
@@ -206,8 +208,9 @@ async function main() {
   const ceiling = contextCeiling();
   const gated = ceiling !== null && context >= ceiling
     ? ' New dispatches are now gated until that assessment runs.' : '';
-  // Autonomous: an earlier card of this arm was shown and no operator prompt followed it.
-  const autonomous = pastPoint && state.fired && state.prompts === 0;
+  // Autonomous: an earlier card of this arm was shown and no operator prompt followed it. Only
+  // Grok counts prompts apart from cards; elsewhere the call showing this card is itself a prompt.
+  const autonomous = grok && pastPoint && state.fired && state.prompts === 0;
   let advice;
   if (autonomous) {
     advice = `This session is past ${pointText}, and no operator prompt has arrived since the last card. At the next phase boundary, run code-ops-suite:handoff write instead of assessing again. Checkpoint durable state first.`;

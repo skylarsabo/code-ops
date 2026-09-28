@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
-      "verifiedDigest": "d85ee17c7eca79bc8040f761237084b0a627eed87682f82fa735a7d9ab83b2e2",
+      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
+      "verifiedDigest": "e37f36a956364074cb871b92e4bcb6b62c336231664436f6f830dc729e72561e",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -19,7 +19,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 219,
-          "anchor": "advice = 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
+          "anchor": "} else if (band === 1) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 213,
+          "anchor": "const autonomous = grok && pastPoint && state.fired && state.prompts === 0;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -49,12 +54,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 619,
-          "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
+          "anchor": "node \"${join(dirname(dirname(HOOK_PATH)), 'scripts', 'co.mjs')}\" brief ${type}\\"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 616,
-          "anchor": "return missing.map((field) =>"
+          "anchor": "if (missing.length) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
@@ -64,7 +69,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 601,
-          "anchor": "+ 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher"
+          "anchor": "const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim("
         },
         {
           "file": "plugins/code-ops-suite/agents/probe.md",
@@ -84,12 +89,12 @@
         {
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
           "line": 93,
-          "anchor": "Sync before the push. Run"
+          "anchor": "for the base remote. Before the branch's first push, run"
         },
         {
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
           "line": 97,
-          "anchor": "Never force-push. A rebase that moves HEAD voids the local receipts, so rerun th"
+          "anchor": "and then the upstream base branch, and push once more. A second rejection stops"
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
@@ -99,12 +104,12 @@
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 85,
-          "anchor": "For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF."
+          "anchor": "again. Where the card runs at prompt submit, each card follows a prompt, so it n"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 194,
-          "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
+          "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         }
       ]
     },
@@ -221,8 +226,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
-      "verifiedDigest": "d3e008449d4f3df7c24ed83683940fc4b9ab3c95ef68604538260241fa4fcf7f",
+      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
+      "verifiedDigest": "fecb8aa370452572a1c237ca3148409487f2f4d43487fda0272026eaebd386ef",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -279,8 +284,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
-      "verifiedDigest": "854791cbdfc09b808ad2e7f0e9f6bd6b79c5c5681b163d6ee4b264788d1ee673",
+      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
+      "verifiedDigest": "c8a55e14f6e4263bdfe2a382454c3ef514b982599ba668cdf584af55a9f69fc2",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -320,7 +325,7 @@
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
           "line": 199,
-          "anchor": "- COMPACT is executed only by a callable host capability; otherwise the document"
+          "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         }
       ]
     },
@@ -354,8 +359,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
-      "verifiedDigest": "7cda58e4f67f844e2ff3206ab90a1b9aacae03ae874dd93be16d2286f48f66dc",
+      "verifiedAt": "e0e3934ac54d7b069ef9041619ae1c1299e6db5f",
+      "verifiedDigest": "6e369492b4c5538a0e9140bf39297057ac115978c56436ceac6464411bafc435",
       "claims": [
         {
           "file": "scripts/check-vault-standard.mjs",
@@ -385,7 +390,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 219,
-          "anchor": "advice = 'Finish the step in flight, then run /code-ops-suite:handoff assess to"
+          "anchor": "} else if (band === 1) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",

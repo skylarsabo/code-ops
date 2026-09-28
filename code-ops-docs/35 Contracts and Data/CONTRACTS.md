@@ -676,8 +676,9 @@ displayed it, that a boundary existed, or that any action was chosen. Evidence:
 The handoff point is 225,000 tokens, or 200,000 on Grok. The first time context reaches it, the
 card fires even without a band rise and says to hand off at the next phase boundary. The marker
 also records `point`, `fired`, `prompts` (operator prompts since the last card), and `until`.
-When a card fires past the point after an earlier card and no operator prompt has arrived since,
-the card says to run `handoff write` instead of assessing again. The hook reads the latest
+On Grok, when a card fires past the point after an earlier card and no operator prompt has
+arrived since, the card says to run `handoff write` instead of assessing again. On Claude and
+Codex every card fires on an operator prompt, so the card never gives that advice there. The hook reads the latest
 `Continue-until: <N> tokens` or `Continue-until: <N> turns` line from the last 64 KiB of the
 run log named by the session record's `runDir`. While that bound is open, the card stays quiet.
 It fires once when context reaches N tokens or after N more hook calls. A malformed bound sets no
@@ -726,7 +727,9 @@ reads `git status --porcelain --untracked-files=all`, excluding the handoff file
 still matches, the check prints `same-tree: Verified-at matches HEAD and the dirty paths the
 handoff recorded` on stderr. The recorded set is the draft's `Dirty:` lines plus its count of
 unlisted derived paths; a dirty record without hashes never reports same-tree, a record truncated
-with `+N more` never matches, and a handoff with no record still needs a clean tree. The resume
+with `+N more` never matches, and a handoff with no record still needs a clean tree. Derived paths
+match by count only, because the draft does not list or hash them. A derived file edited after the
+draft, such as a vendored copy, still reports same-tree when the count is unchanged. The resume
 direction then accepts each FRESH anchor without re-reading its file. Register revalidation still
 runs, because closed register items can drift. Any git failure leaves the line unprinted, which
 only costs the successor the slow path.
@@ -801,7 +804,11 @@ agent ID. Legacy counters remain readable and are retained during migration. Evi
 `register --agent-id <id> --budget <calls> [--allowance <calls>]` binds an exact controller-known
 identity from the worker's working directory. It never infers correlation from timing, role, or
 the lead's dispatch prompt. The allowance defaults to two, ranges from one to four, and cannot
-extend the unregistered stop. Conflicting or invalid registrations cannot enlarge the allowance.
+extend the unregistered stop. The bound budget also stays inside that stop, so the hook warns at
+the smaller of the registered budget and the unregistered stop less the allowance. When the
+registered budget exceeds that limit under the controller's `CODE_OPS_ROUND_BUDGET`, `register`
+prints a `dispatch-guard CAPPED` line on stderr and still exits 0. The bound warning names the
+registered budget beside the effective one. Conflicting or invalid registrations cannot enlarge the allowance.
 A malformed explicit binding or unavailable bound counter denies further calls, including in warning mode. Registration storage failures return nonzero UNAVAILABLE. Receipt counts remain UNKNOWN when counter storage cannot be read as a regular file.
 
 `receipt --agent-id <id>` reports allowlisted control measurements and binding health. It emits
