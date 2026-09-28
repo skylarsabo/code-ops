@@ -706,12 +706,22 @@ by name. `## Program` may also carry `Session: <base name> HO <n>`, the name the
 takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When either is present,
 both must be: Hop is a positive integer, and the Session line ends with ` HO <Hop>`.
 
-One status line never gates. When the `Verified-at:` sha is HEAD and `git status --porcelain`
-lists nothing but the handoff file itself, the check prints `same-tree: Verified-at matches HEAD
-on a clean tree` on stderr. The resume direction then accepts each FRESH anchor without
-re-reading its file. Register revalidation still runs, because closed register items can drift.
-Any git failure leaves the line unprinted, which only costs the successor the slow path.
+One status line never gates. When the `Verified-at:` sha is HEAD and the dirty set, apart from
+the handoff file itself, equals the dirty paths the handoff recorded, the check prints
+`same-tree: Verified-at matches HEAD and the dirty paths the handoff recorded` on stderr. The
+recorded set is the draft's `Dirty:` lines plus its count of unlisted derived paths; a record
+truncated with `+N more` never matches, and a handoff with no record still needs a clean tree.
+The resume direction then accepts each FRESH anchor without re-reading its file. Register
+revalidation still runs, because closed register items can drift. Any git failure leaves the
+line unprinted, which only costs the successor the slow path.
 Evidence: `scripts/check-handoff.mjs` and `evals/handoff-check/run.mjs`.
+
+`co handoff draft` also writes `SCOPE_DIGESTS.md` in the run folder: per `PROGRAM.md` scope
+document, a sha256 of its working-tree bytes, `Verified-at:`, and a digest paragraph. An entry
+whose hash matches the predecessor's keeps its digest; any other entry gets `[FILL: digest]`.
+Resume refuses while a `[FILL: digest]` remains, then reports each document `unchanged`,
+`changed`, or `missing`. A handoff without the file resumes as before. Evidence:
+`scripts/handoff-state.mjs` and `evals/handoff-state/run.mjs`.
 
 `--consume` writes `HANDOFF.consumed` beside the file only after every check above passes. Its
 body is the version 2 JSON `{"v":2,"consumedAt","bySession","successorRun","name"}`. `bySession`

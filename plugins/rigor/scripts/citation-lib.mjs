@@ -70,7 +70,10 @@ export function anchorValue(match) {
 // the literal text contains the whole scanned window, so the longest candidate that names a real
 // in-root file is the most faithful reading. Only when no widened candidate resolves does the
 // unwidened literal tail get its turn (the pre-widening behavior, now a fallback rather than a gate).
-const WIDEN_ALLOWED_RE = /[\w.\-/ ]/; // backward-scan charset: word chars, ., -, /, and a single space
+// OI-27: a comma is in the charset too. REF_RE's path class stops at a comma, so without it a path
+// such as `docs/Q1,Q2/plan.md` kept only its tail after the comma and read GONE or MOVED. Cuts stay
+// at spaces only, so a candidate always keeps a comma whole and the longest real file still wins.
+const WIDEN_ALLOWED_RE = /[\w.\-/ ,]/; // backward-scan charset: word chars, ., -, /, a comma, and a space
 const WIDEN_SCAN_MAX = 256; // bounds the backward char scan per match (linear, not quadratic)
 const WIDEN_MAX_WORDS = 8;  // bounds the existsSync attempts per match (nearest space positions kept)
 // Extend a REF_RE match's path backward across space-separated prose words, trying the LONGEST
@@ -185,13 +188,20 @@ export function extractRefs(text, root) {
     // whole spaced span over the tail, and the widen must too, or a short decoy that happens to
     // exist at the literal tail wins over the real, longer path the citation names (L-045). An
     // already-escaping match is never widened, so a traversal ref keeps reading AMBIGUOUS.
-    if (!restored.escaping) {
+    let escaping = restored.escaping;
+    if (!escaping) {
       const widened = widenSpacedPath(text.slice(0, m.index), root, matchedPath);
-      if (widened) path = widened;
+      if (widened) {
+        path = widened;
+        // OI-27: the prefix restore scanned back only to the first space or comma, so re-run its
+        // escape check at the widened start. A backslash or drive letter there (`..\Q1,Q2/x.md`)
+        // still reads AMBIGUOUS. widened is always the text immediately before the match end.
+        escaping = restoreCitationPrefix(text.slice(0, m.index + matchedPath.length - widened.length), '').escaping;
+      }
       // else: keep the literal tail as restored above — resolved by resolveRef directly if it
       // exists, or by bare name (BUG-008) if not.
     }
-    refs.push({ path, line: Number(m[2]), escaping: restored.escaping });
+    refs.push({ path, line: Number(m[2]), escaping });
   }
   return refs;
 }

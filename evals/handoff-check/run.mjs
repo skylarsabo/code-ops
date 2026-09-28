@@ -343,6 +343,13 @@ writeFileSync(join(work, 'tick.mjs'), 'const label = `${name} shard`;\n');
 const rTick = run([pointed('tick.mjs:1 · Anchor: ``const label = `${name} shard`;``')], work);
 check('a doubled-backtick anchor containing a backtick resolves FRESH', rTick.status === 0 && /FRESH\s+tick\.mjs:1/.test(outOf(rTick)));
 
+// OI-27: a pointer whose path holds a comma resolves like a spaced one. REF_RE stops at the comma,
+// so before the fix only the tail after it was read, and the pointer reported GONE.
+mkdirSync(join(work, 'q1,q2'));
+writeFileSync(join(work, 'q1,q2', 'plan.mjs'), 'const guard = clamp(size, MAX);\n');
+const rComma = run([anchored('q1,q2/plan.mjs:1', 'clamp(size, MAX)')], work);
+check('a pointer whose path holds a comma resolves FRESH', rComma.status === 0 && /FRESH\s+q1,q2\/plan\.mjs:1/.test(outOf(rComma)));
+
 // The Verified-at advisory never gates. It needs a git root, so it is asserted on the
 // repository-rooted conformant run, whose fixture sha is not this repository's HEAD.
 check('a stale Verified-at sha is an advisory, not a violation', rGood.status === 0 && /advisory: Verified-at abc1234/.test(outOf(rGood)));
@@ -355,14 +362,18 @@ const tree = mkdtempSync(join(tmpdir(), 'coh-same-tree-'));
 const gitIn = (...args) => spawnSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: tree, encoding: 'utf8' });
 writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\n');
 writeFileSync(join(tree, '.gitignore'), 'scratch/\n');
+mkdirSync(join(tree, 'plugins', 'p', 'scripts'), { recursive: true });
+writeFileSync(join(tree, 'plugins', 'p', 'scripts', 'target.mjs'), 'const guard = clamp(size, MAX);\n');
 gitIn('init', '-q'); gitIn('add', '-A'); gitIn('commit', '-q', '-m', 'fixture');
 const treeHead = gitIn('rev-parse', '--short', 'HEAD').stdout.trim();
 const treeHandoff = join(tree, 'HANDOFF.md');
-const stampHandoff = (sha) => writeFileSync(treeHandoff, buildHandoff({ inFlight: '- Nothing in flight. Pointer: target.mjs:1 · Anchor: `clamp(size, MAX)`' }).replace('Verified-at: abc1234 (main, clean).', `Verified-at: ${sha} (main, clean).`));
+// `record` is the dirty record `co handoff draft` writes: "- Dirty: `<porcelain line>`" bullets.
+const stampHandoff = (sha, record = []) => writeFileSync(treeHandoff, buildHandoff({ inFlight: ['- Nothing in flight. Pointer: target.mjs:1 · Anchor: `clamp(size, MAX)`', ...record].join('\n') }).replace('Verified-at: abc1234 (main, clean).', `Verified-at: ${sha} (main, clean).`));
+const SAME_TREE = /same-tree: Verified-at matches HEAD and the dirty paths the handoff recorded/;
 stampHandoff(treeHead);
 mkdirSync(join(tree, 'scratch')); writeFileSync(join(tree, 'scratch', 'run.md'), 'x');
 const rSame = run([treeHandoff], tree);
-check('Verified-at at HEAD on a clean tree reports same-tree', rSame.status === 0 && /same-tree: Verified-at matches HEAD on a clean tree/.test(outOf(rSame)));
+check('Verified-at at HEAD on a clean tree reports same-tree', rSame.status === 0 && SAME_TREE.test(outOf(rSame)));
 check('the same-tree status prints on stderr, never stdout', !/same-tree:/.test(rSame.stdout || ''));
 writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
 const rDirty = run([treeHandoff], tree);
@@ -372,6 +383,34 @@ writeFileSync(join(tree, 'untracked.txt'), 'new\n');
 const rUntracked = run([treeHandoff], tree);
 check('an untracked non-handoff file suppresses same-tree', rUntracked.status === 0 && !/same-tree:/.test(outOf(rUntracked)));
 rmSync(join(tree, 'untracked.txt'));
+
+// same-tree-recorded-dirty-set: at the recorded HEAD with the recorded dirty paths the status
+// prints. One extra dirty path, one recorded path now clean, or a truncated record reports no.
+writeFileSync(join(tree, 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
+stampHandoff(treeHead, ['- Dirty: ` M target.mjs`']);
+const rRecorded = run([treeHandoff], tree);
+check('the recorded dirty set at HEAD reports same-tree', rRecorded.status === 0 && SAME_TREE.test(outOf(rRecorded)));
+// The draft counts a derived path (a vendored plugin script) instead of listing it.
+writeFileSync(join(tree, 'plugins', 'p', 'scripts', 'target.mjs'), 'const guard = clamp(size, MAX);\nconst edited = true;\n');
+const rUncounted = run([treeHandoff], tree);
+check('a derived dirty path the record does not count suppresses same-tree', rUncounted.status === 0 && !/same-tree:/.test(outOf(rUncounted)));
+stampHandoff(treeHead, ['- Dirty: ` M target.mjs`', '- Derived dirty paths not listed: 1 (host distributions and vendored plugin scripts).']);
+const rDerived = run([treeHandoff], tree);
+check('a derived dirty path the record counts reports same-tree', rDerived.status === 0 && SAME_TREE.test(outOf(rDerived)));
+gitIn('checkout', '-q', '--', 'plugins');
+stampHandoff(treeHead, ['- Dirty: ` M target.mjs`']);
+writeFileSync(join(tree, 'extra.txt'), 'new\n');
+const rExtra = run([treeHandoff], tree);
+check('one dirty path beyond the record suppresses same-tree', rExtra.status === 0 && !/same-tree:/.test(outOf(rExtra)));
+stampHandoff(treeHead, ['- Dirty: ` M target.mjs`', '- Dirty: `?? extra.txt`', '- +3 more non-derived dirty path(s); run `git status --porcelain` for the full list.']);
+const rTruncated = run([treeHandoff], tree);
+check('a truncated dirty record never reports same-tree', rTruncated.status === 0 && !/same-tree:/.test(outOf(rTruncated)));
+rmSync(join(tree, 'extra.txt'));
+gitIn('checkout', '-q', '--', 'target.mjs');
+stampHandoff(treeHead, ['- Dirty: ` M target.mjs`']);
+const rCleaned = run([treeHandoff], tree);
+check('a recorded dirty path that is now clean suppresses same-tree', rCleaned.status === 0 && !/same-tree:/.test(outOf(rCleaned)));
+
 stampHandoff('abc1234');
 const rStaleTree = run([treeHandoff], tree);
 check('a clean tree with a stale Verified-at reports no same-tree', rStaleTree.status === 0 && !/same-tree:/.test(outOf(rStaleTree)) && /advisory: Verified-at abc1234/.test(outOf(rStaleTree)));
