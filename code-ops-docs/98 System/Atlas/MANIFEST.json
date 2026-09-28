@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "7a89ae9eee3f111d83f5c0604f4fbd4cc12330fd",
-      "verifiedDigest": "189792bc3a3a902c8eae2dd76c8aba128feb411483fa2fb0b01aeae564f1cb5e",
+      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
+      "verifiedDigest": "fb71e8ba9b447587738137eac3f9ef1ed0e34e12d54be54a30a65b38aac65af2",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -165,8 +165,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "7a89ae9eee3f111d83f5c0604f4fbd4cc12330fd",
-      "verifiedDigest": "b2eb24ba9dc9f3b236a21a697075e0b0562084b17f3f4bd3d6c1d1895bad7191",
+      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
+      "verifiedDigest": "22a168a26bc82f7333039300fcf963231bb3149e4b1315cdb87345f451976fc4",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -256,7 +256,7 @@
         {
           "file": "scripts/check-handoff.mjs",
           "line": 119,
-          "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
+          "anchor": "// Imported by relative specifier: check-handoff.mjs ships vendored into"
         },
         {
           "file": "scripts/check-handoff.mjs",
@@ -275,8 +275,8 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 828,
-          "anchor": "const PROGRAM_CAP = 32 * 1024; // check-handoff.mjs PROGRAM_CAP_BYTES."
+          "line": 912,
+          "anchor": "return bytes > PROGRAM_CAP ? 1 : 0;"
         },
         {
           "file": "scripts/co.mjs",
@@ -356,8 +356,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "7a89ae9eee3f111d83f5c0604f4fbd4cc12330fd",
-      "verifiedDigest": "1a5df2725cd09b492b901207cdf407732ea8b8f8ab3a5fb1bcec0114de11b168",
+      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
+      "verifiedDigest": "c14a76ceb96994f6f958abfb3f08390af2ee2403021d55d818b1636153b762df",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -464,8 +464,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "921c8acf4f8451e2ec721bba8a8fb58a95b1e61a",
-      "verifiedDigest": "03efe3afcd486c411a03dbc881efde2c9ae36d78b2d95e0837250518db4fdbe7",
+      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
+      "verifiedDigest": "3082ae462129e26a6e5a2098bbf1901ee356d11aac45398713a59c3141a1f9b4",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -564,8 +564,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "7a89ae9eee3f111d83f5c0604f4fbd4cc12330fd",
-      "verifiedDigest": "cdaf7c1269a8dd0e837fa3412b3b81d59bbb90ba6b3d9fe63734c146b26d8f52",
+      "verifiedAt": "b517ff96a134cc1d85991d4c36e35d204f98d2d7",
+      "verifiedDigest": "15609d3a5bf133c99e1eee8f110bd29da4d22b88d2ad1b6c848d3737ba586f06",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

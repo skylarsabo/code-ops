@@ -819,26 +819,40 @@ function writeBack(programFile, items) {
 // PROGRAM.archive.md beside a grammar 2 ledger, so the ledger stays under its 32 KB cap. It moves
 // every Closed items bullet, every decision whose Disposition is settled, and each Request history
 // entry except the first and the last REQUESTS_KEPT, each verbatim with its indented continuation
-// lines. A pending or dispositionless decision stays, so size management never buries an unsettled
-// one. The archive holds only the Request history, Decisions ledger, and Closed items headings,
-// and new entries append after the ones it already holds.
+// lines, blank-separated ones included. A pending or dispositionless decision stays, so size
+// management never buries an unsettled one. New entries insert after the last entry under the same
+// heading of the archive it already holds, so prior archive prose survives; a new archive holds only
+// the Request history, Decisions ledger, and Closed items headings. A CRLF file keeps its line ending.
+// It exits 1 whenever the ledger is still over the cap, including when nothing can move.
 const ARCHIVE_NAME = 'PROGRAM.archive.md';
 const ARCHIVED = ['request history', 'decisions ledger', 'closed items'];
 const REQUESTS_KEPT = 10;
 const PROGRAM_CAP = 32 * 1024; // check-handoff.mjs PROGRAM_CAP_BYTES.
 // Each top-level bullet with its indented continuation lines, as { section, start, end } line
-// ranges, where section is the lower-cased archived heading it sits under, or null.
+// ranges, where section is the lower-cased archived heading it sits under, or null. Blank lines
+// belong to an entry only when an indented line follows them.
 function entriesOf(lines) {
   const out = [];
   let section = null;
   lines.forEach((l, i) => {
-    const h = /^##[ \t]+(.+)$/.exec(l);
-    if (h) { section = ARCHIVED.find((name) => h[1].trim().toLowerCase().startsWith(name)) ?? null; return; }
+    const heading = archivedHeading(l);
+    if (heading !== undefined) { section = heading; return; }
     if (/^[-*]\s+/.test(l)) out.push({ section, start: i, end: i + 1 });
-    else if (/^\s+\S/.test(l) && out.at(-1)?.end === i) out.at(-1).end = i + 1;
+    else if (/^\s+\S/.test(l) && out.length && lines.slice(out.at(-1).end, i).every((b) => !b.trim())) out.at(-1).end = i + 1;
   });
   return out;
 }
+// The archived heading a line opens, lower-cased; null for any other heading, undefined for a non-heading.
+function archivedHeading(l) {
+  const h = /^##[ \t]+(.+)$/.exec(l);
+  return h ? ARCHIVED.find((name) => h[1].trim().toLowerCase().startsWith(name)) ?? null : undefined;
+}
+// Reads a file as LF lines and reports its line ending, so a CRLF file keeps it on write.
+function linesOf(file) {
+  const raw = readFileSync(file, 'utf8');
+  return { lines: raw.replace(/\r\n/g, '\n').split('\n'), eol: raw.includes('\r\n') ? '\r\n' : '\n' };
+}
+const titleCase = (name) => name[0].toUpperCase() + name.slice(1);
 function programFileOf(arg, root) {
   const direct = resolve(root, arg);
   if (isFile(direct)) return direct;
@@ -849,7 +863,7 @@ function archive(arg, flags) {
   const root = resolve(flags.root);
   const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
   const file = programFileOf(arg, root);
-  const lines = readFileSync(file, 'utf8').split('\n');
+  const { lines, eol } = linesOf(file);
   if (!isGrammar2(lines.join('\n'))) die(`refusing to archive ${repoPath(file)}: it has no "Grammar: 2" line, so its decisions carry no disposition to read`);
   const entries = entriesOf(lines);
   const requests = entries.filter((e) => e.section === 'request history');
@@ -860,23 +874,32 @@ function archive(arg, flags) {
     || e.section === 'closed items');
   const unsettled = entries.filter((e) => e.section === 'decisions ledger' && !SETTLED_RE.test(lines[e.start])).length;
   if (!moving.length) {
-    console.log(`nothing to archive in ${repoPath(file)}; ${unsettled} unsettled decision(s) stay`);
-    return 0;
+    const size = Buffer.byteLength(lines.join(eol), 'utf8');
+    console.log(`nothing to archive in ${repoPath(file)}; ${unsettled} unsettled decision(s) stay`
+      + (size > PROGRAM_CAP ? `\n${repoPath(file)}: ${size} bytes against the ${PROGRAM_CAP}-byte cap; still over it, and nothing settled can move` : ''));
+    return size > PROGRAM_CAP ? 1 : 0;
   }
   const target = join(dirname(file), ARCHIVE_NAME);
-  const prior = isFile(target) ? readFileSync(target, 'utf8').split('\n') : [];
-  const priorEntries = entriesOf(prior);
   const title = /^# PROGRAM:[^\S\r\n]*(.+?)\s*$/m.exec(lines.join('\n'))?.[1] ?? basename(dirname(file));
-  const body = [`# PROGRAM archive: ${title}`, ''];
+  const held = isFile(target) ? linesOf(target) : null;
+  const base = held?.lines ?? [`# PROGRAM archive: ${title}`, '', ...ARCHIVED.flatMap((name) => [`## ${titleCase(name)}`, ''])];
+  // Each heading's moved entries go after the last entry it holds, else after the heading, else at the end.
+  const heldEntries = entriesOf(base);
+  const inserts = [];
   for (const name of ARCHIVED) {
-    const heading = name[0].toUpperCase() + name.slice(1);
-    body.push(`## ${heading}`, '',
-      ...priorEntries.filter((e) => e.section === name).flatMap((e) => prior.slice(e.start, e.end)),
-      ...moving.filter((e) => e.section === name).flatMap(text), '');
+    const add = moving.filter((e) => e.section === name).flatMap(text);
+    if (!add.length) continue;
+    const last = heldEntries.filter((e) => e.section === name).at(-1);
+    const heading = base.findIndex((l) => archivedHeading(l) === name);
+    let at = base.length;
+    if (last) at = last.end;
+    else if (heading >= 0) for (at = heading + 1; at < base.length && !base[at].trim(); at++);
+    inserts.push({ at, lines: last ? add : heading >= 0 ? [...add, ''] : [`## ${titleCase(name)}`, '', ...add, ''] });
   }
+  for (const ins of inserts.sort((a, b) => b.at - a.at)) base.splice(ins.at, 0, ...ins.lines);
   const gone = new Set(moving.flatMap((e) => Array.from({ length: e.end - e.start }, (_, k) => e.start + k)));
-  const kept = lines.filter((_, i) => !gone.has(i)).join('\n');
-  writeFileSync(target, body.join('\n'));
+  const kept = lines.filter((_, i) => !gone.has(i)).join(eol);
+  writeFileSync(target, base.join(held?.eol ?? eol));
   writeFileSync(file, kept);
   const count = (name) => moving.filter((e) => e.section === name).length;
   const bytes = Buffer.byteLength(kept, 'utf8');

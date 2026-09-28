@@ -31,7 +31,10 @@ export const CLAUDE_ALIAS_TIER = {
   opus: 'strong',
   // Full model id, not an alias: operator decision 2026-09-28 rebinds the Claude strong
   // rung to Sonnet 5.5. Agent frontmatter names it directly (Codex reads `model:`
-  // verbatim), so it must resolve here too, alongside the short aliases above.
+  // verbatim), so it must resolve here too, alongside the short aliases above. The floor
+  // gate ranks the declared label, not the model behind it: `sonnet` may serve the same
+  // model, yet it ranks mid and fails a strong floor. Only the full id clears one. That
+  // difference is intended, and it errs toward refusing.
   'claude-sonnet-5-5': 'strong',
 };
 
