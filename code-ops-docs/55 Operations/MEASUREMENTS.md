@@ -256,6 +256,13 @@ to twice the budget after the 10-day audit below: reviewers averaged about 90 ro
 old 120-round stop, so that stop never bound them. This row fixes the metric and the decision
 rule before any comparison exists.
 
+**Amendment, 2026-09-28 (design item U4).** The stop moved from twice the budget to 1.5 times
+it, rounded down and at least one call past it, so the default 40 now denies from call 60. The
+warning at the budget is unchanged and serves as the checkpoint line. The comparison above
+applies to the new stop from the release that carries it. The 1.5 value is also
+**SPECULATIVE**. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`stopCall`) and
+`scripts/opencode-lifecycle.js`.
+
 Explicit controller registration now binds an exact agent ID to a budget and small checkpoint
 allowance. Its sanitized receipt reports the declared budget, allowance, attempted calls, and
 binding status. The effective runtime budget remains `UNKNOWN`, because the worker may have a

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Proves the OpenCode lifecycle plugin: a stable system prefix, tail notes, a
 // fail-closed chooser, a cost ledger the report can gate, the context-ceiling
-// dispatch gate with its handoff unlock, the subagent stop at twice the budget, and a
+// dispatch gate with its handoff unlock, the subagent stop at 1.5 times the budget,
+// rounded down and at least one call past it, and a
 // pickup line that names the handoff's program ledger only when it has one.
 //
 //   node evals/opencode-lifecycle/run.mjs
@@ -127,7 +128,7 @@ expect(Math.abs(copilotUsd - 4.5) < 1e-9, `cost report should price cache writes
 
 const hooks = await overlay.CodeOpsLifecycle({
   directory: work,
-  client: { session: { get: async ({ path }) => (path.id === 'child' ? { parentID: 'lead' } : {}) } },
+  client: { session: { get: async ({ path }) => (path.id.startsWith('child') ? { parentID: 'lead' } : {}) } },
 });
 const leadSystem = { system: [] };
 await hooks['experimental.chat.system.transform']({ sessionID: 'lead' }, leadSystem);
@@ -233,17 +234,33 @@ await hooks['tool.execute.after']({ tool: 'task', sessionID: 'warned', callID: '
 delete process.env.CODE_OPS_DISPATCH_GUARD;
 expect(gate === null && warnOut.output.includes('context ceiling'), `warn mode did not downgrade the gate to a note: ${gate} / ${warnOut.output}`);
 
-// A subagent stops at twice its round budget (CODE_OPS_ROUND_BUDGET=2 above).
-const rounds = [];
-for (let i = 0; i < 4; i += 1) {
-  try {
-    await hooks['tool.execute.before']({ tool: 'read', sessionID: 'child', callID: `r${i}` }, { args: {} });
-    rounds.push(null);
-  } catch (error) {
-    rounds.push(String(error?.message ?? error));
+// A subagent stops at 1.5 times its round budget, rounded down and at least one call
+// past the budget (CODE_OPS_ROUND_BUDGET=2 above, so stop at call 3).
+const roundStop = async (sessionID, calls) => {
+  const out = [];
+  for (let i = 0; i < calls; i += 1) {
+    try {
+      await hooks['tool.execute.before']({ tool: 'read', sessionID, callID: `r${i}` }, { args: {} });
+      out.push(null);
+    } catch (error) {
+      out.push(String(error?.message ?? error));
+    }
   }
-}
-expect(rounds.slice(0, 3).every((r) => r === null) && rounds[3]?.includes('4 tool rounds used, twice the 2-round budget'), `the subagent stop was not at twice the budget: ${JSON.stringify(rounds)}`);
+  return out;
+};
+const rounds = await roundStop('child', 3);
+expect(rounds.slice(0, 2).every((r) => r === null) && rounds[2]?.includes('3 tool rounds used, the hard stop at 1.5 times the 2-round budget, rounded down'), `the subagent stop was not at 1.5 times the budget: ${JSON.stringify(rounds)}`);
+
+// A 3-round budget stops at call 4 (floor(3 * 1.5) = 4, and one past the budget).
+process.env.CODE_OPS_ROUND_BUDGET = '3';
+const roundsThree = await roundStop('child3', 4);
+expect(roundsThree.slice(0, 3).every((r) => r === null) && roundsThree[3]?.includes('4 tool rounds used, the hard stop at 1.5 times the 3-round budget, rounded down'), `the 3-round budget did not stop at call 4: ${JSON.stringify(roundsThree)}`);
+
+// The default 40-round budget stops at call 60.
+delete process.env.CODE_OPS_ROUND_BUDGET;
+const roundsDefault = await roundStop('child40', 60);
+expect(roundsDefault.slice(0, 59).every((r) => r === null) && roundsDefault[59]?.includes('60 tool rounds used, the hard stop at 1.5 times the 40-round budget, rounded down'), `the default budget did not stop at call 60: ${roundsDefault[59]}`);
+process.env.CODE_OPS_ROUND_BUDGET = '2';
 
 const again = {
   role: 'assistant', sessionID: 'costlead', id: 'msg-1', cost: 2, providerID: 'xai', modelID: 'grok-4.7',

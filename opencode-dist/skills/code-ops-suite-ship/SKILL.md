@@ -93,8 +93,15 @@ Ship the work as a clean PR. Use `/code-ops-suite-pr-split` when it warrants a s
 otherwise a single PR scrubbed by `/privacy-opsec-suite-authorship-hygiene`. `scan-ai-tells`
 passes fail-closed before push. When `privacy-opsec-suite` is not installed, run the bundled
 `<plugin-root>/scripts/co.mjs scan ai-tells` over the commit and PR text directly as the
-gate. Push the branch, publish the local receipt statuses for that exact SHA when the gates ran,
-and only then open the PR. Hosted CI runs deterministic checks only, and is the required merge
+gate.
+
+Sync before the push. Run `git fetch` for the base remote, then `git rebase` onto the upstream
+base branch, then `git push`. When the push fails with a non-fast-forward rejection, run the
+fetch, rebase, and push once more. A second rejection stops the ship and goes to the operator.
+A rebase conflict also stops the ship: run `git rebase --abort` and report the conflicting paths.
+Never force-push. A rebase that moves HEAD voids the local receipts, so rerun the deterministic
+gate chain, and the model gates when they ran, before that push. Publish the local receipt
+statuses for the pushed SHA when the gates ran, and only then open the PR. Hosted CI runs deterministic checks only, and is the required merge
 gate. **Never auto-merge.**
 
 When the repo carries an atlas (`<repo>-docs/98 System/Atlas/MANIFEST.json`, or

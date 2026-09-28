@@ -8,12 +8,13 @@
 //     rounds used, the call the stop lands on, and the checkpoint-and-return instruction: start
 //     no new edit, settle the partial one, and write done items, each dirty path marked complete
 //     or partial, the exact next edit, and gates run to the Report path;
-//   - at twice the budget it denies with a reason telling the operative to report now with that
-//     checkpoint, and
+//   - at 1.5 times the budget, rounded down and at least one call past the budget, it denies
+//     with a reason telling the operative to report now with that checkpoint (the old 2x call is
+//     no longer the stop), and
 //     `CODE_OPS_DISPATCH_GUARD=warn` lifts only that hard stop;
 //   - concurrent subagents never share a counter, and `CODE_OPS_ROUND_BUDGET` overrides 40;
 //   - the `Round budget:` line of the subagent's brief, the first line of its own transcript,
-//     binds its counter (60 warns at 60 and stops at 120), clamps above 120 with one advisory,
+//     binds its counter (60 warns at 60 and 80 and stops at 90), clamps above 120 with one advisory,
 //     falls back on zero or conflicting values with an advisory, and keeps the default without a
 //     line or a readable transcript; later transcript text never moves the cached value, and a
 //     controller binding outranks the brief;
@@ -143,20 +144,24 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(outputs[budget - 1]?.hookSpecificOutput?.hookEventName === 'PreToolUse', 'the warning must name hookEventName PreToolUse');
   expect(outputs[budget] === null, `the round after the budget must be silent, got ${JSON.stringify(outputs[budget])}`);
 
-  // At twice the budget, and not one round earlier: deny, with a reason that tells the
-  // operative to report now.
-  expect(outputs.slice(0, budget * 2 - 1).every((out) => out?.hookSpecificOutput?.permissionDecision !== 'deny'),
-    `no round before twice the budget may deny, got ${JSON.stringify(outputs)}`);
-  const stop = outputs[budget * 2 - 1];
+  // The budget-round checkpoint line arrives exactly once before the stop.
+  expect(outputs.slice(0, 5).filter((out) => contextOf(out)).length === 1,
+    `the checkpoint line must arrive once before the stop, got ${JSON.stringify(outputs.slice(0, 5))}`);
+
+  // At 1.5 times the budget (call 6), and not one round earlier: deny, with a reason that tells
+  // the operative to report now. The old stop at twice the budget (call 8) is not the first deny.
+  const firstDeny = outputs.findIndex((out) => out?.hookSpecificOutput?.permissionDecision === 'deny') + 1;
+  expect(firstDeny === 6 && firstDeny !== budget * 2, `the first deny must land on call 6, not the old 2x call 8, got call ${firstDeny}`);
+  const stop = outputs[5];
   const hso = stop && stop !== 'unparsable' ? stop.hookSpecificOutput ?? {} : {};
-  expect(hso.permissionDecision === 'deny', `twice the budget must deny, got ${JSON.stringify(stop)}`);
-  expect(/8 tool rounds used, 2 times the 4-round budget/.test(hso.permissionDecisionReason ?? ''),
-    `the stop reason must cite the 2x multiple, got ${hso.permissionDecisionReason}`);
+  expect(hso.permissionDecision === 'deny', `1.5 times the budget must deny, got ${JSON.stringify(stop)}`);
+  expect(/6 tool rounds used, the hard stop at 1\.5 times the 4-round budget, rounded down/.test(hso.permissionDecisionReason ?? ''),
+    `the stop reason must cite the 1.5x multiple, got ${hso.permissionDecisionReason}`);
   expect(typeof hso.permissionDecisionReason === 'string' && /report now/i.test(hso.permissionDecisionReason),
     `the deny reason must tell the operative to return its report now, got ${hso.permissionDecisionReason}`);
   expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(JSON.stringify(outputs)), 'no hook output carries an emoji');
   cleanup();
-  console.log('ok   under the budget is silent, the budget round warns, and twice the budget denies');
+  console.log('ok   under the budget is silent, the budget round warns once, and 1.5 times the budget denies');
 
   // The warning asks for a written checkpoint before the stop, and the stop requires the same
   // checkpoint in the final report, so a stopped operative never leaves unrecorded dirty work.
@@ -169,24 +174,44 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     `the warning must stop new edits and settle the partial one, got ${atBudget}`);
   expect(/write a checkpoint to the brief's Report path \(or the run folder\)/.test(atBudget ?? ''),
     `the warning must direct the checkpoint to the Report path before the stop, got ${atBudget}`);
-  expect((atBudget ?? '').includes('hard stop denies every tool call from call 8'),
+  expect((atBudget ?? '').includes('hard stop denies every tool call from call 6'),
     `the warning must name the call the stop lands on, got ${atBudget}`);
   expect(/Make no further edits/.test(hso.permissionDecisionReason ?? '') && /checkpoint/.test(hso.permissionDecisionReason ?? ''),
     `the stop must forbid further edits and name the checkpoint, got ${hso.permissionDecisionReason}`);
   console.log('ok   the warning requires a written checkpoint before the stop, and the stop requires it in the report');
 }
 
-// Every further 20 rounds warns again, on the default 40-round budget.
+// The default 40-round budget warns once at 40 and stops at 60, before a 20-round repeat.
 {
   const { home, cleanup } = fakeHome();
   const warned = [];
+  const denied = [];
   for (let i = 1; i <= 61; i++) {
     const out = parseOut(runHook(subagentCall('agent-B'), { home }));
-    if (out) warned.push(i);
+    if (contextOf(out)) warned.push(i);
+    if (out?.hookSpecificOutput?.permissionDecision === 'deny') denied.push(i);
   }
-  expect(JSON.stringify(warned) === JSON.stringify([40, 60]), `the default budget must warn at 40 and 60 only, got ${JSON.stringify(warned)}`);
+  expect(JSON.stringify(warned) === JSON.stringify([40]), `the default budget must warn at 40 only, got ${JSON.stringify(warned)}`);
+  expect(JSON.stringify(denied) === JSON.stringify([60, 61]), `the default budget must deny from call 60, got ${JSON.stringify(denied)}`);
   cleanup();
-  console.log('ok   the default 40-round budget warns at 40 and at every further 20 rounds');
+  console.log('ok   the default 40-round budget warns once at 40 and denies from call 60');
+}
+
+// A fractional 1.5x product rounds down, and the stop always lands past the budget round.
+{
+  const { home, cleanup } = fakeHome();
+  for (const [budget, stopAt] of [[3, 4], [5, 7], [1, 2]]) {
+    const id = `agent-round-${budget}`;
+    const outs = [];
+    for (let i = 1; i <= stopAt; i++) outs.push(parseOut(runHook(subagentCall(id), { home, budget })));
+    const firstDeny = outs.findIndex((out) => out?.hookSpecificOutput?.permissionDecision === 'deny') + 1;
+    expect(firstDeny === stopAt, `a ${budget}-round budget must first deny at call ${stopAt}, got ${firstDeny}`);
+    expect(/checkpoint/.test(contextOf(outs[budget - 1]) ?? '') && (contextOf(outs[budget - 1]) ?? '').includes(`from call ${stopAt}`),
+      `a ${budget}-round budget must warn at its budget and name stop call ${stopAt}, got ${JSON.stringify(outs[budget - 1])}`);
+    expect(outs.slice(0, budget - 1).every((out) => out === null), `a ${budget}-round budget must be silent below the budget`);
+  }
+  cleanup();
+  console.log('ok   the 1.5x stop rounds down (3 -> 4, 5 -> 7) and stays one past a 1-round budget');
 }
 
 // ---------------------------------------------------------------- warn mode lifts only the stop
@@ -241,8 +266,8 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(/model override/i.test(text ?? ''), `the reason must flag the model override, got ${text}`);
   expect(/general-purpose/.test(text ?? '') && /code-ops-suite:implementer/.test(text ?? '') && /Wide-surface reason: <why>/.test(text ?? ''),
     `the reason must flag the wide type, name the narrow choice, and name the escape line, got ${text}`);
-  expect(/Round budget/.test(text ?? '') && /40/.test(text ?? '') && /80/.test(text ?? '') && !/120/.test(text ?? ''),
-    `the reason must flag the missing Round budget and name both limits at 2x, got ${text}`);
+  expect(/Round budget/.test(text ?? '') && /warns at 40 rounds, stops at 60\./.test(text ?? '') && !/80|120/.test(text ?? ''),
+    `the reason must flag the missing Round budget and name both limits at 1.5x, got ${text}`);
   expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text ?? ''), 'the deny reason carries no emoji');
 
   // Warn mode keeps the same clauses as one short advisory, never a decision.
@@ -435,7 +460,8 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(typeof fallbackWarning === 'string' && !/controller-bound/.test(fallbackWarning), `no guessed binding may alter the fallback, got ${fallbackWarning}`);
 
   const bound = [];
-  for (let i = 0; i < 5; i++) bound.push(parseOut(runHook(subagentCall(boundId, { cwd }), { home, budget: 3 })));
+  // A fallback of 4 (stop at call 6) leaves room for the 2-round budget and its 2-call allowance.
+  for (let i = 0; i < 5; i++) bound.push(parseOut(runHook(subagentCall(boundId, { cwd }), { home, budget: 4 })));
   expect(/controller-bound 2-round budget/.test(contextOf(bound[1]) ?? ''), `a registered id must warn at its declared budget, got ${JSON.stringify(bound[1])}`);
   expect(bound[2] === null && bound[3] === null, `the two-call allowance must execute after the bound budget, got ${JSON.stringify(bound.slice(2, 4))}`);
   expect(bound[4]?.hookSpecificOutput?.permissionDecision === 'deny' && /attempted tool calls/.test(bound[4]?.hookSpecificOutput?.permissionDecisionReason ?? ''),
@@ -497,9 +523,9 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const legacyId = 'legacy-agent';
   const legacy = join(home, '.claude', 'code-ops', 'dispatch', legacySlug(cwd));
   mkdirSync(legacy, { recursive: true });
-  writeFileSync(join(legacy, `${legacySlug(legacyId)}.rounds`), '.'.repeat(79));
+  writeFileSync(join(legacy, `${legacySlug(legacyId)}.rounds`), '.'.repeat(59));
   const migrated = parseOut(runHook(subagentCall(legacyId, { cwd }), { home, budget: 40 }));
-  expect(migrated?.hookSpecificOutput?.permissionDecision === 'deny', `a legacy count of 79 must deny on its next call after hashed-state rollout, got ${JSON.stringify(migrated)}`);
+  expect(migrated?.hookSpecificOutput?.permissionDecision === 'deny', `a legacy count of 59 must deny on its next call, the 60-call stop, after hashed-state rollout, got ${JSON.stringify(migrated)}`);
   const invalid = runControl(['register', '--agent-id', 'invalid-agent', '--budget', '0'], { home, budget: 3, cwd });
   expect(invalid.status === 2 && invalid.stderr.trim() === 'dispatch-guard INVALID_ARGUMENT',
     `an invalid registration must return a concise nonsecret failure, got ${invalid.status}/${JSON.stringify(invalid.stderr)}`);
@@ -516,7 +542,8 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const { home, cleanup } = fakeHome();
   const cwd = root;
   for (const id of ['bound-A', 'bound-B']) runControl(['register', '--agent-id', id, '--budget', '99', '--allowance', '4'], { home, budget: 3, cwd });
-  for (let i = 0; i < 5; i++) {
+  // A fallback of 3 stops at call 4, so the bound cap permits 3 calls whatever the registration asks.
+  for (let i = 0; i < 3; i++) {
     for (const id of ['bound-A', 'bound-B']) {
       const out = parseOut(runHook(subagentCall(id, { cwd }), { home, budget: 3 }));
       expect(out?.hookSpecificOutput?.permissionDecision !== 'deny', `concurrent bound counters must not share a cap for ${id}, got ${JSON.stringify(out)}`);
@@ -756,11 +783,11 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
     toolName: 'read_file', toolInput: { path: 'a.txt' },
   }, { home, budget, grok: true });
   const seen = [];
-  for (let i = 0; i < budget * 2; i++) seen.push(parseOut(childCall('child-1')));
+  for (let i = 0; i < 3; i++) seen.push(parseOut(childCall('child-1')));
   expect(/2 tool rounds used against a 2-round budget/.test(contextOf(seen[budget - 1]) ?? ''),
     `a Grok subagent must warn at its budget, got ${JSON.stringify(seen[budget - 1])}`);
-  expect(seen[budget * 2 - 1]?.hookSpecificOutput?.permissionDecision === 'deny',
-    `a Grok subagent must stop at twice its budget, got ${JSON.stringify(seen[budget * 2 - 1])}`);
+  expect(seen[2]?.hookSpecificOutput?.permissionDecision === 'deny',
+    `a Grok subagent must stop at 1.5 times its budget (call 3), got ${JSON.stringify(seen[2])}`);
   expect(childCall('child-2').stdout === '', 'another Grok subagent must keep its own counter');
   for (let i = 0; i < budget * 2; i++) {
     r = runHook({ hook_event_name: 'PreToolUse', sessionId: 'main-grok', cwd, toolName: 'read_file', toolInput: {} }, { home, budget, grok: true });
@@ -788,20 +815,20 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   };
   const briefCall = (id) => subagentCall(id, { transcript_path: leadTranscript });
 
-  // Brief 60: silent to 59, warns at 60 as brief-bound, denies first at 120.
+  // Brief 60: silent to 59, warns at 60 as brief-bound, denies first at 90.
   writeBrief('brief-60', `${FULL_BRIEF.replace('Round budget: 25 tool rounds', 'Round budget: 60')}`);
   const outs = [];
-  for (let i = 1; i <= 120; i++) outs.push(parseOut(runHook(briefCall('brief-60'), { home })));
+  for (let i = 1; i <= 90; i++) outs.push(parseOut(runHook(briefCall('brief-60'), { home })));
   expect(outs.slice(0, 59).every((out) => out === null), `rounds 1-59 of a 60-round brief must be silent, got ${JSON.stringify(outs.slice(0, 59).find((o) => o !== null))}`);
   const warn60 = contextOf(outs[59]);
-  expect(typeof warn60 === 'string' && warn60.includes('60 tool rounds used against a brief-bound 60-round budget') && warn60.includes('from call 120'),
-    `a 60-round brief must warn at 60 and name stop call 120, got ${warn60}`);
+  expect(typeof warn60 === 'string' && warn60.includes('60 tool rounds used against a brief-bound 60-round budget') && warn60.includes('from call 90'),
+    `a 60-round brief must warn at 60 and name stop call 90, got ${warn60}`);
   expect(typeof warn60 === 'string' && !warn60.includes('If your brief names a larger budget'), 'a brief-bound warning must not invite a larger brief budget');
-  expect(outs.slice(0, 119).every((out) => out?.hookSpecificOutput?.permissionDecision !== 'deny'), 'no call before 120 may deny under a 60-round brief');
-  expect(/120 tool rounds used, 2 times the 60-round budget/.test(reasonOf(outs[119]) ?? ''), `call 120 must deny, got ${JSON.stringify(outs[119])}`);
+  expect(outs.slice(0, 89).every((out) => out?.hookSpecificOutput?.permissionDecision !== 'deny'), 'no call before 90 may deny under a 60-round brief');
+  expect(/90 tool rounds used, the hard stop at 1\.5 times the 60-round budget/.test(reasonOf(outs[89]) ?? ''), `call 90 must deny, got ${JSON.stringify(outs[89])}`);
   expect(contextOf(outs[79])?.includes('80 tool rounds used against a brief-bound 60-round budget'),
     `a 60-round brief warns again at 80 rather than stopping there, got ${JSON.stringify(outs[79])}`);
-  console.log('ok   a 60-round brief warns at 60 and stops at 120, not at the 40-round default');
+  console.log('ok   a 60-round brief warns at 60 and stops at 90, not at the 40-round default');
 
   // Above the maximum: clamped to 120, with one advisory on the first call only.
   writeBrief('brief-500', 'Scope: x\nRound budget: 500 rounds\n');

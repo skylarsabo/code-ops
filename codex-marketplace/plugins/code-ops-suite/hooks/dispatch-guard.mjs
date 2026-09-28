@@ -19,7 +19,8 @@
 //      The hook warns at that unit's bound budget and denies after a two-call checkpoint
 //      allowance. `receipt --agent-id <id>` emits only allowlisted local measurements.
 //   2. LEGACY ROUND COUNTER, inside every other subagent (`agent_id` present). It keeps the
-//      warning cadence and stops at twice the budget, the safe fallback when exact controller
+//      warning cadence and stops at 1.5 times the budget, rounded down (`stopCall`), the safe
+//      fallback when exact controller
 //      registration is unavailable. A bound allowance never extends it. The budget is the
 //      `Round budget: <n>` line of the subagent's own brief, the first user entry of its host
 //      transcript, which the lead wrote. The hook reads that entry once per agent, on its first
@@ -67,8 +68,8 @@
 // stays role-blind: the audits above measure overruns, not a per-role need for more rounds, and
 // `register --budget` and the brief's own Round budget line already bind a larger budget for one
 // unit. MAX_BRIEF_BUDGET is 120: the largest measured spend is the reviewers' mean of about 90
-// rounds, so a 120-round warning covers it with a third to spare, and the 240-call stop still
-// bounds a runaway brief at six times the default.
+// rounds, so a 120-round warning covers it with a third to spare, and the 180-call stop still
+// bounds a runaway brief at four and a half times the default.
 //
 // SWITCHES. `CODE_OPS_ROUND_BUDGET` overrides the 40-round default (a positive integer only).
 // A readable brief budget overrides both; a controller binding overrides the brief.
@@ -153,7 +154,7 @@ import { agentFile } from './agent-file.mjs';
 
 const DEFAULT_BUDGET = 40;
 const WARN_EVERY = 20;
-const STOP_MULTIPLE = 2;
+const STOP_MULTIPLE = 1.5;
 const DEFAULT_CHECKPOINT_ALLOWANCE = 2;
 const MAX_CHECKPOINT_ALLOWANCE = 4;
 const MAX_BRIEF_BUDGET = 120;
@@ -184,6 +185,10 @@ const BOUND_FAILURE_FIX = `Make no further edits. Return your report now with th
   + 'The controller then re-dispatches the unit under a new agent identity and, before its first tool call, '
   + `binds it from the project root: \`node "${HOOK_PATH}" register --agent-id <new agent id> --budget <rounds>\`.`;
 
+// The first denied call for an unbound budget: STOP_MULTIPLE times it, rounded down so a
+// fractional product never moves the stop later, and at least one call past the budget so the
+// budget-round checkpoint line always lands before the stop.
+const stopCall = (budget) => Math.max(budget + 1, Math.floor(budget * STOP_MULTIPLE));
 const stateKey = (value) => createHash('sha256').update(String(value)).digest('hex');
 const legacySlug = (value) => String(value).replace(/[^A-Za-z0-9]/g, '-');
 
@@ -289,7 +294,7 @@ function observedCalls(cwd, agentId) {
 }
 
 function boundLimits(binding, fallbackBudget) {
-  const legacyPermitted = fallbackBudget * STOP_MULTIPLE - 1;
+  const legacyPermitted = stopCall(fallbackBudget) - 1;
   const allowance = Math.min(binding.allowance, Math.max(1, legacyPermitted - 1));
   const effectiveBudget = Math.min(binding.budget, legacyPermitted - allowance);
   return { allowance, effectiveBudget, permitted: effectiveBudget + allowance };
@@ -443,7 +448,7 @@ function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
       + `${MAX_BRIEF_BUDGET}; the guard uses the ${fallbackBudget}-round default.`
     : '';
 
-  const legacyCap = unboundBudget * STOP_MULTIPLE;
+  const legacyCap = stopCall(unboundBudget);
   const exceedsBoundAllowance = bound && used > limits.permitted;
   if (hardStop && (exceedsBoundAllowance || (!bound && used >= legacyCap))) {
     emit({ hookSpecificOutput: {
@@ -452,7 +457,7 @@ function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
       permissionDecisionReason: (bound
         ? `Dispatch guard: ${used} attempted tool calls used after the ${limits.allowance}-call checkpoint `
           + `allowance following the controller-bound ${budget}-round budget. `
-        : `Dispatch guard: ${used} tool rounds used, ${STOP_MULTIPLE} times the ${budget}-round budget. `)
+        : `Dispatch guard: ${used} tool rounds used, the hard stop at ${STOP_MULTIPLE} times the ${budget}-round budget, rounded down. `)
         + `Make no further edits. Return your report now with the checkpoint: ${CHECKPOINT}.`,
     } });
     return;
@@ -606,7 +611,7 @@ function reviewDispatch(tool, input, budget, denials, advisories) {
   const deniedBudget = missing.some((field) => /^round budget$/i.test(field));
   if (typeof input.prompt === 'string' && !deniedBudget && !/round budget/i.test(input.prompt)) {
     advisories.push(`No Round budget in the brief; the guard warns at ${budget} rounds, `
-      + `stops at ${budget * STOP_MULTIPLE}.`);
+      + `stops at ${stopCall(budget)}.`);
   }
   return missing.map((field) => `${field}:`);
 }

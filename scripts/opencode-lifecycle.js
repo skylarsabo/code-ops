@@ -2,7 +2,8 @@
 //
 // OpenCode ports of the lifecycle mechanisms the host events can carry:
 // ladder card, session receipt, handoff assess/nudge/pickup,
-// dispatch guard (subagent round stop at twice the budget), context-ceiling
+// dispatch guard (subagent round stop at 1.5 times the budget, rounded down, and at
+// least one call past it), context-ceiling
 // dispatch gate on the lead, Task-tool suite allowlist, compact checkpoint,
 // and chooser-aware cheapest-at-floor agent bindings.
 //
@@ -35,7 +36,11 @@ const INLINE_BAND = 120_000;
 const REPORT_CHARS = 16_000;
 const DEFAULT_BUDGET = 40;
 const WARN_EVERY = 20;
-const STOP_MULTIPLE = 2;
+const STOP_MULTIPLE = 1.5;
+// The first denied call: STOP_MULTIPLE times the budget, rounded down so a fractional
+// product never moves the stop later, and at least one call past the budget so the
+// budget-round checkpoint line always lands before the stop.
+const stopCall = (budget) => Math.max(budget + 1, Math.floor(budget * STOP_MULTIPLE));
 // Past this context size the lead must run the handoff assessment before it
 // dispatches new work. Each later THRESHOLD-sized band gates again. Grok
 // prices double above 200,000 tokens, so a session on a Grok model gates there.
@@ -1287,7 +1292,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
             clauses.push('A model override replaces the agent\'s declared tier; verify task rationale and tier floor.');
           }
           if (!/round budget/i.test(dispatchPrompt(args))) {
-            clauses.push(`No Round budget in the brief; the guard warns at ${budget} rounds, stops at ${budget * STOP_MULTIPLE}.`);
+            clauses.push(`No Round budget in the brief; the guard warns at ${budget} rounds, stops at ${stopCall(budget)}.`);
           }
           if (clauses.length) queueNote(row, `Dispatch guard: ${clauses.join(' ')}`);
           return;
@@ -1295,9 +1300,9 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         if (!isSubagent(row)) return;
         let used;
         try { used = countRound(counterPath(row.cwd, row.id)); } catch { return; }
-        if (hardStop() && used >= budget * STOP_MULTIPLE) {
+        if (hardStop() && used >= stopCall(budget)) {
           throw new Error(
-            `Dispatch guard: ${used} tool rounds used, ${STOP_MULTIPLE === 2 ? 'twice' : `${STOP_MULTIPLE} times`} the ${budget}-round budget. Return your report now: what is done with file:line evidence, what remains, the exact next action, and any uncommitted state.`,
+            `Dispatch guard: ${used} tool rounds used, the hard stop at ${STOP_MULTIPLE} times the ${budget}-round budget, rounded down. Return your report now: what is done with file:line evidence, what remains, the exact next action, and any uncommitted state.`,
           );
         }
         if (used === budget || (used > budget && (used - budget) % WARN_EVERY === 0)) {

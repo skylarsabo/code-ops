@@ -50,17 +50,18 @@ name on a fresh session, and treats that session as new work unless the operator
 (plugins/code-ops-suite/hooks/routing-card.mjs:171). Outside Claude Code, a live host payload also gets a line naming the operator's shell, and on Windows a quoting-trap line follows (plugins/code-ops-suite/hooks/routing-card.mjs:151). `dispatch-guard.mjs` runs at `PreToolUse` on every thread: inside a subagent it counts
 attempted tool calls against an explicit host-agent binding or, when no binding exists, the
 `Round budget:` line of the subagent's own brief, read once from its transcript and clamped to
-120, else the environment/default budget. It stops the unbound counter at twice the budget, and
+120, else the environment/default budget. It stops the unbound counter at 1.5 times the budget,
+rounded down and at least one call past it, so the default 40 warns at 40 and stops at 60, and
 its warning and stop both ask for a checkpoint written to the brief's report path
-(plugins/code-ops-suite/hooks/dispatch-guard.mjs:159, plugins/code-ops-suite/hooks/dispatch-guard.mjs:168). On the lead's
+(plugins/code-ops-suite/hooks/dispatch-guard.mjs:160, plugins/code-ops-suite/hooks/dispatch-guard.mjs:169). On the lead's
 own dispatch (Claude's `Agent`, `Task`, or `Workflow`, or Grok's `spawn_subagent`) it denies a wide-surface or unnamed agent type whose brief has no `Wide-surface
 reason:` line, denies a suite-agent dispatch whose brief lacks a field the target agent's
 `## Contract` lists on its `Brief requires:` line, and denies new dispatches past the context
-ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:614). The field denial names `co brief <agent>`, which prints the full brief template, and ends with one `Label:` line per missing field, ready to paste (plugins/code-ops-suite/hooks/dispatch-guard.mjs:611).
+ceiling until a handoff assessment records the band (plugins/code-ops-suite/hooks/dispatch-guard.mjs:13, plugins/code-ops-suite/hooks/dispatch-guard.mjs:619). The field denial names `co brief <agent>`, which prints the full brief template, and ends with one `Label:` line per missing field, ready to paste (plugins/code-ops-suite/hooks/dispatch-guard.mjs:616).
 `peer-guard.mjs` also runs at `PreToolUse`. It denies a `SendMessage` or desktop `send_message`
 call to a peer session whose run folder holds `HANDOFF.md` or `HANDOFF.consumed`, and names the
 live successor to resend to (plugins/code-ops-suite/hooks/peer-guard.mjs:17).
-The guard's deny text names `web-researcher` and `probe` beside the build and review agents (plugins/code-ops-suite/hooks/dispatch-guard.mjs:596). They exist because a `Wide-surface reason:` line was otherwise the only route to public web docs, which `gatherer` never fetches, and to read-only shell probes, which `explorer` cannot run. Their safety rests on prose, not a tool gate: `probe` holds a full `Bash` and is told never to mutate (plugins/code-ops-suite/agents/probe.md:13), and `web-researcher` treats every fetched page as untrusted data (plugins/code-ops-suite/agents/web-researcher.md:14).
+The guard's deny text names `web-researcher` and `probe` beside the build and review agents (plugins/code-ops-suite/hooks/dispatch-guard.mjs:601). They exist because a `Wide-surface reason:` line was otherwise the only route to public web docs, which `gatherer` never fetches, and to read-only shell probes, which `explorer` cannot run. Their safety rests on prose, not a tool gate: `probe` holds a full `Bash` and is told never to mutate (plugins/code-ops-suite/agents/probe.md:13), and `web-researcher` treats every fetched page as untrusted data (plugins/code-ops-suite/agents/web-researcher.md:14).
 `session-receipt.mjs`
 runs at `SessionEnd`, prints nothing to the model, and appends one normalized local row on
 Claude, Codex, and installed Grok 1.0.13. Claude reads nested subagent transcripts, Codex
@@ -76,7 +77,7 @@ instruction that names the session and its own run folder when a session record 
 (plugins/code-ops-suite/hooks/routing-card.mjs:165). Grok ignores passive routing and ladder stdout, so paired instruction files carry
 that doctrine. OpenCode uses its native compaction port.
 
-`local-review-gate` is opt-in. `ship` and `pr-split` run the deterministic chain and the lead's diff read on every change and start the model gates only on an operator yes recorded at the checkpoint; the conventions carry the rule as a safety rail.
+`local-review-gate` is opt-in. `ship` and `pr-split` run the deterministic chain and the lead's diff read on every change and start the model gates only on an operator yes recorded at the checkpoint; the conventions carry the rule as a safety rail. `ship` syncs before the push: fetch, rebase onto the upstream base, then push, with one more round after a non-fast-forward rejection. A second rejection or a rebase conflict stops the ship, it never force-pushes, and a rebase that moves HEAD re-runs the gates before the push (plugins/code-ops-suite/skills/ship/SKILL.md:93, plugins/code-ops-suite/skills/ship/SKILL.md:97).
 
 `digest-rewrite.mjs` is on by default and off per user or repository. It runs as a second
 `PreToolUse` stage behind the traceless gate and rewrites an allowlisted simple command through

@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.12.0
+- The ship skill syncs before it pushes: fetch, rebase onto the upstream base, and push, with one retry on a non-fast-forward rejection. A rebase conflict or a second rejection stops the ship, and it never force-pushes. A rebase that moves HEAD re-runs the gates before the push.
+- The dispatch guard and the OpenCode lifecycle plugin stop a subagent at 1.5 times its round budget, rounded down and at least one call past it, instead of twice the budget. The checkpoint warning still arrives at the budget.
+
 ## 2.11.1
 - `co handoff draft` records a sha256 prefix for each dirty path, and `check-handoff.mjs` reports `same-tree:` only when every recorded path still matches its hash. A dirty record without hashes never reports same-tree, so an older handoff re-verifies.
 - Both `git status` calls pass `--untracked-files=all` again, so a file added inside an untracked folder counts as a change. `SCOPE_DIGESTS.md` beside the handoff is left out of the comparison.

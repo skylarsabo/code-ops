@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
-      "verifiedDigest": "e6c7ade279401b633be5e1d2e1188c79806d7c6a1fd4e0e2afe43f19849d91b6",
+      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
+      "verifiedDigest": "d85ee17c7eca79bc8040f761237084b0a627eed87682f82fa735a7d9ab83b2e2",
       "claims": [
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -33,12 +33,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 159,
+          "line": 160,
           "anchor": "const MAX_BRIEF_BUDGET = 120;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 168,
+          "line": 169,
           "anchor": "const CHECKPOINT = 'done items with file:line evidence, each dirty (uncommitted)"
         },
         {
@@ -48,12 +48,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 614,
+          "line": 619,
           "anchor": "// Behaviours 3 and 4: the main thread. A handoff Skill call records the assessm"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 611,
+          "line": 616,
           "anchor": "return missing.map((field) =>"
         },
         {
@@ -63,7 +63,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 596,
+          "line": 601,
           "anchor": "+ 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher"
         },
         {
@@ -80,6 +80,16 @@
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 165,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
+          "line": 93,
+          "anchor": "Sync before the push. Run"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
+          "line": 97,
+          "anchor": "Never force-push. A rebase that moves HEAD voids the local receipts, so rerun th"
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
@@ -105,8 +115,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
-      "verifiedDigest": "a2b7abc7b62b7dc405a52367f6e0c1ec6de33bd71988ee5e95878ff03f55a9aa",
+      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
+      "verifiedDigest": "5e123dea7ec433cf517e715791c9ce4732c772ab3364af42a4bb14947b736373",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -211,8 +221,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
-      "verifiedDigest": "f6805b314affffe7d4d06f012e49d019038e45d05fe1415b593a8dd197f7e4b4",
+      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
+      "verifiedDigest": "d3e008449d4f3df7c24ed83683940fc4b9ab3c95ef68604538260241fa4fcf7f",
       "claims": [
         {
           "file": "evals/codex-marketplace/run.mjs",
@@ -269,8 +279,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
-      "verifiedDigest": "7e81cc135c3445a1fcfa7c5f7796bcaa88257da47af686edb7a8e6d57e93481f",
+      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
+      "verifiedDigest": "854791cbdfc09b808ad2e7f0e9f6bd6b79c5c5681b163d6ee4b264788d1ee673",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -344,8 +354,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "c149c936cfa296ebbc97088752d7be4c2dab58ea",
-      "verifiedDigest": "64fe70b2bd1eb71f80f66fa06fc993933e94ce332db63514046d6a61ba65900c",
+      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
+      "verifiedDigest": "7cda58e4f67f844e2ff3206ab90a1b9aacae03ae874dd93be16d2286f48f66dc",
       "claims": [
         {
           "file": "scripts/check-vault-standard.mjs",
@@ -397,8 +407,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "b9938182efddf4cc00f5cf6c0b67639b6816bb02",
-      "verifiedDigest": "b462834c49426a8465f83456358ac93a5dfb89b1861b08dec1cf2404e48bf4f1"
+      "verifiedAt": "77f0ad9baf0c9b6ece018f1458531512e5bf94a1",
+      "verifiedDigest": "e9055e752d6862cfa1c5d4c61ff5ea62b308e92b0666011a48413427e66ddc58"
     },
     {
       "slug": "runtime-toolchain",
