@@ -560,6 +560,30 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   console.log('ok   concurrent registered workers stay isolated and their allowance cannot extend the legacy cap');
 }
 
+// ---------------------------------------------------------------- a capped bound budget is reported, never silent
+
+{
+  const { home, cleanup } = fakeHome();
+  const cwd = root;
+  // The 40-round default stops at call 60, so a 90-round registration warns at 57 and denies from 60.
+  const capped = runControl(['register', '--agent-id', 'capped-90', '--budget', '90'], { home, cwd });
+  expect(capped.status === 0 && capped.stdout === ''
+    && /^dispatch-guard CAPPED: the 90-round budget exceeds the 60-call stop of the 40-round default, so the hook warns at 57 and denies from call 60\./.test(capped.stderr),
+    `a bound budget above the unregistered stop must report the cap on stderr, got ${capped.status}/${capped.stdout}/${capped.stderr}`);
+  const inside = runControl(['register', '--agent-id', 'inside-40', '--budget', '40'], { home, cwd });
+  expect(inside.status === 0 && inside.stdout === '' && inside.stderr === '', `a bound budget inside the stop must register silently, got ${inside.status}/${inside.stderr}`);
+  // A fallback of 4 stops at call 6, so a 10-round registration warns at 3 and names both budgets.
+  runControl(['register', '--agent-id', 'capped-10', '--budget', '10'], { home, budget: 4, cwd });
+  const calls = [];
+  for (let i = 0; i < 6; i++) calls.push(parseOut(runHook(subagentCall('capped-10', { cwd }), { home, budget: 4 })));
+  const warning = contextOf(calls[2]) ?? '';
+  expect(calls[0] === null && calls[1] === null && /controller-bound 3-round budget \(registered 10, capped by the 4-round default's stop\)/.test(warning)
+    && warning.includes('from call 6'), `a capped binding must warn at its effective budget and name the registered one, got ${JSON.stringify(calls.slice(0, 3))}`);
+  expect(calls[5]?.hookSpecificOutput?.permissionDecision === 'deny', `a capped binding must still deny at the unregistered stop, got ${JSON.stringify(calls[5])}`);
+  cleanup();
+  console.log('ok   a bound budget above the unregistered stop is capped and reported at register and at the warning');
+}
+
 // ---------------------------------------------------------------- registered counter I/O fails closed
 
 {

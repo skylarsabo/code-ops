@@ -39,8 +39,9 @@ at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and a
 assess CONTINUE, COMPACT, or HANDOFF at each 150,000-token band; it does not execute a transition
 or prove that the host displayed the advice (plugins/code-ops-suite/hooks/handoff-card.mjs:4,
 plugins/code-ops-suite/hooks/handoff-card.mjs:219). The card fires once more at the handoff
-point, 225,000 tokens or 200,000 on Grok, and says to hand off at the next phase boundary. When
-no operator prompt arrived since the last card, it says to write the handoff instead. A
+point, 225,000 tokens or 200,000 on Grok, and says to hand off at the next phase boundary. On
+Grok only, when no operator prompt arrived since the last card, it says to write the handoff
+instead, because elsewhere each card follows a prompt (plugins/code-ops-suite/hooks/handoff-card.mjs:213). A
 `Continue-until:` bound in the run log holds the card until the bound passes. Grok discards
 UserPromptSubmit stdout, so its UserPromptSubmit call only counts the operator prompt, and it
 receives the note as PostToolUse additionalContext. At or above the context ceiling, the

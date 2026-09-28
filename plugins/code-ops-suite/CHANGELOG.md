@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.12.1
+- The handoff card gives the write-the-handoff advice for an autonomous session only on Grok, where prompts are counted apart from cards. Where the card runs at prompt submit, each card follows an operator prompt, so two cards in a row no longer claim that no prompt arrived.
+- The ship skill rebases onto the base only before the first push. A published branch merges the base in instead, and a non-fast-forward rejection fetches, merges the remote branch and the base, and pushes once more. It still never force-pushes.
+- `dispatch-guard.mjs register` prints a `dispatch-guard CAPPED:` line on stderr when a bound budget exceeds the default budget's stop, naming where the hook will warn and deny. The bound warning names both budgets.
+- The dispatch-guard eval notes and CONTRACTS.md state the 1.5 times stop, the register cap, and that derived paths match same-tree by count only.
+
 ## 2.12.0
 - The ship skill syncs before it pushes: fetch, rebase onto the upstream base, and push, with one retry on a non-fast-forward rejection. A rebase conflict or a second rejection stops the ship, and it never force-pushes. A rebase that moves HEAD re-runs the gates before the push.
 - The dispatch guard and the OpenCode lifecycle plugin stop a subagent at 1.5 times its round budget, rounded down and at least one call past it, instead of twice the budget. The checkpoint warning still arrives at the budget.

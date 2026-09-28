@@ -79,8 +79,10 @@ double above it: assess at 150,000, and hand off by 200,000.
 
 An assessment that returns CONTINUE past the handoff point records a `Continue-until:` bound in
 the run log, as `Continue-until: <N> tokens` or `Continue-until: <N> turns`. The latest such line
-wins, and a malformed one sets no bound. The handoff card fires again past that bound. When no operator prompt has arrived since the last card, the session runs autonomously.
-There the card says to write the handoff at the next phase boundary, not to assess again.
+wins, and a malformed one sets no bound. The handoff card fires again past that bound. On Grok,
+where the card runs after tool calls, a session with no operator prompt since the last card runs
+autonomously. There the card says to write the handoff at the next phase boundary, not to assess
+again. Where the card runs at prompt submit, each card follows a prompt, so it never says this.
 
 For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF. Resume and fork
 carry history; neither is a fresh context reset. A saved handoff is evidence, never a new

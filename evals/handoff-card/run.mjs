@@ -24,7 +24,7 @@
 //     ends with one sentence saying new dispatches are gated; off drops only that sentence, an
 //     override moves it, an invalid value falls back to 300,000, and Grok gets it from 200,000;
 //   - the card fires once more at the 225,000-token handoff point (200,000 on Grok) and says to
-//     hand off; with no operator prompt since the last card it says to write the handoff instead;
+//     hand off; on Grok, with no operator prompt since the last card, it says to write the handoff;
 //   - a Continue-until bound (tokens or turns) in the run's RUN_LOG.md holds the card until it
 //     passes, then the card fires once; a malformed bound sets none, and off still silences.
 //
@@ -322,7 +322,7 @@ function parseOut(r) {
 
 // ---------------------------------------------------------------- handoff point and Continue-until
 // The card fires once more at the 225,000-token handoff point (200,000 on Grok) and says to hand
-// off. With no operator prompt since the last card it says to write the handoff instead. A
+// off. On Grok, with no operator prompt since the last card, it says to write the handoff. A
 // Continue-until bound in the run log holds the card until the bound passes; a malformed bound
 // sets none.
 
@@ -340,17 +340,18 @@ function parseOut(r) {
   expect(!/handoff point/.test(message(at(220_000, 'sess-point-under'))), 'a band-1 card under 225,000 must keep the plain assessment wording');
   expect(message(at(226_000, 'sess-point-fresh')) === '', 'the handoff-point card must fire once per arm');
 
-  // Autonomous: a band-1 card, then no prompt until the point.
-  at(160_000, 'sess-auto');
-  const auto = message(at(230_000, 'sess-auto'));
-  expect(autonomousText.test(auto) && !/handoff assess/.test(auto), `no prompt since the last card must say to write the handoff, got ${auto}`);
-  // Operator-prompted: a silent prompt between the two cards.
+  // Claude and Codex: every card fires on an operator prompt, so two consecutive band-crossing
+  // prompts never claim that no prompt arrived.
+  at(160_000, 'sess-consecutive');
+  const consecutive = message(at(230_000, 'sess-consecutive'));
+  expect(handOff.test(consecutive) && !autonomousText.test(consecutive), `two consecutive card prompts must keep the assess-and-hand-off wording, got ${consecutive}`);
+  // A silent prompt between the two cards.
   at(160_000, 'sess-prompted');
   expect(at(170_000, 'sess-prompted').stdout === '', 'a same-band prompt stays silent');
   const prompted = message(at(230_000, 'sess-prompted'));
   expect(handOff.test(prompted) && !autonomousText.test(prompted), `a prompt since the last card must keep the assess-and-hand-off wording, got ${prompted}`);
   const band2 = message(at(310_000, 'sess-prompted'));
-  expect(autonomousText.test(band2), `band 2 right after the point card, with no prompt between, must say to write the handoff, got ${band2}`);
+  expect(/Past the 225,000-token handoff point, hand off at the next phase boundary/.test(band2) && !autonomousText.test(band2), `band 2 right after the point card on a prompt-driven host must keep the band-2 handoff wording, got ${band2}`);
 
   // Grok: the point is 200,000, and its silent UserPromptSubmit call records the prompt.
   const grokAt = (context, sessionId, eventName = 'PostToolUse') => runHook(payloadFor({ transcript: writeTranscript(project, grokUsageLine(context), `${sessionId}-updates.jsonl`), sessionId, cwd: project, eventName }), { home, grok: true });
@@ -358,6 +359,10 @@ function parseOut(r) {
   expect(grokAt(170_000, 'sess-grok-point', 'UserPromptSubmit').stdout === '', 'Grok UserPromptSubmit stays silent while it records the prompt');
   const grokPoint = message(grokAt(205_000, 'sess-grok-point'));
   expect(/past the 200,000-token handoff point\. At the next phase boundary/.test(grokPoint) && !autonomousText.test(grokPoint), `Grok past 200,000 with a prompt between must get the prompted handoff wording, got ${grokPoint}`);
+  // Grok autonomous: a band-1 card, then tool calls with no prompt until the point.
+  grokAt(160_000, 'sess-grok-auto');
+  const grokAuto = message(grokAt(205_000, 'sess-grok-auto'));
+  expect(autonomousText.test(grokAuto) && !/handoff assess/.test(grokAuto), `Grok with no prompt since the last card must say to write the handoff, got ${grokAuto}`);
 
   // Continue-until: the session record names the run folder, whose RUN_LOG.md holds the bound.
   const runDir = join(project, 'run');
@@ -400,7 +405,7 @@ function parseOut(r) {
 
   rmSync(project, { recursive: true, force: true });
   cleanup();
-  console.log('ok   the handoff point says to hand off, autonomous sessions are told to write it, and Continue-until holds the card until its bound');
+  console.log('ok   the handoff point says to hand off, autonomous Grok sessions are told to write it, and Continue-until holds the card until its bound');
 }
 
 // ---------------------------------------------------------------- the off switch

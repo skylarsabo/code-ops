@@ -66,8 +66,8 @@
 // partial, the exact next edit, gates run) before the stop, and the stop asks for it in the final
 // report, so a runaway still stops but never leaves unrecorded half-applied work. The default
 // stays role-blind: the audits above measure overruns, not a per-role need for more rounds, and
-// `register --budget` and the brief's own Round budget line already bind a larger budget for one
-// unit. MAX_BRIEF_BUDGET is 120: the largest measured spend is the reviewers' mean of about 90
+// the brief's own Round budget line already binds a larger budget for one unit. `register --budget`
+// binds one only inside the unregistered stop, and says so on stderr when it caps. MAX_BRIEF_BUDGET is 120: the largest measured spend is the reviewers' mean of about 90
 // rounds, so a 120-round warning covers it with a third to spare, and the 180-call stop still
 // bounds a runaway brief at four and a half times the default.
 //
@@ -472,6 +472,7 @@ function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
     hookEventName: 'PreToolUse',
     additionalContext: (note ? `${note} ` : '')
       + `Dispatch guard: ${used} tool rounds used against ${bound ? 'a controller-bound' : briefBound ? 'a brief-bound' : 'a'} ${budget}-round budget`
+      + (bound && binding.budget > budget ? ` (registered ${binding.budget}, capped by the ${fallbackBudget}-round default's stop)` : '')
       + (hardStop ? `; the hard stop denies every tool call from call ${stopAt}. ` : '. ')
       + 'Start no new edit. Finish or revert the partial edit to reach a consistent state, then write a '
       + `checkpoint to the brief's Report path (or the run folder): ${CHECKPOINT}. `
@@ -542,7 +543,17 @@ function command() {
     const allowance = cliAllowance(args);
     if (!budget || !allowance) return cliFailure('INVALID_ARGUMENT');
     const status = registerBinding(cwd, agentId, budget, allowance);
-    return status === 'BOUND' ? true : cliFailure(status);
+    if (status !== 'BOUND') return cliFailure(status);
+    // The binding stays inside the unregistered stop, so a larger budget is capped. Say so now,
+    // under this environment's CODE_OPS_ROUND_BUDGET, rather than at the first warning.
+    const fallback = roundBudget();
+    const limits = boundLimits({ budget, allowance }, fallback);
+    if (limits.effectiveBudget < budget) {
+      writeSync(2, `dispatch-guard CAPPED: the ${budget}-round budget exceeds the ${stopCall(fallback)}-call stop of the `
+        + `${fallback}-round default, so the hook warns at ${limits.effectiveBudget} and denies from call `
+        + `${limits.permitted + 1}. Raise CODE_OPS_ROUND_BUDGET in the hook environment to keep the larger budget.\n`);
+    }
+    return true;
   }
   if (verb === 'receipt' || verb === 'read') {
     receipt(cwd, agentId);

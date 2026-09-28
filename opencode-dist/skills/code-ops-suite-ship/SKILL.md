@@ -95,12 +95,15 @@ passes fail-closed before push. When `privacy-opsec-suite` is not installed, run
 `<plugin-root>/scripts/co.mjs scan ai-tells` over the commit and PR text directly as the
 gate.
 
-Sync before the push. Run `git fetch` for the base remote, then `git rebase` onto the upstream
-base branch, then `git push`. When the push fails with a non-fast-forward rejection, run the
-fetch, rebase, and push once more. A second rejection stops the ship and goes to the operator.
-A rebase conflict also stops the ship: run `git rebase --abort` and report the conflicting paths.
-Never force-push. A rebase that moves HEAD voids the local receipts, so rerun the deterministic
-gate chain, and the model gates when they ran, before that push. Publish the local receipt
+Sync before the push. Run `git fetch` for the base remote. Before the branch's first push, run
+`git rebase` onto the upstream base branch, then `git push`. Once the branch is published,
+never rebase it: run `git merge` of the upstream base branch instead, then `git push`. When the
+push fails with a non-fast-forward rejection, run `git fetch`, merge the remote feature branch
+and then the upstream base branch, and push once more. A second rejection stops the ship and
+goes to the operator. A conflict also stops the ship: run `git rebase --abort` or
+`git merge --abort` and report the conflicting paths. Never force-push. A rebase or merge that
+moves HEAD voids the local receipts, so rerun the deterministic gate chain, and the model gates
+when they ran, before that push. Publish the local receipt
 statuses for the pushed SHA when the gates ran, and only then open the PR. Hosted CI runs deterministic checks only, and is the required merge
 gate. **Never auto-merge.**
 
