@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.3
+- Vendored `co.mjs` adds the `docs gate` verb.
+
 ## 0.16.2
 - Vendored `co.mjs` adds the `decide promote` and `program close` verbs.
 

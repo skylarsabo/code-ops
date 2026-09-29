@@ -2,7 +2,9 @@
 // Vault conformance checker for the code-ops suite — the per-repo Obsidian vault standard
 // (code-ops-docs/40 Engineering/Techniques/vault-standard.md). Runs against a vault directory in any repo.
 //
-//   node scripts/check-vault-standard.mjs <vault-dir>
+//   node scripts/check-vault-standard.mjs <vault-dir>                check (default)
+//   node scripts/check-vault-standard.mjs <vault-dir> --render       write the generated surfaces
+//   node scripts/check-vault-standard.mjs <vault-dir> --stamp <page> record a page's sourceDigest
 //
 // WHY: the standard's value is that an agent dropped into any repo can predict where a note
 // lives and what its frontmatter says, without reading the vault first. That prediction is only
@@ -52,10 +54,33 @@
 // The declaration therefore lives in the same prose a human reads, rather than in a second list
 // that drifts from it.
 //
-// Exit: 0 conformant (one-line OK); 1 at least one violation; 2 usage error.
+// DRAFT RULES (manifest v3 only). They apply only when DOCS_MANIFEST.json is version 3, so a
+// version 1 or 2 vault sees no new failure from an upgrade until it opts in. Design:
+// code-ops-docs/10 Design/Program state handoffs and coordination 2026-09.md, W4.
+//  11. `status` must come from `drafts.statuses`. The manifest list replaces the built-in and
+//      prose vocabulary, so it is the one place a status is declared.
+//  12. `superseded` needs a `superseded-by` frontmatter link (`[[Note]]`, or a vault path) that
+//      resolves to another note in the vault.
+//  13. A `draft` whose first 30 lines carry an uppercase PROMOTED or SUPERSEDED marker fails: the
+//      note already left the draft state and its status must say so.
+//  14. `10 Design/INDEX.md` and `98 System/TRIAGE.md` are generated. Check mode fails when either
+//      is missing or differs from what --render would write. Triage items are a `draft` older than
+//      `drafts.maxAgeDays` (by `updated`) with no `next:` line, and a `type: synthesis` note with
+//      no `sources:` and no update within `drafts.maxAgeDays`. An item stays listed until its
+//      cause clears and keeps the date it first entered the queue. Triage is a queue, never a
+//      failure by itself.
+//  15. A note that declares `sources:` (globs, as a flow list, a comma list, or a block list) fails
+//      when the files those globs match no longer hash to its `sourceDigest:` frontmatter value.
+//      The digest is docs-manifest.mjs's own (matchSources + hashPaths), taken over the git file
+//      list of the repository holding the vault, excluding the page itself. `--stamp <page>`
+//      records the current digest. The page's frontmatter is the only place the digest lives.
+//
+// Exit: 0 conformant (one-line OK), rendered, or stamped; 1 at least one violation or a failed
+// render/stamp; 2 usage error. --render on a vault whose manifest is not version 3 writes nothing
+// and exits 0.
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { resolve, join, basename } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { resolve, join, basename, dirname } from 'node:path';
 import { git } from './cli-lib.mjs';
 
 const MACHINERY = ['00 Inbox', '80 Runs', '90 Templates', '95 Attachments', '98 System', '99 Archive'];
@@ -99,26 +124,34 @@ const fail = (m) => violations.push(m);
 const warn = (m) => warnings.push(m);
 
 function usage() {
-  console.error('usage: check-vault-standard.mjs <vault-dir>');
+  console.error('usage: check-vault-standard.mjs <vault-dir> [--render | --stamp <page>]');
   process.exit(2);
 }
 
 // Minimal YAML front-matter reader: the leading `---` block, `key: value` at top level only.
 // Deliberately not a YAML parser — the four fields this checker rules on are all scalars, and a
 // dependency-free repo may not grow one for a conformance check.
+const LISTS = Symbol('block lists');
 function frontmatter(text) {
   const body = text.replace(/^﻿/, '');
   if (!/^---\r?\n/.test(body)) return null;
   const end = body.indexOf('\n---', 4);
   if (end === -1) return null;
   const block = body.slice(4, end);
-  const out = {};
+  const out = { [LISTS]: {} };
+  let last = null;
   for (const raw of block.split('\n')) {
     const line = raw.replace(/\r$/, '');
     if (line.trim() === '' || line.startsWith('#')) continue;
-    if (/^\s/.test(line)) continue; // nested list item or block scalar — not a top-level key
+    if (/^\s/.test(line)) {
+      // A block-list item under an empty key is kept apart from the scalar, so a key written as a
+      // list never satisfies a rule that reads it as a scalar. Other nested lines stay ignored.
+      const item = /^\s+-\s+(.+)$/.exec(line);
+      if (item && last && out[last] === '') (out[LISTS][last] ??= []).push(unquote(item[1].trim()));
+      continue;
+    }
     const m = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
-    if (m) out[m[1]] = unquote(m[2].trim());
+    if (m) { out[m[1]] = unquote(m[2].trim()); last = m[1]; }
   }
   return out;
 }
@@ -189,8 +222,17 @@ function isPublishedManifestTarget(domain) {
 }
 
 const argv = process.argv.slice(2);
-if (argv.length !== 1 || argv[0].startsWith('-')) usage();
-const vault = resolve(argv[0]);
+let mode = 'check';
+let stampPage = null;
+const positional = [];
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--render' && mode === 'check') mode = 'render';
+  else if (argv[i] === '--stamp' && mode === 'check' && i + 1 < argv.length && !argv[i + 1].startsWith('-')) { mode = 'stamp'; stampPage = argv[++i].replaceAll('\\', '/'); }
+  else if (argv[i].startsWith('-')) usage();
+  else positional.push(argv[i]);
+}
+if (positional.length !== 1) usage();
+const vault = resolve(positional[0]);
 if (!existsSync(vault) || !statSync(vault).isDirectory()) {
   console.error(`x not a directory: ${vault}`);
   process.exit(2);
@@ -202,6 +244,7 @@ const generatedRecords = new Set();
 let docsManifestVersion = null;
 // Manifest v3 declares draft statuses in `drafts.statuses`, which replaces the profile prose.
 let manifestStatuses = null;
+let maxAgeDays = null;
 const docsManifestPath = join(vault, '98 System', 'DOCS_MANIFEST.json');
 if (existsSync(docsManifestPath)) {
   try {
@@ -223,6 +266,9 @@ if (existsSync(docsManifestPath)) {
       if (!Array.isArray(listed) || !listed.length || !listed.every((s) => typeof s === 'string' && SLUG_RE.test(s)))
         fail('manifest version 3 has no valid drafts.statuses array');
       else manifestStatuses = listed;
+      const age = docsManifest.drafts?.maxAgeDays;
+      if (!Number.isInteger(age) || age < 1) fail('manifest version 3 has no valid drafts.maxAgeDays positive integer');
+      else maxAgeDays = age;
     }
   } catch (error) { fail(`98 System/DOCS_MANIFEST.json cannot be parsed: ${error.message}`); }
 }
@@ -250,8 +296,17 @@ if (!existsSync(standardPath)) {
     else if (docsManifestVersion === 3 && v < 5)
       fail('Standard.md must claim `standard-version: 5` or newer when DOCS_MANIFEST.json uses version 3');
   }
-  for (const s of manifestStatuses ?? profileStatuses(standardText)) statuses.add(s);
+  if (!manifestStatuses) for (const s of profileStatuses(standardText)) statuses.add(s);
 }
+// Manifest v3 makes drafts.statuses the whole vocabulary (rule 11), not an addition to it.
+if (manifestStatuses) statuses = new Set(manifestStatuses);
+const draftRules = manifestStatuses !== null && maxAgeDays !== null;
+const INDEX_PATH = '10 Design/INDEX.md';
+const TRIAGE_PATH = '98 System/TRIAGE.md';
+// The generated surfaces are exempt from the note rules by exact path, like the generated record
+// indexes, because they carry no note frontmatter. Rule 14 fails either file unless it equals
+// what --render writes, so the exemption cannot hide hand-written content.
+if (draftRules) { generatedRecords.add(INDEX_PATH); generatedRecords.add(TRIAGE_PATH); }
 
 // ---- 2. The two vault-root files ---------------------------------------------------
 for (const f of ['00 Home.md', 'README.md']) {
@@ -293,7 +348,11 @@ if (domains.length === 0)
   fail('no domain folder in the 10-79 band — a vault of machinery alone holds no judgment and nothing routes to it');
 
 // ---- 8-10. Note frontmatter -----------------------------------------------------------
-for (const abs of walkNotes(vault, vault, [])) {
+const walked = walkNotes(vault, vault, []);
+// Every walked note, exempt or not, is a legal `superseded-by` target; only the checked ones carry rules.
+const noteStems = walked.map((abs) => rel(abs).replace(/\.md$/i, ''));
+const checked = [];
+for (const abs of walked) {
   const name = basename(abs);
   const stem = name.slice(0, -3);
   if (abs === standardPath) continue;
@@ -312,9 +371,138 @@ for (const abs of walkNotes(vault, vault, [])) {
   for (const key of ['type', 'status', 'updated'])
     if (!fm[key]) fail(`${rel(abs)}: frontmatter has no \`${key}\``);
   if (fm.status && !statuses.has(fm.status))
-    fail(`${rel(abs)}: status '${fm.status}' is not one of ${[...statuses].join(', ')} — a profile adds a status by declaring it in Standard.md`);
+    fail(`${rel(abs)}: status '${fm.status}' is not one of ${[...statuses].join(', ')} — ${manifestStatuses ? 'a v3 vault declares its statuses in DOCS_MANIFEST.json drafts.statuses' : 'a profile adds a status by declaring it in Standard.md'}`);
   if (fm.updated && !DATE_RE.test(fm.updated))
     fail(`${rel(abs)}: updated '${fm.updated}' is not a YYYY-MM-DD date`);
+  checked.push({ path: notePath, text, fm });
+}
+
+// ---- 11-15. Draft rules, generated surfaces, and source digests (manifest v3 only) ------------
+const MS_PER_DAY = 86_400_000;
+const today = new Date().toISOString().slice(0, 10);
+const ageDays = (updated) => (Date.parse(today) - Date.parse(updated)) / MS_PER_DAY;
+const PROMOTION_MARKER = /\b(?:PROMOTED|SUPERSEDED)\b/;
+const nextLine = (text) => /^\s*next:[ \t]*(\S.*)$/im.exec(text)?.[1].trim() ?? null;
+
+// `superseded-by: [[Name#heading|alias]]`, `[[dir/Name.md]]`, or a bare vault path. A bare name
+// resolves like an Obsidian link: by full vault path, or by file name anywhere in the vault.
+function supersededByResolves(value, ownPath) {
+  const inner = /^\[\[([^\]]+)\]\]$/.exec(value.trim())?.[1] ?? value.trim();
+  const target = inner.split('|')[0].split('#')[0].trim().replace(/\.md$/i, '');
+  const own = ownPath.replace(/\.md$/i, '');
+  return target !== '' && target !== own && noteStems.some((stem) => stem !== own && (stem === target || stem.endsWith(`/${target}`)));
+}
+
+const sourcePatterns = (fm) => {
+  const scalar = fm.sources ?? '';
+  const items = scalar === '' ? (fm[LISTS].sources ?? []) : scalar.replace(/^\[|\]$/g, '').split(',').map((v) => unquote(v.trim()));
+  return items.filter(Boolean);
+};
+
+const triage = [];
+const indexed = [];
+const sourcePages = [];
+if (draftRules) for (const { path, text, fm } of checked) {
+  if (fm.status === 'superseded' && !(fm['superseded-by'] && supersededByResolves(fm['superseded-by'], path)))
+    fail(`${path}: status superseded needs a \`superseded-by\` frontmatter link that resolves to another note in the vault`);
+  if (fm.status === 'draft' && PROMOTION_MARKER.test(text.split('\n').slice(0, 30).join('\n')))
+    fail(`${path}: a draft carries a PROMOTED or SUPERSEDED marker in its first 30 lines — set its status to match, or remove the marker`);
+  const old = DATE_RE.test(fm.updated ?? '') && ageDays(fm.updated) > maxAgeDays;
+  if (old && fm.status === 'draft' && nextLine(text) === null) triage.push({ path, rule: 'stale-draft' });
+  const patterns = sourcePatterns(fm);
+  if (old && fm.type === 'synthesis' && fm.status !== 'superseded' && !patterns.length) triage.push({ path, rule: 'unsourced-synthesis' });
+  if (patterns.length) sourcePages.push({ path, patterns, recorded: fm.sourceDigest });
+  if (path.startsWith('10 Design/') && DATE_RE.test(fm.updated ?? '')) indexed.push({ path, status: fm.status, updated: fm.updated, next: nextLine(text) });
+}
+
+// Rule 15's digest is docs-manifest.mjs's own, imported only when a page needs it.
+async function pageDigest(path, patterns) {
+  const { repoFiles, matchSources, hashPaths } = await import('./docs-manifest.mjs');
+  const root = dirname(vault);
+  const self = `${basename(vault)}/${path}`;
+  const paths = matchSources(repoFiles(root), patterns, (file) => file === self);
+  return { count: paths.length, digest: paths.length ? hashPaths(root, paths) : null };
+}
+if (draftRules && mode === 'check') for (const page of sourcePages) {
+  let found;
+  try { found = await pageDigest(page.path, page.patterns); }
+  catch (e) { fail(`${page.path}: cannot compute the sources digest: ${e.message.split('\n')[0]}`); continue; }
+  if (!found.count) fail(`${page.path}: sources ${page.patterns.join(', ')} match no repository files`);
+  else if (!page.recorded) fail(`${page.path}: declares sources but no \`sourceDigest:\` — run check-vault-standard.mjs <vault> --stamp "${page.path}"`);
+  else if (page.recorded !== found.digest) fail(`${page.path}: a source changed after its recorded sourceDigest — review the page against its sources, then run check-vault-standard.mjs <vault> --stamp "${page.path}"`);
+}
+
+const TRIAGE_LINE = /^- (.+) \| ([a-z-]+) \| (\d{4}-\d{2}-\d{2})$/;
+const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+const GENERATED_NOTE = '<!-- Generated by check-vault-standard.mjs --render. Do not edit. -->';
+
+function renderIndex() {
+  const groups = new Map((manifestStatuses ?? []).map((s) => [s, []]));
+  for (const entry of indexed) groups.get(entry.status)?.push(entry);
+  const body = [];
+  for (const [status, entries] of groups) {
+    if (!entries.length) continue;
+    body.push(`## ${status}`, '');
+    for (const e of entries.sort((a, b) => byText(a.path, b.path)))
+      body.push(`- [[${e.path.replace(/\.md$/i, '')}]] · updated ${e.updated} · next: ${e.next ?? '(none)'}`);
+    body.push('');
+  }
+  return `---\ntype: index\ngenerated: true\n---\n\n${GENERATED_NOTE}\n\n# Design index\n\n${body.join('\n')}${body.length ? '' : 'No notes.\n'}`;
+}
+
+// An item already listed keeps its date. A new item enters today. Only the set of items can go
+// stale, since a listed item's date is copied from the file, so the check never drifts by day.
+function renderTriage(previous) {
+  const dates = new Map();
+  for (const line of previous.replace(/\r\n/g, '\n').split('\n')) {
+    const m = TRIAGE_LINE.exec(line);
+    const key = m && `${m[1]}\0${m[2]}`;
+    if (m && (!dates.has(key) || m[3] < dates.get(key))) dates.set(key, m[3]);
+  }
+  const lines = triage.sort((a, b) => byText(a.path, b.path) || byText(a.rule, b.rule))
+    .map((i) => `- ${i.path} | ${i.rule} | ${dates.get(`${i.path}\0${i.rule}`) ?? today}`);
+  return `---\ntype: triage\ngenerated: true\n---\n\n${GENERATED_NOTE}\n\n# Triage queue\n\nOne line per item: path | rule | date entered.\n\n${lines.length ? `${lines.join('\n')}\n` : 'No open items.\n'}`;
+}
+
+const readOrEmpty = (path) => { try { return readFileSync(join(vault, path), 'utf8'); } catch { return ''; } };
+const surfaces = () => [
+  ...(existsSync(join(vault, '10 Design')) ? [[INDEX_PATH, renderIndex()]] : []),
+  [TRIAGE_PATH, renderTriage(readOrEmpty(TRIAGE_PATH))],
+];
+
+if (draftRules && mode === 'check') for (const [path, expected] of surfaces()) {
+  const actual = readOrEmpty(path).replace(/\r\n/g, '\n');
+  if (actual === '') fail(`${path} is missing — it is generated: run check-vault-standard.mjs <vault> --render`);
+  else if (actual !== expected) fail(`${path} is stale against the vault — it is generated: run check-vault-standard.mjs <vault> --render`);
+}
+
+if (mode === 'render') {
+  if (docsManifestVersion !== 3) { console.log('(vault) render skipped: DOCS_MANIFEST.json is not version 3, so there are no generated surfaces'); process.exit(0); }
+  if (!draftRules) { for (const v of violations) console.log(`  !!  VIOLATION  ${v}`); process.exit(1); }
+  if (!existsSync(join(vault, '98 System'))) { console.error("x '98 System/' is missing, so TRIAGE.md has nowhere to render"); process.exit(1); }
+  const written = [];
+  for (const [path, text] of surfaces()) { writeFileSync(join(vault, path), text); written.push(path); }
+  console.log(`(vault) rendered ${written.join(', ')} — ${triage.length} triage item(s)`);
+  process.exit(0);
+}
+
+if (mode === 'stamp') {
+  const page = sourcePages.find((p) => p.path === stampPage);
+  if (!draftRules) { console.error('x --stamp needs a valid manifest version 3 vault'); process.exit(1); }
+  if (!page) { console.error(`x ${stampPage} is not a checked note in this vault that declares \`sources:\``); process.exit(1); }
+  let found;
+  try { found = await pageDigest(page.path, page.patterns); }
+  catch (e) { console.error(`x cannot compute the sources digest: ${e.message.split('\n')[0]}`); process.exit(1); }
+  if (!found.count) { console.error(`x sources ${page.patterns.join(', ')} match no repository files`); process.exit(1); }
+  const file = join(vault, page.path);
+  const eol = readFileSync(file, 'utf8').includes('\r\n') ? '\r\n' : '\n';
+  const lines = readFileSync(file, 'utf8').split(/\r?\n/);
+  const close = lines.indexOf('---', 1);
+  const at = lines.findIndex((l, i) => i > 0 && i < close && /^sourceDigest:/.test(l));
+  if (at === -1) lines.splice(close, 0, `sourceDigest: ${found.digest}`); else lines[at] = `sourceDigest: ${found.digest}`;
+  writeFileSync(file, lines.join(eol));
+  console.log(`(vault) stamped ${page.path} sourceDigest ${found.digest.slice(0, 12)} over ${found.count} file(s)`);
+  process.exit(0);
 }
 
 // ---- report ---------------------------------------------------------------------------

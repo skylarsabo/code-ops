@@ -50,6 +50,9 @@ jobs:
       - name: Documentation extraction regression eval
         run: node evals/docs-manifest/run.mjs
 
+      - name: Docs gate regression eval
+        run: node evals/docs-gate/run.mjs
+
       - name: Durable record-collection regression eval
         run: |
           node evals/record-collections/run.mjs
@@ -408,6 +411,9 @@ jobs:
 
       - name: Documentation extraction regression eval
         run: node evals/docs-manifest/run.mjs
+
+      - name: Docs gate regression eval
+        run: node evals/docs-gate/run.mjs
 
   # Shard 2: runtime and review orchestration evals (about 100 s).
   structural-lint-windows-shard-2:

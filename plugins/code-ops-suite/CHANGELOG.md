@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.20.0
+- `co docs gate` runs the docs checks in order: manifest, records, vault standard, and draft and staleness rules, then ledger checks 11 to 18 on every tracked open program. An untracked ledger gets only the check-14 UNLANDED warning. Steps 6 and 7 print as skipped until later releases.
+- The gate ratchets against `98 System/GATE_BASELINE.jsonl`. `--baseline-init` writes the first baseline, a new violation fails, a fixed one leaves the baseline, and the baseline never grows. `--check` never writes.
+- Under a v3 manifest, `check-vault-standard.mjs` takes statuses from `drafts.statuses`, requires a resolving `superseded-by` link, fails a draft marked PROMOTED or SUPERSEDED, and fails a page whose `sources:` changed after its `sourceDigest:`. `--render` writes `10 Design/INDEX.md` and the `98 System/TRIAGE.md` queue, and the check fails when either is stale. A v2 manifest sees no new failure.
+- `conform` documents installing the docs gate into an adopter and removing it as one reviewed commit. `integrate-branch.mjs` runs the gate with `--check` on a v3 repository.
+
 ## 2.19.0
 - `co decide promote DEC-<n> --program <slug>` stages a decision record in records intake, sets the ledger disposition to `promoted:<record id>`, and renders the register. It refuses a grammar-1 ledger, an unknown id, and a decision that is not `pending` or `local`.
 - `co program close <slug>` writes `CLOSEOUT.md`, marks the ledger `Status: closed`, and updates `80 Runs/INDEX.md`. It refuses while a decision is pending, an open item is not forwarded to an operator-owned successor, a handoff is unconsumed, or a promoted id is not sealed on the base branch.

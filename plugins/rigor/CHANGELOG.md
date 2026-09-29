@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.3
+- Vendored `co.mjs` adds the `docs gate` verb.
+
 ## 3.3.2
 - Vendored `co.mjs` adds the `decide promote` and `program close` verbs.
 

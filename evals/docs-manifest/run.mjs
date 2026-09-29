@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Regression coverage for generic manifest discovery, interior globs, and installed extraction.
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { tally, withDetail } from '../harness.mjs';
@@ -340,6 +340,62 @@ try {
   result = run(join(repo, 'scripts', 'docs-extract.mjs'), ['plan', '--root', repo, '--out', output], repo);
   const receipt = result.status === 0 ? JSON.parse(readFileSync(output, 'utf8')) : null;
   check('installed extractor resolves sibling manifest script', result.status === 0 && receipt?.hub === 'project-docs' && receipt.tasks?.some((task) => task.target === 'project-docs/40 Engineering/api-reference.md'), result.out);
+
+  // upgrade-without-conform-adds-no-failure (guarantee 1 of the rollout): a repository whose manifest is
+  // still v2 passes the previous gate chain and the current one alike, even when its notes would break
+  // every manifest-v3 draft rule. The previous chain is HEAD's own scripts, read with git show. The
+  // outcome is asserted directly as well, so the case still guards the tree when HEAD already holds
+  // the current scripts (a merge commit in CI), where the old-versus-new comparison is trivially equal.
+  const upgrade = join(work, 'upgrade');
+  const chainScripts = ['docs-manifest.mjs', 'context-index-lib.mjs', 'record-lib.mjs', 'check-vault-standard.mjs', 'cli-lib.mjs'];
+  const headScripts = join(work, 'head-scripts');
+  mkdirSync(headScripts, { recursive: true });
+  for (const file of chainScripts) writeFileSync(join(headScripts, file), execFileSync('git', ['show', `HEAD:scripts/${file}`], { cwd: ROOT }));
+  const hub = join(upgrade, 'docs-hub');
+  const dormantNote = (type, status, updated, extra = '', body = '') => `---\ntype: ${type}\nstatus: ${status}\nupdated: ${updated}\n${extra}---\n\n${body}# Note\n`;
+  const upgradeFiles = {
+    'src/code.txt': 'source\n',
+    'docs-hub/Standard.md': '---\ntype: standard\nstatus: current\nupdated: 2026-08-18\nstandard-version: 4\n---\n\n# Standard\n',
+    'docs-hub/00 Home.md': dormantNote('home', 'current', '2026-08-18'),
+    'docs-hub/README.md': '# Readme\n',
+    'docs-hub/10 Design/Superseded without link.md': dormantNote('design', 'superseded', '2020-01-01'),
+    'docs-hub/10 Design/Promoted draft.md': dormantNote('design', 'draft', '2020-01-01', '', 'PROMOTED long ago\n\n'),
+    'docs-hub/10 Design/Sourced page.md': dormantNote('synthesis', 'current', '2020-01-01', 'sources: src/**\n'),
+    'docs-hub/10 Design/Unsourced synthesis.md': dormantNote('synthesis', 'current', '2020-01-01'),
+    ...Object.fromEntries(['00 Inbox', '90 Templates', '95 Attachments', '99 Archive'].map((d) => [`docs-hub/${d}/.gitkeep`, ''])),
+    ...Object.fromEntries(required.map((id) => [`docs-hub/40 Engineering/${id}.md`, `# ${id}\n`])),
+    'docs-hub/98 System/DOCS_MANIFEST.json': `${JSON.stringify({
+      version: 2, hub: 'docs-hub', runs: { tracking: 'ignored' }, recordCollections: [], legacyPaths: [],
+      domains: required.map((id) => ({ id, path: `40 Engineering/${id}.md`, status: 'current', sources: ['src/**'], sourceDigest: '', contentDigest: '' })),
+    }, null, 2)}\n`,
+  };
+  for (const [path, body] of Object.entries(upgradeFiles)) {
+    mkdirSync(join(upgrade, path, '..'), { recursive: true });
+    writeFileSync(join(upgrade, path), body);
+  }
+  git(['init', '--quiet', '-b', 'main'], upgrade);
+  git(['add', '-A'], upgrade);
+  // Only the manifest's own scripts are needed to stamp the digests, and they are removed again so
+  // neither chain sees them as repository files.
+  mkdirSync(join(upgrade, 'scripts'), { recursive: true });
+  for (const file of ['docs-manifest.mjs', 'context-index-lib.mjs', 'record-lib.mjs']) cpSync(join(ROOT, 'scripts', file), join(upgrade, 'scripts', file));
+  result = run(join(upgrade, 'scripts', 'docs-manifest.mjs'), ['sync', '--root', upgrade], upgrade);
+  check('v2 upgrade fixture syncs', result.status === 0, result.out);
+  rmSync(join(upgrade, 'scripts'), { recursive: true, force: true });
+  git(['add', '-A'], upgrade);
+  const chain = (scripts) => [
+    run(join(scripts, 'docs-manifest.mjs'), ['check', '--root', upgrade], upgrade),
+    run(join(scripts, 'check-vault-standard.mjs'), [hub], upgrade),
+  ];
+  const oldChain = chain(headScripts);
+  const newChain = chain(join(ROOT, 'scripts'));
+  check('upgrade-without-conform-adds-no-failure: the current chain passes a v2 vault whose notes break every v3 draft rule',
+    newChain.every((r) => r.status === 0), newChain.map((r) => r.out).join('\n'));
+  check('upgrade-without-conform-adds-no-failure: the previous chain (HEAD scripts) reaches the same outcome',
+    oldChain.every((r, i) => r.status === newChain[i].status), `old ${oldChain.map((r) => r.status)} new ${newChain.map((r) => r.status)}`);
+  const renderSkipped = run(join(ROOT, 'scripts', 'check-vault-standard.mjs'), [hub, '--render'], upgrade);
+  check('upgrade-without-conform-adds-no-failure: --render on the v2 vault writes nothing', renderSkipped.status === 0
+    && !existsSync(join(hub, '98 System', 'TRIAGE.md')) && !existsSync(join(hub, '10 Design', 'INDEX.md')), renderSkipped.out);
 } finally { rmSync(work, { recursive: true, force: true }); }
 if (failures.length) { console.error(`\n${failures.join('\n')}`); process.exit(1); }
 console.log('\ndocs-manifest eval passed');

@@ -2,8 +2,9 @@
 // Validates and stamps a repository's sole authored-documentation registry.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { atomicWrite, pathMatchesGlob, safeRelative, sha256, toPosix } from './context-index-lib.mjs';
 import { safePath, scopeValidationErrors } from './record-lib.mjs';
 
@@ -39,11 +40,17 @@ function gitPaths(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .split('\0').filter(Boolean).map((path) => toPosix(path));
 }
-function hashPaths(root, paths) {
+export function hashPaths(root, paths) {
   const hash = createHash('sha256');
   for (const path of [...paths].sort()) { hash.update(path); hash.update('\0'); hash.update(readFileSync(resolve(root, path))); hash.update('\0'); }
   return hash.digest('hex');
 }
+// The one source-digest path. A manifest domain and a state page that declares `sources:` both
+// match patterns against the repository file list and hash the matches with hashPaths, so a page
+// digest and a domain digest cannot drift apart. `skip` drops files the owner must not hash.
+export const repoFiles = (root) => gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']);
+export const matchSources = (files, patterns, skip = () => false) =>
+  files.filter((file) => patterns.some((pattern) => pathMatchesGlob(pattern, file)) && !skip(file));
 function contentPaths(root, hub, path) {
   const absolute = resolve(root, hub, path);
   if (!existsSync(absolute)) return [];
@@ -78,8 +85,8 @@ function standardVersion(root, hub) {
 }
 const uniqueArray = (value, valid) => Array.isArray(value) && value.every(valid) && new Set(value).size === value.length;
 // Manifest v3 profile blocks. This function validates their shape. Only `drafts.statuses` has a
-// reader, check-vault-standard.mjs (rule 9). No code reads `runs.tracking`, `runs.retain`,
-// `drafts.maxAgeDays`, or `state`.
+// readers, check-vault-standard.mjs (rules 9 and 11 to 15) for `drafts.statuses` and
+// `drafts.maxAgeDays`. No code reads `runs.tracking`, `runs.retain`, or `state`.
 function inspectProfileV3(manifest, errors) {
   const { runs, drafts, state } = manifest;
   if (exactKeys(runs, new Set(['tracking', 'retain']), 'runs', errors)) {
@@ -204,7 +211,7 @@ function inspect(root, manifest, hub) {
       && domain.sources.every((pattern) => typeof pattern === 'string' && pattern);
     if (!validSources) errors.push(`${domain.id} needs source patterns`);
     const sources = validSources
-      ? files.filter((file) => domain.sources.some((pattern) => pathMatchesGlob(pattern, file)) && !file.startsWith(`${hub}/`))
+      ? matchSources(files, domain.sources, (file) => file.startsWith(`${hub}/`))
       : [];
     if (validSources && !sources.length) errors.push(`${domain.id} source patterns match no repository files`);
     const contents = contentPaths(root, hub, domain.path);
@@ -225,28 +232,33 @@ function inspect(root, manifest, hub) {
   return errors;
 }
 
-const command = process.argv[2];
-if (!['check', 'sync', 'plan'].includes(command)) usage();
-const f = flags(process.argv.slice(3)); const root = resolve(f['--root'] || process.cwd());
-const { path, manifest, hub } = findManifest(root); const errors = inspect(root, manifest, hub);
-const digestDrift = /^[a-z0-9]+(?:-[a-z0-9]+)* (?:source|content) digest is stale$/;
-const structuralErrors = errors.filter((error) => !digestDrift.test(error));
-if (command === 'sync') {
-  if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
-  for (const domain of manifest.domains) { domain.sourceDigest = domain._computed.sourceDigest; domain.contentDigest = domain._computed.contentDigest; delete domain._computed; }
-  atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`); console.log(`ok documentation manifest synced (${manifest.domains.length} domains)`);
-} else if (command === 'check') {
-  if (errors.length) die(`documentation manifest invalid:\n${errors.map((error) => `  - ${error}`).join('\n')}`);
-  console.log(`ok documentation manifest (${manifest.domains.length} domains)`);
-} else {
-  if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
-  const changed = new Set([...gitPaths(root, ['diff', '--name-only', '-z', 'HEAD', '--']), ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '-z'])]);
-  const records = (manifest.recordCollections || []).map((collection) => {
-    const generated = ['inventory', 'citations', 'curationLedger', 'index'].map((key) => `${hub}/${collection[key]}`);
-    const affectedSources = [...changed].filter((file) => file === collection.root || file.startsWith(`${collection.root}/`) || generated.includes(file)).sort();
-    return { id: collection.id, index: `${hub}/${collection.index}`, inventory: `${hub}/${collection.inventory}`, affectedSources };
-  }).filter((collection) => collection.affectedSources.length);
-  const plan = { version: manifest.version, hub, manifestSha256: sha256(readFileSync(path)), changed: [...changed].sort(), domains: manifest.domains.map((domain) => ({ id: domain.id, path: `${hub}/${domain.path}`, affectedSources: [...changed].filter((file) => domain.sources.some((pattern) => pathMatchesGlob(pattern, file))).sort(), status: domain.status })).filter((domain) => domain.affectedSources.length), records };
-  for (const domain of manifest.domains) delete domain._computed;
-  const output = `${JSON.stringify(plan, null, 2)}\n`; if (f['--out']) atomicWrite(resolve(f['--out']), output); else process.stdout.write(output);
+// Import-safe: check-vault-standard.mjs reuses the digest helpers above, so the CLI runs only when
+// this file is the entry point. A symlinked entry compares by real path.
+const isEntry = process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+if (isEntry) {
+  const command = process.argv[2];
+  if (!['check', 'sync', 'plan'].includes(command)) usage();
+  const f = flags(process.argv.slice(3)); const root = resolve(f['--root'] || process.cwd());
+  const { path, manifest, hub } = findManifest(root); const errors = inspect(root, manifest, hub);
+  const digestDrift = /^[a-z0-9]+(?:-[a-z0-9]+)* (?:source|content) digest is stale$/;
+  const structuralErrors = errors.filter((error) => !digestDrift.test(error));
+  if (command === 'sync') {
+    if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
+    for (const domain of manifest.domains) { domain.sourceDigest = domain._computed.sourceDigest; domain.contentDigest = domain._computed.contentDigest; delete domain._computed; }
+    atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`); console.log(`ok documentation manifest synced (${manifest.domains.length} domains)`);
+  } else if (command === 'check') {
+    if (errors.length) die(`documentation manifest invalid:\n${errors.map((error) => `  - ${error}`).join('\n')}`);
+    console.log(`ok documentation manifest (${manifest.domains.length} domains)`);
+  } else {
+    if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
+    const changed = new Set([...gitPaths(root, ['diff', '--name-only', '-z', 'HEAD', '--']), ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '-z'])]);
+    const records = (manifest.recordCollections || []).map((collection) => {
+      const generated = ['inventory', 'citations', 'curationLedger', 'index'].map((key) => `${hub}/${collection[key]}`);
+      const affectedSources = [...changed].filter((file) => file === collection.root || file.startsWith(`${collection.root}/`) || generated.includes(file)).sort();
+      return { id: collection.id, index: `${hub}/${collection.index}`, inventory: `${hub}/${collection.inventory}`, affectedSources };
+    }).filter((collection) => collection.affectedSources.length);
+    const plan = { version: manifest.version, hub, manifestSha256: sha256(readFileSync(path)), changed: [...changed].sort(), domains: manifest.domains.map((domain) => ({ id: domain.id, path: `${hub}/${domain.path}`, affectedSources: [...changed].filter((file) => domain.sources.some((pattern) => pathMatchesGlob(pattern, file))).sort(), status: domain.status })).filter((domain) => domain.affectedSources.length), records };
+    for (const domain of manifest.domains) delete domain._computed;
+    const output = `${JSON.stringify(plan, null, 2)}\n`; if (f['--out']) atomicWrite(resolve(f['--out']), output); else process.stdout.write(output);
+  }
 }

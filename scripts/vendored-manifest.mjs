@@ -99,6 +99,9 @@ export const RUNTIME_SCRIPTS = [
   // `co brief`, which the dispatch guard's field denial names; only code-ops-suite ships the
   // guard, as with the handoff scripts above.
   { name: 'brief-template.mjs', plugins: ['code-ops-suite'] },
+  // `co docs gate`. It spawns docs-manifest.mjs, records.mjs, check-vault-standard.mjs, and
+  // check-handoff.mjs as SIBLINGS (all vendored above) and imports promotion-lib.mjs and cli-lib.mjs.
+  { name: 'docs-gate.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.
