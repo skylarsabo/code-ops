@@ -127,6 +127,15 @@
 // follows `wrote <file>` on stdout; without it the block prints on stderr, so stdout stays the
 // skeleton alone. The command-line entry runs only when this file is the entry point.
 //
+// PROGRAM OVERLAP (design C6). `open --program <PROGRAM.md>` and `resume` compare the program's
+// `## Scope documents` paths with those of every other live program on the presence board, one
+// whose head run folder is not yet handed off. Each shared path prints `  warning: program <slug>
+// (live head: <name>) also lists <path>` under a `program overlap:` line placed just before the
+// `links:` block; more than one shared path with one program adds a `co program merge` suggestion.
+// It never blocks and never changes an exit code; a missing or corrupt board, ledger, or file
+// skips silently. `open --program` records the path in SESSION.json so other sessions find it.
+// CODE_OPS_PEER_GUARD=off disables it. Names and repo-relative paths only.
+//
 // Exit: 0 = done; 1 = a step failed, --out exists or is refused, or a name matched no single
 // handoff; 2 = usage error.
 
@@ -143,7 +152,7 @@ import { hubOf, promotedIds, recordState } from './promotion-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = [
-  'usage: handoff-state.mjs open <slug> [--name <name>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
+  'usage: handoff-state.mjs open <slug> [--name <name>] [--program <PROGRAM.md>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
   '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--root <repo>]',
   '       handoff-state.mjs program-archive <PROGRAM.md | program slug> [--root <repo>]',
   '       handoff-state.mjs program-split <PROGRAM.md | program slug> --into <a>,<b>[,...] --assign <id>=<child>[,...] [--root <repo>]',
@@ -950,6 +959,7 @@ function archive(arg, flags) {
 const LEDGER_SECTIONS = ['program goal', 'request history', 'scope documents', 'open items', 'decisions ledger', 'closed items'];
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/i;
 const FORWARDED_RE = /\bForwarded-to:\s*\S/;
+const ENDED_RE = /^[-*\t ]*Status:[^\S\r\n]*(merged into .+?|closed)\s*$/m;
 const ledgerHeading = (l) => {
   const h = /^##[ \t]+(.+)$/.exec(l);
   return h ? LEDGER_SECTIONS.find((name) => h[1].trim().toLowerCase().startsWith(name)) ?? null : undefined;
@@ -975,7 +985,7 @@ function readProgram(arg, root, verb) {
   const { lines, eol } = linesOf(file);
   const text = lines.join('\n');
   if (!isGrammar2(text)) die(`refusing to ${verb} ${shown}: it has no "Grammar: 2" line`);
-  const ended = /^[-*\t ]*Status:[^\S\r\n]*(merged into .+?|closed)\s*$/m.exec(text)?.[1];
+  const ended = ENDED_RE.exec(text)?.[1];
   if (ended) die(`refusing to ${verb} ${shown}: it is already "Status: ${ended}"`);
   const entries = entriesOf(lines, ledgerHeading).map((e) => ({ ...e, id: leadId(lines[e.start]), text: lines.slice(e.start, e.end) }));
   const inSection = (name) => entries.filter((e) => e.section === name);
@@ -1165,6 +1175,56 @@ function registerLines(programFile, handoffText, root) {
   return lines;
 }
 
+// The PROGRAM.md a run folder belongs to: its SESSION.json `program`, else its own handoff's Program
+// line, else its predecessor handoff's. Null when none resolves to a file.
+function programOfRun(dir, base) {
+  const programLine = (file) => { try { return pathValue(sectionBody(readFileSync(file, 'utf8'), 'program'), 'Program'); } catch { return null; } };
+  const session = readJson(join(dir, 'SESSION.json')) ?? {};
+  const named = (typeof session.program === 'string' && session.program) || programLine(join(dir, 'HANDOFF.md'))
+    || (typeof session.predecessor === 'string' && programLine(resolve(base, session.predecessor))) || null;
+  const file = named && (isAbsolute(named) ? named : resolve(base, named));
+  return file && isFile(file) ? file : null;
+}
+
+// C6: warning lines for each scope document another live program in this repository also lists.
+// The block is empty for no overlap, and any failure skips silently: the warning never blocks.
+const OVERLAP_LINES = 10;
+const scopeKey = (p) => p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+function overlapLines(programFile, root, sid) {
+  try {
+    if (!programFile || !isFile(programFile) || /^(off|0|false)$/i.test(process.env.CODE_OPS_PEER_GUARD ?? '')) return [];
+    const mine = new Set(scopeDocs(programFile).map(scopeKey));
+    if (!mine.size) return [];
+    const ident = repoIdentity(process.cwd());
+    const own = forward(relative(root, programFile));
+    const others = new Map();
+    for (const rec of readBoard(process.cwd())) {
+      if (rec.state !== 'live' || rec.sessionId === sid || typeof rec.runDir !== 'string' || !rec.runDir) continue;
+      const base = recordBase(rec, ident, root);
+      const dir = resolve(base, rec.runDir);
+      const file = programOfRun(dir, base);
+      if (!file || walkHead(dir, base, base).dir !== dir) continue;
+      const key = forward(relative(base, file));
+      if (key === own) continue;
+      const known = others.get(key);
+      const name = String(rec.name ?? rec.sessionId.slice(0, 8)).replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (known) { known.names.add(name); continue; }
+      const text = readFileSync(file, 'utf8');
+      if (ENDED_RE.test(text)) continue;
+      const shared = scopeDocs(file).map(scopeKey).filter((p) => mine.has(p));
+      others.set(key, { slug: basename(dirname(file)), names: new Set([name]), shared: shared.length ? shared : null });
+    }
+    const all = [];
+    for (const { slug, names, shared } of others.values()) {
+      if (!shared) continue;
+      all.push(...shared.map((p) => `  warning: program ${slug} (live head: ${[...names].join(' and ')}) also lists ${p}`));
+      if (shared.length > 1) all.push(`  suggest: ${shared.length} shared paths with ${slug}; if they are one effort, run co program merge ${basename(dirname(programFile))} --into ${slug}`);
+    }
+    const shown = all.length > OVERLAP_LINES ? [...all.slice(0, OVERLAP_LINES), `  ... ${all.length - OVERLAP_LINES} more`] : all;
+    return shown.length ? ['program overlap:', ...shown] : [];
+  } catch { return []; }
+}
+
 function resume(arg, flags) {
   const root = resolve(flags.root);
   const target = resolveHandoff(arg, root);
@@ -1280,7 +1340,7 @@ function resume(arg, flags) {
   links.push(['handoff', repoPath(resolve(target))]);
   if (failures === 0) links.push(['successor run', repoPath(successor)]);
   links.push(...pointerEntries(open, root, repoPath));
-  lines.push(...linksBlock(links));
+  lines.push(...overlapLines(programFile, root, sid), ...linksBlock(links));
   if (failures === 0) lines.push(`set title: "${name}"`);
 
   console.log(lines.join('\n'));
@@ -1291,6 +1351,8 @@ function open(slug, flags) {
   if (!/^[a-z0-9][a-z0-9-]*$/i.test(slug)) usage([`x run open needs a slug of letters, digits, and hyphens: ${slug}`, ...USAGE]);
   const root = resolve(flags.root);
   const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
+  const programFile = flags.program ? resolve(root, flags.program) : null;
+  if (programFile && !isFile(programFile)) die(`--program does not resolve to a file: ${flags.program}`);
   const all = runsRoots(root, true);
   const runs = flags.hub ? join(resolve(flags.hub), '80 Runs') : (runsRoots(root)[0] ?? all[1] ?? all[0]);
   const dir = freeDir(runs, `${today()}-${slug}`);
@@ -1300,12 +1362,12 @@ function open(slug, flags) {
   const hostSessionId = flags['host-session'] || null;
   const name = flags.name || slug;
   const created = new Date().toISOString();
-  writeJson(join(dir, 'SESSION.json'), { v: 1, sessionId: sid, hostSessionId, name, hop: 0, predecessor: null, createdAt: created });
+  writeJson(join(dir, 'SESSION.json'), { v: 1, sessionId: sid, hostSessionId, name, hop: 0, predecessor: null, ...(programFile && { program: repoPath(programFile) }), createdAt: created });
   writeFileSync(join(dir, 'TASKS.md'), '# Tasks\n');
   writeFileSync(join(dir, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} opened this run as new work.\n`);
   writeSessionRecord(sid, { hostSessionId, name, runDir: repoPath(dir), resumed: null, hop: 0 });
   boardNote(sid, { hostSessionId, name, runDir: repoPath(dir), task: name });
-  console.log([repoPath(dir), ...linksBlock([['run', repoPath(dir)]])].join('\n'));
+  console.log([repoPath(dir), ...overlapLines(programFile, root, sid), ...linksBlock([['run', repoPath(dir)]])].join('\n'));
   return 0;
 }
 
@@ -1391,7 +1453,7 @@ if (isEntry()) {
     assign: { value: true },
     'head-ended': { value: false },
   }, USAGE.join('\n'));
-  if (flags.program && command !== 'draft') usage(USAGE);
+  if (flags.program && command !== 'draft' && command !== 'open') usage(USAGE);
   const onlyFlags = (...names) => Object.keys(flags).every((k) => k === 'root' || names.includes(k));
   if (command === 'program-split' && positional.length === 1 && flags.into && flags.assign && onlyFlags('into', 'assign')) process.exit(split(positional[0], flags));
   if (command === 'program-merge' && positional.length === 1 && flags.into && onlyFlags('into', 'head-ended')) process.exit(merge(positional[0], flags));

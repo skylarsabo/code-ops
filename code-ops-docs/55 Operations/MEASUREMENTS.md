@@ -415,6 +415,147 @@ the 19th value, so that run was noisy. The 100-sample run supersedes it. The red
 only on a message to a handed-off peer. The non-message path runs on every tool call on Codex,
 because the Codex projection drops the matcher. The edit hook runs on every edit.
 
+## Hook latency baseline per event, 2026-09-29
+
+This section closes OI-18. It is the p50 and p95 added latency of every hook event entry in
+`plugins/code-ops-suite/hooks/hooks.json`, measured on `main` at `6722e28` before PR 11. The
+limit is 50 ms added at p95 per tool call. Source: `code-ops-docs/10 Design/Program state handoffs and coordination 2026-09.md`,
+"Cross-cutting: hook cost". The earlier section covers three of these entries and stays valid.
+
+**Reproduce.** Add a detached worktree of the commit, then run the bench against its plugin root.
+The bench is `scripts/bench-hooks.mjs`, and `--plugin-root` selects the tree to measure.
+
+```powershell
+git worktree add --detach <dir> 6722e28
+node scripts/bench-hooks.mjs --plugin-root <dir>/plugins/code-ops-suite
+node scripts/bench-hooks.mjs --plugin-root <dir>/plugins/code-ops-suite --env CODE_OPS_INDEX=off
+```
+
+**Environment.** Node v24.16.0 on Windows 11 Pro (win32), other work running on the machine. The
+bench spawns each command of an entry one after another with `spawnSync` and times the whole
+sequence. It runs 2 warmups, then 100 timed runs per case, and the cases run interleaved with the
+start position rotated each pass. The fixture is a temporary git repository and a temporary home,
+with `CODE_OPS_HOME`, `HOME`, and `USERPROFILE` pointing at it. Every `CODE_OPS_*` switch is unset,
+so each mechanism runs at its default (on). The one exception is the second run, which sets
+`CODE_OPS_INDEX=off`. The payloads are synthetic: fixed ids, fixture paths, and a 200-turn
+transcript. The `Agent` case sends a complete brief, so the guard takes its allow path.
+"Added" is the case percentile minus the percentile of the same number of `node -e 0` spawns, as
+in the earlier section. Sequential spawning is the conservative model. A host that runs an
+entry's commands in parallel adds less.
+
+| Event entry | Commands | p50 ms | p95 ms | Added p50 ms | Added p95 ms |
+| --- | --- | --- | --- | --- | --- |
+| Baseline, 1 x `node -e 0` | 1 | 44.3 | 104.7 | 0 | 0 |
+| Baseline, 2 x `node -e 0` | 2 | 86.8 | 145.2 | 0 | 0 |
+| PreToolUse, Bash `git status` (traceless, digest) | 2 | 107.1 | 185.2 | 20.3 | 40.0 |
+| PreToolUse, Bash `git commit` (traceless, digest) | 2 | 171.5 | 270.0 | 84.7 | 124.9 |
+| PreToolUse, all tools, `Read` (dispatch guard) | 1 | 52.9 | 109.6 | 8.6 | 4.9 |
+| PreToolUse, all tools, `Agent` dispatch (dispatch guard) | 1 | 58.9 | 115.7 | 14.6 | 11.1 |
+| PreToolUse, `SendMessage` (peer guard) | 1 | 66.5 | 117.1 | 22.3 | 12.4 |
+| PostToolUse, `Edit` (index refresh, board write) | 1 | 261.7 | 365.9 | 217.5 | 261.3 |
+| PostToolUse, `Edit`, `CODE_OPS_INDEX=off` | 1 | 67.5 | 115.8 | 21.4 | 21.3 |
+| PostToolUse, all tools, `Read` (handoff card) | 1 | 50.1 | 97.3 | 5.8 | -7.4 |
+| UserPromptSubmit (handoff card) | 1 | 56.5 | 112.2 | 12.2 | 7.6 |
+| SessionStart (routing card) | 1 | 51.1 | 100.0 | 6.8 | -4.7 |
+| SessionEnd (session receipt, board end) | 1 | 72.7 | 128.0 | 28.4 | 23.4 |
+| SubagentStart (ladder card) | 1 | 49.3 | 98.9 | 5.1 | -5.8 |
+| SubagentStop (subagent report) | 1 | 52.4 | 106.6 | 8.1 | 1.9 |
+
+The `CODE_OPS_INDEX=off` row comes from the second run, which has its own baselines
+(46.1 and 93.2 ms at p50; 94.6 and 144.3 ms at p95). The rest come from the default run.
+
+The entries that fire together on one tool call, summed per pass:
+
+| Tool call | Entries | Added p50 ms | Added p95 ms | Within 50 ms p95 |
+| --- | --- | --- | --- | --- |
+| `Bash` | Bash pre, all-tools pre, all-tools post | 43.0 | 13.9 | yes |
+| Other (`Read`) | all-tools pre, all-tools post | 17.7 | -43.4 | yes |
+| Message (`SendMessage`) | all-tools pre, message pre, all-tools post | 49.5 | -53.5 | yes |
+| `Edit`, index on (default) | all-tools pre, edit post, all-tools post | 235.4 | 193.2 | **no** |
+| `Edit`, `CODE_OPS_INDEX=off` | all-tools pre, edit post, all-tools post | 45.1 | -35.7 | yes |
+
+**Reading the tail.** One `node -e 0` spawn had p50 44.3 ms and p95 104.7 ms, so tail noise is
+about 60 ms per spawn. A p95 cell at or below zero means that noise exceeded the hook cost. Read
+those cells as "no measurable p95 cost", not as a negative cost. The p50 cells are stable. Across
+three runs of each setting, the edit entry added 186 to 220 ms at p50 with the index on, and 17 to
+27 ms with it off.
+
+**Result.** Every event is within the limit except the edit entry with the index on. That entry
+added 217.5 ms at p50 and 261.3 ms at p95 per edit. The hook starts a second Node process to run
+`context-query.mjs refresh`, so an edit pays two startups plus the refresh. The fixture holds two
+files, so a larger repository costs more. The next largest costs are the `git commit` scan (84.7 ms
+p50, two spawns) and SessionEnd (28.4 ms p50, which reads the whole transcript). SessionEnd runs
+once per session, so it is off the per-call path. PR 11 must add its per-call cost to the `Bash`,
+`Edit`, and message rows and re-run this bench with `--plugin-root` on its tree.
+
+The p50 figures are **CONFIRMED** for this machine and run. The p95 figures are **PROBABLE**,
+because tail noise on a loaded machine is large. The edit-entry finding with the index on holds at
+both percentiles in all three runs.
+
+### After PR 11 (C2, C3, C6), 2026-09-29
+
+This subsection measures the cost PR 11 adds to each tool call: the collision note (C2), the change
+feed (C3), and the push record (C6). It supersedes the PR 11 figures from earlier working runs.
+
+**Method.** Node v24.16.0 on Windows 11 Pro, other work running on the machine. Before is a
+detached worktree of `6722e28` (`main`), which has no collision or change-feed code. After is the
+PR 11 working tree, uncommitted. Each pair ran the bench with
+`--runs 100 --env CODE_OPS_INDEX=off --json`, before first, then after. The run used 3 pairs.
+The other bench settings are unchanged from the section above. The fixture holds 5 live peers on
+the branch and one seeded push event per peer. The push cases replay a real git push summary. The
+`solo` cases run against an empty home with no other live session, and reset it before each run.
+Reproduce the after side with `node scripts/bench-hooks.mjs --runs 100 --env CODE_OPS_INDEX=off`.
+
+Each cell is the median over the 3 pairs of the added time per tool call, against the same number
+of `node -e 0` spawns. The delta is the median over the pairs of after minus before per pair.
+
+| Tool call | Before p50 ms | After p50 ms | Delta p50 ms | Before p95 ms | After p95 ms | Delta p95 ms (range) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Read` | 16.6 | 18.6 | 2.0 | -13.2 | -6.5 | 9.5 (-70 to 65) |
+| Message (`SendMessage`) | 36.5 | 36.2 | -0.3 | -27.4 | -27.2 | 12.7 (-96 to 103) |
+| `Bash` `git status` | 28.5 | 33.5 | 5.9 | 22.4 | 11.9 | -16.2 (-26 to 39) |
+| `Edit`, index off | 37.3 | 58.2 | 20.9 | -11.4 | 8.8 | 29.0 (-91 to 118) |
+| `Bash` `git push`, with peers | 29.6 | 176.8 | 148.5 | 24.0 | 183.0 | 159.0 (135 to 234) |
+| `Bash` `git push`, solo session | 29.5 | 57.2 | 27.7 | 21.6 | 64.4 | 42.8 (-7 to 74) |
+
+After p95 per pair: `Read` 51, -28, -7. Message 76, -49, -27. `Bash` `git status` 42, -3, 12.
+`Edit` 107, -41, 9. Push with peers 231, 183, 181. Push solo 70, 64, 24.
+
+The push cases, added time per entry (after side, median of 3 pairs): the pre entry with peers
+adds 70.4 ms at p50 and 101.3 ms at p95. The post entry with peers adds 81.7 ms at p50 and 101.6 ms
+at p95. The solo pre entry adds 18.2 ms at p50 and the solo post entry adds 24.5 ms. The `Edit`
+collision entry adds 27.7 ms at p50.
+
+**Floor.** One git spawn costs about one Node startup on this machine. Measured over 15 spawns
+each, p50: `git --version` 38.6 ms, `git rev-parse` 36.8 ms, `git status` 39.4 ms, `git diff`
+42.0 ms, and `node -e 0` 40.1 ms. So any hook that spawns git adds about 40 ms at p50 on its own,
+plus about 10 ms to import the board reader. Limiting the pathspec and `--no-optional-locks` did
+not move `git status`. A row that spawns git once cannot reach 50 ms at p95 here.
+
+**Verdict per row against 50 ms added at p95.**
+
+| Tool call | Verdict | Basis |
+| --- | --- | --- |
+| `Read` | within | Delta p50 2.0 ms. After p95 is at or below zero in 2 of 3 pairs. |
+| Message | within | Delta p50 -0.3 ms. After p95 is at or below zero in 2 of 3 pairs. |
+| `Bash` `git status` | within | Delta p50 5.9 ms. After p95 is 42 ms or less in every pair. |
+| `Edit` | within, noisy | Delta p50 20.9 ms with no git spawn. After p95 is 107 ms in one pair and 9 ms or less in the others. |
+| `Bash` `git push`, with peers | **over** | After p95 is 181 to 231 ms in every pair. Delta p50 is 148.5 ms. The pre entry keeps one `git status` spawn and the post entry keeps one `git diff` spawn. |
+| `Bash` `git push`, solo session | borderline | Delta p50 27.7 ms. After p95 is 70, 64, and 24 ms, so 2 of 3 pairs sit above 50 ms. The baseline p95 alone ranged from 48 to 91 ms across pairs. |
+
+**Result.** The push row with peers exceeds the limit at both percentiles. One git spawn costs
+about 40 ms here, so no fix that keeps a spawn can meet the limit. On 2026-09-29 the operator
+accepted the amended limit: it excludes calls that run git push, pull, merge, or rebase. Those
+calls already wait on the network or on git itself. A push with no other live session spawns no
+git. Every other row stays within the limit. The solo row needs a quieter machine to settle its p95.
+
+**Confidence.** The p50 figures, the floor, and the spawn counts are **CONFIRMED** for this machine
+and these runs. The p95 figures are **PROBABLE** at best, because one `node -e 0` spawn showed a
+p95 near 90 ms in some pairs. Read a p95 cell at or below zero as no measurable p95 cost. The push
+with peers verdict holds at p50 and p95 in all 3 pairs. Before this section, the working tree with
+peers measured about 350 ms at p50 (unit E), so the change removed about 60% of the push cost and
+did not remove the excess.
+
 ## Startup context
 
 A lead's first turn measured 62,000 to 72,000 tokens. About 50,000 of that is the host system

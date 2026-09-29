@@ -17,7 +17,10 @@
 // no file resuming without them. The program cases pin `co program archive`, `split`, and `merge`:
 // split refusing while an item is unassigned, both children and the Forwarded-to trail, merge
 // renumbering across the ledger and archive with a Was: trail, the running-head refusal, and check 9
-// following Forwarded-to and Was:.
+// following Forwarded-to and Was:. The overlap cases (design C6) pin the `program overlap:` block at
+// `run open --program` and `resume`: one warning per shared scope document, a merge suggestion for
+// two or more, and no output for no overlap, an idle or ended session, the program's own sessions, or
+// a merged program; and that corrupt records, a missing ledger, or an unreadable board skip silently.
 // Every fixture lives in an OS temp dir, and CODE_OPS_HOME points the session records at a temp
 // home, so nothing writes under the repository or the real home.
 //
@@ -754,6 +757,29 @@ try {
   check('resume fails check 14 on an unresolved promoted id and still names it UNLANDED', lost.status === 1
     && /check 14: .*DEC-1 promoted:D-404/.test(lost.stdout) && /^warning: UNLANDED DEC-1 promoted:D-404: in neither state\.json nor intake/m.test(lost.stdout));
 
+  // ---- overlap-warns-never-denies (design C6): resume warns on a scope document another live program lists ----
+  const ovScope = ['docs/new-scope/spec.md', 'docs/new/plan-v2.md'];
+  lcLedger('ov-a', [], ovScope);
+  lcLedger('ov-b', [], [...ovScope, 'docs/only-b.md']);
+  lcLedger('ov-c', [], ['docs/new/plan-v2.md']);
+  const ovOpen = (sid, slug, name, program) => inG2([co, 'run', 'open', slug, '--name', name, '--session', sid, '--program', `80 Runs/programs/${program}/PROGRAM.md`, '--root', '.']);
+  ovOpen('sess-ovb', 'ovb-run', 'Ovb HO 3', 'ov-b');
+  const ovResume = () => inG2([co, 'handoff', 'resume', lcHandoff('lc-ova-run', 'ov-a'), '--root', g2, '--session', 'sess-ova']);
+  const ovA = ovResume();
+  const ovLines = ovA.stdout.trimEnd().split('\n');
+  check('overlap-warns-never-denies: resume with a shared scope document warns, exits 0, and still consumes', ovA.status === 0 && ovA.stdout.includes('consumed:')
+    && ovLines.includes('  warning: program ov-b (live head: Ovb HO 3) also lists docs/new-scope/spec.md'));
+  check('resume prints one warning per shared path and one merge suggestion for a multi-path overlap',
+    ovLines.filter((l) => l.startsWith('  warning: program ov-b')).length === 2 && ovLines.includes('  warning: program ov-b (live head: Ovb HO 3) also lists docs/new/plan-v2.md')
+    && ovLines.includes('  suggest: 2 shared paths with ov-b; if they are one effort, run co program merge ov-a --into ov-b') && !ovA.stdout.includes('only-b.md'));
+  const ovAt = ovLines.indexOf('program overlap:');
+  check('resume puts the overlap block right before the links block and keeps the set title line last',
+    ovAt > 0 && ovLines[ovAt + 4] === 'links:' && ovLines.lastIndexOf('links:') === ovAt + 4 && ovLines.at(-1).startsWith('set title: "'));
+  ovOpen('sess-ovc', 'ovc-run', 'Ovc HO 1', 'ov-c');
+  const ovCOut = inG2([co, 'handoff', 'resume', lcHandoff('lc-ovc-run', 'ov-c'), '--root', g2, '--session', 'sess-ovc-resume']).stdout;
+  check('resume lists a single shared path without a merge suggestion, and never names its own program', ovCOut.includes('program overlap:') && !ovCOut.includes('suggest:')
+    && ovCOut.includes('also lists docs/new/plan-v2.md') && !ovCOut.includes('program ov-c'));
+
   // Forwarding: the scope document moved by prefix, the pointer's file was renamed, so it would otherwise report GONE.
   const forwardingDoc = { version: 1, forwards: [
     { from: 'docs/old-scope', to: 'docs/new-scope', movedAt: '2026-09-28', reason: 'vault move' },
@@ -777,6 +803,77 @@ try {
     && /FORWARDING\.json is invalid/.test(badForwarding.stdout) && badForwarding.stdout.includes('not consumed'));
 } finally {
   rmSync(g2, { recursive: true, force: true });
+}
+
+// ---- program overlap at run open (design C6): live programs on the presence board, warn only ----
+const ov = realpathSync(mkdtempSync(join(tmpdir(), 'handoff-overlap-')));
+try {
+  execFileSync('git', ['init', '-q'], { cwd: ov, stdio: 'ignore' });
+  const ledger = (slug, scope, status = '') => {
+    const file = join(ov, '80 Runs', 'programs', slug, 'PROGRAM.md');
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, [`# PROGRAM: ${slug}`, '', '## Program goal', '', `Goal of ${slug}.`, ...(status ? [status] : []), '', '## Scope documents', '',
+      ...scope.map((s) => `- \`${s}\` · Status: current · Role: fixture`), '', '## Open items', ''].join('\n'));
+    return file;
+  };
+  const openOn = (sid, program, name = sid) => spawnSync(process.execPath, [co, 'run', 'open', sid, '--name', name, '--session', sid, '--program', `80 Runs/programs/${program}/PROGRAM.md`],
+    { cwd: ov, encoding: 'utf8', env });
+  const warned = (res) => res.stdout.split('\n').filter((l) => l.startsWith('  warning: ') || l.startsWith('  suggest: '));
+  const boardFile = (sid) => join(home, '.claude', 'code-ops', 'board', repoIdentity(ov).key, `${sid}.json`);
+  const patchBoard = (sid, change) => { const r = JSON.parse(readFileSync(boardFile(sid), 'utf8')); change(r); writeFileSync(boardFile(sid), JSON.stringify(r)); };
+  ledger('beta', ['shared-one.md', 'shared-two.md', 'only-beta.md']);
+  ledger('alpha', ['shared-one.md', 'shared-two.md', 'only-alpha.md']);
+  ledger('gamma', ['shared-one.md', 'only-gamma.md']);
+  ledger('delta', ['unrelated.md']);
+
+  const first = openOn('sess-beta', 'beta', 'Beta HO 1');
+  check('overlap: the first live program prints no overlap block', first.status === 0 && !first.stdout.includes('program overlap:') && first.stdout.split('\n')[1] === 'links:');
+  const multi = openOn('sess-alpha', 'alpha', 'Alpha HO 1');
+  const multiLines = multi.stdout.split('\n');
+  check('overlap-warns-never-denies: run open warns per shared path, suggests a merge for two, and exits 0', multi.status === 0
+    && JSON.stringify(warned(multi)) === JSON.stringify(['  warning: program beta (live head: Beta HO 1) also lists shared-one.md', '  warning: program beta (live head: Beta HO 1) also lists shared-two.md',
+      '  suggest: 2 shared paths with beta; if they are one effort, run co program merge alpha --into beta']));
+  check('run open puts the overlap block between the run folder line and the links block', multiLines[1] === 'program overlap:' && multiLines[5] === 'links:' && multiLines.length === 8 && multiLines[7] === '');
+  const single = openOn('sess-gamma', 'gamma', 'Gamma HO 1');
+  check('overlap: a single shared path warns once per program and suggests no merge', single.status === 0 && warned(single).length === 2
+    && warned(single).every((l) => l.startsWith('  warning: ') && l.endsWith('also lists shared-one.md')) && !single.stdout.includes('suggest:'));
+  const none = openOn('sess-delta', 'delta', 'Delta HO 1');
+  check('overlap: no shared scope document prints nothing extra', none.status === 0 && !none.stdout.includes('program overlap:') && !none.stdout.includes('warning:'));
+  const own = openOn('sess-alpha-2', 'alpha', 'Alpha HO 1b');
+  check('overlap: another session of the same program is not an overlap', own.status === 0 && !own.stdout.includes('program alpha') && warned(own).some((l) => l.includes('program beta')));
+
+  ledger('epsilon', ['only-beta.md']);
+  check('overlap: a live peer warns before the idle and ended cases', warned(openOn('sess-eps-1', 'epsilon')).length === 1);
+  patchBoard('sess-beta', (r) => { r.heartbeat = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); });
+  check('overlap: an idle session (no heartbeat for 30 minutes) is ignored', !openOn('sess-eps-2', 'epsilon').stdout.includes('program beta'));
+  patchBoard('sess-beta', (r) => { r.heartbeat = new Date().toISOString(); r.ended = new Date().toISOString(); });
+  check('overlap: an ended session is ignored', !openOn('sess-eps-3', 'epsilon').stdout.includes('program beta'));
+  patchBoard('sess-beta', (r) => { r.ended = null; });
+  check('overlap: the same session warns again once it is live', warned(openOn('sess-eps-4', 'epsilon')).length === 1);
+
+  ledger('zeta', ['zeta-only.md'], 'Status: merged into beta');
+  openOn('sess-zeta', 'zeta');
+  ledger('theta', ['zeta-only.md']);
+  check('overlap: a program marked merged or closed is not compared', !openOn('sess-theta', 'theta').stdout.includes('program overlap:'));
+
+  // Fail open: garbage records, an unresolvable run folder, a deleted ledger, and finally a board path that is a file.
+  const boardDir = dirname(boardFile('x'));
+  writeFileSync(join(boardDir, 'garbage.json'), '{{{ not json');
+  writeFileSync(join(boardDir, 'strange.json'), JSON.stringify({ sessionId: 'strange', heartbeat: new Date().toISOString(), runDir: 5, name: { a: 1 } }));
+  writeFileSync(join(boardDir, 'lost.json'), JSON.stringify({ sessionId: 'lost', heartbeat: new Date().toISOString(), runDir: '../../nowhere', worktree: '.' }));
+  ledger('iota', ['shared-one.md']);
+  openOn('sess-iota', 'iota');
+  rmSync(join(ov, '80 Runs', 'programs', 'iota'), { recursive: true, force: true });
+  ledger('kappa', ['shared-one.md']);
+  const corrupt = openOn('sess-kappa', 'kappa');
+  check('overlap-warns-never-denies: corrupt records and a missing ledger are skipped, valid peers still warn, exit 0', corrupt.status === 0
+    && warned(corrupt).some((l) => l.includes('program alpha')) && !corrupt.stdout.includes('program iota') && !corrupt.stderr.includes('Error'));
+  rmSync(boardDir, { recursive: true, force: true });
+  writeFileSync(boardDir, 'not a directory');
+  const noBoard = openOn('sess-lambda', 'kappa', 'Lambda HO 1');
+  check('overlap: an unreadable board fails open with exit 0 and no overlap block', noBoard.status === 0 && !noBoard.stdout.includes('program overlap:') && noBoard.stdout.includes('links:'));
+} finally {
+  rmSync(ov, { recursive: true, force: true });
 }
 
 if (fails.length) { console.error(`\n${fails.length} assertion(s) failed`); process.exit(1); }

@@ -92,6 +92,12 @@ export const RUNTIME_SCRIPTS = [
   // the handoff skill, so no other plugin needs this copy.
   { name: 'check-handoff.mjs', plugins: ['code-ops-suite'] },
   { name: 'handoff-state.mjs', plugins: ['code-ops-suite'] },
+  // The change feed. hooks/handoff-card.mjs, hooks/index-refresh.mjs, and records.mjs import it
+  // lazily, and it imports handoff-state.mjs as a SIBLING, so it ships beside both.
+  { name: 'change-feed.mjs', plugins: ['code-ops-suite'] },
+  // Collision notes (C2). hooks/dispatch-guard.mjs imports it lazily on edit tools and git
+  // pull, merge, rebase, and push; it imports handoff-state.mjs as a SIBLING.
+  { name: 'collision-lib.mjs', plugins: ['code-ops-suite'] },
   // `co decide promote` and `co program close`. Both import promotion-lib.mjs as a SIBLING and spawn
   // records.mjs (already vendored above), so the pair ships wherever handoff-state.mjs does.
   { name: 'program-lifecycle.mjs', plugins: ['code-ops-suite'] },

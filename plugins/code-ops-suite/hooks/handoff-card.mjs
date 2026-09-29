@@ -65,9 +65,21 @@
 // byte offset keys the bound, so a passed bound never suppresses again. A malformed latest line
 // sets no bound, and a missing record or log reads as no bound.
 //
+// CHANGE FEED (C3, DEC-66 of the program-state design). The same process carries the change
+// feed, so no hook process is added. On PostToolUse of a Bash `git push` or `gh pr merge` it
+// records an event through scripts/change-feed.mjs, and on every UserPromptSubmit and
+// PostToolUse it appends one line per new event from another session that intersects this
+// session's branch or edits. The lines join the card's `additionalContext`, or stand alone when
+// no card fires; the card's own text, bands, and `systemMessage` never change. Grok delivers at
+// PostToolUse only, because it discards UserPromptSubmit output. `CODE_OPS_FEED` and
+// `CODE_OPS_PEER_GUARD` turn the feed off (rationale in scripts/change-feed.mjs);
+// `CODE_OPS_HANDOFF_CARD=off` silences the card and leaves the feed on. A push event reads the range, branch,
+// and commit from the push summary in the tool result and runs one `git diff` for the paths; a
+// summary it cannot read falls back to up to three git calls. Nothing else spawns.
+//
 // FAIL-OPEN on every path: bad JSON, a missing or unreadable transcript, a transcript whose
-// tail window carries no assistant usage, or any thrown error exits 0 with no output. The hook
-// never blocks a prompt (never exits 2) and never spawns a process.
+// tail window carries no assistant usage, a missing or failing feed library, or any thrown
+// error exits 0 with no output. The hook never blocks a prompt (never exits 2).
 
 import { closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, writeFileSync, writeSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -133,8 +145,34 @@ function continueBound(cwd, sessionId, sessionRecordPath) {
   } catch { return null; } finally { if (fd !== undefined) try { closeSync(fd); } catch { /* fail open */ } }
 }
 
+const off = (name) => /^(off|0|false)$/i.test(process.env[name] ?? '');
+const scriptsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
+const commandOf = (payload) => {
+  const input = payload?.tool_input ?? payload?.toolInput ?? payload?.input;
+  return typeof input?.command === 'string' ? input.command : typeof input?.cmd === 'string' ? input.cmd : '';
+};
+const SHELL_TOOLS = new Set(['bash', 'shell', 'run_terminal_command', 'exec_command']);
+const isShellTool = (payload) => SHELL_TOOLS.has(String(payload?.tool_name ?? payload?.toolName ?? payload?.tool?.name ?? '').toLowerCase().split('.').at(-1));
+
+// The change feed step: records this session's own push or merge, then returns the lines other
+// sessions' events earn. Returns [] on any failure or when the feed is off.
+async function feedLines(payload, sessionId, cwd, event) {
+  try {
+    const feed = await import(pathToFileURL(join(scriptsDir, 'change-feed.mjs')).href);
+    const home = process.env.CODE_OPS_HOME || homedir();
+    if (event === 'PostToolUse' && isShellTool(payload)) {
+      const kind = feed.commandKind(commandOf(payload));
+      const response = payload.tool_response ?? payload.toolResponse ?? payload.tool_output;
+      if (kind && !feed.moveFailed(response)) await feed.recordMove(cwd, sessionId, kind, home, response);
+    }
+    return await feed.deliver(cwd, sessionId, home);
+  } catch { return []; }
+}
+
 async function main() {
-  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_HANDOFF_CARD ?? '')) return;
+  const cardOn = !off('CODE_OPS_HANDOFF_CARD');
+  const feedOn = !off('CODE_OPS_FEED') && !off('CODE_OPS_PEER_GUARD');
+  if (!cardOn && !feedOn) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
@@ -145,21 +183,37 @@ async function main() {
   const promptOnly = grok && event === 'UserPromptSubmit';
   if (grok) {
     if (event !== 'PostToolUse' && !promptOnly) return;
-  } else if (event && event !== 'UserPromptSubmit') return;
+  } else if (event && event !== 'UserPromptSubmit' && event !== 'PostToolUse') return;
   const sessionId = payload?.session_id ?? payload?.sessionId;
   if (typeof sessionId !== 'string' || !sessionId) return;
+  const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
 
+  // Off Grok the card runs on prompts only; a PostToolUse call there carries the feed alone.
+  const message = cardOn && (grok || event !== 'PostToolUse') ? await card(payload, sessionId, cwd, grok, promptOnly).catch(() => null) : null;
+  const lines = feedOn && !promptOnly ? await feedLines(payload, sessionId, cwd, event) : [];
+  if (!message && !lines.length) return;
+  const context = [message, ...lines].filter(Boolean).join('\n');
+  const body = grok || event === 'PostToolUse'
+    ? { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: context } }
+    : {
+      ...(message ? { systemMessage: message } : {}),
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context },
+    };
+  writeSync(1, `${JSON.stringify(body)}\n`);
+}
+
+// The context card. Returns its message when one is due, else null; writes only the marker.
+async function card(payload, sessionId, cwd, grok, promptOnly) {
   const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
   const { residentContext, contextCeiling, handoffMarkerPath, handoffPeakBand, recordCeilingAssessment, sessionRecordPath } = await import(pathToFileURL(libPath).href);
-  const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
   const marker = handoffMarkerPath(cwd, sessionId, homedir());
   if (promptOnly) {
     const state = readMarker(marker);
     if (state.fired) writeMarker(marker, { ...state, prompts: state.prompts + 1 }, handoffPeakBand(marker));
-    return;
+    return null;
   }
   const context = residentContext(payload, { grok, home: homedir() });
-  if (typeof context !== 'number') return;
+  if (typeof context !== 'number') return null;
 
   const band = Math.floor(context / THRESHOLD);
   // A typed handoff command expands without a Skill tool call, so the dispatch guard never sees
@@ -176,7 +230,7 @@ async function main() {
     if (state.band !== 0 || state.point || state.fired || state.prompts) {
       writeMarker(marker, { band: 0, point: false, fired: false, prompts: 0, until: state.until }, peak);
     }
-    return;
+    return null;
   }
 
   const point = grok ? HANDOFF_POINT_GROK : HANDOFF_POINT;
@@ -197,7 +251,7 @@ async function main() {
     fired: state.fired || fire, prompts: fire ? 0 : state.prompts + (grok ? 0 : 1), until,
   };
   writeMarker(marker, next, peak);
-  if (!fire) return;
+  if (!fire) return null;
 
   const approx = Math.round(context / 10_000) * 10_000;
   const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context. `;
@@ -222,14 +276,7 @@ async function main() {
     advice = 'Finish the step in flight, then run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.'
       + ` Past ${pointText}, hand off at the next phase boundary unless a short coherent finish remains.`;
   }
-  const message = held + after + advice + gated;
-  const body = grok
-    ? { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: message } }
-    : {
-      systemMessage: message,
-      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: message },
-    };
-  writeSync(1, `${JSON.stringify(body)}\n`);
+  return held + after + advice + gated;
 }
 
 main().catch(() => { /* fail open */ });

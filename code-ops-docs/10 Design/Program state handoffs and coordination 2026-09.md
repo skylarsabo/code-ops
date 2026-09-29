@@ -590,7 +590,7 @@ U5 of the handoff-fidelity draft moved to O3.
 W8's read notice, C2, and C3 add behavior to the most frequent tool events. Each hook process adds startup latency to every matching tool call.
 
 - A new behavior joins an existing hook entry for its event, instead of adding a process.
-- The p50 and p95 added latency per tool call is measured before the first of these PRs and after each one. A regression above 50 ms at p95 blocks that PR until it is fixed or the operator accepts it.
+- The p50 and p95 added latency per tool call is measured before the first of these PRs and after each one. A regression above 50 ms at p95 blocks that PR until it is fixed or the operator accepts it. On 2026-09-29 the operator accepted an exclusion for calls that run git push, pull, merge, or rebase, because one git spawn alone costs about 40 ms (DEC-67).
 - Every new hook keeps the suite pattern: fail open, bounded reads, local files only, and an off switch.
 
 ## Retention by run class

@@ -37,6 +37,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Handoff write and consumption](#handoff-write-and-consumption)
 - [Dispatch guard hook](#dispatch-guard-hook)
 - [Peer guard hook](#peer-guard-hook)
+- [Change feed](#change-feed)
 - [Symbol index and query](#symbol-index-and-query)
 - [Atlas claims and scope suggestion](#atlas-claims-and-scope-suggestion)
 - [Documentation manifest](#documentation-manifest)
@@ -812,6 +813,14 @@ chain head. It prints the head's session name, id, and run folder, and marks the
 resume when that run already wrote an unconsumed `HANDOFF.md`. Evidence: `scripts/handoff-state.mjs`
 and `evals/handoff-state/run.mjs`.
 
+Program overlap (C6). `co run open <slug> --program <PROGRAM.md>` and `co handoff resume` compare
+the program's Scope documents paths with every other live program on the presence board. They
+print a `program overlap:` block before `links:`. It holds one warning line per shared path,
+naming the other program and its live head. Two or more shared paths add a `co program merge`
+suggestion. The check never blocks or changes an exit code. It skips a corrupt board or a missing
+ledger silently. `CODE_OPS_PEER_GUARD=off` disables it. Evidence: `scripts/handoff-state.mjs`
+and `evals/handoff-state/run.mjs`.
+
 ## Dispatch guard hook
 
 `hooks/dispatch-guard.mjs` runs at `PreToolUse` with no matcher, so it sees every tool call, and
@@ -896,6 +905,17 @@ denies any other main-thread tool call. Absent or malformed host payloads preser
 no-op behavior.
 Explicit controller bindings have separate validation and conflict handling. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` and `evals/dispatch-guard/run.mjs`.
+
+The collision note is a fifth behavior. On every thread, for an edit tool or a shell `git pull`,
+`git merge`, `git rebase`, or `git push`, the hook imports `scripts/collision-lib.mjs` lazily and
+adds warn-only `additionalContext`. It names live board peers that claimed the path or edited it
+within 6 hours. For a git command, it names live peers on the same branch that edited this
+session's dirty files. It warns once per path per peer per session. A subagent keeps its own
+set, under `<home>/.claude/code-ops/collision/<repo key>/`. The note never denies. Beside a deny,
+the hook drops it unspent, so it shows on a later call. Any failure passes with no note. The off
+switch is `CODE_OPS_PEER_GUARD`, the board's switch, or `CODE_OPS_DISPATCH_GUARD=off`. Evidence:
+`scripts/collision-lib.mjs`, `plugins/code-ops-suite/hooks/dispatch-guard.mjs`, and
+`evals/collision/run.mjs`.
 
 The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round stop are the enforcement layer.
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
@@ -1007,6 +1027,34 @@ recorded. Evidence: `scripts/build-opencode-dist.mjs:401,452-461,685-687` and
 `evals/opencode-dist/run.mjs`.
 
 **Cost.** MEASUREMENTS.md, "Presence board hook latency, 2026-09-28", records the added latency.
+
+## Change feed
+
+The change feed tells live sessions about moves that affect them. Events are `push`, `merge`,
+`hub-edit`, `seal-start`, `seal-land`, and `seal-abort`. Each carries an id, a time, a kind, the
+branch, the commit, the session name and id, repo-relative paths, and an optional seal id and
+note. The store is `<home>/.claude/code-ops/feed/<repo key>/events.jsonl`, with per-session cursors
+under `cursors/`. It keeps at most 200 events and 64 KiB, and drops the oldest first. A reader
+skips a corrupt line.
+
+Three writers post events. `hooks/handoff-card.mjs` records a Bash `git push` or `gh pr merge` at
+`PostToolUse`. `hooks/index-refresh.mjs` records a `hub-edit` for `DOCS_MANIFEST.json` and
+`PROGRAM.md`. `co records seal` records `seal-start`, `seal-land`, and `seal-abort`, and prints a
+`records: warning:` line on stderr when another seal on the same base head is still in flight. The
+seal never refuses.
+
+`hooks/handoff-card.mjs` delivers events at `UserPromptSubmit` and `PostToolUse`. Grok delivers at
+`PostToolUse` only, because it discards `UserPromptSubmit` output. A call delivers at most three
+lines, one per event, once per session. An event reaches a session when its branch matches the
+session's branch, or when its paths meet that session's board edits or claims. A session with no
+cursor reads the last 10 minutes. The card keeps its own text and bands. Off Grok it runs on
+prompts only, so a `PostToolUse` call carries the feed alone.
+
+The feed has its own switches. `CODE_OPS_FEED` of `off`, `0`, or `false` turns it off, and so does
+`CODE_OPS_PEER_GUARD`. `CODE_OPS_HANDOFF_CARD=off` silences only the card. The hook now runs git,
+up to three short calls, for a `push` event to name the commit and paths. Nothing else in it
+spawns a process. Every path fails open. Evidence: `scripts/change-feed.mjs`,
+`plugins/code-ops-suite/hooks/handoff-card.mjs`, and `evals/change-feed/run.mjs`.
 
 ## Symbol index and query
 

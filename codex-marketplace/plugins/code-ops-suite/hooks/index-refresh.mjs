@@ -16,6 +16,12 @@
 // id, writes only under `<home>/.claude/code-ops/board/`, and is off when `CODE_OPS_PEER_GUARD` is
 // `off`, `0`, or `false`, independent of `CODE_OPS_INDEX`. A path outside the worktree is skipped.
 //
+// CHANGE FEED. On an edit to a shared hub file (`DOCS_MANIFEST.json` or `PROGRAM.md`) the same
+// call posts a `hub-edit` event to the repository's change feed, which peers read at their next
+// prompt or tool call (scripts/change-feed.mjs, C3 of the program-state design; DEC-66 keeps it
+// inside this process). It is off when `CODE_OPS_FEED` or `CODE_OPS_PEER_GUARD` is `off`, `0`,
+// or `false`, and it lazily imports the feed library only for a hub file.
+//
 // Fail-open on every path: bad JSON, another tool, a payload without a file path, a file
 // outside a git work tree, a missing query script, a slow or failing refresh, or an internal
 // error all exit 0 with no output. It never blocks a call and never writes to the tree.
@@ -39,6 +45,9 @@ function editedFiles(payload) {
   return [...patch.matchAll(/^\*\*\* (?:Add|Update) File: (.+)$/gm)].map((match) => match[1].trim());
 }
 
+const HUB_FILES = new Set(['DOCS_MANIFEST.json', 'PROGRAM.md']);
+const isHub = (file) => HUB_FILES.has(String(file).replace(/\\/g, '/').split('/').at(-1));
+
 const off = (name) => /^(off|0|false)$/i.test(process.env[name] ?? '');
 
 async function main() {
@@ -59,6 +68,13 @@ async function main() {
       const { updateBoard, boardEdits } = await import(pathToFileURL(join(scripts, 'handoff-state.mjs')).href);
       updateBoard(cwd, sid, boardEdits(files), process.env.CODE_OPS_HOME || homedir());
     } catch { /* the board is advisory */ }
+    const hub = files.filter(isHub);
+    if (hub.length && !off('CODE_OPS_FEED')) {
+      try {
+        const { postEvent } = await import(pathToFileURL(join(scripts, 'change-feed.mjs')).href);
+        await postEvent(cwd, { kind: 'hub-edit', sid, paths: hub }, process.env.CODE_OPS_HOME || homedir());
+      } catch { /* the feed is advisory */ }
+    }
   }
   const script = join(scripts, 'context-query.mjs');
   if (!indexOn || !existsSync(script)) return;
