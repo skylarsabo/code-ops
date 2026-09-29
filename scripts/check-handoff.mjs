@@ -95,7 +95,15 @@
 //      title compares against the nearest ancestor handoff that holds the full line; with no such
 //      ancestor on disk, the item is skipped.
 //  18. No DEC or OI id leads two bullets across the ledger and its archive.
-// Check 14 (a promoted id resolves) is not implemented yet.
+//  14. Every `Disposition: promoted:<record id>` in the ledger or its archive resolves on the working
+//      tree, through recordState() in promotion-lib.mjs: sealed in `state.json`, or staged in
+//      `intake.jsonl` awaiting its seal. An id in neither fails. A staged id passes, because the
+//      record lands only when its branch merges; `co handoff resume` reports it UNLANDED.
+//
+// FORWARDING (design L4). A scope-document path, or a pointer path that would report GONE, falls back
+// to `<hub>/98 System/FORWARDING.json` (forwardPath() in record-lib.mjs, repo-relative paths). A
+// forwarded hit that exists reports MOVED, a warning, never GONE. The file loads on the first miss,
+// and an invalid one (forwardingErrors(), a JSON error, or a cycle) is a violation, never a silent pass.
 //
 // `--consume` writes `HANDOFF.consumed` beside the file only when every check above passes. Its
 // body is the version 2 JSON `{"v":2,"consumedAt","bySession","successorRun","name"}`. bySession is
@@ -129,6 +137,8 @@ import { parseOrDie, usage, git } from './cli-lib.mjs';
 // Imported by relative specifier: check-handoff.mjs ships vendored into
 // plugins/code-ops-suite/scripts/, and the library ships beside it.
 import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLineAt } from './citation-lib.mjs';
+import { hubOf, promotedIds, recordState } from './promotion-lib.mjs';
+import { forwardingErrors, forwardPath } from './record-lib.mjs';
 
 const USAGE = 'usage: check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors] [--consume [--session <id>] [--successor <run dir>] [--name <session name>]]';
 const { flags, positional } = parseOrDie(process.argv.slice(2), {
@@ -220,6 +230,35 @@ function sections(body) {
 const violations = [];
 const warnings = [];
 const secs = sections(text);
+
+// ---- forwarding: where `path` moved to, repo-relative, or null ----
+// FORWARDING.json loads on the first miss. Its own failure is a violation, reported once per cause.
+let forwarding = null;
+let forwardingLoaded = false;
+function loadForwarding() {
+  const hub = hubOf(flags.root);
+  const file = hub === null ? null : join(flags.root, hub, '98 System', 'FORWARDING.json');
+  if (!file || !existsSync(file)) return null;
+  try {
+    const document = JSON.parse(readFileSync(file, 'utf8'));
+    const errors = forwardingErrors(document);
+    if (errors.length) throw new Error(errors.join('; '));
+    return document;
+  } catch (err) {
+    violations.push(`FORWARDING.json is invalid, so a missing path cannot be forwarded: ${err.message}`);
+    return null;
+  }
+}
+function forwardedTo(path) {
+  const repoPath = relative(resolve(flags.root), inRoot(path)).replace(/\\/g, '/');
+  if (repoPath.startsWith('..') || isAbsolute(repoPath)) return null;
+  if (!forwardingLoaded) { forwardingLoaded = true; forwarding = loadForwarding(); }
+  if (!forwarding) return null;
+  try { return forwardPath(forwarding, repoPath); } catch (err) {
+    violations.push(`FORWARDING.json is invalid, so a missing path cannot be forwarded: ${err.message}`);
+    return null;
+  }
+}
 
 // ---- 16. every Open items Pointer: carries an Anchor: (a warning under grammar 1) ----
 // Each text run after a `Pointer:` label, up to the next one, must hold a delimited Anchor:.
@@ -327,7 +366,8 @@ function checkProgram(file, shown) {
   }
   // The archive `co program archive` writes beside the ledger. Its bullets count as the ledger's.
   const archiveFile = join(dirname(file), ARCHIVE_NAME);
-  const as = isFile(archiveFile) ? sections(readFileSync(archiveFile, 'utf8')) : [];
+  const archiveText = isFile(archiveFile) ? readFileSync(archiveFile, 'utf8') : '';
+  const as = sections(archiveText);
   const archived = (h) => bulletsOf(findSection(as, h)?.body ?? '');
   const goal = findSection(ps, 'Program goal');
   if (goal && !goal.body.trim()) violations.push(`${tag} "## Program goal" is empty`);
@@ -343,7 +383,11 @@ function checkProgram(file, shown) {
     const shownLine = line.trim().slice(0, 70);
     const doc = /`([^`\n]+)`/.exec(line)?.[1].trim();
     if (!doc) violations.push(`${tag} Scope documents entry names no backticked path: ${shownLine}`);
-    else if (!existsSync(inRoot(doc))) violations.push(`${tag} Scope document does not exist on the tree: ${doc}`);
+    else if (!existsSync(inRoot(doc))) {
+      const moved = forwardedTo(doc);
+      if (moved && existsSync(inRoot(moved))) warnings.push(`MOVED scope document ${doc} -> ${moved}`);
+      else violations.push(`${tag} Scope document does not exist on the tree: ${doc}`);
+    }
     if (!/\bStatus:\s*\S/.test(line) || !/\bRole:\s*\S/.test(line)) violations.push(`${tag} Scope documents entry missing "Status:" or "Role:": ${shownLine}`);
   }
   const closed = new Set();
@@ -384,6 +428,14 @@ function checkProgram(file, shown) {
       violations.push(`check 11: ${tag} Decisions ledger entry needs a leading DEC-<n>, "Hop: <n>", and "Disposition: pending|local|dropped|promoted:<id>": ${shownLine}`);
     }
     if (id && hop !== undefined && disposition) result.decisions.push({ id, hop: Number(hop), disposition });
+  }
+  // ---- 14. every promoted id resolves on the working tree: sealed, or staged in intake ----
+  const promoted = promotedIds(`${body}\n${archiveText}`);
+  const hub = promoted.length ? hubOf(flags.root) : null;
+  for (const { dec, recordId } of promoted) {
+    if (recordState(flags.root, recordId, { hub }).where === null) {
+      violations.push(`check 14: ${tag} ${dec ?? 'a decision'} promoted:${recordId} resolves in neither state.json nor intake on the working tree`);
+    }
   }
   // ---- 13 and 18 read the ledger and its archive; a Was: trail names an imported id ----
   const archivedDecisions = archived('Decisions ledger');
@@ -549,18 +601,29 @@ for (const raw of text.split('\n')) {
   }
   for (const ref of refs) {
     const where = `${ref.path}:${ref.line}`;
-    const { status, note, target: file } = resolveRef(resolver, ref);
-    if (status !== 'FRESH' || !file) { statuses.push({ status, where, note }); continue; }
-    if (anchor === '<REDACTED-LINE>') { statuses.push({ status, where, note: 'redacted anchor — line-existence check only' }); continue; }
-    const cited = readLineAt(file, ref.line);
-    if (cited != null && cited.includes(anchor)) { statuses.push({ status: 'FRESH', where, note: null }); continue; }
-    // The anchor is not on the cited line. Somewhere else in the same file means the pointer's
-    // line number went stale while the code it names survived, which a successor can still
-    // follow, so that is MOVED. Nowhere in the file means the code itself changed: DRIFTED.
-    const at = readFileSync(file, 'utf8').split('\n').findIndex((l) => l.includes(anchor));
-    if (at >= 0) statuses.push({ status: 'MOVED', where, note: `anchor now on line ${at + 1}` });
-    else statuses.push({ status: 'DRIFTED', where, note: `anchor ${JSON.stringify(anchor)} is not in the file` });
+    let judged = judgePointer(ref, anchor);
+    // A missing file falls back to FORWARDING.json. A forwarded hit that resolves is MOVED at best.
+    const to = judged.status === 'GONE' ? forwardedTo(ref.path) : null;
+    if (to) {
+      judged = judgePointer({ ...ref, path: to }, anchor);
+      if (judged.status === 'FRESH' || judged.status === 'MOVED') judged = { status: 'MOVED', note: `forwarded to ${to}${judged.note ? `; ${judged.note}` : ''}` };
+    }
+    statuses.push({ ...judged, where });
   }
+}
+// One citation against the tree: { status, note }.
+function judgePointer(ref, anchor) {
+  const { status, note, target: file } = resolveRef(resolver, ref);
+  if (status !== 'FRESH' || !file) return { status, note };
+  if (anchor === '<REDACTED-LINE>') return { status, note: 'redacted anchor — line-existence check only' };
+  const cited = readLineAt(file, ref.line);
+  if (cited != null && cited.includes(anchor)) return { status: 'FRESH', note: null };
+  // The anchor is not on the cited line. Somewhere else in the same file means the pointer's
+  // line number went stale while the code it names survived, which a successor can still
+  // follow, so that is MOVED. Nowhere in the file means the code itself changed: DRIFTED.
+  const at = readFileSync(file, 'utf8').split('\n').findIndex((l) => l.includes(anchor));
+  if (at >= 0) return { status: 'MOVED', note: `anchor now on line ${at + 1}` };
+  return { status: 'DRIFTED', note: `anchor ${JSON.stringify(anchor)} is not in the file` };
 }
 // NO-REF is reported and never gates: an `Anchor:` written in the handoff's own prose, with no
 // pointer beside it, is a writing slip rather than a stale claim about the tree.

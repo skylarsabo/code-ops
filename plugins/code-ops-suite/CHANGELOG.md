@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.19.0
+- `co decide promote DEC-<n> --program <slug>` stages a decision record in records intake, sets the ledger disposition to `promoted:<record id>`, and renders the register. It refuses a grammar-1 ledger, an unknown id, and a decision that is not `pending` or `local`.
+- `co program close <slug>` writes `CLOSEOUT.md`, marks the ledger `Status: closed`, and updates `80 Runs/INDEX.md`. It refuses while a decision is pending, an open item is not forwarded to an operator-owned successor, a handoff is unconsumed, or a promoted id is not sealed on the base branch.
+- Handoff check 14 fails a `promoted:` id that resolves in neither `state.json` nor intake. Resume warns `UNLANDED` for an id not yet sealed and reports `DRIFTED` for an id superseded or amended since `Verified-at`.
+- A missing scope document or pointer path falls back to `98 System/FORWARDING.json`. A forwarded hit reports MOVED, and an invalid forwarding file fails the check.
+
 ## 2.18.0
 - `co program split <slug> --into <a>,<b> --assign <id>=<child>,...` writes a grammar-2 ledger per child and marks each parent open item and pending decision `Forwarded-to: <child>/<id>`. It refuses while any item is unassigned.
 - `co program merge <from> --into <to>` imports the source's requests, scope documents, open items, and pending decisions under fresh ids with `Was: <from>/<id>`, marks the source `Status: merged into <to>`, and lists each imported pending decision to settle. It refuses a running head without `--head-ended`.

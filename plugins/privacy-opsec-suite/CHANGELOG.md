@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.3.2
+- Vendored `co.mjs` adds the `decide promote` and `program close` verbs.
+
 ## 2.3.1
 - Vendored `co.mjs` adds the `program split` and `program merge` verbs.
 

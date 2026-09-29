@@ -117,7 +117,7 @@ holds and delete the rest. Replace each `[FILL: ...]` placeholder with judgment,
 - **Scope and constraints:** areas in and out of scope, and the operator's constraints in their exact words.
 - **Key findings:** one line each with `CONFIRMED`, `PROBABLE`, or `SPECULATIVE` and a pointer to its evidence.
 - **In-flight boundaries:** the done-against-not-done line and the load-bearing `file:line` pointers, each with a verbatim **Anchor** (`§9`).
-- **Decisions made:** each with its reason and the options rejected, the least recoverable session state. Under ledger grammar 2, the reason and rejected options go in the `PROGRAM.md` Decisions ledger, and this section lists each decision as `- DEC-<n> <one clause>`.
+- **Decisions made:** each with its reason and the options rejected, the least recoverable session state. Under ledger grammar 2, the reason and rejected options go in the `PROGRAM.md` Decisions ledger, and this section lists each decision as `- DEC-<n> <one clause>`. To promote a decision to the register, run `co decide promote DEC-<n> --program <slug>`. It stages the record, sets the ledger disposition, and renders the register in one step.
 - **Traps and dead ends:** approaches that failed, and what the successor will be tempted to do wrong.
 - **Authority:** the operator's grants in their exact words, with scope, stating the handoff cannot broaden them.
 - **Carried context:** conversation analysis the successor needs, written to a run-folder file and pointed at, plus any session receipt for measured cost.

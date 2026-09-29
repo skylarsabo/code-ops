@@ -92,6 +92,10 @@ export const RUNTIME_SCRIPTS = [
   // the handoff skill, so no other plugin needs this copy.
   { name: 'check-handoff.mjs', plugins: ['code-ops-suite'] },
   { name: 'handoff-state.mjs', plugins: ['code-ops-suite'] },
+  // `co decide promote` and `co program close`. Both import promotion-lib.mjs as a SIBLING and spawn
+  // records.mjs (already vendored above), so the pair ships wherever handoff-state.mjs does.
+  { name: 'program-lifecycle.mjs', plugins: ['code-ops-suite'] },
+  { name: 'promotion-lib.mjs', plugins: ['code-ops-suite'] },
   // `co brief`, which the dispatch guard's field denial names; only code-ops-suite ships the
   // guard, as with the handoff scripts above.
   { name: 'brief-template.mjs', plugins: ['code-ops-suite'] },

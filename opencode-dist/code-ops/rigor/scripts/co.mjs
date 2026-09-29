@@ -102,6 +102,10 @@ const TABLE = {
     archive: { script: 'handoff-state.mjs', cmd: 'program-archive' },
     split: { script: 'handoff-state.mjs', cmd: 'program-split' },
     merge: { script: 'handoff-state.mjs', cmd: 'program-merge' },
+    close: { script: 'program-lifecycle.mjs', cmd: 'close' },
+  },
+  decide: {
+    promote: { script: 'program-lifecycle.mjs', cmd: 'promote' },
   },
   board: {
     list: { script: 'handoff-state.mjs', cmd: 'board' },

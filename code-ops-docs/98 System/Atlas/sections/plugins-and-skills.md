@@ -71,10 +71,11 @@ that every worktree shares (plugins/code-ops-suite/scripts/handoff-state.mjs:23)
 lists it, and `claim`, `release`, and `task` edit the caller's record
 (plugins/code-ops-suite/scripts/co.mjs:104). Session records use the same repository key, and
 readers fall back to the older working-directory store
-(plugins/code-ops-suite/scripts/handoff-state.mjs:348). Since 2.15.0, `co program archive` moves settled state
+(plugins/code-ops-suite/scripts/handoff-state.mjs:353). Since 2.15.0, `co program archive` moves settled state
 from a grammar-2 program ledger to `PROGRAM.archive.md` beside it
 (plugins/code-ops-suite/scripts/co.mjs:101). Since 2.18.0, `co program split` and `merge` move open items
-and pending decisions between ledgers with `Forwarded-to:` and `Was:` trails. The `index-refresh.mjs` edit hook records
+and pending decisions between ledgers with `Forwarded-to:` and `Was:` trails. Since 2.19.0, `co decide promote` stages a
+ledger decision as a register record, and `co program close` ends a program once every promoted id is sealed on the base branch. The `index-refresh.mjs` edit hook records
 edited paths on the board, `session-receipt.mjs` marks the record ended, and
 `CODE_OPS_PEER_GUARD` turns both writes off (plugins/code-ops-suite/hooks/index-refresh.mjs:13,
 plugins/code-ops-suite/hooks/session-receipt.mjs:73).

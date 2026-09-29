@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
-      "verifiedDigest": "9bb78d2d5ed537f0d11c9410683f2b08a94216944ed5d47cd825ddf09b10f44c",
+      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
+      "verifiedDigest": "bcc877189daea1b612fa8d863778df14c4746cab5e1316d350646e7ae172355e",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -93,7 +93,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 348,
+          "line": 353,
           "anchor": "export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'st"
         },
         {
@@ -165,8 +165,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
-      "verifiedDigest": "6f535d3464d208c33321e89fb887c88590102abce94ac1991c5c88b703b8de3e",
+      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
+      "verifiedDigest": "83f65f4140cc5753921a278453bf921e1cc3fdb13c21a0bb1722f74c51155aba",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -256,7 +256,7 @@
         {
           "file": "scripts/check-handoff.mjs",
           "line": 119,
-          "anchor": "//"
+          "anchor": "same-tree: Verified-at matches HEAD and the dirty paths the handoff"
         },
         {
           "file": "scripts/check-handoff.mjs",
@@ -265,7 +265,7 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 652,
+          "line": 657,
           "anchor": "// Check 12: a pending decision from before the writing session's hop needs a di"
         },
         {
@@ -275,12 +275,13 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 912,
+          "line": 917,
           "anchor": "archived ${count('request history')} request(s), ${count('decisions ledger')} de"
         },
         {
           "file": "scripts/co.mjs",
-          "line": 135
+          "line": 141,
+          "anchor": "const DEFAULT_VERB = { board: 'list' };"
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -355,8 +356,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
-      "verifiedDigest": "846a165e66c562547c50f7bfaa4e2e3b127ef4340d73e67285e2714ab1991d09",
+      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
+      "verifiedDigest": "51d215c559d64a13f12bfe35f48103e4b1836d1d504535658653b6e29651e26d",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -463,8 +464,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "dcf6c791c06539c5ca9328ae37775bfd505eefa4",
-      "verifiedDigest": "f295f2a4461a811da44b5f9693ee90f3776ea2d9b21dc8bbb2b5370b4e52ae47",
+      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
+      "verifiedDigest": "4867b66531fabed45799110d752a588847b60b0733f760ed3f22608c243f5534",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -539,8 +540,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "901a62bac479af94cfc56a2956817cec64fa3a38",
-      "verifiedDigest": "bd1bc7a2727fe1c916beca3e048070cc85b41b34c25ae55f6b19fb270fe88bf8"
+      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
+      "verifiedDigest": "045f3fda8bae3be96b88f121acd88ea440c00500616893f544ddeb4a74ba8f1b"
     },
     {
       "slug": "docs-doctrine",

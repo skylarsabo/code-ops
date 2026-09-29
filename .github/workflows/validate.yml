@@ -219,6 +219,9 @@ jobs:
       - name: Handoff draft and resume eval
         run: node evals/handoff-state/run.mjs
 
+      - name: Program promote and close eval
+        run: node evals/program-lifecycle/run.mjs
+
       - name: Peer guard hook eval (handed-off peer redirect)
         run: node evals/peer-guard/run.mjs
 

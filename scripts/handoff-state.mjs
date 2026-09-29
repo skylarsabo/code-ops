@@ -114,6 +114,10 @@
 // `scope digests` step fails while it holds a `[FILL:` placeholder, and the summary marks each
 // PROGRAM.md scope document `unchanged` (its hash matches: read the digest, not the file),
 // `changed` (re-read it), or `missing` (no entry). A handoff without the file skips both.
+// A scope document the check reports MOVED through FORWARDING.json is hashed and linked at its new path.
+// On a grammar 2 ledger the summary also lists, per `promoted:` id: `warning: UNLANDED` when the id is not
+// sealed on the working tree (staged in intake, or unresolved: exit code unchanged), and `DRIFTED` when its
+// status is now superseded or amended but was not at the handoff's `Verified-at` commit.
 //
 // LINKS. `open`, `draft`, and `resume` each print a `links:` block through linksBlock(), the one
 // formatter; integrate-branch.mjs imports it too. `open` prints the run folder on its first line,
@@ -135,6 +139,7 @@ import { fileURLToPath } from 'node:url';
 import { parseOrDie, usage, die, git, walkFiles } from './cli-lib.mjs';
 import { sessionRecordPath } from './transcript-lib.mjs';
 import { ANCHOR_RE } from './citation-lib.mjs';
+import { hubOf, promotedIds, recordState } from './promotion-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = [
@@ -1136,6 +1141,30 @@ function resolveHandoff(arg, root) {
     hits.length ? 'candidates:' : 'unconsumed handoffs:', ...(shown.length ? shown : ['  none'])].join('\n'));
 }
 
+// The register as this ledger's promoted decisions see it. A promoted id not sealed on the working tree is
+// UNLANDED, a warning: the record lands when its branch merges. An id superseded or amended now, that was not
+// at the handoff's Verified-at commit, is DRIFTED: another program changed a rule this one relies on.
+const CHANGED = new Set(['superseded', 'amended']);
+function registerLines(programFile, handoffText, root) {
+  if (!programFile || !ledgerOf(programFile).grammar2) return [];
+  const archiveFile = join(dirname(programFile), ARCHIVE_NAME);
+  const promoted = promotedIds([programFile, archiveFile].filter(existsSync).map((f) => readFileSync(f, 'utf8')).join('\n'));
+  const hub = hubOf(root);
+  const sha = /^Verified-at:\s*([0-9a-f]{7,40})\b/im.exec(handoffText)?.[1];
+  let known = false;
+  try { known = Boolean(sha) && git(['rev-parse', '--verify', '--quiet', `${sha}^{commit}`], { cwd: root }) !== ''; } catch { /* an unknown sha cannot show drift */ }
+  const lines = [];
+  for (const { dec, recordId } of promoted) {
+    const label = `${dec ?? 'decision'} promoted:${recordId}`;
+    const now = recordState(root, recordId, { hub });
+    if (now.where !== 'sealed') lines.push(`warning: UNLANDED ${label}: ${now.where === 'pending' ? 'staged in intake, not yet sealed' : 'in neither state.json nor intake'}`);
+    if (known && CHANGED.has(now.status) && !CHANGED.has(recordState(root, recordId, { ref: sha }).status)) {
+      lines.push(`DRIFTED ${label}: now ${now.status}, not at Verified-at ${sha}`);
+    }
+  }
+  return lines;
+}
+
 function resume(arg, flags) {
   const root = resolve(flags.root);
   const target = resolveHandoff(arg, root);
@@ -1194,17 +1223,22 @@ function resume(arg, flags) {
   if (hasDigests) {
     const unfilled = readFileSync(digestsFile, 'utf8').split('\n').filter((l) => l.includes('[FILL:')).length;
     report('scope digests', { ok: unfilled === 0, all: `${repoPath(digestsFile)}: ${unfilled} line(s) still hold a "[FILL:" placeholder` });
-    const recorded = readDigests(digestsFile);
-    for (const path of docs) {
-      const entry = recorded.get(path);
-      if (!entry) scope.push(`  missing ${path}: no digest entry; read the document`);
-      else if (entry.hash === scopeHash(resolve(root, path))) scope.push(`  unchanged ${path}: read its digest, not the document`);
-      else scope.push(`  changed ${path}: re-read the document`);
-    }
   }
 
   const check = step('check-handoff.mjs', [target, '--root', root, ...(failures === 0 ? consume : [])]);
   report('handoff check', check);
+  // A scope document that moved (FORWARDING.json, resolved by the check) is read at its new path.
+  const moved = new Map([...check.err.matchAll(/^ {2}warning: MOVED scope document (.+) -> (.+)$/gm)].map((m) => [m[1], m[2]]));
+  const docAt = (path) => resolve(root, moved.get(path) ?? path);
+  if (hasDigests) {
+    const recorded = readDigests(digestsFile);
+    for (const path of docs) {
+      const entry = recorded.get(path);
+      if (!entry) scope.push(`  missing ${path}: no digest entry; read the document`);
+      else if (entry.hash === scopeHash(docAt(path))) scope.push(`  unchanged ${path}: read its digest, not the document`);
+      else scope.push(`  changed ${path}: re-read the document`);
+    }
+  }
   if (failures === 0) {
     const created = new Date().toISOString();
     // Grammar 2: a carried item shows only id and title, so TASKS.md takes its ledger line.
@@ -1226,6 +1260,7 @@ function resume(arg, flags) {
   lines.push(`anchors: ${Object.entries(counts).map(([s, n]) => `${s} ${n}`).join(', ') || 'none'}`);
   lines.push(...anchors.filter(([, s]) => s !== 'FRESH').map(([, s, where]) => `   ${s} ${where}`));
   lines.push(...[...check.err.matchAll(/^ {2}warning: (.*)$/gm)].map(([, w]) => `warning: ${w}`));
+  lines.push(...registerLines(programFile, text, root));
   if (hasDigests) lines.push(`scope documents (digests in ${repoPath(digestsFile)}):`, ...(scope.length ? scope : ['  none']));
 
   const open = bullets(sectionBody(text, 'open items'));
@@ -1240,7 +1275,7 @@ function resume(arg, flags) {
   // run, and each open item's Pointer, with any :line suffix kept in the label only.
   const links = [];
   if (programFile && existsSync(programFile)) links.push(['program', repoPath(programFile)]);
-  links.push(...docs.map((path) => ['scope document', repoPath(resolve(root, path)), path]));
+  links.push(...docs.map((path) => ['scope document', repoPath(docAt(path)), path]));
   if (hasDigests) links.push(['scope digests', repoPath(digestsFile)]);
   links.push(['handoff', repoPath(resolve(target))]);
   if (failures === 0) links.push(['successor run', repoPath(successor)]);
