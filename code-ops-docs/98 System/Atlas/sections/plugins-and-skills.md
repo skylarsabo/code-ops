@@ -24,7 +24,9 @@ The 30-skill code-ops package now carries `local-review-gate`. Its exact-SHA pla
 
 Shipped GitHub workflow examples are governed dependency surfaces, not illustrative exceptions. They use the same reviewed immutable action pins as the repository workflows, and a plugin patch release carries any example-only dependency refresh through marketplace parity and both host projections.
 
-The documentation skills now share one authority model, stated by vault standard v5. Code-ops-suite has vendored the manifest-v3 validators since 2.14.0 and the v5 vault reference (`plugins/code-ops-suite/scripts/docs-manifest.mjs:15`). `vault` owns genesis and incremental admission, migration, and conformance. `repo-docs` owns bounded extraction, `doc-alignment` reconciles current authority, and `atlas` cites preserved evidence by record ID. The code-ops-suite vendors one records engine so every host executes the same identity, batch, and history rules.
+The documentation skills now share one authority model, stated by vault standard v5. Code-ops-suite has vendored the manifest-v3 validators since 2.14.0 and the v5 vault reference (`plugins/code-ops-suite/scripts/docs-manifest.mjs:16`). `vault` owns genesis and incremental admission, migration, and conformance. `repo-docs` owns bounded extraction, `doc-alignment` reconciles current authority, and `atlas` cites preserved evidence by record ID. The code-ops-suite vendors one records engine so every host executes the same identity, batch, and history rules.
+
+Since 2.20.0, `co docs gate` (`plugins/code-ops-suite/scripts/co.mjs:89`) runs the docs checks in order and ratchets them against `98 System/GATE_BASELINE.jsonl`. It is opt-in per repository. `conform` installs it as one reviewed adopter commit, with a CI step that runs it with `--check`, a pre-commit entry, and two `AGENTS.md` pointer lines, and removes it the same way. A plugin upgrade never installs it. The vendored `check-vault-standard.mjs` gains the manifest-v3 draft rules, `--render`, and `--stamp`, and a v2 manifest sees no new failure.
 
 Since 2.16.0 the vendored records engine accepts manifest v3 and gives records meaning. A native record declares its kind, title, and topic, and a decision or amendment also declares a topic key (`plugins/code-ops-suite/scripts/record-lib.mjs:1336`). Branch work stages records and curation through `intake`, and `seal` admits them in one commit on the base head (`plugins/code-ops-suite/scripts/records.mjs:2063`). `relocate-root` records a whole-collection move, and `render --register` writes the decision register.
 
@@ -69,11 +71,11 @@ denial that names the successor, and OpenCode runs no peer guard
 `handoff-state.mjs` keeps a presence board with one record per session under a repository key
 that every worktree shares (plugins/code-ops-suite/scripts/handoff-state.mjs:23). `co board`
 lists it, and `claim`, `release`, and `task` edit the caller's record
-(plugins/code-ops-suite/scripts/co.mjs:104). Session records use the same repository key, and
+(plugins/code-ops-suite/scripts/co.mjs:111). Session records use the same repository key, and
 readers fall back to the older working-directory store
 (plugins/code-ops-suite/scripts/handoff-state.mjs:353). Since 2.15.0, `co program archive` moves settled state
 from a grammar-2 program ledger to `PROGRAM.archive.md` beside it
-(plugins/code-ops-suite/scripts/co.mjs:101). Since 2.18.0, `co program split` and `merge` move open items
+(plugins/code-ops-suite/scripts/co.mjs:102). Since 2.18.0, `co program split` and `merge` move open items
 and pending decisions between ledgers with `Forwarded-to:` and `Was:` trails. Since 2.19.0, `co decide promote` stages a
 ledger decision as a register record, and `co program close` ends a program once every promoted id is sealed on the base branch. The `index-refresh.mjs` edit hook records
 edited paths on the board, `session-receipt.mjs` marks the record ended, and

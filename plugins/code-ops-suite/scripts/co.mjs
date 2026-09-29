@@ -86,6 +86,7 @@ const TABLE = {
     extract: 'docs-extract.mjs',
     lib: 'lib-docs.mjs',
     records: 'records.mjs',
+    gate: 'docs-gate.mjs',
   },
   atlas: {
     check: { script: 'atlas-check.mjs', sub: 'check' },

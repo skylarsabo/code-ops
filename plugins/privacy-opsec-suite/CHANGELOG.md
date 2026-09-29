@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.3.3
+- Vendored `co.mjs` adds the `docs gate` verb.
+
 ## 2.3.2
 - Vendored `co.mjs` adds the `decide promote` and `program close` verbs.
 

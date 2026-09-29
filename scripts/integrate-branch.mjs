@@ -13,7 +13,8 @@
 //      double-bumps.
 //   2. Regenerate the host distributions: build-codex-marketplace.mjs and build-opencode-dist.mjs
 //      in write mode.
-//   3. Documentation manifest: docs-manifest.mjs sync, then check.
+//   3. Documentation manifest: docs-manifest.mjs sync, then check, then `docs-gate.mjs --check`
+//      when the manifest is version 3. The gate never writes its baseline and never seals.
 //   4. Atlas freshness for this repo's own atlas (read-only). A stale section is a pending
 //      judgment item - this script prints the section and the stamp command and never stamps it;
 //      only a human (or an agent that has actually re-verified the prose) should run that.
@@ -56,6 +57,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { parseOrDie, walkFiles } from './cli-lib.mjs';
 import { linksBlock } from './handoff-state.mjs';
+import { hubOf } from './promotion-lib.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // This repository's own atlas (CLAUDE.md "The documentation hub"; the same path
@@ -238,7 +240,23 @@ function runDocsStep(log) {
   const script = join(ROOT, 'scripts', 'docs-manifest.mjs');
   const a = runNode([script, 'sync'], { label: 'docs-manifest.mjs sync', log });
   const b = runNode([script, 'check'], { label: 'docs-manifest.mjs check', log });
-  return a.ok && b.ok;
+  const c = runDocsGateStep(log);
+  return a.ok && b.ok && c;
+}
+
+// The docs gate joins the step only where the repository opted in with a v3 manifest. It runs
+// with --check, so it never writes the baseline and never seals: a feature branch cannot seal (W2).
+export function manifestVersion(root) {
+  const hub = hubOf(root);
+  try { return JSON.parse(readFileSync(join(root, hub, '98 System', 'DOCS_MANIFEST.json'), 'utf8')).version ?? null; } catch { return null; }
+}
+function runDocsGateStep(log) {
+  const version = manifestVersion(ROOT);
+  if (version !== 3) {
+    log(`  skip docs-gate.mjs --check (documentation manifest version ${version ?? 'unknown'}, the gate needs 3)`);
+    return true;
+  }
+  return runNode([join(ROOT, 'scripts', 'docs-gate.mjs'), '--check'], { label: 'docs-gate.mjs --check', log }).ok;
 }
 
 // Read-only in every mode (atlas-check.mjs check never writes; only `stamp` does, and this

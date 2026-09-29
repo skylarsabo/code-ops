@@ -198,6 +198,20 @@ Write or update `CLAUDE.md` in this exact section order:
 - **Make relative dates absolute.** Write "verify by 2026-08-01", never "next month".
 - **Keep the prose terse and imperative, the commands copy-paste-ready, and the facts project-specific.** No filler, and no generic engineering advice a competent agent already knows.
 
+## Docs gate: install and remove
+
+The docs gate is `co docs gate`. It runs every docs check in order and ratchets the result against `<hub>/98 System/GATE_BASELINE.jsonl`. Install it only when the developer approves, and only in a repo whose documentation manifest is version 3. An upgrade of this plugin never installs it, so a repo that did not opt in sees no new failure.
+
+**Install.** Make three changes and land them as one reviewed adopter commit.
+
+1. Add one CI step that runs `node <scripts dir>/docs-gate.mjs --check`. `--check` never writes, so CI cannot grow or shrink the baseline. The scripts dir is the adopter's own vendored copy or pinned checkout of these scripts.
+2. Add one pre-commit entry that runs `node <scripts dir>/docs-gate.mjs`. This run removes fixed violations from the baseline. The developer stages the shorter file.
+3. Add two pointer lines to `AGENTS.md`. The first names the gate command. The second names the baseline file and says a person never edits it by hand.
+
+Then run `docs-gate.mjs --baseline-init` once, review the violations it records, and commit the baseline in the same commit. Without a baseline, the first run fails and names the flag. The flag refuses when the file exists, because the baseline never grows.
+
+**Remove.** `conform --remove docs-gate` takes out the CI step, the pre-commit entry, and the two pointer lines as one adopter commit. It leaves the baseline file in place. The adopter reviews the commit like any change. Removal is the adopter's own choice, so it weakens no code-ops gate. It gives an adopter blocked by a gate defect a reviewed way out instead of a hand edit. Report the defect that prompted it.
+
 ## Global scope: the user-wide contracts
 
 **Produces:** the host-specific global contracts at
@@ -293,6 +307,7 @@ not in prompt doctrine. Never require the Claude and Codex global contracts to b
 - Each repair was delegated to the skill that owns it, except surface 1, which ran the repo contract procedure here.
 - Every mechanical check was re-run after the repairs, and its closing output recorded.
 - Anything left unrepaired is listed with its reason.
+- When the docs gate was installed or removed: the change landed as one adopter commit that the developer approved, installation ran `--baseline-init` once and committed its baseline, and removal took out exactly the CI step, the pre-commit entry, and the pointer lines.
 - In fleet mode, additionally: every named member carries a consent row, no member was operated on without one reading CONFORMANT, no member's consent section was edited, and the closing report re-runs the fleet checker over the whole manifest.
 - In the repo contract procedure: every command in the produced or updated `CLAUDE.md` is verified against reality, either run or CI-cited; the gate chain matches CI; every enforcement claim is truthful, with its gate named or an aspirational marking; no global doctrine is duplicated; every `line N` citation was checked and is correct; and drift found in MAINTAIN mode is listed in the report, never silently fixed without disclosure.
 - In global scope, instead of the bullets above:
