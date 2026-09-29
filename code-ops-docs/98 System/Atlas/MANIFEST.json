@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
-      "verifiedDigest": "fa07555e4c45e691478b3ca84c6b4d3bd23b1f5ab9c2eda789a4239c88b87d0d",
+      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
+      "verifiedDigest": "4fc34211f8b6bee4074ab1858b0b64859715c3bfe33b338dc0d62bc603096755",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -28,8 +28,8 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/records.mjs",
-          "line": 2063,
-          "anchor": "function seal(context, options) {"
+          "line": 2074,
+          "anchor": "async function seal(context, options) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -38,13 +38,18 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 219,
+          "line": 273,
           "anchor": "} else if (band === 1) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 213,
+          "line": 267,
           "anchor": "const autonomous = grok && pastPoint && state.fired && state.prompts === 0;"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 159,
+          "anchor": "async function feedLines(payload, sessionId, cwd, event) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -58,28 +63,33 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 160,
+          "line": 175,
           "anchor": "const MAX_BRIEF_BUDGET = 120;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 169,
+          "line": 184,
           "anchor": "const CHECKPOINT = 'done items with file:line evidence, each dirty (uncommitted)"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 13,
-          "anchor": "// FOUR BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comman"
+          "anchor": "// FIVE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comman"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 619,
+          "line": 674,
           "anchor": "node \"${join(dirname(dirname(HOOK_PATH)), 'scripts', 'co.mjs')}\" brief ${type}\\"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 616,
+          "line": 671,
           "anchor": "if (missing.length) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 446,
+          "anchor": "async function collisionFor(payload, agentId) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
@@ -98,8 +108,13 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 353,
+          "line": 362,
           "anchor": "export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'st"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
+          "line": 1193,
+          "anchor": "function overlapLines(programFile, root, sid) {"
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
@@ -117,8 +132,13 @@
           "anchor": "async function endBoard() {"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
+          "line": 48,
+          "anchor": "const HUB_FILES = new Set(['DOCS_MANIFEST.json', 'PROGRAM.md']);"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 601,
+          "line": 656,
           "anchor": "const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim("
         },
         {
@@ -158,7 +178,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 207,
+          "line": 208,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         }
       ]
@@ -170,8 +190,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
-      "verifiedDigest": "6770d9072984ae0e433cab207bbee40aa04a5a5daa2a5f38cd8bbfb06ff3697d",
+      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
+      "verifiedDigest": "c6f258d4de0f201dff983749d9269da6000e8e16275138b292ad4a3db7a23f66",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -275,12 +295,12 @@
         },
         {
           "file": "scripts/records.mjs",
-          "line": 2063,
-          "anchor": "function seal(context, options) {"
+          "line": 2074,
+          "anchor": "async function seal(context, options) {"
         },
         {
           "file": "scripts/records.mjs",
-          "line": 2113,
+          "line": 2140,
           "anchor": "function relocateRoot(context, options) {"
         },
         {
@@ -290,7 +310,7 @@
         },
         {
           "file": "scripts/records.mjs",
-          "line": 2180,
+          "line": 2207,
           "anchor": "function renderRegister(context, records) {"
         },
         {
@@ -315,7 +335,7 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 657,
+          "line": 666,
           "anchor": "// Check 12: a pending decision from before the writing session's hop needs a di"
         },
         {
@@ -325,8 +345,23 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 917,
+          "line": 926,
           "anchor": "archived ${count('request history')} request(s), ${count('decisions ledger')} de"
+        },
+        {
+          "file": "scripts/handoff-state.mjs",
+          "line": 1193,
+          "anchor": "function overlapLines(programFile, root, sid) {"
+        },
+        {
+          "file": "scripts/change-feed.mjs",
+          "line": 300,
+          "anchor": "export async function deliver(cwd, sid, home = storeHome(), now = Date.now()) {"
+        },
+        {
+          "file": "scripts/collision-lib.mjs",
+          "line": 210,
+          "anchor": "export function collisionNote(payload, now = Date.now(), spawn = spawnSync) {"
         },
         {
           "file": "scripts/co.mjs",
@@ -406,8 +441,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
-      "verifiedDigest": "c7ff6ceebbb5070bd2209e0900458a0cdbb82bd057e1f838914c2e80f66ce069",
+      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
+      "verifiedDigest": "abc719d052e666f624929e827ff8d87310007ac81e7a7b07e202ce26513c53a1",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -475,6 +510,21 @@
           "anchor": "check('SessionEnd marks the board record ended', r.status === 0 && r.stdout ==="
         },
         {
+          "file": "evals/collision/run.mjs",
+          "line": 2,
+          "anchor": "// Regression eval for the collision note (design C2): scripts/collision-lib.mjs"
+        },
+        {
+          "file": "evals/change-feed/run.mjs",
+          "line": 2,
+          "anchor": "// Regression eval for the change feed (scripts/change-feed.mjs, C3 of the progr"
+        },
+        {
+          "file": "evals/bench-hooks/run.mjs",
+          "line": 2,
+          "anchor": "// Smoke eval for scripts/bench-hooks.mjs. It pins the contract that makes the b"
+        },
+        {
           "file": "evals/run-contract/run.mjs",
           "line": 64,
           "anchor": "const requiredSections = calibration(); requiredSections.context.requiredViewSec"
@@ -514,8 +564,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
-      "verifiedDigest": "7abdf5f9ec9594a80b08871dfa40e3fd6e06218bbf90baa0bc023003c3b39125",
+      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
+      "verifiedDigest": "f06a33b74589df5f1cfa4ff289b52b1b0e7eefe2e2d8e158fa3bf69ba97a00e0",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -529,13 +579,13 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
-          "line": 2063,
-          "anchor": "function seal(context, options) {"
+          "line": 2074,
+          "anchor": "async function seal(context, options) {"
         },
         {
           "file": "opencode-dist/code-ops/code-ops-suite/scripts/records.mjs",
-          "line": 2063,
-          "anchor": "function seal(context, options) {"
+          "line": 2074,
+          "anchor": "async function seal(context, options) {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -563,6 +613,11 @@
           "anchor": "'tool.execute.after': async (input) => {"
         },
         {
+          "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 446,
+          "anchor": "async function collisionFor(payload, agentId) {"
+        },
+        {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
           "line": 20,
           "anchor": ". Legacy replay packets and calibration arms retain their existing rules. Every"
@@ -579,7 +634,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 212,
+          "line": 213,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         }
       ]
@@ -590,8 +645,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
-      "verifiedDigest": "5b8945d20218785857b058c3cba163ae10be4c81109fd884c1d114a50ecfca2c"
+      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
+      "verifiedDigest": "edcfd8c7a22d908e628fe1c3f3317b29325df511d0a9e4f21ebb98e248aebf55"
     },
     {
       "slug": "docs-doctrine",
@@ -614,8 +669,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
-      "verifiedDigest": "fbb1ade32aec4d4b71f06e5024c379fd3644371449d28fa48bd6b4fbfe47cc8e",
+      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
+      "verifiedDigest": "7d49dbf3132eb4b7375f47aa1f2d3098afbda5929754b85cf493a9339fc1a33b",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -644,7 +699,7 @@
         },
         {
           "file": "Data/CONTRACTS.md",
-          "line": 971
+          "line": 993
         },
         {
           "file": "scripts/run-contract.mjs",
@@ -663,7 +718,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 219,
+          "line": 273,
           "anchor": "} else if (band === 1) {"
         },
         {
