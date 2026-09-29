@@ -706,6 +706,75 @@ try {
     const ended = merge(source, '--into', `${source}t`, '--head-ended');
     check(`merge --head-ended proceeds past a ${state} head`, ended.status === 0 && readFileSync(sFile, 'utf8').includes(`Status: merged into ${source}t`));
   }
+
+  // ---- resume: UNLANDED, register drift, and forwarding (design L4) ----
+  // A v3-like hub is enough: a tracked manifest, Records/state.json, and Records/intake.jsonl. Commit c1 holds D-001 and D-003
+  // in force, D-005 superseded, and D-002 staged in intake. Commit c2 supersedes D-001 and amends D-003, so a handoff verified
+  // at c1 sees drift on both and none on D-005 (already superseded) or D-002 (still in force). D-404 is nowhere.
+  const lcWrite = (rel, text) => { mkdirSync(dirname(join(g2, rel)), { recursive: true }); writeFileSync(join(g2, rel), text); };
+  const STATE = 'docs/98 System/Records/state.json';
+  const FORWARDING = 'docs/98 System/FORWARDING.json';
+  const stateOf = (records) => `${JSON.stringify({ records })}\n`;
+  lcWrite('docs/98 System/DOCS_MANIFEST.json', '{}\n');
+  lcWrite(STATE, stateOf([{ id: 'D-001', status: 'in-force' }, { id: 'D-003', status: 'in-force' }, { id: 'D-005', status: 'superseded' }]));
+  lcWrite('docs/98 System/Records/intake.jsonl', `${JSON.stringify({ type: 'record', recordId: 'D-002', intakeId: 'INT-1' })}\n`);
+  lcWrite('scripts/check-handoff.mjs', readFileSync(checker, 'utf8'));
+  lcWrite('docs/new-scope/spec.md', '# spec\n');
+  lcWrite('docs/new/plan-v2.md', '# plan heading\n');
+  gitG2('add', 'docs', 'scripts');
+  gitG2('commit', '-q', '-m', 'hub at c1');
+  const c1 = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: g2, encoding: 'utf8' }).trim();
+  lcWrite(STATE, stateOf([{ id: 'D-001', status: 'superseded' }, { id: 'D-003', status: 'amended' }, { id: 'D-005', status: 'superseded' }]));
+  gitG2('commit', '-qam', 'register moved on');
+  const lcLedger = (slug, decisions, scope) => ledgerOf(slug, { requests: ['- 2026-09-20: resume with the register in view.'], open: [], decisions, scope });
+  const lcHandoff = (name, slug, { verified = c1, pointer = ANCHORED } = {}) => {
+    const file = join(hub, name, 'HANDOFF.md');
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, handoffText({ program: ledgerPath(slug), request: 'resume with the register in view.', hop: 1 })
+      .replace('Verified-at: abc1234 (main, clean).', `Verified-at: ${verified} (main, clean).`)
+      .replace(/^- FINDINGS_REGISTER\.md:.*$/m, '- None in this fixture.')
+      .replace(ANCHORED, pointer));
+    return file;
+  };
+  const lcResume = (file) => inG2([co, 'handoff', 'resume', file, '--root', g2]);
+  const promotions = ['D-001', 'D-003', 'D-005', 'D-002'].map((id, i) => decision(`DEC-${i + 1}`, 1, `promoted:${id}`));
+
+  lcLedger('lc-reg', promotions);
+  const reg = lcResume(lcHandoff('lc-reg-run', 'lc-reg'));
+  check('resume reports a promoted id staged in intake as UNLANDED, a warning that keeps exit 0', reg.status === 0
+    && /^warning: UNLANDED DEC-4 promoted:D-002: staged in intake/m.test(reg.stdout) && !/UNLANDED DEC-[123] /.test(reg.stdout));
+  check('resume lists each promoted id superseded or amended since Verified-at as DRIFTED', /^DRIFTED DEC-1 promoted:D-001: now superseded/m.test(reg.stdout)
+    && /^DRIFTED DEC-2 promoted:D-003: now amended/m.test(reg.stdout));
+  check('resume reports no drift for an id already superseded at Verified-at or still in force', !/DRIFTED DEC-[34] /.test(reg.stdout));
+  check('register drift does not fail resume', reg.status === 0 && reg.stdout.includes('consumed:'));
+  const unknownSha = lcResume(lcHandoff('lc-reg-unknown', 'lc-reg', { verified: 'abc1234' }));
+  check('resume reports no drift when the Verified-at sha is not a commit', unknownSha.status === 0 && !/DRIFTED DEC-/.test(unknownSha.stdout));
+  lcLedger('lc-404', [decision('DEC-1', 1, 'promoted:D-404')]);
+  const lost = lcResume(lcHandoff('lc-404-run', 'lc-404'));
+  check('resume fails check 14 on an unresolved promoted id and still names it UNLANDED', lost.status === 1
+    && /check 14: .*DEC-1 promoted:D-404/.test(lost.stdout) && /^warning: UNLANDED DEC-1 promoted:D-404: in neither state\.json nor intake/m.test(lost.stdout));
+
+  // Forwarding: the scope document moved by prefix, the pointer's file was renamed, so it would otherwise report GONE.
+  const forwardingDoc = { version: 1, forwards: [
+    { from: 'docs/old-scope', to: 'docs/new-scope', movedAt: '2026-09-28', reason: 'vault move' },
+    { from: 'docs/old/plan.md', to: 'docs/new/plan-v2.md', movedAt: '2026-09-28', reason: 'renamed on move' }] };
+  lcWrite(FORWARDING, `${JSON.stringify(forwardingDoc)}\n`);
+  lcLedger('lc-fwd', [], ['docs/old-scope/spec.md']);
+  const forwardedPointer = 'Pointer: docs/old/plan.md:1 · Anchor: `plan heading`';
+  const fwdHandoff = lcHandoff('lc-fwd-run', 'lc-fwd', { pointer: forwardedPointer });
+  writeFileSync(join(dirname(fwdHandoff), 'SCOPE_DIGESTS.md'), ['# Scope digests', '', '## `docs/old-scope/spec.md`', '',
+    `Hash: sha256:${createHash('sha256').update('# spec\n').digest('hex')}`, 'Verified-at: abc1234', '', 'The spec, unchanged since the move.', ''].join('\n'));
+  const fwd = lcResume(fwdHandoff);
+  check('resume passes a forwarded scope document and a forwarded pointer', fwd.status === 0);
+  check('resume warns MOVED for the forwarded scope document', /^warning: MOVED scope document docs\/old-scope\/spec\.md -> docs\/new-scope\/spec\.md$/m.test(fwd.stdout));
+  check('resume digests and links the forwarded scope document at its new path', /unchanged docs\/old-scope\/spec\.md: read its digest/.test(fwd.stdout)
+    && /scope document: \[docs\/old-scope\/spec\.md\]\(docs\/new-scope\/spec\.md\)/.test(fwd.stdout));
+  check('resume reports the forwarded pointer as MOVED with its new path, not GONE', fwd.stdout.includes('anchors: MOVED 1')
+    && /^ {3}MOVED docs\/old\/plan\.md:1 .*forwarded to docs\/new\/plan-v2\.md/m.test(fwd.stdout) && !/GONE/.test(fwd.stdout));
+  lcWrite(FORWARDING, `${JSON.stringify({ version: 2, forwards: [] })}\n`);
+  const badForwarding = lcResume(lcHandoff('lc-bad-run', 'lc-fwd', { pointer: forwardedPointer }));
+  check('resume reports an invalid FORWARDING.json and does not consume', badForwarding.status === 1
+    && /FORWARDING\.json is invalid/.test(badForwarding.stdout) && badForwarding.stdout.includes('not consumed'));
 } finally {
   rmSync(g2, { recursive: true, force: true });
 }

@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.2
+- Vendored `co.mjs` adds the `decide promote` and `program close` verbs.
+
 ## 3.3.1
 - Vendored `co.mjs` adds the `program split` and `program merge` verbs.
 

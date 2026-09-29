@@ -265,8 +265,8 @@ const expectFail = (name, file, re, root = REPO) => {
   check(`${name} exits 1`, r.status === 1);
   check(`${name} names the violation`, re.test(outOf(r)));
 };
-const expectPass = (name, file) => {
-  const r = run([file]);
+const expectPass = (name, file, root = REPO) => {
+  const r = run([file], root);
   check(`${name} exits 0`, r.status === 0);
   if (r.status !== 0) console.error(outOf(r));
 };
@@ -319,8 +319,8 @@ const G2_OI1 = `- [ ] OI-1 ledger check in progress · Owner: agent · Done when
 const G2_OI3 = `- [ ] OI-3 archive command not started · Owner: agent · Done when: archive case passes · ${ANCHORED}`;
 const G2_DEC1 = '- DEC-1 2026-09-22 One ledger per program · Rejected: a ledger per hop · Hop: 0 · Disposition: local';
 const G2_DEC2 = '- DEC-2 2026-09-23 Fixtures live in a temp dir · Rejected: committed fixtures · Hop: 1 · Disposition: pending';
-function buildProgram2({ open = [G2_OI1, G2_OI3], decisions = [G2_DEC1, G2_DEC2], closed = ['- OI-2 closed-with-proof abc1234 · Pointer: docs page'], history } = {}) {
-  return buildProgram({ closed, ...(history ? { history } : {}) })
+function buildProgram2({ open = [G2_OI1, G2_OI3], decisions = [G2_DEC1, G2_DEC2], closed = ['- OI-2 closed-with-proof abc1234 · Pointer: docs page'], history, scope } = {}) {
+  return buildProgram({ closed, ...(history ? { history } : {}), ...(scope ? { scope } : {}) })
     .replace('# PROGRAM: check-handoff eval\n', '# PROGRAM: check-handoff eval\n\nGrammar: 2\n')
     .replace(/## Decisions ledger\n\n.*\n/, `## Open items\n\n${open.join('\n')}\n\n## Decisions ledger\n\n${decisions.join('\n')}\n`);
 }
@@ -328,12 +328,12 @@ const g2Prior = write('g2-prior-HANDOFF.md', buildHandoff({ goal: priorGoal, ope
 const g2Program = (ledger, hop = 2) => `## Program\n\nProgram: ${ledger}\nPredecessor: ${g2Prior}\nSession: G2 HO ${hop}\nHop: ${hop}\n\n`;
 const G2_OPEN_SECTION = `## Open items\n\n${G2_OI1}\n- [ ] OI-3 archive command not started\n\n`;
 const G2_DECISIONS = '- DEC-2 stays pending until the archive case lands';
-const g2 = (name, { ledger = buildProgram2(), hop, openItems = G2_OPEN_SECTION, decisions = G2_DECISIONS, archive = null } = {}) => {
+const g2 = (name, { ledger = buildProgram2(), hop, openItems = G2_OPEN_SECTION, decisions = G2_DECISIONS, archive = null, inFlight } = {}) => {
   const dir = join(work, `g2-${name}`);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'PROGRAM.md'), ledger);
   if (archive) writeFileSync(join(dir, 'PROGRAM.archive.md'), archive);
-  return write(`g2-${name}.md`, buildHandoff({ program: g2Program(join(dir, 'PROGRAM.md'), hop), openItems, decisions }));
+  return write(`g2-${name}.md`, buildHandoff({ program: g2Program(join(dir, 'PROGRAM.md'), hop), openItems, decisions, inFlight }));
 };
 expectPass('a grammar 2 successor with an active and a carried item', g2('good'));
 expectFail('check 11: a decision without a Disposition', g2('c11', { ledger: buildProgram2({ decisions: [G2_DEC1, G2_DEC2.replace(' · Disposition: pending', '')] }) }), /check 11: .* Decisions ledger entry needs a leading DEC-<n>/);
@@ -365,6 +365,65 @@ expectFail('check 18: an id in both the ledger and its archive', g2('c18-archive
 expectPass('checks 9, 13, and 18 read the archive', g2('archive', { ledger: buildProgram2({ decisions: [G2_DEC2], closed: [], history: [`- 2026-09-23: ${BASE_REQUEST}`] }), archive: G2_ARCHIVE }));
 expectFail('check 4: a carried item missing from the ledger Open items', g2('c4', { ledger: buildProgram2({ open: [G2_OI1] }) }), /check 4: carried open item OI-3 is not in PROGRAM\.md "## Open items"/);
 expectFail('a grammar 2 ledger without an Open items section', g2('no-open', { ledger: buildProgram2().replace(/## Open items\n\n[\s\S]*?\n\n(?=## Decisions)/, '') }), /missing required heading: "## Open items"/);
+
+// === check 14 and forwarding (design L2 and L4): a v3-like hub in a throwaway repository ===
+// Only a tracked `<hub>/98 System/DOCS_MANIFEST.json`, `Records/state.json`, and `Records/intake.jsonl` are needed.
+// D-001 is sealed, D-002 is staged in intake, and D-404 is nowhere. Every case here runs with the hub repository as --root.
+const hubRepo = mkdtempSync(join(tmpdir(), 'coh-hub-'));
+const inHub = (...args) => spawnSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: hubRepo, encoding: 'utf8' });
+const hubWrite = (rel, text) => { mkdirSync(dirname(join(hubRepo, rel)), { recursive: true }); writeFileSync(join(hubRepo, rel), text); };
+hubWrite('docs/98 System/DOCS_MANIFEST.json', '{}\n');
+hubWrite('docs/98 System/Records/state.json', `${JSON.stringify({ records: [{ id: 'D-001', status: 'in-force' }] })}\n`);
+hubWrite('docs/98 System/Records/intake.jsonl', `${JSON.stringify({ type: 'record', recordId: 'D-002', intakeId: 'INT-1' })}\n`);
+hubWrite('scripts/check-handoff.mjs', readFileSync(checker, 'utf8'));
+hubWrite('docs/new-scope/spec.md', '# spec\n');
+hubWrite('docs/new/plan-v2.md', '# plan heading\n');
+inHub('init', '-q'); inHub('add', '-A'); inHub('commit', '-q', '-m', 'hub');
+const promotedTo = (id) => `- DEC-2 2026-09-23 Fixtures live in a temp dir · Hop: 1 · Disposition: promoted:${id}`;
+const promotedLedger = (id) => buildProgram2({ decisions: [G2_DEC1, promotedTo(id)] });
+expectPass('check 14: a promoted id sealed in state.json', g2('c14-sealed', { ledger: promotedLedger('D-001') }), hubRepo);
+expectPass('check 14: a promoted id staged in intake, awaiting its seal', g2('c14-intake', { ledger: promotedLedger('D-002') }), hubRepo);
+expectFail('check 14: a promoted id in neither state.json nor intake', g2('c14-gone', { ledger: promotedLedger('D-404') }), /check 14: .*DEC-2 promoted:D-404 resolves in neither state\.json nor intake/, hubRepo);
+const archivedPromoted = G2_ARCHIVE.replace(G2_DEC1, '- DEC-1 2026-09-22 One ledger per program · Hop: 0 · Disposition: promoted:D-404');
+expectFail('check 14: an unresolved promoted id in the archive', g2('c14-archive', { ledger: buildProgram2({ decisions: [G2_DEC2], closed: [], history: [`- 2026-09-23: ${BASE_REQUEST}`] }), archive: archivedPromoted }),
+  /check 14: .*DEC-1 promoted:D-404 resolves in neither/, hubRepo);
+const noHubRoot = mkdtempSync(join(tmpdir(), 'coh-nohub-'));
+expectFail('check 14: a promoted id in a repository with no documentation manifest', g2('c14-nohub', { ledger: promotedLedger('D-001') }), /check 14: .*DEC-2 promoted:D-001 resolves in neither/, noHubRoot);
+rmSync(noHubRoot, { recursive: true, force: true });
+
+// L4: a scope document or pointer path that misses on the tree falls back to FORWARDING.json. A pointer needs an
+// exact-file forward, because a bare moved file would resolve by name and never report GONE.
+const forwardingDoc = { version: 1, forwards: [
+  { from: 'docs/old-scope', to: 'docs/new-scope', movedAt: '2026-09-28', reason: 'vault move' },
+  { from: 'docs/old/plan.md', to: 'docs/new/plan-v2.md', movedAt: '2026-09-28', reason: 'renamed on move' }] };
+hubWrite('docs/98 System/FORWARDING.json', `${JSON.stringify(forwardingDoc)}\n`);
+const forwardedScope = g2('fwd-scope', { ledger: buildProgram2({ scope: ['- `docs/old-scope/spec.md` · Status: current · Role: moved with the vault'] }) });
+const rFwdScope = run([forwardedScope], hubRepo);
+check('a forwarded scope document exits 0', rFwdScope.status === 0);
+check('a forwarded scope document warns MOVED with the new path, never a missing-document violation',
+  /^ {2}warning: MOVED scope document docs\/old-scope\/spec\.md -> docs\/new-scope\/spec\.md$/m.test(rFwdScope.stderr) && !/does not exist/.test(outOf(rFwdScope)));
+const missingScope = g2('fwd-scope-none', { ledger: buildProgram2({ scope: ['- `docs/never-there/spec.md` · Status: current · Role: forwarded nowhere'] }) });
+expectFail('a scope document FORWARDING.json does not name', missingScope, /Scope document does not exist on the tree: docs\/never-there\/spec\.md/, hubRepo);
+const forwardedPointer = g2('fwd-pointer', { inFlight: '- Nothing in flight. Pointer: docs/old/plan.md:1 · Anchor: `plan heading`' });
+const rFwdPointer = run([forwardedPointer], hubRepo);
+check('a forwarded pointer exits 0', rFwdPointer.status === 0);
+check('a forwarded pointer reports MOVED with the new path, not GONE',
+  /MOVED\s+docs\/old\/plan\.md:1\s+— forwarded to docs\/new\/plan-v2\.md/.test(rFwdPointer.stderr) && !/GONE/.test(outOf(rFwdPointer)));
+const rFwdStrict = run([forwardedPointer, '--strict-anchors'], hubRepo);
+check('a forwarded pointer fails under --strict-anchors like any MOVED pointer', rFwdStrict.status === 1 && /pointer MOVED: docs\/old\/plan\.md:1/.test(outOf(rFwdStrict)));
+const gonePointer = g2('fwd-pointer-none', { inFlight: '- Nothing in flight. Pointer: docs/old/lost.md:1 · Anchor: `plan heading`' });
+const rGonePointer = run([gonePointer], hubRepo);
+check('a missing pointer FORWARDING.json does not name stays GONE and fails', rGonePointer.status === 1 && /GONE\s+docs\/old\/lost\.md:1/.test(outOf(rGonePointer)));
+// An invalid FORWARDING.json is reported once a miss consults it, and the miss itself stays a failure.
+const cycle = { version: 1, forwards: [{ from: 'docs/old', to: 'docs/loop', movedAt: 'x', reason: 'r' }, { from: 'docs/loop', to: 'docs/old', movedAt: 'x', reason: 'r' }] };
+for (const [label, body, re] of [['a wrong version', JSON.stringify({ version: 2, forwards: [] }), /FORWARDING\.json is invalid.*needs exactly version 1/],
+  ['unparseable JSON', '{ not json', /FORWARDING\.json is invalid/],
+  ['a forward cycle', JSON.stringify(cycle), /FORWARDING\.json is invalid.*cycle/]]) {
+  hubWrite('docs/98 System/FORWARDING.json', `${body}\n`);
+  const rBad = run([forwardedPointer], hubRepo);
+  check(`an invalid FORWARDING.json (${label}) is reported and the pointer still fails`, rBad.status === 1 && re.test(outOf(rBad)));
+}
+rmSync(hubRepo, { recursive: true, force: true });
 
 // === usage errors ===
 const rNoArgs = run([]);
