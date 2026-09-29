@@ -8,13 +8,18 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
-      "verifiedDigest": "bcc877189daea1b612fa8d863778df14c4746cab5e1316d350646e7ae172355e",
+      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
+      "verifiedDigest": "fa07555e4c45e691478b3ca84c6b4d3bd23b1f5ab9c2eda789a4239c88b87d0d",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
-          "line": 15,
+          "line": 16,
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/co.mjs",
+          "line": 89,
+          "anchor": "gate: 'docs-gate.mjs',"
         },
         {
           "file": "plugins/code-ops-suite/scripts/record-lib.mjs",
@@ -88,8 +93,8 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 104,
-          "anchor": "merge: { script: 'handoff-state.mjs', cmd: 'program-merge' },"
+          "line": 111,
+          "anchor": "board: {"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
@@ -98,7 +103,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 101,
+          "line": 102,
           "anchor": "program: {"
         },
         {
@@ -165,8 +170,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
-      "verifiedDigest": "83f65f4140cc5753921a278453bf921e1cc3fdb13c21a0bb1722f74c51155aba",
+      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
+      "verifiedDigest": "6770d9072984ae0e433cab207bbee40aa04a5a5daa2a5f38cd8bbfb06ff3697d",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -175,22 +180,22 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 15,
+          "line": 16,
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 80,
+          "line": 87,
           "anchor": "// Manifest v3 profile blocks. This function validates their shape. Only"
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 16,
+          "line": 17,
           "anchor": "const LEGACY_DISPOSITIONS = { 2: ['pointer', 'tombstone'], 3: ['pointer', 'tombs"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 223,
+          "line": 266,
           "anchor": "if (!Array.isArray(listed) || !listed.length || !listed.every((s) => typeof s =="
         },
         {
@@ -205,8 +210,53 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 219,
+          "line": 226,
           "anchor": ".filter((collection) => collection && typeof collection === 'object' && !Array.i"
+        },
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 303,
+          "anchor": "const draftRules = manifestStatuses !== null && maxAgeDays !== null;"
+        },
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 389,
+          "anchor": "function supersededByResolves(value, ownPath) {"
+        },
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 455,
+          "anchor": "function renderTriage(previous) {"
+        },
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 479,
+          "anchor": "if (mode === 'render') {"
+        },
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 489,
+          "anchor": "if (mode === 'stamp') {"
+        },
+        {
+          "file": "scripts/docs-gate.mjs",
+          "line": 128,
+          "anchor": "const vault = sibling('check-vault-standard.mjs', [join(root, hub)]);"
+        },
+        {
+          "file": "scripts/docs-gate.mjs",
+          "line": 183,
+          "anchor": "const baselinePath = hub === null ? null : join(root, hub, '98 System', BASELINE"
+        },
+        {
+          "file": "scripts/docs-gate.mjs",
+          "line": 202,
+          "anchor": "x ${BASELINE_NAME} already exists and the baseline never grows; fix the new viol"
+        },
+        {
+          "file": "scripts/integrate-branch.mjs",
+          "line": 253,
+          "anchor": "function runDocsGateStep(log) {"
         },
         {
           "file": "scripts/record-lib.mjs",
@@ -280,7 +330,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 141,
+          "line": 142,
           "anchor": "const DEFAULT_VERB = { board: 'list' };"
         },
         {
@@ -290,12 +340,12 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 454,
+          "line": 472,
           "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 481,
+          "line": 499,
           "anchor": "async function runPool(tasks, jobs) {"
         },
         {
@@ -356,8 +406,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
-      "verifiedDigest": "51d215c559d64a13f12bfe35f48103e4b1836d1d504535658653b6e29651e26d",
+      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
+      "verifiedDigest": "c7ff6ceebbb5070bd2209e0900458a0cdbb82bd057e1f838914c2e80f66ce069",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -371,7 +421,7 @@
         },
         {
           "file": "evals/vault-standard/run.mjs",
-          "line": 180,
+          "line": 186,
           "anchor": "a manifest-v3 vault under standard v5 must pass with drafts.statuses applied, go"
         },
         {
@@ -464,8 +514,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
-      "verifiedDigest": "4867b66531fabed45799110d752a588847b60b0733f760ed3f22608c243f5534",
+      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
+      "verifiedDigest": "7abdf5f9ec9594a80b08871dfa40e3fd6e06218bbf90baa0bc023003c3b39125",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -489,12 +539,12 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/docs-manifest.mjs",
-          "line": 15,
+          "line": 16,
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
         },
         {
           "file": "opencode-dist/code-ops/code-ops-suite/scripts/docs-manifest.mjs",
-          "line": 15,
+          "line": 16,
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
         },
         {
@@ -540,8 +590,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "1d26dd13732761e63ba58ccfc742da480c922e48",
-      "verifiedDigest": "045f3fda8bae3be96b88f121acd88ea440c00500616893f544ddeb4a74ba8f1b"
+      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
+      "verifiedDigest": "5b8945d20218785857b058c3cba163ae10be4c81109fd884c1d114a50ecfca2c"
     },
     {
       "slug": "docs-doctrine",
@@ -564,8 +614,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "e2323b31e0d2f8183528d380dd91401d2ff3ae61",
-      "verifiedDigest": "9bde5230c75796180725bf9d582d66d00643c30a45528b972b47725402cf905f",
+      "verifiedAt": "8b98f687d936a2410d41795a7b899d6c56e2db4e",
+      "verifiedDigest": "fbb1ade32aec4d4b71f06e5024c379fd3644371449d28fa48bd6b4fbfe47cc8e",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -584,7 +634,7 @@
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 157,
+          "line": 190,
           "anchor": "let out;"
         },
         {
