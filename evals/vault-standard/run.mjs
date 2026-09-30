@@ -167,6 +167,30 @@ writeFileSync(join(generatedRecordSibling, '98 System', 'Records', 'ordinary.md'
 const generatedRecordSiblingResult = run(generatedRecordSibling);
 expect(generatedRecordSiblingResult.status === 1 && /Records\/ordinary\.md: no YAML frontmatter block/.test(generatedRecordSiblingResult.out),
   `a generated-record exemption must not exempt an ordinary sibling note, got ${generatedRecordSiblingResult.status}:\n${generatedRecordSiblingResult.out}`);
+// Record bytes a relocation moved into the hub are immutable, so a collection root inside the hub
+// exempts its files from the frontmatter rule. It exempts nothing else: a sibling folder, a hostile
+// root naming the hub itself, and a root that climbs out of it all keep the rule.
+const insideHub = (root, files) => {
+  const dir = recordManifest(4, 2, {}, files);
+  const manifestFile = join(dir, '98 System', 'DOCS_MANIFEST.json');
+  const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
+  manifest.recordCollections[0].root = root(basename(dir));
+  writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
+  return run(dir);
+};
+const recordBytes = { '50 Records/audit/0001.md': '# A record with no note frontmatter\n' };
+const recordRootExempt = insideHub((hub) => `${hub}/50 Records/audit`, recordBytes);
+expect(recordRootExempt.status === 0 && !/50 Records/.test(recordRootExempt.out),
+  `record files under a collection root inside the hub must be exempt from the frontmatter rule, got ${recordRootExempt.status}:\n${recordRootExempt.out}`);
+const recordRootSibling = insideHub((hub) => `${hub}/50 Records/audit`, { ...recordBytes, '50 Records/other/Note.md': '# Ordinary note, no frontmatter\n' });
+expect(recordRootSibling.status === 1 && /50 Records\/other\/Note\.md: no YAML frontmatter block/.test(recordRootSibling.out)
+  && !/50 Records\/audit\/0001/.test(recordRootSibling.out),
+  `a note outside every collection root must still fail without frontmatter, got ${recordRootSibling.status}:\n${recordRootSibling.out}`);
+for (const [label, root] of [['the hub itself', (hub) => hub], ['a root that climbs out of the hub', (hub) => `${hub}/../${hub}`]]) {
+  const hostile = insideHub(root, { '10 Design/Unfronted note.md': '# Ordinary working note\n' });
+  expect(hostile.status === 1 && /10 Design\/Unfronted note\.md: no YAML frontmatter block/.test(hostile.out),
+    `a collection root naming ${label} must not exempt hub notes, got ${hostile.status}:\n${hostile.out}`);
+}
 const incompatibleRecordManifest = run(recordManifest(3));
 expect(incompatibleRecordManifest.status === 1 && /standard-version: 4/.test(incompatibleRecordManifest.out),
   `manifest v2 must require vault standard v4, got ${incompatibleRecordManifest.status}:\n${incompatibleRecordManifest.out}`);
