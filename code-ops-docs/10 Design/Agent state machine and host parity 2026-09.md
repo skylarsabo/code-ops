@@ -80,7 +80,7 @@ Each entity lists its states, its store, and what counts as terminal. The "Store
 | Unit acceptance | pending, accepted, rejected | derived from the acceptance ledger in `RUN_CONTRACT.json` | accepted |
 | Worker run | dispatched, reported, failed, stale | agent ledger (F3), with `stale` derived | reported, failed |
 | Runtime | init, checkpoint, resume, replan | `RUN_RUNTIME_RECEIPTS.jsonl` | none |
-| Session | open, working, compacted, handed-off, consumed, ended | `SESSION.json`, board record, `HANDOFF.consumed` | consumed, ended |
+| Session | open, working, compacted, handed-off, consumed, ended | `SESSION.json`, board record, `HANDOFF.consumed`, with `compacted` derived | consumed, ended |
 | Board record | live, idle, ended, abandoned | board file, with `idle` and `abandoned` derived | ended, abandoned |
 | Context band | band N assessed or unassessed | `.assessed.json` | none |
 | Program item | open, closed, backlog | `PROGRAM.md`, `TASKS.md`, `BACKLOG.md` | closed |
@@ -88,10 +88,11 @@ Each entity lists its states, its store, and what counts as terminal. The "Store
 | Decision | pending, local, dropped, promoted | `PROGRAM.md` ledger, then the record | local, dropped, promoted |
 | Distill phase | pending, running, checkpointed, done | runtime checkpoint per phase | done |
 
-Four rules keep this table honest.
+Five rules keep this table honest.
 
 - **`reported` stays terminal for a dispatch row.** `ledger-grammar.mjs:44` returns false for any move out of `reported`, and only `failed` may become `redispatched`. A rejected unit therefore opens a new dispatch row that cites the old one. It does not reopen the old row.
-- **Acceptance is derived, not stored.** A unit is accepted when every blocking criterion for it has a PASS verdict. The acceptance ledger lacks a unit id today (`state-substrate.md`, gap 6), so the first delivery step adds one.
+- **Acceptance is derived, not stored.** A unit is accepted when every blocking criterion for it has a PASS verdict. The acceptance ledger lacks a unit id today (`state-substrate.md`, gap 6). The unit id moved to the backlog, so acceptance stays as built.
+- **`compacted` is a view.** A session is compacted when its transcript holds a `compact_boundary` record that the restored context has not yet passed. No file stores the state.
 - **`stale` is a view.** A worker run is stale when its row is still `dispatched` and either the session ended or an operator-set age passed. The dispatch ledger already prints this as an advisory (`scripts/dispatch-ledger.mjs:603-605`) and fails under `--strict` (line 661).
 - **`abandoned` is a view.** A board record is abandoned when its heartbeat is older than 30 minutes and it never reached `ended`. This separates a clean finish from a dead session (`state-substrate.md`, gap 4).
 
@@ -106,19 +107,19 @@ Writer names a script (S) that any host can run, or a hook (H) that needs the ho
 | 1 | none | lead opens a run | repository has `.git` | session open | S `handoff-state.mjs open` | `SESSION.json`, board | built |
 | 2 | session open | lead registers units | run contract exists | unit planned | S `run-contract.mjs init` | `RUN_CONTRACT.json` | built |
 | 3 | unit planned | lead dispatches | dispatch guard allows, band assessed, agentType is a suite agent | row dispatched | S `dispatch-ledger.mjs add` with `--actor-id` | `DISPATCH_LEDGER.md` | built |
-| 4 | none | host launches a worker | hook reaches the launch | worker run dispatched | H PostToolUse on `Agent` | agent ledger | F3 |
+| 4 | none | host launches a worker | hook reaches the launch | worker run dispatched | H PostToolUse on `Agent`; covered-by 3 | agent ledger | F3 |
 | 5 | row dispatched | worker returns | artifact exists and passes its section check | row reported | S `dispatch-ledger.mjs update --status reported --report` | `DISPATCH_LEDGER.md` | built |
-| 6 | worker run dispatched | host reports the stop | SubagentStop carries `agent_id` | worker run reported | H SubagentStop | agent ledger | F3 |
+| 6 | worker run dispatched | host reports the stop | SubagentStop carries `agent_id` | worker run reported | H SubagentStop; covered-by 5/7 | agent ledger | F3 |
 | 7 | row dispatched | worker errors or dies | lead sees the error or a stale view | row failed | S `dispatch-ledger.mjs update --status failed` | `DISPATCH_LEDGER.md` | built |
 | 8 | row failed | lead retries | new row with a new actor | row redispatched, new row dispatched | S `dispatch-ledger.mjs update --status redispatched`, then `add` | `DISPATCH_LEDGER.md` | built |
-| 9 | row reported | lead records verdicts | every blocking criterion PASS | unit accepted | S `run-contract.mjs record` and `finalize` | `RUN_CONTRACT.json` | built, unit id new |
+| 9 | row reported | lead records verdicts | every blocking criterion PASS | unit accepted | S `run-contract.mjs record` and `finalize` | `RUN_CONTRACT.json` | built |
 | 10 | row reported | lead records a FAIL | any blocking criterion FAIL | unit rejected, new unit planned | S `run-contract.mjs record` | `RUN_CONTRACT.json` | built |
-| 11 | session working | context crosses a 150k band | none | dispatch denied until assessed | H dispatch guard writes the marker on assess | `.assessed.json` | built |
+| 11 | session working | context crosses a 150k band | none | dispatch denied until assessed | H `dispatch-guard.mjs assessed` (line 621) writes the marker | `.assessed.json` | built |
 | 12 | session working | auto-compaction starts | PreCompact fires or lead checkpoints | snapshot written | H PreCompact, or S `run-runtime.mjs checkpoint` | run folder snapshot, receipts | OI-56 |
 | 13 | session compacted | new context starts with `source=compact` | snapshot exists | session working, state re-injected | H SessionStart compact branch | none (reads snapshot, `TASKS.md`, agent ledger) | F1, OI-56 |
 | 14 | session working | lead hands off | DEC-73 trigger and zero pending workers | handed-off | S `handoff-state.mjs draft` | `HANDOFF.md` | built, pending rule new |
 | 15 | handed-off | successor resumes | chain check passes | consumed | S `handoff-state.mjs resume` | `HANDOFF.consumed` | built |
-| 16 | session working | session ends | none | ended | H SessionEnd `session-receipt` | board, receipts | built |
+| 16 | session working | session ends | none | ended | H SessionEnd `session-receipt`, or S writer for `ended` (PR 4 adds it if absent) | board, receipts | built, S writer new |
 | 17 | board live | heartbeat silent 30 minutes | no `ended` | idle, then abandoned (views) | read only | board | built |
 | 18 | item open | lead closes with evidence | Done when met | closed | lead edit, checked by `check-handoff.mjs` | `PROGRAM.md` | built |
 | 19 | item open | active count exceeds 12 | F2 cap | backlog | S `handoff-state.mjs` with F2 checks | `BACKLOG.md` | F2 |
@@ -129,7 +130,7 @@ Writer names a script (S) that any host can run, or a hook (H) that needs the ho
 
 Rows 4 and 6 add facts that rows 3, 5, and 7 already record under the lead's hand. The lead's rows say what the lead intended and verified. The agent ledger says what the host observed. The join key is `--actor-id`, which the dispatch ledger defines as "host-session-or-agent-id" (`scripts/dispatch-ledger.mjs:113`). Whether the F3 `agent_id` equals that value is PROBABLE and not yet checked. `unit-f3.md` does not exist yet, so the F3 builder must confirm it.
 
-The pending-worker rule has two forms. On Claude, `co agents pending` lists agent ledger rows still `dispatched`. On a host whose hooks never fire, the same command falls back to dispatch rows still `dispatched`. Both forms block transition 14. A handoff with an unreported worker fails (OI-54, done-when).
+The pending-worker rule has one form. `co agents pending` always merges agent ledger rows still `dispatched` with dispatch rows still `dispatched`, deduped on actor id. It is never a fallback. It prints the sources it read. It prints `unknown` only when the host signals that it cannot report workers, and never for a missing file. Pending workers block transition 14. A handoff with an unreported worker fails (OI-54, done-when). The exit is `co agents settle <id> --failed --reason <text>`, which appends a `failed` row.
 
 ## State store
 
@@ -182,7 +183,7 @@ The universal fallback applies to every row. The lead runs the script named in t
 | PostToolUse on `Agent` and SubagentStop. `agent_id` is PRIMARY in the payload | SubagentStart and SubagentStop exist per primary docs. Payload fields UNVERIFIED | SubagentStart and SubagentStop exist per primary docs. The payload is UNVERIFIED and `agent_id` is absent, so the hook stays silent (`INFRASTRUCTURE.md:229`) | No subagent-finish event. A task worker is a child session. `tool.execute.after` on the `task` tool is the probable signal |
 | Fallback: lead runs `update --status reported` | Fallback: same | Fallback: same, using `get_command_or_subagent_output` | Fallback: same |
 
-On every host the stale view works without any hook, because it reads dispatch rows. The hook path only makes the agent ledger richer. `tool.execute.after` at `scripts/opencode-lifecycle.js:1355` queues notes today and never writes a ledger. Any OpenCode report hook is new work.
+On every host the stale view works without any hook, because it reads dispatch rows. The hook path only makes the agent ledger richer. `tool.execute.after` at `scripts/opencode-lifecycle.js:1355` queues notes today and never writes a ledger. No OpenCode report writer is planned. A foreground task settles at launch (`scripts/agent-ledger.mjs:90`), and dispatch rows cover OpenCode.
 
 **Compaction snapshot and re-inject (rows 12 and 13).**
 
@@ -225,7 +226,7 @@ The four hosts all document a compaction event (`host-docs.md`). No PreCompact h
 
 **What is missing.** These are the real gaps. The earlier reports said nothing checks the live list, and that claim was too strong.
 
-- The live check runs only when `CODE_OPS_TIER_ROUTING` is on (`:1263`).
+- The live check sits behind the `CODE_OPS_TIER_ROUTING` switch (`:1263`). Tier routing is on by default, so the gap shows only when the operator turns it off. The check must still not depend on the switch.
 - `live` stays null until the first event handler finishes its refresh (`:1088`, `:1391-1392`), so an early dispatch skips the check.
 - The check never applies the profile `enabled` list to the live ids. A model on the live list but off the profile list passes.
 - The check inherits the lead model. It does not deny.
@@ -234,7 +235,7 @@ The four hosts all document a compaction event (`host-docs.md`). No PreCompact h
 
 **Where the check lives.** One function, `assertDispatchModel`, in `scripts/opencode-lifecycle.js`. It runs in `tool.execute.before` for every dispatch tool call, whatever the routing switch says. The model calls the task tool, so no lead-side script can bypass this point. A lead-side script check would duplicate it.
 
-**Fail-closed behavior.**
+**Fail-closed behavior.** The order is: the live list, then the cache filtered by conditions 2 to 4, then the lead clone if the lead meets the agent's floor, then a denial.
 
 - When the live list is null, the function waits once for `refreshChooserCache()` within its 5 second limit.
 - If the wait fails, the function falls back to the cached catalog (`readChooserCache()`), filtered by conditions 2 to 4. The cache holds ids the host listed on an earlier run.
@@ -255,7 +256,7 @@ The four hosts all document a compaction event (`host-docs.md`). No PreCompact h
 **Facts the design relies on.**
 
 - A Workflow script runs JavaScript with `agent()`, `parallel()`, and `pipeline()`.
-- Each `agent()` may set `agentType` and `effort`. The dispatch guard denies an `agent(` call with no `agentType` (`plugins/code-ops-suite/hooks/dispatch-guard.mjs:683-688`, `CONTRACTS.md:894-898`).
+- Each `agent()` may set `agentType` and `effort`. Today the dispatch guard denies a Workflow script that holds an `agent(` call and no `agentType:` field anywhere in the script (`plugins/code-ops-suite/hooks/dispatch-guard.mjs:681-688`, `CONTRACTS.md:909-910`). It checks the script as a whole, not each call. It skips the brief-contract checks for a Workflow.
 - A Workflow needs explicit operator opt-in for each run, unless ultracode is on.
 - Scripts cannot touch the filesystem.
 - Results are journaled and the run can resume.
@@ -271,7 +272,7 @@ The four hosts all document a compaction event (`host-docs.md`). No PreCompact h
 | `everything`, `ship` | no | serial phases with gates |
 | `calibration-run` | no | isolated assess-only runs already fan out by run |
 
-**Opt-in handling.** An orchestrator never starts a Workflow on its own. The skill prose says: when the operator has opted in to Workflow for this run, or ultracode is on, run the fan-out phase as one Workflow script. Otherwise run the same phase with Agent calls. The design adds no new flag. The earlier candidates invented `--workflow` and `CODE_OPS_USE_WORKFLOWS`, and the repository has neither.
+**Opt-in handling.** An orchestrator never starts a Workflow on its own. One unpinned Workflow section goes into the `CONVENTIONS.md` of `code-ops-suite` (beside §1), `privacy-opsec-suite`, and `researcher`. It says: when the operator has opted in to Workflow for this run, or ultracode is on, run the fan-out phase as one Workflow script. Otherwise run the same phase with Agent calls. The named `SKILL.md` files cite that section and carry no copy of it. The design adds no new flag. The earlier candidates invented `--workflow` and `CODE_OPS_USE_WORKFLOWS`, and the repository has neither.
 
 **Host-neutral equivalent.** The orchestrator writes a phase plan to the run folder before it dispatches. The plan lists batches, the suite agent for each, the effort, and the expected artifact path. Both paths execute the same plan.
 
@@ -283,7 +284,7 @@ The four hosts all document a compaction event (`host-docs.md`). No PreCompact h
 
 - `agentType` names the suite agent that best fits the job, such as `code-ops-suite:reviewer`. A wide-surface type is never used.
 - `effort` is at most `high`.
-- The call carries the same brief fields as an Agent dispatch, so the brief-contract gate applies.
+- The call carries the same brief fields as an Agent dispatch. No gate checks this today, because the guard skips the brief-contract checks for a Workflow. PR 4 adds a per-call `agentType` check and denies a literal `effort` above `high`. The brief check stays an advisory.
 
 Whether SubagentStart and SubagentStop hooks fire for workers started inside a Workflow is UNVERIFIED. The design assumes they do not. The lead therefore reconciles the ledger from the returned results and does not wait for hooks.
 
@@ -315,7 +316,7 @@ One defect in a 10% sample sends the whole batch to full review. A worker never 
 
 - 26,839 files in the vault, of which 26,378 sit under `80 Runs` (6.6 GB, 257 run folders).
 - 296 design files, 66 operations files, and 19 topic files. About 98% of files outside `80 Runs` carry frontmatter.
-- A legacy `docs/` tree of 6,955 files and a `research/` tree of 44,624 files.
+- A legacy `docs/` tree of 6,955 files and a `research/` tree of 44,624 files. The register holds `research/` by pointer, as one entry for the tree, and does not list its files.
 - A relocate plan of 6,945 files in 5 waves, with 2,141 runtime reads, 2,341 prose references, 0 unresolved, and 0 conflicts.
 - About 435 records: 51 decision-kind and 384 of other kinds. At 25 per batch, this is about 18 batches. The lead reads all 51 decision records and about 39 sampled records.
 - About 180 and 156 decision lines across 9 and 5 ledger files.
@@ -330,7 +331,9 @@ The candidate designs quoted 136 decisions across 4 ledgers. That figure does no
 4. **Runs stay committed.** `80 Runs` holds run evidence, and cited runs are never pruned by distill. Retention classes stay cut to backlog.
 5. **The lead reads every ruling.** A wrong summary of a decision is worse than none, so the lead checks each decision and amendment against its source.
 
-The check runs at phase 8 and again at the end of every maintain pass. It lists every input path from the phase 1 inventory. Each path must end in exactly one state: in place, moved with a forwarding entry, or archived with a link. A path in no state is a loss. The gate refuses to install while any loss remains. The count of inputs must equal the count of accounted paths.
+The check is a deterministic script, not a model review. It runs at phase 8 and again at the end of every maintain pass. It lists every input path from the phase 1 inventory. Each path must end in exactly one state: in place, moved with a forwarding entry, or archived with a link. A path in no state is a loss. The gate refuses to install while any loss remains. The count of inputs must equal the count of accounted paths.
+
+A findability count runs beside it. Every `.md` file outside `80 Runs` must be reachable from a generated index, and the script reports the count of unreachable files. The gate refuses to install while that count is above zero.
 
 **Standardized order.** The register groups records by topic key, sorted. Indexes are sorted. The triage list holds one line per item with its path, rule, and entry date. Each surface is generated and gate-checked, so the order is the same on every run.
 
@@ -363,13 +366,15 @@ The snapshot lands in the run folder and is gitignored with the rest of `80 Runs
 - Gap: agent ids were missing from the summary. The lead resolved them through the host's task notifications.
 - Caveat: no snapshot hook existed. The pass rested on the summarizer plus a checkpoint the lead wrote by hand.
 
-Two points stay open. OI-51 asks for a transcript that shows a compact boundary near 250k, and the operator owns it. The log records the observation but does not attach that boundary. The result also has to reach `MEASUREMENTS.md` with the F1 PR, which has not happened.
+One point stays open. OI-51 asks for a transcript that shows a compact boundary near 250k, and the operator owns it. The log records the observation but does not attach that boundary. The first live compaction after the snapshot PR lands repeats the check below and records its result in `MEASUREMENTS.md`.
 
-**Pre-registered check for the snapshot.** At the first compaction after OI-56 lands, the post-compaction lead must name each active item, each operator constraint verbatim, and each running worker with its agent id. It must do so without reading any file beyond the card, the snapshot, and the `RUN_LOG.md` `Next:` line. The next section widens the check to grants, running work, and peers. A miss on any of the three fails the check and reopens OI-56. The eval `compact-fidelity` runs the same check on a fixture transcript with a known set of operator messages, items, and workers.
+**Failed compaction.** A compaction has failed when the host reports an error, or when the post-compaction lead misses the pre-registered check below. The session state `compacted` is derived from the `compact_boundary` records in the transcript. No file stores it.
+
+**Pre-registered check for the snapshot.** At the first compaction after OI-56 lands, the post-compaction lead must name each active item, each operator constraint verbatim, and each running worker with its agent id. It must do so without reading any file beyond the card, the snapshot, and the `RUN_LOG.md` `Next:` line. The next section widens the check to grants, running work, and peers. A miss on any of the three fails the check and reopens OI-56. The eval `compact-snapshot` runs the same check on a fixture transcript with a known set of operator messages, items, and workers.
 
 ## Compaction snapshot and message threads
 
-Added 2026-09-30 under DEC-76 and revised the same day from two measured reviews of this session's own transcript, which compacted twice (`reports/snapshot-overinclusion.md`, `reports/snapshot-gaps.md`). A handoff is now only for new work or a clean session that loads code-ops changes, so one session runs long and compacts many times. The operator must keep talking to the same workers and peers without repeating anything. This section designs OI-56 and OI-64 as one PR.
+Added 2026-09-30 under DEC-76 and revised the same day from two measured reviews of this session's own transcript, which compacted twice (`reports/snapshot-overinclusion.md`, `reports/snapshot-gaps.md`). A handoff is now only for new work or a clean session that loads code-ops changes, so one session runs long and compacts many times. The operator must keep talking to the same workers and peers without repeating anything. This section designs OI-56, which absorbed OI-64. It ships as PR 2.
 
 **What the evidence showed.** The design goal is the right context, not more context.
 
@@ -392,11 +397,19 @@ Added 2026-09-30 under DEC-76 and revised the same day from two measured reviews
 **Snapshot.** `scripts/compact-snapshot.mjs` writes `COMPACT_SNAPSHOT.md` in the session's run folder, and each write replaces the file. The budget is 3,000 tokens (12,000 characters), about 14% of a post-compaction context, split as follows. Sections, in order:
 
 1. **Operator words** (1,200 tokens). Every operator prompt and answer, oldest first, each cut to 600 characters (head 400, tail 150, the omitted count, and the transcript line). Over budget, older messages become one-line stubs: the first 80 characters and the transcript line. Messages of 80 characters or fewer and every `AskUserQuestion` answer never become stubs, because short directives and answers carry the grants ("merge when green and keep going"). The selection uses age and length only, never keywords.
-2. **Running work** (500 tokens). Each launched entry with no closing notification: kind (agent, shell, workflow, wakeup), id, type, age, description, and report path. On Claude the transcript is the source. The agent ledger (`scripts/agent-ledger.mjs`) is the source on hosts without a readable transcript and across sessions. The ledger row gains `report_path`, parsed from the brief's `Report path:` line, and `worktree` when isolation is set.
+2. **Running work** (500 tokens). Each launched entry with no closing notification: kind (agent, shell, workflow, wakeup), id, type, age, description, and report path. Agents come live from the agent ledger (`scripts/agent-ledger.mjs`), so a summary can never show a stale agent state. Other work (shell, workflow, wakeup) comes from the transcript. The ledger row gains `report_path`, parsed from the brief's `Report path:` line. A `worktree` field on ledger rows stays in the backlog.
 3. **Active items** (900 tokens). The unchecked `TASKS.md` lines, cut to 240 characters each and at most 16, keeping id, owner, and done-when.
 4. **Peers** (300 tokens). Reply-owed threads first, each with the peer name, the full session id, the last message cut to 200 characters, and its age. Quiet threads get one line each.
 
-Truncation order when over budget: stub older operator messages, then cut item lines, then drop quiet peers, then cut running-work descriptions. Ids, report paths, and reply-owed peers are never cut. Text passes through the redaction scanner's masking before it is written. The run folder is gitignored.
+Truncation order when over budget: stub older operator messages, then cut item lines, then drop quiet peers, then cut running-work descriptions. Ids, report paths, and reply-owed peers are never cut.
+
+Five rules make the file safe to trust.
+
+- **Atomic write.** The script writes a temporary file and renames it over `COMPACT_SNAPSHOT.md`. A reader never sees a half-written file.
+- **Freshness by boundary count.** The header records the number of `compact_boundary` records in the transcript when the script ran. The card counts the boundaries again. The snapshot is fresh when the card sees exactly one more boundary than the header, because PreCompact writes before its own boundary. Any other difference marks it STALE.
+- **Partial status.** A run with no readable transcript, such as a manual run, still writes the other sections. The header says `partial` and names what is missing.
+- **Masking stubs.** Text passes through the redaction scanner's masking before it is written. If masking fails on a message, the script writes a stub for it (the transcript line only) and never the raw text.
+- **Gitignore check.** Before it writes, the script runs `git check-ignore` on the run folder path. When the path is not ignored, it writes to the home state directory instead.
 
 **Not in the snapshot, on purpose.** Git state and the next step change after the snapshot is written, so the card reads them live. Decisions and rejected options already live in `PROGRAM.md` and `RUN_LOG.md`. The host re-attaches recently read files and invoked skill bodies by itself, so nothing depends on that.
 
@@ -404,57 +417,123 @@ Truncation order when over budget: stub older operator messages, then cut item l
 
 - A `PreCompact` hook, `hooks/compact-snapshot.mjs`, calls the script with the payload's `transcript_path` and `session_id`. It exits 0 on every path, never blocks compaction, and prints nothing, because the host ignores PreCompact stdout. `CODE_OPS_COMPACT_SNAPSHOT=0` turns it off.
 - `co snapshot` runs the same script by hand. It is the fallback on a host whose PreCompact payload is unverified or absent, and the lead runs it at each 150,000-token assessment there.
-- `co threads [--session <id>] [--json]` prints the peer view and running work mid-session without writing anything.
+A `co threads` command, which would print the peer view mid-session without writing, is deferred to the backlog.
 
 **Restore.** The SessionStart compact card is the only automatic re-injection, and it prints only what the snapshot cannot hold or what is live:
 
-- **Run folder fallback.** When no session record exists, the card finds the run folder whose `SESSION.json` names the payload `session_id` or `hostSessionId`.
-- **One live git line.** Branch, short HEAD, the dirty-path count, and the worktree count.
+- **Run folder fallback.** When no session record exists, the card finds the run folder whose `SESSION.json` names the payload `session_id` or `hostSessionId`, and prints the item lines. The fallback ships in PR 1.
+- **One live git line.** Branch, short HEAD, and the dirty-path count.
 - **The latest `Next:` line from `RUN_LOG.md`.** The lead writes one at each assessment and phase boundary: the in-flight step, its next command, and the `file:line` it edits.
-- **A `Snapshot:` line.** When the snapshot is newer than the compaction, the line gives its path and counts (operator words, running work, active items, reply-owed peers) and states that the snapshot outranks the summary on running work and peers. When no fresh snapshot exists, as on hosts with an unverified writer, the card prints the item lines and pending agents instead, as it does today.
+- **A `Snapshot:` line.** The line reads `Snapshot fresh` or `Snapshot STALE`, by the boundary-count rule above. When fresh, it gives the path and counts (operator words, running work, active items, reply-owed peers) and states that the snapshot outranks the summary on running work and peers. When stale or absent, as on hosts with an unverified writer, the card prints the item lines instead, as it does today.
+- **Active count.** The line `active N/12 (last snapshot M)` carries a GROWING flag when N exceeds M, and an OVER CAP flag when N exceeds 12.
+- **Pending agents**, always live from the ledgers, even when the snapshot is fresh.
 - **Reply-owed peers**, at most 4 lines, even when the snapshot is fresh, because an unanswered peer is the costliest miss.
 
-The card stops telling the lead to reload `TASKS.md` and `RUN_LOG.md`. The lead reads the snapshot, one bounded file of at most 3,000 tokens. The Compact Instructions in the user-wide contract drop the verbatim-request bullet in favour of one line each, because the snapshot holds the words, and add the next command.
+The card stops telling the lead to reload `TASKS.md` and `RUN_LOG.md`. The reload order in `global-contracts/AGENTS.md` (line 142) changes to start from the card. The lead reads the snapshot, one bounded file of at most 3,000 tokens. The Compact Instructions in the user-wide contract drop the verbatim-request bullet in favour of one line each, because the snapshot holds the words, and add the next command.
 
 **Host parity.**
 
 | Host | Snapshot writer | Restore |
 | --- | --- | --- |
 | Claude | PreCompact hook | SessionStart `compact` |
-| Codex | PreCompact hook rendered, payload UNVERIFIED; fallback `co snapshot` | SessionStart `compact` projected |
-| Grok | PreCompact hook, payload UNVERIFIED; fallback `co snapshot` | instruction files and the PostToolUse note |
-| OpenCode | `session.compacted` fires after compaction, too late; fallback `co snapshot` at assessment | lifecycle plugin port |
+| Codex | PreCompact hook, gated on a captured payload (PR 5); until then `co snapshot` | SessionStart `compact` projected, gated on the capture |
+| Grok | PreCompact hook, gated on a captured payload (PR 5); until then `co snapshot` | instruction files and the PostToolUse note, gated on the capture |
+| OpenCode | `experimental.session.compacting` (`scripts/opencode-lifecycle.js:1433`) runs before the summary. It pushes the `TASKS.md` lines, pending dispatch rows, and the snapshot path into the compaction context (PR 3) | `session.compacted` and the lifecycle plugin port |
 
-**Handoff.** `handoff draft` warns and lists each reply-owed peer, because a new session cannot answer a message sent to the old one.
+A Codex or Grok row that fails its capture keeps today's behavior and drops out of the row.
 
-**Evals.** `evals/compact-snapshot` uses synthetic transcripts that cover each record shape above. It includes the noise shapes that must be excluded: task notifications, `isMeta` bodies, and duplicate wrappers. It checks the section budgets and the truncation order, that an `AskUserQuestion` answer survives as an operator word, and that a running entry closes on its notification. It also checks the thread states, the off switch, fail-open on a malformed line, the run-folder fallback, and the fresh and stale card forms.
+**Handoff.** `handoff draft` warns and lists each reply-owed peer, because a new session cannot answer a message sent to the old one. A question lost at a handoff is CONFIRMED in murmuration (`reports/peer-comms.md`). The draft seeds its running-work list from the snapshot.
+
+**Evals.** `evals/compact-snapshot` is the only eval name for this section. It uses synthetic transcripts that cover each record shape above. It includes the noise shapes that must be excluded: task notifications, `isMeta` bodies, and duplicate wrappers. It checks the section budgets and the truncation order, that an `AskUserQuestion` answer survives as an operator word, and that a running entry closes on its notification. It also checks the peer states, the off switch, fail-open on a malformed line, the run-folder fallback, and the fresh and stale card forms. Three cases are required: a stale second compaction, a masking failure, and the fallback.
 
 **Verification.** The pre-registered check repeats at the first compaction after this PR lands. The lead may read the card, the snapshot, and the `RUN_LOG.md` `Next:` line, and nothing else. From those alone it must name every active item, every operator constraint and grant verbatim, every running entry with its id and report path, every reply-owed peer, and the next command. The check also counts re-reads in the first 30 tool calls after restore. Anything above zero for state the snapshot should hold reopens OI-56.
 
+## Peer coordination between programs
+
+Added 2026-09-30 from a read-only probe of the Data Quality and Single Tap sessions in murmuration since 2026-09-24 (`reports/peer-comms.md` in the HO 13 run folder). Two programs that share one repository must agree on shared surfaces without the operator carrying messages between them.
+
+**What the evidence showed.** The channel works at volume, and the gaps sit at its edges.
+
+- CONFIRMED: the two programs sent 705 messages over 194 hops. 680 had a matching delivery. The median reply came in 70 seconds, the 90th percentile in 770 seconds.
+- CONFIRMED: there were no merge conflicts. Shared areas were negotiated by message before each merge, and 23 collision notes fired on `git push` or `git merge` to `main`.
+- CONFIRMED: 17 operator prompts relayed between the programs, for example "inform single tap" and "confirm with data quality". One supplied a live session name right after a blocked send.
+- CONFIRMED: the peer guard blocked sends to handed-off sessions at least 4 times, and it named the successor each time. Under DEC-76 handoffs are rare, so this path shrinks.
+- CONFIRMED: one question was lost when its sender handed off before the reply.
+- CONFIRMED: a test verifier in one program ran `taskkill /F` on every python process on the shared host.
+- CONFIRMED: Single Tap read the Data Quality ledger in 4 sessions. Data Quality never read the Single Tap ledger. Agreements lived only in message text.
+
+**Root cause.** Neither program declares what it shares with the other. The collision note fires only after a peer edited the same path in the last 6 hours (`scripts/collision-lib.mjs:7-17`). A negotiated surface, such as a ConfigMap or an ingest pin, has no recent peer edit, so the session asks the operator instead.
+
+**Design.** Four small changes, all warn-only, like the collision notes they extend.
+
+1. **Declared peers.** `PROGRAM.md` gains an optional `## Peers` section. Each line is `- <program slug> · Surfaces: <path or glob>, ... · Notify: edit|merge`. A surface can also be `process:<name>` for a host process the peer depends on.
+2. **Surface notes.** `collision-lib.mjs` reads the session's program ledger. An edit to a declared surface, or a `git merge` or `git push` whose diff touches one, prints one note: the live peer session name, resolved the way `co handoff live` resolves it, and a ready `SendMessage` line. A shell command that kills processes (`taskkill`, `pkill`, `kill`) while a live peer declares a `process:` surface for that name prints the same kind of note. The note fires once per surface and peer per session.
+3. **Peer names on the card.** The startup and compact cards print one line per declared peer: its live session name and whether any thread with it is reply-owed. A session then never needs the operator to supply a name.
+4. **Agreements in both ledgers.** A cross-program agreement is a decision entry with an `Agreed-with: <program slug>` line, recorded in both `PROGRAM.md` files with the same text. `check-handoff` warns when an `Agreed-with` entry has no counterpart in the peer ledger.
+
+The handoff draft reply-owed warning moves from backlog into PR 2, because a lost question at handoff is CONFIRMED.
+
+**Not in this design.** No new message store, no blocking gate, and no automatic sends. The operator still decides what to agree to. The peer guard and the board stay as they are.
+
+**Finish line (proposed F8, needs an operator DEC).** Across an operator-set window in murmuration after the plugin sync, Data Quality and Single Tap need zero operator relays, leave zero peer questions unanswered at a handoff or session end, and send zero messages to a finished session. A sanitized note from the same probe records the counts.
+
+**Delivery.** PR 9, after PR 2 and in parallel with PR 4: the `## Peers` parser, the surface and process notes in `collision-lib.mjs`, the card peer lines, and the `Agreed-with` warning. The eval `peer-surfaces` covers a declared surface with no recent peer edit, a merge whose diff touches a surface, a process kill with a declared `process:` surface, a peer that handed off, and the off switch. Seeding the `## Peers` sections in the two murmuration ledgers is operator work in that repository.
+
 ## Delivery
 
-Each PR is small and follows the `AGENTS.md` rules: plugin version bump, CHANGELOG entry, regenerated host distributions, and atlas stamp. PR 0 is the first slice. Order matters where noted.
+Revised 2026-09-30 from the plan judge panel (three designers, three adversarial reviewers, one synthesis; `reports/plan-judge-panel.json` in the HO 13 run folder). Each PR follows the `AGENTS.md` rules: plugin version bump, CHANGELOG entry, regenerated host distributions, atlas stamp, and manifest sync. The plan is 7 required PRs after PR 0, 1 conditional PR, and 2 runs, with at most 12 active items.
 
-| PR | Scope | Files | Evals and gates |
+| PR | Scope | Closes | Evals and gates |
 | --- | --- | --- | --- |
-| 0 (F1 to F3) | compaction default and compact re-inject (F1), finish line, `Blocks`, 12 cap, burn-down (F2), hook-written agent ledger and `co agents pending` (F3) | `global-contracts/AGENTS.md`, `handoff-card.mjs`, `routing-card.mjs`, `handoff-state.mjs`, `check-handoff.mjs`, `hooks.json`, a new agent ledger script | `evals/handoff-card`, `handoff-check`, a new agent ledger eval, `grok-build-compat`, `codex-marketplace` |
-| 1 | PreCompact snapshot script, hook registration, compact branch cites snapshot (OI-56), and the thread view with `co threads` (OI-64). See "Compaction snapshot and message threads". Needs PR 0 because `hooks.json` is F3's file | snapshot script, `hooks.json`, `routing-card.mjs` | new `compact-fidelity` eval, hook event-name checks on Codex and Grok |
-| 2 | Pending-worker rule on every host. `co agents pending` falls back to dispatch rows. `handoff draft` and `check-handoff` refuse a pending worker. Acceptance rows gain a unit id | `handoff-state.mjs`, `check-handoff.mjs`, `run-contract.mjs` | `handoff-check` cases for each host form |
-| 3 | OpenCode `assertDispatchModel` in `tool.execute.before`, unconditional, fail-closed, plus the live-payload check | `scripts/opencode-lifecycle.js`, regenerated `opencode-dist/` | new `opencode-enabled-models` eval, `build-opencode-dist.mjs --check` |
-| 4 | State machine contract: the entity table and transition table in `CONTRACTS.md`, with a lint check that stored statuses match `LEDGER_STATUSES` | `CONTRACTS.md`, `scripts/lint-plugins.mjs`, `evals/lint-plugins` | lint and its eval, `SHARED_PASSAGES` parity if any passage changes |
-| 5 | Workflow branch: opt-in prose, phase plan file, `agentType` and `effort` rules in `distill` and `codebase-audit` | two `SKILL.md` files, `CONVENTIONS.md` section | dispatch-guard eval case for `agent(` with and without `agentType` |
-| 6 | `distill` program mode (phase 6) | new skill, handbook entries, READMEs, skill counts | new `distill-program` fixture with `ANSWER_KEY` |
-| 7 | `distill` vault mode phases 1 to 5 and 7, with the no-loss check | skill, scripts | new `distill-backfill` fixture with buried decisions, stale pages, and legacy trees |
-| 8 | `distill` phase 8 install, maintain pass, `conform` routing, C5 merge driver, `integrate-branch` docs step | skill, `conform`, `install-git-hooks.mjs` | `node evals/score.mjs <ANSWER_KEY> --check`, `node evals/register-staleness/run.mjs` |
-| 9 | Murmuration assess-only calibration through `calibration-run` | none in this repository | sanitized note only |
+| 0, built | Compaction default and compact re-inject, finish line with `Blocks`, 12 cap, backlog and burn-down line, agent ledger hook, `co agents pending`, and the draft refusal. Merged as https://github.com/skylarsabo/code-ops/pull/206 | OI-50, OI-53, OI-54; F2 | `handoff-card`, `handoff-check`, `handoff-convergence`, `agent-ledger`, `bench-hooks` |
+| 1 | Pending workers on every host. `pendingAgents` always merges hook rows with dispatched `DISPATCH_LEDGER` rows, deduped on actor id, and names the sources read. It prints `unknown` only on a host signal. `co agents settle <id> --failed --reason <text> [--session <id>]` appends a failed row, and the draft refusal names it. The compact card finds the run folder by `SESSION.json` when `sessionRecord()` is null. SessionEnd and the next startup card flag pending workers. A dependency-free active-items counter feeds a read-only `co burndown`. The agent-ledger hook gains an env-gated payload capture (key names only) before the Grok early return | OI-58, OI-66 instrument; F3 except host rows | `handoff-check` cases per host form, `agent-ledger` (lost stop, then settle), `handoff-card` (fallback case), lint chain |
+| 2 | Compact snapshot as specified in "Compaction snapshot and message threads", plus the handoff draft reply-owed warning (see "Peer coordination between programs") | OI-56; F1 after the live check | `compact-snapshot` (stale second compaction, masking failure, fallback), `handoff-card`, `codex-marketplace`, `grok-build-compat`, lint chain |
+| 3, parallel with 1 and 2 | OpenCode `assertDispatchModel` at `tool.execute.before`, unconditional, in the order live list, cache filtered by conditions 2 to 4, lead clone at floor, deny. `experimental.session.compacting` pushes the active items, pending dispatch rows, and the snapshot path | OI-59; F6; the OpenCode F1 row | `opencode-enabled-models`, `build-opencode-dist.mjs --check`, lint chain |
+| 4, after 2 | State machine contract: entity and transition tables in `CONTRACTS.md`, with lint checking statuses against `LEDGER_STATUSES` and a writer on every row. The dispatch guard checks `agentType` on each `agent()` call and denies a literal effort above `high`. One unpinned Workflow section in three `CONVENTIONS.md` files, cited by the named skills | OI-60 (absorbs OI-61); F5 | lint and `evals/lint-plugins`, dispatch-guard eval |
+| 5, conditional | Host rows from captured payloads: the Codex spawn name in `DISPATCH_TOOLS`, the Grok agent ledger once `agent_id` is confirmed, and PreCompact `transcript_path` on Codex and Grok. A host that fails its check keeps today's behavior and leaves that row | OI-67 | fixture-pinned payload evals, `grok-build-compat`, `codex-marketplace` |
+| 6 to 8 | `distill`: program mode (6); phases 1 to 5 and 7 with the no-loss script, the findability count, and the Workflow branch for phases 3 and 7 (7); install, maintain, and `conform` routing (8) | OI-62; part of F7 | `node evals/score.mjs <ANSWER_KEY> --check`, `register-staleness` |
+| 9, after 2 | Peer surfaces, as specified in "Peer coordination between programs" | OI-65; F8 if accepted | `peer-surfaces`, lint chain |
+| Runs | Murmuration assess-only distill calibration; the F4 window note after the plugin sync | OI-63, OI-66; F7, F4 | sanitized notes only (one-way channel) |
+
+**Parallelism.** PR 3 builds in its own worktree beside PRs 1 and 2. PR 4 waits for PR 2, because both edit `CONTRACTS.md`. At each integration, the dist regeneration, atlas stamp, and manifest sync run one branch at a time.
 
 Rules that hold across the stack:
 
 - No answer key ever enters the context handed to a skill under eval.
-- PRs 1 and 3 are the risk surfaces. Each has a live-payload check. A failing check keeps today's behavior and drops the host from that row.
-- Retention classes and gate step 7 stay in backlog (OI-16).
+- PRs 2, 3, and 5 are the risk surfaces. Each has a live-payload check. A failing check keeps today's behavior and drops the host from that row.
 - Gate scripts gain checks only. No PR weakens or narrows one.
 - Each PR merges on a green hosted gate. A model review gate runs only when the operator asks for it.
+
+### Pending operator decision
+
+The panel proposed these changes. They wait for an operator DEC, because a gitignored ledger edit cannot move an operator-set finish line. The Finish line and decision 6 above stay as accepted until then.
+
+- F1: "The compact card restores run state with or without a home session record. The first live compaction after PR 2 passes the pre-registered check ... On Codex, Grok and OpenCode, the restore names the active items and pending workers ... Each host row is verified from a captured payload, or it is dropped with a recorded reason."
+- F3: "On every host, each dispatch and report is recorded, from hook rows merged with dispatch rows. `handoff draft` refuses a pending worker and names `co agents settle` and `--pending-agents-ok`. A session that ends with a pending worker is flagged at SessionEnd and on the next SessionStart card."
+- F4: "data-quality and single-tap-cutover each hold at most 12 active items, with no net growth and 0 orphaned agents (pending past maxAgeMs), across an operator-set window that starts after the plugin sync in murmuration. `co burndown` reports this, in a sanitized note."
+- Decision 6 becomes "flag a pending worker at SessionEnd and the next SessionStart". Without it, F3 needs a new blocking Stop hook.
+- F8, new: see "Peer coordination between programs".
+- The C5 merge driver and the `integrate-branch` docs step: keep them in PR 8, or move them to backlog.
+- The F4 window: its length, and who runs the plugin sync in murmuration that starts it.
+
+### Backlog
+
+- `co threads`.
+- A `worktree` field on ledger rows.
+- An acceptance unit id and a `check-handoff` pending refusal. The refusal clashes with `--pending-agents-ok` (`handoff-state.mjs:658`).
+- Workflow run ids in the agent ledger. The snapshot covers them on Claude.
+- A split of PR 7 into relocate and classify-to-synthesis, if review strain shows.
+- Retention classes and gate step 7 (OI-16).
+
+### Rejected in the judge panel
+
+- A `reported-empty` status (correctness P3). Transition 5 already runs the report-shape gate (`dispatch-ledger.mjs:459`), and the status would block routinely, because the lead writes reports.
+- An age limit on the OpenCode cache (correctness P9). The cache is filtered at dispatch and rewritten only on change, so an age limit denies valid dispatches.
+- A Grok compaction relief (parity P5). It rests on an unverified Grok window, gives Grok the weakest restore, and reopens DEC-73 with no new evidence.
+- Folding program mode into distill phases 1 to 7 (parity P10, convergence P6). It builds the largest PR and saves no handbook work.
+- A weaker F2 wording (correctness P10). The card counter fixes the check instead.
+- A store rearchitecture and a card cap of 12 (correctness P4). The card already prints shown-of-total (`routing-card.mjs:132`), and a cap of 12 would drop items 13 to 16.
+- An OpenCode agent-ledger writer (parity P1). Foreground tasks settle at launch (`agent-ledger.mjs:90`), and dispatch rows cover OpenCode.
 
 ## Risks and open questions
 
@@ -465,7 +544,7 @@ Rules that hold across the stack:
 3. Hook and ledger drift: the agent ledger and the dispatch ledger can disagree. Mitigation: `check-handoff` reports the disagreement and does not repair it.
 4. Distill at scale strains lead review. The lead reads 51 decision records and about 39 sampled records. Mitigation: batches of 25, a full review after one sample defect, and a stop at the round budget.
 5. Workflow workers may not fire the hooks. Mitigation: the lead reconciles from returned results.
-6. The pending-worker rule may block a handoff for a worker the operator wants to abandon. Mitigation: the lead marks it `failed` with a reason, which is a recorded transition.
+6. The pending-worker rule may block a handoff for a worker the operator wants to abandon. Mitigation: `co agents settle <id> --failed --reason <text>` records the `failed` transition with its reason (PR 1).
 
 **Open questions.**
 
@@ -498,7 +577,9 @@ The operator accepts or rejects each line. Numbers here are draft numbers. They 
 13. Add no new Workflow flag or environment variable.
 14. Keep `distill` at full W7 scope with program mode first, and add the phase 8 no-loss check as a hard gate.
 15. Keep retention classes and gate step 7 in backlog.
-16. Deliver in the order of PRs 0 to 9, with F1 to F3 as the first slice.
+16. Deliver in the revised order: PR 0 built, then PRs 1 and 2 in order, PR 3 in parallel, PR 4 after PR 2, PR 5 on capture, PRs 6 to 8, and PR 9 after PR 2 (amended 2026-09-30 by the plan judge panel).
+
+Decision 6 and the finish line wait on the operator decision listed under "Delivery".
 
 ## Rejected alternatives
 
