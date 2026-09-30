@@ -253,8 +253,12 @@ Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs` and
 The package registers no `PreCompact` command. Claude and Codex ignore plain stdout from that
 event, so `routing-card.mjs` handles `SessionStart` with `source=compact` and adds a
 post-compaction instruction to restore decisions, constraints, evidence, blockers, open work,
-and exact identifiers from durable state. This is recovery after compaction, not a claim that a
-hook changed the summary. Grok ignores passive `SessionStart` stdout and therefore gets no
+and exact identifiers from durable state. When the session record names a run folder, the card also
+lists that folder's unchecked `TASKS.md` lines (the id and the first 80 characters of each, at most
+12, with a shown-of-open count), so the session sees its open items without a file read. Host
+auto-compaction is the default context relief on Claude and Codex (DEC-73), and this card carries
+the open items across it. This is recovery after compaction, not a claim that a hook changed the
+summary. Grok ignores passive `SessionStart` stdout and therefore gets no
 hook-injected restore card. OpenCode uses its native compaction port. Evidence:
 `plugins/code-ops-suite/hooks/hooks.json`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
 and the generated host compatibility files.
@@ -666,7 +670,13 @@ usage. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections
 
 Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
 receipt, or cost proof. It directs the lead to run `handoff assess` at a safe boundary and choose
-CONTINUE, COMPACT, or HANDOFF; a higher band asks for that assessment before a new workstream.
+CONTINUE or COMPACT on Claude and Codex, or CONTINUE, COMPACT, or HANDOFF on Grok; a higher band asks
+for that assessment before a new workstream. On Claude and Codex (DEC-73) the card names host
+auto-compaction as the context relief, asks for current `TASKS.md` and `RUN_LOG.md` first, and says
+to hand off only for a new independent workstream, a host or operator change, session end, or a
+quality failure. It never says to hand off on a token count. On Claude, when
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line naming that setting (250000
+recommended); a Codex or Grok card never carries it.
 At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated
 until that assessment runs; Grok omits that sentence because the guard cannot gate its dispatch
 tool. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
@@ -675,19 +685,19 @@ The marker proves only that the hook wrote a prior message. It does not prove th
 displayed it, that a boundary existed, or that any action was chosen. Evidence:
 `plugins/code-ops-suite/hooks/handoff-card.mjs:112-124`.
 
-The handoff point is 225,000 tokens, or 200,000 on Grok. The first time context reaches it, the
-card fires even without a band rise and says to hand off at the next phase boundary. The marker
-also records `point`, `fired`, `prompts` (operator prompts since the last card), and `until`.
-On Grok, when a card fires past the point after an earlier card and no operator prompt has
-arrived since, the card says to run `handoff write` instead of assessing again. On Claude and
-Codex every card fires on an operator prompt, so the card never gives that advice there. The hook reads the latest
-`Continue-until: <N> tokens` or `Continue-until: <N> turns` line from the last 64 KiB of the
-run log named by the session record's `runDir`. While that bound is open, the card stays quiet.
-It fires once when context reaches N tokens or after N more hook calls. A malformed bound sets no
-bound. On Claude and Codex the card is prompt-driven, so an autonomous session with no prompts
-sees none of this until the dispatch guard's 300,000-token ceiling gates it. OpenCode's note does
-not yet carry the handoff point. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs`
-and `evals/handoff-card/run.mjs`.
+The handoff point exists on Grok only, at 200,000 tokens. Claude and Codex have none (DEC-73),
+because host auto-compaction is their context relief. The first time Grok context reaches the
+point, the card fires even without a band rise and says to hand off at the next phase boundary.
+The marker also records `point`, `fired`, `prompts` (operator prompts since the last card), and
+`until`. When a Grok card fires past the point after an earlier card and no operator prompt has
+arrived since, the card says to run `handoff write` instead of assessing again. The hook reads the
+latest `Continue-until: <N> tokens` or `Continue-until: <N> turns` line from the last 64 KiB of
+the run log named by the session record's `runDir`. It does so on Grok only. While that bound is
+open, the card stays quiet. It fires once when context reaches N tokens or after N more hook
+calls. A malformed bound sets no bound. Claude and Codex ignore the line. On those hosts an
+autonomous session with no prompts sees no card until the dispatch guard's 300,000-token ceiling
+gates it. OpenCode's note does not carry the handoff point. Evidence:
+`plugins/code-ops-suite/hooks/handoff-card.mjs` and `evals/handoff-card/run.mjs`.
 
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant

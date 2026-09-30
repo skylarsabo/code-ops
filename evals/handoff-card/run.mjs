@@ -17,16 +17,19 @@
 //   - Grok UserPromptSubmit emits nothing, because that stdout is discarded. Grok PostToolUse
 //     reads updates.jsonl and emits one additionalContext per new band, with hookEventName
 //     PostToolUse and no systemMessage;
-//   - each band requests a CONTINUE, COMPACT, or HANDOFF assessment; a higher band asks before a
-//     new workstream without claiming an earlier warning
-//     was received;
+//   - on Claude and Codex (DEC-73) each band requests a CONTINUE or COMPACT assessment, names host
+//     auto-compaction as the relief and the handoff triggers, and never says to hand off on a token
+//     count; on Claude, with CLAUDE_CODE_AUTO_COMPACT_WINDOW unset, the card adds one line naming it;
+//     on Grok each band requests CONTINUE, COMPACT, or HANDOFF. A higher band asks before a new
+//     workstream without claiming an earlier warning was received;
 //   - a crossing at or past the context ceiling (CODE_OPS_CONTEXT_CEILING, default 300,000)
 //     ends with one sentence saying new dispatches are gated; off drops only that sentence, an
 //     override moves it, an invalid value falls back to 300,000, and Grok gets it from 200,000;
-//   - the card fires once more at the 225,000-token handoff point (200,000 on Grok) and says to
-//     hand off; on Grok, with no operator prompt since the last card, it says to write the handoff;
-//   - a Continue-until bound (tokens or turns) in the run's RUN_LOG.md holds the card until it
-//     passes, then the card fires once; a malformed bound sets none, and off still silences.
+//   - on Grok only, the card fires once more at the 200,000-token handoff point and says to hand off;
+//     with no operator prompt since the last card, it says to write the handoff;
+//   - on Grok only, a Continue-until bound (tokens or turns) in the run's RUN_LOG.md holds the card
+//     until it passes, then the card fires once; a malformed bound sets none, and off still
+//     silences. Claude and Codex ignore the line.
 //
 // It also pins the history read notice: a PostToolUse Read, Grep, or shell call (Claude, Codex, and
 // Grok payloads) that opens a superseded or amended decision record adds one context line naming
@@ -36,7 +39,8 @@
 //
 // It also covers the other half of the handoff loop, the pending-handoff pickup line
 // plugins/code-ops-suite/hooks/routing-card.mjs injects at SessionStart: which sources get it,
-// what makes a handoff pending, and the CODE_OPS_HANDOFF_PICKUP switch.
+// what makes a handoff pending, and the CODE_OPS_HANDOFF_PICKUP switch. After compaction the same
+// card lists the session run folder's unchecked TASKS.md lines (at most 12, 80 characters each).
 //
 //   node evals/handoff-card/run.mjs
 
@@ -93,6 +97,8 @@ function runHook(input, { home, switchValue, grok = false, ceiling, env: extra =
   delete env.GROK_PLUGIN_ROOT;
   delete env.CODE_OPS_CONTEXT_CEILING;
   delete env.CODE_OPS_READ_NOTICE;
+  // A host marker from the session running this eval must not reach the hook under test.
+  for (const key of ['CLAUDECODE', 'CLAUDE_PROJECT_DIR', 'CLAUDE_CODE_AUTO_COMPACT_WINDOW']) delete env[key];
   Object.assign(env, extra);
   if (switchValue !== undefined) env.CODE_OPS_HANDOFF_CARD = switchValue;
   if (ceiling !== undefined) env.CODE_OPS_CONTEXT_CEILING = ceiling;
@@ -248,13 +254,33 @@ function parseOut(r) {
   const second = runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(330_000), 'b2.jsonl'), sessionId: 'sess-band-2' }), { home });
   const m1 = (parseOut(first) || {}).systemMessage || '';
   const m2 = (parseOut(second) || {}).systemMessage || '';
-  expect(/handoff assess/.test(m1) && /CONTINUE, COMPACT, or HANDOFF/.test(m1) && /next safe boundary/.test(m1), `band 1 must request the lifecycle assessment at a safe boundary, got ${m1}`);
-  expect(/handoff assess/.test(m2) && /before starting a new workstream/.test(m2), `band 2 must request the lifecycle assessment before a new workstream, got ${m2}`);
+  // DEC-73: on Claude and Codex the assessment chooses CONTINUE or COMPACT, host auto-compaction is
+  // the relief, and no card says to hand off on a token count.
+  expect(/handoff assess/.test(m1) && /to choose CONTINUE or COMPACT\./.test(m1) && !/COMPACT, or HANDOFF/.test(m1) && /next safe boundary/.test(m1), `band 1 must request the CONTINUE or COMPACT assessment at a safe boundary, got ${m1}`);
+  expect(/handoff assess/.test(m2) && /to choose CONTINUE or COMPACT before starting a new workstream/.test(m2), `band 2 must request the CONTINUE or COMPACT assessment before a new workstream, got ${m2}`);
+  for (const m of [m1, m2]) {
+    expect(/Host auto-compaction is the context relief, so bring TASKS\.md and RUN_LOG\.md current first\./.test(m), `a Claude or Codex card must name auto-compaction and the durable files, got ${m}`);
+    expect(/Hand off only for a new independent workstream, a host or operator change, session end, or a quality failure\./.test(m), `a Claude or Codex card must name the handoff triggers, got ${m}`);
+    expect(!/hand off (now|at the next|by)|handoff point|write the handoff|Continue-until/i.test(m), `a Claude or Codex card must never say to hand off on token count, got ${m}`);
+  }
   expect(!/handoff now|declined|every turn re-reads all|full price/i.test(`${m1} ${m2}`), `the advisory must not assert the old handoff or cost claims, got ${m1} / ${m2}`);
   expect(m1 !== m2 && m2.includes('/code-ops-suite:handoff'), 'band 2 must escalate past band 1 and still name the command');
+
+  // The setting line: Claude only, only while CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset.
+  const SETTING = /CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it \(250000 recommended\)/;
+  const withEnv = (sessionId, env) => (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(160_000), `${sessionId}.jsonl`), sessionId }), { home, env })) || {}).systemMessage || '';
+  expect(SETTING.test(withEnv('sess-env-claude', { CLAUDECODE: '1' })), 'Claude with the window unset must get the setting line');
+  expect(SETTING.test(withEnv('sess-env-project', { CLAUDE_PROJECT_DIR: '/fixture' })), 'CLAUDE_PROJECT_DIR must also mark a Claude host');
+  expect(!SETTING.test(withEnv('sess-env-set', { CLAUDECODE: '1', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '250000' })), 'Claude with the window set must get no setting line');
+  expect(!SETTING.test(m1), 'a host that is not Claude (Codex) must get no setting line');
+  expect(/to choose CONTINUE or COMPACT\..*Hand off only for.*CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset/.test(withEnv('sess-env-order', { CLAUDECODE: '1' })), 'the setting line must follow the assessment advice in the same card');
+
+  // Grok keeps the three-way assessment and never gets the Claude setting line.
+  const grokBand = (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(160_000), 'grok-band-updates.jsonl'), sessionId: 'sess-band-grok', eventName: 'PostToolUse' }), { home, grok: true, env: { CLAUDECODE: '1' } })) || {}).hookSpecificOutput?.additionalContext || '';
+  expect(/CONTINUE, COMPACT, or HANDOFF/.test(grokBand) && !SETTING.test(grokBand) && !/auto-compaction/.test(grokBand), `Grok band 1 must keep the three-way assessment with no Claude setting line, got ${grokBand}`);
   rmSync(dir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   both bands request a lifecycle assessment; the higher band asks before a new workstream');
+  console.log('ok   Claude and Codex cards ask for CONTINUE or COMPACT with auto-compaction as the relief; Claude gets the window setting line only while it is unset; Grok keeps the three-way assessment');
 }
 
 // ---------------------------------------------------------------- context ceiling sentence
@@ -329,50 +355,35 @@ function parseOut(r) {
 }
 
 // ---------------------------------------------------------------- handoff point and Continue-until
-// The card fires once more at the 225,000-token handoff point (200,000 on Grok) and says to hand
-// off. On Grok, with no operator prompt since the last card, it says to write the handoff. A
-// Continue-until bound in the run log holds the card until the bound passes; a malformed bound
-// sets none.
+// DEC-73: Claude and Codex have no handoff point and ignore Continue-until; their cards ask for a
+// CONTINUE or COMPACT assessment at any size. On Grok the card fires once more at the 200,000-token
+// handoff point and says to hand off; with no operator prompt since the last card, it says to write
+// the handoff. A Continue-until bound in the run log holds the Grok card until the bound passes; a
+// malformed bound sets none.
 
 {
   const { home, cleanup } = fakeHome();
   const project = mkdtempSync(join(tmpdir(), 'handoff-point-'));
   const message = (r) => { const o = parseOut(r); return o && o !== 'unparsable' ? (o.systemMessage || o.hookSpecificOutput?.additionalContext || '') : ''; };
   const at = (context, sessionId, opts = {}) => runHook(payloadFor({ transcript: writeTranscript(project, assistantLine(context), `${sessionId}.jsonl`), sessionId, cwd: project }), { home, ...opts });
-  const handOff = /past the 225,000-token handoff point\. At the next phase boundary, run \/code-ops-suite:handoff assess and hand off\./;
+  const handOff = /past the 200,000-token handoff point\. At the next phase boundary, run \/code-ops-suite:handoff assess and hand off\./;
   const autonomousText = /no operator prompt has arrived since the last card\. At the next phase boundary, run \/code-ops-suite:handoff write instead of assessing again\./;
+  const compaction = /to choose CONTINUE or COMPACT/;
+  const noHandoffOnTokens = (text) => !/handoff point|hand off (now|at the next|by)|write the handoff|Continue-until/i.test(text);
 
-  // A fresh session at 225,000 gets the handoff wording, not the plain band-1 assessment.
+  // Claude and Codex: the card at 225,000 is the plain band-1 compaction card, once per arm.
   const first = message(at(225_000, 'sess-point-fresh'));
-  expect(handOff.test(first) && !autonomousText.test(first), `a card at 225,000 must say to hand off at the next phase boundary, got ${first}`);
-  expect(!/handoff point/.test(message(at(220_000, 'sess-point-under'))), 'a band-1 card under 225,000 must keep the plain assessment wording');
-  expect(message(at(226_000, 'sess-point-fresh')) === '', 'the handoff-point card must fire once per arm');
+  expect(compaction.test(first) && noHandoffOnTokens(first) && !autonomousText.test(first), `a Claude or Codex card at 225,000 must ask for CONTINUE or COMPACT and not for a handoff, got ${first}`);
+  expect(message(at(226_000, 'sess-point-fresh')) === '', 'a Claude or Codex session fires once per band, with no extra handoff-point card');
+  expect(at(240_000, 'sess-point-fresh').stdout === '', 'a Claude or Codex session past 225,000 stays silent within its band');
 
-  // Claude and Codex: every card fires on an operator prompt, so two consecutive band-crossing
-  // prompts never claim that no prompt arrived.
+  // Two consecutive band-crossing prompts never claim that no prompt arrived.
   at(160_000, 'sess-consecutive');
-  const consecutive = message(at(230_000, 'sess-consecutive'));
-  expect(handOff.test(consecutive) && !autonomousText.test(consecutive), `two consecutive card prompts must keep the assess-and-hand-off wording, got ${consecutive}`);
-  // A silent prompt between the two cards.
-  at(160_000, 'sess-prompted');
-  expect(at(170_000, 'sess-prompted').stdout === '', 'a same-band prompt stays silent');
-  const prompted = message(at(230_000, 'sess-prompted'));
-  expect(handOff.test(prompted) && !autonomousText.test(prompted), `a prompt since the last card must keep the assess-and-hand-off wording, got ${prompted}`);
-  const band2 = message(at(310_000, 'sess-prompted'));
-  expect(/Past the 225,000-token handoff point, hand off at the next phase boundary/.test(band2) && !autonomousText.test(band2), `band 2 right after the point card on a prompt-driven host must keep the band-2 handoff wording, got ${band2}`);
+  const consecutive = message(at(310_000, 'sess-consecutive'));
+  expect(compaction.test(consecutive) && noHandoffOnTokens(consecutive) && !autonomousText.test(consecutive), `two consecutive card prompts must keep the compaction wording, got ${consecutive}`);
 
-  // Grok: the point is 200,000, and its silent UserPromptSubmit call records the prompt.
-  const grokAt = (context, sessionId, eventName = 'PostToolUse') => runHook(payloadFor({ transcript: writeTranscript(project, grokUsageLine(context), `${sessionId}-updates.jsonl`), sessionId, cwd: project, eventName }), { home, grok: true });
-  grokAt(160_000, 'sess-grok-point');
-  expect(grokAt(170_000, 'sess-grok-point', 'UserPromptSubmit').stdout === '', 'Grok UserPromptSubmit stays silent while it records the prompt');
-  const grokPoint = message(grokAt(205_000, 'sess-grok-point'));
-  expect(/past the 200,000-token handoff point\. At the next phase boundary/.test(grokPoint) && !autonomousText.test(grokPoint), `Grok past 200,000 with a prompt between must get the prompted handoff wording, got ${grokPoint}`);
-  // Grok autonomous: a band-1 card, then tool calls with no prompt until the point.
-  grokAt(160_000, 'sess-grok-auto');
-  const grokAuto = message(grokAt(205_000, 'sess-grok-auto'));
-  expect(autonomousText.test(grokAuto) && !/handoff assess/.test(grokAuto), `Grok with no prompt since the last card must say to write the handoff, got ${grokAuto}`);
-
-  // Continue-until: the session record names the run folder, whose RUN_LOG.md holds the bound.
+  // Continue-until is Grok only: a Claude or Codex session with the line in its run log gets the
+  // normal band-1 card, with no bound held or announced.
   const runDir = join(project, 'run');
   mkdirSync(runDir, { recursive: true });
   const bindRun = (sessionId, log) => {
@@ -381,17 +392,40 @@ function parseOut(r) {
     writeFileSync(join(recordDir, `${sessionId.replace(/[^A-Za-z0-9]/g, '-')}.json`), JSON.stringify({ v: 1, sessionId, name: 'fixture', runDir: 'run' }));
     writeFileSync(join(runDir, 'RUN_LOG.md'), log);
   };
+  bindRun('sess-claude-until', '# RUN_LOG\n\nContinue-until: 400,000 tokens\n');
+  const ignoredBound = message(at(230_000, 'sess-claude-until'));
+  expect(compaction.test(ignoredBound) && !/Continue-until bound/.test(ignoredBound), `a Claude or Codex card must ignore a Continue-until bound, got ${ignoredBound}`);
+
+  // Grok: the point is 200,000, and its silent UserPromptSubmit call records the prompt.
+  const grokAt = (context, sessionId, eventName = 'PostToolUse', opts = {}) => runHook(payloadFor({ transcript: writeTranscript(project, grokUsageLine(context), `${sessionId}-updates.jsonl`), sessionId, cwd: project, eventName }), { home, grok: true, ...opts });
+  const grokFresh = message(grokAt(205_000, 'sess-point-grok-fresh'));
+  expect(handOff.test(grokFresh) && !autonomousText.test(grokFresh), `a Grok card at 205,000 must say to hand off at the next phase boundary, got ${grokFresh}`);
+  expect(!/handoff point/.test(message(grokAt(190_000, 'sess-point-grok-under'))), 'a Grok band-1 card under 200,000 must keep the plain assessment wording');
+  expect(message(grokAt(206_000, 'sess-point-grok-fresh')) === '', 'the Grok handoff-point card must fire once per arm');
+  grokAt(160_000, 'sess-grok-point');
+  expect(grokAt(170_000, 'sess-grok-point', 'UserPromptSubmit').stdout === '', 'Grok UserPromptSubmit stays silent while it records the prompt');
+  const grokPoint = message(grokAt(205_000, 'sess-grok-point'));
+  expect(handOff.test(grokPoint) && !autonomousText.test(grokPoint), `Grok past 200,000 with a prompt between must get the prompted handoff wording, got ${grokPoint}`);
+  grokAt(171_000, 'sess-grok-point', 'UserPromptSubmit');
+  const grokBand2 = message(grokAt(310_000, 'sess-grok-point'));
+  expect(/Past the 200,000-token handoff point, hand off at the next phase boundary/.test(grokBand2) && !autonomousText.test(grokBand2), `Grok band 2 right after the point card must keep the band-2 handoff wording, got ${grokBand2}`);
+  // Grok autonomous: a band-1 card, then tool calls with no prompt until the point.
+  grokAt(160_000, 'sess-grok-auto');
+  const grokAuto = message(grokAt(205_000, 'sess-grok-auto'));
+  expect(autonomousText.test(grokAuto) && !/handoff assess/.test(grokAuto), `Grok with no prompt since the last card must say to write the handoff, got ${grokAuto}`);
+
+  // Continue-until on Grok: the session record names the run folder, whose RUN_LOG.md holds the bound.
   const passedText = /The Continue-until bound in the run log has passed\./;
 
   bindRun('sess-until-tokens', '# RUN_LOG\n\n- Assessment: CONTINUE\n- Continue-until: 260,000 tokens\n');
-  expect(at(230_000, 'sess-until-tokens').stdout === '' && at(255_000, 'sess-until-tokens').stdout === '', 'a tokens bound must hold the card below it');
-  const tokensPassed = message(at(265_000, 'sess-until-tokens'));
+  expect(grokAt(230_000, 'sess-until-tokens').stdout === '' && grokAt(255_000, 'sess-until-tokens').stdout === '', 'a tokens bound must hold the card below it');
+  const tokensPassed = message(grokAt(265_000, 'sess-until-tokens'));
   expect(passedText.test(tokensPassed) && /handoff point/.test(tokensPassed), `past a tokens bound the card must fire again, got ${tokensPassed}`);
-  expect(at(270_000, 'sess-until-tokens').stdout === '', 'a passed bound fires once');
-  expect(message(at(310_000, 'sess-until-tokens')) !== '', 'after a passed bound the next band fires as usual');
+  expect(grokAt(270_000, 'sess-until-tokens').stdout === '', 'a passed bound fires once');
+  expect(message(grokAt(310_000, 'sess-until-tokens')) !== '', 'after a passed bound the next band fires as usual');
 
   bindRun('sess-until-turns', '# RUN_LOG\n\nContinue-until: 2 turns\n');
-  const turns = [at(230_000, 'sess-until-turns'), at(231_000, 'sess-until-turns'), at(232_000, 'sess-until-turns')];
+  const turns = [grokAt(230_000, 'sess-until-turns'), grokAt(231_000, 'sess-until-turns'), grokAt(232_000, 'sess-until-turns')];
   expect(turns[0].stdout === '' && turns[1].stdout === '', 'a turns bound must hold the card for that many turns');
   expect(passedText.test(message(turns[2])), `the turn after a turns bound must fire, got ${JSON.stringify(turns[2].stdout)}`);
 
@@ -403,17 +437,17 @@ function parseOut(r) {
   ]) {
     const sessionId = `sess-until-bad-${label.replace(/\W+/g, '-')}`;
     bindRun(sessionId, log);
-    const bad = message(at(230_000, sessionId));
+    const bad = message(grokAt(230_000, sessionId));
     expect(handOff.test(bad) && !passedText.test(bad), `${label} must set no bound and fire as normal, got ${bad}`);
   }
 
   bindRun('sess-until-off', 'Continue-until: 100000 tokens\n');
-  expect(at(230_000, 'sess-until-off', { switchValue: 'off' }).stdout === '', 'the off switch must silence a passed bound too');
-  expect(at(230_000, 'sess-point-off', { switchValue: 'off' }).stdout === '', 'the off switch must silence the handoff-point card');
+  expect(grokAt(230_000, 'sess-until-off', 'PostToolUse', { switchValue: 'off' }).stdout === '', 'the off switch must silence a passed bound too');
+  expect(grokAt(230_000, 'sess-point-off', 'PostToolUse', { switchValue: 'off' }).stdout === '', 'the off switch must silence the handoff-point card');
 
   rmSync(project, { recursive: true, force: true });
   cleanup();
-  console.log('ok   the handoff point says to hand off, autonomous Grok sessions are told to write it, and Continue-until holds the card until its bound');
+  console.log('ok   Claude and Codex have no handoff point and ignore Continue-until; Grok says to hand off at 200,000, autonomous Grok sessions are told to write it, and Continue-until holds the Grok card until its bound');
 }
 
 // ---------------------------------------------------------------- the off switch
@@ -635,6 +669,27 @@ function grokUsageLine(inputTokens) {
   expect(withRecord.stdout.includes('compaction resume: this session is Ledger2 AMM HO 2, run folder fixture-docs/80 Runs/2026-09-24-ledger2-amm-ho2; it already resumed fixture-docs/80 Runs/2026-09-23-ledger2-amm-ho1/HANDOFF.md and must not resume it or any earlier handoff again; reload fixture-docs/80 Runs/2026-09-24-ledger2-amm-ho2/TASKS.md and RUN_LOG.md, then continue')
     && !withRecord.stdout.includes('stays consumed; never resume it again') && pickupLine(withRecord) === null,
   `compact with a record must name the session, run folder, and consumed handoff, got ${JSON.stringify(withRecord.stdout)}`);
+  // The compact card lists the run folder's unchecked TASKS.md lines: ids and the first 80
+  // characters, at most 12, none checked, none from outside the open state.
+  expect(!withRecord.stdout.includes('open items in '), 'a run folder with no TASKS.md must add no open-item lines');
+  const taskDir = join(project, 'fixture-docs', '80 Runs', '2026-09-24-ledger2-amm-ho2');
+  mkdirSync(taskDir, { recursive: true });
+  const tasks = ['# TASKS', '', '- [x] OI-1 done item · Owner: agent'];
+  for (let n = 2; n <= 15; n += 1) tasks.push(`- [ ] OI-${n} open item number ${n} ${'x'.repeat(n === 2 ? 120 : 0)}· Owner: agent · Done when: check`);
+  tasks.push('- [ ] OI-16 tab\u0001control · Owner: agent');
+  writeFileSync(join(taskDir, 'TASKS.md'), tasks.join('\r\n'));
+  const listed = compactRun({ ...startup, session_id: sid }).stdout.split('\n');
+  const headAt = listed.findIndex((l) => l.startsWith('open items in fixture-docs/80 Runs/2026-09-24-ledger2-amm-ho2/TASKS.md'));
+  const itemLines = headAt < 0 ? [] : listed.slice(headAt + 1).filter((l) => /^OI-/.test(l.trim()));
+  expect(headAt >= 0 && listed[headAt].includes('(12 of 15 shown)'), `the compact card must count shown and open items, got ${JSON.stringify(listed[headAt])}`);
+  expect(itemLines.length === 12 && itemLines[0].startsWith('OI-2 ') && itemLines[11].startsWith('OI-13 ') && !itemLines.some((l) => l.startsWith('OI-1 ')),
+    `the compact card must list the first 12 unchecked items in order, got ${JSON.stringify(itemLines)}`);
+  expect(itemLines.every((l) => l.length <= 80) && itemLines[0].length === 80, `each listed item must hold its first 80 characters, got ${JSON.stringify(itemLines[0])}`);
+  writeFileSync(join(taskDir, 'TASKS.md'), '- [ ] OI-16 tab\u0001control\n');
+  expect(compactRun({ ...startup, session_id: sid }).stdout.includes('OI-16 tab control'), 'a control character in an item must not reach the card');
+  writeFileSync(join(taskDir, 'TASKS.md'), '- [x] OI-1 done\n');
+  expect(!compactRun({ ...startup, session_id: sid }).stdout.includes('open items in '), 'a TASKS.md with no unchecked line must add no open-item lines');
+  rmSync(taskDir, { recursive: true, force: true });
   writeRecord({ resumed: null });
   expect(compactRun({ ...startup, session_id: sid }).stdout.includes('it resumed no handoff and must not resume any earlier handoff now'),
     'a record with no resumed handoff must say so');

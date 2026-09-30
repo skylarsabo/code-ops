@@ -14,6 +14,7 @@ safety rails, the evidence standard, the shared-artifact rules, and the writing 
 `- [ ] OI-<n> <current state> · Owner: agent|operator · Done when: <observable check> · Pointer: <path[:line]>`.
 Keep it current through the run. It survives compaction and becomes the handoff's Open items. The
 `OI-<n>` id stays stable across every hop, so the checker can diff open items between handoffs.
+A line may also carry `· Blocks: F<n>`, which names the finish-line check the item blocks.
 
 `PROGRAM.md` is the durable program ledger that every handoff in one program shares. It lives
 beside the dated run folders, at `<runs root>/programs/<slug>/PROGRAM.md`, never inside one. Its
@@ -21,6 +22,13 @@ sections are Program goal, Request history (append-only, each request verbatim w
 `YYYY-MM-DD`), Scope documents (one bullet per design doc, spec, ADR, or register: a backticked
 path, `Status:`, and `Role:`), Decisions ledger (append-only; mark superseded entries, never
 delete them), and Closed items (id, how closed, pointer). Its cap is 32 KB.
+
+**Program convergence.** `PROGRAM.md` may hold a `## Finish line` section. Each bullet is
+`- F<n> <check>`: one observable check that ends the program. A program with a finish line keeps at
+most 12 active items, and each names the check it blocks with `· Blocks: F<n>`. Every other item
+lives in `programs/<slug>/BACKLOG.md`, beside `PROGRAM.md`. Never close or renumber an item to make
+room. A new finding goes to the backlog unless it blocks a check. Resume prints a burn-down line:
+finish-line checks met out of total, and active items against the cap of 12.
 
 ## Sessions and names
 
@@ -59,30 +67,35 @@ a turn with no tool call still needs the lead's own 150,000-token assessment.
   required transfer or recovery. Unknown telemetry alone is not a restart signal. CONTINUE is
   also right when the remaining work fits in about 100,000 more tokens of context. A handoff
   costs several million tokens to write and resume.
-- **COMPACT** when the same task needs context relief. First persist decisions, rejected
-  approaches, authority boundaries, dirty work, verification state, and worker or process
-  ownership in run artifacts, with open items in `TASKS.md`. Execute the host action only through
-  a callable host capability; otherwise report the documented `/compact` as pending. Never run it
-  in a shell or report advice as execution. Afterwards reload durable state and check drift;
-  stable checks stand when their inputs did not move.
+- **COMPACT** when the same task needs context relief. On Claude and Codex, this is the answer to
+  token pressure. First persist decisions, rejected approaches, authority boundaries, dirty work,
+  verification state, and worker or process ownership in run artifacts, with open items in
+  `TASKS.md` and the log in `RUN_LOG.md`. Execute the host action only through a callable host
+  capability; otherwise report the documented `/compact` as pending, or let the host
+  auto-compact. Never run it in a shell or report advice as execution. Afterwards reload durable
+  state and check drift; stable checks stand when their inputs did not move.
 - **HANDOFF** for a new independent workstream, a host or operator change, session end, or
   recovery after failed compaction or repeated context mistakes. Checkpoint the in-flight step at
   a consistent boundary and account for live agents, background processes, and dirty work; a
   handoff neither stops them nor proves reattachment.
 
-On context grounds alone, hand off at a phase boundary once context passes about 225,000 tokens.
-Below that line, token pressure alone selects CONTINUE or COMPACT. The quality triggers in the
-HANDOFF bullet select HANDOFF at any size. The 150,000-token band forces an assessment, not a
-handoff. The 300,000-token ceiling sits past the handoff point, so it forces an assessment on a
-session that chose CONTINUE and overran. On Grok the line is 200,000, because Grok 4.7 bills
-double above it: assess at 150,000, and hand off by 200,000.
+On Claude and Codex, context size alone never selects HANDOFF. Claude Code compacts itself near the
+size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended); Codex compacts natively. The
+handoff card names that setting when it is unset on Claude. A handoff cycle costs about 10.8M
+billed tokens, orphans running background agents, and grew the open items at every hop, so the
+quality and transfer triggers in the HANDOFF bullet select HANDOFF at any size. The 150,000-token
+band forces an assessment, not a handoff. The 300,000-token ceiling forces an assessment on a
+session that chose CONTINUE and overran. Keep `TASKS.md` and `RUN_LOG.md` current before any
+compaction. After one, the routing card lists the open `TASKS.md` lines for the session.
 
-An assessment that returns CONTINUE past the handoff point records a `Continue-until:` bound in
-the run log, as `Continue-until: <N> tokens` or `Continue-until: <N> turns`. The latest such line
-wins, and a malformed one sets no bound. The handoff card fires again past that bound. On Grok,
-where the card runs after tool calls, a session with no operator prompt since the last card runs
-autonomously. There the card says to write the handoff at the next phase boundary, not to assess
-again. Where the card runs at prompt submit, each card follows a prompt, so it never says this.
+On Grok the line is 200,000, because Grok 4.7 bills double above it: assess at 150,000, and hand
+off by 200,000. Only Grok has a handoff point and a `Continue-until:` bound. An assessment that
+returns CONTINUE past that point records the bound in the run log, as `Continue-until: <N> tokens`
+or `Continue-until: <N> turns`. The latest such line wins, and a malformed one sets no bound. The
+handoff card fires again past that bound. On Grok, where the card runs after tool calls, a session
+with no operator prompt since the last card runs autonomously. There the card says to write the
+handoff at the next phase boundary, not to assess again. Claude and Codex cards follow a prompt, so
+they never say this.
 
 For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF. Resume and fork
 carry history; neither is a fresh context reset. A saved handoff is evidence, never a new

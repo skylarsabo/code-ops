@@ -47,23 +47,31 @@
 // the 200,000-token price cliff. OpenCode has no transcript callback; its lifecycle plugin
 // carries the note instead.
 //
-// HANDOFF POINT (DEC-3, H6 of the program-state design). Inside the bands, the card fires once
-// more when context first reaches `HANDOFF_POINT` (225,000; 200,000 on Grok, where the price
-// doubles), and every card at or past that point says to hand off at the next phase boundary.
-// On Grok, when no operator prompt arrived since the last card of this arm, the session runs
-// autonomously, and the card says to write the handoff instead of assessing again. The marker
-// counts prompts: each `UserPromptSubmit` that shows no card adds one (on Grok the silent
-// UserPromptSubmit call records it), and each shown card resets the count. On Claude and Codex
-// the card itself fires on an operator prompt, so the hook cannot see an autonomous run there
-// and never gives that advice.
+// COMPACTION IS THE DEFAULT RELIEF (DEC-73). On Claude and Codex, routine context relief is host
+// auto-compaction, never a handoff: the card asks for a CONTINUE or COMPACT assessment, tells the
+// lead to bring TASKS.md and RUN_LOG.md current first, and never says to hand off on a token count.
+// A handoff stays for a new independent workstream, a host or operator change, session end, or a
+// quality failure, and the card names those. Claude Code compacts itself near the size in
+// `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude (`CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set) with
+// that variable unset, the card adds one line naming it. Codex compacts natively and gets no line.
 //
-// CONTINUE-UNTIL. The session record (`sessionRecordPath` in transcript-lib.mjs) names the run
-// folder. When the last 64 KiB of its RUN_LOG.md end in a `Continue-until: <N> tokens` or
+// HANDOFF POINT (DEC-3, H6 of the program-state design), GROK ONLY. Inside the bands, the card
+// fires once more when context first reaches `HANDOFF_POINT` (200,000 on Grok, where the price
+// doubles), and every card at or past that point says to hand off at the next phase boundary.
+// When no operator prompt arrived since the last card of this arm, the session runs
+// autonomously, and the card says to write the handoff instead of assessing again. The marker
+// counts prompts: each `UserPromptSubmit` that shows no card adds one (the silent Grok
+// UserPromptSubmit call records it), and each shown card resets the count. Claude and Codex have
+// no handoff point: their card fires on an operator prompt, so the hook cannot see an autonomous
+// run there and never gives that advice.
+//
+// CONTINUE-UNTIL, GROK ONLY. The session record (`sessionRecordPath` in transcript-lib.mjs) names
+// the run folder. When the last 64 KiB of its RUN_LOG.md end in a `Continue-until: <N> tokens` or
 // `Continue-until: <N> turns` line, the card stays quiet until the bound passes, then fires
-// once more. Tokens compare with resident context; a turn is one call on the card's own event
-// (a prompt, or a tool call on Grok), counted from the first call that saw the line. The line's
+// once more. Tokens compare with resident context; a turn is one tool call. Calls are counted
+// from the first call that saw the line. The line's
 // byte offset keys the bound, so a passed bound never suppresses again. A malformed latest line
-// sets no bound, and a missing record or log reads as no bound.
+// sets no bound, and a missing record or log reads as no bound. Claude and Codex ignore the line.
 //
 // CHANGE FEED (C3, DEC-66 of the program-state design). The same process carries the change
 // feed, so no hook process is added. On PostToolUse of a Bash `git push` or `gh pr merge` it
@@ -101,8 +109,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const THRESHOLD = 150_000;
-const HANDOFF_POINT = 225_000;
-const HANDOFF_POINT_GROK = 200_000;
+const HANDOFF_POINT = 200_000; // Grok only; Claude and Codex compact instead (DEC-73)
 const RUN_LOG_TAIL = 64 * 1024;
 const HANDOFF_COMMAND = /code-ops-suite[:-]handoff/;
 const BOUND_LINE = /^[ \t>*-]*Continue-until:[ \t]*(.*?)[ \t]*$/gm;
@@ -263,9 +270,8 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
     return null;
   }
 
-  const point = grok ? HANDOFF_POINT_GROK : HANDOFF_POINT;
-  const pastPoint = context >= point;
-  const bound = continueBound(cwd, sessionId, sessionRecordPath);
+  const pastPoint = grok && context >= HANDOFF_POINT;
+  const bound = grok ? continueBound(cwd, sessionId, sessionRecordPath) : null;
   let until = state.until;
   if (bound && until?.key !== bound.key) until = { key: bound.key, turns: 0, done: false };
   const open = Boolean(bound) && !until.done;
@@ -286,7 +292,7 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   const approx = Math.round(context / 10_000) * 10_000;
   const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context. `;
   const after = open ? 'The Continue-until bound in the run log has passed. ' : '';
-  const pointText = `the ${point.toLocaleString('en-US')}-token handoff point`;
+  const pointText = `the ${HANDOFF_POINT.toLocaleString('en-US')}-token handoff point`;
   // The dispatch guard gates Agent, Task, Workflow, and Grok's spawn_subagent dispatches at and
   // past the ceiling, so every host gets the sentence.
   const ceiling = contextCeiling();
@@ -296,7 +302,15 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   // Grok counts prompts apart from cards; elsewhere the call showing this card is itself a prompt.
   const autonomous = grok && pastPoint && state.fired && state.prompts === 0;
   let advice;
-  if (autonomous) {
+  if (!grok) {
+    // Claude and Codex: host auto-compaction is the relief; a token count never selects a handoff.
+    const setting = !process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW && (process.env.CLAUDECODE === '1' || process.env.CLAUDE_PROJECT_DIR)
+      ? ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Claude Code settings so the host compacts near that size.' : '';
+    const relief = 'Host auto-compaction is the context relief, so bring TASKS.md and RUN_LOG.md current first. Hand off only for a new independent workstream, a host or operator change, session end, or a quality failure.';
+    advice = band === 1
+      ? `At the next safe boundary, run /code-ops-suite:handoff assess to choose CONTINUE or COMPACT. ${relief}${setting}`
+      : `Finish the step in flight, then run /code-ops-suite:handoff assess to choose CONTINUE or COMPACT before starting a new workstream. ${relief} This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.${setting}`;
+  } else if (autonomous) {
     advice = `This session is past ${pointText}, and no operator prompt has arrived since the last card. At the next phase boundary, run /code-ops-suite:handoff write instead of assessing again. Checkpoint durable state first.`;
   } else if (band === 1 && pastPoint) {
     advice = `This session is past ${pointText}. At the next phase boundary, run /code-ops-suite:handoff assess and hand off. Choose CONTINUE only for a short coherent finish, and record a Continue-until: bound in the run log.`;

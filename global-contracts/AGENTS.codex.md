@@ -53,7 +53,9 @@ A unit too small to repay an operative's startup context stays inline, with the 
 recorded. Past 300,000 tokens of context, run `code-ops-suite:handoff` assess before any new
 dispatch; do not raise or disable the ceiling to avoid it. Assess a lead session at 150,000
 tokens of context. Codex auto-compacts near 215,000 tokens of its 258,000-token window, so
-compaction is the context relief here, and a handoff is for a quality reason.
+compaction is the context relief here. Keep `TASKS.md` and `RUN_LOG.md` current before it.
+Hand off only for a new independent workstream, a host or operator change, session end, or a
+quality failure such as repeated correction or a failed compaction.
 
 An explicit budget constrains scope, never the quality floor. When it would force a lower tier
 or effort, return a checkpointed smaller unit or request a scope decision.
