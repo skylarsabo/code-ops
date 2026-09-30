@@ -10,7 +10,7 @@
 // tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
 // advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
 //
-// FIVE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// SIX BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -76,6 +76,16 @@
 //      cost", DEC-66). Its off switch is `CODE_OPS_PEER_GUARD`, the presence board's own switch:
 //      the note reads that board, and a session that turned the board off should neither publish
 //      to it nor consume it. `CODE_OPS_DISPATCH_GUARD=off` also silences it, as it does every branch.
+//   6. LEGACY PATH DENY, on every thread, for an edit tool (the names behaviour 5 lists). An edit
+//      whose target lies under a `removed` legacy path of the documentation manifest (version 3,
+//      `<hub>/98 System/DOCS_MANIFEST.json`) is denied, and the reason names the removed root and,
+//      when `<hub>/98 System/FORWARDING.json` maps it, the new location (Program state handoffs
+//      and coordination 2026-09, W3). scripts/legacy-paths-lib.mjs, imported lazily and only for an
+//      edit tool, finds the hub as the one top-level directory holding the manifest, reads at most
+//      2 MiB per file, and spawns nothing; any error, a missing library, or a repository with no
+//      hub fails open. A denial on a subagent still counts the call, because the denial and any
+//      round advisory leave in one output. `CODE_OPS_DISPATCH_GUARD=warn` downgrades it to
+//      advisory text. Its own off switch is `CODE_OPS_LEGACY_PATHS`, taking `off`, `0`, or `false`.
 //
 // The warning asks for a written checkpoint (done items, each dirty path marked complete or
 // partial, the exact next edit, gates run) before the stop, and the stop asks for it in the final
@@ -204,6 +214,7 @@ const BOUND_FAILURE_FIX = `Make no further edits. Return your report now with th
 // fractional product never moves the stop later, and at least one call past the budget so the
 // budget-round checkpoint line always lands before the stop.
 const stopCall = (budget) => Math.max(budget + 1, Math.floor(budget * STOP_MULTIPLE));
+const off = (name) => /^(off|0|false)$/i.test(process.env[name] ?? '');
 const stateKey = (value) => createHash('sha256').update(String(value)).digest('hex');
 const legacySlug = (value) => String(value).replace(/[^A-Za-z0-9]/g, '-');
 
@@ -422,11 +433,20 @@ function briefHas(prompt, field) {
     || new RegExp(`^[ \\t]*#{1,6}[ \\t]+${label}(?![A-Za-z0-9])`, 'im').test(prompt);
 }
 
-// Behaviour 5's note for this call, and whether any output has gone out yet.
+// Behaviour 5's note for this call, behaviour 6's denial text, and whether any output has gone
+// out yet.
 let collision = null;
+let legacy = null;
 let emitted = false;
 
 function emit(body) {
+  // Behaviour 6 turns any PreToolUse output into a denial that keeps the rest of the text.
+  const held = body?.hookSpecificOutput;
+  if (legacy && held?.hookEventName === 'PreToolUse') {
+    const rest = held.permissionDecisionReason ?? held.additionalContext;
+    body = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
+      permissionDecisionReason: rest ? `${legacy} ${rest}` : legacy } };
+  }
   const out = body?.hookSpecificOutput;
   // A note joins an advisory's context. A denial and a payload with no context stay as they are.
   const merge = collision && out?.hookEventName === 'PreToolUse' && out.permissionDecision === undefined
@@ -455,6 +475,21 @@ async function collisionFor(payload, agentId) {
     const lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'collision-lib.mjs')).href);
     return lib.collisionNote({ ...payload, agent_id: typeof agentId === 'string' && agentId ? agentId : undefined }) ?? null;
   } catch { return null; }
+}
+
+// Behaviour 6. The lazy import runs only for an edit tool, so every other call pays nothing.
+async function legacyFor(payload) {
+  if (off('CODE_OPS_LEGACY_PATHS') || !EDIT_TOOL_NAME.test(String(payload.tool_name ?? ''))) return null;
+  try {
+    const lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'legacy-paths-lib.mjs')).href);
+    const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
+    return lib.legacyDenial(cwd, payload.tool_input) ?? null;
+  } catch { return null; }
+}
+
+// A denial no other output carried goes out alone.
+function finishLegacy() {
+  if (legacy && !emitted) emit({ hookSpecificOutput: { hookEventName: 'PreToolUse' } });
 }
 
 // A note no advisory carried goes out alone.
@@ -735,13 +770,19 @@ async function main() {
   const agentId = payload.agent_id
     ?? (typeof payload.subagentType === 'string' && payload.subagentType ? payload.session_id : undefined);
   collision = await collisionFor(payload, agentId);
+  const denial = await legacyFor(payload);
+  if (denial && hardStop) legacy = denial;
+  // Warn mode lifts the denial: the text joins the note, which reaches the model as context.
+  else if (denial) collision = { text: collision ? `${denial}\n${collision.text}` : denial, commit: collision?.commit ?? (() => {}) };
   if (typeof agentId === 'string' && agentId) {
     // Only the host's own `agent_id` locates a subagent transcript; Grok's layout is unverified.
     guardSubagent({ ...payload, agent_id: agentId }, budget, hardStop, agentId === payload.agent_id);
+    finishLegacy();
     finishCollision();
     return;
   }
   await guardMainThread(payload, budget, hardStop);
+  finishLegacy();
   finishCollision();
 }
 

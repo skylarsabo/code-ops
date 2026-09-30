@@ -87,6 +87,7 @@ const TABLE = {
     lib: 'lib-docs.mjs',
     records: 'records.mjs',
     gate: 'docs-gate.mjs',
+    relocate: 'docs-relocate.mjs',
   },
   atlas: {
     check: { script: 'atlas-check.mjs', sub: 'check' },

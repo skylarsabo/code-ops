@@ -77,6 +77,20 @@
 // and commit from the push summary in the tool result and runs one `git diff` for the paths; a
 // summary it cannot read falls back to up to three git calls. Nothing else spawns.
 //
+// HISTORY READ NOTICE (W8 of the program-state design). The same process, so no hook process is
+// added. On PostToolUse of Read, Grep, or a shell tool, `readNotices` in
+// scripts/legacy-paths-lib.mjs, imported lazily and only for those tools, extracts the opened
+// path from the tool input (a shell tool: any record path the command text names). When it is
+// a decision or amendment record that `<hub>/98 System/Records/state.json` lists as amended,
+// superseded, or historical, one line joins the `additionalContext`, naming the status, the
+// records that replace it (those sharing its decision key), and the register path. A path it
+// cannot extract gets nothing, and the register and the AGENTS.md pointer remain the backstop.
+// Read tool names: Claude `Read` and `Grep`, Grok `read_file` and `grep` (names from the Grok
+// tool-name aliases in its hooks guide; the read tool's input field is UNVERIFIED, so the
+// extractor tries the common keys), OpenCode `read` and `grep`, and Codex's shell tool. The
+// notice is independent of the card and the feed: `CODE_OPS_READ_NOTICE` takes `off`, `0`, or
+// `false`, and neither of those switches silences it.
+//
 // FAIL-OPEN on every path: bad JSON, a missing or unreadable transcript, a transcript whose
 // tail window carries no assistant usage, a missing or failing feed library, or any thrown
 // error exits 0 with no output. The hook never blocks a prompt (never exits 2).
@@ -169,10 +183,24 @@ async function feedLines(payload, sessionId, cwd, event) {
   } catch { return []; }
 }
 
+const READ_TOOLS = new Set(['read', 'read_file', 'grep']);
+const toolLeaf = (payload) => String(payload?.tool_name ?? payload?.toolName ?? payload?.tool?.name ?? '').toLowerCase().split('.').at(-1);
+
+// The history read notice lines for a Read, Grep, or shell call. Any failure is no line.
+async function noticeLines(payload, cwd) {
+  const shell = isShellTool(payload);
+  if (!shell && !READ_TOOLS.has(toolLeaf(payload))) return [];
+  try {
+    const lib = await import(pathToFileURL(join(scriptsDir, 'legacy-paths-lib.mjs')).href);
+    return lib.readNotices(cwd, payload.tool_input ?? payload.toolInput ?? payload.input, shell);
+  } catch { return []; }
+}
+
 async function main() {
   const cardOn = !off('CODE_OPS_HANDOFF_CARD');
   const feedOn = !off('CODE_OPS_FEED') && !off('CODE_OPS_PEER_GUARD');
-  if (!cardOn && !feedOn) return;
+  const noticeOn = !off('CODE_OPS_READ_NOTICE');
+  if (!cardOn && !feedOn && !noticeOn) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
@@ -190,7 +218,9 @@ async function main() {
 
   // Off Grok the card runs on prompts only; a PostToolUse call there carries the feed alone.
   const message = cardOn && (grok || event !== 'PostToolUse') ? await card(payload, sessionId, cwd, grok, promptOnly).catch(() => null) : null;
-  const lines = feedOn && !promptOnly ? await feedLines(payload, sessionId, cwd, event) : [];
+  const feed = feedOn && !promptOnly ? await feedLines(payload, sessionId, cwd, event) : [];
+  const notice = noticeOn && event === 'PostToolUse' ? await noticeLines(payload, cwd) : [];
+  const lines = [...notice, ...feed];
   if (!message && !lines.length) return;
   const context = [message, ...lines].filter(Boolean).join('\n');
   const body = grok || event === 'PostToolUse'

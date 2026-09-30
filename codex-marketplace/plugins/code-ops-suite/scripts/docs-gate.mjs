@@ -22,7 +22,17 @@
 //      shape and nothing reads its budgetWords).
 //   5. Draft and staleness rules. They live in check-vault-standard.mjs, so they run in step 3's
 //      one invocation and report under step 3's number.
-//   6. Legacy-path guards. SKIPPED: a later PR.
+//   6. Legacy-path guards (design W3). A relocated path is a `from` in `<hub>/98 System/FORWARDING.json`
+//      or a manifest `removed` legacy root. The step fails on
+//        - an invalid FORWARDING.json;
+//        - a `removed` root that still exists on disk. docs-manifest.mjs already reports that in
+//          step 1, so step 6 adds a violation only when step 1 did not report the entry;
+//        - a tracked file that names a relocated path, unless it is history or a path-map file.
+//          History is record bytes, `80 Runs`, `99 Archive`, `98 System/Records`, PROGRAM.md,
+//          PROGRAM.archive.md, HANDOFF.md, FORWARDING.json, the manifest, and the baseline
+//          (`isHistory` in docs-relocate.mjs). The key is `<file> references relocated path <from>`,
+//          with no line number, so the ratchet stays stable as the file changes.
+//      A repository with no FORWARDING.json and no removed root reads no file text.
 //   7. The tracked-run set against `runs.tracking` and each run's retention class. SKIPPED: a later PR.
 //   8. `check-handoff.mjs` ledger checks 11 to 18 over every open grammar 2 program whose
 //      PROGRAM.md is tracked on the current branch. The gate runs check-handoff on the tracked
@@ -50,7 +60,9 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { git, parseOrDie, usage } from './cli-lib.mjs';
+import { findRefs, isHistory, readText } from './docs-relocate.mjs';
 import { promotedIds, recordState } from './promotion-lib.mjs';
+import { forwardingErrors } from './record-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = 'usage: docs-gate.mjs [--root <repo>] [--baseline-init] [--check]';
@@ -133,7 +145,34 @@ if (hub === null) {
   report.push(`  3 check-vault-standard: ${verdict(3)}`);
   report.push('  4 register freshness, invariant, state budgets: not implemented');
   report.push('  5 draft and staleness rules: run by check-vault-standard in step 3');
-  report.push('  6 legacy-path guards: skipped (later PR)');
+
+  // ---- 6. legacy-path guards ----
+  const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; } };
+  const manifestDoc = readJson(join(root, hub, '98 System', 'DOCS_MANIFEST.json'));
+  const legacyEntries = Array.isArray(manifestDoc?.legacyPaths) ? manifestDoc.legacyPaths : [];
+  const removed = legacyEntries.map((entry, index) => ({ path: entry?.disposition === 'removed' ? entry.path : null, index })).filter((entry) => typeof entry.path === 'string');
+  const forwardFile = join(root, hub, '98 System', 'FORWARDING.json');
+  const forwarding = existsSync(forwardFile) ? readJson(forwardFile) : { version: 1, forwards: [] };
+  const forwardProblems = forwardingErrors(forwarding);
+  for (const problem of forwardProblems) add(6, `FORWARDING.json is invalid: ${problem}`);
+  for (const { path, index } of removed) {
+    const reported = found.some((v) => v.step === 1 && v.key === `legacy path ${index + 1} is removed but still exists on disk`);
+    if (existsSync(join(root, path)) && !reported) add(6, `removed legacy root ${path} still exists on disk`);
+  }
+  const relocated = [...new Set([...(forwardProblems.length ? [] : forwarding.forwards.map((forward) => forward.from)), ...removed.map((entry) => entry.path)])];
+  if (relocated.length) {
+    const history = collections.map((c) => c?.root).filter((path) => typeof path === 'string');
+    for (const file of paths) {
+      if (isHistory(file, hub, history)) continue;
+      const text = readText(root, file);
+      if (text === null) continue;
+      for (const hit of findRefs(text, relocated)) {
+        const from = relocated.filter((p) => hit.path === p || hit.path.startsWith(`${p}/`)).sort((a, b) => b.length - a.length)[0];
+        if (from) add(6, `${file} references relocated path ${from}`);
+      }
+    }
+  }
+  report.push(`  6 legacy-path guards: ${verdict(6)} (${relocated.length ? `${relocated.length} relocated path(s)` : 'no relocated paths'})`);
   report.push('  7 tracked-run set: skipped (later PR)');
 
   // ---- 8. ledger checks 11 to 18 ----

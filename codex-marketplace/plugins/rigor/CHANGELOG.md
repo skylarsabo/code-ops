@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.4
+- Vendored `co.mjs` adds the `docs relocate` verb.
+
 ## 3.3.3
 - Vendored `co.mjs` adds the `docs gate` verb.
 

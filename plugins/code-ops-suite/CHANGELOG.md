@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.22.0
+- `co docs relocate` moves a legacy docs tree into the vault. `plan` writes RELOCATION_PLAN.md and .json with the routing, kind, and reason for each file, and lists runtime-read references separately. `apply` runs one wave per legacy root: `git mv`, `relocate-root` events, FORWARDING.json, reference rewrites, the manifest root set to `removed`, and a register refresh. It never rewrites record bytes, `80 Runs/`, PROGRAM.md, or HANDOFF.md, and refuses a dirty tree or a stale base. `forward` rewrites a branch that predates a wave, and `integrate-branch.mjs` runs it when the manifest has a removed root.
+- `co docs gate` step 6 fails when a removed legacy root exists on disk, when FORWARDING.json is invalid, or when a tracked file outside history names a relocated path.
+- The dispatch guard denies an edit under a removed legacy root and names the forwarded location. `CODE_OPS_LEGACY_PATHS=off` turns it off. The handoff card adds one context line when Read, Grep, or a shell command opens a decision record that is no longer in force, naming its status, the records that replace it, and the register. `CODE_OPS_READ_NOTICE=off` turns it off. Both run in existing hook processes; the OpenCode lifecycle ports both.
+- The vault check exempts record bytes under a manifest record-collection root from the frontmatter rule, and the rendered register carries frontmatter.
+
 ## 2.21.0
 - The dispatch guard adds a warn-only collision note. An edit of a path that another live session claimed or edited within 6 hours names that peer and gives a ready `SendMessage` line, once per path per peer per session. A `git pull`, `merge`, `rebase`, or `push` lists the live peers on the branch and their recent edits that overlap uncommitted files. The note never denies. `CODE_OPS_PEER_GUARD=off` turns it off.
 - A change feed records `git push`, `gh pr merge`, hub-file edits, and `records seal` start and land events under the home store. The handoff card delivers at most 3 new lines per call, filtered to the peer's branch and edits. A seal that starts on a base head another seal holds prints a warning first. `CODE_OPS_FEED=off` turns the feed off.

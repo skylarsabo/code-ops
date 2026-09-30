@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.3.4
+- Vendored `co.mjs` adds the `docs relocate` verb.
+
 ## 2.3.3
 - Vendored `co.mjs` adds the `docs gate` verb.
 

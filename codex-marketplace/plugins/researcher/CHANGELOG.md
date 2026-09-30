@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.4
+- Vendored `co.mjs` adds the `docs relocate` verb.
+
 ## 0.16.3
 - Vendored `co.mjs` adds the `docs gate` verb.
 

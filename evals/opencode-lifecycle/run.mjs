@@ -3,7 +3,8 @@
 // fail-closed chooser, a cost ledger the report can gate, the context-ceiling
 // dispatch gate with its handoff unlock, the subagent stop at 1.5 times the budget,
 // rounded down and at least one call past it, and a
-// pickup line that names the handoff's program ledger only when it has one.
+// pickup line that names the handoff's program ledger only when it has one, the deny of an
+// edit under a manifest `removed` legacy path, and the read notice for a record not in force.
 //
 //   node evals/opencode-lifecycle/run.mjs
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
@@ -33,6 +34,7 @@ const SPECIALIST_MODELS = {
 writeFileSync(join(work, 'code-ops-model-floors.js'), floors);
 writeFileSync(join(work, 'code-ops-lifecycle.js'), readFileSync(join(root, 'scripts', 'opencode-lifecycle.js')));
 writeFileSync(join(work, 'cost-report.mjs'), readFileSync(join(root, 'scripts', 'opencode-cost-report.mjs')));
+writeFileSync(join(work, 'legacy-paths-lib.mjs'), readFileSync(join(root, 'scripts', 'legacy-paths-lib.mjs')));
 
 const runs = join(work, 'code-ops-docs', '80 Runs', '2026-09-22 pending');
 mkdirSync(runs, { recursive: true });
@@ -296,6 +298,117 @@ for (const n of [3, 4, 5, 6]) {
   writeFileSync(join(bare, '80 Runs', `2026-09-2${n} extra`, 'HANDOFF.md'), '# pending\n');
 }
 expect(pendingHandoffs(bare).length === 3, 'pickup must list at most 3 pending handoffs');
+
+// Hub guards: a denial of an edit under a removed legacy root and a notice for a read of a record
+// that is not in force. The fixture repository carries a manifest, a forwarding map, and a state.
+{
+  const repo = join(work, 'hub-repo');
+  const system = join(repo, 'hub', '98 System');
+  mkdirSync(join(repo, '.git'), { recursive: true });
+  mkdirSync(join(system, 'Records'), { recursive: true });
+  writeFileSync(join(system, 'DOCS_MANIFEST.json'), JSON.stringify({
+    version: 3, hub: 'hub', recordCollections: [],
+    legacyPaths: [{ path: 'docs/old', disposition: 'removed', requiredBy: [{ kind: 'external', ref: 'fixture' }] }],
+  }));
+  writeFileSync(join(system, 'FORWARDING.json'), JSON.stringify({ version: 1, forwards: [{ from: 'docs/old', to: 'hub/new', movedAt: '2026-09-30', reason: 'vault move' }] }));
+  const rec = (id, path, kind, status, key) => ({ id, collection: 'main', path, kind, ...(key ? { key } : {}), status, pendingSeal: null });
+  writeFileSync(join(system, 'Records', 'state.json'), JSON.stringify({ version: 1, records: [
+    rec('REC-OLD', 'hub/20 Decisions/Records/old.md', 'decision', 'superseded', 'deploy/window'),
+    rec('REC-NEW', 'hub/20 Decisions/Records/new.md', 'decision', 'in-force', 'deploy/window'),
+  ] }));
+  const hubHooks = await overlay.CodeOpsLifecycle({
+    directory: repo,
+    client: { session: { get: async ({ path }) => (path.id.startsWith('child') ? { parentID: 'lead' } : {}) } },
+  });
+  const before = async (tool, args, sessionID = 'hublead', callID = 'h1') => {
+    try {
+      await hubHooks['tool.execute.before']({ tool, sessionID, callID }, { args });
+      return null;
+    } catch (error) {
+      return String(error?.message ?? error);
+    }
+  };
+  const afterText = async (tool, args, { input = true, sessionID = 'hublead', callID = 'h1' } = {}) => {
+    const output = { title: '', output: 'tool output', metadata: {} };
+    await hubHooks['tool.execute.after']({ tool, sessionID, callID, ...(input ? { args } : {}) }, output);
+    return output.output;
+  };
+
+  const denied = await before('write', { filePath: 'docs/old/a.md', content: 'x' });
+  expect(denied?.startsWith('Legacy path guard:') && denied.includes('docs/old') && denied.includes('hub/new/a.md'),
+    `a write under a removed root must throw the guard with the forwarded path, got ${denied}`);
+  const patched = await before('apply_patch', { patchText: '*** Begin Patch\n*** Update File: docs/old/b.md\n@@\n-a\n+b\n*** End Patch' }, 'hublead', 'h2');
+  expect(patched?.startsWith('Legacy path guard:') && patched.includes('hub/new/b.md'), `an apply_patch target under the root must throw, got ${patched}`);
+  for (const [name, tool, args] of [
+    ['a write outside the root', 'write', { filePath: 'src/a.mjs' }],
+    ['a read under the root', 'read', { filePath: 'docs/old/a.md' }],
+    ['a shell command naming the root', 'bash', { command: 'cat docs/old/a.md' }],
+  ]) {
+    expect(await before(tool, args) === null, `${name} must pass the before hook`);
+  }
+  process.env.CODE_OPS_LEGACY_PATHS = 'off';
+  expect(await before('write', { filePath: 'docs/old/a.md' }) === null, 'CODE_OPS_LEGACY_PATHS=off must silence the deny');
+  delete process.env.CODE_OPS_LEGACY_PATHS;
+  process.env.CODE_OPS_DISPATCH_GUARD = 'warn';
+  expect(await before('write', { filePath: 'docs/old/a.md' }) === null, 'warn mode must not throw');
+  const warnNote = await afterText('read', {}, { callID: 'h3' });
+  expect(warnNote.includes('Legacy path guard: docs/old/a.md'), `warn mode must queue the denial as a note, got ${warnNote}`);
+  delete process.env.CODE_OPS_DISPATCH_GUARD;
+  // A denied subagent call counts one round: with a 2-round budget, the third call meets the stop.
+  const retry = await before('write', { filePath: 'docs/old/a.md' }, 'childhub', 'c1');
+  const rest = [await before('read', {}, 'childhub', 'c2'), await before('read', {}, 'childhub', 'c3')];
+  expect(retry?.startsWith('Legacy path guard:') && rest[0] === null && rest[1]?.includes('3 tool rounds used'),
+    `a denied subagent call must count as a round, got ${JSON.stringify([retry, ...rest])}`);
+  console.log('ok   OpenCode denies edits under a removed root, forwards the path, honors both switches, and counts a denied subagent call');
+
+  // The distribution layout: the plugin under plugins/ and the library under code-ops/code-ops-suite/scripts/.
+  const distDir = join(work, 'dist');
+  mkdirSync(join(distDir, 'plugins'), { recursive: true });
+  mkdirSync(join(distDir, 'code-ops', 'code-ops-suite', 'scripts'), { recursive: true });
+  writeFileSync(join(distDir, 'plugins', 'code-ops-lifecycle.js'), readFileSync(join(work, 'code-ops-lifecycle.js')));
+  writeFileSync(join(distDir, 'plugins', 'code-ops-model-floors.js'), floors);
+  writeFileSync(join(distDir, 'code-ops', 'code-ops-suite', 'scripts', 'legacy-paths-lib.mjs'), readFileSync(join(root, 'scripts', 'legacy-paths-lib.mjs')));
+  const distPlugin = await (await import(pathToFileURL(join(distDir, 'plugins', 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle({ directory: repo });
+  let distDenied = null;
+  try { await distPlugin['tool.execute.before']({ tool: 'edit', sessionID: 'distlead', callID: 'd1' }, { args: { filePath: 'docs/old/a.md' } }); } catch (error) { distDenied = String(error?.message ?? error); }
+  expect(distDenied?.startsWith('Legacy path guard:'), `the distribution layout must resolve the library, got ${distDenied}`);
+  const bareDir = join(work, 'no-lib');
+  mkdirSync(bareDir, { recursive: true });
+  writeFileSync(join(bareDir, 'code-ops-lifecycle.js'), readFileSync(join(work, 'code-ops-lifecycle.js')));
+  writeFileSync(join(bareDir, 'code-ops-model-floors.js'), floors);
+  const bareHooks = await (await import(pathToFileURL(join(bareDir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle({ directory: repo });
+  let bareResult = null;
+  try { await bareHooks['tool.execute.before']({ tool: 'edit', sessionID: 'barelead', callID: 'b1' }, { args: { filePath: 'docs/old/a.md' } }); } catch (error) { bareResult = String(error?.message ?? error); }
+  expect(bareResult === null, `a missing library must fail open, got ${bareResult}`);
+  console.log('ok   the distribution layout resolves the shared library, and a missing library fails open');
+
+  const OLD = 'hub/20 Decisions/Records/old.md';
+  const readNote = await afterText('read', { filePath: OLD });
+  expect(readNote.startsWith('tool output\n') && readNote.includes('History read notice: REC-OLD') && readNote.includes('Replaced by REC-NEW')
+    && readNote.includes('hub/20 Decisions/REGISTER.md'), `a read of a superseded record must append the notice, got ${readNote}`);
+  const grepNote = await afterText('grep', { pattern: 'window', path: OLD }, { callID: 'h4' });
+  expect(grepNote.includes('REC-OLD'), `a grep with a record path must append the notice, got ${grepNote}`);
+  const bashNote = await afterText('bash', { command: `cat "${OLD}"` }, { callID: 'h5' });
+  expect(bashNote.includes('REC-OLD'), `a shell command naming a record must append the notice, got ${bashNote}`);
+  // A host whose after-event input carries no arguments falls back to the arguments the before hook saw.
+  await before('read', { filePath: OLD }, 'hublead', 'h6');
+  const stashed = await afterText('read', { filePath: OLD }, { input: false, callID: 'h6' });
+  expect(stashed.includes('REC-OLD'), `an after event with no args must reuse the before-hook args, got ${stashed}`);
+  for (const [name, tool, args] of [
+    ['an in-force record', 'read', { filePath: 'hub/20 Decisions/Records/new.md' }],
+    ['a grep with no path', 'grep', { pattern: 'window' }],
+    ['a shell command naming no record', 'bash', { command: 'git status' }],
+    ['a write of the record', 'write', { filePath: OLD }],
+  ]) {
+    expect(await afterText(tool, args, { callID: `n-${tool}` }) === 'tool output', `${name} must get no notice`);
+  }
+  process.env.CODE_OPS_READ_NOTICE = '0';
+  expect(await afterText('read', { filePath: OLD }, { callID: 'h7' }) === 'tool output', 'CODE_OPS_READ_NOTICE=0 must silence the notice');
+  delete process.env.CODE_OPS_READ_NOTICE;
+  writeFileSync(join(system, 'Records', 'state.json'), '{not json "superseded"');
+  expect(await afterText('read', { filePath: OLD }, { callID: 'h8' }) === 'tool output', 'a corrupt state.json must fail open');
+  console.log('ok   OpenCode appends the read notice for read, grep, and bash, skips in-force and pathless calls, and honors its switch');
+}
 
 rmSync(work, { recursive: true, force: true });
 if (fails.length) {
