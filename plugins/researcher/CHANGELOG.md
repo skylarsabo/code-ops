@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.5
+- The vendored `co.mjs` gains the `agents` domain, so `co agents pending` lists background agents that have not reported.
+
 ## 0.16.4
 - Vendored `co.mjs` adds the `docs relocate` verb.
 

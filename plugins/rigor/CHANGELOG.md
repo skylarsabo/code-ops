@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.5
+- The vendored `co.mjs` gains the `agents` domain, so `co agents pending` lists background agents that have not reported.
+
 ## 3.3.4
 - Vendored `co.mjs` adds the `docs relocate` verb.
 

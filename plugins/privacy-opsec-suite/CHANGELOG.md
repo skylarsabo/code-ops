@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.3.5
+- The vendored `co.mjs` gains the `agents` domain, so `co agents pending` lists background agents that have not reported.
+
 ## 2.3.4
 - Vendored `co.mjs` adds the `docs relocate` verb.
 
