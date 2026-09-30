@@ -37,7 +37,7 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers ten commands across seven events in
+The code-ops-suite package registers eleven commands across seven events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
 trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
@@ -45,10 +45,12 @@ its budget boundary or when its explicit controller binding is invalid. It can a
 dispatch of a wide-surface type that names no reason, and a lead dispatch past the context
 ceiling before the handoff assessment. Unbound infrastructure failures retain the previous
 fail-open behavior. The peer guard redirects a message to a peer session that already handed off to its live successor on Claude and Codex, and denies it on Grok or when no live successor can take it.
-The `SubagentStop` return check is advisory and never blocks.
-Nine commands carry an off switch, read from the canonical `.claude/settings.json`
-environment. A tenth variable governs only the routing card's pending-handoff line, a
-eleventh sets or disables the dispatch guard's context ceiling, and a twelfth names the
+The `SubagentStop` return check is advisory and never blocks. The agent ledger records each
+subagent launch and report without output, so `co agents pending` lists the agents a handed-off
+session never heard back from.
+Ten commands carry an off switch, read from the canonical `.claude/settings.json`
+environment. An eleventh variable governs only the routing card's pending-handoff line, a
+twelfth sets or disables the dispatch guard's context ceiling, and a thirteenth names the
 operator's shell on the routing card.
 Rendered hosts use their documented process environment:
 
@@ -62,6 +64,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false` | the `SubagentStop` advisory verdict and word-cap check, `subagent-report.mjs` |
+| `CODE_OPS_AGENT_LEDGER` | `off`, `0`, or `false` | the `PostToolUse` (`Agent`, `Task`) launch record and the `SubagentStop` report record in `~/.claude/code-ops/agents/`, `agent-ledger.mjs`; `co agents pending` reads them |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs`; it silences only the card, not the feed |
 | `CODE_OPS_FEED` | `off`, `0`, or `false` | the change feed: event recording and delivery, `change-feed.mjs` |
@@ -233,6 +236,7 @@ byte-identical packaging.
 | Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Lifecycle plugin injects it into the implementer |
 | Subagent return check | Native `SubagentStop` `systemMessage` note | Not registered in effect: the hook is silent under the adapter because the `SubagentStop` payload is UNVERIFIED | Projected hook; payload fields UNVERIFIED, so a missing field leaves it silent | Not ported; no verified subagent-stop callback (UNVERIFIED) |
+| Agent ledger | Native `PostToolUse` (`Agent`, `Task`) and `SubagentStop` | Not registered in effect: the hook is silent under the adapter because both payloads are UNVERIFIED | Projected hook without a matcher; it filters on `Agent` or `Task`, and the Codex dispatch tool name and `SubagentStop` fields are UNVERIFIED, so a missing field records nothing | Not ported; no verified subagent-stop callback (UNVERIFIED) |
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
 | Handoff card | Native; asks for a CONTINUE or COMPACT assessment, names host auto-compaction as the relief, and names `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended) while it is unset | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff; the only host with a 200,000-token handoff point and `Continue-until:` | Projected hook that asks for CONTINUE or COMPACT, with no handoff point; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage; also delivers and records feed events |
 | Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Lifecycle line on the first lead system transform |

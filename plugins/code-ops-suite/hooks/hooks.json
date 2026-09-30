@@ -43,6 +43,15 @@
         ]
       },
       {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-ledger.mjs\""
+          }
+        ]
+      },
+      {
         "hooks": [
           {
             "type": "command",
@@ -99,6 +108,10 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-report.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-ledger.mjs\""
           }
         ]
       }

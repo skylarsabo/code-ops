@@ -81,6 +81,9 @@ const TABLE = {
     citations: 'check-doc-citations.mjs',
     handoff: 'check-handoff.mjs',
   },
+  agents: {
+    pending: { script: 'agent-ledger.mjs', cmd: 'pending' },
+  },
   docs: {
     manifest: 'docs-manifest.mjs',
     extract: 'docs-extract.mjs',
