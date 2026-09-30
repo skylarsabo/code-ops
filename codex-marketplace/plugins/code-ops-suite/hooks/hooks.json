@@ -43,6 +43,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/agent-ledger.mjs\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "node \"${PLUGIN_ROOT}/hooks/handoff-card.mjs\"",
             "timeout": 10
           }
@@ -96,6 +104,10 @@
           {
             "type": "command",
             "command": "node \"${PLUGIN_ROOT}/hooks/subagent-report.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/agent-ledger.mjs\""
           }
         ]
       }

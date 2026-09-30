@@ -37,7 +37,7 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers ten commands across seven events in
+The code-ops-suite package registers eleven commands across seven events in
 `plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
 trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
@@ -45,10 +45,12 @@ its budget boundary or when its explicit controller binding is invalid. It can a
 dispatch of a wide-surface type that names no reason, and a lead dispatch past the context
 ceiling before the handoff assessment. Unbound infrastructure failures retain the previous
 fail-open behavior. The peer guard redirects a message to a peer session that already handed off to its live successor on Claude and Codex, and denies it on Grok or when no live successor can take it.
-The `SubagentStop` return check is advisory and never blocks.
-Nine commands carry an off switch, read from the canonical `.claude/settings.json`
-environment. A tenth variable governs only the routing card's pending-handoff line, a
-eleventh sets or disables the dispatch guard's context ceiling, and a twelfth names the
+The `SubagentStop` return check is advisory and never blocks. The agent ledger records each
+subagent launch and report without output, so `co agents pending` lists the agents a handed-off
+session never heard back from.
+Ten commands carry an off switch, read from the canonical `.claude/settings.json`
+environment. An eleventh variable governs only the routing card's pending-handoff line, a
+twelfth sets or disables the dispatch guard's context ceiling, and a thirteenth names the
 operator's shell on the routing card.
 Rendered hosts use their documented process environment:
 
@@ -62,6 +64,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false` | the `SubagentStop` advisory verdict and word-cap check, `subagent-report.mjs` |
+| `CODE_OPS_AGENT_LEDGER` | `off`, `0`, or `false` | the `PostToolUse` (`Agent`, `Task`) launch record and the `SubagentStop` report record in `~/.claude/code-ops/agents/`, `agent-ledger.mjs`; `co agents pending` reads them |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs`; it silences only the card, not the feed |
 | `CODE_OPS_FEED` | `off`, `0`, or `false` | the change feed: event recording and delivery, `change-feed.mjs` |
@@ -131,7 +134,13 @@ The one command with no switch is `enforce-traceless.mjs` at `PreToolUse`. The r
 itself has none either; only its pending-handoff line does. There is no `PreCompact` command.
 Claude and Codex instead receive a durable-state restore instruction on `SessionStart
 source=compact`; this runs after compaction and does not alter the summary that was already
-produced. Claude documents `/compact [focus]`; Codex CLI and desktop document `/compact`. Detect
+produced. When the session record names a run folder, that restore also lists the folder's
+unchecked `TASKS.md` lines (id and first 80 characters, at most 12). On Claude and Codex, host
+auto-compaction is the routine context relief (DEC-73), and a handoff is only for new work, a
+clean session that loads updated code-ops plugins, a host change, or a failed compaction (DEC-76). Claude Code compacts
+itself near the size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (a token count, 250000 recommended),
+which the operator sets in the `env` block of user settings; the handoff card names it while it is
+unset. Claude documents `/compact [focus]`; Codex CLI and desktop document `/compact`. Detect
 the active surface and never assume an agent-callable tool. Otherwise report the action as pending
 operator work. The
 [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each command's
@@ -223,12 +232,13 @@ byte-identical packaging.
 | Operative floors | Native agent metadata | Preflight with collapsed model ladder | `model-floors.json` plus role brief | `chat.params` gate plus preflight carrier |
 | Publishing gate | `PreToolUse` | Canonical command hook | Payload-adapted hook | `tool.execute.before` port |
 | Digest and index | Native hooks | `updatedInput` digest and `PostToolUse` index side effect | Payload-adapted hooks | Mutable tool arguments and `file.edited` port |
-| Routing and compaction | Session context and `source=compact` restore | Instruction files only; passive stdout unavailable | Projected session context and restore | System-transform and compaction ports |
+| Routing and compaction | Session context and `source=compact` restore with the open `TASKS.md` lines | Instruction files only; passive stdout unavailable | Projected session context and restore | System-transform and compaction ports |
 | Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Lifecycle plugin injects it into the implementer |
 | Subagent return check | Native `SubagentStop` `systemMessage` note | Not registered in effect: the hook is silent under the adapter because the `SubagentStop` payload is UNVERIFIED | Projected hook; payload fields UNVERIFIED, so a missing field leaves it silent | Not ported; no verified subagent-stop callback (UNVERIFIED) |
+| Agent ledger | Native `PostToolUse` (`Agent`, `Task`) and `SubagentStop` | Not registered in effect: the hook is silent under the adapter because both payloads are UNVERIFIED | Projected hook without a matcher; it filters on `Agent` or `Task`, and the Codex dispatch tool name and `SubagentStop` fields are UNVERIFIED, so a missing field records nothing | Not ported; no verified subagent-stop callback (UNVERIFIED) |
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
-| Handoff card | Native | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff | Projected hook; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage; also delivers and records feed events |
+| Handoff card | Native; asks for a CONTINUE or COMPACT assessment, names host auto-compaction as the relief, and names `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended) while it is unset | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff; the only host with a 200,000-token handoff point and `Continue-until:` | Projected hook that asks for CONTINUE or COMPACT, with no handoff point; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage; also delivers and records feed events |
 | Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Lifecycle line on the first lead system transform |
 | Peer guard | Native `PreToolUse` deny on `SendMessage` and `mcp__ccd_session_mgmt__send_message` | Registered; reads camelCase `toolName` and `toolInput`; inert unless a messaging tool shares a name (UNVERIFIED) | Projected hook without a matcher; inert unless a messaging tool shares a name (UNVERIFIED) | Not ported |
 | Dispatch guard | Native, with the wide-type and context-ceiling dispatch gates | Registered; the dispatch gates read the camelCase `toolName`, `toolInput`, and `sessionId` and cover `spawn_subagent`; its schema has no agent-type field, so the wide-type gate denies only a named wide type; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id`, and the dispatch gates stay inert unless the dispatch tool shares Claude's name (UNVERIFIED) | Lifecycle guard keyed by child `sessionID`, a suite-only Task allowlist, and a context-ceiling gate unlocked by the `skill` tool or the typed handoff command |

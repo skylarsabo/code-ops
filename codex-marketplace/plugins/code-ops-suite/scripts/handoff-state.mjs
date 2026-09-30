@@ -136,8 +136,18 @@
 // skips silently. `open --program` records the path in SESSION.json so other sessions find it.
 // CODE_OPS_PEER_GUARD=off disables it. Names and repo-relative paths only.
 //
-// Exit: 0 = done; 1 = a step failed, --out exists or is refused, or a name matched no single
-// handoff; 2 = usage error.
+// PENDING AGENTS. A background agent reports only to the session that launched it, so a handoff
+// written while one is unreported orphans it. Draft reads the agent ledger (agent-ledger.mjs) and
+// refuses, exit 1, while this session has an agent still `dispatched`: it prints one
+// `<agent_id> <agent_type> <age> <description>` line each and names the two ways out. The ledger keys
+// on the hook payload `session_id`, which is the session id above (the session record the routing
+// card reads is keyed the same way), so draft matches the session id, SESSION.json's sessionId, and
+// its hostSessionId. With none of them known it matches launches by the repository root and says
+// so. `--pending-agents-ok` drafts anyway and writes each pending agent as a `Pending agent:` state
+// line in In-flight boundaries. CODE_OPS_AGENT_LEDGER=off skips the check.
+//
+// Exit: 0 = done; 1 = a step failed, --out exists or is refused, pending agents block the draft,
+// or a name matched no single handoff; 2 = usage error.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -146,6 +156,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseOrDie, usage, die, git, walkFiles } from './cli-lib.mjs';
+import { formatLine, pendingAgents } from './agent-ledger.mjs';
 import { sessionRecordPath } from './transcript-lib.mjs';
 import { ANCHOR_RE } from './citation-lib.mjs';
 import { hubOf, promotedIds, recordState } from './promotion-lib.mjs';
@@ -153,7 +164,7 @@ import { hubOf, promotedIds, recordState } from './promotion-lib.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = [
   'usage: handoff-state.mjs open <slug> [--name <name>] [--program <PROGRAM.md>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
-  '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--root <repo>]',
+  '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--pending-agents-ok] [--root <repo>]',
   '       handoff-state.mjs program-archive <PROGRAM.md | program slug> [--root <repo>]',
   '       handoff-state.mjs program-split <PROGRAM.md | program slug> --into <a>,<b>[,...] --assign <id>=<child>[,...] [--root <repo>]',
   '       handoff-state.mjs program-merge <PROGRAM.md | program slug> --into <PROGRAM.md | program slug> [--head-ended] [--root <repo>]',
@@ -591,6 +602,20 @@ function dirtyLines(dirty, top) {
   return out;
 }
 
+// The agents this session launched and never saw report, newest first, plus a note when the match
+// fell back to the repository root. The ledger keys on the hook payload session_id; every id this
+// draft knows for the session is tried, because a desktop session's hostSessionId may be the key.
+function pendingForDraft(sid, own, root) {
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return { agents: [], note: null };
+  const ids = [...new Set([sid, own?.sessionId, own?.hostSessionId].filter((id) => typeof id === 'string' && id))];
+  if (!ids.length) {
+    return { agents: pendingAgents({ cwd: root }), note: `no session id is known (set CLAUDE_CODE_SESSION_ID or pass --session), so agents are matched by directory ${root}` };
+  }
+  const byId = new Map();
+  for (const id of ids) for (const agent of pendingAgents({ sessionId: id })) byId.set(agent.agent_id, agent);
+  return { agents: [...byId.values()].sort((a, b) => Date.parse(b.launched_at) - Date.parse(a.launched_at)), note: null };
+}
+
 function draft(flags) {
   if (!flags.run) usage(['x draft needs --run <dir>', ...USAGE]);
   const root = resolve(flags.root);
@@ -629,6 +654,13 @@ function draft(flags) {
   // TASKS.md line. An id TASKS.md checks off belongs in PROGRAM.md Closed items, so it becomes a
   // placeholder instead of a silent drop.
   const own = readJson(join(runDir, 'SESSION.json'));
+  const pendingNow = pendingForDraft(sid, own, root);
+  if (pendingNow.agents.length && !flags['pending-agents-ok']) {
+    console.error(`x refusing to draft: ${pendingNow.agents.length} agent(s) launched by this session have not reported${pendingNow.note ? ` (${pendingNow.note})` : ''}:`);
+    for (const agent of pendingNow.agents) console.error(`  ${formatLine(agent)}`);
+    console.error('Wait for them to report, or pass --pending-agents-ok to draft and record them in In-flight boundaries.');
+    return 1;
+  }
   let lin = declaredLineage(own, root, repoPath) ?? lineage(runDir, root, repoPath);
   // A first hop has no predecessor to name its ledger, so --program names it (OI-29).
   if (flags.program && !lin.programFile) {
@@ -730,6 +762,7 @@ function draft(flags) {
     '## In-flight boundaries',
     '',
     ...(dirty.length ? dirtyLines(dirty, git(['rev-parse', '--show-toplevel'], { cwd: root })) : ['- Working tree clean.']),
+    ...pendingNow.agents.map((a) => `- Pending agent: ${formatLine(a).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\[FILL:/g, '[fill:')} · launched ${a.launched_at}`),
     '[FILL: the done-against-not-done line; load-bearing path:line pointers, each with a verbatim Anchor]',
     '',
     '## Open items',
@@ -1225,6 +1258,26 @@ function overlapLines(programFile, root, sid) {
   } catch { return []; }
 }
 
+// Demotion candidates (DEC-74): open items whose line text is identical across this handoff and its
+// previous four predecessors. The walk follows `Predecessor:` and ends quietly at a missing file;
+// fewer than UNCHANGED_HOPS handoffs in the chain prints no line.
+const UNCHANGED_HOPS = 5;
+function unchangedItems(target, root) {
+  const chain = [];
+  const seen = new Set();
+  for (let file = target; file && chain.length < UNCHANGED_HOPS && !seen.has(file) && isFile(file);) {
+    seen.add(file);
+    const text = readFileSync(file, 'utf8');
+    chain.push(new Map(bullets(sectionBody(text, 'open items')).map((l) => [itemId(l), l.trim()]).filter(([id]) => id)));
+    const next = pathValue(sectionBody(text, 'program'), 'Predecessor');
+    file = next && !/^none$/i.test(next) ? resolve(root, next) : null;
+  }
+  if (chain.length < UNCHANGED_HOPS) return [];
+  const [first, ...older] = chain;
+  const ids = [...first].filter(([id, line]) => older.every((m) => m.get(id) === line)).map(([id]) => id);
+  return [`unchanged ${UNCHANGED_HOPS}+ hops: ${ids.join(', ') || 'none'}`];
+}
+
 function resume(arg, flags) {
   const root = resolve(flags.root);
   const target = resolveHandoff(arg, root);
@@ -1323,8 +1376,9 @@ function resume(arg, flags) {
   lines.push(...registerLines(programFile, text, root));
   if (hasDigests) lines.push(`scope documents (digests in ${repoPath(digestsFile)}):`, ...(scope.length ? scope : ['  none']));
 
+  lines.push(...[...check.err.matchAll(/^ {2}(burn-down: .*)$/gm)].map((m) => m[1]), ...unchangedItems(target, root));
   const open = bullets(sectionBody(text, 'open items'));
-  const byOwner = (owner) => open.filter((l) => new RegExp(`\\bOwner:\\s*${owner}\\b`, 'i').test(l)).map((l) => `  ${l}`);
+  const byOwner =(owner) => open.filter((l) => new RegExp(`\\bOwner:\\s*${owner}\\b`, 'i').test(l)).map((l) => `  ${l}`);
   lines.push('Blocked on operator:', ...(byOwner('operator').length ? byOwner('operator') : ['  none']));
   lines.push('Agent-owned:', ...(byOwner('agent').length ? byOwner('agent') : ['  none']));
   if (failures === 0) {
@@ -1452,6 +1506,7 @@ if (isEntry()) {
     into: { value: true },
     assign: { value: true },
     'head-ended': { value: false },
+    'pending-agents-ok': { value: false },
   }, USAGE.join('\n'));
   if (flags.program && command !== 'draft' && command !== 'open') usage(USAGE);
   const onlyFlags = (...names) => Object.keys(flags).every((k) => k === 'root' || names.includes(k));

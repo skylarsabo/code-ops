@@ -253,8 +253,12 @@ Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs` and
 The package registers no `PreCompact` command. Claude and Codex ignore plain stdout from that
 event, so `routing-card.mjs` handles `SessionStart` with `source=compact` and adds a
 post-compaction instruction to restore decisions, constraints, evidence, blockers, open work,
-and exact identifiers from durable state. This is recovery after compaction, not a claim that a
-hook changed the summary. Grok ignores passive `SessionStart` stdout and therefore gets no
+and exact identifiers from durable state. When the session record names a run folder, the card also
+lists that folder's unchecked `TASKS.md` lines (the id and the first 80 characters of each, at most
+12, with a shown-of-open count), so the session sees its open items without a file read. Host
+auto-compaction is the default context relief on Claude and Codex (DEC-73), and this card carries
+the open items across it. This is recovery after compaction, not a claim that a hook changed the
+summary. Grok ignores passive `SessionStart` stdout and therefore gets no
 hook-injected restore card. OpenCode uses its native compaction port. Evidence:
 `plugins/code-ops-suite/hooks/hooks.json`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
 and the generated host compatibility files.
@@ -666,7 +670,13 @@ usage. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections
 
 Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
 receipt, or cost proof. It directs the lead to run `handoff assess` at a safe boundary and choose
-CONTINUE, COMPACT, or HANDOFF; a higher band asks for that assessment before a new workstream.
+CONTINUE or COMPACT on Claude and Codex, or CONTINUE, COMPACT, or HANDOFF on Grok; a higher band asks
+for that assessment before a new workstream. On Claude and Codex (DEC-73) the card names host
+auto-compaction as the context relief, asks for current `TASKS.md` and `RUN_LOG.md` first, and says
+to hand off only to start new work, to load updated code-ops plugins in a clean session, or after a
+host change or failed compaction (DEC-76). It never says to hand off on a token count. On Claude, when
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line naming that setting (250000
+recommended); a Codex or Grok card never carries it.
 At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated
 until that assessment runs; Grok omits that sentence because the guard cannot gate its dispatch
 tool. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
@@ -675,19 +685,19 @@ The marker proves only that the hook wrote a prior message. It does not prove th
 displayed it, that a boundary existed, or that any action was chosen. Evidence:
 `plugins/code-ops-suite/hooks/handoff-card.mjs:112-124`.
 
-The handoff point is 225,000 tokens, or 200,000 on Grok. The first time context reaches it, the
-card fires even without a band rise and says to hand off at the next phase boundary. The marker
-also records `point`, `fired`, `prompts` (operator prompts since the last card), and `until`.
-On Grok, when a card fires past the point after an earlier card and no operator prompt has
-arrived since, the card says to run `handoff write` instead of assessing again. On Claude and
-Codex every card fires on an operator prompt, so the card never gives that advice there. The hook reads the latest
-`Continue-until: <N> tokens` or `Continue-until: <N> turns` line from the last 64 KiB of the
-run log named by the session record's `runDir`. While that bound is open, the card stays quiet.
-It fires once when context reaches N tokens or after N more hook calls. A malformed bound sets no
-bound. On Claude and Codex the card is prompt-driven, so an autonomous session with no prompts
-sees none of this until the dispatch guard's 300,000-token ceiling gates it. OpenCode's note does
-not yet carry the handoff point. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs`
-and `evals/handoff-card/run.mjs`.
+The handoff point exists on Grok only, at 200,000 tokens. Claude and Codex have none (DEC-73),
+because host auto-compaction is their context relief. The first time Grok context reaches the
+point, the card fires even without a band rise and says to hand off at the next phase boundary.
+The marker also records `point`, `fired`, `prompts` (operator prompts since the last card), and
+`until`. When a Grok card fires past the point after an earlier card and no operator prompt has
+arrived since, the card says to run `handoff write` instead of assessing again. The hook reads the
+latest `Continue-until: <N> tokens` or `Continue-until: <N> turns` line from the last 64 KiB of
+the run log named by the session record's `runDir`. It does so on Grok only. While that bound is
+open, the card stays quiet. It fires once when context reaches N tokens or after N more hook
+calls. A malformed bound sets no bound. Claude and Codex ignore the line. On those hosts an
+autonomous session with no prompts sees no card until the dispatch guard's 300,000-token ceiling
+gates it. Only Grok has a size-based handoff point; the OpenCode note names none. Evidence:
+`plugins/code-ops-suite/hooks/handoff-card.mjs` and `evals/handoff-card/run.mjs`.
 
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant
@@ -760,6 +770,7 @@ Closed items, and decision ids whenever it exists. These checks fail closed:
   and title only, the baseline is the nearest ancestor handoff with the full line. With no such
   ancestor on disk, the check skips the item.
 - 18: no `DEC` or `OI` id leads two bullets across the ledger and its archive.
+- 19: Check 19 enforces program convergence. A PROGRAM.md whose `## Finish line` section holds at least one `- F<n>` bullet fails a handoff that lists more than 12 open items, an open item without `Blocks: F<n>`, or a Blocks id absent from the Finish line. A `## Finish line` with no `- F<n>` bullet fails on its own. Without a Finish line, more than 12 open items warns. A carried item shown as id and title reads its Blocks from its ledger line when that line leads with the id (grammar 2); Blocks reads up to the next ` · `. On a chained handoff, a predecessor item listed in `BACKLOG.md` beside PROGRAM.md (bullets leading `- OI-<n>`) passes the carry-forward check and prints `deferred: <ids> (moved to BACKLOG.md)`, and the check prints `burn-down: active N (predecessor M, +a -r), backlog B`, with ` GROWING` when N exceeds M. `co handoff resume` repeats the burn-down line before `Blocked on operator:` and prints `unchanged 5+ hops: <ids|none>` when the chain holds five or more handoffs.
 
 Check 14, promotion resolution, is not implemented yet. Evidence: `scripts/check-handoff.mjs` and
 `evals/handoff-check/run.mjs`.
@@ -776,6 +787,17 @@ disposition, and each Request history entry except the first and the last ten, v
 `PROGRAM.archive.md` (DEC-32). The archive holds only those three headings. A pending decision
 stays in the ledger. The command exits 1 when the ledger is still over 32 KB. Evidence:
 `scripts/handoff-state.mjs` and `evals/handoff-state/run.mjs`.
+
+`co handoff draft` reads the agent ledger for the drafting session and refuses with exit 1 while any
+agent is still `dispatched`. It prints `<agent_id> <agent_type> <age> <description>` for each agent
+and names two ways out: wait, or pass `--pending-agents-ok`. With the flag, draft writes each agent
+as a `Pending agent:` line under In-flight boundaries. It matches the session id, the SESSION.json
+`sessionId`, and `hostSessionId`. When none is known, it matches by the repository root and says so.
+`CODE_OPS_AGENT_LEDGER=off|0|false` skips the check. After a compaction, the SessionStart routing
+card adds a `Pending agents: (<shown> of <total> shown)` block for the payload `session_id`, at most
+8 lines of 80 characters. The block fails open and honours the same switch. Evidence:
+`scripts/handoff-state.mjs`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
+`evals/handoff-state/run.mjs`, and `evals/handoff-card/run.mjs`.
 
 One status line never gates. `co handoff draft` records each dirty path with a sha256 prefix:
 `- Dirty: \`<porcelain line>\` · sha256:<16 hex>`, or `· none` for a path since deleted. The check

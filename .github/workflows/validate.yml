@@ -119,6 +119,9 @@ jobs:
       - name: Dispatch guard hook eval (round budget + dispatch advisories)
         run: node evals/dispatch-guard/run.mjs
 
+      - name: Agent ledger hook eval (launch and report records, pending list)
+        run: node evals/agent-ledger/run.mjs
+
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
 
@@ -224,6 +227,9 @@ jobs:
 
       - name: Handoff draft and resume eval
         run: node evals/handoff-state/run.mjs
+
+      - name: Handoff program convergence eval (finish line, backlog, burn-down)
+        run: node evals/handoff-convergence/run.mjs
 
       - name: Program promote and close eval
         run: node evals/program-lifecycle/run.mjs
@@ -519,6 +525,9 @@ jobs:
 
       - name: Dispatch guard hook eval (round budget + dispatch advisories)
         run: node evals/dispatch-guard/run.mjs
+
+      - name: Agent ledger hook eval (launch and report records, pending list)
+        run: node evals/agent-ledger/run.mjs
 
       - name: Lint-gate fixture eval
         run: node evals/lint-plugins/run.mjs

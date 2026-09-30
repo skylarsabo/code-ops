@@ -21,6 +21,11 @@
 // `run open --program` and `resume`: one warning per shared scope document, a merge suggestion for
 // two or more, and no output for no overlap, an idle or ended session, the program's own sessions, or
 // a merged program; and that corrupt records, a missing ledger, or an unreadable board skip silently.
+// The pending-agent cases pin draft refusing while this session has a dispatched agent with no
+// report, naming each as `<agent_id> <agent_type> <age> <description>` and the two ways out, another
+// session's agent and a reported one not blocking, the session id coming from `--session` or the
+// run folder's SESSION.json, the directory fallback naming itself, `--pending-agents-ok` writing a
+// `Pending agent:` line under In-flight boundaries, and CODE_OPS_AGENT_LEDGER=0 skipping the check.
 // Every fixture lives in an OS temp dir, and CODE_OPS_HOME points the session records at a temp
 // home, so nothing writes under the repository or the real home.
 //
@@ -33,6 +38,7 @@ import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { repoIdentity } from '../../scripts/handoff-state.mjs';
+import { recordFromPayload } from '../../scripts/agent-ledger.mjs';
 import { tally } from '../harness.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -183,6 +189,52 @@ try {
     .split('\n').filter((l) => l && !/^.{3}(opencode-dist|\.agents|plugins\/[^/]+\/scripts)\//.test(l)).length;
   check(`large dirty draft lists at most 20 paths and a +N more line (${nonDerived} non-derived)`,
     nonDerived > 40 && listedLines.length === 20 && wide.stdout.includes(`- +${nonDerived - 20} more non-derived dirty path(s)`));
+
+  // ---- pending agents (agent ledger) ----
+  const ledgerDir = join(home, '.claude', 'code-ops', 'agents');
+  const launch = (session, id, description = 'Build the ledger') => recordFromPayload({
+    hook_event_name: 'PostToolUse', session_id: session, cwd: tmp, tool_name: 'Agent',
+    tool_input: { subagent_type: 'code-ops-suite:implementer', description, prompt: 'p', run_in_background: true },
+    tool_response: { status: 'async_launched', agentId: id },
+  }, { stateDir: ledgerDir });
+  const settle = (session, id) => recordFromPayload({ hook_event_name: 'SubagentStop', session_id: session, cwd: tmp, agent_id: id, agent_type: 'code-ops-suite:implementer' }, { stateDir: ledgerDir });
+  const draftAs = (extra, extraEnv = {}) => spawnSync(process.execPath, [co, 'handoff', 'draft', '--run', 'runs/r1', ...extra], { cwd: tmp, encoding: 'utf8', env: { ...env, ...extraEnv } });
+  const inFlight = (text) => text.slice(text.indexOf('## In-flight boundaries'), text.indexOf('## Open items'));
+
+  launch('sess-pend', 'pend111');
+  const refused = draftAs(['--session', 'sess-pend']);
+  check('pending: draft refuses while this session has an unreported agent', refused.status === 1 && refused.stdout === '', `${refused.status} ${String(refused.stdout).slice(0, 80)}`);
+  check('pending: the refusal names the agent as id, type, age, and description', /^ {2}pend111 code-ops-suite:implementer <1m Build the ledger$/m.test(refused.stderr), refused.stderr);
+  check('pending: the refusal names both ways out', refused.stderr.includes('Wait for them to report') && refused.stderr.includes('--pending-agents-ok'), refused.stderr);
+  check("pending: another session's agent does not block", draftAs(['--session', 'sess-other']).status === 0);
+
+  const allowed = draftAs(['--session', 'sess-pend', '--pending-agents-ok']);
+  check('pending: --pending-agents-ok drafts and exits 0', allowed.status === 0, allowed.stderr);
+  check('pending: the override writes a Pending agent state line under In-flight boundaries',
+    /^- Pending agent: pend111 code-ops-suite:implementer <1m Build the ledger · launched \d{4}-\d\d-\d\dT/m.test(inFlight(allowed.stdout)), inFlight(allowed.stdout));
+  check('pending: a draft with no pending agent writes no Pending agent line', !draftAs(['--session', 'sess-other']).stdout.includes('Pending agent:'));
+
+  const off = draftAs(['--session', 'sess-pend'], { CODE_OPS_AGENT_LEDGER: '0' });
+  check('pending: CODE_OPS_AGENT_LEDGER=0 skips the check', off.status === 0 && !off.stdout.includes('Pending agent:'), off.stderr);
+
+  settle('sess-pend', 'pend111');
+  check('pending: a reported agent no longer blocks', draftAs(['--session', 'sess-pend']).status === 0);
+
+  // The session id may come from the run folder's SESSION.json instead of a flag or the environment.
+  const runPend = join(tmp, 'runs', 'r-pend');
+  mkdirSync(runPend, { recursive: true });
+  writeFileSync(join(runPend, 'SESSION.json'), JSON.stringify({ v: 1, sessionId: 'sess-fromfile', name: 'Pend', hop: 0, predecessor: null, createdAt: new Date().toISOString() }));
+  launch('sess-fromfile', 'file222');
+  const fromFile = spawnSync(process.execPath, [co, 'handoff', 'draft', '--run', 'runs/r-pend'], { cwd: tmp, encoding: 'utf8', env });
+  check("pending: the run folder's SESSION.json sessionId selects the ledger file", fromFile.status === 1 && fromFile.stderr.includes('file222 '), fromFile.stderr);
+  check('pending: a known session id never reports a directory fallback', !fromFile.stderr.includes('matched by directory'), fromFile.stderr);
+
+  // No session id anywhere: match the launches made in this directory, and say so.
+  const runBare = join(tmp, 'runs', 'r-bare');
+  mkdirSync(runBare, { recursive: true });
+  launch('sess-unknown', 'dir333', 'Directory match');
+  const bare = spawnSync(process.execPath, [co, 'handoff', 'draft', '--run', 'runs/r-bare'], { cwd: tmp, encoding: 'utf8', env });
+  check('pending: with no session id draft matches by directory and says so', bare.status === 1 && bare.stderr.includes('dir333 ') && bare.stderr.includes('agents are matched by directory'), bare.stderr);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
@@ -872,6 +924,7 @@ try {
   writeFileSync(boardDir, 'not a directory');
   const noBoard = openOn('sess-lambda', 'kappa', 'Lambda HO 1');
   check('overlap: an unreadable board fails open with exit 0 and no overlap block', noBoard.status === 0 && !noBoard.stdout.includes('program overlap:') && noBoard.stdout.includes('links:'));
+
 } finally {
   rmSync(ov, { recursive: true, force: true });
 }

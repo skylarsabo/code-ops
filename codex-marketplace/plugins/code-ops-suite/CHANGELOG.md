@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.23.0
+- Auto-compaction is the routine context relief on Claude and Codex. The handoff skill, the user-wide contract, and the handoff card select CONTINUE or COMPACT on token pressure. A handoff is reserved for new work, a clean session that loads updated code-ops plugins or contracts, a host change, or a failed compaction. The Compact Instructions keep agent ids, peer threads, and authority grants. Grok keeps its 200,000-token handoff point. On Claude the card adds one line while `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset. The user-wide contract gains a Compact Instructions section.
+- The SessionStart compact restore lists the run folder's unchecked TASKS.md lines, at most 12, and the pending agents.
+- `check handoff` check 19 enforces program convergence. A PROGRAM.md with a `## Finish line` fails a handoff with more than 12 open items, an item without `Blocks: F<n>`, or a Blocks id not on the finish line. Items moved to BACKLOG.md carry forward as deferred. The check and `co handoff resume` print a burn-down line, flag `GROWING`, and list items unchanged for five hops.
+- A new agent ledger hook records each Agent or Task launch on PostToolUse and each report on SubagentStop, with the dispatch ledger statuses `dispatched`, `reported`, and `failed`. `co agents pending` lists agents with no report. `handoff draft` refuses while an agent is unreported unless `--pending-agents-ok` is passed, which records each agent under In-flight boundaries. `CODE_OPS_AGENT_LEDGER=0` turns the hook off.
+
 ## 2.22.0
 - `co docs relocate` moves a legacy docs tree into the vault. `plan` writes RELOCATION_PLAN.md and .json with the routing, kind, and reason for each file, and lists runtime-read references separately. `apply` runs one wave per legacy root: `git mv`, `relocate-root` events, FORWARDING.json, reference rewrites, the manifest root set to `removed`, and a register refresh. It never rewrites record bytes, `80 Runs/`, PROGRAM.md, or HANDOFF.md, and refuses a dirty tree or a stale base. `forward` rewrites a branch that predates a wave, and `integrate-branch.mjs` runs it when the manifest has a removed root.
 - `co docs gate` step 6 fails when a removed legacy root exists on disk, when FORWARDING.json is invalid, or when a tracked file outside history names a relocated path.
