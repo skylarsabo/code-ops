@@ -388,6 +388,10 @@ after it. The point stays when both baseline measures fall. When neither falls, 
 with the new windows as evidence. A mixed result is recorded here before any change. The
 comparison closes DSN-3 in every case.
 
+**Amendment, 2026-09-30 (DEC-73).** On Claude and Codex, auto-compaction is the routine context relief and the handoff point no longer applies. `CLAUDE_CODE_AUTO_COMPACT_WINDOW=250000` sets the compaction point. A handoff happens only for a new workstream, a host or operator change, session end, or a quality failure. Grok keeps the 200,000 point. The reason is measured hop cost: across 121 murmuration sessions from 2026-09-24, 113 began with a handoff resume. One hop cycle (median handoff-write tail plus median resume overhead, unpaired medians) cost about 10.8M billed tokens, about 46% of a median session.
+
+**Compaction fidelity check (pre-registered).** On 2026-09-30 one Claude desktop session auto-compacted after a hand-written checkpoint. From the summary and the compact SessionStart card alone, the lead named every active item, every operator constraint verbatim, and every running agent. Agent ids were missing from the summary and came from host task notifications. No PreCompact snapshot hook existed. **CONFIRMED** for one session (n=1). The check repeats once the snapshot hook ships.
+
 ## Presence board hook latency, 2026-09-28
 
 This row is the OI-18 baseline for these three hook events only. It measures the hook cost of the

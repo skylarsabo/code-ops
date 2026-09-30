@@ -696,7 +696,7 @@ the run log named by the session record's `runDir`. It does so on Grok only. Whi
 open, the card stays quiet. It fires once when context reaches N tokens or after N more hook
 calls. A malformed bound sets no bound. Claude and Codex ignore the line. On those hosts an
 autonomous session with no prompts sees no card until the dispatch guard's 300,000-token ceiling
-gates it. OpenCode's note does not carry the handoff point. Evidence:
+gates it. Only Grok has a size-based handoff point; the OpenCode note names none. Evidence:
 `plugins/code-ops-suite/hooks/handoff-card.mjs` and `evals/handoff-card/run.mjs`.
 
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
@@ -770,6 +770,7 @@ Closed items, and decision ids whenever it exists. These checks fail closed:
   and title only, the baseline is the nearest ancestor handoff with the full line. With no such
   ancestor on disk, the check skips the item.
 - 18: no `DEC` or `OI` id leads two bullets across the ledger and its archive.
+- 19: Check 19 enforces program convergence. A PROGRAM.md whose `## Finish line` section holds at least one `- F<n>` bullet fails a handoff that lists more than 12 open items, an open item without `Blocks: F<n>`, or a Blocks id absent from the Finish line. A `## Finish line` with no `- F<n>` bullet fails on its own. Without a Finish line, more than 12 open items warns. A carried item shown as id and title reads its Blocks from its ledger line when that line leads with the id (grammar 2); Blocks reads up to the next ` · `. On a chained handoff, a predecessor item listed in `BACKLOG.md` beside PROGRAM.md (bullets leading `- OI-<n>`) passes the carry-forward check and prints `deferred: <ids> (moved to BACKLOG.md)`, and the check prints `burn-down: active N (predecessor M, +a -r), backlog B`, with ` GROWING` when N exceeds M. `co handoff resume` repeats the burn-down line before `Blocked on operator:` and prints `unchanged 5+ hops: <ids|none>` when the chain holds five or more handoffs.
 
 Check 14, promotion resolution, is not implemented yet. Evidence: `scripts/check-handoff.mjs` and
 `evals/handoff-check/run.mjs`.
