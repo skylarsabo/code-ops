@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
-      "verifiedDigest": "4fc34211f8b6bee4074ab1858b0b64859715c3bfe33b338dc0d62bc603096755",
+      "verifiedAt": "5c78ec3ca96b554b5fcc3fda156e348257af7b15",
+      "verifiedDigest": "ef216c73f3ae5479b284b4eab896dd2d27a38b625610af060d9dd17066a21c80",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -32,6 +32,11 @@
           "anchor": "async function seal(context, options) {"
         },
         {
+          "file": "plugins/code-ops-suite/scripts/docs-relocate.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 4,
           "anchor": "// COMPACT, or HANDOFF at the next safe boundary. It is not a host limit or a co"
@@ -39,17 +44,17 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 273,
-          "anchor": "} else if (band === 1) {"
+          "anchor": "const passed = open && (bound.kind === 'tokens' ? context >= bound.n : until.tur"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 267,
-          "anchor": "const autonomous = grok && pastPoint && state.fired && state.prompts === 0;"
+          "anchor": "const pastPoint = context >= point;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 159,
-          "anchor": "async function feedLines(payload, sessionId, cwd, event) {"
+          "anchor": "} catch { return null; } finally { if (fd !== undefined) try { closeSync(fd); }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -64,32 +69,31 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 175,
-          "anchor": "const MAX_BRIEF_BUDGET = 120;"
+          "anchor": "import { dirname, join } from 'node:path';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 184,
-          "anchor": "const CHECKPOINT = 'done items with file:line evidence, each dirty (uncommitted)"
+          "anchor": "const MAX_CHECKPOINT_ALLOWANCE = 4;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 13,
-          "anchor": "// FIVE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comman"
+          "anchor": "// SIX BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 674,
-          "anchor": "node \"${join(dirname(dirname(HOOK_PATH)), 'scripts', 'co.mjs')}\" brief ${type}\\"
+          "anchor": "${gate.ceiling.toLocaleString('en-US')}-token context ceiling. Run /code-ops-sui"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 671,
-          "anchor": "if (missing.length) {"
+          "line": 671
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 446,
-          "anchor": "async function collisionFor(payload, agentId) {"
+          "anchor": "const rest = held.permissionDecisionReason ?? held.additionalContext;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
@@ -104,7 +108,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 111,
-          "anchor": "board: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
@@ -119,7 +123,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 102,
-          "anchor": "program: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
@@ -139,7 +143,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 656,
-          "anchor": "const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim("
+          "anchor": "// input is missing or unreadable (fail open)."
         },
         {
           "file": "plugins/code-ops-suite/agents/probe.md",
@@ -190,8 +194,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
-      "verifiedDigest": "c6f258d4de0f201dff983749d9269da6000e8e16275138b292ad4a3db7a23f66",
+      "verifiedAt": "5c78ec3ca96b554b5fcc3fda156e348257af7b15",
+      "verifiedDigest": "e82d6262d6fe36aeb8603e4021ec331a91eaa581747428e9bb26d28b92dfbea5",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -216,7 +220,7 @@
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 266,
-          "anchor": "if (!Array.isArray(listed) || !listed.length || !listed.every((s) => typeof s =="
+          "anchor": "// bytes, which are immutable and hash-chained, so they cannot gain note frontma"
         },
         {
           "file": "scripts/check-doc-citations.mjs",
@@ -236,47 +240,52 @@
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 303,
-          "anchor": "const draftRules = manifestStatuses !== null && maxAgeDays !== null;"
+          "anchor": "else if (v < MIN_STANDARD_VERSION)"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 389,
-          "anchor": "function supersededByResolves(value, ownPath) {"
+          "anchor": "checked.push({ path: notePath, text, fm });"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 455,
-          "anchor": "function renderTriage(previous) {"
+          "anchor": "for (const [status, entries] of groups) {"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 479,
-          "anchor": "if (mode === 'render') {"
+          "anchor": "const readOrEmpty = (path) => { try { return readFileSync(join(vault, path), 'ut"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
           "line": 489,
-          "anchor": "if (mode === 'stamp') {"
+          "anchor": "}"
         },
         {
           "file": "scripts/docs-gate.mjs",
           "line": 128,
-          "anchor": "const vault = sibling('check-vault-standard.mjs', [join(root, hub)]);"
+          "anchor": "let collections = [];"
+        },
+        {
+          "file": "scripts/docs-gate.mjs",
+          "line": 149,
+          "anchor": "// ---- 6. legacy-path guards ----"
         },
         {
           "file": "scripts/docs-gate.mjs",
           "line": 183,
-          "anchor": "const baselinePath = hub === null ? null : join(root, hub, '98 System', BASELINE"
+          "anchor": "const program = /^[-*\\t ]*Program:[^\\S\\r\\n]*(.+)$/m.exec(text)?.[1].trim().repla"
         },
         {
           "file": "scripts/docs-gate.mjs",
           "line": 202,
-          "anchor": "x ${BASELINE_NAME} already exists and the baseline never grows; fix the new viol"
+          "anchor": "${slug}: check-handoff did not run: ${firstLine(r.out) ||"
         },
         {
           "file": "scripts/integrate-branch.mjs",
           "line": 253,
-          "anchor": "function runDocsGateStep(log) {"
+          "anchor": "// repository that has run no wave sees no change: no output and no process beyo"
         },
         {
           "file": "scripts/record-lib.mjs",
@@ -366,7 +375,7 @@
         {
           "file": "scripts/co.mjs",
           "line": 142,
-          "anchor": "const DEFAULT_VERB = { board: 'list' };"
+          "anchor": "// A domain named here runs this verb when the caller gives none, so"
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -376,12 +385,11 @@
         {
           "file": "scripts/integrate-branch.mjs",
           "line": 472,
-          "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
+          "anchor": "}"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 499,
-          "anchor": "async function runPool(tasks, jobs) {"
+          "line": 499
         },
         {
           "file": "scripts/atlas-check.mjs",
@@ -441,8 +449,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
-      "verifiedDigest": "abc719d052e666f624929e827ff8d87310007ac81e7a7b07e202ce26513c53a1",
+      "verifiedAt": "5c78ec3ca96b554b5fcc3fda156e348257af7b15",
+      "verifiedDigest": "06ad7ed7346d30eea8b4b62a8cbc8d8c43505adf5c02cbbddd3eaa2f1d9c0106",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -457,12 +465,17 @@
         {
           "file": "evals/vault-standard/run.mjs",
           "line": 186,
-          "anchor": "a manifest-v3 vault under standard v5 must pass with drafts.statuses applied, go"
+          "anchor": "expect(recordRootSibling.status === 1 && /50 Records\\/other\\/Note\\.md: no YAML f"
         },
         {
           "file": "evals/doc-citations/run.mjs",
           "line": 58,
           "anchor": "const f = buildCase('manifest-v3', 'See"
+        },
+        {
+          "file": "evals/docs-relocate/run.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
         },
         {
           "file": "evals/opencode-dist/run.mjs",
@@ -547,12 +560,12 @@
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 209,
-          "anchor": "const boundary = JSON.stringify({ type: 'system', subtype: 'compact_boundary', c"
+          "anchor": "// A boundary that carries compactMetadata.postTokens (real Claude transcripts d"
         },
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 279,
-          "anchor": "console.log('ok   a crossing at or past the context ceiling says new dispatches"
+          "anchor": "expect(gated.test(messageAt(160_000, 'sess-ceil-override', '150000')), 'an overr"
         }
       ]
     },
@@ -564,8 +577,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
-      "verifiedDigest": "f06a33b74589df5f1cfa4ff289b52b1b0e7eefe2e2d8e158fa3bf69ba97a00e0",
+      "verifiedAt": "5c78ec3ca96b554b5fcc3fda156e348257af7b15",
+      "verifiedDigest": "b2de6ed901c09959bb604f37478d9861707ba921753b1394d400fa7329c04b53",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -615,7 +628,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 446,
-          "anchor": "async function collisionFor(payload, agentId) {"
+          "anchor": "const rest = held.permissionDecisionReason ?? held.additionalContext;"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -645,8 +658,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
-      "verifiedDigest": "edcfd8c7a22d908e628fe1c3f3317b29325df511d0a9e4f21ebb98e248aebf55"
+      "verifiedAt": "5c78ec3ca96b554b5fcc3fda156e348257af7b15",
+      "verifiedDigest": "ef5f1e7ab46c6d58945ae334760c85af1264331d0a9cd85ecba71515a664dcae"
     },
     {
       "slug": "docs-doctrine",
@@ -669,8 +682,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "bf8c415624ff5efa78ebb1549e41612daa93d581",
-      "verifiedDigest": "7d49dbf3132eb4b7375f47aa1f2d3098afbda5929754b85cf493a9339fc1a33b",
+      "verifiedAt": "5c78ec3ca96b554b5fcc3fda156e348257af7b15",
+      "verifiedDigest": "18cfb7e119ce98190746f3ec2b7fcf9a97c1258cdad74a7a40cd2e46de62e103",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -719,7 +732,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 273,
-          "anchor": "} else if (band === 1) {"
+          "anchor": "const passed = open && (bound.kind === 'tokens' ? context >= bound.n : until.tur"
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
