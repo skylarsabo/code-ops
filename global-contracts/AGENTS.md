@@ -39,9 +39,13 @@ unit: `code-ops-suite:implementer` for build work, `code-ops-suite:web-researche
 read-only web research, `code-ops-suite:probe` for read-only shell probes, never a
 general-purpose agent where a restricted one fits. Name a round budget and a report cap in
 each brief, and keep breadth agents at their declared tier. Assess a lead session at 150,000
-tokens of context, and hand off at a phase boundary past about 225,000 or earlier for a
-quality reason. A unit too small to repay an operative's startup context stays inline, with
-the reason recorded. Past 300,000
+tokens of context. On Claude and Codex, host auto-compaction is the context relief, not a
+handoff. On Claude, set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended). Keep
+`TASKS.md` and `RUN_LOG.md` current before a compaction, so it loses nothing. Hand off only
+for a new independent workstream, a host or operator change, session end, or a quality
+failure such as repeated correction or a failed compaction. On Grok, hand off before 200,000
+tokens, because Grok bills double above that line. A unit too small to repay an operative's
+startup context stays inline, with the reason recorded. Past 300,000
 tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;
 run the assessment instead of raising or disabling the ceiling.
 
@@ -120,6 +124,19 @@ it. A handoff restates one session, and the ledger holds the whole program.
 A new session is new work unless the operator resumes a handoff, and each session keeps its
 own run folder. Address a peer session by its program session name, and resolve the live
 successor with `co handoff live` before messaging, because a handed-off session is finished.
+
+## Compact Instructions
+
+When the host compacts this session, keep these items in the summary:
+
+- The operator's requests and constraints, verbatim.
+- The run folder path.
+- Each active open-item id with its owner and done-when check.
+- Each running background agent and the report it owes.
+- Each decision with the options rejected.
+- Each in-flight `file:line` boundary.
+
+After a compaction, reload `TASKS.md` and `RUN_LOG.md` from the run folder before acting.
 
 ## Change and publishing standards
 
