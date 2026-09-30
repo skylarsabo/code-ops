@@ -50,8 +50,8 @@
 // COMPACTION IS THE DEFAULT RELIEF (DEC-73). On Claude and Codex, routine context relief is host
 // auto-compaction, never a handoff: the card asks for a CONTINUE or COMPACT assessment, tells the
 // lead to bring TASKS.md and RUN_LOG.md current first, and never says to hand off on a token count.
-// A handoff stays for a new independent workstream, a host or operator change, session end, or a
-// quality failure, and the card names those. Claude Code compacts itself near the size in
+// A handoff stays for new work, a clean session that loads updated code-ops plugins or contracts, a
+// host change, or a failed compaction (DEC-76), and the card names those. Claude Code compacts itself near the size in
 // `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude (`CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set) with
 // that variable unset, the card adds one line naming it. Codex compacts natively and gets no line.
 //
@@ -306,7 +306,7 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
     // Claude and Codex: host auto-compaction is the relief; a token count never selects a handoff.
     const setting = !process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW && (process.env.CLAUDECODE === '1' || process.env.CLAUDE_PROJECT_DIR)
       ? ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Claude Code settings so the host compacts near that size.' : '';
-    const relief = 'Host auto-compaction is the context relief, so bring TASKS.md and RUN_LOG.md current first. Hand off only for a new independent workstream, a host or operator change, session end, or a quality failure.';
+    const relief = 'Host auto-compaction is the context relief, so bring TASKS.md and RUN_LOG.md current first. Hand off only to start new work, to load updated code-ops plugins in a clean session, or after a host change or failed compaction.';
     advice = band === 1
       ? `At the next safe boundary, run /code-ops-suite:handoff assess to choose CONTINUE or COMPACT. ${relief}${setting}`
       : `Finish the step in flight, then run /code-ops-suite:handoff assess to choose CONTINUE or COMPACT before starting a new workstream. ${relief} This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.${setting}`;

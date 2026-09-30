@@ -77,8 +77,10 @@ a turn with no tool call still needs the lead's own 150,000-token assessment.
   capability; otherwise report the documented `/compact` as pending, or let the host
   auto-compact. Never run it in a shell or report advice as execution. Afterwards reload durable
   state and check drift; stable checks stand when their inputs did not move.
-- **HANDOFF** for a new independent workstream, a host or operator change, session end, or
-  recovery after failed compaction or repeated context mistakes. Checkpoint the in-flight step at
+- **HANDOFF** only to start new work, or to move to a clean session that loads updated code-ops
+  plugins or contracts. A host change, a failed compaction, or repeated context mistakes also need
+  one. A long session keeps its agents and peers reachable, so the operator never repeats context.
+  Checkpoint the in-flight step at
   a consistent boundary and account for live agents, background processes, and dirty work; a
   handoff neither stops them nor proves reattachment.
 
@@ -90,6 +92,7 @@ quality and transfer triggers in the HANDOFF bullet select HANDOFF at any size. 
 band forces an assessment, not a handoff. The 300,000-token ceiling forces an assessment on a
 session that chose CONTINUE and overran. Keep `TASKS.md` and `RUN_LOG.md` current before any
 compaction. After one, the routing card lists the open `TASKS.md` lines for the session.
+It also lists under `Pending agents:` each background agent the session launched that has not reported.
 
 On Grok the line is 200,000, because Grok 4.7 bills double above it: assess at 150,000, and hand
 off by 200,000. Only Grok has a handoff point and a `Continue-until:` bound. An assessment that
@@ -120,7 +123,9 @@ It fills every mechanical fact: `Verified-at`, branch, dirty paths, the `base..H
 items from the unchecked `TASKS.md` lines, each artifact stamped `Verified-at`, and the contract
 and receipt paths. It takes the predecessor from the run's `SESSION.json` and fills `Session:` and
 `Hop:`. It refuses a folder that holds `HANDOFF.consumed` or belongs to another session, so a
-resumed session writes into its own successor run folder. It carries the predecessor's decisions,
+resumed session writes into its own successor run folder. It also refuses while an agent this
+session launched has not reported: wait for it, or pass `--pending-agents-ok` to record it under
+In-flight boundaries. It carries the predecessor's decisions,
 traps, and carried-context bullets as `[FILL: confirm still true]` lines: keep each one that still
 holds and delete the rest. Replace each `[FILL: ...]` placeholder with judgment, held to `§9`:
 - **Program:** added first, above Goal, because it points at the context every other section sits

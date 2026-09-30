@@ -21,12 +21,17 @@
 // summary cannot send the session back to a handoff it already resumed. When the record names a run
 // folder, the card also lists that folder's unchecked TASKS.md lines (at most 12, 80 characters
 // each), so host auto-compaction, the default context relief on Claude and Codex, loses no open item.
+// It also lists the agents the agent ledger (`../scripts/agent-ledger.mjs`) shows this session
+// launched and never saw report, as a `Pending agents:` block (at most 8 lines of 80 characters,
+// with a shown-of-total count), so a compaction does not forget a running background agent. The
+// block is omitted when `CODE_OPS_AGENT_LEDGER` is `off`, `0`, or `false`, and any error prints nothing.
 //
 //   node hooks/routing-card.mjs
 
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { join, relative, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // A handoff older than this is history rather than pending state: the tree has moved too far for
 // its claims to be worth a resumed session's verification pass.
@@ -127,6 +132,25 @@ function openItemLines(cwd, runDir) {
   return [`open items in ${runDir}/TASKS.md (${shown.length} of ${open.length} shown):`, ...shown];
 }
 
+// The agents this session launched that never reported, from the agent ledger, so a background
+// agent is not forgotten across compaction. The ledger module loads only here, on the compact
+// path. The block stays bounded: a header with the shown-of-total count, then at most
+// PENDING_SHOWN lines cut to PENDING_CHARS. The off switch, no session id, or any failure is no lines.
+const PENDING_SHOWN = 8;
+const PENDING_CHARS = 80;
+async function pendingAgentLines(sessionId) {
+  if (!sessionId || /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return [];
+  try {
+    const lib = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'agent-ledger.mjs');
+    const { pendingAgents, formatLine } = await import(pathToFileURL(lib).href);
+    const list = pendingAgents({ sessionId });
+    if (!list.length) return [];
+    const shown = list.slice(0, PENDING_SHOWN);
+    return [`Pending agents: (${shown.length} of ${list.length} shown)`,
+      ...shown.map((a) => formatLine(a).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, PENDING_CHARS))];
+  } catch { return []; }
+}
+
 // Only Claude Code names the operator's shell to the model, so every other host gets the shell
 // line. CODE_OPS_OPERATOR_SHELL overrides the platform default. On Windows the lead's own bash
 // calls also get the quoting-trap line.
@@ -144,7 +168,7 @@ function shellLines() {
   return lines;
 }
 
-function main() {
+async function main() {
   if (process.env.GROK_PLUGIN_ROOT) return 0;
   let raw = '';
   try { raw = readFileSync(0, 'utf8').replace(/^\uFEFF/, ''); } catch { /* no stdin */ }
@@ -186,6 +210,7 @@ function main() {
       lines.push(`compaction resume: this session is ${record.name}, run folder ${record.runDir}; ${resumed}; reload ${record.runDir}/TASKS.md and RUN_LOG.md, then continue`);
       lines.push(...openItemLines(cwd, record.runDir));
     }
+    lines.push(...await pendingAgentLines(sessionId));
   } else if ((payload?.source === 'startup' || payload?.source === 'clear')
     && !/^(off|0|false)$/i.test(process.env.CODE_OPS_HANDOFF_PICKUP ?? '')) {
     const pending = pendingHandoffs(cwd);
@@ -197,8 +222,4 @@ function main() {
   return 0;
 }
 
-try {
-  process.exit(main());
-} catch {
-  process.exit(0);
-}
+main().then((code) => process.exit(code), () => process.exit(0));

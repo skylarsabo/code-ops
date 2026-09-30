@@ -788,6 +788,17 @@ disposition, and each Request history entry except the first and the last ten, v
 stays in the ledger. The command exits 1 when the ledger is still over 32 KB. Evidence:
 `scripts/handoff-state.mjs` and `evals/handoff-state/run.mjs`.
 
+`co handoff draft` reads the agent ledger for the drafting session and refuses with exit 1 while any
+agent is still `dispatched`. It prints `<agent_id> <agent_type> <age> <description>` for each agent
+and names two ways out: wait, or pass `--pending-agents-ok`. With the flag, draft writes each agent
+as a `Pending agent:` line under In-flight boundaries. It matches the session id, the SESSION.json
+`sessionId`, and `hostSessionId`. When none is known, it matches by the repository root and says so.
+`CODE_OPS_AGENT_LEDGER=off|0|false` skips the check. After a compaction, the SessionStart routing
+card adds a `Pending agents: (<shown> of <total> shown)` block for the payload `session_id`, at most
+8 lines of 80 characters. The block fails open and honours the same switch. Evidence:
+`scripts/handoff-state.mjs`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
+`evals/handoff-state/run.mjs`, and `evals/handoff-card/run.mjs`.
+
 One status line never gates. `co handoff draft` records each dirty path with a sha256 prefix:
 `- Dirty: \`<porcelain line>\` · sha256:<16 hex>`, or `· none` for a path since deleted. The check
 reads `git status --porcelain --untracked-files=all`, excluding the handoff file and the

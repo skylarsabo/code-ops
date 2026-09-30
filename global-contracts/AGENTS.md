@@ -42,8 +42,9 @@ each brief, and keep breadth agents at their declared tier. Assess a lead sessio
 tokens of context. On Claude and Codex, host auto-compaction is the context relief, not a
 handoff. On Claude, set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended). Keep
 `TASKS.md` and `RUN_LOG.md` current before a compaction, so it loses nothing. Hand off only
-for a new independent workstream, a host or operator change, session end, or a quality
-failure such as repeated correction or a failed compaction. On Grok, hand off before 200,000
+to start new work, or to move to a clean session that loads updated code-ops plugins or
+contracts. A host change or a failed compaction also needs one. A long session keeps its
+agents and peers reachable, so the operator never repeats context. On Grok, hand off before 200,000
 tokens, because Grok bills double above that line. A unit too small to repay an operative's
 startup context stays inline, with the reason recorded. Past 300,000
 tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;
@@ -132,7 +133,9 @@ When the host compacts this session, keep these items in the summary:
 - The operator's requests and constraints, verbatim.
 - The run folder path.
 - Each active open-item id with its owner and done-when check.
-- Each running background agent and the report it owes.
+- Each running background agent with its id, type, and the report it owes, so it stays reachable.
+- Each peer session by name, the last message sent or received, and any reply owed.
+- Each authority grant, verbatim, with its scope.
 - Each decision with the options rejected.
 - Each in-flight `file:line` boundary.
 

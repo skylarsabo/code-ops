@@ -49,6 +49,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { recordFromPayload } from '../../scripts/agent-ledger.mjs';
 import { handoffMarkerPath, handoffPeakBand, residentContext, residentContextReading } from '../../scripts/transcript-lib.mjs';
 import { tally } from '../harness.mjs';
 
@@ -260,7 +262,7 @@ function parseOut(r) {
   expect(/handoff assess/.test(m2) && /to choose CONTINUE or COMPACT before starting a new workstream/.test(m2), `band 2 must request the CONTINUE or COMPACT assessment before a new workstream, got ${m2}`);
   for (const m of [m1, m2]) {
     expect(/Host auto-compaction is the context relief, so bring TASKS\.md and RUN_LOG\.md current first\./.test(m), `a Claude or Codex card must name auto-compaction and the durable files, got ${m}`);
-    expect(/Hand off only for a new independent workstream, a host or operator change, session end, or a quality failure\./.test(m), `a Claude or Codex card must name the handoff triggers, got ${m}`);
+    expect(/Hand off only to start new work, to load updated code-ops plugins in a clean session, or after a host change or failed compaction\./.test(m), `a Claude or Codex card must name the handoff triggers, got ${m}`);
     expect(!/hand off (now|at the next|by)|handoff point|write the handoff|Continue-until/i.test(m), `a Claude or Codex card must never say to hand off on token count, got ${m}`);
   }
   expect(!/handoff now|declined|every turn re-reads all|full price/i.test(`${m1} ${m2}`), `the advisory must not assert the old handoff or cost claims, got ${m1} / ${m2}`);
@@ -273,7 +275,7 @@ function parseOut(r) {
   expect(SETTING.test(withEnv('sess-env-project', { CLAUDE_PROJECT_DIR: '/fixture' })), 'CLAUDE_PROJECT_DIR must also mark a Claude host');
   expect(!SETTING.test(withEnv('sess-env-set', { CLAUDECODE: '1', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '250000' })), 'Claude with the window set must get no setting line');
   expect(!SETTING.test(m1), 'a host that is not Claude (Codex) must get no setting line');
-  expect(/to choose CONTINUE or COMPACT\..*Hand off only for.*CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset/.test(withEnv('sess-env-order', { CLAUDECODE: '1' })), 'the setting line must follow the assessment advice in the same card');
+  expect(/to choose CONTINUE or COMPACT\..*Hand off only to.*CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset/.test(withEnv('sess-env-order', { CLAUDECODE: '1' })), 'the setting line must follow the assessment advice in the same card');
 
   // Grok keeps the three-way assessment and never gets the Claude setting line.
   const grokBand = (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(160_000), 'grok-band-updates.jsonl'), sessionId: 'sess-band-grok', eventName: 'PostToolUse' }), { home, grok: true, env: { CLAUDECODE: '1' } })) || {}).hookSpecificOutput?.additionalContext || '';
@@ -699,6 +701,41 @@ function grokUsageLine(inputTokens) {
   writeFileSync(recordFile, '{not json');
   const broken = compactRun({ ...startup, session_id: sid });
   expect(broken.status === 0 && broken.stdout.includes('stays consumed; never resume it again'), 'a malformed record must fail open to the generic compact lines');
+  // Pending agents: after compaction the card lists the agents this session launched and never saw
+  // report, from the agent ledger, at most 8 lines of 80 characters with a shown-of-total count.
+  const ledgerDir = join(home, '.claude', 'code-ops', 'agents');
+  const ledgerEnv = { CODE_OPS_HOME: home, CODE_OPS_AGENT_LEDGER: '' };
+  const launched = (session, id, description = 'Build the ledger') => recordFromPayload({
+    hook_event_name: 'PostToolUse', session_id: session, cwd: project, tool_name: 'Agent',
+    tool_input: { subagent_type: 'code-ops-suite:implementer', description, prompt: 'p', run_in_background: true },
+    tool_response: { status: 'async_launched', agentId: id },
+  }, { stateDir: ledgerDir });
+  const pendingBlock = (r) => {
+    const lines = (r.stdout || '').split('\n');
+    const at = lines.findIndex((l) => l.startsWith('Pending agents:'));
+    return at < 0 ? null : { head: lines[at], rows: lines.slice(at + 1).filter((l) => /^pa\d/.test(l)) };
+  };
+  const compactWith = (payload, extraEnv = {}) => runCard({ ...payload, source: 'compact' }, { home, extraEnv: { ...ledgerEnv, ...extraEnv } });
+  expect(pendingBlock(compactWith({ ...startup, session_id: sid })) === null, 'a session with no launches must print no Pending agents block');
+  launched(sid, 'pa0001');
+  launched(sid, 'pa0002', 'Write the eval');
+  launched('other-session', 'pa0003');
+  recordFromPayload({ hook_event_name: 'SubagentStop', session_id: sid, cwd: project, agent_id: 'pa0002', agent_type: 'code-ops-suite:implementer' }, { stateDir: ledgerDir });
+  const one = pendingBlock(compactWith({ ...startup, session_id: sid }));
+  expect(one && one.head === 'Pending agents: (1 of 1 shown)' && one.rows.length === 1 && /^pa0001 code-ops-suite:implementer <1m Build the ledger$/.test(one.rows[0]),
+    `the compact card must list only this session's unreported agent, got ${JSON.stringify(one)}`);
+  for (let n = 4; n <= 12; n += 1) launched(sid, `pa${String(n).padStart(4, '0')}`, `Long description ${'y'.repeat(70)}`);
+  const capped = pendingBlock(compactWith({ ...startup, session_id: sid }));
+  expect(capped && capped.head === 'Pending agents: (8 of 10 shown)' && capped.rows.length === 8 && capped.rows.every((l) => l.length <= 80) && capped.rows[0].length === 80,
+    `the compact card must cap the block at 8 lines of 80 characters with the shown-of-total count, got ${JSON.stringify(capped)}`);
+  for (const value of ['0', 'off', 'FALSE']) {
+    expect(pendingBlock(compactWith({ ...startup, session_id: sid }, { CODE_OPS_AGENT_LEDGER: value })) === null, `CODE_OPS_AGENT_LEDGER=${value} must omit the Pending agents block`);
+  }
+  expect(pendingBlock(runCard({ ...startup, session_id: sid }, { home, extraEnv: ledgerEnv })) === null, 'a startup card must not print the Pending agents block');
+  expect(pendingBlock(compactWith({ ...startup })) === null, 'a compact payload with no session id must print no Pending agents block');
+  writeFileSync(join(ledgerDir, `${createHash('sha256').update(sid).digest('hex')}.jsonl`), '{not json\n');
+  const torn = compactWith({ ...startup, session_id: sid });
+  expect(torn.status === 0 && pendingBlock(torn) === null && /compaction resume:/.test(torn.stdout), 'a torn ledger file must fail open with no block');
   rmSync(home, { recursive: true, force: true });
 
   // Operator shell (O1), the win32 quoting trap (O3), and the brief-template pointer (U1). The shell
