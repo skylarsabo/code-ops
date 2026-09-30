@@ -3,13 +3,16 @@
 //
 // Each case builds on a fixture repository: a manifest v2 hub that conforms to the docs manifest and
 // the vault standard, so any violation a case sees is the one the case put there. The cases pin:
-//   - the step order the gate prints, with steps 4, 6, and 7 named as not run;
+//   - the step order the gate prints, with steps 4 and 7 named as not run and step 6 named as run;
 //   - a v2 repository passing, and a repository with no manifest exiting 0 with a skip line;
 //   - the ratchet: no baseline fails and names --baseline-init, init writes sorted lines, a
 //     baselined violation passes, a new violation fails, a second init refuses (the baseline never
 //     grows), a fixed line is removed at the next run, and --check never writes;
 //   - a tracked grammar 2 ledger failing check 11 blocks, and an untracked ledger with a promoted
 //     id only warns UNLANDED;
+//   - step 6, legacy-path guards: an invalid FORWARDING.json fails, a tracked file that names a
+//     forwarded `from` path fails, history files that name it pass, and a removed root that still
+//     exists on disk is reported once, by step 1;
 //   - `co docs gate` reaching the same script, and integrate-branch reading the manifest version.
 //
 // The stub guard: the suite runs against the real gate and then against two stub gates, one that
@@ -47,25 +50,31 @@ const put = (repo, rel, text) => {
 };
 const note = (title) => `---\ntype: note\nstatus: current\nupdated: 2026-09-29\n---\n\n# ${title}\n`;
 
-// A manifest v2 hub that passes the docs manifest and the vault standard.
-function buildRepo(name) {
+// A manifest hub that passes the docs manifest and the vault standard. Version 3 adds what a
+// `removed` legacy root needs: the drafts block, standard 5, and the rendered vault surfaces.
+function buildRepo(name, version = 2) {
   const repo = join(work, name);
   mkdirSync(repo, { recursive: true });
   git(repo, 'init', '--quiet', '-b', 'main');
   put(repo, '.gitignore', `${HUB}/80 Runs/\n`);
   put(repo, 'src/main.txt', 'source\n');
-  put(repo, `${HUB}/Standard.md`, '---\ntype: standard\nstatus: current\nupdated: 2026-09-29\nstandard-version: 4\n---\n\n# Standard\n');
+  put(repo, `${HUB}/Standard.md`, `---\ntype: standard\nstatus: current\nupdated: 2026-09-29\nstandard-version: ${version === 3 ? 5 : 4}\n---\n\n# Standard\n`);
   put(repo, `${HUB}/00 Home.md`, note('Home'));
   put(repo, `${HUB}/README.md`, '# Fixture hub\n');
   for (const dir of ['00 Inbox', '90 Templates', '95 Attachments', '99 Archive']) put(repo, `${HUB}/${dir}/.gitkeep`, '');
   const required = ['architecture', 'contracts', 'data-model', 'engineering-standards', 'api-reference', 'ci-delivery', 'infrastructure', 'observability', 'design-system', 'guides', 'atlas'];
   for (const id of required) put(repo, `${HUB}/40 Engineering/${id}.md`, note(id));
+  const v3 = version === 3 ? { runs: { tracking: 'ignored', retain: [] }, drafts: { maxAgeDays: 30, statuses: ['draft', 'current', 'superseded'] }, state: {} } : { runs: { tracking: 'ignored' } };
   put(repo, `${HUB}/98 System/DOCS_MANIFEST.json`, `${JSON.stringify({
-    version: 2, hub: HUB, runs: { tracking: 'ignored' }, recordCollections: [], legacyPaths: [],
+    version, hub: HUB, ...v3, recordCollections: [], legacyPaths: [],
     domains: required.map((id) => ({ id, path: `40 Engineering/${id}.md`, status: 'current', sources: ['src/**'], sourceDigest: '', contentDigest: '' })),
   }, null, 2)}\n`);
   git(repo, 'add', '-A');
   git(repo, 'commit', '-qm', 'seed');
+  if (version === 3) {
+    const render = node([join(SCRIPTS, 'check-vault-standard.mjs'), join(repo, HUB), '--render'], repo);
+    if (render.status !== 0) throw new Error(`fixture vault render failed: ${render.out}${render.err}`);
+  }
   const sync = node([join(SCRIPTS, 'docs-manifest.mjs'), 'sync', '--root', repo], repo);
   if (sync.status !== 0) throw new Error(`fixture manifest sync failed: ${sync.out}${sync.err}`);
   git(repo, 'add', '-A');
@@ -92,7 +101,7 @@ function suite(gate, tag) {
   test('a v2 repository passes', r.status === 0 && /docs gate: PASS/.test(r.out));
   const steps = [...r.out.matchAll(/^ {2}(\d) (.+)$/gm)];
   test('step order: 1 to 8 in order', steps.map((m) => m[1]).join('') === '12345678');
-  test('steps 4, 6, and 7 are named as not run', /^ {2}4 .*not implemented/m.test(r.out) && /^ {2}6 .*skipped/m.test(r.out) && /^ {2}7 .*skipped/m.test(r.out));
+  test('steps 4 and 7 are named as not run and step 6 as run', /^ {2}4 .*not implemented/m.test(r.out) && /^ {2}6 legacy-path guards: ok \(no relocated paths\)$/m.test(r.out) && /^ {2}7 .*skipped/m.test(r.out));
 
   const bare = join(work, `${tag}-bare`);
   mkdirSync(bare, { recursive: true });
@@ -155,6 +164,35 @@ function suite(gate, tag) {
   test('an untracked ledger with a promoted id only warns UNLANDED', r.status === 0
     && /warning: UNLANDED beta DEC-1 promoted:rec-missing/.test(r.out) && /warning: UNLANDED gamma DEC-1 promoted:rec-staged .*staged/.test(r.out));
   test('an untracked ledger gets no check but 14', r.status === 0 && /UNLANDED beta/.test(r.out) && !/check 11/.test(r.out + r.err) && !/step 8/.test(r.err));
+
+  // Step 6. The fixture baseline is empty here, so every violation below fails the gate.
+  const forwardFile = `${HUB}/98 System/FORWARDING.json`;
+  put(repo, forwardFile, '{"version":2,"forwards":[]}\n');
+  r = gateRun();
+  test('step 6 fails on an invalid FORWARDING.json', r.status === 1 && /step 6: FORWARDING\.json is invalid/.test(r.err));
+  put(repo, forwardFile, `${JSON.stringify({ version: 1, forwards: [{ from: 'old/area', to: `${HUB}/40 Engineering/guides.md`, movedAt: '2026-09-30', reason: 'relocate fixture' }] })}\n`);
+  put(repo, 'runs/programs/alpha/HANDOFF.md', `${HANDOFF}\nRead old/area/x.md first.\n`);
+  put(repo, `${HUB}/99 Archive/Old.md`, `${note('Old')}\nSee old/area/x.md.\n`);
+  git(repo, 'add', '-A');
+  r = gateRun();
+  test('history files that name a forwarded path pass step 6', r.status === 0 && /^ {2}6 legacy-path guards: ok \(1 relocated path\(s\)\)$/m.test(r.out) && !/step 6/.test(r.err));
+  put(repo, 'notes/plan.md', 'The area moved from old/area/x.md.\n');
+  git(repo, 'add', 'notes');
+  r = gateRun();
+  test('a tracked file that names a forwarded path fails step 6 with a line-free key', r.status === 1 && /step 6: notes\/plan\.md references relocated path old\/area$/m.test(r.err) && !/step 6: (runs\/|project-docs\/)/.test(r.err));
+
+  rmSync(join(repo, 'notes'), { recursive: true, force: true }); // The facade case reuses this fixture and expects a passing gate.
+
+  // A removed legacy root needs a version 3 manifest. Step 1 reports the leftover, so step 6 stays quiet.
+  const repo3 = buildRepo(`${tag}-v3-repo`, 3);
+  const manifestFile = join(repo3, HUB, '98 System', 'DOCS_MANIFEST.json');
+  const manifest3 = JSON.parse(readFileSync(manifestFile, 'utf8'));
+  manifest3.legacyPaths = [{ path: 'old/gone', disposition: 'removed', requiredBy: [{ kind: 'external', ref: 'relocate fixture' }] }];
+  writeFileSync(manifestFile, `${JSON.stringify(manifest3, null, 2)}\n`);
+  put(repo3, 'old/gone/back.md', '# back\n');
+  r = gateRun([], repo3);
+  test('a removed root on disk is reported once, by step 1, and step 6 does not repeat it',
+    r.status === 1 && /step 1: .*is removed but still exists on disk/.test(r.err) && !/step 6: removed legacy root/.test(r.err) && /^ {2}6 legacy-path guards: ok \(1 relocated path\(s\)\)$/m.test(r.out));
   return results;
 }
 

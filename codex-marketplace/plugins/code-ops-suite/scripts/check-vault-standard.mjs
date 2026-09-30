@@ -241,6 +241,8 @@ const ignored = gitIgnored(vault);
 const rel = (p) => p.slice(vault.length + 1).replaceAll('\\', '/');
 const manifestOwned = new Set();
 const generatedRecords = new Set();
+// Hub-relative folders of the manifest record collections whose root sits inside this hub.
+const recordRoots = new Set();
 let docsManifestVersion = null;
 // Manifest v3 declares draft statuses in `drafts.statuses`, which replaces the profile prose.
 let manifestStatuses = null;
@@ -259,6 +261,15 @@ if (existsSync(docsManifestPath)) {
       if (!Array.isArray(docsManifest.recordCollections)) fail(`manifest version ${docsManifest.version} has no recordCollections array`);
       for (const collection of docsManifest.recordCollections || []) for (const key of ['inventory', 'citations', 'curationLedger', 'index']) {
         if (typeof collection?.[key] === 'string' && collection[key].startsWith('98 System/Records/')) generatedRecords.add(collection[key].replaceAll('\\', '/'));
+      }
+      // A collection root is repo-relative. One that a relocation moved into the hub holds record
+      // bytes, which are immutable and hash-chained, so they cannot gain note frontmatter. Only a
+      // strict subfolder of the hub with plain segments counts: a root of the hub itself, `.`, or
+      // `..` would exempt notes it does not own.
+      for (const collection of docsManifest.recordCollections || []) {
+        const root = typeof collection?.root === 'string' ? collection.root.replaceAll('\\', '/').replace(/\/$/, '') : '';
+        const inside = root.startsWith(`${basename(vault)}/`) ? root.slice(basename(vault).length + 1) : '';
+        if (inside && inside.split('/').every((part) => part && part !== '.' && part !== '..')) recordRoots.add(inside);
       }
     }
     if (docsManifest.version === 3) {
@@ -359,6 +370,7 @@ for (const abs of walked) {
   if (name === 'README.md' && rel(abs) === 'README.md') continue;
   const notePath = rel(abs);
   if (generatedRecords.has(notePath)) continue;
+  if ([...recordRoots].some((root) => notePath.startsWith(`${root}/`))) continue;
   if ([...manifestOwned].some((owned) => notePath === owned || notePath.startsWith(`${owned}/`))) continue;
   // Canonical suite artifact, parsed by other tools: named in the list, or all-caps with an
   // underscore. `README.md` is already past, and no other bare stem reaches either arm.

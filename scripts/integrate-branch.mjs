@@ -13,8 +13,10 @@
 //      double-bumps.
 //   2. Regenerate the host distributions: build-codex-marketplace.mjs and build-opencode-dist.mjs
 //      in write mode.
-//   3. Documentation manifest: docs-manifest.mjs sync, then check, then `docs-gate.mjs --check`
-//      when the manifest is version 3. The gate never writes its baseline and never seals.
+//   3. Documentation manifest: first `docs-relocate.mjs forward --base <ref>` when the manifest is
+//      version 3, names a `removed` legacy root, and FORWARDING.json exists (no other repository sees
+//      it); then docs-manifest.mjs sync, then check, then `docs-gate.mjs --check` when the manifest
+//      is version 3. The gate never writes its baseline and never seals.
 //   4. Atlas freshness for this repo's own atlas (read-only). A stale section is a pending
 //      judgment item - this script prints the section and the stamp command and never stamps it;
 //      only a human (or an agent that has actually re-verified the prose) should run that.
@@ -236,12 +238,36 @@ function runBuildStep(log) {
   return a.ok && b.ok;
 }
 
-function runDocsStep(log) {
+function runDocsStep(log, base) {
+  const forward = runRelocateForwardStep(log, base);
   const script = join(ROOT, 'scripts', 'docs-manifest.mjs');
   const a = runNode([script, 'sync'], { label: 'docs-manifest.mjs sync', log });
   const b = runNode([script, 'check'], { label: 'docs-manifest.mjs check', log });
   const c = runDocsGateStep(log);
-  return a.ok && b.ok && c;
+  return forward && a.ok && b.ok && c;
+}
+
+// A wave that removed a legacy root leaves a branch cut before it holding old paths. Forward
+// repairs them through FORWARDING.json (docs-relocate.mjs forward). The step applies only when the
+// manifest is version 3, names a `removed` legacy root, and FORWARDING.json exists, so a
+// repository that has run no wave sees no change: no output and no process beyond the manifest read.
+export function relocateForwardApplies(root) {
+  const hub = hubOf(root);
+  if (hub === null) return false;
+  try {
+    const manifest = JSON.parse(readFileSync(join(root, hub, '98 System', 'DOCS_MANIFEST.json'), 'utf8'));
+    return manifest.version === 3 && Array.isArray(manifest.legacyPaths) && manifest.legacyPaths.some((entry) => entry?.disposition === 'removed')
+      && existsSync(join(root, hub, '98 System', 'FORWARDING.json'));
+  } catch { return false; }
+}
+function runRelocateForwardStep(log, base) {
+  const script = join(ROOT, 'scripts', 'docs-relocate.mjs');
+  if (!relocateForwardApplies(ROOT)) return true;
+  if (!existsSync(script)) {
+    log('  FAIL docs-relocate.mjs forward (docs-relocate.mjs is not bundled here)');
+    return false;
+  }
+  return runNode([script, 'forward', '--base', base], { label: 'docs-relocate.mjs forward', log }).ok;
 }
 
 // The docs gate joins the step only where the repository opted in with a v3 manifest. It runs
@@ -576,7 +602,7 @@ async function main() {
   if (!runBuildStep((l) => console.log(l))) anyFailed = true;
 
   console.log('\n== step 3: documentation manifest ==');
-  if (!runDocsStep((l) => console.log(l))) anyFailed = true;
+  if (!runDocsStep((l) => console.log(l), base)) anyFailed = true;
 
   console.log('\n== step 4: atlas freshness ==');
   const atlas = runAtlasStep((l) => console.log(l));
