@@ -136,8 +136,8 @@ Claude and Codex instead receive a durable-state restore instruction on `Session
 source=compact`; this runs after compaction and does not alter the summary that was already
 produced. When the session record names a run folder, that restore also lists the folder's
 unchecked `TASKS.md` lines (id and first 80 characters, at most 12). On Claude and Codex, host
-auto-compaction is the routine context relief (DEC-73), and a handoff is for a new independent
-workstream, a host or operator change, session end, or a quality failure. Claude Code compacts
+auto-compaction is the routine context relief (DEC-73), and a handoff is only for new work, a
+clean session that loads updated code-ops plugins, a host change, or a failed compaction (DEC-76). Claude Code compacts
 itself near the size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (a token count, 250000 recommended),
 which the operator sets in the `env` block of user settings; the handoff card names it while it is
 unset. Claude documents `/compact [focus]`; Codex CLI and desktop document `/compact`. Detect

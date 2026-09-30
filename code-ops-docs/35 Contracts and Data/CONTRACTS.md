@@ -673,8 +673,8 @@ receipt, or cost proof. It directs the lead to run `handoff assess` at a safe bo
 CONTINUE or COMPACT on Claude and Codex, or CONTINUE, COMPACT, or HANDOFF on Grok; a higher band asks
 for that assessment before a new workstream. On Claude and Codex (DEC-73) the card names host
 auto-compaction as the context relief, asks for current `TASKS.md` and `RUN_LOG.md` first, and says
-to hand off only for a new independent workstream, a host or operator change, session end, or a
-quality failure. It never says to hand off on a token count. On Claude, when
+to hand off only to start new work, to load updated code-ops plugins in a clean session, or after a
+host change or failed compaction (DEC-76). It never says to hand off on a token count. On Claude, when
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line naming that setting (250000
 recommended); a Codex or Grok card never carries it.
 At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated

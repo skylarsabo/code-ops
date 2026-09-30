@@ -351,7 +351,7 @@ The operator concern of 2026-09-30 is that auto-compaction may drop extremely im
 
 The snapshot lands in the run folder and is gitignored with the rest of `80 Runs`. The script fails open: if it cannot read the transcript, it still writes the other three parts and says what was missing.
 
-**Layer 2, re-injection.** The SessionStart `source=compact` branch in `routing-card.mjs` already restores run state. F1 adds `openItemLines()`, which prints at most 12 lines of 80 characters from `TASKS.md`. The compact branch then gains two things: it names the snapshot path, and it prints the pending workers. After a compaction the lead can name every item, constraint, and worker from the card and the snapshot alone.
+**Layer 2, re-injection.** The SessionStart `source=compact` branch in `routing-card.mjs` restores run state only when a session record exists; in this session none did, and the card printed no run state (see the next section). F1 adds `openItemLines()`, which prints at most 12 lines of 80 characters from `TASKS.md`. The compact branch then gains two things: it names the snapshot path, and it prints the pending workers. After a compaction the lead can name every item, constraint, and worker from the card and the snapshot alone.
 
 **Layer 3, steering.** F1 adds a Compact Instructions section to the user-wide contract. The steering source is the documented one: a section in `CLAUDE.md` or `/compact <focus>` (`autocompact-controls.md`). `CLAUDE_CODE_AUTO_COMPACT_WINDOW=250000` sets the trigger. The desktop app honors the variable (`RUN_LOG.md:34`). No programmatic trigger exists.
 
@@ -365,43 +365,56 @@ The snapshot lands in the run folder and is gitignored with the rest of `80 Runs
 
 Two points stay open. OI-51 asks for a transcript that shows a compact boundary near 250k, and the operator owns it. The log records the observation but does not attach that boundary. The result also has to reach `MEASUREMENTS.md` with the F1 PR, which has not happened.
 
-**Pre-registered check for the snapshot.** At the first compaction after OI-56 lands, the post-compaction lead must name each active item, each operator constraint verbatim, and each running worker with its agent id. It must do so without reading any file beyond the snapshot and the card. A miss on any of the three fails the check and reopens OI-56. The eval `compact-fidelity` runs the same check on a fixture transcript with a known set of operator messages, items, and workers.
+**Pre-registered check for the snapshot.** At the first compaction after OI-56 lands, the post-compaction lead must name each active item, each operator constraint verbatim, and each running worker with its agent id. It must do so without reading any file beyond the card, the snapshot, and the `RUN_LOG.md` `Next:` line. The next section widens the check to grants, running work, and peers. A miss on any of the three fails the check and reopens OI-56. The eval `compact-fidelity` runs the same check on a fixture transcript with a known set of operator messages, items, and workers.
 
 ## Compaction snapshot and message threads
 
-Added 2026-09-30 under DEC-76. A handoff is now only for new work or a clean session that loads code-ops changes, so one session runs long and compacts many times. The operator must be able to keep talking to the same workers and peers without repeating context. This section designs OI-56 and OI-64 as one PR.
+Added 2026-09-30 under DEC-76 and revised the same day from two measured reviews of this session's own transcript, which compacted twice (`reports/snapshot-overinclusion.md`, `reports/snapshot-gaps.md`). A handoff is now only for new work or a clean session that loads code-ops changes, so one session runs long and compacts many times. The operator must keep talking to the same workers and peers without repeating anything. This section designs OI-56 and OI-64 as one PR.
 
-**Source of truth.** The host transcript already holds every fact the snapshot needs, and compaction does not delete it. Observed in a live Claude transcript on 2026-09-30:
+**What the evidence showed.** The design goal is the right context, not more context.
 
-- Operator prompts and inbound peer messages arrive as `queue-operation` records with `operation: "enqueue"`. A peer message is wrapped as `<cross-session-message from=... from-session=... from-name=...>`.
-- An outbound message is an assistant `tool_use` named `SendMessage` with `to`, `summary`, and `message`. Its result carries `success` and `pin: { id, name }`.
-- A background agent launch result carries `status: "async_launched"` and `agentId`.
+- Operator messages are small: 14 messages, about 570 tokens for a full day. Task notifications were 97% of the enqueue payload, and the invoked skill body was 4,858 tokens. Those are the noise, not the operator's words.
+- The same open items were restored three times: the card, the snapshot, and an instruction to reload `TASKS.md` and `RUN_LOG.md` (about 3.7k tokens).
+- The real losses were elsewhere. One authority grant arrived as an `AskUserQuestion` answer, not a prompt. After the second boundary the lead spent about 3k tokens and 3.5 minutes re-finding its in-flight `file:line` targets. It re-probed git state at both boundaries. A Workflow run, two background shell tasks, and a scheduled wakeup appeared in no ledger.
+- Both summaries were stale on agent state: one said agents were not yet dispatched when four were running, the other said an agent owed a report after it had delivered.
+- The compact card printed no run state in this session, because `sessionRecord()` (`routing-card.mjs:105`) found no session record and never reads the run folder's `SESSION.json`.
 
-The transcript format is a host internal, not a contract. The parser lives in one function and fails open, and an eval fixture pins the observed shapes.
+**Source of truth.** The host transcript already holds every fact the snapshot needs, and compaction does not delete it. `conversationOf(text)` in `scripts/transcript-lib.mjs` reads it. The transcript format is a host internal, so the parser lives in one function, fails open, and an eval fixture pins these observed shapes:
 
-**Threads are a view, not a store.** Decision 3 holds: no message ledger file. `conversationOf(text)` in `scripts/transcript-lib.mjs` folds a transcript into three lists and one view.
+- Operator prompts: `queue-operation` records with `operation: "enqueue"`, excluding task notifications, `isMeta` skill bodies, command wrappers, hook context, and system reminders. Deduplicate by text. A `/skill` invocation keeps only its `ARGUMENTS` line.
+- Operator answers: `AskUserQuestion` tool results, recorded as the question header and the chosen label. Grants arrive here too.
+- Peer messages: `<cross-session-message from-name=... from-session=...>` inside an enqueue record.
+- Outbound messages: a `SendMessage` tool use with `to`, `summary`, and `message`.
+- Long-running work: an async `Agent` result (`agentId`), a `Bash` call with `run_in_background` (its task id), a `Workflow` run id, and a `ScheduleWakeup` call. A `<task-notification>` with a `task-id` and `status` closes the matching entry.
 
-- Operator messages, verbatim, in order, excluding hook context, system reminders, task notifications, and peer messages.
-- Inbound peer messages: time, `from-name`, `from-session`, text.
-- Outbound messages: time, `to`, summary, resolved pin name, success.
-- Threads, keyed by peer: a session peer by name, a worker by agent id. A thread is `reply-owed` when its last inbound message is newer than its last outbound one, and `awaiting-reply` in the reverse case. A worker thread reads `awaiting-reply` until the agent ledger records its report.
+**Threads are a view, not a store.** Decision 3 holds: no message ledger file. A thread is one session peer, keyed by its full `from-session` id and named by `from-name`. It is `reply-owed` when the peer's last message is newer than the lead's last message to it, and otherwise `quiet`. There is no awaiting-reply state, because an acknowledgement expects no answer and would never clear. Workers are not threads: the running-work list covers them.
 
-**Snapshot.** `scripts/compact-snapshot.mjs` writes `COMPACT_SNAPSHOT.md` in the session's run folder, resolved the same way the compact restore resolves it. Each write replaces the file, because the transcript is cumulative. Sections, in order:
+**Snapshot.** `scripts/compact-snapshot.mjs` writes `COMPACT_SNAPSHOT.md` in the session's run folder, and each write replaces the file. The budget is 3,000 tokens (12,000 characters), about 14% of a post-compaction context, split as follows. Sections, in order:
 
-1. Operator messages, verbatim, all of them. Authority grants live here in the operator's words.
-2. Active items: the unchecked `TASKS.md` lines.
-3. Pending agents with id, type, age, and description, from `pendingAgents()`.
-4. Threads, `reply-owed` first, each with its peer, its last message summary, and its age.
+1. **Operator words** (1,200 tokens). Every operator prompt and answer, oldest first, each cut to 600 characters (head 400, tail 150, the omitted count, and the transcript line). Over budget, older messages become one-line stubs: the first 80 characters and the transcript line. Messages of 80 characters or fewer and every `AskUserQuestion` answer never become stubs, because short directives and answers carry the grants ("merge when green and keep going"). The selection uses age and length only, never keywords.
+2. **Running work** (500 tokens). Each launched entry with no closing notification: kind (agent, shell, workflow, wakeup), id, type, age, description, and report path. On Claude the transcript is the source. The agent ledger (`scripts/agent-ledger.mjs`) is the source on hosts without a readable transcript and across sessions. The ledger row gains `report_path`, parsed from the brief's `Report path:` line, and `worktree` when isolation is set.
+3. **Active items** (900 tokens). The unchecked `TASKS.md` lines, cut to 240 characters each and at most 16, keeping id, owner, and done-when.
+4. **Peers** (300 tokens). Reply-owed threads first, each with the peer name, the full session id, the last message cut to 200 characters, and its age. Quiet threads get one line each.
 
-Text passes through the existing redaction scanner's masking before it is written. The run folder is gitignored.
+Truncation order when over budget: stub older operator messages, then cut item lines, then drop quiet peers, then cut running-work descriptions. Ids, report paths, and reply-owed peers are never cut. Text passes through the redaction scanner's masking before it is written. The run folder is gitignored.
+
+**Not in the snapshot, on purpose.** Git state and the next step change after the snapshot is written, so the card reads them live. Decisions and rejected options already live in `PROGRAM.md` and `RUN_LOG.md`. The host re-attaches recently read files and invoked skill bodies by itself, so nothing depends on that.
 
 **Writers.**
 
 - A `PreCompact` hook, `hooks/compact-snapshot.mjs`, calls the script with the payload's `transcript_path` and `session_id`. It exits 0 on every path, never blocks compaction, and prints nothing, because the host ignores PreCompact stdout. `CODE_OPS_COMPACT_SNAPSHOT=0` turns it off.
 - `co snapshot` runs the same script by hand. It is the fallback on a host whose PreCompact payload is unverified or absent, and the lead runs it at each 150,000-token assessment there.
-- `co threads [--session <id>] [--json]` prints the thread view mid-session without writing anything.
+- `co threads [--session <id>] [--json]` prints the peer view and running work mid-session without writing anything.
 
-**Restore.** The SessionStart compact branch in `routing-card.mjs` adds two things. It adds a `Snapshot:` line naming the file, with a count of operator messages. It adds a `Threads:` block of at most 8 lines, `reply-owed` first. The card tells the lead to read the snapshot before acting, which is one bounded file read.
+**Restore.** The SessionStart compact card is the only automatic re-injection, and it prints only what the snapshot cannot hold or what is live:
+
+- **Run folder fallback.** When no session record exists, the card finds the run folder whose `SESSION.json` names the payload `session_id` or `hostSessionId`.
+- **One live git line.** Branch, short HEAD, the dirty-path count, and the worktree count.
+- **The latest `Next:` line from `RUN_LOG.md`.** The lead writes one at each assessment and phase boundary: the in-flight step, its next command, and the `file:line` it edits.
+- **A `Snapshot:` line.** When the snapshot is newer than the compaction, the line gives its path and counts (operator words, running work, active items, reply-owed peers) and states that the snapshot outranks the summary on running work and peers. When no fresh snapshot exists, as on hosts with an unverified writer, the card prints the item lines and pending agents instead, as it does today.
+- **Reply-owed peers**, at most 4 lines, even when the snapshot is fresh, because an unanswered peer is the costliest miss.
+
+The card stops telling the lead to reload `TASKS.md` and `RUN_LOG.md`. The lead reads the snapshot, one bounded file of at most 3,000 tokens. The Compact Instructions in the user-wide contract drop the verbatim-request bullet in favour of one line each, because the snapshot holds the words, and add the next command.
 
 **Host parity.**
 
@@ -412,12 +425,11 @@ Text passes through the existing redaction scanner's masking before it is writte
 | Grok | PreCompact hook, payload UNVERIFIED; fallback `co snapshot` | instruction files and the PostToolUse note |
 | OpenCode | `session.compacted` fires after compaction, too late; fallback `co snapshot` at assessment | lifecycle plugin port |
 
-**Handoff.** `handoff draft` warns and lists each `reply-owed` thread, because a new session cannot answer a message sent to the old one.
+**Handoff.** `handoff draft` warns and lists each reply-owed peer, because a new session cannot answer a message sent to the old one.
 
-**Evals.** `evals/compact-snapshot` uses synthetic transcripts that cover each record shape above, with noise records that must be excluded. It checks the snapshot sections, the thread states, the off switch, fail-open on a malformed line, and the restore block.
+**Evals.** `evals/compact-snapshot` uses synthetic transcripts that cover each record shape above. It includes the noise shapes that must be excluded: task notifications, `isMeta` bodies, and duplicate wrappers. It checks the section budgets and the truncation order, that an `AskUserQuestion` answer survives as an operator word, and that a running entry closes on its notification. It also checks the thread states, the off switch, fail-open on a malformed line, the run-folder fallback, and the fresh and stale card forms.
 
-**Verification.** The pre-registered check repeats at the first compaction after this PR lands. From the restore card and the snapshot alone, the lead must name every active item, every operator constraint verbatim, every running agent with its id, and every thread with a reply owed.
-
+**Verification.** The pre-registered check repeats at the first compaction after this PR lands. The lead may read the card, the snapshot, and the `RUN_LOG.md` `Next:` line, and nothing else. From those alone it must name every active item, every operator constraint and grant verbatim, every running entry with its id and report path, every reply-owed peer, and the next command. The check also counts re-reads in the first 30 tool calls after restore. Anything above zero for state the snapshot should hold reopens OI-56.
 
 ## Delivery
 
