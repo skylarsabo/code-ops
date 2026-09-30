@@ -50,7 +50,7 @@ import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { recordFromPayload } from '../../scripts/agent-ledger.mjs';
+import { markSessionEnded, recordFromPayload } from '../../scripts/agent-ledger.mjs';
 import { handoffMarkerPath, handoffPeakBand, residentContext, residentContextReading } from '../../scripts/transcript-lib.mjs';
 import { tally } from '../harness.mjs';
 
@@ -736,6 +736,97 @@ function grokUsageLine(inputTokens) {
   writeFileSync(join(ledgerDir, `${createHash('sha256').update(sid).digest('hex')}.jsonl`), '{not json\n');
   const torn = compactWith({ ...startup, session_id: sid });
   expect(torn.status === 0 && pendingBlock(torn) === null && /compaction resume:/.test(torn.stdout), 'a torn ledger file must fail open with no block');
+
+  // Run-folder fallback: with no home session record, the run folder whose SESSION.json names the
+  // payload session id in sessionId or hostSessionId supplies the open items; a miss adds nothing.
+  rmSync(recordFile, { force: true });
+  const runsHub = join(project, 'fixture-docs', '80 Runs');
+  const seedRun = (name, session, tasks) => {
+    const dir = join(runsHub, name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'SESSION.json'), JSON.stringify({ v: 1, hop: 0, predecessor: null, ...session }));
+    if (tasks) writeFileSync(join(dir, 'TASKS.md'), tasks);
+  };
+  seedRun('2026-09-26-fallback-run', { sessionId: 'co-session-fallback', hostSessionId: sid }, '- [x] OI-1 done\n- [ ] OI-2 fallback open item\n- [ ] OI-3 second open item\n');
+  seedRun('2026-09-27-other-run', { sessionId: 'co-session-other', hostSessionId: 'host-other' }, '- [ ] OI-9 belongs to another session\n');
+  const FALLBACK_HEAD = 'open items in fixture-docs/80 Runs/2026-09-26-fallback-run/TASKS.md (2 of 2 shown):';
+  const viaHost = compactWith({ ...startup, session_id: sid });
+  const viaHostLines = viaHost.stdout.split('\n');
+  const hostAt = viaHostLines.indexOf(FALLBACK_HEAD);
+  expect(viaHost.status === 0 && hostAt >= 0 && viaHostLines[hostAt + 1] === 'OI-2 fallback open item' && viaHostLines[hostAt + 2] === 'OI-3 second open item'
+    && !viaHost.stdout.includes('OI-9') && viaHost.stdout.includes('a handoff resumed earlier in this session stays consumed; never resume it again')
+    && !viaHost.stdout.includes('compaction resume: this session is'),
+  `a compaction with no record must list the open items of the run folder naming the host session id, got ${JSON.stringify(viaHost.stdout)}`);
+  expect(compactWith({ ...startup, session_id: 'co-session-fallback' }).stdout.split('\n').includes(FALLBACK_HEAD), 'a run folder naming the payload id in sessionId must also match');
+  const miss = compactWith({ ...startup, session_id: 'nobody-knows-this-session' });
+  expect(miss.status === 0 && !miss.stdout.includes('open items in ') && miss.stdout.includes('a handoff resumed earlier in this session stays consumed; never resume it again'),
+    `a session no run folder names must add no open-item lines, got ${JSON.stringify(miss.stdout)}`);
+  writeFileSync(join(runsHub, '2026-09-26-fallback-run', 'SESSION.json'), '{not json');
+  const brokenSession = compactWith({ ...startup, session_id: sid });
+  expect(brokenSession.status === 0 && !brokenSession.stdout.includes('open items in '), 'a malformed SESSION.json must fail open with no open-item lines');
+  writeFileSync(join(runsHub, '2026-09-26-fallback-run', 'SESSION.json'), JSON.stringify({ v: 1, sessionId: 'co-session-fallback', hostSessionId: sid }));
+  // The run folder's dispatch rows still `dispatched` join the Pending agents block, so a host
+  // without the ledger hook still lists them after compaction.
+  const fallbackLedger = join(runsHub, '2026-09-26-fallback-run', 'DISPATCH_LEDGER.md');
+  writeFileSync(fallbackLedger, ['| id | role | brief | expected artifact | status |', '| --- | --- | --- | --- | --- |',
+    '| D-007 | implementer@model-x | Dispatch only | d7.md | dispatched |', '| D-008 | implementer@model-x | Done | d8.md | reported |', ''].join('\n'));
+  const viaDispatch = compactWith({ ...startup, session_id: sid }).stdout.split('\n');
+  const dispatchAt = viaDispatch.indexOf('Pending agents: (1 of 1 shown)');
+  expect(dispatchAt >= 0 && /^D-007 implementer@model-x \S+ Dispatch only$/.test(viaDispatch[dispatchAt + 1]) && !viaDispatch.some((l) => l.startsWith('D-008 ')),
+    `a compaction must list the run folder's dispatched rows under Pending agents, got ${JSON.stringify(viaDispatch)}`);
+  rmSync(fallbackLedger, { force: true });
+  writeRecord({});
+  expect(!compactWith({ ...startup, session_id: sid }).stdout.includes('open items in fixture-docs/80 Runs/2026-09-26-fallback-run'),
+    'a home session record must win over the run-folder fallback');
+  rmSync(recordFile, { force: true });
+
+  // Startup flag: workers an earlier session in this directory launched and never saw report are
+  // listed under their own header, under the same 8-line, 80-character caps and the ledger switch.
+  const LEFT = 'Left pending when an earlier session here ended:';
+  const leftBlock = (r) => {
+    const lines = (r.stdout || '').split('\n');
+    const at = lines.findIndex((l) => l.startsWith(LEFT));
+    return at < 0 ? null : { head: lines[at], rows: lines.slice(at + 1).filter((l) => /^p[ab]\d/.test(l)) };
+  };
+  const startupWith = (payload, extraEnv = {}) => runCard({ ...payload, source: 'startup' }, { home, extraEnv: { ...ledgerEnv, ...extraEnv } });
+  launched('prior-session', 'pb0001', 'Prior build');
+  // Only a session with a SessionEnd marker counts as ended. A live peer in the same directory
+  // (pl0001, no marker) stays off the card until its own marker lands.
+  launched('live-peer', 'pl0001', 'Peer build');
+  const ended = (session) => markSessionEnded({ sessionId: session, cwd: project, stateDir: ledgerDir });
+  const beforeMarkers = startupWith({ ...startup, session_id: sid });
+  expect(leftBlock(beforeMarkers) === null && !beforeMarkers.stdout.includes('pb0001') && !beforeMarkers.stdout.includes('pa0003'),
+    `a startup card must list no worker of a session that has not ended, got ${JSON.stringify(leftBlock(beforeMarkers))}`);
+  ended('other-session');
+  ended('prior-session');
+  const left = leftBlock(startupWith({ ...startup, session_id: sid }));
+  expect(left && left.head === `${LEFT} (2 of 2 shown)` && left.rows.length === 2 && left.rows.some((l) => /^pb0001 code-ops-suite:implementer <1m Prior build$/.test(l))
+    && left.rows.some((l) => l.startsWith('pa0003 ')) && !left.rows.some((l) => l.startsWith('pa0001 ')),
+  `a startup card must list the earlier sessions' pending workers and skip its own, got ${JSON.stringify(left)}`);
+  expect(!startupWith({ ...startup, session_id: sid }).stdout.includes('pl0001'), 'a live peer session in the same directory must not be listed at startup');
+  for (let n = 2; n <= 10; n += 1) launched('prior-session', `pb${String(n).padStart(4, '0')}`, `Long description ${'z'.repeat(70)}`);
+  expect(leftBlock(startupWith({ ...startup, session_id: sid }))?.head === `${LEFT} (1 of 1 shown)`, 'a session that launched again after its marker reads as live until it ends again');
+  ended('prior-session');
+  const leftCapped = leftBlock(startupWith({ ...startup, session_id: sid }));
+  expect(leftCapped && leftCapped.head === `${LEFT} (8 of 11 shown)` && leftCapped.rows.length === 8 && leftCapped.rows.every((l) => l.length <= 80),
+    `the startup block must cap at 8 lines of 80 characters with the shown-of-total count, got ${JSON.stringify(leftCapped)}`);
+  for (const value of ['0', 'off', 'FALSE']) {
+    expect(leftBlock(startupWith({ ...startup, session_id: sid }, { CODE_OPS_AGENT_LEDGER: value })) === null, `CODE_OPS_AGENT_LEDGER=${value} must omit the startup block`);
+  }
+  expect(leftBlock(startupWith({ ...startup, session_id: sid }, { CODE_OPS_HANDOFF_PICKUP: 'off' })) !== null, 'the handoff pickup switch must not silence the startup block');
+  expect(leftBlock(runCard({ ...startup, source: 'clear', session_id: sid }, { home, extraEnv: ledgerEnv })) === null
+    && leftBlock(compactWith({ ...startup, session_id: sid })) === null, 'only a startup card carries the block');
+  expect(leftBlock(startupWith({ ...startup, cwd: join(project, 'no-such-dir'), session_id: sid })) === null, 'workers launched elsewhere must not appear');
+  const ledgerFile = join(ledgerDir, `${createHash('sha256').update('prior-session').digest('hex')}.jsonl`);
+  // The capped prior session is dropped so the 8-line cap cannot hide the peer.
+  rmSync(ledgerFile, { force: true });
+  ended('live-peer');
+  const peerEnded = startupWith({ ...startup, session_id: sid });
+  expect(leftBlock(peerEnded)?.head === `${LEFT} (2 of 2 shown)` && /^pl0001 code-ops-suite:implementer <1m Peer build$/m.test(peerEnded.stdout),
+    `the same peer must be listed once its SessionEnd marker lands, got ${JSON.stringify(peerEnded.stdout)}`);
+  writeFileSync(ledgerFile, '{not json\n');
+  const tornStartup = startupWith({ ...startup, session_id: sid });
+  expect(tornStartup.status === 0 && /code-ops standard operating mode/.test(tornStartup.stdout), 'a torn ledger file must fail open on startup');
   rmSync(home, { recursive: true, force: true });
 
   // Operator shell (O1), the win32 quoting trap (O3), and the brief-template pointer (U1). The shell

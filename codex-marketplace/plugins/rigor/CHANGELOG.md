@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.6
+- The vendored `co.mjs` routes `co agents settle` and `co burndown`, which run where code-ops-suite bundles them.
+
 ## 3.3.5
 - The vendored `co.mjs` gains the `agents` domain, so `co agents pending` lists background agents that have not reported.
 

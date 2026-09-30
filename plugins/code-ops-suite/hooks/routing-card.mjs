@@ -25,6 +25,10 @@
 // launched and never saw report, as a `Pending agents:` block (at most 8 lines of 80 characters,
 // with a shown-of-total count), so a compaction does not forget a running background agent. The
 // block is omitted when `CODE_OPS_AGENT_LEDGER` is `off`, `0`, or `false`, and any error prints nothing.
+// With no home record, the card finds the run folder whose SESSION.json names this session in
+// `sessionId` or `hostSessionId` (bounded hub scan, newest 200 folders) and lists its open items.
+// A `startup` card also lists, under the same caps and switch, the agents earlier sessions in this
+// directory launched and never saw report, headed `Left pending when an earlier session here ended:`.
 //
 //   node hooks/routing-card.mjs
 
@@ -38,6 +42,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const PENDING_DAYS = 14;
 const PENDING_LIST = 3;
 
+// The hub run folders, scanned as scripts/handoff-state.mjs scans them (runsRoots there, not exported):
+// `80 Runs/` in the working directory and in each `*-docs` hub beside it. Two bounded directory
+// levels; an unreadable cwd is no folders.
+function runsDirs(cwd) {
+  let entries;
+  try { entries = readdirSync(cwd, { withFileTypes: true }); } catch { return []; }
+  const hubs = [cwd, ...entries.filter((e) => e.isDirectory() && e.name.endsWith('-docs')).map((e) => join(cwd, e.name))];
+  return hubs.map((hub) => join(hub, '80 Runs'));
+}
+
 // Pending HANDOFF.md files under a documentation hub's `80 Runs/`, newest first, at most
 // PENDING_LIST. Pending means no sibling `HANDOFF.consumed` (check-handoff.mjs --consume writes that
 // once a resume verifies the file; existence alone counts, whatever its body) and an mtime inside
@@ -47,16 +61,9 @@ const PENDING_LIST = 3;
 // `-docs` hub beside it. Every read is guarded, because a SessionStart hook stays inside a few
 // milliseconds and fails open.
 function pendingHandoffs(cwd) {
-  const roots = [cwd];
-  let entries;
-  try { entries = readdirSync(cwd, { withFileTypes: true }); } catch { return []; }
-  for (const entry of entries) {
-    if (entry.isDirectory() && entry.name.endsWith('-docs')) roots.push(join(cwd, entry.name));
-  }
   const cutoff = Date.now() - PENDING_DAYS * 86_400_000;
   const found = [];
-  for (const root of roots) {
-    const runs = join(root, '80 Runs');
+  for (const runs of runsDirs(cwd)) {
     let folders;
     try { folders = readdirSync(runs, { withFileTypes: true }); } catch { continue; }
     for (const folder of folders) {
@@ -113,6 +120,30 @@ function sessionRecord(cwd, sessionId) {
   return { name, runDir, resumed: cardValue(record?.resumed, PATH_CHARS) };
 }
 
+// The run folder whose SESSION.json names this session in `sessionId` or `hostSessionId`, as a
+// repo-relative forward-slash path, or null. This is the fallback for a compaction with no home
+// session record. It reuses runsDirs() and reads at most RUN_SCAN folders, newest name first, so a
+// long run history cannot slow the card. deferred(RUN_SCAN folders, index the session ids once if a
+// hub outgrows it)
+const RUN_SCAN = 200;
+function sessionRunFolder(cwd, sessionId) {
+  const folders = [];
+  for (const runs of runsDirs(cwd)) {
+    try {
+      for (const f of readdirSync(runs, { withFileTypes: true })) if (f.isDirectory()) folders.push({ dir: join(runs, f.name), name: f.name });
+    } catch { /* no runs here */ }
+  }
+  folders.sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0));
+  for (const { dir } of folders.slice(0, RUN_SCAN)) {
+    let session;
+    try { session = JSON.parse(readFileSync(join(dir, 'SESSION.json'), 'utf8')); } catch { continue; }
+    if (session?.sessionId === sessionId || session?.hostSessionId === sessionId) {
+      return cardValue(relative(cwd, dir).split(sep).join('/'), PATH_CHARS);
+    }
+  }
+  return null;
+}
+
 // The unchecked lines of the run folder's TASKS.md, so the session sees its open items right after
 // compaction without a file read. The card stays bounded: at most OPEN_ITEMS lines of OPEN_CHARS
 // characters each, from the first TASKS_BYTES of the file. Any read failure is no lines.
@@ -135,18 +166,21 @@ function openItemLines(cwd, runDir) {
 // The agents this session launched that never reported, from the agent ledger, so a background
 // agent is not forgotten across compaction. The ledger module loads only here, on the compact
 // path. The block stays bounded: a header with the shown-of-total count, then at most
-// PENDING_SHOWN lines cut to PENDING_CHARS. The off switch, no session id, or any failure is no lines.
+// PENDING_SHOWN lines cut to PENDING_CHARS. The off switch, no query, or any failure is no lines.
+// `query` is the pendingAgents() input: `{ sessionId }` for this session after compaction,
+// `{ cwd, endedOnly: true }` for the sessions in this directory that have ended at startup, so a
+// live peer session's workers stay off the card; `skip` drops this session's own rows.
 const PENDING_SHOWN = 8;
 const PENDING_CHARS = 80;
-async function pendingAgentLines(sessionId) {
-  if (!sessionId || /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return [];
+async function pendingAgentLines(query, head, skip = '') {
+  if (!query || /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return [];
   try {
     const lib = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'agent-ledger.mjs');
     const { pendingAgents, formatLine } = await import(pathToFileURL(lib).href);
-    const list = pendingAgents({ sessionId });
+    const list = pendingAgents(query).filter((a) => !skip || a.session_id !== skip);
     if (!list.length) return [];
     const shown = list.slice(0, PENDING_SHOWN);
-    return [`Pending agents: (${shown.length} of ${list.length} shown)`,
+    return [`${head} (${shown.length} of ${list.length} shown)`,
       ...shown.map((a) => formatLine(a).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, PENDING_CHARS))];
   } catch { return []; }
 }
@@ -201,8 +235,13 @@ async function main() {
   if (payload?.source === 'compact') {
     lines.push('compaction resume: restore decisions, constraints, completed and open work, exact identifiers, and named durable artifacts before continuing; never restore redacted values');
     const record = sessionId ? sessionRecord(cwd, sessionId) : null;
+    let runDir = record?.runDir ?? null;
     if (!record) {
       lines.push('a handoff resumed earlier in this session stays consumed; never resume it again');
+      // No home record (another machine, a cleared store): the run folder's own SESSION.json still names the session.
+      const folder = sessionId ? sessionRunFolder(cwd, sessionId) : null;
+      if (folder) lines.push(...openItemLines(cwd, folder));
+      runDir = folder;
     } else {
       const resumed = record.resumed
         ? `it already resumed ${record.resumed} and must not resume it or any earlier handoff again`
@@ -210,13 +249,15 @@ async function main() {
       lines.push(`compaction resume: this session is ${record.name}, run folder ${record.runDir}; ${resumed}; reload ${record.runDir}/TASKS.md and RUN_LOG.md, then continue`);
       lines.push(...openItemLines(cwd, record.runDir));
     }
-    lines.push(...await pendingAgentLines(sessionId));
-  } else if ((payload?.source === 'startup' || payload?.source === 'clear')
-    && !/^(off|0|false)$/i.test(process.env.CODE_OPS_HANDOFF_PICKUP ?? '')) {
-    const pending = pendingHandoffs(cwd);
+    // The run folder's DISPATCH_LEDGER.md rows merge with the hook rows, so a host without the hook still lists them.
+    lines.push(...await pendingAgentLines(sessionId ? { sessionId, runDir: runDir ? resolve(cwd, runDir) : undefined } : null, 'Pending agents:'));
+  } else if (payload?.source === 'startup' || payload?.source === 'clear') {
+    const pending = /^(off|0|false)$/i.test(process.env.CODE_OPS_HANDOFF_PICKUP ?? '') ? [] : pendingHandoffs(cwd);
     if (pending.length) {
       lines.push(`handoffs awaiting resume (this session is new work unless the operator resumes one): ${pending.map((h) => `${h.name} -> ${h.path}`).join('; ')}`);
     }
+    // Workers an ended session in this directory launched and never saw report: left pending at session end.
+    if (payload.source === 'startup') lines.push(...await pendingAgentLines({ cwd, endedOnly: true }, 'Left pending when an earlier session here ended:', sessionId));
   }
   console.log(lines.join('\n'));
   return 0;

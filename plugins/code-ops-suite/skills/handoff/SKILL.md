@@ -121,7 +121,8 @@ items from the unchecked `TASKS.md` lines, each artifact stamped `Verified-at`, 
 and receipt paths. It takes the predecessor from the run's `SESSION.json` and fills `Session:` and
 `Hop:`. It refuses a folder that holds `HANDOFF.consumed` or belongs to another session, so a
 resumed session writes into its own successor run folder. It also refuses while an agent this
-session launched has not reported: wait for it, or pass `--pending-agents-ok` to record it under
+session launched has not reported: wait for it, settle a lost one with
+`co agents settle <id> --failed --reason <text>`, or pass `--pending-agents-ok` to record it under
 In-flight boundaries. It carries the predecessor's decisions,
 traps, and carried-context bullets as `[FILL: confirm still true]` lines: keep each one that still
 holds and delete the rest. Replace each `[FILL: ...]` placeholder with judgment, held to `§9`:

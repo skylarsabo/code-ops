@@ -120,10 +120,15 @@ for (const [verb, script] of SCAN_VERBS) {
 }
 
 // Commands: a table key whose value is one script takes no verb. Pinned like DOMAINS.
-const COMMANDS = ['brief'];
+const COMMANDS = ['brief', 'burndown'];
 const tableCommands = [...tableBlock.matchAll(/^ {2}([a-z][a-z-]*): '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
 expect(tableCommands.join(',') === COMMANDS.join(','), `table commands ${JSON.stringify(tableCommands)} must equal the pinned list ${JSON.stringify(COMMANDS)}`);
 for (const command of COMMANDS) expect(new RegExp(`^ {2}${command} +\\S+\\.mjs \\(command\\)$`, 'm').test(help.stdout), `--help must list the ${command} command`);
+
+// `co burndown` passes its flags through to burndown.mjs and prints the same line.
+const burn = run([co, 'burndown', '--root', root]);
+const burnDirect = run([join(root, 'scripts', 'burndown.mjs'), '--root', root]);
+expect(burn.status === burnDirect.status && burn.stdout === burnDirect.stdout, `co burndown must match burndown.mjs, got ${burn.status}/${JSON.stringify(burn.stdout)} vs ${burnDirect.status}/${JSON.stringify(burnDirect.stdout)}`);
 
 // `co brief <plugin>:<agent>` prints the agent's Contract fields, one `Label:` line each, byte
 // for byte as brief-template.mjs does, and `co context brief` still reaches worker-brief.mjs.

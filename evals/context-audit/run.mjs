@@ -25,7 +25,9 @@ import { readFileSync, existsSync, mkdtempSync, rmSync, appendFileSync, mkdirSyn
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { summarizeTranscript, mergeSummaries, normalizeUsage, subagentFilesFor, measurementTranscriptFor, projectSlug } from '../../scripts/transcript-lib.mjs';
+import { recordFromPayload } from '../../scripts/agent-ledger.mjs';
 import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -427,6 +429,51 @@ const warnLedger = join(tmp, 'warn-arm', 'receipts.jsonl');
 run([hook], { input: payload, env: { ...env, CODE_OPS_RECEIPTS: warnLedger, CODE_OPS_DISPATCH_GUARD: 'warn' } });
 expect(existsSync(warnLedger) && JSON.parse(readFileSync(warnLedger, 'utf8')).arms?.dispatchGuard === true,
   'CODE_OPS_DISPATCH_GUARD=warn records the guard arm on');
+// A session that ends with a background agent the ledger never saw report records its count and ids;
+// a reported agent, another session's agent, and the CODE_OPS_AGENT_LEDGER off switch record none.
+const pendingLedger = join(tmp, 'pending-agents', 'receipts.jsonl');
+const pendingEnv = { ...env, CODE_OPS_RECEIPTS: pendingLedger, CODE_OPS_HOME: hookHome };
+delete pendingEnv.CODE_OPS_AGENT_LEDGER;
+const launch = (session, id) => recordFromPayload({ hook_event_name: 'PostToolUse', session_id: session, cwd: root, tool_name: 'Agent',
+  tool_input: { subagent_type: 'code-ops-suite:implementer', description: 'fixture', prompt: 'p', run_in_background: true },
+  tool_response: { status: 'async_launched', agentId: id } }, { stateDir: join(hookHome, '.claude', 'code-ops', 'agents') });
+const pendingRows = () => (existsSync(pendingLedger) ? readFileSync(pendingLedger, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []);
+const pendingPayload = JSON.stringify({ session_id: 'sess-pending', transcript_path: mainFile, cwd: root, hook_event_name: 'SessionEnd' });
+expect(run([hook], { input: pendingPayload, env: pendingEnv }).status === 0 && pendingRows().at(-1)?.pendingAgents?.count === 0
+  && pendingRows().at(-1).pendingAgents.ids.length === 0, `a session with no launches records zero pending agents, got ${JSON.stringify(pendingRows().at(-1)?.pendingAgents)}`);
+launch('sess-pending', 'pw0001');
+launch('sess-pending', 'pw0002');
+launch('sess-other', 'pw0003');
+recordFromPayload({ hook_event_name: 'SubagentStop', session_id: 'sess-pending', cwd: root, agent_id: 'pw0002', agent_type: 'code-ops-suite:implementer' },
+  { stateDir: join(hookHome, '.claude', 'code-ops', 'agents') });
+const pendingRun = run([hook], { input: pendingPayload, env: pendingEnv });
+expect(pendingRun.status === 0 && pendingRun.stdout === '' && JSON.stringify(pendingRows().at(-1)?.pendingAgents) === JSON.stringify({ count: 1, ids: ['pw0001'] }),
+  `the receipt records this session's unreported agent ids only, got ${JSON.stringify(pendingRows().at(-1)?.pendingAgents)}`);
+expect(run([hook], { input: pendingPayload, env: { ...pendingEnv, CODE_OPS_AGENT_LEDGER: 'off' } }).status === 0 && pendingRows().at(-1)?.pendingAgents?.count === 0,
+  'CODE_OPS_AGENT_LEDGER=off records no pending agents');
+
+// SessionEnd also appends one `ended` marker to the session's agent ledger file, so the next
+// session's startup card can tell an ended session from a live peer. It needs no transcript, it is
+// idempotent, the agent ledger switch off writes nothing, and the receipt switch does not gate it.
+const agentDir = join(hookHome, '.claude', 'code-ops', 'agents');
+const endedRows = (session) => {
+  const file = join(agentDir, `${createHash('sha256').update(session).digest('hex')}.jsonl`);
+  return existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.status === 'ended') : [];
+};
+expect(endedRows('sess-pending').length === 1 && endedRows('sess-pending')[0].cwd === root,
+  `three receipts for one session leave exactly one ended marker, got ${JSON.stringify(endedRows('sess-pending'))}`);
+const noTranscript = (session) => JSON.stringify({ session_id: session, cwd: root, hook_event_name: 'SessionEnd' });
+launch('sess-notx', 'nx0001');
+const noTx = run([hook], { input: noTranscript('sess-notx'), env: pendingEnv });
+expect(noTx.status === 0 && noTx.stdout === '' && endedRows('sess-notx').length === 1, `the marker is written with no transcript, got ${JSON.stringify(endedRows('sess-notx'))}`);
+launch('sess-offled', 'nx0002');
+expect(run([hook], { input: noTranscript('sess-offled'), env: { ...pendingEnv, CODE_OPS_AGENT_LEDGER: 'off' } }).status === 0 && endedRows('sess-offled').length === 0,
+  'CODE_OPS_AGENT_LEDGER=off writes no ended marker');
+launch('sess-offrec', 'nx0003');
+expect(run([hook], { input: noTranscript('sess-offrec'), env: { ...pendingEnv, CODE_OPS_RECEIPTS: 'off' } }).status === 0 && endedRows('sess-offrec').length === 1,
+  'CODE_OPS_RECEIPTS=off does not gate the ended marker');
+expect(run([hook], { input: 'not json', env: pendingEnv }).status === 0 && run([hook], { input: JSON.stringify({ cwd: root }), env: pendingEnv }).status === 0,
+  'malformed or session-less SessionEnd input writes no marker and exits 0');
 
 // An old row: no arms, no handoff. It groups as unknown and joins neither handoff denominator.
 appendFileSync(hoLedger, JSON.stringify({ v: 1, ts: '2026-09-15T00:00:00.000Z', sessionId: 'old', cwd: root, durationMs: 1000, turns: 1, toolCalls: {}, tokens: { main: { input: 1, cacheRead: 0, cacheCreate: 0, output: 1, thinking: 0, total: 2 } } }) + '\n');

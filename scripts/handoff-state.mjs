@@ -605,14 +605,14 @@ function dirtyLines(dirty, top) {
 // The agents this session launched and never saw report, newest first, plus a note when the match
 // fell back to the repository root. The ledger keys on the hook payload session_id; every id this
 // draft knows for the session is tried, because a desktop session's hostSessionId may be the key.
-function pendingForDraft(sid, own, root) {
+function pendingForDraft(sid, own, root, runDir) {
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return { agents: [], note: null };
   const ids = [...new Set([sid, own?.sessionId, own?.hostSessionId].filter((id) => typeof id === 'string' && id))];
   if (!ids.length) {
-    return { agents: pendingAgents({ cwd: root }), note: `no session id is known (set CLAUDE_CODE_SESSION_ID or pass --session), so agents are matched by directory ${root}` };
+    return { agents: pendingAgents({ cwd: root, runDir }), note: `no session id is known (set CLAUDE_CODE_SESSION_ID or pass --session), so agents are matched by directory ${root}` };
   }
   const byId = new Map();
-  for (const id of ids) for (const agent of pendingAgents({ sessionId: id })) byId.set(agent.agent_id, agent);
+  for (const id of ids) for (const agent of pendingAgents({ sessionId: id, runDir })) byId.set(agent.agent_id, agent);
   return { agents: [...byId.values()].sort((a, b) => Date.parse(b.launched_at) - Date.parse(a.launched_at)), note: null };
 }
 
@@ -654,11 +654,11 @@ function draft(flags) {
   // TASKS.md line. An id TASKS.md checks off belongs in PROGRAM.md Closed items, so it becomes a
   // placeholder instead of a silent drop.
   const own = readJson(join(runDir, 'SESSION.json'));
-  const pendingNow = pendingForDraft(sid, own, root);
+  const pendingNow = pendingForDraft(sid, own, root, runDir);
   if (pendingNow.agents.length && !flags['pending-agents-ok']) {
     console.error(`x refusing to draft: ${pendingNow.agents.length} agent(s) launched by this session have not reported${pendingNow.note ? ` (${pendingNow.note})` : ''}:`);
     for (const agent of pendingNow.agents) console.error(`  ${formatLine(agent)}`);
-    console.error('Wait for them to report, or pass --pending-agents-ok to draft and record them in In-flight boundaries.');
+    console.error('Wait for them to report; or settle a lost one with `co agents settle <id> --failed --reason <text>`; or pass --pending-agents-ok to draft and record them in In-flight boundaries.');
     return 1;
   }
   let lin = declaredLineage(own, root, repoPath) ?? lineage(runDir, root, repoPath);

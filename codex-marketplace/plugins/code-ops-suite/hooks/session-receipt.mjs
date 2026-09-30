@@ -11,13 +11,15 @@
 // file on purpose, so it can never be committed by accident. `CODE_OPS_RECEIPTS=off` (or `0`,
 // `false`) disables the hook. Read the ledger with `node scripts/context-audit.mjs receipts`.
 //
-// The hook also marks the session's presence board record ended (see endBoard below).
+// The hook also marks the session's presence board record ended (see endBoard below) and appends
+// an `ended` marker to the session's agent ledger file (see endLedger below).
 //
 // Fail-open on every path: bad stdin, missing transcript, unwritable ledger → exit 0 silently.
 // stdin may never close on some Windows shells, so a short timer finishes with what arrived.
 //
 // Row shape (v: 1): { v, ts, sessionId, cwd, reason, durationMs, models, turns, toolCalls,
-//   skills: { "<skill id>": count }, toolResultChars, contextAtEnd, arms, handoff: { band, invoked }, files, skipped,
+//   skills: { "<skill id>": count }, toolResultChars, contextAtEnd, arms, handoff: { band, invoked },
+//   pendingAgents: { count, ids }, files, skipped,
 //   tokens: { main: {...}, subagents: {...} } }. Fields are added without a version bump:
 //   every reader tolerates an unknown key and treats a missing one as absent.
 
@@ -62,6 +64,21 @@ function handoffInvoked(text) {
   return false;
 }
 
+// Background agents this session launched and never saw report, from the agent ledger, so the
+// receipt flags a session that ended with work pending. Ids are capped at PENDING_IDS; `count` is the
+// full total. The ledger switch off, no session id, or any failure reads as none. Never blocks.
+const PENDING_IDS = 20;
+async function pendingWorkers(sessionId) {
+  const none = { count: 0, ids: [] };
+  if (!sessionId || !on('CODE_OPS_AGENT_LEDGER')) return none;
+  try {
+    const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'agent-ledger.mjs');
+    const { pendingAgents } = await import(pathToFileURL(libPath).href);
+    const list = pendingAgents({ sessionId });
+    return { count: list.length, ids: list.slice(0, PENDING_IDS).map((a) => a.agent_id) };
+  } catch { return none; }
+}
+
 function finish() {
   if (!pending) pending = doFinish();
   return pending;
@@ -87,8 +104,26 @@ async function endBoard() {
   }
 }
 
+// Marks this session ended in the agent ledger, so the next session's startup card lists only the
+// workers of sessions that ended. It needs no transcript and ignores `CODE_OPS_RECEIPTS`; the
+// `CODE_OPS_AGENT_LEDGER` switch off skips it.
+async function endLedger() {
+  try {
+    if (!on('CODE_OPS_AGENT_LEDGER')) return;
+    const payload = JSON.parse(input.replace(/^﻿/, ''));
+    const sid = payload?.session_id ?? payload?.sessionId;
+    if (typeof sid !== 'string' || !sid) return;
+    const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'agent-ledger.mjs');
+    const { markSessionEnded } = await import(pathToFileURL(libPath).href);
+    markSessionEnded({ sessionId: sid, cwd: typeof payload.cwd === 'string' ? payload.cwd : process.cwd() });
+  } catch {
+    // fail open
+  }
+}
+
 async function doFinish() {
   await endBoard();
+  await endLedger();
   try {
     if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECEIPTS || '')) return;
     const payload = JSON.parse(input.replace(/^\uFEFF/, ''));
@@ -144,6 +179,7 @@ async function doFinish() {
         handoffPickup: !process.env.GROK_PLUGIN_ROOT && on('CODE_OPS_HANDOFF_PICKUP'),
         dispatchGuard: on('CODE_OPS_DISPATCH_GUARD') },
       handoff,
+      pendingAgents: await pendingWorkers(sessionId),
       files: 1 + subFiles.length,
       skipped: subFiles.length - subs.length,
       tokens: { main: strip(main.usage), subagents: strip(sub.usage) },
