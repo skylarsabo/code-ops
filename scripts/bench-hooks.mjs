@@ -45,7 +45,7 @@ function parse(argv) {
 function idOf(event, matcher) {
   const m = matcher ?? '';
   if (event === 'PreToolUse') return /Bash/.test(m) ? 'pre-bash' : /Send/.test(m) ? 'pre-message' : m ? null : 'pre-all';
-  if (event === 'PostToolUse') return /Edit/.test(m) ? 'post-edit' : m ? null : 'post-all';
+  if (event === 'PostToolUse') return /Edit/.test(m) ? 'post-edit' : /Agent/.test(m) ? 'post-agent' : m ? null : 'post-all';
   return ['UserPromptSubmit', 'SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop'].includes(event) ? event : null;
 }
 
@@ -76,6 +76,7 @@ function payloadsFor(id, ctx) {
     ];
     case 'pre-message': return [{ id, label: 'PreToolUse, message tool (`SendMessage`)', payload: pre('SendMessage', { to: 'peer-session', message: 'status' }) }];
     case 'post-edit': return [{ id, label: 'PostToolUse, edit tool (`Edit`)', payload: post('Edit', { file_path: join(ctx.repo, 'src', 'a.mjs'), old_string: 'a', new_string: 'b' }, { success: true }) }];
+    case 'post-agent': return [{ id, label: 'PostToolUse, dispatch tool (`Agent`, background launch)', payload: post('Agent', { subagent_type: agent, description: 'bench', run_in_background: true }, { status: 'async_launched', agentId: 'bench-agent' }) }];
     // The push case records the move, then delivers the seeded peer events; it resets the feed cursors first.
     case 'post-all': return [
       { id, label: 'PostToolUse, all tools (`Read`)', payload: post('Read', readInput, { type: 'text' }) },
