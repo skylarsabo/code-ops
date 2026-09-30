@@ -627,7 +627,8 @@ OpenCode has no port. Evidence: `plugins/code-ops-suite/hooks/subagent-report.mj
 calibration, nudges the operator and the lead once resident context crosses 150,000 tokens and
 again every further 150,000-token band. It is on by default. It does nothing when
 `CODE_OPS_HANDOFF_CARD` is `off`, `0`, or `false`, set in the canonical environment; rendered
-hosts use their documented process environment. No other switch exists. The Claude host contract
+hosts use their documented process environment. The change feed and the history read notice
+run in the same process under their own switches, `CODE_OPS_FEED` and `CODE_OPS_READ_NOTICE`. The Claude host contract
 was confirmed against `docs.claude.com/en/docs/claude-code/hooks-guide`: `UserPromptSubmit`
 fires once per prompt, before Claude processes it, with no matcher support, carrying
 `session_id` and `transcript_path` on stdin alongside every other common hook field. Output
