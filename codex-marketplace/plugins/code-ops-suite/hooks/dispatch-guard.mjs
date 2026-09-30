@@ -10,7 +10,7 @@
 // tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
 // advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
 //
-// FOUR BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// FIVE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -61,6 +61,21 @@
 //      stays strict. A `model` override and a brief with no Round budget stay
 //      advisory clauses; the Round budget advisory is dropped when a field denial already names
 //      it. Every denial and advisory for one dispatch lands in one output.
+//   5. COLLISION NOTE (warn only), on every thread, for an edit tool (Edit, Write, MultiEdit,
+//      NotebookEdit, and the other hosts' edit names) and for a shell command that runs `git pull`,
+//      `git merge`, `git rebase`, or `git push`. scripts/collision-lib.mjs, imported lazily and
+//      only for those calls, reads the repository's presence board. An edit of a path that another
+//      live session claimed or edited within 6 hours adds context naming that peer and a ready
+//      `SendMessage` line, once per path per peer per session (a subagent keeps its own seen-set);
+//      a git command lists the live peers on this branch and their recent edits that overlap this
+//      session's uncommitted files. The note never denies and never changes a decision: it joins
+//      the `additionalContext` of an advisory this hook already emits, or stands alone, and it is
+//      dropped, with its once-only mark unspent, beside a denial. Any error, an unreadable board,
+//      or a missing library fails open with no note. It runs inside this registration so no hook
+//      process is added (Program state handoffs and coordination 2026-09, "Cross-cutting: hook
+//      cost", DEC-66). Its off switch is `CODE_OPS_PEER_GUARD`, the presence board's own switch:
+//      the note reads that board, and a session that turned the board off should neither publish
+//      to it nor consume it. `CODE_OPS_DISPATCH_GUARD=off` also silences it, as it does every branch.
 //
 // The warning asks for a written checkpoint (done items, each dirty path marked complete or
 // partial, the exact next edit, gates run) before the stop, and the stop asks for it in the final
@@ -407,8 +422,48 @@ function briefHas(prompt, field) {
     || new RegExp(`^[ \\t]*#{1,6}[ \\t]+${label}(?![A-Za-z0-9])`, 'im').test(prompt);
 }
 
+// Behaviour 5's note for this call, and whether any output has gone out yet.
+let collision = null;
+let emitted = false;
+
 function emit(body) {
-  writeSync(1, `${JSON.stringify(body)}\n`);
+  const out = body?.hookSpecificOutput;
+  // A note joins an advisory's context. A denial and a payload with no context stay as they are.
+  const merge = collision && out?.hookEventName === 'PreToolUse' && out.permissionDecision === undefined
+    && typeof out.additionalContext === 'string' ? collision : null;
+  const sent = merge ? { ...body, hookSpecificOutput: { ...out, additionalContext: `${out.additionalContext}\n${merge.text}` } } : body;
+  writeSync(1, `${JSON.stringify(sent)}\n`);
+  emitted = true;
+  if (merge) { collision = null; try { merge.commit(); } catch { /* fail open */ } }
+}
+
+// Behaviour 5. The lazy import and the note run only for an edit tool or a shell tool, so every
+// other call pays nothing; anything that goes wrong is no note.
+const COLLISION_TOOLS = /(?:^|\.)(?:edit|write|search_replace|multiedit|notebookedit|apply_patch|bash|shell|exec_command|run_terminal_command)$/i;
+const EDIT_TOOL_NAME = /(?:^|\.)(?:edit|write|search_replace|multiedit|notebookedit|apply_patch)$/i;
+const GIT_VERB_HINT = /\bgit\b[\s\S]*\b(?:pull|merge|rebase|push)\b/;
+
+async function collisionFor(payload, agentId) {
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_PEER_GUARD ?? '')) return null;
+  if (!COLLISION_TOOLS.test(String(payload.tool_name ?? ''))) return null;
+  // A shell call that names no git pull, merge, rebase, or push skips the import, which costs
+  // about 30 ms cold. The library still parses the command exactly.
+  const input = payload.tool_input ?? payload.toolInput;
+  const command = typeof input?.command === 'string' ? input.command : input?.cmd;
+  if (!EDIT_TOOL_NAME.test(String(payload.tool_name ?? '')) && !(typeof command === 'string' && GIT_VERB_HINT.test(command))) return null;
+  try {
+    const lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'collision-lib.mjs')).href);
+    return lib.collisionNote({ ...payload, agent_id: typeof agentId === 'string' && agentId ? agentId : undefined }) ?? null;
+  } catch { return null; }
+}
+
+// A note no advisory carried goes out alone.
+function finishCollision() {
+  const note = collision;
+  collision = null;
+  if (!note || emitted) return;
+  emit({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: note.text } });
+  try { note.commit(); } catch { /* fail open */ }
 }
 
 // Behaviour 1: the subagent's own tool call.
@@ -679,12 +734,15 @@ async function main() {
   // its counter.
   const agentId = payload.agent_id
     ?? (typeof payload.subagentType === 'string' && payload.subagentType ? payload.session_id : undefined);
+  collision = await collisionFor(payload, agentId);
   if (typeof agentId === 'string' && agentId) {
     // Only the host's own `agent_id` locates a subagent transcript; Grok's layout is unverified.
     guardSubagent({ ...payload, agent_id: agentId }, budget, hardStop, agentId === payload.agent_id);
+    finishCollision();
     return;
   }
   await guardMainThread(payload, budget, hardStop);
+  finishCollision();
 }
 
 main().catch(() => { /* fail open */ });

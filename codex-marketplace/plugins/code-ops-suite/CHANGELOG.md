@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.21.0
+- The dispatch guard adds a warn-only collision note. An edit of a path that another live session claimed or edited within 6 hours names that peer and gives a ready `SendMessage` line, once per path per peer per session. A `git pull`, `merge`, `rebase`, or `push` lists the live peers on the branch and their recent edits that overlap uncommitted files. The note never denies. `CODE_OPS_PEER_GUARD=off` turns it off.
+- A change feed records `git push`, `gh pr merge`, hub-file edits, and `records seal` start and land events under the home store. The handoff card delivers at most 3 new lines per call, filtered to the peer's branch and edits. A seal that starts on a base head another seal holds prints a warning first. `CODE_OPS_FEED=off` turns the feed off.
+- `run open` and `handoff resume` print a `program overlap:` block when another live program lists the same scope document, and suggest `co program merge` for two or more shared paths. `run open --program <PROGRAM.md>` records the ledger for other sessions.
+- `scripts/bench-hooks.mjs` measures p50 and p95 added latency for every hooks.json entry. MEASUREMENTS.md records the baseline and the after-PR figures.
+
 ## 2.20.0
 - `co docs gate` runs the docs checks in order: manifest, records, vault standard, and draft and staleness rules, then ledger checks 11 to 18 on every tracked open program. An untracked ledger gets only the check-14 UNLANDED warning. Steps 6 and 7 print as skipped until later releases.
 - The gate ratchets against `98 System/GATE_BASELINE.jsonl`. `--baseline-init` writes the first baseline, a new violation fails, a fixed one leaves the baseline, and the baseline never grows. `--check` never writes.

@@ -183,6 +183,7 @@ A non-zero exit leaves the handoff unconsumed. A pass also creates this session'
 successor run folder, seeded with the open items, and prints `session name:` and
 `successor run:`, a `links:` block, and last a `set title: "<name>"` line. Work and the next
 handoff go in that folder. Set the session title to that name exactly, where the host allows it.
+Read the `program overlap:` block if resume prints one. Ask the operator before you continue when another live program lists the same scope document.
 In the Claude desktop app, call `get_session("self")` first, then pass its `session_id` to
 `set_session_title`; the call fails without it, and an untitled session gets an automatic title.
 

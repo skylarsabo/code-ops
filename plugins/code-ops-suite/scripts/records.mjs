@@ -2059,12 +2059,38 @@ function sealCurationEvents(context, lines, events, knownIds, at) {
   return added;
 }
 
+// The change feed (scripts/change-feed.mjs) is advisory: a missing library, a switch, or any
+// failure reads as no feed, and the seal runs unchanged.
+async function loadFeed() {
+  try {
+    const feed = await import('./change-feed.mjs');
+    return feed.feedOff() ? null : feed;
+  } catch { return null; }
+}
+
 // Seal runs on a fresh branch cut from the base head and stages one commit's worth of chain writes.
-function seal(context, options) {
+// It posts a seal-start event to the change feed first, warns on stderr when another seal on the
+// same base head is still in flight, and posts a seal-land or seal-abort event when it ends.
+async function seal(context, options) {
   assertManifestV3(context, 'seal');
   if (!context.history.ok) throw new HistoryUnavailableError(`seal refused: ${context.history.reason}`);
-  if (headOid(context.root) !== baseHead(context, options)) throw new Error('seal runs only on a branch at the base head');
+  const base = headOid(context.root);
+  if (base !== baseHead(context, options)) throw new Error('seal runs only on a branch at the base head');
   if (git(context.root, ['status', '--porcelain=v1', '--untracked-files=no']).trim()) throw new Error('seal requires a clean tracked tree');
+  const feed = await loadFeed();
+  const started = feed ? await feed.startSeal(context.root, { base, note: context.collection.id }) : { seal: null, warnings: [] };
+  for (const warning of started.warnings) console.error(`records: warning: ${warning}`);
+  let landed = null;
+  try {
+    sealChain(context, options, (paths) => { landed = paths; });
+  } catch (error) {
+    if (feed) await feed.endSeal(context.root, { seal: started.seal, land: false, base, note: context.collection.id });
+    throw error;
+  }
+  if (feed) await feed.endSeal(context.root, { seal: started.seal, land: true, base, paths: landed, note: context.collection.id });
+}
+
+function sealChain(context, options, onLand) {
   withMutationLock(context, (lease) => {
     runCheck(context, { allowPending: true });
     const all = readIntake(context);
@@ -2100,6 +2126,7 @@ function seal(context, options) {
       else rmSync(intakeFile(context), { force: true });
       git(context.root, ['add', '-A', '--', intakeRepoPath, ...['curationLedger', 'index'].map((key) => outputRepoPath(context, key))]);
       runCheck(context);
+      onLand(recordLines.map((line) => line.path));
       console.log(JSON.stringify({ sealed: sealed.map((line) => line.intakeId), admitted: recordLines.length, events: added.length }));
     } catch (error) {
       // The seal began on a clean tracked tree, so resetting to HEAD restores exactly the pre-seal state.
@@ -2320,7 +2347,7 @@ try {
   const context = loadContext(root, options, command === 'relocate-root' ? posix(options.from || '') : null);
   if (command === 'classify') classifyCommand(context);
   else if (command === 'intake') intakeRecord(context, options);
-  else if (command === 'seal') seal(context, options);
+  else if (command === 'seal') await seal(context, options);
   else if (command === 'relocate-root') relocateRoot(context, options);
   else if (command === 'render' && options.register) renderRegisterTargets(context);
   else if (command === 'plan-adoption') planAdoption(context, options);

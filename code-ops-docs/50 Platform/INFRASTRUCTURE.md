@@ -46,9 +46,9 @@ dispatch of a wide-surface type that names no reason, and a lead dispatch past t
 ceiling before the handoff assessment. Unbound infrastructure failures retain the previous
 fail-open behavior. The peer guard redirects a message to a peer session that already handed off to its live successor on Claude and Codex, and denies it on Grok or when no live successor can take it.
 The `SubagentStop` return check is advisory and never blocks.
-Eight commands carry an off switch, read from the canonical `.claude/settings.json`
-environment. A ninth variable governs only the routing card's pending-handoff line, a
-tenth sets or disables the dispatch guard's context ceiling, and an eleventh names the
+Nine commands carry an off switch, read from the canonical `.claude/settings.json`
+environment. A tenth variable governs only the routing card's pending-handoff line, a
+eleventh sets or disables the dispatch guard's context ceiling, and a twelfth names the
 operator's shell on the routing card.
 Rendered hosts use their documented process environment:
 
@@ -63,11 +63,12 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false` | the `SubagentStop` advisory verdict and word-cap check, `subagent-report.mjs` |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
-| `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs` |
+| `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs`; it silences only the card, not the feed |
+| `CODE_OPS_FEED` | `off`, `0`, or `false` | the change feed: event recording and delivery, `change-feed.mjs` |
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
 | `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |
 | `CODE_OPS_CONTEXT_CEILING` | `off`, `0`, or `false` | the context-ceiling dispatch gate inside `dispatch-guard.mjs`; an integer of at least 150,000 replaces the 300,000-token default |
-| `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` redirect or deny of a message to a handed-off peer session, `peer-guard.mjs`, and every presence board write: `handoff-state.mjs` open and resume, the `index-refresh.mjs` edit record, the `session-receipt.mjs` `SessionEnd` mark, and the OpenCode `tool.execute.after` adapter |
+| `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` redirect or deny of a message to a handed-off peer session, `peer-guard.mjs`, and every presence board write: `handoff-state.mjs` open and resume, the `index-refresh.mjs` edit record, the `session-receipt.mjs` `SessionEnd` mark, and the OpenCode `tool.execute.after` adapter, the collision note in `dispatch-guard.mjs`, and the change feed |
 | `CODE_OPS_OPERATOR_SHELL` | not an off switch | the `operator shell:` line inside `routing-card.mjs` on hosts other than Claude Code; a value replaces the shell derived from `process.platform` |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.
@@ -176,6 +177,9 @@ path is relative to the worktree top. No record holds file contents or an absolu
 automatically; delete the directory to purge it. Evidence: `scripts/handoff-state.mjs:11-37` and
 `scripts/handoff-state.mjs:253-419`.
 
+The feed store is `<home>/.claude/code-ops/feed/<repo key>/`. The collision store is
+`<home>/.claude/code-ops/collision/<repo key>/`.
+
 The dispatch-guard store is `~/.claude/code-ops/dispatch/<cwd hash>/<agent hash>`. Each agent
 has a `.rounds` counter and may have a `.binding.json` controller record. Each lead session that
 recorded a handoff assessment has a `<session hash>.assessed.json` marker holding the highest
@@ -222,10 +226,12 @@ byte-identical packaging.
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Lifecycle plugin injects it into the implementer |
 | Subagent return check | Native `SubagentStop` `systemMessage` note | Not registered in effect: the hook is silent under the adapter because the `SubagentStop` payload is UNVERIFIED | Projected hook; payload fields UNVERIFIED, so a missing field leaves it silent | Not ported; no verified subagent-stop callback (UNVERIFIED) |
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
-| Handoff card | Native | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff | Projected hook; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage |
+| Handoff card | Native | PostToolUse note from `updates.jsonl` on the TUI, headless, and ACP agent; UserPromptSubmit stdout discarded; the lead still self-assesses before the 200k price cliff | Projected hook; silent if the payload omits `transcript_path` | Lifecycle note on the next tool result or user turn, from `message.updated` usage; also delivers and records feed events |
 | Pending handoff | Native routing-card line | Instruction files only; passive stdout unavailable | Projected hook | Lifecycle line on the first lead system transform |
 | Peer guard | Native `PreToolUse` deny on `SendMessage` and `mcp__ccd_session_mgmt__send_message` | Registered; reads camelCase `toolName` and `toolInput`; inert unless a messaging tool shares a name (UNVERIFIED) | Projected hook without a matcher; inert unless a messaging tool shares a name (UNVERIFIED) | Not ported |
-| Dispatch guard | Native, with the wide-type and context-ceiling dispatch gates | Registered; the dispatch gates read the camelCase `toolName`, `toolInput`, and `sessionId` and cover `spawn_subagent`; its schema has no agent-type field, so the wide-type gate denies only a named wide type; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id`, and the dispatch gates stay inert unless the dispatch tool shares Claude's name (UNVERIFIED) | Lifecycle guard keyed by child `sessionID`, a suite-only Task allowlist, and a context-ceiling gate unlocked by the `skill` tool or the typed handoff command |
+| Dispatch guard | Native, with the wide-type and context-ceiling dispatch gates | Registered; the dispatch gates read the camelCase `toolName`, `toolInput`, and `sessionId` and cover `spawn_subagent`; its schema has no agent-type field, so the wide-type gate denies only a named wide type; the round counter is inert without `agent_id` | Projected hook; the round counter is inert without `agent_id`, and the dispatch gates stay inert unless the dispatch tool shares Claude's name (UNVERIFIED) | Lifecycle guard keyed by child `sessionID`, a suite-only Task allowlist, and a context-ceiling gate unlocked by the `skill` tool or the typed handoff command; also emits the collision note |
+| Collision note | Native | Camel-case payload mapped | Payload UNVERIFIED | Not ported |
+| Change feed | Native | PostToolUse delivery only | Payload UNVERIFIED | Hub-edit and seal events only; no push or merge events, no delivery |
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
 the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,

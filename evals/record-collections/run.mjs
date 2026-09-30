@@ -20,6 +20,12 @@ const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', '
 let executedCases = 0;
 let work;
 
+// A seal posts change-feed events under CODE_OPS_HOME. Every child inherits this temp home, so
+// the eval never writes into the operator's real store.
+const FEED_HOME = mkdtempSync(join(tmpdir(), 'records-home-'));
+process.env.CODE_OPS_HOME = FEED_HOME;
+process.on('exit', () => rmSync(FEED_HOME, { recursive: true, force: true }));
+
 function check(name, condition, detail = '') {
   executedCases += 1;
   console.log(`${condition ? 'ok  ' : 'FAIL'} ${name}`);
