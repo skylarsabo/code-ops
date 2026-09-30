@@ -26,7 +26,7 @@
 
 import { readFileSync, readdirSync, existsSync, statSync, openSync, readSync, closeSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, extname, basename, dirname } from 'node:path';
+import { join, extname, basename, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
 export const USAGE_FIELDS = ['input', 'cacheRead', 'cacheCreate', 'output', 'thinking'];
@@ -504,6 +504,152 @@ export function summarizeTranscript(text, opts = {}) {
   return s;
 }
 
+// The conversation a compaction summary can lose, read back from the host transcript, which
+// compaction never deletes. `scripts/compact-snapshot.mjs` is the reader. The record shapes below
+// are host internals (Codex), observed in a real transcript and pinned by the fixture in
+// evals/compact-snapshot, so all of the parsing stays in this one function and any line that does
+// not fit costs only itself:
+//   - operator prompts: `queue-operation` `enqueue` records and human `user` records, minus task
+//     notifications, `isMeta` skill bodies, the compaction summary, command wrappers, hook and
+//     system-reminder context. A namespaced `/skill args` keeps only its args; a skill body that
+//     reaches a prompt keeps only its `ARGUMENTS:` line. Duplicates by text keep the first.
+//   - answers: an `AskUserQuestion` result (`toolUseResult.answers`, else the result text) as
+//     `<header>: <chosen label>`.
+//   - peers: `<cross-session-message from-session= from-name=>` blocks, and `SendMessage` tool uses.
+//   - work: an async `Agent` launch (`agentId`), a `Bash` result with `backgroundTaskId`, an async
+//     `Workflow` (`runId`, `taskId`), and a `ScheduleWakeup` (`scheduledFor`). A `<task-notification>`
+//     with a `task-id` and a finished `status` closes the entry that owns the id.
+// `line` is the 1-based physical line in the transcript file; `at` is epoch milliseconds or null.
+const NOISE_TAGS = /^<(?:task-notification|local-command-[a-z]+|command-(?:name|message|args)|ci-monitor-event|system-reminder|user-prompt-submit-hook|bash-(?:input|stdout|stderr))\b/;
+const OPERATOR_NOISE = /^\[(?:Request interrupted|Cross-session delivery notice)/;
+const SLASH_RE = /^\/([A-Za-z0-9._:-]+)(?:[ \t]+([\s\S]*))?$/;
+const TASK_NOTE_RE = /<task-notification>[\s\S]*?<\/task-notification>|<task-notification>[\s\S]*$/g;
+const PEER_RE = /<cross-session-message\b([^>]*)>([\s\S]*?)(?:<\/cross-session-message>|$)/g;
+const STILL_RUNNING = /^(?:running|started|pending|in[_ -]?progress)$/i;
+
+function operatorText(raw) {
+  const t = String(raw).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim();
+  if (!t || OPERATOR_NOISE.test(t)) return '';
+  const command = COMMAND_NAME_RE.exec(t)?.[1] ?? SLASH_RE.exec(t)?.[1];
+  if (command !== undefined) {
+    const args = (/<command-args>([\s\S]*?)<\/command-args>/.exec(t)?.[1] ?? SLASH_RE.exec(t)?.[2] ?? '').trim();
+    if (command.replace(/^\//, '').includes(':')) return args;
+    return args ? `/${command.replace(/^\//, '')} ${args}` : '';
+  }
+  if (NOISE_TAGS.test(t)) return '';
+  if (t.startsWith('Base directory for this skill:')) return /^ARGUMENTS:[ \t]*(.*)$/m.exec(t)?.[1].trim() ?? '';
+  return t;
+}
+
+const isBoundary = (o) => o?.type === 'system' && o.subtype === 'compact_boundary';
+
+// The `compact_boundary` records in a transcript: the count the snapshot header stores and the
+// SessionStart card reads again, so a caller that only needs the count skips the full parse.
+export function countBoundaries(text) {
+  let n = 0;
+  for (const line of String(text).split('\n')) {
+    if (!line.includes('"compact_boundary"')) continue;
+    try { if (isBoundary(JSON.parse(line.replace(/^﻿/, '')))) n++; } catch { /* a torn line is skipped */ }
+  }
+  return n;
+}
+
+export function conversationOf(text) {
+  const out = { operatorWords: [], answers: [], peerMessages: [], outbound: [], work: [], boundaries: 0, lines: 0, lastAt: null };
+  const seen = new Set();
+  const tools = new Map();
+  const byId = new Map();
+  const notes = [];
+  const lines = String(text).split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i].replace(/^﻿/, '').replace(/\r$/, '');
+    if (!raw.trim()) continue;
+    try {
+      const o = JSON.parse(raw);
+      if (!o || typeof o !== 'object') continue;
+      out.lines++;
+      const line = i + 1;
+      const stamp = typeof o.timestamp === 'string' ? Date.parse(o.timestamp)
+        : typeof o.timestamp === 'number' && Number.isFinite(o.timestamp) ? (o.timestamp < 1e12 ? o.timestamp * 1000 : o.timestamp) : NaN;
+      const at = Number.isFinite(stamp) ? stamp : null;
+      if (at !== null && (out.lastAt === null || at > out.lastAt)) out.lastAt = at;
+      if (isBoundary(o)) { out.boundaries++; continue; }
+      if (o.isSidechain === true) continue;
+
+      const prompt = (body) => {
+        for (const note of String(body).match(TASK_NOTE_RE) ?? []) {
+          const id = /<task-id>\s*([^<\s]+)\s*<\/task-id>/.exec(note)?.[1];
+          const status = /<status>\s*([^<]*?)\s*<\/status>/.exec(note)?.[1] ?? '';
+          if (id && !STILL_RUNNING.test(status)) notes.push({ id, status, at });
+        }
+        const rest = String(body).replace(TASK_NOTE_RE, '');
+        let isPeer = false;
+        for (const m of rest.matchAll(PEER_RE)) {
+          isPeer = true;
+          const session = /(?:^|\s)from-session="([^"]*)"/.exec(m[1])?.[1] ?? '';
+          const name = /(?:^|\s)from-name="([^"]*)"/.exec(m[1])?.[1] ?? '';
+          let message = m[2].trim();
+          if (name && message.startsWith(`${name}:`)) message = message.slice(name.length + 1).trim();
+          const key = `peer\0${session || name}\0${message}`;
+          if (message && !seen.has(key)) { seen.add(key); out.peerMessages.push({ name, session, text: message, at, line }); }
+        }
+        if (isPeer) return;
+        const words = operatorText(rest);
+        if (words && !seen.has(words)) { seen.add(words); out.operatorWords.push({ text: words, at, line }); }
+      };
+
+      if (o.type === 'queue-operation') {
+        if (o.operation === 'enqueue' && typeof o.content === 'string') prompt(o.content);
+        continue;
+      }
+      const content = o.message?.content;
+      if (o.type === 'user' && !o.isMeta && !o.isCompactSummary && !o.isVisibleInTranscriptOnly && (!o.origin || o.origin.kind === 'human' || o.origin.kind === 'task-notification')) {
+        if (typeof content === 'string') prompt(content);
+        else if (Array.isArray(content)) for (const b of content) if (b?.type === 'text' && typeof b.text === 'string') prompt(b.text);
+      }
+      if (!Array.isArray(content)) continue;
+      for (const b of content) {
+        if (b?.type === 'tool_use' && typeof b.id === 'string') {
+          tools.set(b.id, { name: b.name, input: b.input ?? {} });
+          if (b.name === 'SendMessage' && typeof b.input?.to === 'string') {
+            out.outbound.push({ to: b.input.to, summary: String(b.input.summary ?? ''), message: String(b.input.message ?? ''), at, line });
+          }
+        } else if (b?.type === 'tool_result' && o.type === 'user') {
+          const tool = tools.get(b.tool_use_id);
+          const r = o.toolUseResult && typeof o.toolUseResult === 'object' ? o.toolUseResult : null;
+          if (!tool) continue;
+          const launch = (entry) => {
+            const item = { kind: entry.kind, id: entry.id, ids: entry.ids ?? [entry.id], type: entry.type ?? '', description: String(entry.description ?? '').replace(/\s+/g, ' ').trim(), dueAt: entry.dueAt ?? null, at, line, closed: false, status: null };
+            out.work.push(item);
+            for (const id of item.ids) if (id) byId.set(id, item);
+          };
+          if (tool.name === 'AskUserQuestion') {
+            const pairs = r?.answers && typeof r.answers === 'object' && !Array.isArray(r.answers) ? Object.entries(r.answers)
+              : [...contentText(b.content).matchAll(/"([^"]+)"="([^"]*)"/g)].map((m) => [m[1], m[2]]);
+            const headers = new Map([...(Array.isArray(r?.questions) ? r.questions : []), ...(Array.isArray(tool.input.questions) ? tool.input.questions : [])]
+              .filter((q) => q && typeof q.question === 'string').map((q) => [q.question, q.header]));
+            const words = pairs.map(([q, a]) => `${headers.get(q) || q.slice(0, 40)}: ${Array.isArray(a) ? a.join('; ') : String(a)}`).join(' | ');
+            if (words && !seen.has(`answer\0${words}`)) { seen.add(`answer\0${words}`); out.answers.push({ text: words, at, line }); }
+          } else if ((tool.name === 'Agent' || tool.name === 'Task') && r?.agentId && (r.isAsync || r.status === 'async_launched')) {
+            launch({ kind: 'agent', id: r.agentId, type: tool.input.subagent_type, description: r.description ?? tool.input.description });
+          } else if (tool.name === 'Bash' && typeof r?.backgroundTaskId === 'string') {
+            launch({ kind: 'shell', id: r.backgroundTaskId, description: tool.input.description ?? String(tool.input.command ?? '').slice(0, 120) });
+          } else if (tool.name === 'Workflow' && (r?.runId || r?.taskId)) {
+            launch({ kind: 'workflow', id: r.runId || r.taskId, ids: [r.runId, r.taskId].filter(Boolean), type: r.workflowName, description: r.summary });
+          } else if (tool.name === 'ScheduleWakeup' && Number.isFinite(r?.scheduledFor)) {
+            launch({ kind: 'wakeup', id: b.tool_use_id, dueAt: r.scheduledFor, description: tool.input.reason });
+          }
+        }
+      }
+    } catch { /* one line the parser cannot read costs only itself */ }
+  }
+  for (const note of notes) {
+    const entry = byId.get(note.id);
+    if (entry && !entry.closed) Object.assign(entry, { closed: true, status: note.status, closedAt: note.at });
+  }
+  return out;
+}
+
 export function mergeSummaries(list, opts = {}) {
   const top = Math.max(0, Number(opts.top ?? 15));
   const m = emptySummary();
@@ -563,21 +709,40 @@ export function projectSlug(cwd) {
   return String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 }
 
+// The directory that keys code-ops per-session state: the nearest ancestor of `cwd` (itself
+// included) holding a `.git` entry, a file or a directory, so a worktree stops at its own root.
+// A lead whose shell changes directory reports a different payload `cwd` on each prompt, and
+// keying state by that `cwd` re-arms a band card and strands a ceiling assessment. Returns `cwd`
+// unchanged when no ancestor holds `.git` or any check throws (fail open). It stats only and never
+// spawns git. `projectSlug` and `defaultTranscriptDir` stay keyed by the session's original cwd
+// because that is how the host names its own transcript directory.
+export function stateRoot(cwd) {
+  try {
+    let dir = resolve(String(cwd));
+    for (;;) {
+      if (existsSync(join(dir, '.git'))) return dir;
+      const parent = dirname(dir);
+      if (parent === dir) return cwd;
+      dir = parent;
+    }
+  } catch { return cwd; }
+}
+
 // Handoff marker store, shared by the two hooks that touch it: `hooks/handoff-card.mjs` writes
 // one marker per session and `hooks/session-receipt.mjs` reads it back into the receipt row.
-// Path: `<home>/.claude/code-ops/handoff/<project slug>/<session slug>.json`; body
+// Path: `<home>/.claude/code-ops/handoff/<project slug of stateRoot(cwd)>/<session slug>.json`; body
 // `{ v: 1, band, peak, ts }`, where `band` is the live band the card compares against and `peak`
 // is the highest band the session ever reached, which a re-arm must not lower.
 export function handoffMarkerPath(cwd, sessionId, home = homedir()) {
-  return join(home, '.claude', 'code-ops', 'handoff', projectSlug(cwd), `${projectSlug(sessionId)}.json`);
+  return join(home, '.claude', 'code-ops', 'handoff', projectSlug(stateRoot(cwd)),`${projectSlug(sessionId)}.json`);
 }
 
 // Session record store, which binds a live session to its run folder. `scripts/handoff-state.mjs`
 // writes it on `run open` and on a passing `handoff resume`, and the SessionStart card reads it on
-// compaction. Path: `<home>/.claude/code-ops/sessions/<project slug>/<session slug>.json`; body
+// compaction. Path: `<home>/.claude/code-ops/sessions/<slug of stateRoot(cwd)>/<session slug>.json`; body
 // `{ v: 1, sessionId, name, runDir, resumed, hop, updatedAt }`, with repo-relative paths.
 export function sessionRecordPath(cwd, sessionId, home = homedir()) {
-  return join(home, '.claude', 'code-ops', 'sessions', projectSlug(cwd), `${projectSlug(sessionId)}.json`);
+  return join(home, '.claude', 'code-ops', 'sessions', projectSlug(stateRoot(cwd)),`${projectSlug(sessionId)}.json`);
 }
 
 // The highest band a marker records, or 0 for a missing, unreadable, or malformed marker. A
@@ -615,7 +780,7 @@ export function ceilingBand(context, ceiling) {
 
 // Records a handoff assessment for the context-ceiling gate. `hooks/dispatch-guard.mjs` reads
 // and writes the same marker, `<home>/.claude/code-ops/dispatch/<sha256 cwd>/<sha256 session
-// id>.assessed.json` with body `{ version: 1, band }`, and keeps its own synchronous copy of the
+// id>.assessed.json` (the cwd hashed is `stateRoot(cwd)`) with body `{ version: 1, band }`, and keeps its own synchronous copy of the
 // path for its CLI. `hooks/handoff-card.mjs` calls this when the operator types the handoff
 // command, which the host expands without a Skill tool call the guard could see. The band only
 // rises. Returns the band now recorded, or 0 when nothing was written.
@@ -624,7 +789,7 @@ export function recordCeilingAssessment(cwd, sessionId, context, ceiling, home =
   const band = ceilingBand(context, ceiling);
   if (band < 1) return 0;
   const key = (value) => createHash('sha256').update(String(value)).digest('hex');
-  const path = join(home, '.claude', 'code-ops', 'dispatch', key(cwd), `${key(sessionId)}.assessed.json`);
+  const path = join(home, '.claude', 'code-ops', 'dispatch', key(stateRoot(cwd)),`${key(sessionId)}.assessed.json`);
   let prior = 0;
   try {
     const marker = JSON.parse(readFileSync(path, 'utf8'));

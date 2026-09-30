@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.7
+- The vendored `co.mjs` routes `co snapshot`, which runs where code-ops-suite bundles it.
+
 ## 3.3.6
 - The vendored `co.mjs` routes `co agents settle` and `co burndown`, which run where code-ops-suite bundles them.
 

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-18
+updated: 2026-09-30
 ---
 
 # Infrastructure
@@ -37,8 +37,8 @@ Git hooks can regenerate derived host distributions and reject unsafe staging co
 
 ## Host hook switches
 
-The code-ops-suite package registers eleven commands across seven events in
-`plugins/code-ops-suite/hooks/hooks.json`. Every one is on by default where the host exposes
+The code-ops-suite package registers fourteen commands across eight events in
+`plugins/code-ops-suite/hooks/hooks.json`. Twelve distinct scripts serve them. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
 trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
 its budget boundary or when its explicit controller binding is invalid. It can also deny a lead
@@ -47,10 +47,11 @@ ceiling before the handoff assessment. Unbound infrastructure failures retain th
 fail-open behavior. The peer guard redirects a message to a peer session that already handed off to its live successor on Claude and Codex, and denies it on Grok or when no live successor can take it.
 The `SubagentStop` return check is advisory and never blocks. The agent ledger records each
 subagent launch and report without output, so `co agents pending` lists the agents a handed-off
-session never heard back from.
-Ten commands carry an off switch, read from the canonical `.claude/settings.json`
-environment. An eleventh variable governs only the routing card's pending-handoff line, a
-twelfth sets or disables the dispatch guard's context ceiling, and a thirteenth names the
+session never heard back from. The `PreCompact` hook `compact-snapshot.mjs` writes
+`COMPACT_SNAPSHOT.md` before each compaction and never blocks it.
+Eleven variables switch off a hook or feature, read from the canonical `.claude/settings.json`
+environment. A twelfth governs only the routing card's pending-handoff line, a
+thirteenth sets or disables the dispatch guard's context ceiling, and a fourteenth names the
 operator's shell on the routing card.
 Rendered hosts use their documented process environment:
 
@@ -70,6 +71,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs`; it silences only the card, not the feed |
 | `CODE_OPS_FEED` | `off`, `0`, or `false` | the change feed: event recording and delivery, `change-feed.mjs` |
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
+| `CODE_OPS_COMPACT_SNAPSHOT` | `off`, `0`, or `false` | the `PreCompact` snapshot write, `compact-snapshot.mjs`, and the snapshot warning and seeding in `co handoff draft`; it does not gate the compact card in `routing-card.mjs` |
 | `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |
 | `CODE_OPS_LEGACY_PATHS` | `off`, `0`, or `false` | the deny of an edit under a manifest `removed` legacy path, behaviour 6 of `dispatch-guard.mjs`; `CODE_OPS_DISPATCH_GUARD=off` also silences it, and `warn` makes it advisory |
 | `CODE_OPS_READ_NOTICE` | `off`, `0`, or `false` | the `PostToolUse` history read notice for a Read, Grep, or shell call that opens a record not in force, inside `handoff-card.mjs`; the card and feed switches leave it on |
@@ -132,11 +134,14 @@ Evidence: `codex-marketplace/plugins/code-ops-suite/hooks/session-receipt.mjs:29
 `CODE_OPS_DIGEST_STORE=off` keeps compression enabled while disabling raw-output and receipt storage.
 
 The one command with no switch is `enforce-traceless.mjs` at `PreToolUse`. The routing card
-itself has none either; only its pending-handoff line does. There is no `PreCompact` command.
-Claude and Codex instead receive a durable-state restore instruction on `SessionStart
-source=compact`; this runs after compaction and does not alter the summary that was already
-produced. When the session record names a run folder, that restore also lists the folder's
-unchecked `TASKS.md` lines (id and first 80 characters, at most 12). On Claude and Codex, host
+itself has none either; only its pending-handoff line does. The `PreCompact` command
+`compact-snapshot.mjs` prints nothing, because the host ignores `PreCompact` stdout. It writes the
+snapshot file, and Claude and Codex receive the durable-state restore instruction on `SessionStart
+source=compact`. That restore runs after compaction and does not alter the summary that was already
+produced. It names the snapshot's state (fresh, stale, or absent), the live `active N/12` count,
+and the reply-owed peers. When the session record names a run folder, it also lists the folder's
+unchecked `TASKS.md` lines (id and first 80 characters, at most 12) while the snapshot is not
+fresh. On Claude and Codex, host
 auto-compaction is the routine context relief (DEC-73), and a handoff is only for new work, a
 clean session that loads updated code-ops plugins, a host change, or a failed compaction (DEC-76). Claude Code compacts
 itself near the size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (a token count, 250000 recommended),
@@ -145,7 +150,8 @@ unset. Claude documents `/compact [focus]`; Codex CLI and desktop document `/com
 the active surface and never assume an agent-callable tool. Otherwise report the action as pending
 operator work. The
 [contracts reference](../35%20Contracts%20and%20Data/CONTRACTS.md) owns each command's
-contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json` and
+contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json`,
+`plugins/code-ops-suite/hooks/compact-snapshot.mjs`, and
 `plugins/code-ops-suite/hooks/routing-card.mjs`.
 
 ## What the local stores hold
@@ -234,6 +240,7 @@ byte-identical packaging.
 | Publishing gate | `PreToolUse` | Canonical command hook | Payload-adapted hook | `tool.execute.before` port |
 | Digest and index | Native hooks | `updatedInput` digest and `PostToolUse` index side effect | Payload-adapted hooks | Mutable tool arguments and `file.edited` port |
 | Routing and compaction | Session context and `source=compact` restore with the open `TASKS.md` lines | Instruction files only; passive stdout unavailable | Projected session context and restore | System-transform and compaction ports |
+| Compact snapshot | Native `PreCompact` hook writes `COMPACT_SNAPSHOT.md`; the `source=compact` card reads it | Registered: the eval's supported-event set includes `PreCompact`. Whether Grok sends a payload with the snake-case `session_id` and `transcript_path` the hook reads is UNVERIFIED, and the restore card gets no passive stdout | Projected hook; the Codex `PreCompact` payload is UNVERIFIED, so the handoff card tells Codex to run `co snapshot` | Not ported: the lifecycle plugin has no snapshot writer; run `co snapshot` by hand |
 | Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Lifecycle plugin injects it into the implementer |
 | Subagent return check | Native `SubagentStop` `systemMessage` note | Not registered in effect: the hook is silent under the adapter because the `SubagentStop` payload is UNVERIFIED | Projected hook; payload fields UNVERIFIED, so a missing field leaves it silent | Not ported; no verified subagent-stop callback (UNVERIFIED) |

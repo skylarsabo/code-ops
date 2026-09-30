@@ -29,7 +29,8 @@
 // STORAGE. One append-only JSONL file per parent session at
 // `<home>/.claude/code-ops/agents/<sha256 session id>.jsonl`, in the directory family the
 // dispatch guard uses. A row holds ids, the agent type, a description cut to 80 characters, the
-// directory, and a timestamp. It never holds a prompt or message content. Reading is defensive:
+// directory, a timestamp, and the `report_path` parsed from the brief's `Report path:` line (the
+// path only, see reportPathOf). It never holds a prompt or message content. Reading is defensive:
 // a malformed line is skipped.
 //
 // Imports node builtins only, so it vendors beside the hook without a dependency.
@@ -49,6 +50,11 @@ const CAPTURE_KEY_MAX = 64;
 const DEFAULT_MAX_AGE_MS = 14 * 24 * 3_600_000;
 const DISPATCH_TOOLS = new Set(['Agent', 'Task']);
 const AGENT_ID_TEXT = /agentId:\s*([A-Za-z0-9]+)/;
+const REPORT_PATH_MAX = 300;
+const REPORT_PATH_LINE = /^[ \t>*-]*Report path:[ \t]*(.+?)[ \t]*$/im;
+// A path, not prose: an absolute path, a relative one with a separator in its first word, or `~`.
+const PATH_START = /^(?:[A-Za-z]:[\\/]|~?[\\/]|\.{1,2}[\\/]|[\w.-]+[\\/])/;
+const FILE_END = /^(.+?\.[A-Za-z0-9]{1,8})(?=$|[\s)`"',;:])/;
 
 const sha256 = (value) => createHash('sha256').update(String(value)).digest('hex');
 const isOff = () => /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '');
@@ -78,6 +84,18 @@ function agentIdOf(response) {
   return null;
 }
 
+// The path on a brief's `Report path:` line, or '' when the line is absent, says `none`, or holds
+// prose. The value may carry spaces (a hub folder such as `80 Runs`) and trailing prose after the
+// file, so it ends at the first file extension that a separator or a space follows. Path only: the
+// rest of the brief is never read into a row.
+export function reportPathOf(prompt) {
+  if (typeof prompt !== 'string') return '';
+  const value = REPORT_PATH_LINE.exec(prompt)?.[1]?.replace(/^[`'"]+/, '') ?? '';
+  if (!PATH_START.test(value)) return '';
+  const path = FILE_END.exec(value)?.[1] ?? (/\s/.test(value) ? '' : value.replace(/[`'",;:).]+$/, ''));
+  return path.length <= REPORT_PATH_MAX && !/[\u0000-\u001f\u007f]/.test(path) ? path : '';
+}
+
 const oneLine = (value, max = DESCRIPTION_MAX) => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
 // A SubagentStop that carries an error. The host's error field is UNVERIFIED, so this reads the
@@ -101,7 +119,8 @@ export function rowsFromPayload(payload, now = new Date()) {
     if (!agent_id) return [];
     const background = response?.status === 'async_launched' || input.run_in_background === true;
     const agent_type = typeof input.subagent_type === 'string' ? input.subagent_type : '';
-    const dispatched = { status: 'dispatched', agent_id, agent_type, session_id, description: oneLine(input.description), background, cwd: String(payload.cwd ?? ''), launched_at: at };
+    const report_path = reportPathOf(input.prompt);
+    const dispatched = { status: 'dispatched', agent_id, agent_type, session_id, description: oneLine(input.description), background, cwd: String(payload.cwd ?? ''), launched_at: at, ...(report_path && { report_path }) };
     return background ? [dispatched] : [dispatched, { status: 'reported', agent_id, agent_type, session_id, reported_at: at }];
   }
   const hook = payload.hook_event_name ?? payload.hookEventName;
@@ -223,7 +242,7 @@ export function pendingReport({ sessionId, stateDir = ledgerDir(), cwd, runDir, 
       seen.add(row.agent_id);
       if (!sessionId && cwd && !sameDir(row.cwd, cwd)) continue;
       const age_ms = Math.max(0, now - Date.parse(row.launched_at));
-      agents.push({ source: 'hook', status: 'dispatched', agent_id: row.agent_id, agent_type: row.agent_type ?? '', description: row.description ?? '', session_id: row.session_id ?? '', cwd: row.cwd ?? '', launched_at: row.launched_at, age_ms: Number.isFinite(age_ms) ? age_ms : 0 });
+      agents.push({ source: 'hook', status: 'dispatched', agent_id: row.agent_id, agent_type: row.agent_type ?? '', description: row.description ?? '', session_id: row.session_id ?? '', cwd: row.cwd ?? '', report_path: row.report_path ?? '', launched_at: row.launched_at, age_ms: Number.isFinite(age_ms) ? age_ms : 0 });
     }
   }
   const sources = [{ source: 'hook', path: stateDir, rows: hookRows }];
@@ -237,7 +256,7 @@ export function pendingReport({ sessionId, stateDir = ledgerDir(), cwd, runDir, 
       const agent_id = row.actor ?? row.id;
       if (row.status !== 'dispatched' || known.has(agent_id) || settledAll.has(agent_id) || settledAll.has(row.id)) continue;
       known.add(agent_id);
-      agents.push({ source: 'dispatch', status: 'dispatched', agent_id, dispatch_id: row.id, agent_type: row.role, description: row.brief, session_id: '', cwd: '', launched_at, age_ms });
+      agents.push({ source: 'dispatch', status: 'dispatched', agent_id, dispatch_id: row.id, agent_type: row.role, description: row.brief, session_id: '', cwd: '', report_path: '', launched_at, age_ms });
     }
   }
   agents.sort((a, b) => Date.parse(b.launched_at) - Date.parse(a.launched_at) || 0);

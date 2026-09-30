@@ -120,7 +120,7 @@ for (const [verb, script] of SCAN_VERBS) {
 }
 
 // Commands: a table key whose value is one script takes no verb. Pinned like DOMAINS.
-const COMMANDS = ['brief', 'burndown'];
+const COMMANDS = ['brief', 'burndown', 'snapshot'];
 const tableCommands = [...tableBlock.matchAll(/^ {2}([a-z][a-z-]*): '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
 expect(tableCommands.join(',') === COMMANDS.join(','), `table commands ${JSON.stringify(tableCommands)} must equal the pinned list ${JSON.stringify(COMMANDS)}`);
 for (const command of COMMANDS) expect(new RegExp(`^ {2}${command} +\\S+\\.mjs \\(command\\)$`, 'm').test(help.stdout), `--help must list the ${command} command`);

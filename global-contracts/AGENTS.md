@@ -38,14 +38,14 @@ A dispatch costs its resident context on every turn. Use the narrowest agent tha
 unit: `code-ops-suite:implementer` for build work, `code-ops-suite:web-researcher` for
 read-only web research, `code-ops-suite:probe` for read-only shell probes, never a
 general-purpose agent where a restricted one fits. Name a round budget and a report cap in
-each brief, and keep breadth agents at their declared tier. Assess a lead session at 150,000
-tokens of context. On Claude and Codex, host auto-compaction is the context relief, not a
-handoff. On Claude, set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended). Keep
-`TASKS.md` and `RUN_LOG.md` current before a compaction, so it loses nothing. Hand off only
+each brief, and keep breadth agents at their declared tier. At 150,000 tokens of context the
+lead checkpoints: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`. On Claude
+and Codex, host auto-compaction is the context relief, not a handoff. On Claude, set
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended). Hand off only
 to start new work, or to move to a clean session that loads updated code-ops plugins or
 contracts. A host change or a failed compaction also needs one. A long session keeps its
-agents and peers reachable, so the operator never repeats context. On Grok, hand off before 200,000
-tokens, because Grok bills double above that line. A unit too small to repay an operative's
+agents and peers reachable, so the operator never repeats context. On Grok, assess at 150,000
+tokens and hand off before 200,000, because Grok bills double above that line. A unit too small to repay an operative's
 startup context stays inline, with the reason recorded. Past 300,000
 tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;
 run the assessment instead of raising or disabling the ceiling.
@@ -130,7 +130,7 @@ successor with `co handoff live` before messaging, because a handed-off session 
 
 When the host compacts this session, keep these items in the summary:
 
-- The operator's requests and constraints, verbatim.
+- The operator's requests and constraints, in one line.
 - The run folder path.
 - Each active open-item id with its owner and done-when check.
 - Each running background agent with its id, type, and the report it owes, so it stays reachable.
@@ -138,8 +138,9 @@ When the host compacts this session, keep these items in the summary:
 - Each authority grant, verbatim, with its scope.
 - Each decision with the options rejected.
 - Each in-flight `file:line` boundary.
+- The next command.
 
-After a compaction, reload `TASKS.md` and `RUN_LOG.md` from the run folder before acting.
+After a compaction, start from the SessionStart card and `COMPACT_SNAPSHOT.md`, not a reread of `TASKS.md` and `RUN_LOG.md`.
 
 ## Change and publishing standards
 

@@ -85,8 +85,9 @@ On Claude and Codex, context size alone never selects HANDOFF. Claude Code compa
 size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended); Codex compacts natively. The
 handoff card names that setting when it is unset on Claude. A handoff cycle costs about 10.8M
 billed tokens, orphans running background agents, and grew the open items at every hop, so the
-quality and transfer triggers in the HANDOFF bullet select HANDOFF at any size. The 150,000-token
-band forces an assessment, not a handoff. The 300,000-token ceiling forces an assessment on a
+quality and transfer triggers in the HANDOFF bullet select HANDOFF at any size. On Claude and
+Codex, the 150,000-token band asks the lead to checkpoint (`TASKS.md` current, a `Next:` line in
+`RUN_LOG.md`), not to assess or hand off. The 300,000-token ceiling forces an assessment on a
 session that chose CONTINUE and overran. Keep `TASKS.md` and `RUN_LOG.md` current before any
 compaction. After one, the routing card lists the open `TASKS.md` lines for the session.
 It also lists under `Pending agents:` each background agent the session launched that has not reported.

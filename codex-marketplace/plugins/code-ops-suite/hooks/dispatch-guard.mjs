@@ -152,8 +152,9 @@
 // home>/.claude/code-ops/dispatch/<sha256 cwd>/<sha256 agent id>.{rounds,binding.json}`, one
 // parsed brief budget per agent beside them (`.brief.json`, numbers and a status only, never
 // brief text), and
-// one assessment marker per session at `<sha256 cwd>/<sha256 session id>.assessed.json`
-// (`{version: 1, band}`), the storage convention `handoffMarkerPath`
+// one assessment marker per session at `<sha256 repository root>/<sha256 session id>.assessed.json`
+// (`{version: 1, band}`; the root is `stateRoot(cwd)`, so a shell that changes directory keeps
+// its assessment), the storage convention `handoffMarkerPath`
 // (scripts/transcript-lib.mjs) sets for the sibling hooks. The count is the file's byte
 // length, appended one byte per tool call, so two concurrent tool calls from the same
 // subagent cannot lose a round the way a read-modify-write of a JSON counter would. The
@@ -615,14 +616,23 @@ function cliFailure(status) {
   return true;
 }
 
-function command() {
+// The assessment marker's key directory for `cwd`: the repository root, or `cwd` itself when the
+// shared library cannot load (fail open).
+async function assessmentRoot(cwd) {
+  try {
+    const lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'transcript-lib.mjs')).href);
+    return lib.stateRoot(cwd);
+  } catch { return cwd; }
+}
+
+async function command() {
   const [verb, ...args] = process.argv.slice(2);
   if (!verb) return false;
   if (verb === 'assessed') {
     const sessionId = cliValue(args, '--session');
     const band = cliPositive(args, '--band');
     if (!sessionId || !SAFE_SESSION.test(sessionId) || !band) return cliFailure('INVALID_ARGUMENT');
-    try { recordAssessment(process.cwd(), sessionId, band); } catch { return cliFailure('UNAVAILABLE'); }
+    try { recordAssessment(await assessmentRoot(process.cwd()), sessionId, band); } catch { return cliFailure('UNAVAILABLE'); }
     return true;
   }
   const agentId = cliAgentId(args);
@@ -664,7 +674,8 @@ async function ceilingGate(payload) {
   const context = lib.residentContext(payload, { grok: Boolean(process.env.GROK_PLUGIN_ROOT), home: homedir() });
   if (typeof context !== 'number') return null;
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
-  return { cwd, sessionId, context, ceiling, band: gateBand(context, ceiling) };
+  // The assessment marker is keyed by the repository root, so a cwd change mid-session keeps it.
+  return { cwd: lib.stateRoot(cwd), sessionId, context, ceiling, band: gateBand(context, ceiling) };
 }
 
 const tokens = (n) => (Math.round(n / 1000) * 1000).toLocaleString('en-US');
@@ -746,7 +757,7 @@ async function guardMainThread(payload, budget, hardStop) {
 }
 
 async function main() {
-  if (command()) return;
+  if (await command()) return;
   const setting = process.env.CODE_OPS_DISPATCH_GUARD ?? '';
   if (/^(off|0|false)$/i.test(setting)) return;
   let raw = '';

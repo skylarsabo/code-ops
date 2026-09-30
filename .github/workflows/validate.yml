@@ -125,6 +125,9 @@ jobs:
       - name: Burn-down counter eval (active cap, growth, read-only)
         run: node evals/burndown/run.mjs
 
+      - name: Compact snapshot eval (record shapes, budgets, stale boundary, masking, run folder fallback)
+        run: node evals/compact-snapshot/run.mjs
+
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
 
@@ -534,6 +537,9 @@ jobs:
 
       - name: Burn-down counter eval (active cap, growth, read-only)
         run: node evals/burndown/run.mjs
+
+      - name: Compact snapshot eval (record shapes, budgets, stale boundary, masking, run folder fallback)
+        run: node evals/compact-snapshot/run.mjs
 
       - name: Lint-gate fixture eval
         run: node evals/lint-plugins/run.mjs

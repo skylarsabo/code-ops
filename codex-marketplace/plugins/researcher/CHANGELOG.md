@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.7
+- The vendored `co.mjs` routes `co snapshot`, which runs where code-ops-suite bundles it.
+
 ## 0.16.6
 - The vendored `co.mjs` routes `co agents settle` and `co burndown`, which run where code-ops-suite bundles them.
 

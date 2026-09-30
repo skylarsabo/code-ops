@@ -250,18 +250,73 @@ Evidence: `plugins/code-ops-suite/hooks/session-receipt.mjs` and
 
 `context-audit.mjs receipts` reads the ledger back and accepts only version `1` rows. `--by-arm` groups rows by the switches they ran under and prints per-session means, with pre-record rows as `unknown`. `receipts --purge-before <ISO date>` rewrites the ledger keeping only rows whose `ts` is at or later than the given date, and reports what it removed, so retention is one operator command and nothing purges on its own. Evidence: `scripts/context-audit.mjs:8-13`, `scripts/context-audit.mjs:77-90`, and `scripts/context-audit.mjs:93-132`.
 
-The package registers no `PreCompact` command. Claude and Codex ignore plain stdout from that
-event, so `routing-card.mjs` handles `SessionStart` with `source=compact` and adds a
-post-compaction instruction to restore decisions, constraints, evidence, blockers, open work,
-and exact identifiers from durable state. When the session record names a run folder, the card also
-lists that folder's unchecked `TASKS.md` lines (the id and the first 80 characters of each, at most
-12, with a shown-of-open count), so the session sees its open items without a file read. Host
-auto-compaction is the default context relief on Claude and Codex (DEC-73), and this card carries
-the open items across it. This is recovery after compaction, not a claim that a hook changed the
-summary. Grok ignores passive `SessionStart` stdout and therefore gets no
-hook-injected restore card. OpenCode uses its native compaction port. Evidence:
-`plugins/code-ops-suite/hooks/hooks.json`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
-and the generated host compatibility files.
+The `PreCompact` hook `compact-snapshot.mjs` writes `COMPACT_SNAPSHOT.md` before the host compacts,
+so the restore card below can name running work and reply-owed peers that a summary drops. The
+host ignores plain stdout from `PreCompact`, so the hook prints nothing. It reads only `session_id`,
+`transcript_path`, and `cwd` from the payload and writes nothing without a session id and a
+transcript path. The snapshot holds four sections within a 12,000-character total: operator words
+(4,800), running work (2,000), active items (3,600), and peers (1,200). Its header records the
+write time, the session, the `compact_boundary` count, a `Status` (`partial` names each missing
+input: transcript, run folder, `TASKS.md`, or agent ledger), and the counts. Running agents come
+live from the agent ledger. A peer is reply-owed when its last message sits later in the
+transcript than the lead's last `SendMessage` to it. Truncation stubs older operator messages
+first, then cuts item lines, drops quiet peers, and cuts running-work descriptions. It never cuts
+ids, report paths, or reply-owed peers.
+
+The hook writes the file into the run folder only when `git check-ignore` reports that path as
+ignored. Otherwise it writes `<home>/.claude/code-ops/snapshots/<key>/<session slug>.md`, where
+`<home>` is `CODE_OPS_HOME` or the operating-system home and `<key>` is the slug of the repository
+root. Readers try the repository-root key first and then the raw-`cwd` key an older build wrote. A
+temporary file renamed over the target makes each write atomic. Every message passes through
+`scripts/scan-redaction.mjs`: a fail-closed secret shape becomes `<REDACTED:secret-shape>`, a
+warn-only shape (an email, an address, a long blob) stays, an unvouched message keeps only its
+transcript line, and a mask that throws stubs every text. The hook exits `0` on bad JSON, a
+missing transcript, or a failed write, so it never blocks compaction. `CODE_OPS_COMPACT_SNAPSHOT`
+set to `off`, `0`, or `false` disables the hook and the `co handoff draft` use of the snapshot. It
+does not gate the compact card. The registration carries a 30-second timeout.
+
+A snapshot is `fresh` only when the transcript's `compact_boundary` count equals the header's
+boundary count plus one. Any other count, and any unreadable header, makes it `stale`. `co
+snapshot [--session <id>] [--transcript <file>] [--run <dir>] [--json]` writes the same file on a
+host whose `PreCompact` payload is unverified. It needs `--session` or `--run`. The transcript
+defaults to the host's default file for the session, and the run folder defaults to the one whose
+`SESSION.json` names the session. A missing piece makes the header `partial`. `--json` prints the
+result fields. It exits `0` when written, `1` when the write fails, and `2` on a usage error.
+
+`routing-card.mjs` handles `SessionStart` with `source=compact` and adds a post-compaction
+instruction to restore decisions, constraints, evidence, blockers, open work, and exact identifiers
+from durable state. Claude and Codex ignore plain `PreCompact` stdout, which is why the card, not
+the hook, speaks to the session. The card prints these lines in order, and each step fails open to
+its own omission:
+
+- the restore instruction, then the session and run-folder line;
+- `git: <branch> @ <short HEAD>, <N dirty path(s)|clean>`, omitted outside a repository or when the
+  3,000 ms call fails;
+- `Next:` with the latest `Next:` line from the last 16 KiB of `RUN_LOG.md`, at most 200
+  characters;
+- the open `TASKS.md` lines (the id and the first 80 characters of each, at most 12, with a
+  shown-of-open count) when the snapshot is not fresh and a run folder is known;
+- `Snapshot fresh (<words> operator words, <running> running, <items> items, <peers> reply-owed
+  peers): <path>` with the rule that the snapshot outranks the summary on running work and peers,
+  which replaces the open-item lines;
+- `Snapshot STALE: <path> predates an earlier compaction; verify its running work and peers`;
+- `Snapshot absent: rebuild it with co snapshot --session <id>` when no snapshot exists and the
+  payload has a session id;
+- `active N/12 (last snapshot M)`, with ` GROWING` when N exceeds M and ` OVER CAP` when N exceeds
+  12, where N counts the live unchecked `TASKS.md` lines;
+- up to 4 `reply owed:` lines of at most 160 characters, which become the first 3 plus `N more
+  reply-owed peers in the snapshot` when more than 4 are owed;
+- the live pending-agents block from the agent ledger.
+
+The card looks for the snapshot in the run folder and then in the home copies. It skips a copy
+whose header `Session` differs from the payload's and is not `unknown`. Host auto-compaction is the
+default context relief on Claude and Codex (DEC-73), and this card carries the open items across
+it. This is recovery after compaction, not a claim that a hook changed the summary. Grok ignores
+passive `SessionStart` stdout and therefore gets no hook-injected restore card. OpenCode uses its
+native compaction port and registers no snapshot writer. Evidence:
+`plugins/code-ops-suite/hooks/hooks.json`, `plugins/code-ops-suite/hooks/compact-snapshot.mjs`,
+`plugins/code-ops-suite/hooks/routing-card.mjs`, `scripts/compact-snapshot.mjs`, and the generated
+host compatibility files.
 
 ## Routing card and traceless hooks
 
@@ -669,17 +724,24 @@ usage. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections
 `plugins/code-ops-suite/hooks/handoff-card.mjs`.
 
 Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
-receipt, or cost proof. It directs the lead to run `handoff assess` at a safe boundary and choose
-CONTINUE or COMPACT on Claude and Codex, or CONTINUE, COMPACT, or HANDOFF on Grok; a higher band asks
-for that assessment before a new workstream. On Claude and Codex (DEC-73) the card names host
-auto-compaction as the context relief, asks for current `TASKS.md` and `RUN_LOG.md` first, and says
-to hand off only to start new work, to load updated code-ops plugins in a clean session, or after a
-host change or failed compaction (DEC-76). It never says to hand off on a token count. On Claude, when
-`CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line naming that setting (250000
-recommended); a Codex or Grok card never carries it.
-At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated
-until that assessment runs; Grok omits that sentence because the guard cannot gate its dispatch
-tool. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
+receipt, or cost proof. On Grok it directs the lead to run `handoff assess` at a safe boundary and
+choose CONTINUE, COMPACT, or HANDOFF; a higher band asks for that assessment before a new
+workstream. On Claude and Codex (DEC-73) the card names host auto-compaction as the context relief
+and asks the lead to checkpoint, not to assess. Band 1 says: "Host auto-compaction is the relief,
+so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a
+`Next:` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits."
+It ends with "The PreCompact snapshot keeps operator words, running work, and peers." on Claude, or
+"Then run `co snapshot`, because the Codex PreCompact payload is unverified." on Codex. The hook has
+no Codex signal, so Claude is `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set and any other non-Grok host
+reads as Codex. Band 2 and above says: "Finish the step in flight and checkpoint as above. If the
+host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean
+session that loads updated code-ops plugins." DEC-76 sets that handoff rule. It never says to hand off on a token count.
+On Claude, when `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line naming that
+setting (250000 recommended); a Codex or Grok card never carries it.
+At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated:
+on Claude and Codex until the lead runs `/code-ops-suite:handoff assess`, and on Grok until that
+assessment runs. Every host carries the sentence, because the guard also gates Grok's
+`spawn_subagent`. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
 so this hook records the ceiling assessment for it.
 The marker proves only that the hook wrote a prior message. It does not prove that the host
 displayed it, that a boundary existed, or that any action was chosen. Evidence:
@@ -799,6 +861,19 @@ card adds a `Pending agents: (<shown> of <total> shown)` block for the payload `
 8 lines of 80 characters. The block fails open and honours the same switch. Evidence:
 `scripts/handoff-state.mjs`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
 `evals/handoff-state/run.mjs`, and `evals/handoff-card/run.mjs`.
+
+`co handoff draft` also reads the compaction snapshot: the run folder's `COMPACT_SNAPSHOT.md`, else
+the home copies, else reply-owed peers built from the session transcript with no write (the running
+list is then empty). When any peer is owed, draft prints to stderr `warning: N peer message(s)
+still await a reply, and a new session cannot answer a message sent to this one (from <source>):`,
+one indented line per peer, and a closing line that tells the lead to answer each peer before the
+handoff or name it in the handoff text. The draft goes on. The warning never refuses the draft and
+never changes its exit code. The pending-agent refusal above is separate. Under `## In-flight
+boundaries`, draft also seeds up to 8 `- Running work (snapshot): ...` lines, one for each shell,
+workflow, or wakeup entry, each cut to 160 characters with `[FILL:` rewritten to `[fill:`. Past 8 it
+adds `- +N more running work entries in the snapshot.` `CODE_OPS_COMPACT_SNAPSHOT=off|0|false` skips
+both the warning and the seeding. Evidence: `scripts/handoff-state.mjs` and
+`scripts/compact-snapshot.mjs`.
 
 The pending list merges two sources on every host: the hook rows in the agent ledger and the
 `dispatched` rows of the run's `DISPATCH_LEDGER.md`, deduplicated on agent id and actor id. Each

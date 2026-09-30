@@ -775,6 +775,58 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   console.log('ok   the context ceiling denies dispatch until a handoff assessment records the band, and each switch behaves');
 }
 
+// ---------------------------------------------------------------- ceiling assessment keyed by repository root
+// A lead whose shell changes directory reports a different payload cwd on each call. The
+// assessment marker keys on the repository root (nearest ancestor holding `.git`), so an
+// assessment recorded from a subdirectory unlocks a dispatch from the root, and another repository
+// root stays gated on its own.
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'dispatch-stateroot-'));
+  const repoA = join(dir, 'repo-a');
+  const repoB = join(dir, 'repo-b');
+  const sub = join(repoA, 'pkg', 'deep');
+  mkdirSync(sub, { recursive: true });
+  mkdirSync(repoB, { recursive: true });
+  // `.git` is a file in a worktree and a directory in a clone; the walk accepts both.
+  writeFileSync(join(repoA, '.git'), 'gitdir: elsewhere\n');
+  mkdirSync(join(repoB, '.git'));
+  const session = 'sess-stateroot';
+  const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' };
+  const dispatchFrom = (cwd, context = 310_000) => runHook(dispatchCall(clean, {
+    cwd, session_id: session, transcript_path: transcriptAt(dir, context, `t-${context}.jsonl`),
+  }), { home });
+  const denied = (r) => parseOut(r)?.hookSpecificOutput?.permissionDecision === 'deny';
+
+  expect(denied(dispatchFrom(repoA)), 'a dispatch past the ceiling must deny before any assessment');
+  const skill = runHook({
+    hook_event_name: 'PreToolUse', cwd: sub, session_id: session, tool_name: 'Skill', tool_use_id: 'tu-root',
+    tool_input: { skill: 'code-ops-suite:handoff', args: 'assess' }, transcript_path: transcriptAt(dir, 310_000, 's-310000.jsonl'),
+  }, { home });
+  expect(skill.status === 0 && skill.stdout === '', `the handoff skill call from a subdirectory must be silent, got ${JSON.stringify(skill.stdout)}`);
+  expect(dispatchFrom(repoA).stdout === '', 'an assessment recorded from a subdirectory must unlock a dispatch from the repository root');
+  expect(dispatchFrom(sub).stdout === '', 'the same assessment must unlock a dispatch from the subdirectory itself');
+  expect(denied(dispatchFrom(repoB)), 'another repository root must not inherit the assessment');
+
+  // The CLI verb run from a subdirectory lands on the same marker.
+  expect(denied(dispatchFrom(repoA, 460_000)), 'the next band must re-gate from the repository root');
+  const cli = runControl(['assessed', '--session', session, '--band', '2'], { home, cwd: sub });
+  expect(cli.status === 0 && cli.stdout === '', `the assessed verb from a subdirectory must succeed, got ${cli.status}/${cli.stderr}`);
+  expect(dispatchFrom(repoA, 460_000).stdout === '', 'a CLI assessment from a subdirectory must unlock a dispatch from the repository root');
+
+  // No `.git` anywhere above the cwd: the cwd itself keys the marker, as before.
+  const loose = join(dir, 'loose');
+  mkdirSync(loose);
+  runControl(['assessed', '--session', session, '--band', '1'], { home, cwd: loose });
+  expect(existsSync(join(home, '.claude', 'code-ops', 'dispatch', stateKey(loose), `${stateKey(session)}.assessed.json`)),
+    'a cwd with no repository root above it must key its own marker');
+
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   a ceiling assessment recorded from a subdirectory unlocks the repository root, and another root stays gated');
+}
+
 // ---------------------------------------------------------------- Grok: host ceiling and child-session counter
 
 {

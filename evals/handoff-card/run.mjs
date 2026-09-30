@@ -6,7 +6,7 @@
 //   - below 150,000 tokens of resident context (input + cache-read + cache-creation on the last
 //     assistant usage record), the hook is silent and writes no marker;
 //   - crossing 150,000 prints exactly one JSON line, naming the approximate token count and
-//     pointing at /code-ops-suite:handoff, on both systemMessage and hookSpecificOutput's
+//     the host's relief (auto-compaction on Claude and Codex), on both systemMessage and hookSpecificOutput's
 //     additionalContext, with hookEventName UserPromptSubmit and no permissionDecision;
 //   - a second prompt in the same 150k band stays silent;
 //   - crossing into the next 150k band prints again;
@@ -17,11 +17,15 @@
 //   - Grok UserPromptSubmit emits nothing, because that stdout is discarded. Grok PostToolUse
 //     reads updates.jsonl and emits one additionalContext per new band, with hookEventName
 //     PostToolUse and no systemMessage;
-//   - on Claude and Codex (DEC-73) each band requests a CONTINUE or COMPACT assessment, names host
-//     auto-compaction as the relief and the handoff triggers, and never says to hand off on a token
-//     count; on Claude, with CLAUDE_CODE_AUTO_COMPACT_WINDOW unset, the card adds one line naming it;
-//     on Grok each band requests CONTINUE, COMPACT, or HANDOFF. A higher band asks before a new
-//     workstream without claiming an earlier warning was received;
+//   - on Claude and Codex (DEC-73) band 1 names host auto-compaction as the relief and asks the lead
+//     to checkpoint (TASKS.md current, a RUN_LOG.md `Next:` line); Claude ends with the PreCompact
+//     snapshot sentence and Codex with `co snapshot`, and Codex is any non-Grok host without
+//     CLAUDECODE or CLAUDE_PROJECT_DIR. Band 2 and above says to finish the step, checkpoint, ask
+//     for /compact if the host has not compacted, and hand off only for new work or a clean session.
+//     No card says to hand off on a token count; on Claude, with CLAUDE_CODE_AUTO_COMPACT_WINDOW
+//     unset, the card adds one line naming it; on Grok each band requests CONTINUE, COMPACT, or
+//     HANDOFF. A higher band asks before a new workstream without claiming an earlier warning was
+//     received;
 //   - a crossing at or past the context ceiling (CODE_OPS_CONTEXT_CEILING, default 300,000)
 //     ends with one sentence saying new dispatches are gated; off drops only that sentence, an
 //     override moves it, an invalid value falls back to 300,000, and Grok gets it from 200,000;
@@ -114,6 +118,18 @@ function parseOut(r) {
   try { return JSON.parse(r.stdout); } catch { return 'unparsable'; }
 }
 
+// The exact Claude and Codex card text (DEC-73). Each piece is pinned here so a wording drift fails.
+const held = (approx) => `This session holds approximately ${approx} tokens of context. `;
+const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a `Next:` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits. ';
+const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running work, and peers.';
+const SNAPSHOT_CODEX = 'Then run `co snapshot`, because the Codex PreCompact payload is unverified.';
+const BAND2 = 'Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.';
+const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Claude Code settings so the host compacts near that size.';
+const GATED = ' New dispatches are now gated until you run /code-ops-suite:handoff assess.';
+const CLAUDE_WINDOW_SET = { CLAUDECODE: '1', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '250000' };
+// The old non-Grok card told the lead to run the assessment; no Claude or Codex card may again.
+const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
+
 // ---------------------------------------------------------------- crossing / band / re-arm sequence
 
 {
@@ -132,8 +148,8 @@ function parseOut(r) {
   let out = parseOut(r);
   expect(r.status === 0 && out && out !== 'unparsable', `crossing must print one parsable JSON line, got ${r.status}/${JSON.stringify(r.stdout)}`);
   if (out && out !== 'unparsable') {
-    expect(typeof out.systemMessage === 'string' && out.systemMessage.includes('/code-ops-suite:handoff'), 'systemMessage must name /code-ops-suite:handoff');
-    expect(out.systemMessage.includes('161,000') || out.systemMessage.includes('160,000'), `systemMessage must name the approximate token count, got ${out.systemMessage}`);
+    expect(out.systemMessage === held('160,000') + BAND1 + SNAPSHOT_CODEX, `a host-neutral band 1 card must be the exact Codex text, got ${out.systemMessage}`);
+    expect(!OLD_ASSESS.test(out.systemMessage), 'the card must not tell the lead to run the assessment');
     expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(out.systemMessage), 'the message must carry no emoji');
     const hso = out.hookSpecificOutput || {};
     expect(hso.hookEventName === 'UserPromptSubmit', `hookEventName must be UserPromptSubmit, got ${hso.hookEventName}`);
@@ -173,6 +189,49 @@ function parseOut(r) {
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   crossing prints once, the same band stays silent, the next band prints, and dropping below 150,000 re-arms it');
+}
+
+// ---------------------------------------------------------------- marker keyed by repository root
+// A lead whose shell changes directory reports a different payload cwd on each prompt. The marker
+// keys on the repository root (nearest ancestor holding `.git`), so one session shows one card per
+// band across those cwds, while two repository roots keep separate markers.
+
+{
+  const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-stateroot-'));
+  const repoA = join(dir, 'repo-a');
+  const repoB = join(dir, 'repo-b');
+  const sub = join(repoA, 'pkg', 'deep');
+  mkdirSync(sub, { recursive: true });
+  mkdirSync(repoB, { recursive: true });
+  // `.git` is a file in a worktree and a directory in a clone; the walk accepts both.
+  writeFileSync(join(repoA, '.git'), 'gitdir: elsewhere\n');
+  mkdirSync(join(repoB, '.git'));
+  const transcript = writeTranscript(dir, assistantLine(160_000));
+  const cardFrom = (cwd, sessionId) => parseOut(runHook(payloadFor({ transcript, sessionId, cwd }), { home }));
+
+  const first = cardFrom(repoA, 'sess-root-keyed');
+  expect(first && first !== 'unparsable', `the first prompt of the band must print a card, got ${JSON.stringify(first)}`);
+  const second = cardFrom(sub, 'sess-root-keyed');
+  expect(second === null, `a prompt from a subdirectory of the same repository must not repeat the band card, got ${JSON.stringify(second)}`);
+  expect(cardFrom(repoA, 'sess-root-keyed') === null, 'a return to the repository root must stay silent');
+  expect(handoffMarkerPath(repoA, 'sess-root-keyed', home) === handoffMarkerPath(sub, 'sess-root-keyed', home),
+    'the root and a subdirectory must resolve to one marker path');
+
+  const other = cardFrom(repoB, 'sess-root-keyed');
+  expect(other && other !== 'unparsable', `a separate repository root must keep its own marker and print its own card, got ${JSON.stringify(other)}`);
+  expect(handoffMarkerPath(repoA, 'sess-root-keyed', home) !== handoffMarkerPath(repoB, 'sess-root-keyed', home),
+    'two repository roots must resolve to separate markers');
+
+  // No `.git` above the cwd: the cwd keys the marker itself, as before.
+  const loose = join(dir, 'loose');
+  mkdirSync(loose);
+  expect(handoffMarkerPath(loose, 'sess-root-keyed', home) !== handoffMarkerPath(repoA, 'sess-root-keyed', home),
+    'a cwd with no repository root above it must not share the repository marker');
+
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   one session shows one band card across cwds under one repository root, and separate roots keep separate markers');
 }
 
 // ---------------------------------------------------------------- compaction boundary
@@ -252,37 +311,47 @@ function parseOut(r) {
 {
   const { home, cleanup } = fakeHome();
   const dir = mkdtempSync(join(tmpdir(), 'handoff-band-'));
-  const first = runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(160_000), 'b1.jsonl'), sessionId: 'sess-band-1' }), { home });
-  const second = runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(330_000), 'b2.jsonl'), sessionId: 'sess-band-2' }), { home });
-  const m1 = (parseOut(first) || {}).systemMessage || '';
-  const m2 = (parseOut(second) || {}).systemMessage || '';
-  // DEC-73: on Claude and Codex the assessment chooses CONTINUE or COMPACT, host auto-compaction is
-  // the relief, and no card says to hand off on a token count.
-  expect(/handoff assess/.test(m1) && /to choose CONTINUE or COMPACT\./.test(m1) && !/COMPACT, or HANDOFF/.test(m1) && /next safe boundary/.test(m1), `band 1 must request the CONTINUE or COMPACT assessment at a safe boundary, got ${m1}`);
-  expect(/handoff assess/.test(m2) && /to choose CONTINUE or COMPACT before starting a new workstream/.test(m2), `band 2 must request the CONTINUE or COMPACT assessment before a new workstream, got ${m2}`);
-  for (const m of [m1, m2]) {
-    expect(/Host auto-compaction is the context relief, so bring TASKS\.md and RUN_LOG\.md current first\./.test(m), `a Claude or Codex card must name auto-compaction and the durable files, got ${m}`);
-    expect(/Hand off only to start new work, to load updated code-ops plugins in a clean session, or after a host change or failed compaction\./.test(m), `a Claude or Codex card must name the handoff triggers, got ${m}`);
+  // Each card is the exact text for its host and band. The ceiling is off so band 2 carries no gate
+  // sentence; the ceiling block below pins that one.
+  const cardAt = (context, sessionId, env = {}) => (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(context), `${sessionId}.jsonl`), sessionId }), { home, ceiling: 'off', env })) || {}).systemMessage || '';
+  const SETTING = /CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it \(250000 recommended\)/;
+  const codex1 = cardAt(160_000, 'sess-codex-1');
+  const codex2 = cardAt(330_000, 'sess-codex-2');
+  const claude1 = cardAt(160_000, 'sess-claude-1', CLAUDE_WINDOW_SET);
+  const claude2 = cardAt(330_000, 'sess-claude-2', CLAUDE_WINDOW_SET);
+  const claude1Unset = cardAt(160_000, 'sess-env-claude', { CLAUDECODE: '1' });
+  const claude2Unset = cardAt(330_000, 'sess-env-claude-2', { CLAUDECODE: '1' });
+  const project1Unset = cardAt(160_000, 'sess-env-project', { CLAUDE_PROJECT_DIR: '/fixture' });
+  // DEC-73: Claude and Codex name host auto-compaction as the relief and ask for a checkpoint; no card
+  // says to hand off on a token count. Codex is any non-Grok host without a Claude marker.
+  expect(codex1 === held('160,000') + BAND1 + SNAPSHOT_CODEX, `Codex band 1 must be the exact text ending with co snapshot, got ${codex1}`);
+  expect(codex2 === held('330,000') + BAND2, `Codex band 2 must be the exact escalated text, got ${codex2}`);
+  expect(claude1 === held('160,000') + BAND1 + SNAPSHOT_CLAUDE, `Claude band 1 with the window set must be the exact text, got ${claude1}`);
+  expect(claude2 === held('330,000') + BAND2, `Claude band 2 with the window set must be the exact escalated text, got ${claude2}`);
+  expect(claude1Unset === held('160,000') + BAND1 + SNAPSHOT_CLAUDE + SETTING_LINE, `Claude band 1 with the window unset must end with the setting line, got ${claude1Unset}`);
+  expect(claude2Unset === held('330,000') + BAND2 + SETTING_LINE, `Claude band 2 with the window unset must end with the setting line, got ${claude2Unset}`);
+  expect(project1Unset === claude1Unset, `CLAUDE_PROJECT_DIR must also mark a Claude host, got ${project1Unset}`);
+  for (const m of [codex1, codex2, claude1, claude2, claude1Unset, claude2Unset]) {
+    expect(!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(m), `a card must carry no emoji, got ${m}`);
+    expect(!OLD_ASSESS.test(m) && !/handoff assess|CONTINUE|HANDOFF/.test(m), `a Claude or Codex card must not ask for an assessment, got ${m}`);
     expect(!/hand off (now|at the next|by)|handoff point|write the handoff|Continue-until/i.test(m), `a Claude or Codex card must never say to hand off on token count, got ${m}`);
+    expect(!/handoff now|declined|every turn re-reads all|full price/i.test(m), `the card must not assert the old handoff or cost claims, got ${m}`);
   }
-  expect(!/handoff now|declined|every turn re-reads all|full price/i.test(`${m1} ${m2}`), `the advisory must not assert the old handoff or cost claims, got ${m1} / ${m2}`);
-  expect(m1 !== m2 && m2.includes('/code-ops-suite:handoff'), 'band 2 must escalate past band 1 and still name the command');
+  expect(codex1 !== codex2 && claude1 !== claude2, 'band 2 must escalate past band 1');
 
   // The setting line: Claude only, only while CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset.
-  const SETTING = /CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it \(250000 recommended\)/;
-  const withEnv = (sessionId, env) => (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(160_000), `${sessionId}.jsonl`), sessionId }), { home, env })) || {}).systemMessage || '';
-  expect(SETTING.test(withEnv('sess-env-claude', { CLAUDECODE: '1' })), 'Claude with the window unset must get the setting line');
-  expect(SETTING.test(withEnv('sess-env-project', { CLAUDE_PROJECT_DIR: '/fixture' })), 'CLAUDE_PROJECT_DIR must also mark a Claude host');
-  expect(!SETTING.test(withEnv('sess-env-set', { CLAUDECODE: '1', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '250000' })), 'Claude with the window set must get no setting line');
-  expect(!SETTING.test(m1), 'a host that is not Claude (Codex) must get no setting line');
-  expect(/to choose CONTINUE or COMPACT\..*Hand off only to.*CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset/.test(withEnv('sess-env-order', { CLAUDECODE: '1' })), 'the setting line must follow the assessment advice in the same card');
+  expect(SETTING.test(claude1Unset) && SETTING.test(claude2Unset), 'Claude with the window unset must get the setting line on both bands');
+  expect(!SETTING.test(claude1) && !SETTING.test(claude2), 'Claude with the window set must get no setting line');
+  expect(!SETTING.test(codex1) && !SETTING.test(codex2), 'a host that is not Claude (Codex) must get no setting line');
+  expect(/Host auto-compaction is the relief.*PreCompact snapshot keeps operator words, running work, and peers\. CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset/.test(claude1Unset), 'the setting line must follow the checkpoint advice in the same card');
+  expect(/Hand off only for new work or a clean session that loads updated code-ops plugins\. CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset/.test(claude2Unset), 'the setting line must follow the band 2 advice in the same card');
 
   // Grok keeps the three-way assessment and never gets the Claude setting line.
   const grokBand = (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(160_000), 'grok-band-updates.jsonl'), sessionId: 'sess-band-grok', eventName: 'PostToolUse' }), { home, grok: true, env: { CLAUDECODE: '1' } })) || {}).hookSpecificOutput?.additionalContext || '';
   expect(/CONTINUE, COMPACT, or HANDOFF/.test(grokBand) && !SETTING.test(grokBand) && !/auto-compaction/.test(grokBand), `Grok band 1 must keep the three-way assessment with no Claude setting line, got ${grokBand}`);
   rmSync(dir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   Claude and Codex cards ask for CONTINUE or COMPACT with auto-compaction as the relief; Claude gets the window setting line only while it is unset; Grok keeps the three-way assessment');
+  console.log('ok   Claude and Codex cards pin exact text, with auto-compaction as the relief and no assessment; Claude gets the window setting line only while it is unset; Grok keeps the three-way assessment');
 }
 
 // ---------------------------------------------------------------- context ceiling sentence
@@ -290,26 +359,33 @@ function parseOut(r) {
 {
   const { home, cleanup } = fakeHome();
   const dir = mkdtempSync(join(tmpdir(), 'handoff-ceiling-'));
-  const gated = /New dispatches are now gated until that assessment runs\./;
-  const messageAt = (context, sessionId, ceiling) => {
-    const env = ceiling === undefined ? {} : { ceiling };
-    return (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(context), `${sessionId}.jsonl`), sessionId }), { home, ...env })) || {}).systemMessage || '';
+  const gated = /New dispatches are now gated until you run \/code-ops-suite:handoff assess\./;
+  const gatedGrok = /New dispatches are now gated until that assessment runs\./;
+  const relief = /Host auto-compaction is the relief/;
+  const messageAt = (context, sessionId, ceiling, env) => {
+    const opts = ceiling === undefined ? {} : { ceiling };
+    return (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, assistantLine(context), `${sessionId}.jsonl`), sessionId }), { home, ...opts, env })) || {}).systemMessage || '';
   };
   const below = messageAt(160_000, 'sess-ceil-below');
-  expect(/handoff assess/.test(below) && !gated.test(below), `a crossing under the ceiling must not claim a dispatch gate, got ${below}`);
+  expect(relief.test(below) && !gated.test(below), `a crossing under the ceiling must not claim a dispatch gate, got ${below}`);
   const above = messageAt(310_000, 'sess-ceil-above');
-  expect(gated.test(above) && above.trim().endsWith('assessment runs.'), `a crossing at or past the ceiling must end with the gate sentence, got ${above}`);
+  expect(above === held('310,000') + BAND2 + GATED, `a Codex crossing at or past the ceiling must be band 2 text ending with the gate sentence, got ${above}`);
+  const aboveClaude = messageAt(310_000, 'sess-ceil-above-claude', undefined, CLAUDE_WINDOW_SET);
+  expect(aboveClaude === held('310,000') + BAND2 + GATED, `a Claude crossing at or past the ceiling must end with the gate sentence, got ${aboveClaude}`);
+  const aboveUnset = messageAt(310_000, 'sess-ceil-above-unset', undefined, { CLAUDECODE: '1' });
+  expect(aboveUnset === held('310,000') + BAND2 + SETTING_LINE + GATED, `the gate sentence must follow the setting line, got ${aboveUnset}`);
+  expect(!OLD_ASSESS.test(above) && !OLD_ASSESS.test(aboveClaude) && !OLD_ASSESS.test(aboveUnset) && !gatedGrok.test(above), 'a non-Grok gate sentence must not reuse the Grok wording or ask to choose an assessment');
   expect(gated.test(messageAt(300_000, 'sess-ceil-exact')), 'a crossing exactly at the ceiling must name the gate');
   for (const value of ['off', '0', 'false']) {
     const off = messageAt(310_000, `sess-ceil-off-${value}`, value);
-    expect(/handoff assess/.test(off) && !gated.test(off), `CODE_OPS_CONTEXT_CEILING=${value} must drop only the gate sentence, got ${off}`);
+    expect(off === held('310,000') + BAND2, `CODE_OPS_CONTEXT_CEILING=${value} must drop only the gate sentence, got ${off}`);
   }
   expect(gated.test(messageAt(160_000, 'sess-ceil-override', '150000')), 'an overridden 150,000 ceiling must name the gate at band 1');
   expect(!gated.test(messageAt(460_000, 'sess-ceil-high', '500000')), 'context under an overridden ceiling must not name the gate');
   expect(gated.test(messageAt(310_000, 'sess-ceil-invalid', '100000')), 'an invalid ceiling must fall back to 300,000');
   const grok = runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(210_000), 'updates.jsonl'), sessionId: 'sess-ceil-grok', eventName: 'PostToolUse' }), { home, grok: true });
   const grokNote = (parseOut(grok) || {}).hookSpecificOutput?.additionalContext || '';
-  expect(/handoff assess/.test(grokNote) && gated.test(grokNote), `Grok past its 200,000-token ceiling must name the spawn_subagent gate, got ${grokNote}`);
+  expect(/handoff assess/.test(grokNote) && gatedGrok.test(grokNote) && !gated.test(grokNote), `Grok past its 200,000-token ceiling must name the spawn_subagent gate, got ${grokNote}`);
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   a crossing at or past the context ceiling says new dispatches are gated, on Grok from 200,000');
@@ -350,10 +426,11 @@ function parseOut(r) {
   const dir = mkdtempSync(join(tmpdir(), 'handoff-codex-'));
   const r = runHook(payloadFor({ transcript: writeTranscript(dir, codexTokenLine(310_000), 'codex.jsonl'), sessionId: 'sess-codex' }), { home });
   const message = (parseOut(r) || {}).systemMessage || '';
-  expect(r.status === 0 && /handoff assess/.test(message), `a Codex token_count transcript must receive lifecycle guidance, got ${r.status}/${message}`);
+  expect(r.status === 0 && message === held('310,000') + BAND2 + GATED, `a Codex token_count transcript must receive the exact band 2 card with the gate sentence, got ${r.status}/${message}`);
+  expect(!OLD_ASSESS.test(message), 'the Codex card must not ask to choose an assessment');
   rmSync(dir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   a Codex token-count transcript receives the lifecycle assessment reminder');
+  console.log('ok   a Codex token-count transcript receives the compaction card');
 }
 
 // ---------------------------------------------------------------- handoff point and Continue-until
@@ -370,7 +447,7 @@ function parseOut(r) {
   const at = (context, sessionId, opts = {}) => runHook(payloadFor({ transcript: writeTranscript(project, assistantLine(context), `${sessionId}.jsonl`), sessionId, cwd: project }), { home, ...opts });
   const handOff = /past the 200,000-token handoff point\. At the next phase boundary, run \/code-ops-suite:handoff assess and hand off\./;
   const autonomousText = /no operator prompt has arrived since the last card\. At the next phase boundary, run \/code-ops-suite:handoff write instead of assessing again\./;
-  const compaction = /to choose CONTINUE or COMPACT/;
+  const compaction = /Host auto-compaction is the relief|Finish the step in flight and checkpoint as above/;
   const noHandoffOnTokens = (text) => !/handoff point|hand off (now|at the next|by)|write the handoff|Continue-until/i.test(text);
 
   // Claude and Codex: the card at 225,000 is the plain band-1 compaction card, once per arm.
@@ -668,7 +745,8 @@ function grokUsageLine(inputTokens) {
     resumed: 'fixture-docs/80 Runs/2026-09-23-ledger2-amm-ho1/HANDOFF.md', hop: 2, updatedAt: new Date().toISOString(), ...fields }));
   writeRecord({});
   const withRecord = compactRun({ ...startup, session_id: sid });
-  expect(withRecord.stdout.includes('compaction resume: this session is Ledger2 AMM HO 2, run folder fixture-docs/80 Runs/2026-09-24-ledger2-amm-ho2; it already resumed fixture-docs/80 Runs/2026-09-23-ledger2-amm-ho1/HANDOFF.md and must not resume it or any earlier handoff again; reload fixture-docs/80 Runs/2026-09-24-ledger2-amm-ho2/TASKS.md and RUN_LOG.md, then continue')
+  expect(withRecord.stdout.includes('compaction resume: this session is Ledger2 AMM HO 2, run folder fixture-docs/80 Runs/2026-09-24-ledger2-amm-ho2; it already resumed fixture-docs/80 Runs/2026-09-23-ledger2-amm-ho1/HANDOFF.md and must not resume it or any earlier handoff again; continue from the state below')
+    && !/reload .*TASKS\.md/.test(withRecord.stdout)
     && !withRecord.stdout.includes('stays consumed; never resume it again') && pickupLine(withRecord) === null,
   `compact with a record must name the session, run folder, and consumed handoff, got ${JSON.stringify(withRecord.stdout)}`);
   // The compact card lists the run folder's unchecked TASKS.md lines: ids and the first 80

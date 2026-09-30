@@ -30,10 +30,24 @@
 // A `startup` card also lists, under the same caps and switch, the agents earlier sessions in this
 // directory launched and never saw report, headed `Left pending when an earlier session here ended:`.
 //
+// COMPACT SNAPSHOT. The `compact` card no longer tells the lead to reload TASKS.md and RUN_LOG.md.
+// It prints one live git line (branch, short HEAD, dirty paths; nothing outside a repository), the
+// latest `Next:` line from the tail of the run folder's RUN_LOG.md (at most NEXT_CHARS), and the
+// state of COMPACT_SNAPSHOT.md (`../scripts/compact-snapshot.mjs`, written by hooks/compact-snapshot.mjs
+// at PreCompact), looked up in the run folder and then the home state directory. `Snapshot fresh`
+// means the transcript holds exactly one more `compact_boundary` than the snapshot header, and the card
+// then gives its path and counts and says it outranks the summary on running work and peers, and omits
+// the open-item lines. `Snapshot STALE` or no snapshot keeps the open-item lines as before. The line
+// `active N/12 (last snapshot M)` counts the live unchecked TASKS.md lines against the header's
+// count, with ` GROWING` when N exceeds M and ` OVER CAP` when N exceeds 12. Pending agents stay live
+// from the ledger. Up to PEER_LINES lines list the snapshot's reply-owed peers, because an unanswered
+// peer is the costliest miss. Every step fails open to its own omission.
+//
 //   node hooks/routing-card.mjs
 
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { closeSync, openSync, readFileSync, readSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -106,14 +120,34 @@ function sessionName(file) {
 // module would load far more than this hook needs on every session start.
 const slug = (value) => String(value).replace(/[^A-Za-z0-9]/g, '-');
 
+// This mirrors stateRoot() in scripts/transcript-lib.mjs, the canonical copy: the nearest ancestor of
+// `cwd` (itself included) holding a `.git` entry, which keys the session record store, or `cwd` itself
+// when none does or any check throws. It stats only.
+function stateRoot(cwd) {
+  try {
+    let dir = resolve(String(cwd));
+    for (;;) {
+      if (existsSync(join(dir, '.git'))) return dir;
+      const parent = dirname(dir);
+      if (parent === dir) return cwd;
+      dir = parent;
+    }
+  } catch { return cwd; }
+}
+
 // This session's record (the shared data contract in the handoff v2 spec), or null when it is
-// absent, unreadable, or malformed.
+// absent, unreadable, or malformed. The store is keyed on the repository root, as sessionRecordPath()
+// keys it; a record an older build wrote under the raw working directory is read as a fallback.
 const PATH_CHARS = 200;
 function sessionRecord(cwd, sessionId) {
-  let record;
-  try {
-    record = JSON.parse(readFileSync(join(homedir(), '.claude', 'code-ops', 'sessions', slug(cwd), `${slug(sessionId)}.json`), 'utf8'));
-  } catch { return null; }
+  let record = null;
+  for (const key of new Set([slug(stateRoot(cwd)), slug(cwd)])) {
+    try {
+      record = JSON.parse(readFileSync(join(homedir(), '.claude', 'code-ops', 'sessions', key, `${slug(sessionId)}.json`), 'utf8'));
+      break;
+    } catch { /* try the next key */ }
+  }
+  if (!record) return null;
   const name = cardValue(record?.name, NAME_CHARS);
   const runDir = cardValue(record?.runDir, PATH_CHARS);
   if (!name || !runDir) return null;
@@ -150,17 +184,110 @@ function sessionRunFolder(cwd, sessionId) {
 const OPEN_ITEMS = 12;
 const OPEN_CHARS = 80;
 const TASKS_BYTES = 65_536;
-function openItemLines(cwd, runDir) {
+// The run folder's unchecked TASKS.md items, cut to OPEN_CHARS, or null when the file cannot be read.
+function openItems(cwd, runDir) {
   let text;
-  try { text = readFileSync(resolve(cwd, runDir, 'TASKS.md'), 'utf8').slice(0, TASKS_BYTES); } catch { return []; }
+  try { text = readFileSync(resolve(cwd, runDir, 'TASKS.md'), 'utf8').slice(0, TASKS_BYTES); } catch { return null; }
   const open = [];
   for (const line of text.split(/\r?\n/)) {
     const item = /^[ \t]*[-*][ \t]+\[ \][ \t]+(.*)$/.exec(line)?.[1];
     if (item) open.push(item.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, OPEN_CHARS));
   }
-  if (!open.length) return [];
+  return open;
+}
+function openItemLines(runDir, open) {
+  if (!open?.length) return [];
   const shown = open.slice(0, OPEN_ITEMS);
   return [`open items in ${runDir}/TASKS.md (${shown.length} of ${open.length} shown):`, ...shown];
+}
+
+// The live state a compaction summary cannot hold. One git process gives the branch, the short HEAD,
+// and the dirty-path count; outside a repository, or on any failure, the line is omitted.
+const GIT_MS = 3000;
+function gitLine(cwd) {
+  try {
+    const run = spawnSync('git', ['status', '--porcelain=v2', '--branch'], { cwd, encoding: 'utf8', timeout: GIT_MS, windowsHide: true });
+    if (run.error || run.status !== 0) return [];
+    const rows = run.stdout.split('\n').filter(Boolean);
+    const oid = /^# branch\.oid (\S+)/m.exec(run.stdout)?.[1] ?? '';
+    const branch = /^# branch\.head (\S+)/m.exec(run.stdout)?.[1] ?? '';
+    if (!oid || !branch) return [];
+    const dirty = rows.filter((r) => !r.startsWith('#')).length;
+    return [`git: ${cardValue(branch, 60) ?? '?'} @ ${/^[0-9a-f]+$/.test(oid) ? oid.slice(0, 7) : oid}, ${dirty ? `${dirty} dirty path(s)` : 'clean'}`];
+  } catch { return []; }
+}
+
+// The latest `Next:` line in the tail of the run folder's RUN_LOG.md: the lead writes one at each
+// assessment and phase boundary, naming the step in flight, its next command, and the file:line it
+// edits. Only the last LOG_TAIL bytes are read. The line is cut to NEXT_CHARS, longer than the
+// other card lines because it carries a command and a location.
+const LOG_TAIL = 16_384;
+const NEXT_CHARS = 200;
+function nextLine(cwd, runDir) {
+  let fd;
+  try {
+    const file = resolve(cwd, runDir, 'RUN_LOG.md');
+    fd = openSync(file, 'r');
+    const size = statSync(file).size;
+    const length = Math.min(size, LOG_TAIL);
+    const buffer = Buffer.alloc(length);
+    readSync(fd, buffer, 0, length, size - length);
+    const found = buffer.toString('utf8').split(/\r?\n/).map((l) => /^[ \t]*(?:[-*][ \t]+)?(?:\*\*)?Next:(?:\*\*)?[ \t]*(\S.*)$/.exec(l)?.[1]).filter(Boolean);
+    const last = found.at(-1)?.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+    return last ? [`Next: ${last.slice(0, NEXT_CHARS)}`] : [];
+  } catch { return []; } finally { if (fd !== undefined) try { closeSync(fd); } catch { /* already closed */ } }
+}
+
+// COMPACT_SNAPSHOT.md for this session: the run folder's copy first, then the home state
+// directory's. `state` is `fresh` or `stale` by the library's boundary-count rule (a payload with no
+// readable transcript is stale), `absent` when no file holds a snapshot header for this session, and
+// `unavailable` when the library does not load, which prints no Snapshot line at all.
+const PEER_LINES = 4;
+const PEER_CHARS = 160;
+async function readSnapshot(cwd, runDir, sessionId, transcriptPath) {
+  try {
+    const scripts = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
+    const lib = await import(pathToFileURL(join(scripts, 'compact-snapshot.mjs')).href);
+    const { countBoundaries } = await import(pathToFileURL(join(scripts, 'transcript-lib.mjs')).href);
+    const candidates = [runDir ? join(resolve(cwd, runDir), lib.SNAPSHOT_FILE) : null, ...(sessionId ? lib.homeSnapshotPaths(cwd, sessionId) : [])].filter(Boolean);
+    for (const path of candidates) {
+      let text;
+      try { text = readFileSync(path, 'utf8'); } catch { continue; }
+      const header = lib.readSnapshotHeader(text);
+      if (!header || (header.sessionId !== sessionId && header.sessionId !== 'unknown')) continue;
+      let boundaries = NaN;
+      try { boundaries = countBoundaries(readFileSync(transcriptPath, 'utf8')); } catch { /* no transcript: stale */ }
+      return { state: lib.snapshotState(header, boundaries), path, text, header };
+    }
+    return { state: 'absent' };
+  } catch { return { state: 'unavailable' }; }
+}
+
+// The card lines for a snapshot: its state, the live active count against the header's, and the
+// reply-owed peers. `open` is the live list of unchecked items, or null when TASKS.md is unreadable.
+function snapshotLines(snap, cwd, open, sessionId) {
+  const clean = (value) => value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+  const lines = [];
+  const shown = snap.path ? (() => { const rel = relative(cwd, snap.path); return (rel.startsWith('..') || isAbsolute(rel) ? snap.path : rel).split(sep).join('/'); })() : '';
+  const counts = snap.header?.counts;
+  if (snap.state === 'fresh') {
+    lines.push(`Snapshot fresh (${counts ? `${counts.words} operator words, ${counts.running} running, ${counts.items} items, ${counts.peers} reply-owed peers` : 'counts unreadable'}): ${shown}`);
+    lines.push('the snapshot outranks the summary on running work and peers; read it first');
+  } else if (snap.state === 'stale') {
+    lines.push(`Snapshot STALE: ${shown} predates an earlier compaction; verify its running work and peers`);
+  } else if (snap.state === 'absent' && sessionId) {
+    lines.push(`Snapshot absent: rebuild it with co snapshot --session ${sessionId}`);
+  }
+  if (open) {
+    const last = counts ? ` (last snapshot ${counts.items})` : '';
+    lines.push(`active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWING' : ''}${open.length > 12 ? ' OVER CAP' : ''}`);
+  }
+  if (snap.text) {
+    const peers = snap.text.split(/^## Peers/m)[1] ?? '';
+    const owed = [...peers.matchAll(/^- REPLY OWED (.*)$/gm)].map((m) => clean(`reply owed: ${m[1]}`).slice(0, PEER_CHARS));
+    lines.push(...(owed.length > PEER_LINES ? [...owed.slice(0, PEER_LINES - 1), `${owed.length - PEER_LINES + 1} more reply-owed peers in the snapshot`] : owed));
+  }
+  return lines;
 }
 
 // The agents this session launched that never reported, from the agent ledger, so a background
@@ -239,16 +366,21 @@ async function main() {
     if (!record) {
       lines.push('a handoff resumed earlier in this session stays consumed; never resume it again');
       // No home record (another machine, a cleared store): the run folder's own SESSION.json still names the session.
-      const folder = sessionId ? sessionRunFolder(cwd, sessionId) : null;
-      if (folder) lines.push(...openItemLines(cwd, folder));
-      runDir = folder;
+      runDir = sessionId ? sessionRunFolder(cwd, sessionId) : null;
     } else {
       const resumed = record.resumed
         ? `it already resumed ${record.resumed} and must not resume it or any earlier handoff again`
         : 'it resumed no handoff and must not resume any earlier handoff now';
-      lines.push(`compaction resume: this session is ${record.name}, run folder ${record.runDir}; ${resumed}; reload ${record.runDir}/TASKS.md and RUN_LOG.md, then continue`);
-      lines.push(...openItemLines(cwd, record.runDir));
+      lines.push(`compaction resume: this session is ${record.name}, run folder ${record.runDir}; ${resumed}; continue from the state below`);
     }
+    // Live state first, then the snapshot. A fresh snapshot holds the open items, so only a stale or
+    // absent one gets them listed here.
+    lines.push(...gitLine(cwd));
+    if (runDir) lines.push(...nextLine(cwd, runDir));
+    const open = runDir ? openItems(cwd, runDir) : null;
+    const snap = await readSnapshot(cwd, runDir, sessionId, typeof payload?.transcript_path === 'string' ? payload.transcript_path : '');
+    if (snap.state !== 'fresh' && runDir) lines.push(...openItemLines(runDir, open));
+    lines.push(...snapshotLines(snap, cwd, open, sessionId));
     // The run folder's DISPATCH_LEDGER.md rows merge with the hook rows, so a host without the hook still lists them.
     lines.push(...await pendingAgentLines(sessionId ? { sessionId, runDir: runDir ? resolve(cwd, runDir) : undefined } : null, 'Pending agents:'));
   } else if (payload?.source === 'startup' || payload?.source === 'clear') {

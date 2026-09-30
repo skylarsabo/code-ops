@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // UserPromptSubmit hook: once a session's resident context crosses 150,000 tokens, and again
-// every further 150,000-token band, reminds the operator and the lead to assess CONTINUE,
-// COMPACT, or HANDOFF at the next safe boundary. It is not a host limit or a cost claim.
+// every further 150,000-token band, reminds the operator and the lead to checkpoint (Claude and
+// Codex) or to assess CONTINUE, COMPACT, or HANDOFF (Grok) at the next safe boundary. It is not a
+// host limit or a cost claim.
 // The threshold moved from 200k to 150k on 2026-09-18, when a transcript audit found 71% of
 // lead input-side tokens spent above 200k. The exact value stays SPECULATIVE until session
 // receipts calibrate it. See the "Handoff card" pre-registration in MEASUREMENTS.md.
 //
-// The message escalates with the band. Both bands request the same lifecycle assessment; a higher
-// band asks the lead to resolve it before starting a new workstream. The marker proves only that
+// The message escalates with the band. On Grok both bands request the same lifecycle assessment, and
+// a higher band asks the lead to resolve it before starting a new workstream; on Claude and Codex
+// a higher band asks the lead to finish the step and checkpoint. The marker proves only that
 // this hook wrote earlier advice, not that a host displayed it or a boundary was available.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
@@ -48,12 +50,16 @@
 // carries the note instead.
 //
 // COMPACTION IS THE DEFAULT RELIEF (DEC-73). On Claude and Codex, routine context relief is host
-// auto-compaction, never a handoff: the card asks for a CONTINUE or COMPACT assessment, tells the
-// lead to bring TASKS.md and RUN_LOG.md current first, and never says to hand off on a token count.
-// A handoff stays for new work, a clean session that loads updated code-ops plugins or contracts, a
-// host change, or a failed compaction (DEC-76), and the card names those. Codex compacts itself near the size in
-// `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude (`CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set) with
-// that variable unset, the card adds one line naming it. Codex compacts natively and gets no line.
+// auto-compaction, never a handoff, and the card asks for a checkpoint, not an assessment. Band 1
+// says to keep TASKS.md current and append a `Next:` line to RUN_LOG.md (the step in flight, its
+// next command, and the file:line it edits). On Claude it ends by naming the PreCompact snapshot;
+// on Codex, whose PreCompact payload is unverified, it says to run `co snapshot`. Band 2 and above
+// says to finish the step, checkpoint as above, ask the operator to run /compact if the host has
+// not, and hand off only for new work or a clean session that loads updated code-ops plugins
+// (DEC-76). No card says to hand off on a token count. The hook has no Codex signal, so Claude is
+// `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set and any other non-Grok host reads as Codex. Codex
+// compacts itself near the size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude with that variable
+// unset, the card adds one line naming it. Codex compacts natively and gets no line.
 //
 // HANDOFF POINT (DEC-3, H6 of the program-state design), GROK ONLY. Inside the bands, the card
 // fires once more when context first reaches `HANDOFF_POINT` (200,000 on Grok, where the price
@@ -297,19 +303,26 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   // past the ceiling, so every host gets the sentence.
   const ceiling = contextCeiling();
   const gated = ceiling !== null && context >= ceiling
-    ? ' New dispatches are now gated until that assessment runs.' : '';
+    ? (grok ? ' New dispatches are now gated until that assessment runs.'
+      : ' New dispatches are now gated until you run code-ops-suite:handoff assess.') : '';
   // Autonomous: an earlier card of this arm was shown and no operator prompt followed it. Only
   // Grok counts prompts apart from cards; elsewhere the call showing this card is itself a prompt.
   const autonomous = grok && pastPoint && state.fired && state.prompts === 0;
   let advice;
   if (!grok) {
-    // Claude and Codex: host auto-compaction is the relief; a token count never selects a handoff.
-    const setting = !process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW && (process.env.CLAUDECODE === '1' || process.env.CLAUDE_PROJECT_DIR)
+    // Claude and Codex: host auto-compaction is the relief and the lead checkpoints; a token count
+    // never selects a handoff. The hook has no Codex signal of its own (the usage parser in
+    // transcript-lib.mjs does not report its host), so Claude is `CLAUDECODE=1` or
+    // `CLAUDE_PROJECT_DIR` and every other non-Grok host reads as Codex.
+    const claude = process.env.CLAUDECODE === '1' || Boolean(process.env.CLAUDE_PROJECT_DIR);
+    const setting = claude && !process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW
       ? ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Codex settings so the host compacts near that size.' : '';
-    const relief = 'Host auto-compaction is the context relief, so bring TASKS.md and RUN_LOG.md current first. Hand off only to start new work, to load updated code-ops plugins in a clean session, or after a host change or failed compaction.';
+    const snapshot = claude
+      ? 'The PreCompact snapshot keeps operator words, running work, and peers.'
+      : 'Then run `co snapshot`, because the Codex PreCompact payload is unverified.';
     advice = band === 1
-      ? `At the next safe boundary, run code-ops-suite:handoff assess to choose CONTINUE or COMPACT. ${relief}${setting}`
-      : `Finish the step in flight, then run code-ops-suite:handoff assess to choose CONTINUE or COMPACT before starting a new workstream. ${relief} This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.${setting}`;
+      ? `Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a \`Next:\` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits. ${snapshot}${setting}`
+      : `Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.${setting}`;
   } else if (autonomous) {
     advice = `This session is past ${pointText}, and no operator prompt has arrived since the last card. At the next phase boundary, run code-ops-suite:handoff write instead of assessing again. Checkpoint durable state first.`;
   } else if (band === 1 && pastPoint) {
