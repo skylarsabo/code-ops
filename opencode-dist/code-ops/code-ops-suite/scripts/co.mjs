@@ -83,6 +83,7 @@ const TABLE = {
   },
   agents: {
     pending: { script: 'agent-ledger.mjs', cmd: 'pending' },
+    settle: { script: 'agent-ledger.mjs', cmd: 'settle' },
   },
   docs: {
     manifest: 'docs-manifest.mjs',
@@ -140,6 +141,9 @@ const TABLE = {
   // A command: one script and no verbs, so `co brief <plugin>:<agent>` passes every argument
   // after `brief` to brief-template.mjs. `co context brief` is a different verb.
   brief: 'brief-template.mjs',
+  // A command: `co burndown [--program <slug>] [--run <dir>] [--json]` prints a program's active
+  // count against the cap of 12, its backlog, and GROWING or OVER CAP flags. Read-only.
+  burndown: 'burndown.mjs',
 };
 
 // A domain named here runs this verb when the caller gives none, so `co board` lists the board.

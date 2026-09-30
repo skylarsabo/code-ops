@@ -122,6 +122,9 @@ jobs:
       - name: Agent ledger hook eval (launch and report records, pending list)
         run: node evals/agent-ledger/run.mjs
 
+      - name: Burn-down counter eval (active cap, growth, read-only)
+        run: node evals/burndown/run.mjs
+
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
 
@@ -528,6 +531,9 @@ jobs:
 
       - name: Agent ledger hook eval (launch and report records, pending list)
         run: node evals/agent-ledger/run.mjs
+
+      - name: Burn-down counter eval (active cap, growth, read-only)
+        run: node evals/burndown/run.mjs
 
       - name: Lint-gate fixture eval
         run: node evals/lint-plugins/run.mjs

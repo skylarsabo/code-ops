@@ -466,18 +466,18 @@ Added 2026-09-30 from a read-only probe of the Data Quality and Single Tap sessi
 
 **Design.** Four small changes, all warn-only, like the collision notes they extend.
 
-1. **Declared peers.** `PROGRAM.md` gains an optional `## Peers` section. Each line is `- <program slug> · Surfaces: <path or glob>, ... · Notify: edit|merge`. A surface can also be `process:<name>` for a host process the peer depends on.
-2. **Surface notes.** `collision-lib.mjs` reads the session's program ledger. An edit to a declared surface, or a `git merge` or `git push` whose diff touches one, prints one note: the live peer session name, resolved the way `co handoff live` resolves it, and a ready `SendMessage` line. A shell command that kills processes (`taskkill`, `pkill`, `kill`) while a live peer declares a `process:` surface for that name prints the same kind of note. The note fires once per surface and peer per session.
-3. **Peer names on the card.** The startup and compact cards print one line per declared peer: its live session name and whether any thread with it is reply-owed. A session then never needs the operator to supply a name.
+1. **Discovered peers, declared surfaces.** A peer is any other program with a live session on the same repository, read from the presence board, so no pair is configured by hand (DEC-78). `PROGRAM.md` gains an optional `## Peers` section that only adds shared surfaces. Each line is `- <program slug | *> · Surfaces: <path or glob>, ... · Notify: edit|merge`, where `*` applies to every peer. A surface can also be `process:<name>` for a host process a peer depends on.
+2. **Surface notes.** `collision-lib.mjs` reads the session's program ledger and the ledger of each live peer. An edit to a surface either side declares, or a `git merge` or `git push` whose diff touches one, prints one note: the live peer session name, resolved the way `co handoff live` resolves it, and a ready `SendMessage` line. A shell command that kills processes (`taskkill`, `pkill`, `kill`) while a live peer declares a `process:` surface for that name prints the same kind of note. The note fires once per surface and peer per session.
+3. **Peer names on the card.** The startup and compact cards print one line per live peer on the repository: its program, its live session name, and whether any thread with it is reply-owed. A session then never needs the operator to supply a name.
 4. **Agreements in both ledgers.** A cross-program agreement is a decision entry with an `Agreed-with: <program slug>` line, recorded in both `PROGRAM.md` files with the same text. `check-handoff` warns when an `Agreed-with` entry has no counterpart in the peer ledger.
 
 The handoff draft reply-owed warning moves from backlog into PR 2, because a lost question at handoff is CONFIRMED.
 
 **Not in this design.** No new message store, no blocking gate, and no automatic sends. The operator still decides what to agree to. The peer guard and the board stay as they are.
 
-**Finish line (proposed F8, needs an operator DEC).** Across an operator-set window in murmuration after the plugin sync, Data Quality and Single Tap need zero operator relays, leave zero peer questions unanswered at a handoff or session end, and send zero messages to a finished session. A sanitized note from the same probe records the counts.
+**Finish line (F8, accepted as DEC-77, generalized by DEC-78).** Across a 3-day window that starts at the operator's plugin sync, every set of programs with overlapping live sessions on one repository needs zero operator relays, leave zero peer questions unanswered at a handoff or session end, and send zero messages to a finished session. The probe discovers the programs from the board and session transcripts rather than from a list, and a sanitized note records the counts per repository and per program pair. Murmuration is the first repository measured.
 
-**Delivery.** PR 9, after PR 2 and in parallel with PR 4: the `## Peers` parser, the surface and process notes in `collision-lib.mjs`, the card peer lines, and the `Agreed-with` warning. The eval `peer-surfaces` covers a declared surface with no recent peer edit, a merge whose diff touches a surface, a process kill with a declared `process:` surface, a peer that handed off, and the off switch. Seeding the `## Peers` sections in the two murmuration ledgers is operator work in that repository.
+**Delivery.** PR 9, after PR 2 and in parallel with PR 4: the `## Peers` parser, the surface and process notes in `collision-lib.mjs`, the card peer lines, and the `Agreed-with` warning. The eval `peer-surfaces` covers peer discovery with no `## Peers` section, three concurrent programs on one repository, a `*` surface, a declared surface with no recent peer edit, a merge whose diff touches a surface, a process kill with a declared `process:` surface, a peer that handed off, and the off switch. Peer names and reply-owed lines need no setup. A `## Peers` section is needed only to declare surfaces, and adding one in a murmuration ledger is operator work in that repository.
 
 ## Delivery
 
@@ -492,7 +492,7 @@ Revised 2026-09-30 from the plan judge panel (three designers, three adversarial
 | 4, after 2 | State machine contract: entity and transition tables in `CONTRACTS.md`, with lint checking statuses against `LEDGER_STATUSES` and a writer on every row. The dispatch guard checks `agentType` on each `agent()` call and denies a literal effort above `high`. One unpinned Workflow section in three `CONVENTIONS.md` files, cited by the named skills | OI-60 (absorbs OI-61); F5 | lint and `evals/lint-plugins`, dispatch-guard eval |
 | 5, conditional | Host rows from captured payloads: the Codex spawn name in `DISPATCH_TOOLS`, the Grok agent ledger once `agent_id` is confirmed, and PreCompact `transcript_path` on Codex and Grok. A host that fails its check keeps today's behavior and leaves that row | OI-67 | fixture-pinned payload evals, `grok-build-compat`, `codex-marketplace` |
 | 6 to 8 | `distill`: program mode (6); phases 1 to 5 and 7 with the no-loss script, the findability count, and the Workflow branch for phases 3 and 7 (7); install, maintain, and `conform` routing (8) | OI-62; part of F7 | `node evals/score.mjs <ANSWER_KEY> --check`, `register-staleness` |
-| 9, after 2 | Peer surfaces, as specified in "Peer coordination between programs" | OI-65; F8 if accepted | `peer-surfaces`, lint chain |
+| 9, after 2 | Peer surfaces, as specified in "Peer coordination between programs" | OI-65; F8 | `peer-surfaces`, lint chain |
 | Runs | Murmuration assess-only distill calibration; the F4 window note after the plugin sync | OI-63, OI-66; F7, F4 | sanitized notes only (one-way channel) |
 
 **Parallelism.** PR 3 builds in its own worktree beside PRs 1 and 2. PR 4 waits for PR 2, because both edit `CONTRACTS.md`. At each integration, the dist regeneration, atlas stamp, and manifest sync run one branch at a time.
@@ -504,17 +504,18 @@ Rules that hold across the stack:
 - Gate scripts gain checks only. No PR weakens or narrows one.
 - Each PR merges on a green hosted gate. A model review gate runs only when the operator asks for it.
 
-### Pending operator decision
+### Accepted by the operator (DEC-77)
 
-The panel proposed these changes. They wait for an operator DEC, because a gitignored ledger edit cannot move an operator-set finish line. The Finish line and decision 6 above stay as accepted until then.
+The panel proposed these changes, and the operator accepted all of them on 2026-09-30 as DEC-77. The program ledger holds the finish line as amended.
 
 - F1: "The compact card restores run state with or without a home session record. The first live compaction after PR 2 passes the pre-registered check ... On Codex, Grok and OpenCode, the restore names the active items and pending workers ... Each host row is verified from a captured payload, or it is dropped with a recorded reason."
 - F3: "On every host, each dispatch and report is recorded, from hook rows merged with dispatch rows. `handoff draft` refuses a pending worker and names `co agents settle` and `--pending-agents-ok`. A session that ends with a pending worker is flagged at SessionEnd and on the next SessionStart card."
 - F4: "data-quality and single-tap-cutover each hold at most 12 active items, with no net growth and 0 orphaned agents (pending past maxAgeMs), across an operator-set window that starts after the plugin sync in murmuration. `co burndown` reports this, in a sanitized note."
 - Decision 6 becomes "flag a pending worker at SessionEnd and the next SessionStart". Without it, F3 needs a new blocking Stop hook.
 - F8, new: see "Peer coordination between programs".
-- The C5 merge driver and the `integrate-branch` docs step: keep them in PR 8, or move them to backlog.
-- The F4 window: its length, and who runs the plugin sync in murmuration that starts it.
+- DEC-78 generalizes F4 and F8 from the Data Quality and Single Tap pair to every program with a live session on a shared repository during the window, discovered rather than listed.
+- The C5 merge driver and the `integrate-branch` docs step stay in PR 8.
+- The F4 and F8 window is 3 days. It starts when the operator runs the plugin sync, and it measures every coordinating program found, starting with murmuration.
 
 ### Backlog
 
@@ -579,7 +580,7 @@ The operator accepts or rejects each line. Numbers here are draft numbers. They 
 15. Keep retention classes and gate step 7 in backlog.
 16. Deliver in the revised order: PR 0 built, then PRs 1 and 2 in order, PR 3 in parallel, PR 4 after PR 2, PR 5 on capture, PRs 6 to 8, and PR 9 after PR 2 (amended 2026-09-30 by the plan judge panel).
 
-Decision 6 and the finish line wait on the operator decision listed under "Delivery".
+Decision 6 is amended by DEC-77: a pending worker is flagged at SessionEnd and on the next SessionStart card, and a stop is not blocked.
 
 ## Rejected alternatives
 

@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "54335ecb9bf2593087eeaea0865db6bd9e287074",
-      "verifiedDigest": "471caa2daea612c26b8cb80ec433494e463d9b44e8e4832a30a8ec5449d854c1",
+      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
+      "verifiedDigest": "b76c6276a3a7f1d1b6f8e18b8d38164f2fbb2569a6ca631f5960e192dfee4c95",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -18,7 +18,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 92,
+          "line": 93,
           "anchor": "gate: 'docs-gate.mjs',"
         },
         {
@@ -58,12 +58,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 218,
+          "line": 257,
           "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 196,
+          "line": 230,
           "anchor": "if (raw.trim()) lines.push(...shellLines());"
         },
         {
@@ -101,6 +101,11 @@
           "anchor": "// PostToolUse (Agent, Task) and SubagentStop hook: records every subagent launc"
         },
         {
+          "file": "plugins/code-ops-suite/scripts/burndown.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
           "line": 39,
           "anchor": "// HOST COVERAGE. Claude Code and Codex document"
@@ -112,7 +117,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 115,
+          "line": 116,
           "anchor": "board: {"
         },
         {
@@ -127,7 +132,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 106,
+          "line": 107,
           "anchor": "program: {"
         },
         {
@@ -137,7 +142,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 73,
+          "line": 90,
           "anchor": "async function endBoard() {"
         },
         {
@@ -162,7 +167,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 210,
+          "line": 249,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
         },
         {
@@ -199,8 +204,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "d113302720f9d5b9146194c06a7543c8a0efca51",
-      "verifiedDigest": "99cd6c8a9e7cef5f1f8e813cddcb92a1f37609f108973d59eeaf1b0c59784507",
+      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
+      "verifiedDigest": "c1358edba5e22d9c9dde6379d81f4b0afc433d78b361a646ef326d97b3729f66",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -383,8 +388,13 @@
           "anchor": "export function collisionNote(payload, now = Date.now(), spawn = spawnSync) {"
         },
         {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 208,
+          "anchor": "export function pendingReport({ sessionId, stateDir = ledgerDir(), cwd, runDir,"
+        },
+        {
           "file": "scripts/co.mjs",
-          "line": 145,
+          "line": 149,
           "anchor": "// A domain named here runs this verb when the caller gives none, so"
         },
         {
@@ -459,8 +469,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "d113302720f9d5b9146194c06a7543c8a0efca51",
-      "verifiedDigest": "2bacd38454c428f82f39aaa93ca5d7ab9e734104ce7da5ed52544094edcfa61a",
+      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
+      "verifiedDigest": "8c2ac231158622002d832491fc33d43e27c7f934f1ce3707a6e084adecd8b9b9",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -587,8 +597,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "54335ecb9bf2593087eeaea0865db6bd9e287074",
-      "verifiedDigest": "bc51257ed284c04e984d304d4b4b6f85736c159f436514d3934167ebda1e2c7f",
+      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
+      "verifiedDigest": "f2cf9af9193eb216c20dbbcb5b418e7d12ebb37c1c365ea84fc8acc829de33e4",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -657,7 +667,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 231,
+          "line": 232,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         },
         {
@@ -673,8 +683,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "d113302720f9d5b9146194c06a7543c8a0efca51",
-      "verifiedDigest": "0cf951e02d73712701caf2ee3eaee00fd1e5f2c118a281205235822ab2f0ffb4"
+      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
+      "verifiedDigest": "ef814c64b411ca7610cc81d45fcb512075d4bcdf1335cc9864d772cced14c97f"
     },
     {
       "slug": "docs-doctrine",
@@ -697,8 +707,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "d113302720f9d5b9146194c06a7543c8a0efca51",
-      "verifiedDigest": "7bc8f3fdf693e9fde901593e9125e63d30fb4a5452d1d64ac14cc4f8a102a010",
+      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
+      "verifiedDigest": "13449752510ef7cdde35f43d6eb1ac55d1725d5c148062a0ca439ae5cdd89ace",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -747,7 +757,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 117,
+          "line": 152,
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ]

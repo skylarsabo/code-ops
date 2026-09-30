@@ -4,6 +4,14 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.24.0
+- `co agents pending` merges the hook rows with the run's `DISPATCH_LEDGER.md` rows on every host, names each entry's source, and prints the sources it read on stderr. `--run <dir>` names the run folder.
+- `co agents settle <id> --failed --reason <text>` records a lost agent as failed, so it leaves the pending list. `handoff draft` names it beside waiting and `--pending-agents-ok`.
+- At SessionEnd the receipt hook marks the session ended in the agent ledger and records its pending agents in the receipt row. The next SessionStart card lists workers left pending by an ended session in the same directory, never by a live one.
+- The SessionStart compact restore finds its run folder through `SESSION.json` when the session has no home record.
+- `CODE_OPS_AGENT_LEDGER_CAPTURE=1` records the key paths of each hook payload shape per host, never a value, as evidence for host parity rows.
+- A new read-only `co burndown` prints a program's active items against the cap of 12, its backlog, and `OVER CAP` or `GROWING` flags.
+
 ## 2.23.0
 - Auto-compaction is the routine context relief on Claude and Codex. The handoff skill, the user-wide contract, and the handoff card select CONTINUE or COMPACT on token pressure. A handoff is reserved for new work, a clean session that loads updated code-ops plugins or contracts, a host change, or a failed compaction. The Compact Instructions keep agent ids, peer threads, and authority grants. Grok keeps its 200,000-token handoff point. On Claude the card adds one line while `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset. The user-wide contract gains a Compact Instructions section.
 - The SessionStart compact restore lists the run folder's unchecked TASKS.md lines, at most 12, and the pending agents.

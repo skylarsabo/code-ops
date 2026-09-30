@@ -790,7 +790,8 @@ stays in the ledger. The command exits 1 when the ledger is still over 32 KB. Ev
 
 `co handoff draft` reads the agent ledger for the drafting session and refuses with exit 1 while any
 agent is still `dispatched`. It prints `<agent_id> <agent_type> <age> <description>` for each agent
-and names two ways out: wait, or pass `--pending-agents-ok`. With the flag, draft writes each agent
+and names three ways out: wait, settle a lost one with `co agents settle <id> --failed --reason <text>`,
+or pass `--pending-agents-ok`. With the flag, draft writes each agent
 as a `Pending agent:` line under In-flight boundaries. It matches the session id, the SESSION.json
 `sessionId`, and `hostSessionId`. When none is known, it matches by the repository root and says so.
 `CODE_OPS_AGENT_LEDGER=off|0|false` skips the check. After a compaction, the SessionStart routing
@@ -798,6 +799,30 @@ card adds a `Pending agents: (<shown> of <total> shown)` block for the payload `
 8 lines of 80 characters. The block fails open and honours the same switch. Evidence:
 `scripts/handoff-state.mjs`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
 `evals/handoff-state/run.mjs`, and `evals/handoff-card/run.mjs`.
+
+The pending list merges two sources on every host: the hook rows in the agent ledger and the
+`dispatched` rows of the run's `DISPATCH_LEDGER.md`, deduplicated on agent id and actor id. Each
+entry names its source (`hook` or `dispatch`), and `co agents pending` prints the sources it read on
+stderr. A missing file is an empty source, never `unknown`. A dispatch row carries no launch time,
+so its age is a floor taken from the ledger file. `co agents settle <id> --failed --reason <text>
+[--session <id>] [--run <dir>]` appends a `failed` row with the reason; the reason is required, and
+an unknown id exits non-zero. A settled agent leaves the pending list. At `SessionEnd`,
+`session-receipt.mjs` appends one `ended` marker to the session's agent ledger file, when one
+exists, whether or not a transcript exists and whatever `CODE_OPS_RECEIPTS` holds. It records the
+pending count and ids in its receipt row. The SessionStart `startup` card lists workers left pending
+only by sessions that carry an `ended` marker, so a concurrent live session in the same directory is
+never reported. A resumed session that launches again after its marker reads as live until it ends
+again. `CODE_OPS_AGENT_LEDGER_CAPTURE=1`
+writes the key paths of each distinct payload shape per host, never a value, to
+`payload-keys.ndjson` in the ledger directory, before the Grok early return. Evidence:
+`scripts/agent-ledger.mjs`, `plugins/code-ops-suite/hooks/agent-ledger.mjs`,
+`plugins/code-ops-suite/hooks/session-receipt.mjs`, and `evals/agent-ledger/run.mjs`.
+
+`co burndown [--program <slug>] [--run <dir>] [--root <dir>] [--json]` prints one read-only line,
+`active N/12, backlog B, closed C`, with the missing `Blocks` count when the ledger has a finish
+line, ` OVER CAP` above 12, and ` GROWING` when N exceeds the predecessor handoff's open count. A
+`Grammar: 2` ledger's Open items win over the latest run folder's `TASKS.md`. It writes nothing and
+exits 2 only on a usage error. Evidence: `scripts/burndown.mjs` and `evals/burndown/run.mjs`.
 
 One status line never gates. `co handoff draft` records each dirty path with a sha256 prefix:
 `- Dirty: \`<porcelain line>\` · sha256:<16 hex>`, or `· none` for a path since deleted. The check

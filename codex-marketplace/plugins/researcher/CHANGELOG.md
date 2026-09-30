@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.6
+- The vendored `co.mjs` routes `co agents settle` and `co burndown`, which run where code-ops-suite bundles them.
+
 ## 0.16.5
 - The vendored `co.mjs` gains the `agents` domain, so `co agents pending` lists background agents that have not reported.
 

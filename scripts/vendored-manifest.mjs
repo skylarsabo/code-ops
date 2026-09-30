@@ -116,6 +116,8 @@ export const RUNTIME_SCRIPTS = [
   // The agent ledger. hooks/agent-ledger.mjs imports it as ../scripts/agent-ledger.mjs, and
   // `co agents pending` runs it.
   { name: 'agent-ledger.mjs', plugins: ['code-ops-suite'] },
+  // `co burndown`, the read-only active-items counter beside the handoff scripts.
+  { name: 'burndown.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.
