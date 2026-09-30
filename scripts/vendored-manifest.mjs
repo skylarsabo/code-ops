@@ -111,6 +111,8 @@ export const RUNTIME_SCRIPTS = [
   // `co docs gate`. It spawns docs-manifest.mjs, records.mjs, check-vault-standard.mjs, and
   // check-handoff.mjs as SIBLINGS (all vendored above) and imports promotion-lib.mjs and cli-lib.mjs.
   { name: 'docs-gate.mjs', plugins: ['code-ops-suite'] },
+  // `co docs relocate`; docs-gate.mjs step 6 imports it as a SIBLING.
+  { name: 'docs-relocate.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.
