@@ -692,6 +692,22 @@ The hook fails open on every path: bad JSON, another event name, a missing `sess
 `transcript_path`, a missing or unreadable transcript file, a tail window with no assistant
 usage, or any thrown error exits 0 with no output. Evidence: `evals/handoff-card/run.mjs`.
 
+The history read notice runs in the same process, so no hook process is added. On `PostToolUse`
+of Read, Grep, or a shell tool, the hook imports `scripts/legacy-paths-lib.mjs` lazily and only for
+those tools. It finds the hub (the one top-level directory that holds
+`98 System/DOCS_MANIFEST.json`), reads at most 2 MiB of `<hub>/98 System/Records/state.json`, and
+matches the opened path against each decision or amendment record whose status is `amended`,
+`superseded`, or `historical`. A Read or Grep path is resolved against the working directory. A shell
+command matches when its text names a record path. A hit adds one `additionalContext` line, up to
+three per call, naming the record, its status, the records that share its decision key and still
+stand, and `<hub>/20 Decisions/REGISTER.md`. `state.json` carries no `supersededBy` or `amends`
+field, so the shared key stands in for the replacement link. Evidence, reports, and summaries carry
+no rule and get no notice. A path the hook cannot extract, an unreadable or malformed
+`state.json`, or a missing hub gets nothing. `CODE_OPS_READ_NOTICE` of `off`, `0`, or `false`
+turns it off, and neither the card switch nor the feed switch does. Evidence:
+`scripts/legacy-paths-lib.mjs`, `plugins/code-ops-suite/hooks/handoff-card.mjs`, and
+`evals/handoff-card/run.mjs`.
+
 ## Handoff write and consumption
 
 `check-handoff.mjs <HANDOFF.md> [--root <repo>] [--strict-anchors] [--consume]` is the structural
@@ -916,6 +932,16 @@ the hook drops it unspent, so it shows on a later call. Any failure passes with 
 switch is `CODE_OPS_PEER_GUARD`, the board's switch, or `CODE_OPS_DISPATCH_GUARD=off`. Evidence:
 `scripts/collision-lib.mjs`, `plugins/code-ops-suite/hooks/dispatch-guard.mjs`, and
 `evals/collision/run.mjs`.
+
+The legacy path deny is a sixth behavior. On every thread, for an edit tool, the hook imports
+`scripts/legacy-paths-lib.mjs` lazily and denies an edit whose target lies under a `removed` legacy
+path of the version 3 documentation manifest. The reason names the removed root and, when
+`<hub>/98 System/FORWARDING.json` maps it, the new location. The library finds the hub without a
+git spawn, reads at most 2 MiB per file, and fails open on any error, an unparsable manifest, a
+manifest of another version, or a missing hub. A denied subagent call still counts as a round, and
+its round advisory joins the denial. `warn` turns the deny into advisory context. The off switch is
+`CODE_OPS_LEGACY_PATHS`, or `CODE_OPS_DISPATCH_GUARD=off`. Evidence: `scripts/legacy-paths-lib.mjs`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs`, and `evals/dispatch-guard/run.mjs`.
 
 The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round stop are the enforcement layer.
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint

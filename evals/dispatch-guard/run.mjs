@@ -36,6 +36,12 @@
 //   - at and past the context ceiling (300,000 by default, CODE_OPS_CONTEXT_CEILING overrides
 //     or disables it), a main-thread dispatch is denied until a handoff Skill call or the
 //     `assessed` CLI verb records the current 150,000-token band, and the next band re-gates;
+//   - an edit tool (Write, Edit, NotebookEdit, apply_patch, a camelCase search_replace) whose target
+//     lies under a manifest `removed` legacy path is denied with the root and the FORWARDING.json
+//     location; relocated roots, prefix siblings, outside paths, and every non-edit tool pass; the
+//     off values of `CODE_OPS_LEGACY_PATHS` and the whole-hook switch silence it, `warn` makes it
+//     advisory, a denied subagent call counts a round, and a corrupt, wrong-version, or absent
+//     manifest fails open;
 //   - the off switch silences every branch, and bad JSON, another event name, empty stdin, and a
 //     missing agent id all fail open with no output and exit 0.
 //
@@ -63,12 +69,14 @@ function fakeHome() {
   return { home, cleanup: () => rmSync(home, { recursive: true, force: true }) };
 }
 
-function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRoot = suite } = {}) {
+function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRoot = suite, env: extra = {} } = {}) {
   const env = { ...process.env };
   delete env.CODE_OPS_DISPATCH_GUARD;
   delete env.CODE_OPS_ROUND_BUDGET;
   delete env.CODE_OPS_CONTEXT_CEILING;
   delete env.GROK_PLUGIN_ROOT;
+  delete env.CODE_OPS_LEGACY_PATHS;
+  Object.assign(env, extra);
   if (guard !== undefined) env.CODE_OPS_DISPATCH_GUARD = guard;
   if (ceiling !== undefined) env.CODE_OPS_CONTEXT_CEILING = ceiling;
   if (budget !== undefined) env.CODE_OPS_ROUND_BUDGET = String(budget);
@@ -935,6 +943,129 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   }
   cleanup();
   console.log('ok   an invalid CODE_OPS_ROUND_BUDGET falls back to the 40-round default');
+}
+
+// ---------------------------------------------------------------- legacy path deny (behaviour 6)
+
+// A throwaway repository whose hub lists one removed legacy root (docs/old, forwarded to hub/new),
+// one relocated root, and a second removed root with no forwarding entry.
+function legacyRepo({ manifest, forwarding = true } = {}) {
+  const repo = mkdtempSync(join(tmpdir(), 'legacy-repo-'));
+  mkdirSync(join(repo, '.git'));
+  const system = join(repo, 'hub', '98 System');
+  mkdirSync(system, { recursive: true });
+  const evidence = [{ kind: 'external', ref: 'fixture' }];
+  writeFileSync(join(system, 'DOCS_MANIFEST.json'), manifest ?? JSON.stringify({
+    version: 3, hub: 'hub', recordCollections: [],
+    legacyPaths: [
+      { path: 'docs/old', disposition: 'removed', requiredBy: evidence },
+      { path: 'docs/orphan', disposition: 'removed', requiredBy: evidence },
+      { path: 'docs/moved', disposition: 'relocated', target: 'hub/moved', requiredBy: evidence },
+    ],
+  }));
+  if (forwarding) {
+    writeFileSync(join(system, 'FORWARDING.json'), JSON.stringify({
+      version: 1, forwards: [{ from: 'docs/old', to: 'hub/new', movedAt: '2026-09-30', reason: 'vault move' }],
+    }));
+  }
+  return { repo, cleanup: () => rmSync(repo, { recursive: true, force: true }) };
+}
+
+{
+  const { home, cleanup } = fakeHome();
+  const fixture = legacyRepo();
+  const edit = (tool, input, extra = {}) => ({
+    hook_event_name: 'PreToolUse', session_id: 'sess-L', cwd: fixture.repo, tool_name: tool, tool_input: input, ...extra,
+  });
+  const denial = (r) => parseOut(r)?.hookSpecificOutput;
+
+  const deny = denial(runHook(edit('Write', { file_path: 'docs/old/guide/a.md', content: 'x' }), { home }));
+  expect(deny?.permissionDecision === 'deny' && deny.hookEventName === 'PreToolUse'
+    && deny.permissionDecisionReason.includes('docs/old') && deny.permissionDecisionReason.includes('hub/new/guide/a.md'),
+  `a Write under a removed root must be denied with the root and its forwarded path, got ${JSON.stringify(deny)}`);
+  console.log('ok   an edit under a removed legacy root is denied, naming the root and the forwarded path');
+
+  const absolute = denial(runHook(edit('Edit', { file_path: join(fixture.repo, 'docs', 'old', 'b.md'), old_string: 'a', new_string: 'b' }), { home }));
+  expect(absolute?.permissionDecision === 'deny', `an absolute path under the root must be denied, got ${JSON.stringify(absolute)}`);
+  const folded = denial(runHook(edit('NotebookEdit', { notebook_path: 'docs/old/n.ipynb' }), { home }));
+  expect(folded?.permissionDecision === 'deny', `NotebookEdit must be denied, got ${JSON.stringify(folded)}`);
+  const patch = denial(runHook(edit('apply_patch', { input: '*** Begin Patch\n*** Update File: docs/old/c.md\n@@\n-a\n+b\n*** End Patch' }), { home }));
+  expect(patch?.permissionDecision === 'deny' && patch.permissionDecisionReason.includes('hub/new/c.md'),
+    `an apply_patch target under the root must be denied, got ${JSON.stringify(patch)}`);
+  const grokEdit = denial(runHook({ hookEventName: 'pre_tool_use', hook_event_name: 'PreToolUse', sessionId: 'sess-L', cwd: fixture.repo,
+    toolName: 'search_replace', toolInput: { path: 'docs/old/d.md' } }, { home }));
+  expect(grokEdit?.permissionDecision === 'deny', `a camelCase edit payload must be denied, got ${JSON.stringify(grokEdit)}`);
+  console.log('ok   absolute paths, NotebookEdit, apply_patch targets, and camelCase payloads are denied');
+
+  const orphan = denial(runHook(edit('Write', { file_path: 'docs/orphan/a.md', content: 'x' }), { home }));
+  expect(orphan?.permissionDecision === 'deny' && orphan.permissionDecisionReason.includes('docs/orphan')
+    && orphan.permissionDecisionReason.includes('maps no new location'),
+  `a removed root with no forwarding entry must say so, got ${JSON.stringify(orphan)}`);
+  console.log('ok   a removed root with no FORWARDING.json entry is denied without a new location');
+
+  for (const [name, input] of [
+    ['a relocated (not removed) root', { file_path: 'docs/moved/a.md' }],
+    ['a path outside every legacy root', { file_path: 'src/a.mjs' }],
+    ['a sibling that shares the root prefix', { file_path: 'docs/older/a.md' }],
+    ['a path outside the repository', { file_path: join(tmpdir(), 'docs', 'old', 'a.md') }],
+  ]) {
+    const r = runHook(edit('Write', input), { home });
+    expect(r.status === 0 && r.stdout === '', `${name} must pass silently, got ${JSON.stringify(r.stdout)}`);
+  }
+  console.log('ok   relocated roots, unrelated paths, prefix siblings, and outside paths pass');
+
+  for (const tool of ['Read', 'Grep', 'Bash', 'Glob']) {
+    const r = runHook(edit(tool, { file_path: 'docs/old/a.md', path: 'docs/old', command: 'cat docs/old/a.md' }), { home });
+    expect(r.status === 0 && r.stdout === '', `${tool} under a removed root must stay untouched, got ${JSON.stringify(r.stdout)}`);
+  }
+  console.log('ok   non-edit tools under a removed root are untouched');
+
+  for (const value of ['0', 'off', 'FALSE']) {
+    const r = runHook(edit('Write', { file_path: 'docs/old/a.md' }), { home, env: { CODE_OPS_LEGACY_PATHS: value } });
+    expect(r.status === 0 && r.stdout === '', `CODE_OPS_LEGACY_PATHS=${value} must silence the deny, got ${JSON.stringify(r.stdout)}`);
+  }
+  const wholeOff = runHook(edit('Write', { file_path: 'docs/old/a.md' }), { home, guard: 'off' });
+  expect(wholeOff.stdout === '', `CODE_OPS_DISPATCH_GUARD=off must silence the deny, got ${JSON.stringify(wholeOff.stdout)}`);
+  console.log('ok   CODE_OPS_LEGACY_PATHS off values and the whole-hook switch silence the deny');
+
+  const warn = denial(runHook(edit('Write', { file_path: 'docs/old/a.md' }), { home, guard: 'warn' }));
+  expect(warn?.permissionDecision === undefined && warn?.additionalContext?.includes('docs/old'),
+    `warn mode must downgrade the deny to context, got ${JSON.stringify(warn)}`);
+  console.log('ok   warn mode downgrades the legacy deny to advisory context');
+
+  // A denied subagent call still counts a round and keeps its round advisory in the same output.
+  const child = denial(runHook(edit('Write', { file_path: 'docs/old/a.md' }, { agent_id: 'agent-L' }), { home, budget: 1 }));
+  expect(child?.permissionDecision === 'deny' && child.permissionDecisionReason.includes('docs/old')
+    && child.permissionDecisionReason.includes('1 tool rounds used'),
+  `a denied subagent call must count and merge the round advisory, got ${JSON.stringify(child)}`);
+  expect(readFileSync(join(home, '.claude', 'code-ops', 'dispatch', stateKey(fixture.repo), `${stateKey('agent-L')}.rounds`)).length === 1,
+    'the denied subagent call must count as one round');
+  console.log('ok   a denied subagent call counts one round and merges the round advisory');
+  fixture.cleanup();
+
+  for (const [name, options] of [
+    ['a corrupt manifest', { manifest: '{not json "removed"' }],
+    ['a manifest of another version', { manifest: JSON.stringify({ version: 2, hub: 'hub', legacyPaths: [{ path: 'docs/old', disposition: 'removed' }] }) }],
+    ['a manifest with no removed root', { manifest: JSON.stringify({ version: 3, hub: 'hub', legacyPaths: [] }) }],
+    ['an empty manifest', { manifest: '' }],
+  ]) {
+    const broken = legacyRepo(options);
+    const r = runHook({ hook_event_name: 'PreToolUse', session_id: 'sess-L', cwd: broken.repo, tool_name: 'Write', tool_input: { file_path: 'docs/old/a.md' } }, { home });
+    expect(r.status === 0 && r.stdout === '', `${name} must fail open, got ${r.status}/${JSON.stringify(r.stdout)}`);
+    broken.cleanup();
+  }
+  const noForwarding = legacyRepo({ forwarding: false });
+  const bare = denial(runHook({ hook_event_name: 'PreToolUse', session_id: 'sess-L', cwd: noForwarding.repo, tool_name: 'Write', tool_input: { file_path: 'docs/old/a.md' } }, { home }));
+  expect(bare?.permissionDecision === 'deny' && bare.permissionDecisionReason.includes('maps no new location'),
+    `a missing FORWARDING.json must still deny, got ${JSON.stringify(bare)}`);
+  noForwarding.cleanup();
+  const noHub = mkdtempSync(join(tmpdir(), 'legacy-nohub-'));
+  mkdirSync(join(noHub, '.git'));
+  const none = runHook({ hook_event_name: 'PreToolUse', session_id: 'sess-L', cwd: noHub, tool_name: 'Write', tool_input: { file_path: 'docs/old/a.md' } }, { home });
+  expect(none.status === 0 && none.stdout === '', `a repository with no hub must fail open, got ${JSON.stringify(none.stdout)}`);
+  rmSync(noHub, { recursive: true, force: true });
+  console.log('ok   a corrupt, wrong-version, empty, or removal-free manifest and a missing hub fail open; a missing FORWARDING.json still denies');
+  cleanup();
 }
 
 // ---------------------------------------------------------------- fail open

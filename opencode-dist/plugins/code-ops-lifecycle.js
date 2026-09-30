@@ -5,14 +5,16 @@
 // dispatch guard (subagent round stop at 1.5 times the budget, rounded down, and at
 // least one call past it), context-ceiling
 // dispatch gate on the lead, Task-tool suite allowlist, compact checkpoint,
-// and chooser-aware cheapest-at-floor agent bindings.
+// chooser-aware cheapest-at-floor agent bindings, the deny of an edit under a manifest `removed`
+// legacy path, and the history read notice for a record that is not in force.
 //
 // WHY: OpenCode has no SubagentStart, SessionEnd transcript_path, or PreToolUse
 // agent_id. This plugin approximates them with sessionID, parentID, chat.params,
 // system.transform, tool.execute, session.idle, tool.definition, and config.
 // It ships in the generated distribution. It is not a claim that OpenCode has the
 // Claude hook events. Fail-open on every path except a bound dispatch-guard stop,
-// an unassessed dispatch past the context ceiling, or a non-suite Task dispatch.
+// an unassessed dispatch past the context ceiling, a non-suite Task dispatch, or an edit under a
+// removed legacy path.
 
 import {
   appendFileSync,
@@ -25,7 +27,7 @@ import {
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { basename, dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { homedir } from 'node:os';
 
 const THRESHOLD = 150_000;
@@ -138,6 +140,25 @@ const roundBudget = () => {
   return Number.isSafeInteger(raw) && raw > 0 ? raw : DEFAULT_BUDGET;
 };
 const hardStop = () => !/^warn$/i.test(process.env.CODE_OPS_DISPATCH_GUARD ?? '');
+
+// The hub guards: a denial of an edit under a removed legacy path, and a notice when a Read,
+// Grep, or shell call opens a record that is not in force. scripts/legacy-paths-lib.mjs owns
+// both lookups, shared with the Claude hooks. The distribution carries it beside the suite
+// scripts, and the source tree beside this file. A missing library is no guard (fail open).
+const EDIT_TOOL = /(?:^|\.)(?:edit|write|multiedit|patch|apply_patch)$/i;
+const NOTICE_TOOL = /(?:^|\.)(?:read|grep)$/i;
+const SHELL_TOOL = /(?:^|\.)(?:bash|shell)$/i;
+let hubLibrary;
+const hubLib = () => {
+  hubLibrary ??= (async () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    for (const path of [join(here, '..', 'code-ops', 'code-ops-suite', 'scripts', 'legacy-paths-lib.mjs'), join(here, 'legacy-paths-lib.mjs')]) {
+      try { if (existsSync(path)) return await import(pathToFileURL(path).href); } catch { /* fail open */ }
+    }
+    return null;
+  })();
+  return hubLibrary;
+};
 
 // A tier clone is the same role as its base agent. Every role check resolves
 // the base first, so a clone never escapes a floor, a card, or the allowlist.
@@ -830,6 +851,8 @@ function rewriteTaskDefinition(output, byTier, profile) {
 
 export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {}) => {
   const sessions = new Map();
+  // Read-side tool arguments by call id, for a host whose after-event input omits them.
+  const readArgs = new Map();
 
   const record = (sessionID) => {
     if (typeof sessionID !== 'string' || !sessionID) return null;
@@ -1225,6 +1248,11 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         const tool = typeof input?.tool === 'string' ? input.tool : '';
         row.toolCalls[tool] = (row.toolCalls[tool] || 0) + 1;
         row.lastTs = Date.now();
+        if (typeof input?.callID === 'string' && output?.args && typeof output.args === 'object'
+          && (NOTICE_TOOL.test(tool) || SHELL_TOOL.test(tool))) {
+          if (readArgs.size >= 64) readArgs.delete(readArgs.keys().next().value);
+          readArgs.set(input.callID, output.args);
+        }
         // The model loads a skill through the host's `skill` tool. Loading the
         // handoff skill is the assessment that unlocks the context ceiling.
         if (tool.toLowerCase() === 'skill' && output?.args && typeof output.args === 'object'
@@ -1266,6 +1294,15 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
             const info = res?.data ?? res;
             if (typeof info?.parentID === 'string' && info.parentID) row.parentID = info.parentID;
           } catch { /* fail open */ }
+        }
+        if (on('CODE_OPS_LEGACY_PATHS') && EDIT_TOOL.test(tool)) {
+          const denial = (await hubLib())?.legacyDenial(row.cwd, output?.args);
+          if (denial && hardStop()) {
+            // A denied call still counts, so a subagent that keeps retrying it meets the round stop.
+            if (isSubagent(row)) try { countRound(counterPath(row.cwd, row.id)); } catch { /* fail open */ }
+            throw new Error(denial);
+          }
+          queueNote(row, denial);
         }
         const budget = roundBudget();
         if (!isSubagent(row) && DISPATCH_TOOLS.has(tool)) {
@@ -1312,13 +1349,20 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           );
         }
       } catch (error) {
-        if (error instanceof Error && error.message.startsWith('Dispatch guard:')) throw error;
+        if (error instanceof Error && /^(?:Dispatch guard|Legacy path guard):/.test(error.message)) throw error;
       }
     },
     'tool.execute.after': async (input, output) => {
       try {
         const row = record(input?.sessionID);
         if (!row) return;
+        const seen = typeof input?.tool === 'string' && on('CODE_OPS_READ_NOTICE') && (NOTICE_TOOL.test(input.tool) || SHELL_TOOL.test(input.tool));
+        if (seen) {
+          const args = input.args ?? readArgs.get(input.callID);
+          readArgs.delete(input.callID);
+          const lib = args && typeof args === 'object' ? await hubLib() : null;
+          for (const line of lib?.readNotices(row.cwd, args, SHELL_TOOL.test(input.tool)) ?? []) queueNote(row, line);
+        }
         const text = typeof output?.output === 'string' ? output.output : '';
         row.toolResultChars += text.length;
         const tool = typeof input?.tool === 'string' ? input.tool : '';

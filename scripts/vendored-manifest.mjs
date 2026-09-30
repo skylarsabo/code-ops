@@ -98,6 +98,9 @@ export const RUNTIME_SCRIPTS = [
   // Collision notes (C2). hooks/dispatch-guard.mjs imports it lazily on edit tools and git
   // pull, merge, rebase, and push; it imports handoff-state.mjs as a SIBLING.
   { name: 'collision-lib.mjs', plugins: ['code-ops-suite'] },
+  // The legacy-path deny and the history read notice (W3, W8). hooks/dispatch-guard.mjs and
+  // hooks/handoff-card.mjs import it lazily; it imports only node builtins.
+  { name: 'legacy-paths-lib.mjs', plugins: ['code-ops-suite'] },
   // `co decide promote` and `co program close`. Both import promotion-lib.mjs as a SIBLING and spawn
   // records.mjs (already vendored above), so the pair ships wherever handoff-state.mjs does.
   { name: 'program-lifecycle.mjs', plugins: ['code-ops-suite'] },

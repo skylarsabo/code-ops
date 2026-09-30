@@ -28,6 +28,12 @@
 //   - a Continue-until bound (tokens or turns) in the run's RUN_LOG.md holds the card until it
 //     passes, then the card fires once; a malformed bound sets none, and off still silences.
 //
+// It also pins the history read notice: a PostToolUse Read, Grep, or shell call (Claude, Codex, and
+// Grok payloads) that opens a superseded or amended decision record adds one context line naming
+// the status, the replacing record, and the register; an in-force, evidence, unlisted, or outside
+// path, a pathless Grep, and a non-read tool get nothing; `CODE_OPS_READ_NOTICE` off values silence
+// it while the card and feed switches do not; a corrupt state.json fails open.
+//
 // It also covers the other half of the handoff loop, the pending-handoff pickup line
 // plugins/code-ops-suite/hooks/routing-card.mjs injects at SessionStart: which sources get it,
 // what makes a handoff pending, and the CODE_OPS_HANDOFF_PICKUP switch.
@@ -81,11 +87,13 @@ function payloadFor({ transcript, sessionId = 'sess-1', cwd = 'C:/fixture-projec
   return JSON.stringify({ hook_event_name: eventName, session_id: sessionId, transcript_path: transcript, cwd, prompt: 'continue', ...extra });
 }
 
-function runHook(input, { home, switchValue, grok = false, ceiling } = {}) {
+function runHook(input, { home, switchValue, grok = false, ceiling, env: extra = {} } = {}) {
   const env = { ...process.env };
   delete env.CODE_OPS_HANDOFF_CARD;
   delete env.GROK_PLUGIN_ROOT;
   delete env.CODE_OPS_CONTEXT_CEILING;
+  delete env.CODE_OPS_READ_NOTICE;
+  Object.assign(env, extra);
   if (switchValue !== undefined) env.CODE_OPS_HANDOFF_CARD = switchValue;
   if (ceiling !== undefined) env.CODE_OPS_CONTEXT_CEILING = ceiling;
   if (home) { env.HOME = home; env.USERPROFILE = home; }
@@ -665,6 +673,113 @@ function grokUsageLine(inputTokens) {
   rmSync(project, { recursive: true, force: true });
   console.log('ok   the routing card lists pending handoffs passively, names the session, restates the session record after compaction, and honors its switch');
   console.log('ok   the routing card names the operator shell off Claude Code, the win32 quoting trap, and co brief, and keeps empty-stdin output platform-free');
+}
+
+// ---------------------------------------------------------------- history read notice
+
+// A throwaway repository whose hub carries a state.json: a superseded decision and the in-force
+// decision that replaces it, an amended decision with its amendment, and an evidence record.
+function noticeRepo({ state } = {}) {
+  const repo = mkdtempSync(join(tmpdir(), 'notice-repo-'));
+  mkdirSync(join(repo, '.git'));
+  const system = join(repo, 'hub', '98 System');
+  mkdirSync(join(system, 'Records'), { recursive: true });
+  writeFileSync(join(system, 'DOCS_MANIFEST.json'), JSON.stringify({ version: 3, hub: 'hub', legacyPaths: [] }));
+  const record = (id, path, kind, status, key) => ({ id, collection: 'main', path, kind, ...(key ? { key } : {}), status, pendingSeal: null });
+  writeFileSync(join(system, 'Records', 'state.json'), state ?? JSON.stringify({ version: 1, records: [
+    record('REC-OLD', 'hub/20 Decisions/Records/old.md', 'decision', 'superseded', 'deploy/window'),
+    record('REC-NEW', 'hub/20 Decisions/Records/new.md', 'decision', 'in-force', 'deploy/window'),
+    record('REC-AMD', 'hub/20 Decisions/Records/amended.md', 'decision', 'amended', 'api/versioning'),
+    record('REC-AMDA', 'hub/20 Decisions/Records/amendment.md', 'amendment', 'in-force', 'api/versioning'),
+    record('REC-EV', 'hub/99 Archive/evidence.md', 'evidence', 'historical'),
+  ] }, null, 2));
+  return { repo, cleanup: () => rmSync(repo, { recursive: true, force: true }) };
+}
+
+{
+  const { home, cleanup } = fakeHome();
+  const fixture = noticeRepo();
+  const post = (toolName, toolInput, extra = {}) => JSON.stringify({
+    hook_event_name: 'PostToolUse', session_id: 'sess-notice', cwd: fixture.repo, tool_name: toolName, tool_input: toolInput,
+    tool_response: { type: 'text' }, ...extra,
+  });
+  const contextOf = (r) => parseOut(r)?.hookSpecificOutput?.additionalContext ?? null;
+  const OLD = 'hub/20 Decisions/Records/old.md';
+
+  const read = runHook(post('Read', { file_path: OLD }), { home });
+  const readOut = parseOut(read);
+  expect(read.status === 0 && readOut?.hookSpecificOutput?.hookEventName === 'PostToolUse' && readOut.systemMessage === undefined
+    && contextOf(read)?.includes('REC-OLD') && contextOf(read).includes('superseded') && contextOf(read).includes('Replaced by REC-NEW')
+    && contextOf(read).includes('hub/20 Decisions/REGISTER.md') && !contextOf(read).includes('\n'),
+  `a Read of a superseded record must add one notice line naming status, replacement, and register, got ${JSON.stringify(read.stdout)}`);
+  const absolute = runHook(post('Read', { file_path: join(fixture.repo, 'hub', '20 Decisions', 'Records', 'old.md') }), { home });
+  expect(contextOf(absolute)?.includes('REC-OLD'), `an absolute Read path must match, got ${JSON.stringify(absolute.stdout)}`);
+  const amended = runHook(post('Read', { file_path: 'hub/20 Decisions/Records/amended.md' }), { home });
+  expect(contextOf(amended)?.includes('REC-AMD') && contextOf(amended).includes('Amended by REC-AMDA'),
+    `an amended record must name its amendment, got ${JSON.stringify(amended.stdout)}`);
+  console.log('ok   a Read of a superseded or amended record adds one line naming status, replacing record, and register');
+
+  const grep = runHook(post('Grep', { pattern: 'window', path: OLD }), { home });
+  expect(contextOf(grep)?.includes('REC-OLD'), `a Grep with a record path must add the notice, got ${JSON.stringify(grep.stdout)}`);
+  const grepNoPath = runHook(post('Grep', { pattern: 'window' }), { home });
+  expect(grepNoPath.status === 0 && grepNoPath.stdout === '', `a Grep with no path gets nothing, got ${JSON.stringify(grepNoPath.stdout)}`);
+  const bash = runHook(post('Bash', { command: `cat "${OLD}" | head -20` }), { home });
+  expect(contextOf(bash)?.includes('REC-OLD'), `a shell command naming a record path must add the notice, got ${JSON.stringify(bash.stdout)}`);
+  const bashPlain = runHook(post('Bash', { command: 'git status --short' }), { home });
+  expect(bashPlain.status === 0 && bashPlain.stdout === '', `a shell command with no record path gets nothing, got ${JSON.stringify(bashPlain.stdout)}`);
+  const codex = runHook(post('exec_command', { cmd: `sed -n 1,20p '${OLD}'` }), { home });
+  expect(contextOf(codex)?.includes('REC-OLD'), `a Codex exec_command must add the notice, got ${JSON.stringify(codex.stdout)}`);
+  const grokRead = runHook(JSON.stringify({ hookEventName: 'post_tool_use', hook_event_name: 'PostToolUse', sessionId: 'sess-notice', cwd: fixture.repo,
+    toolName: 'read_file', toolInput: { path: OLD }, toolOutput: 'x' }), { home, grok: true });
+  expect(contextOf(grokRead)?.includes('REC-OLD'), `a Grok read_file payload with a path key must add the notice, got ${JSON.stringify(grokRead.stdout)}`);
+  const grokShell = runHook(JSON.stringify({ hookEventName: 'post_tool_use', hook_event_name: 'PostToolUse', sessionId: 'sess-notice', cwd: fixture.repo,
+    toolName: 'run_terminal_command', toolInput: { command: `cat "${OLD}"` } }), { home, grok: true });
+  expect(contextOf(grokShell)?.includes('REC-OLD'), `a Grok run_terminal_command payload must add the notice, got ${JSON.stringify(grokShell.stdout)}`);
+  console.log('ok   Grep, Bash, Codex exec_command, and Grok read_file and run_terminal_command payloads add the notice; a call with no record path gets nothing');
+
+  for (const [name, input] of [
+    ['an in-force record', { file_path: 'hub/20 Decisions/Records/new.md' }],
+    ['an evidence record that is historical by default', { file_path: 'hub/99 Archive/evidence.md' }],
+    ['an unlisted file', { file_path: 'hub/20 Decisions/Records/unlisted.md' }],
+    ['a file outside the repository', { file_path: join(tmpdir(), 'hub', '20 Decisions', 'Records', 'old.md') }],
+  ]) {
+    const r = runHook(post('Read', input), { home });
+    expect(r.status === 0 && r.stdout === '', `${name} must get no notice, got ${JSON.stringify(r.stdout)}`);
+  }
+  const edit = runHook(post('Edit', { file_path: OLD, old_string: 'a', new_string: 'b' }), { home });
+  expect(edit.status === 0 && edit.stdout === '', `an Edit of a record gets no notice, got ${JSON.stringify(edit.stdout)}`);
+  console.log('ok   an in-force, evidence, unlisted, or outside path and a non-read tool get no notice');
+
+  for (const value of ['0', 'off', 'False']) {
+    const r = runHook(post('Read', { file_path: OLD }), { home, env: { CODE_OPS_READ_NOTICE: value } });
+    expect(r.status === 0 && r.stdout === '', `CODE_OPS_READ_NOTICE=${value} must silence the notice, got ${JSON.stringify(r.stdout)}`);
+  }
+  const independent = runHook(post('Read', { file_path: OLD }), { home, switchValue: 'off', env: { CODE_OPS_FEED: 'off' } });
+  expect(contextOf(independent)?.includes('REC-OLD'), `the card and feed switches must not silence the notice, got ${JSON.stringify(independent.stdout)}`);
+  const promptEvent = runHook(post('Read', { file_path: OLD }, { hook_event_name: 'UserPromptSubmit' }), { home });
+  expect(!contextOf(promptEvent)?.includes('REC-OLD'), `a UserPromptSubmit call must carry no notice, got ${JSON.stringify(promptEvent.stdout)}`);
+  console.log('ok   CODE_OPS_READ_NOTICE off values silence the notice, the card and feed switches leave it on, and only PostToolUse carries it');
+  fixture.cleanup();
+
+  for (const [name, options] of [
+    ['a corrupt state.json', { state: '{not json "superseded"' }],
+    ['an empty state.json', { state: '' }],
+    ['a state.json whose records are not a list', { state: '{"records": {"status": "superseded"}}' }],
+    ['a state.json with only in-force records', { state: JSON.stringify({ version: 1, records: [{ id: 'REC-X', path: 'hub/x.md', kind: 'decision', status: 'in-force' }] }) }],
+  ]) {
+    const broken = noticeRepo(options);
+    const r = runHook(JSON.stringify({ hook_event_name: 'PostToolUse', session_id: 'sess-notice', cwd: broken.repo, tool_name: 'Read',
+      tool_input: { file_path: 'hub/20 Decisions/Records/old.md' } }), { home });
+    expect(r.status === 0 && r.stdout === '', `${name} must fail open with no output, got ${r.status}/${JSON.stringify(r.stdout)}`);
+    broken.cleanup();
+  }
+  const bare = mkdtempSync(join(tmpdir(), 'notice-bare-'));
+  mkdirSync(join(bare, '.git'));
+  const noHub = runHook(JSON.stringify({ hook_event_name: 'PostToolUse', session_id: 'sess-notice', cwd: bare, tool_name: 'Read', tool_input: { file_path: 'a.md' } }), { home });
+  expect(noHub.status === 0 && noHub.stdout === '', `a repository with no hub gets nothing, got ${JSON.stringify(noHub.stdout)}`);
+  rmSync(bare, { recursive: true, force: true });
+  console.log('ok   a corrupt, empty, malformed, or in-force-only state.json and a missing hub fail open');
+  cleanup();
 }
 
 if (fails.length) {
