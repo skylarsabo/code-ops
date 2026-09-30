@@ -66,6 +66,13 @@
 //  10. Session chain. "## Program" may carry `Session: <base name> HO <n>`, the name the successor
 //      session takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When
 //      either is present, both must be: Hop is a positive integer and Session ends with ` HO <Hop>`.
+//  19. Convergence (DEC-74). A PROGRAM.md `## Finish line` section, whose bullets start `- F<n> `,
+//      opts in. Then "## Open items" holds at most OPEN_CAP bullets, each carries `Blocks: F<n>`
+//      (a comma list is allowed) on its own line or its ledger line, and every F id it names is on
+//      the Finish line. The rest of the open set lives in `BACKLOG.md` beside PROGRAM.md as `- OI-<n>`
+//      lines. A predecessor open item now in BACKLOG.md passes and is reported as `deferred`. With no
+//      Finish line, more than OPEN_CAP open items only warns. A chained handoff also prints
+//      `burn-down: active N (predecessor M, +a -r), backlog B`, with ` GROWING` when N exceeds M.
 //  16. Every `Pointer:` in "## Open items", here and in PROGRAM.md when the ledger has that
 //      section, carries a delimited `Anchor:`. Under grammar 1 this warns and never gates, because
 //      existing chains carry bare pointers. Under grammar 2 it fails closed.
@@ -205,6 +212,15 @@ const itemId = (line) => ITEM_ID_RE.exec(line)?.[0] ?? null;
 // Grammar 2 (checks 11 to 18): the id must lead the bullet, after an optional checkbox.
 const leadId = (line) => /^[-*]\s+(?:\[[ xX]\]\s+)?([A-Z][A-Z0-9]*-\d+)\b/.exec(line)?.[1] ?? null;
 const ARCHIVE_NAME = 'PROGRAM.archive.md';
+// Check 19: a ledger with a "## Finish line" section opts in to a capped, finish-tied open set.
+const BACKLOG_NAME = 'BACKLOG.md';
+const OPEN_CAP = 12;
+const finishId = (line) => /^[-*]\s+(F\d+)\b/.exec(line)?.[1] ?? null;
+// The F ids a line's `Blocks:` field names, or null when the field is absent or empty.
+const blocksOf = (line) => {
+  const ids = /\bBlocks:([^·]*)/.exec(line)?.[1].split(/[,\s]+/).filter(Boolean) ?? [];
+  return ids.length ? ids : null;
+};
 const DISPOSITION_RE = /\bDisposition:\s*(pending|local|dropped|promoted:[^\s·]+)\s*(?:·|$)/;
 const ownerOf = (line) => /\bOwner:\s*(agent|operator)\b/i.exec(line)?.[1].toLowerCase() ?? null;
 const doneWhenOf = (line) => { const m = /\bDone when:([^·]*)/.exec(line); return m ? squash(m[1]) : null; };
@@ -326,6 +342,26 @@ if (openSection) {
   unanchoredPointers(openSection.body, 'HANDOFF.md', grammar2);
 }
 
+// ---- 19. convergence: a Finish line caps the open set and ties each item to an F id ----
+// Without a Finish line the cap only warns, so older programs keep passing. A carried item reads its
+// Blocks: from the ledger line, as check 4 reads Owner: and Done when:.
+const info = [];
+if (program) {
+  const items = bulletsOf(openSection?.body ?? '');
+  if (items.length > OPEN_CAP) {
+    const msg = `check 19: ${items.length} open items exceed the cap of ${OPEN_CAP}; move the rest to programs/${basename(dirname(inRoot(programPath)))}/${BACKLOG_NAME}`;
+    (program.finish?.size ? violations : warnings).push(msg);
+  }
+  if (program.finish?.size) {
+    for (const line of items) {
+      const shown = line.trim().slice(0, 70);
+      const blocks = blocksOf(line) ?? blocksOf(program.openById.get(leadId(line)) ?? '');
+      if (!blocks) violations.push(`check 19: open item lacks "Blocks: F<n>" naming the Finish line item it serves: ${shown}`);
+      for (const f of blocks ?? []) if (!program.finish.has(f)) violations.push(`check 19: open item Blocks: ${f} is not in PROGRAM.md "## Finish line": ${shown}`);
+    }
+  }
+}
+
 // ---- 7. the operator's original request, verbatim, inside Goal and state of play ----
 const goalSection = secs.find((s) => s.heading.toLowerCase().startsWith('goal and state of play'));
 // The text must sit on the `Request:` line itself, so the horizontal-whitespace classes keep the
@@ -406,7 +442,12 @@ function checkProgram(file, shown) {
   const openLines = bulletsOf(ledgerOpen?.body ?? '');
   const forwarded = new Set([...openLines, ...as.flatMap((s) => bulletsOf(s.body))].filter((l) => /\bForwarded-to:\s*\S/.test(l)).map(itemId).filter(Boolean));
   const was = new Set(openLines.flatMap((l) => [...l.matchAll(/\bWas:\s*([^\s/]+)\/([A-Z][A-Z0-9]*-\d+)\b/g)].map((m) => `${m[1]}/${m[2]}`)));
-  const result = { history: squash(requests), closed, grammar2, forwarded, was, openById: new Map(), decisions: [], decisionIds: new Set() };
+  const finishSection = findSection(ps, 'Finish line');
+  const finish = finishSection ? new Set(bulletsOf(finishSection.body).map(finishId).filter(Boolean)) : null;
+  if (finish && !finish.size) violations.push(`${tag} "## Finish line" holds no "- F<n> ..." bullet`);
+  const backlogFile = join(dirname(file), BACKLOG_NAME);
+  const backlog = new Set(isFile(backlogFile) ? bulletsOf(readFileSync(backlogFile, 'utf8')).map(leadId).filter(Boolean) : []);
+  const result = { history: squash(requests), closed, grammar2, forwarded, was, finish, backlog, openById: new Map(), decisions: [], decisionIds: new Set() };
   if (!grammar2) return result;
 
   // L1: a grammar 2 open item keeps today's line and leads with its id.
@@ -499,11 +540,21 @@ if (programSection) {
       const priorProgram = basename(dirname(priorPath));
       const movedIn = forwardedIn(priorPath);
       const carried = new Set([...program.closed, ...program.forwarded, ...movedIn, ...bulletsOf(openSection?.body ?? '').map(itemId).filter(Boolean)]);
-      for (const line of bulletsOf(findSection(prior, 'Open items')?.body ?? '')) {
+      const priorOpen = bulletsOf(findSection(prior, 'Open items')?.body ?? '');
+      const deferred = [];
+      for (const line of priorOpen) {
         const id = itemId(line);
         if (!id) violations.push(`predecessor open item carries no id, so its carry-forward cannot be checked: ${line.trim().slice(0, 70)}`);
-        else if (!carried.has(id) && !program.was.has(`${priorProgram}/${id}`)) violations.push(`predecessor open item ${id} was dropped: it is in neither "## Open items", PROGRAM.md "## Closed items", nor a Forwarded-to: or Was: trail`);
+        else if (carried.has(id) || program.was.has(`${priorProgram}/${id}`)) continue;
+        else if (program.backlog.has(id)) deferred.push(id);
+        else violations.push(`predecessor open item ${id} was dropped: it is in neither "## Open items", PROGRAM.md "## Closed items", ${BACKLOG_NAME}, nor a Forwarded-to: or Was: trail`);
       }
+      if (deferred.length) info.push(`deferred: ${deferred.join(', ')} (moved to ${BACKLOG_NAME})`);
+      // Burn-down: active items now against the predecessor's, with the ids added and removed.
+      const nowOpen = bulletsOf(openSection?.body ?? '');
+      const [nowIds, priorIds] = [nowOpen, priorOpen].map((list) => new Set(list.map(itemId).filter(Boolean)));
+      const [added, removed] = [[...nowIds].filter((i) => !priorIds.has(i)).length, [...priorIds].filter((i) => !nowIds.has(i)).length];
+      info.push(`burn-down: active ${nowOpen.length} (predecessor ${priorOpen.length}, +${added} -${removed}), backlog ${program.backlog.size}${nowOpen.length > priorOpen.length ? ' GROWING' : ''}`);
       if (grammar2) grammar2Lineage(prior, predecessor, movedIn);
     }
   }
@@ -703,6 +754,7 @@ else if (stamped && headSha) {
 }
 
 for (const w of warnings) console.error(`  warning: ${w}`);
+for (const line of info) console.error(`  ${line}`);
 
 if (violations.length) {
   console.error(`x ${target}: ${violations.length} violation(s)`);

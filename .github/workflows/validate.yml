@@ -225,6 +225,9 @@ jobs:
       - name: Handoff draft and resume eval
         run: node evals/handoff-state/run.mjs
 
+      - name: Handoff program convergence eval (finish line, backlog, burn-down)
+        run: node evals/handoff-convergence/run.mjs
+
       - name: Program promote and close eval
         run: node evals/program-lifecycle/run.mjs
 

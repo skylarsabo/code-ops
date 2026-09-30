@@ -1225,6 +1225,26 @@ function overlapLines(programFile, root, sid) {
   } catch { return []; }
 }
 
+// Demotion candidates (DEC-74): open items whose line text is identical across this handoff and its
+// previous four predecessors. The walk follows `Predecessor:` and ends quietly at a missing file;
+// fewer than UNCHANGED_HOPS handoffs in the chain prints no line.
+const UNCHANGED_HOPS = 5;
+function unchangedItems(target, root) {
+  const chain = [];
+  const seen = new Set();
+  for (let file = target; file && chain.length < UNCHANGED_HOPS && !seen.has(file) && isFile(file);) {
+    seen.add(file);
+    const text = readFileSync(file, 'utf8');
+    chain.push(new Map(bullets(sectionBody(text, 'open items')).map((l) => [itemId(l), l.trim()]).filter(([id]) => id)));
+    const next = pathValue(sectionBody(text, 'program'), 'Predecessor');
+    file = next && !/^none$/i.test(next) ? resolve(root, next) : null;
+  }
+  if (chain.length < UNCHANGED_HOPS) return [];
+  const [first, ...older] = chain;
+  const ids = [...first].filter(([id, line]) => older.every((m) => m.get(id) === line)).map(([id]) => id);
+  return [`unchanged ${UNCHANGED_HOPS}+ hops: ${ids.join(', ') || 'none'}`];
+}
+
 function resume(arg, flags) {
   const root = resolve(flags.root);
   const target = resolveHandoff(arg, root);
@@ -1323,8 +1343,9 @@ function resume(arg, flags) {
   lines.push(...registerLines(programFile, text, root));
   if (hasDigests) lines.push(`scope documents (digests in ${repoPath(digestsFile)}):`, ...(scope.length ? scope : ['  none']));
 
+  lines.push(...[...check.err.matchAll(/^ {2}(burn-down: .*)$/gm)].map((m) => m[1]), ...unchangedItems(target, root));
   const open = bullets(sectionBody(text, 'open items'));
-  const byOwner = (owner) => open.filter((l) => new RegExp(`\\bOwner:\\s*${owner}\\b`, 'i').test(l)).map((l) => `  ${l}`);
+  const byOwner =(owner) => open.filter((l) => new RegExp(`\\bOwner:\\s*${owner}\\b`, 'i').test(l)).map((l) => `  ${l}`);
   lines.push('Blocked on operator:', ...(byOwner('operator').length ? byOwner('operator') : ['  none']));
   lines.push('Agent-owned:', ...(byOwner('agent').length ? byOwner('agent') : ['  none']));
   if (failures === 0) {
