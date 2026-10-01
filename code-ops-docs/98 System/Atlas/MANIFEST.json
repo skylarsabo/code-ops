@@ -295,8 +295,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "fcb603890cdd5ed52c97139032a87c1ed478a668",
-      "verifiedDigest": "f3217a8b3ddad928aef0a55d6743c8dc1319aa9e594ba20f18009a10285fb35f",
+      "verifiedAt": "1c43cdd021040b18be53e2a9f4548bd7a67cbc5f",
+      "verifiedDigest": "1d491d13fe2e570ce945c6e904bf843e6f463a72f48247935e707acd53a3ff67",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -680,17 +680,17 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 325,
+          "line": 361,
           "anchor": "['handoff-card.mjs', 'prompts the lead to checkpoint durable state at a safe bou"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 319,
+          "line": 355,
           "anchor": "['routing-card.mjs', 'prints the routing card at session start, the compaction s"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 320,
+          "line": 356,
           "anchor": "['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, runn"
         },
         {
@@ -716,8 +716,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "c07f60d2d49e6c497f9581c353d8ec0afc990b03",
-      "verifiedDigest": "2dc36a31a78305e54d04d2b7fe1f9aa7f8c317a1eb627d70f355d2d95b2e3712",
+      "verifiedAt": "15b74159e5508ba597c4fe02d7c530333d178d06",
+      "verifiedDigest": "dbd321fd2bfbab6d86bcf2426e0c804206307a03ab7c4293b1defa6921f857b4",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -993,12 +993,12 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "fcb603890cdd5ed52c97139032a87c1ed478a668",
-      "verifiedDigest": "0e716ee3da3d6bd4e40b706a0db2f4b574717b51fa919ddcf13b5658bad8b7d7",
+      "verifiedAt": "1c43cdd021040b18be53e2a9f4548bd7a67cbc5f",
+      "verifiedDigest": "2bbee85cb1536f30e2b97834d3202f15f4293327565587b2effe1e38702e381d",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 547,
+          "line": 583,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
         },
         {
@@ -1020,6 +1020,16 @@
           "file": "opencode-dist/code-ops/code-ops-suite/scripts/docs-manifest.mjs",
           "line": 16,
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 252,
+          "anchor": "function codexRungMap() {"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 260,
+          "anchor": "function codexRoutingInstruction() {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/hooks.json",
@@ -1104,7 +1114,7 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "c07f60d2d49e6c497f9581c353d8ec0afc990b03",
+      "verifiedAt": "15b74159e5508ba597c4fe02d7c530333d178d06",
       "verifiedDigest": "f63b55b4e4d6c454d99790ffdb81f3821458974f33f735888ac1eb7a55888fce",
       "claims": [
         {
