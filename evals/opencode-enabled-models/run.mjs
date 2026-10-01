@@ -21,7 +21,7 @@ const { fails, expect } = tally();
 
 const floors = `const KNOWN_MODELS = {
   "provider-a": { "claude-opus-5-5": "strong", "claude-fable-5-1": "frontier" },
-  "provider-b": { "gpt-6-luna": "light", "gpt-6-sol": "frontier" }
+  "provider-b": { "gpt-6-luna": "light", "gpt-5.6-terra": "strong", "gpt-6-sol": "frontier" }
 };
 `;
 const source = readFileSync(join(root, 'scripts', 'opencode-lifecycle.js'), 'utf8');
@@ -30,8 +30,11 @@ expect(source.includes(CALL), 'the lifecycle plugin has no call to assertDispatc
 const plugins = {};
 const LADDER = '.filter((id) => providerAllowed(id, switches));\n  const byTier';
 expect(source.includes(LADDER), 'the startup ladder does not filter by the provider switches');
+const DISTINCT = '.filter((id) => id.toLowerCase() !== strong.toLowerCase())';
+expect(source.includes(DISTINCT), 'the premium pick does not filter out the strong pick');
 for (const [label, text] of [
   ['real', source],
+  ['nodistinct', source.replace(DISTINCT, '.filter(() => true)')],
   ['mutant', source.replace(CALL, 'await (async () => ({ swap: false, note: null }))(')],
   ['noladder', source.replace(LADDER, ';\n  const byTier')],
 ]) {
@@ -53,6 +56,7 @@ const OPUS = 'provider-a/claude-opus-5-5';
 const FABLE = 'provider-a/claude-fable-5-1';
 const LUNA = 'provider-b/gpt-6-luna';
 const SOL = 'provider-b/gpt-6-sol';
+const TERRA = 'provider-b/gpt-5.6-terra';
 const HOST = [OPUS, FABLE, LUNA, SOL];
 
 const providersOf = (ids) => {
@@ -74,6 +78,7 @@ const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 //   lead        model of the dispatching session
 //   profile     the operator profile; hidden, the desktop-hidden ids; config, extra OpenCode config
 //   routing     false turns CODE_OPS_TIER_ROUTING off
+//   prompt      the dispatch brief, when a case sets a Tier line
 async function dispatch(label, o) {
   const dir = mkdtempSync(join(work, 'case-'));
   process.env.CODE_OPS_CHOOSER_CACHE = join(dir, 'cache.json');
@@ -100,7 +105,7 @@ async function dispatch(label, o) {
     await hooks.event({ event: { type: 'session.created', properties: {} } });
     await sleep(40);
   }
-  const args = { subagent_type: IMPLEMENTER, prompt: 'Round budget: 5. Build the unit.' };
+  const args = { subagent_type: IMPLEMENTER, prompt: o.prompt ?? 'Round budget: 5. Build the unit.' };
   let denied = null;
   try {
     await hooks['tool.execute.before']({ tool: 'task', sessionID: 'lead', callID: 'c1' }, { args });
@@ -130,6 +135,37 @@ for (const c of ladderCases) {
   const mutant = await dispatch('noladder', c.o);
   expect(!c.ok(mutant), `${c.name}: still passes with the ladder filter removed (${JSON.stringify(bound(mutant))})`);
 }
+
+// Premium binds the best-scoring enabled strong-class model that differs from the strong pick,
+// and only from the models the guard allows. The profile measures OPUS above TERRA, so the
+// strong pick is also the best-scoring model and a premium pick with no "differs" filter
+// lands on it and collapses.
+const PREMIUM_HOST = [OPUS, TERRA, LUNA];
+const MEASURED = { models: { 'claude-opus-5-5': { index: 40, cost: 1, tokens: 1000 }, 'gpt-5.6-terra': { index: 38, cost: 1, tokens: 1000 } } };
+const PREMIUM_BRIEF = 'Round budget: 5.\nTier: premium\nBuild the unit.';
+const COLLAPSE_NOTE = 'premium collapsed to strong: no distinct enabled model';
+const premiumCases = [
+  { name: 'premium bind: two enabled strong-class models give a distinct premium clone',
+    o: { live: PREMIUM_HOST, cache: PREMIUM_HOST, lead: OPUS, profile: MEASURED, prompt: PREMIUM_BRIEF },
+    ok: (r) => r.denied === null && r.agent === `${IMPLEMENTER}-premium` && r.config.agent[IMPLEMENTER].model === OPUS
+      && r.config.agent[`${IMPLEMENTER}-premium`]?.model === TERRA && !r.output.includes(COLLAPSE_NOTE) },
+  { name: 'premium collapse: one enabled strong-class model runs at strong with a note',
+    o: { live: [OPUS, LUNA], cache: [OPUS, LUNA], lead: OPUS, profile: MEASURED, prompt: PREMIUM_BRIEF },
+    ok: (r) => r.denied === null && r.agent === IMPLEMENTER && !(`${IMPLEMENTER}-premium` in r.config.agent)
+      && r.output.includes(COLLAPSE_NOTE) },
+  { name: 'premium collapse: a second strong-class model on a disabled provider is never bound',
+    o: { live: PREMIUM_HOST, cache: PREMIUM_HOST, lead: OPUS, profile: MEASURED, prompt: PREMIUM_BRIEF, config: { disabled_providers: ['provider-b'] } },
+    ok: (r) => r.denied === null && r.agent === IMPLEMENTER && !(`${IMPLEMENTER}-premium` in r.config.agent)
+      && r.output.includes(COLLAPSE_NOTE) },
+];
+for (const c of premiumCases) {
+  const real = await dispatch('real', c.o);
+  expect(c.ok(real), `${c.name}: ${JSON.stringify({ denied: real.denied, agent: real.agent, output: real.output, bound: bound(real) }).slice(0, 300)}`);
+}
+// The "differs from strong" filter is load-bearing: without it the bind case collapses.
+const bindCase = premiumCases[0];
+const nodistinct = await dispatch('nodistinct', bindCase.o);
+expect(!bindCase.ok(nodistinct), `${bindCase.name}: still passes with the differs-from-strong filter removed`);
 
 // Each case plants one fault and names whether a dispatch must be denied.
 const cases = [
