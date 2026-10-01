@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "a82171e6c6336596f2093f2ca22a6244a32b262a05e2887f7c0ea7001515a9e0",
+      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
+      "verifiedDigest": "1b29060972259f5eb525023fb1ce41ea86778cd8c31dd5a4e11ec97dd937ec80",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -240,6 +240,16 @@
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
           "line": 97,
           "anchor": "and then the upstream base branch, and push once more. A second rejection stops"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/distill/SKILL.md",
+          "line": 7,
+          "anchor": ". Read §3, §4, §9, §12, and §14 of the"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/distill/SKILL.md",
+          "line": 21,
+          "anchor": "- **Vault mode** is the eight-phase backfill of a whole docs vault, and a mainta"
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
@@ -625,9 +635,14 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "533840e70b8d35662471bf73d072d164347a90f56413fa39aa9b4033fc378fd6",
+      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
+      "verifiedDigest": "428424fa8836eebf7ed3df7eaa7feab88487e8226013cb20dc59a62fa17c8d9a",
       "claims": [
+        {
+          "file": "evals/distill-program/ANSWER_KEY.json",
+          "line": 2,
+          "anchor": "\"fixture\": \"distill-program\","
+        },
         {
           "file": "evals/docs-manifest/run.mjs",
           "line": 161,
@@ -878,8 +893,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "b6da729082b57815c67c92528f4bff0f6645142920674ba352322b074836563e",
+      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
+      "verifiedDigest": "4c3ab03dfef2138664c4656a046170ea68e73074550c05962febca8480afbf86",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1039,8 +1054,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "9fcbc51f753ab081f5274383987c61c05a117a6f60e8290b55b068f559e3f98d",
+      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
+      "verifiedDigest": "c8544381c2d86ee73665a1d226cd367de6e43183470a981d0662ab4e208e3550",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1131,8 +1146,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
-      "verifiedDigest": "2ce6d2bbf83ce3b7a2300109e3e12df8e107967602e2b1ef68152673bf107de6",
+      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
+      "verifiedDigest": "403b1e1c320d95413fdc10f259b2da31f413d96dbb27a31d7889bf2a2c15bf50",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",

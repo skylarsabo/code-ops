@@ -43,6 +43,7 @@ card. Side-effect-bearing phases keep their checkpoints, and nothing ever auto-m
 - `atlas`: builds, refreshes, or consolidates the repo's atlas (`<repo>-docs/98 System/Atlas/`), a durable cache of judgment about the codebase. Per-section freshness is decided mechanically against the diff since each section's stamp.
 - `vault`: scaffolds, migrates, or checks the repo's `<repo>-docs/` Obsidian vault against the one layout standard. `check-vault-standard.mjs` decides conformance fail-closed.
 - `handoff`: assesses whether to continue, compact, or transfer a long run; a transfer captures verifiable state as `HANDOFF.md`, and resume re-verifies every claim against the tree.
+- `distill`: cuts one program ledger down to its finish line, at most 12 active open items, live decisions with dispositions, and a backlog. Everything it removes moves to `PROGRAM.archive.md`. Program mode only; vault mode is not built yet.
 
 **Suite self-audit**
 - `calibration-run`: standardized real-scale calibration of the suite against a target repo, isolated and assess-only. It ends in a validated sanitized note appended to [`CALIBRATION_TABLE.md`](https://github.com/skylarsabo/code-ops/blob/main/evals/CALIBRATION_TABLE.md) in the code-ops repository. The channel is one-way, so target internals never cross back.

@@ -2,7 +2,7 @@
 
 Charter: deterministic regression evals, judgment fixtures, and the calibration graph. Excludes the workflow configuration that schedules them.
 
-Deterministic Node evals are merge evidence. Judgment fixtures measure model behavior and remain separate from merge gates because model output varies. Answer keys stay outside the context handed to an evaluated skill. The calibration graph preserves only sanitized, machine-parseable lessons from private runs.
+Deterministic Node evals are merge evidence. Judgment fixtures measure model behavior and remain separate from merge gates because model output varies. Answer keys stay outside the context handed to an evaluated skill. The `distill-program` garden plants six ledger defects and three decoys for the distill skill, and the fixture-drift guard checks its key (`evals/distill-program/ANSWER_KEY.json:2`). The calibration graph preserves only sanitized, machine-parseable lessons from private runs.
 
 The action-pin regression suite attacks the dependency boundary directly. It covers quoted and anchored scalar forms, block-scalar decoys, reusable workflow subpaths, recursive local composite actions, source overlap, and setup-node step ownership. Flow or JSON syntax, hidden nested dependencies, mutable or unlisted references, incomplete review metadata, unsafe paths, and any bypass of the Node version file must fail closed.
 
