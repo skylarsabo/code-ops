@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
-      "verifiedDigest": "c160d5be7cfea4500e2436d22fe86f593ca106afbf64310b4ab6e360759d40c5",
+      "verifiedAt": "45936fdb9b08b5472954e8dac8a4643e75c4b9ad",
+      "verifiedDigest": "fde2f6aa75c3f4036979087ca72c4168f3e866249d258fa16b7fdb3df57d36e9",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -285,18 +285,18 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
-      "verifiedDigest": "1cbd0331c4b756044424b63ad6f030301979d6797f95da9db1c96fa6b3a29dd9",
+      "verifiedAt": "45936fdb9b08b5472954e8dac8a4643e75c4b9ad",
+      "verifiedDigest": "705f4247e0d73a97fd54283dde25d6f99a6df9e635a46b4253b27645117b0256",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
           "line": 872,
-          "anchor": "const lines = readText(f).split('\\n');"
+          "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
           "line": 1555,
-          "anchor": "function checkAgentStateMachine() {"
+          "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/docs-manifest.mjs",
@@ -511,7 +511,7 @@
         {
           "file": "scripts/co.mjs",
           "line": 150,
-          "anchor": "// compaction loses. It needs"
+          "anchor": "// Route basis lines for one unit and its binding on each host. Read-only."
         },
         {
           "file": "scripts/compact-snapshot.mjs",
@@ -541,7 +541,7 @@
         {
           "file": "scripts/vendored-manifest.mjs",
           "line": 123,
-          "anchor": "and the PreCompact writer. It imports agent-ledger.mjs, cli-lib.mjs, and"
+          "anchor": "// The agent ledger. hooks/agent-ledger.mjs imports it as ../scripts/agent-ledge"
         },
         {
           "file": "scripts/agent-ledger.mjs",
@@ -570,7 +570,8 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 153
+          "line": 153,
+          "anchor": "// COMPACT_SNAPSHOT.md, the operator words, running work, active items, and peer"
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -585,6 +586,21 @@
         {
           "file": "scripts/integrate-branch.mjs",
           "line": 499
+        },
+        {
+          "file": "scripts/route-unit.mjs",
+          "line": 60,
+          "anchor": "export function surfaceOfScope(paths) {"
+        },
+        {
+          "file": "scripts/route-unit.mjs",
+          "line": 130,
+          "anchor": "export function routeUnit(basis) {"
+        },
+        {
+          "file": "scripts/route-unit.mjs",
+          "line": 160,
+          "anchor": "if (rung === 'premium') return provider.premiumCollapse ?? null;"
         },
         {
           "file": "scripts/atlas-check.mjs",
@@ -674,8 +690,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
-      "verifiedDigest": "7cdeecd3ff3bebb1e0860ef1c06c5144e426661948f4344c734848ffc916d3fe",
+      "verifiedAt": "45936fdb9b08b5472954e8dac8a4643e75c4b9ad",
+      "verifiedDigest": "7bef3fcdc42801a4ba3f266bb155ee30426a090ccbf6ce4ce8ab01ed19d999f8",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -730,12 +746,12 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 432,
-          "anchor": "writeFileSync(join(run, 'TASKS.md'), ['# Tasks', '- [x] OI-99 closed item', ...i"
+          "anchor": "expect(await afterText('read', { filePath: OLD }, { callID: 'h8' }) === 'tool ou"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 438,
-          "anchor": "await hooksFor['experimental.session.compacting']({ sessionID }, out);"
+          "anchor": "{"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -815,7 +831,7 @@
         {
           "file": "evals/co-facade/run.mjs",
           "line": 123,
-          "anchor": "const COMMANDS = ['brief', 'burndown', 'snapshot'];"
+          "anchor": "const COMMANDS = ['brief', 'burndown', 'route', 'snapshot'];"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
@@ -929,7 +945,7 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 185,
-          "anchor": "const dispatch = async (hooksFor, sessionID) => {"
+          "anchor": "const effTurn = { parts: [{ type: 'text', text: 'continue' }] };"
         },
         {
           "file": "evals/distill-check/run.mjs",
@@ -946,8 +962,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bc88a198ad90f33b20353182e3efae72ca81f1da",
-      "verifiedDigest": "f37b6cb536209fe0d9fe21889ad266b9595977ecfff6303ca2058857b8647e81",
+      "verifiedAt": "45936fdb9b08b5472954e8dac8a4643e75c4b9ad",
+      "verifiedDigest": "f93eda90fec5d09458b7627b3bfb097af408472515fc4fe8e0770dffdb5df261",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1017,7 +1033,7 @@
         {
           "file": "scripts/build-opencode-dist.mjs",
           "line": 454,
-          "anchor": "'tool.execute.after': async (input) => {"
+          "anchor": "// The presence board records this session's edits through the canonical edit ho"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -1057,8 +1073,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
-      "verifiedDigest": "3f4906d713e6ddcd7df81530bb15c20af2b3ba87ff13d4d17eaf01e9981fa3a4",
+      "verifiedAt": "45936fdb9b08b5472954e8dac8a4643e75c4b9ad",
+      "verifiedDigest": "5e3da9bf88f78b139a436ad7c6eca95ae1e5a0723b95db27075eef272534cb03",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1115,8 +1131,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
-      "verifiedDigest": "a63c543da582b48e2a8810b27664e4ee31838e2ca94dfeccc4715bfdc8464e90",
+      "verifiedAt": "45936fdb9b08b5472954e8dac8a4643e75c4b9ad",
+      "verifiedDigest": "a577c3cb7fbc28b33f16f8cd6dcacd7ca526b32136bc3d864d6d948b1277a9aa",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
