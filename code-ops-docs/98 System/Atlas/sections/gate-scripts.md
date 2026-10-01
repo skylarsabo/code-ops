@@ -81,6 +81,7 @@ The symbol primitives have one owner. `symbol-lib.mjs` holds the definition rule
 
 Cost attribution separates input, cache-read, cache-write, and output before it makes numeric model subtotals at `scripts/estimate-run-cost.mjs:242` and `scripts/estimate-run-cost.mjs:361`.
 Contracts validate a unique worker-view allowlist, and views reject selections that omit a required section at `scripts/run-contract.mjs:115` and `scripts/context-bundle.mjs:139`.
+Task-based contracts cap effort at `high`, so an `xhigh` lead or unit is rejected at `scripts/run-contract.mjs:137` and `scripts/run-contract.mjs:202`, while replay and calibration contracts keep accepting it.
 Selected views retain canonical binding, scope, completeness, and omission metadata at `scripts/context-bundle.mjs:264`.
 Generated hook text asks the lead to checkpoint at a safe boundary and assesses a handoff only where the host keeps one, instead of an automatic handoff, at `scripts/build-codex-marketplace.mjs:325`. The same table describes the `PreCompact` snapshot hook and the routing card at `scripts/build-codex-marketplace.mjs:319` and `scripts/build-codex-marketplace.mjs:320`.
 

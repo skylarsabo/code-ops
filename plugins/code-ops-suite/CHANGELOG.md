@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.32.0
+- Effort tops out at `high`. A task-based Run Contract rejects `xhigh` and `max` for the lead and for every unit, and a frontier peer exception now requires `high`.
+- The OpenCode lifecycle plugin accepts `low`, `medium`, and `high`. It clamps `xhigh` or `max` to `high` and says so in the directive.
+
 ## 2.31.0
 - Agent-ledger launch rows record the dispatch routing: `unit`, `requestedTier`, and `requestedEffort` from the brief's `Unit:`, `Tier:`, and `Effort:` lines, the `appliedModel` and `appliedEffort` actually used with their source, and an `ok`, `under`, or `over` flag. No prompt text is stored.
 - New `attemptOf` and `routingSummary` exports count a unit's retries and print the `Routing:` line with starvation and overuse advisories.

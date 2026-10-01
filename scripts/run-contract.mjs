@@ -132,6 +132,9 @@ function validate(c, root, warnings = []) {
   let calibrated = false;
   const taskBased = c.version === 4 && 'routingPolicy' in c;
   if (taskBased && c.routingPolicy !== 'task-based') errors.push('routingPolicy must be task-based');
+  // WHY: task-based contracts cap every effort at high, the frontier peer included. EFFORTS keeps
+  // xhigh so replay and calibration contracts record and accept the lead effort they always have.
+  if (taskBased && c.lead?.effort === 'xhigh') errors.push('lead effort xhigh is above the high ceiling for task-based contracts');
   if (c.version === 4 && 'calibration' in c) {
     // The pre-registered calibration arms b and c run a strong lead on the assess-only track.
     // A valid block lets units run at, never above, the
@@ -196,11 +199,11 @@ function validate(c, root, warnings = []) {
     if (!Number.isInteger(unit.wave) || unit.wave < 1 || typeof unit.phase !== 'string' || !unit.phase || typeof unit.lens !== 'string' || !unit.lens) errors.push(`${unit.id || expected} needs phase, lens, positive wave`);
     if (!['read', 'write'].includes(unit.mode) || !KINDS.has(unit.kind) || !EFFORTS.has(unit.effort) || !TIER_ORDER.includes(unit.tier) || !tierFor(unit.model, unit.tier)) errors.push(`${unit.id || expected} has invalid routing fields`);
     const rank = TIER_RANK[unit.tier];
-    const peerAtXhigh = taskBased && unit.peerException !== undefined && unit.tier === 'frontier' && unit.effort === 'xhigh';
+    if (taskBased && unit.effort === 'xhigh') errors.push(`${unit.id || expected} effort xhigh is above the high ceiling for task-based contracts`);
     if (calibrated && rank > TIER_RANK[c.lead.tier]) errors.push(`${unit.id || expected} must not run above the lead tier`);
     if (unit.kind === 'execution' && (rank < TIER_RANK.mid || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates execution routing floor`);
-    if (unit.kind === 'judgment' && (rank < TIER_RANK.strong || !['medium', 'high', ...(peerAtXhigh ? ['xhigh'] : [])].includes(unit.effort))) errors.push(`${unit.id || expected} violates judgment routing floor`);
-    if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || (unit.effort !== 'high' && !peerAtXhigh))) errors.push(`${unit.id || expected} violates review routing floor`);
+    if (unit.kind === 'judgment' && (rank < TIER_RANK.strong || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates judgment routing floor`);
+    if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || unit.effort !== 'high')) errors.push(`${unit.id || expected} violates review routing floor`);
     if (['breadth', 'mechanical'].includes(unit.kind) && ['high', 'xhigh'].includes(unit.effort)) errors.push(`${unit.id || expected} violates breadth/mechanical effort ceiling`);
     if (typeof unit.role !== 'string' || !unit.role || typeof unit.brief !== 'string' || !unit.brief.trim() || words(unit.brief) > 10) errors.push(`${unit.id || expected} needs role and a brief of at most ten words`);
     if (taskBased && (typeof unit.routingRationale !== 'string' || !unit.routingRationale.trim() || words(unit.routingRationale) > 20)) errors.push(`${unit.id || expected} needs a routingRationale of at most twenty words`);
@@ -210,7 +213,7 @@ function validate(c, root, warnings = []) {
       if (!taskBased) errors.push(`${unit.id || expected} peerException requires routingPolicy task-based`);
       if (!PEER_CLASSES.has(unit.peerException?.class)) errors.push(`${unit.id || expected} peerException.class is invalid`);
       for (const key of ['rationale', 'stoppingCriterion']) if (typeof unit.peerException?.[key] !== 'string' || !unit.peerException[key].trim()) errors.push(`${unit.id || expected} peerException.${key} must be nonempty`);
-      if (unit.tier !== 'frontier' || !['high', 'xhigh'].includes(unit.effort)) errors.push(`${unit.id || expected} peerException requires frontier tier and high or xhigh effort`);
+      if (unit.tier !== 'frontier' || unit.effort !== 'high') errors.push(`${unit.id || expected} peerException requires frontier tier and high effort`);
       if (unit.peerException?.class === 'refutation' ? unit.kind !== 'refutation' : unit.kind !== 'judgment') errors.push(`${unit.id || expected} peerException class and kind do not match`);
     } else if (taskBased && unit.tier === 'frontier') errors.push(`${unit.id || expected} frontier routing requires peerException`);
     if (unit.tokenBudget !== undefined) {
