@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "a3e67cf8e8c8998ae33ee6d8d34ff0a000836ecc",
+      "verifiedAt": "8ad8361c3c2728b5bf3c052f79196eff82088022",
       "verifiedDigest": "17c9def9390ff95c97dd0c6477c9becc3dbca38b07dcf1b17b58ae6e76472ac8",
       "claims": [
         {
@@ -295,8 +295,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "a3e67cf8e8c8998ae33ee6d8d34ff0a000836ecc",
-      "verifiedDigest": "2c0c827e0e650af075fb0e1f4df57204f3664a24342a81f52675fcf4a15ec62f",
+      "verifiedAt": "8ad8361c3c2728b5bf3c052f79196eff82088022",
+      "verifiedDigest": "c8dc9686b7b18bb9ed49418124185d8bd67a03c3fe136ae5d19bfaca2e3d7b54",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -690,17 +690,17 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 325,
+          "line": 361,
           "anchor": "['handoff-card.mjs', 'prompts the lead to checkpoint durable state at a safe bou"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 319,
+          "line": 355,
           "anchor": "['routing-card.mjs', 'prints the routing card at session start, the compaction s"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 320,
+          "line": 356,
           "anchor": "['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, runn"
         },
         {
@@ -726,8 +726,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "a3e67cf8e8c8998ae33ee6d8d34ff0a000836ecc",
-      "verifiedDigest": "b77f4ac148b93dff80ee6818ecc5dc3700f25918309e65307010f4ca158e457e",
+      "verifiedAt": "8ad8361c3c2728b5bf3c052f79196eff82088022",
+      "verifiedDigest": "48b508b57f8a4bcf9e3b97faca5b851897f10ba0aa157a6cd6db7e21f2a924d2",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -998,12 +998,12 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "a3e67cf8e8c8998ae33ee6d8d34ff0a000836ecc",
-      "verifiedDigest": "f1495fd8b921a97edf86619c9e814a3e441cf20b09df1951a0c963e42f38cf50",
+      "verifiedAt": "8ad8361c3c2728b5bf3c052f79196eff82088022",
+      "verifiedDigest": "568f62447fe775d3f94618f60b4e6f7ef289b20f165ee616bd919e0b7a76bf19",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 547,
+          "line": 583,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
         },
         {
@@ -1025,6 +1025,16 @@
           "file": "opencode-dist/code-ops/code-ops-suite/scripts/docs-manifest.mjs",
           "line": 16,
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 252,
+          "anchor": "function codexRungMap() {"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 260,
+          "anchor": "function codexRoutingInstruction() {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/hooks.json",
@@ -1259,7 +1269,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "a3e67cf8e8c8998ae33ee6d8d34ff0a000836ecc",
+      "verifiedAt": "8ad8361c3c2728b5bf3c052f79196eff82088022",
       "verifiedDigest": "6e146699b1db40115134a35068bd62c4a0e380762a2445d69824141e13ebaf63",
       "claims": [
         {

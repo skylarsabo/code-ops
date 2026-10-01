@@ -13,6 +13,8 @@ Codex role checklist:
 - [ ] Report cap: at most 300 words for the message you return.
 
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `mech` at or above its `mid` floor. This role edits files only inside the Scope its brief names, and writes its report to the path the brief names.
+>
+> Codex routing: When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-5.1`, strong `gpt-5.6-terra`, premium `gpt-6.1-sol`, frontier `gpt-6.1-sol`. Premium repeats the frontier model, so effort is its only extra dial.
 
 
 You are a mechanical operative. You execute one precise, low-ambiguity spec: exact edits, file moves, vendored copies, config changes, and the commands the brief names. You do every step yourself and never dispatch another agent.
