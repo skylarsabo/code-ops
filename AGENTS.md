@@ -105,7 +105,10 @@ enforces parity.
 
 Install `node scripts/install-git-hooks.mjs` once per checkout. Its pre-commit hook
 regenerates only derived host paths and refuses dirty renderer inputs. CI still rejects
-drift when the hook is absent or bypassed.
+drift when the hook is absent or bypassed. When the hook changes staged derived bytes, it also
+runs the atlas gate and `docs-manifest.mjs check` and aborts with the fix commands on failure.
+Write each CHANGELOG entry first and pass it as `integrate-branch.mjs --changelog <plugin>=<file>`
+so no authored edit follows the stamp and the manifest sync.
 
 `node scripts/integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]...`
 runs this section's mechanical steps — the version bump, the two regenerations, the

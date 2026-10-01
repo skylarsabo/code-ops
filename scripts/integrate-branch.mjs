@@ -3,7 +3,14 @@
 // helper (human or agent) only has to make the judgment calls this script cannot make for it.
 //
 //   node scripts/integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]...
-//                                      [--full] [--dry-run] [--jobs <n>]
+//                                      [--changelog <plugin>=<file>]... [--full] [--dry-run] [--jobs <n>]
+//
+// --changelog <plugin>=<file> (repeatable, one per plugin) replaces the TODO stub the bump script
+// leaves in that plugin's CHANGELOG.md with the file's text, inside step 1, before the host
+// distributions regenerate. Those distributions copy the changelog, so authoring it afterwards
+// would change scoped bytes after the docs manifest sync and the atlas stamp. The file is the
+// stub's replacement: bullets only, no "## <version>" heading. An empty file, one that still holds
+// **TODO**, or an unreadable one exits 2 before any write. A changelog with no stub is left alone.
 //
 // Default --base is origin/main. Steps, in order:
 //   1. Plugin version bump - any plugins/<name>/ path in the changed set whose version still
@@ -52,7 +59,7 @@
 // invocation.
 
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,7 +72,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // This repository's own atlas (CLAUDE.md "The documentation hub"; the same path
 // .github/workflows/validate.yml's "Atlas freshness" step stamps against).
 const ATLAS_DIR = 'code-ops-docs/98 System/Atlas';
-const USAGE = 'usage: integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]... [--full] [--dry-run] [--jobs <n>]';
+const USAGE = 'usage: integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]... [--changelog <plugin>=<file>]... [--full] [--dry-run] [--jobs <n>]';
 
 // ---------------------------------------------------------------- git plumbing
 
@@ -139,6 +146,35 @@ function callCheckPluginBump(base) {
   }
 }
 
+// A `--changelog <plugin>=<file>` entry replaces the bump script's TODO stub, so the authored text
+// is in place before regeneration copies the changelog into the derived host trees. Pure and
+// git-free. Returns the reason an entry is unusable, or null. The entry must be non-empty and
+// must not itself carry the stub marker.
+export function changelogEntryProblem(entry) {
+  if (entry.trim() === '') return 'is empty';
+  if (entry.includes('**TODO**')) return 'still contains **TODO**';
+  return null;
+}
+
+// Returns the changelog text with the stub line replaced by `entry`, or null when the text carries
+// no stub (already filled in, or no bump ran), so a re-run is a no-op. The entry takes the file's
+// own line ending.
+export function replaceChangelogStub(text, entry) {
+  if (!text.includes(TODO_STUB)) return null;
+  const body = entry.replace(/\r?\n/g, text.includes('\r\n') ? '\r\n' : '\n').trim();
+  return text.replace(TODO_STUB, () => body);
+}
+
+function applyChangelogEntry(name, entry, dryRun, log) {
+  const abs = join(ROOT, 'plugins', name, 'CHANGELOG.md');
+  const text = existsSync(abs) ? readFileSync(abs, 'utf8') : '';
+  const next = replaceChangelogStub(text, entry);
+  if (next === null) { log(`  ${name}: CHANGELOG.md has no TODO stub, so --changelog is left unapplied (idempotent re-run)`); return; }
+  if (dryRun) { log(`  would replace the ${name} CHANGELOG.md TODO stub - --dry-run, not writing`); return; }
+  writeFileSync(abs, next);
+  log(`  replaced the ${name} CHANGELOG.md TODO stub with the --changelog entry`);
+}
+
 function todoStub(name) {
   const abs = join(ROOT, 'plugins', name, 'CHANGELOG.md');
   if (!existsSync(abs)) return false;
@@ -182,7 +218,7 @@ function planBump(base, changed) {
   return plan;
 }
 
-function runBumpStep({ base, changed, bumpMap, dryRun, log }) {
+function runBumpStep({ base, changed, bumpMap, changelogMap, dryRun, log }) {
   const plan = planBump(base, changed);
   const result = { failed: [], bumped: [], skippedAlreadyBumped: [], judgmentItems: [] };
   if (plan.touched.length === 0) { log('  no plugins/<name>/ paths in the changed set.'); return result; }
@@ -209,6 +245,11 @@ function runBumpStep({ base, changed, bumpMap, dryRun, log }) {
       log(`  x bump-plugin-version.mjs failed for ${name}: ${String(e.stderr || e.message).trim().split('\n')[0]}`);
       result.failed.push(name);
     }
+  }
+
+  for (const [name, entry] of changelogMap) {
+    if (plan.touched.includes(name)) applyChangelogEntry(name, entry, dryRun, log);
+    else { log(`  x --changelog names ${name}, which has no plugins/${name}/ path in the changed set`); result.failed.push(name); }
   }
 
   for (const name of plan.touched) {
@@ -542,6 +583,7 @@ async function main() {
   const { flags } = parseOrDie(process.argv.slice(2), {
     base: { value: true, default: 'origin/main' },
     bump: { value: true, many: true },
+    changelog: { value: true, many: true },
     full: { value: false },
     'dry-run': { value: false },
     jobs: { value: true },
@@ -557,6 +599,17 @@ async function main() {
     const m = /^([^:]+):(major|minor|patch)$/.exec(spec);
     if (!m) { console.error(`x --bump ${spec} must be <plugin>:<major|minor|patch>`); process.exit(2); }
     bumpMap.set(m[1], m[2]);
+  }
+  const changelogMap = new Map();
+  for (const spec of flags.changelog) {
+    const m = /^([^=]+)=(.+)$/.exec(spec);
+    if (!m) { console.error(`x --changelog ${spec} must be <plugin>=<file>`); process.exit(2); }
+    if (changelogMap.has(m[1])) { console.error(`x --changelog names ${m[1]} twice`); process.exit(2); }
+    let entry;
+    try { entry = readFileSync(resolve(m[2]), 'utf8'); } catch (e) { console.error(`x --changelog ${m[1]}: cannot read ${m[2]}: ${e.message}`); process.exit(2); }
+    const problem = changelogEntryProblem(entry);
+    if (problem) { console.error(`x --changelog ${m[1]}=${m[2]} ${problem}`); process.exit(2); }
+    changelogMap.set(m[1], entry);
   }
   if (!gitTry(['rev-parse', '--verify', '--quiet', `${base}^{commit}`]).ok) {
     console.error(`x --base ${base} does not resolve to a commit`);
@@ -576,7 +629,7 @@ async function main() {
   const judgmentItems = [];
 
   console.log('\n== step 1: plugin version bump ==');
-  const bumpResult = runBumpStep({ base, changed, bumpMap, dryRun, log: (l) => console.log(l) });
+  const bumpResult = runBumpStep({ base, changed, bumpMap, changelogMap, dryRun, log: (l) => console.log(l) });
   if (bumpResult.failed.length) anyFailed = true;
   judgmentItems.push(...bumpResult.judgmentItems);
 

@@ -82,7 +82,7 @@ Each contract declares these top-level concerns:
 The `lead` block records the session model: the model the operator started the session
 with, on any host. The validator checks it for shape only: a nonempty model, a known tier,
 and a known effort. A lead below strong, or a model the registry cannot place at its declared
-tier, prints a warning and never fails the contract. The session lead owns acceptance. Unit
+tier, prints a warning and never fails the contract. A task-based contract caps the lead and every unit at high effort, the frontier peer included, while replay and calibration contracts keep their accepted efforts. The session lead owns acceptance. Unit
 floors still fail closed, so judgment, review, and refutation stay at the strong tier. A review or refutation unit names both the unit it
 validates and the role-independent relationship. Finalization also requires each planned
 operative artifact to exist and contain evidence. Earlier contract versions retain their
