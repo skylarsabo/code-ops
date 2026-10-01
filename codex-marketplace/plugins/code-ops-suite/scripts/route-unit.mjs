@@ -38,22 +38,45 @@ export const EFFORTS = ['low', 'medium', 'high'];
 // The surfaces a unit's Scope can touch that make a wrong answer expensive. The list is
 // deliberately narrow: it names the gate scripts and the auth, egress, migration, and public
 // contract paths, not all of `hooks/` or `scripts/`, so premium stays a trigger and never turns
-// into a default. A path is matched after backslashes become slashes and a leading `./` drops.
+// into a default. A path is matched after backslashes become slashes, a leading `./` drops, and a
+// trailing line anchor (`:120-180`, `#L120-L180`) drops. The patterns ignore case and accept either separator.
 export const SURFACE_PATTERNS = [
   { surface: 'security', pattern: /(?:^|\/)(?:auth|oauth|authn|authz|credentials?|secrets?)(?:[/._-]|$)/i },
   { surface: 'egress', pattern: /(?:^|\/)egress(?:[/._-]|$)/i },
   { surface: 'migration', pattern: /(?:^|\/)migrat(?:e|ions?)(?:[/._-]|$)/i },
   {
     surface: 'public-contract',
-    pattern: /(?:^|\/)(?:code-ops-docs\/35 Contracts and Data\/CONTRACTS\.md|\.claude-plugin\/(?:plugin|marketplace)\.json)$/,
+    pattern: /(?:^|[/\\])(?:code-ops-docs[/\\]35 Contracts and Data[/\\]CONTRACTS\.md|\.claude-plugin[/\\](?:plugin|marketplace)\.json)$/i,
   },
-  { surface: 'gate-script', pattern: /(?:^|\/)scripts\/lint-plugins\.mjs$/ },
-  { surface: 'gate-script', pattern: /(?:^|\/)evals\/score\.mjs$/ },
-  { surface: 'gate-script', pattern: /(?:^|\/)\.github\/workflows\// },
-  { surface: 'gate-script', pattern: /(?:^|\/)plugins\/code-ops-suite\/hooks\/dispatch-guard\.mjs$/ },
+  { surface: 'gate-script', pattern: /(?:^|[/\\])scripts[/\\]lint-plugins\.mjs$/i },
+  { surface: 'gate-script', pattern: /(?:^|[/\\])evals[/\\]score\.mjs$/i },
+  { surface: 'gate-script', pattern: /(?:^|[/\\])\.github[/\\]workflows[/\\]/i },
+  { surface: 'gate-script', pattern: /(?:^|[/\\])plugins[/\\]code-ops-suite[/\\]hooks[/\\]dispatch-guard\.mjs$/i },
 ];
 
-const normalizePath = (path) => String(path).replaceAll('\\', '/').replace(/^\.\//, '');
+const ANCHOR = /(?:#L\d+(?:-L?\d+)?|:\d+(?:[-:]\d+)?)$/i;
+const normalizePath = (path) => String(path).replaceAll('\\', '/').replace(/^\.\//, '').replace(ANCHOR, '');
+
+// The lowest kind each agent routes as. A brief that declares a lower kind is raised to this one
+// before routing, so a reviewer dispatched as "execution" still routes as a review. Agents not
+// listed have no minimum. Kinds rank along the chain below; a peer ranks with judgment.
+export const AGENT_MIN_KIND = {
+  'code-ops-suite:reviewer': 'review',
+  'privacy-opsec-suite:privacy-reviewer': 'review',
+  'rigor:verifier': 'refutation',
+  'rigor:tracer': 'judgment',
+};
+const KIND_CHAIN = ['breadth', 'mechanical-read', 'mechanical-edit', 'gate-run', 'execution', 'judgment', 'review', 'refutation'];
+const KIND_RANK = { ...Object.fromEntries(KIND_CHAIN.map((kind, index) => [kind, index])), peer: KIND_CHAIN.indexOf('judgment') };
+
+// `{ kind, raisedFrom }`: the kind to route and the declared kind it replaced, or null. An unknown
+// kind is left alone, so validation reports it.
+export function applyMinKind(kind, agent) {
+  const key = String(agent ?? '').trim().toLowerCase();
+  const min = Object.hasOwn(AGENT_MIN_KIND, key) ? AGENT_MIN_KIND[key] : null;
+  if (min && Object.hasOwn(KIND_RANK, kind) && KIND_RANK[kind] < KIND_RANK[min]) return { kind: min, raisedFrom: kind };
+  return { kind, raisedFrom: null };
+}
 
 // The one surface a Scope derives, or `none`. Several surfaces resolve in SURFACES order, so the
 // answer does not depend on the order the paths were listed.
@@ -229,8 +252,9 @@ function cli(argv) {
   }, USAGE);
   try {
     const attempt = Number(flags.attempt);
+    const { kind, raisedFrom } = flags.agent ? applyMinKind(flags.kind, flags.agent) : { kind: flags.kind, raisedFrom: null };
     const basis = {
-      kind: flags.kind,
+      kind,
       ambiguity: SHORT_AMBIGUITY[flags.ambiguity] ?? flags.ambiguity,
       reversible: flags.reversible,
       surface: surfaceOfScope(flags.scope),
@@ -240,6 +264,7 @@ function cli(argv) {
       synthesis: flags.synthesis === true,
     };
     const routed = routeUnit(basis);
+    if (raisedFrom) routed.notes.push(`kind raised from ${raisedFrom} to ${kind}: ${flags.agent} routes as at least ${kind}`);
     const bindings = hostBindings(routed.rung);
     if (flags.json) {
       console.log(JSON.stringify({ ...routed, bindings }, null, 2));

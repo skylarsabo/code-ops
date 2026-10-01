@@ -1,5 +1,9 @@
 # Changelog — privacy-opsec-suite
 
+## 2.4.0
+- The privacy-reviewer Contract requires `Unit:`, `Tier:`, `Effort:`, and `Route basis:` brief lines, so the lead sets the rung and effort per dispatch. It routes as review at minimum.
+- The vendored `route-unit.mjs` strips `file:line` anchors from Scope paths, matches surfaces case-insensitively, and applies a per-agent minimum kind.
+
 ## 2.3.10
 - The vendored scripts gain `route-unit.mjs`, the dispatch router behind `co route`, and the updated `model-tiers.mjs` with a premium binding per provider.
 

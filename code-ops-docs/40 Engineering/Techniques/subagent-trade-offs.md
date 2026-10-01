@@ -39,6 +39,8 @@ verdict rests on its output, and never route below an agent's lint-enforced floo
 
 Effort level names do not carry across model generations. When the lead model changes, re-run the effort sweep against the judgment evals before you trust the table above. Step a dispatch down only where quality held. Dispatch operatives in the background and continue independent work. Wait only when the next step depends on the result. On coding work, background dispatch lowers time to completion at similar quality and cost.
 
+The agent type fixes an operative's instructions and tools. The lead sets the rung and effort per dispatch, and states them in the brief's `Tier`, `Effort`, and `Route basis` lines, which `co route` prints. A strong-floor agent works the same at every rung, so its definition never changes with the dispatch.
+
 Three anti-patterns follow from the table:
 
 - Never run the highest effort on a breadth sweep, because parallelism beats effort for coverage.
