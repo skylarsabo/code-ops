@@ -238,6 +238,67 @@ function sessionName(file) {
   return value;
 }
 
+// The compaction push. OpenCode has no PreCompact hook port, so the compacting hook adds what a
+// summary would lose: the session run folder's unchecked TASKS.md lines, its pending
+// DISPATCH_LEDGER.md rows, and the snapshot path. The run folder is the one whose SESSION.json
+// names the session in `sessionId` or `hostSessionId`, found as sessionRunFolder() in
+// plugins/code-ops-suite/hooks/routing-card.mjs finds it (bounded hub scan, newest 200 folders).
+// This build bundles no snapshot library (scripts/compact-snapshot.mjs), so a missing snapshot file
+// becomes the line `run co snapshot`. The push stays bounded and any failure is no lines.
+const COMPACT_ITEMS = 12;
+const COMPACT_ROWS = 8;
+const COMPACT_CHARS = 200;
+const COMPACT_SCAN = 200;
+const COMPACT_BYTES = 65_536;
+const SNAPSHOT_FILE = 'COMPACT_SNAPSHOT.md';
+const PENDING_ROW = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*(?:re)?dispatched\s*\|\s*$/;
+const cardLine = (text) => String(text).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, COMPACT_CHARS);
+
+function sessionRunDir(cwd, sessionId) {
+  let entries;
+  try { entries = readdirSync(cwd, { withFileTypes: true }); } catch { return null; }
+  const hubs = [cwd, ...entries.filter((e) => e.isDirectory() && e.name.endsWith('-docs')).map((e) => join(cwd, e.name))];
+  const folders = [];
+  for (const hub of hubs) {
+    const runs = join(hub, '80 Runs');
+    try {
+      for (const f of readdirSync(runs, { withFileTypes: true })) if (f.isDirectory()) folders.push({ dir: join(runs, f.name), name: f.name });
+    } catch { /* no runs here */ }
+  }
+  folders.sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0));
+  for (const { dir } of folders.slice(0, COMPACT_SCAN)) {
+    let session;
+    try { session = JSON.parse(readFileSync(join(dir, 'SESSION.json'), 'utf8')); } catch { continue; }
+    if (session?.sessionId === sessionId || session?.hostSessionId === sessionId) return dir;
+  }
+  return null;
+}
+
+function compactionPush(cwd, sessionId) {
+  try {
+    const dir = typeof sessionId === 'string' && sessionId ? sessionRunDir(cwd, sessionId) : null;
+    if (!dir) return null;
+    const rel = relative(cwd, dir).split(sep).join('/');
+    const lines = [];
+    const read = (name) => { try { return readFileSync(join(dir, name), 'utf8').slice(0, COMPACT_BYTES).split(/\r?\n/); } catch { return []; } };
+    const open = read('TASKS.md').map((line) => /^[ \t]*[-*][ \t]+\[ \][ \t]+(.*)$/.exec(line)?.[1]).filter(Boolean);
+    if (open.length) {
+      const shown = open.slice(0, COMPACT_ITEMS);
+      lines.push(`Open items in ${rel}/TASKS.md (${shown.length} of ${open.length} shown):`, ...shown);
+    }
+    const rows = read('DISPATCH_LEDGER.md').map((line) => PENDING_ROW.exec(line)).filter(Boolean);
+    if (rows.length) {
+      const shown = rows.slice(0, COMPACT_ROWS);
+      lines.push(`Pending dispatches in ${rel}/DISPATCH_LEDGER.md (${shown.length} of ${rows.length} shown):`,
+        ...shown.map(([, id, role, brief, artifact]) => `${id} ${role}: ${brief} -> ${artifact}`));
+    }
+    lines.push(existsSync(join(dir, SNAPSHOT_FILE))
+      ? `Compaction snapshot: ${rel}/${SNAPSHOT_FILE}`
+      : `Compaction snapshot: ${rel}/${SNAPSHOT_FILE} is not written; run co snapshot`);
+    return lines.map(cardLine).join('\n');
+  } catch { return null; }
+}
+
 function ledgerPath() {
   const named = process.env.CODE_OPS_RECEIPTS;
   if (named && !/^(off|0|false)$/i.test(named)) return named;
@@ -626,6 +687,57 @@ function enabledModels(catalog, profile) {
   return ids;
 }
 
+// The provider switches of the OpenCode config. A listed provider stays out, and a set
+// `enabled_providers` keeps every other provider out. An empty list counts as unset.
+function providerSwitches(config) {
+  const names = (value) => (Array.isArray(value) && value.length ? new Set(value.map((n) => String(n).toLowerCase())) : null);
+  return { disabled: names(config?.disabled_providers) ?? new Set(), enabled: names(config?.enabled_providers) };
+}
+
+function providerAllowed(fullId, switches) {
+  const id = String(fullId).toLowerCase();
+  const provider = id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
+  return !switches.disabled.has(provider) && (!switches.enabled || switches.enabled.has(provider));
+}
+
+// A dispatch binds only a model the live host list names, the profile enabled list
+// names, the Models settings do not hide, and the provider switches allow. The
+// order is the live list, one wait for a fresh list, the catalog an earlier run
+// learned, then the `-lead` clone when the lead model meets the same conditions and
+// the agent's floor. Nothing left is a denial. It runs for every dispatch call,
+// whatever the routing switch says, so the model cannot reach a disabled model.
+async function assertDispatchModel({ agent, bound, lead, live, refresh, switches, profile, canSwap }) {
+  const floor = AGENT_FLOORS[baseAgent(agent)];
+  let source = live?.ids ? [...live.ids] : null;
+  if (!source) {
+    let fresh = null;
+    try { fresh = await refresh(); } catch { /* the earlier catalog decides */ }
+    source = fresh?.ids ?? listChooserModels();
+  }
+  if (!source.length) {
+    throw new Error('Dispatch guard: this host has not listed its models and no earlier list is cached, so no dispatch can bind an enabled model. Restart OpenCode so the host list loads, then dispatch again.');
+  }
+  const usable = new Set(enabledModels(source, profile).filter((id) => providerAllowed(id, switches)).map((id) => id.toLowerCase()));
+  const ok = (id) => usable.has(String(id).toLowerCase());
+  const listed = (id) => source.some((s) => s.toLowerCase() === String(id).toLowerCase());
+  const refuse = (why) => new Error(`Dispatch guard: ${why}. Enable a model that meets the ${floor ?? 'agent'} floor for ${agent || 'this dispatch'} in the OpenCode Models settings, the profile enabled list, or the provider settings, or restart OpenCode so the host list refreshes.`);
+  if (!usable.size) throw refuse('no model this host lists is enabled');
+  // An agent with no binding runs on the model the operator chose in the host, which
+  // this plugin does not bind. Only a lead clone makes the lead model the plugin's choice.
+  const leadClone = /-lead$/i.test(agent);
+  const target = bound ?? (leadClone ? lead : undefined);
+  if (!target) return { swap: false, note: null };
+  const meetsFloor = floor === undefined || TIER_RANK[gateTier(lead)] >= TIER_RANK[floor];
+  // A lead clone binds the lead model, so it owes the floor as well.
+  if (ok(target) && (bound || meetsFloor)) return { swap: false, note: null };
+  const why = ok(target) ? `${target} is below the ${floor} floor`
+    : listed(target) ? `${target} is not enabled` : `${target} is no longer listed by this host`;
+  if (bound && canSwap && lead && ok(lead) && meetsFloor) {
+    return { swap: true, note: `${why}; ${baseAgent(agent)} inherits your model for this dispatch. Restart OpenCode to rebind.` };
+  }
+  throw refuse(`${why}, and no enabled model meets the floor`);
+}
+
 function familyTier(fullId) {
   const id = String(fullId).toLowerCase();
   const name = id.includes('/') ? id.slice(id.indexOf('/') + 1) : id;
@@ -702,8 +814,8 @@ function pickChooserModel(required, catalog, profile = {}) {
   return eligible[0].id;
 }
 
-function buildChooserLadder(catalog = listChooserModels(), profile = readProfile()) {
-  const ids = enabledModels(catalog.length ? catalog : [], profile);
+function buildChooserLadder(catalog = listChooserModels(), profile = readProfile(), switches = providerSwitches()) {
+  const ids = enabledModels(catalog.length ? catalog : [], profile).filter((id) => providerAllowed(id, switches));
   const byTier = {};
   for (const tier of ['light', 'mid', 'strong', 'frontier']) {
     byTier[tier] = pickChooserModel(tier, ids, profile);
@@ -1027,11 +1139,14 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
     const ceiling = contextCeiling(profile, row);
     const gated = on('CODE_OPS_DISPATCH_GUARD') && hardStop() && ceiling && context >= ceiling
       && assessedBand(row) < gateBand(context, ceiling)
-      ? ' New dispatches are gated until that assessment runs.'
+      ? ' New dispatches are now gated until you run /code-ops-suite-handoff assess.'
       : '';
+    // The wording follows the non-Grok card in plugins/code-ops-suite/hooks/handoff-card.mjs: host
+    // auto-compaction is the relief, and a token count never selects a handoff.
+    const relief = 'Host auto-compaction is the context relief, so bring TASKS.md and RUN_LOG.md current first. Hand off only to start new work, to load updated code-ops plugins in a clean session, or after a host change or failed compaction.';
     return (band === 1
-      ? held + 'At the next safe boundary, run /code-ops-suite-handoff assess to choose CONTINUE, COMPACT, or HANDOFF. Continue a short coherent finish; checkpoint durable state before compacting; use explicit write only for a transfer or recovery.'
-      : held + 'Finish the step in flight, then run /code-ops-suite-handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.') + gated;
+      ? `${held}At the next safe boundary, run /code-ops-suite-handoff assess to choose CONTINUE or COMPACT. ${relief}`
+      : `${held}Finish the step in flight, then run /code-ops-suite-handoff assess to choose CONTINUE or COMPACT before starting a new workstream. ${relief} This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.`) + gated;
   };
 
   // The lead's own reads are the largest cost on a metered host. The advisory
@@ -1086,11 +1201,22 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
 
   let chooserRefreshed = false;
   let live = null;
+  let switches = providerSwitches();
+  let refreshing = null;
   let byTier = {};
   let profile = {};
   let chooserWarning = null;
   const clones = new Set();
   const agentModels = {};
+
+  // One refresh at a time: the first event and an early dispatch share the same wait.
+  const refreshLive = () => {
+    refreshing ??= refreshChooserCache(client).then((result) => {
+      if (result?.ids) live = { ids: new Set(result.ids), variants: result.variants };
+      return result;
+    }).finally(() => { refreshing = null; });
+    return refreshing;
+  };
 
   const buildClones = (config) => {
     for (const [base, floor] of Object.entries(AGENT_FLOORS)) {
@@ -1130,7 +1256,9 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           config.permission.task = { ...SUITE_TASK };
         }
         config.agent ??= {};
-        const ladder = buildChooserLadder();
+        // The switches come first, so the ladder binds only a model the provider settings allow.
+        switches = providerSwitches(config);
+        const ladder = buildChooserLadder(undefined, undefined, switches);
         if (Object.keys(ladder.agents).length) {
           for (const [name, model] of Object.entries(ladder.agents)) {
             const agent = config.agent[name] ??= {};
@@ -1139,6 +1267,9 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         }
         byTier = ladder.byTier;
         profile = ladder.profile;
+        for (const base of Object.keys(AGENT_FLOORS)) {
+          if (typeof config.agent[base]?.model === 'string') agentModels[base] = config.agent[base].model;
+        }
         chooserWarning = ladder.warning;
         if (on('CODE_OPS_TIER_ROUTING')) buildClones(config);
         for (const name of ['build', 'plan']) {
@@ -1260,31 +1391,42 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           row.handoffInvoked = true;
           recordAssessment(row);
         }
-        if (DISPATCH_TOOLS.has(tool) && on('CODE_OPS_TIER_ROUTING') && output?.args && typeof output.args === 'object') {
+        if (DISPATCH_TOOLS.has(tool) && output?.args && typeof output.args === 'object') {
           const args = output.args;
           const key = ['subagent_type', 'agent', 'subagentType', 'name'].find((k) => typeof args[k] === 'string' && args[k].trim());
           const type = key ? args[key].trim() : '';
-          if (key && suiteAgent(type)) {
+          const notes = [];
+          let target = type;
+          let routing = null;
+          if (key && suiteAgent(type) && on('CODE_OPS_TIER_ROUTING')) {
             const brief = dispatchPrompt(args);
             const tier = directive(brief, 'Tier', [...TIER_NAMES, 'lead']);
             const effort = directive(brief, 'Effort', EFFORTS);
-            const notes = [];
             if (tier.raw && !tier.value) notes.push(`Tier "${tier.raw}" is not light, mid, strong, frontier, or lead; the agent's own binding runs.`);
             if (effort.raw && !effort.value) notes.push(`Effort "${effort.raw}" is not low, medium, high, or xhigh; the default for the role runs.`);
             const routed = routeTier(type, tier.value, clones);
             if (routed.note) notes.push(routed.note);
-            let target = routed.agent;
-            // A cached binding can outlive the model. The live list decides.
-            const bound = agentModels[target];
-            const fallback = `${baseAgent(target)}-lead`;
-            if (live?.ids && bound && !live.ids.has(bound) && clones.has(fallback)) {
-              notes.push(`${bound} is no longer listed by this host; ${baseAgent(target)} inherits your model for this dispatch. Restart OpenCode to rebind.`);
-              target = fallback;
-            }
-            if (target !== type) args[key] = target;
-            routingLog({ kind: 'tier', from: type, to: target, tier: tier.raw, effort: effort.raw, model: agentModels[target] ?? 'inherit' });
-            if (notes.length) queueNote(row, `Routing: ${notes.join(' ')}`);
+            target = routed.agent;
+            routing = { tier, effort };
           }
+          // The live list, the profile, the Models settings, and the provider switches
+          // decide the bound model, whatever the routing switch says.
+          const fallback = `${baseAgent(target)}-lead`;
+          const verdict = await assertDispatchModel({
+            agent: target,
+            bound: agentModels[target],
+            lead: row.model ?? undefined,
+            live,
+            refresh: refreshLive,
+            switches,
+            profile,
+            canSwap: Boolean(key) && clones.has(fallback),
+          });
+          if (verdict.swap) target = fallback;
+          if (verdict.note) notes.push(verdict.note);
+          if (target !== type) args[key] = target;
+          if (routing) routingLog({ kind: 'tier', from: type, to: target, tier: routing.tier.raw, effort: routing.effort.raw, model: agentModels[target] ?? 'inherit' });
+          if (notes.length) queueNote(row, `Routing: ${notes.join(' ')}`);
         }
         if (!on('CODE_OPS_DISPATCH_GUARD')) return;
         if (!row.parentID && !row.parentChecked && client?.session?.get) {
@@ -1388,8 +1530,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
             .then(() => client?.tui?.showToast?.({ body: { message: chooserWarning, variant: 'warning' } }))
             .catch(() => { /* fail open */ });
         }
-        refreshChooserCache(client).then((result) => {
-          if (result?.ids) live = { ids: new Set(result.ids), variants: result.variants };
+        refreshLive().then((result) => {
           if (!result?.changed || process.env.CODE_OPS_OPENCODE_MODELS) return;
           return client?.tui?.showToast?.({
             body: { message: 'code-ops: host model list changed. Restart OpenCode to rebind suite agents.', variant: 'info' },
@@ -1439,6 +1580,8 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         if (row) {
           const [pending] = pendingHandoffs(row.cwd);
           if (pending) output.context.push(`Named durable artifact: ${pending.path} (written ${pending.written}). Point at it; do not restate it.`);
+          const push = compactionPush(row.cwd, row.id);
+          if (push) output.context.push(push);
         }
       } catch { /* fail open */ }
     },
