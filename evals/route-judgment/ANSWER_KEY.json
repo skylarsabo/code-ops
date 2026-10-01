@@ -1,0 +1,24 @@
+{
+  "fixture": "route-judgment",
+  "repo": "repo",
+  "lineTolerance": 0,
+  "thresholds": { "recall": 0.75, "maxDecoys": 0 },
+  "planted": [
+    { "id": "U01", "file": "ROUTE_MENU.md", "line": 4, "anchor": "U01 | light | low", "title": "Inventory stale TODO comments", "rung": "light", "effort": "low", "rule": "1", "basis": { "kind": "breadth", "ambiguity": "low", "reversible": "yes", "scope": ["docs/"] } },
+    { "id": "U02", "file": "ROUTE_MENU.md", "line": 28, "anchor": "U02 | premium | high", "title": "Review the release workflow change", "rung": "premium", "effort": "high", "rule": "7a", "basis": { "kind": "review", "ambiguity": "low", "reversible": "yes", "scope": [".github/workflows/release.yml"] } },
+    { "id": "U03", "file": "ROUTE_MENU.md", "line": 33, "anchor": "U03 | mid | low", "title": "Bump the notes-kit version for release", "rung": "mid", "effort": "low", "rule": "2", "trap": true, "basis": { "kind": "mechanical-edit", "ambiguity": "low", "reversible": "yes", "scope": ["plugins/notes-kit/.claude-plugin/plugin.json", ".claude-plugin/marketplace.json"] } },
+    { "id": "U04", "file": "ROUTE_MENU.md", "line": 50, "anchor": "U04 | strong | medium", "title": "Add a CSV export to the invoices report", "rung": "strong", "effort": "medium", "rule": "3", "basis": { "kind": "execution", "ambiguity": "low", "reversible": "yes", "scope": ["src/reports/invoices.js", "src/reports/csv.js", "test/reports/invoices.test.js"] } },
+    { "id": "U05", "file": "ROUTE_MENU.md", "line": 67, "anchor": "U05 | premium | high", "title": "Renumber the ledger entries in place", "rung": "premium", "effort": "high", "rule": "7b", "basis": { "kind": "judgment", "ambiguity": "high", "reversible": "no", "scope": ["src/billing/ledger.js", "tools/renumber-ledger.js"] } },
+    { "id": "U06", "file": "ROUTE_MENU.md", "line": 77, "anchor": "U06 | strong | high", "title": "Pick a way to drop duplicate webhook deliveries", "rung": "strong", "effort": "high", "rule": "5", "basis": { "kind": "judgment", "ambiguity": "high", "reversible": "yes", "scope": ["src/webhooks/", "notes/decisions/"] } },
+    { "id": "U07", "file": "ROUTE_MENU.md", "line": 83, "anchor": "U07 | light | medium", "title": "Summarize five run folders", "rung": "light", "effort": "medium", "rule": "1", "basis": { "kind": "mechanical-read", "ambiguity": "low", "reversible": "yes", "synthesis": true, "scope": ["runs/2026-09/"] } },
+    { "id": "U08", "file": "ROUTE_MENU.md", "line": 98, "anchor": "U08 | mid | low", "title": "Run the checks on the token-rotation branch", "rung": "mid", "effort": "low", "rule": "2", "trap": true, "basis": { "kind": "gate-run", "ambiguity": "low", "reversible": "yes", "scope": ["src/auth/token_rotation.js", "test/auth/token_rotation.test.js"] } },
+    { "id": "U09", "file": "ROUTE_MENU.md", "line": 119, "anchor": "U09 | premium | high", "title": "Fix the pagination off-by-one, second attempt", "rung": "premium", "effort": "high", "rule": "7c", "basis": { "kind": "judgment", "ambiguity": "medium", "reversible": "yes", "attempt": 2, "scope": ["src/pager/window.js", "test/pager/boundary.test.js"] } },
+    { "id": "U10", "file": "ROUTE_MENU.md", "line": 129, "anchor": "U10 | strong | high", "title": "Review the weekly digest formatter pull request", "rung": "strong", "effort": "high", "rule": "6", "basis": { "kind": "review", "ambiguity": "low", "reversible": "yes", "scope": ["src/digest/format.js", "test/digest/format.test.js"] } },
+    { "id": "U11", "file": "ROUTE_MENU.md", "line": 145, "anchor": "U11 | premium | high", "title": "Decide how the notes-kit manifest names entry points", "rung": "premium", "effort": "high", "rule": "7d", "basis": { "kind": "judgment", "ambiguity": "high", "reversible": "yes", "scope": ["plugins/notes-kit/.claude-plugin/plugin.json"] } },
+    { "id": "U12", "file": "ROUTE_MENU.md", "line": 159, "anchor": "U12 | frontier | adaptive", "title": "Second opinion on an append-only job ledger", "rung": "frontier", "effort": "adaptive", "rule": "8", "basis": { "kind": "peer", "ambiguity": "high", "reversible": "yes", "peerException": true, "scope": ["notes/designs/job-ledger.md"] } }
+  ],
+  "decoys": [
+    { "id": "OVER-U03", "file": "ROUTE_MENU.md", "line": 41, "anchor": "U03 | premium | high", "why": "overuse trap: a two-string version edit in public manifests is mechanical, so the top rung wastes spend" },
+    { "id": "OVER-U08", "file": "ROUTE_MENU.md", "line": 106, "anchor": "U08 | premium | high", "why": "overuse trap: running three existing commands on a security path is a gate run, so the top rung wastes spend" }
+  ]
+}
