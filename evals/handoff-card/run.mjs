@@ -123,7 +123,7 @@ function parseOut(r) {
 const held = (approx) => `This session holds approximately ${approx} tokens of context. `;
 const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a `Next:` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits. ';
 const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running work, and peers.';
-const SNAPSHOT_CODEX = 'Then run `co snapshot`, because the Codex PreCompact payload is unverified.';
+const SNAPSHOT_CODEX = 'Then run `co snapshot`, because the Codex PreCompact hook does not fire.';
 const BAND2 = 'Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.';
 const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Claude Code settings so the host compacts near that size.';
 const GATED = ' New dispatches are now gated until you run /code-ops-suite:handoff assess.';
