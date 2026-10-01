@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.26.0
+- The dispatch guard checks each `agent()` call in a Workflow script on its own. A call with no `agentType` or a wide literal type is denied unless the script states a `Wide-surface reason:`, and a literal `effort` of `xhigh` or `max` is denied with no escape. A call whose options cannot be read gets an advisory, and a script that cannot be parsed falls back to the script-wide test.
+- New `CONVENTIONS.md` §16, Workflow fan-out: when a Workflow may run, how batches enter the dispatch ledger, and the per-call rules. The `everything`, `ship`, `calibration-run`, `codebase-audit`, and `remediation` skills cite it.
+
 ## 2.25.0
 - A `PreCompact` hook, `compact-snapshot.mjs`, writes a masked state snapshot just before the host compacts: operator words, running shells, workflows, wakeups, and agents, open items, and peers owed a reply. It goes in the run folder when git ignores that path, otherwise in the home state directory keyed on the repository root. `CODE_OPS_COMPACT_SNAPSHOT=0` turns it off.
 - `co snapshot` builds the same snapshot on demand. The Codex context card asks for it, because the Codex `PreCompact` payload is unverified.

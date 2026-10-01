@@ -20,7 +20,10 @@
 //     controller binding outranks the brief;
 //   - a dispatch (tool_name Agent, and legacy Task) with a wide-surface, context-inheriting, or
 //     missing type is denied unless the brief carries a "Wide-surface reason:" line, and a
-//     Workflow script with an agent() call but no agentType is denied the same way; a `model`
+//     Workflow script is checked per agent() call (an untyped or wide-typed call denies even beside
+//     a typed one, the denial names the failing count and the first call), a literal effort of
+//     xhigh or max denies with no reason escape, an options variable is an advisory, a parse
+//     surprise falls back to the script-wide test, and a mutant that reverts to it fails; a `model`
 //     override (naming the agent's declared tier when a definition declares one) and a prompt
 //     with no Round budget stay advisory clauses in the same output, and warn mode downgrades
 //     every denial to an advisory;
@@ -334,6 +337,66 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     const r = runHook(dispatchCall({ script: allowed }, { tool_name: 'Workflow' }), { home });
     expect(r.status === 0 && r.stdout === '', `a Workflow with agentType, a stated reason, or no agent() call must be silent, got ${JSON.stringify(r.stdout)}`);
   }
+
+  // Workflow, per call: each agent() call is checked on its own, so one typed call no longer
+  // covers an untyped one; a literal effort above high is denied with no reason escape.
+  const typed = "agent({ agentType: 'code-ops-suite:explorer', prompt: 'scan' })";
+  const untyped = "agent({ prompt: `look ${path} over`, effort: 'high' })";
+  const denies = (script, pattern, label, guard) => {
+    const res = workflow(script, guard);
+    expect(res?.hookSpecificOutput?.permissionDecision === 'deny' && pattern.test(reasonOf(res) ?? ''),
+      `${label}: must deny matching ${pattern}, got ${JSON.stringify(res)}`);
+  };
+  const silent = (script, label) => {
+    const r = runHook(dispatchCall({ script }, { tool_name: 'Workflow' }), { home });
+    expect(r.status === 0 && r.stdout === '', `${label}: must be silent, got ${JSON.stringify(r.stdout)}`);
+  };
+  denies(`${typed};\n${untyped};`, /1 of 2 Workflow agent\(\) calls.*first is call 2/, 'one typed and one untyped call');
+  denies(`${untyped};\n${typed};\n${untyped};`, /2 of 3 Workflow agent\(\) calls.*first is call 1/, 'two untyped calls name the count and the first');
+  silent(`${typed};\nawait agent({ agentType: "rigor:tracer", prompt: 'x' });`, 'two typed calls');
+  denies("agent({ agentType: 'general-purpose', prompt: 'x' });", /1 of 1 .*first is call 1/, 'a wide literal agentType');
+  denies("agent({ agentType: \"code-ops-suite:Fork\", prompt: 'x' });", /first is call 1/, 'a wide literal agentType after a plugin prefix, any case');
+  silent(`// Wide-surface reason: needs browser tools\n${untyped};\nagent({ agentType: 'claude' });`, 'a Wide-surface reason');
+  silent("agent({ agentType: kind, prompt: 'x' }); agent({ agentType, prompt: 'x' });", 'a variable agentType');
+  silent("agent({ prompt: 'agent({ in a string', agentType: 'code-ops-suite:probe', nested: { agentType: 'fork' } });", 'agentType read at the top level of the options only');
+  for (const effort of ["'max'", '"xhigh"', '`max`']) {
+    const script = `agent({ agentType: 'code-ops-suite:reviewer', effort: ${effort} });`;
+    denies(script, /call 1 sets an effort above high/, `literal effort ${effort}`);
+    denies(`// Wide-surface reason: wide on purpose\n${script}`, /call 1 sets an effort above high/, `literal effort ${effort} with a reason line`);
+  }
+  denies(`${typed};\nagent({ agentType: 'code-ops-suite:reviewer', effort: 'max' });`, /call 2 sets an effort above high \(1 of 2/, 'effort names its own call');
+  silent("agent({ agentType: 'code-ops-suite:reviewer', effort: 'high' });", "literal effort 'high'");
+  silent("agent({ agentType: 'code-ops-suite:reviewer', effort: level });", 'a variable effort');
+  silent("agent({ agentType: 'code-ops-suite:reviewer', prompt: 'max', effort });", 'a shorthand effort');
+  out = workflow(`const opts = { prompt: 'x' };\nawait agent(opts);\n${typed};`);
+  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /1 of 2 Workflow agent\(\) calls pass options the guard cannot read/.test(contextOf(out) ?? ''),
+    `an options variable earns an advisory and no denial, got ${JSON.stringify(out)}`);
+  out = workflow("agent({ ...base, prompt: 'x' });");
+  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /cannot read/.test(contextOf(out) ?? ''),
+    `a spread without agentType earns an advisory, got ${JSON.stringify(out)}`);
+  // Warn mode downgrades both per-call denials to context.
+  for (const script of [`${typed};\n${untyped};`, "agent({ agentType: 'code-ops-suite:reviewer', effort: 'max' });"]) {
+    out = workflow(script, 'warn');
+    expect(Object.hasOwn(out?.hookSpecificOutput ?? {}, 'additionalContext') && !Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision'),
+      `warn mode must downgrade the per-call Workflow denial, got ${JSON.stringify(out)}`);
+  }
+  // A parse surprise falls back to the script-wide test: an unclosed options literal.
+  denies("agent({ prompt: 'never closed", /no agentType/, 'an unparsable script with no agentType falls back to the script-wide deny');
+  silent("agent({ agentType: 'code-ops-suite:probe', prompt: 'never closed", 'an unparsable script with an agentType falls back to pass');
+  // Mutation: a hook that reverts to the script-wide test must pass the mixed script, and so fail the case above.
+  const mutantDir = join(home, 'mutant');
+  mkdirSync(mutantDir);
+  const source = readFileSync(hook, 'utf8');
+  const mutated = source.replace('const calls = workflowCalls(script);', 'const calls = null;');
+  expect(mutated !== source, 'the mutation must change the hook source');
+  writeFileSync(join(mutantDir, 'dispatch-guard.mjs'), mutated);
+  writeFileSync(join(mutantDir, 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+  const mutant = spawnSync('node', [join(mutantDir, 'dispatch-guard.mjs')], {
+    input: JSON.stringify(dispatchCall({ script: `${typed};\n${untyped};` }, { tool_name: 'Workflow' })),
+    encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_DISPATCH_GUARD: '' },
+  });
+  expect(mutant.status === 0 && mutant.stdout === '', `the script-wide mutant must let a mixed script through, got ${JSON.stringify(mutant.stdout)}`);
+  console.log('ok   a Workflow is checked per agent() call, effort above high denies, an options variable is an advisory, and the script-wide mutant fails');
 
   // A clean dispatch: narrow agent, no override, a Round budget in the brief.
   const clean = runHook(dispatchCall({ description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' }), { home });

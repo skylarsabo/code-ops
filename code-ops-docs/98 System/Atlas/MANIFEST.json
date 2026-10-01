@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
-      "verifiedDigest": "35293ad9d167b3e5fb208deb26afd5dfe23a92b7298fdc5b4ad167f834e7a764",
+      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
+      "verifiedDigest": "a0e7c3eb7c4c0a0a4269d3a88ce83b027d96fd121b070f30bc995fca7ad16d2b",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -59,7 +59,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 156,
-          "anchor": ", so a shell that changes directory keeps"
+          "anchor": "//"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -99,12 +99,17 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 176,
-          "anchor": "import { dirname, join } from 'node:path';"
+          "anchor": "// controller binding instead fails closed for that id: it must never silently g"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 185,
-          "anchor": "const MAX_CHECKPOINT_ALLOWANCE = 4;"
+          "anchor": "import { agentFile } from './agent-file.mjs';"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 800,
+          "anchor": "function reviewWorkflow(script, denials, advisories) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -114,17 +119,17 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 685,
-          "anchor": "${gate.ceiling.toLocaleString('en-US')}-token context ceiling. Run /code-ops-sui"
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 671,
-          "anchor": "try { lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts',"
+          "anchor": "// The session's resident context against the ceiling, or null when the gate is"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 447,
-          "anchor": "const rest = held.permissionDecisionReason ?? held.additionalContext;"
+          "anchor": "let emitted = false;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/agent-ledger.mjs",
@@ -184,7 +189,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 666,
-          "anchor": "// input is missing or unreadable (fail open)."
+          "anchor": "return true;"
         },
         {
           "file": "plugins/code-ops-suite/agents/probe.md",
@@ -238,6 +243,11 @@
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
+          "line": 199,
+          "anchor": "## 16 · Workflow fan-out"
+        },
+        {
+          "file": "plugins/code-ops-suite/CONVENTIONS.md",
           "line": 20,
           "anchor": ". Legacy replay packets and calibration arms retain their existing rules. Every"
         },
@@ -260,13 +270,18 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
-      "verifiedDigest": "07ce8250d7f99f88cc65ab65f4483eb76960470724bc6b15a15331f92d45bbc4",
+      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
+      "verifiedDigest": "e700ccb54adf905bb01add8fed497a91d8b9f5819be555ba6579b33b5bc72f0d",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
           "line": 872,
-          "anchor": "for (const m of QUALIFIED_RE ? line.matchAll(QUALIFIED_RE) : []) {"
+          "anchor": "const lines = readText(f).split('\\n');"
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 1555,
+          "anchor": "function checkAgentStateMachine() {"
         },
         {
           "file": "scripts/docs-manifest.mjs",
@@ -595,8 +610,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
-      "verifiedDigest": "5ac1631c3039f9aab58a6f980216dc89d30cc7c11d90981401c272279efa8211",
+      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
+      "verifiedDigest": "f149effc48f7868dd511af6252b1b97e0b8c9edc4988f539e8ef119785fa0914",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -731,7 +746,7 @@
         {
           "file": "evals/dispatch-guard/run.mjs",
           "line": 778,
-          "anchor": "// ---------------------------------------------------------------- ceiling asse"
+          "anchor": "expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonO"
         },
         {
           "file": "evals/handoff-state/run.mjs",
@@ -833,8 +848,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
-      "verifiedDigest": "6f7fd7b5d247f369d1c896b0be5fde76d386a465d850ae6b9382ceff0b83893a",
+      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
+      "verifiedDigest": "772cf17a277eee6c158637fc18dcd0e182975fa909358035a908d0c97ef10324",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -909,7 +924,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 447,
-          "anchor": "const rest = held.permissionDecisionReason ?? held.additionalContext;"
+          "anchor": "let emitted = false;"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -944,7 +959,7 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
+      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
       "verifiedDigest": "104be9c5d98320a09d7813c9db4e53a785665162f14a76eb27fc51bbe81bcd74",
       "claims": [
         {
@@ -986,8 +1001,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
-      "verifiedDigest": "7026c31062377f23ef5d88fa52c7e4fe8aa8171014520dc28160adbfd651030b",
+      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
+      "verifiedDigest": "a7c3208f3d729eae96f3bae03cf646220d51f746a0231dc26403bd0674bd20cf",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

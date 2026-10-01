@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.8
+- New `CONVENTIONS.md` §13, Workflow fan-out: when a Workflow may run, how batches enter the dispatch ledger, and the per-call rules.
+
 ## 3.3.7
 - The vendored `co.mjs` routes `co snapshot`, which runs where code-ops-suite bundles it.
 

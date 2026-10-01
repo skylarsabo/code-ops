@@ -101,6 +101,9 @@
 //  30. Every bundled agent's optional frontmatter `effort:` value, when present, is one of
 //      low | medium | high — xhigh and max are lead-only dials, never a subagent's declared
 //      floor (the operator's effort cap for every dispatched subagent).
+//  31. CONTRACTS.md carries a `## Agent state machine` section whose Unit (dispatch row) states
+//      equal LEDGER_STATUSES, whose transitions name a known entity with From and To states
+//      that belong to it (From may be `none`), and whose Writer cells are non-empty.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -111,6 +114,7 @@ import { fileURLToPath } from 'node:url';
 // VENDORED_REFERENCES, and a named import of a missing export fails to load.
 import * as vendoredManifest from './vendored-manifest.mjs';
 import { CLAUDE_ALIAS_TIER, TIER_RANK } from './model-tiers.mjs';
+import { LEDGER_STATUSES } from './ledger-grammar.mjs';
 
 // Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
 if (process.argv.includes('--help') || process.argv.includes('-h')) { console.log('usage: lint-plugins.mjs'); process.exit(0); }
@@ -1545,6 +1549,48 @@ function checkShippedReferences({ plugins, pluginByName }) {
   }
 }
 
+// ---- agent state machine ---------------------------------------------------
+// CONTRACTS.md owns the entity and transition tables. The Unit (dispatch row) states are the
+// one set code also owns (LEDGER_STATUSES), so the two cannot drift apart silently.
+function checkAgentStateMachine() {
+  const where = 'code-ops-docs/35 Contracts and Data/CONTRACTS.md';
+  const file = join(ROOT, ...where.split('/'));
+  if (!existsSync(file)) { fail(`${where}: missing, so the agent state machine section cannot be checked`); return; }
+  const lines = readText(file).split(/\r?\n/);
+  const start = lines.findIndex((l) => l === '## Agent state machine');
+  if (start === -1) { fail(`${where}: missing the "## Agent state machine" section`); return; }
+  let end = lines.findIndex((l, i) => i > start && /^## /.test(l));
+  if (end === -1) end = lines.length;
+  const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+  const rows = lines.slice(start + 1, end).filter((l) => l.startsWith('|')).map(cells);
+  const list = (c) => c.split(',').map((s) => s.trim()).filter(Boolean);
+  const states = new Map();
+  let transitions = null;
+  for (const r of rows) {
+    if (r[0] === 'Entity' && r[1] === 'States') { transitions = false; continue; }
+    if (r[0] === '#' && r[1] === 'Entity') { transitions = true; continue; }
+    if (/^-+$/.test(r[0])) continue;
+    if (transitions === false) states.set(r[0], list(r[1] ?? ''));
+    else if (transitions === true) {
+      const [n, entity, from, , , to, writer] = r;
+      const tag = `${where}: agent state machine transition ${n}`;
+      const known = states.get(entity);
+      if (r.length !== 9) fail(`${tag} has ${r.length} columns (need 9)`);
+      if (!known) { fail(`${tag} names unknown entity "${entity}"`); continue; }
+      for (const s of list(from ?? '')) if (s !== 'none' && !known.includes(s)) fail(`${tag} from state "${s}" is not a state of ${entity}`);
+      for (const s of list(to ?? '')) if (!known.includes(s)) fail(`${tag} to state "${s}" is not a state of ${entity}`);
+      if (!writer) fail(`${tag} has an empty Writer cell`);
+    }
+  }
+  if (!states.size) fail(`${where}: agent state machine section has no entity table`);
+  if (!rows.some((r) => r[0] === '#' && r[1] === 'Entity')) fail(`${where}: agent state machine section has no transition table`);
+  const unit = states.get('Unit (dispatch row)');
+  if (!unit) fail(`${where}: agent state machine entity table has no "Unit (dispatch row)" row`);
+  else if (unit.length !== LEDGER_STATUSES.length || LEDGER_STATUSES.some((s) => !unit.includes(s))) {
+    fail(`${where}: Unit (dispatch row) states [${unit.join(', ')}] differ from LEDGER_STATUSES [${LEDGER_STATUSES.join(', ')}]`);
+  }
+}
+
 // ---- report ----------------------------------------------------------------
 function printReport({ plugins, allSlugs }) {
   for (const w of warnings) console.log(`  advisory: ${w}`);
@@ -1583,6 +1629,7 @@ function main() {
   checkStandardsContract();
   checkCompositionCompleteness(ctx);
   checkShippedReferences(ctx);
+  checkAgentStateMachine();
   printReport(ctx);
 }
 

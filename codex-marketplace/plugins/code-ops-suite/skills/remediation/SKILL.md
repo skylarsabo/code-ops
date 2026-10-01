@@ -41,7 +41,7 @@ blocking items first.
 ## Phase 1: the implementation, parallel where disjoint and serial where coupled
 
 Dispatch an ephemeral implementation operative per item or batch, with conflict-aware fan-out
-(`§1`), and run each through the implementation loop (`§11`).
+(`§1`), and run each through the implementation loop (`§11`). Dispatch every batch as `§16` directs.
 
 **NEEDS-REVIEW** items change behavior or contracts by definition. Confirm the intended new
 behavior with the developer before implementing, and pin it with tests.

@@ -92,8 +92,8 @@ the host marks by an `agent_id` in the hook payload. Evidence:
 
 On the lead's own dispatch (`Agent`, `Task`, or `Workflow`) the guard applies two gates. The
 wide-type gate denies a `general-purpose`, `claude`, `fork`, or unnamed agent type unless the
-brief carries a `Wide-surface reason:` line. It also denies a `Workflow` script that calls
-`agent(` with no `agentType`. The context-ceiling gate denies a new dispatch once the lead's
+brief carries a `Wide-surface reason:` line. It also checks each `agent(` call of a `Workflow` script
+and denies one with no `agentType`, a wide literal type, or a literal `effort` above `high`. The context-ceiling gate denies a new dispatch once the lead's
 resident context reaches `CODE_OPS_CONTEXT_CEILING`, 300,000 tokens by default. Running
 `/code-ops-suite:handoff assess` records the assessment and unlocks dispatch until the next
 150,000-token band. A host without a skill tool records it with `dispatch-guard.mjs assessed

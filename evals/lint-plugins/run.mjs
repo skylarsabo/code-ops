@@ -174,7 +174,22 @@ ${texts.join('\n\n')}
 ${cap ? `\n${cap}\n` : ''}${contract}`;
 const MECH_OPTS = { tools: 'Read, Edit, Write, Bash, Grep, Glob', contract: agentContract('scope') };
 
-const FIXTURE_CONTRACT = '# Fixture standards contract\n\nStands in for the repo contract that AGENTS.md carries and CLAUDE.md imports.\n';
+// The gate imports LEDGER_STATUSES from this sibling and compares it with the Unit states in
+// CONTRACTS.md. Copy the REAL file so the drift case is judged against the actual statuses.
+const REAL_LEDGER_GRAMMAR = join(REPO, 'scripts', 'ledger-grammar.mjs');
+const STATE_MACHINE_PATH = 'code-ops-docs/35 Contracts and Data/CONTRACTS.md';
+const STATE_MACHINE_FIXTURE = [
+  '# Fixture contracts', '', '## Agent state machine', '',
+  '| Entity | States | Stored | Terminal |', '| --- | --- | --- | --- |',
+  '| Unit (dispatch row) | dispatched, reported, failed, redispatched | `DISPATCH_LEDGER.md` | reported |',
+  '| Session | open, working, ended | `SESSION.json` | ended |', '',
+  '| # | Entity | From | Event | Guard | To | Writer | Store | Status |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  '| 1 | Session | none | lead opens a run | none | open | S `handoff-state.mjs open` | `SESSION.json` | built |',
+  '| 2 | Unit (dispatch row) | dispatched | worker returns | none | reported | S `dispatch-ledger.mjs update` | `DISPATCH_LEDGER.md` | built |',
+  '', '## Next section', '',
+].join('\n');
+
+const FIXTURE_CONTRACT ='# Fixture standards contract\n\nStands in for the repo contract that AGENTS.md carries and CLAUDE.md imports.\n';
 
 // Builds a MINIMAL tree that scripts/lint-plugins.mjs (copied in, unmodified) passes.
 // Two plugins, named/shaped exactly as PRODUCER_SELFCHECK and SHARED_PASSAGES require
@@ -184,6 +199,8 @@ function buildBaseline(root) {
   mkdirSync(join(root, 'scripts'), { recursive: true });
   copyFileSync(REAL_LINT, join(root, 'scripts', 'lint-plugins.mjs'));
   copyFileSync(REAL_MODEL_TIERS, join(root, 'scripts', 'model-tiers.mjs'));
+  copyFileSync(REAL_LEDGER_GRAMMAR, join(root, 'scripts', 'ledger-grammar.mjs'));
+  put(root, STATE_MACHINE_PATH, STATE_MACHINE_FIXTURE);
   // The standards contract lives in AGENTS.md and CLAUDE.md is only its import line
   // (check 20). Cases 11 through 11f mutate one side each.
   put(root, 'CLAUDE.md', '@AGENTS.md\n');
@@ -995,6 +1012,22 @@ No completion heading here on purpose (case 3 mutation).
   put(d18e, BUG_HUNT, skillBody('BUG HUNT').replace(/^description: .*$/m, `description: >\n  ${DESC_160.slice(0, 80)}\n\n  ${DESC_160.slice(81)}y`));
   const r18e = runLint(d18e);
   check('18e. a block scalar with a blank line still counts every line', r18e.status === 1 && r18e.all.includes('rigor/bug-hunt: frontmatter description is 161 characters (max 160)'));
+
+  // 19a-19d. AGENT STATE MACHINE (check 31) — the CONTRACTS.md section must match the code's
+  // dispatch statuses, keep every transition inside its entity's states, and name each writer.
+  const withContracts = (label, edit) => {
+    const dir = clone(label);
+    put(dir, STATE_MACHINE_PATH, edit(readIn(dir, STATE_MACHINE_PATH)));
+    return runLint(dir);
+  };
+  const r19a = withContracts('case19a-unit-status-drift', (t) => t.replace('dispatched, reported, failed, redispatched', 'dispatched, reported, failed'));
+  check('19a. a Unit state set that drifts from LEDGER_STATUSES exits 1', r19a.status === 1 && r19a.all.includes('Unit (dispatch row) states [dispatched, reported, failed] differ from LEDGER_STATUSES'));
+  const r19b = withContracts('case19b-unknown-state', (t) => t.replace('| none | open |', '| none | opened |'));
+  check('19b. a transition to a state its entity lacks exits 1', r19b.status === 1 && r19b.all.includes('transition 1 to state "opened" is not a state of Session'));
+  const r19c = withContracts('case19c-empty-writer', (t) => t.replace('S `dispatch-ledger.mjs update`', ''));
+  check('19c. a transition with an empty Writer cell exits 1', r19c.status === 1 && r19c.all.includes('transition 2 has an empty Writer cell'));
+  const r19d = withContracts('case19d-missing-section', (t) => t.replace('## Agent state machine', '## Something else'));
+  check('19d. a missing state machine section exits 1', r19d.status === 1 && r19d.all.includes('missing the "## Agent state machine" section'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

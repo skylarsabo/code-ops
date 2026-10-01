@@ -42,7 +42,7 @@ raise or lower the check-in frequency, at Phase 0.
 Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>`, adding
 `--need gh` when the run will publish. A FAIL stops the run before fan-out. Prepare one exact
 context snapshot and compile a scoped bundle per planned unit. Context drift or an explicit
-compiler marker stops dispatch and triggers a replan. Dispatch an explorer with its verified
+compiler marker stops dispatch and triggers a replan. Dispatch every fan-out as `§16` directs. Dispatch an explorer with its verified
 bundle to detect the stack and size. Resolve the plugin selector against the installed plugins,
 and name every phase the run skips because its plugin is absent or unselected. Verify
 library and framework facts against the **installed versions** through the in-house docs lookup
