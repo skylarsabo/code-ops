@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
-      "verifiedDigest": "a98730dc05f5471a978526b34d6680d161045de2bb9dbb24b9acaa86798e0277",
+      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
+      "verifiedDigest": "c522027e36ea39b425e25a2c30111bd5d0cc35c34e74e66a78630c162aa19da3",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -259,12 +259,12 @@
         {
           "file": "plugins/code-ops-suite/skills/distill/SKILL.md",
           "line": 7,
-          "anchor": ". Read §3, §4, §9, §12, and §14 of the"
+          "anchor": "/code-ops-suite:distill"
         },
         {
           "file": "plugins/code-ops-suite/skills/distill/SKILL.md",
-          "line": 21,
-          "anchor": "- **Vault mode** is the eight-phase backfill of a whole docs vault, and a mainta"
+          "line": 24,
+          "anchor": ") is the eight-phase backfill of a whole docs vault, then a maintain"
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
@@ -295,8 +295,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
-      "verifiedDigest": "fdfa5a88636a88eb21ddf8ed15e44b277d5a6539f5c565f35cc8a31c2d5d356a",
+      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
+      "verifiedDigest": "3b6934d03d4ec4ea74ac7b9c5b628e3a21eca952e47c05a517314ac11606c612",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -714,6 +714,11 @@
           "anchor": "//   node scripts/distill-check.mjs inventory   --hub <hub dir> --out <file.json"
         },
         {
+          "file": "scripts/distill-check.mjs",
+          "line": 46,
+          "anchor": "// STATE records the vault-mode run (design \"Distill\", paragraph \"Phases as stat"
+        },
+        {
           "file": "scripts/co.mjs",
           "line": 95,
           "anchor": "distill: 'distill-check.mjs',"
@@ -726,8 +731,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
-      "verifiedDigest": "5c59b007d204af026353e1988338b0b8f184131a3697c74303d04e9f055f8ca4",
+      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
+      "verifiedDigest": "3bfd885fe2991f874db375031c5b77c46c2df73b1a9d66f31916fa7b09ab8c0b",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -990,6 +995,11 @@
           "anchor": "// Distill no-loss and findability regression eval (scripts/distill-check.mjs,"
         },
         {
+          "file": "evals/distill-vault/run.mjs",
+          "line": 2,
+          "anchor": "// Distill vault-mode regression eval (scripts/distill-check.mjs"
+        },
+        {
           "file": "evals/route-judgment/run.mjs",
           "line": 67,
           "anchor": "const routed = routeUnit({ ...basis, surface: surfaceOfScope(scope) });"
@@ -1004,8 +1014,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
-      "verifiedDigest": "e5d6503091c57c8774acb67528e9fa6337d7e92dea83fdc3f2e67361979d8747",
+      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
+      "verifiedDigest": "e579898ecd03f189c1aae7aa8ae21b08d68907b4c2066c5eab18f0b47a047b88",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1125,8 +1135,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "15b74159e5508ba597c4fe02d7c530333d178d06",
-      "verifiedDigest": "f63b55b4e4d6c454d99790ffdb81f3821458974f33f735888ac1eb7a55888fce",
+      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
+      "verifiedDigest": "bf37e18a51026f88353306e3bb08b1781122c60d1b4ca17673500899b0e7d26a",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1158,7 +1168,15 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 454
+          "line": 460
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 62
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 463
         }
       ]
     },
@@ -1183,8 +1201,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
-      "verifiedDigest": "2a0e59c3610bd49201e55312bb8f6eb22dce1f50e7f5dda6236da2c4b7202e88",
+      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
+      "verifiedDigest": "692cbca621a79d3371308fd95e2a04aa77aeed22f3adf4487ef1a3ca6bc9f93a",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

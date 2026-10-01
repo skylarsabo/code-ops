@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.37.0
+- `distill` vault mode (`vault <hub>`) runs phases 1 to 5 and 7 of the docs-vault backfill: inventory, relocate, classify, chain, drafts, and synthesis. Phase 6 is program mode, run once per ledger. Phase 8 and the maintain pass are not built, and the skill stops after phase 7.
+- `co docs distill state` records each vault-mode phase in `state.json` and refuses an out-of-order start, a checkpoint with no artifact, and a `done` with no review note. The end of phases 2 and 5 runs the no-loss check over every inventory. Phases 3 and 7 plan batches of 25, and one defect in a batch sample sends the batch to full review.
+- New `evals/distill-vault` fixture and deterministic state eval, with 7 planted defects, 6 decoys, and 13 mutants.
+
 ## 2.36.0
 - The compact snapshot reads Grok transcripts: a `user` line with a `prompt_index` in `chat_history.jsonl` and a `user_message_chunk` in `updates.jsonl` both count as operator prompts, so a Grok PreCompact snapshot keeps the operator words.
 - The Codex snapshot line on the handoff card now says the Codex PreCompact hook does not fire, as the 2026-10-01 capture showed.

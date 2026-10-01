@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "forwards": [
+    {
+      "from": "docs/guide.md",
+      "to": "vault/10 Design/guide.md",
+      "movedAt": "2026-09-30",
+      "reason": "relocate wave 1"
+    }
+  ]
+}

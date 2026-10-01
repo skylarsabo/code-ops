@@ -1,27 +1,31 @@
 ---
-description: "Use to cut a program ledger down to its finish line, at most 12 active items, live decisions, and a backlog. Program mode only; vault mode is not built."
+description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check (phases 1 to 5 and 7). Install and maintain are not built."
 ---
 
-# Distill: one program ledger, down to what still decides the finish
+# Distill: a program ledger down to its finish line, or a docs vault into standard order
 
-**Invoked as `/code-ops-suite:distill`.** Program mode takes `program <slug>`. Read §3, §4, §9, §12, and §14 of the
+**Invoked as `/code-ops-suite:distill`.** Program mode takes `program <slug>`. Vault mode takes `vault <hub>`.
+Read §3, §4, §9, §12, and §14 of the
 `${CLAUDE_PLUGIN_ROOT}/CONVENTIONS.md` bundled with this plugin: the interaction protocol, the
 safety rails, the evidence standard, the shared-artifact rules, and the writing standard.
-Leave the rest of that file unread. Then read the `handoff` skill's sections on `PROGRAM.md` and ledger
+Vault mode also reads §1 and §16, for the brief fields and the Workflow fan-out. Leave the rest of that file unread. Then read the `handoff` skill's sections on `PROGRAM.md` and ledger
 grammar 2, because this skill rewrites that ledger and never defines its own grammar.
-**Mode:** DOCUMENT · **Consumes:** `<runs root>/programs/<slug>/PROGRAM.md`, its `BACKLOG.md` and
-`PROGRAM.archive.md`, and the `TASKS.md` of the program's newest run folder · **Produces:** the
-rewritten ledger, and `LEDGER_DIFF.md` in this run's dated artifact folder (`§12`).
+**Mode:** DOCUMENT · **Consumes:** program mode, `<runs root>/programs/<slug>/PROGRAM.md`, its `BACKLOG.md`
+and `PROGRAM.archive.md`, and the `TASKS.md` of the program's newest run folder; vault mode, the
+hub and each legacy tree the relocate plan names · **Produces:** program mode, the rewritten ledger
+and `LEDGER_DIFF.md` in this run's dated artifact folder (`§12`); vault mode, the run's `state.json`,
+one artifact per phase, and the edited notes.
 
 ## Modes
 
-Distill has two modes. Only program mode exists today.
+Distill has two modes.
 
 - **Program mode** (`program <slug>`) rewrites one ledger. It is phase 6 of the design.
-- **Vault mode** is the eight-phase backfill of a whole docs vault, and a maintain pass after it.
-  It is not available yet. When the operator asks for it, or for any phase other than the ledger
-  rewrite, say that vault mode is not built, name program mode as the only option, and stop. Do not
-  run part of it, and do not describe it as working.
+- **Vault mode** (`vault <hub>`) is the eight-phase backfill of a whole docs vault, then a maintain
+  pass. Phases 1 to 5 and 7 are built, and phase 6 is program mode, run once per program ledger.
+  Phase 8 (install the baseline and the gate, and route `conform` here) and the maintain pass are
+  not built. When the operator asks for either, say so, run no part of it, and stop after the last
+  built phase. Do not describe either as working.
 
 The design is in `code-ops-docs/10 Design/Agent state machine and host parity 2026-09.md` in the
 code-ops repository, section "Distill".
@@ -99,10 +103,117 @@ Run these steps in order. Stop at each checkpoint that names a decision (`§3`).
 
 Redact secrets and PII before you write any file (`§4`).
 
+## Vault mode
+
+Every command below is `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs docs distill <verb>`, written
+`distill <verb>`. The verbs are `inventory`, `no-loss`, `findability`, and `state`. Relocation uses
+`co docs relocate`.
+
+**The no-loss rules.** They hold in every phase.
+
+1. **Bytes stay.** `git mv` moves a file, and a classifier adds metadata. Nothing rewrites a body.
+2. **Old paths resolve.** `FORWARDING.json` maps every moved path to its new path.
+3. **Archives are untouched.** An archived file moves whole, and an archive note links its old path.
+4. **Runs stay committed.** Distill never prunes `80 Runs`.
+5. **The lead reads every ruling.** A decision or an amendment is checked against its source.
+
+A worker never sees an `ANSWER_KEY` or any file under `evals/`. Hand it the batch, the standard, and
+the rules above, and nothing else.
+
+**State.** The run keeps `<run dir>/distill/state.json`. Create it once:
+
+```
+distill state init --state <run dir>/distill/state.json --hub <hub> --inventory <run dir>/distill/inventory-<tree>.json ...
+```
+
+Each phase is `pending`, `running`, `checkpointed`, or `done`. Move it only with the verbs. Never edit
+the file by hand.
+
+- `state start N`, then the work, then `state checkpoint N --artifact <file>...`. The artifacts must exist.
+- Stop at the checkpoint. The lead does the review in the table, then runs
+  `state done N --review "<what the lead read>"`. `state reopen N` sends a failed review back to running.
+- A refusal exits 1 and names its cause. Fix the cause. A phase never starts before the one before it is done,
+  and a skipped verb is a skipped phase.
+- **Resume.** After a compaction or a handoff, run `state show` and continue at its `next:` line. A
+  running phase has no checkpoint, so redo it from its start and keep any artifact already on disk.
+  A checkpointed phase waits for its review. A done phase stays done.
+
+**Phases.** Run them in order.
+
+| Phase | Work | Checkpoint artifacts | Lead reads before done |
+| --- | --- | --- | --- |
+| 1 Inventory | Size every tree. List the hub and every legacy tree that moves with `distill inventory --hub <tree> --out <file>`. A tree the register holds by pointer is sized, not listed. Run `co docs relocate plan --run <run dir>/distill`. | the plan files | the totals |
+| 2 Relocate | The operator approves the plan first (`§3`). Then `co docs relocate apply --plan <json> --wave <legacy root>`, one wave at a time. | `FORWARDING.json` | the plan, as approved |
+| 3 Classify | Workers fill `title`, `topic`, `kind`, `key`, and `decides`, in batches of 25. | per-batch metadata | every decision and amendment line, and each batch sample |
+| 4 Chain | Link each amendment, erratum, and supersession. Set `status`. | chain report | every chain edge |
+| 5 Drafts | Triage each draft to current, superseded with a link, or archive. | triage list | every archive choice |
+| 6 Ledgers | Program mode, once per program ledger. | each `LEDGER_DIFF.md` | every disposition |
+| 7 Synthesis | Add `sources:` to each synthesis page. Mark a page stale when a source is superseded or archived. | page list | a sample |
+| 8 Install | Not built. | | |
+
+**1 Inventory.** Count files and bytes per tree, and keep the counts for the lead. The inventories are the
+input of every later no-loss check, so write them before any file moves. Checkpoint with the relocate plan
+as the artifact.
+
+**2 Relocate.** Show the operator the plan totals, the runtime reads, and the unresolved and conflict
+counts, and wait for approval. `apply` refuses a dirty tree and never commits. It prints a commit
+message for the wave. Give that message to the operator, or commit it when the operator granted commits
+for this run, so each wave lands as one commit. The next wave waits for a clean tree. Checkpoint with
+`98 System/FORWARDING.json` as an artifact. `state done 2` then runs the no-loss check over every
+inventory and refuses on a loss, an ambiguity, or a count mismatch. A path that moved without a
+forwarding entry is a loss. Add the entry and run `done` again.
+
+**3 Classify.** Write the worklist, one repo-relative path per line, and run
+`state plan 3 --paths <worklist>`. The plan sorts the paths into batches and picks the sample of each
+batch, one path in ten and at least one. Read the plan with `state show --json`.
+
+- A worker takes one batch: `state assign 3 --batch <id> --worker <name>`. The worker adds the five fields
+  to each note's frontmatter and keeps a field already set. It never edits a body. It returns a table of
+  path, fields, and a one-line reason for each `decides`. A note with no recoverable key is reported.
+- The lead reads every decision and amendment line in the batch against its note, and every sample path. Then
+  `state result 3 --batch <id> --defects <n>`. With `n` above 0, the batch goes to full review. The lead
+  reads every note in it and runs `state review 3 --batch <id>`. A second pass by a different worker is the
+  other way out, and the sample repeats. A worker never classifies its own batch twice, and `assign` refuses it.
+- `state done 3` refuses while a batch is unresolved. Checkpoint with the per-batch tables as artifacts.
+
+**4 Chain.** For each amendment, erratum, or supersession, add `amends:` or `supersedes:` to the later
+note, with the path of the earlier one. Set `status` on both: `current`, `amended`, or `superseded`. A
+superseded note links to its successor. An amendment carries the key of the record it amends. Write the
+chain report with one row per edge: from, to, kind, and the sentence in each note that shows it. The lead reads
+every row against both notes. An edge the notes do not settle goes to the operator.
+
+**5 Drafts.** Each draft becomes one of three. A draft still in work stays where it is as `current`. A draft
+a later note replaces gets `status: superseded` and a link to the successor. A draft with no value moves
+whole to `99 Archive`, gets a line in an archive note that links its old path, and gets a forwarding
+entry. List every item in `98 System/TRIAGE.md`, sorted, one line each: path, rule, and entry date. The
+lead reads every archive choice. `state done 5` runs no-loss again, and it also records the findability
+count. Add `--require-findable` once the generated indexes exist, so an unreachable note blocks the phase.
+
+**6 Ledgers.** Run program mode for each program ledger, then record it with `state start 6`,
+`state checkpoint 6 --artifact <LEDGER_DIFF.md>...`, and `state done 6`.
+
+**7 Synthesis.** Plan batches as in phase 3 over every synthesis page, with `state plan 7`. A worker adds
+`sources:`, an array of hub-relative paths that the page's claims rest on, and sets `status: stale` on a page
+whose source is superseded or archived. A page it cannot source is reported and left alone. The lead reads
+each batch sample and records `state result 7`, with the same full-review rule. Checkpoint with the page list.
+
+**Fan-out.** On Claude, phases 3 and 7 fan out through a Workflow as `§16` allows. The operator must opt in
+to Workflow first, so ask at the checkpoint before phase 3, and never start one alone. Without that opt-in,
+and on every other host, dispatch the same batches as parallel operatives with the host's dispatch tool.
+Write the phase plan to the run folder first: each batch, its suite agent (the implementer subagent), its effort, and its artifact path. Register each batch in the dispatch ledger
+before dispatch, and `state assign` it. The lead writes each batch report from the returned results.
+
+**Verify.** After phases 2 and 5, run `distill no-loss --inventory <file> --hub <hub>` for each inventory and
+`distill findability --hub <hub>`. `state done` runs both for those phases, so a pass there is the proof.
+Report the counts: inputs, accounted, lost, and unreachable.
+
+**Stop.** After phase 7, `state show` prints `next: stop`. Report the state and stop. Do not write the baseline,
+install a gate, route `conform`, or run a maintain pass. They are not built.
+
 ## Done when
 
-- The operator asked for program mode on a named ledger. A request for vault mode got a plain "not
-  available yet" and no work.
+- The operator asked for program mode on a named ledger, or for vault mode on a named hub. A request for phase 8,
+  the maintain pass, or `conform` routing got a plain "not built" and no work.
 - `PROGRAM.md` has a `## Finish line` with F1 to Fn, each an observable check, confirmed by the operator.
 - `## Open items` holds at most 12 bullets, and each carries `Blocks: F<n>` naming a real finish-line item.
 - Every other open item sits in `BACKLOG.md` under its original id. Every closed item sits in
@@ -114,3 +225,9 @@ Redact secrets and PII before you write any file (`§4`).
 - `co burndown --program <slug>` prints `active N/12` with N at most 12 and no warning flags.
   `co check handoff` passes when the program has a handoff.
 - `LEDGER_DIFF.md` exists, and the lead has read every disposition in it.
+- Vault mode: `state show` lists phases 1 to 5 and 7 as `done`, each with a review note. Phase 6 is `done`
+  with a `LEDGER_DIFF.md` per ledger, or the operator named a hub with no ledger.
+- Vault mode: the end of phases 2 and 5 ran the no-loss check and passed, so every inventory path is in place,
+  moved with a forwarding entry, or archived with a link. The findability count was recorded.
+- Vault mode: the lead read every decision, amendment, chain edge, and archive choice, and each batch sample.
+  No batch is unresolved. Every classified note kept its body byte for byte.

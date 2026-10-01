@@ -91,4 +91,4 @@ The global sync script installs the user-wide contracts and refreshes host plugi
 
 `lint-plugins.mjs` runs each numbered check as a named function, and `main` calls them in order. Messages, ordering, and exit codes did not change in the split. The script exit-code contract lives in `code-ops-docs/40 Engineering/ENGINEERING_STANDARDS.md`.
 
-`distill-check.mjs` is the deterministic no-loss check for a distill run. Its `inventory`, `no-loss`, and `findability` subcommands list a hub, account for every listed path as in place, moved, or archived, and count unlinked files (`scripts/distill-check.mjs:6`). `co docs distill` reaches it (`scripts/co.mjs:95`).
+`distill-check.mjs` is the deterministic no-loss check for a distill run. Its `inventory`, `no-loss`, and `findability` subcommands list a hub, account for every listed path as in place, moved, or archived, and count unlinked files (`scripts/distill-check.mjs:6`). Its `state` subcommand records each vault-mode phase, refuses an out-of-order transition, and runs no-loss at the end of phases 2 and 5 (`scripts/distill-check.mjs:46`). `co docs distill` reaches it (`scripts/co.mjs:95`).
