@@ -1,0 +1,79 @@
+{
+  "fixture": "distill-program",
+  "repo": "repo",
+  "lineTolerance": 0,
+  "thresholds": { "recall": 0.8, "maxDecoys": 0 },
+  "planted": [
+    {
+      "id": "DIST-1",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 24,
+      "anchor": "## Open items",
+      "category": "over-cap",
+      "desc": "The Open items section lists 14 bullets and the cap is 12; the surplus belongs in BACKLOG.md"
+    },
+    {
+      "id": "DIST-2",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 29,
+      "anchor": "OI-4 migrate the config loader",
+      "category": "closed-listed-open",
+      "desc": "OI-4 is checked off in the run's TASKS.md (landed in commit 7be44d0) but still sits in Open items; it belongs in Closed items"
+    },
+    {
+      "id": "DIST-3",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 34,
+      "anchor": "OI-9 rename the cache module",
+      "category": "no-blocks",
+      "desc": "OI-9 names no Blocks: F<n>, so it blocks no finish-line check and moves to BACKLOG.md"
+    },
+    {
+      "id": "DIST-4",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 45,
+      "anchor": "DEC-3 2026-09-14",
+      "category": "no-disposition",
+      "desc": "DEC-3 carries a Hop but no Disposition; a settled disposition is required before the decision can move"
+    },
+    {
+      "id": "DIST-5",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 46,
+      "anchor": "2026-09-16 Cap the store at 64 MB",
+      "category": "no-dec-id",
+      "desc": "The 64 MB cap decision has no DEC id; the next free id is DEC-7, because DEC-4 is taken in PROGRAM.archive.md"
+    },
+    {
+      "id": "DIST-6",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 47,
+      "anchor": "replacing the earlier ruling to retry three times",
+      "category": "superseded-restated",
+      "desc": "DEC-5 restates DEC-2 in full instead of carrying Supersedes: DEC-2, and DEC-2 stays live and pending on line 44"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "DECOY-1",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 31,
+      "anchor": "OI-6 restart recovery",
+      "why": "an open item with Owner, Done when, and a Blocks: F3 that names a real finish-line check; it stays active"
+    },
+    {
+      "id": "DECOY-2",
+      "file": "programs/ledger-demo/PROGRAM.md",
+      "line": 48,
+      "anchor": "Supersedes: DEC-1",
+      "why": "a well-formed decision that links to the one it supersedes instead of restating it"
+    },
+    {
+      "id": "DECOY-3",
+      "file": "programs/ledger-demo/BACKLOG.md",
+      "line": 3,
+      "anchor": "OI-20 cache warm-up on boot",
+      "why": "a backlog item needs no Blocks field; only an active item does"
+    }
+  ]
+}
