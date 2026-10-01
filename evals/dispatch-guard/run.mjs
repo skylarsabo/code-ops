@@ -51,7 +51,7 @@
 //   node evals/dispatch-guard/run.mjs
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -114,7 +114,9 @@ const dispatchCall = (toolInput, extra = {}) => ({
 
 // A brief that carries every field the suite agents' `Brief requires:` lines name.
 const FULL_BRIEF = 'Scope: one file.\nObjective: fix it.\nRound budget: 25 tool rounds\n'
-  + 'Report cap: 200 words.\nReport path: r.md\nExpected return: a verdict line.';
+  + 'Report cap: 200 words.\nReport path: r.md\nExpected return: a verdict line.\n'
+  // Routing lines from `co route --kind judgment --ambiguity h --reversible yes --agent code-ops-suite:implementer`.
+  + 'Unit: fix-one-file\nTier: strong\nEffort: high\nRoute basis: judgment; surface=none; ambiguity=high; reversible=yes';
 
 function parseOut(r) {
   if (r.stdout.trim() === '') return null;
@@ -274,7 +276,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   let out = parseOut(runHook(dispatchCall(leaky), { home }));
   let text = reasonOf(out);
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && typeof text === 'string', `a wide dispatch with no reason must deny, got ${JSON.stringify(out)}`);
-  expect(/model override/i.test(text ?? ''), `the reason must flag the model override, got ${text}`);
+  expect(!/model override/i.test(text ?? ''), `the blanket model-override advisory is gone, got ${text}`);
   expect(/general-purpose/.test(text ?? '') && /code-ops-suite:implementer/.test(text ?? '') && /Wide-surface reason: <why>/.test(text ?? ''),
     `the reason must flag the wide type, name the narrow choice, and name the escape line, got ${text}`);
   expect(/Round budget/.test(text ?? '') && /warns at 40 rounds, stops at 60\./.test(text ?? '') && !/80|120/.test(text ?? ''),
@@ -291,24 +293,19 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // A same-line Wide-surface reason allows the wide type; the other clauses stay advisory.
   out = parseOut(runHook(dispatchCall({ ...leaky, prompt: 'Fix the parser.\nWide-surface reason: needs the MCP browser tools.' }), { home }));
   text = contextOf(out) ?? '';
-  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /model override/i.test(text) && !/general-purpose/.test(text),
+  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && !/model override/i.test(text) && /No Round budget/.test(text) && !/general-purpose/.test(text),
     `a stated Wide-surface reason must allow the dispatch and drop the wide clause, got ${JSON.stringify(out)}`);
   out = parseOut(runHook(dispatchCall({ ...leaky, prompt: 'Fix the parser.\nWide-surface reason:\n' }), { home }));
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `an empty Wide-surface reason must still deny, got ${JSON.stringify(out)}`);
   out = parseOut(runHook(dispatchCall({ ...leaky, prompt: 'Round budget: 5\n  Wide-surface reason: indented' }), { home }));
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `the reason must start its own line, got ${JSON.stringify(out)}`);
 
-  // A code-ops-suite agent's declared tier is named from its own definition.
-  out = parseOut(runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:explorer', model: 'opus' }), { home }));
-  text = contextOf(out) ?? '';
-  const declared = readFileSync(join(suite, 'agents', 'explorer.md'), 'utf8').match(/^model:[ \t]*(\S+)$/m)[1];
-  expect(text.includes(`(${declared})`), `the advisory must name the declared tier ${declared}, got ${text}`);
-  expect(!/code-ops-suite:implementer/.test(text) && !/Round budget/.test(text), `a narrow type with a budget earns only the override clause, got ${text}`);
-
-  // An unreadable agent definition degrades to the clause without a tier, and never throws.
-  out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 20 rounds', subagent_type: 'no-such-agent', model: 'opus' }), { home, pluginRoot: join(home, 'missing') }));
-  text = contextOf(out) ?? '';
-  expect(/model override/i.test(text) && !/\(/.test(text), `a missing definition drops the tier, got ${text}`);
+  // The blanket override advisory is deleted: an override on an agent with no Tier requirement
+  // passes silently, whatever the agent's declared tier, and so does one on an unreadable definition.
+  let quiet = runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:explorer', model: 'opus' }), { home });
+  expect(quiet.status === 0 && quiet.stdout === '', `an override on a narrow agent with a budget must be silent, got ${JSON.stringify(quiet.stdout)}`);
+  quiet = runHook(dispatchCall({ prompt: 'Round budget: 20 rounds', subagent_type: 'no-such-agent', model: 'opus' }), { home, pluginRoot: join(home, 'missing') });
+  expect(quiet.status === 0 && quiet.stdout === '', `an override on a missing definition must be silent, got ${JSON.stringify(quiet.stdout)}`);
 
   // A missing subagent_type reads as the default surface, and denies.
   out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 10 rounds' }), { home }));
@@ -366,8 +363,15 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   }
   denies(`${typed};\nagent({ agentType: 'code-ops-suite:reviewer', effort: 'max' });`, /call 2 sets an effort above high \(1 of 2/, 'effort names its own call');
   silent("agent({ agentType: 'code-ops-suite:reviewer', effort: 'high' });", "literal effort 'high'");
-  silent("agent({ agentType: 'code-ops-suite:reviewer', effort: level });", 'a variable effort');
-  silent("agent({ agentType: 'code-ops-suite:reviewer', prompt: 'max', effort });", 'a shorthand effort');
+  // A non-literal model or effort cannot be checked against the floor or the ceiling: advisory, never a denial.
+  const nonLiteral = (script, label) => {
+    const res = workflow(script);
+    expect(!Object.hasOwn(res?.hookSpecificOutput ?? {}, 'permissionDecision') && /1 of 1 Workflow agent\(\) calls pass a model or effort that is not a literal string/.test(contextOf(res) ?? ''),
+      `${label}: must earn the non-literal advisory and no denial, got ${JSON.stringify(res)}`);
+  };
+  nonLiteral("agent({ agentType: 'code-ops-suite:reviewer', effort: level });", 'a variable effort');
+  nonLiteral("agent({ agentType: 'code-ops-suite:reviewer', prompt: 'max', effort });", 'a shorthand effort');
+  nonLiteral("agent({ agentType: 'code-ops-suite:reviewer', model: pick });", 'a variable model');
   out = workflow(`const opts = { prompt: 'x' };\nawait agent(opts);\n${typed};`);
   expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /1 of 2 Workflow agent\(\) calls pass options the guard cannot read/.test(contextOf(out) ?? ''),
     `an options variable earns an advisory and no denial, got ${JSON.stringify(out)}`);
@@ -428,19 +432,22 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // order, and the Round budget advisory does not split it.
   out = parseOut(runHook(dispatchCall({ prompt: 'no labels here', subagent_type: 'code-ops-suite:implementer', model: 'x' }), { home }));
   const template = spawnSync('node', [join(root, 'scripts', 'co.mjs'), 'brief', 'code-ops-suite:implementer'], { encoding: 'utf8' });
+  // `co brief` follows its label lines with a legend and a `co route` hint; the denial carries the labels only.
+  const templateLabels = template.stdout.split('\n').filter((line) => /^[A-Z][A-Za-z ]*:$/.test(line)).join('\n');
   const skeleton = (reasonOf(out) ?? '').split('\n').slice(1).join('\n');
-  expect(deny(out) && template.status === 0 && skeleton === template.stdout.trimEnd()
-    && skeleton === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:',
-    `the full skeleton must equal co brief's template, got ${JSON.stringify(skeleton)} vs ${JSON.stringify(template.stdout)}`);
+  expect(deny(out) && template.status === 0 && skeleton === templateLabels
+    && skeleton === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\nUnit:\nTier:\nEffort:\nRoute basis:',
+    `the full skeleton must equal co brief's label lines, got ${JSON.stringify(skeleton)} vs ${JSON.stringify(template.stdout)}`);
   // An advisory-only output carries no skeleton.
-  out = parseOut(runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', model: 'x' }), { home }));
-  expect(!deny(out) && /model override/.test(contextOf(out) ?? '') && !(contextOf(out) ?? '').includes('\n'),
+  out = parseOut(runHook(dispatchCall({ prompt: 'Fix it.', subagent_type: 'code-ops-suite:no-such-agent' }), { home }));
+  expect(!deny(out) && /No Round budget/.test(contextOf(out) ?? '') && !(contextOf(out) ?? '').includes('\n'),
     `an advisory-only dispatch must carry no skeleton, got ${JSON.stringify(out)}`);
 
   // Every field present passes, including loose forms: case, bold, a parenthetical, list
   // markers, leading whitespace, and a markdown heading.
   const loose = 'scope (edit authority): one file.\n## Objective\nfix it.\n**Round budget:** 10\n'
-    + '- Report cap: 100 words.\n  1. Report path: r.md\n* EXPECTED RETURN: a line.';
+    + '- Report cap: 100 words.\n  1. Report path: r.md\n* EXPECTED RETURN: a line.\n'
+    + '**Unit:** loose-unit\n- TIER: strong\n  effort (high only): high\n1. Route basis: judgment; surface=none; ambiguity=high; reversible=yes';
   let r = runHook(dispatchCall({ prompt: loose, subagent_type: 'code-ops-suite:implementer' }), { home });
   expect(r.status === 0 && r.stdout === '', `a brief with every field in loose form must pass, got ${JSON.stringify(r.stdout)}`);
 
@@ -1181,6 +1188,240 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   rmSync(noHub, { recursive: true, force: true });
   console.log('ok   a corrupt, wrong-version, empty, or removal-free manifest and a missing hub fail open; a missing FORWARDING.json still denies');
   cleanup();
+}
+
+// ---------------------------------------------------------------- tier routing (slice 4)
+
+// Fake agent definitions in a temp cache layout, so these cases read only the guard and the vendored
+// router, never the real agents' Contract lines. `reviewer` and `implementer` pin the strong model at
+// high effort; `steady` pins medium effort; `plain` has no `Tier` in its Contract.
+{
+  const { home, cleanup } = fakeHome();
+  const suiteRoot = join(home, 'cache', 'code-ops', 'code-ops-suite', '2.0.0');
+  mkdirSync(join(suiteRoot, 'agents'), { recursive: true });
+  const ROUTED = 'Scope, Objective, Round budget, Report cap, Report path, Expected return, Unit, Tier, Effort, Route basis';
+  const fake = (name, model, effort, requires) => writeFileSync(join(suiteRoot, 'agents', `${name}.md`),
+    `---\nname: ${name}\nmodel: ${model}\neffort: ${effort}\n---\nBody.\n\n## Contract\n\nBrief requires: ${requires}\nEdits: none\n`);
+  fake('reviewer', 'claude-sonnet-5-5', 'high', ROUTED);
+  fake('implementer', 'claude-sonnet-5-5', 'high', ROUTED);
+  fake('steady', 'claude-sonnet-5-5', 'medium', ROUTED);
+  fake('plain', 'sonnet', 'low', 'Scope, Objective, Round budget, Report cap, Report path, Expected return');
+
+  const brief = (o = {}) => {
+    const v = { scope: 'src/app.js only.', unit: 'u1', tier: 'strong', effort: 'high', basis: 'judgment; surface=none; ambiguity=low; reversible=yes', ...o };
+    return [`Scope: ${v.scope}`, 'Objective: x', 'Round budget: 25', 'Report cap: 200 words.', 'Report path: r.md', 'Expected return: a line.',
+      `Unit: ${v.unit}`, `Tier: ${v.tier}`, `Effort: ${v.effort}`, `Route basis: ${v.basis}`, ...(v.override ? [`Route override: ${v.override}`] : [])].join('\n');
+  };
+  const agents = join(home, '.claude', 'code-ops', 'agents');
+  const seed = (rows, session = 'sess-1') => {
+    mkdirSync(agents, { recursive: true });
+    writeFileSync(join(agents, `${stateKey(session)}.jsonl`), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
+  };
+  const sendRaw = (type, over, input = {}, opts = {}) => parseOut(runHook(dispatchCall({ subagent_type: type, prompt: brief(over), ...input }),
+    { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home }, ...opts }));
+  // The reviewer's minimum kind is review, so a reviewer brief here declares review where it would say judgment.
+  // `sendRaw` sends the declared kind as given.
+  const send = (type, over = {}, input = {}, opts = {}) => sendRaw(type, type === 'code-ops-suite:reviewer'
+    ? { ...over, basis: (over.basis ?? 'judgment; surface=none; ambiguity=low; reversible=yes').replace(/^judgment/, 'review') } : over, input, opts);
+  const denied = (out, pattern, label) => expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && pattern.test(reasonOf(out) ?? ''),
+    `${label}: must deny matching ${pattern}, got ${JSON.stringify(out)}`);
+  const quiet = (out, label) => expect(out === null, `${label}: must be silent, got ${JSON.stringify(out)}`);
+  const advised = (out, pattern, label) => expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && pattern.test(contextOf(out) ?? ''),
+    `${label}: must advise matching ${pattern} and not deny, got ${JSON.stringify(out)}`);
+  const REV = 'code-ops-suite:reviewer';
+  const IMP = 'code-ops-suite:implementer';
+
+  // Baseline and the silent override: strong with no override, and an override that matches Tier.
+  quiet(send(REV), 'strong, no override');
+  quiet(send(REV, {}, { model: 'claude-sonnet-5-5' }), 'an override at strong matches Tier strong');
+  const hard = { basis: 'judgment; surface=none; ambiguity=high; reversible=no' };
+  quiet(send(REV, { ...hard, tier: 'premium' }, { model: 'opus' }), 'premium with opus');
+  quiet(send(REV, { ...hard, tier: 'premium', override: 'x' }, { model: 'opus' }), 'premium with opus and an override line');
+
+  // Tier and the effective rung must agree.
+  denied(send(REV, { ...hard, tier: 'premium' }), /Tier: premium but the dispatch runs at strong.*pass model "opus"/, 'premium with no model');
+  denied(send(REV, { tier: 'strong' }, { model: 'opus' }), /Tier: strong but the dispatch runs at premium.*omit the model override/, 'strong with opus');
+  denied(send(REV, { tier: 'frontier' }, { model: 'opus' }), /Tier: frontier but the dispatch runs at premium.*pass model "fable"/, 'frontier with opus');
+  denied(send(REV, { tier: 'mid' }), /Tier: mid but the dispatch runs at strong/, 'a Tier below the agent floor');
+  denied(send(REV, { tier: 'ultra' }), /"ultra" is not a rung/, 'an unknown Tier');
+
+  // An override below the agent floor, in the AGENT_MODEL_FLOORS sense: sonnet ranks mid.
+  denied(send(REV, { tier: 'mid' }, { model: 'sonnet' }), /"sonnet" runs code-ops-suite:reviewer at mid, below its strong floor/, 'sonnet on reviewer');
+  denied(send(IMP, { tier: 'light' }, { model: 'haiku' }), /"haiku" runs code-ops-suite:implementer at light, below its strong floor/, 'haiku on implementer');
+  expect(!/Tier: mid but/.test(reasonOf(send(REV, { tier: 'mid' }, { model: 'sonnet' })) ?? ''), 'a below-floor override is reported once, not again as a Tier mismatch');
+
+  // Surface is derived from Scope. A declared surface that contradicts it is denied, with or without an override.
+  const gate = { scope: 'plugins/code-ops-suite/hooks/dispatch-guard.mjs and evals/dispatch-guard/.', basis: 'judgment; surface=none; ambiguity=low; reversible=yes' };
+  denied(send(IMP, gate), /says surface=none but the Scope paths derive surface=gate-script/, 'a gate-script Scope with surface=none');
+  denied(send(IMP, { ...gate, override: 'the lead knows better' }), /derive surface=gate-script.*does not clear a surface mismatch/, 'the same with a Route override');
+  quiet(send(IMP, { ...gate, basis: 'judgment; surface=gate-script; ambiguity=low; reversible=yes' }), 'the declared surface matches Scope');
+  // A derived none never contradicts a declared surface: routing up is allowed and earns an advisory at most.
+  const dir = { scope: 'plugins/code-ops-suite/hooks/ and evals/dispatch-guard/', basis: 'judgment; surface=gate-script; ambiguity=low; reversible=yes' };
+  advised(send(IMP, dir), /surface=gate-script but the Scope paths derive no surface; routing up is allowed/, 'a directory-level Scope declaring gate-script');
+  advised(send(IMP, { basis: 'judgment; surface=security; ambiguity=low; reversible=yes' }), /surface=security but the Scope paths derive no surface/, 'a surface declared with no Scope path behind it');
+  advised(send(IMP, { ...dir, override: 'the lead knows the surface' }), /derive no surface/, 'a directory-level Scope declaring a surface, with a Route override');
+  // The other direction stays denied: a Scope file that derives a surface, declared none, even with an override.
+  denied(send(IMP, { scope: 'plugins/code-ops-suite/hooks/dispatch-guard.mjs', basis: 'judgment; surface=none; ambiguity=low; reversible=yes', override: 'x' }),
+    /says surface=none but the Scope paths derive surface=gate-script.*does not clear a surface mismatch/, 'a gate-script file declared none with a Route override');
+  denied(send(IMP, { basis: 'judgment; ambiguity=low; reversible=yes' }), /names no surface=/, 'a basis with no surface');
+  denied(send(IMP, { basis: 'sorcery; surface=none; ambiguity=low; reversible=yes' }), /Route basis is not valid: kind must be one of/, 'an unknown kind');
+  // A Scope path with spaces reaches the pattern whole, and a bare word never matches.
+  const contract = { scope: 'Edit only the code-ops-docs/35 Contracts and Data/CONTRACTS.md file.', basis: 'judgment; surface=none; ambiguity=low; reversible=yes' };
+  denied(send(IMP, contract), /derive surface=public-contract/, 'a Scope path with spaces derives public-contract');
+  quiet(send(IMP, { scope: 'fix the auth flow in the parser; secrets are out of scope' }), 'prose with a bare auth word derives no surface');
+  quiet(send(IMP, { scope: 'src/app.js.\nOut of scope: plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), 'a path under Out of scope does not count');
+  denied(send(IMP, { scope: 'src/app.js.\n  - plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), /derive surface=gate-script/, 'a Scope path on a continuation line counts');
+  // A line anchor on a Scope path never hides its surface.
+  for (const anchored of ['scripts/lint-plugins.mjs:120-180', 'scripts/lint-plugins.mjs:120', 'scripts/lint-plugins.mjs#L120', 'scripts/lint-plugins.mjs#L120-L180',
+    'see (scripts/lint-plugins.mjs:120).', 'code-ops-docs/35 Contracts and Data/CONTRACTS.md:10-20']) {
+    denied(send(IMP, { scope: anchored }), /derive surface=(?:gate-script|public-contract)/, `an anchored Scope path (${anchored}) derives its surface`);
+  }
+  // The gate-script and public-contract paths match any case and either separator.
+  for (const variant of ['Scripts/Lint-Plugins.mjs', 'scripts\\lint-plugins.mjs', '.GITHUB/Workflows/validate.yml', 'code-ops-docs\\35 Contracts and Data\\CONTRACTS.md']) {
+    denied(send(IMP, { scope: variant }), /derive surface=(?:gate-script|public-contract)/, `a case or separator variant (${variant}) derives its surface`);
+  }
+  // A Scope with an empty colon value reads the bullets after its blank lines.
+  denied(send(IMP, { scope: '\n\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), /derive surface=gate-script/, 'a blank-line Scope reads its bullets');
+  quiet(send(IMP, { scope: '\n\nObjective: x\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), 'an empty Scope followed by a label reads no bullets');
+  // Any Label: line ends the Scope block, not only the closed list; a drive-letter path is no label.
+  quiet(send(IMP, { scope: 'src/app.js.\nContext: see plugins/code-ops-suite/hooks/dispatch-guard.mjs for background' }), 'a non-stop label ends the Scope');
+  quiet(send(IMP, { scope: 'src/app.js.\n- Notes (read only): scripts/lint-plugins.mjs' }), 'a bulleted label with a qualifier ends the Scope');
+  denied(send(IMP, { scope: 'src/app.js.\nC:/work/code-ops/scripts/lint-plugins.mjs' }), /derive surface=gate-script/, 'a drive-letter continuation line still counts');
+  // A declared surface that is not a surface is malformed.
+  denied(send(IMP, { basis: 'judgment; surface=everywhere; ambiguity=low; reversible=yes' }), /surface=everywhere, which is not a surface/, 'an unknown declared surface');
+  // The reviewer declared as a lower kind is raised to review before routing, then denied when under-routed.
+  const swap = { scope: 'src/auth/login.js', basis: 'judgment; surface=security; ambiguity=low; reversible=yes' };
+  denied(sendRaw(REV, swap), /below premium at high effort \(rule 7a/, 'a reviewer declared as judgment on a security surface routes as a review');
+  advised(sendRaw(REV, { basis: 'execution; surface=none; ambiguity=low; reversible=yes' }), /kind=execution is below the minimum for code-ops-suite:reviewer; routing it as review/, 'the kind raise is advised');
+  quiet(sendRaw(IMP, swap), 'an agent with no minimum kind keeps its declared kind');
+  // An override that cannot be ranked leaves Tier unchecked, and the guard says so.
+  for (const model of ['inherit', 'default', 'gpt-x']) {
+    advised(send(IMP, {}, { model }), new RegExp(`override "${model}" cannot be ranked`), `an unrankable override (${model}) with Tier set`);
+  }
+
+  // Premium triggers. 7a (review on a surface) is never cleared by a Route override.
+  const secReview = { scope: 'src/auth/login.js', basis: 'review; surface=security; ambiguity=low; reversible=yes' };
+  denied(send(REV, secReview), /below premium at high effort \(rule 7a/, 'a security review at strong');
+  denied(send(REV, { ...secReview, override: 'cost' }), /below premium at high effort \(rule 7a.*does not clear a surface trigger/, 'a security review at strong with a Route override');
+  quiet(send(REV, { ...secReview, tier: 'premium' }, { model: 'opus' }), 'a security review at premium');
+  // 7d (public-contract judgment at high ambiguity) is a surface trigger too.
+  const pc = { scope: 'code-ops-docs/35 Contracts and Data/CONTRACTS.md', basis: 'judgment; surface=public-contract; ambiguity=high; reversible=yes' };
+  denied(send(IMP, { ...pc, override: 'cost' }), /rule 7d.*does not clear a surface trigger/, 'a 7d unit with a Route override');
+  // 7b (high ambiguity, not reversible) is cleared by an override; effort is the other half of the check.
+  denied(send(IMP, hard), /below premium at high effort \(rule 7b/, 'a 7b unit at strong');
+  quiet(send(IMP, { ...hard, override: 'one more strong try first' }), 'a 7b unit at strong with a Route override');
+  denied(send(IMP, { basis: 'judgment; surface=none; ambiguity=high; reversible=yes', effort: 'medium' }), /below strong at high effort \(rule 5/, 'effort below the routed effort');
+  advised(send(IMP, { basis: 'judgment; surface=none; ambiguity=high; reversible=yes', effort: 'medium', override: 'small unit' }), /^Dispatch guard: Effort: medium is below the high that code-ops-suite:implementer runs at[^\n]*$/,
+    'effort below the routed effort with a Route override earns only the frontmatter-effort advisory');
+  // 7c, from the ledger: a failed strong attempt on this unit makes the next attempt 2.
+  seed([
+    { status: 'dispatched', agent_id: 'a1', agent_type: IMP, session_id: 'sess-1', unit: 'u-retry', requestedTier: 'strong' },
+    { status: 'failed', agent_id: 'a1', agent_type: IMP, session_id: 'sess-1' },
+  ]);
+  denied(send(IMP, { unit: 'u-retry' }), /below premium at high effort \(rule 7c/, 'attempt 2 after a failed strong attempt');
+  quiet(send(IMP, { unit: 'u-retry', override: 'the failure was the harness' }), 'attempt 2 with a Route override');
+  quiet(send(IMP, { unit: 'u-retry', tier: 'premium' }, { model: 'opus' }), 'attempt 2 at premium');
+  quiet(send(IMP, { unit: 'u-other' }), 'a different unit is still attempt 1');
+
+  // A rung above the route is an advisory, never a denial.
+  advised(send(IMP, { tier: 'premium' }, { model: 'opus' }), /Tier: premium is above the routed strong \(rule 4\); it costs more/, 'premium on a unit that routes strong');
+
+  // Effort the Agent tool can deliver.
+  denied(send('code-ops-suite:steady', { effort: 'high' }), /Effort: high is above the medium that code-ops-suite:steady runs at.*Workflow agent\(/, 'Agent Effort above the frontmatter effort');
+  advised(send('code-ops-suite:steady', { effort: 'low', override: 'small unit' }),/Effort: low is below the medium that code-ops-suite:steady runs at.*Workflow agent\(\)/, 'Agent Effort below the frontmatter effort');
+  quiet(send('code-ops-suite:steady', { effort: 'medium' }), 'Agent Effort equal to the frontmatter effort');
+  denied(send(IMP, { effort: 'xhigh' }), /Effort: xhigh is above high/, 'a brief Effort of xhigh');
+  denied(send(IMP, { effort: 'max', override: 'x' }), /Effort: max is above high/, 'a brief Effort of max with a Route override');
+
+  // One frontier dispatch per run, counted from the ledger.
+  advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above the routed strong/, 'the first frontier dispatch');
+  seed([{ status: 'dispatched', agent_id: 'f1', agent_type: IMP, session_id: 'sess-1', unit: 'u9', requestedTier: 'frontier', appliedModel: 'fable' }]);
+  denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /frontier dispatch already ran in this session/, 'a second frontier dispatch');
+  quiet(send(IMP, { tier: 'premium', basis: hard.basis }, { model: 'opus' }), 'a premium dispatch after a frontier one');
+  // A ledger row counts on its applied model alone, with no requestedTier.
+  seed([{ status: 'dispatched', agent_id: 'f3', agent_type: IMP, session_id: 'sess-1', unit: 'u10', appliedModel: 'fable' }]);
+  denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /frontier dispatch already ran in this session \(1 in the ledger\)/, 'a frontier row matched on appliedModel alone');
+  // The effective rung counts when the brief Tier is empty, so no Tier check fires first.
+  denied(send(IMP, { tier: '' }, { model: 'fable' }), /frontier dispatch already ran in this session/, 'a frontier override with an empty Tier');
+  seed([]);
+  quiet(send(IMP, { tier: '' }, { model: 'fable' }), 'a frontier override with an empty Tier and no prior frontier dispatch');
+  seed([]);
+  seed([{ status: 'dispatched', agent_id: 'f1', agent_type: IMP, session_id: 'other-session', requestedTier: 'frontier' }], 'other-session');
+  advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above/, 'a frontier dispatch in another session does not count');
+
+  // An agent whose Contract does not list Tier keeps today's behavior exactly.
+  const plainBrief = 'Scope: plugins/code-ops-suite/hooks/dispatch-guard.mjs\nObjective: x\nRound budget: 9\nReport cap: 1\nReport path: r.md\nExpected return: x\n'
+    + 'Tier: ultra\nEffort: xhigh\nRoute basis: nonsense';
+  for (const model of ['haiku', 'opus', 'fable', 'x']) {
+    quiet(parseOut(runHook(dispatchCall({ subagent_type: 'code-ops-suite:plain', prompt: plainBrief, model }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } })),
+      `an agent with no Tier requirement and model ${model}`);
+  }
+
+  // Workflow: a literal model below the floor of its literal agentType denies; the floor and above pass.
+  const wf = (script, guard) => parseOut(runHook(dispatchCall({ script }, { tool_name: 'Workflow' }), { home, pluginRoot: suiteRoot, guard }));
+  denied(wf(`agent({ agentType: '${REV}', model: 'sonnet', prompt: 'x' });`), /call 1 sets model "sonnet" \(mid\), below the strong floor of code-ops-suite:reviewer/, 'a Workflow model below the floor');
+  denied(wf(`agent({ agentType: '${REV}', prompt: 'x' });\nagent({ agentType: 'code-ops-suite:plain', model: 'haiku', prompt: 'x' });`), /call 2 sets model "haiku" \(light\), below the mid floor/, 'the failing call is named');
+  quiet(wf(`agent({ agentType: '${REV}', model: 'claude-sonnet-5-5', effort: 'high' }); agent({ agentType: '${REV}', model: 'opus' }); agent({ agentType: 'code-ops-suite:plain', model: 'sonnet' });`), 'Workflow models at or above their floors');
+  quiet(wf(`agent({ agentType: 'no-such:agent', model: 'haiku' }); agent({ agentType: '${REV}', model: 'unknown-model' });`), 'a model or agent the guard cannot rank');
+  advised(wf(`agent({ agentType: '${REV}', model: choice });`), /not a literal string/, 'a Workflow model that is a variable');
+  // One frontier dispatch per run covers a Workflow: literal frontier models in the script plus frontier ledger rows.
+  seed([]);
+  const fableCall = `agent({ agentType: '${REV}', model: 'fable' });`;
+  quiet(wf(fableCall), 'one literal frontier Workflow call');
+  denied(wf(`${fableCall}\n${fableCall}`), /frontier model on 2 agent\(\) call\(s\) and 0 frontier dispatch/, 'two literal frontier Workflow calls');
+  quiet(wf(`${fableCall}\nagent({ agentType: '${REV}', model: 'opus' });`), 'one frontier and one premium Workflow call');
+  seed([{ status: 'dispatched', agent_id: 'f4', agent_type: IMP, session_id: 'sess-1', unit: 'u11', appliedModel: 'fable' }]);
+  denied(wf(fableCall), /frontier model on 1 agent\(\) call\(s\) and 1 frontier dispatch\(es\) already ran/, 'a frontier Workflow call after a frontier ledger row');
+  quiet(wf(`agent({ agentType: '${REV}', model: 'opus' });`), 'a premium Workflow call after a frontier ledger row');
+  seed([]);
+  const warned = wf(`agent({ agentType: '${REV}', model: 'sonnet' });`, 'warn');
+  expect(Object.hasOwn(warned?.hookSpecificOutput ?? {}, 'additionalContext') && !Object.hasOwn(warned?.hookSpecificOutput ?? {}, 'permissionDecision'),
+    `warn mode must downgrade the Workflow model denial, got ${JSON.stringify(warned)}`);
+
+  // spawn_subagent and spawn_agent: a literal xhigh or max effort denies; high passes.
+  const spawn = (tool, input) => parseOut(runHook(dispatchCall({ prompt: 'Round budget: 5', ...input }, { tool_name: tool }), { home, pluginRoot: suiteRoot }));
+  denied(spawn('spawn_subagent', { effort: 'xhigh' }), /spawn_subagent sets effort above high/, 'spawn_subagent xhigh');
+  denied(spawn('spawn_agent', { reasoning_effort: 'max' }), /spawn_agent sets reasoning_effort above high/, 'spawn_agent max');
+  quiet(spawn('spawn_subagent', { effort: 'high' }), 'spawn_subagent high');
+  quiet(spawn('spawn_agent', { reasoning_effort: 'low' }), 'spawn_agent low');
+
+  // Warn mode downgrades every routing denial to context.
+  const lax = send(REV, { tier: 'mid' }, { model: 'sonnet' }, { guard: 'warn' });
+  expect(Object.hasOwn(lax?.hookSpecificOutput ?? {}, 'additionalContext') && !Object.hasOwn(lax?.hookSpecificOutput ?? {}, 'permissionDecision'),
+    `warn mode must downgrade a routing denial, got ${JSON.stringify(lax)}`);
+
+  // Fail open: with the vendored libraries absent, the routing checks skip and the field denial stays.
+  const iso = join(home, 'iso', 'hooks');
+  mkdirSync(iso, { recursive: true });
+  for (const file of ['dispatch-guard.mjs', 'agent-file.mjs']) writeFileSync(join(iso, file), readFileSync(join(suite, 'hooks', file), 'utf8'));
+  const bare = (input) => spawnSync('node', [join(iso, 'dispatch-guard.mjs')], {
+    input: JSON.stringify(dispatchCall(input)), encoding: 'utf8',
+    env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_DISPATCH_GUARD: '', CLAUDE_PLUGIN_ROOT: suiteRoot },
+  });
+  let res = bare({ subagent_type: REV, prompt: brief({ tier: 'mid' }), model: 'sonnet' });
+  expect(res.status === 0 && res.stdout === '', `a missing routing library must skip the routing checks, got ${res.status}/${JSON.stringify(res.stdout)}`);
+  res = bare({ subagent_type: REV, prompt: 'Round budget: 5', model: 'sonnet' });
+  expect(/missing: Scope/.test(parseOut(res)?.hookSpecificOutput?.permissionDecisionReason ?? ''), `the field denial must survive a missing routing library, got ${JSON.stringify(res.stdout)}`);
+  // Each library alone: a copy of the suite scripts with one file removed skips the routing checks; the full copy denies.
+  const isolated = (name, without) => {
+    const root = join(home, name);
+    mkdirSync(join(root, 'hooks'), { recursive: true });
+    for (const file of ['dispatch-guard.mjs', 'agent-file.mjs']) writeFileSync(join(root, 'hooks', file), readFileSync(join(suite, 'hooks', file), 'utf8'));
+    cpSync(join(suite, 'scripts'), join(root, 'scripts'), { recursive: true });
+    if (without) rmSync(join(root, 'scripts', without));
+    return (input) => spawnSync('node', [join(root, 'hooks', 'dispatch-guard.mjs')], {
+      input: JSON.stringify(dispatchCall(input)), encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_DISPATCH_GUARD: '', CLAUDE_PLUGIN_ROOT: suiteRoot },
+    });
+  };
+  const below = { subagent_type: REV, prompt: brief({ tier: 'mid' }), model: 'sonnet' };
+  expect(parseOut(isolated('iso-full')(below))?.hookSpecificOutput?.permissionDecision === 'deny', 'the isolated full copy of the scripts must still deny, or the fail-open cases prove nothing');
+  for (const missing of ['route-unit.mjs', 'agent-ledger.mjs']) {
+    res = isolated(`iso-no-${missing}`, missing)(below);
+    expect(res.status === 0 && res.stdout === '', `a missing ${missing} must skip the routing checks, got ${res.status}/${JSON.stringify(res.stdout)}`);
+  }
+  cleanup();
+  console.log('ok   routing: tier against rung, floor, surface from Scope, 7a-7d with the override rule, effort, frontier count, Workflow model, spawn effort, and an agent without Tier is untouched');
 }
 
 // ---------------------------------------------------------------- fail open

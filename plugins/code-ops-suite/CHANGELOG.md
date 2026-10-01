@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.34.0
+- The dispatch guard enforces task-based routing for agents whose `Brief requires:` lists Tier. The five strong-floor agents (implementer, reviewer, tracer, verifier, privacy-reviewer) now require `Unit:`, `Tier:`, `Effort:`, and `Route basis:` lines, and `co brief` prints them with the allowed values and a `co route` hint.
+- The guard derives the surface from the brief's Scope paths, stripping `file:line` and `#L` anchors, and reads the attempt from the agent ledger. It denies a Tier or Effort below the route unless a `Route override:` line is present. An override never clears a surface trigger. The guard also denies a model override below the agent's floor or inconsistent with the Tier, a contradicted or unknown surface, an Effort above the agent's frontmatter, any literal `xhigh` or `max`, and a second frontier dispatch, including from Workflow scripts.
+- Each reviewing agent has a minimum kind (`AGENT_MIN_KIND` in `route-unit.mjs`), so a review cannot be declared as lighter work to avoid the premium rung. `co route --agent` applies it too.
+- Over-routing, a raised kind, an unrankable model override, and a non-literal Workflow model or effort draw advisories. The blanket model-override advisory is gone.
+- The routing summary declares overuse only after at least 4 judgment-bearing dispatches.
+
 ## 2.33.0
 - New `route-unit.mjs`, reached as `co route`, picks the tier and effort for one dispatch from its kind, ambiguity, reversibility, and the surface its Scope paths touch. It prints `Tier:`, `Effort:`, and `Route basis:` lines ready for a brief, plus the model each host binds at that tier. Review on a security, gate-script, or public-contract surface, a high-ambiguity irreversible unit, and a retry after a failed strong attempt route to premium.
 - `model-tiers.mjs` gains a premium binding per provider at strong rank: Opus 5.5 on Anthropic and Copilot, and the pinned Sol model on OpenAI. Providers without a premium model collapse it to strong and say so. The registry snapshot is dated 2026-10-01.
