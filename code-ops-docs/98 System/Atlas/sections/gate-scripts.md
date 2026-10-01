@@ -85,7 +85,7 @@ Cost attribution separates input, cache-read, cache-write, and output before it 
 Contracts validate a unique worker-view allowlist, and views reject selections that omit a required section at `scripts/run-contract.mjs:115` and `scripts/context-bundle.mjs:139`.
 Task-based contracts cap effort at `high`, so an `xhigh` lead or unit is rejected at `scripts/run-contract.mjs:137` and `scripts/run-contract.mjs:202`, while replay and calibration contracts keep accepting it.
 Selected views retain canonical binding, scope, completeness, and omission metadata at `scripts/context-bundle.mjs:264`.
-Generated hook text asks the lead to checkpoint at a safe boundary and assesses a handoff only where the host keeps one, instead of an automatic handoff, at `scripts/build-codex-marketplace.mjs:325`. The same table describes the `PreCompact` snapshot hook and the routing card at `scripts/build-codex-marketplace.mjs:319` and `scripts/build-codex-marketplace.mjs:320`.
+Generated hook text asks the lead to checkpoint at a safe boundary and assesses a handoff only where the host keeps one, instead of an automatic handoff, at `scripts/build-codex-marketplace.mjs:361`. The same table describes the `PreCompact` snapshot hook and the routing card at `scripts/build-codex-marketplace.mjs:355` and `scripts/build-codex-marketplace.mjs:356`.
 
 The global sync script installs the user-wide contracts and refreshes host plugin caches. It spawns each host CLI with allow-listed arguments and records the hash it last wrote, so it can refuse to overwrite a contract edited by hand at `scripts/sync-global.mjs:113`.
 
