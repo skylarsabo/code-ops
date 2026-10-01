@@ -179,6 +179,17 @@ try {
 }
 expect(blocked, 'a general dispatch was not blocked');
 
+// Effort ceiling: a request above high runs at high and says so.
+expect(overlay.CodeOpsLifecycle.internals.resolveEffort('code-ops-suite-implementer', 'xhigh').level === 'high', 'resolveEffort did not clamp xhigh to high');
+await hooks['tool.execute.before']({ tool: 'task', sessionID: 'eff-lead', callID: 'e1' }, { args: { prompt: 'Round budget: 5.\nEffort: xhigh\ndo it', subagent_type: 'code-ops-suite-implementer' } });
+const effTurn = { parts: [{ type: 'text', text: 'continue' }] };
+await hooks['chat.message']({ sessionID: 'eff-lead', agent: 'build' }, effTurn);
+expect(effTurn.parts[0].text.includes('Effort "xhigh" is above high; it runs at high.'), `an Effort: xhigh dispatch did not surface the clamp note: ${effTurn.parts[0].text}`);
+await hooks['chat.message']({ sessionID: 'eff-child', agent: 'code-ops-suite-implementer' }, { parts: [{ type: 'text', text: 'Effort: xhigh\ndo it' }] });
+const effParams = {};
+await hooks['chat.params']({ sessionID: 'eff-child', agent: 'code-ops-suite-implementer', model: { providerID: 'p', id: 'm', variants: { low: { e: 'low' }, high: { e: 'high' }, xhigh: { e: 'xhigh' } } } }, effParams);
+expect(effParams.options?.e === 'high', `an Effort: xhigh child did not clamp to the high variant: ${JSON.stringify(effParams.options)}`);
+
 // Context ceiling: past 300,000 tokens the lead assesses before it dispatches.
 const setContext = (hooksFor, sessionID, input, id) => hooksFor.event({
   event: { type: 'message.updated', properties: { info: { role: 'assistant', sessionID, id, tokens: { input, output: 0, cache: { read: 0, write: 0 } } } } },

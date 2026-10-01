@@ -33,12 +33,24 @@
 // path only, see reportPathOf). It never holds a prompt or message content. Reading is defensive:
 // a malformed line is skipped.
 //
+// ROUTING FIELDS. A `dispatched` row also carries `unit`, `requestedTier`, `requestedEffort`
+// (parsed from the brief's `Unit:`, `Tier:`, and `Effort:` lines, with the label rule the dispatch
+// guard uses for brief fields), `appliedModel` (the dispatch's `model` override, else the agent
+// frontmatter `model:`), `appliedEffort` with `effortSource` (`workflow` for an `effort` option on the
+// dispatch, `frontmatter` for the agent's `effort:`), and `flag` (`ok`, `under`, or `over`: the
+// applied rung against the requested one). A field that is absent records `null`; none of them
+// can fail the hook. `attemptOf` derives a unit's attempt from the rows, and `routingSummary` reads
+// the rows back as the starvation and overuse advisories (advisory only, never a failure).
+//
+// HOSTS. A Grok SubagentStop carries camelCase `subagentId` and `subagentType` and no `agent_id`;
+// `rowsFromPayload` maps them when the snake_case fields are absent.
+//
 // Imports node builtins only, so it vendors beside the hook without a dependency.
 
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LEDGER_ROW_RE, replayDispatchJournal } from './ledger-grammar.mjs';
 
@@ -59,6 +71,14 @@ const REPORT_PATH_LINE = /^[ \t>*-]*Report path:[ \t]*(.+?)[ \t]*$/im;
 // A path, not prose: an absolute path, a relative one with a separator in its first word, or `~`.
 const PATH_START = /^(?:[A-Za-z]:[\\/]|~?[\\/]|\.{1,2}[\\/]|[\w.-]+[\\/])/;
 const FILE_END = /^(.+?\.[A-Za-z0-9]{1,8})(?=$|[\s)`"',;:])/;
+
+const SAFE_AGENT = /^[A-Za-z0-9_-]{1,128}$/;
+const TIER_RUNGS = ['light', 'mid', 'strong', 'premium', 'frontier'];
+const EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+const UNIT_MAX = 80;
+const MODEL_MAX = 64;
+const JUDGMENT_AGENTS = new Set(['implementer', 'reviewer', 'tracer', 'verifier', 'privacy-reviewer']);
+export const DEFAULT_PREMIUM_CEILING = 0.25;
 
 const sha256 = (value) => createHash('sha256').update(String(value)).digest('hex');
 const isOff = () => /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '');
@@ -107,10 +127,75 @@ const oneLine = (value, max = DESCRIPTION_MAX) => (typeof value === 'string' ? v
 const stopFailed = (payload) => Boolean(payload.error) || payload.is_error === true
   || /^(error|failed|failure)$/i.test(String(payload.status ?? payload.stop_reason ?? ''));
 
+// The value on a brief's `<label>:` line, or null. The label rule is the dispatch guard's briefHas:
+// leading whitespace, one list marker, and bold markers may precede the label, and bold markers or a
+// parenthetical may sit before the colon. Only the one line after the colon is read.
+function briefLine(prompt, label) {
+  if (typeof prompt !== 'string') return null;
+  const re = new RegExp(`^[ \\t]*(?:(?:[-*]|\\d+\\.)[ \\t]+)?(?:\\*\\*|__)?${label}(?:\\*\\*|__)?[ \\t]*(?:\\([^)\\n]*\\))?[ \\t]*(?:\\*\\*|__)?[ \\t]*:[ \\t]*(?:\\*\\*|__)?[ \\t]*([^\\r\\n]*)`, 'im');
+  const value = (re.exec(prompt)?.[1] ?? '').replace(/^[`'"]+/, '').replace(/(?:\*\*|__|[`'"])+[ \t]*$/, '').trim();
+  return value || null;
+}
+
+// The first word of a brief value when it is one of `allowed`, lowercased, else null.
+const wordIn = (value, allowed) => {
+  const word = value?.split(/[\s,;:()]+/)[0]?.toLowerCase();
+  return word && allowed.has(word) ? word : null;
+};
+
+// The `model:` and `effort:` of an agent's frontmatter, from `<agentsDir>/<name>.md`; an unknown or
+// unsafe name, or a missing file, gives nulls.
+function frontmatterOf(agentType, agentsDir) {
+  const name = agentType.split(':').pop();
+  if (!SAFE_AGENT.test(name)) return { model: null, effort: null };
+  let text;
+  try { text = readFileSync(join(agentsDir, `${name}.md`), 'utf8'); } catch { return { model: null, effort: null }; }
+  const lines = (/^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? '').split(/\r?\n/);
+  const field = (key) => lines.find((l) => l.startsWith(`${key}:`))?.slice(key.length + 1).trim().replace(/^["']|["']$/g, '') || null;
+  return { model: field('model'), effort: field('effort') };
+}
+
+// deferred(a local name map, upgrade path: read the dispatch rungs from model-tiers.mjs once the
+// premium binding lands there). The rung a dispatch's model id or alias runs at: `sonnet` is the mid
+// alias, a full Sonnet id is the strong binding, `opus` is premium, `fable` is frontier. An id this
+// map does not know has no rung, so its flag is null.
+export function rungOfModel(model) {
+  const id = typeof model === 'string' ? model.trim().toLowerCase() : '';
+  if (!id) return null;
+  if (id.includes('haiku')) return 'light';
+  if (id === 'sonnet') return 'mid';
+  if (id.includes('sonnet')) return 'strong';
+  if (id.includes('opus')) return 'premium';
+  if (id.includes('fable')) return 'frontier';
+  return null;
+}
+
+// The routing fields of one `dispatched` row. Brief lines are read for the unit, tier, and effort
+// only; no other brief text is kept. Every field is null when its source is absent.
+function routingOf(input, agentType, agentsDir) {
+  const prompt = input.prompt;
+  const fm = frontmatterOf(agentType, agentsDir);
+  const option = typeof input.effort === 'string' && input.effort.trim() ? input.effort.trim().toLowerCase().slice(0, 16) : null;
+  const appliedModel = typeof input.model === 'string' && input.model.trim() ? input.model.trim().slice(0, MODEL_MAX) : fm.model;
+  const requestedTier = wordIn(briefLine(prompt, 'Tier'), new Set(TIER_RUNGS));
+  const applied = rungOfModel(appliedModel);
+  return {
+    unit: oneLine(briefLine(prompt, 'Unit') ?? '', UNIT_MAX) || null,
+    requestedTier,
+    requestedEffort: wordIn(briefLine(prompt, 'Effort'), EFFORT_LEVELS),
+    appliedModel: appliedModel ?? null,
+    appliedEffort: option ?? fm.effort,
+    effortSource: option ? 'workflow' : fm.effort ? 'frontmatter' : null,
+    flag: requestedTier && applied ? ['under', 'ok', 'over'][Math.sign(TIER_RUNGS.indexOf(applied) - TIER_RUNGS.indexOf(requestedTier)) + 1] : null,
+  };
+}
+
 // The rows one hook payload earns: none, one `dispatched` row, a `dispatched` row with its
 // `reported` row for a foreground launch, or one `reported` or `failed` row. Statuses are the
 // dispatch ledger's own (LEDGER_STATUSES in ledger-grammar.mjs), so the two stores can merge.
-export function rowsFromPayload(payload, now = new Date()) {
+// `agentsDir` is where agent frontmatter lives; the default is the `agents` folder beside the
+// plugin's `scripts` folder, which is the vendored copy's location.
+export function rowsFromPayload(payload, now = new Date(), { agentsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'agents') } = {}) {
   if (!payload || typeof payload !== 'object') return [];
   const session_id = payload.session_id ?? payload.sessionId;
   if (typeof session_id !== 'string' || !session_id) return [];
@@ -124,21 +209,24 @@ export function rowsFromPayload(payload, now = new Date()) {
     const background = response?.status === 'async_launched' || input.run_in_background === true;
     const agent_type = typeof input.subagent_type === 'string' ? input.subagent_type : '';
     const report_path = reportPathOf(input.prompt);
-    const dispatched = { status: 'dispatched', agent_id, agent_type, session_id, description: oneLine(input.description), background, cwd: String(payload.cwd ?? ''), launched_at: at, ...(report_path && { report_path }) };
+    const dispatched = { status: 'dispatched', agent_id, agent_type, session_id, description: oneLine(input.description), background, cwd: String(payload.cwd ?? ''), launched_at: at, ...(report_path && { report_path }), ...routingOf(input, agent_type, agentsDir) };
     return background ? [dispatched] : [dispatched, { status: 'reported', agent_id, agent_type, session_id, reported_at: at }];
   }
   const hook = payload.hook_event_name ?? payload.hookEventName;
-  if ((hook === 'SubagentStop' || (!hook && !tool)) && typeof payload.agent_id === 'string' && payload.agent_id
-    && typeof payload.agent_type === 'string' && payload.agent_type) {
-    return [{ status: stopFailed(payload) ? 'failed' : 'reported', agent_id: payload.agent_id, agent_type: payload.agent_type, session_id, reported_at: at }];
+  // Grok's SubagentStop carries `subagentId` and `subagentType` and no snake_case form.
+  const agent_id = payload.agent_id || payload.subagentId;
+  const agent_type = payload.agent_type || payload.subagentType;
+  if ((hook === 'SubagentStop' || (!hook && !tool)) && typeof agent_id === 'string' && agent_id
+    && typeof agent_type === 'string' && agent_type) {
+    return [{ status: stopFailed(payload) ? 'failed' : 'reported', agent_id, agent_type, session_id, reported_at: at }];
   }
   return [];
 }
 
 // Appends the rows a payload earns to its session's file. Returns the rows written.
-export function recordFromPayload(payload, { stateDir = ledgerDir(), now } = {}) {
+export function recordFromPayload(payload, { stateDir = ledgerDir(), now, agentsDir } = {}) {
   if (isOff()) return [];
-  const rows = rowsFromPayload(payload, now);
+  const rows = rowsFromPayload(payload, now, agentsDir ? { agentsDir } : undefined);
   if (!rows.length) return [];
   mkdirSync(stateDir, { recursive: true });
   appendFileSync(ledgerFile(stateDir, payload.session_id ?? payload.sessionId), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
@@ -268,6 +356,57 @@ export function pendingReport({ sessionId, stateDir = ledgerDir(), cwd, runDir, 
 }
 
 export const pendingAgents = (options) => pendingReport(options).agents;
+
+// The rows of one session's file, or of every file in the state dir without `sessionId`. The
+// read side of `attemptOf` and `routingSummary`.
+export function ledgerRows({ sessionId, stateDir = ledgerDir() } = {}) {
+  return (sessionId ? [ledgerFile(stateDir, sessionId)] : ledgerFiles(stateDir)).flatMap(readRows);
+}
+
+// The attempt number a new dispatch of `unit` would be: one more than the dispatches of that unit
+// that failed or were redispatched. A `failed` row carries no unit of its own, so it joins its
+// unit through the `dispatched` row with the same agent id; each such agent counts once. A unit
+// with no history, and a row set with no unit, is attempt 1.
+export function attemptOf(rows, unit) {
+  if (typeof unit !== 'string' || !unit || !Array.isArray(rows)) return 1;
+  const unitOf = new Map(rows.filter((r) => r.unit && r.agent_id).map((r) => [r.agent_id, r.unit]));
+  const spent = new Set();
+  rows.forEach((r, i) => {
+    if ((r.status === 'failed' || r.status === 'redispatched') && (r.unit ?? unitOf.get(r.agent_id)) === unit) spent.add(r.agent_id ?? r.id ?? i);
+  });
+  return spent.size + 1;
+}
+
+// The routing advisories over `dispatched` rows, each agent once. Judgment dispatches are the
+// strong-floor agents. `triggered` is the judgment dispatches that asked for premium or frontier
+// (`requestedTier`), or the ones `options.triggered(row)` selects; a triggered dispatch whose applied
+// rung is below premium is starved. `premium` counts judgment dispatches applied at premium or
+// above, and the overuse advisory fires when its share of judgment dispatches exceeds `ceiling`
+// (a guess until ledgers measure it). Advisory only: it returns text, and nothing here fails.
+//
+// deferred(the ledger stores the requested tier, not the guard's computed trigger, so a lead that
+// never asks for premium reads as triggered 0, upgrade path: stamp the guard's derived trigger on
+// the row and pass it as options.triggered).
+export function routingSummary(rows, { ceiling = DEFAULT_PREMIUM_CEILING, triggered = (r) => r.requestedTier === 'premium' || r.requestedTier === 'frontier' } = {}) {
+  const seen = new Set();
+  const judgment = (Array.isArray(rows) ? rows : []).filter((r) => {
+    if (r.status !== 'dispatched' || !JUDGMENT_AGENTS.has(String(r.agent_type ?? '').split(':').pop())) return false;
+    if (!r.agent_id) return true;
+    return !seen.has(r.agent_id) && Boolean(seen.add(r.agent_id));
+  });
+  const atPremium = (r) => TIER_RUNGS.indexOf(rungOfModel(r.appliedModel)) >= TIER_RUNGS.indexOf('premium');
+  const premium = judgment.filter(atPremium).length;
+  const asked = judgment.filter(triggered);
+  const starvedCount = asked.filter((r) => !atPremium(r)).length;
+  const share = judgment.length ? premium / judgment.length : 0;
+  const starved = starvedCount > 0;
+  const overused = judgment.length > 0 && share > ceiling;
+  const advisories = [];
+  if (starved) advisories.push(`advisory: routing starved - ${starvedCount} of ${asked.length} triggered judgment dispatch(es) ran below premium`);
+  if (overused) advisories.push(`advisory: routing overuse - premium share ${Math.round(share * 100)}% (${premium} of ${judgment.length} judgment dispatches) is above the ${Math.round(ceiling * 100)}% ceiling`);
+  const verdict = [starved && 'STARVED', overused && 'OVERUSED'].filter(Boolean).join('/') || 'ok';
+  return { judgment: judgment.length, triggered: asked.length, premium, share, ceiling, starved, overused, advisories, line: `Routing: ${judgment.length} judgment, ${asked.length} triggered, ${premium} premium -> ${verdict}` };
+}
 
 // Appends a `failed` row with the operator's reason for a worker whose report was lost. The row
 // lands in the launching session's file, so every reader of that session sees the agent settled.

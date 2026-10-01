@@ -82,7 +82,7 @@ Each contract declares these top-level concerns:
 The `lead` block records the session model: the model the operator started the session
 with, on any host. The validator checks it for shape only: a nonempty model, a known tier,
 and a known effort. A lead below strong, or a model the registry cannot place at its declared
-tier, prints a warning and never fails the contract. The session lead owns acceptance. Unit
+tier, prints a warning and never fails the contract. A task-based contract caps the lead and every unit at high effort, the frontier peer included, while replay and calibration contracts keep their accepted efforts. The session lead owns acceptance. Unit
 floors still fail closed, so judgment, review, and refutation stay at the strong tier. A review or refutation unit names both the unit it
 validates and the role-independent relationship. Finalization also requires each planned
 operative artifact to exist and contain evidence. Earlier contract versions retain their
@@ -904,8 +904,18 @@ only by sessions that carry an `ended` marker, so a concurrent live session in t
 never reported. A resumed session that launches again after its marker reads as live until it ends
 again. `CODE_OPS_AGENT_LEDGER_CAPTURE=1`
 writes the key paths of each distinct payload shape per host, never a value, to
-`payload-keys.ndjson` in the ledger directory, before the Grok early return. Evidence:
-`scripts/agent-ledger.mjs`, `plugins/code-ops-suite/hooks/agent-ledger.mjs`,
+`payload-keys.ndjson` in the ledger directory, before the Grok early return. A `dispatched` row also
+carries `unit`, `requestedTier`, `requestedEffort`, `appliedModel`, `appliedEffort`, `effortSource`
+(`workflow` or `frontmatter`), and `flag` (`ok`, `under`, or `over`). The first three come from the
+brief's `Unit:`, `Tier:`, and `Effort:` lines, read with the dispatch guard's label rule. The applied
+model is the dispatch `model` override, else the agent frontmatter `model:`. The applied effort is the
+dispatch `effort` option, else the frontmatter `effort:`. An absent field records `null`, and a row
+stores no brief text beyond those three values. `attemptOf(rows, unit)` derives a unit's attempt from
+its failed and redispatched rows. `routingSummary(rows)` returns the starvation and overuse
+advisories and the `Routing:` line; both are advisory and never a failure, and the premium ceiling
+defaults to 25% of judgment dispatches. A Grok `SubagentStop` carries camelCase `subagentId` and
+`subagentType` and no `agent_id`; the ledger maps them, so the hook records a Grok stop and still
+records no Grok launch. Evidence: `scripts/agent-ledger.mjs`, `plugins/code-ops-suite/hooks/agent-ledger.mjs`,
 `plugins/code-ops-suite/hooks/session-receipt.mjs`, and `evals/agent-ledger/run.mjs`.
 
 `co burndown [--program <slug>] [--run <dir>] [--root <dir>] [--json]` prints one read-only line,
@@ -1149,7 +1159,7 @@ From and To state to belong to its entity and every Writer cell to be non-empty.
 | 3 | Unit (dispatch row) | none | lead dispatches | unit pending, dispatch guard allows, band assessed, agentType is a suite agent | dispatched | S `dispatch-ledger.mjs add` with `--actor-id` | `DISPATCH_LEDGER.md` | built |
 | 4 | Worker run | none | host launches a worker | hook reaches the launch | dispatched | H PostToolUse on `Agent` in `plugins/code-ops-suite/hooks/agent-ledger.mjs`; covered by 3 | agent ledger | built |
 | 5 | Unit (dispatch row) | dispatched | worker returns | artifact exists and passes its section check | reported | S `dispatch-ledger.mjs update --status reported --report` | `DISPATCH_LEDGER.md` | built |
-| 6 | Worker run | dispatched | host reports the stop | SubagentStop carries `agent_id` | reported | H SubagentStop in `plugins/code-ops-suite/hooks/agent-ledger.mjs`; covered by 5 or 7 | agent ledger | built |
+| 6 | Worker run | dispatched | host reports the stop | SubagentStop carries `agent_id` (Grok: `subagentId`) | reported | H SubagentStop in `plugins/code-ops-suite/hooks/agent-ledger.mjs`; covered by 5 or 7 | agent ledger | built |
 | 7 | Unit (dispatch row) | dispatched | worker errors or dies | lead sees the error or a stale view | failed | S `dispatch-ledger.mjs update --status failed` | `DISPATCH_LEDGER.md` | built |
 | 8 | Unit (dispatch row) | failed | lead retries | new row with a new actor | redispatched | S `dispatch-ledger.mjs update --status redispatched`, then `add` | `DISPATCH_LEDGER.md` | built |
 | 9 | Unit acceptance | pending | lead records verdicts | unit reported and every blocking criterion PASS | accepted | S `run-contract.mjs record` and `finalize` | `RUN_CONTRACT.json` | built |

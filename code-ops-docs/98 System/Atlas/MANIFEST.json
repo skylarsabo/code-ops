@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "f649cb6cfb1a0ec185e28fd6168ddb404967fe3cf9fc85a15d8a8dd38b8efc54",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "c160d5be7cfea4500e2436d22fe86f593ca106afbf64310b4ab6e360759d40c5",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -147,6 +147,11 @@
           "anchor": "#!/usr/bin/env node"
         },
         {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 217,
+          "anchor": "const agent_id = payload.agent_id || payload.subagentId;"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
           "line": 39,
           "anchor": "// HOST COVERAGE. Claude Code and Codex document"
@@ -159,7 +164,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 116,
-          "anchor": "board: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
@@ -174,7 +179,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 107,
-          "anchor": "program: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
@@ -280,8 +285,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "cf36e743f0236c2c425787790dbbb042ae81b565443e88b9ea37bd2d85fecd56",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "1cbd0331c4b756044424b63ad6f030301979d6797f95da9db1c96fa6b3a29dd9",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -485,13 +490,28 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 227,
+          "line": 315,
           "anchor": "// directory are not reported as abandoned."
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 175,
+          "anchor": "function routingOf(input, agentType, agentsDir) {"
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 370,
+          "anchor": "export function attemptOf(rows, unit) {"
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 390,
+          "anchor": "export function routingSummary(rows, { ceiling = DEFAULT_PREMIUM_CEILING, trigge"
         },
         {
           "file": "scripts/co.mjs",
           "line": 150,
-          "anchor": "snapshot: 'compact-snapshot.mjs',"
+          "anchor": "// compaction loses. It needs"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
@@ -521,11 +541,11 @@
         {
           "file": "scripts/vendored-manifest.mjs",
           "line": 123,
-          "anchor": "{ name: 'compact-snapshot.mjs', plugins: ['code-ops-suite'] },"
+          "anchor": "and the PreCompact writer. It imports agent-ledger.mjs, cli-lib.mjs, and"
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 122,
+          "line": 207,
           "anchor": "const agent_id = agentIdOf(response);"
         },
         {
@@ -550,8 +570,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 153,
-          "anchor": "// A domain named here runs this verb when the caller gives none, so"
+          "line": 153
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -603,6 +622,16 @@
           "anchor": "const contractRequired = contract.context.requiredViewSections ?? [...OPTIONAL_V"
         },
         {
+          "file": "scripts/run-contract.mjs",
+          "line": 137,
+          "anchor": "if (taskBased && c.lead?.effort === 'xhigh') errors.push('lead effort xhigh is a"
+        },
+        {
+          "file": "scripts/run-contract.mjs",
+          "line": 202,
+          "anchor": "${unit.id || expected} effort xhigh is above the high ceiling for task-based con"
+        },
+        {
           "file": "scripts/context-bundle.mjs",
           "line": 264,
           "anchor": "...((f['--sections'] || f['--require-sections'] || contract.context.requiredView"
@@ -626,6 +655,16 @@
           "file": "scripts/sync-global.mjs",
           "line": 113,
           "anchor": "function classify(file, source, state) {"
+        },
+        {
+          "file": "scripts/distill-check.mjs",
+          "line": 6,
+          "anchor": "//   node scripts/distill-check.mjs inventory   --hub <hub dir> --out <file.json"
+        },
+        {
+          "file": "scripts/co.mjs",
+          "line": 95,
+          "anchor": "distill: 'distill-check.mjs',"
         }
       ]
     },
@@ -635,8 +674,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "9e989c463c2d2dba25c713df1da2efbf8484fbef1018b2977a5e05f1a4fab01d",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "7cdeecd3ff3bebb1e0860ef1c06c5144e426661948f4344c734848ffc916d3fe",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -691,12 +730,12 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 432,
-          "anchor": "expect(pushed.includes('OI-01 open item') && pushed.includes('OI-12') && !pushed"
+          "anchor": "writeFileSync(join(run, 'TASKS.md'), ['# Tasks', '- [x] OI-99 closed item', ...i"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 438,
-          "anchor": "expect(pushed.includes('COMPACT_SNAPSHOT.md is not written; run co snapshot'),"
+          "anchor": "await hooksFor['experimental.session.compacting']({ sessionID }, out);"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -765,8 +804,13 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 327,
+          "line": 466,
           "anchor": "export function captureOn({ stateDir = ledgerDir(), env = process.env } = {}) {"
+        },
+        {
+          "file": "evals/agent-ledger/run.mjs",
+          "line": 22,
+          "anchor": "//   - a dispatched row carries the routing fields (unit, requested tier and eff"
         },
         {
           "file": "evals/co-facade/run.mjs",
@@ -885,7 +929,12 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 185,
-          "anchor": "expect(ceilTurn.parts[0].text.includes('New dispatches are now gated until you r"
+          "anchor": "const dispatch = async (hooksFor, sessionID) => {"
+        },
+        {
+          "file": "evals/distill-check/run.mjs",
+          "line": 2,
+          "anchor": "// Distill no-loss and findability regression eval (scripts/distill-check.mjs,"
         }
       ]
     },
@@ -897,8 +946,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "350b0a770771c52c999e33f6e09084a0949ad5fe3eaebb51b55dfbc383a0e7fa",
+      "verifiedAt": "bc88a198ad90f33b20353182e3efae72ca81f1da",
+      "verifiedDigest": "f37b6cb536209fe0d9fe21889ad266b9595977ecfff6303ca2058857b8647e81",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1008,8 +1057,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "0299d422f38f8f308673a3db14815c120e241dee04c5c377b8cffe8e217e38ff",
+      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
+      "verifiedDigest": "3f4906d713e6ddcd7df81530bb15c20af2b3ba87ff13d4d17eaf01e9981fa3a4",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1034,6 +1083,14 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 542
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 59
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 454
         }
       ]
     },
@@ -1058,8 +1115,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "9e4ed036e8574190d49231107768ae32fa2395e62a37c75b79af4df325a7b5ad",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "a63c543da582b48e2a8810b27664e4ee31838e2ca94dfeccc4715bfdc8464e90",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
