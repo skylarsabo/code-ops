@@ -254,8 +254,8 @@ export const CodeOpsModelFloors = async ({ directory = process.cwd() } = {}) => 
     config.mcp['code-ops-query'] ??= { type: 'local', command: ['node', join(SUITE_ROOT, 'scripts', 'context-query-mcp.mjs')], enabled: true };
   },
   'chat.params': async (input) => {
-    // A tier clone (`<agent>-frontier`, `<agent>-lead`) is held to its base agent's floor.
-    const agent = String(input?.agent ?? '').replace(/-(light|mid|strong|frontier|lead)$/, '');
+    // A tier clone (`<agent>-frontier`, `<agent>-premium`, `<agent>-lead`) is held to its base agent's floor.
+    const agent = String(input?.agent ?? '').replace(/-(light|mid|strong|premium|frontier|lead)$/, '');
     const required = REQUIRED[input?.agent] ?? REQUIRED[agent];
     if (!required) return;
     const provider = input?.model?.providerID;
