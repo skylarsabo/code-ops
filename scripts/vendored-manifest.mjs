@@ -113,6 +113,8 @@ export const RUNTIME_SCRIPTS = [
   { name: 'docs-gate.mjs', plugins: ['code-ops-suite'] },
   // `co docs relocate`; docs-gate.mjs step 6 imports it as a SIBLING.
   { name: 'docs-relocate.mjs', plugins: ['code-ops-suite'] },
+  // `co docs distill`; imports cli-lib, record-lib, and context-index-lib as SIBLINGS.
+  { name: 'distill-check.mjs', plugins: ['code-ops-suite'] },
   // The agent ledger. hooks/agent-ledger.mjs imports it as ../scripts/agent-ledger.mjs, and
   // `co agents pending` runs it.
   { name: 'agent-ledger.mjs', plugins: ['code-ops-suite'] },
