@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.3.9
+- The vendored `co.mjs` gains the `docs distill` verb, kept byte-identical with the root script.
+
 ## 3.3.8
 - New `CONVENTIONS.md` §13, Workflow fan-out: when a Workflow may run, how batches enter the dispatch ledger, and the per-call rules.
 

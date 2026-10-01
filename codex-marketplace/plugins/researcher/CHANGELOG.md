@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.8
+- The vendored `co.mjs` gains the `docs distill` verb, kept byte-identical with the root script.
+
 ## 0.16.7
 - The vendored `co.mjs` routes `co snapshot`, which runs where code-ops-suite bundles it.
 
