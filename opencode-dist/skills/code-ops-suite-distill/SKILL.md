@@ -159,29 +159,47 @@ the file by hand.
 input of every later no-loss check, so write them before any file moves. Checkpoint with the relocate plan
 as the artifact.
 
+Bring the hub to manifest version 3 before you plan. `relocate plan` and `apply` refuse any other
+version, and phase 8 needs the generated triage queue. `Standard.md`, section "Manifest version 3", states
+the blocks. Do these steps in order:
+
+1. Set `version` to 3 in `98 System/DOCS_MANIFEST.json`, and add its `runs`, `drafts`, and `state` blocks.
+2. Stamp `standard-version: 5` in the hub's `Standard.md`.
+3. List every status the vault uses in `drafts.statuses`. The list is the whole vocabulary, so it holds
+   `draft`, `current`, and `superseded`, plus `amended` for phase 4 and `stale` for phase 7.
+4. Run `node <plugin-root>/scripts/co.mjs check vault <hub> --render`. It writes
+   `10 Design/INDEX.md` and `98 System/TRIAGE.md`.
+
 **2 Relocate.** Show the operator the plan totals, the runtime reads, and the unresolved and conflict
 counts, and wait for approval. `apply` refuses a dirty tree and never commits. It prints a commit
 message for the wave. Give that message to the operator, or commit it when the operator granted commits
 for this run, so each wave lands as one commit. The next wave waits for a clean tree. Checkpoint with
-`98 System/FORWARDING.json` as an artifact. `state done 2` then runs the no-loss check over every
-inventory and refuses on a loss, an ambiguity, or a count mismatch. A path that moved without a
+the `RELOCATION_PLAN.json` that `plan` wrote and `98 System/FORWARDING.json` as artifacts. `state done 2`
+refuses until every row of that plan is applied: its source is gone, or forwarded to a file that exists.
+A plan with no rows passes. `done 2` then runs the no-loss check over every inventory and refuses on a loss, an ambiguity, or a count mismatch. A path that moved without a
 forwarding entry is a loss. Add the entry and run `done` again.
 
 **3 Classify.** Write the worklist, one repo-relative path per line, and run
 `state plan 3 --paths <worklist>`. The plan sorts the paths into batches and picks the sample of each
-batch, one path in ten and at least one. Read the plan with `state show --json`.
+batch, one path in ten and at least one. Read the plan with `state show --json`. When the vault holds no
+page for the phase, run `state plan <n> --none` instead, and `done` accepts the empty plan.
 
 - A worker takes one batch: `state assign 3 --batch <id> --worker <name>`. The worker adds the five fields
-  to each note's frontmatter and keeps a field already set. It never edits a body. It returns a table of
-  path, fields, and a one-line reason for each `decides`. A note with no recoverable key is reported.
+  to each note's frontmatter and keeps a field already set. It never edits a body. It fills `decides` from
+  the note's decision line, the sentence that states what was chosen, as one line. It never builds `decides`
+  from keywords, and it leaves the field out when the note records no decision. State this rule in every
+  worker brief. It returns a table of path, fields, and a one-line reason for each `decides`. A note with no
+  recoverable key is reported.
 - The lead reads every decision and amendment line in the batch against its note, and every sample path. Then
   `state result 3 --batch <id> --defects <n>`. With `n` above 0, the batch goes to full review. The lead
   reads every note in it and runs `state review 3 --batch <id>`. A second pass by a different worker is the
   other way out, and the sample repeats. A worker never classifies its own batch twice, and `assign` refuses it.
 - `state done 3` refuses while a batch is unresolved. Checkpoint with the per-batch tables as artifacts.
+  A checkpoint with a batch unresolved is a pause. The batch verbs refuse until `state reopen 3`.
 
 **4 Chain.** For each amendment, erratum, or supersession, add `amends:` or `supersedes:` to the later
-note, with the path of the earlier one. Set `status` on both: `current`, `amended`, or `superseded`. A
+note, with the path of the earlier one. Set `status` on both: `current`, `amended`, or `superseded`. The
+checker rejects a status that `drafts.statuses` does not list, so finish step 3 of phase 1 first. A
 superseded note links to its successor. An amendment carries the key of the record it amends. Write the
 chain report with one row per edge: from, to, kind, and the sentence in each note that shows it. The lead reads
 every row against both notes. An edge the notes do not settle goes to the operator.
@@ -194,12 +212,19 @@ lead reads every archive choice. `state done 5` runs no-loss again, and it also 
 count. Add `--require-findable` once the generated indexes exist, so an unreachable note blocks the phase.
 
 **6 Ledgers.** Run program mode for each program ledger, then record it with `state start 6`,
-`state checkpoint 6 --artifact <LEDGER_DIFF.md>...`, and `state done 6`.
+`state checkpoint 6 --artifact <LEDGER_DIFF.md>...`, and `state done 6`. Program mode refuses a ledger
+with no `Grammar: 2` line. Adopt grammar 2 for it through the `handoff` skill first, or list it as skipped
+in the checkpoint artifact with that reason. A vault whose ledgers are all legacy finishes phase 6 with that
+list as its artifact.
 
 **7 Synthesis.** Plan batches as in phase 3 over every synthesis page, with `state plan 7`. A worker adds
-`sources:`, an array of hub-relative paths that the page's claims rest on, and sets `status: stale` on a page
-whose source is superseded or archived. A page it cannot source is reported and left alone. The lead reads
-each batch sample and records `state result 7`, with the same full-review rule. Checkpoint with the page list.
+`sources:`, an array of repository-root globs (for example `scripts/**`), not hub-relative paths. The globs
+must match tracked files. The worker sets `status: stale` on a page whose source is superseded or archived,
+and `stale` must be in `drafts.statuses` (step 3 of phase 1). A page it cannot source is reported and left
+alone. The checker fails a page with `sources:` and no `sourceDigest:`. After the lead reads the batch,
+record each digest with `node <plugin-root>/scripts/co.mjs check vault <hub> --stamp "<page>"`,
+and stamp again after any source changes. The lead reads each batch sample and records `state result 7`,
+with the same full-review rule. Checkpoint with the page list.
 
 **Fan-out.** On Claude, phases 3 and 7 fan out through a Workflow as `§16` allows. The operator must opt in
 to Workflow first, so ask at the checkpoint before phase 3, and never start one alone. Without that opt-in,

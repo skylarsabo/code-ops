@@ -337,6 +337,20 @@ const synthTriage = v3Vault({ ...synthesis('Unsourced', OLD), ...synthesis('Fres
 renderRun(synthTriage);
 expect(triageOf(synthTriage).includes('- 10 Design/Unsourced.md | unsourced-synthesis |') && !/Fresh synthesis|Sourced\.md/.test(triageOf(synthTriage)),
   `only an old synthesis with no sources enters triage, got:\n${triageOf(synthTriage)}`);
+// A file archived whole keeps its draft status and no-edit bytes, so it is no live draft and never enters triage.
+// The live twin under 10 Design still does, so the exclusion is the folder and not the rule.
+const archivedTriage = v3Vault({
+  '99 Archive/Old draft.md': note('draft', OLD),
+  '99 Archive/Specs/Old synthesis.md': note('current', OLD, { type: 'synthesis' }),
+  ...staleDraft(),
+});
+const archivedRun = renderRun(archivedTriage);
+expect(archivedRun.status === 0 && triageOf(archivedTriage).includes('- 10 Design/Stale.md | stale-draft |')
+  && !/99 Archive/.test(triageOf(archivedTriage)),
+  `a stale draft or unsourced synthesis under 99 Archive must stay out of triage while a live one is listed, got ${archivedRun.status}:\n${archivedRun.out}\n${triageOf(archivedTriage)}`);
+const archiveNameOnly = v3Vault({ '10 Design/99 Archive/Nested.md': note('draft', OLD) });
+renderRun(archiveNameOnly);
+expect(/Nested\.md \| stale-draft/.test(triageOf(archiveNameOnly)), 'only the hub-level 99 Archive folder is exempt from triage; a folder of that name below another folder is not');
 // INDEX: grouped by status in manifest order, each note with its date and next line.
 const indexed = v3Vault({
   '10 Design/Alpha.md': note('draft', today, { extra: 'next: ship it\n' }),

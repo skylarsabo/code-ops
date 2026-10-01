@@ -24,6 +24,14 @@
 //   - the maintain pass: it starts only after phase 8 is done and needs a budget, an item counts once,
 //     the round that reaches the budget stops the pass at a checkpoint, a checkpointed pass resumes,
 //     and the pass ends only on a passing gate check;
+//   - an empty plan: `plan --none` records no batches for a batched phase, `done` then passes, a phase
+//     nobody planned still refuses, `--none` beside `--paths` refuses, and a plan is made once;
+//   - the checkpoint pause: a batched phase checkpointed with unresolved batches prints one stderr line
+//     that names them and says `reopen` resumes them, the batch verbs on that phase say to run `reopen`
+//     first, and a checkpoint with every batch resolved prints nothing;
+//   - the relocation rule: `done 2` refuses while a plan row's source still exists and no forwarding
+//     chain ends at an existing file, passes once the source is moved or forwarded, passes a plan with
+//     no rows, and refuses when no checkpoint artifact exists;
 //   - the same verbs twice leave the same state bytes.
 // One live run walks phase 1 to phase 8 and a maintain pass through the real verbs. Every other case starts from a
 // state file written for its phase, so a mutant run costs a few spawns and not a whole walk.
@@ -341,7 +349,94 @@ async function copies(c, f) {
   f.inFolderAsIs = inFolder.status === 0 && read(BASELINE) === before[0] && read(COPY) === before[1] && walk(c.repo, `${COPIES}/`).join() === `${COPIES}/inventory-1.json`;
 }
 
-const SEGMENTS = { ordering, relocate, classify, chain, drafts, synthesis, install, maintain, copies };
+// An empty plan for a batched phase, and the refusals around it.
+async function emptyPlan(c, f) {
+  const { st } = c;
+  await c.enter(7, 'running');
+  put(c.repo, 'run/one.txt', `${INDEX}\n`);
+  const list = join(c.repo, 'run', 'one.txt');
+  await st('checkpoint', 7, ...ART);
+  const unplanned = await st('done', 7, '--review', 'read a sample');
+  f.unplannedDone = unplanned.status === 1 && c.phaseOf(7)?.status === 'checkpointed';
+  await st('reopen', 7);
+  const both = await st('plan', 7, '--none', '--paths', list);
+  f.noneWithPaths = both.status === 2 && c.phaseOf(7)?.planned !== true && c.phaseOf(7)?.batches.length === 0;
+  f.noneStatus = (await st('plan', 7, '--none')).status;
+  f.noneRecorded = c.phaseOf(7)?.planned === true && c.phaseOf(7).batches.length === 0;
+  f.replanNone = (await st('plan', 7, '--none')).status;
+  f.replanPaths = (await st('plan', 7, '--paths', list)).status;
+  await st('checkpoint', 7, ...ART);
+  f.doneEmpty = (await st('done', 7, '--review', 'read a sample')).status;
+  const shown = json(await st('show', null, '--json'));
+  f.emptyDone = c.phaseOf(7)?.status === 'done' && shown?.next?.phase === 8;
+  await c.enter(3, 'running');
+  f.planThree = (await st('plan', 3, '--paths', list)).status;
+  f.noneAfterPaths = (await st('plan', 3, '--none')).status;
+}
+
+// A batched phase checkpointed with batches unresolved, and the verbs that refuse on it.
+async function checkpointPause(c, f) {
+  const { st } = c;
+  await c.enter(3, 'running');
+  put(c.repo, 'run/pair.txt', `${INDEX}\n${HUB}/00 Home.md\n`);
+  await st('plan', 3, '--paths', join(c.repo, 'run', 'pair.txt'));
+  const paused = await st('checkpoint', 3, ...ART);
+  f.pauseWarn = paused.status === 0 && /B01 planned/.test(paused.err) && paused.err.includes('reopen 3') && paused.err.trim().split('\n').length === 1;
+  const refusals = [await st('assign', 3, '--batch', 'B01', '--worker', 'w1'), await st('result', 3, '--batch', 'B01', '--defects', '0'), await st('review', 3, '--batch', 'B01')];
+  f.pauseHint = refusals.every((r) => r.status === 1 && r.err.includes('run reopen 3 first'));
+  await st('reopen', 3);
+  await st('assign', 3, '--batch', 'B01', '--worker', 'w1');
+  await st('result', 3, '--batch', 'B01', '--defects', '0');
+  const quiet = await st('checkpoint', 3, ...ART);
+  f.quietCheckpoint = quiet.status === 0 && quiet.err === '' && c.batchOf(3, 'B01')?.status === 'clean';
+}
+
+const KEPT = 'docs/kept.md';
+const KEPT_TO = `${HUB}/10 Design/kept.md`;
+const CACHE = `${HUB}/10 Design/cache-plan.md`;
+const planOf = (...rows) => `${JSON.stringify({ version: 1, rows: rows.map(([source, target]) => ({ source, target, kind: 'tree' })), roots: [] }, null, 2)}\n`;
+const forwardingPlus = (...pairs) => forwardingWith(['docs/guide.md', `${HUB}/10 Design/guide.md`], [LOST, `${HUB}/10 Design/runbook.md`], ...pairs);
+
+// `done 2` against a plan: unapplied, applied, accounted by forwarding, forwarded nowhere, empty, and no plan file.
+async function relocationApplied(c, f) {
+  const { st } = c;
+  const done = () => st('done', 2, '--review', 'plan approved');
+  await c.enter(2, 'checkpointed');
+  put(c.repo, FORWARDING, forwardingPlus());
+  put(c.repo, 'run/plan.json', planOf([KEPT, KEPT_TO]));
+  const unapplied = await done();
+  f.unapplied = unapplied.status === 1 && unapplied.all.includes(`UNAPPLIED ${KEPT}`) && c.phaseOf(2)?.status === 'checkpointed';
+
+  put(c.repo, FORWARDING, forwardingPlus([CACHE, `${HUB}/10 Design/absent.md`]));
+  put(c.repo, 'run/plan.json', planOf([CACHE, `${HUB}/10 Design/absent.md`]));
+  const absent = await done();
+  f.forwardedAbsent = absent.status === 1 && absent.all.includes(`UNAPPLIED ${CACHE}`);
+
+  put(c.repo, FORWARDING, forwardingPlus([CACHE, `${HUB}/10 Design/cache-plan-v1.md`]));
+  put(c.repo, `${HUB}/10 Design/cache-plan-v1.md`, '# Cache plan v1\n');
+  put(c.repo, 'run/plan.json', planOf([CACHE, `${HUB}/10 Design/cache-plan-v1.md`]));
+  f.accounted = (await done()).status;
+
+  await c.enter(2, 'checkpointed');
+  put(c.repo, FORWARDING, forwardingPlus([KEPT, KEPT_TO]));
+  put(c.repo, KEPT_TO, fixtureText(KEPT));
+  rmSync(join(c.repo, KEPT), { force: true });
+  put(c.repo, 'run/plan.json', planOf([KEPT, KEPT_TO]));
+  f.applied = (await done()).status;
+
+  await c.enter(2, 'checkpointed');
+  put(c.repo, 'run/plan.json', planOf());
+  f.zeroMoves = (await done()).status;
+
+  await c.enter(2, 'checkpointed');
+  rmSync(join(c.repo, 'run', 'plan.json'), { force: true });
+  const missing = await done();
+  f.noPlanFile = missing.status === 1 && missing.all.includes('MISSING') && c.phaseOf(2)?.status === 'checkpointed';
+}
+
+const SEGMENTS = { ordering, relocate, classify, chain, drafts, synthesis, install, maintain, copies, emptyPlan, checkpointPause, relocationApplied };
+// These segments re-enter phases, so each runs in its own seeded context, also in the live run.
+const OWN_CONTEXT = new Set(['emptyPlan', 'checkpointPause', 'relocationApplied']);
 const facts = async (script, names) => {
   const f = {};
   for (const name of names) await SEGMENTS[name](context(script), f);
@@ -351,7 +446,7 @@ const facts = async (script, names) => {
 async function liveRun(script) {
   const c = context(script, true);
   const f = {};
-  for (const name of Object.keys(SEGMENTS)) await SEGMENTS[name](c, f);
+  for (const name of Object.keys(SEGMENTS)) await SEGMENTS[name](OWN_CONTEXT.has(name) ? context(script) : c, f);
   return f;
 }
 
@@ -395,6 +490,16 @@ const CASES = {
   maintainBudgetStop: { segment: 'maintain', holds: (f) => f.round2 === 0 && f.budgetStop === true && f.stopNext === true },
   maintainResume: { segment: 'maintain', holds: (f) => f.resume === true },
   maintainEndsOnGate: { segment: 'maintain', holds: (f) => f.endNoReview === 2 && f.endLoss === true && f.endUnreachable === true && f.maintainDone === 0 && f.maintainChecks === true && f.nextPass === true },
+  emptyPlanRecorded: { segment: 'emptyPlan', holds: (f) => f.noneStatus === 0 && f.noneRecorded === true && f.doneEmpty === 0 && f.emptyDone === true },
+  unplannedPhaseRefuses: { segment: 'emptyPlan', holds: (f) => f.unplannedDone === true },
+  noneExcludesPaths: { segment: 'emptyPlan', holds: (f) => f.noneWithPaths === true },
+  planIsMadeOnce: { segment: 'emptyPlan', holds: (f) => f.replanNone === 1 && f.replanPaths === 1 && f.planThree === 0 && f.noneAfterPaths === 1 },
+  checkpointNamesOpenBatches: { segment: 'checkpointPause', holds: (f) => f.pauseWarn === true && f.quietCheckpoint === true },
+  refusalSaysReopen: { segment: 'checkpointPause', holds: (f) => f.pauseHint === true },
+  relocationRefusesUnapplied: { segment: 'relocationApplied', holds: (f) => f.unapplied === true && f.forwardedAbsent === true && f.applied === 0 },
+  relocationAcceptsForwarded: { segment: 'relocationApplied', holds: (f) => f.accounted === 0 },
+  relocationAcceptsEmptyPlan: { segment: 'relocationApplied', holds: (f) => f.zeroMoves === 0 },
+  relocationNeedsPlanFile: { segment: 'relocationApplied', holds: (f) => f.noPlanFile === true },
 };
 
 // Each mutant breaks one rule. `replace` maps an exact source string to its replacement, and every
@@ -432,6 +537,17 @@ const MUTANTS = [
   { name: 'resumes a pass with its old round count', replace: ['{ status: \'running\', rounds: 0, checkpoint: null,', '{ status: \'running\', checkpoint: null,'], pins: ['maintainResume'] },
   { name: 'ends a pass without the gate check', replace: ['if (ending.problems.length) refuseOn(', 'if (false) refuseOn('], pins: ['maintainEndsOnGate'] },
   { name: 'ends a pass with no review note', replace: ['if (!review) die(\'maintain-done needs', 'if (false) die(\'maintain-done needs'], pins: ['maintainEndsOnGate'] },
+  { name: 'finishes a batched phase nobody planned', replace: ['if (!phase.planned && !phase.batches.length) refuse(', 'if (false) refuse('], pins: ['unplannedPhaseRefuses'] },
+  { name: 'records no plan for --none', replace: ['if (flags.none) { phase.planned = true; return; }', 'if (flags.none) return;'], pins: ['emptyPlanRecorded'] },
+  { name: 'takes --none beside --paths', replace: ['if (flags.none && flags.paths) die(', 'if (false) die('], pins: ['noneExcludesPaths'] },
+  { name: 'plans a phase again after an empty plan', replace: ['if (phase.planned || phase.batches.length) refuse(', 'if (phase.batches.length) refuse('], pins: ['planIsMadeOnce'] },
+  { name: 'checkpoints a batched phase without naming its open batches', replace: ['if (open.length) console.error(', 'if (false) console.error('], pins: ['checkpointNamesOpenBatches'] },
+  { name: 'refuses a batch verb on a checkpointed phase without the reopen hint', replace: ['phase.status === \'checkpointed\' ? `; run reopen ${n} first` : \'\'', '\'\''], pins: ['refusalSaysReopen'] },
+  { name: 'finishes relocation with a planned move unapplied', replace: ['if (moved === null || !present(moved)) problems.push(', 'if (false) problems.push('], pins: ['relocationRefusesUnapplied'] },
+  { name: 'counts a source forwarded to an absent file as moved', replace: ['moved === null || !present(moved)', 'moved === null'], pins: ['relocationRefusesUnapplied'] },
+  { name: 'ignores forwarding for a source that still exists', replace: ['moved === null || !present(moved)', 'true'], pins: ['relocationAcceptsForwarded'] },
+  { name: 'refuses a relocation plan with no moves', replace: ['if (!Array.isArray(plan?.rows)) continue;', 'if (!Array.isArray(plan?.rows)) continue; if (!plan.rows.length) problems.push(\'UNAPPLIED empty\');'], pins: ['relocationAcceptsEmptyPlan'] },
+  { name: 'finishes relocation with no plan file', replace: ['if (!kept.length) return [', 'if (false) return ['], pins: ['relocationNeedsPlanFile'] },
 ];
 
 function mutantScript(index, [from, to]) {

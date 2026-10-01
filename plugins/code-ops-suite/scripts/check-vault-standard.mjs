@@ -66,7 +66,8 @@
 //  14. `10 Design/INDEX.md` and `98 System/TRIAGE.md` are generated. Check mode fails when either
 //      is missing or differs from what --render would write. Triage items are a `draft` older than
 //      `drafts.maxAgeDays` (by `updated`) with no `next:` line, and a `type: synthesis` note with
-//      no `sources:` and no update within `drafts.maxAgeDays`. An item stays listed until its
+//      no `sources:` and no update within `drafts.maxAgeDays`. A file under `99 Archive/` is never
+//      an item, because an archived file moves whole and keeps its status. An item stays listed until its
 //      cause clears and keeps the date it first entered the queue. Triage is a queue, never a
 //      failure by itself.
 //  15. A note that declares `sources:` (globs, as a flow list, a comma list, or a block list) fails
@@ -394,6 +395,7 @@ const MS_PER_DAY = 86_400_000;
 const today = new Date().toISOString().slice(0, 10);
 const ageDays = (updated) => (Date.parse(today) - Date.parse(updated)) / MS_PER_DAY;
 const PROMOTION_MARKER = /\b(?:PROMOTED|SUPERSEDED)\b/;
+const ARCHIVE_DIR = '99 Archive/';
 const nextLine = (text) => /^\s*next:[ \t]*(\S.*)$/im.exec(text)?.[1].trim() ?? null;
 
 // `superseded-by: [[Name#heading|alias]]`, `[[dir/Name.md]]`, or a bare vault path. A bare name
@@ -419,7 +421,8 @@ if (draftRules) for (const { path, text, fm } of checked) {
     fail(`${path}: status superseded needs a \`superseded-by\` frontmatter link that resolves to another note in the vault`);
   if (fm.status === 'draft' && PROMOTION_MARKER.test(text.split('\n').slice(0, 30).join('\n')))
     fail(`${path}: a draft carries a PROMOTED or SUPERSEDED marker in its first 30 lines — set its status to match, or remove the marker`);
-  const old = DATE_RE.test(fm.updated ?? '') && ageDays(fm.updated) > maxAgeDays;
+  // An archived file moved whole and keeps its frontmatter, so it is no live draft or page.
+  const old = DATE_RE.test(fm.updated ?? '') && ageDays(fm.updated) > maxAgeDays && !path.startsWith(ARCHIVE_DIR);
   if (old && fm.status === 'draft' && nextLine(text) === null) triage.push({ path, rule: 'stale-draft' });
   const patterns = sourcePatterns(fm);
   if (old && fm.type === 'synthesis' && fm.status !== 'superseded' && !patterns.length) triage.push({ path, rule: 'unsourced-synthesis' });

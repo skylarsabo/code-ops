@@ -359,8 +359,14 @@ function renderPlanMarkdown(plan) {
   return out.join('\n');
 }
 
+// A removed legacy root needs manifest version 3, so plan and apply refuse the same manifests.
+const versionRefusal = (ctx) => (ctx.manifest.version === 3 ? null
+  : `the manifest is version ${ctx.manifest.version}; a removed legacy root needs version 3. Upgrade it first: set "version": 3 with the runs, drafts, and state blocks, and stamp Standard.md with standard-version 5 (Standard.md, "Manifest version 3")`);
+
 function commandPlan(flags) {
   const ctx = loadContext(resolve(flags.root));
+  const stale = versionRefusal(ctx);
+  if (stale) die(`plan refused: ${stale}`, 1);
   const roots = deriveRoots(ctx, flags.legacy);
   if (!roots.length) die('no legacy root holds tracked files, so there is nothing to plan', 1);
   const routing = routingFor(ctx.hub);
@@ -438,7 +444,8 @@ function commandApply(flags) {
   const root = resolve(flags.root);
   const plan = readPlan(flags.plan);
   const ctx = loadContext(root);
-  if (ctx.manifest.version !== 3) refuse(`the manifest is version ${ctx.manifest.version}; a removed legacy root needs version 3`);
+  const stale = versionRefusal(ctx);
+  if (stale) refuse(stale);
   if (plan.hub !== ctx.hub) refuse(`the plan names hub ${plan.hub} and this repository uses ${ctx.hub}`);
   if (gitOut(root, ['status', '--porcelain']).trim()) refuse('the working tree is dirty; commit or stash first');
   if (!gitOk(root, ['cat-file', '-e', `${plan.base}^{commit}`]) || !gitOk(root, ['merge-base', '--is-ancestor', plan.base, 'HEAD'])) {
