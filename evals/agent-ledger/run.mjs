@@ -14,8 +14,9 @@
 //     failed row and clears pending; a missing reason or an unknown id fails;
 //   - pending merges dispatched DISPATCH_LEDGER rows, deduped on actor id, names its sources, and
 //     prints `unknown` only on a host signal (a missing file is an empty source);
-//   - the env-gated payload capture writes key names and no values, is off by default, and runs
-//     before the Grok early return;
+//   - the opt-in payload capture (env var or a `capture.on` flag file) writes key names plus an
+//     allowlist of scalar values, records the host from environment variable names, dedupes on host,
+//     keys, and values, is off by default, and runs before the Grok early return;
 //   - the SessionEnd marker (`markSessionEnded`) is one idempotent `ended` row, never an agent; the
 //     `endedOnly` read lists a session's workers only after its marker, and the off switch writes none.
 //
@@ -30,7 +31,7 @@ import { tally } from '../harness.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const hook = join(repo, 'plugins', 'code-ops-suite', 'hooks', 'agent-ledger.mjs');
 const co = join(repo, 'scripts', 'co.mjs');
-const { markSessionEnded, pendingAgents, pendingReport } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
+const { captureKeys, captureOn, markSessionEnded, pendingAgents, pendingReport } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
 const { fails, check } = tally((name, detail) => `${name} - ${String(detail).slice(0, 300)}`);
 
 const home = mkdtempSync(join(tmpdir(), 'agent-ledger-eval-'));
@@ -195,6 +196,64 @@ try {
   check('n4. capture runs before the Grok early return, which still records no rows',
     r.status === 0 && r.stdout === '' && readFileSync(captureFile, 'utf8').includes('"host":"grok"') && files().length === rowsBefore && pending('s18').length === 0, files().join(','));
   check('n5. capture never reads as a ledger', pendingAgents({ stateDir, cwd }).every((a) => a.source === 'hook'), '');
+
+  // Capture switch, values, host, and dedupe, on library calls with an injected env and a temp state dir.
+  const flagFile = join(stateDir, 'capture.on');
+  rmSync(captureFile, { force: true });
+  writeFileSync(flagFile, '');
+  r = send(launch('s21', 'flagcap1'));
+  check('n6. the capture.on flag file turns capture on with the env var unset', r.status === 0 && existsSync(captureFile) && JSON.parse(readFileSync(captureFile, 'utf8').trim().split('\n')[0]).keys.includes('session_id'), files().join(','));
+  rmSync(flagFile);
+  rmSync(captureFile, { force: true });
+  send(launch('s22', 'flagcap2'));
+  check('n7. no flag file and no env var records nothing', !existsSync(captureFile) && captureOn({ stateDir, env: {} }) === false, files().join(','));
+
+  const capDir = (name) => join(home, 'cap', name);
+  const rowsOf = (dir) => (existsSync(join(dir, 'payload-keys.ndjson')) ? readFileSync(join(dir, 'payload-keys.ndjson'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)) : []);
+  const onEnv = (extra = {}) => ({ CODE_OPS_AGENT_LEDGER_CAPTURE: '1', ...extra });
+  const dirV = capDir('values');
+  captureKeys({ hook_event_name: 'PostToolUse', tool_name: 'spawn_agent', agent_type: 'a'.repeat(100), subagent_type: 7, prompt: 'LEAK-PROMPT', cwd: 'LEAK-CWD', session_id: 'LEAK-SESSION', message: 'LEAK-MESSAGE', nested: { tool_name: 'LEAK-NESTED' } }, { stateDir: dirV, env: onEnv() });
+  const valueText = existsSync(join(dirV, 'payload-keys.ndjson')) ? readFileSync(join(dirV, 'payload-keys.ndjson'), 'utf8') : '';
+  const valueRow = rowsOf(dirV)[0];
+  check('n8. the allowlisted values are recorded, strings cut to 64, and a non-string is skipped',
+    valueRow?.values?.hook_event_name === 'PostToolUse' && valueRow.values.tool_name === 'spawn_agent' && valueRow.values.agent_type === 'a'.repeat(64) && !('subagent_type' in valueRow.values) && Object.keys(valueRow.values).length === 3, valueText);
+  check('n9. no other value appears anywhere in the capture file, only key names', valueRow?.keys?.includes('prompt') && valueRow.keys.includes('nested.tool_name') && !/LEAK/.test(valueText), valueText);
+
+  const hostOfEnv = (name, extra) => {
+    const dir = capDir(name);
+    captureKeys({ hook_event_name: 'PreCompact' }, { stateDir: dir, env: onEnv(extra) });
+    return { row: rowsOf(dir)[0], text: existsSync(join(dir, 'payload-keys.ndjson')) ? readFileSync(join(dir, 'payload-keys.ndjson'), 'utf8') : '' };
+  };
+  const hostCases = [
+    ['codex', { CODEX_HOME: 'VALUE-CODEX' }, 'codex'],
+    ['codexclaude', { CODEX_HOME: 'VALUE-CODEX', CLAUDE_PLUGIN_ROOT: 'VALUE-CLAUDE' }, 'codex'],
+    ['grok', { GROK_PLUGIN_ROOT: 'VALUE-GROK', CODEX_HOME: 'VALUE-CODEX' }, 'grok'],
+    ['claude', { CLAUDE_PLUGIN_ROOT: 'VALUE-CLAUDE' }, 'claude'],
+    ['opencode', { OPENCODE_CONFIG: 'VALUE-OPENCODE' }, 'opencode'],
+    ['other', { PATH: 'VALUE-PATH' }, 'other'],
+  ];
+  const hostResults = hostCases.map(([name, extra, want]) => ({ name, want, ...hostOfEnv(name, extra) }));
+  check('n10. the host comes from environment variable names: grok, codex, claude, opencode, else other', hostResults.every((x) => x.row?.host === x.want), JSON.stringify(hostResults.map((x) => [x.name, x.row?.host])));
+  check('n11. env values never appear in the capture file, and envNames lists matching names sorted',
+    hostResults.every((x) => !/VALUE-/.test(x.text)) && hostResults[1].row.envNames.join() === 'CLAUDE_PLUGIN_ROOT,CODEX_HOME' && hostResults[5].row.envNames.length === 0, JSON.stringify(hostResults.map((x) => x.row?.envNames)));
+  const manyDir = capDir('many');
+  captureKeys({ hook_event_name: 'x' }, { stateDir: manyDir, env: onEnv(Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`CODEX_VAR_${String(i).padStart(2, '0')}`, 'VALUE-MANY']))) });
+  check('n12. envNames is capped at 30', rowsOf(manyDir)[0]?.envNames.length === 30, JSON.stringify(rowsOf(manyDir)[0]?.envNames?.length));
+
+  const dedupe = capDir('dedupe');
+  const base = { hook_event_name: 'PostToolUse', tool_name: 'Agent' };
+  captureKeys(base, { stateDir: dedupe, env: onEnv({ CODEX_HOME: 'a' }) });
+  captureKeys({ ...base, prompt: 'LEAK-ONE' }, { stateDir: dedupe, env: onEnv({ CODEX_HOME: 'a' }) });
+  captureKeys({ ...base, prompt: 'LEAK-TWO' }, { stateDir: dedupe, env: onEnv({ CODEX_HOME: 'a' }) });
+  check('n13. the same keys, values, and host dedupe to one line even when other values differ', rowsOf(dedupe).length === 2, JSON.stringify(rowsOf(dedupe).map((x) => x.keys)));
+  captureKeys({ ...base, tool_name: 'spawn_agent', prompt: 'x' }, { stateDir: dedupe, env: onEnv({ CODEX_HOME: 'a' }) });
+  check('n14. a new tool_name value is a new line', rowsOf(dedupe).length === 3, '');
+  captureKeys({ ...base, tool_name: 'spawn_agent', prompt: 'x' }, { stateDir: dedupe, env: onEnv({ CLAUDE_PLUGIN_ROOT: 'a' }) });
+  check('n15. a new host is a new line', rowsOf(dedupe).length === 4 && rowsOf(dedupe)[3].host === 'claude', JSON.stringify(rowsOf(dedupe).map((x) => x.host)));
+  const offBefore = captureOn({ stateDir: dedupe, env: { CODE_OPS_AGENT_LEDGER_CAPTURE: '0' } });
+  const envOn = captureOn({ stateDir: dedupe, env: { CODE_OPS_AGENT_LEDGER_CAPTURE: 'on' } });
+  writeFileSync(join(dedupe, 'capture.on'), '');
+  check('n16. captureOn reads the env var (1, true, on) and the flag file, and nothing else', !offBefore && envOn && captureOn({ stateDir: dedupe, env: {} }), `${offBefore} ${envOn}`);
 
   // The SessionEnd marker: the startup card lists only workers of sessions that ended.
   const endedIds = () => pendingAgents({ stateDir, cwd, endedOnly: true }).map((a) => a.agent_id).sort().join();

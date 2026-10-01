@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
-      "verifiedDigest": "1b29060972259f5eb525023fb1ce41ea86778cd8c31dd5a4e11ec97dd937ec80",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "f649cb6cfb1a0ec185e28fd6168ddb404967fe3cf9fc85a15d8a8dd38b8efc54",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -280,8 +280,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "c1e43414f0c9f54890429c0e3b0f28376980275ec1950a4e605ff34fe8436cd6",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "cf36e743f0236c2c425787790dbbb042ae81b565443e88b9ea37bd2d85fecd56",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -486,7 +486,7 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 227,
-          "anchor": "export function pendingReport({ sessionId, stateDir = ledgerDir(), cwd, runDir,"
+          "anchor": "// directory are not reported as abandoned."
         },
         {
           "file": "scripts/co.mjs",
@@ -526,7 +526,7 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 122,
-          "anchor": "const report_path = reportPathOf(input.prompt);"
+          "anchor": "const agent_id = agentIdOf(response);"
         },
         {
           "file": "scripts/handoff-state.mjs",
@@ -635,8 +635,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
-      "verifiedDigest": "428424fa8836eebf7ed3df7eaa7feab88487e8226013cb20dc59a62fa17c8d9a",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "9e989c463c2d2dba25c713df1da2efbf8484fbef1018b2977a5e05f1a4fab01d",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -764,6 +764,11 @@
           "anchor": "// Smoke eval for scripts/bench-hooks.mjs. It pins the contract that makes the b"
         },
         {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 327,
+          "anchor": "export function captureOn({ stateDir = ledgerDir(), env = process.env } = {}) {"
+        },
+        {
           "file": "evals/co-facade/run.mjs",
           "line": 123,
           "anchor": "const COMMANDS = ['brief', 'burndown', 'snapshot'];"
@@ -780,13 +785,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 359,
-          "anchor": "check('7g. fresh card: the Snapshot fresh line has counts and a path, and the sn"
+          "line": 359
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
           "line": 407,
-          "anchor": "check('7v. with no run-folder file the card finds the home state copy and reads"
+          "anchor": "writeFileSync(cardSnap, 'garbage that is not a snapshot\\n- REPLY OWED Nobody x:"
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
@@ -871,12 +875,12 @@
         {
           "file": "evals/compact-snapshot/run.mjs",
           "line": 385,
-          "anchor": "check('7q. REQUIRED stale card: Snapshot STALE, the open-item lines return, and"
+          "anchor": "writeFileSync(tasksFile, unchecked(13));"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
           "line": 395,
-          "anchor": ") && cl.some((l) => l.startsWith('open items in ')) && !c.stdout.includes('Snaps"
+          "anchor": "cl = linesOf(c);"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
@@ -893,8 +897,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
-      "verifiedDigest": "4c3ab03dfef2138664c4656a046170ea68e73074550c05962febca8480afbf86",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "350b0a770771c52c999e33f6e09084a0949ad5fe3eaebb51b55dfbc383a0e7fa",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1054,8 +1058,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
-      "verifiedDigest": "c8544381c2d86ee73665a1d226cd367de6e43183470a981d0662ab4e208e3550",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "9e4ed036e8574190d49231107768ae32fa2395e62a37c75b79af4df325a7b5ad",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

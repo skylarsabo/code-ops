@@ -66,7 +66,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false` | the `SubagentStop` advisory verdict and word-cap check, `subagent-report.mjs` |
 | `CODE_OPS_AGENT_LEDGER` | `off`, `0`, or `false` | the `PostToolUse` (`Agent`, `Task`) launch record and the `SubagentStop` report record in `~/.claude/code-ops/agents/`, `agent-ledger.mjs`; `co agents pending` reads them; also the `ended` marker that `session-receipt.mjs` writes at `SessionEnd` |
-| `CODE_OPS_AGENT_LEDGER_CAPTURE` | off unless `1` | the key-path capture inside `agent-ledger.mjs`: one `payload-keys.ndjson` row per host and payload shape, key names only, never a value |
+| `CODE_OPS_AGENT_LEDGER_CAPTURE` | off unless `1`, `true`, or `on`, or a `capture.on` flag file exists in the ledger directory (`<home>/.claude/code-ops/agents/`) | the payload capture in `agent-ledger.mjs`, run by the agent-ledger and PreCompact hooks: one `payload-keys.ndjson` row per host, key-path list, and value set; key names, the host from env variable names (`codex`, `grok`, `claude`, `opencode`, `other`), up to 30 matching env var names, and only `hook_event_name`, `tool_name`, `agent_type`, and `subagent_type` as values (64 characters each), never any other value |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs`; it silences only the card, not the feed |
 | `CODE_OPS_FEED` | `off`, `0`, or `false` | the change feed: event recording and delivery, `change-feed.mjs` |

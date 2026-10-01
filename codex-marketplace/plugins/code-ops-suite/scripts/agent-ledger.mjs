@@ -35,7 +35,7 @@
 //
 // Imports node builtins only, so it vendors beside the hook without a dependency.
 
-import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -47,6 +47,10 @@ const REASON_MAX = 200;
 const CAPTURE_FILE = 'payload-keys.ndjson';
 const CAPTURE_MAX_KEYS = 200;
 const CAPTURE_KEY_MAX = 64;
+const CAPTURE_FLAG = 'capture.on';
+const CAPTURE_MAX_ENV = 30;
+const CAPTURE_ENV_NAME = /^(CODEX|GROK|CLAUDE|OPENCODE)/i;
+const CAPTURE_VALUE_FIELDS = ['hook_event_name', 'tool_name', 'agent_type', 'subagent_type'];
 const DEFAULT_MAX_AGE_MS = 14 * 24 * 3_600_000;
 const DISPATCH_TOOLS = new Set(['Agent', 'Task']);
 const AGENT_ID_TEXT = /agentId:\s*([A-Za-z0-9]+)/;
@@ -316,21 +320,59 @@ function keyPaths(value, prefix = '', depth = 0, out = new Set()) {
   return out;
 }
 
-// Env-gated capture (`CODE_OPS_AGENT_LEDGER_CAPTURE=1`, off by default): appends one line of key
-// paths per distinct payload shape to `payload-keys.ndjson` in the state dir, so a host whose
-// payload the repository has never seen can be checked without storing a prompt or a message. The
-// file is not `.jsonl`, so `pendingAgents` never reads it as a ledger. Returns the keys, or null.
+// Capture is on when `CODE_OPS_AGENT_LEDGER_CAPTURE` is `1`, `true`, or `on`, or when a flag file
+// `capture.on` exists in the state dir. The flag file lets an operator switch capture on for a host
+// whose hooks do not inherit the shell environment: `New-Item <state dir>\capture.on` to start,
+// delete the file to stop. Off by default.
+export function captureOn({ stateDir = ledgerDir(), env = process.env } = {}) {
+  if (/^(1|true|on)$/i.test(env.CODE_OPS_AGENT_LEDGER_CAPTURE ?? '')) return true;
+  try { return existsSync(join(stateDir, CAPTURE_FLAG)); } catch { return false; }
+}
+
+// The host, read from environment variable NAMES only, never a value: Grok when `GROK_PLUGIN_ROOT`
+// is set, else Codex, Claude, or OpenCode by name prefix, else `other`.
+function hostOf(env) {
+  if (env.GROK_PLUGIN_ROOT) return 'grok';
+  const names = Object.keys(env);
+  if (names.some((name) => name.startsWith('CODEX_'))) return 'codex';
+  if (names.some((name) => name.startsWith('CLAUDE_'))) return 'claude';
+  if (names.some((name) => name.startsWith('OPENCODE'))) return 'opencode';
+  return 'other';
+}
+
+// The only values capture records: top-level scalar names that carry no user content. Each is a
+// string cut to CAPTURE_KEY_MAX; any other field, and any non-string, is never recorded as a value.
+function allowedValues(payload) {
+  const values = {};
+  for (const field of CAPTURE_VALUE_FIELDS) {
+    if (typeof payload[field] === 'string') values[field] = payload[field].slice(0, CAPTURE_KEY_MAX);
+  }
+  return values;
+}
+
+// Opt-in capture (see captureOn, off by default): appends one line per distinct host, key-path
+// list, and allowlisted-value set to `payload-keys.ndjson` in the state dir, so a host whose
+// payload the repository has never seen can be checked without storing a prompt or a message. A
+// line is `{at, host, envNames, values, keys}`: `envNames` lists up to 30 environment variable
+// names that start with CODEX, GROK, CLAUDE, or OPENCODE (names only), `values` holds the
+// allowlisted fields (`hook_event_name`, `tool_name`, `agent_type`, `subagent_type`), and `keys`
+// holds every key path. The file is not `.jsonl`, so `pendingAgents` never reads it as a ledger.
+// Returns the keys, or null.
 export function captureKeys(payload, { stateDir = ledgerDir(), now = new Date(), env = process.env } = {}) {
-  if (!/^(1|true|on)$/i.test(env.CODE_OPS_AGENT_LEDGER_CAPTURE ?? '') || !payload || typeof payload !== 'object') return null;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || !captureOn({ stateDir, env })) return null;
   const keys = [...keyPaths(payload)].sort();
+  const values = allowedValues(payload);
+  const host = hostOf(env);
+  const envNames = Object.keys(env).filter((name) => CAPTURE_ENV_NAME.test(name)).sort().slice(0, CAPTURE_MAX_ENV);
   const path = join(stateDir, CAPTURE_FILE);
   mkdirSync(stateDir, { recursive: true });
   let prior = '';
   try { prior = readFileSync(path, 'utf8'); } catch { /* first capture */ }
-  const host = env.GROK_PLUGIN_ROOT ? 'grok' : 'other';
-  const shape = JSON.stringify(keys);
-  if (prior.split('\n').some((line) => line.includes(`"host":"${host}"`) && line.includes(`"keys":${shape}`))) return keys;
-  appendFileSync(path, JSON.stringify({ at: now.toISOString(), host, keys }) + '\n');
+  const shape = JSON.stringify({ host, values, keys });
+  const seen = prior.split('\n').some((line) => {
+    try { const row = JSON.parse(line); return JSON.stringify({ host: row.host, values: row.values, keys: row.keys }) === shape; } catch { return false; }
+  });
+  if (!seen) appendFileSync(path, JSON.stringify({ at: now.toISOString(), host, envNames, values, keys }) + '\n');
   return keys;
 }
 
