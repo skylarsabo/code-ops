@@ -295,8 +295,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "b81cf60c72c41948a1c46461a345e46fdc1a8803",
-      "verifiedDigest": "40251b3fbb80cc2fda3f5b5f542f0dd2e88c1f97d0640af0d9052b39ffe8cb8e",
+      "verifiedAt": "fcb603890cdd5ed52c97139032a87c1ed478a668",
+      "verifiedDigest": "f3217a8b3ddad928aef0a55d6743c8dc1319aa9e594ba20f18009a10285fb35f",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -624,6 +624,11 @@
           "anchor": "export const AGENT_MIN_KIND = {"
         },
         {
+          "file": "scripts/opencode-lifecycle.js",
+          "line": 827,
+          "anchor": "function pickPremiumModel(strong, catalog, profile = {}) {"
+        },
+        {
           "file": "scripts/atlas-check.mjs",
           "line": 306,
           "anchor": "let fenced = false;"
@@ -711,8 +716,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b81cf60c72c41948a1c46461a345e46fdc1a8803",
-      "verifiedDigest": "4a8c4af07cfb96868dae4becbe1d297f56d87e87b7b3098e0fbce71003635362",
+      "verifiedAt": "fcb603890cdd5ed52c97139032a87c1ed478a668",
+      "verifiedDigest": "15518a6ad8c799969a3b157c6475b34cc61817f58e14b51ab8bd95872a0fbd56",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -766,22 +771,22 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 432,
+          "line": 453,
           "anchor": "expect(await afterText('read', { filePath: OLD }, { callID: 'h8' }) === 'tool ou"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 438,
-          "anchor": "{"
+          "anchor": "await before('read', { filePath: OLD }, 'hublead', 'h6');"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
-          "line": 131,
+          "line": 136,
           "anchor": "${c.name}: still passes with the ladder filter removed (${JSON.stringify(bound(m"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
-          "line": 170,
+          "line": 206,
           "anchor": "${c.name}: still denied with assertDispatchModel removed (${String(mutant.denied"
         },
         {
@@ -983,8 +988,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "b81cf60c72c41948a1c46461a345e46fdc1a8803",
-      "verifiedDigest": "33c24031e507ee8b9a0fab406da7b778254a4d15af82b7f9a02a75b9cffaff68",
+      "verifiedAt": "fcb603890cdd5ed52c97139032a87c1ed478a668",
+      "verifiedDigest": "0e716ee3da3d6bd4e40b706a0db2f4b574717b51fa919ddcf13b5658bad8b7d7",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
