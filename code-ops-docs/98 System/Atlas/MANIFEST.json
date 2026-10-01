@@ -716,8 +716,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "fcb603890cdd5ed52c97139032a87c1ed478a668",
-      "verifiedDigest": "15518a6ad8c799969a3b157c6475b34cc61817f58e14b51ab8bd95872a0fbd56",
+      "verifiedAt": "c07f60d2d49e6c497f9581c353d8ec0afc990b03",
+      "verifiedDigest": "2dc36a31a78305e54d04d2b7fe1f9aa7f8c317a1eb627d70f355d2d95b2e3712",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -977,6 +977,11 @@
           "file": "evals/distill-check/run.mjs",
           "line": 2,
           "anchor": "// Distill no-loss and findability regression eval (scripts/distill-check.mjs,"
+        },
+        {
+          "file": "evals/route-judgment/run.mjs",
+          "line": 67,
+          "anchor": "const routed = routeUnit({ ...basis, surface: surfaceOfScope(scope) });"
         }
       ]
     },
@@ -1099,8 +1104,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "7d5252cad35ac5be6579d3fe480e404adf9c76b9",
-      "verifiedDigest": "5e3da9bf88f78b139a436ad7c6eca95ae1e5a0723b95db27075eef272534cb03",
+      "verifiedAt": "c07f60d2d49e6c497f9581c353d8ec0afc990b03",
+      "verifiedDigest": "f63b55b4e4d6c454d99790ffdb81f3821458974f33f735888ac1eb7a55888fce",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
