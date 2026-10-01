@@ -792,14 +792,18 @@ the archive, the backlog, or Closed items. The checkpoint artifact is `LEDGER_DI
 lead reads every disposition in it before the run is done.
 
 Vault mode, `/code-ops-suite:distill vault <hub>`, is the eight-phase backfill of a docs vault.
-Phases 1 to 5 and 7 are built: inventory, relocate, classify, chain, drafts, and synthesis. Phase 6
-is program mode, run once per ledger. `co docs distill state` records each phase in the run's
+Phases 1 to 5, 7, and 8 are built: inventory, relocate, classify, chain, drafts, synthesis, and
+install. Phase 6 is program mode, run once per ledger. `co docs distill state` records each phase in the run's
 `state.json` as pending, running, checkpointed, or done, so a compaction or a handoff resumes at
 `state show`. It refuses a phase that starts before the one before it is done, a checkpoint with no
 artifact, and a `done` with no review note. The end of phases 2 and 5 runs the no-loss check over
 every inventory and refuses on a loss. Phases 3 and 7 run in batches of 25, and one defect in a
-batch's sample sends the whole batch to full review. Phase 8 (install the baseline and the gate) and
-the maintain pass are not built. The skill says so and stops after phase 7.
+batch's sample sends the whole batch to full review. Phase 8 writes the baseline, `98 System/DISTILL_BASELINE.json`,
+and refuses while any path is lost, while inputs differ from accounted, or while any note is
+unreachable. The `gate` verb then compares a later tree to that baseline and exits 1 on a new loss or a
+new unreachable note. `conform` routes state-surface drift to this skill, and conform or CI will run the gate.
+The maintain pass works down the baseline and the triage queue, stops at a declared round budget
+with a checkpoint, and ends on the same no-loss and findability check.
 
 **Why it's useful.** A long program ledger collects stale items, unnumbered decisions, and
 restated rulings, until a resumed session cannot tell what still blocks the end. A finish line and

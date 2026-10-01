@@ -14,9 +14,18 @@
 //   - batches (phases 3 and 7): a defect in the 10% sample sends the batch to full review, a worker
 //     never takes the same batch twice, a full-review batch leaves by a whole read, an unresolved
 //     batch blocks done, and a phase with no batches takes none;
-//   - phase 8 is not built, and show names it as the stop;
+//   - phase 8 (install): the baseline verb and `done 8` refuse while a path is lost, while the inventory
+//     counts disagree, and while a note is unreachable, and write nothing then; a clean tree yields a
+//     sorted, dateless baseline with the same bytes on every run, and `done 8` writes it too; the
+//     baseline cites copies of its inventories in the hub, a refused install copies nothing, and a
+//     re-run removes a copy the new baseline does not cite;
+//   - the gate: it holds on the baseline tree, also with the run-folder inventory deleted, and exits 1 on a new loss, a new unreachable note, and
+//     a changed inventory;
+//   - the maintain pass: it starts only after phase 8 is done and needs a budget, an item counts once,
+//     the round that reaches the budget stops the pass at a checkpoint, a checkpointed pass resumes,
+//     and the pass ends only on a passing gate check;
 //   - the same verbs twice leave the same state bytes.
-// One live run walks phase 1 to phase 7 through the real verbs. Every other case starts from a
+// One live run walks phase 1 to phase 8 and a maintain pass through the real verbs. Every other case starts from a
 // state file written for its phase, so a mutant run costs a few spawns and not a whole walk.
 //
 // The mutants: each copy of the script breaks one rule, and the case that pins the rule must
@@ -25,7 +34,7 @@
 //   node evals/distill-vault/run.mjs   (exit 0 = pass)
 
 import { spawn } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -38,6 +47,13 @@ const FIXTURE = join(ROOT, 'evals', 'distill-vault', 'repo');
 const HUB = 'vault';
 const LOST = 'docs/runbook-old.md';
 const ORPHAN = 'vault/10 Design/orphan-notes.md';
+const BASELINE = `${HUB}/98 System/DISTILL_BASELINE.json`;
+const TRIAGE = `${HUB}/98 System/TRIAGE.md`;
+const INDEX = `${HUB}/10 Design/INDEX.md`;
+const STRAY = `${HUB}/10 Design/stray.md`;
+const INVENTORY = 'inventory/docs.json';
+const COPIES = `${HUB}/98 System/DISTILL_INVENTORIES`;
+const COPY = `${COPIES}/inventory-1.json`;
 const PHASE_NAMES = ['inventory', 'relocate', 'classify', 'chain', 'drafts', 'ledgers', 'synthesis', 'install'];
 const work = mkdtempSync(join(tmpdir(), 'coh-distill-vault-'));
 const { fails, check } = tally(withDetail);
@@ -89,7 +105,8 @@ function context(script, live = false) {
     if (status === 'checkpointed') await st('checkpoint', n, ...(n === 2 ? ['--artifact', FORWARDING] : ART));
     return undefined;
   };
-  return { repo, stateFile, st, read, phaseOf, batchOf, enter, live };
+  const tool = (sub, ...flags) => run(script, [sub, '--root', repo, ...flags]);
+  return { repo, stateFile, st, read, phaseOf, batchOf, enter, live, seed, tool, script };
 }
 
 // Each segment records facts and leaves its phase done, so a live run chains them. Nothing here
@@ -183,11 +200,148 @@ async function synthesis(c, f) {
   f.doneSeven = (await st('done', 7, '--review', 'read a sample')).status;
   const shown = json(await st('show', null, '--json'));
   f.show = shown && { next: shown.next, last: shown.lastCheckpoint, done: shown.phases.filter((p) => p.status === 'done').length };
-  const eight = await st('start', 8);
-  f.start8 = eight.status === 1 && /not built/.test(eight.all);
 }
 
-const SEGMENTS = { ordering, relocate, classify, chain, drafts, synthesis };
+const fixtureText = (rel) => readFileSync(join(FIXTURE, rel), 'utf8');
+const baselineVerb = (c) => c.tool('baseline', '--hub', HUB, '--inventory', INVENTORY);
+
+// The tree the install check refuses: the fixture's own forwarding file and index, one triage queue.
+function plant(c) {
+  put(c.repo, FORWARDING, fixtureText(FORWARDING));
+  put(c.repo, INDEX, fixtureText(INDEX));
+  put(c.repo, TRIAGE, '- docs/old-notes.md | archive | 2026-09-30\n- vault/10 Design/drafts/onboarding-plan.md | current | 2026-09-30\n');
+}
+// The same tree with the loss closed and the orphan linked.
+function repair(c) {
+  put(c.repo, FORWARDING, REPAIRED);
+  put(c.repo, INDEX, `${fixtureText(INDEX)}- [Orphan notes](orphan-notes.md)\n`);
+}
+
+async function install(c, f) {
+  const { st } = c;
+  await c.enter(8, 'running');
+  plant(c);
+  f.earlyStart = (await st('maintain-start', null, '--budget', '3')).status;
+  await st('checkpoint', 8, '--artifact', TRIAGE);
+
+  const lossBase = await baselineVerb(c);
+  f.baselineLoss = lossBase.status === 1 && lossBase.all.includes(`LOSS ${LOST}`) && !existsSync(join(c.repo, BASELINE));
+  const lossDone = await st('done', 8, '--review', 'read the baseline');
+  f.doneLoss = lossDone.status === 1 && lossDone.all.includes(`LOSS ${LOST}`) && c.phaseOf(8)?.status === 'checkpointed' && !existsSync(join(c.repo, BASELINE));
+
+  put(c.repo, FORWARDING, REPAIRED);
+  const orphanBase = await baselineVerb(c);
+  f.baselineOrphan = orphanBase.status === 1 && orphanBase.all.includes(`UNREACHABLE ${ORPHAN}`) && !existsSync(join(c.repo, BASELINE));
+  const orphanDone = await st('done', 8, '--review', 'read the baseline');
+  f.doneOrphan = orphanDone.status === 1 && orphanDone.all.includes(`UNREACHABLE ${ORPHAN}`) && c.phaseOf(8)?.status === 'checkpointed' && !existsSync(join(c.repo, BASELINE));
+
+  repair(c);
+  const inventory = JSON.parse(readFileSync(join(c.repo, INVENTORY), 'utf8'));
+  put(c.repo, INVENTORY, `${JSON.stringify({ ...inventory, count: inventory.count + 1 }, null, 2)}\n`);
+  const mismatch = await baselineVerb(c);
+  f.baselineMismatch = mismatch.status === 1 && /MISMATCH/.test(mismatch.all) && !existsSync(join(c.repo, BASELINE));
+  f.refusalsCopyNothing = !existsSync(join(c.repo, COPIES));
+  put(c.repo, INVENTORY, fixtureText(INVENTORY));
+
+  const first = await baselineVerb(c);
+  const text = existsSync(join(c.repo, BASELINE)) ? readFileSync(join(c.repo, BASELINE), 'utf8') : '';
+  const second = await baselineVerb(c);
+  const doc = (() => { try { return JSON.parse(text); } catch { return null; } })();
+  f.baselineOk = first.status === 0 && second.status === 0 && text === (existsSync(join(c.repo, BASELINE)) ? readFileSync(join(c.repo, BASELINE), 'utf8') : null);
+  f.baselineDoc = doc && { copy: existsSync(join(c.repo, COPY)) && readFileSync(join(c.repo, COPY), 'utf8') === fixtureText(INVENTORY), inventories: doc.inventories.map((i) => `${i.path}:${i.inputs}:${i.accounted}:${i.counts['in-place']}${i.counts.moved}${i.counts.archived}`).join(), noLoss: doc.noLoss, findability: doc.findability, triage: doc.triage, dateless: !/\d{4}-\d{2}-\d{2}/.test(text) };
+  rmSync(join(c.repo, BASELINE), { force: true });
+  f.doneEight = (await st('done', 8, '--review', 'read the baseline')).status;
+  f.doneEightWrote = existsSync(join(c.repo, BASELINE)) && readFileSync(join(c.repo, BASELINE), 'utf8') === text && c.phaseOf(8)?.checks?.baseline === BASELINE && c.phaseOf(8).checks.findability?.unreachable === 0;
+  const shown = json(await st('show', null, '--json'));
+  f.afterEight = shown && { next: shown.next, done: shown.phases.filter((p) => p.status === 'done').length };
+}
+
+// The tree at the baseline: phases 1 to 8 done, the loss closed, the orphan linked, one baseline.
+async function atBaseline(c) {
+  if (!c.live) c.seed(9, 'done');
+  plant(c);
+  repair(c);
+  return baselineVerb(c);
+}
+
+async function maintain(c, f) {
+  const { st } = c;
+  await atBaseline(c);
+  const gate = () => c.tool('gate', '--hub', HUB);
+  const pass = () => c.read()?.maintain;
+  f.gateClean = (await gate()).status;
+  f.noBudget = (await st('maintain-start', null)).status;
+  f.roundNoPass = (await st('maintain-round', null, '--item', 'docs/guide.md')).status;
+  f.start = (await st('maintain-start', null, '--budget', '2')).status;
+  f.round1 = (await st('maintain-round', null, '--item', 'docs/guide.md')).status;
+  f.sameItem = (await st('maintain-round', null, '--item', 'docs/guide.md')).status;
+  f.restartRunning = (await st('maintain-start', null, '--budget', '2')).status;
+  f.round2 = (await st('maintain-round', null, '--item', 'docs/old-notes.md')).status;
+  f.budgetStop = pass()?.status === 'checkpointed' && pass().checkpoint?.reason === 'budget' && pass().rounds === 2 && pass().worked.length === 2;
+  f.pastBudget = (await st('maintain-round', null, '--item', 'docs/kept.md')).status;
+  const shown = json(await st('show', null, '--json'));
+  f.stopNext = shown?.next?.action === 'maintain-start' && shown.maintain?.status === 'checkpointed';
+  f.resume = (await st('maintain-start', null)).status === 0 && pass()?.status === 'running' && pass().rounds === 0 && pass().budget === 2 && pass().worked.length === 2;
+
+  const runbook = `${HUB}/10 Design/runbook.md`;
+  const original = readFileSync(join(c.repo, runbook), 'utf8');
+  rmSync(join(c.repo, runbook), { force: true });
+  const lost = await gate();
+  f.gateLoss = lost.status === 1 && lost.all.includes(`LOSS ${LOST}`);
+  f.endNoReview = (await st('maintain-done', null)).status;
+  const lossDone = await st('maintain-done', null, '--review', 'read the worked items');
+  f.endLoss = lossDone.status === 1 && lossDone.all.includes(`LOSS ${LOST}`) && pass()?.status === 'running';
+  put(c.repo, runbook, original);
+  f.gateRestored = (await gate()).status;
+
+  put(c.repo, STRAY, '# Stray note\n\nNo index links this note.\n');
+  const stray = await gate();
+  f.gateUnreachable = stray.status === 1 && stray.all.includes(`UNREACHABLE ${STRAY}`);
+  const strayDone = await st('maintain-done', null, '--review', 'read the worked items');
+  f.endUnreachable = strayDone.status === 1 && strayDone.all.includes(`UNREACHABLE ${STRAY}`) && pass()?.status === 'running';
+  rmSync(join(c.repo, STRAY), { force: true });
+
+  const inventory = JSON.parse(readFileSync(join(c.repo, COPY), 'utf8'));
+  const kept = inventory.files.filter((file) => file.path !== 'docs/kept.md');
+  put(c.repo, COPY, `${JSON.stringify({ ...inventory, count: kept.length, files: kept }, null, 2)}\n`);
+  const changed = await gate();
+  f.gateInventory = changed.status === 1 && changed.all.includes(`CHANGED ${COPY}`);
+  put(c.repo, COPY, fixtureText(INVENTORY));
+
+  f.maintainDone = (await st('maintain-done', null, '--review', 'read the worked items')).status;
+  f.maintainChecks = pass()?.status === 'done' && pass().checks?.findability?.unreachable === 0 && pass().review === 'read the worked items';
+  f.roundAfterDone = (await st('maintain-round', null, '--item', 'docs/kept.md')).status;
+  f.nextPass = (await st('maintain-start', null, '--budget', '1')).status === 0 && pass()?.pass === 2 && pass().worked.length === 0;
+}
+
+// The baseline carries its own inventories: the copies sit in the hub, a rerun yields the same bytes,
+// and the gate holds in a tree with no run-folder inventory, even after a new hub inventory lists the copies.
+async function copies(c, f) {
+  await atBaseline(c);
+  const read = (rel) => (existsSync(join(c.repo, rel)) ? readFileSync(join(c.repo, rel), 'utf8') : null);
+  const gate = () => c.tool('gate', '--hub', HUB);
+  const before = [read(BASELINE), read(COPY)];
+  f.rerunSame = (await baselineVerb(c)).status === 0 && before[0] !== null && before[1] === fixtureText(INVENTORY) && read(BASELINE) === before[0] && read(COPY) === before[1];
+
+  put(c.repo, `${COPIES}/inventory-9.json`, '{}\n');
+  const rerun = await baselineVerb(c);
+  f.staleRemoved = rerun.status === 0 && !existsSync(join(c.repo, COPIES, 'inventory-9.json')) && read(BASELINE) === before[0];
+
+  const doc = (() => { try { return JSON.parse(read(BASELINE)); } catch { return null; } })();
+  f.recordsCopy = doc?.inventories?.map((i) => i.path).join() === COPY;
+  rmSync(join(c.repo, INVENTORY), { force: true });
+  f.gateNoSource = (await gate()).status;
+  const listed = join(c.repo, 'after-copies.json');
+  await run(c.script, ['inventory', '--root', c.repo, '--hub', HUB, '--out', listed]);
+  f.listsCopy = readFileSync(listed, 'utf8').includes(COPY);
+  f.gateAfterInventory = (await gate()).status;
+
+  // A copy already in the folder is cited as is, with the source gone.
+  const inFolder = await c.tool('baseline', '--hub', HUB, '--inventory', COPY);
+  f.inFolderAsIs = inFolder.status === 0 && read(BASELINE) === before[0] && read(COPY) === before[1] && walk(c.repo, `${COPIES}/`).join() === `${COPIES}/inventory-1.json`;
+}
+
+const SEGMENTS = { ordering, relocate, classify, chain, drafts, synthesis, install, maintain, copies };
 const facts = async (script, names) => {
   const f = {};
   for (const name of names) await SEGMENTS[name](context(script), f);
@@ -197,7 +351,7 @@ const facts = async (script, names) => {
 async function liveRun(script) {
   const c = context(script, true);
   const f = {};
-  for (const name of ['ordering', 'relocate', 'classify', 'chain', 'drafts', 'synthesis']) await SEGMENTS[name](c, f);
+  for (const name of Object.keys(SEGMENTS)) await SEGMENTS[name](c, f);
   return f;
 }
 
@@ -218,7 +372,29 @@ const CASES = {
   unresolvedDone: { segment: 'classify', holds: (f) => f.unresolvedDone === true && f.doneThree === 0 },
   noBatchesInPhase4: { segment: 'chain', holds: (f) => f.planPhase4 === true },
   requireFindable: { segment: 'drafts', holds: (f) => f.requireFindable === true && f.doneFive === 0 && f.draftChecks?.findability?.unreachable === 0 },
-  phaseEight: { segment: 'synthesis', holds: (f) => f.start8 === true && f.doneSeven === 0 && f.show?.next?.phase === 8 && f.show.next.action === 'stop' && f.show.last?.phase === 7 && f.show.done === 7 },
+  phaseEightNext: { segment: 'synthesis', holds: (f) => f.doneSeven === 0 && f.show?.next?.phase === 8 && f.show.next.action === 'start' && f.show.last?.phase === 7 && f.show.done === 7 },
+  installRefusesLoss: { segment: 'install', holds: (f) => f.baselineLoss === true && f.doneLoss === true },
+  installRefusesMismatch: { segment: 'install', holds: (f) => f.baselineMismatch === true },
+  installRefusesUnreachable: { segment: 'install', holds: (f) => f.baselineOrphan === true && f.doneOrphan === true },
+  installWritesBaseline: { segment: 'install', holds: (f) => f.baselineOk === true && f.doneEight === 0 && f.doneEightWrote === true
+    && f.baselineDoc?.copy === true && f.baselineDoc?.inventories === `${COPY}:4:4:121` && f.baselineDoc.noLoss?.inputs === 4 && f.baselineDoc.noLoss.accounted === 4
+    && f.baselineDoc.findability?.notes === 19 && f.baselineDoc.findability.unreachable === 0 && f.baselineDoc.triage?.path === TRIAGE && f.baselineDoc.triage.entries === 2 },
+  refusedInstallCopiesNothing: { segment: 'install', holds: (f) => f.refusalsCopyNothing === true },
+  baselineIsSelfContained: { segment: 'copies', holds: (f) => f.recordsCopy === true && f.gateNoSource === 0 && f.listsCopy === true && f.gateAfterInventory === 0 },
+  baselineRerunIsIdempotent: { segment: 'copies', holds: (f) => f.rerunSame === true && f.staleRemoved === true && f.inFolderAsIs === true },
+  baselineIsDateless: { segment: 'install', holds: (f) => f.baselineDoc?.dateless === true },
+  installIsLast: { segment: 'install', holds: (f) => f.afterEight?.done === 8 && f.afterEight.next === null },
+  maintainNeedsInstall: { segment: 'install', holds: (f) => f.earlyStart === 1 },
+  gateHoldsBaseline: { segment: 'maintain', holds: (f) => f.gateClean === 0 && f.gateRestored === 0 },
+  gateNewLoss: { segment: 'maintain', holds: (f) => f.gateLoss === true },
+  gateNewUnreachable: { segment: 'maintain', holds: (f) => f.gateUnreachable === true },
+  gateChangedInventory: { segment: 'maintain', holds: (f) => f.gateInventory === true },
+  maintainNeedsBudget: { segment: 'maintain', holds: (f) => f.noBudget === 2 && f.start === 0 },
+  maintainOnlyRunning: { segment: 'maintain', holds: (f) => f.roundNoPass === 1 && f.pastBudget === 1 && f.restartRunning === 1 && f.roundAfterDone === 1 },
+  maintainItemOnce: { segment: 'maintain', holds: (f) => f.round1 === 0 && f.sameItem === 1 },
+  maintainBudgetStop: { segment: 'maintain', holds: (f) => f.round2 === 0 && f.budgetStop === true && f.stopNext === true },
+  maintainResume: { segment: 'maintain', holds: (f) => f.resume === true },
+  maintainEndsOnGate: { segment: 'maintain', holds: (f) => f.endNoReview === 2 && f.endLoss === true && f.endUnreachable === true && f.maintainDone === 0 && f.maintainChecks === true && f.nextPass === true },
 };
 
 // Each mutant breaks one rule. `replace` maps an exact source string to its replacement, and every
@@ -236,7 +412,26 @@ const MUTANTS = [
   { name: 'reads a clean batch as a full review', replace: ['if (batch.status !== \'full-review\') refuse(`batch ${batch.id} is ${batch.status}; only a full-review batch is read whole`);', ''], pins: ['reviewWhole'] },
   { name: 'finishes a phase with an unresolved batch', replace: ['if (open.length) refuse(', 'if (false) refuse('], pins: ['unresolvedDone'] },
   { name: 'plans batches for any phase', replace: ['if (!BATCHED.has(n)) refuse(', 'if (false) refuse('], pins: ['noBatchesInPhase4'] },
-  { name: 'starts phase 8', replace: ['const NOT_BUILT = new Set([8]);', 'const NOT_BUILT = new Set([]);'], pins: ['phaseEight'] },
+  { name: 'installs past a lost path', replace: ['for (const item of report.lost) problems.push(`LOSS ${item}`);', ''], pins: ['installRefusesLoss'] },
+  { name: 'installs past an inventory count mismatch', replace: ['for (const item of report.problems) problems.push(`MISMATCH ${item}`);', ''], pins: ['installRefusesMismatch'] },
+  { name: 'installs past an unreachable note', replace: ['for (const path of found.unreachablePaths ?? []) problems.push(`UNREACHABLE ${path}`);', ''], pins: ['installRefusesUnreachable'] },
+  { name: 'finishes phase 8 with no install check', replace: ['if (n === INSTALL) phase.checks = installChecks(root, doc);', 'if (false) phase.checks = installChecks(root, doc);'], pins: ['installRefusesLoss', 'installRefusesUnreachable'] },
+  { name: 'writes no baseline', replace: ['writeFileSync(join(root, path), `${JSON.stringify(document, null, 2)}\\n`);', ''], pins: ['installWritesBaseline'] },
+  { name: 'records the source path and not the copy', replace: ['document.inventories = document.inventories.map((entry) => ({ ...entry, path: placed.get(entry.path) }))', 'document.inventories = document.inventories.map((entry) => ({ ...entry, path: entry.path }))'], pins: ['baselineIsSelfContained', 'installWritesBaseline'] },
+  { name: 'copies the inventories before the install refusal', replace: ['if (problems.length) refuseOn(problems, \'install refused\');', 'placeInventories(root, hub, paths); if (problems.length) refuseOn(problems, \'install refused\');'], pins: ['refusedInstallCopiesNothing'] },
+  { name: 'keeps a copy the new baseline does not cite', replace: ['!keep.has(`${folder}/${name}`)', 'false'], pins: ['baselineRerunIsIdempotent'] },
+  { name: 'writes a date into the baseline', replace: ['version: BASELINE_VERSION,', 'version: BASELINE_VERSION, writtenAt: \'2026-09-30\','], pins: ['baselineIsDateless'] },
+  { name: 'starts a maintain pass before phase 8 is done', replace: ['if (doc.phases[INSTALL - 1].status !== \'done\') refuse(', 'if (false) refuse('], pins: ['maintainNeedsInstall'] },
+  { name: 'gate ignores a new loss', replace: ['const problems = [...now.problems];', 'const problems = now.problems.filter((line) => !line.startsWith(\'LOSS\'));'], pins: ['gateNewLoss'] },
+  { name: 'gate ignores a new unreachable note', replace: ['const problems = [...now.problems];', 'const problems = now.problems.filter((line) => !line.startsWith(\'UNREACHABLE\'));'], pins: ['gateNewUnreachable'] },
+  { name: 'gate ignores a changed inventory', replace: ['.digest !== was.digest', '.digest === undefined'], pins: ['gateChangedInventory'] },
+  { name: 'starts a pass with no budget', replace: ['if (budget === null) die(', 'if (false) die('], pins: ['maintainNeedsBudget'] },
+  { name: 'works a round with no running pass', replace: ['return pass?.status === \'running\' ? pass : refuse(', 'return pass ?? refuse('], pins: ['maintainOnlyRunning'] },
+  { name: 'counts an item twice in one pass', replace: ['if (pass.worked.includes(flags.item)) refuse(', 'if (false) refuse('], pins: ['maintainItemOnce'] },
+  { name: 'runs a maintain pass past its budget without a checkpoint', replace: ['if (pass.rounds >= pass.budget) Object.assign(', 'if (false) Object.assign('], pins: ['maintainBudgetStop'] },
+  { name: 'resumes a pass with its old round count', replace: ['{ status: \'running\', rounds: 0, checkpoint: null,', '{ status: \'running\', checkpoint: null,'], pins: ['maintainResume'] },
+  { name: 'ends a pass without the gate check', replace: ['if (ending.problems.length) refuseOn(', 'if (false) refuseOn('], pins: ['maintainEndsOnGate'] },
+  { name: 'ends a pass with no review note', replace: ['if (!review) die(\'maintain-done needs', 'if (false) die(\'maintain-done needs'], pins: ['maintainEndsOnGate'] },
 ];
 
 function mutantScript(index, [from, to]) {

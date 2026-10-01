@@ -6,6 +6,8 @@
 //   node scripts/distill-check.mjs inventory   --hub <hub dir> --out <file.json> [--root <repo>] [--json]
 //   node scripts/distill-check.mjs no-loss     --inventory <file.json> [--hub <hub dir>] [--root <repo>] [--json]
 //   node scripts/distill-check.mjs findability --hub <hub dir> [--index <file or glob>]... [--root <repo>] [--json]
+//   node scripts/distill-check.mjs baseline    --hub <hub dir> --inventory <file.json>... [--root <repo>] [--json]
+//   node scripts/distill-check.mjs gate        --hub <hub dir> [--root <repo>] [--json]
 //   node scripts/distill-check.mjs state <verb> [<phase>] --state <file.json> [flags]   (see STATE below)
 //
 // WHY: a model review cannot prove that a distill run lost nothing. This script can. Phase 1 lists
@@ -43,6 +45,22 @@
 // deferred(a bare wikilink that matches two notes reaches both, Obsidian picks one; the broken-link
 // gate flags the ambiguity).
 //
+// BASELINE is phase 8 (install). It writes `<hub>/98 System/DISTILL_BASELINE.json`: for each inventory
+// its path, a digest of its listed paths and sizes, its input count, its accounted count, and its
+// state counts; the findability count; and the triage queue pointer, which is
+// `<hub>/98 System/TRIAGE.md` with its entry count (a list line). It holds no date, and its
+// inventories are sorted, so one tree always yields the same bytes. It refuses, writes nothing,
+// and exits 1 while any path is lost or ambiguous, while inputs differ from accounted, while any
+// note is unreachable, or while the triage file is missing.
+// On a successful install it also copies each inventory into the tracked folder
+// `<hub>/98 System/DISTILL_INVENTORIES/inventory-<n>.json` and records the copy's path, so a fresh
+// clone holds every inventory the gate reads, because the run folder is gitignored. An inventory
+// already in that folder is recorded as is. The install removes any `inventory-<n>.json` there that
+// the new baseline does not cite.
+// GATE compares the current tree to that baseline and writes nothing. It runs the same checks over
+// the baseline's own inventories, and it exits 1 on a new loss, a new unreachable note, a changed
+// inventory, or a moved triage pointer. `conform` and CI run it later; nothing here wires it in.
+//
 // STATE records the vault-mode run (design "Distill", paragraph "Phases as states"). The state file
 // holds the eight phases, each pending, running, checkpointed, or done, with its artifact paths and
 // the input inventories, so a compaction or a handoff resumes from the last checkpointed phase. It
@@ -57,16 +75,33 @@
 //   assign N    --batch <id> --worker <name>           a worker never takes the same batch twice
 //   result N    --batch <id> --defects <n>             one defect in the 10% sample sends the batch to full review
 //   review N    --batch <id>                           the lead read a full-review batch whole
-// Any other transition exits 1. Phase 8 (install) is not built, so `start 8` exits 1. `done` of a
-// phase that moves or archives files (2 and 5) runs no-loss over every inventory and refuses on a
-// loss. It also runs findability and records the count, and `--require-findable` refuses on a
-// nonzero count. `done` of a batched phase (3 and 7) refuses while a batch is unresolved.
+//   maintain-start      --budget <n>                   begin a pass after phase 8, or resume a checkpointed one
+//   maintain-round      --item <text>                  one baseline path or triage entry worked
+//   maintain-checkpoint [--artifact <file>...]         stop the pass at a checkpoint
+//   maintain-done       --review <note>                end the pass on the gate check
+// Any other transition exits 1. `done` of a phase that moves or archives files (2 and 5) runs
+// no-loss over every inventory and refuses on a loss. It also runs findability and records the
+// count, and `--require-findable` refuses on a nonzero count. `done` of a batched phase (3 and 7)
+// refuses while a batch is unresolved. `done 8` always runs the baseline checks, with findability
+// required, and writes the baseline, so a loss, an ambiguity, a count mismatch, or an unreachable
+// note keeps phase 8 checkpointed.
 //
-// Read-only on the tree. The inventory and state verbs write only their own file. Exit: 0 = pass;
-// 1 = loss, ambiguity, count mismatch, an unreachable note, or a refused transition; 2 = usage error
-// or an unreadable input.
+// MAINTAIN PASS (design "Distill", paragraph "Maintain pass"). It starts after phase 8 is done.
+// `maintain-start` needs a round budget. A round is one `maintain-round` for one item the lead
+// worked down the baseline or the triage queue, and an item counts once per pass. The round that
+// reaches the budget stops the pass at a checkpoint: the state file records the reason, the rounds,
+// and the worked items, and every later round exits 1. `maintain-start` on a checkpointed pass
+// resumes it with a fresh round count. `maintain-done` runs the gate check, which is no-loss over
+// the baseline inventories plus findability, and exits 1 on a failure, so a pass cannot end on a
+// loss or an unreachable note. The state holds no date and the pass counts rounds, not time.
+//
+// Read-only on the tree. The inventory and state verbs write only their own file, and baseline and
+// `state done 8` write only the baseline. Exit: 0 = pass; 1 = loss, ambiguity, count mismatch, an
+// unreachable note, a changed baseline, or a refused transition; 2 = usage error or an unreadable
+// input.
 
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, posix as pathPosix, relative, resolve } from 'node:path';
 import { die, parseOrDie } from './cli-lib.mjs';
 import { pathMatchesGlob } from './context-index-lib.mjs';
@@ -76,12 +111,18 @@ const USAGE = [
   'usage: distill-check.mjs inventory   --hub <hub dir> --out <file.json> [--root <repo>] [--json]',
   '       distill-check.mjs no-loss     --inventory <file.json> [--hub <hub dir>] [--root <repo>] [--json]',
   '       distill-check.mjs findability --hub <hub dir> [--index <file or glob>]... [--root <repo>] [--json]',
-  '       distill-check.mjs state <init|show|start|checkpoint|done|reopen|plan|assign|result|review> [phase] --state <file.json> [flags]',
+  '       distill-check.mjs baseline    --hub <hub dir> --inventory <file.json>... [--root <repo>] [--json]',
+  '       distill-check.mjs gate        --hub <hub dir> [--root <repo>] [--json]',
+  '       distill-check.mjs state <init|show|start|checkpoint|done|reopen|plan|assign|result|review|maintain-start|maintain-round|maintain-checkpoint|maintain-done> [phase] --state <file.json> [flags]',
 ];
 const INVENTORY_VERSION = 1;
 const RUNS_FOLDER = '80 Runs';
 const ARCHIVE_FOLDER = '99 Archive';
 const FORWARDING_PATH = '98 System/FORWARDING.json';
+const BASELINE_PATH = '98 System/DISTILL_BASELINE.json';
+const INVENTORIES_FOLDER = '98 System/DISTILL_INVENTORIES';
+const TRIAGE_PATH = '98 System/TRIAGE.md';
+const BASELINE_VERSION = 1;
 const DEFAULT_INDEXES = ['00 Home.md', 'README.md', '10 Design/INDEX.md', '20 Decisions/REGISTER.md', '98 System/TRIAGE.md', '98 System/Records/*.md'];
 const MARKDOWN_EXT = /\.md$/i;
 const EXTERNAL_LINK = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
@@ -329,43 +370,185 @@ function commandFindability(flags) {
   return result.ok ? 0 : 1;
 }
 
+// ---- baseline and gate ----
+
+const refuse = (message) => die(message, 1);
+
+// The first 50 problems go to stderr, then the refusal.
+function refuseOn(problems, what) {
+  for (const line of problems.slice(0, 50)) console.error(line);
+  refuse(`${what}: ${problems.length} problem(s)${problems.length > 50 ? ', first 50 shown' : ''}`);
+}
+
+const inventoryDigest = (inventory) => createHash('sha256').update(inventory.files.map((file) => `${file.path}\t${file.size}`).join('\n')).digest('hex');
+
+// No-loss over every inventory path: the summed counts, each inventory's own record, and one line
+// per loss, ambiguity, or count mismatch.
+function accountInventories(root, hub, paths) {
+  const total = { inputs: 0, accounted: 0, 'in-place': 0, moved: 0, archived: 0 };
+  const problems = []; const inventories = [];
+  for (const path of paths) {
+    const inventory = readInventory(join(root, path));
+    const report = noLossReport(root, inventory, hub);
+    total.inputs += report.inputs; total.accounted += report.accounted;
+    for (const state of ['in-place', 'moved', 'archived']) total[state] += report.counts[state];
+    for (const item of report.lost) problems.push(`LOSS ${item}`);
+    for (const item of report.ambiguous) problems.push(`AMBIGUOUS ${item.path} (${item.states.join(', ')})`);
+    for (const item of report.problems) problems.push(`MISMATCH ${item}`);
+    inventories.push({ path, digest: inventoryDigest(inventory), inputs: report.inputs, accounted: report.accounted, counts: report.counts });
+  }
+  return { total, problems, inventories };
+}
+
+// The baseline of the tree as it stands, and the problems that forbid installing it. A list line in
+// the triage file is one queue entry.
+function buildBaseline(root, hub, paths) {
+  const { total, problems, inventories } = accountInventories(root, hub, paths);
+  const found = findabilityReport(root, hub, []);
+  if (found.error) problems.push(`FINDABILITY ${found.error}`);
+  for (const path of found.unreachablePaths ?? []) problems.push(`UNREACHABLE ${path}`);
+  const triage = `${hub}/${TRIAGE_PATH}`;
+  let entries = 0;
+  if (fileProbe(root)(triage)) entries = readNote(root, triage).split(/\r?\n/).filter((line) => /^\s*[-*]\s+\S/.test(line)).length;
+  else problems.push(`MISSING ${triage}`);
+  const document = {
+    version: BASELINE_VERSION,
+    hub,
+    inventories: [...inventories].sort((a, b) => byCodeUnit(a.path, b.path)),
+    noLoss: { inputs: total.inputs, accounted: total.accounted },
+    findability: { notes: found.notes ?? 0, unreachable: found.unreachable ?? 0 },
+    triage: { path: triage, entries },
+  };
+  return { document, problems };
+}
+
+// Copies each inventory into the hub's tracked folder and returns the path the baseline records for
+// each source path. A source already in the folder stays put, a copy never takes the name of a cited
+// source, and a copy there that the baseline no longer cites is removed.
+function placeInventories(root, hub, paths) {
+  const folder = `${hub}/${INVENTORIES_FOLDER}`;
+  const inside = (path) => path.startsWith(`${folder}/`);
+  const taken = new Set(paths.filter(inside));
+  const placed = new Map(); let n = 0;
+  for (const path of paths) {
+    if (inside(path)) { placed.set(path, path); continue; }
+    let copy;
+    do copy = `${folder}/inventory-${++n}.json`; while (taken.has(copy));
+    mkdirSync(join(root, folder), { recursive: true });
+    copyFileSync(join(root, path), join(root, copy));
+    placed.set(path, copy);
+  }
+  const keep = new Set(placed.values());
+  if (existsSync(join(root, folder))) {
+    for (const name of readdirSync(join(root, folder))) {
+      if (/^inventory-\d+\.json$/.test(name) && !keep.has(`${folder}/${name}`)) unlinkSync(join(root, folder, name));
+    }
+  }
+  return placed;
+}
+
+// Copies the inventories and writes the baseline, or refuses and writes nothing.
+function installBaseline(root, hub, paths) {
+  const { document, problems } = buildBaseline(root, hub, paths);
+  if (problems.length) refuseOn(problems, 'install refused');
+  const placed = placeInventories(root, hub, paths);
+  document.inventories = document.inventories.map((entry) => ({ ...entry, path: placed.get(entry.path) })).sort((a, b) => byCodeUnit(a.path, b.path));
+  const path = `${hub}/${BASELINE_PATH}`;
+  mkdirSync(dirname(join(root, path)), { recursive: true });
+  writeFileSync(join(root, path), `${JSON.stringify(document, null, 2)}\n`);
+  return { document, path };
+}
+
+function commandBaseline(flags) {
+  const root = resolve(flags.root);
+  const hub = hubPath(root, flags.hub);
+  if (!flags.inventory.length) die('baseline needs at least one --inventory', 2);
+  const paths = [...new Set(flags.inventory.map((spec) => repoPath(root, spec)))].sort(byCodeUnit);
+  const { document, path } = installBaseline(root, hub, paths);
+  if (flags.json) console.log(JSON.stringify({ ok: true, path, ...document }));
+  else console.log(`distill baseline: ${document.inventories.length} inventory file(s), inputs ${document.noLoss.inputs} = accounted ${document.noLoss.accounted}, ${document.findability.unreachable} unreachable, ${document.triage.entries} triage entrie(s) -> ${path}`);
+  return 0;
+}
+
+function readBaseline(root, hub) {
+  const path = `${hub}/${BASELINE_PATH}`;
+  let doc;
+  try { doc = JSON.parse(readFileSync(join(root, path), 'utf8')); } catch (error) { die(`cannot read baseline ${path}: ${error.message}`, 2); }
+  const inventoryOk = (entry) => entry && typeof entry.path === 'string' && typeof entry.digest === 'string' && Number.isInteger(entry.inputs);
+  const ok = doc && doc.version === BASELINE_VERSION && doc.hub === hub && Array.isArray(doc.inventories) && doc.inventories.length > 0 && doc.inventories.every(inventoryOk)
+    && doc.noLoss && Number.isInteger(doc.noLoss.inputs) && doc.findability && Number.isInteger(doc.findability.unreachable) && doc.triage && typeof doc.triage.path === 'string';
+  return ok ? doc : die(`${path} is not a version ${BASELINE_VERSION} distill baseline for ${hub}`, 2);
+}
+
+// The tree against its baseline: the baseline's own inventories are accounted again, findability
+// runs again, and any difference is a problem.
+function gateCheck(root, hub) {
+  const baseline = readBaseline(root, hub);
+  const now = buildBaseline(root, hub, baseline.inventories.map((entry) => entry.path));
+  const problems = [...now.problems];
+  for (const was of baseline.inventories) {
+    if (now.document.inventories.find((entry) => entry.path === was.path).digest !== was.digest) problems.push(`CHANGED ${was.path} differs from the baseline inventory`);
+  }
+  if (now.document.triage.path !== baseline.triage.path) problems.push(`CHANGED the triage queue is ${now.document.triage.path}, the baseline names ${baseline.triage.path}`);
+  return { baseline, current: now.document, problems };
+}
+
+function commandGate(flags) {
+  const root = resolve(flags.root);
+  const hub = hubPath(root, flags.hub);
+  const { baseline, current, problems } = gateCheck(root, hub);
+  const ok = problems.length === 0;
+  if (flags.json) console.log(JSON.stringify({ ok, hub, problems, noLoss: current.noLoss, findability: current.findability, baseline: { noLoss: baseline.noLoss, findability: baseline.findability } }));
+  else {
+    console.log(`distill gate: baseline inputs ${baseline.noLoss.inputs}, now inputs ${current.noLoss.inputs} accounted ${current.noLoss.accounted}, ${current.findability.unreachable} unreachable`);
+    for (const line of problems) console.log(line);
+    console.log(ok ? 'ok the tree holds the baseline' : `x ${problems.length} problem(s) against the baseline`);
+  }
+  return ok ? 0 : 1;
+}
+
 // ---- state ----
 
 const PHASES = ['inventory', 'relocate', 'classify', 'chain', 'drafts', 'ledgers', 'synthesis', 'install'];
 const STATUSES = ['pending', 'running', 'checkpointed', 'done'];
 const STATE_VERSION = 1;
-const NOT_BUILT = new Set([8]); // deferred(phase 8 ships in the install PR, which empties this set)
+const INSTALL = 8; // the phase that writes the baseline
 const MOVING = new Set([2, 5]); // relocate and drafts move or archive files, so their end runs the checks
 const BATCHED = new Set([3, 7]); // classify and synthesis fan out in batches
 const BATCH_SIZE = 25;
 const SAMPLE_RATE = 0.1;
-const STATE_VERBS = ['init', 'show', 'start', 'checkpoint', 'done', 'reopen', 'plan', 'assign', 'result', 'review'];
+const MAINTAIN_VERBS = ['maintain-start', 'maintain-round', 'maintain-checkpoint', 'maintain-done'];
+const STATE_VERBS = ['init', 'show', 'start', 'checkpoint', 'done', 'reopen', 'plan', 'assign', 'result', 'review', ...MAINTAIN_VERBS];
+const PASS_STATUSES = ['running', 'checkpointed', 'done'];
 const NEXT_ACTION = { pending: 'start', running: 'checkpoint', checkpointed: 'done' };
-
-const refuse = (message) => die(message, 1);
 
 function phaseArg(value) {
   const phase = Number(value);
   return Number.isInteger(phase) && phase >= 1 && phase <= PHASES.length ? phase : die(`a phase is a number from 1 to ${PHASES.length}`, 2);
 }
 
+const passOk = (m) => m && Number.isInteger(m.pass) && Number.isInteger(m.budget) && Number.isInteger(m.rounds) && PASS_STATUSES.includes(m.status) && Array.isArray(m.worked);
+
 function readState(file) {
   let doc;
   try { doc = JSON.parse(readFileSync(resolve(file), 'utf8')); } catch (error) { die(`cannot read state ${file}: ${error.message}`, 2); }
   const ok = doc && doc.version === STATE_VERSION && typeof doc.hub === 'string' && Array.isArray(doc.inventories) && Array.isArray(doc.phases)
     && doc.phases.length === PHASES.length && doc.phases.every((p, i) => p && p.phase === i + 1 && p.name === PHASES[i] && STATUSES.includes(p.status) && Array.isArray(p.artifacts)
-      && (BATCHED.has(i + 1) === Array.isArray(p.batches)));
+      && (BATCHED.has(i + 1) === Array.isArray(p.batches)))
+    && (doc.maintain === undefined || doc.maintain === null || passOk(doc.maintain));
   return ok ? doc : die(`${file} is not a version ${STATE_VERSION} distill state`, 2);
 }
 
 const writeState = (file, doc) => writeFileSync(resolve(file), `${JSON.stringify(doc, null, 2)}\n`);
 
-// The step that resumes the run: the first phase that is not done.
+// The step that resumes the run: the first phase that is not done, then the open maintain pass.
 function nextStep(doc) {
   const phase = doc.phases.find((p) => p.status !== 'done');
-  if (!phase) return null;
-  if (NOT_BUILT.has(phase.phase)) return { phase: phase.phase, action: 'stop', note: `phase ${phase.phase} (${phase.name}) is not built` };
-  return { phase: phase.phase, action: NEXT_ACTION[phase.status] };
+  if (phase) return { phase: phase.phase, action: NEXT_ACTION[phase.status] };
+  const pass = doc.maintain;
+  if (pass?.status === 'running') return { phase: null, action: 'maintain-round', note: `pass ${pass.pass}, ${pass.rounds} of ${pass.budget} round(s)` };
+  if (pass?.status === 'checkpointed') return { phase: null, action: 'maintain-start', note: `resume pass ${pass.pass}` };
+  return null;
 }
 
 const batchCounts = (batches) => batches.reduce((out, b) => ({ ...out, [b.status]: (out[b.status] ?? 0) + 1 }), {});
@@ -374,7 +557,7 @@ function stateShow(flags, doc) {
   const next = nextStep(doc);
   const last = [...doc.phases].reverse().find((p) => p.status === 'checkpointed' || p.status === 'done');
   if (flags.json) {
-    console.log(JSON.stringify({ ok: true, hub: doc.hub, inventories: doc.inventories, lastCheckpoint: last ? { phase: last.phase, status: last.status } : null, next, phases: doc.phases }));
+    console.log(JSON.stringify({ ok: true, hub: doc.hub, inventories: doc.inventories, lastCheckpoint: last ? { phase: last.phase, status: last.status } : null, next, maintain: doc.maintain ?? null, phases: doc.phases }));
     return 0;
   }
   console.log(`distill state: hub ${doc.hub}, ${doc.inventories.length} inventory file(s)`);
@@ -382,7 +565,9 @@ function stateShow(flags, doc) {
     const batches = p.batches?.length ? `, batches ${JSON.stringify(batchCounts(p.batches))}` : '';
     console.log(`  ${p.phase} ${p.name.padEnd(9)} ${p.status.padEnd(12)} ${p.artifacts.length} artifact(s)${batches}`);
   }
-  console.log(next ? `next: ${next.action} ${next.phase}${next.note ? ` (${next.note})` : ''}` : 'next: none, every phase is done');
+  const pass = doc.maintain;
+  if (pass) console.log(`  maintain: pass ${pass.pass} ${pass.status}, ${pass.rounds} of ${pass.budget} round(s) this session, ${pass.worked.length} item(s) worked`);
+  console.log(next ? `next: ${next.action}${next.phase === null ? '' : ` ${next.phase}`}${next.note ? ` (${next.note})` : ''}` : 'next: none, every phase is done');
   return 0;
 }
 
@@ -400,7 +585,6 @@ function stateInit(flags, root) {
 
 function startPhase(doc, n) {
   const phase = doc.phases[n - 1];
-  if (NOT_BUILT.has(n)) refuse(`phase ${n} (${phase.name}) is not built; vault mode stops after phase 7`);
   if (phase.status !== 'pending') refuse(`phase ${n} is ${phase.status}, not pending`);
   if (n > 1 && doc.phases[n - 2].status !== 'done') refuse(`phase ${n} needs phase ${n - 1} done, and it is ${doc.phases[n - 2].status}`);
   phase.status = 'running';
@@ -420,20 +604,8 @@ function checkpointPhase(doc, root, n, flags) {
 
 // No-loss over every inventory, and the findability count. A loss stops the phase.
 function endOfPhaseChecks(root, doc, requireFindable) {
-  const total = { inputs: 0, accounted: 0, 'in-place': 0, moved: 0, archived: 0 };
-  const problems = [];
-  for (const path of doc.inventories) {
-    const report = noLossReport(root, readInventory(join(root, path)), doc.hub);
-    total.inputs += report.inputs; total.accounted += report.accounted;
-    for (const state of ['in-place', 'moved', 'archived']) total[state] += report.counts[state];
-    for (const item of report.lost) problems.push(`LOSS ${item}`);
-    for (const item of report.ambiguous) problems.push(`AMBIGUOUS ${item.path} (${item.states.join(', ')})`);
-    for (const item of report.problems) problems.push(`MISMATCH ${item}`);
-  }
-  if (problems.length) {
-    for (const line of problems.slice(0, 50)) console.error(line);
-    refuse(`no-loss fails: ${problems.length} problem(s)${problems.length > 50 ? ', first 50 shown' : ''}`);
-  }
+  const { total, problems } = accountInventories(root, doc.hub, doc.inventories);
+  if (problems.length) refuseOn(problems, 'no-loss fails');
   const found = findabilityReport(root, doc.hub, []);
   const findability = found.error ? { error: found.error } : { notes: found.notes, unreachable: found.unreachable };
   if (requireFindable && (found.error || found.unreachable > 0)) {
@@ -441,6 +613,12 @@ function endOfPhaseChecks(root, doc, requireFindable) {
     refuse(`findability fails: ${found.error ?? `${found.unreachable} unreachable note(s)`}`);
   }
   return { noLoss: total, findability };
+}
+
+// Phase 8 runs the baseline checks, findability required, and writes the baseline.
+function installChecks(root, doc) {
+  const { document, path } = installBaseline(root, doc.hub, doc.inventories);
+  return { noLoss: document.noLoss, findability: document.findability, baseline: path };
 }
 
 function donePhase(doc, root, n, flags) {
@@ -453,7 +631,8 @@ function donePhase(doc, root, n, flags) {
     if (!phase.batches.length) refuse(`phase ${n} has no batches; plan them before it is done`);
     if (open.length) refuse(`phase ${n} has ${open.length} unresolved batch(es): ${open.map((b) => `${b.id} ${b.status}`).join(', ')}`);
   }
-  if (MOVING.has(n)) phase.checks = endOfPhaseChecks(root, doc, flags['require-findable']);
+  if (n === INSTALL) phase.checks = installChecks(root, doc);
+  else if (MOVING.has(n)) phase.checks = endOfPhaseChecks(root, doc, flags['require-findable']);
   phase.review = review;
   phase.status = 'done';
 }
@@ -526,14 +705,73 @@ function reviewBatch(doc, n, flags) {
   batch.status = 'reviewed';
 }
 
+function runningPass(doc) {
+  const pass = doc.maintain;
+  return pass?.status === 'running' ? pass : refuse(`no maintain pass is running (${pass ? pass.status : 'none'})`);
+}
+
+function maintainStart(doc, flags) {
+  if (doc.phases[INSTALL - 1].status !== 'done') refuse(`a maintain pass needs phase ${INSTALL} done, and it is ${doc.phases[INSTALL - 1].status}`);
+  const last = doc.maintain ?? null;
+  if (last?.status === 'running') refuse(`pass ${last.pass} is running; checkpoint it or finish it`);
+  const budget = flags.budget === undefined ? null : Number(flags.budget);
+  if (budget !== null && (!Number.isInteger(budget) || budget < 1)) die('--budget is a whole number of at least 1', 2);
+  if (last?.status === 'checkpointed') {
+    Object.assign(last, { status: 'running', rounds: 0, checkpoint: null, budget: budget ?? last.budget });
+    return;
+  }
+  if (budget === null) die('maintain-start needs --budget, the rounds this pass may run before it stops', 2);
+  doc.maintain = { pass: (last?.pass ?? 0) + 1, budget, rounds: 0, status: 'running', worked: [], checkpoint: null, review: null, checks: null };
+}
+
+function maintainRound(doc, flags) {
+  const pass = runningPass(doc);
+  if (!flags.item) die('maintain-round needs --item, the baseline path or triage entry worked', 2);
+  if (pass.worked.includes(flags.item)) refuse(`item ${flags.item} was already worked in pass ${pass.pass}`);
+  pass.worked.push(flags.item);
+  pass.rounds++;
+  if (pass.rounds >= pass.budget) Object.assign(pass, { status: 'checkpointed', checkpoint: { reason: 'budget', rounds: pass.rounds, worked: pass.worked.length, artifacts: [] } });
+}
+
+function maintainCheckpoint(doc, root, flags) {
+  const pass = runningPass(doc);
+  const artifacts = [...new Set(flags.artifact.map((spec) => repoPath(root, spec)))].sort(byCodeUnit);
+  const present = fileProbe(root);
+  for (const path of artifacts) if (!present(path)) refuse(`artifact ${path} is not a file`);
+  Object.assign(pass, { status: 'checkpointed', checkpoint: { reason: 'lead', rounds: pass.rounds, worked: pass.worked.length, artifacts } });
+}
+
+// The pass ends on the gate check: no-loss over the baseline inventories, and findability.
+function maintainDone(doc, root, flags) {
+  const pass = doc.maintain;
+  if (pass?.status !== 'running' && pass?.status !== 'checkpointed') refuse(`no maintain pass to finish (${pass ? pass.status : 'none'})`);
+  const review = (flags.review ?? '').trim();
+  if (!review) die('maintain-done needs --review, the lead note on what was read', 2);
+  const ending = gateCheck(root, doc.hub);
+  if (ending.problems.length) refuseOn(ending.problems, 'the pass ends on a failed check');
+  Object.assign(pass, { status: 'done', review, checks: { noLoss: ending.current.noLoss, findability: ending.current.findability } });
+}
+
+function commandMaintain(doc, root, verb, flags) {
+  if (verb === 'maintain-start') maintainStart(doc, flags);
+  else if (verb === 'maintain-round') maintainRound(doc, flags);
+  else if (verb === 'maintain-checkpoint') maintainCheckpoint(doc, root, flags);
+  else maintainDone(doc, root, flags);
+  writeState(flags.state, doc);
+  const pass = doc.maintain;
+  console.log(flags.json ? JSON.stringify({ ok: true, verb, pass, next: nextStep(doc) }) : `distill state: ${verb} pass ${pass.pass} -> ${pass.status}, ${pass.rounds} of ${pass.budget} round(s)`);
+  return 0;
+}
+
 function commandState(flags, positional) {
   const [verb, phaseText, ...extra] = positional;
-  const phaseless = verb === 'init' || verb === 'show';
+  const phaseless = verb === 'init' || verb === 'show' || MAINTAIN_VERBS.includes(verb);
   if (!STATE_VERBS.includes(verb) || extra.length || phaseless === (phaseText !== undefined)) die(`usage: state <${STATE_VERBS.join('|')}> [phase] --state <file.json> [flags]`, 2);
   const root = resolve(flags.root);
   if (verb === 'init') return stateInit(flags, root);
   const doc = readState(flags.state);
   if (verb === 'show') return stateShow(flags, doc);
+  if (MAINTAIN_VERBS.includes(verb)) return commandMaintain(doc, root, verb, flags);
   const n = phaseArg(phaseText);
   if (verb === 'start') startPhase(doc, n);
   else if (verb === 'checkpoint') checkpointPhase(doc, root, n, flags);
@@ -557,9 +795,11 @@ const specs = {
   inventory: { ...common, hub: { value: true, required: true }, out: { value: true, required: true } },
   'no-loss': { ...common, inventory: { value: true, required: true }, hub: { value: true } },
   findability: { ...common, hub: { value: true, required: true }, index: { value: true, many: true } },
+  baseline: { ...common, hub: { value: true, required: true }, inventory: { value: true, many: true } },
+  gate: { ...common, hub: { value: true, required: true } },
   state: {
     ...common, state: { value: true, required: true }, hub: { value: true }, inventory: { value: true, many: true }, artifact: { value: true, many: true },
-    review: { value: true }, 'require-findable': { value: false }, paths: { value: true }, size: { value: true }, batch: { value: true }, worker: { value: true }, defects: { value: true },
+    review: { value: true }, budget: { value: true }, item: { value: true }, 'require-findable': { value: false }, paths: { value: true }, size: { value: true }, batch: { value: true }, worker: { value: true }, defects: { value: true },
   },
 };
 if (sub === '--help' || sub === '-h') { console.log(USAGE.join('\n')); process.exit(0); }
@@ -568,4 +808,6 @@ const { flags, positional } = parseOrDie(rest, specs[sub], USAGE.join('\n'));
 // The exit code is set, not forced, so a piped report is never cut short.
 if (sub === 'inventory') commandInventory(flags);
 else if (sub === 'state') process.exitCode = commandState(flags, positional);
+else if (sub === 'baseline') process.exitCode = commandBaseline(flags);
+else if (sub === 'gate') process.exitCode = commandGate(flags);
 else process.exitCode = sub === 'no-loss' ? commandNoLoss(flags) : commandFindability(flags);

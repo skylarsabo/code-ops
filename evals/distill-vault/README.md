@@ -1,8 +1,8 @@
 # distill-vault eval
 
-Measures vault mode of `code-ops-suite:distill` (phases 1 to 5 and 7) in two ways.
+Measures vault mode of `code-ops-suite:distill` (phases 1 to 8 and the maintain pass) in two ways.
 
-1. **Deterministic gate.** `node evals/distill-vault/run.mjs` copies `repo/` to a temp folder and drives the `state` verbs of `scripts/distill-check.mjs` through a full run. It pins out-of-order refusal, the no-loss refusal at the end of the relocate phase, the sample and full-review rule, the same-worker rule, and the findability count. Mutant copies of the script each break one rule, and the case that pins the rule must fail on its mutant.
+1. **Deterministic gate.** `node evals/distill-vault/run.mjs` copies `repo/` to a temp folder and drives the `state` verbs of `scripts/distill-check.mjs` through a full run. It pins out-of-order refusal, the no-loss refusal at the end of the relocate phase, the sample and full-review rule, the same-worker rule, the findability count, the phase 8 baseline and its refusals, the inventory copies the baseline cites in the hub, the gate with the run folder absent, and the maintain pass budget stop. Mutant copies of the script each break one rule, and the case that pins the rule must fail on its mutant.
 2. **Model run.** Point the skill at `evals/distill-vault/repo/vault` in assess mode. Capture its findings as Markdown with `file:line` refs, or as a JSON array of `{ "file": "...", "line": N }`, and score them:
    ```
    node evals/score.mjs evals/distill-vault/ANSWER_KEY.json <findings.md|findings.json>

@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
-      "verifiedDigest": "02c0ebb5a97d12118d73c514f9a87ee1c30d60de3c53c4a0247914ad777d6239",
+      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
+      "verifiedDigest": "98c8d2fb3b60382630d97ac1ab7c20b24639680dfdf875d0da191849fdb5d4e1",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -300,8 +300,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "339663221497e19ba2275f2df81c83f374831025",
-      "verifiedDigest": "eade1639b5047051a4e6c12d800a4960244a2f4c3404eb3d82c7d6f9747712c0",
+      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
+      "verifiedDigest": "7641f80be59c771ec726b4f7ec7e324f3bbc23072bf09993a61662fdb397ff2f",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -714,24 +714,39 @@
           "anchor": "function classify(file, source, state) {"
         },
         {
+          "file": "scripts/derived-merge.mjs",
+          "line": 12,
+          "anchor": "// WHY two phases: git runs a merge driver once per file, before the merged tree"
+        },
+        {
           "file": "scripts/distill-check.mjs",
           "line": 6,
           "anchor": "//   node scripts/distill-check.mjs inventory   --hub <hub dir> --out <file.json"
         },
         {
           "file": "scripts/distill-check.mjs",
-          "line": 46,
+          "line": 64,
           "anchor": "// STATE records the vault-mode run (design \"Distill\", paragraph \"Phases as stat"
+        },
+        {
+          "file": "scripts/distill-check.mjs",
+          "line": 48,
+          "anchor": "// BASELINE is phase 8 (install). It writes"
+        },
+        {
+          "file": "scripts/distill-check.mjs",
+          "line": 60,
+          "anchor": "// GATE compares the current tree to that baseline and writes nothing. It runs t"
+        },
+        {
+          "file": "scripts/distill-check.mjs",
+          "line": 89,
+          "anchor": "// MAINTAIN PASS (design \"Distill\", paragraph \"Maintain pass\"). It starts after"
         },
         {
           "file": "scripts/co.mjs",
           "line": 95,
           "anchor": "distill: 'distill-check.mjs',"
-        },
-        {
-          "file": "scripts/derived-merge.mjs",
-          "line": 12,
-          "anchor": "// WHY two phases: git runs a merge driver once per file, before the merged tree"
         }
       ]
     },
@@ -741,8 +756,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
-      "verifiedDigest": "25b7855f0564e14affc4cd6449a792e58526a5496ff36feec8a49f5032732252",
+      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
+      "verifiedDigest": "ca2a65ea1d0fe73f2dd16dd5d384eecfd32ab5d9ec62008f91dcf7c9605256aa",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1024,8 +1039,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
-      "verifiedDigest": "47371f23c63dc0d0311ff1415ef7365e0f96bcecb1ba2310ef2f40f97979e87f",
+      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
+      "verifiedDigest": "42ea56040db595ebec2c93ebf8dc125d684a3befcec740cae93019b19127e591",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1211,8 +1226,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
-      "verifiedDigest": "159cba04b982f6cc577e46e18101d329b99d97b04d2467cc069dcc283d99c4e6",
+      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
+      "verifiedDigest": "85613fffffa0b52a55431ce8f80fab3aeded3784195e8911d101b6ae3292397a",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
