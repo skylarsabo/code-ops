@@ -300,8 +300,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
-      "verifiedDigest": "7641f80be59c771ec726b4f7ec7e324f3bbc23072bf09993a61662fdb397ff2f",
+      "verifiedAt": "33a63df56530993eac2723356d6cb896764aa141",
+      "verifiedDigest": "26cb858cc25925d790ae114349451ac072c1fd0eaa1bc21febd94b2448620c94",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -756,8 +756,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
-      "verifiedDigest": "ca2a65ea1d0fe73f2dd16dd5d384eecfd32ab5d9ec62008f91dcf7c9605256aa",
+      "verifiedAt": "33a63df56530993eac2723356d6cb896764aa141",
+      "verifiedDigest": "9902ec68fdd114020c8786d881725b5cca85acd4d1b0a0f460cf21edf8f22690",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
