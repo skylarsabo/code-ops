@@ -203,7 +203,7 @@ function validate(c, root, warnings = []) {
     if (calibrated && rank > TIER_RANK[c.lead.tier]) errors.push(`${unit.id || expected} must not run above the lead tier`);
     if (unit.kind === 'execution' && (rank < TIER_RANK.mid || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates execution routing floor`);
     if (unit.kind === 'judgment' && (rank < TIER_RANK.strong || !['medium', 'high'].includes(unit.effort))) errors.push(`${unit.id || expected} violates judgment routing floor`);
-    if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || unit.effort !== 'high'))errors.push(`${unit.id || expected} violates review routing floor`);
+    if (['review', 'refutation'].includes(unit.kind) && (rank < TIER_RANK.strong || unit.effort !== 'high')) errors.push(`${unit.id || expected} violates review routing floor`);
     if (['breadth', 'mechanical'].includes(unit.kind) && ['high', 'xhigh'].includes(unit.effort)) errors.push(`${unit.id || expected} violates breadth/mechanical effort ceiling`);
     if (typeof unit.role !== 'string' || !unit.role || typeof unit.brief !== 'string' || !unit.brief.trim() || words(unit.brief) > 10) errors.push(`${unit.id || expected} needs role and a brief of at most ten words`);
     if (taskBased && (typeof unit.routingRationale !== 'string' || !unit.routingRationale.trim() || words(unit.routingRationale) > 20)) errors.push(`${unit.id || expected} needs a routingRationale of at most twenty words`);
