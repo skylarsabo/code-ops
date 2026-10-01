@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
-      "verifiedDigest": "a0e7c3eb7c4c0a0a4269d3a88ce83b027d96fd121b070f30bc995fca7ad16d2b",
+      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
+      "verifiedDigest": "a82171e6c6336596f2093f2ca22a6244a32b262a05e2887f7c0ea7001515a9e0",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -88,13 +88,13 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 389,
+          "line": 411,
           "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 357,
-          "anchor": "if (raw.trim()) lines.push(...shellLines());"
+          "line": 399,
+          "anchor": "lines.push(...gitLine(cwd));"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -130,6 +130,11 @@
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 447,
           "anchor": "let emitted = false;"
+        },
+        {
+          "file": "scripts/collision-lib.mjs",
+          "line": 343,
+          "anchor": "export const discoverPeers = (cwd, sid, now = Date.now(), own) => {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/agent-ledger.mjs",
@@ -213,13 +218,8 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 374,
+          "line": 395,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
-        },
-        {
-          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 378,
-          "anchor": "lines.push(...gitLine(cwd));"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -270,8 +270,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
-      "verifiedDigest": "e700ccb54adf905bb01add8fed497a91d8b9f5819be555ba6579b33b5bc72f0d",
+      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
+      "verifiedDigest": "c1e43414f0c9f54890429c0e3b0f28376980275ec1950a4e605ff34fe8436cd6",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -455,8 +455,23 @@
         },
         {
           "file": "scripts/collision-lib.mjs",
-          "line": 210,
+          "line": 420,
           "anchor": "export function collisionNote(payload, now = Date.now(), spawn = spawnSync) {"
+        },
+        {
+          "file": "scripts/collision-lib.mjs",
+          "line": 234,
+          "anchor": "export function parsePeers(text) {"
+        },
+        {
+          "file": "scripts/collision-lib.mjs",
+          "line": 343,
+          "anchor": "export const discoverPeers = (cwd, sid, now = Date.now(), own) => {"
+        },
+        {
+          "file": "scripts/check-handoff.mjs",
+          "line": 508,
+          "anchor": "function agreedWithWarning(line, peer, own, peerFile) {"
         },
         {
           "file": "scripts/agent-ledger.mjs",
@@ -610,8 +625,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
-      "verifiedDigest": "f149effc48f7868dd511af6252b1b97e0b8c9edc4988f539e8ef119785fa0914",
+      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
+      "verifiedDigest": "533840e70b8d35662471bf73d072d164347a90f56413fa39aa9b4033fc378fd6",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -709,6 +724,21 @@
           "anchor": "// Regression eval for the collision note (design C2): scripts/collision-lib.mjs"
         },
         {
+          "file": "evals/peer-surfaces/run.mjs",
+          "line": 2,
+          "anchor": "// Regression eval for peer surface notes (PR 9 of \"Agent state machine and host"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 940,
+          "anchor": "// ---------------------------------------------------------------- peer lines ("
+        },
+        {
+          "file": "evals/handoff-check/run.mjs",
+          "line": 366,
+          "anchor": "// Agreed-with (design 2026-09 item 4): warn only, exit 0, when the peer program"
+        },
+        {
           "file": "evals/change-feed/run.mjs",
           "line": 2,
           "anchor": "// Regression eval for the change feed (scripts/change-feed.mjs, C3 of the progr"
@@ -785,42 +815,42 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 309,
+          "line": 310,
           "anchor": "// ---------------------------------------------------------------- lifecycle as"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 422,
+          "line": 423,
           "anchor": "// ---------------------------------------------------------------- Codex token-"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 357,
+          "line": 358,
           "anchor": "// ---------------------------------------------------------------- context ceil"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 123,
+          "line": 124,
           "anchor": "const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At t"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 124,
+          "line": 125,
           "anchor": "const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running w"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 126,
+          "line": 127,
           "anchor": "const BAND2 = 'Finish the step in flight and checkpoint as above. If the host ha"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 127,
+          "line": 128,
           "anchor": "const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 194,
+          "line": 195,
           "anchor": "// ---------------------------------------------------------------- marker keyed"
         },
         {
@@ -848,8 +878,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
-      "verifiedDigest": "772cf17a277eee6c158637fc18dcd0e182975fa909358035a908d0c97ef10324",
+      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
+      "verifiedDigest": "b6da729082b57815c67c92528f4bff0f6645142920674ba352322b074836563e",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -959,8 +989,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
-      "verifiedDigest": "104be9c5d98320a09d7813c9db4e53a785665162f14a76eb27fc51bbe81bcd74",
+      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
+      "verifiedDigest": "0299d422f38f8f308673a3db14815c120e241dee04c5c377b8cffe8e217e38ff",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -977,6 +1007,14 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 647
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 253
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 542
         }
       ]
     },
@@ -1001,8 +1039,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "d23891c0c230628cd3d4602756fffc6293fd25f4",
-      "verifiedDigest": "a7c3208f3d729eae96f3bae03cf646220d51f746a0231dc26403bd0674bd20cf",
+      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
+      "verifiedDigest": "9fcbc51f753ab081f5274383987c61c05a117a6f60e8290b55b068f559e3f98d",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

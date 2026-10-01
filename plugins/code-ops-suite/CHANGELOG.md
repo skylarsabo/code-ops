@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.27.0
+- The collision note warns on surfaces two programs share. A `## Peers` section in PROGRAM.md declares paths, globs, and `process:` names per peer program, and an edit, a `git merge` or `git push` diff, or a kill command that touches one names the peer's live head session. Peers are discovered from the presence board, never configured.
+- The routing card lists up to four live peer programs after a compaction and at startup or clear, with a `reply owed` marker from a fresh snapshot.
+- The handoff check warns when a decision marked `Agreed-with: <slug>` has no matching entry in the peer program's ledger.
+
 ## 2.26.0
 - The dispatch guard checks each `agent()` call in a Workflow script on its own. A call with no `agentType` or a wide literal type is denied unless the script states a `Wide-surface reason:`, and a literal `effort` of `xhigh` or `max` is denied with no escape. A call whose options cannot be read gets an advisory, and a script that cannot be parsed falls back to the script-wide test.
 - New `CONVENTIONS.md` §16, Workflow fan-out: when a Workflow may run, how batches enter the dispatch ledger, and the per-call rules. The `everything`, `ship`, `calibration-run`, `codebase-audit`, and `remediation` skills cite it.

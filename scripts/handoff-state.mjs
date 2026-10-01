@@ -1256,7 +1256,7 @@ function registerLines(programFile, handoffText, root) {
 
 // The PROGRAM.md a run folder belongs to: its SESSION.json `program`, else its own handoff's Program
 // line, else its predecessor handoff's. Null when none resolves to a file.
-function programOfRun(dir, base) {
+export function programOfRun(dir, base) {
   const programLine = (file) => { try { return pathValue(sectionBody(readFileSync(file, 'utf8'), 'program'), 'Program'); } catch { return null; } };
   const session = readJson(join(dir, 'SESSION.json')) ?? {};
   const named = (typeof session.program === 'string' && session.program) || programLine(join(dir, 'HANDOFF.md'))
@@ -1490,7 +1490,7 @@ function liveStart(arg, root) {
 
 // Walks consumed handoffs from a run folder to the head run folder. `running` is true when the head is
 // live (its folder has no handoff yet) or awaiting resume (its handoff is unconsumed).
-function walkHead(dir, base, root) {
+export function walkHead(dir, base, root) {
   const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
   const seen = new Set();
   let hops = 0;

@@ -230,6 +230,9 @@ const findSection = (list, name) => list.find((s) => s.heading.toLowerCase().sta
 const labelValue = (body, label) => new RegExp(`^[-*\\t ]*${label}:[^\\S\\r\\n]*(.*)$`, 'm').exec(body)?.[1].trim() ?? null;
 const pathValue = (body, label) => labelValue(body, label)?.replace(/^`(.*)`$/, '$1').trim() || null;
 const squash = (s) => s.replace(/\s+/g, ' ').trim();
+const agreedSlug = (line) => /\bAgreed-with:\s*([A-Za-z0-9][\w.-]*)/.exec(line)?.[1] ?? null;
+// The decision text of a ledger bullet: what follows its leading DEC id and date, up to the first ` · ` field.
+const decisionText = (line) => squash(line.replace(/^[-*]\s+DEC-\d+\s*(?:\d{4}-\d{2}-\d{2})?/, '').split('·')[0]);
 const inRoot = (p) => (isAbsolute(p) ? p : resolve(flags.root, p));
 const isFile = (p) => { try { return statSync(p).isFile(); } catch { return false; } };
 
@@ -470,6 +473,11 @@ function checkProgram(file, shown) {
     }
     if (id && hop !== undefined && disposition) result.decisions.push({ id, hop: Number(hop), disposition });
   }
+  // ---- 11b. an Agreed-with decision has its counterpart in the peer program's ledger (warn only) ----
+  for (const line of decisionLines) {
+    const peer = agreedSlug(line);
+    if (peer) agreedWithWarning(line, peer, basename(dirname(file)), join(dirname(dirname(file)), peer, 'PROGRAM.md'));
+  }
   // ---- 14. every promoted id resolves on the working tree: sealed, or staged in intake ----
   const promoted = promotedIds(`${body}\n${archiveText}`);
   const hub = promoted.length ? hubOf(flags.root) : null;
@@ -493,6 +501,19 @@ function checkProgram(file, shown) {
   }
   for (const [id, n] of seen) if (n > 1) violations.push(`check 18: ${id} leads ${n} bullets across ${tag} and ${ARCHIVE_NAME}; ids are unique within a program`);
   return result;
+}
+
+// Warns when the peer ledger is missing, unreadable, or holds no `Agreed-with: <own slug>` entry with the same decision
+// text. Reads at most 4 * PROGRAM_CAP_BYTES, and an unreadable or oversized peer ledger is a warning, never a failure.
+function agreedWithWarning(line, peer, own, peerFile) {
+  const text = decisionText(line);
+  const tag = `check 11: Agreed-with ${peer} entry "${text.slice(0, 50)}"`;
+  try {
+    if (!isFile(peerFile)) return void warnings.push(`${tag} has no peer ledger at programs/${peer}/PROGRAM.md`);
+    if (statSync(peerFile).size > PROGRAM_CAP_BYTES * 4) return void warnings.push(`${tag}: programs/${peer}/PROGRAM.md is too large to compare`);
+    const match = bulletsOf(readFileSync(peerFile, 'utf8')).some((l) => agreedSlug(l) === own && decisionText(l) === text);
+    if (!match) warnings.push(`${tag} has no counterpart in programs/${peer}/PROGRAM.md (an entry with Agreed-with: ${own} and the same text)`);
+  } catch { warnings.push(`${tag}: programs/${peer}/PROGRAM.md could not be read`); }
 }
 
 // Ids the predecessor's own ledger forwarded to this program: when the predecessor's Program: names another
