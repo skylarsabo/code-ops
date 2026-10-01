@@ -1,6 +1,6 @@
 interface:
   display_name: "Distill"
-  short_description: "Use to cut a program ledger down to its finish line, at most 12 active items, live decisions, and a backlog. Program mode only; vault mode is not built."
+  short_description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check (phases 1 to 5 and 7). Install and maintain are not built."
   default_prompt: "Use code-ops-suite:distill for this task."
 policy:
   allow_implicit_invocation: true

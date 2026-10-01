@@ -56,7 +56,7 @@ freshness check.
 - [`adr`](#code-ops-suiteadr): architecture decision records
 - [`ops-docs`](#code-ops-suiteops-docs): the operator's runbook
 - [`handoff`](#code-ops-suitehandoff): capture or resume a run's verifiable session state
-- [`distill`](#code-ops-suitedistill): cut one program ledger down to its finish line, live items, and live decisions
+- [`distill`](#code-ops-suitedistill): cut one program ledger down to its finish line, live items, and live decisions, or back-fill a docs vault with a no-loss check
 - [`atlas`](#code-ops-suiteatlas): the repo's durable cache of judgment, with mechanical freshness
 - [`conform`](#code-ops-suiteconform): assess and repair the complete code-ops standard, including the repo contract; `global` scope maintains the user-wide contracts
 - [`vault`](#code-ops-suitevault): create, migrate, or check the repository documentation vault
@@ -789,8 +789,17 @@ restated. The skill reuses the existing tools: `co program archive` moves settle
 `PROGRAM.archive.md`, `co decide promote` promotes a decision, and `co burndown` and
 `co check handoff` verify the result. It never deletes a line. Each removed line lands verbatim in
 the archive, the backlog, or Closed items. The checkpoint artifact is `LEDGER_DIFF.md`, and the
-lead reads every disposition in it before the run is done. Vault mode, the eight-phase backfill of
-a docs vault, is not built yet. The skill says so and stops when asked for it.
+lead reads every disposition in it before the run is done.
+
+Vault mode, `/code-ops-suite:distill vault <hub>`, is the eight-phase backfill of a docs vault.
+Phases 1 to 5 and 7 are built: inventory, relocate, classify, chain, drafts, and synthesis. Phase 6
+is program mode, run once per ledger. `co docs distill state` records each phase in the run's
+`state.json` as pending, running, checkpointed, or done, so a compaction or a handoff resumes at
+`state show`. It refuses a phase that starts before the one before it is done, a checkpoint with no
+artifact, and a `done` with no review note. The end of phases 2 and 5 runs the no-loss check over
+every inventory and refuses on a loss. Phases 3 and 7 run in batches of 25, and one defect in a
+batch's sample sends the whole batch to full review. Phase 8 (install the baseline and the gate) and
+the maintain pass are not built. The skill says so and stops after phase 7.
 
 **Why it's useful.** A long program ledger collects stale items, unnumbered decisions, and
 restated rulings, until a resumed session cannot tell what still blocks the end. A finish line and
@@ -799,7 +808,8 @@ loses nothing.
 
 **When to use it.** Use it when `co burndown` shows the program over its cap or growing, when a
 ledger nears its 32 KB cap, or when a program needs a finish line. Do not use it to close a
-program, which `co program close` does, or to clean a whole docs vault.
+program, which `co program close` does. Use vault mode to bring a legacy docs tree into the
+standard layout without losing a file.
 
 **Prerequisites and hand-offs.** The ledger needs a `Grammar: 2` line, which the `handoff` skill
 sets. The operator confirms the finish line and each promotion. The result feeds the next

@@ -59,6 +59,9 @@ jobs:
       - name: Distill no-loss regression eval
         run: node evals/distill-check/run.mjs
 
+      - name: Distill vault-mode state regression eval
+        run: node evals/distill-vault/run.mjs
+
       - name: Durable record-collection regression eval
         run: |
           node evals/record-collections/run.mjs
@@ -456,6 +459,9 @@ jobs:
 
       - name: Distill no-loss regression eval
         run: node evals/distill-check/run.mjs
+
+      - name: Distill vault-mode state regression eval
+        run: node evals/distill-vault/run.mjs
 
   # Shard 2: runtime and review orchestration evals (about 100 s).
   structural-lint-windows-shard-2:

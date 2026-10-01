@@ -1,0 +1,108 @@
+{
+  "fixture": "distill-vault",
+  "repo": "repo",
+  "lineTolerance": 0,
+  "thresholds": { "recall": 0.8, "maxDecoys": 0 },
+  "planted": [
+    {
+      "id": "VAULT-1",
+      "file": "vault/10 Design/auth-rework-amendment.md",
+      "line": 4,
+      "anchor": "kind: amendment",
+      "category": "amendment-unlinked",
+      "desc": "The amendment changes the auth rework token lifetime but carries no amends: field and no link to the decision. Phase 4 links it."
+    },
+    {
+      "id": "VAULT-2",
+      "file": "vault/10 Design/drafts/cache-plan-v1.md",
+      "line": 5,
+      "anchor": "status: draft",
+      "category": "superseded-draft",
+      "desc": "The cache plan replaced this draft in prose, but the draft keeps status draft and neither note links the other. Phase 5 marks it superseded with a link."
+    },
+    {
+      "id": "VAULT-3",
+      "file": "vault/30 Synthesis/retention-overview.md",
+      "line": 4,
+      "anchor": "kind: synthesis",
+      "category": "synthesis-no-sources",
+      "desc": "A synthesis page with no sources: field. Phase 7 adds one."
+    },
+    {
+      "id": "VAULT-4",
+      "file": "vault/10 Design/orphan-notes.md",
+      "line": 2,
+      "anchor": "title: Orphan notes",
+      "category": "unreachable-note",
+      "desc": "No generated index or reachable note links to this file, so the findability count is 1."
+    },
+    {
+      "id": "VAULT-5",
+      "file": "inventory/docs.json",
+      "line": 20,
+      "anchor": "docs/runbook-old.md",
+      "category": "moved-no-forwarding",
+      "desc": "The runbook moved to vault/10 Design/runbook.md, but FORWARDING.json has no entry for the old path, so the no-loss check reports a loss."
+    },
+    {
+      "id": "VAULT-6",
+      "file": "vault/30 Synthesis/cache-overview.md",
+      "line": 6,
+      "anchor": "cache-plan-v1",
+      "category": "stale-synthesis",
+      "desc": "The page cites only the first cache draft, which the cache plan superseded, so its claim of one disk tier is stale. Phase 7 marks it stale."
+    },
+    {
+      "id": "VAULT-7",
+      "file": "vault/10 Design/queue-limits.md",
+      "line": 4,
+      "anchor": "kind: decision",
+      "category": "decision-unclassified",
+      "desc": "A decision record with no key and no decides line. Phase 3 workers fill both, and the lead reads the ruling."
+    }
+  ],
+  "decoys": [
+    {
+      "id": "DECOY-1",
+      "file": "vault/10 Design/search-index-amendment.md",
+      "line": 6,
+      "anchor": "amends:",
+      "why": "The amendment already links its decision through amends: and a body link, so phase 4 has nothing to add."
+    },
+    {
+      "id": "DECOY-2",
+      "file": "vault/10 Design/drafts/onboarding-plan.md",
+      "line": 5,
+      "anchor": "status: draft",
+      "why": "A live draft that no later note replaces. Phase 5 triages it to current and leaves it where it is."
+    },
+    {
+      "id": "DECOY-3",
+      "file": "vault/30 Synthesis/auth-overview.md",
+      "line": 6,
+      "anchor": "sources:",
+      "why": "The synthesis page already lists two current sources, so phase 7 adds nothing."
+    },
+    {
+      "id": "DECOY-4",
+      "file": "vault/80 Runs/2026-09-30 distill-demo/scratch.md",
+      "line": 1,
+      "anchor": "# Scratch",
+      "why": "An unlinked note under 80 Runs. Findability leaves 80 Runs out, and rule 4 keeps run evidence."
+    },
+    {
+      "id": "DECOY-5",
+      "file": "inventory/docs.json",
+      "line": 16,
+      "anchor": "docs/old-notes.md",
+      "why": "The file is gone, but the archive README links its path, so the path is archived and accounted."
+    },
+    {
+      "id": "DECOY-6",
+      "file": "inventory/docs.json",
+      "line": 8,
+      "anchor": "docs/guide.md",
+      "why": "The guide moved with a FORWARDING.json entry to a file that exists, so the path is moved and accounted."
+    }
+  ]
+}
