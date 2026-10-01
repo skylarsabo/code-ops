@@ -111,9 +111,13 @@ const AGENT_FLOORS = {
 };
 const TIER_RANK = { light: 0, mid: 1, strong: 2, frontier: 3 };
 const TIER_NAMES = ['light', 'mid', 'strong', 'frontier'];
+// `premium` is a routing rung between strong and frontier, not a capability tier: its clone
+// binds a second enabled strong-class model, so the gate and the floors never rank it.
+const ROUTE_TIERS = ['light', 'mid', 'strong', 'premium', 'frontier'];
+const PREMIUM_COLLAPSED = 'premium collapsed to strong: no distinct enabled model';
 // `lead` is a tier clone with no model, so it inherits whatever the operator
 // picked for the orchestrator session.
-const TIER_SUFFIX = /-(light|mid|strong|frontier|lead)$/;
+const TIER_SUFFIX = /-(light|mid|strong|premium|frontier|lead)$/;
 // Operator rule: effort never runs above high on any host. A request for a level above it
 // clamps to high, and the dispatch and the subagent's first turn both carry a visible note.
 const EFFORTS = ['low', 'medium', 'high'];
@@ -817,6 +821,22 @@ function pickChooserModel(required, catalog, profile = {}) {
   return eligible[0].id;
 }
 
+// Premium is the best-scoring enabled strong-class model other than the strong pick, so
+// it stays inside the catalog the dispatch guard allows. A frontier-class model ranks
+// behind a strong-class one, which keeps premium apart from the frontier rung when it can.
+function pickPremiumModel(strong, catalog, profile = {}) {
+  if (!strong) return null;
+  const eligible = catalog
+    .filter((id) => id.toLowerCase() !== strong.toLowerCase())
+    .map((id) => ({ id, tier: classifyChooserModel(id, profile), value: valueScore(profileRow(id, profile), profile) }))
+    .filter((row) => row.tier && TIER_RANK[row.tier] >= TIER_RANK.strong && !row.id.toLowerCase().startsWith('opencode/'));
+  eligible.sort((a, b) => (a.tier === 'frontier') - (b.tier === 'frontier')
+    || (b.value !== null) - (a.value !== null)
+    || (b.value ?? 0) - (a.value ?? 0)
+    || costScore(b.id) - costScore(a.id) || qualityScore(b.id) - qualityScore(a.id));
+  return eligible[0]?.id ?? null;
+}
+
 function buildChooserLadder(catalog = listChooserModels(), profile = readProfile(), switches = providerSwitches()) {
   const ids = enabledModels(catalog.length ? catalog : [], profile).filter((id) => providerAllowed(id, switches));
   const byTier = {};
@@ -827,6 +847,8 @@ function buildChooserLadder(catalog = listChooserModels(), profile = readProfile
   if (!byTier.strong) byTier.strong = byTier.mid || byTier.light;
   if (!byTier.mid) byTier.mid = byTier.strong || byTier.light;
   if (!byTier.light) byTier.light = byTier.mid || byTier.strong;
+  // Null means premium collapses to strong; the dispatch note and the routing card say so.
+  byTier.premium = pickPremiumModel(pickChooserModel('strong', ids, profile), ids, profile);
   const agents = {};
   for (const [agent, floor] of Object.entries(AGENT_FLOORS)) {
     const model = byTier[floor];
@@ -872,6 +894,10 @@ function routeTier(type, requested, clones) {
   const base = baseAgent(type);
   const floor = AGENT_FLOORS[base];
   if (floor === undefined || !requested) return { agent: type, note: null };
+  if (requested === 'premium') {
+    if (floor !== 'strong') return { agent: base, note: `Tier premium applies to strong-floor agents; ${base} runs at its ${floor} binding.` };
+    return clones.has(`${base}-premium`) ? { agent: `${base}-premium`, note: null } : { agent: base, note: `${PREMIUM_COLLAPSED}.` };
+  }
   if (requested !== 'lead' && TIER_RANK[requested] <= TIER_RANK[floor]) {
     const raised = TIER_RANK[requested] < TIER_RANK[floor];
     return { agent: base, note: raised ? `Tier ${requested} is below the ${floor} floor of ${base}; it runs at ${floor}.` : null };
@@ -913,7 +939,8 @@ function pickVariant(variants, level) {
 }
 
 function routingCard(byTier, profile) {
-  const bound = TIER_NAMES.map((t) => {
+  const bound = ROUTE_TIERS.map((t) => {
+    if (t === 'premium' && !byTier?.premium) return byTier?.strong ? PREMIUM_COLLAPSED : 'premium=unbound';
     const row = byTier?.[t] ? profileRow(byTier[t], profile) : null;
     const measured = row ? ` (index ${row.index}, $${row.credits ?? row.cost} per task, ${row.tokens} output tokens)` : '';
     return `${t}=${byTier?.[t] ?? 'unbound'}${measured}`;
@@ -927,8 +954,8 @@ function routingCard(byTier, profile) {
   return [
     ...budget,
     'code-ops tier and effort routing: choose both per unit, from the task. Add either line to a Task brief.',
-    `Tier: light | mid | strong | frontier | lead. This host binds ${bound}. lead inherits your own model.`,
-    'A tier below the agent floor runs at the floor: explorer and gatherer light, claim-checker mid, every other suite agent strong.',
+    `Tier: light | mid | strong | premium | frontier | lead. This host binds ${bound}. lead inherits your own model.`,
+    'A tier below the agent floor runs at the floor: explorer and gatherer light, claim-checker mid, every other suite agent strong. premium binds a second enabled strong-class model for strong-floor agents; with none, it runs at strong and the dispatch says so.',
     'Effort: low | medium | high sets that subagent\'s reasoning level. With no line: breadth low, implementer and claim-checker medium, review, trace, and verify high.',
     'Tier follows the judgment the unit needs. Effort follows its ambiguity. Review never runs low. Effort never runs above high; a higher request runs at high.',
   ].join('\n');
@@ -1251,6 +1278,8 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         if (model === src.model) clones.add(`same:${base}-${tier}`);
         else make(tier, model);
       }
+      // No distinct enabled model means no clone, and routeTier says the rung collapsed.
+      if (floor === 'strong' && byTier.premium && byTier.premium !== src.model) make('premium', byTier.premium);
       make('lead', null);
     }
   };
@@ -1411,9 +1440,9 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           let routing = null;
           if (key && suiteAgent(type) && on('CODE_OPS_TIER_ROUTING')) {
             const brief = dispatchPrompt(args);
-            const tier = directive(brief, 'Tier', [...TIER_NAMES, 'lead']);
+            const tier = directive(brief, 'Tier', [...ROUTE_TIERS, 'lead']);
             const effort = effortDirective(brief);
-            if (tier.raw && !tier.value) notes.push(`Tier "${tier.raw}" is not light, mid, strong, frontier, or lead; the agent's own binding runs.`);
+            if (tier.raw && !tier.value) notes.push(`Tier "${tier.raw}" is not light, mid, strong, premium, frontier, or lead; the agent's own binding runs.`);
             if (effort.raw && !effort.value) notes.push(`Effort "${effort.raw}" is not low, medium, or high; the default for the role runs.`);
             if (effort.note) notes.push(effort.note);
             const routed = routeTier(type, tier.value, clones);
@@ -1608,6 +1637,7 @@ CodeOpsLifecycle.internals = {
   refreshChooserCache,
   classifyChooserModel,
   pickChooserModel,
+  pickPremiumModel,
   buildChooserLadder,
   baseAgent,
   routeTier,

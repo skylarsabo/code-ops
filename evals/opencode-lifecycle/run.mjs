@@ -190,6 +190,27 @@ const effParams = {};
 await hooks['chat.params']({ sessionID: 'eff-child', agent: 'code-ops-suite-implementer', model: { providerID: 'p', id: 'm', variants: { low: { e: 'low' }, high: { e: 'high' }, xhigh: { e: 'xhigh' } } } }, effParams);
 expect(effParams.options?.e === 'high', `an Effort: xhigh child did not clamp to the high variant: ${JSON.stringify(effParams.options)}`);
 
+// Premium directive: `Tier: premium` routes a strong-floor agent to its premium clone, and
+// collapses to the base agent with a plain note when the host has no distinct enabled model.
+const internals = overlay.CodeOpsLifecycle.internals;
+const IMPL = 'code-ops-suite-implementer';
+const premiumRoute = internals.routeTier(IMPL, 'premium', new Set([`${IMPL}-premium`, `${IMPL}-lead`]));
+expect(premiumRoute.agent === `${IMPL}-premium` && premiumRoute.note === null, `Tier: premium did not route to the premium clone: ${JSON.stringify(premiumRoute)}`);
+const collapsedRoute = internals.routeTier(IMPL, 'premium', new Set([`${IMPL}-lead`]));
+expect(collapsedRoute.agent === IMPL && collapsedRoute.note === 'premium collapsed to strong: no distinct enabled model.', `a premium request with no clone did not collapse plainly: ${JSON.stringify(collapsedRoute)}`);
+const lightRoute = internals.routeTier('code-ops-suite-explorer', 'premium', new Set());
+expect(lightRoute.agent === 'code-ops-suite-explorer' && /strong-floor/.test(lightRoute.note ?? ''), `premium on a light-floor agent did not stay at its floor: ${JSON.stringify(lightRoute)}`);
+expect(internals.baseAgent(`${IMPL}-premium`) === IMPL, 'the premium suffix does not resolve to its base agent');
+await hooks['tool.execute.before']({ tool: 'task', sessionID: 'prem-lead', callID: 'p1' }, { args: { prompt: 'Round budget: 5.\nTier: premium\ndo it', subagent_type: IMPL } });
+const premTurn = { parts: [{ type: 'text', text: 'continue' }] };
+await hooks['chat.message']({ sessionID: 'prem-lead', agent: 'build' }, premTurn);
+expect(!/Tier "premium" is not/.test(premTurn.parts[0].text), `Tier: premium was rejected as an unknown tier: ${premTurn.parts[0].text}`);
+expect(premTurn.parts[0].text.includes('premium collapsed to strong: no distinct enabled model.'), `a premium dispatch with no clone surfaced no collapse note: ${premTurn.parts[0].text}`);
+const premCatalog = ['provider-a/claude-opus-5-5', 'provider-a/claude-fable-5-1', 'provider-b/gpt-5.6-terra'];
+const premiumPick = internals.pickPremiumModel('provider-a/claude-opus-5-5', premCatalog, {});
+expect(premiumPick === 'provider-b/gpt-5.6-terra', `premium picked ${premiumPick}, not the strong-class model that differs from strong`);
+expect(internals.pickPremiumModel('provider-a/claude-opus-5-5', ['provider-a/claude-opus-5-5', 'provider-b/gpt-6-luna'], {}) === null, 'premium bound a model that is not distinct and strong-class');
+
 // Context ceiling: past 300,000 tokens the lead assesses before it dispatches.
 const setContext = (hooksFor, sessionID, input, id) => hooksFor.event({
   event: { type: 'message.updated', properties: { info: { role: 'assistant', sessionID, id, tokens: { input, output: 0, cache: { read: 0, write: 0 } } } } },
