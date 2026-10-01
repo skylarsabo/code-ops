@@ -946,8 +946,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
-      "verifiedDigest": "f5c41713f7bb72377c0132e4b06174c178fea2608be483e133b5748b6cd6329b",
+      "verifiedAt": "bc88a198ad90f33b20353182e3efae72ca81f1da",
+      "verifiedDigest": "f37b6cb536209fe0d9fe21889ad266b9595977ecfff6303ca2058857b8647e81",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
