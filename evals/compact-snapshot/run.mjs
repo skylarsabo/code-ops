@@ -346,6 +346,17 @@ try {
   h = runHook('compact-snapshot.mjs', payloadOf({ cwd: join(tmp, 'no-such-directory') }), {}, cardRepo);
   check('7f. a payload cwd that does not exist exits 0 silently', h.status === 0 && h.stdout === '' && h.stderr === '', `${h.status} ${h.stderr}`);
 
+  // payload capture: opt-in, key names only, and a transcript path never becomes a value
+  const captureFile = join(home, '.claude', 'code-ops', 'agents', 'payload-keys.ndjson');
+  h = runHook('compact-snapshot.mjs', payloadOf(), { CODE_OPS_AGENT_LEDGER_CAPTURE: '' }, cardRepo);
+  check('7f2. with capture off the PreCompact hook writes no capture file', h.status === 0 && h.stdout === '' && !existsSync(captureFile), `${h.status} ${h.stderr}`);
+  h = runHook('compact-snapshot.mjs', payloadOf(), { CODE_OPS_AGENT_LEDGER_CAPTURE: '1' }, cardRepo);
+  const captured = existsSync(captureFile) ? readFileSync(captureFile, 'utf8') : '';
+  const captureRow = captured.trim() ? JSON.parse(captured.trim().split('\n')[0]) : null;
+  check('7f3. with capture on the PreCompact hook records the key names, never the transcript path value',
+    h.status === 0 && h.stdout === '' && h.stderr === '' && captureRow?.keys?.includes('transcript_path') && captureRow.values?.hook_event_name === 'PreCompact'
+      && !captured.includes(cardT) && !captured.includes(JSON.stringify(cardT).slice(1, -1)) && !captured.includes(CARD) && !captured.includes(cardRepo), captured.slice(0, 300));
+
   // the card: fresh form, one boundary past the header
   feed({ hook_event_name: 'PostToolUse', session_id: CARD, cwd: cardRepo, tool_name: 'Agent',
     tool_input: { subagent_type: 'suite:implementer', description: 'Card pending agent', prompt: 'Report path: r/card.md', run_in_background: true },

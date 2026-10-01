@@ -19,10 +19,12 @@
 // internal summarizer, which the ledger ignores. The Grok adapter's payloads are UNVERIFIED for
 // both events, so the hook stays silent under Grok.
 //
-// PAYLOAD CAPTURE, OFF BY DEFAULT. With `CODE_OPS_AGENT_LEDGER_CAPTURE=1` the hook also appends
-// the payload's key names, never a value, to `payload-keys.ndjson` in the ledger directory, so the
-// Codex and Grok payloads can be checked before a writer is built for them. It runs before the
-// Grok early return, so Grok payloads are captured too; the Grok hook still records no rows.
+// PAYLOAD CAPTURE, OFF BY DEFAULT. With `CODE_OPS_AGENT_LEDGER_CAPTURE=1`, or a `capture.on` flag
+// file in the ledger directory (`captureOn` in the library), the hook also appends the payload's
+// key names, a few allowlisted scalar values, and the host to `payload-keys.ndjson` in that
+// directory, so the Codex and Grok payloads can be checked before a writer is built for them. It
+// runs before the Grok and ledger-off early returns, so every host's payload is captured; the Grok
+// hook still records no rows, and `CODE_OPS_AGENT_LEDGER=off` still writes no ledger row.
 //
 // Fail-open on every path: bad JSON, a missing field, an unwritable directory, or an internal
 // error exits 0 with no output. It reads stdin, appends one or two files, and spawns nothing.
@@ -32,18 +34,20 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 async function main() {
-  const capture = /^(1|true|on)$/i.test(process.env.CODE_OPS_AGENT_LEDGER_CAPTURE ?? '');
-  if (process.env.GROK_PLUGIN_ROOT && !capture) return;
-  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return;
+  const lib = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'agent-ledger.mjs');
+  const { captureKeys, captureOn, recordFromPayload } = await import(pathToFileURL(lib).href);
+  let capture = false;
+  try { capture = captureOn(); } catch { /* an unreadable state dir means capture off */ }
+  const grok = Boolean(process.env.GROK_PLUGIN_ROOT);
+  const ledgerOff = /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '');
+  if (!capture && (grok || ledgerOff)) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
   try { payload = JSON.parse(raw.replace(/^﻿/, '')); } catch { return; }
   if (!payload || typeof payload !== 'object') return;
-  const lib = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'agent-ledger.mjs');
-  const { captureKeys, recordFromPayload } = await import(pathToFileURL(lib).href);
   if (capture) { try { captureKeys(payload); } catch { /* capture never blocks the record */ } }
-  if (process.env.GROK_PLUGIN_ROOT) return;
+  if (grok || ledgerOff) return;
   recordFromPayload(payload);
 }
 

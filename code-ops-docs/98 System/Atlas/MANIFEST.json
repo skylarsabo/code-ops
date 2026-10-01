@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "a82171e6c6336596f2093f2ca22a6244a32b262a05e2887f7c0ea7001515a9e0",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "f649cb6cfb1a0ec185e28fd6168ddb404967fe3cf9fc85a15d8a8dd38b8efc54",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -242,6 +242,16 @@
           "anchor": "and then the upstream base branch, and push once more. A second rejection stops"
         },
         {
+          "file": "plugins/code-ops-suite/skills/distill/SKILL.md",
+          "line": 7,
+          "anchor": ". Read §3, §4, §9, §12, and §14 of the"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/distill/SKILL.md",
+          "line": 21,
+          "anchor": "- **Vault mode** is the eight-phase backfill of a whole docs vault, and a mainta"
+        },
+        {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
           "line": 199,
           "anchor": "## 16 · Workflow fan-out"
@@ -270,8 +280,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "c1e43414f0c9f54890429c0e3b0f28376980275ec1950a4e605ff34fe8436cd6",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "cf36e743f0236c2c425787790dbbb042ae81b565443e88b9ea37bd2d85fecd56",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -476,7 +486,7 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 227,
-          "anchor": "export function pendingReport({ sessionId, stateDir = ledgerDir(), cwd, runDir,"
+          "anchor": "// directory are not reported as abandoned."
         },
         {
           "file": "scripts/co.mjs",
@@ -516,7 +526,7 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 122,
-          "anchor": "const report_path = reportPathOf(input.prompt);"
+          "anchor": "const agent_id = agentIdOf(response);"
         },
         {
           "file": "scripts/handoff-state.mjs",
@@ -625,9 +635,14 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "533840e70b8d35662471bf73d072d164347a90f56413fa39aa9b4033fc378fd6",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "9e989c463c2d2dba25c713df1da2efbf8484fbef1018b2977a5e05f1a4fab01d",
       "claims": [
+        {
+          "file": "evals/distill-program/ANSWER_KEY.json",
+          "line": 2,
+          "anchor": "\"fixture\": \"distill-program\","
+        },
         {
           "file": "evals/docs-manifest/run.mjs",
           "line": 161,
@@ -749,6 +764,11 @@
           "anchor": "// Smoke eval for scripts/bench-hooks.mjs. It pins the contract that makes the b"
         },
         {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 327,
+          "anchor": "export function captureOn({ stateDir = ledgerDir(), env = process.env } = {}) {"
+        },
+        {
           "file": "evals/co-facade/run.mjs",
           "line": 123,
           "anchor": "const COMMANDS = ['brief', 'burndown', 'snapshot'];"
@@ -765,13 +785,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 359,
-          "anchor": "check('7g. fresh card: the Snapshot fresh line has counts and a path, and the sn"
+          "line": 359
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
           "line": 407,
-          "anchor": "check('7v. with no run-folder file the card finds the home state copy and reads"
+          "anchor": "writeFileSync(cardSnap, 'garbage that is not a snapshot\\n- REPLY OWED Nobody x:"
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
@@ -856,12 +875,12 @@
         {
           "file": "evals/compact-snapshot/run.mjs",
           "line": 385,
-          "anchor": "check('7q. REQUIRED stale card: Snapshot STALE, the open-item lines return, and"
+          "anchor": "writeFileSync(tasksFile, unchecked(13));"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
           "line": 395,
-          "anchor": ") && cl.some((l) => l.startsWith('open items in ')) && !c.stdout.includes('Snaps"
+          "anchor": "cl = linesOf(c);"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
@@ -878,8 +897,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "b6da729082b57815c67c92528f4bff0f6645142920674ba352322b074836563e",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "350b0a770771c52c999e33f6e09084a0949ad5fe3eaebb51b55dfbc383a0e7fa",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1039,8 +1058,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "9fcbc51f753ab081f5274383987c61c05a117a6f60e8290b55b068f559e3f98d",
+      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
+      "verifiedDigest": "9e4ed036e8574190d49231107768ae32fa2395e62a37c75b79af4df325a7b5ad",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1131,8 +1150,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
-      "verifiedDigest": "2ce6d2bbf83ce3b7a2300109e3e12df8e107967602e2b1ef68152673bf107de6",
+      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
+      "verifiedDigest": "403b1e1c320d95413fdc10f259b2da31f413d96dbb27a31d7889bf2a2c15bf50",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",
