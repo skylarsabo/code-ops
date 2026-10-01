@@ -35,7 +35,7 @@ lens. Draft the orchestration plan as a concern-against-scope matrix.
 
 ## Phase 1: the adaptive review
 
-Run the loop (`CONVENTIONS §1`). Each sub-agent applies the relevant lenses (`§10`) to its slice
+Run the loop (`CONVENTIONS §1`). Fan out the independent reviewers as `§16` directs. Each sub-agent applies the relevant lenses (`§10`) to its slice
 and returns findings in the finding schema (`§7`), classified by track (`§6`). Deepen on dense
 or risky areas. Converge and check off the clean ones. **Surface critical findings to the
 developer immediately** (`§3`). Apply confirmed NOW-SAFE fixes through the implementation loop

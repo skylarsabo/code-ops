@@ -29,7 +29,7 @@ treatment.
 Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>`, adding
 `--need gh` when the run will publish. A FAIL stops the run before fan-out. Confirm plugin
 availability. Prepare one exact context snapshot and compile the explorer's scoped bundle.
-Context drift or an explicit compiler marker stops dispatch and triggers a replan. Hand the
+Context drift or an explicit compiler marker stops dispatch and triggers a replan. Dispatch every fan-out as `§16` directs. Hand the
 verified bundle to the explorer, then run `/rigor-ground-truth` for the baseline.
 
 Size the change as a one-off or a feature. For a feature, confirm the approach before building. A

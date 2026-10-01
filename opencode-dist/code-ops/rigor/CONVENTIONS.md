@@ -145,3 +145,15 @@ Full reference: [`writing-standard.md`](https://github.com/skylarsabo/code-ops/b
 
 ## 12 · Code standard
 Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed.
+
+## 13 · Workflow fan-out
+Use the Workflow tool only on Claude, only for wide independent fan-out, and only when the operator opted in to Workflow for this run or ultracode is on. Never start a Workflow on your own. Otherwise dispatch the same batches with Agent, Task, or the host's dispatch tool. Keep serial phases and gates with the lead.
+
+Write the phase plan to the run folder before you dispatch. It lists each batch, its agent, its effort, and its expected artifact path. Both paths run the same plan.
+
+- Register each batch in `DISPATCH_LEDGER.md` (`§10`) before dispatch, and update it after. Use `dispatch-ledger.mjs add` where `code-ops-suite` is installed. The Workflow journal helps resume. The ledger stays the durable record.
+- A script cannot write files. The lead writes each report file from the returned results.
+- Each `agent()` call sets `agentType` to a suite agent, such as `/rigor-tracer` or `/rigor-verifier`. Never use a wide-surface type.
+- Set `effort` to `high` at most.
+- Each call carries the same brief fields as an Agent dispatch (`§1`).
+- Reconcile the ledger from the returned results. Do not wait for subagent hooks.

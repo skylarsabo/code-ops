@@ -36,6 +36,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Handoff card hook](#handoff-card-hook)
 - [Handoff write and consumption](#handoff-write-and-consumption)
 - [Dispatch guard hook](#dispatch-guard-hook)
+- [Agent state machine](#agent-state-machine)
 - [Peer guard hook](#peer-guard-hook)
 - [Change feed](#change-feed)
 - [Symbol index and query](#symbol-index-and-query)
@@ -1006,8 +1007,12 @@ unobserved. This receipt is not a provider usage record. Evidence:
 On the main thread the hook acts only on a dispatch tool: `Agent`, the older `Task`, or
 `Workflow`. Three gates can deny there, and `warn` turns each deny into an advisory. The wide-type
 gate denies a `subagent_type` of `general-purpose`, `claude`, or `fork`, or no type at all,
-unless the prompt carries a line starting `Wide-surface reason:` with the reason on it. It denies a `Workflow` script that calls
-`agent(` with no `agentType` on the same terms.
+unless the prompt carries a line starting `Wide-surface reason:` with the reason on it. It checks each `agent(` call
+of a `Workflow` script on its own and denies, on the same terms, a call with no `agentType` or a
+wide literal one. The denial names how many calls failed and the first one's position. The same
+gate denies a literal `effort` of `xhigh` or `max` in any call, with no reason escape. A call
+whose options it cannot read, such as a variable or a spread, gets an advisory. A script it cannot
+parse falls back to the script-wide test: an `agent(` call and no `agentType` anywhere.
 
 The brief-contract gate reads the target agent's own contract. A `subagent_type` of the form
 `<plugin>:<agent>` resolves when the plugin is `code-ops-suite`, `rigor`,
@@ -1070,6 +1075,59 @@ The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.
 Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
+
+## Agent state machine
+
+Each entity below has a closed set of states. The Stored column names where the state lives, and
+marks a state computed on read as derived. Lint requires the Unit (dispatch row) states to equal
+`LEDGER_STATUSES` in `scripts/ledger-grammar.mjs`.
+
+| Entity | States | Stored | Terminal |
+| --- | --- | --- | --- |
+| Unit (dispatch row) | dispatched, reported, failed, redispatched | `DISPATCH_LEDGER.md` plus `.journal.jsonl` | reported |
+| Unit acceptance | pending, accepted, rejected | derived from the acceptance ledger in `RUN_CONTRACT.json` | accepted |
+| Worker run | dispatched, reported, failed, stale | agent ledger, with `stale` derived | reported, failed |
+| Runtime | init, checkpoint, resume, replan | `RUN_RUNTIME_RECEIPTS.jsonl` | none |
+| Session | open, working, compacted, handed-off, consumed, ended | `SESSION.json`, board record, `HANDOFF.consumed`, with `compacted` derived | consumed, ended |
+| Board record | live, idle, ended, abandoned | board file, with `idle` and `abandoned` derived | ended, abandoned |
+| Context band | unassessed, assessed | `.assessed.json` | none |
+| Program item | open, closed, backlog | `PROGRAM.md`, `TASKS.md`, `BACKLOG.md` | closed |
+| Finish line Fn | open, done | derived from `Blocks: Fn` on items | done |
+| Decision | pending, local, dropped, promoted | `PROGRAM.md` ledger, then the record | local, dropped, promoted |
+| Distill phase | pending, running, checkpointed, done | runtime checkpoint per phase | done |
+
+Each transition names its entity. From and To hold states of that entity, and `none` marks a
+start. Cross-entity preconditions sit in Guard. The Writer is a script (S) that any host can run
+or a hook (H) that needs the host event. Status is `built` or `planned`. Lint requires every
+From and To state to belong to its entity and every Writer cell to be non-empty.
+
+| # | Entity | From | Event | Guard | To | Writer | Store | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Session | none | lead opens a run | repository has `.git` | open | S `handoff-state.mjs open` | `SESSION.json`, board | built |
+| 2 | Unit acceptance | none | lead registers units | session open and run contract exists | pending | S `run-contract.mjs init` | `RUN_CONTRACT.json` | built |
+| 3 | Unit (dispatch row) | none | lead dispatches | unit pending, dispatch guard allows, band assessed, agentType is a suite agent | dispatched | S `dispatch-ledger.mjs add` with `--actor-id` | `DISPATCH_LEDGER.md` | built |
+| 4 | Worker run | none | host launches a worker | hook reaches the launch | dispatched | H PostToolUse on `Agent` in `plugins/code-ops-suite/hooks/agent-ledger.mjs`; covered by 3 | agent ledger | built |
+| 5 | Unit (dispatch row) | dispatched | worker returns | artifact exists and passes its section check | reported | S `dispatch-ledger.mjs update --status reported --report` | `DISPATCH_LEDGER.md` | built |
+| 6 | Worker run | dispatched | host reports the stop | SubagentStop carries `agent_id` | reported | H SubagentStop in `plugins/code-ops-suite/hooks/agent-ledger.mjs`; covered by 5 or 7 | agent ledger | built |
+| 7 | Unit (dispatch row) | dispatched | worker errors or dies | lead sees the error or a stale view | failed | S `dispatch-ledger.mjs update --status failed` | `DISPATCH_LEDGER.md` | built |
+| 8 | Unit (dispatch row) | failed | lead retries | new row with a new actor | redispatched | S `dispatch-ledger.mjs update --status redispatched`, then `add` | `DISPATCH_LEDGER.md` | built |
+| 9 | Unit acceptance | pending | lead records verdicts | unit reported and every blocking criterion PASS | accepted | S `run-contract.mjs record` and `finalize` | `RUN_CONTRACT.json` | built |
+| 10 | Unit acceptance | pending | lead records a FAIL | unit reported and any blocking criterion FAIL; a new unit is planned | rejected | S `run-contract.mjs record` | `RUN_CONTRACT.json` | built |
+| 11 | Context band | unassessed | lead runs the assessment | context crossed a 150k band, so dispatch is denied until assessed | assessed | H `dispatch-guard.mjs assessed` writes the marker | `.assessed.json` | built |
+| 12 | Session | working | auto-compaction starts | PreCompact fires or lead checkpoints | compacted | H PreCompact in `plugins/code-ops-suite/hooks/compact-snapshot.mjs`, or S `run-runtime.mjs checkpoint` | run folder snapshot, receipts | built |
+| 13 | Session | compacted | new context starts with `source=compact` | snapshot exists | working | H SessionStart compact branch in `plugins/code-ops-suite/hooks/routing-card.mjs` | none (reads snapshot, `TASKS.md`, agent ledger) | built |
+| 14 | Session | working | lead hands off | DEC-73 trigger and zero pending workers | handed-off | S `handoff-state.mjs draft` | `HANDOFF.md` | built |
+| 15 | Session | handed-off | successor resumes | chain check passes | consumed | S `handoff-state.mjs resume` | `HANDOFF.consumed` | built |
+| 16 | Session | working | session ends | none | ended | H SessionEnd in `plugins/code-ops-suite/hooks/session-receipt.mjs`; S writer for `ended` planned | board, receipts | built |
+| 17 | Board record | live | heartbeat silent 30 minutes | no `ended` | idle, abandoned | read only (derived views) | board | built |
+| 18 | Program item | open | lead closes with evidence | Done when met | closed | lead edit, checked by `check-handoff.mjs` | `PROGRAM.md` | built |
+| 19 | Program item | open | active count exceeds 12 | open-item cap | backlog | S `check-handoff.mjs check 19` | `BACKLOG.md` | built |
+| 20 | Finish line Fn | open | last `Blocks: Fn` item closes | none | done | burn-down line from `scripts/burndown.mjs` (derived view) | derived | built |
+| 21 | Decision | pending | one hop of grace passes | disposition chosen | local, dropped, promoted | S `co decide promote` in `scripts/program-lifecycle.mjs`; `distill` phase 6 planned (distill, PRs 6 to 8) | `PROGRAM.md`, record | built |
+| 22 | Distill phase | pending | lead starts the phase | prior phase done | running, checkpointed | planned (distill, PRs 6 to 8) with S `run-runtime.mjs checkpoint` | receipts | planned |
+| 23 | Distill phase | checkpointed | lead review passes | review rule met | done | planned (distill, PRs 6 to 8) | receipts | planned |
+
+Evidence: `scripts/lint-plugins.mjs` (`checkAgentStateMachine`) and `scripts/ledger-grammar.mjs`.
 
 ## Peer guard hook
 
