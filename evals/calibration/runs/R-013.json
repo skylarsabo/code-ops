@@ -1,0 +1,60 @@
+{
+  "id": "R-013",
+  "date": "2026-10-01",
+  "suite": {
+    "code-ops-suite": "2.39.0"
+  },
+  "target": {
+    "label": "large docs vault with a mixed-size legacy documentation tree, first real-scale run of distill vault mode",
+    "class": "docs-vault-backfill",
+    "control": false
+  },
+  "track": "assess-only",
+  "quality": {
+    "findings": 7,
+    "confirmed": 7,
+    "refutation": {
+      "paneled": 0,
+      "survived": 0,
+      "reproExempt": 0,
+      "panelEligible": null
+    },
+    "severity": null
+  },
+  "tokens": {
+    "operative": null,
+    "dispatches": 0
+  },
+  "orchestration": {
+    "dangling": 0,
+    "failed": 0,
+    "redispatched": 0
+  },
+  "standardization": {
+    "enforcementsAdded": 0,
+    "tracelessClean": true
+  },
+  "coverage": {
+    "coveredNegatives": 0,
+    "slicesSwept": 6,
+    "slicesUnswept": 2
+  },
+  "config": {
+    "lead": "opus-5",
+    "operatives": "sonnet-5"
+  },
+  "host": "claude-code",
+  "lessons": [
+    "L-066",
+    "L-067",
+    "L-068",
+    "L-069",
+    "L-070",
+    "L-071",
+    "L-072",
+    "L-073",
+    "L-074",
+    "L-075"
+  ],
+  "notes": "the skill assumes a version 3 manifest, and the relocate apply step refuses version 2 although the plan step accepts it. The upgrade also needs a newer vault standard stamp and a complete status vocabulary before the generated triage queue exists, and the baseline cannot be written without that queue. Archiving a draft whole leaves it in the triage queue, so the no-edit archive rule and the triage rule conflict. A vault with no synthesis pages cannot finish phase 7. The skill says synthesis sources are hub-relative, while the vault checker reads them as repository-root globs and demands a recorded digest. The chain and synthesis statuses the skill names are rejected unless the manifest declares them. The brief's no-commit rule conflicts with the skill's one commit per wave, so relocation could not run. Phase 3 classification by keyword gave review defects in every sampled batch on the first pass. All seven program ledgers lacked the grammar marker and were refused. The two shipped fixes named in the brief were not exercised: no path with brackets was anchored, and the atlas manifest was only read, so neither holding nor recurring was observable. The review sample was self-review by the same agent, which is a protocol deviation."
+}
