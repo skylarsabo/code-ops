@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
-      "verifiedDigest": "03db8347a857901ab59edd5bdb1e55471292c1fcf4763adc38c78daff756a5f8",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "c160d5be7cfea4500e2436d22fe86f593ca106afbf64310b4ab6e360759d40c5",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -285,8 +285,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
-      "verifiedDigest": "b2ca62c8dd865aa16279e14006af4c8cd71d73b004098faef4b18883b4087fb2",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "1cbd0331c4b756044424b63ad6f030301979d6797f95da9db1c96fa6b3a29dd9",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -622,6 +622,16 @@
           "anchor": "const contractRequired = contract.context.requiredViewSections ?? [...OPTIONAL_V"
         },
         {
+          "file": "scripts/run-contract.mjs",
+          "line": 137,
+          "anchor": "if (taskBased && c.lead?.effort === 'xhigh') errors.push('lead effort xhigh is a"
+        },
+        {
+          "file": "scripts/run-contract.mjs",
+          "line": 202,
+          "anchor": "${unit.id || expected} effort xhigh is above the high ceiling for task-based con"
+        },
+        {
           "file": "scripts/context-bundle.mjs",
           "line": 264,
           "anchor": "...((f['--sections'] || f['--require-sections'] || contract.context.requiredView"
@@ -664,8 +674,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
-      "verifiedDigest": "b94f7bf273f38ea4684df58ef5484194d870ae3cdde5e6ea187871b22559a5a9",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "7cdeecd3ff3bebb1e0860ef1c06c5144e426661948f4344c734848ffc916d3fe",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -720,12 +730,12 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 432,
-          "anchor": "expect(pushed.includes('OI-01 open item') && pushed.includes('OI-12') && !pushed"
+          "anchor": "writeFileSync(join(run, 'TASKS.md'), ['# Tasks', '- [x] OI-99 closed item', ...i"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 438,
-          "anchor": "expect(pushed.includes('COMPACT_SNAPSHOT.md is not written; run co snapshot'),"
+          "anchor": "await hooksFor['experimental.session.compacting']({ sessionID }, out);"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -919,7 +929,7 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 185,
-          "anchor": "expect(ceilTurn.parts[0].text.includes('New dispatches are now gated until you r"
+          "anchor": "const dispatch = async (hooksFor, sessionID) => {"
         },
         {
           "file": "evals/distill-check/run.mjs",
@@ -936,8 +946,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
-      "verifiedDigest": "7cf05f9139cdc4d3ff31e445427450fb026c6c2228eb4c95771dc75e6bd28879",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "f5c41713f7bb72377c0132e4b06174c178fea2608be483e133b5748b6cd6329b",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1105,8 +1115,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
-      "verifiedDigest": "0ca39803a21955b0c2b84738c5c3db09eaff8448ea964804f5d2b07215791d87",
+      "verifiedAt": "26f2b7db18bbb91990539cedde346a8e66ac2eaf",
+      "verifiedDigest": "a63c543da582b48e2a8810b27664e4ee31838e2ca94dfeccc4715bfdc8464e90",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
