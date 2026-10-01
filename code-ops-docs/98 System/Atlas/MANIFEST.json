@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "f649cb6cfb1a0ec185e28fd6168ddb404967fe3cf9fc85a15d8a8dd38b8efc54",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "03db8347a857901ab59edd5bdb1e55471292c1fcf4763adc38c78daff756a5f8",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -147,6 +147,11 @@
           "anchor": "#!/usr/bin/env node"
         },
         {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 217,
+          "anchor": "const agent_id = payload.agent_id || payload.subagentId;"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
           "line": 39,
           "anchor": "// HOST COVERAGE. Claude Code and Codex document"
@@ -159,7 +164,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 116,
-          "anchor": "board: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
@@ -174,7 +179,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 107,
-          "anchor": "program: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
@@ -280,8 +285,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "cf36e743f0236c2c425787790dbbb042ae81b565443e88b9ea37bd2d85fecd56",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "b2ca62c8dd865aa16279e14006af4c8cd71d73b004098faef4b18883b4087fb2",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -485,13 +490,28 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 227,
+          "line": 315,
           "anchor": "// directory are not reported as abandoned."
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 175,
+          "anchor": "function routingOf(input, agentType, agentsDir) {"
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 370,
+          "anchor": "export function attemptOf(rows, unit) {"
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 390,
+          "anchor": "export function routingSummary(rows, { ceiling = DEFAULT_PREMIUM_CEILING, trigge"
         },
         {
           "file": "scripts/co.mjs",
           "line": 150,
-          "anchor": "snapshot: 'compact-snapshot.mjs',"
+          "anchor": "// compaction loses. It needs"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
@@ -521,11 +541,11 @@
         {
           "file": "scripts/vendored-manifest.mjs",
           "line": 123,
-          "anchor": "{ name: 'compact-snapshot.mjs', plugins: ['code-ops-suite'] },"
+          "anchor": "and the PreCompact writer. It imports agent-ledger.mjs, cli-lib.mjs, and"
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 122,
+          "line": 207,
           "anchor": "const agent_id = agentIdOf(response);"
         },
         {
@@ -550,8 +570,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 153,
-          "anchor": "// A domain named here runs this verb when the caller gives none, so"
+          "line": 153
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -626,6 +645,16 @@
           "file": "scripts/sync-global.mjs",
           "line": 113,
           "anchor": "function classify(file, source, state) {"
+        },
+        {
+          "file": "scripts/distill-check.mjs",
+          "line": 6,
+          "anchor": "//   node scripts/distill-check.mjs inventory   --hub <hub dir> --out <file.json"
+        },
+        {
+          "file": "scripts/co.mjs",
+          "line": 95,
+          "anchor": "distill: 'distill-check.mjs',"
         }
       ]
     },
@@ -635,8 +664,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "9e989c463c2d2dba25c713df1da2efbf8484fbef1018b2977a5e05f1a4fab01d",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "b94f7bf273f38ea4684df58ef5484194d870ae3cdde5e6ea187871b22559a5a9",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -765,8 +794,13 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 327,
+          "line": 466,
           "anchor": "export function captureOn({ stateDir = ledgerDir(), env = process.env } = {}) {"
+        },
+        {
+          "file": "evals/agent-ledger/run.mjs",
+          "line": 22,
+          "anchor": "//   - a dispatched row carries the routing fields (unit, requested tier and eff"
         },
         {
           "file": "evals/co-facade/run.mjs",
@@ -886,6 +920,11 @@
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 185,
           "anchor": "expect(ceilTurn.parts[0].text.includes('New dispatches are now gated until you r"
+        },
+        {
+          "file": "evals/distill-check/run.mjs",
+          "line": 2,
+          "anchor": "// Distill no-loss and findability regression eval (scripts/distill-check.mjs,"
         }
       ]
     },
@@ -897,8 +936,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "350b0a770771c52c999e33f6e09084a0949ad5fe3eaebb51b55dfbc383a0e7fa",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "7cf05f9139cdc4d3ff31e445427450fb026c6c2228eb4c95771dc75e6bd28879",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1008,8 +1047,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "0299d422f38f8f308673a3db14815c120e241dee04c5c377b8cffe8e217e38ff",
+      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
+      "verifiedDigest": "3f4906d713e6ddcd7df81530bb15c20af2b3ba87ff13d4d17eaf01e9981fa3a4",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1034,6 +1073,14 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 542
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 59
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 454
         }
       ]
     },
@@ -1058,8 +1105,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "9e4ed036e8574190d49231107768ae32fa2395e62a37c75b79af4df325a7b5ad",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "0ca39803a21955b0c2b84738c5c3db09eaff8448ea964804f5d2b07215791d87",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

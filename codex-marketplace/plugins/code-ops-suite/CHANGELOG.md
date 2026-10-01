@@ -4,6 +4,15 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.31.0
+- Agent-ledger launch rows record the dispatch routing: `unit`, `requestedTier`, and `requestedEffort` from the brief's `Unit:`, `Tier:`, and `Effort:` lines, the `appliedModel` and `appliedEffort` actually used with their source, and an `ok`, `under`, or `over` flag. No prompt text is stored.
+- New `attemptOf` and `routingSummary` exports count a unit's retries and print the `Routing:` line with starvation and overuse advisories.
+- Under Grok the ledger hook records each subagent stop, mapping the camelCase `subagentId` and `subagentType` a live capture confirmed. A Grok launch still records nothing.
+
+## 2.30.0
+- New `distill-check.mjs` script, reached as `co docs distill`. `inventory` lists every file under a docs hub with its byte size. `no-loss` proves each listed path is still in place, moved through `FORWARDING.json`, or archived with a link from `99 Archive/`, and fails on an ambiguous or missing path. `findability` counts the hub files that no index page links. Each subcommand takes `--json`.
+- New `distill-check` regression eval, run on Ubuntu and Windows.
+
 ## 2.29.0
 - Payload capture also switches on through a `capture.on` flag file in the agent ledger directory, for hosts whose hooks do not inherit the shell environment. A captured line records the host from environment variable names, the key paths, and four allowlisted values (`hook_event_name`, `tool_name`, `agent_type`, `subagent_type`). No other value is stored.
 - The PreCompact hook captures its payload too, so a host that delivers `transcript_path` to compaction can be confirmed.
