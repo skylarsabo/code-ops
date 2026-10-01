@@ -307,7 +307,10 @@ its own omission:
   12, where N counts the live unchecked `TASKS.md` lines;
 - up to 4 `reply owed:` lines of at most 160 characters, which become the first 3 plus `N more
   reply-owed peers in the snapshot` when more than 4 are owed;
-- the live pending-agents block from the agent ledger.
+- the live pending-agents block from the agent ledger;
+- up to 4 `peer: <program> · live session <name>` lines of at most 160 characters, one per live
+  board session on this repository whose program differs from this session's, ending in
+  ` · reply owed` when a fresh snapshot lists that peer as owed.
 
 The card looks for the snapshot in the run folder and then in the home copies. It skips a copy
 whose header `Session` differs from the payload's and is not `unknown`. Host auto-compaction is the
@@ -344,7 +347,8 @@ reads two bounded directory levels: the dated run folders under each `<repo>-doc
 the repository root, and under the repository's own `80 Runs/`. A handoff counts as pending when
 its run folder holds no `HANDOFF.consumed`, whatever that marker's body, and the `HANDOFF.md`
 mtime falls inside 14 days. `CODE_OPS_HANDOFF_PICKUP` of `off`, `0`, or `false` drops the line and
-leaves the rest of the card. When the payload carries `session_id`, every source also gets
+leaves the rest of the card. A fresh session also gets the same `peer:` lines as the compact
+card, with no reply-owed marker. When the payload carries `session_id`, every source also gets
 `this session: <first 8 characters>`. Every read is guarded, so an unreadable directory yields no
 line rather than an error. The OpenCode lifecycle plugin emits the same passive line. Evidence:
 `plugins/code-ops-suite/hooks/routing-card.mjs:29-150`, `scripts/opencode-lifecycle.js:168-213`,
@@ -825,7 +829,9 @@ resumable. The ledger then also needs `## Open items`, whose bullets lead with a
 Closed items, and decision ids whenever it exists. These checks fail closed:
 
 - 11: every Decisions ledger bullet leads with `DEC-<n>` and carries `Hop: <n>` and
-  `Disposition: pending|local|dropped|promoted:<id>`.
+  `Disposition: pending|local|dropped|promoted:<id>`. A decision that carries
+  `Agreed-with: <slug>` warns, never fails, when `programs/<slug>/PROGRAM.md` is missing,
+  unreadable, or holds no decision with `Agreed-with: <this slug>` and the same decision text.
 - 12: a decision's Hop is its writing session's hop, which is the handoff's `Hop:` minus one. A
   decision older than that must not stay `pending`. A grammar-2 handoff must carry `Hop:`.
 - 13: every DEC id in the predecessor's Decisions made is in the ledger, the archive, or a
@@ -1068,6 +1074,19 @@ the hook drops it unspent, so it shows on a later call. Any failure passes with 
 switch is `CODE_OPS_PEER_GUARD`, the board's switch, or `CODE_OPS_DISPATCH_GUARD=off`. Evidence:
 `scripts/collision-lib.mjs`, `plugins/code-ops-suite/hooks/dispatch-guard.mjs`, and
 `evals/collision/run.mjs`.
+
+The collision note also covers surfaces that two programs declare as shared. A PROGRAM.md may
+carry a `## Peers` section of lines in the form `- <slug | *> · Surfaces: <path or glob>,
+process:<name> · Notify: edit|merge`. The hook discovers peers and never reads a configured list.
+A peer is a live board session on this repository whose program differs from this session's. Its
+run folder resolves to the live head of its handoff chain, so a predecessor and its successor are
+one peer. A surface counts when this program declares it for the peer's slug or `*`, or the peer
+declares it for this program's slug or `*`. The note fires for an edit to a declared path under
+`Notify: edit`, for a `git merge` or `git push` whose diff touches one under either level, and for
+a `taskkill`, `pkill`, `kill`, or `Stop-Process` command that names a declared `process:` surface.
+It needs no recent peer edit. It names the peer's program and live session and gives a ready
+message line. A malformed line is ignored, and every failure passes with no note. Evidence:
+`scripts/collision-lib.mjs` (`parsePeers`, `discoverPeers`) and `evals/peer-surfaces/run.mjs`.
 
 The legacy path deny is a sixth behavior. On every thread, for an edit tool, the hook imports
 `scripts/legacy-paths-lib.mjs` lazily and denies an edit whose target lies under a `removed` legacy

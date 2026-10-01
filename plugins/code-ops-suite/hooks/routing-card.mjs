@@ -244,6 +244,7 @@ function nextLine(cwd, runDir) {
 // `unavailable` when the library does not load, which prints no Snapshot line at all.
 const PEER_LINES = 4;
 const PEER_CHARS = 160;
+const clean = (value) => value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
 async function readSnapshot(cwd, runDir, sessionId, transcriptPath) {
   try {
     const scripts = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
@@ -266,7 +267,6 @@ async function readSnapshot(cwd, runDir, sessionId, transcriptPath) {
 // The card lines for a snapshot: its state, the live active count against the header's, and the
 // reply-owed peers. `open` is the live list of unchecked items, or null when TASKS.md is unreadable.
 function snapshotLines(snap, cwd, open, sessionId) {
-  const clean = (value) => value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
   const lines = [];
   const shown = snap.path ? (() => { const rel = relative(cwd, snap.path); return (rel.startsWith('..') || isAbsolute(rel) ? snap.path : rel).split(sep).join('/'); })() : '';
   const counts = snap.header?.counts;
@@ -309,6 +309,27 @@ async function pendingAgentLines(query, head, skip = '') {
     const shown = list.slice(0, PENDING_SHOWN);
     return [`${head} (${shown.length} of ${list.length} shown)`,
       ...shown.map((a) => formatLine(a).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, PENDING_CHARS))];
+  } catch { return []; }
+}
+
+// One line per live peer on this repository, at most PEER_LINES, from `discoverPeers` in
+// collision-lib.mjs: a live board session whose program differs from this session's, resolved to
+// the head of its handoff chain. A session whose program cannot be read has no program to differ
+// from, so every other live session with a program counts. `peers` is the snapshot's `## Peers`
+// text when it is fresh, else null, which omits the reply-owed marker.
+// CODE_OPS_PEER_GUARD=off, an unreadable board, or any failure is no lines.
+async function peerLines(cwd, sessionId, peers) {
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_PEER_GUARD ?? '')) return [];
+  try {
+    const lib = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'collision-lib.mjs')).href);
+    const owed = (peers ?? '').split(/\r?\n/).filter((l) => l.startsWith('- REPLY OWED ')).map((l) => l.slice(13).toLowerCase());
+    return lib.discoverPeers(cwd, sessionId ?? '').slice(0, PEER_LINES).map((peer) => {
+      const program = clean(peer.program).slice(0, NAME_CHARS);
+      const name = clean(String(peer.name || String(peer.sessionId ?? '').slice(0, 8))).slice(0, NAME_CHARS);
+      const ids = peer.ids.map((v) => v.toLowerCase());
+      const isOwed = owed.some((l) => l.startsWith(`${name.toLowerCase()} `) || ids.some((id) => l.split(/\s+/).includes(id)));
+      return `peer: ${program} \u00b7 live session ${name}${isOwed ? ' \u00b7 reply owed' : ''}`.slice(0, PEER_CHARS);
+    });
   } catch { return []; }
 }
 
@@ -383,6 +404,7 @@ async function main() {
     lines.push(...snapshotLines(snap, cwd, open, sessionId));
     // The run folder's DISPATCH_LEDGER.md rows merge with the hook rows, so a host without the hook still lists them.
     lines.push(...await pendingAgentLines(sessionId ? { sessionId, runDir: runDir ? resolve(cwd, runDir) : undefined } : null, 'Pending agents:'));
+    lines.push(...await peerLines(cwd, sessionId, snap.state === 'fresh' ? snap.text.split(/^## Peers/m)[1] ?? '' : null));
   } else if (payload?.source === 'startup' || payload?.source === 'clear') {
     const pending = /^(off|0|false)$/i.test(process.env.CODE_OPS_HANDOFF_PICKUP ?? '') ? [] : pendingHandoffs(cwd);
     if (pending.length) {
@@ -390,6 +412,7 @@ async function main() {
     }
     // Workers an ended session in this directory launched and never saw report: left pending at session end.
     if (payload.source === 'startup') lines.push(...await pendingAgentLines({ cwd, endedOnly: true }, 'Left pending when an earlier session here ended:', sessionId));
+    lines.push(...await peerLines(cwd, sessionId, null));
   }
   console.log(lines.join('\n'));
   return 0;

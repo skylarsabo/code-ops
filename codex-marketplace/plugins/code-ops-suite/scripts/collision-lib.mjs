@@ -16,6 +16,17 @@
 //      board edits stand in). With no live peer on the branch, or none with a recent edit, it runs
 //      no git at all.
 //
+// A THIRD KIND, PEER SURFACES (design "Agent state machine and host parity 2026-09", PR 9). A
+// program's PROGRAM.md may carry a `## Peers` section that declares surfaces shared with another
+// program: `- <slug | *> · Surfaces: <path or glob>, process:<name> · Notify: edit|merge`. Peers
+// are discovered, never configured: a peer is any live board session on this repository whose
+// program (from its run folder) differs from this session's, named by the live head of its handoff
+// chain. A surface note fires for an edit to a declared path (Notify edit), a `git merge` or
+// `git push` whose diff touches one (Notify edit or merge), and a kill command (`taskkill`,
+// `pkill`, `kill`, `Stop-Process`) that names a declared `process:` surface. It needs no recent
+// peer edit, names the peer's live session, and gives a ready SendMessage line. A malformed line
+// is ignored, every failure is no note, and the same off switch applies.
+//
 // DEDUPE. An edit note fires once per (path, peer) per session. A subagent is a separate context,
 // so it keeps its own seen-set, keyed by its `agent_id`. The seen-set is one small JSON file per
 // session under `<home>/.claude/code-ops/collision/<repo key>/`, never in the repository, and it
@@ -39,8 +50,8 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { boardPath, readBoard, repoIdentity } from './handoff-state.mjs';
+import { basename, dirname, join, resolve } from 'node:path';
+import { boardPath, programOfRun, readBoard, recordBase, repoIdentity, sessionRecords, walkHead } from './handoff-state.mjs';
 
 export const RECENT_EDIT_MS = 6 * 60 * 60 * 1000;
 const MAX_SEEN = 500;
@@ -49,6 +60,10 @@ const MAX_PEERS = 3;
 const MAX_PATHS = 5;
 const GIT_TIMEOUT_MS = 3000;
 const MAX_PATHSPECS = 100;
+const MAX_LEDGER_BYTES = 1024 * 1024;
+const MAX_SURFACES = 20;
+const MAX_REFS = 3;
+const MAX_DIFF_FILES = 2000;
 const GIT_VERBS = new Set(['pull', 'merge', 'rebase', 'push']);
 const EDIT_TOOLS = new Set(['edit', 'write', 'search_replace', 'multiedit', 'notebookedit', 'apply_patch', 'functions.apply_patch']);
 const SHELL_TOOLS = new Set(['bash', 'shell', 'exec_command', 'functions.exec_command', 'run_terminal_command']);
@@ -77,7 +92,7 @@ function editedFiles(payload) {
 // `-c k=v` global options are skipped.
 // deferred(a quoted global option value with a space, as in `git -C "my dir" push`, splits into
 // two words and reads as no match; tokenize quotes if a real command is missed)
-export function gitVerb(command) {
+function gitCall(command) {
   if (typeof command !== 'string') return null;
   for (const segment of command.split(/&&|\|\||[;|\n]/)) {
     const words = segment.trim().split(/\s+/);
@@ -87,10 +102,11 @@ export function gitVerb(command) {
       const option = words.shift();
       if (GIT_VALUE_OPTIONS.has(option)) words.shift();
     }
-    if (GIT_VERBS.has(words[0])) return words[0];
+    if (GIT_VERBS.has(words[0])) return { verb: words[0], args: words.slice(1) };
   }
   return null;
 }
+export const gitVerb = (command) => gitCall(command)?.verb ?? null;
 
 const minutes = (ms) => Math.max(0, Math.round(ms / 60000));
 const peerName = (peer) => clean(peer.name) || clean(peer.sessionId, 8);
@@ -123,11 +139,18 @@ function readSeen(file) {
   } catch { return []; }
 }
 
+// Records keys as delivered. It rereads the file, so two notes of one call commit side by side.
+function markSeen(file, fresh) {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify({ v: 1, seen: [...new Set([...readSeen(file), ...fresh])].slice(-MAX_SEEN) })}\n`);
+}
+
+// The worktree-relative paths an edit tool call names.
+const editPaths = (payload, ctx) => [...new Set(editedFiles(payload).map((f) => boardPath(ctx.ident, resolve(ctx.cwd, f))).filter(Boolean))];
+
 function editNote(payload, ctx) {
-  const files = editedFiles(payload);
-  if (!files.length) return null;
   const { cwd, ident, sid, now } = ctx;
-  const paths = [...new Set(files.map((f) => boardPath(ident, resolve(cwd, f))).filter(Boolean))];
+  const paths = editPaths(payload, ctx);
   if (!paths.length) return null;
   const peers = livePeers(cwd, sid, now);
   if (!peers.length) return null;
@@ -152,11 +175,7 @@ function editNote(payload, ctx) {
       + sendLine(peer, `I am about to edit ${pathList(hits.map((h) => h.path))}, which you claimed or edited recently. Tell me if that collides.`));
   }
   if (!lines.length) return null;
-  const commit = () => {
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, `${JSON.stringify({ v: 1, seen: [...seen, ...fresh].slice(-MAX_SEEN) })}\n`);
-  };
-  return { text: `Collision note (warn only, nothing is blocked): ${lines.join(' | ')}`, commit };
+  return { text: `Collision note (warn only, nothing is blocked): ${lines.join(' | ')}`, commit: () => markSeen(file, fresh) };
 }
 
 // This session's uncommitted paths, relative to the worktree top, or null when git is unavailable.
@@ -204,6 +223,197 @@ function gitNote(verb, ctx) {
   return { text: `Collision note (warn only, nothing is blocked): git ${verb} with ${peers.length} other live session${peers.length === 1 ? '' : 's'} on branch ${clean(branch)}. ${lines.join(' | ')}`, commit: () => {} };
 }
 
+// ---- Peer surfaces ----
+
+const lower = (v) => String(v ?? '').toLowerCase();
+const forwardPath = (p) => p.replace(/\\/g, '/').replace(/^\.\//, '');
+
+// The surfaces a PROGRAM.md `## Peers` section declares: `[{ target, surfaces, notify }]`. A line is
+// `- <slug | *> · Surfaces: <path or glob>, process:<name> · Notify: edit|merge`; any other line is
+// ignored, so one typo never hides the rest. `target` is a program slug or `*`.
+export function parsePeers(text) {
+  if (typeof text !== 'string') return [];
+  const out = [];
+  let inside = false;
+  for (const raw of text.split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    if (/^##\s/.test(line)) { inside = /^##[^\S\r\n]+Peers[^\S\r\n]*$/i.test(line); continue; }
+    const item = inside ? /^[-*]\s+(.+)$/.exec(line) : null;
+    const parts = item?.[1].split('·').map((p) => p.trim());
+    if (!parts || parts.length !== 3) continue;
+    const [target, listed, notified] = parts;
+    const notify = /^Notify:\s*(edit|merge)$/i.exec(notified)?.[1].toLowerCase();
+    const body = /^Surfaces:\s*(.+)$/i.exec(listed)?.[1];
+    if (!notify || !body || !/^(?:\*|[A-Za-z0-9][\w.-]*)$/.test(target)) continue;
+    const surfaces = body.split(',').map((x) => x.trim().replace(/^`(.*)`$/, '$1').trim()).filter(Boolean)
+      .map((x) => (/^process:/i.test(x) ? `process:${x.slice(8).trim().replace(/\.exe$/i, '')}` : forwardPath(x)))
+      .filter((x) => x !== 'process:' && x.length <= 200).slice(0, MAX_SURFACES);
+    if (surfaces.length) out.push({ target, surfaces, notify });
+  }
+  return out;
+}
+
+// True when a worktree-relative path falls under a declared surface: an exact path or directory,
+// or a glob where `*` and `?` stay inside one segment and `**` crosses segments.
+function surfaceMatches(surface, path) {
+  if (!/[*?]/.test(surface)) { const dir = surface.replace(/\/+$/, ''); return path === dir || path.startsWith(`${dir}/`); }
+  let re = '';
+  for (let i = 0; i < surface.length; i++) {
+    const c = surface[i];
+    if (c === '*' && surface[i + 1] === '*') {
+      i++;
+      if (surface[i + 1] === '/') { i++; re += '(?:.*/)?'; } else re += '.*';
+    } else if (c === '*') re += '[^/]*';
+    else if (c === '?') re += '[^/]';
+    else re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  }
+  return new RegExp(`^${re}$`).test(path);
+}
+
+const KILL_COMMANDS = /^(?:.*[\\/])?(?:taskkill|pkill|kill|stop-process)(?:\.exe)?$/i;
+// The `&&`, `||`, `;`, or newline statements of a command that run a kill command in any pipeline stage.
+function killStatements(command) {
+  if (typeof command !== 'string') return [];
+  return command.split(/&&|\|\||[;\n]/).filter((statement) => statement.split('|').some((stage) => {
+    const words = stage.trim().split(/\s+/);
+    while (words.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]) || words[0] === 'sudo')) words.shift();
+    return KILL_COMMANDS.test(words[0] ?? '');
+  }));
+}
+const namesProcess = (statements, name) => statements.some((s) => new RegExp(`(?<![\\w.-])${name.replace(/[.+^${}()|[\]\\*?]/g, '\\$&')}(?:\\.exe)?(?![\\w-])`, 'i').test(s));
+
+const readLedger = (file) => {
+  try { return file && statSync(file).size <= MAX_LEDGER_BYTES ? parsePeers(readFileSync(file, 'utf8')) : []; } catch { return []; }
+};
+const slugOfLedger = (file) => (file ? basename(dirname(file)) : '');
+const readJsonFile = (file) => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
+const sessionIds = (r) => [r?.sessionId, r?.hostSessionId].filter((id) => typeof id === 'string' && id);
+const sameSession = (a, b) => sessionIds(a).some((id) => sessionIds(b).includes(id));
+const sameFile = (a, b) => lower(resolve(a)) === lower(resolve(b));
+
+// The live peers on this repository whose program differs from this session's, grouped by the live
+// head of each handoff chain so a predecessor and its successor are one peer. Each is `{ program,
+// programFile, name, sessionId, hostSessionId, branch, worktree, runDir }`: the program slug and
+// ledger, the head session's name and ids, the head run folder, and `ids`, every id the live record
+// and the head carry. A live record with no run folder, no program, this session's own program, or
+// a head the board marks ended is skipped.
+// `own` is this session's PROGRAM.md when the caller already holds it (null for none).
+function peerSet(cwd, sid, now, own) {
+  const ident = repoIdentity(cwd);
+  const board = readBoard(cwd, storeHome(), now);
+  const live = board.filter((r) => r.state === 'live' && r.sessionId !== sid && r.hostSessionId !== sid);
+  if (!live.length) return { ident, ownFile: null, peers: [] };
+  const { records } = sessionRecords(cwd);
+  // A board row names its own run folder; an older row falls back to the session record.
+  const runOf = (row) => {
+    const rec = typeof row.runDir === 'string' && row.runDir ? row : records.find((r) => sameSession(r, row));
+    if (typeof rec?.runDir !== 'string' || !rec.runDir) return null;
+    const base = recordBase(rec, ident, ident.top);
+    return { base, dir: resolve(base, rec.runDir) };
+  };
+  let ownFile = own;
+  if (ownFile === undefined) {
+    const mine = board.find((r) => sessionIds(r).includes(sid)) ?? records.find((r) => sessionIds(r).includes(sid));
+    const run = mine && runOf(mine);
+    ownFile = run ? programOfRun(run.dir, run.base) : null;
+  }
+  const groups = new Map();
+  for (const peer of live) {
+    const run = runOf(peer);
+    if (!run) continue;
+    const { base, dir } = run;
+    const head = walkHead(dir, base, ident.top);
+    const programFile = programOfRun(head.dir, base) ?? programOfRun(dir, base);
+    const key = lower(resolve(head.dir));
+    if (!programFile || (ownFile && sameFile(programFile, ownFile)) || groups.has(key)) continue;
+    const session = readJsonFile(join(head.dir, 'SESSION.json')) ?? {};
+    const headRec = board.find((r) => sameSession(r, session)) ?? peer;
+    if (headRec.state === 'ended' || sessionIds(session).includes(sid)) continue;
+    groups.set(key, {
+      program: slugOfLedger(programFile), programFile,
+      name: typeof session.name === 'string' && session.name ? session.name : peer.name,
+      sessionId: session.sessionId ?? peer.sessionId, hostSessionId: session.hostSessionId ?? peer.hostSessionId,
+      ids: [...new Set([...sessionIds(peer), ...sessionIds(session)])],
+      branch: headRec.branch, worktree: headRec.worktree, runDir: head.dir,
+    });
+  }
+  return { ident, ownFile: ownFile ?? null, peers: [...groups.values()] };
+}
+
+export const discoverPeers = (cwd, sid, now = Date.now(), own) => {
+  try { return peerSet(cwd, sid, now, own).peers; } catch { return []; }
+};
+
+// The surfaces two programs share, with the notify level each line declared: lines this program
+// wrote for the peer's slug or `*`, and lines the peer wrote for this program's slug or `*`.
+function sharedSurfaces(ownFile, peer) {
+  const aims = (line, slug) => line.target === '*' || (slug !== '' && lower(line.target) === lower(slug));
+  return [...readLedger(ownFile).filter((l) => aims(l, peer.program)), ...readLedger(peer.programFile).filter((l) => aims(l, slugOfLedger(ownFile)))]
+    .flatMap((l) => l.surfaces.map((surface) => ({ surface, notify: l.notify })));
+}
+
+const SURFACE_ACTION = {
+  edit: (paths) => `I am about to edit ${pathList(paths)}, a surface our programs share. Tell me if that collides.`,
+  merge: (paths, what) => `I am about to run ${what}, which changes ${pathList(paths)}, a surface our programs share. Tell me if that collides.`,
+  kill: (names) => `I am about to run a command that stops ${names.join(', ')}, a process you rely on. Tell me if that collides.`,
+};
+
+// kind `edit` or `merge` takes `subject()`, the worktree-relative paths touched, called at most once
+// and only after a path surface is declared; kind `kill` takes the command's kill statements.
+function surfaceNote(kind, ctx, subject, what) {
+  const { cwd, sid, now } = ctx;
+  const { ident, ownFile, peers } = peerSet(cwd, sid, now);
+  if (!peers.length) return null;
+  const file = seenFile(ident, sid, ctx.agentId);
+  const seen = new Set(readSeen(file));
+  let touched = null;
+  const lines = [];
+  const fresh = [];
+  for (const peer of peers) {
+    if (lines.length >= MAX_PEERS) break;
+    const hits = [];
+    for (const { surface, notify } of sharedSurfaces(ownFile, peer)) {
+      const key = `surface\t${peer.sessionId}\t${surface}`;
+      const isProc = surface.startsWith('process:');
+      if (seen.has(key) || fresh.includes(key) || isProc !== (kind === 'kill') || (kind === 'edit' && notify !== 'edit')) continue;
+      const matched = isProc ? (namesProcess(subject, surface.slice(8)) ? [surface.slice(8)] : [])
+        : (touched ??= subject()).filter((p) => surfaceMatches(surface, p));
+      if (!matched.length) continue;
+      hits.push({ surface, matched });
+      fresh.push(key);
+    }
+    if (!hits.length) continue;
+    const matched = [...new Set(hits.flatMap((h) => h.matched))];
+    lines.push(`surface ${hits.map((h) => clean(h.surface, 120)).join(', ')} shared with program "${clean(peer.program)}", live session "${peerName(peer)}" (${where(peer)}). `
+      + sendLine(peer, SURFACE_ACTION[kind](matched, what)));
+  }
+  if (!lines.length) return null;
+  return { text: `Surface note (warn only, nothing is blocked): ${lines.join(' | ')}`, commit: () => markSeen(file, fresh) };
+}
+
+// The worktree-relative files a `git merge` or `git push` would change, or [] when they cannot be
+// read. A merge diffs HEAD against each named ref (three dots, so only the merged side counts); a
+// push diffs HEAD against its upstream, else against origin/HEAD.
+// deferred(a push on a branch with no upstream and no origin/HEAD reads no diff and gives no note;
+// read the remote's default branch if that real case is missed)
+function diffFiles(call, ctx) {
+  const ref = /^[A-Za-z0-9_][\w./@^~{}-]*$/;
+  const ranges = call.verb === 'merge' ? call.args.filter((a) => ref.test(a)).slice(0, MAX_REFS).map((r) => [`HEAD...${r}`])
+    : [['@{upstream}..HEAD', 'origin/HEAD...HEAD']];
+  const files = new Set();
+  for (const options of ranges) {
+    for (const range of options) {
+      const run = ctx.spawn('git', ['--no-optional-locks', 'diff', '--name-only', range, '--'], { cwd: ctx.ident.top, encoding: 'utf8', timeout: GIT_TIMEOUT_MS, windowsHide: true });
+      if (run.status !== 0 || typeof run.stdout !== 'string') continue;
+      for (const line of run.stdout.split('\n')) if (line.trim()) files.add(forwardPath(line.trim()));
+      break;
+    }
+  }
+  return [...files].slice(0, MAX_DIFF_FILES);
+}
+
+const safely = (fn) => { try { return fn(); } catch { return null; } };
+
 // The advisory for one PreToolUse payload: `{ text, commit }`, or null when there is nothing to
 // say or anything fails. `commit()` records the note as delivered; call it only after the text is
 // actually emitted. `now` and `spawn` (the process launcher) are injectable for tests.
@@ -213,12 +423,21 @@ export function collisionNote(payload, now = Date.now(), spawn = spawnSync) {
     const edit = inTools(name, EDIT_TOOLS);
     if (!edit && !inTools(name, SHELL_TOOLS)) return null;
     const input = toolInput(payload);
-    const verb = edit ? null : gitVerb(typeof input?.command === 'string' ? input.command : input?.cmd);
-    if (!edit && !verb) return null;
+    const command = typeof input?.command === 'string' ? input.command : input?.cmd;
+    const call = edit ? null : gitCall(command);
+    const kills = edit ? [] : killStatements(command);
+    if (!edit && !call && !kills.length) return null;
     const sid = payload.session_id ?? payload.sessionId;
     if (typeof sid !== 'string' || !sid) return null;
     const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
-    const ctx = { cwd, ident: repoIdentity(cwd), sid, now, spawn };
-    return edit ? editNote(payload, ctx) : gitNote(verb, ctx);
+    const ctx = { cwd, ident: repoIdentity(cwd), sid, now, spawn, agentId: payload.agent_id };
+    const shift = call && (call.verb === 'merge' || call.verb === 'push');
+    const notes = (edit ? [safely(() => editNote(payload, ctx)), safely(() => surfaceNote('edit', ctx, () => editPaths(payload, ctx)))]
+      : [call && safely(() => gitNote(call.verb, ctx)),
+        shift && safely(() => surfaceNote('merge', ctx, () => diffFiles(call, ctx), `git ${call.verb}`)),
+        kills.length && safely(() => surfaceNote('kill', ctx, kills))]).filter(Boolean);
+    if (!notes.length) return null;
+    if (notes.length === 1) return notes[0];
+    return { text: notes.map((n) => n.text).join('\n'), commit: () => { for (const n of notes) n.commit(); } };
   } catch { return null; }
 }
