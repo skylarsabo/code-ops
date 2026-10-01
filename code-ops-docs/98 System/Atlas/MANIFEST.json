@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f57594794c4bd263e355e12aa1292af8134e5d4e",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
       "verifiedDigest": "5971f86eddf175a424491a77fac4c98cbcd2aa61edb7565dae31c914c4a825d5",
       "claims": [
         {
@@ -295,7 +295,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8ad8361c3c2728b5bf3c052f79196eff82088022",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
       "verifiedDigest": "c8dc9686b7b18bb9ed49418124185d8bd67a03c3fe136ae5d19bfaca2e3d7b54",
       "claims": [
         {
@@ -726,8 +726,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f57594794c4bd263e355e12aa1292af8134e5d4e",
-      "verifiedDigest": "5b54aba9f5297b701ccfcbd7ec1297ca73eb032417c0a1c85fc1194b65c734a9",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
+      "verifiedDigest": "28fad6a3ec54f526c632581ef97f2d16d5a4fc16de6026fa27078c189935ea7d",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -987,6 +987,11 @@
           "file": "evals/distill-check/run.mjs",
           "line": 2,
           "anchor": "// Distill no-loss and findability regression eval (scripts/distill-check.mjs,"
+        },
+        {
+          "file": "evals/route-judgment/run.mjs",
+          "line": 67,
+          "anchor": "const routed = routeUnit({ ...basis, surface: surfaceOfScope(scope) });"
         }
       ]
     },
@@ -998,7 +1003,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f57594794c4bd263e355e12aa1292af8134e5d4e",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
       "verifiedDigest": "a2db05efd02d026da382b3be21a0873edfad40c16213f62af872a4a19255d462",
       "claims": [
         {
@@ -1119,8 +1124,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "7d5252cad35ac5be6579d3fe480e404adf9c76b9",
-      "verifiedDigest": "5e3da9bf88f78b139a436ad7c6eca95ae1e5a0723b95db27075eef272534cb03",
+      "verifiedAt": "15b74159e5508ba597c4fe02d7c530333d178d06",
+      "verifiedDigest": "f63b55b4e4d6c454d99790ffdb81f3821458974f33f735888ac1eb7a55888fce",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1269,7 +1274,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "f57594794c4bd263e355e12aa1292af8134e5d4e",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
       "verifiedDigest": "e448175be3dd63bee031d50f3c82031b159d982b0ca7ee9b7247fab6fefd63c5",
       "claims": [
         {
