@@ -44,6 +44,21 @@ owns the switches those arms record.
 - **Artifact-size bounds (`§12`).** Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan narration <run folder>/EXECUTIVE_SUMMARY.md <other run summaries>`. A HARD hit is an over-length or narrated artifact, and an advisory is a borderline one.
 - **Tier and effort mix.** Compare each dispatch's model tier and reasoning effort, taken from the ledger's brief text or the operative transcripts where recorded, against the routing table in `${CLAUDE_PLUGIN_ROOT}/reference/subagent-trade-offs.md`. Flag mechanical work routed above the tier its floor requires, and any judgment-bearing dispatch routed below the strong tier. Under-tiered judgment work is a cost finding, not a saving, so price the redispatches and the discarded reports it caused.
 
+## Phase 1a: the routing lens
+
+Read the run's agent-ledger rows: the `*.jsonl` files under `~/.claude/code-ops/agents/` for the
+run's sessions (`CODE_OPS_HOME` moves that root), through `ledgerRows` in
+`${CLAUDE_PLUGIN_ROOT}/scripts/agent-ledger.mjs`. Each `dispatched` row carries `unit`,
+`requestedTier`, `requestedEffort`, `appliedModel`, and `flag`. Report the distribution of
+requested and applied rungs and efforts. For each unit, run `co route` with the unit's kind,
+ambiguity, reversibility, and Scope paths (`node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs route --help`
+names them), and compare the rung and effort it prints with the row's. Then raise two flags:
+
+- **Starvation.** A judgment dispatch ran at strong although `co route` said premium because a premium trigger held (a risky surface on a review, high ambiguity with no way back, or a retry after a failed strong attempt). Cite the row and the trigger.
+- **Overuse.** Premium dispatches exceed the 25% ceiling of judgment dispatches, or a dispatch ran at premium where `co route` said strong. `routingSummary` prints the `Routing:` line and both advisories over the same rows.
+
+A rung the host collapses (every xai rung is one model) is a recorded collapse, not starvation.
+
 ## Phase 1b: the orchestration-discipline score
 
 Write `RUN_CONFORMANCE.md` in the check-row grammar of
@@ -71,4 +86,5 @@ report a general impression.
 - `RUN_CONFORMANCE.md` carries a row for all five checks, each `PASS`, `FAIL`, or `N/A` with the evidence that decided it.
 - `COST_AUDIT.md` is produced, and every recommendation cites the ledger row or artifact evidence behind it.
 - The report itself passes `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan narration COST_AUDIT.md` clean.
+- The report carries the routing lens: the rung and effort distribution against each unit's `co route` result, with every starvation and overuse flag cited to its ledger row or stated as none found.
 - The top three drivers are presented first.

@@ -465,6 +465,31 @@ try {
   rmSync(rkHome);
   c = rkCard(subDir);
   check('7z7. a copy an older build wrote under the raw-cwd key is still read as a fallback', rkFresh(c), c.stdout);
+
+  // ---- 8. the Routing line over this session's ledger rows (DESIGN_TIER_ROUTING slice 7) ----
+  const STARVED = 'Starved-session-0001';
+  const launchAs = (session, agentId, type, prompt, model) => feed({ hook_event_name: 'PostToolUse', session_id: session, cwd: cardRepo, tool_name: 'Agent',
+    tool_input: { subagent_type: type, description: `Routing fixture ${agentId}`, prompt, run_in_background: true, ...(model ? { model } : {}) },
+    tool_response: { status: 'async_launched', agentId } });
+  const routingOf = (r) => r.stdout.split('\n').filter((l) => l.startsWith('Routing:'));
+  const cardFor = (session, source, extraEnv = {}) => runHook('routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source, session_id: session, cwd: cardRepo }), extraEnv, cardRepo);
+  c = cardFor(CARD, 'compact');
+  check('8a. a session with a routed dispatch prints one Routing line from its ledger rows', c.status === 0 && routingOf(c).length === 1 && /^Routing: \d+ judgment, 0 triggered, 0 premium -> ok$/.test(routingOf(c)[0]), c.stdout);
+  check('8b. the Routing line adds one short line and nothing else', routingOf(c)[0].length < 80 && c.stdout.trimEnd().split('\n').at(-1) === routingOf(c)[0], c.stdout);
+  c = cardFor(STARVED, 'compact');
+  check('8c. a session with no dispatch prints no Routing line', c.status === 0 && routingOf(c).length === 0, c.stdout);
+  launchAs(STARVED, 'probe0001', 'suite:probe', 'Objective: read only', 'haiku');
+  check('8d. a non-judgment dispatch alone prints no Routing line', routingOf(cardFor(STARVED, 'compact')).length === 0);
+  launchAs(STARVED, 'starve0001', 'suite:implementer', 'Unit: U1\nTier: premium\nEffort: high', 'claude-sonnet-5-5');
+  launchAs(STARVED, 'starve0002', 'suite:reviewer', 'Unit: U2\nTier: premium\nEffort: high', 'claude-sonnet-5-5');
+  for (const source of ['compact', 'startup', 'resume']) {
+    c = cardFor(STARVED, source);
+    check(`8e. ${source} card: triggered dispatches that ran below premium print the STARVED verdict`, c.status === 0 && routingOf(c).join('|') === 'Routing: 2 judgment, 2 triggered, 0 premium -> STARVED', c.stdout);
+  }
+  c = runHook('routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact', cwd: cardRepo }), {}, cardRepo);
+  check('8f. a payload with no session id prints no Routing line', c.status === 0 && routingOf(c).length === 0, c.stdout);
+  c = cardFor(STARVED, 'compact', { CODE_OPS_AGENT_LEDGER: 'off' });
+  check('8g. CODE_OPS_AGENT_LEDGER=off prints no Routing line', c.status === 0 && routingOf(c).length === 0 && c.stdout.includes('code-ops standard operating mode'), c.stdout);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

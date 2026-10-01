@@ -146,6 +146,11 @@
 // so. `--pending-agents-ok` drafts anyway and writes each pending agent as a `Pending agent:` state
 // line in In-flight boundaries. CODE_OPS_AGENT_LEDGER=off skips the check.
 //
+// ROUTING LINE. When the session ids above have at least one judgment dispatch in the ledger, draft
+// writes the `Routing:` line `routingSummary` prints (the routing card prints the same line) under
+// In-flight boundaries, so a STARVED or OVERUSED verdict reaches the successor. No judgment dispatch,
+// no known session id, or CODE_OPS_AGENT_LEDGER=off writes no line.
+//
 // REPLY-OWED PEERS. A message sent to this session cannot be answered by its successor. Draft reads
 // the compaction snapshot (snapshotLists() below: the run folder's COMPACT_SNAPSHOT.md, else the home
 // state copy; with neither, the session transcript) and prints a stderr `warning:` that lists each
@@ -163,7 +168,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseOrDie, usage, die, git, walkFiles } from './cli-lib.mjs';
-import { formatLine, pendingAgents } from './agent-ledger.mjs';
+import { formatLine, ledgerRows, pendingAgents, routingSummary } from './agent-ledger.mjs';
 import { conversationOf, defaultTranscriptDir, sessionRecordPath } from './transcript-lib.mjs';
 import { buildSnapshot, homeSnapshotPaths, readSnapshotHeader, SNAPSHOT_FILE } from './compact-snapshot.mjs';
 import { ANCHOR_RE } from './citation-lib.mjs';
@@ -624,6 +629,17 @@ function pendingForDraft(sid, own, root, runDir) {
   return { agents: [...byId.values()].sort((a, b) => Date.parse(b.launched_at) - Date.parse(a.launched_at)), note: null };
 }
 
+// The `Routing:` line over the ledger rows of every id this draft knows for the session, or no line
+// when none holds a judgment dispatch. Any read failure is no line.
+function routingForDraft(sid, own) {
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return [];
+  const ids = [...new Set([sid, own?.sessionId, own?.hostSessionId].filter((id) => typeof id === 'string' && id))];
+  try {
+    const summary = routingSummary(ids.flatMap((sessionId) => ledgerRows({ sessionId })));
+    return summary.judgment ? [summary.line] : [];
+  } catch { return []; }
+}
+
 // The compaction snapshot's two lists a handoff must not lose: the peers still owed a reply, and
 // the running work the ledger does not cover (shells, workflows, wakeups; agents come live from the
 // ledger above). The snapshot is the run folder's COMPACT_SNAPSHOT.md, else the home state copy for
@@ -699,6 +715,7 @@ function draft(flags) {
     console.error('Wait for them to report; or settle a lost one with `co agents settle <id> --failed --reason <text>`; or pass --pending-agents-ok to draft and record them in In-flight boundaries.');
     return 1;
   }
+  const routingLines = routingForDraft(sid, own);
   const lists = snapshotLists(runDir, sid || own?.sessionId || own?.hostSessionId);
   if (lists.owed.length) {
     console.error(`warning: ${lists.owed.length} peer message(s) still await a reply, and a new session cannot answer a message sent to this one (from ${lists.source}):`);
@@ -807,6 +824,7 @@ function draft(flags) {
     '',
     ...(dirty.length ? dirtyLines(dirty, git(['rev-parse', '--show-toplevel'], { cwd: root })) : ['- Working tree clean.']),
     ...pendingNow.agents.map((a) => `- Pending agent: ${formatLine(a).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\[FILL:/g, '[fill:')} · launched ${a.launched_at}`),
+    ...routingLines,
     ...lists.running.slice(0, RUNNING_SEEDED).map((line) => `- Running work (snapshot): ${line}`),
     ...(lists.running.length > RUNNING_SEEDED ? [`- +${lists.running.length - RUNNING_SEEDED} more running work entries in the snapshot.`] : []),
     '[FILL: the done-against-not-done line; load-bearing path:line pointers, each with a verbatim Anchor]',

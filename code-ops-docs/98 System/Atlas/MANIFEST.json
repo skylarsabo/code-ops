@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "b81cf60c72c41948a1c46461a345e46fdc1a8803",
-      "verifiedDigest": "64f6c9223588d1ec973408517bbec0d85efee2c1549e08538a904ddab66eb12f",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
+      "verifiedDigest": "5971f86eddf175a424491a77fac4c98cbcd2aa61edb7565dae31c914c4a825d5",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -88,12 +88,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 411,
+          "line": 429,
           "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 399,
+          "line": 417,
           "anchor": "lines.push(...gitLine(cwd));"
         },
         {
@@ -178,12 +178,12 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 381,
+          "line": 386,
           "anchor": "export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'st"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 1272,
+          "line": 1290,
           "anchor": "function overlapLines(programFile, root, sid) {"
         },
         {
@@ -233,17 +233,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 395,
+          "line": 413,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 274,
+          "line": 280,
           "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 283,
+          "line": 289,
           "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
         },
         {
@@ -295,8 +295,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1c43cdd021040b18be53e2a9f4548bd7a67cbc5f",
-      "verifiedDigest": "1d491d13fe2e570ce945c6e904bf843e6f463a72f48247935e707acd53a3ff67",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
+      "verifiedDigest": "c8dc9686b7b18bb9ed49418124185d8bd67a03c3fe136ae5d19bfaca2e3d7b54",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -455,7 +455,7 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 746,
+          "line": 763,
           "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
         },
         {
@@ -465,12 +465,12 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 1005,
+          "line": 1023,
           "anchor": "archived ${count('request history')} request(s), ${count('decisions ledger')} de"
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 1272,
+          "line": 1290,
           "anchor": "function overlapLines(programFile, root, sid) {"
         },
         {
@@ -524,6 +524,16 @@
           "anchor": "export const MIN_OVERUSE_DISPATCHES = 4;"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 323,
+          "anchor": "async function routingLine(sessionId) {"
+        },
+        {
+          "file": "scripts/handoff-state.mjs",
+          "line": 634,
+          "anchor": "function routingForDraft(sid, own) {"
+        },
+        {
           "file": "scripts/co.mjs",
           "line": 150,
           "anchor": "// Route basis lines for one unit and its binding on each host. Read-only."
@@ -565,12 +575,12 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 704,
+          "line": 721,
           "anchor": "warning: ${lists.owed.length} peer message(s) still await a reply, and a new ses"
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 810,
+          "line": 828,
           "anchor": "...lists.running.slice(0, RUNNING_SEEDED).map((line) =>"
         },
         {
@@ -716,8 +726,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "15b74159e5508ba597c4fe02d7c530333d178d06",
-      "verifiedDigest": "dbd321fd2bfbab6d86bcf2426e0c804206307a03ab7c4293b1defa6921f857b4",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
+      "verifiedDigest": "28fad6a3ec54f526c632581ef97f2d16d5a4fc16de6026fa27078c189935ea7d",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -885,17 +895,17 @@
         },
         {
           "file": "evals/handoff-state/run.mjs",
-          "line": 242,
+          "line": 260,
           "anchor": "// ---- reply-owed peers and running work from the compaction snapshot (PR 2) --"
         },
         {
           "file": "evals/handoff-state/run.mjs",
-          "line": 258,
+          "line": 276,
           "anchor": "check('snapshot: draft warns on stderr and still exits 0', fromSnap.status === 0"
         },
         {
           "file": "evals/handoff-state/run.mjs",
-          "line": 263,
+          "line": 281,
           "anchor": "check('snapshot: the running list seeds shells and workflows under In-flight bou"
         },
         {
@@ -993,8 +1003,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "1c43cdd021040b18be53e2a9f4548bd7a67cbc5f",
-      "verifiedDigest": "2bbee85cb1536f30e2b97834d3202f15f4293327565587b2effe1e38702e381d",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
+      "verifiedDigest": "a2db05efd02d026da382b3be21a0873edfad40c16213f62af872a4a19255d462",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1043,17 +1053,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 274,
+          "line": 280,
           "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 277,
-          "anchor": "Snapshot STALE: ${shown} predates an earlier compaction; verify its running work"
+          "line": 289,
+          "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 279,
+          "line": 285,
           "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
@@ -1264,8 +1274,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "0aeff7f94ce17c47e09385d830b77b3e1b1ebb52",
-      "verifiedDigest": "4b3f003543c0b822122f18239352bee415d1bc41b8254ac78a311f5f54eb48a6",
+      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
+      "verifiedDigest": "e448175be3dd63bee031d50f3c82031b159d982b0ca7ee9b7247fab6fefd63c5",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",
@@ -1284,18 +1294,23 @@
         },
         {
           "file": "global-contracts/AGENTS.md",
-          "line": 133,
+          "line": 141,
           "anchor": "- The operator's requests and constraints, in one line."
         },
         {
           "file": "global-contracts/AGENTS.md",
-          "line": 141,
+          "line": 149,
           "anchor": "- The next command."
         },
         {
           "file": "global-contracts/AGENTS.md",
-          "line": 143,
+          "line": 151,
           "anchor": "After a compaction, start from the SessionStart card and"
+        },
+        {
+          "file": "global-contracts/AGENTS.md",
+          "line": 64,
+          "anchor": "On Grok every xai rung is one model, so the rung is not a variable there: premiu"
         }
       ]
     },

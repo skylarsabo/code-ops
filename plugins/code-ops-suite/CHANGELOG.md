@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.35.0
+- The routing card ends with the session's `Routing:` line once a judgment dispatch is on the ledger, and `handoff draft` writes the same line under In-flight boundaries, so a STARVED or OVERUSED verdict reaches the successor.
+- `run-cost-audit` gains a routing lens: it compares each unit's ledger rung and effort with `co route` and cites every starvation and overuse flag.
+- The global contract states the Grok effort dial: every xai rung is one model, so the lead sets the persona's `reasoning_effort` from the brief, since `spawn_subagent` takes no effort parameter, and strips `model` from spawn calls when model inheritance is on.
+
 ## 2.34.0
 - The dispatch guard enforces task-based routing for agents whose `Brief requires:` lists Tier. The five strong-floor agents (implementer, reviewer, tracer, verifier, privacy-reviewer) now require `Unit:`, `Tier:`, `Effort:`, and `Route basis:` lines, and `co brief` prints them with the allowed values and a `co route` hint.
 - The guard derives the surface from the brief's Scope paths, stripping `file:line` and `#L` anchors, and reads the attempt from the agent ledger. It denies a Tier or Effort below the route unless a `Route override:` line is present. An override never clears a surface trigger. The guard also denies a model override below the agent's floor or inconsistent with the Tier, a contradicted or unknown surface, an Effort above the agent's frontmatter, any literal `xhigh` or `max`, and a second frontier dispatch, including from Workflow scripts.
