@@ -1,0 +1,7 @@
+#!/bin/sh
+# After a clean automatic merge, fold the regenerated derived files into the merge commit.
+# $1 is 1 for a squash merge, which makes no commit; the commit the person makes runs pre-commit.
+[ "${1:-0}" = "0" ] || exit 0
+[ -e "$(git rev-parse --git-path code-ops-derived-merge-amend)" ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+exec node "$(git rev-parse --show-toplevel)/scripts/derived-merge.mjs" amend

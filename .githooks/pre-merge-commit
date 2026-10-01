@@ -1,0 +1,6 @@
+#!/bin/sh
+# A clean automatic merge runs this hook and never runs pre-commit. The merge result needs the
+# same derived-file regeneration and freshness checks, so run the pre-commit hook here. The flag
+# tells it that git writes this commit from the tree it merged earlier (see post-merge).
+CODE_OPS_MERGE_COMMIT=1 && export CODE_OPS_MERGE_COMMIT
+exec "$(dirname "$0")/pre-commit" "$@"

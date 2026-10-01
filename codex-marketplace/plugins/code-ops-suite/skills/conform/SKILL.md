@@ -217,6 +217,18 @@ Then run `docs-gate.mjs --baseline-init` once, review the violations it records,
 
 **Remove.** `conform --remove docs-gate` takes out the CI step, the pre-commit entry, and the two pointer lines as one adopter commit. It leaves the baseline file in place. The adopter reviews the commit like any change. Removal is the adopter's own choice, so it weakens no code-ops gate. It gives an adopter blocked by a gate defect a reviewed way out instead of a hand edit. Report the defect that prompted it.
 
+## Derived-file merge driver: install
+
+A derived file is a documentation manifest, a host distribution, or a vendored script copy. Two branches that both regenerate one conflict on it, and no person should hand-merge it. The merge driver regenerates it instead. Install it only when the developer approves, as one reviewed adopter commit.
+
+1. Run `node <scripts dir>/derived-merge.mjs install`. It registers the driver in the local git config and adds the `merge=code-ops-derived` lines to `.gitattributes`. In the code-ops repository, `node scripts/install-git-hooks.mjs` registers the driver and the hooks together.
+2. Add three git hook entries. The pre-commit hook runs `node <scripts dir>/derived-merge.mjs regenerate`. The pre-merge-commit hook runs the same command with `--amend-after`. The post-merge hook runs it with the final word changed to amend.
+3. Run `node <scripts dir>/derived-merge.mjs check`. It exits 0 only when the driver and its attributes are in place.
+
+Remove the `.gitattributes` lines, the three hook entries, and the `merge.code-ops-derived.*` config keys to uninstall.
+
+Route work on state surfaces to `code-ops-suite:distill`. That covers handoffs, the register, indexes, and program state. This step handles only merge conflicts on derived files. It never edits a document.
+
 ## Global scope: the user-wide contracts
 
 **Produces:** the host-specific global contracts at
@@ -313,6 +325,7 @@ not in prompt doctrine. Never require the Claude and Codex global contracts to b
 - Every mechanical check was re-run after the repairs, and its closing output recorded.
 - Anything left unrepaired is listed with its reason.
 - When the docs gate was installed or removed: the change landed as one adopter commit that the developer approved, installation ran `--baseline-init` once and committed its baseline, and removal took out exactly the CI step, the pre-commit entry, and the pointer lines.
+- When the merge driver was installed: `derived-merge.mjs check` exits 0, the change landed as one adopter commit the developer approved, and state-surface drift was routed to `code-ops-suite:distill`.
 - In fleet mode, additionally: every named member carries a consent row, no member was operated on without one reading CONFORMANT, no member's consent section was edited, and the closing report re-runs the fleet checker over the whole manifest.
 - In the repo contract procedure: every command in the produced or updated `AGENTS.md` is verified against reality, either run or CI-cited; the gate chain matches CI; every enforcement claim is truthful, with its gate named or an aspirational marking; no global doctrine is duplicated; every `line N` citation was checked and is correct; and drift found in MAINTAIN mode is listed in the report, never silently fixed without disclosure.
 - In global scope, instead of the bullets above:

@@ -30,6 +30,7 @@ example on this page is illustration and not page structure.
 | `code-ops-suite:conform` | `code-ops-suite:vault` | the vault is absent, or `check-vault-standard.mjs` exits non-zero; or, as a hand-off, the repo contract must route to a `<repo>-docs/` vault it carries or adopts | `CONFORMANCE_REPORT.md` (the detected vault mode) |
 | `code-ops-suite:conform` | `code-ops-suite:atlas` | the atlas is absent, or `atlas-check.mjs check` reports a STALE section | `CONFORMANCE_REPORT.md` (the STALE section list) |
 | `code-ops-suite:conform` | `code-ops-suite:doc-alignment` | the assessment surfaced a drift signal between the contract, the vault, and the repo docs: never unconditionally | `CONFORMANCE_REPORT.md` (the drift signals) |
+| `code-ops-suite:conform` | `code-ops-suite:distill` | the assessment found drift in a state surface (handoffs, the register, indexes, or program state): the merge driver resolves only derived files | `CONFORMANCE_REPORT.md` (the drifted surface) |
 | `code-ops-suite:debug` | `rigor:ground-truth` | always, before tracing the symptom | `GROUND_TRUTH.md` |
 | `code-ops-suite:debug` | `rigor:regression-hunt` | the bug is a regression: bisect to the introducing commit | none named (returns a commit) |
 | `code-ops-suite:debug` | `rigor:fix-verified` | always, for the fix loop: repro passes, regression guard holds, sibling sweep, enforcement | `FINDINGS_REGISTER.md` |

@@ -208,6 +208,9 @@ jobs:
       - name: opencode distribution regression eval
         run: node evals/opencode-dist/run.mjs
 
+      - name: Derived-file merge driver regression eval
+        run: node evals/merge-driver/run.mjs
+
       - name: opencode lifecycle regression eval
         run: node evals/opencode-lifecycle/run.mjs
 
@@ -661,6 +664,9 @@ jobs:
 
       - name: opencode distribution regression eval
         run: node evals/opencode-dist/run.mjs
+
+      - name: Derived-file merge driver regression eval
+        run: node evals/merge-driver/run.mjs
 
       - name: opencode lifecycle regression eval
         run: node evals/opencode-lifecycle/run.mjs

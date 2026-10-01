@@ -15,6 +15,11 @@ All 50 `run.mjs` suites and the MCP smoke eval are wired into `.github/workflows
   skills, manual-invocation policy, MCP declaration, payload-adapted hooks, compact-resume
   restore card, and child-rollout receipt behavior. Run: `node
   evals/codex-marketplace/run.mjs`.
+- **`merge-driver/`** — pins the derived-file merge driver in a scratch git repository: a clean
+  merge and a mixed source-and-derived conflict both end with regenerated files, a failed
+  regeneration keeps the conflict and refuses the commit, intake files union, the atlas manifest
+  stays conflicted, and a rebase stops instead of regenerating. Two mutants (a no-op and a
+  fail-open regeneration) must fail the eval. Run: `node evals/merge-driver/run.mjs`.
 - **`opencode-dist/`** — pins the generated OpenCode commands, agents, traceless/model-floor
   gate, digest, index, routing, compaction, and MCP surfaces. Its compatibility assertions also
   preserve the explicit absence of ladder and transcript-receipt callbacks. Run: `node

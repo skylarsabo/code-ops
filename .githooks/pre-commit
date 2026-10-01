@@ -48,7 +48,7 @@ snapshot_staged_tree() {
 }
 
 atlas_dir='code-ops-docs/98 System/Atlas'
-pending_marker=''
+pending_marker="$(git rev-parse --git-path code-ops-derived-pending)"
 
 # Run the atlas gate and the documentation manifest check against the staged result. These
 # checks never stamp or sync: a stamp asserts that the prose still holds, which only the
@@ -93,6 +93,24 @@ check_derived_freshness() {
   } >&2
   return 1
 }
+
+# ---- 0c. regenerate derived files that a merge flagged --------------------------------
+# The merge driver (scripts/derived-merge.mjs) takes one side of a conflicting derived file and
+# records its path, because git runs a driver before the merged tree exists. This hook sees the
+# merged tree, so it regenerates the flagged files here and stages them. A failed regeneration
+# restores the conflict and aborts, so a stale derived file never reaches a commit. Then the
+# freshness checks run against the regenerated result.
+derived_merge_pending="$(git rev-parse --git-path code-ops-derived-merge-pending)"
+if [ -e "$derived_merge_pending" ]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "node is required to regenerate merged derived files." >&2
+    exit 1
+  }
+  # A clean automatic merge reaches here through pre-merge-commit, whose staged files miss the
+  # commit. The flag has post-merge amend the merge commit.
+  node scripts/derived-merge.mjs regenerate ${CODE_OPS_MERGE_COMMIT:+--amend-after} || exit 1
+  check_derived_freshness || exit 1
+fi
 
 # ---- 1. sync vendored plugin copies of canonical scripts/ files -----------------
 # scripts/vendored-manifest.mjs lists which canonical scripts/<file> must be byte-identical
@@ -164,7 +182,6 @@ retry_on_index_lock git add -A -- opencode-dist/
 # ---- 3. freshness backstop -------------------------------------------------------
 # Run the checks when this hook changed staged bytes, or when an earlier attempt of this
 # commit failed them (the marker). A hook that changed nothing and has no marker adds no work.
-pending_marker="$(git rev-parse --git-path code-ops-derived-pending)"
 if [ -e "$pending_marker" ] || [ "$(git write-tree)" != "$before_tree" ]; then
   check_derived_freshness
 fi
