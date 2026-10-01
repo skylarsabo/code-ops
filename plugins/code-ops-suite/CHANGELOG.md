@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.28.0
+- New `distill` skill, program mode only. It rewrites one program ledger into its finish line, at most 12 active items that each block a finish-line check, live decisions with `DEC` ids and dispositions, and a backlog. Every line that leaves the live ledger lands verbatim in the archive or the backlog, and the lead reads every disposition in `LEDGER_DIFF.md`. Vault mode is not built, and the skill says so and stops.
+- New `evals/distill-program` fixture: six planted ledger defects and three decoys, checked by the fixture-drift guard.
+
 ## 2.27.0
 - The collision note warns on surfaces two programs share. A `## Peers` section in PROGRAM.md declares paths, globs, and `process:` names per peer program, and an edit, a `git merge` or `git push` diff, or a kill command that touches one names the peer's live head session. Peers are discovered from the presence board, never configured.
 - The routing card lists up to four live peer programs after a compaction and at startup or clear, with a `reply owed` marker from a fresh snapshot.

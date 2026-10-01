@@ -56,6 +56,7 @@ freshness check.
 - [`adr`](#code-ops-suiteadr): architecture decision records
 - [`ops-docs`](#code-ops-suiteops-docs): the operator's runbook
 - [`handoff`](#code-ops-suitehandoff): capture or resume a run's verifiable session state
+- [`distill`](#code-ops-suitedistill): cut one program ledger down to its finish line, live items, and live decisions
 - [`atlas`](#code-ops-suiteatlas): the repo's durable cache of judgment, with mechanical freshness
 - [`conform`](#code-ops-suiteconform): assess and repair the complete code-ops standard, including the repo contract; `global` scope maintains the user-wide contracts
 - [`vault`](#code-ops-suitevault): create, migrate, or check the repository documentation vault
@@ -772,6 +773,37 @@ registers it points to.
 **Prerequisites and hand-offs.** Write has no prerequisites. Resume expects the `HANDOFF.md`
 plus whatever registers it names. It composes with every orchestrator, and the registers it
 points at are kept fresh by `revalidate-register.mjs` (`§12`).
+
+### `/code-ops-suite:distill`
+**Mode:** DOCUMENT
+
+**How it works.** Program mode, `/code-ops-suite:distill program <slug>`, rewrites one program
+ledger, `programs/<slug>/PROGRAM.md` with its `TASKS.md` and `BACKLOG.md`. It is phase 6 of the
+design in `Agent state machine and host parity 2026-09.md`. It reads the ledger, then restates it
+as its finish line (F1 to Fn, each an observable check), at most 12 active open items that each
+carry `Blocks: F<n>`, the live decisions, and the backlog. An item that blocks no check moves to
+`BACKLOG.md` under its id. A closed item listed as open moves to Closed items, with proof. Every
+decision gets a `DEC-<n>` id, a `Hop:`, and a `Disposition:` of `pending`, `local`, `dropped`, or
+`promoted:<id>`. A superseded decision is linked from its successor with `Supersedes:` and is not
+restated. The skill reuses the existing tools: `co program archive` moves settled lines to
+`PROGRAM.archive.md`, `co decide promote` promotes a decision, and `co burndown` and
+`co check handoff` verify the result. It never deletes a line. Each removed line lands verbatim in
+the archive, the backlog, or Closed items. The checkpoint artifact is `LEDGER_DIFF.md`, and the
+lead reads every disposition in it before the run is done. Vault mode, the eight-phase backfill of
+a docs vault, is not built yet. The skill says so and stops when asked for it.
+
+**Why it's useful.** A long program ledger collects stale items, unnumbered decisions, and
+restated rulings, until a resumed session cannot tell what still blocks the end. A finish line and
+a hard cap on active items make the program converge. The archive keeps the history, so the cut
+loses nothing.
+
+**When to use it.** Use it when `co burndown` shows the program over its cap or growing, when a
+ledger nears its 32 KB cap, or when a program needs a finish line. Do not use it to close a
+program, which `co program close` does, or to clean a whole docs vault.
+
+**Prerequisites and hand-offs.** The ledger needs a `Grammar: 2` line, which the `handoff` skill
+sets. The operator confirms the finish line and each promotion. The result feeds the next
+`handoff` write, whose check 19 enforces the same cap.
 
 ### `/code-ops-suite:atlas`
 **Mode:** DOCUMENT

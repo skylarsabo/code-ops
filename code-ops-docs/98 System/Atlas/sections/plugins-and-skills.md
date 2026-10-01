@@ -99,6 +99,8 @@ that doctrine. OpenCode uses its native compaction port.
 
 `local-review-gate` is opt-in. `ship` and `pr-split` run the deterministic chain and the lead's diff read on every change and start the model gates only on an operator yes recorded at the checkpoint; the conventions carry the rule as a safety rail. `ship` syncs before the push: fetch, rebase onto the upstream base, then push, with one more round after a non-fast-forward rejection. A second rejection or a rebase conflict stops the ship, it never force-pushes, and a rebase that moves HEAD re-runs the gates before the push (plugins/code-ops-suite/skills/ship/SKILL.md:93, plugins/code-ops-suite/skills/ship/SKILL.md:97).
 
+`distill` runs program mode only. It rewrites one program ledger into its finish line, at most 12 active items, live decisions with dispositions, and a backlog, and it moves every removed line verbatim to the archive or the backlog. Vault mode is not built, and the skill stops when asked for it (plugins/code-ops-suite/skills/distill/SKILL.md:7, plugins/code-ops-suite/skills/distill/SKILL.md:21).
+
 `digest-rewrite.mjs` is on by default and off per user or repository. It runs as a second
 `PreToolUse` stage behind the traceless gate and rewrites an allowlisted simple command through
 `updatedInput`, returning no permission decision. Claude, Codex, and installed Grok 1.0.13

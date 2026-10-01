@@ -21,6 +21,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 - `data-model` — Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations.
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.
 - `dependency-upgrade` — Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps.
+- `distill` — Use to cut a program ledger down to its finish line, at most 12 active items, live decisions, and a backlog. Program mode only; vault mode is not built.
 - `doc-alignment` — Use when docs have drifted from code and you want them reconciled into a clean single source of truth.
 - `everything` — Use for a checkpointed pass over installed plugins, from one plugin pipeline to the cross-plugin superset. Pick plugins and a track: assess-only, full, feature.
 - `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code.
