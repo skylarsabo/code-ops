@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "2dba6675f5ed9b0ac66b3103689f1b5225c73596",
-      "verifiedDigest": "99268d3384541df7ee755cc1ca04f425f70a5f46eb8c89903a6448d6e60ea800",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "03db8347a857901ab59edd5bdb1e55471292c1fcf4763adc38c78daff756a5f8",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -147,6 +147,11 @@
           "anchor": "#!/usr/bin/env node"
         },
         {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 217,
+          "anchor": "const agent_id = payload.agent_id || payload.subagentId;"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
           "line": 39,
           "anchor": "// HOST COVERAGE. Claude Code and Codex document"
@@ -280,8 +285,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
-      "verifiedDigest": "7e6d1dacb701ffb3e1e3c4bcf2eff2a63bcad1950ef4c78793c160701b04fa9e",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "b2ca62c8dd865aa16279e14006af4c8cd71d73b004098faef4b18883b4087fb2",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -485,8 +490,23 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 227,
+          "line": 315,
           "anchor": "// directory are not reported as abandoned."
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 175,
+          "anchor": "function routingOf(input, agentType, agentsDir) {"
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 370,
+          "anchor": "export function attemptOf(rows, unit) {"
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 390,
+          "anchor": "export function routingSummary(rows, { ceiling = DEFAULT_PREMIUM_CEILING, trigge"
         },
         {
           "file": "scripts/co.mjs",
@@ -525,7 +545,7 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 122,
+          "line": 207,
           "anchor": "const agent_id = agentIdOf(response);"
         },
         {
@@ -644,8 +664,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
-      "verifiedDigest": "a7d8c40f71fdb283a638cdf44c0b4bdad8cbf19d3d1211b2dacb7d3c26d90f51",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "b94f7bf273f38ea4684df58ef5484194d870ae3cdde5e6ea187871b22559a5a9",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -774,8 +794,13 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 327,
+          "line": 466,
           "anchor": "export function captureOn({ stateDir = ledgerDir(), env = process.env } = {}) {"
+        },
+        {
+          "file": "evals/agent-ledger/run.mjs",
+          "line": 22,
+          "anchor": "//   - a dispatched row carries the routing fields (unit, requested tier and eff"
         },
         {
           "file": "evals/co-facade/run.mjs",
@@ -911,8 +936,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "2dba6675f5ed9b0ac66b3103689f1b5225c73596",
-      "verifiedDigest": "4b36c12f77d3f36d2dcc6512662bf6600eba82e2de1833c503e2a821e846808f",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "7cf05f9139cdc4d3ff31e445427450fb026c6c2228eb4c95771dc75e6bd28879",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1080,8 +1105,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "9e4ed036e8574190d49231107768ae32fa2395e62a37c75b79af4df325a7b5ad",
+      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
+      "verifiedDigest": "0ca39803a21955b0c2b84738c5c3db09eaff8448ea964804f5d2b07215791d87",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
