@@ -285,8 +285,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
-      "verifiedDigest": "b2ca62c8dd865aa16279e14006af4c8cd71d73b004098faef4b18883b4087fb2",
+      "verifiedAt": "f65216241b359ac18ff50193e3b975d36a309332",
+      "verifiedDigest": "b1de962ef9de73db92fea8f1094d25fb32e5f2e8f006d10d5314e30e75bdf410",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -380,7 +380,7 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 253,
+          "line": 294,
           "anchor": "// repository that has run no wave sees no change: no output and no process beyo"
         },
         {
@@ -579,12 +579,13 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 472,
-          "anchor": "}"
+          "line": 539,
+          "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 499
+          "line": 566,
+          "anchor": "async function runPool(tasks, jobs) {"
         },
         {
           "file": "scripts/atlas-check.mjs",
@@ -664,8 +665,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "5b27530e4775fba322304a9f8c02a9a6a096116e",
-      "verifiedDigest": "b94f7bf273f38ea4684df58ef5484194d870ae3cdde5e6ea187871b22559a5a9",
+      "verifiedAt": "f65216241b359ac18ff50193e3b975d36a309332",
+      "verifiedDigest": "049e22be3ea027a74d1f9c6e625cf059264a93cb8da3a23ee919877c164495bb",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -704,7 +705,7 @@
         },
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 167,
+          "line": 171,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
@@ -1197,8 +1198,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "42a78340e9e6df05f054db843b40b307d22bcd79",
-      "verifiedDigest": "403b1e1c320d95413fdc10f259b2da31f413d96dbb27a31d7889bf2a2c15bf50",
+      "verifiedAt": "f65216241b359ac18ff50193e3b975d36a309332",
+      "verifiedDigest": "4b3f003543c0b822122f18239352bee415d1bc41b8254ac78a311f5f54eb48a6",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",

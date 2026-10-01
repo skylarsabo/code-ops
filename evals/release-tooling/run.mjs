@@ -532,6 +532,20 @@ try {
       ]));
     check('integrate-branch: integrationLinks is empty with nothing touched or stale',
       mod.integrationLinks({ touched: [], stale: [], exists: () => true }).length === 0);
+
+    // --changelog: the entry replaces the bump script's stub before regeneration. An empty entry,
+    // one that still carries **TODO**, and a changelog with no stub (a re-run) are the three edges.
+    const stub = '- **TODO** — describe the change.';
+    const changelog = `# Changelog\n\n## 1.2.0\n${stub}\n\n## 1.1.0\n- Older.\n`;
+    check('integrate-branch: changelogEntryProblem refuses an empty or whitespace-only entry', mod.changelogEntryProblem('') !== null && mod.changelogEntryProblem(' \n\t\n') !== null);
+    check('integrate-branch: changelogEntryProblem refuses an entry that still contains **TODO**', /TODO/.test(mod.changelogEntryProblem(`- Done.\n${stub}\n`) ?? ''));
+    check('integrate-branch: changelogEntryProblem accepts a written entry', mod.changelogEntryProblem('- **Fixed** - the thing.\n') === null);
+    check('integrate-branch: replaceChangelogStub swaps the stub for the entry and keeps the older sections',
+      mod.replaceChangelogStub(changelog, '- **Fixed** - the thing.\n') === '# Changelog\n\n## 1.2.0\n- **Fixed** - the thing.\n\n## 1.1.0\n- Older.\n');
+    check('integrate-branch: replaceChangelogStub returns null when no stub remains (idempotent re-run)',
+      mod.replaceChangelogStub('# Changelog\n\n## 1.2.0\n- Done.\n', '- X.\n') === null);
+    check('integrate-branch: replaceChangelogStub gives the entry the file\'s CRLF line endings',
+      mod.replaceChangelogStub(changelog.replace(/\n/g, '\r\n'), '- A.\n- B.\n').includes('- A.\r\n- B.\r\n\r\n## 1.1.0'));
   }
 } finally {
   rmSync(work, { recursive: true, force: true });
