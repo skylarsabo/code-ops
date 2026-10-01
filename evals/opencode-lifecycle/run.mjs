@@ -182,7 +182,7 @@ const dispatch = async (hooksFor, sessionID) => {
 await setContext(hooks, 'ceil', 320000, 'c1');
 const ceilTurn = { parts: [{ type: 'text', text: 'keep going' }] };
 await hooks['chat.message']({ sessionID: 'ceil', agent: 'build' }, ceilTurn);
-expect(ceilTurn.parts[0].text.includes('New dispatches are gated until that assessment runs.'), 'the handoff note did not name the dispatch gate');
+expect(ceilTurn.parts[0].text.includes('New dispatches are now gated until you run /code-ops-suite-handoff assess.'), 'the handoff note did not name the dispatch gate');
 let gate = await dispatch(hooks, 'ceil');
 expect(gate?.startsWith('Dispatch guard:') && gate.includes('300,000-token context ceiling') && gate.includes('/code-ops-suite-handoff assess'), `past the ceiling a dispatch was not gated: ${gate}`);
 await hooks['tool.execute.before']({ tool: 'skill', sessionID: 'ceil', callID: 's' }, { args: { name: 'code-ops-suite-handoff' } });
@@ -408,6 +408,58 @@ expect(pendingHandoffs(bare).length === 3, 'pickup must list at most 3 pending h
   writeFileSync(join(system, 'Records', 'state.json'), '{not json "superseded"');
   expect(await afterText('read', { filePath: OLD }, { callID: 'h8' }) === 'tool output', 'a corrupt state.json must fail open');
   console.log('ok   OpenCode appends the read notice for read, grep, and bash, skips in-force and pathless calls, and honors its switch');
+}
+
+// Compaction push: the compacting hook carries the session run folder's open items, its pending
+// dispatch rows, and the snapshot path into the summary context. A run folder is found by SESSION.json.
+{
+  const repo = join(work, 'compact-repo');
+  const run = join(repo, 'code-ops-docs', '80 Runs', '2026-09-30 compact');
+  mkdirSync(run, { recursive: true });
+  writeFileSync(join(run, 'SESSION.json'), JSON.stringify({ v: 1, sessionId: 'cc-1', hostSessionId: 'host-1', name: 'Compact fixture' }));
+  const items = Array.from({ length: 15 }, (_, i) => `- [ ] OI-${String(i + 1).padStart(2, '0')} open item${i === 0 ? ` ${'x'.repeat(300)}` : ''}`);
+  writeFileSync(join(run, 'TASKS.md'), ['# Tasks', '- [x] OI-99 closed item', ...items].join('\r\n'));
+  const rows = Array.from({ length: 10 }, (_, i) => `| D-${String(i + 1).padStart(3, '0')} | implementer@gpt-6-sol | build unit ${i + 1} | report-${i + 1}.md | dispatched |`);
+  writeFileSync(join(run, 'DISPATCH_LEDGER.md'), ['| id | role | brief | expected artifact | status |', '| --- | --- | --- | --- | --- |',
+    '| D-090 | explorer@gpt-6-luna | map it | MAP.md | reported |', ...rows].join('\n'));
+  const compact = async (hooksFor, sessionID) => {
+    const out = { context: [] };
+    await hooksFor['experimental.session.compacting']({ sessionID }, out);
+    return out.context.slice(2).join('\n');
+  };
+  const compactHooks = await overlay.CodeOpsLifecycle({ directory: repo, client: { session: { get: async () => ({}) } } });
+  const pushed = await compact(compactHooks, 'host-1');
+  expect(pushed.includes('OI-01 open item') && pushed.includes('OI-12') && !pushed.includes('OI-13') && pushed.includes('(12 of 15 shown)'),
+    `the push did not cap the open items at 12 of 15: ${pushed.slice(0, 300)}`);
+  expect(!pushed.includes('OI-99'), 'a checked item was pushed');
+  expect(pushed.includes('D-001 implementer@gpt-6-sol: build unit 1 -> report-1.md') && pushed.includes('D-008') && !pushed.includes('D-009')
+    && pushed.includes('(8 of 10 shown)') && !pushed.includes('D-090'), `the push did not cap the pending dispatch rows at 8 of 10: ${pushed.slice(0, 600)}`);
+  expect(pushed.split('\n').every((line) => line.length <= 200), 'a pushed line passed 200 characters');
+  expect(pushed.includes('COMPACT_SNAPSHOT.md is not written; run co snapshot'), `the push did not name run co snapshot: ${pushed.slice(-200)}`);
+  writeFileSync(join(run, 'COMPACT_SNAPSHOT.md'), '# snapshot\n');
+  const withSnapshot = await compact(compactHooks, 'cc-1');
+  expect(withSnapshot.includes('Compaction snapshot: code-ops-docs/80 Runs/2026-09-30 compact/COMPACT_SNAPSHOT.md') && !withSnapshot.includes('run co snapshot'),
+    `a written snapshot was not named by path: ${withSnapshot.slice(-200)}`);
+  // Fail open: an unknown session, a corrupt SESSION.json, and a context that is not a list push nothing extra and never throw.
+  expect(await compact(compactHooks, 'no-such-session') === '', 'an unknown session pushed run folder lines');
+  writeFileSync(join(run, 'SESSION.json'), '{not json');
+  expect(await compact(compactHooks, 'host-1') === '', 'a corrupt SESSION.json pushed run folder lines');
+  let threw = false;
+  try { await compactHooks['experimental.session.compacting']({ sessionID: 'host-1' }, { context: 'not a list' }); } catch { threw = true; }
+  expect(!threw, 'a malformed compaction context threw');
+  // Mutation: with the push call removed, the first case must lose its lines.
+  const PUSH = 'const push = compactionPush(row.cwd, row.id);';
+  const lifecycleSource = readFileSync(join(root, 'scripts', 'opencode-lifecycle.js'), 'utf8');
+  expect(lifecycleSource.includes(PUSH), 'the compacting hook has no compactionPush call');
+  const mutantDir = join(work, 'compact-mutant');
+  mkdirSync(mutantDir);
+  writeFileSync(join(mutantDir, 'code-ops-model-floors.js'), floors);
+  writeFileSync(join(mutantDir, 'code-ops-lifecycle.js'), lifecycleSource.replace(PUSH, 'const push = null;'));
+  writeFileSync(join(run, 'SESSION.json'), JSON.stringify({ v: 1, sessionId: 'cc-1', hostSessionId: 'host-1' }));
+  const mutant = await import(pathToFileURL(join(mutantDir, 'code-ops-lifecycle.js')).href);
+  const mutantPush = await compact(await mutant.CodeOpsLifecycle({ directory: repo, client: { session: { get: async () => ({}) } } }), 'host-1');
+  expect(mutantPush === '' && pushed !== '', 'the compaction cases still pass with the push removed');
+  console.log('ok   OpenCode compaction pushes open items, pending dispatches, and the snapshot path, capped and fail-open');
 }
 
 rmSync(work, { recursive: true, force: true });

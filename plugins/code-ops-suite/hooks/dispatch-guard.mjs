@@ -43,7 +43,13 @@
 //      or unnamed `subagent_type` on `Agent` or `Task` is denied unless the brief has a line
 //      starting `Wide-surface reason:` with the reason on that line. Grok's `spawn_subagent`
 //      schema has no agent-type field, so a spawn without one skips only this type check. A
-//      `Workflow` script with an `agent(` call, no `agentType:`, and no `Wide-surface reason:` text is denied the same way.
+//      `Workflow` script is checked one `agent(` call at a time: a call whose inline options lack
+//      `agentType`, or name a wide literal one, is denied the same way unless the script carries
+//      `Wide-surface reason:`, and one denial line gives the failing count and the first call's
+//      1-based index. A literal `effort` of `xhigh` or `max` is denied with no reason escape; a
+//      variable passes. A call whose options are a variable or a spread cannot be read and earns
+//      an advisory. A parse surprise (an unclosed literal, or a call past the bounded scan) falls
+//      back to the script-wide test: an `agent(` call, no `agentType:`, and no reason text.
 //      The same review enforces the target agent's brief contract. A `subagent_type` of the form
 //      `<plugin>:<agent>`, where the plugin is code-ops-suite, rigor, privacy-opsec-suite, or
 //      researcher, resolves to `agents/<agent>.md` in that sibling plugin: `../<plugin>/` beside
@@ -688,15 +694,154 @@ function ceilingReason(gate) {
     + `command from the project root: \`node "${HOOK_PATH}" assessed --session ${gate.sessionId} --band ${gate.band}\`.`;
 }
 
-// Behaviour 4: the lead's own dispatch. A wide surface without a stated reason is a denial; a
-// model override and a missing Round budget stay advisory.
-function reviewDispatch(tool, input, budget, denials, advisories) {
-  if (tool === 'Workflow') {
-    const script = typeof input.script === 'string' ? input.script : '';
+const AGENT_CALL = /\bagent\s*\(/g;
+const OPTION_KEY = /(agentType|effort)\s*(?=[:,}])/y;
+const OVER_HIGH_EFFORT = new Set(['xhigh', 'max']);
+// The bounded scan reads at most this many characters of one call's options.
+const MAX_CALL_SCAN = 20_000;
+
+// The index after the string literal that opens at `i`, or -1 when it does not close inside
+// `end`. A template `${}` expression is skipped balanced; a bare newline ends a quoted string.
+function readString(s, i, end) {
+  const q = s[i];
+  for (let j = i + 1; j < end; j++) {
+    const c = s[j];
+    if (c === '\\') { j++; continue; }
+    if (c === q) return j + 1;
+    if (q === '`' && c === '$' && s[j + 1] === '{') {
+      let depth = 1;
+      for (j += 2; j < end && depth > 0; j++) {
+        const e = s[j];
+        if (e === '"' || e === "'" || e === '`') {
+          const next = readString(s, j, end);
+          if (next < 0) return -1;
+          j = next - 1;
+        } else if (e === '{') depth++;
+        else if (e === '}') depth--;
+      }
+      if (depth > 0) return -1;
+      j--;
+    } else if (q !== '`' && c === '\n') return -1;
+  }
+  return -1;
+}
+
+// The literal string a property holds, null for a shorthand or any non-literal value.
+function propertyLiteral(s, from, end) {
+  let i = from;
+  while (/\s/.test(s[i] ?? '')) i++;
+  if (s[i] !== ':') return null;
+  i++;
+  while (/\s/.test(s[i] ?? '')) i++;
+  if (s[i] !== '"' && s[i] !== "'" && s[i] !== '`') return null;
+  const next = readString(s, i, end);
+  return next < 0 || s.slice(i, next).includes('${') ? null : s.slice(i + 1, next - 1);
+}
+
+// The top-level `agentType` and `effort` of the options object that opens at `open`, with the
+// index after it; null on a parse surprise. Each key maps to its literal string or null.
+function readOptions(s, open) {
+  const end = Math.min(s.length, open + MAX_CALL_SCAN);
+  const keys = new Map();
+  let depth = 0;
+  let spread = false;
+  for (let i = open; i < end; i++) {
+    const c = s[i];
+    if (c === '/' && (s[i + 1] === '/' || s[i + 1] === '*')) {
+      const stop = s[i + 1] === '/' ? s.indexOf('\n', i) : s.indexOf('*/', i + 2) + 1;
+      if (stop <= 0 || stop >= end) return null;
+      i = stop;
+    } else if (c === '"' || c === "'" || c === '`') {
+      const next = readString(s, i, end);
+      if (next < 0) return null;
+      if (depth === 1 && /^\s*:/.test(s.slice(next, next + 40))) {
+        const name = s.slice(i + 1, next - 1);
+        if (name === 'agentType' || name === 'effort') keys.set(name, propertyLiteral(s, next, end));
+      }
+      i = next - 1;
+    } else if (c === '{' || c === '[' || c === '(') depth++;
+    else if (c === '}' || c === ']' || c === ')') {
+      if (--depth === 0) return { keys, spread, end: i + 1 };
+    } else if (depth === 1) {
+      if (s.startsWith('...', i)) { spread = true; i += 2; }
+      else if (!/[\w$.]/.test(s[i - 1] ?? '')) {
+        OPTION_KEY.lastIndex = i;
+        const m = OPTION_KEY.exec(s);
+        // A bare name that merely reads as a shorthand key (a value `effort`) never replaces a literal.
+        if (m && (!keys.has(m[1]) || s[i + m[0].length] === ':')) {
+          keys.set(m[1], propertyLiteral(s, i + m[1].length, end));
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Each `agent(` call of a Workflow script as its options (null when the first argument is not an
+// inline object, so it cannot be read), or null when the script does not parse.
+function workflowCalls(script) {
+  const calls = [];
+  AGENT_CALL.lastIndex = 0;
+  let m;
+  while ((m = AGENT_CALL.exec(script))) {
+    let i = m.index + m[0].length;
+    while (/\s/.test(script[i] ?? '')) i++;
+    if (script[i] !== '{') { calls.push(null); continue; }
+    const options = readOptions(script, i);
+    if (!options) return null;
+    calls.push(options);
+    AGENT_CALL.lastIndex = options.end;
+  }
+  return calls;
+}
+
+// A Workflow script's per-call review. `agentType` must name a narrow type on every readable
+// call (a wide-surface reason excuses it); a literal effort above high never passes.
+function reviewWorkflow(script, denials, advisories) {
+  const calls = workflowCalls(script);
+  if (!calls) {
+    // deferred(parse surprise, a fuller JavaScript tokenizer): fall back to the script-wide test.
     if (/\bagent\s*\(/.test(script) && !/\bagentType\s*:/.test(script) && !script.includes('Wide-surface reason:')) {
       denials.push('A Workflow agent() call with no agentType starts from the default surface; set agentType '
         + 'to a code-ops-suite agent, or add "Wide-surface reason: <why>" to the script.');
     }
+    return;
+  }
+  const failed = [];
+  const high = [];
+  let unreadable = 0;
+  calls.forEach((call, index) => {
+    if (!call) { unreadable++; return; }
+    const { keys, spread } = call;
+    const effort = keys.get('effort')?.trim().toLowerCase();
+    if (OVER_HIGH_EFFORT.has(effort)) high.push(index + 1);
+    if (!keys.has('agentType')) {
+      if (spread) unreadable++; else failed.push(index + 1);
+      return;
+    }
+    const type = keys.get('agentType');
+    if (type !== null && (!type.trim() || WIDE_TYPES.has(type.trim().split(':').pop().toLowerCase()))) failed.push(index + 1);
+  });
+  if (failed.length && !script.includes('Wide-surface reason:')) {
+    denials.push(`${failed.length} of ${calls.length} Workflow agent() calls name no agentType or a wide-surface one `
+      + `(the first is call ${failed[0]}), which starts from the default surface; set agentType on each to a `
+      + 'code-ops-suite agent, or add "Wide-surface reason: <why>" to the script.');
+  }
+  if (high.length) {
+    denials.push(`Workflow agent() call ${high[0]} sets an effort above high (${high.length} of ${calls.length} calls do); `
+      + 'effort is at most high, and no Wide-surface reason allows more.');
+  }
+  if (unreadable) {
+    advisories.push(`${unreadable} of ${calls.length} Workflow agent() calls pass options the guard cannot read (a variable or `
+      + 'a spread); confirm each names a narrow agentType and an effort no higher than high.');
+  }
+}
+
+// Behaviour 4: the lead's own dispatch. A wide surface without a stated reason is a denial; a
+// model override and a missing Round budget stay advisory.
+function reviewDispatch(tool, input, budget, denials, advisories) {
+  if (tool === 'Workflow') {
+    reviewWorkflow(typeof input.script === 'string' ? input.script : '', denials, advisories);
     return [];
   }
   const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim() : '';

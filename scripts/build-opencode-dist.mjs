@@ -693,8 +693,9 @@ function compatibilityNotes() {
     '  intentionally unavailable here.** `plugins/code-ops-lifecycle.js` covers those outcomes',
     '  on the events OpenCode does expose: a stable system prefix, the ladder on the implementer,',
     '  handoff and dispatch notes on the next tool result or user turn, a Task gate past the',
-    '  context ceiling until the handoff assessment, a pending-handoff line on the first lead',
-    '  system transform, and a cost ledger at session idle.',
+    '  context ceiling until the handoff assessment, a Task deny for a model the operator has',
+    '  not enabled, a push of open items and pending dispatches at compaction, a pending-handoff',
+    '  line on the first lead system transform, and a cost ledger at session idle.',
     '- **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin',
     '  derives their absolute local commands from its own module URL and adds typed local MCP',
     '  entries without overwriting operator-defined entries.',
@@ -851,6 +852,7 @@ function validate({ files, skills, agents }) {
   const lifecycle = files.get('plugins/code-ops-lifecycle.js');
   expect(lifecycle?.includes('export const CodeOpsLifecycle'), 'the lifecycle plugin does not export its factory');
   expect(lifecycle?.includes('CODE_OPS_COST_LEDGER'), 'the lifecycle plugin does not write the cost ledger');
+  expect(lifecycle?.includes('assertDispatchModel('), 'the lifecycle plugin does not check the bound model at dispatch');
   expect(files.has('code-ops/cost-report.mjs'), 'the cost report was not rendered');
   for (const agent of agents) {
     expect(floors?.includes(JSON.stringify(agent.name)), `the model-floor plugin does not know ${agent.name}`);

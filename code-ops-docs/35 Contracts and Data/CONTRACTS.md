@@ -36,6 +36,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Handoff card hook](#handoff-card-hook)
 - [Handoff write and consumption](#handoff-write-and-consumption)
 - [Dispatch guard hook](#dispatch-guard-hook)
+- [Agent state machine](#agent-state-machine)
 - [Peer guard hook](#peer-guard-hook)
 - [Change feed](#change-feed)
 - [Symbol index and query](#symbol-index-and-query)
@@ -315,8 +316,14 @@ The card looks for the snapshot in the run folder and then in the home copies. I
 whose header `Session` differs from the payload's and is not `unknown`. Host auto-compaction is the
 default context relief on Claude and Codex (DEC-73), and this card carries the open items across
 it. This is recovery after compaction, not a claim that a hook changed the summary. Grok ignores
-passive `SessionStart` stdout and therefore gets no hook-injected restore card. OpenCode uses its
-native compaction port and registers no snapshot writer. Evidence:
+passive `SessionStart` stdout and therefore gets no hook-injected restore card. OpenCode has no
+`PreCompact` port and writes no snapshot. Its `experimental.session.compacting` handler pushes the
+session run folder's unchecked `TASKS.md` lines (at most 12), its pending `DISPATCH_LEDGER.md` rows
+(dispatched or redispatched, at most 8), and one snapshot line. That line names
+`COMPACT_SNAPSHOT.md` when it exists and otherwise says to run `co snapshot`. Each line holds at
+most 200 characters, and any failure pushes nothing. The run folder is the one whose `SESSION.json`
+names the session. Whether OpenCode keeps the pushed context through its summary is UNVERIFIED.
+Evidence: `scripts/opencode-lifecycle.js` (`compactionPush`), `evals/opencode-lifecycle/run.mjs`,
 `plugins/code-ops-suite/hooks/hooks.json`, `plugins/code-ops-suite/hooks/compact-snapshot.mjs`,
 `plugins/code-ops-suite/hooks/routing-card.mjs`, `scripts/compact-snapshot.mjs`, and the generated
 host compatibility files.
@@ -724,7 +731,8 @@ same script reads `updates.jsonl` and emits `additionalContext` when `GROK_PLUGI
 That covers the TUI, headless `grok -p`, and the ACP agent. `CLAUDE.md` and `AGENTS.md` still
 carry the assessment, because a turn with no tool call never fires `PostToolUse`. OpenCode does
 not run this hook. `scripts/opencode-lifecycle.js` delivers the note from `message.updated`
-usage. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
+usage. Its band text asks for `/code-ops-suite-handoff assess` to choose CONTINUE or COMPACT and
+names host auto-compaction as the context relief. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
 `plugins/code-ops-suite/hooks/handoff-card.mjs`.
 
 Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
@@ -744,7 +752,8 @@ On Claude, when `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one li
 setting (250000 recommended); a Codex or Grok card never carries it.
 At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated:
 on Claude and Codex until the lead runs `/code-ops-suite:handoff assess`, and on Grok until that
-assessment runs. Every host carries the sentence, because the guard also gates Grok's
+assessment runs. The OpenCode note says "New dispatches are now gated until you run
+/code-ops-suite-handoff assess." Every host carries the sentence, because the guard also gates Grok's
 `spawn_subagent`. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
 so this hook records the ceiling assessment for it.
 The marker proves only that the hook wrote a prior message. It does not prove that the host
@@ -1012,8 +1021,12 @@ unobserved. This receipt is not a provider usage record. Evidence:
 On the main thread the hook acts only on a dispatch tool: `Agent`, the older `Task`, or
 `Workflow`. Three gates can deny there, and `warn` turns each deny into an advisory. The wide-type
 gate denies a `subagent_type` of `general-purpose`, `claude`, or `fork`, or no type at all,
-unless the prompt carries a line starting `Wide-surface reason:` with the reason on it. It denies a `Workflow` script that calls
-`agent(` with no `agentType` on the same terms.
+unless the prompt carries a line starting `Wide-surface reason:` with the reason on it. It checks each `agent(` call
+of a `Workflow` script on its own and denies, on the same terms, a call with no `agentType` or a
+wide literal one. The denial names how many calls failed and the first one's position. The same
+gate denies a literal `effort` of `xhigh` or `max` in any call, with no reason escape. A call
+whose options it cannot read, such as a variable or a spread, gets an advisory. A script it cannot
+parse falls back to the script-wide test: an `agent(` call and no `agentType` anywhere.
 
 The brief-contract gate reads the target agent's own contract. A `subagent_type` of the form
 `<plugin>:<agent>` resolves when the plugin is `code-ops-suite`, `rigor`,
@@ -1089,6 +1102,73 @@ The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.
 Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
+
+On OpenCode, `scripts/opencode-lifecycle.js` denies a dispatch to a model the operator has not
+enabled. A model is usable only when four conditions hold. The live host model list names it. The
+profile's enabled list names it. The desktop Models settings do not hide it. The config's
+`disabled_providers` does not name its provider, and `enabled_providers`, when set, does. An empty
+provider list counts as unset. The check fails closed in this order: the live list, one awaited
+refresh, then the environment catalog and the model cache filtered by the last three conditions.
+When no source yields the model, a lead clone falls back to the lead model only if the lead meets
+all four conditions and the agent floor. Otherwise the dispatch throws. The check runs whatever
+`CODE_OPS_TIER_ROUTING` says and ignores `CODE_OPS_DISPATCH_GUARD=warn`. The startup chooser ladder
+filters by the same provider switches. Whether `client.config.providers()` already honors the two
+switches is UNVERIFIED, and so is OpenCode's own reading of an empty `enabled_providers`. Evidence:
+`scripts/opencode-lifecycle.js` (`providerSwitches`, `assertDispatchModel`, `buildChooserLadder`)
+and `evals/opencode-enabled-models/run.mjs`.
+
+## Agent state machine
+
+Each entity below has a closed set of states. The Stored column names where the state lives, and
+marks a state computed on read as derived. Lint requires the Unit (dispatch row) states to equal
+`LEDGER_STATUSES` in `scripts/ledger-grammar.mjs`.
+
+| Entity | States | Stored | Terminal |
+| --- | --- | --- | --- |
+| Unit (dispatch row) | dispatched, reported, failed, redispatched | `DISPATCH_LEDGER.md` plus `.journal.jsonl` | reported |
+| Unit acceptance | pending, accepted, rejected | derived from the acceptance ledger in `RUN_CONTRACT.json` | accepted |
+| Worker run | dispatched, reported, failed, stale | agent ledger, with `stale` derived | reported, failed |
+| Runtime | init, checkpoint, resume, replan | `RUN_RUNTIME_RECEIPTS.jsonl` | none |
+| Session | open, working, compacted, handed-off, consumed, ended | `SESSION.json`, board record, `HANDOFF.consumed`, with `compacted` derived | consumed, ended |
+| Board record | live, idle, ended, abandoned | board file, with `idle` and `abandoned` derived | ended, abandoned |
+| Context band | unassessed, assessed | `.assessed.json` | none |
+| Program item | open, closed, backlog | `PROGRAM.md`, `TASKS.md`, `BACKLOG.md` | closed |
+| Finish line Fn | open, done | derived from `Blocks: Fn` on items | done |
+| Decision | pending, local, dropped, promoted | `PROGRAM.md` ledger, then the record | local, dropped, promoted |
+| Distill phase | pending, running, checkpointed, done | runtime checkpoint per phase | done |
+
+Each transition names its entity. From and To hold states of that entity, and `none` marks a
+start. Cross-entity preconditions sit in Guard. The Writer is a script (S) that any host can run
+or a hook (H) that needs the host event. Status is `built` or `planned`. Lint requires every
+From and To state to belong to its entity and every Writer cell to be non-empty.
+
+| # | Entity | From | Event | Guard | To | Writer | Store | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Session | none | lead opens a run | repository has `.git` | open | S `handoff-state.mjs open` | `SESSION.json`, board | built |
+| 2 | Unit acceptance | none | lead registers units | session open and run contract exists | pending | S `run-contract.mjs init` | `RUN_CONTRACT.json` | built |
+| 3 | Unit (dispatch row) | none | lead dispatches | unit pending, dispatch guard allows, band assessed, agentType is a suite agent | dispatched | S `dispatch-ledger.mjs add` with `--actor-id` | `DISPATCH_LEDGER.md` | built |
+| 4 | Worker run | none | host launches a worker | hook reaches the launch | dispatched | H PostToolUse on `Agent` in `plugins/code-ops-suite/hooks/agent-ledger.mjs`; covered by 3 | agent ledger | built |
+| 5 | Unit (dispatch row) | dispatched | worker returns | artifact exists and passes its section check | reported | S `dispatch-ledger.mjs update --status reported --report` | `DISPATCH_LEDGER.md` | built |
+| 6 | Worker run | dispatched | host reports the stop | SubagentStop carries `agent_id` | reported | H SubagentStop in `plugins/code-ops-suite/hooks/agent-ledger.mjs`; covered by 5 or 7 | agent ledger | built |
+| 7 | Unit (dispatch row) | dispatched | worker errors or dies | lead sees the error or a stale view | failed | S `dispatch-ledger.mjs update --status failed` | `DISPATCH_LEDGER.md` | built |
+| 8 | Unit (dispatch row) | failed | lead retries | new row with a new actor | redispatched | S `dispatch-ledger.mjs update --status redispatched`, then `add` | `DISPATCH_LEDGER.md` | built |
+| 9 | Unit acceptance | pending | lead records verdicts | unit reported and every blocking criterion PASS | accepted | S `run-contract.mjs record` and `finalize` | `RUN_CONTRACT.json` | built |
+| 10 | Unit acceptance | pending | lead records a FAIL | unit reported and any blocking criterion FAIL; a new unit is planned | rejected | S `run-contract.mjs record` | `RUN_CONTRACT.json` | built |
+| 11 | Context band | unassessed | lead runs the assessment | context crossed a 150k band, so dispatch is denied until assessed | assessed | H `dispatch-guard.mjs assessed` writes the marker | `.assessed.json` | built |
+| 12 | Session | working | auto-compaction starts | PreCompact fires or lead checkpoints | compacted | H PreCompact in `plugins/code-ops-suite/hooks/compact-snapshot.mjs`, or S `run-runtime.mjs checkpoint` | run folder snapshot, receipts | built |
+| 13 | Session | compacted | new context starts with `source=compact` | snapshot exists | working | H SessionStart compact branch in `plugins/code-ops-suite/hooks/routing-card.mjs` | none (reads snapshot, `TASKS.md`, agent ledger) | built |
+| 14 | Session | working | lead hands off | DEC-73 trigger and zero pending workers | handed-off | S `handoff-state.mjs draft` | `HANDOFF.md` | built |
+| 15 | Session | handed-off | successor resumes | chain check passes | consumed | S `handoff-state.mjs resume` | `HANDOFF.consumed` | built |
+| 16 | Session | working | session ends | none | ended | H SessionEnd in `plugins/code-ops-suite/hooks/session-receipt.mjs`; S writer for `ended` planned | board, receipts | built |
+| 17 | Board record | live | heartbeat silent 30 minutes | no `ended` | idle, abandoned | read only (derived views) | board | built |
+| 18 | Program item | open | lead closes with evidence | Done when met | closed | lead edit, checked by `check-handoff.mjs` | `PROGRAM.md` | built |
+| 19 | Program item | open | active count exceeds 12 | open-item cap | backlog | S `check-handoff.mjs check 19` | `BACKLOG.md` | built |
+| 20 | Finish line Fn | open | last `Blocks: Fn` item closes | none | done | burn-down line from `scripts/burndown.mjs` (derived view) | derived | built |
+| 21 | Decision | pending | one hop of grace passes | disposition chosen | local, dropped, promoted | S `co decide promote` in `scripts/program-lifecycle.mjs`; `distill` phase 6 planned (distill, PRs 6 to 8) | `PROGRAM.md`, record | built |
+| 22 | Distill phase | pending | lead starts the phase | prior phase done | running, checkpointed | planned (distill, PRs 6 to 8) with S `run-runtime.mjs checkpoint` | receipts | planned |
+| 23 | Distill phase | checkpointed | lead review passes | review rule met | done | planned (distill, PRs 6 to 8) | receipts | planned |
+
+Evidence: `scripts/lint-plugins.mjs` (`checkAgentStateMachine`) and `scripts/ledger-grammar.mjs`.
 
 ## Peer guard hook
 
