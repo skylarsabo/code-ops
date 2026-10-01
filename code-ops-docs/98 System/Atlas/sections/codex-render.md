@@ -2,7 +2,7 @@
 
 Charter: generated marketplace projections for Codex and opencode. Excludes canonical plugin semantics and hook mechanics.
 
-Canonical packages render deterministically into `codex-marketplace/`, `.agents/`, and `opencode-dist/`. Both renderers compare expected output in `--check` mode, so generated trees are projections, not edit targets. The pre-commit hook regenerates eligible output, but CI checks drift on both supported operating-system legs.
+Canonical packages render deterministically into `codex-marketplace/`, `.agents/`, and `opencode-dist/`. Both renderers compare expected output in `--check` mode, so generated trees are projections, not edit targets. The pre-commit hook regenerates eligible output, but CI checks drift on both supported operating-system legs. When the hook changes staged bytes, it also runs the atlas gate and the documentation manifest check against the staged result and aborts the commit with the stamp, sync, and add commands when either fails. It never stamps or syncs for the author.
 
 The Codex projection translates host-specific metadata, skill frontmatter, agent material, and root tokens. The opencode projection translates names into a flat, plugin-prefixed namespace and turns agent tool declarations into permissions. Both projections intentionally retain runtime scripts as copies rather than prose-transformed code, and the Codex renderer rewrites only host-local storage defaults rather than prose-transformed code.
 

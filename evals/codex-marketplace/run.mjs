@@ -128,6 +128,10 @@ expect(preCommit.includes('git diff --cached --quiet -- $renderer_paths'), 'pre-
 expect(preCommit.includes('git ls-files --others --exclude-standard -- $renderer_inputs'), 'pre-commit hook does not reject untracked renderer inputs');
 expect(preCommit.includes('retry_on_index_lock git add -A -- .agents/plugins/marketplace.json codex-marketplace/'), 'pre-commit hook does not wait out a busy index lock while staging');
 expect(preCommit.includes('case "$lock_error" in') && preCommit.includes('*index.lock*)'), 'pre-commit hook retries staging failures other than index-lock contention');
+expect(preCommit.includes('node scripts/atlas-check.mjs check --atlas "$atlas_dir" --gate') && preCommit.includes('node scripts/docs-manifest.mjs check'), 'pre-commit hook does not run the atlas gate and the manifest check on derived paths it changed');
+expect(preCommit.includes('git write-tree') && preCommit.includes('[ "$(git write-tree)" != "$before_tree" ]'), 'pre-commit hook does not detect staged bytes it changed');
+expect(preCommit.includes('[ -e "$pending_marker" ]'), 'pre-commit hook lets a retry skip a freshness check an earlier attempt failed');
+expect(!/^\s*node scripts\/(atlas-check\.mjs stamp|docs-manifest\.mjs sync)/m.test(preCommit),'pre-commit hook runs a stamp or a manifest sync itself');
 
 const hookInstaller = read(join(root, 'scripts', 'install-git-hooks.mjs'));
 expect(hookInstaller.includes("git(['config', '--get', 'core.hooksPath'])"), 'hook installer does not protect an effective inherited hooks path');

@@ -35,6 +35,65 @@ retry_on_index_lock() {
   return 1
 }
 
+# ---- 0b. detect staged bytes this hook changes ----------------------------------
+# The regeneration and the vendored sync can rewrite staged derived files after the author
+# stamped the atlas and synced the documentation manifest. Both freshness digests then
+# describe bytes that no longer match the commit, and CI fails a commit that passed locally.
+# The first snapshot of the staged tree is taken only once the hook is about to do work, so a
+# commit this hook skips pays nothing. A second snapshot at the end shows whether the hook
+# changed anything; only then do the two freshness checks below run.
+before_tree=''
+snapshot_staged_tree() {
+  [ -n "$before_tree" ] || before_tree="$(git write-tree)"
+}
+
+atlas_dir='code-ops-docs/98 System/Atlas'
+pending_marker=''
+
+# Run the atlas gate and the documentation manifest check against the staged result. These
+# checks never stamp or sync: a stamp asserts that the prose still holds, which only the
+# author can judge. On failure the commit aborts and a marker file in the git directory
+# makes the next attempt run the same checks even though the regenerated files are by then
+# already staged and the hook would change nothing.
+check_derived_freshness() {
+  atlas_out="$(unset GIT_DIR GIT_WORK_TREE; node scripts/atlas-check.mjs check --atlas "$atlas_dir" --gate 2>&1)" && atlas_ok=1 || atlas_ok=0
+  manifest_out="$(unset GIT_DIR GIT_WORK_TREE; node scripts/docs-manifest.mjs check 2>&1)" && manifest_ok=1 || manifest_ok=0
+  if [ "$atlas_ok" -eq 1 ] && [ "$manifest_ok" -eq 1 ]; then
+    rm -f "$pending_marker"
+    return 0
+  fi
+  : >"$pending_marker"
+  {
+    echo "Commit aborted: the staged result fails a documentation freshness check."
+    if [ -n "$before_tree" ]; then
+      changed_paths="$(git diff-tree -r --name-only "$before_tree" "$(git write-tree)")"
+      if [ -n "$changed_paths" ]; then
+        echo "This hook changed these derived paths, and they are staged:"
+        printf '%s\n' "$changed_paths" | head -n 30 | sed 's/^/  /'
+        [ "$(printf '%s\n' "$changed_paths" | wc -l)" -le 30 ] || echo "  (more paths not shown)"
+      else
+        echo "An earlier attempt of this commit already staged the regenerated derived paths."
+      fi
+    fi
+    [ "$atlas_ok" -eq 1 ] || { echo "atlas-check --gate:"; printf '%s\n' "$atlas_out" | grep '!!' | sed 's/^/  /'; }
+    [ "$manifest_ok" -eq 1 ] || { echo "docs-manifest check:"; printf '%s\n' "$manifest_out" | tail -n 10 | sed 's/^/  /'; }
+    echo "To fix it, then commit again:"
+    echo "  1. Re-read the prose of each STALE atlas section. Where it still holds, stamp it:"
+    stale_slugs="$(printf '%s\n' "$atlas_out" | sed -n 's/^ *!! *STALE *\([^ ][^ ]*\).*/\1/p')"
+    if [ -n "$stale_slugs" ]; then
+      printf '%s\n' "$stale_slugs" | while IFS= read -r slug; do
+        echo "       node scripts/atlas-check.mjs stamp --atlas \"$atlas_dir\" --section $slug"
+      done
+    else
+      echo "       (the atlas gate named no STALE section; fix what it reports above)"
+    fi
+    echo "  2. node scripts/docs-manifest.mjs sync"
+    echo "  3. git add \"code-ops-docs/98 System\""
+    echo "  4. Run git commit again."
+  } >&2
+  return 1
+}
+
 # ---- 1. sync vendored plugin copies of canonical scripts/ files -----------------
 # scripts/vendored-manifest.mjs lists which canonical scripts/<file> must be byte-identical
 # inside which plugins/<plugin>/scripts/<file>. A staged change to one of those canonical
@@ -52,6 +111,7 @@ import { RUNTIME_SCRIPTS } from './scripts/vendored-manifest.mjs';
 console.log(RUNTIME_SCRIPTS.map((e) => 'scripts/' + e.name).join('\n'));
 ")"
   if [ -n "$manifest_root_scripts" ] && ! git diff --cached --quiet -- $manifest_root_scripts; then
+    snapshot_staged_tree
     node scripts/sync-vendored.mjs
     vendored_targets="$(node --input-type=module -e "
 import { RUNTIME_SCRIPTS } from './scripts/vendored-manifest.mjs';
@@ -94,8 +154,17 @@ command -v node >/dev/null 2>&1 || {
   exit 1
 }
 
+snapshot_staged_tree
 node scripts/build-codex-marketplace.mjs
 retry_on_index_lock git add -A -- .agents/plugins/marketplace.json codex-marketplace/
 
 node scripts/build-opencode-dist.mjs
 retry_on_index_lock git add -A -- opencode-dist/
+
+# ---- 3. freshness backstop -------------------------------------------------------
+# Run the checks when this hook changed staged bytes, or when an earlier attempt of this
+# commit failed them (the marker). A hook that changed nothing and has no marker adds no work.
+pending_marker="$(git rev-parse --git-path code-ops-derived-pending)"
+if [ -e "$pending_marker" ] || [ "$(git write-tree)" != "$before_tree" ]; then
+  check_derived_freshness
+fi
