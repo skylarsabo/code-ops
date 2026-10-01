@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "f649cb6cfb1a0ec185e28fd6168ddb404967fe3cf9fc85a15d8a8dd38b8efc54",
+      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
+      "verifiedDigest": "8da35b4f0f5d0bbdc02f5b25a6aa689cdae847f02976ddb4934982628d84c6d3",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -159,7 +159,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 116,
-          "anchor": "board: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
@@ -174,7 +174,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 107,
-          "anchor": "program: {"
+          "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
@@ -280,8 +280,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "cf36e743f0236c2c425787790dbbb042ae81b565443e88b9ea37bd2d85fecd56",
+      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
+      "verifiedDigest": "7e6d1dacb701ffb3e1e3c4bcf2eff2a63bcad1950ef4c78793c160701b04fa9e",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -491,7 +491,7 @@
         {
           "file": "scripts/co.mjs",
           "line": 150,
-          "anchor": "snapshot: 'compact-snapshot.mjs',"
+          "anchor": "// compaction loses. It needs"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
@@ -521,7 +521,7 @@
         {
           "file": "scripts/vendored-manifest.mjs",
           "line": 123,
-          "anchor": "{ name: 'compact-snapshot.mjs', plugins: ['code-ops-suite'] },"
+          "anchor": "and the PreCompact writer. It imports agent-ledger.mjs, cli-lib.mjs, and"
         },
         {
           "file": "scripts/agent-ledger.mjs",
@@ -550,8 +550,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 153,
-          "anchor": "// A domain named here runs this verb when the caller gives none, so"
+          "line": 153
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -626,6 +625,16 @@
           "file": "scripts/sync-global.mjs",
           "line": 113,
           "anchor": "function classify(file, source, state) {"
+        },
+        {
+          "file": "scripts/distill-check.mjs",
+          "line": 6,
+          "anchor": "//   node scripts/distill-check.mjs inventory   --hub <hub dir> --out <file.json"
+        },
+        {
+          "file": "scripts/co.mjs",
+          "line": 95,
+          "anchor": "distill: 'distill-check.mjs',"
         }
       ]
     },
@@ -635,8 +644,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "9e989c463c2d2dba25c713df1da2efbf8484fbef1018b2977a5e05f1a4fab01d",
+      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
+      "verifiedDigest": "a7d8c40f71fdb283a638cdf44c0b4bdad8cbf19d3d1211b2dacb7d3c26d90f51",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -886,6 +895,11 @@
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 185,
           "anchor": "expect(ceilTurn.parts[0].text.includes('New dispatches are now gated until you r"
+        },
+        {
+          "file": "evals/distill-check/run.mjs",
+          "line": 2,
+          "anchor": "// Distill no-loss and findability regression eval (scripts/distill-check.mjs,"
         }
       ]
     },
@@ -897,8 +911,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bfc6ee093434498f63fe8590b924829b8b0ec4bc",
-      "verifiedDigest": "350b0a770771c52c999e33f6e09084a0949ad5fe3eaebb51b55dfbc383a0e7fa",
+      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
+      "verifiedDigest": "2651375587c94b3f23af9b73e5acbd42dc2b70d0bfdf7e7df7c310d75bb9be2f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1008,8 +1022,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "f56eac89adff8e641caa78694ca23f5a96c03135",
-      "verifiedDigest": "0299d422f38f8f308673a3db14815c120e241dee04c5c377b8cffe8e217e38ff",
+      "verifiedAt": "1b4a7f2cd0997d65711a24dfc1bc2f7851c90533",
+      "verifiedDigest": "3f4906d713e6ddcd7df81530bb15c20af2b3ba87ff13d4d17eaf01e9981fa3a4",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1034,6 +1048,14 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 542
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 59
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 454
         }
       ]
     },
