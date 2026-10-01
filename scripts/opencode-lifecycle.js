@@ -114,7 +114,10 @@ const TIER_NAMES = ['light', 'mid', 'strong', 'frontier'];
 // `lead` is a tier clone with no model, so it inherits whatever the operator
 // picked for the orchestrator session.
 const TIER_SUFFIX = /-(light|mid|strong|frontier|lead)$/;
-const EFFORTS = ['low', 'medium', 'high', 'xhigh'];
+// Operator rule: effort never runs above high on any host. A request for a level above it
+// clamps to high, and the dispatch and the subagent's first turn both carry a visible note.
+const EFFORTS = ['low', 'medium', 'high'];
+const ABOVE_HIGH = ['xhigh', 'max'];
 const BREADTH = new Set(['explorer', 'gatherer']);
 const REVIEW = new Set(['reviewer', 'privacy-reviewer', 'tracer', 'verifier', 'claim-checker']);
 const EFFORT_DEFAULT = { breadth: 'low', build: 'medium', review: 'high', 'claim-checker': 'medium' };
@@ -857,6 +860,13 @@ function directive(text, key, allowed) {
   return { value: allowed.includes(raw) ? raw : null, raw };
 }
 
+// An effort above high clamps to high and says so, never a silent rewrite.
+function effortDirective(text) {
+  const found = directive(text, 'Effort', [...EFFORTS, ...ABOVE_HIGH]);
+  if (found.value && ABOVE_HIGH.includes(found.value)) return { value: 'high', raw: found.raw, note: `Effort "${found.raw}" is above high; it runs at high.` };
+  return { ...found, note: null };
+}
+
 // Tier rides on the agent name because the Task tool has no model argument.
 function routeTier(type, requested, clones) {
   const base = baseAgent(type);
@@ -879,12 +889,12 @@ function effortClass(agent) {
   return 'build';
 }
 
-// Effort follows ambiguity: never low for review, never highest for breadth.
+// Effort follows ambiguity: never low for review, never above high for any agent.
 function resolveEffort(agent, requested) {
   const kind = effortClass(agent);
   let level = requested ?? EFFORT_DEFAULT[leafName(agent)] ?? EFFORT_DEFAULT[kind];
   if (kind === 'review' && level === 'low') level = 'medium';
-  if (kind === 'breadth' && level === 'xhigh') level = 'high';
+  if (ABOVE_HIGH.includes(level)) level = 'high';
   return { level, explicit: Boolean(requested) };
 }
 
@@ -919,8 +929,8 @@ function routingCard(byTier, profile) {
     'code-ops tier and effort routing: choose both per unit, from the task. Add either line to a Task brief.',
     `Tier: light | mid | strong | frontier | lead. This host binds ${bound}. lead inherits your own model.`,
     'A tier below the agent floor runs at the floor: explorer and gatherer light, claim-checker mid, every other suite agent strong.',
-    'Effort: low | medium | high | xhigh sets that subagent\'s reasoning level. With no line: breadth low, implementer and claim-checker medium, review, trace, and verify high.',
-    'Tier follows the judgment the unit needs. Effort follows its ambiguity. Review never runs low. Breadth never runs xhigh.',
+    'Effort: low | medium | high sets that subagent\'s reasoning level. With no line: breadth low, implementer and claim-checker medium, review, trace, and verify high.',
+    'Tier follows the judgment the unit needs. Effort follows its ambiguity. Review never runs low. Effort never runs above high; a higher request runs at high.',
   ].join('\n');
 }
 
@@ -1327,8 +1337,9 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           recordAssessment(row);
         }
         if (suiteAgent(row.agent)) {
-          const effort = directive(text, 'Effort', EFFORTS);
+          const effort = effortDirective(text);
           if (effort.raw) { row.effort = effort.value; row.effortRaw = effort.raw; }
+          queueNote(row, effort.note);
         }
         if (on('CODE_OPS_LADDER_CARD') && implementerClass(row.agent) && !row.ladderDone) {
           const first = Array.isArray(output?.parts)
@@ -1401,9 +1412,10 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           if (key && suiteAgent(type) && on('CODE_OPS_TIER_ROUTING')) {
             const brief = dispatchPrompt(args);
             const tier = directive(brief, 'Tier', [...TIER_NAMES, 'lead']);
-            const effort = directive(brief, 'Effort', EFFORTS);
+            const effort = effortDirective(brief);
             if (tier.raw && !tier.value) notes.push(`Tier "${tier.raw}" is not light, mid, strong, frontier, or lead; the agent's own binding runs.`);
-            if (effort.raw && !effort.value) notes.push(`Effort "${effort.raw}" is not low, medium, high, or xhigh; the default for the role runs.`);
+            if (effort.raw && !effort.value) notes.push(`Effort "${effort.raw}" is not low, medium, or high; the default for the role runs.`);
+            if (effort.note) notes.push(effort.note);
             const routed = routeTier(type, tier.value, clones);
             if (routed.note) notes.push(routed.note);
             target = routed.agent;
