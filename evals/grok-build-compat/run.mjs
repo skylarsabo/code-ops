@@ -144,13 +144,14 @@ for (const plugin of pluginNames) {
 
 // 6b. The Grok instruction text (global-contracts/AGENTS.md, which sync-global installs as the Grok
 //     global rule) carries the effort dial: every xai rung is one model, effort is set from the
-//     brief, xhigh is never sent, model is stripped under inheritance, and the spawn-time effort
-//     parameter name is marked UNVERIFIED. DESIGN_TIER_ROUTING.md "Host bindings" owns the rule.
+//     brief through the persona because spawn_subagent takes no effort parameter, xhigh is never
+//     sent, and model is stripped under inheritance. DESIGN_TIER_ROUTING.md "Host bindings" owns
+//     the rule.
 const grokText = read(join(root, 'global-contracts', 'AGENTS.md')).replace(/\s+/g, ' ');
 expect(/every xai rung is one model/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says every xai rung is one model');
-expect(/set `reasoning_effort` from the brief's Effort \(low, medium, or high; never xhigh\)/.test(grokText), "global-contracts/AGENTS.md: the Grok text no longer sets reasoning_effort from the brief's Effort (low, medium, or high; never xhigh)");
+expect(/set the persona's `reasoning_effort` from the brief's Effort \(low, medium, or high; never xhigh\)/.test(grokText), "global-contracts/AGENTS.md: the Grok text no longer sets the persona's reasoning_effort from the brief's Effort (low, medium, or high; never xhigh)");
 expect(/`subagent_model_inheritance` is on, strip `model` from spawn calls/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer strips model from spawn calls under model inheritance');
-expect(/spawn-time effort parameter name is UNVERIFIED/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer marks the spawn-time effort parameter name UNVERIFIED');
+expect(/`spawn_subagent` takes no effort parameter/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says spawn_subagent takes no effort parameter');
 
 // 7. Bonus leg: Grok Build's own validator, when the binary is available.
 // Windows resolves `grok` through a .cmd shim, which needs a shell. Passing the whole

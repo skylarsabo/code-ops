@@ -7,7 +7,7 @@ the source plugin manifest and matching marketplace entries.
 ## 2.35.0
 - The routing card ends with the session's `Routing:` line once a judgment dispatch is on the ledger, and `handoff draft` writes the same line under In-flight boundaries, so a STARVED or OVERUSED verdict reaches the successor.
 - `run-cost-audit` gains a routing lens: it compares each unit's ledger rung and effort with `co route` and cites every starvation and overuse flag.
-- The global contract states the Grok effort dial: every xai rung is one model, so the lead sets `reasoning_effort` from the brief and strips `model` from spawn calls when model inheritance is on.
+- The global contract states the Grok effort dial: every xai rung is one model, so the lead sets the persona's `reasoning_effort` from the brief, since `spawn_subagent` takes no effort parameter, and strips `model` from spawn calls when model inheritance is on.
 
 ## 2.34.0
 - The dispatch guard enforces task-based routing for agents whose `Brief requires:` lists Tier. The five strong-floor agents (implementer, reviewer, tracer, verifier, privacy-reviewer) now require `Unit:`, `Tier:`, `Effort:`, and `Route basis:` lines, and `co brief` prints them with the allowed values and a `co route` hint.

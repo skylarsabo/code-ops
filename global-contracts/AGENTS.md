@@ -62,11 +62,12 @@ The session model leads and owns final verdicts and acceptance. Route effort by 
 observed eval quality rather than by importance or price alone.
 
 On Grok every xai rung is one model, so the rung is not a variable there: premium and frontier
-collapse onto it. Effort is the live dial: set `reasoning_effort` from the brief's Effort (low,
-medium, or high; never xhigh). When `subagent_model_inheritance` is on, strip `model` from
+collapse onto it. Effort is the live dial, but `spawn_subagent` takes no effort parameter, so
+set the persona's `reasoning_effort` from the brief's Effort (low, medium, or high; never
+xhigh) and spawn that persona. When `subagent_model_inheritance` is on, strip `model` from
 spawn calls, because naming a model fails the spawn. The agent ledger records the collapse.
-The spawn-time effort parameter name is UNVERIFIED; the role or persona `reasoning_effort`
-setting is the documented path.
+The persona field is PROBABLE from the Grok Build user guide, and the `task` tool's parameters
+are UNVERIFIED.
 
 At the round budget, checkpoint to the report path and continue in a fresh operative.
 Do not fork or resume its context.
