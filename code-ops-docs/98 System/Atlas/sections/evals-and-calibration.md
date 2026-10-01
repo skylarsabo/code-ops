@@ -58,3 +58,5 @@ Handoff cases require the lifecycle reminder and Codex token-count coverage at `
 Global sync cases run against a temporary home with stub host CLIs. They cover a fresh install, an idempotent re-run, refusal after a local edit, `--force`, `--capture`, `--check` exit codes, host skips, and the exact argv each host receives, in `evals/sync-global/run.mjs`.
 
 Most regression evals take their `check` and `expect` helpers from the `tally` factory in `evals/harness.mjs`. Each eval still prints its own verdict line and picks its own exit code. `action-pins`, `autofix-scope`, `proof-receipts`, `record-collections`, and `sync-global` keep local helpers because their output or bookkeeping differs. The digest eval pins the rejection of a prototype key such as `toString` as a shape name.
+
+The distill-check eval pins the inventory bytes, each no-loss state, ambiguous and missing paths, the findability count, and mutants that must each fail a case (`evals/distill-check/run.mjs:2`).

@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.3.9
+- The vendored `co.mjs` gains the `docs distill` verb, kept byte-identical with the root script.
+
 ## 2.3.8
 - New `CONVENTIONS.md` §14, Workflow fan-out: when a Workflow may run, how batches enter the dispatch ledger, and the per-call rules.
 

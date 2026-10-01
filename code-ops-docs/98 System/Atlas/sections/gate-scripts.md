@@ -85,3 +85,5 @@ Generated hook text asks the lead to checkpoint at a safe boundary and assesses 
 The global sync script installs the user-wide contracts and refreshes host plugin caches. It spawns each host CLI with allow-listed arguments and records the hash it last wrote, so it can refuse to overwrite a contract edited by hand at `scripts/sync-global.mjs:113`.
 
 `lint-plugins.mjs` runs each numbered check as a named function, and `main` calls them in order. Messages, ordering, and exit codes did not change in the split. The script exit-code contract lives in `code-ops-docs/40 Engineering/ENGINEERING_STANDARDS.md`.
+
+`distill-check.mjs` is the deterministic no-loss check for a distill run. Its `inventory`, `no-loss`, and `findability` subcommands list a hub, account for every listed path as in place, moved, or archived, and count unlinked files (`scripts/distill-check.mjs:6`). `co docs distill` reaches it (`scripts/co.mjs:95`).
