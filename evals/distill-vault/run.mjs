@@ -595,6 +595,19 @@ try {
   const bogus = await run(SCRIPT, ['state', 'bogus', '--state', join(work, 'absent-state.json')]);
   check('an unknown state verb exits 2', bogus.status === 2 && /usage: state/.test(bogus.err), bogus.all);
 
+  // The skill rules the R-013 calibration found missing (L-068 to L-070, L-074, L-075). A run reads
+  // these sentences, not the script, so losing one reopens its lesson.
+  const skill = readFileSync(join(ROOT, 'plugins', 'code-ops-suite', 'skills', 'distill', 'SKILL.md'), 'utf8').replace(/\s+/g, ' ');
+  check('skill: a phase with no page runs plan --none (L-068)', /run `state plan <n> --none` instead/.test(skill));
+  check('skill: sources are repository-root globs with a stamped digest (L-069)',
+    /an array of repository-root globs/.test(skill) && /--stamp "<page>"/.test(skill));
+  check('skill: the chain and synthesis statuses are declared in drafts.statuses (L-070)',
+    /The checker rejects a status that `drafts\.statuses` does not list/.test(skill));
+  check('skill: a worker fills decides from the decision line, never from keywords (L-074)',
+    /fills `decides` from the note's decision line/.test(skill) && /never builds `decides` from keywords/.test(skill));
+  check('skill: a legacy ledger is adopted or listed as skipped in phase 6 (L-075)',
+    /refuses a ledger with no `Grammar: 2` line\. Adopt grammar 2/.test(skill) && /list it as skipped/.test(skill));
+
   // mutants
   for (const { mutant, f } of await Promise.all(mutantRuns)) {
     for (const name of mutant.pins) check(`mutant "${mutant.name}" fails case ${name}`, !CASES[name].holds(f));
