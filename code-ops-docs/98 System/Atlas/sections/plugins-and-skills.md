@@ -133,3 +133,5 @@ A pinned `reply-links` passage in all four conventions requires every reply to t
 Explicit dispatch registration uses hashed working-directory and agent keys, refuses replacement, and preserves legacy call counts. Bound workers receive a small checkpoint allowance without extending the legacy cap. A malformed binding or an unwritable bound counter denies every call and states the fix: return the checkpoint now, and the controller re-dispatches under a new agent identity bound with `register`. Receipts expose attempted-call counts; unavailable provider usage and effective runtime budget remain UNKNOWN.
 
 `conform` checks surface 3 with `atlas-check.mjs check --gate --claims-gate`. A STALE section, or a claim that is MOVED, DRIFTED, or GONE, makes the surface DRIFTED, never CONFORMANT. The suite's atlas trust rule matches: a FRESH section does not vouch for a claim reported DRIFTED or GONE.
+
+`conform` installs the derived-file merge driver in an adopter repository and routes state-surface drift to `distill` (`plugins/code-ops-suite/skills/conform/SKILL.md:215`).

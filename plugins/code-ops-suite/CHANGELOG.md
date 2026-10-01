@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.38.0
+- New derived-file merge driver, `scripts/derived-merge.mjs` (vendored). During `git merge` and `git pull`, a conflict on a vendored script copy, a host distribution file, or `DOCS_MANIFEST.json` no longer stops the merge. The driver records the conflicting versions, and the commit hooks regenerate the files from the merged sources. A failed regeneration puts the conflict back in the index, so the merge cannot be committed with a stale file. `DOCS_MANIFEST.json` text-merges with its digests blanked, so both sides' authored edits survive. The atlas manifest keeps conflicting on purpose. Intake logs merge with `merge=union`.
+- `install-git-hooks.mjs` installs the `pre-merge-commit` and `post-merge` hooks and registers the driver, and its `--check` fails while the driver is missing. `conform` gains an install step for the driver and routes state-surface drift to `distill`.
+- New `evals/merge-driver` eval: clean and conflicting merges, a failed regeneration and its recovery, a rebase fallback, and mutants.
+
 ## 2.37.0
 - `distill` vault mode (`vault <hub>`) runs phases 1 to 5 and 7 of the docs-vault backfill: inventory, relocate, classify, chain, drafts, and synthesis. Phase 6 is program mode, run once per ledger. Phase 8 and the maintain pass are not built, and the skill stops after phase 7.
 - `co docs distill state` records each vault-mode phase in `state.json` and refuses an out-of-order start, a checkpoint with no artifact, and a `done` with no review note. The end of phases 2 and 5 runs the no-loss check over every inventory. Phases 3 and 7 plan batches of 25, and one defect in a batch sample sends the batch to full review.

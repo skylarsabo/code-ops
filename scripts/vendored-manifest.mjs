@@ -128,6 +128,10 @@ export const RUNTIME_SCRIPTS = [
   // `co snapshot` and the PreCompact writer. It imports agent-ledger.mjs, cli-lib.mjs, and
   // transcript-lib.mjs as SIBLINGS and spawns scan-redaction.mjs, all vendored above.
   { name: 'compact-snapshot.mjs', plugins: ['code-ops-suite'] },
+  // The derived-file merge driver. conform installs it in an adopter repository, and the git
+  // hooks run its `regenerate` and `amend` steps. It spawns the generators as SIBLINGS and skips
+  // any group whose generator is absent, so it needs no other script here.
+  { name: 'derived-merge.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.

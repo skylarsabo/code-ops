@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
-      "verifiedDigest": "c522027e36ea39b425e25a2c30111bd5d0cc35c34e74e66a78630c162aa19da3",
+      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
+      "verifiedDigest": "02c0ebb5a97d12118d73c514f9a87ee1c30d60de3c53c4a0247914ad777d6239",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -285,6 +285,11 @@
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 96,
           "anchor": "off by 200,000. Only Grok has a handoff point and a"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/conform/SKILL.md",
+          "line": 215,
+          "anchor": "## Derived-file merge driver: install"
         }
       ]
     },
@@ -295,8 +300,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
-      "verifiedDigest": "3b6934d03d4ec4ea74ac7b9c5b628e3a21eca952e47c05a517314ac11606c612",
+      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
+      "verifiedDigest": "9dd47cef1a4a16d4c0b4938fce0b879dab61c0734b28ad1479a14dac7ae2c827",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -722,6 +727,11 @@
           "file": "scripts/co.mjs",
           "line": 95,
           "anchor": "distill: 'distill-check.mjs',"
+        },
+        {
+          "file": "scripts/derived-merge.mjs",
+          "line": 12,
+          "anchor": "// WHY two phases: git runs a merge driver once per file, before the merged tree"
         }
       ]
     },
@@ -731,8 +741,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
-      "verifiedDigest": "3bfd885fe2991f874db375031c5b77c46c2df73b1a9d66f31916fa7b09ab8c0b",
+      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
+      "verifiedDigest": "25b7855f0564e14affc4cd6449a792e58526a5496ff36feec8a49f5032732252",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1014,8 +1024,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
-      "verifiedDigest": "e579898ecd03f189c1aae7aa8ae21b08d68907b4c2066c5eab18f0b47a047b88",
+      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
+      "verifiedDigest": "47371f23c63dc0d0311ff1415ef7365e0f96bcecb1ba2310ef2f40f97979e87f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1135,8 +1145,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
-      "verifiedDigest": "bf37e18a51026f88353306e3bb08b1781122c60d1b4ca17673500899b0e7d26a",
+      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
+      "verifiedDigest": "07910a75b1f56a09e44402e021e0d61f85b93ea333b56200e357b3b54cc467d6",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1201,8 +1211,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "f8353bf4ec55228e305ab96478d009519e0c0b5f",
-      "verifiedDigest": "692cbca621a79d3371308fd95e2a04aa77aeed22f3adf4487ef1a3ca6bc9f93a",
+      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
+      "verifiedDigest": "159cba04b982f6cc577e46e18101d329b99d97b04d2467cc069dcc283d99c4e6",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1293,8 +1303,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
-      "verifiedDigest": "e448175be3dd63bee031d50f3c82031b159d982b0ca7ee9b7247fab6fefd63c5",
+      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
+      "verifiedDigest": "9485977cdd157b14bc08ef550432911ecf800007f0685e73b8d19b5a560a1e99",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",

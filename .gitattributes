@@ -6,3 +6,11 @@ codex-marketplace/** linguist-generated=true
 opencode-dist/** linguist-generated=true
 .agents/plugins/** linguist-generated=true
 plugins/*/scripts/** linguist-generated=true
+
+# Derived files regenerate and never hand-merge (scripts/derived-merge.mjs). Intake files keep both sides' lines.
+plugins/*/scripts/** merge=code-ops-derived
+.agents/plugins/marketplace.json merge=code-ops-derived
+codex-marketplace/** merge=code-ops-derived
+opencode-dist/** merge=code-ops-derived
+DOCS_MANIFEST.json merge=code-ops-derived
+"**/98 System/Records/intake.jsonl" merge=union
