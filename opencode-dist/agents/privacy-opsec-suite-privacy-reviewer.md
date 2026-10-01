@@ -25,9 +25,11 @@ Return findings grouped by priority: **Blocking** (any anonymity or leak regress
 
 Report cap: at most 600 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.
 
+**Routing.** The lead picks Tier and Effort for each dispatch with `co route` and states them in the brief. You work the same at any tier: the brief's Scope, rules, and report shape do not change with the rung.
+
 ## Contract
 
-Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return, Unit, Tier, Effort, Route basis
 Edits: none
 Verdicts: APPROVE | CHANGES | ESCALATE
 

@@ -120,7 +120,7 @@ for (const [verb, script] of SCAN_VERBS) {
 }
 
 // Commands: a table key whose value is one script takes no verb. Pinned like DOMAINS.
-const COMMANDS = ['brief', 'burndown', 'snapshot'];
+const COMMANDS = ['brief', 'burndown', 'route', 'snapshot'];
 const tableCommands = [...tableBlock.matchAll(/^ {2}([a-z][a-z-]*): '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
 expect(tableCommands.join(',') === COMMANDS.join(','), `table commands ${JSON.stringify(tableCommands)} must equal the pinned list ${JSON.stringify(COMMANDS)}`);
 for (const command of COMMANDS) expect(new RegExp(`^ {2}${command} +\\S+\\.mjs \\(command\\)$`, 'm').test(help.stdout), `--help must list the ${command} command`);
@@ -135,8 +135,12 @@ expect(burn.status === burnDirect.status && burn.stdout === burnDirect.stdout, `
 const brief = run([co, 'brief', 'code-ops-suite:implementer']);
 const briefDirect = run([join(root, 'scripts', 'brief-template.mjs'), 'code-ops-suite:implementer']);
 expect(brief.status === 0 && brief.stdout === briefDirect.stdout
-  && brief.stdout === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\n',
+  && brief.stdout.startsWith('Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\nUnit:\nTier:\nEffort:\nRoute basis:\n')
+  && /^Tier takes light\|mid\|strong\|premium\|frontier; Effort takes low\|medium\|high; Route basis takes .*Route override: <reason>.*\nPrint them with: co route --kind <k> --ambiguity <l\|m\|h> --reversible <yes\|no> --scope <path>\n$/m.test(brief.stdout.slice(brief.stdout.indexOf('Route basis:\n') + 13)),
   `co brief must print the implementer template, got ${brief.status}/${JSON.stringify(brief.stdout)} ${brief.stderr}`);
+const probeBrief = run([co, 'brief', 'code-ops-suite:probe']);
+expect(probeBrief.status === 0 && probeBrief.stdout === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\n',
+  `co brief must print no routing lines for an agent that does not require Tier, got ${probeBrief.status}/${JSON.stringify(probeBrief.stdout)}`);
 const siblingBrief = run([co, 'brief', 'rigor:tracer']);
 expect(siblingBrief.status === 0 && siblingBrief.stdout.startsWith('Scope:\n'), `co brief must resolve a sibling plugin's agent, got ${siblingBrief.status}: ${siblingBrief.stderr}`);
 for (const bad of [['implementer'], ['code-ops-suite:no-such-agent'], ['other-plugin:implementer'], []]) {

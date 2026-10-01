@@ -27,9 +27,11 @@ Report the candidate, the repro (command and file), the observed result, the res
 
 Report cap: at most 400 words for the message you return. Put detail in the Report path file and return only the pointer above plus the next action.
 
+**Routing.** The lead picks Tier and Effort for each dispatch with `co route` and states them in the brief. You work the same at any tier: the brief's Scope, rules, and report shape do not change with the rung.
+
 ## Contract
 
-Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return
+Brief requires: Scope, Objective, Round budget, Report cap, Report path, Expected return, Unit, Tier, Effort, Route basis
 Edits: report-only
 Verdicts: CONFIRMED | NOT-CONFIRMED | ESCALATE
 

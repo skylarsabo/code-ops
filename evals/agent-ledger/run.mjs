@@ -36,7 +36,7 @@ import { tally } from '../harness.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const hook = join(repo, 'plugins', 'code-ops-suite', 'hooks', 'agent-ledger.mjs');
 const co = join(repo, 'scripts', 'co.mjs');
-const { attemptOf, captureKeys, captureOn, ledgerRows: readLedgerRows, markSessionEnded, pendingAgents, pendingReport, routingSummary, rowsFromPayload } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
+const { MIN_OVERUSE_DISPATCHES, attemptOf, captureKeys, captureOn, ledgerRows: readLedgerRows, markSessionEnded, pendingAgents, pendingReport, routingSummary, rowsFromPayload } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
 const { fails, check } = tally((name, detail) => `${name} - ${String(detail).slice(0, 300)}`);
 
 const home = mkdtempSync(join(tmpdir(), 'agent-ledger-eval-'));
@@ -340,8 +340,12 @@ try {
   check('r. starvation fires when triggered dispatches ran below premium, and non-judgment agents are not counted',
     starved.judgment === 9 && starved.triggered === 2 && starved.premium === 0 && starved.starved && !starved.overused
     && starved.advisories.length === 1 && /starved - 2 of 2/.test(starved.advisories[0]) && starved.line === 'Routing: 9 judgment, 2 triggered, 0 premium -> STARVED', JSON.stringify(starved));
-  const over25 = routingSummary([row('1', 'reviewer', 'premium', 'opus'), row('2', 'reviewer', 'premium', 'opus'), row('3', 'implementer', 'strong', 'claude-sonnet-5-5')]);
-  check('r2. overuse fires when the premium share passes the ceiling', over25.overused && !over25.starved && /overuse - premium share 67% \(2 of 3/.test(over25.advisories[0]) && over25.line.endsWith('OVERUSED'), JSON.stringify(over25));
+  const over25 = routingSummary([row('1', 'reviewer', 'premium', 'opus'), row('2', 'reviewer', 'premium', 'opus'), row('3', 'implementer', 'strong', 'claude-sonnet-5-5'), row('4', 'implementer', 'strong', 'claude-sonnet-5-5')]);
+  check('r2. overuse fires when the premium share passes the ceiling', over25.overused && !over25.starved && /overuse - premium share 50% \(2 of 4/.test(over25.advisories[0]) && over25.line.endsWith('OVERUSED'), JSON.stringify(over25));
+  const underMin = routingSummary([row('1', 'reviewer', 'premium', 'opus'), row('2', 'reviewer', 'premium', 'opus'), row('3', 'implementer', 'strong', 'claude-sonnet-5-5')]);
+  check('r2b. below the minimum sample the counts print with no overuse verdict, and four dispatches is the first that can fire',
+    MIN_OVERUSE_DISPATCHES === 4 && underMin.judgment === 3 && underMin.premium === 2 && !underMin.overused && underMin.advisories.length === 0 && underMin.line === 'Routing: 3 judgment, 2 triggered, 2 premium -> ok'
+    && over25.judgment === MIN_OVERUSE_DISPATCHES, JSON.stringify([underMin, MIN_OVERUSE_DISPATCHES]));
   const inBounds = routingSummary([row('1', 'reviewer', 'premium', 'opus'), ...['2', '3', '4'].map((i) => row(i, 'implementer', 'strong', 'claude-sonnet-5-5'))]);
   check('r3. a premium share at the ceiling, with every triggered dispatch at premium, is silent', !inBounds.starved && !inBounds.overused && inBounds.advisories.length === 0 && inBounds.share === 0.25 && inBounds.line.endsWith('ok'), JSON.stringify(inBounds));
   const tight = routingSummary([row('1', 'reviewer', 'strong', 'opus'), row('2', 'implementer', 'strong', 'claude-sonnet-5-5')], { ceiling: 0.6 });
