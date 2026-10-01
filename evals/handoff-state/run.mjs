@@ -223,6 +223,24 @@ try {
   settle('sess-pend', 'pend111');
   check('pending: a reported agent no longer blocks', draftAs(['--session', 'sess-pend']).status === 0);
 
+  // ---- the Routing line (DESIGN_TIER_ROUTING slice 7) ----
+  const routed = (session, id, type, prompt, model) => {
+    recordFromPayload({ hook_event_name: 'PostToolUse', session_id: session, cwd: tmp, tool_name: 'Agent',
+      tool_input: { subagent_type: type, description: `Routing ${id}`, prompt, run_in_background: true, model },
+      tool_response: { status: 'async_launched', agentId: id } }, { stateDir: ledgerDir });
+    settle(session, id);
+  };
+  const routingLines = (text) => text.split('\n').filter((l) => l.startsWith('Routing:'));
+  check('routing: a session with no judgment dispatch writes no Routing line', routingLines(draftAs(['--session', 'sess-route']).stdout).length === 0);
+  routed('sess-route', 'route001', 'code-ops-suite:implementer', 'Unit: U1\nTier: premium\nEffort: high', 'claude-sonnet-5-5');
+  routed('sess-route', 'route002', 'code-ops-suite:reviewer', 'Unit: U2\nTier: strong\nEffort: medium', 'claude-sonnet-5-5');
+  const routedDraft = draftAs(['--session', 'sess-route']);
+  check('routing: the draft carries the Routing line with the STARVED verdict under In-flight boundaries',
+    routedDraft.status === 0 && routingLines(inFlight(routedDraft.stdout)).join('|') === 'Routing: 2 judgment, 1 triggered, 0 premium -> STARVED' && routingLines(routedDraft.stdout).length === 1, routedDraft.stderr || inFlight(routedDraft.stdout));
+  check('routing: the draft with the Routing line stays under 8 KB', Buffer.byteLength(routedDraft.stdout) < 8 * 1024, `${Buffer.byteLength(routedDraft.stdout)}`);
+  check("routing: another session's draft carries no Routing line", routingLines(draftAs(['--session', 'sess-other']).stdout).length === 0);
+  check('routing: CODE_OPS_AGENT_LEDGER=0 writes no Routing line', routingLines(draftAs(['--session', 'sess-route'], { CODE_OPS_AGENT_LEDGER: '0' }).stdout).length === 0);
+
   // The session id may come from the run folder's SESSION.json instead of a flag or the environment.
   const runPend = join(tmp, 'runs', 'r-pend');
   mkdirSync(runPend, { recursive: true });

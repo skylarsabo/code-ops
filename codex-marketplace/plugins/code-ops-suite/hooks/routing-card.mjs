@@ -43,6 +43,12 @@
 // from the ledger. Up to PEER_LINES lines list the snapshot's reply-owed peers, because an unanswered
 // peer is the costliest miss. Every step fails open to its own omission.
 //
+// ROUTING LINE. When this session's ledger rows hold at least one judgment dispatch, the card ends with
+// the one `Routing:` line `routingSummary` (`../scripts/agent-ledger.mjs`) prints, for example
+// `Routing: 7 judgment, 2 triggered, 0 premium -> STARVED`, so under-routing and premium overuse show
+// during the session. It is one line under the card's own caps and prints on every source that carries a
+// session id; no routed dispatch, `CODE_OPS_AGENT_LEDGER` off, or any error prints nothing.
+//
 //   node hooks/routing-card.mjs
 
 import { spawnSync } from 'node:child_process';
@@ -312,6 +318,18 @@ async function pendingAgentLines(query, head, skip = '') {
   } catch { return []; }
 }
 
+// The `Routing:` line over this session's own ledger rows, or no line when the session has no judgment
+// dispatch, the ledger is off, or the module fails to load.
+async function routingLine(sessionId) {
+  if (!sessionId || /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '')) return [];
+  try {
+    const lib = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'agent-ledger.mjs');
+    const { ledgerRows, routingSummary } = await import(pathToFileURL(lib).href);
+    const summary = routingSummary(ledgerRows({ sessionId }));
+    return summary.judgment ? [summary.line] : [];
+  } catch { return []; }
+}
+
 // One line per live peer on this repository, at most PEER_LINES, from `discoverPeers` in
 // collision-lib.mjs: a live board session whose program differs from this session's, resolved to
 // the head of its handoff chain. A session whose program cannot be read has no program to differ
@@ -414,6 +432,7 @@ async function main() {
     if (payload.source === 'startup') lines.push(...await pendingAgentLines({ cwd, endedOnly: true }, 'Left pending when an earlier session here ended:', sessionId));
     lines.push(...await peerLines(cwd, sessionId, null));
   }
+  lines.push(...await routingLine(sessionId));
   console.log(lines.join('\n'));
   return 0;
 }

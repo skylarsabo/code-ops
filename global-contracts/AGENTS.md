@@ -61,6 +61,13 @@ or synthesis, with a rationale, stopping criterion, and lead-owned blocking crit
 The session model leads and owns final verdicts and acceptance. Route effort by ambiguity and
 observed eval quality rather than by importance or price alone.
 
+On Grok every xai rung is one model, so the rung is not a variable there: premium and frontier
+collapse onto it. Effort is the live dial: set `reasoning_effort` from the brief's Effort (low,
+medium, or high; never xhigh). When `subagent_model_inheritance` is on, strip `model` from
+spawn calls, because naming a model fails the spawn. The agent ledger records the collapse.
+The spawn-time effort parameter name is UNVERIFIED; the role or persona `reasoning_effort`
+setting is the documented path.
+
 At the round budget, checkpoint to the report path and continue in a fresh operative.
 Do not fork or resume its context.
 
