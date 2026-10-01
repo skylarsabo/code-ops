@@ -1,5 +1,5 @@
 ---
-description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check (phases 1 to 5 and 7). Install and maintain are not built."
+description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check, install a baseline and gate, and run a maintain pass."
 ---
 
 Use the `code-ops-suite-distill` skill for this task, following it end to end.

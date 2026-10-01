@@ -1,5 +1,5 @@
 ---
-description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check (phases 1 to 5 and 7). Install and maintain are not built."
+description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check, install a baseline and gate, and run a maintain pass."
 ---
 
 # Distill: a program ledger down to its finish line, or a docs vault into standard order
@@ -14,7 +14,7 @@ grammar 2, because this skill rewrites that ledger and never defines its own gra
 and `PROGRAM.archive.md`, and the `TASKS.md` of the program's newest run folder; vault mode, the
 hub and each legacy tree the relocate plan names · **Produces:** program mode, the rewritten ledger
 and `LEDGER_DIFF.md` in this run's dated artifact folder (`§12`); vault mode, the run's `state.json`,
-one artifact per phase, and the edited notes.
+one artifact per phase, the edited notes, and the hub's `98 System/DISTILL_BASELINE.json`.
 
 ## Modes
 
@@ -22,10 +22,9 @@ Distill has two modes.
 
 - **Program mode** (`program <slug>`) rewrites one ledger. It is phase 6 of the design.
 - **Vault mode** (`vault <hub>`) is the eight-phase backfill of a whole docs vault, then a maintain
-  pass. Phases 1 to 5 and 7 are built, and phase 6 is program mode, run once per program ledger.
-  Phase 8 (install the baseline and the gate, and route `conform` here) and the maintain pass are
-  not built. When the operator asks for either, say so, run no part of it, and stop after the last
-  built phase. Do not describe either as working.
+  pass. Phase 6 is program mode, run once per program ledger. Phase 8 writes the baseline, and the
+  gate holds the tree to it. The maintain pass works down the baseline and the triage queue within a
+  round budget. `conform` routes drift in a state surface to this mode.
 
 The design is in `code-ops-docs/10 Design/Agent state machine and host parity 2026-09.md` in the
 code-ops repository, section "Distill".
@@ -106,7 +105,7 @@ Redact secrets and PII before you write any file (`§4`).
 ## Vault mode
 
 Every command below is `node ${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs docs distill <verb>`, written
-`distill <verb>`. The verbs are `inventory`, `no-loss`, `findability`, and `state`. Relocation uses
+`distill <verb>`. The verbs are `inventory`, `no-loss`, `findability`, `baseline`, `gate`, and `state`. Relocation uses
 `co docs relocate`.
 
 **The no-loss rules.** They hold in every phase.
@@ -149,7 +148,7 @@ the file by hand.
 | 5 Drafts | Triage each draft to current, superseded with a link, or archive. | triage list | every archive choice |
 | 6 Ledgers | Program mode, once per program ledger. | each `LEDGER_DIFF.md` | every disposition |
 | 7 Synthesis | Add `sources:` to each synthesis page. Mark a page stale when a source is superseded or archived. | page list | a sample |
-| 8 Install | Not built. | | |
+| 8 Install | Write the baseline with `distill baseline --hub <hub> --inventory <file>...`. | the baseline file and the inventory copies in the hub | inputs equal accounted, zero unreachable, and the triage count |
 
 **1 Inventory.** Count files and bytes per tree, and keep the counts for the lead. The inventories are the
 input of every later no-loss check, so write them before any file moves. Checkpoint with the relocate plan
@@ -203,17 +202,45 @@ and on every other host, dispatch the same batches as parallel operatives with t
 Write the phase plan to the run folder first: each batch, its suite agent (the implementer subagent), its effort, and its artifact path. Register each batch in the dispatch ledger
 before dispatch, and `state assign` it. The lead writes each batch report from the returned results.
 
+**8 Install.** Run `state start 8`. Run `distill baseline --hub <hub> --inventory <file>...` once for the
+whole set. It writes `<hub>/98 System/DISTILL_BASELINE.json`: each inventory's counts and digest, the
+findability count, and the triage queue pointer. It holds no date, so a rerun on the same tree yields
+the same bytes. It refuses and writes nothing while a path is lost or ambiguous, while inputs differ
+from accounted, while any note is unreachable, or while `98 System/TRIAGE.md` is missing. On success it
+copies each inventory into `<hub>/98 System/DISTILL_INVENTORIES/` and cites the copy, so the gate runs
+in a fresh clone that lacks the gitignored run folder. Fix the
+cause and run it again. Then run `state checkpoint 8 --artifact <baseline>`. The lead reads the counts.
+`state done 8` runs the same checks again, always with findability required, and writes the baseline
+again. A tree that changed since the checkpoint cannot install.
+
+**The gate.** `distill gate --hub <hub>` compares the tree to the baseline and writes nothing. It exits 1
+on a new loss, a new unreachable note, an inventory that differs from its baseline digest, or a moved
+triage pointer. `conform` and CI will run it. Run it by hand to check a tree, and never wire it in from
+this skill.
+
+**Maintain pass.** The pass starts after phase 8 is done. Run `state maintain-start --budget <n>`. Work
+down the baseline and the triage queue, and run `state maintain-round --item <path or entry>` after each
+item. An item counts once per pass. Work an item by its rule: link the note from a generated index,
+archive a draft with its link and forwarding entry, or settle a status. The round that reaches the
+budget stops the pass at a checkpoint, and later rounds exit 1. Report the worked items and the
+queue that remains, then stop. `state maintain-start` resumes a checkpointed pass with a fresh round
+count. `state maintain-checkpoint` stops a pass early. `state maintain-done --review "<what the lead read>"`
+ends the pass on the gate check, which is no-loss over the baseline inventories plus findability. It
+refuses on a loss or an unreachable note, and the pass stays open. The lead reads every item worked.
+
 **Verify.** After phases 2 and 5, run `distill no-loss --inventory <file> --hub <hub>` for each inventory and
 `distill findability --hub <hub>`. `state done` runs both for those phases, so a pass there is the proof.
-Report the counts: inputs, accounted, lost, and unreachable.
+Phase 8 and the end of a maintain pass run both through the baseline checks. Report the counts: inputs,
+accounted, lost, and unreachable.
 
-**Stop.** After phase 7, `state show` prints `next: stop`. Report the state and stop. Do not write the baseline,
-install a gate, route `conform`, or run a maintain pass. They are not built.
+**Stop.** Stop at each checkpoint for the lead's review. After phase 8, `state show` prints `next: none` until a
+maintain pass opens. A running pass prints `next: maintain-round`, and a pass stopped at its budget prints
+`next: maintain-start`. Report the state and stop at the budget. Never start a pass without the
+operator's budget.
 
 ## Done when
 
-- The operator asked for program mode on a named ledger, or for vault mode on a named hub. A request for phase 8,
-  the maintain pass, or `conform` routing got a plain "not built" and no work.
+- The operator asked for program mode on a named ledger, or for vault mode on a named hub.
 - `PROGRAM.md` has a `## Finish line` with F1 to Fn, each an observable check, confirmed by the operator.
 - `## Open items` holds at most 12 bullets, and each carries `Blocks: F<n>` naming a real finish-line item.
 - Every other open item sits in `BACKLOG.md` under its original id. Every closed item sits in
@@ -225,9 +252,12 @@ install a gate, route `conform`, or run a maintain pass. They are not built.
 - `co burndown --program <slug>` prints `active N/12` with N at most 12 and no warning flags.
   `co check handoff` passes when the program has a handoff.
 - `LEDGER_DIFF.md` exists, and the lead has read every disposition in it.
-- Vault mode: `state show` lists phases 1 to 5 and 7 as `done`, each with a review note. Phase 6 is `done`
+- Vault mode: `state show` lists phases 1 to 5, 7, and 8 as `done`, each with a review note. Phase 6 is `done`
   with a `LEDGER_DIFF.md` per ledger, or the operator named a hub with no ledger.
-- Vault mode: the end of phases 2 and 5 ran the no-loss check and passed, so every inventory path is in place,
+- Vault mode: the end of phases 2, 5, and 8 ran the no-loss check and passed, so every inventory path is in place,
   moved with a forwarding entry, or archived with a link. The findability count was recorded.
 - Vault mode: the lead read every decision, amendment, chain edge, and archive choice, and each batch sample.
   No batch is unresolved. Every classified note kept its body byte for byte.
+- Vault mode: `98 System/DISTILL_BASELINE.json` exists, and `distill gate --hub <hub>` exits 0 on the tree.
+- Vault mode, when a maintain pass ran: it ended with `maintain-done` on a passing gate check, or it stopped at its
+  declared budget with a checkpoint that lists the worked items.

@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.39.0
+- `distill` vault mode now runs phase 8 and the maintain pass. `co docs distill baseline` writes `98 System/DISTILL_BASELINE.json`, sorted and dateless, and refuses on a loss, an ambiguity, a count mismatch, an unreachable note, or a missing `98 System/TRIAGE.md`. `state done 8` runs the same check, with findability always required. The baseline copies each inventory it cites into `98 System/DISTILL_INVENTORIES/`, so the gate runs in CI and a fresh clone, where the run folder is absent.
+- `co docs distill gate` is a read-only check of the tree against the baseline. It exits 1 on a new loss, a new unreachable note, a changed inventory, or a moved triage pointer.
+- `state maintain-start`, `maintain-round`, `maintain-checkpoint`, and `maintain-done` run the maintain pass after phase 8. The round that reaches the budget checkpoints the pass, and `maintain-done` ends only on a passing gate check.
+
 ## 2.38.0
 - New derived-file merge driver, `scripts/derived-merge.mjs` (vendored). During `git merge` and `git pull`, a conflict on a vendored script copy, a host distribution file, or `DOCS_MANIFEST.json` no longer stops the merge. The driver records the conflicting versions, and the commit hooks regenerate the files from the merged sources. A failed regeneration puts the conflict back in the index, so the merge cannot be committed with a stale file. `DOCS_MANIFEST.json` text-merges with its digests blanked, so both sides' authored edits survive. The atlas manifest keeps conflicting on purpose. Intake logs merge with `merge=union`.
 - `install-git-hooks.mjs` installs the `pre-merge-commit` and `post-merge` hooks and registers the driver, and its `--check` fails while the driver is missing. `conform` gains an install step for the driver and routes state-surface drift to `distill`.
