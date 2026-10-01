@@ -19,8 +19,9 @@ One rule governs all of them, and it lives in code-ops-suite [`CONVENTIONS.md` �
 lead's own tier. Select role, tier, and effort from the task. Judgment-bearing operative
 work runs at the **strong** tier. The rungs are provider-agnostic (frontier, then strong,
 then mid), and in this suite's Claude models `claude-sonnet-5-5` now binds both the `mid`
-and `strong` rungs by operator decision 2026-09-28 (Opus 5.5 is still accepted at `strong`,
-but no bundled agent declares it). Every bundled operative caps its `effort:` frontmatter at
+and `strong` rungs by operator decision 2026-09-28. Opus 5.5 is the dispatch-only `premium`
+binding: it ranks `strong`, no bundled agent declares it, and a routing trigger selects it
+for one dispatch (`co route` computes the choice). Every bundled operative caps its `effort:` frontmatter at
 `high`; `xhigh` and `max` stay lead-only dials. The economics drive
 the rule: a shallow or failed report costs a redispatch round-trip plus the lead's attention,
 which is dearer than the strong tier's price premium. A tier below strong is for mechanical,
@@ -33,6 +34,7 @@ verdict rests on its output, and never route below an agent's lint-enforced floo
 | Moderate judgment (single-claim research, execution-only work) | `sonnet`-floor `claim-checker` — the mid tier is the floor here, not the target: run it strong unless the brief leaves the operative nothing to decide | medium (ambiguity is resolved in the brief, not the dial); `claim-checker`/`tracer` go high on concurrency/aliasing/security flows | One bounded question with a clear kill/support test. |
 | Scoped implementation (build, fix, or refactor one bounded unit) | code-ops `implementer` (strong floor, `claude-sonnet-5-5`), never a general-purpose agent | high | The narrow tool surface starts each turn near 20,000 tokens, against near 57,000 for a general-purpose agent. See [What a dispatch costs](#what-a-dispatch-costs). |
 | High judgment, hard to reverse (bug-hunt tracing, diff review, execution-backed verdicts) | strong-floor agents (`tracer`, `reviewer`, `privacy-reviewer`, `verifier`) | high | Wrong here poisons downstream consumers; the floor is deliberate, not a token-saving candidate — never below `AGENT_MODEL_FLOORS`. |
+| Premium dispatch (a routing trigger, 7a to 7d, fires on a surface, ambiguity, reversibility, or a failed strong attempt) | the `premium` binding, chosen per dispatch with `co route`; never an agent default | high | Opus costs 2x Sonnet, so premium is never a default. Where a provider has no distinct premium model, premium repeats a lower rung and effort is the only extra dial. |
 | Verdicts, tier assignment (CONFIRMED/PROBABLE/SPECULATIVE), acceptance of a subagent's report | The session lead: the model the operator started the session with, on any host | the host default (medium for Opus 5.5); raise it for disputed verdicts and critical CONFIRMED calls | Subagents execute runs and cite evidence; only the lead closes the loop. |
 
 Effort level names do not carry across model generations. When the lead model changes, re-run the effort sweep against the judgment evals before you trust the table above. Step a dispatch down only where quality held. Dispatch operatives in the background and continue independent work. Wait only when the next step depends on the result. On coding work, background dispatch lowers time to completion at similar quality and cost.
@@ -55,17 +57,19 @@ on the strong tier, and keep acceptance with the lead.
 
 The rungs above are provider-agnostic, so a host running a non-Anthropic model still needs to know which of its models clears a floor. `scripts/model-tiers.mjs` is the single source of truth for that binding. Both the lint gate and the opencode renderer read it, so the doctrine and the gate cannot describe different ladders. `light` names the mechanical, execution-only rung below `mid`, which the routing table always used and never named.
 
-| Provider | `light` | `mid` | `strong` | `frontier` |
-| --- | --- | --- | --- | --- |
-| Anthropic (Claude) | `haiku` | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `fable` |
-| xAI (Grok) | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` |
-| OpenAI (GPT) | `gpt-6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-6-sol` |
-| Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
-| Z.AI (GLM) | `glm-5` | `glm-5.1` | `glm-5.2` | `glm-5.2` |
-| Moonshot AI (Kimi) | `kimi-k2.6` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` |
-| DeepSeek | `deepseek-v4-flash` | `deepseek-v4-flash` | `deepseek-v4-pro` | `deepseek-v4-pro` |
-| Mistral | `magistral-small` | `mistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` |
-| OpenCode Zen (free tier) | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | unset, the lead inherits the session model |
+| Provider | `light` | `mid` | `strong` | `premium` (dispatch only) | `frontier` |
+| --- | --- | --- | --- | --- | --- |
+| Anthropic (Claude) | `haiku` | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `opus` (`claude-opus-5-5`) | `fable` |
+| xAI (Grok) | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` |
+| OpenAI (GPT) | `gpt-6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-6.1-sol` | `gpt-6.1-sol` |
+| Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
+| Z.AI (GLM) | `glm-5` | `glm-5.1` | `glm-5.2` | `glm-5.2` | `glm-5.2` |
+| Moonshot AI (Kimi) | `kimi-k2.6` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` | `kimi-k3` |
+| DeepSeek | `deepseek-v4-flash` | `deepseek-v4-flash` | `deepseek-v4-pro` | `deepseek-v4-pro` | `deepseek-v4-pro` |
+| Mistral | `mistral-small-2603` | `mistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` |
+| OpenCode Zen (free tier) | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | unset, the lead inherits the session model |
+
+The `premium` column is a dispatch binding, never a rung. It ranks `strong`, so it clears only strong floors, and a provider with no distinct premium model repeats a lower rung (OpenAI repeats `frontier`; the rest repeat `strong`). GitHub Copilot binds `premium` to `claude-opus-5.5`.
 
 OpenAI also exposes `gpt-6-astra` as an explicit frontier specialist. It does not replace
 Sol in the ready-made configuration. Rates verified on 2026-09-22 price Sol at $2/$10 per
@@ -73,7 +77,7 @@ million tokens and Astra at $10/$50. Use Astra only when the bounded decision ju
 premium. The binding and selected use remain visible in the run contract and dispatch ledger.
 See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
 
-The Anthropic `mid` and `strong` rungs both bind to `claude-sonnet-5-5` (the `sonnet` alias, a dateless pinned snapshot), $2/$10 per million tokens, cache reads $0.20, 5-minute cache writes $2.50, 1M context. `claude-opus-5-5` (the `opus` alias) is still accepted at `strong`, $4/$20 per million tokens with cache reads $0.20, but no bundled agent declares it. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
+The Anthropic `mid` and `strong` rungs both bind to `claude-sonnet-5-5` (the `sonnet` alias, a dateless pinned snapshot), $2/$10 per million tokens, cache reads $0.20, 5-minute cache writes $2.50, 1M context. `claude-opus-5-5` (the `opus` alias) is the dispatch-only `premium` binding, $4/$20 per million tokens with cache reads $0.20. It ranks `strong`, and no bundled agent declares it. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
 so the runtime controls effort and the instruction files do not imitate a reasoning trace.
 Keep the reusable instruction prefix stable, append task-specific turns, and avoid rewriting
 earlier messages. This preserves valid thinking blocks and maximizes cache reuse. Do not force

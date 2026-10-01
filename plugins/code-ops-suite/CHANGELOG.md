@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.33.0
+- New `route-unit.mjs`, reached as `co route`, picks the tier and effort for one dispatch from its kind, ambiguity, reversibility, and the surface its Scope paths touch. It prints `Tier:`, `Effort:`, and `Route basis:` lines ready for a brief, plus the model each host binds at that tier. Review on a security, gate-script, or public-contract surface, a high-ambiguity irreversible unit, and a retry after a failed strong attempt route to premium.
+- `model-tiers.mjs` gains a premium binding per provider at strong rank: Opus 5.5 on Anthropic and Copilot, and the pinned Sol model on OpenAI. Providers without a premium model collapse it to strong and say so. The registry snapshot is dated 2026-10-01.
+- The OpenCode renderer builds its ladder from the tier order alone, so a specialist binding is no longer dropped, and the lifecycle plugin recognizes the pinned Sol model.
+- Lint and the model-registry check cover the premium binding. A new route-unit regression eval, with mutants, runs on Ubuntu and Windows.
+
 ## 2.32.0
 - Effort tops out at `high`. A task-based Run Contract rejects `xhigh` and `max` for the lead and for every unit, and a frontier peer exception now requires `high`.
 - The OpenCode lifecycle plugin accepts `low`, `medium`, and `high`. It clamps `xhigh` or `max` to `high` and says so in the directive.

@@ -8,7 +8,7 @@ models satisfies an agent’s floor. That is what makes the orchestration doctri
 the briefs, the fan-out rules, and the verification bar are identical everywhere, and only
 this table changes between providers.
 
-Model ids are pinned, verified against the models.dev registry on 2026-09-22, except a
+Model ids are pinned, verified against the models.dev registry on 2026-10-01, except a
 provider marked as verified against its host CLI, whose ids come from `opencode models` on the date its
 entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in the code-ops repository.
 
@@ -18,12 +18,12 @@ entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in
 | --- | --- | --- | --- | --- |
 | Anthropic (Claude) | `anthropic/claude-haiku-4-5-20251001` | `anthropic/claude-sonnet-5-5` | `anthropic/claude-sonnet-5-5` | `anthropic/claude-fable-5-1` |
 | xAI (Grok) | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` |
-| OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-5.1` | `openai/gpt-5.6-terra` | `openai/gpt-6-sol` |
+| OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-5.1` | `openai/gpt-5.6-terra` | `openai/gpt-6.1-sol` |
 | Google (Gemini) | `google/gemini-3.1-flash-lite` | `google/gemini-3.6-flash` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `zai/glm-5` | `zai/glm-5.1` | `zai/glm-5.2` | `zai/glm-5.2` |
 | Moonshot AI (Kimi) | `moonshotai/kimi-k2.6` | `moonshotai/kimi-k2.7-code` | `moonshotai/kimi-k3` | `moonshotai/kimi-k3` |
 | DeepSeek | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-flash` | `deepseek/deepseek-v4-pro` | `deepseek/deepseek-v4-pro` |
-| Mistral | `mistral/magistral-small` | `mistral/mistral-medium-latest` | `mistral/magistral-medium-latest` | `mistral/magistral-medium-latest` |
+| Mistral | `mistral/mistral-small-2603` | `mistral/mistral-medium-latest` | `mistral/magistral-medium-latest` | `mistral/magistral-medium-latest` |
 | OpenCode Zen (free tier) | `opencode/muse-spark-1.3-contributor-free` | `opencode/muse-spark-1.3-contributor-free` | `opencode/muse-spark-1.3-contributor-free` | session model (lead unset) |
 | GitHub Copilot (AI Credits) | `github-copilot/gpt-6-luna` | `github-copilot/gemini-3.8-flash` | `github-copilot/gpt-6-sol` | `github-copilot/gpt-6-sol` |
 
@@ -32,16 +32,16 @@ the lower one. The collapse is recorded rather than papered over with an invente
 
 ## Provider notes
 
-- **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is still accepted at the strong rung (ACCEPTED_MODELS) but no bundled agent declares it. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.
+- **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is the dispatch-only `premium` binding: it ranks strong, so it clears only strong floors, and a dispatch selects it through a routing trigger (`opus` alias). No bundled agent declares it in frontmatter. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.
 - **xAI (Grok)** — Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the handoff assessment sits at 150,000. `grok-build-0.1` is the fast coding specialist, not a default rung.
-- **OpenAI (GPT)** — Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. Sol remains the default frontier from runs R-007 and R-008, and its token price now sits below Terra, so the large lead context is the cheaper model.
-- **Google (Gemini)** — The only Pro-class id in the registry carries a `-preview` suffix, so `strong` and `frontier` share it. Re-pin once a stable Pro id ships.
-- **Z.AI (GLM)** — A tight lineup: the top model serves both `strong` and `frontier`.
-- **Moonshot AI (Kimi)** — `kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves both top rungs.
-- **DeepSeek** — A two-model lineup, so each of its models covers two rungs. The cheapest ladder here by a wide margin.
-- **Mistral** — Only the `magistral` line reasons, so the ladder is built from it wherever a rung needs reasoning.
-- **OpenCode Zen (free tier)** — Zero account cost with a single operative model. Light, mid, and strong all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.
-- **GitHub Copilot (AI Credits)** — Copilot bills GitHub AI Credits (1 credit = $0.01) from input, cached, cache-write, and output tokens. Each rung binds the lowest-cost verified model that meets it. Sol serves both top rungs because it is the calibrated frontier on the OpenAI ladder and costs less than Opus 5.5 or Grok 4.7 on a standard operative workload. PROVIDER_PRICES carries the per-million rates the live chooser and the cost report read.
+- **OpenAI (GPT)** — Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. `gpt-6.1-sol` replaces `gpt-6-sol` at the same price with cheaper cache reads (released 2026-09-29) and is pinned as both `frontier` and `premium`: the lineup has no distinct premium model, so a premium dispatch runs the frontier model and effort is the only extra dial. Sol remains the default frontier from runs R-007 and R-008, and its token price sits below Terra, so the large lead context is the cheaper model.
+- **Google (Gemini)** — The only Pro-class id in the registry carries a `-preview` suffix, so `strong`, `premium`, and `frontier` share it. Re-pin once a stable Pro id ships.
+- **Z.AI (GLM)** — A tight lineup: the top model serves `strong`, `premium`, and `frontier`.
+- **Moonshot AI (Kimi)** — `kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves `strong`, `premium`, and `frontier`.
+- **DeepSeek** — A two-model lineup, so each of its models covers several rungs. The cheapest ladder here by a wide margin.
+- **Mistral** — Only the `magistral` line reasons, so the upper rungs are built from it. `magistral-small` left the models.dev registry, so the light rung binds `mistral-small-2603`, the current dated small id (verified 2026-10-01).
+- **OpenCode Zen (free tier)** — Zero account cost with a single operative model. Light, mid, strong, and premium all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.
+- **GitHub Copilot (AI Credits)** — Copilot bills GitHub AI Credits (1 credit = $0.01) from input, cached, cache-write, and output tokens. Each rung binds the lowest-cost verified model that meets it. Sol serves both top rungs because it is the calibrated frontier on the OpenAI ladder and costs less than Opus 5.5 or Grok 4.7 on a standard operative workload. The dispatch-only `premium` binding is Opus 5.5 (`claude-opus-5.5`), the same model as the `opus` specialist below. PROVIDER_PRICES carries the per-million rates the live chooser and the cost report read.
 
 ## Premium specialists
 

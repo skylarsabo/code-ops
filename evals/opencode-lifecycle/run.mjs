@@ -97,6 +97,18 @@ expect(unmatched.warning?.includes(process.env.CODE_OPS_MODEL_PROFILE), `the unm
 const narrowed = buildChooserLadder(catalog, { enabled: ['gpt-6-luna'] });
 expect(Object.values(narrowed.agents).every((id) => id === 'provider-b/gpt-6-luna') && narrowed.warning === null, `a matching enabled list should bind only its models: ${JSON.stringify(narrowed.agents)}`);
 
+// With no floor table beside the chooser, the family classifier decides. The gpt-6.1-sol pin
+// must keep the frontier class its gpt-6-sol predecessor had.
+const familyDir = join(work, 'family');
+mkdirSync(familyDir);
+writeFileSync(join(familyDir, 'code-ops-lifecycle.js'), readFileSync(join(root, 'scripts', 'opencode-lifecycle.js')));
+writeFileSync(join(familyDir, 'legacy-paths-lib.mjs'), readFileSync(join(root, 'scripts', 'legacy-paths-lib.mjs')));
+const family = (await import(pathToFileURL(join(familyDir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle.internals;
+for (const id of ['openai/gpt-6-sol', 'openai/gpt-6.1-sol']) {
+  expect(family.classifyChooserModel(id) === 'frontier', `the family classifier should resolve ${id} frontier, got ${family.classifyChooserModel(id)}`);
+}
+expect(family.classifyChooserModel('openai/gpt-6.1-luna') === 'light', 'the sol pattern must not capture a luna sibling');
+
 // GitHub Copilot: the shipped floor plugin carries prices, so the chooser ranks
 // the priced catalog by workload cost and the cost report prices cache writes.
 const copilotDir = join(work, 'copilot');

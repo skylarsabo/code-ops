@@ -3,7 +3,7 @@
   "model": "mistral/magistral-medium-latest",
   "agent": {
     "code-ops-suite-explorer": {
-      "model": "mistral/magistral-small"
+      "model": "mistral/mistral-small-2603"
     },
     "code-ops-suite-implementer": {
       "model": "mistral/magistral-medium-latest"
@@ -24,7 +24,7 @@
       "model": "mistral/mistral-medium-latest"
     },
     "privacy-opsec-suite-explorer": {
-      "model": "mistral/magistral-small"
+      "model": "mistral/mistral-small-2603"
     },
     "privacy-opsec-suite-privacy-reviewer": {
       "model": "mistral/magistral-medium-latest"
@@ -39,7 +39,7 @@
       "model": "mistral/mistral-medium-latest"
     },
     "researcher-gatherer": {
-      "model": "mistral/magistral-small"
+      "model": "mistral/mistral-small-2603"
     }
   },
   "permission": {

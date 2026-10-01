@@ -1028,6 +1028,22 @@ No completion heading here on purpose (case 3 mutation).
   check('19c. a transition with an empty Writer cell exits 1', r19c.status === 1 && r19c.all.includes('transition 2 has an empty Writer cell'));
   const r19d = withContracts('case19d-missing-section', (t) => t.replace('## Agent state machine', '## Something else'));
   check('19d. a missing state machine section exits 1', r19d.status === 1 && r19d.all.includes('missing the "## Agent state machine" section'));
+
+  // 20a-20c. PREMIUM BINDING — each provider's dispatch-only premium id must be a model the tier
+  // table places at strong or above, so a premium dispatch still clears every strong floor.
+  const withTiers = (label, edit) => {
+    const dir = clone(label);
+    const before = readIn(dir, 'scripts/model-tiers.mjs');
+    const after = edit(before);
+    put(dir, 'scripts/model-tiers.mjs', after);
+    return { ...runLint(dir), changed: after !== before };
+  };
+  const r20a = withTiers('case20a-premium-light', (t) => t.replace("premium: 'claude-opus-5-5'", "premium: 'claude-haiku-4-5-20251001'"));
+  check('20a. a premium id that only serves the light rung exits 1', r20a.changed && r20a.status === 1 && r20a.all.includes('model-tiers anthropic: premium "claude-haiku-4-5-20251001" does not satisfy the strong rung'));
+  const r20b = withTiers('case20b-premium-missing', (t) => t.replace("      premium: 'claude-opus-5-5',\n", ''));
+  check('20b. a provider with no premium model exits 1', r20b.changed && r20b.status === 1 && r20b.all.includes('model-tiers anthropic: no premium model pinned'));
+  const r20c = withTiers('case20c-premium-unplaced', (t) => t.replace("premium: 'claude-opus-5-5'", "premium: 'not-a-pinned-model'"));
+  check('20c. a premium id absent from every ladder exits 1', r20c.changed && r20c.status === 1 && r20c.all.includes('premium "not-a-pinned-model" does not satisfy the strong rung'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

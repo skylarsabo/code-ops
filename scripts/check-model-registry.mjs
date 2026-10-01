@@ -38,6 +38,8 @@ for (const [id, provider] of Object.entries(PROVIDER_TIERS)) {
     if (tier === 'frontier' && provider.models?.frontier === null) continue; // lead inherits the session model
     if (!provider.models?.[tier]) fail(`${id}: no model pinned for the ${tier} tier`);
   }
+  // The premium id is dispatch-only, so it is checked here and fetched below but is not a rung.
+  if (!provider.models?.premium) fail(`${id}: no model pinned for the premium binding`);
   if (provider.registry === 'cli' && !/^\d{4}-\d{2}-\d{2}$/.test(provider.verifiedAt ?? '')) fail(`${id}: a cli-verified provider needs a verifiedAt date`);
   for (const specialist of PROVIDER_SPECIALISTS[id] ?? []) {
     if (!specialist.name || !specialist.model || !TIER_ORDER.includes(specialist.tier)) fail(`${id}: specialist has an invalid name, model, or tier`);
@@ -73,7 +75,7 @@ if (FETCH) {
     if (!known) { fail(`${id}: provider is absent from the registry — check the provider id`); continue; }
     // One id can serve several rungs, so verify the distinct set and report each rung using it.
     const byModel = new Map();
-    for (const tier of TIER_ORDER) {
+    for (const tier of [...TIER_ORDER, 'premium']) {
       const model = provider.models[tier];
       if (model === null) continue;
       if (!byModel.has(model)) byModel.set(model, []);

@@ -113,7 +113,7 @@ import { fileURLToPath } from 'node:url';
 // A namespace import, because a manifest without vendored references exports no
 // VENDORED_REFERENCES, and a named import of a missing export fails to load.
 import * as vendoredManifest from './vendored-manifest.mjs';
-import { CLAUDE_ALIAS_TIER, TIER_RANK } from './model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS, TIER_ORDER, TIER_RANK, modelSupportsTier } from './model-tiers.mjs';
 import { LEDGER_STATUSES } from './ledger-grammar.mjs';
 
 // Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
@@ -744,6 +744,16 @@ function checkAgentModelFloors({ plugins }) {
       if (MODEL_TIER[md[1]] < MODEL_TIER[floor])
         fail(`${agentKey}: model "${md[1]}" is below its declared floor "${floor}" — downgrading the verification core requires editing AGENT_MODEL_FLOORS in the same change`);
     }
+  }
+  // `premium` is a dispatch-only binding that ranks strong, so a premium dispatch must still
+  // clear every strong floor. Each provider's premium id has to be a model the tier table places
+  // at strong or above; a premium that cannot would let a routing trigger dispatch below a floor.
+  // A missing premium fails too, because a provider with no binding cannot honor a trigger.
+  for (const provider of Object.values(PROVIDER_TIERS)) {
+    const premium = provider.models?.premium;
+    if (typeof premium !== 'string' || !premium) { fail(`model-tiers ${provider.id}: no premium model pinned — premium collapses to strong by repeating the strong id, never by omission`); continue; }
+    if (!TIER_ORDER.some((tier) => TIER_RANK[tier] >= TIER_RANK.strong && modelSupportsTier(premium, tier)))
+      fail(`model-tiers ${provider.id}: premium "${premium}" does not satisfy the strong rung — a premium dispatch must clear every strong floor`);
   }
   {
     const tradeoffs = join(ROOT, 'code-ops-docs', '40 Engineering', 'Techniques', 'subagent-trade-offs.md');

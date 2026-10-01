@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.9
+- The vendored scripts gain `route-unit.mjs`, the dispatch router behind `co route`, and the updated `model-tiers.mjs` with a premium binding per provider.
+
 ## 0.16.8
 - The vendored `co.mjs` gains the `docs distill` verb, kept byte-identical with the root script.
 

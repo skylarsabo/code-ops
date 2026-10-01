@@ -744,7 +744,7 @@ async function assertDispatchModel({ agent, bound, lead, live, refresh, switches
 function familyTier(fullId) {
   const id = String(fullId).toLowerCase();
   const name = id.includes('/') ? id.slice(id.indexOf('/') + 1) : id;
-  if (/fable|opus-4\.6|gpt-5\.4$|gpt-5\.6-sol|gpt-6-sol|gpt-6-astra|gemini-3\.1-pro|grok-4\.[67]/.test(name)) return 'frontier';
+  if (/fable|opus-4\.6|gpt-5\.4$|gpt-5\.6-sol|gpt-6(\.1)?-sol|gpt-6-astra|gemini-3\.1-pro|grok-4\.[67]/.test(name)) return 'frontier';
   if (/sonnet|gemini-3-flash|gpt-4o|codex-mini|medium/.test(name) && !/opus|pro/.test(name)) return 'mid';
   if (/luna|haiku|flash-lite|grok-code-fast|grok-build|gpt-4\.1$|gpt-5-mini|gpt-5\.\d-mini|small/.test(name) && !/pro|opus|sonnet|codex/.test(name)) return 'light';
   if (/opus|gpt-5|codex|gemini-.*pro|claude-latest|pro/.test(name)) return 'strong';
