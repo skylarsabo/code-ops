@@ -8,7 +8,7 @@
 // pre-commit and pre-merge-commit hooks and the real docs-manifest.mjs. Only the atlas gate is a
 // stub, because evals/atlas-check covers it and a fixture atlas adds nothing to a merge test.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { tally, withDetail } from '../harness.mjs';
@@ -137,6 +137,30 @@ try {
   check('clean auto-merge: manifest regenerates, merge commits, tree is clean', problems.length === 0, problems.join('; '));
   check('clean auto-merge: the merge commit has two parents', git(both, 'rev-list', '--parents', '-n1', 'HEAD').out.split(' ').length === 3);
   check('check: install-git-hooks --check reports the driver', node(both, 'scripts/install-git-hooks.mjs', '--check').status === 0);
+
+  // 2b. core.hooksPath may name this checkout's .githooks by absolute path, in the short or the long
+  // spelling of a Windows temp folder. That is ours: it passes --check, install leaves it alone, and
+  // the driver still registers. A path that resolves elsewhere is foreign.
+  const hooksPath = (repo) => git(repo, 'config', '--local', '--get', 'core.hooksPath').out;
+  for (const [label, spell] of [['absolute path', (p) => p], ['canonical absolute path', (p) => realpathSync.native(p)]]) {
+    const abs = fixture(`abs-${label.split(' ')[0]}`, { install: false });
+    const value = spell(join(abs, '.githooks'));
+    git(abs, 'config', '--local', 'core.hooksPath', value);
+    const installed = node(abs, 'scripts/install-git-hooks.mjs');
+    const verdict = node(abs, 'scripts/install-git-hooks.mjs', '--check');
+    check(`hooksPath (${label}): install succeeds, --check passes, the value is unchanged`, installed.status === 0 && verdict.status === 0 && hooksPath(abs) === value, `${installed.status}/${verdict.status} ${installed.out.slice(-120)} / ${verdict.out.slice(-120)} / ${hooksPath(abs)}`);
+    check(`hooksPath (${label}): the merge driver is registered`, git(abs, 'config', '--local', '--get', 'merge.code-ops-derived.driver').out.includes('derived-merge.mjs'), git(abs, 'config', '--local', '--get-regexp', '^merge\\.').out);
+  }
+  const foreign = fixture('foreign-hooks', { install: false });
+  const elsewhere = join(work, 'other-hooks');
+  mkdirSync(elsewhere, { recursive: true });
+  git(foreign, 'config', '--local', 'core.hooksPath', elsewhere);
+  const foreignCheck = node(foreign, 'scripts/install-git-hooks.mjs', '--check');
+  const foreignInstall = node(foreign, 'scripts/install-git-hooks.mjs');
+  check('hooksPath (elsewhere): --check fails, install exits 2 without --force, the value is unchanged', foreignCheck.status === 1 && foreignInstall.status === 2 && hooksPath(foreign) === elsewhere, `${foreignCheck.status}/${foreignInstall.status} / ${hooksPath(foreign)}`);
+  const missing = fixture('missing-hooks', { install: false });
+  git(missing, 'config', '--local', 'core.hooksPath', join(work, 'no-such-folder'));
+  check('hooksPath (nonexistent): --check fails without throwing', node(missing, 'scripts/install-git-hooks.mjs', '--check').status === 1);
 
   // 3. A real source conflict plus a derived conflict: the driver defers the manifest, a person
   // resolves the source, and the commit regenerates against the resolved tree.

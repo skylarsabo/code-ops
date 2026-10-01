@@ -55,26 +55,38 @@ for (const hook of HOOK_PATHS) {
 let current = '';
 try { current = git(['config', '--get', 'core.hooksPath']); } catch { /* unset is expected */ }
 
+// Git resolves a relative core.hooksPath against the worktree root. A value that names this
+// checkout's .githooks folder is ours, however it is spelled. A path that does not exist is not.
+function resolvesToHooks(value) {
+  if (value === HOOKS_PATH) return true;
+  if (!value) return false;
+  try {
+    return realpathSync.native(resolve(worktreeRoot, value)) === realpathSync.native(resolve(ROOT, HOOKS_PATH));
+  } catch { return false; }
+}
+const ours = resolvesToHooks(current);
+
 if (check) {
-  if (current === HOOKS_PATH) {
+  if (ours) {
     const driver = driverRegistered(ROOT);
     if (!driver.registered || !driver.attributes) {
       console.error('x the derived-file merge driver is not fully installed. Run: node scripts/install-git-hooks.mjs');
       process.exit(1);
     }
-    console.log(`OK — repository hooks and the derived-file merge driver are installed (${HOOKS_PATH}).`);
+    console.log(`OK — repository hooks and the derived-file merge driver are installed (${current}).`);
     process.exit(0);
   }
   console.error(`x repository hooks are not installed (core.hooksPath is ${current ? JSON.stringify(current) : 'unset'}). Run: node scripts/install-git-hooks.mjs`);
   process.exit(1);
 }
 
-if (current && current !== HOOKS_PATH && !force) {
+if (current && !ours && !force) {
   console.error(`x refusing to override effective core.hooksPath ${JSON.stringify(current)}. Re-run with --force if that replacement is intentional.`);
   process.exit(2);
 }
 
-git(['config', '--local', 'core.hooksPath', HOOKS_PATH]);
+// An equivalent spelling of our folder stays as the operator wrote it.
+if (current === HOOKS_PATH || !ours) git(['config', '--local', 'core.hooksPath', HOOKS_PATH]);
 if (process.platform !== 'win32') for (const hook of HOOK_PATHS) chmodSync(hook, 0o755);
 // A merge runs no pre-commit hook mid-merge, so the driver records the derived files that
 // conflicted and the commit hooks regenerate them. See scripts/derived-merge.mjs.
