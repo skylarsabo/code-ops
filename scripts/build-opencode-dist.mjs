@@ -368,7 +368,9 @@ function modelFloorPlugin(agents, routingCard) {
   }
   // The lifecycle chooser needs to tell specialist rows from ladder rows, which KNOWN_MODELS merges.
   const specialistModels = Object.fromEntries(Object.entries(PROVIDER_SPECIALISTS).map(([providerId, specialists]) => {
-    const ladder = new Set(Object.values(Object.values(PROVIDER_TIERS).find((provider) => provider.id === providerId)?.models ?? {}));
+    // Only rungs count as ladder rows; a premium binding is dispatch-only and removes no specialist.
+    const models = Object.values(PROVIDER_TIERS).find((provider) => provider.id === providerId)?.models ?? {};
+    const ladder = new Set(TIER_ORDER.map((tier) => models[tier]));
     return [providerId, specialists.map((specialist) => specialist.model).filter((model) => !ladder.has(model))];
   }));
   for (const [model, tiers] of Object.entries(ACCEPTED_MODELS)) {

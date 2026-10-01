@@ -43,7 +43,7 @@ const KNOWN_MODELS = {
     "gpt-6-luna": "light",
     "gpt-5.1": "mid",
     "gpt-5.6-terra": "strong",
-    "gpt-6-sol": "frontier",
+    "gpt-6.1-sol": "frontier",
     "gpt-6-astra": "frontier"
   },
   "google": {
@@ -66,7 +66,7 @@ const KNOWN_MODELS = {
     "deepseek-v4-pro": "frontier"
   },
   "mistral": {
-    "magistral-small": "light",
+    "mistral-small-2603": "light",
     "mistral-medium-latest": "mid",
     "magistral-medium-latest": "frontier"
   },
@@ -86,6 +86,7 @@ const KNOWN_MODELS = {
     "claude-opus-5": "strong",
     "gpt-5.6-luna": "light",
     "gpt-5.6-sol": "frontier",
+    "gpt-6-sol": "frontier",
     "grok-4.6": "frontier",
     "claude-haiku-4-5": "light",
     "claude-haiku-4.5": "light",
@@ -103,7 +104,7 @@ const TIER_BY_ID = {
   "gpt-6-luna": "light",
   "gpt-5.1": "mid",
   "gpt-5.6-terra": "strong",
-  "gpt-6-sol": "frontier",
+  "gpt-6.1-sol": "frontier",
   "gemini-3.1-flash-lite": "light",
   "gemini-3.6-flash": "mid",
   "gemini-3.1-pro-preview": "frontier",
@@ -115,11 +116,12 @@ const TIER_BY_ID = {
   "kimi-k3": "frontier",
   "deepseek-v4-flash": "mid",
   "deepseek-v4-pro": "frontier",
-  "magistral-small": "light",
+  "mistral-small-2603": "light",
   "mistral-medium-latest": "mid",
   "magistral-medium-latest": "frontier",
   "muse-spark-1.3-contributor-free": "strong",
   "gemini-3.8-flash": "mid",
+  "gpt-6-sol": "frontier",
   "gpt-6-astra": "frontier",
   "grok-build-0.1": "light",
   "claude-opus-5.5": "strong",

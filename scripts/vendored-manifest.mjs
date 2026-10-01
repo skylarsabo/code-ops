@@ -55,7 +55,12 @@ export const RUNTIME_SCRIPTS = [
   { name: 'record-lib.mjs', plugins: ['code-ops-suite'] },
   // Imported by the three above for the model-class resolver; it ships as their dependency,
   // not because a skill invokes it directly.
-  { name: 'model-tiers.mjs', plugins: ['code-ops-suite'] },
+  // `route-unit.mjs` imports it too, and ships in all four plugins, so it ships there as well.
+  { name: 'model-tiers.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
+  // The tier-routing rubric behind `co route`. It imports cli-lib.mjs and model-tiers.mjs as
+  // SIBLINGS, and reads a bundled agent's frontmatter for its floor, so it ships wherever
+  // co.mjs does.
+  { name: 'route-unit.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   // Imported by the same three for grammar (a) — the DISPATCH_LEDGER.md row shape — so the
   // writer and the two readers cannot drift apart. A dependency, not a skill entry point.
   { name: 'ledger-grammar.mjs', plugins: ['code-ops-suite'] },

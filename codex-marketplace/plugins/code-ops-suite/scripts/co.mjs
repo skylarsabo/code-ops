@@ -144,6 +144,10 @@ const TABLE = {
   // A command: `co burndown [--program <slug>] [--run <dir>] [--json]` prints a program's active
   // count against the cap of 12, its backlog, and GROWING or OVER CAP flags. Read-only.
   burndown: 'burndown.mjs',
+  // A command: `co route --kind <k> --ambiguity <l|m|h> --reversible <yes|no> [--scope <path>]...
+  // [--attempt <n>] [--agent <plugin:agent>] [--json]` prints the paste-ready Tier, Effort, and
+  // Route basis lines for one unit and its binding on each host. Read-only.
+  route: 'route-unit.mjs',
   // A command: `co snapshot [--session <id>] [--transcript <file>] [--run <dir>] [--json]` writes
   // COMPACT_SNAPSHOT.md, the operator words, running work, active items, and peers that host
   // compaction loses. It needs `--session` or `--run`.

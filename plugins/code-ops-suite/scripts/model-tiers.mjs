@@ -49,25 +49,39 @@ export const CLAUDE_ALIAS_TIER = {
 //
 // Adding a provider is one entry here plus one PROVIDER_SLUG_PATTERNS line. Nothing else in
 // the suite hardcodes a model name.
-export const REGISTRY_VERIFIED_AT = '2026-09-22';
+export const REGISTRY_VERIFIED_AT = '2026-10-01';
+
+// `premium` is a dispatch-only binding, never a rung. It ranks `strong`, so it clears only
+// strong floors, and TIER_ORDER, CLAUDE_ALIAS_TIER, and the agent floors do not name it. A unit
+// selects it per dispatch (scripts/route-unit.mjs) when a routing trigger fires; Opus-class
+// models cost about twice the strong pin, so it is never a default. Each provider records
+// `models.premium` and `premiumCollapse`: the rung whose model premium repeats, or null when the
+// lineup has a distinct premium model. The collapse is stated here, not left to inference.
+// `dispatchAlias` appears only where the host takes a short alias in its dispatch parameter.
 
 export const PROVIDER_TIERS = {
   anthropic: {
     id: 'anthropic',
     label: 'Anthropic (Claude)',
     aliases: { light: 'haiku', mid: 'sonnet', strong: 'opus', frontier: 'fable' },
+    // The `model` a dispatch passes. `strong: null` omits the parameter so the agent's frontmatter
+    // pin applies; `premium: 'opus'` is the one rung where the alias and the pin differ.
+    dispatchAlias: { light: 'haiku', mid: 'sonnet', strong: null, premium: 'opus', frontier: 'fable' },
     models: {
       light: 'claude-haiku-4-5-20251001',
       mid: 'claude-sonnet-5-5',
       strong: 'claude-sonnet-5-5',
+      premium: 'claude-opus-5-5',
       frontier: 'claude-fable-5-1',
     },
-    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is still accepted at the strong rung (ACCEPTED_MODELS) but no bundled agent declares it. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.',
+    premiumCollapse: null,
+    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is the dispatch-only `premium` binding: it ranks strong, so it clears only strong floors, and a dispatch selects it through a routing trigger (`opus` alias). No bundled agent declares it in frontmatter. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.',
   },
   xai: {
     id: 'xai',
     label: 'xAI (Grok)',
-    models: { light: 'grok-4.7', mid: 'grok-4.7', strong: 'grok-4.7', frontier: 'grok-4.7' },
+    models: { light: 'grok-4.7', mid: 'grok-4.7', strong: 'grok-4.7', premium: 'grok-4.7', frontier: 'grok-4.7' },
+    premiumCollapse: 'strong',
     notes:
       'Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the handoff assessment sits at 150,000. `grok-build-0.1` is the fast coding specialist, not a default rung.',
   },
@@ -78,10 +92,12 @@ export const PROVIDER_TIERS = {
       light: 'gpt-6-luna',
       mid: 'gpt-5.1',
       strong: 'gpt-5.6-terra',
-      frontier: 'gpt-6-sol',
+      premium: 'gpt-6.1-sol',
+      frontier: 'gpt-6.1-sol',
     },
+    premiumCollapse: 'frontier',
     notes:
-      'Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. Sol remains the default frontier from runs R-007 and R-008, and its token price now sits below Terra, so the large lead context is the cheaper model.',
+      'Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. `gpt-6.1-sol` replaces `gpt-6-sol` at the same price with cheaper cache reads (released 2026-09-29) and is pinned as both `frontier` and `premium`: the lineup has no distinct premium model, so a premium dispatch runs the frontier model and effort is the only extra dial. Sol remains the default frontier from runs R-007 and R-008, and its token price sits below Terra, so the large lead context is the cheaper model.',
   },
   google: {
     id: 'google',
@@ -90,21 +106,25 @@ export const PROVIDER_TIERS = {
       light: 'gemini-3.1-flash-lite',
       mid: 'gemini-3.6-flash',
       strong: 'gemini-3.1-pro-preview',
+      premium: 'gemini-3.1-pro-preview',
       frontier: 'gemini-3.1-pro-preview',
     },
-    notes: 'The only Pro-class id in the registry carries a `-preview` suffix, so `strong` and `frontier` share it. Re-pin once a stable Pro id ships.',
+    premiumCollapse: 'strong',
+    notes: 'The only Pro-class id in the registry carries a `-preview` suffix, so `strong`, `premium`, and `frontier` share it. Re-pin once a stable Pro id ships.',
   },
   zai: {
     id: 'zai',
     label: 'Z.AI (GLM)',
-    models: { light: 'glm-5', mid: 'glm-5.1', strong: 'glm-5.2', frontier: 'glm-5.2' },
-    notes: 'A tight lineup: the top model serves both `strong` and `frontier`.',
+    models: { light: 'glm-5', mid: 'glm-5.1', strong: 'glm-5.2', premium: 'glm-5.2', frontier: 'glm-5.2' },
+    premiumCollapse: 'strong',
+    notes: 'A tight lineup: the top model serves `strong`, `premium`, and `frontier`.',
   },
   moonshotai: {
     id: 'moonshotai',
     label: 'Moonshot AI (Kimi)',
-    models: { light: 'kimi-k2.6', mid: 'kimi-k2.7-code', strong: 'kimi-k3', frontier: 'kimi-k3' },
-    notes: '`kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves both top rungs.',
+    models: { light: 'kimi-k2.6', mid: 'kimi-k2.7-code', strong: 'kimi-k3', premium: 'kimi-k3', frontier: 'kimi-k3' },
+    premiumCollapse: 'strong',
+    notes: '`kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves `strong`, `premium`, and `frontier`.',
   },
   deepseek: {
     id: 'deepseek',
@@ -113,20 +133,24 @@ export const PROVIDER_TIERS = {
       light: 'deepseek-v4-flash',
       mid: 'deepseek-v4-flash',
       strong: 'deepseek-v4-pro',
+      premium: 'deepseek-v4-pro',
       frontier: 'deepseek-v4-pro',
     },
-    notes: 'A two-model lineup, so each of its models covers two rungs. The cheapest ladder here by a wide margin.',
+    premiumCollapse: 'strong',
+    notes: 'A two-model lineup, so each of its models covers several rungs. The cheapest ladder here by a wide margin.',
   },
   mistral: {
     id: 'mistral',
     label: 'Mistral',
     models: {
-      light: 'magistral-small',
+      light: 'mistral-small-2603',
       mid: 'mistral-medium-latest',
       strong: 'magistral-medium-latest',
+      premium: 'magistral-medium-latest',
       frontier: 'magistral-medium-latest',
     },
-    notes: 'Only the `magistral` line reasons, so the ladder is built from it wherever a rung needs reasoning.',
+    premiumCollapse: 'strong',
+    notes: 'Only the `magistral` line reasons, so the upper rungs are built from it. `magistral-small` left the models.dev registry, so the light rung binds `mistral-small-2603`, the current dated small id (verified 2026-10-01).',
   },
   opencode: {
     id: 'opencode',
@@ -140,16 +164,19 @@ export const PROVIDER_TIERS = {
       light: 'muse-spark-1.3-contributor-free',
       mid: 'muse-spark-1.3-contributor-free',
       strong: 'muse-spark-1.3-contributor-free',
+      premium: 'muse-spark-1.3-contributor-free',
       frontier: null,
     },
-    notes: 'Zero account cost with a single operative model. Light, mid, and strong all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.',
+    premiumCollapse: 'strong',
+    notes: 'Zero account cost with a single operative model. Light, mid, strong, and premium all bind to `muse-spark-1.3-contributor-free`, so no operative dispatch routes below its floor and tier-routing is not a variable on this provider. No free model holds a cited frontier result, so the lead stays unset and inherits the session model. Free-tier rate limits appear as 429s under a wide fan-out; shrink the wave before blaming the ladder.',
   },
   'github-copilot': {
     id: 'github-copilot',
     label: 'GitHub Copilot (AI Credits)',
     verifiedAt: '2026-09-23',
-    models: { light: 'gpt-6-luna', mid: 'gemini-3.8-flash', strong: 'gpt-6-sol', frontier: 'gpt-6-sol' },
-    notes: 'Copilot bills GitHub AI Credits (1 credit = $0.01) from input, cached, cache-write, and output tokens. Each rung binds the lowest-cost verified model that meets it. Sol serves both top rungs because it is the calibrated frontier on the OpenAI ladder and costs less than Opus 5.5 or Grok 4.7 on a standard operative workload. PROVIDER_PRICES carries the per-million rates the live chooser and the cost report read.',
+    models: { light: 'gpt-6-luna', mid: 'gemini-3.8-flash', strong: 'gpt-6-sol', premium: 'claude-opus-5.5', frontier: 'gpt-6-sol' },
+    premiumCollapse: null,
+    notes: 'Copilot bills GitHub AI Credits (1 credit = $0.01) from input, cached, cache-write, and output tokens. Each rung binds the lowest-cost verified model that meets it. Sol serves both top rungs because it is the calibrated frontier on the OpenAI ladder and costs less than Opus 5.5 or Grok 4.7 on a standard operative workload. The dispatch-only `premium` binding is Opus 5.5 (`claude-opus-5.5`), the same model as the `opus` specialist below. PROVIDER_PRICES carries the per-million rates the live chooser and the cost report read.',
   },
 };
 
@@ -242,6 +269,9 @@ export const ACCEPTED_MODELS = {
   'claude-opus-5': ['strong'],
   'gpt-5.6-luna': ['light'],
   'gpt-5.6-sol': ['frontier'],
+  // Previous OpenAI frontier pin, replaced by `gpt-6.1-sol` 2026-10-01. Copilot still binds it
+  // to strong and frontier, so this entry also keeps its class a single rung, not `ambiguous`.
+  'gpt-6-sol': ['frontier'],
   'grok-4.6': ['light', 'mid', 'strong', 'frontier'],
   'claude-haiku-4-5': ['light'],
   'claude-haiku-4.5': ['light'],
@@ -311,7 +341,8 @@ export function providerOfConfigSlug(slug) {
 const RUNGS_BY_MODEL_ID = (() => {
   const index = new Map();
   for (const provider of Object.values(PROVIDER_TIERS)) {
-    for (const [tier, id] of Object.entries(provider.models)) {
+    // `premium` is a dispatch binding, not a rung, so it never enters the rung index.
+    for (const [tier, id] of Object.entries(provider.models).filter(([tier]) => tier in TIER_RANK)) {
       if (!index.has(id)) index.set(id, new Set());
       index.get(id).add(tier);
     }
@@ -359,7 +390,9 @@ const CLASS_BY_MODEL_ID = (() => {
   };
   for (const provider of Object.values(PROVIDER_TIERS)) {
     const byId = new Map();
-    for (const [tier, id] of Object.entries(provider.models)) byId.set(id, [...(byId.get(id) ?? []), tier]);
+    for (const [tier, id] of Object.entries(provider.models)) {
+      if (tier in TIER_RANK) byId.set(id, [...(byId.get(id) ?? []), tier]);
+    }
     for (const [id, tiers] of byId) note(id, tiers);
   }
   for (const [id, tiers] of Object.entries(ACCEPTED_MODELS)) note(id, tiers);
