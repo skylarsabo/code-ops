@@ -1055,6 +1055,50 @@ non-suite type passes, and so does an unreadable file or an agent with no `Brief
 line in its Contract. The subagent-report hook resolves agent files with the same shared
 module, `hooks/agent-file.mjs`. The gate does not read `Workflow` scripts.
 
+The routing gate runs on an `Agent` or `Task` dispatch of an agent whose `Brief requires:` line
+lists `Tier`. Every other agent keeps the gates above and nothing more. The brief carries `Unit:`,
+`Tier:` (`light`, `mid`, `strong`, `premium`, or `frontier`), `Effort:` (`low`, `medium`, or `high`),
+`Route basis: <kind>; surface=<s>; ambiguity=<a>; reversible=<yes|no>`, and an optional
+`Route override: <reason>`. The gate derives two inputs itself. It derives the surface from the
+paths on the `Scope:` block with `surfaceOfScope`, and the attempt from the agent ledger with
+`attemptOf` for the `Unit:` key. A `Scope:` block ends at the next blank line or any `Label:` line
+(a drive letter such as `C:/` is no label). After an empty `Scope:` colon it skips blank lines and
+reads the bullets that follow, up to the next label. A path drops a trailing line anchor (`:120-180`,
+`#L120`), and the surface patterns ignore case. The gate also raises the declared kind to the
+agent's minimum (`AGENT_MIN_KIND` in `scripts/route-unit.mjs`): `reviewer` and `privacy-reviewer`
+route as `review`, `verifier` as `refutation`, and `tracer` as `judgment`. The gate denies each of
+these, and `warn` turns each into an advisory:
+
+- A `model` override that ranks below the agent's floor. The floor is the model its frontmatter
+  declares, which lint holds at `AGENT_MODEL_FLOORS`. The override `sonnet` ranks mid, so it fails
+  a strong floor on `reviewer`.
+- A `Tier` that disagrees with the effective rung. `premium` needs `model:"opus"`, `frontier`
+  needs `model:"fable"`, and `strong` needs no override or one at strong. An override that matches
+  `Tier` passes silently.
+- A `Route basis` surface that differs from the surface the `Scope:` paths derive. No `Route override:`
+  line clears this denial. A declared surface that is not a surface is denied as malformed.
+- A `Tier` or `Effort` below `routeUnit` of the basis with the derived surface and the derived
+  attempt. A `Route override:` line clears the ambiguity and attempt triggers (7b, 7c) and the
+  table rows. It never clears a surface trigger (7a review on a surface, 7d public-contract
+  judgment at high ambiguity).
+- A brief `Effort` above the agent's frontmatter effort. The Agent tool carries no effort
+  parameter, so the denial points to Workflow `agent({ agentType, model, effort })`.
+- A literal `xhigh` or `max` brief `Effort`.
+- A second frontier dispatch in the session, counted from `dispatched` ledger rows that asked for
+  frontier or applied a frontier model. A Workflow script counts its literal frontier `model` calls
+  with those rows, and more than one in total is denied.
+
+The advisories are a `Tier` above the routed rung, a declared kind raised to the agent's minimum, a
+`model` override the gate cannot rank (it leaves `Tier` unchecked), a brief `Effort` below the
+frontmatter effort, and a Workflow `model` or `effort` that is not a literal string. A Workflow `agent()` call
+whose literal `model` ranks below the floor of its literal `agentType` is denied. A `spawn_subagent`
+or `spawn_agent` input with a literal `xhigh` or `max` effort is denied. The `spawn_agent` tool
+is covered by name only: whether `PreToolUse` fires for it on Codex is UNVERIFIED. The gate loads
+`scripts/route-unit.mjs` and `scripts/agent-ledger.mjs` lazily and only for a routed dispatch or a
+Workflow `model`. A missing library, a ledger error, or any internal error skips these checks and
+passes. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`routeChecks`, `reviewWorkflow`)
+and `evals/dispatch-guard/run.mjs`.
+
 The context-ceiling gate reads the lead's
 resident context from the transcript tail. At or above the ceiling it denies a new dispatch until
 the session records a handoff assessment for the current band. The first band starts at the
@@ -1065,10 +1109,9 @@ least 150,000 replaces the 300,000 default. A main-thread `Skill` tool call that
 `/code-ops-suite:handoff` prompt. `assessed --session <id> --band <n>`, run from the project root, records it on a host without a skill tool. The marker lives at
 `<sha256 cwd>/<sha256 session id>.assessed.json` in the dispatch store. Unreadable context, a
 missing transcript, or an unsafe session id fails open. The
-marker only rises, so a stale write never re-locks an unlocked band. The hook also adds at
-most two advisory clauses: a `model` override that replaces the agent's declared tier, and a
-brief whose prompt names no Round budget. Every deny and advisory for one dispatch lands in one
-output. It never
+marker only rises, so a stale write never re-locks an unlocked band. The hook also adds one
+advisory clause for a brief whose prompt names no Round budget. A `model` override earns no
+blanket advisory. Every deny and advisory for one dispatch lands in one output. It never
 denies any other main-thread tool call. Absent or malformed host payloads preserve the legacy
 no-op behavior.
 Explicit controller bindings have separate validation and conflict handling. Evidence:
