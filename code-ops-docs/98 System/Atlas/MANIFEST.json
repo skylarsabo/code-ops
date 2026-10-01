@@ -300,8 +300,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
-      "verifiedDigest": "9dd47cef1a4a16d4c0b4938fce0b879dab61c0734b28ad1479a14dac7ae2c827",
+      "verifiedAt": "339663221497e19ba2275f2df81c83f374831025",
+      "verifiedDigest": "eade1639b5047051a4e6c12d800a4960244a2f4c3404eb3d82c7d6f9747712c0",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",

@@ -16,7 +16,7 @@
 // installed, 2 = usage/config error (bad flags, wrong checkout, missing tracked hook,
 // or a conflicting core.hooksPath without --force).
 
-import { chmodSync, existsSync } from 'node:fs';
+import { chmodSync, existsSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +40,8 @@ function git(args, options = {}) {
 }
 
 const worktreeRoot = resolve(git(['rev-parse', '--show-toplevel']));
-if (worktreeRoot !== ROOT) {
+// Compare canonical paths: a Windows 8.3 short name (RUNNER~1) and its long form are one directory.
+if (realpathSync.native(worktreeRoot) !== realpathSync.native(ROOT)) {
   console.error(`x run this script from its repository checkout (expected ${ROOT}, got ${worktreeRoot})`);
   process.exit(2);
 }
