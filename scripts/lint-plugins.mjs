@@ -821,7 +821,8 @@ function checkAgentReportCaps({ plugins }) {
 // ---- 26. agent contract -----------------------------------------------------------
 function checkAgentContracts({ plugins }) {
   // A brief writer and a report gate both read this section, so it has one grammar.
-  const BRIEF_FIELDS = new Set(['Scope', 'Objective', 'Round budget', 'Report cap', 'Report path', 'Expected return']);
+  const BRIEF_FIELDS = new Set(['Scope', 'Objective', 'Round budget', 'Report cap', 'Report path', 'Expected return',
+    'Unit', 'Tier', 'Effort', 'Route basis']);
   for (const p of plugins) {
     const agentsDir = join(p.dir, 'agents');
     if (!existsSync(agentsDir)) continue;

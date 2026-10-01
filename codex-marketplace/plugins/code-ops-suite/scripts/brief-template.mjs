@@ -51,4 +51,12 @@ const line = /^Brief requires:[ \t]*(.+)$/m.exec(section)?.[1] ?? '';
 const fields = line.split(',').map((field) => field.trim()).filter(Boolean);
 if (!fields.length) fail(`brief-template: ${type} declares no Brief requires line in its Contract`);
 
-console.log(fields.map((field) => `${field}:`).join('\n'));
+const lines = fields.map((field) => `${field}:`);
+// An agent that requires Tier also gets the values those lines take and the command that prints them.
+if (fields.includes('Tier')) {
+  lines.push(
+    'Tier takes light|mid|strong|premium|frontier; Effort takes low|medium|high; Route basis takes `<kind>; surface=<s>; ambiguity=<a>; reversible=<yes|no>`; add `Route override: <reason>` only to depart from the route.',
+    'Print them with: co route --kind <k> --ambiguity <l|m|h> --reversible <yes|no> --scope <path>',
+  );
+}
+console.log(lines.join('\n'));

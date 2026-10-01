@@ -79,6 +79,8 @@ const UNIT_MAX = 80;
 const MODEL_MAX = 64;
 const JUDGMENT_AGENTS = new Set(['implementer', 'reviewer', 'tracer', 'verifier', 'privacy-reviewer']);
 export const DEFAULT_PREMIUM_CEILING = 0.25;
+// The fewest judgment dispatches before the overuse advisory can fire; a smaller sample is noise.
+export const MIN_OVERUSE_DISPATCHES = 4;
 
 const sha256 = (value) => createHash('sha256').update(String(value)).digest('hex');
 const isOff = () => /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '');
@@ -382,7 +384,9 @@ export function attemptOf(rows, unit) {
 // (`requestedTier`), or the ones `options.triggered(row)` selects; a triggered dispatch whose applied
 // rung is below premium is starved. `premium` counts judgment dispatches applied at premium or
 // above, and the overuse advisory fires when its share of judgment dispatches exceeds `ceiling`
-// (a guess until ledgers measure it). Advisory only: it returns text, and nothing here fails.
+// (a guess until ledgers measure it) and there are at least `MIN_OVERUSE_DISPATCHES` of them; below
+// that a share is noise, so the line prints the counts without the verdict. Advisory only: it
+// returns text, and nothing here fails.
 //
 // deferred(the ledger stores the requested tier, not the guard's computed trigger, so a lead that
 // never asks for premium reads as triggered 0, upgrade path: stamp the guard's derived trigger on
@@ -400,7 +404,7 @@ export function routingSummary(rows, { ceiling = DEFAULT_PREMIUM_CEILING, trigge
   const starvedCount = asked.filter((r) => !atPremium(r)).length;
   const share = judgment.length ? premium / judgment.length : 0;
   const starved = starvedCount > 0;
-  const overused = judgment.length > 0 && share > ceiling;
+  const overused = judgment.length >= MIN_OVERUSE_DISPATCHES && share > ceiling;
   const advisories = [];
   if (starved) advisories.push(`advisory: routing starved - ${starvedCount} of ${asked.length} triggered judgment dispatch(es) ran below premium`);
   if (overused) advisories.push(`advisory: routing overuse - premium share ${Math.round(share * 100)}% (${premium} of ${judgment.length} judgment dispatches) is above the ${Math.round(ceiling * 100)}% ceiling`);

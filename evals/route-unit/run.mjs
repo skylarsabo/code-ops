@@ -111,6 +111,42 @@ const SURFACE_CASES = [
   ['docs/author-notes.md', 'none'],
   ['src/authority.ts', 'none'],
   ['README.md', 'none'],
+  // A trailing line anchor never hides the surface.
+  ['scripts/lint-plugins.mjs:120-180', 'gate-script'],
+  ['scripts/lint-plugins.mjs:120', 'gate-script'],
+  ['scripts/lint-plugins.mjs#L120', 'gate-script'],
+  ['scripts/lint-plugins.mjs#L120-L180', 'gate-script'],
+  ['code-ops-docs/35 Contracts and Data/CONTRACTS.md:10-20', 'public-contract'],
+  ['src/auth/login.ts:42', 'security'],
+  // Gate-script and public-contract paths ignore case and take either separator.
+  ['Scripts/Lint-Plugins.mjs', 'gate-script'],
+  ['EVALS/SCORE.MJS', 'gate-script'],
+  ['.GitHub/Workflows/validate.yml', 'gate-script'],
+  ['Plugins\\Code-Ops-Suite\\Hooks\\Dispatch-Guard.mjs', 'gate-script'],
+  ['code-ops-docs\\35 Contracts and Data\\CONTRACTS.md', 'public-contract'],
+  ['PLUGINS/RIGOR/.CLAUDE-PLUGIN/PLUGIN.JSON', 'public-contract'],
+  ['scripts/lint-plugins.mjs.bak:12', 'none'],
+];
+
+// [agent, declared kind, kind after the agent minimum]
+const MIN_KIND_CASES = [
+  ['code-ops-suite:reviewer', 'execution', 'review'],
+  ['code-ops-suite:reviewer', 'breadth', 'review'],
+  ['code-ops-suite:reviewer', 'peer', 'review'],
+  ['code-ops-suite:reviewer', 'review', 'review'],
+  ['code-ops-suite:reviewer', 'refutation', 'refutation'],
+  ['privacy-opsec-suite:privacy-reviewer', 'judgment', 'review'],
+  ['rigor:verifier', 'review', 'refutation'],
+  ['rigor:verifier', 'mechanical-edit', 'refutation'],
+  ['rigor:verifier', 'refutation', 'refutation'],
+  ['rigor:tracer', 'execution', 'judgment'],
+  ['rigor:tracer', 'gate-run', 'judgment'],
+  ['rigor:tracer', 'judgment', 'judgment'],
+  ['rigor:tracer', 'peer', 'peer'],
+  ['rigor:tracer', 'refutation', 'refutation'],
+  ['code-ops-suite:implementer', 'breadth', 'breadth'],
+  ['code-ops-suite:explorer', 'mechanical-read', 'mechanical-read'],
+  ['code-ops-suite:reviewer', 'vibes', 'vibes'],
 ];
 
 // One pass over every rule in a module. `rec(group, ok, message)` records a result. The real
@@ -153,6 +189,12 @@ function suite(mod, rec) {
   rec('surface-patterns', mod.SURFACE_PATTERNS.every((entry) => entry.pattern instanceof RegExp && mod.SURFACES.includes(entry.surface) && entry.surface !== 'none'), 'every pattern is a RegExp bound to a non-none surface');
   rec('surface-patterns', mod.SURFACES.slice(1).every((surface) => mod.SURFACE_PATTERNS.some((entry) => entry.surface === surface)), 'every non-none surface has a pattern');
 
+  rec('min-kind', Object.keys(mod.AGENT_MIN_KIND).sort().join() === 'code-ops-suite:reviewer,privacy-opsec-suite:privacy-reviewer,rigor:tracer,rigor:verifier', 'AGENT_MIN_KIND names the four minimum-kind agents');
+  for (const [agent, kind, want] of MIN_KIND_CASES) {
+    const got = mod.applyMinKind(kind, agent);
+    rec('min-kind', got.kind === want && got.raisedFrom === (want === kind ? null : kind), `${agent} declared ${kind}: want ${want}, got ${got.kind} (raisedFrom ${got.raisedFrom})`);
+  }
+
   for (const bad of [{ kind: 'vibes' }, { ambiguity: 'extreme' }, { reversible: 'maybe' }, { attempt: 0 }, { attempt: 1.5 }, { surface: 'everywhere' }, { floor: 'premium' }]) {
     let threw = false;
     try { mod.routeUnit(basisOf({ kind: 'review', ambiguity: 'low', reversible: 'yes', ...bad })); } catch (error) { threw = error instanceof TypeError; }
@@ -162,7 +204,7 @@ function suite(mod, rec) {
 
 // ---- real run ---------------------------------------------------------------------------
 const { fails, check } = tally(withDetail);
-const GROUPS = ['fixtures', 'distribution', 'effort-ceiling', 'floors', 'breadth', 'frontier-gate', 'premium-effort', 'monotonicity', 'grid', 'surface-patterns', 'validation'];
+const GROUPS = ['fixtures', 'distribution', 'effort-ceiling', 'floors', 'breadth', 'frontier-gate', 'premium-effort', 'monotonicity', 'grid', 'surface-patterns', 'min-kind', 'validation'];
 const failed = Object.fromEntries(GROUPS.map((group) => [group, []]));
 const seen = new Set();
 suite(real, (group, ok, message) => { seen.add(group); if (!ok) failed[group].push(message); });
@@ -207,6 +249,11 @@ const floored = run(SCRIPT, ['--kind', 'breadth', '--ambiguity', 'low', '--rever
 check('--agent raises the unit to the agent floor', floored.status === 0 && floored.stdout.startsWith('Tier: strong\n') && floored.stdout.includes('raised from light to the strong floor'), floored.stdout.slice(0, 120) + floored.stderr);
 const vendored = run(join(ROOT, 'plugins', 'rigor', 'scripts', 'route-unit.mjs'), ['--kind', 'breadth', '--ambiguity', 'low', '--reversible', 'yes', '--agent', 'rigor:verifier']);
 check('a vendored copy resolves its own plugin agent', vendored.status === 0 && vendored.stdout.startsWith('Tier: strong\n'), vendored.stdout.slice(0, 120) + vendored.stderr);
+const swapped = run(SCRIPT, ['--kind', 'execution', '--ambiguity', 'l', '--reversible', 'yes', '--scope', 'src/auth/login.js', '--agent', 'code-ops-suite:reviewer']);
+check('--agent raises a kind below the agent minimum and notes it', swapped.status === 0 && swapped.stdout.includes('Route basis: review; surface=security')
+  && swapped.stdout.startsWith('Tier: premium\n') && swapped.stdout.includes('kind raised from execution to review'), swapped.stdout.slice(0, 200) + swapped.stderr);
+const anchored = run(SCRIPT, [...review.slice(0, -1), 'scripts/lint-plugins.mjs:120-180']);
+check('--scope strips a line anchor', anchored.status === 0 && anchored.stdout.startsWith('Tier: premium\n') && anchored.stdout.includes('surface=gate-script'), anchored.stdout.slice(0, 200) + anchored.stderr);
 const peer = run(SCRIPT, ['--kind', 'peer', '--ambiguity', 'h', '--reversible', 'no', '--peer-exception']);
 check('--peer-exception routes a peer to frontier with adaptive effort', peer.stdout.startsWith('Tier: frontier\nEffort: adaptive\n'), peer.stdout.slice(0, 80));
 for (const [label, args] of [['an unknown kind', ['--kind', 'vibes', '--ambiguity', 'l', '--reversible', 'yes']], ['a missing flag', ['--kind', 'review']], ['an unknown agent', [...review, '--agent', 'rigor:ghost']], ['a bad attempt', [...review, '--attempt', 'two']]]) {
@@ -225,6 +272,9 @@ const MUTANTS = [
   ['skip the surface test in 7a', "&& surface !== 'none') {\n      return result('premium', 'high', '7a'", ") {\n      return result('premium', 'high', '7a'"],
   ['reach frontier without the exception', "kind === 'peer' && peerException) {", "kind === 'peer') {"],
   ['ignore the attempt count', 'if (attempt >= 2 &&', 'if (attempt >= 9 &&'],
+  ['keep a line anchor on the path', ".replace(ANCHOR, '')", ''],
+  ['match gate-script paths case-sensitively', 'lint-plugins\\.mjs$/i }', 'lint-plugins\\.mjs$/ }'],
+  ['skip the agent minimum kind', 'KIND_RANK[kind] < KIND_RANK[min]', 'false'],
 ];
 const source = readFileSync(SCRIPT, 'utf8').replaceAll('\r\n', '\n');
 const work = mkdtempSync(join(tmpdir(), 'route-unit-eval-'));
