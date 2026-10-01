@@ -453,5 +453,75 @@
     "title": "A fresh atlas section stated that two discovery regexes disagreed when they were identical and the real seam was elsewhere, so an atlas claim that compares two code sites must cite both by line when it is written",
     "statement": "A fresh atlas section stated that two discovery regexes disagreed when they were identical and the real seam was elsewhere, so an atlas claim that compares two code sites must cite both by line when it is written.",
     "firstSeen": "R-012"
+  },
+  {
+    "id": "L-066",
+    "class": "suite",
+    "title": "relocate apply refuses a manifest at version 2 although the plan step accepts it, and the skill names no upgrade step",
+    "statement": "relocate apply refuses a manifest at version 2 although the plan step accepts it, and the skill names no upgrade step; the version 3 upgrade also needs a newer vault standard stamp and a full status vocabulary before the generated triage queue exists, and the baseline step cannot run without that queue.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-067",
+    "class": "suite",
+    "title": "archiving a draft whole leaves it in the triage queue because the checker still counts its draft status, and the no-edit archive rule forbids clearing it",
+    "statement": "archiving a draft whole leaves it in the triage queue because the checker still counts its draft status, and the no-edit archive rule forbids clearing it.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-068",
+    "class": "suite",
+    "title": "phase 7 cannot finish on a vault with no synthesis pages because the plan step refuses an empty list and done refuses a phase with no batches",
+    "statement": "phase 7 cannot finish on a vault with no synthesis pages because the plan step refuses an empty list and done refuses a phase with no batches.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-069",
+    "class": "suite",
+    "title": "the skill says synthesis sources are hub-relative paths, but the vault checker reads them as repository-root globs and demands a recorded digest, so sourced pages fail conformance",
+    "statement": "the skill says synthesis sources are hub-relative paths, but the vault checker reads them as repository-root globs and demands a recorded digest, so sourced pages fail conformance.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-070",
+    "class": "suite",
+    "title": "the chain and synthesis statuses the skill names are rejected by the vault checker unless a version 3 manifest lists them, and the skill never says to declare them",
+    "statement": "the chain and synthesis statuses the skill names are rejected by the vault checker unless a version 3 manifest lists them, and the skill never says to declare them.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-071",
+    "class": "suite",
+    "title": "state done 2 passes with zero waves applied and no forwarding artifact, and checkpoint 3 accepts unresolved batches after which result and review refuse until a reopen",
+    "statement": "state done 2 passes with zero waves applied and no forwarding artifact, and checkpoint 3 accepts unresolved batches after which result and review refuse until a reopen.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-072",
+    "class": "protocol",
+    "title": "a brief that bars commits conflicts with the skill's one commit per relocation wave because apply refuses a dirty tree",
+    "statement": "a brief that bars commits conflicts with the skill's one commit per relocation wave because apply refuses a dirty tree; the lead must grant commits in a throwaway clone or expect a zero-relocation run.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-073",
+    "class": "protocol",
+    "title": "a Windows clone made under the global line-ending default yields stale manifest digests, so setup must disable that conversion before the first inventory",
+    "statement": "a Windows clone made under the global line-ending default yields stale manifest digests, so setup must disable that conversion before the first inventory.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-074",
+    "class": "instrument",
+    "title": "keyword extraction of the decides field fails review in every sampled batch on the first pass, so the worker brief must state the decision-line rule",
+    "statement": "keyword extraction of the decides field fails review in every sampled batch on the first pass, so the worker brief must state the decision-line rule.",
+    "firstSeen": "R-013"
+  },
+  {
+    "id": "L-075",
+    "class": "instrument",
+    "title": "program mode refuses a ledger with no grammar marker, so a vault holding only legacy ledgers cannot exercise phase 6",
+    "statement": "program mode refuses a ledger with no grammar marker, so a vault holding only legacy ledgers cannot exercise phase 6.",
+    "firstSeen": "R-013"
   }
 ]

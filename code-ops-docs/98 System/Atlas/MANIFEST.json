@@ -756,8 +756,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
-      "verifiedDigest": "ca2a65ea1d0fe73f2dd16dd5d384eecfd32ab5d9ec62008f91dcf7c9605256aa",
+      "verifiedAt": "33a63df56530993eac2723356d6cb896764aa141",
+      "verifiedDigest": "a1f2fa76cf7ea7cb883bcb0cd8f2a40ad7d8eef9e4884472075890c98ae760f5",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
