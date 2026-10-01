@@ -22,7 +22,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLAUDE_ALIAS_TIER } from './model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_PLUGINS = resolve(ROOT, 'plugins');
@@ -222,6 +222,12 @@ function transformSkill(pluginName, slug, contents, path) {
     preservePairedContracts: crossHostStandards,
     preserveClaudeHome: crossHostStandards,
   });
+  if (DISPATCHING_SKILL.test(transformed)) {
+    transformed = transformed.replace(
+      '\n\n**Invoke in Codex by naming',
+      `\n\n**Codex routing rule:** ${codexRoutingInstruction()}\n\n**Invoke in Codex by naming`,
+    );
+  }
   return `---\nname: ${slug}\n${keptHeader.join('\n')}\n---\n${transformed}`;
 }
 
@@ -236,6 +242,34 @@ function agentFloor(contents, path) {
   }
   return { name, sourceModel, minimumTier };
 }
+
+// Codex is the openai provider. `spawn_agent` honors `model` and `reasoning_effort` only when
+// `fork_turns` is "none" and AGENTS.md or skill text asks for them, so the render carries that
+// request. The rung map comes from model-tiers.mjs, never from a literal here.
+const CODEX_PROVIDER = PROVIDER_TIERS.openai;
+const ROUTING_RUNGS = ['light', 'mid', 'strong', 'premium', 'frontier'];
+
+function codexRungMap() {
+  return {
+    provider: CODEX_PROVIDER.id,
+    rungs: Object.fromEntries(ROUTING_RUNGS.map((rung) => [rung, CODEX_PROVIDER.models[rung]])),
+    premiumCollapse: CODEX_PROVIDER.premiumCollapse,
+  };
+}
+
+function codexRoutingInstruction() {
+  const { rungs, premiumCollapse } = codexRungMap();
+  const map = ROUTING_RUNGS.map((rung) => `${rung} \`${rungs[rung]}\``).join(', ');
+  const collapse = premiumCollapse
+    ? ` Premium repeats the ${premiumCollapse} model, so effort is its only extra dial.`
+    : '';
+  return 'When you spawn an agent, set `model` and `reasoning_effort` from the brief\'s `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. '
+    + 'The spawn tool honors `model` and `reasoning_effort` only then. '
+    + `Rung map: ${map}.${collapse}`;
+}
+
+// A skill that dispatches agents carries the instruction; the rest do not pay for it.
+const DISPATCHING_SKILL = /\bsubagents?\b/i;
 
 const EDIT_TOOLS = ['Edit', 'MultiEdit', 'Write', 'NotebookEdit'];
 const CONTRACT_FIELDS = ['Brief requires', 'Edits', 'Verdicts'];
@@ -286,6 +320,8 @@ function transformAgent(contents, path) {
     ...agentChecklist(tools, body, path),
     '',
     `> Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads \`agents/model-floors.json\` and routes \`${floor.name}\` at or above its \`${floor.minimumTier}\` floor. ${writeCapability}`,
+    '>',
+    `> Codex routing: ${codexRoutingInstruction()}`,
     '',
     body,
   ].join('\n');
@@ -550,7 +586,7 @@ function buildExpectedFiles() {
     const sourceAgents = sourcePath(spec.name, 'agents');
     if (existsSync(sourceAgents)) {
       addSourceTree(sourceAgents, `${base}/agents`, transformAgent);
-      add(`${base}/agents/model-floors.json`, JSON.stringify({ version: 1, roles: agentFloors(sourceAgents) }, null, 2) + '\n');
+      add(`${base}/agents/model-floors.json`, JSON.stringify({ version: 1, ...codexRungMap(), roles: agentFloors(sourceAgents) }, null, 2) + '\n');
     }
 
     const sourceHooks = sourcePath(spec.name, 'hooks');
@@ -644,6 +680,7 @@ function validateExpectedFiles(expected) {
       expect(floors.version === 1 && Array.isArray(floors.roles), `${floorPath} has an invalid schema`);
       const sourceFloors = agentFloors(sourcePath(spec.name, 'agents'));
       expect(JSON.stringify(floors.roles) === JSON.stringify(sourceFloors), `${floorPath} does not match canonical agent floors`);
+      expect(JSON.stringify(floors.rungs) === JSON.stringify(codexRungMap().rungs), `${floorPath} does not carry the model-tiers rung map`);
     }
   }
   for (const [path, contents] of expected) {
