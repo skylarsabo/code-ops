@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLAUDE_ALIAS_TIER } from '../../scripts/model-tiers.mjs';
+import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS } from '../../scripts/model-tiers.mjs';
 import { COMMAND_CASES } from '../ai-tells/command-cases.mjs';
 import { tally } from '../harness.mjs';
 
@@ -207,6 +207,45 @@ const conform = read(join(pluginsDir, 'code-ops-suite', 'skills', 'conform', 'SK
 expect(conform.includes('`~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`'), 'global-standards render collapsed the three host-specific contract paths');
 expect(conform.includes('`CLAUDE.md` and `AGENTS.md`'), 'repo-standards render collapsed the accepted two-file parity modes');
 expect(conform.includes('Claude reads the global pair under `~/.claude/`') && conform.includes('Codex reads `~/.codex/AGENTS.md`'), 'repo-standards render collapsed the distinct global contract homes');
+
+// Codex honors `model` and `reasoning_effort` on spawn only when fork_turns is "none" and the
+// rendered AGENTS.md or skill text asks for them. The rung map must be the openai binding in
+// model-tiers.mjs, whatever it says: premium and its collapse target are read, not assumed.
+const RUNGS = ['light', 'mid', 'strong', 'premium', 'frontier'];
+const openai = PROVIDER_TIERS.openai;
+const routingGaps = (text) => {
+  const gaps = ['`model`', '`reasoning_effort`', '`fork_turns: "none"`', '`Tier:`', '`Effort:`']
+    .filter((needle) => !text.includes(needle));
+  for (const rung of RUNGS) if (!text.includes(`${rung} \`${openai.models[rung]}\``)) gaps.push(`${rung} rung`);
+  if (openai.premiumCollapse && !text.includes(`Premium repeats the ${openai.premiumCollapse} model`)) gaps.push('premium collapse');
+  return gaps;
+};
+const routingCarriers = [];
+for (const plugin of pluginNames) {
+  const floors = JSON.parse(read(join(pluginsDir, plugin, 'agents', 'model-floors.json')));
+  expect(floors.provider === openai.id, `${plugin}: rung map names provider ${floors.provider}, not ${openai.id}`);
+  expect(JSON.stringify(floors.rungs) === JSON.stringify(Object.fromEntries(RUNGS.map((rung) => [rung, openai.models[rung]]))), `${plugin}: model-floors.json rung map does not match model-tiers.mjs`);
+  expect(floors.premiumCollapse === openai.premiumCollapse, `${plugin}: model-floors.json premiumCollapse does not match model-tiers.mjs`);
+  for (const file of readdirSync(join(pluginsDir, plugin, 'agents')).filter((name) => name.endsWith('.md'))) {
+    routingCarriers.push([`${plugin}/agents/${file}`, read(join(pluginsDir, plugin, 'agents', file))]);
+  }
+  for (const skill of readdirSync(join(sourcePluginsDir, plugin, 'skills'), { withFileTypes: true }).filter((entry) => entry.isDirectory())) {
+    const dispatches = /\bsubagents?\b/i.test(read(join(sourcePluginsDir, plugin, 'skills', skill.name, 'SKILL.md')));
+    const rendered = read(join(pluginsDir, plugin, 'skills', skill.name, 'SKILL.md'));
+    if (dispatches) routingCarriers.push([`${plugin}/skills/${skill.name}`, rendered]);
+    else expect(!rendered.includes('reasoning_effort'), `${plugin}/${skill.name}: a skill that never dispatches carries the routing rule`);
+  }
+}
+expect(routingCarriers.some(([label]) => label.includes('/skills/')) && routingCarriers.some(([label]) => label.includes('/agents/')), 'no rendered skill and agent pair carries the routing rule');
+for (const [label, text] of routingCarriers) {
+  const gaps = routingGaps(text);
+  expect(gaps.length === 0, `${label}: routing instruction is missing ${gaps.join(', ')}`);
+}
+// Mutants: dropping any one element of the instruction from a rendered carrier must fail the check.
+const [, sampleText] = routingCarriers[0];
+for (const dropped of ['fork_turns', 'reasoning_effort', openai.models.strong, ...(openai.premiumCollapse ? ['Premium repeats'] : [])]) {
+  expect(routingGaps(sampleText.replaceAll(dropped, '')).length > 0, `mutant: removing ${dropped} from a rendered carrier is not detected`);
+}
 
 if (fails.length) {
   console.error('FAIL — Codex marketplace eval:');

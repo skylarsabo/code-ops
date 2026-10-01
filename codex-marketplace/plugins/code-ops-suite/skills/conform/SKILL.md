@@ -7,6 +7,8 @@ description: "Use to assess and repair a repo's standards contract, vault, atlas
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
+**Codex routing rule:** When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-5.1`, strong `gpt-5.6-terra`, premium `gpt-6.1-sol`, frontier `gpt-6.1-sol`. Premium repeats the frontier model, so effort is its only extra dial.
+
 **Invoke in Codex by naming `code-ops-suite:conform`.** First read §1, §2, §3, §4, §7, §12, §13, and §14 of the `<plugin-root>/CONVENTIONS.md`
 bundled with this plugin: the operating model (`§1`), tools and in-house docs lookup (`§2`), the
 interaction protocol (`§3`), the safety rails (`§4`), the evidence tiers (`§7`), the
