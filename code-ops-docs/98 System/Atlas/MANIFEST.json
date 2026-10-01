@@ -260,8 +260,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "2f576f317dcec0c13ad130fa8f2b8e48257211bf",
-      "verifiedDigest": "ea7c6af3124ab2707cb1e6bbfd84fbad7d3621d6bdd1f50aa1e1ba7ac2ea3c61",
+      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
+      "verifiedDigest": "07ce8250d7f99f88cc65ab65f4483eb76960470724bc6b15a15331f92d45bbc4",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -595,8 +595,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
-      "verifiedDigest": "566a8fbe85d7af7dc42f96e3ee72bceadcbac9b3f5e03c0707ce4a61a948ac1f",
+      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
+      "verifiedDigest": "5ac1631c3039f9aab58a6f980216dc89d30cc7c11d90981401c272279efa8211",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -642,6 +642,26 @@
           "file": "scripts/judgment-evals.mjs",
           "line": 155,
           "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
+        },
+        {
+          "file": "evals/opencode-lifecycle/run.mjs",
+          "line": 432,
+          "anchor": "expect(pushed.includes('OI-01 open item') && pushed.includes('OI-12') && !pushed"
+        },
+        {
+          "file": "evals/opencode-lifecycle/run.mjs",
+          "line": 438,
+          "anchor": "expect(pushed.includes('COMPACT_SNAPSHOT.md is not written; run co snapshot'),"
+        },
+        {
+          "file": "evals/opencode-enabled-models/run.mjs",
+          "line": 131,
+          "anchor": "${c.name}: still passes with the ladder filter removed (${JSON.stringify(bound(m"
+        },
+        {
+          "file": "evals/opencode-enabled-models/run.mjs",
+          "line": 170,
+          "anchor": "${c.name}: still denied with assertDispatchModel removed (${String(mutant.denied"
         },
         {
           "file": "evals/peer-guard/run.mjs",
@@ -797,6 +817,11 @@
           "file": "evals/compact-snapshot/run.mjs",
           "line": 395,
           "anchor": ") && cl.some((l) => l.startsWith('open items in ')) && !c.stdout.includes('Snaps"
+        },
+        {
+          "file": "evals/opencode-lifecycle/run.mjs",
+          "line": 185,
+          "anchor": "expect(ceilTurn.parts[0].text.includes('New dispatches are now gated until you r"
         }
       ]
     },
@@ -808,8 +833,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
-      "verifiedDigest": "35e376ba2ce3ced988cf38f89d185737846a5737e3ab7e75c197c14d83910936",
+      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
+      "verifiedDigest": "6f7fd7b5d247f369d1c896b0be5fde76d386a465d850ae6b9382ceff0b83893a",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -919,8 +944,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
-      "verifiedDigest": "c59055f7c008b92d7602d030951f9928b2fabbcb156e62f443676ada5315ad6c",
+      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
+      "verifiedDigest": "104be9c5d98320a09d7813c9db4e53a785665162f14a76eb27fc51bbe81bcd74",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -928,7 +953,15 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 541
+          "line": 544
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 208
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 647
         }
       ]
     },
@@ -953,8 +986,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
-      "verifiedDigest": "d42a619a6361ce97dcc250659c4d19a31f7b993187ba627e01ecdfd1e38137f3",
+      "verifiedAt": "1e6fcb50d2d977099fe8384c80f24664831e2d76",
+      "verifiedDigest": "7026c31062377f23ef5d88fa52c7e4fe8aa8171014520dc28160adbfd651030b",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

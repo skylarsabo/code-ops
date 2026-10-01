@@ -312,8 +312,14 @@ The card looks for the snapshot in the run folder and then in the home copies. I
 whose header `Session` differs from the payload's and is not `unknown`. Host auto-compaction is the
 default context relief on Claude and Codex (DEC-73), and this card carries the open items across
 it. This is recovery after compaction, not a claim that a hook changed the summary. Grok ignores
-passive `SessionStart` stdout and therefore gets no hook-injected restore card. OpenCode uses its
-native compaction port and registers no snapshot writer. Evidence:
+passive `SessionStart` stdout and therefore gets no hook-injected restore card. OpenCode has no
+`PreCompact` port and writes no snapshot. Its `experimental.session.compacting` handler pushes the
+session run folder's unchecked `TASKS.md` lines (at most 12), its pending `DISPATCH_LEDGER.md` rows
+(dispatched or redispatched, at most 8), and one snapshot line. That line names
+`COMPACT_SNAPSHOT.md` when it exists and otherwise says to run `co snapshot`. Each line holds at
+most 200 characters, and any failure pushes nothing. The run folder is the one whose `SESSION.json`
+names the session. Whether OpenCode keeps the pushed context through its summary is UNVERIFIED.
+Evidence: `scripts/opencode-lifecycle.js` (`compactionPush`), `evals/opencode-lifecycle/run.mjs`,
 `plugins/code-ops-suite/hooks/hooks.json`, `plugins/code-ops-suite/hooks/compact-snapshot.mjs`,
 `plugins/code-ops-suite/hooks/routing-card.mjs`, `scripts/compact-snapshot.mjs`, and the generated
 host compatibility files.
@@ -720,7 +726,8 @@ same script reads `updates.jsonl` and emits `additionalContext` when `GROK_PLUGI
 That covers the TUI, headless `grok -p`, and the ACP agent. `CLAUDE.md` and `AGENTS.md` still
 carry the assessment, because a turn with no tool call never fires `PostToolUse`. OpenCode does
 not run this hook. `scripts/opencode-lifecycle.js` delivers the note from `message.updated`
-usage. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
+usage. Its band text asks for `/code-ops-suite-handoff assess` to choose CONTINUE or COMPACT and
+names host auto-compaction as the context relief. Evidence: `code-ops-docs/50 Platform/INFRASTRUCTURE.md` (host projections table) and
 `plugins/code-ops-suite/hooks/handoff-card.mjs`.
 
 Each band is an advisory assessment reminder, not a host limit, restart threshold, delivery
@@ -740,7 +747,8 @@ On Claude, when `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one li
 setting (250000 recommended); a Codex or Grok card never carries it.
 At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated:
 on Claude and Codex until the lead runs `/code-ops-suite:handoff assess`, and on Grok until that
-assessment runs. Every host carries the sentence, because the guard also gates Grok's
+assessment runs. The OpenCode note says "New dispatches are now gated until you run
+/code-ops-suite-handoff assess." Every host carries the sentence, because the guard also gates Grok's
 `spawn_subagent`. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
 so this hook records the ceiling assessment for it.
 The marker proves only that the hook wrote a prior message. It does not prove that the host
@@ -1070,6 +1078,20 @@ The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.
 Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
+
+On OpenCode, `scripts/opencode-lifecycle.js` denies a dispatch to a model the operator has not
+enabled. A model is usable only when four conditions hold. The live host model list names it. The
+profile's enabled list names it. The desktop Models settings do not hide it. The config's
+`disabled_providers` does not name its provider, and `enabled_providers`, when set, does. An empty
+provider list counts as unset. The check fails closed in this order: the live list, one awaited
+refresh, then the environment catalog and the model cache filtered by the last three conditions.
+When no source yields the model, a lead clone falls back to the lead model only if the lead meets
+all four conditions and the agent floor. Otherwise the dispatch throws. The check runs whatever
+`CODE_OPS_TIER_ROUTING` says and ignores `CODE_OPS_DISPATCH_GUARD=warn`. The startup chooser ladder
+filters by the same provider switches. Whether `client.config.providers()` already honors the two
+switches is UNVERIFIED, and so is OpenCode's own reading of an empty `enabled_providers`. Evidence:
+`scripts/opencode-lifecycle.js` (`providerSwitches`, `assertDispatchModel`, `buildChooserLadder`)
+and `evals/opencode-enabled-models/run.mjs`.
 
 ## Peer guard hook
 
