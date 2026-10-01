@@ -114,7 +114,9 @@ const dispatchCall = (toolInput, extra = {}) => ({
 
 // A brief that carries every field the suite agents' `Brief requires:` lines name.
 const FULL_BRIEF = 'Scope: one file.\nObjective: fix it.\nRound budget: 25 tool rounds\n'
-  + 'Report cap: 200 words.\nReport path: r.md\nExpected return: a verdict line.';
+  + 'Report cap: 200 words.\nReport path: r.md\nExpected return: a verdict line.\n'
+  // Routing lines from `co route --kind judgment --ambiguity h --reversible yes --agent code-ops-suite:implementer`.
+  + 'Unit: fix-one-file\nTier: strong\nEffort: high\nRoute basis: judgment; surface=none; ambiguity=high; reversible=yes';
 
 function parseOut(r) {
   if (r.stdout.trim() === '') return null;
@@ -430,10 +432,12 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // order, and the Round budget advisory does not split it.
   out = parseOut(runHook(dispatchCall({ prompt: 'no labels here', subagent_type: 'code-ops-suite:implementer', model: 'x' }), { home }));
   const template = spawnSync('node', [join(root, 'scripts', 'co.mjs'), 'brief', 'code-ops-suite:implementer'], { encoding: 'utf8' });
+  // `co brief` follows its label lines with a legend and a `co route` hint; the denial carries the labels only.
+  const templateLabels = template.stdout.split('\n').filter((line) => /^[A-Z][A-Za-z ]*:$/.test(line)).join('\n');
   const skeleton = (reasonOf(out) ?? '').split('\n').slice(1).join('\n');
-  expect(deny(out) && template.status === 0 && skeleton === template.stdout.trimEnd()
-    && skeleton === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:',
-    `the full skeleton must equal co brief's template, got ${JSON.stringify(skeleton)} vs ${JSON.stringify(template.stdout)}`);
+  expect(deny(out) && template.status === 0 && skeleton === templateLabels
+    && skeleton === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\nUnit:\nTier:\nEffort:\nRoute basis:',
+    `the full skeleton must equal co brief's label lines, got ${JSON.stringify(skeleton)} vs ${JSON.stringify(template.stdout)}`);
   // An advisory-only output carries no skeleton.
   out = parseOut(runHook(dispatchCall({ prompt: 'Fix it.', subagent_type: 'code-ops-suite:no-such-agent' }), { home }));
   expect(!deny(out) && /No Round budget/.test(contextOf(out) ?? '') && !(contextOf(out) ?? '').includes('\n'),
@@ -442,7 +446,8 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // Every field present passes, including loose forms: case, bold, a parenthetical, list
   // markers, leading whitespace, and a markdown heading.
   const loose = 'scope (edit authority): one file.\n## Objective\nfix it.\n**Round budget:** 10\n'
-    + '- Report cap: 100 words.\n  1. Report path: r.md\n* EXPECTED RETURN: a line.';
+    + '- Report cap: 100 words.\n  1. Report path: r.md\n* EXPECTED RETURN: a line.\n'
+    + '**Unit:** loose-unit\n- TIER: strong\n  effort (high only): high\n1. Route basis: judgment; surface=none; ambiguity=high; reversible=yes';
   let r = runHook(dispatchCall({ prompt: loose, subagent_type: 'code-ops-suite:implementer' }), { home });
   expect(r.status === 0 && r.stdout === '', `a brief with every field in loose form must pass, got ${JSON.stringify(r.stdout)}`);
 
@@ -1246,7 +1251,14 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   denied(send(IMP, gate), /says surface=none but the Scope paths derive surface=gate-script/, 'a gate-script Scope with surface=none');
   denied(send(IMP, { ...gate, override: 'the lead knows better' }), /derive surface=gate-script.*does not clear a surface mismatch/, 'the same with a Route override');
   quiet(send(IMP, { ...gate, basis: 'judgment; surface=gate-script; ambiguity=low; reversible=yes' }), 'the declared surface matches Scope');
-  denied(send(IMP, { basis: 'judgment; surface=security; ambiguity=low; reversible=yes' }), /says surface=security but the Scope paths derive surface=none/, 'a surface declared with no Scope path behind it');
+  // A derived none never contradicts a declared surface: routing up is allowed and earns an advisory at most.
+  const dir = { scope: 'plugins/code-ops-suite/hooks/ and evals/dispatch-guard/', basis: 'judgment; surface=gate-script; ambiguity=low; reversible=yes' };
+  advised(send(IMP, dir), /surface=gate-script but the Scope paths derive no surface; routing up is allowed/, 'a directory-level Scope declaring gate-script');
+  advised(send(IMP, { basis: 'judgment; surface=security; ambiguity=low; reversible=yes' }), /surface=security but the Scope paths derive no surface/, 'a surface declared with no Scope path behind it');
+  advised(send(IMP, { ...dir, override: 'the lead knows the surface' }), /derive no surface/, 'a directory-level Scope declaring a surface, with a Route override');
+  // The other direction stays denied: a Scope file that derives a surface, declared none, even with an override.
+  denied(send(IMP, { scope: 'plugins/code-ops-suite/hooks/dispatch-guard.mjs', basis: 'judgment; surface=none; ambiguity=low; reversible=yes', override: 'x' }),
+    /says surface=none but the Scope paths derive surface=gate-script.*does not clear a surface mismatch/, 'a gate-script file declared none with a Route override');
   denied(send(IMP, { basis: 'judgment; ambiguity=low; reversible=yes' }), /names no surface=/, 'a basis with no surface');
   denied(send(IMP, { basis: 'sorcery; surface=none; ambiguity=low; reversible=yes' }), /Route basis is not valid: kind must be one of/, 'an unknown kind');
   // A Scope path with spaces reaches the pattern whole, and a bare word never matches.

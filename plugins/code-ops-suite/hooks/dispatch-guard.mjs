@@ -73,8 +73,9 @@
 //      silently. For a routed agent the hook denies (a) an override that ranks below the agent's
 //      frontmatter floor, (b) a `Tier` that disagrees with the effective rung (premium needs
 //      `model:"opus"`, frontier `model:"fable"`, strong needs no override or one at strong), (c) a
-//      `Route basis` surface that contradicts the surface derived from the Scope paths with
-//      `surfaceOfScope`, which no `Route override:` line clears, (d) a `Tier` or `Effort` below
+//      `Route basis` surface that differs from a non-`none` surface derived from the Scope paths
+//      with `surfaceOfScope`, which no `Route override:` line clears (a declared surface over a
+//      derived `none` routes up and earns an advisory only), (d) a `Tier` or `Effort` below
 //      `routeUnit` of the basis with the derived surface and the ledger-derived attempt, unless a
 //      `Route override:` line is present and the shortfall comes from the ambiguity or attempt
 //      triggers (rules 7b, 7c) or the table rows; the surface triggers (7a, 7d) are never cleared,
@@ -1032,9 +1033,12 @@ function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) 
   const derived = libs.surfaceOfScope(scopePaths(scopeText(prompt)));
   if (basis.surface === undefined) {
     denials.push('Route basis names no surface=<s>; add it (none, security, egress, migration, public-contract, or gate-script).');
-  } else if (basis.surface !== derived) {
+  } else if (basis.surface !== derived && derived !== 'none') {
     denials.push(`Route basis says surface=${basis.surface} but the Scope paths derive surface=${derived}; correct the line or the Scope. `
       + 'A Route override line does not clear a surface mismatch.');
+  } else if (basis.surface !== derived) {
+    // No Scope path derives a surface (a directory-level Scope, say), so a declared surface routes up; it is never a contradiction.
+    advisories.push(`Route basis says surface=${basis.surface} but the Scope paths derive no surface; routing up is allowed, and it costs more.`);
   }
   const unit = (briefValue(prompt, 'Unit') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80) || null;
   const base = { kind: basis.kind, ambiguity: basis.ambiguity, reversible: basis.reversible, surface: derived };
