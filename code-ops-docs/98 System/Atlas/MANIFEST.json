@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
-      "verifiedDigest": "98c8d2fb3b60382630d97ac1ab7c20b24639680dfdf875d0da191849fdb5d4e1",
+      "verifiedAt": "2549091bf46ebdda71e6a7d11e0c450fea54f037",
+      "verifiedDigest": "8f91d353d57968e3fceee4137d2bc138774570726ac1e59ff47388fcadbec771",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -300,8 +300,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "33a63df56530993eac2723356d6cb896764aa141",
-      "verifiedDigest": "26cb858cc25925d790ae114349451ac072c1fd0eaa1bc21febd94b2448620c94",
+      "verifiedAt": "2549091bf46ebdda71e6a7d11e0c450fea54f037",
+      "verifiedDigest": "e4b6d4f0866f1d9c86824939014b9221db2d57443081cb72cd015fec5e3ac426",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -330,7 +330,7 @@
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 266,
+          "line": 267,
           "anchor": "// bytes, which are immutable and hash-chained, so they cannot gain note frontma"
         },
         {
@@ -350,28 +350,28 @@
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 303,
+          "line": 304,
           "anchor": "else if (v < MIN_STANDARD_VERSION)"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 389,
+          "line": 390,
           "anchor": "checked.push({ path: notePath, text, fm });"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 455,
+          "line": 458,
           "anchor": "for (const [status, entries] of groups) {"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 479,
+          "line": 482,
           "anchor": "const readOrEmpty = (path) => { try { return readFileSync(join(vault, path), 'ut"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 489,
-          "anchor": "}"
+          "line": 504,
+          "anchor": "if (mode === 'stamp') {"
         },
         {
           "file": "scripts/docs-gate.mjs",
@@ -740,7 +740,7 @@
         },
         {
           "file": "scripts/distill-check.mjs",
-          "line": 89,
+          "line": 102,
           "anchor": "// MAINTAIN PASS (design \"Distill\", paragraph \"Maintain pass\"). It starts after"
         },
         {
@@ -756,8 +756,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "fdac55a550f10765cfffa959dad98068811a3156",
-      "verifiedDigest": "a8aef3ffa6ec7b4c4c172776937810ccf0652916ee50c08d562e1f2da7ef90fa",
+      "verifiedAt": "95d7280c71c140067668e0fc59691063d85666ff",
+      "verifiedDigest": "bab34dc7a121add42cadebeff46f94e8b546287c108ef17d162b27aef6bd2468",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1039,8 +1039,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
-      "verifiedDigest": "42ea56040db595ebec2c93ebf8dc125d684a3befcec740cae93019b19127e591",
+      "verifiedAt": "2549091bf46ebdda71e6a7d11e0c450fea54f037",
+      "verifiedDigest": "f4972659905e08b64f5066bdfd5fa95c46bf2f2222e2701cdcb1bf433c6323ad",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1226,8 +1226,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "4cbb0041bd5d63cbf7cdc046739e9750a0d20f8c",
-      "verifiedDigest": "85613fffffa0b52a55431ce8f80fab3aeded3784195e8911d101b6ae3292397a",
+      "verifiedAt": "2549091bf46ebdda71e6a7d11e0c450fea54f037",
+      "verifiedDigest": "cc758712ddf74afc9d7b7a763899a0f25902538068a6a27e08478a4f6403f8b0",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1246,7 +1246,7 @@
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 190,
+          "line": 191,
           "anchor": "let out;"
         },
         {

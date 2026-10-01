@@ -71,7 +71,7 @@
 //   checkpoint N --artifact <file>...                  running -> checkpointed; each artifact exists
 //   done N      --review <note> [--require-findable]   checkpointed -> done, after the lead's review
 //   reopen N                                           checkpointed -> running, when the review fails
-//   plan N      --paths <file> [--size 25]             split a phase 3 or 7 worklist into batches
+//   plan N      --paths <file> [--size 25] | --none    split a phase 3 or 7 worklist into batches, or record none
 //   assign N    --batch <id> --worker <name>           a worker never takes the same batch twice
 //   result N    --batch <id> --defects <n>             one defect in the 10% sample sends the batch to full review
 //   review N    --batch <id>                           the lead read a full-review batch whole
@@ -82,8 +82,21 @@
 // Any other transition exits 1. `done` of a phase that moves or archives files (2 and 5) runs
 // no-loss over every inventory and refuses on a loss. It also runs findability and records the
 // count, and `--require-findable` refuses on a nonzero count. `done` of a batched phase (3 and 7)
-// refuses while a batch is unresolved. `done 8` always runs the baseline checks, with findability
-// required, and writes the baseline, so a loss, an ambiguity, a count mismatch, or an unreachable
+// refuses while a batch is unresolved, and while no plan was made.
+// EMPTY PLAN. A vault can hold no page for a batched phase, such as no synthesis page for phase 7.
+// `plan N --none` records that plan as empty and sets `planned` on the phase. It refuses `--paths`
+// beside it, and a second plan of any kind refuses. `done` then accepts a planned phase with no
+// batches, and still refuses a phase nobody planned.
+// CHECKPOINT PAUSE. A batched phase may checkpoint with batches unresolved. The `checkpoint` verb
+// then prints one stderr line that names them and says `reopen N` resumes them. `assign`, `result`,
+// `review`, and `plan` need a running phase, so their refusal on a checkpointed phase says to run
+// `reopen N` first.
+// RELOCATION APPLIED. `done 2` needs a relocation plan applied. At least one checkpoint artifact
+// must still exist as a file. An artifact that parses as JSON with a `rows` list is a `docs
+// relocate` plan, and each row names a `source` and a `target`. `done 2` refuses while a row's
+// source still exists and no FORWARDING.json chain from it ends at an existing file. A plan with no
+// rows passes, because a vault already in order has nothing to move.
+// `done 8` always runs the baseline checks, with findability required, and writes the baseline, so a loss, an ambiguity, a count mismatch, or an unreachable
 // note keeps phase 8 checkpointed.
 //
 // MAINTAIN PASS (design "Distill", paragraph "Maintain pass"). It starts after phase 8 is done.
@@ -197,6 +210,11 @@ function loadForwarding(root, hub) {
   return document;
 }
 
+// Where the forwarding chain sends `path`, or null when none starts there. A cycle stops the run.
+function forwardedPath(forwarding, hub, path) {
+  try { return forwardPath(forwarding, path); } catch (error) { return die(`${hub}/${FORWARDING_PATH}: ${error.message}`, 2); }
+}
+
 // ---- links ----
 
 // The repo-relative path a Markdown link names, or null for an external link, a bare fragment, or
@@ -274,9 +292,7 @@ function noLossReport(root, inventory, hub) {
   const forwarding = loadForwarding(root, hub);
   let named = null; // The archive scan runs once, and only when a path needs it.
   const archiveNames = () => named ?? (named = archiveLinks(root, hub, new Map()));
-  const forwardedTo = (path) => {
-    try { return forwardPath(forwarding, path); } catch (error) { return die(`${hub}/${FORWARDING_PATH}: ${error.message}`, 2); }
-  };
+  const forwardedTo = (path) => forwardedPath(forwarding, hub, path);
 
   const counts = { 'in-place': 0, moved: 0, archived: 0 };
   const lost = []; const ambiguous = []; const problems = [];
@@ -512,6 +528,7 @@ function commandGate(flags) {
 const PHASES = ['inventory', 'relocate', 'classify', 'chain', 'drafts', 'ledgers', 'synthesis', 'install'];
 const STATUSES = ['pending', 'running', 'checkpointed', 'done'];
 const STATE_VERSION = 1;
+const RELOCATE = 2; // the phase that applies the relocation plan
 const INSTALL = 8; // the phase that writes the baseline
 const MOVING = new Set([2, 5]); // relocate and drafts move or archive files, so their end runs the checks
 const BATCHED = new Set([3, 7]); // classify and synthesis fan out in batches
@@ -534,7 +551,7 @@ function readState(file) {
   try { doc = JSON.parse(readFileSync(resolve(file), 'utf8')); } catch (error) { die(`cannot read state ${file}: ${error.message}`, 2); }
   const ok = doc && doc.version === STATE_VERSION && typeof doc.hub === 'string' && Array.isArray(doc.inventories) && Array.isArray(doc.phases)
     && doc.phases.length === PHASES.length && doc.phases.every((p, i) => p && p.phase === i + 1 && p.name === PHASES[i] && STATUSES.includes(p.status) && Array.isArray(p.artifacts)
-      && (BATCHED.has(i + 1) === Array.isArray(p.batches)))
+      && (BATCHED.has(i + 1) === Array.isArray(p.batches)) && (p.planned === undefined || typeof p.planned === 'boolean'))
     && (doc.maintain === undefined || doc.maintain === null || passOk(doc.maintain));
   return ok ? doc : die(`${file} is not a version ${STATE_VERSION} distill state`, 2);
 }
@@ -600,6 +617,31 @@ function checkpointPhase(doc, root, n, flags) {
   if (n === 1) for (const path of doc.inventories) if (!present(path)) refuse(`phase 1 needs the inventory ${path}; run inventory first`);
   phase.artifacts = artifacts;
   phase.status = 'checkpointed';
+  const open = BATCHED.has(n) ? unresolved(phase) : [];
+  if (open.length) console.error(`phase ${n} is checkpointed with ${open.length} unresolved batch(es): ${open.map((b) => `${b.id} ${b.status}`).join(', ')}; run reopen ${n} to resume them`);
+}
+
+const unresolved = (phase) => phase.batches.filter((b) => b.status !== 'clean' && b.status !== 'reviewed');
+
+// The `done 2` rule. The phase keeps a plan file, and no row of a plan in its artifacts has a source
+// that still exists and went nowhere.
+function relocationProblems(root, doc, phase) {
+  const present = fileProbe(root);
+  const kept = phase.artifacts.filter((path) => present(path));
+  if (!kept.length) return ['MISSING no checkpoint artifact exists as a file; checkpoint the relocation plan'];
+  const forwarding = loadForwarding(root, doc.hub);
+  const problems = [];
+  for (const path of kept) {
+    let plan;
+    try { plan = JSON.parse(readNote(root, path)); } catch { continue; }
+    if (!Array.isArray(plan?.rows)) continue;
+    for (const row of plan.rows) {
+      if (typeof row?.source !== 'string' || !present(row.source)) continue;
+      const moved = forwardedPath(forwarding, doc.hub, row.source);
+      if (moved === null || !present(moved)) problems.push(`UNAPPLIED ${row.source} -> ${row.target} (${path})`);
+    }
+  }
+  return problems;
 }
 
 // No-loss over every inventory, and the findability count. A loss stops the phase.
@@ -627,9 +669,13 @@ function donePhase(doc, root, n, flags) {
   const review = (flags.review ?? '').trim();
   if (!review) die('done needs --review, the lead note on what was read', 2);
   if (BATCHED.has(n)) {
-    const open = phase.batches.filter((b) => b.status !== 'clean' && b.status !== 'reviewed');
-    if (!phase.batches.length) refuse(`phase ${n} has no batches; plan them before it is done`);
+    const open = unresolved(phase);
+    if (!phase.planned && !phase.batches.length) refuse(`phase ${n} has no plan; plan its batches, or plan --none, before it is done`);
     if (open.length) refuse(`phase ${n} has ${open.length} unresolved batch(es): ${open.map((b) => `${b.id} ${b.status}`).join(', ')}`);
+  }
+  if (n === RELOCATE) {
+    const unapplied = relocationProblems(root, doc, phase);
+    if (unapplied.length) refuseOn(unapplied, 'relocation is not applied');
   }
   if (n === INSTALL) phase.checks = installChecks(root, doc);
   else if (MOVING.has(n)) phase.checks = endOfPhaseChecks(root, doc, flags['require-findable']);
@@ -652,7 +698,7 @@ const sampleOf = (paths) => {
 function batchedPhase(doc, n) {
   const phase = doc.phases[n - 1];
   if (!BATCHED.has(n)) refuse(`phase ${n} (${phase.name}) takes no batches; classify (3) and synthesis (7) do`);
-  if (phase.status !== 'running') refuse(`phase ${n} is ${phase.status}, not running`);
+  if (phase.status !== 'running') refuse(`phase ${n} is ${phase.status}, not running${phase.status === 'checkpointed' ? `; run reopen ${n} first` : ''}`);
   return phase;
 }
 
@@ -663,8 +709,10 @@ function batchOf(phase, flags) {
 
 function planBatches(doc, root, n, flags) {
   const phase = batchedPhase(doc, n);
-  if (phase.batches.length) refuse(`phase ${n} already has batches; a plan is made once`);
-  if (!flags.paths) die('plan needs --paths, a file with one repo-relative path per line', 2);
+  if (phase.planned || phase.batches.length) refuse(`phase ${n} already has a plan; a plan is made once`);
+  if (flags.none && flags.paths) die('plan takes --paths or --none, not both', 2);
+  if (flags.none) { phase.planned = true; return; }
+  if (!flags.paths) die('plan needs --paths, a file with one repo-relative path per line, or --none', 2);
   const size = flags.size === undefined ? BATCH_SIZE : Number(flags.size);
   if (!Number.isInteger(size) || size < 1) die('--size is a whole number of at least 1', 2);
   let text;
@@ -675,6 +723,7 @@ function planBatches(doc, root, n, flags) {
   const present = fileProbe(root);
   for (const path of paths) if (!present(path)) refuse(`${path} is not a file`);
   paths.sort(byCodeUnit);
+  phase.planned = true;
   for (let at = 0; at < paths.length; at += size) {
     const chunk = paths.slice(at, at + size);
     phase.batches.push({ id: `B${String(phase.batches.length + 1).padStart(2, '0')}`, paths: chunk, sample: sampleOf(chunk), workers: [], status: 'planned', defects: null });
@@ -799,7 +848,7 @@ const specs = {
   gate: { ...common, hub: { value: true, required: true } },
   state: {
     ...common, state: { value: true, required: true }, hub: { value: true }, inventory: { value: true, many: true }, artifact: { value: true, many: true },
-    review: { value: true }, budget: { value: true }, item: { value: true }, 'require-findable': { value: false }, paths: { value: true }, size: { value: true }, batch: { value: true }, worker: { value: true }, defects: { value: true },
+    review: { value: true }, budget: { value: true }, item: { value: true }, 'require-findable': { value: false }, paths: { value: true }, none: { value: false }, size: { value: true }, batch: { value: true }, worker: { value: true }, defects: { value: true },
   },
 };
 if (sub === '--help' || sub === '-h') { console.log(USAGE.join('\n')); process.exit(0); }

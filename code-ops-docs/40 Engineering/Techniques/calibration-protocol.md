@@ -25,6 +25,13 @@ fails closed on a path, code fence, URL, or email in the note. Reach the script 
 - **Assess-only first.** The baseline sweep runs `assess-only`, meaning read and document
   with no code changes on the target, so a calibration run never mutates someone else's
   repo as a side effect of measuring the suite.
+- **A throwaway clone for a skill that writes.** Measure a skill that moves files or
+  commits in a throwaway clone of the target, never in the target itself. Grant commits in
+  that clone in every brief. A step that refuses a dirty tree cannot run without them, and
+  a brief that bars commits yields a run that measures nothing. Make the clone with
+  line-ending conversion off (`git clone -c core.autocrlf=false`) before the first
+  inventory. On Windows the global default rewrites line endings, so every recorded digest
+  is stale before the run starts.
 - **The atlas leg.** If the target keeps an atlas ([atlas.md](atlas.md)), run `co atlas
   check` at run start. Hand each section's FRESH or STALE state into the sweep briefs
   alongside the repo-map pointer, because a FRESH section is consumed as truth and a STALE

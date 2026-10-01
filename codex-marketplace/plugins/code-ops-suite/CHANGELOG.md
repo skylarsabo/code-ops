@@ -4,6 +4,16 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.40.0
+- `distill` vault mode closes the gaps the first real-scale calibration run (R-013) found.
+  - `state plan <n> --none` records an empty plan, so a vault with no synthesis page can finish phase 7. `done` still refuses a batched phase nobody planned.
+  - `state checkpoint` of a batched phase with unresolved batches names them and says `reopen` resumes them. The batch verbs on a checkpointed phase say to run `reopen` first.
+  - `state done 2` refuses until every row of the relocation plan is applied, so a run with no applied wave can no longer pass phase 2.
+- `docs relocate plan` now refuses a manifest below version 3 with the same message as `apply`, and the message names the upgrade.
+- `check vault` keeps files under `99 Archive/` out of the triage queue, because an archived draft keeps its status.
+- The `distill` skill states the version 3 upgrade order, the status vocabulary to declare, the repository-root `sources:` globs and their digest stamp, the `decides` rule for workers, and how to finish phase 6 when every ledger is legacy.
+- The calibration protocol says to measure a skill that writes in a throwaway clone, with commits granted and line-ending conversion off.
+
 ## 2.39.0
 - `distill` vault mode now runs phase 8 and the maintain pass. `co docs distill baseline` writes `98 System/DISTILL_BASELINE.json`, sorted and dateless, and refuses on a loss, an ambiguity, a count mismatch, an unreachable note, or a missing `98 System/TRIAGE.md`. `state done 8` runs the same check, with findability always required. The baseline copies each inventory it cites into `98 System/DISTILL_INVENTORIES/`, so the gate runs in CI and a fresh clone, where the run folder is absent.
 - `co docs distill gate` is a read-only check of the tree against the baseline. It exits 1 on a new loss, a new unreachable note, a changed inventory, or a moved triage pointer.

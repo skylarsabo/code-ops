@@ -4,7 +4,7 @@
 //
 //   GREEN PATHS on the REAL store: `validate` exits 0; `render --check` exits 0 (so a
 //   hand-edited or stale table is caught in CI); the five queries return the current
-//   graph's expected answers — open is the thirty-two lessons R-005 through R-008 and R-010 through R-012 landed with
+//   graph's expected answers — open is the twenty-three lessons R-005 through R-008, R-010 and R-011 landed with
 //   nothing mechanical on them yet (so `open --gate` exits 1), deferred is exactly L-003/L-004, L-012,
 //   L-020 and L-050 are the three lessons fixed with nothing mechanical holding them, the seventeen recurrent
 //   lessons are L-001 (3 runs), L-002 (2), L-005 (2), L-013 (3), L-019 (2), L-020 (3),
@@ -124,7 +124,7 @@ try {
   // ---- a. REAL store: validate + render --check are green ----------------------
   const a = run(['validate']);
   check('a. validate exits 0 on the real store', a.status === 0, a.stdout + a.stderr);
-  check('a. validate reports 13 runs / 75 lessons / 114 edges', /13 run\(s\), 75 lesson\(s\), 114 edge\(s\)/.test(a.stdout), a.stdout);
+  check('a. validate reports 13 runs / 75 lessons / 134 edges', /13 run\(s\), 75 lesson\(s\), 134 edge\(s\)/.test(a.stdout), a.stdout);
   check('a. validate reports 0 violations', /\n0 violation\(s\)\./.test(a.stdout), a.stdout);
 
   const b = run(['render', '--check']);
@@ -147,19 +147,16 @@ try {
   // ---- c. queries match the backfilled graph ----------------------------------
   const qOpen = run(['query', 'open']);
   check('c. open exits 0', qOpen.status === 0, qOpen.stdout + qOpen.stderr);
-  check('c. open is the thirty-three lessons R-005 through R-008, R-010, R-011 and R-013 landed, each RED',
+  check('c. open is the twenty-three lessons R-005 through R-008, R-010 and R-011 landed, each RED',
     /RED\s+L-025\s+\S/.test(qOpen.stdout) && /RED\s+L-030\s+\S/.test(qOpen.stdout)
     && /RED\s+L-031\s+\S/.test(qOpen.stdout) && /RED\s+L-036\s+\S/.test(qOpen.stdout)
     && /RED\s+L-037\s+\S/.test(qOpen.stdout) && /RED\s+L-038\s+\S/.test(qOpen.stdout)
     && /RED\s+L-039\s+\S/.test(qOpen.stdout)
     && /RED\s+L-044\s+\S/.test(qOpen.stdout) && /RED\s+L-049\s+\S/.test(qOpen.stdout)
     && /RED\s+L-051\s+\S/.test(qOpen.stdout) && /RED\s+L-056\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-066\s+\S/.test(qOpen.stdout) && /RED\s+L-067\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-068\s+\S/.test(qOpen.stdout) && /RED\s+L-069\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-070\s+\S/.test(qOpen.stdout) && /RED\s+L-071\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-072\s+\S/.test(qOpen.stdout) && /RED\s+L-073\s+\S/.test(qOpen.stdout)
-    && /RED\s+L-074\s+\S/.test(qOpen.stdout) && /RED\s+L-075\s+\S/.test(qOpen.stdout)
-    && /\n33 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+    && /\n23 open lesson\(s\)\./.test(qOpen.stdout), qOpen.stdout);
+  check('c. the R-013 lessons fixed by PR-230 are no longer open',
+    ['066', '067', '068', '069', '070', '071', '072', '073', '074', '075'].every((n) => !new RegExp(`\\bL-${n}\\b`).test(qOpen.stdout)), qOpen.stdout);
   check('c. the R-012 lessons fixed by PR-153 are no longer open',
     !/\bL-057\b/.test(qOpen.stdout) && !/\bL-058\b/.test(qOpen.stdout) && !/\bL-063\b/.test(qOpen.stdout)
     && !/\bL-065\b/.test(qOpen.stdout), qOpen.stdout);
@@ -255,7 +252,10 @@ try {
     /L-057\s+ENFORCED\s+\(fixed-in PR-153, 2 gate\(s\)\)/.test(qUnv.stdout)
     && /L-062\s+ENFORCED\s+\(fixed-in PR-153, 1 gate\(s\)\)/.test(qUnv.stdout)
     && /L-065\s+ENFORCED\s+\(fixed-in PR-153, 1 gate\(s\)\)/.test(qUnv.stdout), qUnv.stdout);
-  check('c. unverified reports both halves of the ratio', /\n17 unverified fix\(es\); 22 lesson\(s\) confirmed by a later run\./.test(qUnv.stdout), qUnv.stdout);
+  check('c. the R-013 vault-mode fixes are listed, gated, until a later run confirms them',
+    ['066', '067', '068', '069', '070', '071', '072', '073', '074', '075']
+      .every((n) => new RegExp(`L-${n}\\s+ENFORCED\\s+\\(fixed-in PR-230, 1 gate\\(s\\)\\)`).test(qUnv.stdout)), qUnv.stdout);
+  check('c. unverified reports both halves of the ratio', /\n27 unverified fix\(es\); 22 lesson\(s\) confirmed by a later run\./.test(qUnv.stdout), qUnv.stdout);
   check('c. with no RED line, unverified --gate exits 0 on the real store', run(['query', 'unverified', '--gate']).status === 0);
   {
     const { store } = scratchStore();

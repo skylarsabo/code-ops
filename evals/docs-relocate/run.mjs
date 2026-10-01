@@ -194,6 +194,19 @@ function suite(script, tag, repo) {
 
   r = apply(['--plan', planFile]);
   test('apply with several waves and no --wave names the waves', r.status === 1 && /name one with --wave/.test(r.err));
+
+  // A version 2 manifest cannot carry a removed legacy root. Plan and apply refuse it with one message that names the upgrade.
+  const v2 = join(work, `${tag}-v2`);
+  cpSync(repo, v2, { recursive: true });
+  const v2Manifest = join(v2, HUB, '98 System', 'DOCS_MANIFEST.json');
+  writeFileSync(v2Manifest, `${JSON.stringify({ ...JSON.parse(readFileSync(v2Manifest, 'utf8')), version: 2 }, null, 2)}\n`);
+  commit(v2, 'manifest version 2');
+  const v2Run = join(work, `${tag}-v2-run`);
+  const upgrade = /the manifest is version 2; a removed legacy root needs version 3\. Upgrade it first: .*standard-version 5/;
+  r = node([script, 'plan', '--root', v2, '--run', v2Run, ...LEGACY], v2);
+  test('plan refuses a version 2 manifest with the upgrade named and writes no plan', r.status === 1 && /plan refused: /.test(r.err) && upgrade.test(r.err) && !existsSync(join(v2Run, 'RELOCATION_PLAN.json')));
+  r = apply(['--plan', planFile, '--wave', 'docs/rulings'], v2);
+  test('apply refuses a version 2 manifest with the same upgrade message', r.status === 1 && /apply refused: /.test(r.err) && upgrade.test(r.err) && existsSync(join(v2, 'docs/rulings/r1.md')));
   return { results, planFile };
 }
 

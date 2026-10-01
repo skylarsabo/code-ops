@@ -586,6 +586,13 @@ try {
   const protocolDoc = readFileSync(join(REPO, 'code-ops-docs', '40 Engineering', 'Techniques', 'calibration-protocol.md'), 'utf8');
   const templateFence = protocolDoc.match(/```\r?\n(## Calibration note[\s\S]*?)```/);
   check('ab. the sanitized-note template is extractable from the protocol doc', !!templateFence, protocolDoc.slice(0, 200));
+  // R-013 ran a writing skill under a brief that barred commits, in a clone with converted line
+  // endings, and measured nothing (L-072, L-073). The run design keeps both setup rules.
+  const runDesign = protocolDoc.replace(/\s+/g, ' ');
+  check('ab. a skill that writes runs in a throwaway clone with commits granted (L-072)',
+    /throwaway clone of the target/.test(runDesign) && /Grant commits in that clone in every brief/.test(runDesign));
+  check('ab. the clone turns line-ending conversion off before the first inventory (L-073)',
+    /git clone -c core\.autocrlf=false/.test(runDesign));
   if (templateFence) {
     const filled = templateFence[1]
       // A severity-mix placeholder is filled with the five counts, in either template shape.
