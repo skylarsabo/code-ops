@@ -246,6 +246,9 @@ jobs:
       - name: Collision note eval (warn-only peer collision context)
         run: node evals/collision/run.mjs
 
+      - name: Peer surface note eval (declared surfaces, merge diffs, process kills, handed-off peers)
+        run: node evals/peer-surfaces/run.mjs
+
       - name: Change feed eval (push, merge, hub-edit, seal events, delivery, bounds)
         run: node evals/change-feed/run.mjs
 
@@ -531,6 +534,9 @@ jobs:
 
       - name: Dispatch guard hook eval (round budget + dispatch advisories)
         run: node evals/dispatch-guard/run.mjs
+
+      - name: Peer surface note eval (declared surfaces, merge diffs, process kills, handed-off peers)
+        run: node evals/peer-surfaces/run.mjs
 
       - name: Agent ledger hook eval (launch and report records, pending list)
         run: node evals/agent-ledger/run.mjs

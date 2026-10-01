@@ -55,6 +55,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { markSessionEnded, recordFromPayload } from '../../scripts/agent-ledger.mjs';
+import { repoIdentity, updateBoard } from '../../scripts/handoff-state.mjs';
 import { handoffMarkerPath, handoffPeakBand, residentContext, residentContextReading } from '../../scripts/transcript-lib.mjs';
 import { tally } from '../harness.mjs';
 
@@ -934,6 +935,137 @@ function grokUsageLine(inputTokens) {
   rmSync(project, { recursive: true, force: true });
   console.log('ok   the routing card lists pending handoffs passively, names the session, restates the session record after compaction, and honors its switch');
   console.log('ok   the routing card names the operator shell off Claude Code, the win32 quoting trap, and co brief, and keeps empty-stdin output platform-free');
+}
+
+// ---------------------------------------------------------------- peer lines (routing card)
+
+// One `peer:` line per live session of another program on the presence board, from the board
+// records under CODE_OPS_HOME. A same-program session, an ended one, and an unreadable record add
+// nothing; a predecessor and its successor give one line, named by the head; a fresh snapshot adds
+// the reply-owed marker on the compact card only; at most 4 lines; CODE_OPS_PEER_GUARD off silences.
+{
+  const routingCard = join(root, 'plugins', 'code-ops-suite', 'hooks', 'routing-card.mjs');
+  const home = mkdtempSync(join(tmpdir(), 'peer-lines-home-'));
+  const repo = mkdtempSync(join(tmpdir(), 'peer-lines-repo-'));
+  mkdirSync(join(repo, '.git'));
+  const DOT = '·';
+  const OWN_HOST = 'host-own-1';
+  const runCard = (payload, extraEnv = {}) => {
+    const env = { ...process.env };
+    for (const key of ['CODE_OPS_HANDOFF_PICKUP', 'GROK_PLUGIN_ROOT', 'CLAUDECODE', 'CODE_OPS_OPERATOR_SHELL']) delete env[key];
+    Object.assign(env, { HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_PEER_GUARD: '', CODE_OPS_AGENT_LEDGER: '', ...extraEnv });
+    return spawnSync('node', [routingCard], { input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: OWN_HOST, ...payload }), encoding: 'utf8', env });
+  };
+  const peerLinesOf = (r) => (r.stdout || '').split(/\r?\n/).filter((l) => l.startsWith('peer: '));
+  const line = (program, name, owed = false) => `peer: ${program} ${DOT} live session ${name}${owed ? ` ${DOT} reply owed` : ''}`;
+
+  const runsRoot = join(repo, 'fixture-docs', '80 Runs');
+  const relRun = (name) => `fixture-docs/80 Runs/${name}`;
+  for (const program of ['alpha', 'beta', 'gamma', 'delta', 'theta', 'epsilon', 'zeta', 'eta']) {
+    mkdirSync(join(repo, 'fixture-docs', 'programs', program), { recursive: true });
+    writeFileSync(join(repo, 'fixture-docs', 'programs', program, 'PROGRAM.md'), '# PROGRAM\n');
+  }
+  const seedRun = (name, program, session) => {
+    mkdirSync(join(runsRoot, name), { recursive: true });
+    writeFileSync(join(runsRoot, name, 'SESSION.json'), JSON.stringify({ v: 1, hop: 0, predecessor: null, program: `fixture-docs/programs/${program}/PROGRAM.md`, ...session }));
+    return relRun(name);
+  };
+  const onBoard = (sessionId, fields, ended = false) => updateBoard(repo, sessionId, (rec) => {
+    Object.assign(rec, fields);
+    if (ended) rec.ended = new Date().toISOString();
+  }, home);
+  const peer = (sessionId, program, name, extra = {}) => onBoard(sessionId, { name, runDir: seedRun(`run-${sessionId}`, program, { sessionId, name }), ...extra });
+
+  const ownRun = seedRun('run-own', 'alpha', { sessionId: 'co-own', hostSessionId: OWN_HOST, name: 'Own HO 1' });
+  onBoard('co-own', { name: 'Own HO 1', hostSessionId: OWN_HOST, runDir: ownRun });
+  peer('co-beta', 'beta', 'Beta HO 3');
+  peer('co-gamma', 'gamma', 'Gamma HO 1', { hostSessionId: 'host-gamma-1' });
+  peer('co-alpha-peer', 'alpha', 'Alpha Peer');
+  onBoard('co-iota', { name: 'Iota', runDir: seedRun('run-iota', 'delta', { sessionId: 'co-iota', name: 'Iota' }) }, true);
+  const boardDir = join(home, '.claude', 'code-ops', 'board', repoIdentity(repo).key);
+  writeFileSync(join(boardDir, 'broken.json'), '{not json');
+  writeFileSync(join(boardDir, 'badrun.json'), JSON.stringify({ v: 1, sessionId: 'co-badrun', heartbeat: new Date().toISOString(), runDir: 7 }));
+  writeFileSync(join(boardDir, 'norun.json'), JSON.stringify({ v: 1, sessionId: 'co-norun', heartbeat: new Date().toISOString(), runDir: 'fixture-docs/80 Runs/no-such-run' }));
+
+  // Two live peers of other programs show with program and live session name; a same-program
+  // peer, an ended one, and malformed records add nothing and never break the card.
+  const startup = runCard({ source: 'startup' });
+  const sorted = (lines) => [...lines].sort();
+  expect(startup.status === 0 && /code-ops standard operating mode/.test(startup.stdout)
+    && JSON.stringify(sorted(peerLinesOf(startup))) === JSON.stringify(sorted([line('beta', 'Beta HO 3'), line('gamma', 'Gamma HO 1')])),
+  `the startup card must list the two other-program live peers and not the same-program, ended, or malformed ones, got ${JSON.stringify(startup.stdout)}`);
+  expect(!startup.stdout.includes('Alpha Peer') && !startup.stdout.includes('Iota'), 'a same-program peer and an ended session must not be shown');
+  // The clear source prints them too; resume prints none.
+  expect(peerLinesOf(runCard({ source: 'clear' })).length === 2, 'a cleared session must also list the peers');
+  expect(peerLinesOf(runCard({ source: 'resume' })).length === 0, 'a resumed session must list no peers');
+  // With no program of its own, every other live program-bearing session shows, the same-program one too.
+  const unknownOwn = runCard({ source: 'startup', session_id: 'nobody-knows-this-session' });
+  expect(peerLinesOf(unknownOwn).length === 4 && peerLinesOf(unknownOwn).includes(line('alpha', 'Alpha Peer')) && peerLinesOf(unknownOwn).includes(line('alpha', 'Own HO 1')),
+    `a session with no program must see every other live program-bearing session, got ${JSON.stringify(peerLinesOf(unknownOwn))}`);
+
+  // A handed-off peer shows once, by its head: the predecessor's folder is consumed and names the
+  // successor run, and both sessions are live on the board.
+  const delta1 = seedRun('run-delta-1', 'delta', { sessionId: 'co-delta-1', name: 'Delta HO 1' });
+  const delta2 = seedRun('run-delta-2', 'delta', { sessionId: 'co-delta-2', name: 'Delta HO 2' });
+  writeFileSync(join(runsRoot, 'run-delta-1', 'HANDOFF.md'), '# HANDOFF\n');
+  writeFileSync(join(runsRoot, 'run-delta-1', 'HANDOFF.consumed'), JSON.stringify({ v: 2, consumedAt: new Date().toISOString(), bySession: 'co-delta-2', successorRun: delta2, name: 'Delta HO 2' }));
+  onBoard('co-delta-1', { name: 'Delta HO 1', runDir: delta1 });
+  onBoard('co-delta-2', { name: 'Delta HO 2', runDir: delta2 });
+  const handed = peerLinesOf(runCard({ source: 'startup' }));
+  expect(handed.length === 3 && handed.filter((l) => l.startsWith('peer: delta ')).join() === line('delta', 'Delta HO 2'),
+    `a handed-off peer must show once, by its head, got ${JSON.stringify(handed)}`);
+
+  // The reply-owed marker comes from a fresh snapshot on the compact card, matched by name or by
+  // session id, and only there.
+  const transcript = join(repo, 'transcript.jsonl');
+  const boundary = JSON.stringify({ type: 'system', subtype: 'compact_boundary' });
+  writeFileSync(transcript, `${boundary}\n`);
+  const snapshot = ['# Compact snapshot', `Written: ${new Date().toISOString()}`, `Session: ${OWN_HOST}`, 'Boundaries: 0', 'Status: complete',
+    'Counts: operator words 0, running work 0, active items 0, reply-owed peers 2', '', '## Operator words (0, oldest first)', 'none', '',
+    '## Peers (2 reply-owed, 0 quiet)', '- REPLY OWED Beta HO 3 co-beta 5m: need an answer', '- REPLY OWED - host-gamma-1 2m: and one here', ''].join('\n');
+  writeFileSync(join(runsRoot, 'run-own', 'COMPACT_SNAPSHOT.md'), snapshot);
+  const compactPayload = { source: 'compact', transcript_path: transcript };
+  const compact = runCard(compactPayload);
+  expect(compact.stdout.includes('Snapshot fresh (') && peerLinesOf(compact).includes(line('beta', 'Beta HO 3', true)) && peerLinesOf(compact).includes(line('gamma', 'Gamma HO 1', true))
+    && peerLinesOf(compact).includes(line('delta', 'Delta HO 2')),
+  `the compact card on a fresh snapshot must mark the reply-owed peers by name and by session id and no other, got ${JSON.stringify(peerLinesOf(compact))}`);
+  const startupWithSnapshot = peerLinesOf(runCard({ source: 'startup', transcript_path: transcript }));
+  expect(startupWithSnapshot.length === 3 && !startupWithSnapshot.some((l) => l.includes('reply owed')), `the startup card must carry no reply-owed marker, got ${JSON.stringify(startupWithSnapshot)}`);
+  writeFileSync(transcript, `${boundary}\n${boundary}\n`);
+  const stale = runCard(compactPayload);
+  expect(stale.stdout.includes('Snapshot STALE') && peerLinesOf(stale).length === 3 && !peerLinesOf(stale).some((l) => l.includes('reply owed')),
+    `a stale snapshot must add the peer lines but no reply-owed marker, got ${JSON.stringify(peerLinesOf(stale))}`);
+
+  // The program is read from the head's handoff when no SESSION.json names it; the board name stands.
+  const thetaDir = join(runsRoot, 'run-theta');
+  mkdirSync(thetaDir, { recursive: true });
+  writeFileSync(join(thetaDir, 'HANDOFF.md'), '# HANDOFF\n\n## Program\n\nProgram: fixture-docs/programs/theta/PROGRAM.md\nPredecessor: none\nSession: Theta HO 1\nHop: 0\n');
+  onBoard('co-theta', { name: 'Theta Board Name', runDir: relRun('run-theta') });
+  expect(peerLinesOf(runCard({ source: 'startup' })).includes(line('theta', 'Theta Board Name')), 'with no SESSION.json the board name must stand for the head');
+
+  // CODE_OPS_PEER_GUARD off values silence the lines on both cards; any other value leaves them on.
+  for (const value of ['off', '0', 'false', 'OFF']) {
+    expect(peerLinesOf(runCard({ source: 'startup' }, { CODE_OPS_PEER_GUARD: value })).length === 0 && peerLinesOf(runCard(compactPayload, { CODE_OPS_PEER_GUARD: value })).length === 0,
+      `CODE_OPS_PEER_GUARD=${value} must show no peer lines`);
+  }
+  expect(peerLinesOf(runCard({ source: 'startup' }, { CODE_OPS_PEER_GUARD: 'on' })).length === 4, 'a non-off CODE_OPS_PEER_GUARD value must leave the lines on');
+
+  // The 4-line cap: more live peers than the cap show exactly 4 lines, each within 160 characters.
+  for (const program of ['epsilon', 'zeta', 'eta']) peer(`co-${program}`, program, `${program} ${'long'.repeat(40)}`);
+  const capped = runCard({ source: 'startup' });
+  expect(capped.status === 0 && peerLinesOf(capped).length === 4 && peerLinesOf(capped).every((l) => l.length <= 160),
+    `the card must cap the peer lines at 4 of at most 160 characters, got ${JSON.stringify(peerLinesOf(capped))}`);
+  expect(peerLinesOf(runCard(compactPayload)).length === 4, 'the compact card must cap the peer lines at 4');
+
+  // Fail open: a board path that is a file is no board at all, and the card still prints.
+  rmSync(boardDir, { recursive: true, force: true });
+  writeFileSync(boardDir, 'not a directory');
+  const noBoard = runCard({ source: 'startup' });
+  expect(noBoard.status === 0 && /code-ops standard operating mode/.test(noBoard.stdout) && peerLinesOf(noBoard).length === 0, 'an unreadable board must fail open with the card and no peer lines');
+
+  rmSync(home, { recursive: true, force: true });
+  rmSync(repo, { recursive: true, force: true });
+  console.log('ok   the routing card lists live peers of other programs once by head, marks reply-owed peers from a fresh snapshot, caps at 4 lines, and honors CODE_OPS_PEER_GUARD');
 }
 
 // ---------------------------------------------------------------- history read notice

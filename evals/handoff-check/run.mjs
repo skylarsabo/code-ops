@@ -363,6 +363,26 @@ expectFail('check 18: an id both open and closed in the ledger', g2('c18', { led
 const G2_ARCHIVE = `# PROGRAM archive: check-handoff eval\n\n## Request history\n\n- 2026-09-22: ${PRIOR_REQUEST}\n\n## Decisions ledger\n\n${G2_DEC1}\n\n## Closed items\n\n- OI-2 closed-with-proof abc1234 · Pointer: docs page\n`;
 expectFail('check 18: an id in both the ledger and its archive', g2('c18-archive', { archive: G2_ARCHIVE }), /check 18: DEC-1 leads 2 bullets/);
 expectPass('checks 9, 13, and 18 read the archive', g2('archive', { ledger: buildProgram2({ decisions: [G2_DEC2], closed: [], history: [`- 2026-09-23: ${BASE_REQUEST}`] }), archive: G2_ARCHIVE }));
+// Agreed-with (design 2026-09 item 4): warn only, exit 0, when the peer program's ledger has no counterpart.
+// The peer ledger is a sibling directory of the case's own, so its slug is the Agreed-with value.
+const agreedDec = (peer, text = 'Ingest pin stays at v2') => `- DEC-3 2026-09-23 ${text} · Agreed-with: ${peer} · Hop: 1 · Disposition: local`;
+const peerLedger = (peer, bullet) => { mkdirSync(join(work, peer), { recursive: true }); if (bullet !== null) writeFileSync(join(work, peer, 'PROGRAM.md'), `# PROGRAM: peer\n\n## Decisions ledger\n\n${bullet}\n`); };
+const agreed = (name, peer, bullet, text) => {
+  peerLedger(peer, bullet);
+  const file = g2(name, { ledger: buildProgram2({ decisions: [G2_DEC1, G2_DEC2, agreedDec(peer, text)] }) });
+  return { r: run([file]), own: `g2-${name}` };
+};
+const rMatched = agreed('agree-matched', 'agree-peer-a', '- DEC-9 2026-09-24   Ingest pin stays at   v2 · Agreed-with: g2-agree-matched · Hop: 0 · Disposition: local').r;
+check('Agreed-with: a counterpart with the same text exits 0', rMatched.status === 0);
+check('Agreed-with: a counterpart with the same text warns of nothing', !/Agreed-with/.test(outOf(rMatched)));
+const unmatched = agreed('agree-unmatched', 'agree-peer-b', '- DEC-9 2026-09-24 Ingest pin moves to v3 · Agreed-with: g2-agree-unmatched · Hop: 0 · Disposition: local');
+check('Agreed-with: a peer entry with other text exits 0', unmatched.r.status === 0);
+check('Agreed-with: a peer entry with other text warns of no counterpart', /warning: check 11: Agreed-with agree-peer-b entry "Ingest pin stays at v2" has no counterpart in programs\/agree-peer-b\/PROGRAM\.md/.test(outOf(unmatched.r)));
+const wrongSlug = agreed('agree-wrongslug', 'agree-peer-c', '- DEC-9 2026-09-24 Ingest pin stays at v2 · Agreed-with: some-other-program · Hop: 0 · Disposition: local');
+check('Agreed-with: a peer entry naming another program warns of no counterpart', wrongSlug.r.status === 0 && /Agreed-with agree-peer-c entry .* has no counterpart/.test(outOf(wrongSlug.r)));
+const missing = agreed('agree-missing', 'agree-peer-none', null);
+check('Agreed-with: a missing peer ledger exits 0', missing.r.status === 0);
+check('Agreed-with: a missing peer ledger warns of the missing ledger', /warning: check 11: Agreed-with agree-peer-none entry "Ingest pin stays at v2" has no peer ledger at programs\/agree-peer-none\/PROGRAM\.md/.test(outOf(missing.r)));
 expectFail('check 4: a carried item missing from the ledger Open items', g2('c4', { ledger: buildProgram2({ open: [G2_OI1] }) }), /check 4: carried open item OI-3 is not in PROGRAM\.md "## Open items"/);
 expectFail('a grammar 2 ledger without an Open items section', g2('no-open', { ledger: buildProgram2().replace(/## Open items\n\n[\s\S]*?\n\n(?=## Decisions)/, '') }), /missing required heading: "## Open items"/);
 

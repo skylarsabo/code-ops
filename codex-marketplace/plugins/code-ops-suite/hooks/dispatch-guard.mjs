@@ -462,7 +462,7 @@ function emit(body) {
 // other call pays nothing; anything that goes wrong is no note.
 const COLLISION_TOOLS = /(?:^|\.)(?:edit|write|search_replace|multiedit|notebookedit|apply_patch|bash|shell|exec_command|run_terminal_command)$/i;
 const EDIT_TOOL_NAME = /(?:^|\.)(?:edit|write|search_replace|multiedit|notebookedit|apply_patch)$/i;
-const GIT_VERB_HINT = /\bgit\b[\s\S]*\b(?:pull|merge|rebase|push)\b/;
+const GIT_VERB_HINT = /\bgit\b[\s\S]*\b(?:pull|merge|rebase|push)\b|\b(?:taskkill|pkill|kill|Stop-Process)\b/i;
 
 async function collisionFor(payload, agentId) {
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_PEER_GUARD ?? '')) return null;
