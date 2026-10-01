@@ -255,7 +255,8 @@ The `PreCompact` hook `compact-snapshot.mjs` writes `COMPACT_SNAPSHOT.md` before
 so the restore card below can name running work and reply-owed peers that a summary drops. The
 host ignores plain stdout from `PreCompact`, so the hook prints nothing. It reads only `session_id`,
 `transcript_path`, and `cwd` from the payload and writes nothing without a session id and a
-transcript path. The snapshot holds four sections within a 12,000-character total: operator words
+transcript path. Grok sends both keys in snake case beside camel-case twins (2026-10-01 capture),
+and the parser reads Grok's `chat_history.jsonl` and `updates.jsonl` shapes. The snapshot holds four sections within a 12,000-character total: operator words
 (4,800), running work (2,000), active items (3,600), and peers (1,200). Its header records the
 write time, the session, the `compact_boundary` count, a `Status` (`partial` names each missing
 input: transcript, run folder, `TASKS.md`, or agent ledger), and the counts. Running agents come
@@ -279,7 +280,7 @@ does not gate the compact card. The registration carries a 30-second timeout.
 A snapshot is `fresh` only when the transcript's `compact_boundary` count equals the header's
 boundary count plus one. Any other count, and any unreadable header, makes it `stale`. `co
 snapshot [--session <id>] [--transcript <file>] [--run <dir>] [--json]` writes the same file on a
-host whose `PreCompact` payload is unverified. It needs `--session` or `--run`. The transcript
+host where `PreCompact` does not fire (Codex) and for a manual rebuild. It needs `--session` or `--run`. The transcript
 defaults to the host's default file for the session, and the run folder defaults to the one whose
 `SESSION.json` names the session. A missing piece makes the header `partial`. `--json` prints the
 result fields. It exits `0` when written, `1` when the write fails, and `2` on a usage error.
@@ -743,7 +744,7 @@ and asks the lead to checkpoint, not to assess. Band 1 says: "Host auto-compacti
 so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a
 `Next:` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits."
 It ends with "The PreCompact snapshot keeps operator words, running work, and peers." on Claude, or
-"Then run `co snapshot`, because the Codex PreCompact payload is unverified." on Codex. The hook has
+"Then run `co snapshot`, because the Codex PreCompact hook does not fire." on Codex. The hook has
 no Codex signal, so Claude is `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set and any other non-Grok host
 reads as Codex. Band 2 and above says: "Finish the step in flight and checkpoint as above. If the
 host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean
@@ -1093,7 +1094,9 @@ The advisories are a `Tier` above the routed rung, a declared kind raised to the
 frontmatter effort, and a Workflow `model` or `effort` that is not a literal string. A Workflow `agent()` call
 whose literal `model` ranks below the floor of its literal `agentType` is denied. A `spawn_subagent`
 or `spawn_agent` input with a literal `xhigh` or `max` effort is denied. The `spawn_agent` tool
-is covered by name only: whether `PreToolUse` fires for it on Codex is UNVERIFIED. The gate loads
+is covered by name. That `PreToolUse` fires for it on Codex is PROBABLE: the Codex hooks
+documentation matches it under the alias `Agent`, and `DISPATCH_TOOLS` holds both names. A live
+capture showed that `PostToolUse` does not fire for it. The gate loads
 `scripts/route-unit.mjs` and `scripts/agent-ledger.mjs` lazily and only for a routed dispatch or a
 Workflow `model`. A missing library, a ledger error, or any internal error skips these checks and
 passes. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`routeChecks`, `reviewWorkflow`)

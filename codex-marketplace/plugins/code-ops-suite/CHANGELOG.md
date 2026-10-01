@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.36.0
+- The compact snapshot reads Grok transcripts: a `user` line with a `prompt_index` in `chat_history.jsonl` and a `user_message_chunk` in `updates.jsonl` both count as operator prompts, so a Grok PreCompact snapshot keeps the operator words.
+- The Codex snapshot line on the handoff card now says the Codex PreCompact hook does not fire, as the 2026-10-01 capture showed.
+
 ## 2.35.0
 - The routing card ends with the session's `Routing:` line once a judgment dispatch is on the ledger, and `handoff draft` writes the same line under In-flight boundaries, so a STARVED or OVERUSED verdict reaches the successor.
 - `run-cost-audit` gains a routing lens: it compares each unit's ledger rung and effort with `co route` and cites every starvation and overuse flag.

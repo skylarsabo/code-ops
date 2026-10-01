@@ -53,7 +53,7 @@
 // auto-compaction, never a handoff, and the card asks for a checkpoint, not an assessment. Band 1
 // says to keep TASKS.md current and append a `Next:` line to RUN_LOG.md (the step in flight, its
 // next command, and the file:line it edits). On Claude it ends by naming the PreCompact snapshot;
-// on Codex, whose PreCompact payload is unverified, it says to run `co snapshot`. Band 2 and above
+// on Codex, where PreCompact does not fire, it says to run `co snapshot`. Band 2 and above
 // says to finish the step, checkpoint as above, ask the operator to run /compact if the host has
 // not, and hand off only for new work or a clean session that loads updated code-ops plugins
 // (DEC-76). No card says to hand off on a token count. The hook has no Codex signal, so Claude is
@@ -319,7 +319,7 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
       ? ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Codex settings so the host compacts near that size.' : '';
     const snapshot = claude
       ? 'The PreCompact snapshot keeps operator words, running work, and peers.'
-      : 'Then run `co snapshot`, because the Codex PreCompact payload is unverified.';
+      : 'Then run `co snapshot`, because the Codex PreCompact hook does not fire.';
     advice = band === 1
       ? `Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a \`Next:\` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits. ${snapshot}${setting}`
       : `Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.${setting}`;

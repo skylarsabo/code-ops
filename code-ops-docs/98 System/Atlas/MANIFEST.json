@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
-      "verifiedDigest": "5971f86eddf175a424491a77fac4c98cbcd2aa61edb7565dae31c914c4a825d5",
+      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
+      "verifiedDigest": "a98730dc05f5471a978526b34d6680d161045de2bb9dbb24b9acaa86798e0277",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -53,7 +53,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/transcript-lib.mjs",
-          "line": 719,
+          "line": 734,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
@@ -295,8 +295,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
-      "verifiedDigest": "c8dc9686b7b18bb9ed49418124185d8bd67a03c3fe136ae5d19bfaca2e3d7b54",
+      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
+      "verifiedDigest": "fdfa5a88636a88eb21ddf8ed15e44b277d5a6539f5c565f35cc8a31c2d5d356a",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -430,7 +430,7 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 909,
+          "line": 924,
           "anchor": "export function residentContextReading(payload, { grok = false, home = homedir()"
         },
         {
@@ -585,12 +585,12 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 719,
+          "line": 734,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 744,
+          "line": 759,
           "anchor": "export function sessionRecordPath(cwd, sessionId, home = homedir()) {"
         },
         {
@@ -726,8 +726,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
-      "verifiedDigest": "28fad6a3ec54f526c632581ef97f2d16d5a4fc16de6026fa27078c189935ea7d",
+      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
+      "verifiedDigest": "5c59b007d204af026353e1988338b0b8f184131a3697c74303d04e9f055f8ca4",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -881,11 +881,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 359
+          "line": 359,
+          "anchor": "check('7f3. with capture on the PreCompact hook records the key names, never the"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 407,
+          "line": 474,
           "anchor": "writeFileSync(cardSnap, 'garbage that is not a snapshot\\n- REPLY OWED Nobody x:"
         },
         {
@@ -970,12 +971,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 385,
+          "line": 452,
           "anchor": "writeFileSync(tasksFile, unchecked(13));"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 395,
+          "line": 462,
           "anchor": "cl = linesOf(c);"
         },
         {
@@ -1003,8 +1004,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "db3dfc2b534d8e7d0781cfced8e559165d8c6d29",
-      "verifiedDigest": "a2db05efd02d026da382b3be21a0873edfad40c16213f62af872a4a19255d462",
+      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
+      "verifiedDigest": "e5d6503091c57c8774acb67528e9fa6337d7e92dea83fdc3f2e67361979d8747",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1049,7 +1050,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 322,
-          "anchor": ", because the Codex PreCompact payload is unverified.';"
+          "anchor": ", because the Codex PreCompact hook does not fire.';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -1182,8 +1183,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "b81cf60c72c41948a1c46461a345e46fdc1a8803",
-      "verifiedDigest": "26bc1039064be98f978c0a860d69780cdc75342f37fce9f69bd089a781c330c4",
+      "verifiedAt": "5bc0a7f4d1719059066ec7f39800584792f7f17b",
+      "verifiedDigest": "2a0e59c3610bd49201e55312bb8f6eb22dce1f50e7f5dda6236da2c4b7202e88",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",

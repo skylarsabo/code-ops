@@ -506,13 +506,14 @@ export function summarizeTranscript(text, opts = {}) {
 
 // The conversation a compaction summary can lose, read back from the host transcript, which
 // compaction never deletes. `scripts/compact-snapshot.mjs` is the reader. The record shapes below
-// are host internals (Claude Code), observed in a real transcript and pinned by the fixture in
-// evals/compact-snapshot, so all of the parsing stays in this one function and any line that does
-// not fit costs only itself:
+// are host internals (Claude Code, plus the Grok operator prompt below), observed in real
+// transcripts and pinned by the fixture in evals/compact-snapshot, so all of the parsing stays in
+// this one function and any line that does not fit costs only itself:
 //   - operator prompts: `queue-operation` `enqueue` records and human `user` records, minus task
 //     notifications, `isMeta` skill bodies, the compaction summary, command wrappers, hook and
 //     system-reminder context. A namespaced `/skill args` keeps only its args; a skill body that
-//     reaches a prompt keeps only its `ARGUMENTS:` line. Duplicates by text keep the first.
+//     reaches a prompt keeps only its `ARGUMENTS:` line. Duplicates by text keep the first. A Grok
+//     prompt is a `user` line with a `prompt_index` (its `<user_query>` body) or a `user_message_chunk`.
 //   - answers: an `AskUserQuestion` result (`toolUseResult.answers`, else the result text) as
 //     `<header>: <chosen label>`.
 //   - peers: `<cross-session-message from-session= from-name=>` blocks, and `SendMessage` tool uses.
@@ -526,6 +527,7 @@ const SLASH_RE = /^\/([A-Za-z0-9._:-]+)(?:[ \t]+([\s\S]*))?$/;
 const TASK_NOTE_RE = /<task-notification>[\s\S]*?<\/task-notification>|<task-notification>[\s\S]*$/g;
 const PEER_RE = /<cross-session-message\b([^>]*)>([\s\S]*?)(?:<\/cross-session-message>|$)/g;
 const STILL_RUNNING = /^(?:running|started|pending|in[_ -]?progress)$/i;
+const GROK_QUERY_RE = /<user_query>\s*([\s\S]*)\s*<\/user_query>/;
 
 function operatorText(raw) {
   const t = String(raw).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim();
@@ -600,6 +602,19 @@ export function conversationOf(text) {
 
       if (o.type === 'queue-operation') {
         if (o.operation === 'enqueue' && typeof o.content === 'string') prompt(o.content);
+        continue;
+      }
+      // Grok: `chat_history.jsonl` holds a typed prompt as a top-level `user` line with a numeric
+      // `prompt_index`; the `user_info` and `system_reminder` context lines carry none.
+      // `updates.jsonl` repeats each prompt as a `user_message_chunk`. Neither file has a
+      // compaction boundary or a Claude tool record.
+      if (o.type === 'user' && Number.isInteger(o.prompt_index) && Array.isArray(o.content)) {
+        for (const b of o.content) if (b?.type === 'text' && typeof b.text === 'string') prompt(GROK_QUERY_RE.exec(b.text)?.[1] ?? b.text);
+        continue;
+      }
+      const grokChunk = o.params?.update;
+      if (grokChunk?.sessionUpdate === 'user_message_chunk') {
+        if (typeof grokChunk.content?.text === 'string') prompt(grokChunk.content.text);
         continue;
       }
       const content = o.message?.content;

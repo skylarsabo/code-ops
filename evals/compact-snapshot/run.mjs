@@ -12,6 +12,9 @@
 //   - REQUIRED: a stale second compaction (boundary count against the header), a masking failure
 //     (a stub that keeps only the transcript line, never the raw text), and the run folder fallback
 //     (SESSION.json lookup, then the home state directory when the folder is not git-ignored);
+//   - Grok: a PreCompact payload with snake_case keys and camelCase twins, over a synthetic
+//     `chat_history.jsonl` and `updates.jsonl`, writes the snapshot with the operator words; three
+//     mutants (prompts ignored, wrapper kept, chunks ignored) must each be caught;
 //   - an atomic write, a `partial` status, malformed lines failing open, and the usage errors.
 // The PreCompact hook, its off switch, and the card's fresh and stale forms belong to their own evals;
 // this eval pins the library side they call (readSnapshotHeader, snapshotState).
@@ -19,7 +22,7 @@
 //   node evals/compact-snapshot/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -356,6 +359,70 @@ try {
   check('7f3. with capture on the PreCompact hook records the key names, never the transcript path value',
     h.status === 0 && h.stdout === '' && h.stderr === '' && captureRow?.keys?.includes('transcript_path') && captureRow.values?.hook_event_name === 'PreCompact'
       && !captured.includes(cardT) && !captured.includes(JSON.stringify(cardT).slice(1, -1)) && !captured.includes(CARD) && !captured.includes(cardRepo), captured.slice(0, 300));
+
+  // Grok: the PreCompact payload keys (snake_case plus camelCase twins) and the `chat_history.jsonl` and
+  // `updates.jsonl` line shapes, as captured live 2026-10-01 and rebuilt here with synthetic text only.
+  // Each mutant breaks one parser branch in a copy of the plugin's scripts, and the case must catch it.
+  const GROK = 'Grok-session-0001';
+  const grokRepo = initRepo('repo-grok', true);
+  const grokRun = runFolder(grokRepo, '2026-10-01-grok-ho1', { sessionId: GROK, name: 'Grok HO 1' });
+  const grokSnap = join(grokRun, 'COMPACT_SNAPSHOT.md');
+  const grokLine = (o) => JSON.stringify(o);
+  const grokUser = (text, extra = {}) => grokLine({ type: 'user', content: [{ type: 'text', text }], ...extra });
+  const grokChat = [
+    grokLine({ type: 'system', content: 'GROK-SYSTEM-NOISE' }),
+    grokUser('<user_info>GROK-INFO-NOISE</user_info>'),
+    grokUser('<system-reminder>GROK-REMINDER-NOISE</system-reminder>', { synthetic_reason: 'system_reminder' }),
+    grokUser('<user_query>\ngrok directive words first\n</user_query>', { prompt_index: 0 }),
+    grokLine({ type: 'reasoning', id: 'r1', summary: [{ type: 'text', text: 'GROK-THOUGHT-NOISE' }], status: 'completed' }),
+    grokLine({ type: 'assistant', content: 'GROK-ANSWER-NOISE', tool_calls: [{ id: 'c1', name: 'read_file', arguments: '{}' }], model_id: 'grok-x' }),
+    grokLine({ type: 'tool_result', tool_call_id: 'c1', content: 'GROK-RESULT-NOISE' }),
+    grokUser('attached context line\n<user_query>\ngrok directive words second\n</user_query>', { prompt_index: 1 }),
+    grokUser('<user_query>\ngrok directive words first\n</user_query>', { prompt_index: 2 }),
+  ];
+  const grokUpdate = (n, update) => grokLine({ timestamp: 1_790_000_000_000 + n, method: 'session/update', params: { sessionId: GROK, update, _meta: { eventId: `e${n}`, agentTimestampMs: 1_790_000_000_000 + n } } });
+  const grokUpdates = [
+    grokUpdate(1, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'updates directive words' }, _meta: { modelId: 'grok-x', promptIndex: 0 } }),
+    grokUpdate(2, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'GROK-REPLY-NOISE' } }),
+    grokLine({ timestamp: 1_790_000_000_003, method: '_x.ai/session/update', params: { sessionId: GROK, update: { sessionUpdate: 'turn_completed', prompt_id: 'p0', stop_reason: 'end_turn', elapsed_ms: 5 } } }),
+  ];
+  const grokChatT = transcript('grok-chat_history.jsonl', grokChat);
+  const grokUpdatesT = transcript('grok-updates.jsonl', grokUpdates);
+  const grokOps = (file) => words(conversationOf(readFileSync(file, 'utf8')));
+  check('7g1. a Grok chat_history keeps each typed prompt (its user_query body, deduped) and none of the context or model lines',
+    JSON.stringify(grokOps(grokChatT)) === JSON.stringify(['grok directive words first', 'grok directive words second']) && !/NOISE|user_query/.test(JSON.stringify(conversationOf(grokChat.join('\n')))), JSON.stringify(grokOps(grokChatT)));
+  check('7g2. a Grok updates.jsonl keeps each user_message_chunk and nothing else', JSON.stringify(grokOps(grokUpdatesT)) === JSON.stringify(['updates directive words']), JSON.stringify(grokOps(grokUpdatesT)));
+  const grokPayload = (file) => JSON.stringify({ cwd: grokRepo, hookEventName: 'PreCompact', hook_event_name: 'PreCompact', permissionMode: 'default', permission_mode: 'default',
+    sessionId: GROK, session_id: GROK, source: 'auto', timestamp: '2026-10-01T09:00:00Z', transcriptPath: file, transcript_path: file, workspaceRoot: grokRepo });
+  const grokHook = (file, script = join(HOOKS, 'compact-snapshot.mjs')) => {
+    rmSync(grokSnap, { force: true });
+    const run = spawnSync(process.execPath, [script], { cwd: grokRepo, input: grokPayload(file), encoding: 'utf8', timeout: 60_000, env: cleanEnv });
+    return { run, text: existsSync(grokSnap) ? readFileSync(grokSnap, 'utf8') : '' };
+  };
+  let g = grokHook(grokChatT);
+  check('7g3. a Grok PreCompact payload writes COMPACT_SNAPSHOT.md with the operator words, silently',
+    g.run.status === 0 && g.run.stdout === '' && g.run.stderr === '' && readSnapshotHeader(g.text)?.sessionId === GROK && readSnapshotHeader(g.text).counts?.words === 2
+      && g.text.includes('grok directive words first') && g.text.includes('grok directive words second') && !/NOISE|user_query/.test(g.text), `${g.run.status} ${g.run.stderr} ${g.text.slice(0, 300)}`);
+  g = grokHook(grokUpdatesT);
+  check('7g4. a payload naming the Grok updates.jsonl writes its operator words too', g.run.status === 0 && readSnapshotHeader(g.text)?.counts?.words === 1 && g.text.includes('updates directive words') && !g.text.includes('GROK-REPLY-NOISE'), `${g.run.status} ${g.text.slice(0, 300)}`);
+  const mutantRoot = join(tmp, 'grok-mutant');
+  cpSync(join(HOOKS, '..', 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
+  mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
+  copyFileSync(join(HOOKS, 'compact-snapshot.mjs'), join(mutantRoot, 'hooks', 'compact-snapshot.mjs'));
+  const mutantLib = join(mutantRoot, 'scripts', 'transcript-lib.mjs');
+  const pristine = readFileSync(join(HOOKS, '..', 'scripts', 'transcript-lib.mjs'), 'utf8');
+  g = grokHook(grokChatT, join(mutantRoot, 'hooks', 'compact-snapshot.mjs'));
+  check('7g5. the unmutated copy of the plugin scripts passes the same case, so a mutant failure is the mutation', readSnapshotHeader(g.text)?.counts?.words === 2, g.text.slice(0, 200));
+  for (const [label, from, to, file, caught] of [
+    ['the parser ignores Grok chat_history prompts', 'Number.isInteger(o.prompt_index)', 'false', grokChatT, (t) => readSnapshotHeader(t)?.counts?.words === 0],
+    ['the parser keeps the user_query wrapper', 'GROK_QUERY_RE.exec(b.text)?.[1] ?? b.text', 'b.text', grokChatT, (t) => t.includes('<user_query>')],
+    ['the parser ignores Grok user_message_chunk updates', "'user_message_chunk'", "'never_a_chunk'", grokUpdatesT, (t) => readSnapshotHeader(t)?.counts?.words === 0],
+  ]) {
+    check(`7g6. mutant harness: the source still holds the text it mutates (${label})`, pristine.includes(from) && pristine.replace(from, to) !== pristine);
+    writeFileSync(mutantLib, pristine.replace(from, to));
+    g = grokHook(file, join(mutantRoot, 'hooks', 'compact-snapshot.mjs'));
+    check(`7g7. MUTANT CAUGHT: ${label}`, caught(g.text), g.text.slice(0, 300));
+  }
 
   // the card: fresh form, one boundary past the header
   feed({ hook_event_name: 'PostToolUse', session_id: CARD, cwd: cardRepo, tool_name: 'Agent',
