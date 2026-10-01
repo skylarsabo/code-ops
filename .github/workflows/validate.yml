@@ -56,6 +56,9 @@ jobs:
       - name: Docs relocation regression eval
         run: node evals/docs-relocate/run.mjs
 
+      - name: Distill no-loss regression eval
+        run: node evals/distill-check/run.mjs
+
       - name: Durable record-collection regression eval
         run: |
           node evals/record-collections/run.mjs
@@ -450,6 +453,9 @@ jobs:
 
       - name: Docs relocation regression eval
         run: node evals/docs-relocate/run.mjs
+
+      - name: Distill no-loss regression eval
+        run: node evals/distill-check/run.mjs
 
   # Shard 2: runtime and review orchestration evals (about 100 s).
   structural-lint-windows-shard-2:

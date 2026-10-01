@@ -18,7 +18,12 @@
 //     allowlist of scalar values, records the host from environment variable names, dedupes on host,
 //     keys, and values, is off by default, and runs before the Grok early return;
 //   - the SessionEnd marker (`markSessionEnded`) is one idempotent `ended` row, never an agent; the
-//     `endedOnly` read lists a session's workers only after its marker, and the off switch writes none.
+//     `endedOnly` read lists a session's workers only after its marker, and the off switch writes none;
+//   - a dispatched row carries the routing fields (unit, requested tier and effort from the brief,
+//     applied model and effort, effort source, flag), null when absent, with no other brief text;
+//   - `attemptOf` counts failed and redispatched agents of a unit, and `routingSummary` raises the
+//     starvation and overuse advisories and stays silent when the premium share is in bounds;
+//   - a Grok SubagentStop (camelCase subagentId and subagentType) is recorded; a Grok launch is not.
 //
 //   node evals/agent-ledger/run.mjs
 import { spawnSync } from 'node:child_process';
@@ -31,7 +36,7 @@ import { tally } from '../harness.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const hook = join(repo, 'plugins', 'code-ops-suite', 'hooks', 'agent-ledger.mjs');
 const co = join(repo, 'scripts', 'co.mjs');
-const { captureKeys, captureOn, markSessionEnded, pendingAgents, pendingReport } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
+const { attemptOf, captureKeys, captureOn, ledgerRows: readLedgerRows, markSessionEnded, pendingAgents, pendingReport, routingSummary, rowsFromPayload } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
 const { fails, check } = tally((name, detail) => `${name} - ${String(detail).slice(0, 300)}`);
 
 const home = mkdtempSync(join(tmpdir(), 'agent-ledger-eval-'));
@@ -280,6 +285,89 @@ try {
   check('o7. the off switch writes no marker', offMarker === null && ledgerRows('s20').length === 1 && !endedIds().includes('live2020'), JSON.stringify(ledgerRows('s20')));
   const settledEnded = ['s1', 's10'].map((s) => markSessionEnded({ sessionId: s, cwd, stateDir }));
   check('o8. an ended session whose workers all reported lists nothing', settledEnded.every((x) => x?.status === 'ended') && !endedIds().includes('aaa111'), endedIds());
+
+  // Routing fields: unit, requested tier and effort from the brief; applied model and effort from the
+  // dispatch override or the agent frontmatter; flag compares the rungs. Absent fields record null.
+  const routed = (session, id, prompt, extraInput = {}, type = 'code-ops-suite:implementer') => {
+    send(launch(session, id, { tool_input: { subagent_type: type, description: 'Route', prompt, run_in_background: true, ...extraInput } }));
+    return ledgerRows(session).find((x) => x.status === 'dispatched');
+  };
+  const fmFile = readFileSync(join(repo, 'plugins', 'code-ops-suite', 'agents', 'implementer.md'), 'utf8');
+  const fmModel = /^model:\s*(\S+)/m.exec(fmFile)?.[1];
+  const fmEffort = /^effort:\s*(\S+)/m.exec(fmFile)?.[1];
+  const full = routed('r1', 'rt1', 'Scope: x\nUnit: U3\nTier: premium\nEffort: high\nREPORT-SECRET-BODY', { model: 'opus' });
+  check('p. the unit, requested tier and effort, applied model, frontmatter effort, and flag round-trip through the hook',
+    full?.unit === 'U3' && full.requestedTier === 'premium' && full.requestedEffort === 'high' && full.appliedModel === 'opus'
+    && full.appliedEffort === fmEffort && full.effortSource === 'frontmatter' && full.flag === 'ok', JSON.stringify(full));
+  check('p2. no brief text beyond the three label values is stored', !readFileSync(join(stateDir, files().find((f) => readFileSync(join(stateDir, f), 'utf8').includes('"session_id":"r1"'))), 'utf8').includes('REPORT-SECRET-BODY'), '');
+  const under = routed('r2', 'rt2', 'Unit: U4\nTier: premium\nEffort: high');
+  check('p3. with no model override the applied model is the frontmatter model, and premium requested at strong is under',
+    under?.appliedModel === fmModel && under.flag === 'under' && under.unit === 'U4', JSON.stringify(under));
+  const over = routed('r3', 'rt3', 'Unit: U5\nTier: mid\nEffort: low');
+  check('p4. a lower tier requested than the frontmatter model serves is over', over?.flag === 'over' && over.requestedTier === 'mid' && over.requestedEffort === 'low', JSON.stringify(over));
+  const bare = routed('r4', 'rt4', 'Scope: x\nObjective: y');
+  check('p5. a brief with no routing lines records null fields and no flag, and the row still lands',
+    bare?.unit === null && bare.requestedTier === null && bare.requestedEffort === null && bare.flag === null && bare.appliedModel === fmModel && bare.agent_id === 'rt4', JSON.stringify(bare));
+  const option = routed('r5', 'rt5', 'Unit: U6\nTier: strong', { effort: 'Medium' });
+  check('p6. a dispatch effort option is the applied effort with source workflow', option?.appliedEffort === 'medium' && option.effortSource === 'workflow', JSON.stringify(option));
+  const unknownType = routed('r6', 'rt6', 'Unit: U7\nTier: strong', {}, 'general-purpose');
+  check('p7. an agent with no frontmatter file records null applied fields', unknownType?.appliedModel === null && unknownType.appliedEffort === null && unknownType.effortSource === null && unknownType.flag === null, JSON.stringify(unknownType));
+  const forms = routed('r7', 'rt7', 'Note: Unit: wrong\n- **Unit:** U8-a\n1. Tier (rung): Strong, because\n**Effort**: `HIGH`');
+  check('p8. the label rule is the guard\'s: list marker, bold, a parenthetical, and no mid-line label; values are normalized',
+    forms?.unit === 'U8-a' && forms.requestedTier === 'strong' && forms.requestedEffort === 'high', JSON.stringify(forms));
+  const junk = routed('r8', 'rt8', 'Unit:\nTier: ultra\nEffort: 11');
+  check('p9. an empty unit and an unknown tier or effort word record null', junk?.unit === null && junk.requestedTier === null && junk.requestedEffort === null, JSON.stringify(junk));
+
+  // attempt: failed and redispatched rows of the same unit, each agent once.
+  const history = [
+    { status: 'dispatched', agent_id: 'a1', unit: 'U1' }, { status: 'failed', agent_id: 'a1' },
+    { status: 'dispatched', agent_id: 'a2', unit: 'U1' }, { status: 'failed', agent_id: 'a2' }, { status: 'failed', agent_id: 'a2' },
+    { status: 'dispatched', agent_id: 'a3', unit: 'U1' }, { status: 'reported', agent_id: 'a3' },
+    { status: 'dispatched', agent_id: 'b1', unit: 'U2' }, { status: 'failed', agent_id: 'b1' },
+    { status: 'redispatched', id: 'D-007', unit: 'U9' },
+    { status: 'dispatched', agent_id: 'c1' }, { status: 'failed', agent_id: 'c1' },
+  ];
+  check('q. attempt is one more than the unit\'s failed agents, each counted once',
+    attemptOf(history, 'U1') === 3 && attemptOf(history, 'U2') === 2 && attemptOf(history, 'U-new') === 1, [attemptOf(history, 'U1'), attemptOf(history, 'U2'), attemptOf(history, 'U-new')].join());
+  check('q2. a redispatched row counts, and a missing unit, an empty history, or a bad input is attempt 1',
+    attemptOf(history, 'U9') === 2 && attemptOf(history, '') === 1 && attemptOf(history, undefined) === 1 && attemptOf([], 'U1') === 1 && attemptOf(null, 'U1') === 1, '');
+  check('q3. attempt derives from the written ledger rows too', attemptOf(readLedgerRows({ sessionId: 's10', stateDir }), 'U-none') === 1 && attemptOf(readLedgerRows({ stateDir }), 'U3') === 1, '');
+
+  // starvation and overuse advisories over judgment dispatches.
+  const row = (agent_id, agent_type, requestedTier, appliedModel) => ({ status: 'dispatched', agent_id, agent_type, requestedTier, appliedModel });
+  const starved = routingSummary([row('1', 'code-ops-suite:implementer', 'premium', 'claude-sonnet-5-5'), row('2', 'code-ops-suite:reviewer', 'premium', 'claude-sonnet-5-5'),
+    ...['3', '4', '5', '6', '7', '8', '9'].map((i) => row(i, 'code-ops-suite:tracer', 'strong', 'claude-sonnet-5-5')), row('10', 'code-ops-suite:probe', 'light', 'haiku')]);
+  check('r. starvation fires when triggered dispatches ran below premium, and non-judgment agents are not counted',
+    starved.judgment === 9 && starved.triggered === 2 && starved.premium === 0 && starved.starved && !starved.overused
+    && starved.advisories.length === 1 && /starved - 2 of 2/.test(starved.advisories[0]) && starved.line === 'Routing: 9 judgment, 2 triggered, 0 premium -> STARVED', JSON.stringify(starved));
+  const over25 = routingSummary([row('1', 'reviewer', 'premium', 'opus'), row('2', 'reviewer', 'premium', 'opus'), row('3', 'implementer', 'strong', 'claude-sonnet-5-5')]);
+  check('r2. overuse fires when the premium share passes the ceiling', over25.overused && !over25.starved && /overuse - premium share 67% \(2 of 3/.test(over25.advisories[0]) && over25.line.endsWith('OVERUSED'), JSON.stringify(over25));
+  const inBounds = routingSummary([row('1', 'reviewer', 'premium', 'opus'), ...['2', '3', '4'].map((i) => row(i, 'implementer', 'strong', 'claude-sonnet-5-5'))]);
+  check('r3. a premium share at the ceiling, with every triggered dispatch at premium, is silent', !inBounds.starved && !inBounds.overused && inBounds.advisories.length === 0 && inBounds.share === 0.25 && inBounds.line.endsWith('ok'), JSON.stringify(inBounds));
+  const tight = routingSummary([row('1', 'reviewer', 'strong', 'opus'), row('2', 'implementer', 'strong', 'claude-sonnet-5-5')], { ceiling: 0.6 });
+  const dup = routingSummary([row('1', 'reviewer', 'strong', 'claude-sonnet-5-5'), { ...row('1', 'reviewer', 'strong', 'claude-sonnet-5-5'), status: 'reported' }, row('1', 'reviewer', 'strong', 'claude-sonnet-5-5')]);
+  check('r4. the ceiling is an option, an empty ledger is silent, and an agent id counts once',
+    !tight.overused && routingSummary([]).advisories.length === 0 && routingSummary(undefined).judgment === 0 && dup.judgment === 1, JSON.stringify([tight, dup.judgment]));
+  const picked = routingSummary([row('1', 'reviewer', 'strong', 'claude-sonnet-5-5')], { triggered: () => true });
+  check('r5. a caller can supply the trigger, which a derived surface will use', picked.triggered === 1 && picked.starved, JSON.stringify(picked));
+
+  // Grok: SubagentStop carries camelCase subagentId and subagentType and no agent_id.
+  const grokStop = (over = {}) => ({ cwd, hook_event_name: 'SubagentStop', session_id: 'g1', subagentId: 'grokagent1', subagentType: 'code-ops-suite:reviewer', transcript_path: join(home, 'fake-transcript.jsonl'), lastAssistantMessage: 'GROK-SECRET-MESSAGE', ...over });
+  const mapped = rowsFromPayload(grokStop(), new Date());
+  check('s. a Grok stop maps subagentId and subagentType onto the agent id and type', mapped.length === 1 && mapped[0].status === 'reported' && mapped[0].agent_id === 'grokagent1' && mapped[0].agent_type === 'code-ops-suite:reviewer' && mapped[0].session_id === 'g1', JSON.stringify(mapped));
+  check('s2. snake_case fields win when both forms are present, and a failed Grok stop is failed',
+    rowsFromPayload({ ...grokStop(), agent_id: 'snake1', agent_type: 'probe' })[0]?.agent_id === 'snake1' && rowsFromPayload(grokStop({ error: 'boom' }))[0]?.status === 'failed', '');
+  check('s3. a Grok stop with an empty subagentType or a missing id writes nothing',
+    rowsFromPayload(grokStop({ subagentType: '' })).length === 0 && rowsFromPayload(grokStop({ subagentId: undefined })).length === 0, '');
+  r = send(grokStop(), { GROK_PLUGIN_ROOT: '/x' });
+  const g1 = readLedgerRows({ sessionId: 'g1', stateDir });
+  check('s4. under Grok the hook records the stop, never the message', r.status === 0 && r.stdout === '' && g1.length === 1 && g1[0].agent_id === 'grokagent1'
+    && !readFileSync(join(stateDir, files().find((f) => readFileSync(join(stateDir, f), 'utf8').includes('"session_id":"g1"'))), 'utf8').includes('GROK-SECRET'), JSON.stringify(g1));
+  const grokOther = files().length;
+  send(launch('g2', 'grokl1'), { GROK_PLUGIN_ROOT: '/x' });
+  send(grokStop({ hook_event_name: 'PostToolUse', session_id: 'g3' }), { GROK_PLUGIN_ROOT: '/x' });
+  send(grokStop({ session_id: 'g4' }), { GROK_PLUGIN_ROOT: '/x', CODE_OPS_AGENT_LEDGER: 'off' });
+  check('s5. under Grok a launch, a non-stop event, and the off switch still record nothing', files().length === grokOther, files().join(','));
 } finally {
   rmSync(home, { recursive: true, force: true });
 }

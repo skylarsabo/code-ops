@@ -16,15 +16,19 @@
 // Host contract (host 2.1.276): the `PostToolUse` payload carries `tool_name`, `tool_input`, and
 // `tool_response`; an async launch returns `status: "async_launched"` and an `agentId`. The
 // `SubagentStop` payload carries `agent_id` and `agent_type`; an empty `agent_type` marks an
-// internal summarizer, which the ledger ignores. The Grok adapter's payloads are UNVERIFIED for
-// both events, so the hook stays silent under Grok.
+// internal summarizer, which the ledger ignores. A launch row also carries the routing fields
+// (`unit`, `requestedTier`, `requestedEffort`, `appliedModel`, `appliedEffort`, `effortSource`,
+// `flag`), read from the brief's `Unit:`, `Tier:`, and `Effort:` lines and the agent frontmatter.
+// Grok's SubagentStop (live capture, 2026-10-01) carries camelCase `subagentId` and `subagentType`
+// and no `agent_id`; the library maps them, so under Grok the hook records the stop. The Grok
+// launch payload is UNVERIFIED, so a Grok launch records nothing.
 //
 // PAYLOAD CAPTURE, OFF BY DEFAULT. With `CODE_OPS_AGENT_LEDGER_CAPTURE=1`, or a `capture.on` flag
 // file in the ledger directory (`captureOn` in the library), the hook also appends the payload's
 // key names, a few allowlisted scalar values, and the host to `payload-keys.ndjson` in that
 // directory, so the Codex and Grok payloads can be checked before a writer is built for them. It
-// runs before the Grok and ledger-off early returns, so every host's payload is captured; the Grok
-// hook still records no rows, and `CODE_OPS_AGENT_LEDGER=off` still writes no ledger row.
+// runs before the Grok and ledger-off early returns, so every host's payload is captured; a Grok
+// launch still records no row, and `CODE_OPS_AGENT_LEDGER=off` still writes no ledger row.
 //
 // Fail-open on every path: bad JSON, a missing field, an unwritable directory, or an internal
 // error exits 0 with no output. It reads stdin, appends one or two files, and spawns nothing.
@@ -40,14 +44,16 @@ async function main() {
   try { capture = captureOn(); } catch { /* an unreadable state dir means capture off */ }
   const grok = Boolean(process.env.GROK_PLUGIN_ROOT);
   const ledgerOff = /^(off|0|false)$/i.test(process.env.CODE_OPS_AGENT_LEDGER ?? '');
-  if (!capture && (grok || ledgerOff)) return;
+  if (!capture && ledgerOff) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
   try { payload = JSON.parse(raw.replace(/^﻿/, '')); } catch { return; }
   if (!payload || typeof payload !== 'object') return;
   if (capture) { try { captureKeys(payload); } catch { /* capture never blocks the record */ } }
-  if (grok || ledgerOff) return;
+  if (ledgerOff) return;
+  // Grok records only the stop: its launch payload is UNVERIFIED, its stop is captured (2026-10-01).
+  if (grok && (payload.hook_event_name ?? payload.hookEventName) !== 'SubagentStop') return;
   recordFromPayload(payload);
 }
 

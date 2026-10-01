@@ -92,6 +92,7 @@ const TABLE = {
     records: 'records.mjs',
     gate: 'docs-gate.mjs',
     relocate: 'docs-relocate.mjs',
+    distill: 'distill-check.mjs',
   },
   atlas: {
     check: { script: 'atlas-check.mjs', sub: 'check' },
