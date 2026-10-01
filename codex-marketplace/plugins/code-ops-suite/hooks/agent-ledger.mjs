@@ -9,8 +9,9 @@
 // is `off`, `0`, or `false` (case-insensitive) in its environment.
 //
 // RECORD ONLY. It prints nothing, never blocks, and never adds context. It stores ids, the agent
-// type, a description cut to 80 characters, the directory, and a timestamp, never a prompt or a
-// message. The format, the storage path, and the read side live in `../scripts/agent-ledger.mjs`.
+// type, a description cut to 80 characters, the directory, a timestamp, and the path on the brief's
+// `Report path:` line, never a prompt or a message. The format, the storage path, and the read side
+// live in `../scripts/agent-ledger.mjs`.
 //
 // Host contract (host 2.1.276): the `PostToolUse` payload carries `tool_name`, `tool_input`, and
 // `tool_response`; an async launch returns `status: "async_launched"` and an `agentId`. The

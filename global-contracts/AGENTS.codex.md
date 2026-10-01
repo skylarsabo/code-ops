@@ -51,10 +51,10 @@ fits the unit. Name a round budget and a report cap in every brief. At the budge
 to the report path and continue in a fresh operative rather than fork or resume its context.
 A unit too small to repay an operative's startup context stays inline, with the reason
 recorded. Past 300,000 tokens of context, run `code-ops-suite:handoff` assess before any new
-dispatch; do not raise or disable the ceiling to avoid it. Assess a lead session at 150,000
-tokens of context. Codex auto-compacts near 215,000 tokens of its 258,000-token window, so
-compaction is the context relief here. Keep `TASKS.md` and `RUN_LOG.md` current before it.
-Hand off only to start new work, or to move to a clean session that loads updated code-ops
+dispatch; do not raise or disable the ceiling to avoid it. At 150,000 tokens of context the
+lead checkpoints: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`. Codex
+auto-compacts near 215,000 tokens of its 258,000-token window, so compaction is the context
+relief here. Hand off only to start new work, or to move to a clean session that loads updated code-ops
 plugins or contracts. A host change or a failed compaction also needs one. A long session
 keeps its agents and peers reachable, so the operator never repeats context.
 

@@ -118,6 +118,9 @@ export const RUNTIME_SCRIPTS = [
   { name: 'agent-ledger.mjs', plugins: ['code-ops-suite'] },
   // `co burndown`, the read-only active-items counter beside the handoff scripts.
   { name: 'burndown.mjs', plugins: ['code-ops-suite'] },
+  // `co snapshot` and the PreCompact writer. It imports agent-ledger.mjs, cli-lib.mjs, and
+  // transcript-lib.mjs as SIBLINGS and spawns scan-redaction.mjs, all vendored above.
+  { name: 'compact-snapshot.mjs', plugins: ['code-ops-suite'] },
 ];
 
 // Execution specifications vendored from the documentation hub into plugins/<plugin>/reference/.

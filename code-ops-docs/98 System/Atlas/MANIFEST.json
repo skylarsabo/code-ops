@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
-      "verifiedDigest": "b76c6276a3a7f1d1b6f8e18b8d38164f2fbb2569a6ca631f5960e192dfee4c95",
+      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
+      "verifiedDigest": "35293ad9d167b3e5fb208deb26afd5dfe23a92b7298fdc5b4ad167f834e7a764",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -37,43 +37,73 @@
           "anchor": "#!/usr/bin/env node"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/hooks.json",
+          "line": 74,
+          "anchor": "\"PreCompact\": ["
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 4,
-          "anchor": "// COMPACT, or HANDOFF at the next safe boundary. It is not a host limit or a co"
+          "anchor": "// Codex) or to assess CONTINUE, COMPACT, or HANDOFF (Grok) at the next safe bou"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 279,
-          "anchor": "const passed = open && (bound.kind === 'tokens' ? context >= bound.n : until.tur"
+          "line": 12,
+          "anchor": "// a higher band asks the lead to finish the step and checkpoint. The marker pro"
+        },
+        {
+          "file": "plugins/code-ops-suite/scripts/transcript-lib.mjs",
+          "line": 719,
+          "anchor": "export function stateRoot(cwd) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 156,
+          "anchor": ", so a shell that changes directory keeps"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 303,
+          "line": 321,
+          "anchor": "? 'The PreCompact snapshot keeps operator words, running work, and peers.'"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 324,
+          "anchor": "Host auto-compaction is the relief, so no handoff is needed. At the next safe bo"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 310,
           "anchor": "const autonomous = grok && pastPoint && state.fired && state.prompts === 0;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 166,
+          "line": 172,
           "anchor": "} catch { return null; } finally { if (fd !== undefined) try { closeSync(fd); }"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 306,
+          "anchor": "? (grok ? ' New dispatches are now gated until that assessment runs.'"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 257,
+          "line": 389,
           "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 230,
+          "line": 357,
           "anchor": "if (raw.trim()) lines.push(...shellLines());"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 175,
+          "line": 176,
           "anchor": "import { dirname, join } from 'node:path';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 184,
+          "line": 185,
           "anchor": "const MAX_CHECKPOINT_ALLOWANCE = 4;"
         },
         {
@@ -83,16 +113,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 674,
+          "line": 685,
           "anchor": "${gate.ceiling.toLocaleString('en-US')}-token context ceiling. Run /code-ops-sui"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 671
+          "line": 671,
+          "anchor": "try { lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts',"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 446,
+          "line": 447,
           "anchor": "const rest = held.permissionDecisionReason ?? held.additionalContext;"
         },
         {
@@ -122,12 +153,12 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 373,
+          "line": 381,
           "anchor": "export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'st"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 1226,
+          "line": 1272,
           "anchor": "function overlapLines(programFile, root, sid) {"
         },
         {
@@ -152,7 +183,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 656,
+          "line": 666,
           "anchor": "// input is missing or unreadable (fail open)."
         },
         {
@@ -166,9 +197,34 @@
           "anchor": "- Use public sources only. Never sign up, submit a form, log in, start a trial,"
         },
         {
+          "file": "plugins/code-ops-suite/hooks/compact-snapshot.mjs",
+          "line": 12,
+          "anchor": "(case-insensitive), the switch shape the other suite hooks use. A"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/hooks.json",
+          "line": 79,
+          "anchor": "\"command\": \"node \\\"${CLAUDE_PLUGIN_ROOT}/hooks/compact-snapshot.mjs\\\"\","
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 249,
+          "line": 374,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 378,
+          "anchor": "lines.push(...gitLine(cwd));"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 274,
+          "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 283,
+          "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
         },
         {
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
@@ -192,7 +248,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 95,
+          "line": 96,
           "anchor": "off by 200,000. Only Grok has a handoff point and a"
         }
       ]
@@ -204,8 +260,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
-      "verifiedDigest": "c1358edba5e22d9c9dde6379d81f4b0afc433d78b361a646ef326d97b3729f66",
+      "verifiedAt": "2f576f317dcec0c13ad130fa8f2b8e48257211bf",
+      "verifiedDigest": "ea7c6af3124ab2707cb1e6bbfd84fbad7d3621d6bdd1f50aa1e1ba7ac2ea3c61",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -334,7 +390,7 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 744,
+          "line": 909,
           "anchor": "export function residentContextReading(payload, { grok = false, home = homedir()"
         },
         {
@@ -359,7 +415,7 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 702,
+          "line": 746,
           "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
         },
         {
@@ -369,12 +425,12 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 959,
+          "line": 1005,
           "anchor": "archived ${count('request history')} request(s), ${count('decisions ledger')} de"
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 1226,
+          "line": 1272,
           "anchor": "function overlapLines(programFile, root, sid) {"
         },
         {
@@ -389,12 +445,72 @@
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 208,
+          "line": 227,
           "anchor": "export function pendingReport({ sessionId, stateDir = ledgerDir(), cwd, runDir,"
         },
         {
           "file": "scripts/co.mjs",
-          "line": 149,
+          "line": 150,
+          "anchor": "snapshot: 'compact-snapshot.mjs',"
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 15,
+          "anchor": "// SECTIONS, in budget order (characters, 12,000 in all): Operator words 4,800,"
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 25,
+          "anchor": "// through the redaction scanner (scan-redaction.mjs) before it is written, and"
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 27,
+          "anchor": "says that path is ignored; otherwise it goes to the home state"
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 236,
+          "anchor": "const run = spawnSync('git', ['check-ignore', '-q', '--', path], { cwd: dirname("
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 295,
+          "anchor": "return header && Number.isInteger(header.boundaries) && Number.isInteger(boundar"
+        },
+        {
+          "file": "scripts/vendored-manifest.mjs",
+          "line": 123,
+          "anchor": "{ name: 'compact-snapshot.mjs', plugins: ['code-ops-suite'] },"
+        },
+        {
+          "file": "scripts/agent-ledger.mjs",
+          "line": 122,
+          "anchor": "const report_path = reportPathOf(input.prompt);"
+        },
+        {
+          "file": "scripts/handoff-state.mjs",
+          "line": 704,
+          "anchor": "warning: ${lists.owed.length} peer message(s) still await a reply, and a new ses"
+        },
+        {
+          "file": "scripts/handoff-state.mjs",
+          "line": 810,
+          "anchor": "...lists.running.slice(0, RUNNING_SEEDED).map((line) =>"
+        },
+        {
+          "file": "scripts/transcript-lib.mjs",
+          "line": 719,
+          "anchor": "export function stateRoot(cwd) {"
+        },
+        {
+          "file": "scripts/transcript-lib.mjs",
+          "line": 744,
+          "anchor": "export function sessionRecordPath(cwd, sessionId, home = homedir()) {"
+        },
+        {
+          "file": "scripts/co.mjs",
+          "line": 153,
           "anchor": "// A domain named here runs this verb when the caller gives none, so"
         },
         {
@@ -453,8 +569,18 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 324,
-          "anchor": "['handoff-card.mjs', 'prompts the lead to assess continue, compact, or handoff a"
+          "line": 325,
+          "anchor": "['handoff-card.mjs', 'prompts the lead to checkpoint durable state at a safe bou"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 319,
+          "anchor": "['routing-card.mjs', 'prints the routing card at session start, the compaction s"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 320,
+          "anchor": "['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, runn"
         },
         {
           "file": "scripts/sync-global.mjs",
@@ -469,8 +595,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
-      "verifiedDigest": "8c2ac231158622002d832491fc33d43e27c7f934f1ce3707a6e084adecd8b9b9",
+      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
+      "verifiedDigest": "566a8fbe85d7af7dc42f96e3ee72bceadcbac9b3f5e03c0707ce4a61a948ac1f",
       "claims": [
         {
           "file": "evals/docs-manifest/run.mjs",
@@ -558,6 +684,51 @@
           "anchor": "// Smoke eval for scripts/bench-hooks.mjs. It pins the contract that makes the b"
         },
         {
+          "file": "evals/co-facade/run.mjs",
+          "line": 123,
+          "anchor": "const COMMANDS = ['brief', 'burndown', 'snapshot'];"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 12,
+          "anchor": "//   - REQUIRED: a stale second compaction (boundary count against the header),"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 359,
+          "anchor": "check('7g. fresh card: the Snapshot fresh line has counts and a path, and the sn"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 407,
+          "anchor": "check('7v. with no run-folder file the card finds the home state copy and reads"
+        },
+        {
+          "file": "evals/dispatch-guard/run.mjs",
+          "line": 778,
+          "anchor": "// ---------------------------------------------------------------- ceiling asse"
+        },
+        {
+          "file": "evals/handoff-state/run.mjs",
+          "line": 242,
+          "anchor": "// ---- reply-owed peers and running work from the compaction snapshot (PR 2) --"
+        },
+        {
+          "file": "evals/handoff-state/run.mjs",
+          "line": 258,
+          "anchor": "check('snapshot: draft warns on stderr and still exits 0', fromSnap.status === 0"
+        },
+        {
+          "file": "evals/handoff-state/run.mjs",
+          "line": 263,
+          "anchor": "check('snapshot: the running list seeds shells and workflows under In-flight bou"
+        },
+        {
           "file": "evals/run-contract/run.mjs",
           "line": 64,
           "anchor": "const requiredSections = calibration(); requiredSections.context.requiredViewSec"
@@ -579,13 +750,53 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 217,
-          "anchor": "// A boundary that carries compactMetadata.postTokens (real Claude transcripts d"
+          "line": 309,
+          "anchor": "// ---------------------------------------------------------------- lifecycle as"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 307,
-          "anchor": "expect(gated.test(messageAt(160_000, 'sess-ceil-override', '150000')), 'an overr"
+          "line": 422,
+          "anchor": "// ---------------------------------------------------------------- Codex token-"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 357,
+          "anchor": "// ---------------------------------------------------------------- context ceil"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 123,
+          "anchor": "const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At t"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 124,
+          "anchor": "const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running w"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 126,
+          "anchor": "const BAND2 = 'Finish the step in flight and checkpoint as above. If the host ha"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 127,
+          "anchor": "const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000"
+        },
+        {
+          "file": "evals/handoff-card/run.mjs",
+          "line": 194,
+          "anchor": "// ---------------------------------------------------------------- marker keyed"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 385,
+          "anchor": "check('7q. REQUIRED stale card: Snapshot STALE, the open-item lines return, and"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 395,
+          "anchor": ") && cl.some((l) => l.startsWith('open items in ')) && !c.stdout.includes('Snaps"
         }
       ]
     },
@@ -597,17 +808,12 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
-      "verifiedDigest": "f2cf9af9193eb216c20dbbcb5b418e7d12ebb37c1c365ea84fc8acc829de33e4",
+      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
+      "verifiedDigest": "35e376ba2ce3ced988cf38f89d185737846a5737e3ab7e75c197c14d83910936",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 545,
-          "anchor": "addSourceTree(sourcePath(spec.name, 'scripts'),"
-        },
-        {
-          "file": "scripts/build-codex-marketplace.mjs",
-          "line": 546,
+          "line": 547,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
         },
         {
@@ -631,6 +837,36 @@
           "anchor": "const MIN_STANDARD = { 2: 4, 3: 5 };"
         },
         {
+          "file": "codex-marketplace/plugins/code-ops-suite/hooks/hooks.json",
+          "line": 75,
+          "anchor": "\"command\": \"node \\\"${PLUGIN_ROOT}/hooks/compact-snapshot.mjs\\\"\","
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 322,
+          "anchor": ", because the Codex PreCompact payload is unverified.';"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 274,
+          "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 277,
+          "anchor": "Snapshot STALE: ${shown} predates an earlier compaction; verify its running work"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 279,
+          "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
+        },
+        {
+          "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
+          "line": 12,
+          "anchor": "retains 14 hook commands on 8 events. Codex skips plugin hooks until the user re"
+        },
+        {
           "file": "opencode-dist/PLATFORM_COMPATIBILITY.md",
           "line": 39,
           "anchor": "- **The typed subagent-start callback, transcript path, and pre-tool"
@@ -647,7 +883,7 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 446,
+          "line": 447,
           "anchor": "const rest = held.permissionDecisionReason ?? held.additionalContext;"
         },
         {
@@ -662,12 +898,12 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
-          "line": 19,
-          "anchor": ": prompts the lead to assess continue, compact, or handoff at a safe boundary wh"
+          "line": 20,
+          "anchor": ": prompts the lead to checkpoint durable state at a safe boundary when resident"
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 232,
+          "line": 233,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         },
         {
@@ -683,8 +919,18 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
-      "verifiedDigest": "ef814c64b411ca7610cc81d45fcb512075d4bcdf1335cc9864d772cced14c97f"
+      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
+      "verifiedDigest": "c59055f7c008b92d7602d030951f9928b2fabbcb156e62f443676ada5315ad6c",
+      "claims": [
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 128
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 541
+        }
+      ]
     },
     {
       "slug": "docs-doctrine",
@@ -707,8 +953,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "ed41d371d39807714a8e07c36085aba5093039df",
-      "verifiedDigest": "13449752510ef7cdde35f43d6eb1ac55d1725d5c148062a0ca439ae5cdd89ace",
+      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
+      "verifiedDigest": "d42a619a6361ce97dcc250659c4d19a31f7b993187ba627e01ecdfd1e38137f3",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -752,8 +998,32 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 279,
-          "anchor": "const passed = open && (bound.kind === 'tokens' ? context >= bound.n : until.tur"
+          "line": 12,
+          "anchor": "// a higher band asks the lead to finish the step and checkpoint. The marker pro"
+        },
+        {
+          "file": "Platform/INFRASTRUCTURE.md",
+          "line": 40
+        },
+        {
+          "file": "Data/CONTRACTS.md",
+          "line": 253
+        },
+        {
+          "file": "Data/CONTRACTS.md",
+          "line": 299
+        },
+        {
+          "file": "Data/CONTRACTS.md",
+          "line": 733
+        },
+        {
+          "file": "Data/CONTRACTS.md",
+          "line": 865
+        },
+        {
+          "file": "Platform/INFRASTRUCTURE.md",
+          "line": 74
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
@@ -775,13 +1045,38 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "d113302720f9d5b9146194c06a7543c8a0efca51",
-      "verifiedDigest": "cefd3f0b4a25067aadfb08ce4eea08ebe43eec8bdf5555f47116bb1e32af15b4",
+      "verifiedAt": "398f28f2fa48fdd6351f29b0e2c582f6820fbd8a",
+      "verifiedDigest": "2ce6d2bbf83ce3b7a2300109e3e12df8e107967602e2b1ef68152673bf107de6",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",
+          "line": 41,
+          "anchor": "each brief, and keep breadth agents at their declared tier. At 150,000 tokens of"
+        },
+        {
+          "file": "global-contracts/AGENTS.codex.md",
+          "line": 55,
+          "anchor": "lead checkpoints: keep"
+        },
+        {
+          "file": "global-contracts/AGENTS.md",
           "line": 47,
-          "anchor": "agents and peers reachable, so the operator never repeats context. On Grok, hand"
+          "anchor": "agents and peers reachable, so the operator never repeats context. On Grok, asse"
+        },
+        {
+          "file": "global-contracts/AGENTS.md",
+          "line": 133,
+          "anchor": "- The operator's requests and constraints, in one line."
+        },
+        {
+          "file": "global-contracts/AGENTS.md",
+          "line": 141,
+          "anchor": "- The next command."
+        },
+        {
+          "file": "global-contracts/AGENTS.md",
+          "line": 143,
+          "anchor": "After a compaction, start from the SessionStart card and"
         }
       ]
     },

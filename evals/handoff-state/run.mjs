@@ -26,6 +26,9 @@
 // session's agent and a reported one not blocking, the session id coming from `--session` or the
 // run folder's SESSION.json, the directory fallback naming itself, `--pending-agents-ok` writing a
 // `Pending agent:` line under In-flight boundaries, and CODE_OPS_AGENT_LEDGER=0 skipping the check.
+// The snapshot cases pin the stderr warning that lists each reply-owed peer (from the run folder's
+// COMPACT_SNAPSHOT.md, the home state copy, or the session transcript), never a refusal, the running
+// shells and workflows seeded under In-flight boundaries, and CODE_OPS_COMPACT_SNAPSHOT=off.
 // Every fixture lives in an OS temp dir, and CODE_OPS_HOME points the session records at a temp
 // home, so nothing writes under the repository or the real home.
 //
@@ -235,6 +238,61 @@ try {
   launch('sess-unknown', 'dir333', 'Directory match');
   const bare = spawnSync(process.execPath, [co, 'handoff', 'draft', '--run', 'runs/r-bare'], { cwd: tmp, encoding: 'utf8', env });
   check('pending: with no session id draft matches by directory and says so', bare.status === 1 && bare.stderr.includes('dir333 ') && bare.stderr.includes('agents are matched by directory'), bare.stderr);
+
+  // ---- reply-owed peers and running work from the compaction snapshot (PR 2) ----
+  const runSnap = join(tmp, 'runs', 'r-snap');
+  mkdirSync(runSnap, { recursive: true });
+  writeFileSync(join(runSnap, 'SESSION.json'), JSON.stringify({ v: 1, sessionId: 'sess-snap', name: 'Snap', hop: 0, predecessor: null, createdAt: new Date().toISOString() }));
+  const snapText = ['# Compact snapshot', 'Written: 2026-09-30T10:00:00.000Z', 'Session: sess-snap', 'Boundaries: 1', 'Status: complete',
+    'Counts: operator words 2, running work 3, active items 1, reply-owed peers 2', '',
+    '## Operator words (2, oldest first)', '- L1 prompt: a directive that mentions - REPLY OWED inside prose', '',
+    '## Running work (3)', '- agent agent001 code-ops-suite:implementer 5m report: r/a.md - Build it',
+    '- shell bgshell01 - 12m - Wait for checks [FILL: not a placeholder]', '- workflow wf_run01 - 3m - Judge panel', '',
+    '## Active items (1 of 1 shown, TASKS.md)', '- OI-1 first', '',
+    '## Peers (2 reply-owed, 1 quiet)', '- REPLY OWED Peer One local_aaaa-1111 2m: finish line set?', '- REPLY OWED Peer Two local_bbbb-2222 9m: which branch?',
+    '- quiet Peer Three local_cccc-3333', ''].join('\n');
+  const snapFile = join(runSnap, 'COMPACT_SNAPSHOT.md');
+  writeFileSync(snapFile, snapText);
+  const snapDraft = (extraEnv = {}) => spawnSync(process.execPath, [co, 'handoff', 'draft', '--run', 'runs/r-snap', '--session', 'sess-snap'], { cwd: tmp, encoding: 'utf8', env: { ...env, ...extraEnv } });
+  const fromSnap = snapDraft();
+  check('snapshot: draft warns on stderr and still exits 0', fromSnap.status === 0 && /^warning: 2 peer message\(s\) still await a reply/m.test(fromSnap.stderr) && fromSnap.stderr.includes('written 2026-09-30T10:00:00.000Z'), fromSnap.stderr);
+  check('snapshot: the warning lists each reply-owed peer and not a quiet one', fromSnap.stderr.includes('  Peer One local_aaaa-1111 2m: finish line set?') && fromSnap.stderr.includes('  Peer Two local_bbbb-2222 9m: which branch?') && !fromSnap.stderr.includes('Peer Three'), fromSnap.stderr);
+  check('snapshot: the warning stays off stdout, so the skeleton is unchanged', !fromSnap.stdout.includes('REPLY OWED') && !fromSnap.stdout.includes('await a reply'));
+  check('snapshot: a prose line mentioning REPLY OWED in another section is not a peer', (fromSnap.stderr.match(/^ {2}Peer /gm) ?? []).length === 2);
+  const seeded = inFlight(fromSnap.stdout);
+  check('snapshot: the running list seeds shells and workflows under In-flight boundaries', /^- Running work \(snapshot\): shell bgshell01 - 12m - Wait for checks/m.test(seeded) && /^- Running work \(snapshot\): workflow wf_run01 - 3m - Judge panel/m.test(seeded), seeded);
+  check('snapshot: an agent is never seeded from the snapshot, and a [FILL: in it is defused', !seeded.includes('agent001') && !/\[FILL: not a placeholder/.test(seeded) && seeded.includes('[fill: not a placeholder]'), seeded);
+  check('snapshot: CODE_OPS_COMPACT_SNAPSHOT=off skips the warning and the seed', (() => { const r = snapDraft({ CODE_OPS_COMPACT_SNAPSHOT: 'off' }); return r.status === 0 && !r.stderr.includes('await a reply') && !r.stdout.includes('Running work (snapshot)'); })());
+  writeFileSync(snapFile, '# Compact snapshot\nBoundaries: 1\nStatus: complete\n\n## Peers (0 reply-owed, 0 quiet)\nnone\n');
+  check('snapshot: a snapshot with no reply-owed peer prints no warning', !snapDraft().stderr.includes('await a reply'));
+  writeFileSync(snapFile, 'not a snapshot\n- REPLY OWED Nobody x: y\n');
+  check('snapshot: a file without the snapshot header is ignored', !snapDraft().stderr.includes('await a reply'));
+  rmSync(snapFile);
+
+  // With no run-folder file, the home state copy (keyed by project and session) is read.
+  const slugOf = (p) => p.replace(/[^A-Za-z0-9]/g, '-');
+  for (const cwdName of new Set([tmp, realpathSync(tmp)])) {
+    const dir = join(home, '.claude', 'code-ops', 'snapshots', slugOf(cwdName));
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'sess-snap.md'), snapText);
+  }
+  check('snapshot: the home state copy supplies the warning when the run folder has none', /^warning: 2 peer message\(s\)/m.test(snapDraft().stderr));
+  for (const cwdName of new Set([tmp, realpathSync(tmp)])) rmSync(join(home, '.claude', 'code-ops', 'snapshots', slugOf(cwdName)), { recursive: true, force: true });
+
+  // With no snapshot at all, the owed peers come from the session transcript when one is readable.
+  const fakeHome = mkdtempSync(join(tmpdir(), 'handoff-state-tx-'));
+  const peerLine = (name, session, body, at) => JSON.stringify({ type: 'queue-operation', operation: 'enqueue', timestamp: at, content: `<cross-session-message from="uds:x" from-session="${session}" from-name="${name}" from-mode="bypass"> ${name}: ${body} </cross-session-message>` });
+  const sendLine = (to, at) => JSON.stringify({ type: 'assistant', timestamp: at, message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tu1', name: 'SendMessage', input: { to, summary: 's', message: 'ack' } }] } });
+  const txLines = [peerLine('Asked One', 'local_x-1', 'still there?', '2026-09-30T10:00:00Z'), peerLine('Answered Two', 'local_y-2', 'status?', '2026-09-30T10:01:00Z'), sendLine('Answered Two', '2026-09-30T10:02:00Z')].join('\n');
+  for (const cwdName of new Set([tmp, realpathSync(tmp)])) {
+    const dir = join(fakeHome, '.claude', 'projects', slugOf(cwdName));
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'sess-snap.jsonl'), `${txLines}\n`);
+  }
+  const fromTx = snapDraft({ HOME: fakeHome, USERPROFILE: fakeHome });
+  check('snapshot: with no snapshot file the transcript names the reply-owed peer and not the answered one', fromTx.status === 0 && fromTx.stderr.includes('from the session transcript') && /^ {2}Asked One local_x-1 \S+: still there\?/m.test(fromTx.stderr) && !fromTx.stderr.includes('Answered Two'), fromTx.stderr);
+  check('snapshot: no transcript and no snapshot prints no warning and drafts normally', (() => { const r = snapDraft(); return r.status === 0 && !r.stderr.includes('await a reply') && r.stdout.includes('## In-flight boundaries'); })());
+  rmSync(fakeHome, { recursive: true, force: true });
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

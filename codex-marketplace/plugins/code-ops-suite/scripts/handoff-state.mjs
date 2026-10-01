@@ -146,6 +146,13 @@
 // so. `--pending-agents-ok` drafts anyway and writes each pending agent as a `Pending agent:` state
 // line in In-flight boundaries. CODE_OPS_AGENT_LEDGER=off skips the check.
 //
+// REPLY-OWED PEERS. A message sent to this session cannot be answered by its successor. Draft reads
+// the compaction snapshot (snapshotLists() below: the run folder's COMPACT_SNAPSHOT.md, else the home
+// state copy; with neither, the session transcript) and prints a stderr `warning:` that lists each
+// peer still owed a reply. It never refuses and never changes the exit code. The snapshot's running
+// shells, workflows, and wakeups seed In-flight boundaries as `Running work (snapshot):` lines, at
+// most 8. CODE_OPS_COMPACT_SNAPSHOT=off skips both.
+//
 // Exit: 0 = done; 1 = a step failed, --out exists or is refused, pending agents block the draft,
 // or a name matched no single handoff; 2 = usage error.
 
@@ -157,7 +164,8 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { fileURLToPath } from 'node:url';
 import { parseOrDie, usage, die, git, walkFiles } from './cli-lib.mjs';
 import { formatLine, pendingAgents } from './agent-ledger.mjs';
-import { sessionRecordPath } from './transcript-lib.mjs';
+import { conversationOf, defaultTranscriptDir, sessionRecordPath } from './transcript-lib.mjs';
+import { buildSnapshot, homeSnapshotPaths, readSnapshotHeader, SNAPSHOT_FILE } from './compact-snapshot.mjs';
 import { ANCHOR_RE } from './citation-lib.mjs';
 import { hubOf, promotedIds, recordState } from './promotion-lib.mjs';
 
@@ -616,6 +624,36 @@ function pendingForDraft(sid, own, root, runDir) {
   return { agents: [...byId.values()].sort((a, b) => Date.parse(b.launched_at) - Date.parse(a.launched_at)), note: null };
 }
 
+// The compaction snapshot's two lists a handoff must not lose: the peers still owed a reply, and
+// the running work the ledger does not cover (shells, workflows, wakeups; agents come live from the
+// ledger above). The snapshot is the run folder's COMPACT_SNAPSHOT.md, else the home state copy for
+// this session. With neither, the owed peers come from the session transcript when one is readable,
+// through the snapshot builder with no write; the running list is then empty. Nothing here blocks
+// or changes the draft: any failure is an empty result, and CODE_OPS_COMPACT_SNAPSHOT=off skips it.
+const RUNNING_SEEDED = 8;
+const SEED_CHARS = 160;
+function snapshotLists(runDir, sid) {
+  const none = { owed: [], running: [], source: '' };
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_COMPACT_SNAPSHOT ?? '')) return none;
+  const flat = (line) => line.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\[FILL:/g, '[fill:').trim().slice(0, SEED_CHARS);
+  const pick = (text, title, pattern) => [...(text.split(new RegExp(`^## ${title}`, 'm'))[1]?.split(/^## /m)[0] ?? '').matchAll(pattern)].map((m) => flat(m[1]));
+  try {
+    const cwd = process.cwd();
+    for (const path of [join(runDir, SNAPSHOT_FILE), ...(sid ? homeSnapshotPaths(cwd, sid, storeHome()) : [])]) {
+      let text;
+      try { text = readFileSync(path, 'utf8'); } catch { continue; }
+      const header = readSnapshotHeader(text);
+      if (!header) continue;
+      return { owed: pick(text, 'Peers', /^- REPLY OWED (.*)$/gm), running: pick(text, 'Running work', /^- ((?:shell|workflow|wakeup) .*)$/gm), source: `the snapshot written ${header.writtenAt}` };
+    }
+    if (sid) {
+      const built = buildSnapshot({ conversation: conversationOf(readFileSync(join(defaultTranscriptDir(cwd), `${sid}.jsonl`), 'utf8')), running: [], items: null, sessionId: sid });
+      return { owed: pick(built.text, 'Peers', /^- REPLY OWED (.*)$/gm), running: [], source: 'the session transcript' };
+    }
+  } catch { /* no snapshot and no transcript: nothing to add */ }
+  return none;
+}
+
 function draft(flags) {
   if (!flags.run) usage(['x draft needs --run <dir>', ...USAGE]);
   const root = resolve(flags.root);
@@ -660,6 +698,12 @@ function draft(flags) {
     for (const agent of pendingNow.agents) console.error(`  ${formatLine(agent)}`);
     console.error('Wait for them to report; or settle a lost one with `co agents settle <id> --failed --reason <text>`; or pass --pending-agents-ok to draft and record them in In-flight boundaries.');
     return 1;
+  }
+  const lists = snapshotLists(runDir, sid || own?.sessionId || own?.hostSessionId);
+  if (lists.owed.length) {
+    console.error(`warning: ${lists.owed.length} peer message(s) still await a reply, and a new session cannot answer a message sent to this one (from ${lists.source}):`);
+    for (const peer of lists.owed) console.error(`  ${peer}`);
+    console.error('Answer each before the handoff, or name it in the handoff text. The draft goes on.');
   }
   let lin = declaredLineage(own, root, repoPath) ?? lineage(runDir, root, repoPath);
   // A first hop has no predecessor to name its ledger, so --program names it (OI-29).
@@ -763,6 +807,8 @@ function draft(flags) {
     '',
     ...(dirty.length ? dirtyLines(dirty, git(['rev-parse', '--show-toplevel'], { cwd: root })) : ['- Working tree clean.']),
     ...pendingNow.agents.map((a) => `- Pending agent: ${formatLine(a).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\[FILL:/g, '[fill:')} · launched ${a.launched_at}`),
+    ...lists.running.slice(0, RUNNING_SEEDED).map((line) => `- Running work (snapshot): ${line}`),
+    ...(lists.running.length > RUNNING_SEEDED ? [`- +${lists.running.length - RUNNING_SEEDED} more running work entries in the snapshot.`] : []),
     '[FILL: the done-against-not-done line; load-bearing path:line pointers, each with a verbatim Anchor]',
     '',
     '## Open items',

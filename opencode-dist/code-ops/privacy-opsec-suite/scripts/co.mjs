@@ -144,6 +144,10 @@ const TABLE = {
   // A command: `co burndown [--program <slug>] [--run <dir>] [--json]` prints a program's active
   // count against the cap of 12, its backlog, and GROWING or OVER CAP flags. Read-only.
   burndown: 'burndown.mjs',
+  // A command: `co snapshot [--session <id>] [--transcript <file>] [--run <dir>] [--json]` writes
+  // COMPACT_SNAPSHOT.md, the operator words, running work, active items, and peers that host
+  // compaction loses. It needs `--session` or `--run`.
+  snapshot: 'compact-snapshot.mjs',
 };
 
 // A domain named here runs this verb when the caller gives none, so `co board` lists the board.

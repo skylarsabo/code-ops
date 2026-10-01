@@ -4,6 +4,14 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.25.0
+- A `PreCompact` hook, `compact-snapshot.mjs`, writes a masked state snapshot just before the host compacts: operator words, running shells, workflows, wakeups, and agents, open items, and peers owed a reply. It goes in the run folder when git ignores that path, otherwise in the home state directory keyed on the repository root. `CODE_OPS_COMPACT_SNAPSHOT=0` turns it off.
+- `co snapshot` builds the same snapshot on demand. The Codex context card asks for it, because the Codex `PreCompact` payload is unverified.
+- The compact restore card reports the snapshot as fresh, stale, or absent, and prints the git state, the latest `Next:` line, the active item count against the 12 cap, and up to 4 peers owed a reply. A fresh snapshot replaces the open-item lines.
+- `handoff draft` warns on stderr about each peer owed a reply and seeds running shells, workflows, and wakeups from the snapshot under In-flight boundaries.
+- The context card on Claude and Codex asks for a checkpoint at the next safe boundary instead of a handoff, because host auto-compaction is the relief. Grok keeps its handoff point at 200,000 tokens. When the ceiling gates new dispatches, the card on Claude and Codex names `/code-ops-suite:handoff assess`.
+- The context card marker, the session record, and the ceiling assessment are keyed on the repository root, so a changed shell directory no longer fires the card twice.
+
 ## 2.24.0
 - `co agents pending` merges the hook rows with the run's `DISPATCH_LEDGER.md` rows on every host, names each entry's source, and prints the sources it read on stderr. `--run <dir>` names the run folder.
 - `co agents settle <id> --failed --reason <text>` records a lost agent as failed, so it leaves the pending list. `handoff draft` names it beside waiting and `--pending-agents-ok`.
