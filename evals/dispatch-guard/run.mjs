@@ -51,7 +51,7 @@
 //   node evals/dispatch-guard/run.mjs
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -1217,8 +1217,12 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
     mkdirSync(agents, { recursive: true });
     writeFileSync(join(agents, `${stateKey(session)}.jsonl`), rows.map((row) => JSON.stringify(row)).join('\n') + '\n');
   };
-  const send = (type, over, input = {}, opts = {}) => parseOut(runHook(dispatchCall({ subagent_type: type, prompt: brief(over), ...input }),
+  const sendRaw = (type, over, input = {}, opts = {}) => parseOut(runHook(dispatchCall({ subagent_type: type, prompt: brief(over), ...input }),
     { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home }, ...opts }));
+  // The reviewer's minimum kind is review, so a reviewer brief here declares review where it would say judgment.
+  // `sendRaw` sends the declared kind as given.
+  const send = (type, over = {}, input = {}, opts = {}) => sendRaw(type, type === 'code-ops-suite:reviewer'
+    ? { ...over, basis: (over.basis ?? 'judgment; surface=none; ambiguity=low; reversible=yes').replace(/^judgment/, 'review') } : over, input, opts);
   const denied = (out, pattern, label) => expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && pattern.test(reasonOf(out) ?? ''),
     `${label}: must deny matching ${pattern}, got ${JSON.stringify(out)}`);
   const quiet = (out, label) => expect(out === null, `${label}: must be silent, got ${JSON.stringify(out)}`);
@@ -1267,6 +1271,33 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   quiet(send(IMP, { scope: 'fix the auth flow in the parser; secrets are out of scope' }), 'prose with a bare auth word derives no surface');
   quiet(send(IMP, { scope: 'src/app.js.\nOut of scope: plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), 'a path under Out of scope does not count');
   denied(send(IMP, { scope: 'src/app.js.\n  - plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), /derive surface=gate-script/, 'a Scope path on a continuation line counts');
+  // A line anchor on a Scope path never hides its surface.
+  for (const anchored of ['scripts/lint-plugins.mjs:120-180', 'scripts/lint-plugins.mjs:120', 'scripts/lint-plugins.mjs#L120', 'scripts/lint-plugins.mjs#L120-L180',
+    'see (scripts/lint-plugins.mjs:120).', 'code-ops-docs/35 Contracts and Data/CONTRACTS.md:10-20']) {
+    denied(send(IMP, { scope: anchored }), /derive surface=(?:gate-script|public-contract)/, `an anchored Scope path (${anchored}) derives its surface`);
+  }
+  // The gate-script and public-contract paths match any case and either separator.
+  for (const variant of ['Scripts/Lint-Plugins.mjs', 'scripts\\lint-plugins.mjs', '.GITHUB/Workflows/validate.yml', 'code-ops-docs\\35 Contracts and Data\\CONTRACTS.md']) {
+    denied(send(IMP, { scope: variant }), /derive surface=(?:gate-script|public-contract)/, `a case or separator variant (${variant}) derives its surface`);
+  }
+  // A Scope with an empty colon value reads the bullets after its blank lines.
+  denied(send(IMP, { scope: '\n\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), /derive surface=gate-script/, 'a blank-line Scope reads its bullets');
+  quiet(send(IMP, { scope: '\n\nObjective: x\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), 'an empty Scope followed by a label reads no bullets');
+  // Any Label: line ends the Scope block, not only the closed list; a drive-letter path is no label.
+  quiet(send(IMP, { scope: 'src/app.js.\nContext: see plugins/code-ops-suite/hooks/dispatch-guard.mjs for background' }), 'a non-stop label ends the Scope');
+  quiet(send(IMP, { scope: 'src/app.js.\n- Notes (read only): scripts/lint-plugins.mjs' }), 'a bulleted label with a qualifier ends the Scope');
+  denied(send(IMP, { scope: 'src/app.js.\nC:/work/code-ops/scripts/lint-plugins.mjs' }), /derive surface=gate-script/, 'a drive-letter continuation line still counts');
+  // A declared surface that is not a surface is malformed.
+  denied(send(IMP, { basis: 'judgment; surface=everywhere; ambiguity=low; reversible=yes' }), /surface=everywhere, which is not a surface/, 'an unknown declared surface');
+  // The reviewer declared as a lower kind is raised to review before routing, then denied when under-routed.
+  const swap = { scope: 'src/auth/login.js', basis: 'judgment; surface=security; ambiguity=low; reversible=yes' };
+  denied(sendRaw(REV, swap), /below premium at high effort \(rule 7a/, 'a reviewer declared as judgment on a security surface routes as a review');
+  advised(sendRaw(REV, { basis: 'execution; surface=none; ambiguity=low; reversible=yes' }), /kind=execution is below the minimum for code-ops-suite:reviewer; routing it as review/, 'the kind raise is advised');
+  quiet(sendRaw(IMP, swap), 'an agent with no minimum kind keeps its declared kind');
+  // An override that cannot be ranked leaves Tier unchecked, and the guard says so.
+  for (const model of ['inherit', 'default', 'gpt-x']) {
+    advised(send(IMP, {}, { model }), new RegExp(`override "${model}" cannot be ranked`), `an unrankable override (${model}) with Tier set`);
+  }
 
   // Premium triggers. 7a (review on a surface) is never cleared by a Route override.
   const secReview = { scope: 'src/auth/login.js', basis: 'review; surface=security; ambiguity=low; reversible=yes' };
@@ -1307,6 +1338,13 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   seed([{ status: 'dispatched', agent_id: 'f1', agent_type: IMP, session_id: 'sess-1', unit: 'u9', requestedTier: 'frontier', appliedModel: 'fable' }]);
   denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /frontier dispatch already ran in this session/, 'a second frontier dispatch');
   quiet(send(IMP, { tier: 'premium', basis: hard.basis }, { model: 'opus' }), 'a premium dispatch after a frontier one');
+  // A ledger row counts on its applied model alone, with no requestedTier.
+  seed([{ status: 'dispatched', agent_id: 'f3', agent_type: IMP, session_id: 'sess-1', unit: 'u10', appliedModel: 'fable' }]);
+  denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /frontier dispatch already ran in this session \(1 in the ledger\)/, 'a frontier row matched on appliedModel alone');
+  // The effective rung counts when the brief Tier is empty, so no Tier check fires first.
+  denied(send(IMP, { tier: '' }, { model: 'fable' }), /frontier dispatch already ran in this session/, 'a frontier override with an empty Tier');
+  seed([]);
+  quiet(send(IMP, { tier: '' }, { model: 'fable' }), 'a frontier override with an empty Tier and no prior frontier dispatch');
   seed([]);
   seed([{ status: 'dispatched', agent_id: 'f1', agent_type: IMP, session_id: 'other-session', requestedTier: 'frontier' }], 'other-session');
   advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above/, 'a frontier dispatch in another session does not count');
@@ -1326,6 +1364,16 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   quiet(wf(`agent({ agentType: '${REV}', model: 'claude-sonnet-5-5', effort: 'high' }); agent({ agentType: '${REV}', model: 'opus' }); agent({ agentType: 'code-ops-suite:plain', model: 'sonnet' });`), 'Workflow models at or above their floors');
   quiet(wf(`agent({ agentType: 'no-such:agent', model: 'haiku' }); agent({ agentType: '${REV}', model: 'unknown-model' });`), 'a model or agent the guard cannot rank');
   advised(wf(`agent({ agentType: '${REV}', model: choice });`), /not a literal string/, 'a Workflow model that is a variable');
+  // One frontier dispatch per run covers a Workflow: literal frontier models in the script plus frontier ledger rows.
+  seed([]);
+  const fableCall = `agent({ agentType: '${REV}', model: 'fable' });`;
+  quiet(wf(fableCall), 'one literal frontier Workflow call');
+  denied(wf(`${fableCall}\n${fableCall}`), /frontier model on 2 agent\(\) call\(s\) and 0 frontier dispatch/, 'two literal frontier Workflow calls');
+  quiet(wf(`${fableCall}\nagent({ agentType: '${REV}', model: 'opus' });`), 'one frontier and one premium Workflow call');
+  seed([{ status: 'dispatched', agent_id: 'f4', agent_type: IMP, session_id: 'sess-1', unit: 'u11', appliedModel: 'fable' }]);
+  denied(wf(fableCall), /frontier model on 1 agent\(\) call\(s\) and 1 frontier dispatch\(es\) already ran/, 'a frontier Workflow call after a frontier ledger row');
+  quiet(wf(`agent({ agentType: '${REV}', model: 'opus' });`), 'a premium Workflow call after a frontier ledger row');
+  seed([]);
   const warned = wf(`agent({ agentType: '${REV}', model: 'sonnet' });`, 'warn');
   expect(Object.hasOwn(warned?.hookSpecificOutput ?? {}, 'additionalContext') && !Object.hasOwn(warned?.hookSpecificOutput ?? {}, 'permissionDecision'),
     `warn mode must downgrade the Workflow model denial, got ${JSON.stringify(warned)}`);
@@ -1354,6 +1402,24 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   expect(res.status === 0 && res.stdout === '', `a missing routing library must skip the routing checks, got ${res.status}/${JSON.stringify(res.stdout)}`);
   res = bare({ subagent_type: REV, prompt: 'Round budget: 5', model: 'sonnet' });
   expect(/missing: Scope/.test(parseOut(res)?.hookSpecificOutput?.permissionDecisionReason ?? ''), `the field denial must survive a missing routing library, got ${JSON.stringify(res.stdout)}`);
+  // Each library alone: a copy of the suite scripts with one file removed skips the routing checks; the full copy denies.
+  const isolated = (name, without) => {
+    const root = join(home, name);
+    mkdirSync(join(root, 'hooks'), { recursive: true });
+    for (const file of ['dispatch-guard.mjs', 'agent-file.mjs']) writeFileSync(join(root, 'hooks', file), readFileSync(join(suite, 'hooks', file), 'utf8'));
+    cpSync(join(suite, 'scripts'), join(root, 'scripts'), { recursive: true });
+    if (without) rmSync(join(root, 'scripts', without));
+    return (input) => spawnSync('node', [join(root, 'hooks', 'dispatch-guard.mjs')], {
+      input: JSON.stringify(dispatchCall(input)), encoding: 'utf8',
+      env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_DISPATCH_GUARD: '', CLAUDE_PLUGIN_ROOT: suiteRoot },
+    });
+  };
+  const below = { subagent_type: REV, prompt: brief({ tier: 'mid' }), model: 'sonnet' };
+  expect(parseOut(isolated('iso-full')(below))?.hookSpecificOutput?.permissionDecision === 'deny', 'the isolated full copy of the scripts must still deny, or the fail-open cases prove nothing');
+  for (const missing of ['route-unit.mjs', 'agent-ledger.mjs']) {
+    res = isolated(`iso-no-${missing}`, missing)(below);
+    expect(res.status === 0 && res.stdout === '', `a missing ${missing} must skip the routing checks, got ${res.status}/${JSON.stringify(res.stdout)}`);
+  }
   cleanup();
   console.log('ok   routing: tier against rung, floor, surface from Scope, 7a-7d with the override rule, effort, frontier count, Workflow model, spawn effort, and an agent without Tier is untouched');
 }

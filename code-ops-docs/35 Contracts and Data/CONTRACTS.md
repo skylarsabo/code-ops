@@ -1061,7 +1061,13 @@ lists `Tier`. Every other agent keeps the gates above and nothing more. The brie
 `Route basis: <kind>; surface=<s>; ambiguity=<a>; reversible=<yes|no>`, and an optional
 `Route override: <reason>`. The gate derives two inputs itself. It derives the surface from the
 paths on the `Scope:` block with `surfaceOfScope`, and the attempt from the agent ledger with
-`attemptOf` for the `Unit:` key. The gate denies each of these, and `warn` turns each into an advisory:
+`attemptOf` for the `Unit:` key. A `Scope:` block ends at the next blank line or any `Label:` line
+(a drive letter such as `C:/` is no label). After an empty `Scope:` colon it skips blank lines and
+reads the bullets that follow, up to the next label. A path drops a trailing line anchor (`:120-180`,
+`#L120`), and the surface patterns ignore case. The gate also raises the declared kind to the
+agent's minimum (`AGENT_MIN_KIND` in `scripts/route-unit.mjs`): `reviewer` and `privacy-reviewer`
+route as `review`, `verifier` as `refutation`, and `tracer` as `judgment`. The gate denies each of
+these, and `warn` turns each into an advisory:
 
 - A `model` override that ranks below the agent's floor. The floor is the model its frontmatter
   declares, which lint holds at `AGENT_MODEL_FLOORS`. The override `sonnet` ranks mid, so it fails
@@ -1070,7 +1076,7 @@ paths on the `Scope:` block with `surfaceOfScope`, and the attempt from the agen
   needs `model:"fable"`, and `strong` needs no override or one at strong. An override that matches
   `Tier` passes silently.
 - A `Route basis` surface that differs from the surface the `Scope:` paths derive. No `Route override:`
-  line clears this denial.
+  line clears this denial. A declared surface that is not a surface is denied as malformed.
 - A `Tier` or `Effort` below `routeUnit` of the basis with the derived surface and the derived
   attempt. A `Route override:` line clears the ambiguity and attempt triggers (7b, 7c) and the
   table rows. It never clears a surface trigger (7a review on a surface, 7d public-contract
@@ -1078,10 +1084,13 @@ paths on the `Scope:` block with `surfaceOfScope`, and the attempt from the agen
 - A brief `Effort` above the agent's frontmatter effort. The Agent tool carries no effort
   parameter, so the denial points to Workflow `agent({ agentType, model, effort })`.
 - A literal `xhigh` or `max` brief `Effort`.
-- A second frontier dispatch in the session, counted from `dispatched` ledger rows.
+- A second frontier dispatch in the session, counted from `dispatched` ledger rows that asked for
+  frontier or applied a frontier model. A Workflow script counts its literal frontier `model` calls
+  with those rows, and more than one in total is denied.
 
-The advisories are a `Tier` above the routed rung, a brief `Effort` below the frontmatter
-effort, and a Workflow `model` or `effort` that is not a literal string. A Workflow `agent()` call
+The advisories are a `Tier` above the routed rung, a declared kind raised to the agent's minimum, a
+`model` override the gate cannot rank (it leaves `Tier` unchecked), a brief `Effort` below the
+frontmatter effort, and a Workflow `model` or `effort` that is not a literal string. A Workflow `agent()` call
 whose literal `model` ranks below the floor of its literal `agentType` is denied. A `spawn_subagent`
 or `spawn_agent` input with a literal `xhigh` or `max` effort is denied. The `spawn_agent` tool
 is covered by name only: whether `PreToolUse` fires for it on Codex is UNVERIFIED. The gate loads

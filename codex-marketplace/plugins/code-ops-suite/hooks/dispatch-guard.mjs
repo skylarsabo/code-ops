@@ -81,8 +81,15 @@
 //      triggers (rules 7b, 7c) or the table rows; the surface triggers (7a, 7d) are never cleared,
 //      (e) a brief `Effort` above the agent's frontmatter effort, because the Agent tool carries no
 //      effort (Workflow `agent()` does), (f) a literal `xhigh` or `max` brief `Effort`, and (g) a
-//      second frontier dispatch in the session, counted from agent-ledger rows. A rung above
-//      `routeUnit`, a brief `Effort` below the frontmatter effort, and a non-literal Workflow
+//      second frontier dispatch in the session, counted from agent-ledger rows (a Workflow script
+//      counts its literal frontier `model` calls with them: more than one in total denies), and
+//      (h) a `Route basis` surface that is not a surface. The Scope block ends at a blank line or any
+//      `Label:` line, and reads past blank lines after an empty `Scope:` colon; a Scope path drops a
+//      trailing line anchor (`:120-180`, `#L120`) and matches case-insensitively. The declared kind
+//      is raised to the agent's minimum (AGENT_MIN_KIND in route-unit.mjs: reviewer and
+//      privacy-reviewer review, verifier refutation, tracer judgment) with an advisory. A rung
+//      above `routeUnit`, a raised kind, a `model` override that cannot be ranked (Tier goes
+//      unchecked), a brief `Effort` below the frontmatter effort, and a non-literal Workflow
 //      `model` or `effort` are advisories. A Workflow `agent()` call also denies a literal `model`
 //      below the floor of its literal `agentType`, and `spawn_subagent` or `spawn_agent` input with a
 //      literal `xhigh` or `max` effort denies. scripts/route-unit.mjs and scripts/agent-ledger.mjs
@@ -835,7 +842,7 @@ function workflowCalls(script) {
 
 // A Workflow script's per-call review. `agentType` must name a narrow type on every readable
 // call (a wide-surface reason excuses it); a literal effort above high never passes.
-async function reviewWorkflow(script, denials, advisories) {
+async function reviewWorkflow(script, denials, advisories, sessionId) {
   const calls = workflowCalls(script);
   if (!calls) {
     // deferred(parse surprise, a fuller JavaScript tokenizer): fall back to the script-wide test.
@@ -851,8 +858,7 @@ async function reviewWorkflow(script, denials, advisories) {
   let unreadable = 0;
   let nonLiteral = 0;
   // A literal model is judged against its literal agentType's floor, which needs the rung table.
-  const libs = calls.some((call) => call && typeof call.keys.get('model') === 'string' && typeof call.keys.get('agentType') === 'string')
-    ? await getRoutingLibs() : null;
+  const libs = calls.some((call) => call && typeof call.keys.get('model') === 'string') ? await getRoutingLibs() : null;
   calls.forEach((call, index) => {
     if (!call) { unreadable++; return; }
     const { keys, spread } = call;
@@ -888,6 +894,15 @@ async function reviewWorkflow(script, denials, advisories) {
     denials.push(`Workflow agent() call ${first.call} sets model "${first.model}" (${first.rung}), below the ${first.floor} floor of ${first.type}`
       + `${belowFloor.length > 1 ? ` (${belowFloor.length} of ${calls.length} calls do)` : ''}; omit the model so the agent's frontmatter applies, or name one at its floor or above.`);
   }
+  // One frontier dispatch per run: literal frontier models in this script, plus frontier ledger rows.
+  const frontier = libs ? calls.filter((call) => typeof call?.keys.get('model') === 'string' && libs.rungOf(call.keys.get('model').trim()) === 'frontier').length : 0;
+  if (frontier) {
+    const prior = frontierCount(libs, sessionRows(libs, sessionId));
+    if (frontier + prior > 1) {
+      denials.push(`This Workflow script sets a frontier model on ${frontier} agent() call(s) and ${prior} frontier dispatch(es) already ran in this session; `
+        + 'only one frontier peer runs per run. Use premium or strong for the rest.');
+    }
+  }
   if (unreadable) {
     advisories.push(`${unreadable} of ${calls.length} Workflow agent() calls pass options the guard cannot read (a variable or `
       + 'a spread); confirm each names a narrow agentType and an effort no higher than high.');
@@ -908,56 +923,72 @@ async function getRoutingLibs() {
     const scripts = join(dirname(HOOK_PATH), '..', 'scripts');
     const load = (name) => import(pathToFileURL(join(scripts, name)).href);
     const [route, ledger] = await Promise.all([load('route-unit.mjs'), load('agent-ledger.mjs')]);
-    for (const fn of [route.routeUnit, route.surfaceOfScope, ledger.attemptOf, ledger.ledgerRows, ledger.rungOfModel]) {
+    for (const fn of [route.routeUnit, route.surfaceOfScope, route.applyMinKind, ledger.attemptOf, ledger.ledgerRows, ledger.rungOfModel]) {
       if (typeof fn !== 'function') throw new TypeError('routing library');
     }
     routingLibs = {
       routeUnit: route.routeUnit, surfaceOfScope: route.surfaceOfScope, rungRank: route.RUNG_RANK, floorRank: route.FLOOR_RANK,
-      efforts: route.EFFORTS, attemptOf: ledger.attemptOf, ledgerRows: ledger.ledgerRows, rungOf: ledger.rungOfModel,
+      efforts: route.EFFORTS, surfaces: route.SURFACES, applyMinKind: route.applyMinKind, attemptOf: ledger.attemptOf, ledgerRows: ledger.ledgerRows, rungOf: ledger.rungOfModel,
     };
   } catch { routingLibs = null; }
   return routingLibs;
 }
 
-// Labels that end a Scope block, so `Out of scope:` paths and the lines after the Scope never count.
-const SCOPE_STOP = ['Objective', 'Round budget', 'Report cap', 'Report path', 'Expected return', 'Unit', 'Tier', 'Effort',
-  'Route basis', 'Route override', 'Out of scope', 'Gates', 'Wide-surface reason'];
+// Any `Label:` line ends a Scope block, so `Out of scope:` paths and the lines after the Scope never count.
+// A label is words at line start under briefHas's rule; a colon followed by a slash (`C:/dir`) is a drive.
+const LABEL_LINE = new RegExp(`${LABEL_HEAD}[A-Za-z][A-Za-z\\t -]{0,40}${LABEL_TAIL}(?![\\\\/])`, 'i');
 const SCOPE_MAX = 8_000;
 const word = (value) => value?.split(/[\s,;:()]+/)[0]?.toLowerCase().slice(0, 24) ?? null;
 
 // The text of every `Scope:` line (or `## Scope` heading) block of the brief. A colon block runs to
-// the next blank line or stop label; a heading block to the next heading or stop label.
+// the next blank line or label line (blank lines after an empty `Scope:` do not end it); a heading
+// block to the next heading or label line.
 function scopeText(prompt) {
   const label = labelSource('Scope');
   const colon = new RegExp(`${LABEL_HEAD}${label}${LABEL_TAIL}(.*)$`, 'i');
   const heading = new RegExp(`^[ \\t]*#{1,6}[ \\t]+${label}(?![A-Za-z0-9])(.*)$`, 'i');
-  const stop = new RegExp(`${LABEL_HEAD}(?:${SCOPE_STOP.map(labelSource).join('|')})${LABEL_TAIL}`, 'i');
   const parts = [];
   let mode = null;
+  let empty = false;
   for (const line of prompt.split(/\r?\n/)) {
     if (mode) {
-      const ends = stop.test(line) || (mode === 'colon' ? !line.trim() : /^[ \t]*#{1,6}[ \t]/.test(line));
-      if (!ends) { parts.push(line); continue; }
+      if (empty && !line.trim()) continue;
+      const ends = LABEL_LINE.test(line) || (mode === 'colon' ? !line.trim() : /^[ \t]*#{1,6}[ \t]/.test(line));
+      if (!ends) { empty = false; parts.push(line); continue; }
       mode = null;
     }
     const start = colon.exec(line);
     const head = start ? null : heading.exec(line);
-    if (start || head) { mode = start ? 'colon' : 'heading'; parts.push((start ?? head)[1]); }
+    if (start || head) { mode = start ? 'colon' : 'heading'; empty = start !== null && !start[1].trim(); parts.push((start ?? head)[1]); }
   }
   return parts.join('\n').slice(0, SCOPE_MAX);
 }
 
 // Path candidates in a Scope text: each token holding a separator, alone and with up to five following
 // tokens, so a path with spaces (`35 Contracts and Data`) reaches the surface patterns whole. A bare
-// word such as `auth` in prose is never a candidate.
+// word such as `auth` in prose is never a candidate. A trailing line anchor (`:120-180`, `#L120`) drops.
 function scopePaths(text) {
-  const tokens = text.split(/[\s,;`'"()<>[\]{}|]+/).map((token) => token.replace(/[.,:;!?]+$/, '')).filter(Boolean);
+  const tokens = text.split(/[\s,;`'"()<>[\]{}|]+/)
+    .map((token) => token.replace(/[.,:;!?]+$/, '').replace(/(?:#L\d+(?:-L?\d+)?|:\d+(?:[-:]\d+)?)$/i, '')).filter(Boolean);
   const paths = new Set();
   tokens.forEach((token, i) => {
     if (!/[\\/]/.test(token)) return;
     for (let n = 1; n <= 6 && i + n <= tokens.length; n++) paths.add(tokens.slice(i, i + n).join(' '));
   });
   return [...paths];
+}
+
+// The session's ledger rows, or [] for an unsafe session id or a ledger error.
+function sessionRows(libs, sessionId) {
+  try { return SAFE_SESSION.test(String(sessionId ?? '')) ? libs.ledgerRows({ sessionId }) : []; } catch { return []; }
+}
+
+// Frontier dispatches in ledger rows: `dispatched` rows that asked for frontier or applied a frontier
+// model, each agent once.
+function frontierCount(libs, rows) {
+  const seen = new Set();
+  return rows.filter((row) => row.status === 'dispatched' && (row.requestedTier === 'frontier' || libs.rungOf(row.appliedModel) === 'frontier')
+    && (!row.agent_id || (!seen.has(row.agent_id) && seen.add(row.agent_id)))).length;
 }
 
 // `Route basis: <kind>; surface=<s>; ambiguity=<a>; reversible=<r>` as its parts.
@@ -983,12 +1014,13 @@ function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) 
   const effortOk = effort !== null && libs.efforts.includes(effort);
   let rows = null;
   const ledger = () => {
-    if (rows === null) {
-      try { rows = SAFE_SESSION.test(String(sessionId ?? '')) ? libs.ledgerRows({ sessionId }) : []; } catch { rows = []; }
-    }
+    rows ??= sessionRows(libs, sessionId);
     return rows;
   };
 
+  if (override && effective === null && tier !== null) {
+    advisories.push(`The model override "${override}" cannot be ranked, so the guard cannot check Tier: ${tier} against the rung it runs at; confirm they agree.`);
+  }
   if (tier !== null && !tierOk) denials.push(`Tier: "${tier}" is not a rung; use light, mid, strong, premium, or frontier.`);
   if (effort !== null && OVER_HIGH_EFFORT.has(effort)) {
     denials.push(`Effort: ${effort} is above high; effort is at most high, and no Route override allows more.`);
@@ -1007,9 +1039,7 @@ function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) 
 
   // Frontier is one dispatch per run, counted from the ledger.
   if (tier === 'frontier' || effective === 'frontier') {
-    const seen = new Set();
-    const prior = ledger().filter((row) => row.status === 'dispatched' && (row.requestedTier === 'frontier' || libs.rungOf(row.appliedModel) === 'frontier')
-      && (!row.agent_id || (!seen.has(row.agent_id) && seen.add(row.agent_id)))).length;
+    const prior = frontierCount(libs, ledger());
     if (prior >= 1) denials.push(`A frontier dispatch already ran in this session (${prior} in the ledger); only one frontier peer runs per run. Dispatch at premium or strong.`);
   }
 
@@ -1033,6 +1063,8 @@ function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) 
   const derived = libs.surfaceOfScope(scopePaths(scopeText(prompt)));
   if (basis.surface === undefined) {
     denials.push('Route basis names no surface=<s>; add it (none, security, egress, migration, public-contract, or gate-script).');
+  } else if (!libs.surfaces.includes(basis.surface)) {
+    denials.push(`Route basis names surface=${basis.surface}, which is not a surface; use ${libs.surfaces.join(', ')}.`);
   } else if (basis.surface !== derived && derived !== 'none') {
     denials.push(`Route basis says surface=${basis.surface} but the Scope paths derive surface=${derived}; correct the line or the Scope. `
       + 'A Route override line does not clear a surface mismatch.');
@@ -1041,13 +1073,15 @@ function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) 
     advisories.push(`Route basis says surface=${basis.surface} but the Scope paths derive no surface; routing up is allowed, and it costs more.`);
   }
   const unit = (briefValue(prompt, 'Unit') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80) || null;
-  const base = { kind: basis.kind, ambiguity: basis.ambiguity, reversible: basis.reversible, surface: derived };
+  const { kind, raisedFrom } = libs.applyMinKind(basis.kind, type);
+  if (raisedFrom) advisories.push(`Route basis kind=${raisedFrom} is below the minimum for ${type}; routing it as ${kind}.`);
+  const base = { kind, ambiguity: basis.ambiguity, reversible: basis.reversible, surface: derived };
   const floorTier = ['light', 'mid', 'strong', 'frontier'][libs.floorRank[floorRung]];
   if (floorTier) base.floor = floorTier;
   let full;
   let hard;
   try {
-    full = libs.routeUnit({ ...base, attempt: libs.attemptOf(ledger(), unit) });
+    full = libs.routeUnit({ ...base, attempt: unit ? libs.attemptOf(ledger(), unit) : 1 });
     // The surface triggers alone: no ambiguity-and-irreversible trigger, no retry trigger.
     hard = libs.routeUnit({ ...base, reversible: 'yes', attempt: 1 });
   } catch (error) {
@@ -1080,7 +1114,7 @@ async function reviewRouting(input, type, prompt, sessionId, denials, advisories
 // is a routing breach for an agent that requires `Tier`; a missing Round budget stays advisory.
 async function reviewDispatch(tool, input, budget, denials, advisories, sessionId) {
   if (tool === 'Workflow') {
-    await reviewWorkflow(typeof input.script === 'string' ? input.script : '', denials, advisories);
+    await reviewWorkflow(typeof input.script === 'string' ? input.script : '', denials, advisories, sessionId);
     return [];
   }
   const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim() : '';
