@@ -70,7 +70,7 @@ if (check) {
   if (ours) {
     const driver = driverRegistered(ROOT);
     if (!driver.registered || !driver.attributes) {
-      console.error('x the derived-file merge driver is not fully installed. Run: node scripts/install-git-hooks.mjs');
+      console.error(`x the derived-file merge driver is not fully installed (driver ${driver.registered ? 'set' : driver.problem}, attributes ${driver.attributes ? 'set' : 'missing'}). Run: node scripts/install-git-hooks.mjs`);
       process.exit(1);
     }
     console.log(`OK — repository hooks and the derived-file merge driver are installed (${current}).`);

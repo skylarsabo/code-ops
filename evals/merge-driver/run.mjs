@@ -64,15 +64,15 @@ function fixture(name, { install = true, scriptsDir = join(ROOT, 'scripts') } = 
 }
 
 // Branch `left` and `right` each change one source file and regenerate the manifest.
-function diverge(repo, { leftFile = 'src/a.md', rightFile = 'src/b.md', leftText = 'ONE\ntwo\nthree\n', rightText = 'alpha\nbeta\nGAMMA\n' } = {}) {
+function diverge(repo, { leftFile = 'src/a.md', rightFile = 'src/b.md', leftText = 'ONE\ntwo\nthree\n', rightText = 'alpha\nbeta\nGAMMA\n', sync = (cwd) => node(cwd, 'scripts/docs-manifest.mjs', 'sync') } = {}) {
   git(repo, 'checkout', '-qb', 'right');
   put(repo, rightFile, rightText);
-  node(repo, 'scripts/docs-manifest.mjs', 'sync');
+  sync(repo);
   commit(repo, 'right');
   git(repo, 'checkout', '-q', 'main');
   git(repo, 'checkout', '-qb', 'left');
   put(repo, leftFile, leftText);
-  node(repo, 'scripts/docs-manifest.mjs', 'sync');
+  sync(repo);
   commit(repo, 'left');
 }
 
@@ -219,6 +219,47 @@ try {
   check('rebase: a conflicting manifest stops the rebase', rebased.status !== 0 && unmerged(rebase).includes(MANIFEST), `${rebased.out.slice(-160)} / unmerged: ${unmerged(rebase).join()}`);
   git(rebase, 'rebase', '--abort');
 
+  // 7b. An adopter runs the driver from a plugin cache outside the repository and merges inside a
+  // linked worktree nested under it. Git runs the driver from that worktree's top level and every
+  // worktree shares one config, so only an absolute path reaches the script from there.
+  let adopters = 0;
+  const adopterMerge = (scriptsDir) => {
+    const name = `adopter-${adopters++}`;
+    const repo = fixture(name, { install: false, scriptsDir });
+    const cache = join(work, `${name} plugin cache`, 'scripts');
+    cpSync(join(repo, 'scripts'), cache, { recursive: true });
+    rmSync(join(repo, 'scripts'), { recursive: true, force: true });
+    const self = `node "${join(cache, 'derived-merge.mjs').split('\\').join('/')}"`;
+    for (const [hook, command] of [['pre-commit', 'regenerate'], ['pre-merge-commit', 'regenerate --amend-after'], ['post-merge', 'amend']]) put(repo, `.githooks/${hook}`, `#!/bin/sh\n${self} ${command}\n`);
+    put(repo, '.gitignore', '.claude/\n');
+    commit(repo, 'adopter layout');
+    git(repo, 'config', 'core.hooksPath', '.githooks');
+    const installed = node(repo, join(cache, 'derived-merge.mjs'), 'install');
+    commit(repo, 'driver attributes');
+    diverge(repo, { sync: (cwd) => node(cwd, join(cache, 'docs-manifest.mjs'), 'sync') });
+    git(repo, 'checkout', '-q', 'main');
+    const tree = join(repo, '.claude', 'worktrees', 'nested');
+    git(repo, 'worktree', 'add', '-q', tree, 'left');
+    const merge = git(tree, 'merge', '--no-edit', 'right');
+    const fresh = node(tree, join(cache, 'docs-manifest.mjs'), 'check');
+    return { repo, tree, cache, installed, merge, fresh };
+  };
+  const adopter = adopterMerge(join(ROOT, 'scripts'));
+  check('adopter worktree: install registers the driver', adopter.installed.status === 0, adopter.installed.out.slice(-200));
+  check('adopter worktree: the driver runs, with no MODULE_NOT_FOUND', adopter.merge.status === 0 && !/MODULE_NOT_FOUND|Cannot find module/.test(adopter.merge.out), adopter.merge.out.slice(-300));
+  check('adopter worktree: the merge leaves no conflict and a fresh manifest', !unmerged(adopter.tree).length && adopter.fresh.status === 0 && !read(adopter.tree, MANIFEST).includes('"regenerated"'), `unmerged: ${unmerged(adopter.tree).join() || 'none'} / ${adopter.fresh.out.slice(0, 160)}`);
+  const adopterCheck = (cwd) => node(cwd, join(adopter.cache, 'derived-merge.mjs'), 'check');
+  check('adopter check: passes from the main checkout and from the worktree', adopterCheck(adopter.repo).status === 0 && adopterCheck(adopter.tree).status === 0, `${adopterCheck(adopter.repo).out} / ${adopterCheck(adopter.tree).out}`);
+
+  // 7c. check resolves the registered script. A missing file or a relative path fails it loudly.
+  const setDriver = (value) => git(adopter.repo, 'config', '--local', 'merge.code-ops-derived.driver', value);
+  setDriver(`node "${join(work, 'gone', 'derived-merge.mjs').split('\\').join('/')}" driver %O %A %B %P`);
+  const goneCheck = adopterCheck(adopter.tree);
+  check('check: a registered script that does not exist fails and names the path', goneCheck.status === 1 && /does not exist/.test(goneCheck.out) && goneCheck.out.includes('gone/derived-merge.mjs'), goneCheck.out);
+  setDriver('node ../../../scripts/derived-merge.mjs driver %O %A %B %P');
+  const relativeCheck = adopterCheck(adopter.repo);
+  check('check: a relative driver path fails', relativeCheck.status === 1 && /not a quoted absolute path/.test(relativeCheck.out), relativeCheck.out);
+
   // 8. Mutants. Each broken driver must fail the scenario that guards it, or the eval proves nothing.
   const mutate = (name, from, to) => {
     const dir = join(work, `mutant-${name}`);
@@ -238,6 +279,13 @@ try {
   const failOpen = fixture('mutant-fail-open', { scriptsDir: mutate('fail-open', 'if (!failures.length) {', 'if (!failures.length || true) {') });
   divergeBroken(failOpen);
   check('mutant: a fail-open regeneration is caught', failureStaysClosed(failOpen).length > 0, 'the failure scenario passed against a driver that ignores a failed regeneration');
+  // Mutant C: the 2.40.0 registration, a path relative to the checkout that ran install.
+  const relativeDriver = adopterMerge(mutate('relative-driver', '`node ${quote(forward(driverScript(root, scriptsDir)))} ${DRIVER_ARGS}`', '`node ${forward(relative(root, driverScript(root, scriptsDir)))} ${DRIVER_ARGS}`'));
+  check('mutant: a relative driver path fails the nested-worktree merge', relativeDriver.merge.status !== 0 || unmerged(relativeDriver.tree).length > 0, relativeDriver.merge.out.slice(-200));
+  // Mutant D: check trusts the registered value without looking for the file.
+  const blindCheck = adopterMerge(mutate('blind-check', 'if (!existsSync(script)) return', 'if (false) return'));
+  git(blindCheck.repo, 'config', '--local', 'merge.code-ops-derived.driver', `node "${join(work, 'gone', 'derived-merge.mjs').split('\\').join('/')}" driver %O %A %B %P`);
+  check('mutant: a check that skips the existence test is caught', node(blindCheck.tree, join(blindCheck.cache, 'derived-merge.mjs'), 'check').status === 0, 'check still failed on a missing script');
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

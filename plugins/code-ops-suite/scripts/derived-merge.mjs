@@ -24,13 +24,17 @@
 // The driver applies only to `git merge` and `git pull`. A rebase, cherry-pick, or stash pop does
 // not run the commit hooks at the right point, so those fall back to the plain text merge.
 //
+// The registered driver command names the script by absolute path. Git runs a merge driver from the
+// top level of whichever working tree is merging, and every linked worktree shares one local config,
+// so a relative path cannot resolve from all of them.
+//
 // Exit (regenerate): 0 = nothing pending or all regenerated and staged, 1 = a regeneration failed
-// and the conflict is back in the index. Exit (check): 0 = registered, 1 = not registered.
+// and the conflict is back in the index. Exit (check): 0 = registered and the script exists, 1 = not.
 // Exit (driver): 0 = merged, 1 = conflict. 2 = usage error.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const DRIVER = 'code-ops-derived';
@@ -86,10 +90,38 @@ const headSha = (root) => git(['rev-parse', '--verify', 'HEAD'], { cwd: root }).
 const readMarker = (file) => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
+const DRIVER_ARGS = 'driver %O %A %B %P';
+const forward = (path) => path.split(sep).join('/');
+// Git runs the driver through sh, so a double-quoted path keeps spaces and needs only these escapes.
+const quote = (path) => `"${path.replace(/["\\$`]/g, '\\$&')}"`;
+const DRIVER_COMMAND = new RegExp(`^node "((?:[^"\\\\]|\\\\.)*)" ${DRIVER_ARGS}$`);
+
+// A script inside a linked worktree would vanish with that worktree, so a tracked copy is anchored
+// to the main working tree, which outlives them. A script outside the repository is used as it is.
+function driverScript(root, scriptsDir) {
+  const script = resolve(scriptsDir, 'derived-merge.mjs');
+  const inTree = relative(root, script);
+  if (!inTree || inTree.startsWith('..') || isAbsolute(inTree)) return script;
+  const common = git(['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: root }).out;
+  const main = common && git(['rev-parse', '--is-bare-repository'], { cwd: root }).out !== 'true' ? dirname(resolve(common)) : '';
+  return main && existsSync(join(main, inTree)) ? join(main, inTree) : script;
+}
+
 export function registerDriver(root, scriptsDir = SCRIPTS) {
-  const script = relative(root, join(scriptsDir, 'derived-merge.mjs')).split(sep).join('/');
   git(['config', '--local', `merge.${DRIVER}.name`, 'code-ops derived-file regeneration'], { cwd: root });
-  git(['config', '--local', `merge.${DRIVER}.driver`, `node ${script} driver %O %A %B %P`], { cwd: root });
+  git(['config', '--local', `merge.${DRIVER}.driver`, `node ${quote(forward(driverScript(root, scriptsDir)))} ${DRIVER_ARGS}`], { cwd: root });
+}
+
+// Resolve the registered command to its script. Only an absolute path to a file that exists counts.
+export function registeredScript(root) {
+  const value = git(['config', '--local', '--get', `merge.${DRIVER}.driver`], { cwd: root }).out;
+  if (!value) return { script: '', problem: 'missing' };
+  const match = DRIVER_COMMAND.exec(value);
+  if (!match) return { script: '', problem: `not a quoted absolute path: ${value}` };
+  const script = match[1].replace(/\\(.)/g, '$1');
+  if (!isAbsolute(script)) return { script, problem: `not an absolute path: ${script}` };
+  if (!existsSync(script)) return { script, problem: `points at ${script}, which does not exist` };
+  return { script, problem: '' };
 }
 
 // Append the attribute lines the repository lacks. A line that is already present is left alone.
@@ -105,10 +137,10 @@ export function ensureAttributes(root) {
 }
 
 export function driverRegistered(root) {
-  const registered = git(['config', '--local', '--get', `merge.${DRIVER}.driver`], { cwd: root }).out.includes('derived-merge.mjs');
+  const { script, problem } = registeredScript(root);
   const text = existsSync(join(root, '.gitattributes')) ? readFileSync(join(root, '.gitattributes'), 'utf8') : '';
   const have = new Set(text.split('\n').map((line) => line.trim()));
-  return { registered, attributes: attributeLines().every((line) => have.has(line)) };
+  return { registered: !problem, script, problem, attributes: attributeLines().every((line) => have.has(line)) };
 }
 
 // Only `git merge` and `git pull` reach a commit hook after the whole tree is merged.
@@ -251,7 +283,7 @@ if (isEntry) {
   if (command === 'check' && !rest.length) {
     const state = driverRegistered(topLevel());
     if (state.registered && state.attributes) { console.log(`OK merge driver ${DRIVER} is registered.`); process.exit(0); }
-    console.error(`x merge driver ${DRIVER} is not fully installed (driver ${state.registered ? 'set' : 'missing'}, attributes ${state.attributes ? 'set' : 'missing'}). Run: ${SELF} install`);
+    console.error(`x merge driver ${DRIVER} is not fully installed (driver ${state.registered ? 'set' : state.problem}, attributes ${state.attributes ? 'set' : 'missing'}). Run: ${SELF} install`);
     process.exit(1);
   }
   console.error(`usage: ${SELF} install | check | regenerate [--amend-after] | amend | driver <base> <ours> <theirs> <path>`);
