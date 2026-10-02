@@ -216,9 +216,9 @@ Then run `docs-gate.mjs --baseline-init` once, review the violations it records,
 
 A derived file is a documentation manifest, a host distribution, or a vendored script copy. Two branches that both regenerate one conflict on it, and no person should hand-merge it. The merge driver regenerates it instead. Install it only when the developer approves, as one reviewed adopter commit.
 
-1. Run `node <scripts dir>/derived-merge.mjs install`. It registers the driver in the local git config and adds the `merge=code-ops-derived` lines to `.gitattributes`. In the code-ops repository, `node scripts/install-git-hooks.mjs` registers the driver and the hooks together.
+1. Run `node <scripts dir>/derived-merge.mjs install`. It registers the driver in the local git config by absolute path, because every linked worktree shares that config, and adds the `merge=code-ops-derived` lines to `.gitattributes`. In the code-ops repository, `node scripts/install-git-hooks.mjs` registers the driver and the hooks together.
 2. Add three git hook entries. The pre-commit hook runs `node <scripts dir>/derived-merge.mjs regenerate`. The pre-merge-commit hook runs the same command with `--amend-after`. The post-merge hook runs it with the final word changed to amend.
-3. Run `node <scripts dir>/derived-merge.mjs check`. It exits 0 only when the driver and its attributes are in place.
+3. Run `node <scripts dir>/derived-merge.mjs check`. It exits 0 only when the attributes are in place and the registered driver names an absolute path to a script that exists. After a plugin update moves the scripts dir, run `node <scripts dir>/derived-merge.mjs install` again.
 
 Remove the `.gitattributes` lines, the three hook entries, and the `merge.code-ops-derived.*` config keys to uninstall.
 
