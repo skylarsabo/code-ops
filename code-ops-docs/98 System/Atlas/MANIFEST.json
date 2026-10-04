@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
-      "verifiedDigest": "55dea5828078a3d4c897e639de8b9af5715c90cbf8d8b12b4534f2fd7b4ad56e",
+      "verifiedAt": "0071eb525cfbbed875d637422181aca31549cf61",
+      "verifiedDigest": "401c4369d8700f6653221b88f7bce99ff429d2c68807f9ae4d942aab58af0445",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -123,8 +123,8 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1155,
-          "anchor": "return missing.map((field) =>"
+          "line": 1182,
+          "anchor": "${skeleton.join('\\n')}\\n${prose}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -208,7 +208,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1136,
+          "line": 1137,
           "anchor": "+ 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher"
         },
         {
