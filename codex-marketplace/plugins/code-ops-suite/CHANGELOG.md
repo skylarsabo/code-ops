@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.40.2
+- The Codex/OpenAI ladder binds light to Luna 6, mid and strong to Sol 6.1, and premium dispatches to Astra. The default frontier binding stays Sol 6.1.
+- The model registry and routing reference now describe the same bindings, and the route-unit eval covers the new premium selection.
+
 ## 2.40.1
 - The derived-file merge driver now runs inside linked worktrees. `derived-merge.mjs install` registered the driver by a path relative to the checkout that ran it. Git runs a merge driver from the top level of the worktree doing the merge, and every worktree shares one local config, so a merge in a nested worktree such as `.claude/worktrees/<name>` failed with `MODULE_NOT_FOUND` and fell back to a text conflict. The driver is now registered by an absolute, double-quoted path. A copy tracked inside the repository is anchored to the main working tree, so removing a linked worktree cannot break it.
 - `derived-merge.mjs check` and `install-git-hooks.mjs --check` resolve the registered script and fail, naming the path, when it is relative or missing. Before, `check` passed whenever the value mentioned the script. Adopters on 2.40.0 should run `derived-merge.mjs install` again, and again after a plugin update moves the scripts dir.

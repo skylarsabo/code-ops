@@ -41,8 +41,6 @@ const KNOWN_MODELS = {
   },
   "openai": {
     "gpt-6-luna": "light",
-    "gpt-5.1": "mid",
-    "gpt-5.6-terra": "strong",
     "gpt-6.1-sol": "frontier",
     "gpt-6-astra": "frontier"
   },
@@ -84,7 +82,9 @@ const KNOWN_MODELS = {
   },
   "accepted": {
     "claude-opus-5": "strong",
+    "gpt-5.1": "mid",
     "gpt-5.6-luna": "light",
+    "gpt-5.6-terra": "strong",
     "gpt-5.6-sol": "frontier",
     "gpt-6-sol": "frontier",
     "grok-4.6": "frontier",
@@ -102,8 +102,6 @@ const TIER_BY_ID = {
   "claude-fable-5-1": "frontier",
   "grok-4.7": "frontier",
   "gpt-6-luna": "light",
-  "gpt-5.1": "mid",
-  "gpt-5.6-terra": "strong",
   "gpt-6.1-sol": "frontier",
   "gemini-3.1-flash-lite": "light",
   "gemini-3.6-flash": "mid",
@@ -128,7 +126,9 @@ const TIER_BY_ID = {
   "claude-haiku-4.5": "light",
   "mai-code-1.1-flash": "light",
   "claude-opus-5": "strong",
+  "gpt-5.1": "mid",
   "gpt-5.6-luna": "light",
+  "gpt-5.6-terra": "strong",
   "gpt-5.6-sol": "frontier",
   "grok-4.6": "frontier",
   "claude-haiku-4-5": "light",

@@ -14,7 +14,7 @@ Codex role checklist:
 
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `privacy-reviewer` at or above its `strong` floor. This role is read-only: return the report inline.
 >
-> Codex routing: When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-5.1`, strong `gpt-5.6-terra`, premium `gpt-6.1-sol`, frontier `gpt-6.1-sol`. Premium repeats the frontier model, so effort is its only extra dial.
+> Codex routing: When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-6.1-sol`, strong `gpt-6.1-sol`, premium `gpt-6-astra`, frontier `gpt-6.1-sol`.
 
 
 You review a precisely-scoped slice against the plugin's anonymity and OpSec model (`CONVENTIONS.md`, §A and §9). You do not edit code.

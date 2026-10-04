@@ -90,14 +90,14 @@ export const PROVIDER_TIERS = {
     label: 'OpenAI (GPT)',
     models: {
       light: 'gpt-6-luna',
-      mid: 'gpt-5.1',
-      strong: 'gpt-5.6-terra',
-      premium: 'gpt-6.1-sol',
+      mid: 'gpt-6.1-sol',
+      strong: 'gpt-6.1-sol',
+      premium: 'gpt-6-astra',
       frontier: 'gpt-6.1-sol',
     },
-    premiumCollapse: 'frontier',
+    premiumCollapse: null,
     notes:
-      'Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. `gpt-6.1-sol` replaces `gpt-6-sol` at the same price with cheaper cache reads (released 2026-09-29) and is pinned as both `frontier` and `premium`: the lineup has no distinct premium model, so a premium dispatch runs the frontier model and effort is the only extra dial. Sol remains the default frontier from runs R-007 and R-008, and its token price sits below Terra, so the large lead context is the cheaper model.',
+      'Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). `gpt-6.1-sol` serves `mid`, `strong`, and the default `frontier` binding. `gpt-6-astra` is the distinct dispatch-only `premium` binding for bounded high-judgment work. The selected rung and effort remain explicit in each dispatch. Sol remains the default frontier from runs R-007 and R-008.',
   },
   google: {
     id: 'google',
@@ -267,7 +267,10 @@ export const PROVIDER_PRICES = {
 // names and never creates a rung.
 export const ACCEPTED_MODELS = {
   'claude-opus-5': ['strong'],
+  'gpt-5.1': ['mid'],
   'gpt-5.6-luna': ['light'],
+  // Historical operative receipts retain their declared strong tier after the Codex pin moves.
+  'gpt-5.6-terra': ['strong'],
   'gpt-5.6-sol': ['frontier'],
   // Previous OpenAI frontier pin, replaced by `gpt-6.1-sol` 2026-10-01. Copilot still binds it
   // to strong and frontier, so this entry also keeps its class a single rung, not `ambiguous`.
@@ -285,6 +288,10 @@ export const ACCEPTED_MODELS = {
 export function modelSupportsTier(modelId, tier) {
   if (typeof modelId !== 'string' || !TIER_ORDER.includes(tier)) return false;
   return Object.values(PROVIDER_TIERS).some((provider) => provider.models[tier] === modelId)
+    // Premium has a strong floor. A distinct premium model such as Astra may serve a
+    // strong unit only when a separate frontier placement already recognizes that id.
+    || (tier === 'strong' && Object.values(PROVIDER_TIERS).some((provider) => provider.models.premium === modelId)
+      && modelSupportsTier(modelId, 'frontier'))
     || Object.values(PROVIDER_SPECIALISTS).flat().some((entry) => entry.model === modelId && entry.tier === tier)
     || (ACCEPTED_MODELS[modelId]?.includes(tier) ?? false);
 }

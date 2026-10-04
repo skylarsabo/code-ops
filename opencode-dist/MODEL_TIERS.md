@@ -18,7 +18,7 @@ entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in
 | --- | --- | --- | --- | --- |
 | Anthropic (Claude) | `anthropic/claude-haiku-4-5-20251001` | `anthropic/claude-sonnet-5-5` | `anthropic/claude-sonnet-5-5` | `anthropic/claude-fable-5-1` |
 | xAI (Grok) | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` |
-| OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-5.1` | `openai/gpt-5.6-terra` | `openai/gpt-6.1-sol` |
+| OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-6.1-sol` | `openai/gpt-6.1-sol` | `openai/gpt-6.1-sol` |
 | Google (Gemini) | `google/gemini-3.1-flash-lite` | `google/gemini-3.6-flash` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `zai/glm-5` | `zai/glm-5.1` | `zai/glm-5.2` | `zai/glm-5.2` |
 | Moonshot AI (Kimi) | `moonshotai/kimi-k2.6` | `moonshotai/kimi-k2.7-code` | `moonshotai/kimi-k3` | `moonshotai/kimi-k3` |
@@ -34,7 +34,7 @@ the lower one. The collapse is recorded rather than papered over with an invente
 
 - **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is the dispatch-only `premium` binding: it ranks strong, so it clears only strong floors, and a dispatch selects it through a routing trigger (`opus` alias). No bundled agent declares it in frontmatter. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.
 - **xAI (Grok)** — Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the handoff assessment sits at 150,000. `grok-build-0.1` is the fast coding specialist, not a default rung.
-- **OpenAI (GPT)** — Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). Terra stays the operative strong model because no GPT-6 Terra shipped. `gpt-6.1-sol` replaces `gpt-6-sol` at the same price with cheaper cache reads (released 2026-09-29) and is pinned as both `frontier` and `premium`: the lineup has no distinct premium model, so a premium dispatch runs the frontier model and effort is the only extra dial. Sol remains the default frontier from runs R-007 and R-008, and its token price sits below Terra, so the large lead context is the cheaper model.
+- **OpenAI (GPT)** — Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). `gpt-6.1-sol` serves `mid`, `strong`, and the default `frontier` binding. `gpt-6-astra` is the distinct dispatch-only `premium` binding for bounded high-judgment work. The selected rung and effort remain explicit in each dispatch. Sol remains the default frontier from runs R-007 and R-008.
 - **Google (Gemini)** — The only Pro-class id in the registry carries a `-preview` suffix, so `strong`, `premium`, and `frontier` share it. Re-pin once a stable Pro id ships.
 - **Z.AI (GLM)** — A tight lineup: the top model serves `strong`, `premium`, and `frontier`.
 - **Moonshot AI (Kimi)** — `kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves `strong`, `premium`, and `frontier`.
@@ -83,7 +83,7 @@ The `opencode` ladder leaves the lead unset and binds no frontier model. Its con
 A `calibration` block is the only exception. It serves calibration arms (b) and (c) on the
 assess-only track, and it admits a `strong` lead such as `muse-spark-1.3-contributor-free`. The validator rejects
 the block when the lead model also serves the `frontier` rung, because that arm cannot
-measure a strong-versus-frontier gap. That rules out a strong lead from: xAI (Grok), Google (Gemini), Z.AI (GLM), Moonshot AI (Kimi), DeepSeek, Mistral, GitHub Copilot (AI Credits).
+measure a strong-versus-frontier gap. That rules out a strong lead from: xAI (Grok), OpenAI (GPT), Google (Gemini), Z.AI (GLM), Moonshot AI (Kimi), DeepSeek, Mistral, GitHub Copilot (AI Credits).
 
 Contracts take bare model ids. Write `muse-spark-1.3-contributor-free`, not `opencode/muse-spark-1.3-contributor-free`. The
 provider-prefixed form in the table above and in `opencode.json` fails the tier check.

@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.4.1
+- The vendored model ladder routes Codex/OpenAI mid and strong agents to Sol 6.1 and premium dispatches to Astra.
+
 ## 2.4.0
 - The privacy-reviewer Contract requires `Unit:`, `Tier:`, `Effort:`, and `Route basis:` brief lines, so the lead sets the rung and effort per dispatch. It routes as review at minimum.
 - The vendored `route-unit.mjs` strips `file:line` anchors from Scope paths, matches surfaces case-insensitively, and applies a per-agent minimum kind.

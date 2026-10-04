@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.4.1
+- The vendored model ladder routes Codex/OpenAI mid and strong agents to Sol 6.1 and premium dispatches to Astra.
+
 ## 3.4.0
 - The tracer and verifier Contracts require `Unit:`, `Tier:`, `Effort:`, and `Route basis:` brief lines, so the lead sets the rung and effort per dispatch. The verifier routes as refutation and the tracer as judgment at minimum.
 - The vendored `route-unit.mjs` strips `file:line` anchors from Scope paths, matches surfaces case-insensitively, and applies a per-agent minimum kind.

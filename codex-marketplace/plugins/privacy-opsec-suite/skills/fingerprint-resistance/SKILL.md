@@ -7,7 +7,7 @@ description: "Use to reduce the fingerprinting and uniqueness surface that could
 
 **Codex path rule:** Resolve `<plugin-root>` as the installed root of this plugin (the directory containing `CONVENTIONS.md`); use it for every bundled script or reference path.
 
-**Codex routing rule:** When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-5.1`, strong `gpt-5.6-terra`, premium `gpt-6.1-sol`, frontier `gpt-6.1-sol`. Premium repeats the frontier model, so effort is its only extra dial.
+**Codex routing rule:** When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-6.1-sol`, strong `gpt-6.1-sol`, premium `gpt-6-astra`, frontier `gpt-6.1-sol`.
 
 **Invoke in Codex by naming `privacy-opsec-suite:fingerprint-resistance`.** Read §A, §1, §3, §4, §6, §9, and §12 of
 `<plugin-root>/CONVENTIONS.md`. Search the plugin directory for it if the path does

@@ -63,7 +63,7 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 | --- | --- | --- | --- | --- | --- |
 | Anthropic (Claude) | `haiku` | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `opus` (`claude-opus-5-5`) | `fable` |
 | xAI (Grok) | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` |
-| OpenAI (GPT) | `gpt-6-luna` | `gpt-5.1` | `gpt-5.6-terra` | `gpt-6.1-sol` | `gpt-6.1-sol` |
+| OpenAI (GPT) | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6.1-sol` |
 | Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `glm-5` | `glm-5.1` | `glm-5.2` | `glm-5.2` | `glm-5.2` |
 | Moonshot AI (Kimi) | `kimi-k2.6` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` | `kimi-k3` |
@@ -71,12 +71,12 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 | Mistral | `mistral-small-2603` | `mistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` | `magistral-medium-latest` |
 | OpenCode Zen (free tier) | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | `muse-spark-1.3-contributor-free` | unset, the lead inherits the session model |
 
-The `premium` column is a dispatch binding, never a rung. It ranks `strong`, so it clears only strong floors, and a provider with no distinct premium model repeats a lower rung (OpenAI repeats `frontier`; the rest repeat `strong`). GitHub Copilot binds `premium` to `claude-opus-5.5`.
+The `premium` column is a dispatch binding, never a rung. It ranks `strong`, so it clears only strong floors. OpenAI binds it to Astra, and GitHub Copilot binds it to `claude-opus-5.5`. Providers without a distinct premium model repeat `strong`.
 
 OpenAI also exposes `gpt-6-astra` as an explicit frontier specialist. It does not replace
-Sol in the ready-made configuration. Rates verified on 2026-09-22 price Sol at $2/$10 per
-million tokens and Astra at $10/$50. Use Astra only when the bounded decision justifies that
-premium. The binding and selected use remain visible in the run contract and dispatch ledger.
+Sol in the ready-made `mid`, `strong`, and `frontier` bindings. Rates verified on 2026-09-22
+price Sol at $2/$10 per million tokens and Astra at $10/$50. Use Astra when a bounded
+decision justifies the premium dispatch. The binding and selected use remain visible in the run contract and dispatch ledger.
 See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
 
 The Anthropic `mid` and `strong` rungs both bind to `claude-sonnet-5-5` (the `sonnet` alias, a dateless pinned snapshot), $2/$10 per million tokens, cache reads $0.20, 5-minute cache writes $2.50, 1M context. `claude-opus-5-5` (the `opus` alias) is the dispatch-only `premium` binding, $4/$20 per million tokens with cache reads $0.20. It ranks `strong`, and no bundled agent declares it. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
@@ -88,7 +88,7 @@ a tool call for this model; let the agent select a tool when the task needs one.
 
 The binding table is what makes the rest of the doctrine portable. The briefs, the fan-out rules, the disconfirmation pass, and the verification bar are identical on every provider. Only the bindings change. Adding a provider takes one `PROVIDER_TIERS` entry in `scripts/model-tiers.mjs` plus one `PROVIDER_SLUG_PATTERNS` line. Premium alternatives live in `PROVIDER_SPECIALISTS`, so generated defaults remain cost-disciplined.
 
-Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is flat by choice: `grok-4.7` never routes work below its floor, and running one model removes tier as a variable. Its list price doubles above 200,000 tokens. The OpenCode Zen operatives are flat by the same choice: `muse-spark-1.3-contributor-free` never routes operative work below its floor, and the lead stays unset. The OpenAI split follows this repository's own calibration evidence rather than price, because runs R-007 and R-008 recorded Sol leading Terra operatives. GPT-6 Sol and Luna keep those rungs at half the previous token price. `grok-build-0.1` is a light specialist for mechanical breadth, not a default rung.
+Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is flat by choice: `grok-4.7` never routes work below its floor, and running one model removes tier as a variable. Its list price doubles above 200,000 tokens. The OpenCode Zen operatives are flat by the same choice: `muse-spark-1.3-contributor-free` never routes operative work below its floor, and the lead stays unset. The OpenAI `mid`, `strong`, and `frontier` bindings use Sol 6.1; premium uses Astra. Sol and Luna keep their GPT-6 rungs at half the previous token price. `grok-build-0.1` is a light specialist for mechanical breadth, not a default rung.
 
 Effort remains variable on every provider, because the major providers expose the same low, medium, high, and xhigh scale.
 

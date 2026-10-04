@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.11
+- The vendored model ladder routes Codex/OpenAI mid and strong agents to Sol 6.1 and premium dispatches to Astra.
+
 ## 0.16.10
 - The vendored `route-unit.mjs` strips `file:line` anchors from Scope paths, matches surfaces case-insensitively, and applies a per-agent minimum kind.
 

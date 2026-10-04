@@ -216,17 +216,19 @@ check('the Claude alias map still has no premium alias', Object.keys(CLAUDE_ALIA
 const derivedCollapse = (provider) => (provider.models.premium === provider.models.strong ? 'strong' : provider.models.premium === provider.models.frontier ? 'frontier' : null);
 check('every provider pins a premium model and states its collapse', Object.values(PROVIDER_TIERS).every((p) => typeof p.models.premium === 'string' && p.premiumCollapse === derivedCollapse(p)),
   Object.values(PROVIDER_TIERS).filter((p) => p.premiumCollapse !== derivedCollapse(p)).map((p) => p.id).join(','));
-check('every premium id clears the strong rung or above', Object.values(PROVIDER_TIERS).every((p) => ['strong', 'frontier'].some((tier) => modelSupportsTier(p.models.premium, tier))));
+check('every premium id clears the strong rung', Object.values(PROVIDER_TIERS).every((p) => modelSupportsTier(p.models.premium, 'strong')));
+check('Astra premium validates at strong without changing its frontier class', modelSupportsTier('gpt-6-astra', 'strong') && modelSupportsTier('gpt-6-astra', 'frontier') && modelClassOf('gpt-6-astra') === 'frontier');
 check('Anthropic premium is Opus 5.5 behind the opus alias', PROVIDER_TIERS.anthropic.models.premium === 'claude-opus-5-5' && PROVIDER_TIERS.anthropic.dispatchAlias.premium === 'opus' && PROVIDER_TIERS.anthropic.dispatchAlias.strong === null);
-check('OpenAI pins gpt-6.1-sol as frontier and premium', PROVIDER_TIERS.openai.models.frontier === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.models.premium === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.premiumCollapse === 'frontier');
+check('OpenAI pins Luna light, Sol mid/strong/frontier, Astra premium', PROVIDER_TIERS.openai.models.light === 'gpt-6-luna' && PROVIDER_TIERS.openai.models.mid === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.models.strong === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.models.premium === 'gpt-6-astra' && PROVIDER_TIERS.openai.models.frontier === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.premiumCollapse === null);
 check('Copilot premium is Opus 5.5', PROVIDER_TIERS['github-copilot'].models.premium === 'claude-opus-5.5' && PROVIDER_TIERS['github-copilot'].premiumCollapse === null);
 check('the retired Mistral light id is gone', PROVIDER_TIERS.mistral.models.light === 'mistral-small-2603');
 check('premium ranks strong in the model index', modelRankOf('claude-opus-5-5') === 2 && modelRankOf('claude-sonnet-5-5') === 2);
-check('the previous Sol id keeps its frontier class', modelClassOf('gpt-6-sol') === 'frontier' && modelClassOf('gpt-6.1-sol') === 'frontier');
+check('the previous Sol id keeps its frontier class; the current shared id is ambiguous', modelClassOf('gpt-6-sol') === 'frontier' && modelClassOf('gpt-6.1-sol') === 'ambiguous' && modelRankOf('gpt-6.1-sol') === 3);
 const bindingsFor = (rung) => Object.fromEntries(real.hostBindings(rung).map((b) => [b.host, b]));
-check('premium binds opus on claude and marks collapse on grok, opencode, and codex',
+check('premium binds Opus on Claude and Astra on Codex; Grok and OpenCode collapse',
   bindingsFor('premium').claude.detail.includes('model="opus"') && !bindingsFor('premium').claude.collapse
-  && ['grok', 'opencode', 'codex'].every((host) => bindingsFor('premium')[host].collapse));
+  && bindingsFor('premium').codex.detail.includes('gpt-6-astra') && !bindingsFor('premium').codex.collapse
+  && ['grok', 'opencode'].every((host) => bindingsFor('premium')[host].collapse));
 check('strong leaves the Claude model unset', bindingsFor('strong').claude.detail.startsWith('leave model unset'));
 check('frontier binds fable on claude and inherits on opencode', bindingsFor('frontier').claude.detail.includes('model="fable"') && bindingsFor('frontier').opencode.detail.includes('inherits'));
 
@@ -238,7 +240,7 @@ const lines = direct.stdout.split('\n');
 check('the CLI prints the paste-ready lines first', direct.status === 0 && lines[0] === 'Tier: premium' && lines[1] === 'Effort: high'
   && lines[2] === 'Route basis: review; surface=gate-script; ambiguity=low; reversible=yes', direct.stdout.slice(0, 200) + direct.stderr);
 check('the CLI prints one binding line per host and marks each collapse', ['claude:', 'codex:', 'grok:', 'opencode:'].every((host, i) => lines[3 + i]?.startsWith(host))
-  && lines[4].includes('COLLAPSE') && lines[5].includes('COLLAPSE') && lines[6].includes('COLLAPSE') && !lines[3].includes('COLLAPSE'));
+  && !lines[4].includes('COLLAPSE') && lines[4].includes('gpt-6-astra') && lines[5].includes('COLLAPSE') && lines[6].includes('COLLAPSE') && !lines[3].includes('COLLAPSE'));
 const viaCo = run(join(ROOT, 'scripts', 'co.mjs'), ['route', ...review]);
 check('co route reaches the same script', viaCo.status === 0 && viaCo.stdout === direct.stdout, viaCo.stderr);
 const asJson = run(SCRIPT, [...review, '--json']);
