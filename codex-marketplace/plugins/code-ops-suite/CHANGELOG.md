@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.41.1
+- A Grok compact admits the next typed prompt that the 200,000-token block would refuse. That prompt records the ceiling band it sits in. A missing or stale token reading no longer leaves the session unable to take a message. The next 150,000-token band blocks again.
+
 ## 2.41.0
 - On Grok, context relief is a suite compact. At 150,000 tokens the handoff card asks the operator to run `/compact` and writes `COMPACT_SNAPSHOT.md` first, then names that file on the next tool result so it outranks the host summary. A typed prompt past 200,000 tokens is blocked until `/compact`, a handoff command, or a live `Continue-until:` bound. That record unlocks later prompts in the same ceiling band. The next 150,000-token band blocks again. A host compact records the same assessment. A handoff is for new work, a failed compact, updated plugins, or a host change.
 - `spawn_subagent` launches are recorded in the agent ledger. The subagent return check runs on Grok as a `systemMessage`. A collision note names a dashboard reply. `send_subagent_message` to a handed-off child is denied.

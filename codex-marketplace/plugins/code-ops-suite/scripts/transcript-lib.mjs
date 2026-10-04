@@ -24,7 +24,7 @@
 // subcommand), and file extensions — never paths, arguments, or content. `raw: true` keeps a
 // truncated command / path for local inspection only.
 
-import { readFileSync, readdirSync, existsSync, statSync, openSync, readSync, closeSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, openSync, readSync, closeSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, extname, basename, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -827,6 +827,32 @@ export function ceilingAssessmentBand(cwd, sessionId, home = homedir()) {
     const marker = JSON.parse(readFileSync(ceilingAssessmentPath(cwd, sessionId, home), 'utf8'));
     return marker?.version === 1 && Number.isSafeInteger(marker.band) && marker.band > 0 ? marker.band : 0;
   } catch { return 0; }
+}
+
+// A Grok compact arms one admission beside the assessment marker. The host consumes `/compact`
+// before UserPromptSubmit, and the token reading at compact time can be missing or still the
+// pre-compact size. The next typed prompt that the price-line block would refuse consumes the
+// admission and records the band that prompt actually sits in.
+function compactAdmitPath(cwd, sessionId, home) {
+  return ceilingAssessmentPath(cwd, sessionId, home).replace(/\.assessed\.json$/, '.compact-admit.json');
+}
+
+export function armCompactAdmission(cwd, sessionId, home = homedir()) {
+  const path = compactAdmitPath(cwd, sessionId, home);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify({ version: 1 }) + '\n');
+}
+
+// Consumes a compact admission. A context past the ceiling records that band, so later prompts
+// in it stay open. Returns true when an admission was present.
+export function takeCompactAdmission(cwd, sessionId, context, ceiling, home = homedir()) {
+  const path = compactAdmitPath(cwd, sessionId, home);
+  if (!existsSync(path)) return false;
+  try { unlinkSync(path); } catch { return false; }
+  if (typeof context === 'number') {
+    try { recordCeilingAssessment(cwd, sessionId, context, ceiling, home); } catch { /* the prompt still passes */ }
+  }
+  return true;
 }
 
 // Resident-context measurement for the hooks, which must stay inside a tens-of-milliseconds

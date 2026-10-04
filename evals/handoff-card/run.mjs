@@ -597,6 +597,28 @@ function grokUsageLine(inputTokens) {
   const afterHostBody = parseOut(afterHost) || {};
   expect(hostCompact.status === 0 && afterHost.status === 0 && afterHostBody.decision !== 'block',
     `a host PreCompact must unlock the current band, got compact ${hostCompact.status}/${hostCompact.stderr} prompt ${JSON.stringify(afterHost.stdout)}`);
+  const staleAdmit = runHook(payloadFor({ transcript: nextBand, sessionId: 'sess-grok-host-compact', eventName: 'UserPromptSubmit', extra: { prompt: 'continue the work' } }), { home, grok: true });
+  const staleAdmitBody = parseOut(staleAdmit) || {};
+  expect(staleAdmit.status === 0 && staleAdmitBody.decision !== 'block',
+    `a host compact must admit the next prompt when its token reading is still in a lower band, got ${JSON.stringify(staleAdmit.stdout)}`);
+  const staleLocked = runHook(payloadFor({ transcript: nextBand, sessionId: 'sess-grok-host-compact', eventName: 'UserPromptSubmit', extra: { prompt: 'continue the work' } }), { home, grok: true });
+  const staleLockedBody = parseOut(staleLocked) || {};
+  expect(staleLocked.status === 0 && staleLockedBody.decision !== 'block',
+    `the admitted prompt must record its own ceiling band, got ${JSON.stringify(staleLocked.stdout)}`);
+  const unreadPath = join(dir, 'missing-updates.jsonl');
+  const unreadCompact = spawnSync(process.execPath, [compactHook], {
+    input: JSON.stringify({ hookEventName: 'pre_compact', sessionId: 'sess-grok-unread', transcriptPath: unreadPath, cwd: 'C:/fixture-project' }),
+    encoding: 'utf8',
+    env: hostEnv,
+  });
+  const unreadPrompt = runHook(payloadFor({ transcript: price, sessionId: 'sess-grok-unread', eventName: 'UserPromptSubmit', extra: { prompt: 'continue the work' } }), { home, grok: true });
+  const unreadBody = parseOut(unreadPrompt) || {};
+  expect(unreadCompact.status === 0 && unreadPrompt.status === 0 && unreadBody.decision !== 'block',
+    `a compact with no readable context must still admit the next prompt, got compact ${unreadCompact.status} prompt ${JSON.stringify(unreadPrompt.stdout)}`);
+  const unreadAgain = runHook(payloadFor({ transcript: price, sessionId: 'sess-grok-unread', eventName: 'UserPromptSubmit', extra: { prompt: 'continue the work' } }), { home, grok: true });
+  const unreadAgainBody = parseOut(unreadAgain) || {};
+  expect(unreadAgain.status === 0 && unreadAgainBody.decision !== 'block',
+    `the prompt admitted after an unreadable compact must stay in that band, got ${JSON.stringify(unreadAgain.stdout)}`);
 
   const updates = writeTranscript(dir, grokUsageLine(160_000), 'updates.jsonl');
   const first = runHook(payloadFor({ transcript: updates, sessionId: 'sess-grok-tool', eventName: 'PostToolUse' }), { home, grok: true });
