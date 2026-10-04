@@ -19,8 +19,9 @@
 //
 // Only a plugin-qualified type from a suite plugin (`code-ops-suite:implementer`) whose agent
 // file declares a contract is checked. A bare, custom, non-suite, or unresolvable type is
-// unknown and gets nothing. The
-// Grok adapter's SubagentStop payload is UNVERIFIED, so the hook stays silent under Grok.
+// unknown and gets nothing.
+// Grok's SubagentStop uses camelCase `subagentType` and `lastAssistantMessage`. The note is a
+// `systemMessage` only. `additionalContext` on this event keeps the child working.
 //
 // Fail-open on every path: bad JSON, a missing field, an unreadable file, or an internal error
 // exits 0 with no output. It reads stdin and local files, imports builtins, and spawns nothing.
@@ -71,25 +72,34 @@ function check(report, contract) {
   return problems;
 }
 
+const textField = (payload, ...keys) => {
+  for (const key of keys) {
+    const value = payload?.[key];
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  return '';
+};
+
 function main() {
-  if (process.env.GROK_PLUGIN_ROOT) return;
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_SUBAGENT_REPORT ?? '')) return;
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
   try { payload = JSON.parse(raw.replace(/^﻿/, '')); } catch { return; }
   if (!payload || typeof payload !== 'object') return;
-  if (payload.hook_event_name && payload.hook_event_name !== 'SubagentStop') return;
-  const file = agentFile(payload.agent_type);
+  const event = payload.hook_event_name ?? payload.hookEventName;
+  if (event && event !== 'SubagentStop' && event !== 'subagent_stop') return;
+  const agentType = textField(payload, 'agent_type', 'subagentType', 'agentType');
+  const file = agentFile(agentType);
   if (!file) return;
   const contract = contractOf(readFileSync(file, 'utf8'));
   if (!contract.verdicts.length && contract.cap === null) return;
-  const report = (typeof payload.last_assistant_message === 'string' && payload.last_assistant_message.trim())
-    || lastAssistantText(payload.agent_transcript_path);
+  const report = textField(payload, 'last_assistant_message', 'lastAssistantMessage')
+    || lastAssistantText(payload.agent_transcript_path ?? payload.agentTranscriptPath);
   if (!report) return;
   const problems = check(report, contract);
   if (!problems.length) return;
-  const message = `code-ops return check (${payload.agent_type.trim()}): ${problems.join('; ')}. Advisory only; the lead decides whether to accept the report.`;
+  const message = `code-ops return check (${agentType.trim()}): ${problems.join('; ')}. Advisory only; the lead decides whether to accept the report.`;
   writeSync(1, `${JSON.stringify({ systemMessage: message })}\n`);
 }
 

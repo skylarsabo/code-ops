@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.12
+- The vendored model ladder note names the suite compact at 150,000 tokens.
+
 ## 0.16.11
 - The vendored model ladder routes Codex/OpenAI mid and strong agents to Sol 6.1 and premium dispatches to Astra.
 

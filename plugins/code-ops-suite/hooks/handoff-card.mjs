@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 // UserPromptSubmit hook: once a session's resident context crosses 150,000 tokens, and again
-// every further 150,000-token band, reminds the operator and the lead to checkpoint (Claude and
-// Codex) or to assess CONTINUE, COMPACT, or HANDOFF (Grok) at the next safe boundary. It is not a
-// host limit or a cost claim.
+// every further 150,000-token band, reminds the operator and the lead to checkpoint. On Claude
+// and Codex the relief is host auto-compaction. On Grok the relief is a suite compact before the
+// 200,000-token price line. It is not a host limit or a cost claim.
 // The threshold moved from 200k to 150k on 2026-09-18, when a transcript audit found 71% of
 // lead input-side tokens spent above 200k. The exact value stays SPECULATIVE until session
 // receipts calibrate it. See the "Handoff card" pre-registration in MEASUREMENTS.md.
 //
-// The message escalates with the band. On Grok both bands request the same lifecycle assessment, and
-// a higher band asks the lead to resolve it before starting a new workstream; on Claude and Codex
-// a higher band asks the lead to finish the step and checkpoint. The marker proves only that
-// this hook wrote earlier advice, not that a host displayed it or a boundary was available.
+// The message escalates with the band. On Claude and Codex a higher band asks the lead to finish
+// the step and checkpoint. On Grok a higher band asks for another compact when the host summary
+// dropped the snapshot. The marker proves only that this hook wrote earlier advice, not that a
+// host displayed it or a boundary was available.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
 // is `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
@@ -20,7 +20,8 @@
 // CEILING SENTENCE. When the nudge fires at or above the dispatch guard's context ceiling
 // (`contextCeiling` in scripts/transcript-lib.mjs: 200,000 on Grok and 300,000 elsewhere by
 // default, overridden or disabled by `CODE_OPS_CONTEXT_CEILING`), the message gains one
-// sentence saying new dispatches are now gated until the assessment runs. That variable changes only this sentence, never the bands.
+// sentence saying new dispatches are gated. On Grok it names /compact or the handoff assessment.
+// Elsewhere it names the assessment. That variable changes only this sentence, never the bands.
 //
 // METRIC. The context size is the last assistant turn's usage record: input plus cache-read
 // plus cache-creation tokens, read from only the last 256 KiB of the transcript the payload
@@ -45,8 +46,8 @@
 // `~/.grok/sessions/<encoded cwd>/<session id>/updates.jsonl`). Resident context there is the
 // last snapshot's `inputTokens`, the same figure `transcript-lib.mjs` stores as `contextAtEnd`.
 // That path covers the TUI, headless `grok -p`, and the ACP agent (`grok agent`). A turn with
-// no tool call never fires it, so the instruction files still tell the lead to assess before
-// the 200,000-token price cliff. OpenCode has no transcript callback; its lifecycle plugin
+// no tool call never fires it, so the instruction files still tell the lead to compact before
+// the 200,000-token price line. OpenCode has no transcript callback; its lifecycle plugin
 // carries the note instead.
 //
 // COMPACTION IS THE DEFAULT RELIEF (DEC-73). On Claude and Codex, routine context relief is host
@@ -61,15 +62,17 @@
 // compacts itself near the size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude with that variable
 // unset, the card adds one line naming it. Codex compacts natively and gets no line.
 //
-// HANDOFF POINT (DEC-3, H6 of the program-state design), GROK ONLY. Inside the bands, the card
-// fires once more when context first reaches `HANDOFF_POINT` (200,000 on Grok, where the price
-// doubles), and every card at or past that point says to hand off at the next phase boundary.
-// When no operator prompt arrived since the last card of this arm, the session runs
-// autonomously, and the card says to write the handoff instead of assessing again. The marker
-// counts prompts: each `UserPromptSubmit` that shows no card adds one (the silent Grok
-// UserPromptSubmit call records it), and each shown card resets the count. Claude and Codex have
-// no handoff point: their card fires on an operator prompt, so the hook cannot see an autonomous
-// run there and never gives that advice.
+// PRICE LINE, GROK ONLY. Inside the bands, the card fires once more when context first reaches
+// `HANDOFF_POINT` (200,000 on Grok, where the price doubles). Every card at or past that line
+// says to checkpoint and ask the operator to run /compact. The hook writes COMPACT_SNAPSHOT.md
+// and names it on the card, then again on the next tool result after compaction. When no
+// operator prompt arrived since the last card of this arm, the session runs autonomously, and
+// the card says to checkpoint and stop new work so the operator can run /compact. It does not
+// say to write a handoff for the token count. A typed prompt past the line is blocked until
+// /compact, a handoff command, or a live Continue-until bound. Those commands, and a Grok
+// PreCompact, record the ceiling assessment. It unlocks later prompts in that band. The marker counts prompts: each UserPromptSubmit that shows no card adds
+// one, and each shown card resets the count. Claude and Codex have no price line. Their card
+// fires on an operator prompt, so the hook cannot see an autonomous run there.
 //
 // CONTINUE-UNTIL, GROK ONLY. The session record (`sessionRecordPath` in transcript-lib.mjs) names
 // the run folder. When the last 64 KiB of its RUN_LOG.md end in a `Continue-until: <N> tokens` or
@@ -209,6 +212,45 @@ async function noticeLines(payload, cwd) {
   } catch { return []; }
 }
 
+const PROMPT_KEYS = ['prompt', 'userPrompt', 'user_prompt', 'message'];
+const COMPACT_PROMPT = /(^|\s)\/compact\b/i;
+const promptText = (payload) => {
+  for (const key of PROMPT_KEYS) if (typeof payload?.[key] === 'string') return payload[key];
+  return null;
+};
+
+// A typed prompt past the price line is blocked. /compact and a handoff command still pass,
+// and each records the ceiling assessment. A recorded assessment for this ceiling band lets
+// later prompts through. The next 150,000-token band blocks again. An open Continue-until
+// bound passes too. A missing prompt field fails open.
+async function grokPriceBlock(payload, sessionId, cwd) {
+  const prompt = promptText(payload);
+  if (prompt === null) return null;
+  const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
+  const {
+    residentContext, contextCeiling, ceilingBand, ceilingAssessmentBand, recordCeilingAssessment, sessionRecordPath,
+  } = await import(pathToFileURL(libPath).href);
+  const home = homedir();
+  const context = residentContext(payload, { grok: true, home });
+  const ceiling = contextCeiling();
+  if (HANDOFF_COMMAND.test(prompt) || COMPACT_PROMPT.test(prompt)) {
+    if (typeof context === 'number') {
+      try { recordCeilingAssessment(cwd, sessionId, context, ceiling, home); } catch { /* fail open */ }
+    }
+    return null;
+  }
+  if (/continue-until\s*:/i.test(prompt)) return null;
+  if (typeof context !== 'number' || context < HANDOFF_POINT) return null;
+  const bound = continueBound(cwd, sessionId, sessionRecordPath);
+  if (bound?.kind === 'turns') return null;
+  if (bound?.kind === 'tokens' && context < bound.n) return null;
+  if (ceiling !== null && ceilingAssessmentBand(cwd, sessionId, home) >= ceilingBand(context, ceiling)) return null;
+  return {
+    decision: 'block',
+    reason: 'This session is past 200,000 tokens, where Grok bills double. Run /compact. The suite snapshot outranks a normal summary and is named on the next tool result. A handoff is for new work or a failed compact.',
+  };
+}
+
 async function main() {
   const cardOn = !off('CODE_OPS_HANDOFF_CARD');
   const feedOn = !off('CODE_OPS_FEED') && !off('CODE_OPS_PEER_GUARD');
@@ -231,6 +273,13 @@ async function main() {
 
   // Off Grok the card runs on prompts only; a PostToolUse call there carries the feed alone.
   const message = cardOn && (grok || event !== 'PostToolUse') ? await card(payload, sessionId, cwd, grok, promptOnly).catch(() => null) : null;
+  if (promptOnly) {
+    const blocked = await grokPriceBlock(payload, sessionId, cwd).catch(() => null);
+    if (blocked) {
+      writeSync(1, `${JSON.stringify(blocked)}\n`);
+      return;
+    }
+  }
   const feed = feedOn && !promptOnly ? await feedLines(payload, sessionId, cwd, event) : [];
   const notice = noticeOn && event === 'PostToolUse' ? await noticeLines(payload, cwd) : [];
   const lines = [...notice, ...feed];
@@ -293,17 +342,22 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
     fired: state.fired || fire, prompts: fire ? 0 : state.prompts + (grok ? 0 : 1), until,
   };
   writeMarker(marker, next, peak);
-  if (!fire) return null;
+  if (!fire) {
+    if (!grok || promptOnly) return null;
+    try {
+      const snapLib = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'compact-snapshot.mjs')).href);
+      return snapLib.takeCompactLine(marker);
+    } catch { return null; }
+  }
 
   const approx = Math.round(context / 10_000) * 10_000;
   const held = `This session holds approximately ${approx.toLocaleString('en-US')} tokens of context. `;
   const after = open ? 'The Continue-until bound in the run log has passed. ' : '';
-  const pointText = `the ${HANDOFF_POINT.toLocaleString('en-US')}-token handoff point`;
   // The dispatch guard gates Agent, Task, Workflow, and Grok's spawn_subagent dispatches at and
   // past the ceiling, so every host gets the sentence.
   const ceiling = contextCeiling();
   const gated = ceiling !== null && context >= ceiling
-    ? (grok ? ' New dispatches are now gated until that assessment runs.'
+    ? (grok ? ' New dispatches are now gated until you run /compact or /code-ops-suite:handoff assess.'
       : ' New dispatches are now gated until you run /code-ops-suite:handoff assess.') : '';
   // Autonomous: an earlier card of this arm was shown and no operator prompt followed it. Only
   // Grok counts prompts apart from cards; elsewhere the call showing this card is itself a prompt.
@@ -324,16 +378,25 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
       ? `Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a \`Next:\` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits. ${snapshot}${setting}`
       : `Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.${setting}`;
   } else if (autonomous) {
-    advice = `This session is past ${pointText}, and no operator prompt has arrived since the last card. At the next phase boundary, run /code-ops-suite:handoff write instead of assessing again. Checkpoint durable state first.`;
+    advice = `This session is past the 200,000-token price line, and no operator prompt has arrived since the last card. At the next phase boundary, checkpoint and stop new work so the operator can run /compact. Do not write a handoff for the token count.`;
   } else if (band === 1 && pastPoint) {
-    advice = `This session is past ${pointText}. At the next phase boundary, run /code-ops-suite:handoff assess and hand off. Choose CONTINUE only for a short coherent finish, and record a Continue-until: bound in the run log.`;
+    advice = 'This session is past the 200,000-token price line, where input is billed double. Finish the step in flight, checkpoint, and ask the operator to run /compact. Read COMPACT_SNAPSHOT.md after the compact. It outranks the host summary. Hand off only when a compact has failed or the next step is new work.';
   } else if (band === 1) {
-    advice = 'At the next safe boundary, run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF. Continue a short coherent finish; checkpoint durable state before compacting; use explicit write only for a transfer or recovery.';
+    advice = 'At the next safe boundary, compact this session before the 200,000-token price line. Checkpoint first: keep TASKS.md current and append a `Next:` line to RUN_LOG.md. Ask the operator to run /compact. COMPACT_SNAPSHOT.md outranks a normal host summary: it keeps operator words, running work, open items, and reply-owed peers. A token count does not select a handoff.';
   } else {
-    advice = 'Finish the step in flight, then run /code-ops-suite:handoff assess to choose CONTINUE, COMPACT, or HANDOFF before starting a new workstream. Checkpoint durable state first. This advisory band does not prove an earlier warning was seen; a host /compact action is pending operator action unless a callable capability executes it.'
-      + ` Past ${pointText}, hand off at the next phase boundary unless a short coherent finish remains.`;
+    advice = 'Finish the step in flight and compact again if the host summary dropped the snapshot. Checkpoint first, then ask the operator to run /compact. Read COMPACT_SNAPSHOT.md after it. Hand off only when a compact has failed or the next step is new work.';
   }
-  return held + after + advice + gated;
+  let restore = null;
+  if (grok) {
+    try {
+      const snapLib = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'compact-snapshot.mjs')).href);
+      const transcript = payload.transcript_path ?? payload.transcriptPath;
+      const snap = snapLib.createSnapshot({ sessionId, transcriptPath: transcript, cwd, home: homedir() });
+      if (snap?.path) snapLib.markCompactPending(marker, snap.path);
+      restore = snapLib.takeCompactLine(marker);
+    } catch { /* the compact advice still stands */ }
+  }
+  return held + after + advice + gated + (restore ? ` ${restore}` : '');
 }
 
 main().catch(() => { /* fail open */ });

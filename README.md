@@ -120,7 +120,7 @@ Check what it discovered. Plugins, skills, agents, hooks, and the MCP server all
 grok inspect
 ```
 
-Grok Build namespaces a plugin agent as `<plugin>:<agent>`, so the two `explorer` agents coexist without the flattening opencode needs. Set the model in `~/.grok/config.toml` under `[models] default`. On Windows that file is `%USERPROFILE%\.grok\config.toml`. Recent builds already default to `grok-4.7`. Grok 4.7 bills double above 200,000 tokens, so assess handoff at 150,000.
+Grok Build namespaces a plugin agent as `<plugin>:<agent>`, so the two `explorer` agents coexist without the flattening opencode needs. Set the model in `~/.grok/config.toml` under `[models] default`. On Windows that file is `%USERPROFILE%\.grok\config.toml`. Recent builds already default to `grok-4.7`. Grok 4.7 bills double above 200,000 tokens, so compact at 150,000. `COMPACT_SNAPSHOT.md` outranks a normal summary.
 
 One gap is worth knowing. Grok Build does not parse an agent's `model:` frontmatter, so an agent inherits the session model rather than its declared tier. The floors still travel, in three parts. Phase 0 of `scripts/preflight.mjs` prints the bundled agents' declared floors, so every run surfaces them on any host. The lead then routes each dispatch at or above its floor by hand. `run-cost-audit` measures the result, and a below-floor dispatch lands as a `tier-routing` FAIL in `RUN_CONFORMANCE.md`. Picking a session model that meets the strongest floor you will dispatch satisfies all three at once. See `code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`.
 
@@ -203,7 +203,7 @@ switch to `off` in the host environment.
 - **Output digest.** `hooks/digest-rewrite.mjs` rewrites an allowlisted simple Bash command into a `scripts/digest.mjs` run, so its output arrives compressed and receipted. `CODE_OPS_DIGEST=off` disables it.
 - **Symbol index.** `scripts/context-query.mjs` answers a structural question with `file:line` anchors instead of a dump, and `hooks/index-refresh.mjs` re-indexes each edited file. `CODE_OPS_INDEX=off` disables the hook.
 - **Ladder card.** `hooks/ladder-card.mjs` hands an implementer subagent the code-economy ladder as a ten-line card. `CODE_OPS_LADDER_CARD=off` disables it.
-- **Handoff card.** `hooks/handoff-card.mjs` asks for a handoff once resident context crosses 150,000 tokens, and again at every further band. `CODE_OPS_HANDOFF_CARD=off` disables it. At session start, `hooks/routing-card.mjs` lists up to three unconsumed handoffs by session name and states that the session is new work unless the operator resumes one. `CODE_OPS_HANDOFF_PICKUP=off` disables that line. After a compaction, the card names the session and its own run folder, so a resumed handoff is never resumed again. Each hop names its successor in sequence (`Ledger2 AMM`, `Ledger2 AMM HO 1`, `Ledger2 AMM HO 2`), and `co handoff live <name>` finds the session that holds the work now.
+- **Handoff card.** `hooks/handoff-card.mjs` asks for a checkpoint once resident context crosses 150,000 tokens, and again at every further band. On Grok that checkpoint is a suite compact: `COMPACT_SNAPSHOT.md` is written first and named on the next tool result, so it outranks the host summary. `CODE_OPS_HANDOFF_CARD=off` disables it. At session start, `hooks/routing-card.mjs` lists up to three unconsumed handoffs by session name and states that the session is new work unless the operator resumes one. `CODE_OPS_HANDOFF_PICKUP=off` disables that line. After a compaction, the card names the session and its own run folder, so a resumed handoff is never resumed again. Each hop names its successor in sequence (`Ledger2 AMM`, `Ledger2 AMM HO 1`, `Ledger2 AMM HO 2`), and `co handoff live <name>` finds the session that holds the work now.
 - **Dispatch guard.** `hooks/dispatch-guard.mjs` counts a subagent's tool rounds, warns at the 40-round budget, and denies further calls at 1.5 times the budget, rounded down, and at least one call past it. It denies a lead dispatch of a `general-purpose` or unnamed agent type unless the brief carries a `Wide-surface reason:` line. Past the context ceiling, 300,000 tokens by default, it denies new dispatches until `/code-ops-suite:handoff assess` runs, then gates again at each further 150,000-token band. It also advises the lead on a dispatch that overrides a model or omits a Round budget. `CODE_OPS_DISPATCH_GUARD=off` disables it, `warn` turns each deny into an advisory, and `CODE_OPS_CONTEXT_CEILING` moves or disables the ceiling.
 
 Read the receipt ledger with `node scripts/context-audit.mjs receipts`.
@@ -212,9 +212,10 @@ Those names are portable outcomes, not identical host APIs. Claude and trusted C
 hooks run all six mechanisms. Installed Grok 1.0.13 runs digest, index, and receipt hooks, while
 its passive session and subagent hook output is ignored, so `CLAUDE.md` or `AGENTS.md` carries
 routing and ladder doctrine there. The handoff nudge is a PostToolUse note on the TUI, headless
-Grok, and the ACP agent. On Grok the lead still assesses handoff at 150,000 tokens and again
-before 200,000, because Grok 4.7 bills double above that line and a turn with no tool call
-never fires that note. The guard's round
+Grok, and the ACP agent. On Grok the lead compacts at 150,000 tokens, before the 200,000-token
+price line, because Grok 4.7 bills double above that line and a turn with no tool call never
+fires that note. Past the price line a typed prompt is blocked until `/compact`, a handoff
+command, or a live `Continue-until:` bound. The guard's round
 counter runs only where the hook payload carries an `agent_id`. OpenCode's lifecycle plugin keeps
 a stable system prefix, carries handoff and dispatch notes on the next tool result or user turn,
 and appends a cost row at session idle. `code-ops/cost-report.mjs --check` applies the operator's

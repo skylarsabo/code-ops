@@ -114,7 +114,12 @@ const peerTarget = (peer) => clean(peer.name) || clean(peer.hostSessionId ?? pee
 const where = (peer) => `branch ${clean(peer.branch) || 'unknown'}, worktree ${clean(peer.worktree) || '.'}`;
 const pathList = (paths) => paths.slice(0, MAX_PATHS).map((p) => clean(p, 120)).join(', ')
   + (paths.length > MAX_PATHS ? ` and ${paths.length - MAX_PATHS} more` : '');
-const sendLine = (peer, message) => `SendMessage ${JSON.stringify({ to: peerTarget(peer), message })}`;
+// Grok has no SendMessage. A dashboard sibling is a top-level session, and the operator
+// replies from the peek panel. A child is steered with send_subagent_message, which cannot
+// address another root session.
+const sendLine = (peer, message) => (process.env.GROK_PLUGIN_ROOT
+  ? `Dashboard reply to ${peerTarget(peer)}: ${JSON.stringify(message)}`
+  : `SendMessage ${JSON.stringify({ to: peerTarget(peer), message })}`);
 
 // Live board peers other than this session, `sid` being its host session id.
 function livePeers(cwd, sid, now) {

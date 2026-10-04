@@ -23,7 +23,7 @@
         ]
       },
       {
-        "matcher": "mcp__ccd_session_mgmt__send_message|SendMessage",
+        "matcher": "mcp__ccd_session_mgmt__send_message|SendMessage|send_subagent_message",
         "hooks": [
           {
             "type": "command",
@@ -43,7 +43,7 @@
         ]
       },
       {
-        "matcher": "Agent|Task",
+        "matcher": "Agent|Task|spawn_subagent|spawn_agent",
         "hooks": [
           {
             "type": "command",
@@ -72,6 +72,17 @@
       }
     ],
     "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/compact-snapshot.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
       {
         "hooks": [
           {

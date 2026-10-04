@@ -732,11 +732,14 @@ async function ceilingGate(payload) {
 const tokens = (n) => (Math.round(n / 1000) * 1000).toLocaleString('en-US');
 
 function ceilingReason(gate) {
-  return `This session holds about ${tokens(gate.context - gate.ceiling)} tokens past the `
+  const reason = `This session holds about ${tokens(gate.context - gate.ceiling)} tokens past the `
     + `${gate.ceiling.toLocaleString('en-US')}-token context ceiling. Run /code-ops-suite:handoff assess `
     + '(CONTINUE, COMPACT, or HANDOFF) before dispatching new work; the assessment unlocks dispatch '
     + `until the next ${BAND_TOKENS.toLocaleString('en-US')}-token band. Without a skill tool, run this exact `
     + `command from the project root: \`node "${HOOK_PATH}" assessed --session ${gate.sessionId} --band ${gate.band}\`.`;
+  return process.env.GROK_PLUGIN_ROOT
+    ? `${reason} On Grok, /compact records the same assessment and unlocks the current band.`
+    : reason;
 }
 
 const AGENT_CALL = /\bagent\s*\(/g;

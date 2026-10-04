@@ -20,15 +20,15 @@
 // (`unit`, `requestedTier`, `requestedEffort`, `appliedModel`, `appliedEffort`, `effortSource`,
 // `flag`), read from the brief's `Unit:`, `Tier:`, and `Effort:` lines and the agent frontmatter.
 // Grok's SubagentStop (live capture, 2026-10-01) carries camelCase `subagentId` and `subagentType`
-// and no `agent_id`; the library maps them, so under Grok the hook records the stop. The Grok
-// launch payload is UNVERIFIED, so a Grok launch records nothing.
+// and no `agent_id`. A Grok launch is `spawn_subagent`: the id is `subagent_id` or `subagentId`
+// on the tool result, and an omitted `background` means a background child.
 //
 // PAYLOAD CAPTURE, OFF BY DEFAULT. With `CODE_OPS_AGENT_LEDGER_CAPTURE=1`, or a `capture.on` flag
 // file in the ledger directory (`captureOn` in the library), the hook also appends the payload's
 // key names, a few allowlisted scalar values, and the host to `payload-keys.ndjson` in that
 // directory, so the Codex and Grok payloads can be checked before a writer is built for them. It
-// runs before the Grok and ledger-off early returns, so every host's payload is captured; a Grok
-// launch still records no row, and `CODE_OPS_AGENT_LEDGER=off` still writes no ledger row.
+// runs before the ledger-off return, so every host's payload is captured. A Grok
+// `spawn_subagent` launch with an id records one row. `CODE_OPS_AGENT_LEDGER=off` writes none.
 //
 // Fail-open on every path: bad JSON, a missing field, an unwritable directory, or an internal
 // error exits 0 with no output. It reads stdin, appends one or two files, and spawns nothing.
@@ -52,8 +52,14 @@ async function main() {
   if (!payload || typeof payload !== 'object') return;
   if (capture) { try { captureKeys(payload); } catch { /* capture never blocks the record */ } }
   if (ledgerOff) return;
-  // Grok records only the stop: its launch payload is UNVERIFIED, its stop is captured (2026-10-01).
-  if (grok && (payload.hook_event_name ?? payload.hookEventName) !== 'SubagentStop') return;
+  if (grok) payload = {
+    ...payload,
+    hook_event_name: payload.hook_event_name ?? payload.hookEventName,
+    tool_name: payload.tool_name ?? payload.toolName,
+    tool_input: payload.tool_input ?? payload.toolInput,
+    tool_response: payload.tool_response ?? payload.toolResult ?? payload.tool_result,
+    session_id: payload.session_id ?? payload.sessionId,
+  };
   recordFromPayload(payload);
 }
 

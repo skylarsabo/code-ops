@@ -46,7 +46,7 @@ function idOf(event, matcher) {
   const m = matcher ?? '';
   if (event === 'PreToolUse') return /Bash/.test(m) ? 'pre-bash' : /Send/.test(m) ? 'pre-message' : m ? null : 'pre-all';
   if (event === 'PostToolUse') return /Edit/.test(m) ? 'post-edit' : /Agent/.test(m) ? 'post-agent' : m ? null : 'post-all';
-  return ['UserPromptSubmit', 'PreCompact', 'SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop'].includes(event) ? event : null;
+  return ['UserPromptSubmit', 'PreCompact', 'PostCompact', 'SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop'].includes(event) ? event : null;
 }
 
 const pushCommand = 'git push origin HEAD';
@@ -85,6 +85,7 @@ function payloadsFor(id, ctx) {
     ];
     case 'UserPromptSubmit': return [{ id, label: 'UserPromptSubmit', payload: { ...base, hook_event_name: id, prompt: 'Continue with the next unit.' } }];
     case 'PreCompact': return [{ id, label: 'PreCompact', payload: { ...base, hook_event_name: id, trigger: 'auto', custom_instructions: '' } }];
+    case 'PostCompact': return [{ id, label: 'PostCompact', payload: { ...base, hook_event_name: id, trigger: 'auto', custom_instructions: '' } }];
     case 'SessionStart': return [{ id, label: 'SessionStart', payload: { ...base, hook_event_name: id, source: 'startup' } }];
     case 'SessionEnd': return [{ id, label: 'SessionEnd', payload: { ...base, hook_event_name: id, reason: 'other' } }];
     case 'SubagentStart': return [{ id, label: 'SubagentStart', payload: { ...base, hook_event_name: id, agent_type: agent, agent_id: 'bench-agent' } }];

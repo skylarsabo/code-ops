@@ -42,7 +42,7 @@ const MAX_PLUGIN_NAME_LEN = 64;
 const SUPPORTED_HOOK_EVENTS = new Set([
   'SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse',
   'PostToolUseFailure', 'Stop', 'StopFailure', 'Notification', 'SubagentStart', 'SubagentStop',
-  'PreCompact',
+  'PreCompact', 'PostCompact',
 ]);
 
 for (const plugin of pluginNames) {
@@ -143,15 +143,16 @@ for (const plugin of pluginNames) {
 }
 
 // 6b. The Grok instruction text (global-contracts/AGENTS.md, which sync-global installs as the Grok
-//     global rule) carries the effort dial: every xai rung is one model, effort is set from the
-//     brief through the persona because spawn_subagent takes no effort parameter, xhigh is never
-//     sent, and model is stripped under inheritance. DESIGN_TIER_ROUTING.md "Host bindings" owns
-//     the rule.
+//     global rule) carries the spawn contract: every xai rung is one model, spawn_subagent takes
+//     no model, persona, or reasoning_effort, session effort is the config default, and model is
+//     stripped under inheritance. The same text makes a suite compact the context relief.
 const grokText = read(join(root, 'global-contracts', 'AGENTS.md')).replace(/\s+/g, ' ');
 expect(/every xai rung is one model/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says every xai rung is one model');
-expect(/set the persona's `reasoning_effort` from the brief's Effort \(low, medium, or high; never xhigh\)/.test(grokText), "global-contracts/AGENTS.md: the Grok text no longer sets the persona's reasoning_effort from the brief's Effort (low, medium, or high; never xhigh)");
+expect(/`spawn_subagent` takes no model, no persona, and no reasoning_effort/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says spawn_subagent takes no model, persona, or reasoning_effort');
 expect(/`subagent_model_inheritance` is on, strip `model` from spawn calls/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer strips model from spawn calls under model inheritance');
-expect(/`spawn_subagent` takes no effort parameter/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says spawn_subagent takes no effort parameter');
+expect(/Session effort is `\[models\]\.default_reasoning_effort`/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names session effort as [models].default_reasoning_effort');
+expect(/send_subagent_message/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names send_subagent_message');
+expect(/COMPACT_SNAPSHOT\.md` outranks/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says COMPACT_SNAPSHOT.md outranks the host summary');
 
 // 7. Bonus leg: Grok Build's own validator, when the binary is available.
 // Windows resolves `grok` through a .cmd shim, which needs a shell. Passing the whole
