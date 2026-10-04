@@ -64,7 +64,7 @@ unlocks the dispatch guard's context ceiling (300,000 tokens by default, re-arme
 Explicit `write` and `resume <path>` skip assessment. Urgent observed context pressure or a required
 transfer or recovery outranks a short finish. On Grok Build, headless Grok, and the Grok ACP agent,
 a PostToolUse note is the context-pressure warning; UserPromptSubmit stdout is discarded there, so
-a turn with no tool call still needs the lead's own 150,000-token assessment.
+a turn with no tool call still needs the lead to compact before 200,000 tokens.
 
 - **CONTINUE** when the bounded objective progresses with no observed urgent pressure and no
   required transfer or recovery. Unknown telemetry alone is not a restart signal. CONTINUE is
@@ -95,13 +95,22 @@ session that chose CONTINUE and overran. Keep `TASKS.md` and `RUN_LOG.md` curren
 compaction. After one, the routing card lists the open `TASKS.md` lines for the session.
 It also lists under `Pending agents:` each background agent the session launched that has not reported.
 
-On Grok the line is 200,000, because Grok 4.7 bills double above it: assess at 150,000, and hand
-off by 200,000. Only Grok has a handoff point and a `Continue-until:` bound. An assessment that
-returns CONTINUE past that point records the bound in the run log, as `Continue-until: <N> tokens`
+On Grok, compact at 150,000 tokens, before the 200,000-token price line, because Grok 4.7 bills
+double above it. Checkpoint first: keep `TASKS.md` current and append a `Next:` line to
+`RUN_LOG.md`. Ask the operator to run `/compact`. `COMPACT_SNAPSHOT.md` outranks the host
+summary: it keeps operator words, running work, open items, and reply-owed peers. Read it after
+the compact, before trusting the summary. A token count does not select a handoff. Hand off only
+when a compact has failed, the next step is new work, plugins or contracts must reload, or the
+host changes. Only Grok has a price-line card and a `Continue-until:` bound. An assessment that
+returns CONTINUE past that line records the bound in the run log, as `Continue-until: <N> tokens`
 or `Continue-until: <N> turns`. The latest such line wins, and a malformed one sets no bound. The
-handoff card fires again past that bound. On Grok, where the card runs after tool calls, a session
-with no operator prompt since the last card runs autonomously. There the card says to write the
-handoff at the next phase boundary, not to assess again. Claude and Codex cards follow a prompt, so
+card stays quiet while the bound holds, then fires again. On Grok, where the card runs after tool
+calls, a session with no operator prompt since the last card runs autonomously. There the card
+says to checkpoint and stop new work so the operator can run `/compact`. It does not say to write
+a handoff for the token count. A typed prompt past 200,000 tokens is blocked until `/compact`, a
+handoff command, or a live `Continue-until:` bound. That record unlocks later prompts in the same
+ceiling band. The next 150,000-token band blocks again. A host compact records the same assessment.
+Claude and Codex cards follow a prompt, so
 they never say this.
 
 For a version 3 or newer runtime contract, checkpoint before COMPACT or HANDOFF. Resume and fork

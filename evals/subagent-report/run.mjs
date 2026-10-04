@@ -155,8 +155,10 @@ console.log(`ok   ${malformed.length} malformed payloads fail open; a BOM-prefix
 // ---------------------------------------------------------------- switches
 for (const sw of ['off', '0', 'false', 'OFF']) silent(runHook(payload('code-ops-suite:implementer', 'nope'), { CODE_OPS_SUBAGENT_REPORT: sw }), `switch ${sw}`);
 for (const sw of ['on', '1', '']) note(runHook(payload('code-ops-suite:implementer', 'nope'), { CODE_OPS_SUBAGENT_REPORT: sw }), `switch ${JSON.stringify(sw)}`);
-silent(runHook(payload('code-ops-suite:implementer', 'nope'), { GROK_PLUGIN_ROOT: suite }), 'Grok adapter');
-console.log('ok   off, 0, and false silence the hook; other values leave it on; the Grok adapter is silent');
+note(runHook(payload('code-ops-suite:implementer', 'nope'), { GROK_PLUGIN_ROOT: suite }), 'Grok adapter');
+silent(runHook(payload('code-ops-suite:implementer', 'DONE: D-002.md\nNext: lead runs the gate chain'), { GROK_PLUGIN_ROOT: suite }), 'Grok conforming report');
+note(runHook(JSON.stringify({ hookEventName: 'subagent_stop', sessionId: 's1', subagentType: 'code-ops-suite:implementer', lastAssistantMessage: 'nope' }), { GROK_PLUGIN_ROOT: suite }), 'Grok camelCase stop');
+console.log('ok   off, 0, and false silence the hook; other values leave it on; Grok notes a bad report and stays silent for a conforming one');
 
 if (fails.length) {
   for (const f of fails) console.log(`  x ${f}`);

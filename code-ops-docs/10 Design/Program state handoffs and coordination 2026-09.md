@@ -125,7 +125,7 @@ Three gaps in code-ops explain these observations:
 - No suite rule governs the shell of a command handed to the operator. `CONVENTIONS.md:59` tells the agent to detect the shell and OS and not assume bash, which governs the agent's own commands. CONFIRMED (`80 Runs/2026-09-27-handoff-fidelity-ho1/reports/D-001.md`).
 - No hook payload carries the operator's shell. Claude Code, Codex, and Grok payloads carry `cwd` and no shell field. CONFIRMED for Grok and PROBABLE for the others (`reports/D-002.md`). Claude Code does name the shell in the model's environment block, as this session observed.
 - The Claude desktop app asks for `bash`-tagged blocks to attach its Run button. A filed issue reports that a `powershell` block's Run button runs bash. PROBABLE, secondary source only.
-- Only the handoff resume reply requires links (`plugins/code-ops-suite/skills/handoff/SKILL.md:166`). Section 9 of `CONVENTIONS.md` requires `file:line` citations in artifacts, not links in replies. CONFIRMED.
+- Only the handoff resume reply requires links (`plugins/code-ops-suite/skills/handoff/SKILL.md:210`). Section 9 of `CONVENTIONS.md` requires `file:line` citations in artifacts, not links in replies. CONFIRMED.
 - 16 identical bash-versus-PowerShell quoting errors occurred in the lead's own tool calls in one week. CONFIRMED.
 
 ### This merge

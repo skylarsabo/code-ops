@@ -45,6 +45,7 @@ process.env.CODE_OPS_HOME = home;
 process.env.HOME = home;
 process.env.USERPROFILE = home;
 process.env.CODE_OPS_PEER_GUARD = '';
+delete process.env.GROK_PLUGIN_ROOT;
 
 const git = (...args) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' });
 const must = (r, what) => { if (r.status !== 0) { console.error(`${what} failed: ${r.stderr}`); process.exit(1); } };
@@ -113,9 +114,11 @@ const counting = (cmd, args, opts) => { spawns.push(args); return spawnSync(cmd,
 const note = (payload) => { spawns.length = 0; const n = collisionNote(payload, Date.now(), counting); n?.commit(); return n?.text ?? ''; };
 const surface = (text) => text.split('\n').find((l) => l.startsWith('Surface note (warn only, nothing is blocked)')) ?? '';
 function hookCall(payload, env = {}) {
+  const child = { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_PEER_GUARD: '', CODE_OPS_DISPATCH_GUARD: '', CODE_OPS_ROUND_BUDGET: '', ...env };
+  if (!Object.hasOwn(env, 'GROK_PLUGIN_ROOT')) delete child.GROK_PLUGIN_ROOT;
   const r = spawnSync(process.execPath, [hook], {
     input: JSON.stringify(payload), encoding: 'utf8',
-    env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_PEER_GUARD: '', CODE_OPS_DISPATCH_GUARD: '', CODE_OPS_ROUND_BUDGET: '', ...env },
+    env: child,
   });
   let out = null;
   try { out = r.stdout.trim() ? JSON.parse(r.stdout) : null; } catch { out = 'unparsable'; }
@@ -164,6 +167,11 @@ try {
   check('surface edit: a path this ledger declares for bravo warns, names the live peer session and a ready SendMessage line, with no recent peer edit',
     surface(text).includes('surface src/api/** shared with program "bravo", live session "Bravo"') && surface(text).includes('SendMessage {"to":"Bravo","message":"I am about to edit src/api/x.js')
     && !surface(text).includes('"Charlie"'), text);
+  process.env.GROK_PLUGIN_ROOT = '/x';
+  const grokText = note(edit('p1g', 'src/api/y.js'));
+  delete process.env.GROK_PLUGIN_ROOT;
+  check('surface edit on Grok names a dashboard reply',
+    grokText.includes('Dashboard reply to Bravo:') && !grokText.includes('SendMessage'), grokText);
   check('surface edit: a path the peer ledger declares for this program warns too (declared by either side)',
     note(edit('p1b', 'svc/delta/a.js')).includes('program "delta"'), '');
   check('surface edit: Notify merge does not warn on an edit', note(edit('p2', 'lib/core.js')) === '', '');

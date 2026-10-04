@@ -23,7 +23,8 @@
 //     applied model and effort, effort source, flag), null when absent, with no other brief text;
 //   - `attemptOf` counts failed and redispatched agents of a unit, and `routingSummary` raises the
 //     starvation and overuse advisories and stays silent when the premium share is in bounds;
-//   - a Grok SubagentStop (camelCase subagentId and subagentType) is recorded; a Grok launch is not.
+//   - a Grok SubagentStop (camelCase subagentId and subagentType) is recorded; a spawn_subagent
+//     launch with an id is recorded, and a launch with no id records nothing.
 //
 //   node evals/agent-ledger/run.mjs
 import { spawnSync } from 'node:child_process';
@@ -97,7 +98,7 @@ try {
   const bad = ['', 'not json', '{"tool_name":', '[]', 'null', JSON.stringify({ tool_name: 'Agent' }), JSON.stringify({ tool_name: 'Agent', session_id: 's8', tool_response: 7 })];
   const results = bad.map((input) => feed(input));
   check('i. malformed stdin and incomplete payloads exit 0 with no output', results.every((x) => x.status === 0 && x.stdout === '' && x.stderr === ''), results.map((x) => `${x.status}:${x.stderr}`).join('|'));
-  check('i2. the hook stays silent under Grok', (() => { const m = files().length; send(launch('s9', 'hhh888'), { GROK_PLUGIN_ROOT: '/x' }); return files().length === m; })());
+  check('i2. a Grok launch with no agent id records nothing', (() => { const m = files().length; send(launch('s9', 'hhh888', { tool_response: { status: 'async_launched' } }), { GROK_PLUGIN_ROOT: '/x' }); return files().length === m; })());
 
   const tooOld = pendingAgents({ stateDir, cwd, now: Date.now() + 15 * 24 * 3_600_000 });
   const all = pendingAgents({ stateDir, cwd });
@@ -197,8 +198,8 @@ try {
   send(secret, { CODE_OPS_AGENT_LEDGER_CAPTURE: '1' });
   check('n3. a repeated shape is captured once', readFileSync(captureFile, 'utf8').trim().split('\n').length === before, '');
   const rowsBefore = files().length;
-  r = send(launch('s18', 'grokcap1'), { CODE_OPS_AGENT_LEDGER_CAPTURE: '1', GROK_PLUGIN_ROOT: '/x' });
-  check('n4. capture runs before the Grok early return, which still records no rows',
+  r = send(launch('s18', 'grokcap1', { tool_response: { status: 'async_launched' } }), { CODE_OPS_AGENT_LEDGER_CAPTURE: '1', GROK_PLUGIN_ROOT: '/x' });
+  check('n4. capture runs under Grok, and a launch with no agent id still records no row',
     r.status === 0 && r.stdout === '' && readFileSync(captureFile, 'utf8').includes('"host":"grok"') && files().length === rowsBefore && pending('s18').length === 0, files().join(','));
   check('n5. capture never reads as a ledger', pendingAgents({ stateDir, cwd }).every((a) => a.source === 'hook'), '');
 
@@ -368,10 +369,19 @@ try {
   check('s4. under Grok the hook records the stop, never the message', r.status === 0 && r.stdout === '' && g1.length === 1 && g1[0].agent_id === 'grokagent1'
     && !readFileSync(join(stateDir, files().find((f) => readFileSync(join(stateDir, f), 'utf8').includes('"session_id":"g1"'))), 'utf8').includes('GROK-SECRET'), JSON.stringify(g1));
   const grokOther = files().length;
-  send(launch('g2', 'grokl1'), { GROK_PLUGIN_ROOT: '/x' });
+  send({
+    hook_event_name: 'PostToolUse', session_id: 'g2', cwd, tool_name: 'spawn_subagent',
+    tool_input: { subagent_type: 'code-ops-suite:implementer', description: 'Grok child', prompt: 'SECRET-PROMPT-TEXT' },
+    tool_response: { subagent_id: 'grokl1' },
+  }, { GROK_PLUGIN_ROOT: '/x' });
   send(grokStop({ hook_event_name: 'PostToolUse', session_id: 'g3' }), { GROK_PLUGIN_ROOT: '/x' });
   send(grokStop({ session_id: 'g4' }), { GROK_PLUGIN_ROOT: '/x', CODE_OPS_AGENT_LEDGER: 'off' });
-  check('s5. under Grok a launch, a non-stop event, and the off switch still record nothing', files().length === grokOther, files().join(','));
+  const g2 = pending('g2');
+  const grokText = files().map((f) => readFileSync(join(stateDir, f), 'utf8')).join('');
+  check('s5. under Grok a spawn_subagent launch with an id is pending, a non-dispatch event records nothing, and the off switch records nothing',
+    files().length === grokOther + 1 && g2.length === 1 && g2[0].agent_id === 'grokl1' && g2[0].description === 'Grok child'
+    && !grokText.includes('"session_id":"g3"') && !grokText.includes('"session_id":"g4"') && !grokText.includes('SECRET-PROMPT-TEXT'),
+    JSON.stringify(g2));
 } finally {
   rmSync(home, { recursive: true, force: true });
 }

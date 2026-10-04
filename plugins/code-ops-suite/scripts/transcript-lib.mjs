@@ -799,12 +799,16 @@ export function ceilingBand(context, ceiling) {
 // path for its CLI. `hooks/handoff-card.mjs` calls this when the operator types the handoff
 // command, which the host expands without a Skill tool call the guard could see. The band only
 // rises. Returns the band now recorded, or 0 when nothing was written.
+function ceilingAssessmentPath(cwd, sessionId, home) {
+  const key = (value) => createHash('sha256').update(String(value)).digest('hex');
+  return join(home, '.claude', 'code-ops', 'dispatch', key(stateRoot(cwd)), `${key(sessionId)}.assessed.json`);
+}
+
 export function recordCeilingAssessment(cwd, sessionId, context, ceiling, home = homedir()) {
   if (ceiling === null || typeof context !== 'number') return 0;
   const band = ceilingBand(context, ceiling);
   if (band < 1) return 0;
-  const key = (value) => createHash('sha256').update(String(value)).digest('hex');
-  const path = join(home, '.claude', 'code-ops', 'dispatch', key(stateRoot(cwd)),`${key(sessionId)}.assessed.json`);
+  const path = ceilingAssessmentPath(cwd, sessionId, home);
   let prior = 0;
   try {
     const marker = JSON.parse(readFileSync(path, 'utf8'));
@@ -814,6 +818,15 @@ export function recordCeilingAssessment(cwd, sessionId, context, ceiling, home =
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify({ version: 1, band }) + '\n');
   return band;
+}
+
+// The ceiling band a recorded assessment has unlocked, or 0 when the marker is missing or
+// malformed. The prompt block and the dispatch guard both read this file.
+export function ceilingAssessmentBand(cwd, sessionId, home = homedir()) {
+  try {
+    const marker = JSON.parse(readFileSync(ceilingAssessmentPath(cwd, sessionId, home), 'utf8'));
+    return marker?.version === 1 && Number.isSafeInteger(marker.band) && marker.band > 0 ? marker.band : 0;
+  } catch { return 0; }
 }
 
 // Resident-context measurement for the hooks, which must stay inside a tens-of-milliseconds

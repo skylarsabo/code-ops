@@ -44,11 +44,15 @@ and Codex, host auto-compaction is the context relief, not a handoff. On Claude,
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended). Hand off only
 to start new work, or to move to a clean session that loads updated code-ops plugins or
 contracts. A host change or a failed compaction also needs one. A long session keeps its
-agents and peers reachable, so the operator never repeats context. On Grok, assess at 150,000
-tokens and hand off before 200,000, because Grok bills double above that line. A unit too small to repay an operative's
+agents and peers reachable, so the operator never repeats context. On Grok, compact at 150,000
+tokens, before the 200,000-token price line. Checkpoint first, ask the operator to run `/compact`,
+and read the snapshot before the host summary. `COMPACT_SNAPSHOT.md` outranks the host summary. A token count does not
+select a handoff. Past 200,000 tokens a typed prompt is blocked until `/compact`, a handoff
+command, or a live `Continue-until:` bound. That record unlocks later prompts in the same ceiling
+band. The next 150,000-token band blocks again. A unit too small to repay an operative's
 startup context stays inline, with the reason recorded. Past 300,000
 tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;
-run the assessment instead of raising or disabling the ceiling.
+on Grok that ceiling is 200,000. Run the assessment instead of raising or disabling the ceiling.
 
 Every new non-calibration substantive run uses a task-based Run Contract. Select each
 unit's role, model tier, and effort from its work and ambiguity. Record the routing rationale
@@ -62,12 +66,19 @@ The session model leads and owns final verdicts and acceptance. Route effort by 
 observed eval quality rather than by importance or price alone.
 
 On Grok every xai rung is one model, so the rung is not a variable there: premium and frontier
-collapse onto it. Effort is the live dial, but `spawn_subagent` takes no effort parameter, so
-set the persona's `reasoning_effort` from the brief's Effort (low, medium, or high; never
-xhigh) and spawn that persona. When `subagent_model_inheritance` is on, strip `model` from
-spawn calls, because naming a model fails the spawn. The agent ledger records the collapse.
-The persona field is PROBABLE from the Grok Build user guide, and the `task` tool's parameters
-are UNVERIFIED.
+collapse onto it. `spawn_subagent` takes no model, no persona, and no reasoning_effort. Do not
+send those fields. When `subagent_model_inheritance` is on, strip `model` from spawn calls,
+because naming a model fails the spawn. Session effort is `[models].default_reasoning_effort`.
+`[subagents.models]` is the per-type pin when a second model exists. The agent ledger records
+each launch. A child cannot message the root. Its report is a file plus the stop result. With
+active agent messages on, steer an owned child with `send_subagent_message`, delivery `queue`.
+Use `interject` only to stop the child. Dashboard siblings are separate top-level sessions, and
+the operator is the bus: peek a reply, or dispatch a new row. Do not call `SendMessage` for a
+dashboard sibling. A subagent stays off the Agent Dashboard. Use one for a short unit this
+session accepts. Ask the operator to dispatch a dashboard row for work they should watch or run
+in a worktree. When a turn needs the operator, the last lines are the question peek can answer,
+the report path, and the token band. A handoff names the successor session and tells the
+operator to pin that row and close the finished one with Ctrl+X.
 
 At the round budget, checkpoint to the report path and continue in a fresh operative.
 Do not fork or resume its context.

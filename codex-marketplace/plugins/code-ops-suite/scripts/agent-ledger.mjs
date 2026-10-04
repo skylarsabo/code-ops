@@ -64,7 +64,7 @@ const CAPTURE_MAX_ENV = 30;
 const CAPTURE_ENV_NAME = /^(CODEX|GROK|CLAUDE|OPENCODE)/i;
 const CAPTURE_VALUE_FIELDS = ['hook_event_name', 'tool_name', 'agent_type', 'subagent_type'];
 const DEFAULT_MAX_AGE_MS = 14 * 24 * 3_600_000;
-const DISPATCH_TOOLS = new Set(['Agent', 'Task']);
+const DISPATCH_TOOLS = new Set(['Agent', 'Task', 'spawn_subagent', 'spawn_agent']);
 const AGENT_ID_TEXT = /agentId:\s*([A-Za-z0-9]+)/;
 const REPORT_PATH_MAX = 300;
 const REPORT_PATH_LINE = /^[ \t>*-]*Report path:[ \t]*(.+?)[ \t]*$/im;
@@ -102,7 +102,11 @@ function strings(value, depth = 0, out = []) {
 }
 
 function agentIdOf(response) {
-  if (response && typeof response === 'object' && typeof response.agentId === 'string' && response.agentId) return response.agentId;
+  if (response && typeof response === 'object') {
+    for (const key of ['agentId', 'subagent_id', 'subagentId']) {
+      if (typeof response[key] === 'string' && response[key]) return response[key];
+    }
+  }
   for (const text of strings(response)) {
     const id = text.match(AGENT_ID_TEXT)?.[1];
     if (id) return id;
@@ -208,7 +212,11 @@ export function rowsFromPayload(payload, now = new Date(), { agentsDir = join(di
     const response = payload.tool_response ?? payload.toolResponse;
     const agent_id = agentIdOf(response);
     if (!agent_id) return [];
-    const background = response?.status === 'async_launched' || input.run_in_background === true;
+    // Grok's spawn defaults to a background child. An explicit false is foreground.
+    const spawn = tool === 'spawn_subagent' || tool === 'spawn_agent';
+    const background = spawn
+      ? input.background !== false && input.run_in_background !== false
+      : response?.status === 'async_launched' || input.run_in_background === true || input.background === true;
     const agent_type = typeof input.subagent_type === 'string' ? input.subagent_type : '';
     const report_path = reportPathOf(input.prompt);
     const dispatched = { status: 'dispatched', agent_id, agent_type, session_id, description: oneLine(input.description), background, cwd: String(payload.cwd ?? ''), launched_at: at, ...(report_path && { report_path }), ...routingOf(input, agent_type, agentsDir) };

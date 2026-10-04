@@ -40,7 +40,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatAge, pendingReport } from './agent-ledger.mjs';
 import { parseOrDie, usage } from './cli-lib.mjs';
-import { conversationOf, defaultTranscriptDir, projectSlug, stateRoot } from './transcript-lib.mjs';
+import { conversationOf, defaultTranscriptDir, handoffMarkerPath, projectSlug, stateRoot } from './transcript-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = 'usage: compact-snapshot.mjs [--session <id>] [--transcript <file>] [--run <dir>] [--json]  (needs --session or --run)';
@@ -293,6 +293,36 @@ export function readSnapshotHeader(text) {
 // its own boundary lands); anything else, including an unreadable header, is `stale`.
 export function snapshotState(header, boundaries) {
   return header && Number.isInteger(header.boundaries) && Number.isInteger(boundaries) && boundaries === header.boundaries + 1 ? 'fresh' : 'stale';
+}
+
+// The handoff marker's sibling. PreCompact and PostCompact set `pending`. The next Grok
+// PostToolUse names the path once, then clears the flag. A normal host summary does not
+// carry the four snapshot sections, so the lead reads the file after the compact.
+export function compactMarkerPath(marker) {
+  return String(marker).replace(/\.json$/, '.compact.json');
+}
+
+export function markCompactPending(marker, path) {
+  if (!marker || typeof path !== 'string' || !path) return;
+  try {
+    mkdirSync(dirname(marker), { recursive: true });
+    writeFileSync(compactMarkerPath(marker), JSON.stringify({ v: 1, path, pending: true }));
+  } catch { /* the compact still proceeds */ }
+}
+
+export function takeCompactLine(marker) {
+  if (!marker) return null;
+  const file = compactMarkerPath(marker);
+  let body;
+  try { body = JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+  if (!body?.pending || typeof body.path !== 'string' || !body.path) return null;
+  try { writeFileSync(file, JSON.stringify({ ...body, pending: false })); } catch { return null; }
+  return `Read ${body.path} before trusting the host summary. It holds operator words, running work, open items, and reply-owed peers.`;
+}
+
+export function markSnapshotRestore({ sessionId, cwd = process.cwd(), home = stateHome(), path }) {
+  if (!sessionId || !path) return;
+  markCompactPending(handoffMarkerPath(cwd, sessionId, home), path);
 }
 
 function cli(argv) {

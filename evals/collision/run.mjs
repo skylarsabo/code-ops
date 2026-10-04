@@ -67,10 +67,12 @@ peer('Theta', { branch: 'third', claims: ['src/third.js'] });
 peer('Eta', { branch: 'topic', edits: [{ path: 'src/dirty.js', at: ago(5 * MIN) }] });
 
 function call(payload, env = {}, hookPath = hook) {
+  const child = { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_PEER_GUARD: '', CODE_OPS_DISPATCH_GUARD: '', CODE_OPS_ROUND_BUDGET: '', ...env };
+  if (!Object.hasOwn(env, 'GROK_PLUGIN_ROOT')) delete child.GROK_PLUGIN_ROOT;
   const r = spawnSync(process.execPath, [hookPath], {
     input: typeof payload === 'string' ? payload : JSON.stringify(payload),
     encoding: 'utf8',
-    env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_PEER_GUARD: '', CODE_OPS_DISPATCH_GUARD: '', CODE_OPS_ROUND_BUDGET: '', ...env },
+    env: child,
   });
   let out = null;
   try { out = r.stdout.trim() ? JSON.parse(r.stdout) : null; } catch { out = 'unparsable'; }
@@ -89,6 +91,8 @@ try {
     warns(r) && r.note.includes('"Alpha"') && r.note.includes('branch main') && r.note.includes('src/claimed.js (claimed)')
     && r.note.includes('SendMessage {"to":"Alpha","message":'), r.stdout);
   check('the warning carries no permission decision', r.decision === undefined && r.reason === '' && r.out.hookSpecificOutput.hookEventName === 'PreToolUse', r.stdout);
+  const grokNote = call(edit('s-grok', 'src/claimed.js'), { GROK_PLUGIN_ROOT: '/x' });
+  check('grok collision names a dashboard reply', warns(grokNote) && grokNote.note.includes('Dashboard reply to Alpha:') && !grokNote.note.includes('SendMessage'), grokNote.stdout);
 
   r = call(edit('s2', 'src/recent.js', {}, 'Write'));
   check('a path a live peer edited 10 minutes ago warns with the age, branch, and worktree of that peer',

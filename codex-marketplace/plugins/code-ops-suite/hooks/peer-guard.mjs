@@ -55,6 +55,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const TARGET_FIELD = new Map([
   ['mcp__ccd_session_mgmt__send_message', 'session_id'],
   ['SendMessage', 'to'],
+  ['send_subagent_message', 'subagent_id'],
 ]);
 
 const readJson = (file) => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
