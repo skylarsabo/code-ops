@@ -305,8 +305,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
-      "verifiedDigest": "47672ba96cc15c3d3f43f52b1c3dc5622e2dcf156f6f5b0cdd58c8a14e2d257c",
+      "verifiedAt": "9b505a3530a00b1447043f5510fb451e2f878a5a",
+      "verifiedDigest": "05b015793a3909652af5af3a544a5ce1ae0b7581e7ad45d35bba099498709283",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -766,8 +766,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
-      "verifiedDigest": "a3b1def55387a030f9e3562bf3f9435c36a50b6c1ff753772aba49051687ea4c",
+      "verifiedAt": "9b505a3530a00b1447043f5510fb451e2f878a5a",
+      "verifiedDigest": "5236fea2d173b66d26538097b1afb4085f43335d92589c756162fbe4b92ba711",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -876,7 +876,7 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 997,
+          "line": 1010,
           "anchor": "line per live session of another program on the presence board, from the board"
         },
         {
@@ -931,7 +931,7 @@
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
-          "line": 785,
+          "line": 786,
           "anchor": "expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonO"
         },
         {
@@ -1059,8 +1059,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
-      "verifiedDigest": "12748f073323b8db01b2b9dbbd7497e95f844b687e2a791772190948014a9b2a",
+      "verifiedAt": "9b505a3530a00b1447043f5510fb451e2f878a5a",
+      "verifiedDigest": "89c7f595eda58cf3c80d72803791b6e30048da2dbcc3f24b44e4335a84e52e87",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
