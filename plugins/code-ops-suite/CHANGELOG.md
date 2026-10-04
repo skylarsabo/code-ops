@@ -4,6 +4,12 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.41.2
+- A field denial now opens with the missing brief labels. Grok keeps the start of a hook denial and drops the tail, which hid those labels from the retry.
+- A Grok ceiling denial opens with `/compact`, the unlock that host can run. The assessed-command line stays after it.
+- `spawn_subagent` and `spawn_agent` run the same Tier and surface checks as Agent and Task. On Grok a valid Tier is not compared to the Claude model in the agent file.
+- A Grok session's context is `contextTokensUsed` in `signals.json`. The last `inputTokens` row is the billed call size, so a 40,000-token window was reported past the price line.
+
 ## 2.41.1
 - A Grok compact admits the next typed prompt that the 200,000-token block would refuse. That prompt records the ceiling band it sits in. A missing or stale token reading no longer leaves the session unable to take a message. The next 150,000-token band blocks again.
 

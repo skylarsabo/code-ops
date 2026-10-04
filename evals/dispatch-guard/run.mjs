@@ -31,7 +31,7 @@
 //     repo layout and the installed cache layout) whose prompt lacks a field its `## Contract`
 //     `Brief requires:` line lists is denied, warn mode downgrades it, and unknown, bare,
 //     non-suite, and contract-less agents pass; the denial names the exact `co brief <type>`
-//     command and ends with one `Label:` line per missing field, and with every field missing
+//     command and opens with one `Label:` line per missing field, and with every field missing
 //     those lines equal the template `co brief` prints;
 //   - a malformed controller binding and an unavailable bound counter deny with the fix: report
 //     now, then re-dispatch under a new agent id bound by the exact `register` command;
@@ -421,10 +421,11 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   let text = reasonOf(out) ?? '';
   expect(deny(out) && /missing: Report path;/.test(text) && /code-ops-suite:implementer Contract/.test(text),
     `a brief missing a Contract field must deny and name it, got ${JSON.stringify(out)}`);
-  // The denial ends with a skeleton of only the missing labels, one per line, and names the
-  // exact `co brief <type>` command for the full template.
-  expect(text.endsWith('\nReport path:') && text.split('\n').length === 2,
-    `the field denial must end with one skeleton line per missing label, got ${JSON.stringify(text)}`);
+  // The denial opens with a skeleton of only the missing labels, one per line, and names the
+  // exact `co brief <type>` command for the full template. The labels lead because Grok keeps
+  // the start of a denial and drops the tail.
+  expect(text.startsWith('Report path:\n') && text.split('\n').length === 2,
+    `the field denial must open with one skeleton line per missing label, got ${JSON.stringify(text)}`);
   expect(text.includes(`"${join(suite, 'scripts', 'co.mjs')}" brief code-ops-suite:implementer\``),
     `the field denial must name the exact co brief command, got ${JSON.stringify(text)}`);
 
@@ -434,7 +435,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const template = spawnSync('node', [join(root, 'scripts', 'co.mjs'), 'brief', 'code-ops-suite:implementer'], { encoding: 'utf8' });
   // `co brief` follows its label lines with a legend and a `co route` hint; the denial carries the labels only.
   const templateLabels = template.stdout.split('\n').filter((line) => /^[A-Z][A-Za-z ]*:$/.test(line)).join('\n');
-  const skeleton = (reasonOf(out) ?? '').split('\n').slice(1).join('\n');
+  const skeleton = (reasonOf(out) ?? '').split('\n').slice(0, -1).join('\n');
   expect(deny(out) && template.status === 0 && skeleton === templateLabels
     && skeleton === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\nUnit:\nTier:\nEffort:\nRoute basis:',
     `the full skeleton must equal co brief's label lines, got ${JSON.stringify(skeleton)} vs ${JSON.stringify(template.stdout)}`);
@@ -479,7 +480,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
 
   // Warn mode downgrades the denial to an advisory.
   out = parseOut(runHook(dispatchCall({ prompt: brief('Objective'), subagent_type: 'code-ops-suite:implementer' }), { home, guard: 'warn' }));
-  expect(!deny(out) && /missing: Objective;/.test(contextOf(out) ?? '') && (contextOf(out) ?? '').endsWith('\nObjective:'),
+  expect(!deny(out) && /missing: Objective;/.test(contextOf(out) ?? '') && (contextOf(out) ?? '').startsWith('Objective:\n'),
     `warn mode must downgrade the field denial and keep its skeleton, got ${JSON.stringify(out)}`);
 
   // A sibling plugin's agent resolves from the repo layout.
@@ -919,8 +920,8 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
 
   // Grok bills double above 200,000 tokens, so its default ceiling sits there; the override wins.
   let out = parseOut(spawnAt(210_000));
-  expect(/about 10,000 tokens past the 200,000-token context ceiling/.test(reasonOf(out) ?? ''),
-    `a Grok spawn past 200,000 must deny at the Grok ceiling, got ${JSON.stringify(out)}`);
+  expect(/^Dispatch guard: Run \/compact\./.test(reasonOf(out) ?? '') && /about 10,000 tokens past the 200,000-token context ceiling/.test(reasonOf(out) ?? ''),
+    `a Grok spawn past 200,000 must deny at the Grok ceiling and lead with /compact, got ${JSON.stringify(out)}`);
   let r = spawnAt(190_000);
   expect(r.status === 0 && r.stdout === '', `a Grok spawn under 200,000 must be silent, got ${JSON.stringify(r.stdout)}`);
   expect(spawnAt(210_000, { ceiling: '300000' }).stdout === '', 'CODE_OPS_CONTEXT_CEILING must override the Grok default');
@@ -1384,6 +1385,21 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   denied(spawn('spawn_agent', { reasoning_effort: 'max' }), /spawn_agent sets reasoning_effort above high/, 'spawn_agent max');
   quiet(spawn('spawn_subagent', { effort: 'high' }), 'spawn_subagent high');
   quiet(spawn('spawn_agent', { reasoning_effort: 'low' }), 'spawn_agent low');
+
+  // spawn_subagent and spawn_agent run the Tier and surface checks. Grok does not run the
+  // Claude model named in the agent file, so a valid Tier is not rejected for that mismatch.
+  const grokSpawn = (type, over) => parseOut(runHook(dispatchCall({
+    subagent_type: type, prompt: brief(over),
+  }, { tool_name: 'spawn_subagent' }), { home, pluginRoot: suiteRoot, grok: true, env: { CODE_OPS_HOME: home } }));
+  quiet(grokSpawn(IMP, {}), 'a Grok implementer at Tier strong is silent');
+  advised(grokSpawn(IMP, { tier: 'frontier' }), /Tier: frontier is above the routed strong/, 'a Grok frontier Tier does not demand a Claude model');
+  expect(!/pass model/.test(contextOf(grokSpawn(IMP, { tier: 'frontier' })) ?? ''), 'a Grok frontier Tier must not ask for a Claude model');
+  denied(grokSpawn(REV, { scope: 'src/auth/login.js', basis: 'review; surface=security; ambiguity=low; reversible=yes', tier: 'strong' }),
+    /below premium at high effort \(rule 7a/, 'a Grok security review at strong still routes up');
+  denied(parseOut(runHook(dispatchCall({
+    subagent_type: IMP, prompt: brief({ tier: 'premium' }),
+  }, { tool_name: 'spawn_agent' }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } })),
+    /Tier: premium but the dispatch runs at strong/, 'spawn_agent premium without a model still matches the frontmatter rung');
 
   // Warn mode downgrades every routing denial to context.
   const lax = send(REV, { tier: 'mid' }, { model: 'sonnet' }, { guard: 'warn' });
