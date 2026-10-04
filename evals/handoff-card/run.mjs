@@ -559,6 +559,19 @@ function grokUsageLine(inputTokens) {
 
 {
   const { home, cleanup } = fakeHome();
+  const dir = mkdtempSync(join(tmpdir(), 'handoff-grok-window-'));
+  const transcript = writeTranscript(dir, grokUsageLine(280_000), 'updates.jsonl');
+  writeFileSync(join(dir, 'signals.json'), `${JSON.stringify({ contextTokensUsed: 40_000 })}\n`);
+  const r = runHook(payloadFor({ transcript, sessionId: 'sess-grok-window', eventName: 'UserPromptSubmit' }), { home, grok: true });
+  expect(r.status === 0 && r.stdout === '',
+    `a 40,000-token window must not block when inputTokens is 280,000, got ${JSON.stringify(r.stdout)}`);
+  rmSync(dir, { recursive: true, force: true });
+  cleanup();
+  console.log('ok   Grok context is the signals.json window, not the billed inputTokens row');
+}
+
+{
+  const { home, cleanup } = fakeHome();
   const dir = mkdtempSync(join(tmpdir(), 'handoff-grok-'));
   const transcript = writeTranscript(dir, assistantLine(100_000), 'low.jsonl');
   const ignored = runHook(payloadFor({ transcript, sessionId: 'sess-grok-prompt' }), { home, grok: true });

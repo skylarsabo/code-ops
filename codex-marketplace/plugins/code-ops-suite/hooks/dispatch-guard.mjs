@@ -62,7 +62,7 @@
 //      a parenthetical qualifier (`Scope (edit authority):`), or when a markdown heading line
 //      starts with it. A bare, unknown, or non-suite type, an unreadable file, or an agent
 //      without that line passes. The field denial names `co brief <type>`, which prints every
-//      field as a `Label:` line (scripts/brief-template.mjs), and the output then ends with one
+//      field as a `Label:` line (scripts/brief-template.mjs), and the output then opens with one
 //      such line per missing field, ready to paste. Only the message helps; the label test above
 //      stays strict. A brief with no Round budget stays an advisory clause; the Round budget
 //      advisory is dropped when a field denial already names it. Every denial and advisory for one
@@ -738,7 +738,7 @@ function ceilingReason(gate) {
     + `until the next ${BAND_TOKENS.toLocaleString('en-US')}-token band. Without a skill tool, run this exact `
     + `command from the project root: \`node "${HOOK_PATH}" assessed --session ${gate.sessionId} --band ${gate.band}\`.`;
   return process.env.GROK_PLUGIN_ROOT
-    ? `${reason} On Grok, /compact records the same assessment and unlocks the current band.`
+    ? `Run /compact. It records this ceiling band and unlocks dispatch. ${reason}`
     : reason;
 }
 
@@ -1002,14 +1002,15 @@ function parseRouteBasis(line) {
 
 const SURFACE_TRIGGERS = new Set(['7a', '7d']);
 
-// Behaviour 4, routing half, for an Agent or Task dispatch of an agent whose Contract requires `Tier`.
+// Behaviour 4, routing half, for a dispatch of an agent whose Contract requires `Tier`.
 // Every denial here tightens the guard; a `Route override:` line clears only the shortfalls that come
 // from the ambiguity and attempt triggers (7b, 7c) and the table rows, never a surface trigger.
 function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) {
   const fm = agentFrontmatter(type);
   const floorRung = libs.rungOf(fm?.model);
   const override = typeof input.model === 'string' ? input.model.trim() : '';
-  const effective = override ? libs.rungOf(override) : floorRung;
+  // Grok does not run the Claude frontmatter model, so a valid Tier is not compared to it.
+  const effective = process.env.GROK_PLUGIN_ROOT && !override ? null : (override ? libs.rungOf(override) : floorRung);
   const tier = word(briefValue(prompt, 'Tier'));
   const effort = word(briefValue(prompt, 'Effort'));
   const hasOverride = briefValue(prompt, 'Route override') !== null;
@@ -1138,12 +1139,12 @@ async function reviewDispatch(tool, input, budget, denials, advisories, sessionI
   }
   const required = requiredFields(type);
   const missing = required.filter((field) => !briefHas(prompt, field));
-  if ((tool === 'Agent' || tool === 'Task') && required.some((field) => /^tier$/i.test(field))) {
+  if ((tool === 'Agent' || tool === 'Task' || spawn) && required.some((field) => /^tier$/i.test(field))) {
     await reviewRouting(input, type, prompt, sessionId, denials, advisories);
   }
   if (missing.length) {
     denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `
-      + 'add each as a "Label:" line or a heading. The missing lines follow this message, ready to fill; '
+      + 'add each as a "Label:" line or a heading. The missing lines open this denial, ready to fill; '
       + `\`node "${join(dirname(dirname(HOOK_PATH)), 'scripts', 'co.mjs')}" brief ${type}\` prints the full template.`);
   }
   // A field denial that already names Round budget makes this advisory a repeat.
@@ -1175,9 +1176,10 @@ async function guardMainThread(payload, budget, hardStop) {
   }
   const skeleton = await reviewDispatch(tool, input, budget, denials, advisories, payload.session_id);
   if (!denials.length && !advisories.length) return;
-  // The skeleton closes the text, one label per line, so it pastes into the brief as it stands.
-  const text = `Dispatch guard: ${[...denials, ...advisories].join(' ')}`
-    + (skeleton.length ? `\n${skeleton.join('\n')}` : '');
+  // The skeleton opens the text, one label per line. Grok keeps the start of a denial and
+  // drops the tail, so a skeleton that closed the text never reached the retry.
+  const prose = `Dispatch guard: ${[...denials, ...advisories].join(' ')}`;
+  const text = skeleton.length ? `${skeleton.join('\n')}\n${prose}` : prose;
   emit({ hookSpecificOutput: hardStop && denials.length
     ? { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: text }
     : { hookEventName: 'PreToolUse', additionalContext: text } });

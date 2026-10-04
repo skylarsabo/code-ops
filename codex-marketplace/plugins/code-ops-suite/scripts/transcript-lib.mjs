@@ -914,8 +914,21 @@ function lastContextSize(text) {
   return null;
 }
 
+// The live Grok window. `updates.jsonl` `inputTokens` is the billed size of a call, cache
+// included, and it keeps growing after compaction. `signals.json` beside that file holds
+// `contextTokensUsed`, the tokens the conversation occupies now.
+function grokWindowTokens(updatesPath) {
+  try {
+    const raw = readFileSync(join(dirname(updatesPath), 'signals.json'), 'utf8');
+    const n = JSON.parse(raw)?.contextTokensUsed;
+    if (typeof n === 'number' && Number.isSafeInteger(n) && n >= 0) return n;
+  } catch { /* no signals file, or a shape this reader does not know */ }
+  return null;
+}
+
 // Last Grok usage snapshot in the tail. `inputTokens` already includes cache tokens, the same
-// figure the Grok summarizer above stores as `contextAtEnd`.
+// figure the Grok summarizer above stores as `contextAtEnd`. Used only when `signals.json`
+// does not name the live window.
 function lastGrokContext(text) {
   const lines = text.split('\n');
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -951,8 +964,8 @@ function contextFile(payload, grok, home) {
 
 // The session's resident context in tokens from a hook payload, or null when it cannot be read.
 // Claude: input plus cache-read plus cache-creation on the last assistant usage record. Codex:
-// the last token_count snapshot's input_tokens. Grok (`grok: true`): the last updates.jsonl
-// snapshot's inputTokens. After a Claude compaction with no newer usage record, the boundary's
+// the last token_count snapshot's input_tokens. Grok (`grok: true`): `contextTokensUsed` in
+// `signals.json`, else the last updates.jsonl snapshot's inputTokens. After a Claude compaction with no newer usage record, the boundary's
 // postTokens. Never throws, so a caller fails open on null.
 export function residentContext(payload, options) {
   return residentContextReading(payload, options)?.tokens ?? null;
@@ -966,7 +979,7 @@ export function residentContextReading(payload, { grok = false, home = homedir()
     if (!file) return null;
     const text = readTail(file.path);
     if (!file.grok) return lastContextSize(text);
-    const n = lastGrokContext(text);
+    const n = grokWindowTokens(file.path) ?? lastGrokContext(text);
     return n === null ? null : { tokens: n, source: 'usage' };
   } catch { return null; }
 }
