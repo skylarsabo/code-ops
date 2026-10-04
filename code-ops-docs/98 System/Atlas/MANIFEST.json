@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "1d78c7a45d36361cdeb4a44d824b1fb134c15d51",
-      "verifiedDigest": "ae5fb3e679d5b9e7cee9df29a3b967ae749eb1386bab284742136f15ccbf38d7",
+      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
+      "verifiedDigest": "55dea5828078a3d4c897e639de8b9af5715c90cbf8d8b12b4534f2fd7b4ad56e",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -63,27 +63,27 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 383,
+          "line": 386,
           "anchor": "advice = 'This session is past the 200,000-token price line, where input is bill"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 385,
+          "line": 388,
           "anchor": "line to RUN_LOG.md. Ask the operator to run /compact. COMPACT_SNAPSHOT.md outran"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 381,
+          "line": 384,
           "anchor": "This session is past the 200,000-token price line, and no operator prompt has ar"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 86,
+          "line": 88,
           "anchor": "// feed, so no hook process is added. On PostToolUse of a Bash"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 360,
+          "line": 363,
           "anchor": "? (grok ? ' New dispatches are now gated until you run /compact or /code-ops-sui"
         },
         {
@@ -305,8 +305,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "e79667ff6add95d241f081e79cf784a2b99b708a",
-      "verifiedDigest": "1d47f3456ffb413a2abb7da60a1e91b2dd75ff304c3df5d82a76670dc80776bb",
+      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
+      "verifiedDigest": "47672ba96cc15c3d3f43f52b1c3dc5622e2dcf156f6f5b0cdd58c8a14e2d257c",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -440,7 +440,7 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 872,
+          "line": 898,
           "anchor": "if (o.type === 'compacted') return null;"
         },
         {
@@ -766,8 +766,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "217241bd9120ff23d53993025d070c34623bf8b2",
-      "verifiedDigest": "f778e6f84b8b4d1c0335e438781835caa4b332080ed3dfdbce525c83d6bbad64",
+      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
+      "verifiedDigest": "a3b1def55387a030f9e3562bf3f9435c36a50b6c1ff753772aba49051687ea4c",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -876,7 +876,7 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 975,
+          "line": 997,
           "anchor": "line per live session of another program on the presence board, from the board"
         },
         {
@@ -1059,8 +1059,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "1d78c7a45d36361cdeb4a44d824b1fb134c15d51",
-      "verifiedDigest": "ca8df55d0faf7f7e1ddbdadd25416ee8cdfe687fc34bd9cdf4efd5b2476a6129",
+      "verifiedAt": "02c382c8eec15469b9de689083e16f3f5548b978",
+      "verifiedDigest": "12748f073323b8db01b2b9dbbd7497e95f844b687e2a791772190948014a9b2a",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1104,7 +1104,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 376,
+          "line": 379,
           "anchor": ", because the Codex PreCompact hook does not fire.';"
         },
         {
