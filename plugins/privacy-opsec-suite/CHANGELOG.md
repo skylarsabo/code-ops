@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.4.2
+- The vendored model ladder note names the suite compact at 150,000 tokens.
+
 ## 2.4.1
 - The vendored model ladder routes Codex/OpenAI mid and strong agents to Sol 6.1 and premium dispatches to Astra.
 

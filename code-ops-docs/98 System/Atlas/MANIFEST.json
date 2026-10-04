@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "217241bd9120ff23d53993025d070c34623bf8b2",
-      "verifiedDigest": "924f71c82d6cc18be7e62b8cd5e9a57f6139e1a48e30f636d9cf167c06b1b041",
+      "verifiedAt": "1d78c7a45d36361cdeb4a44d824b1fb134c15d51",
+      "verifiedDigest": "ae5fb3e679d5b9e7cee9df29a3b967ae749eb1386bab284742136f15ccbf38d7",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -1059,8 +1059,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "217241bd9120ff23d53993025d070c34623bf8b2",
-      "verifiedDigest": "b0d8cb7f6b82d7c0fb797c132af403ca0bd348520990671021122644c802711c",
+      "verifiedAt": "1d78c7a45d36361cdeb4a44d824b1fb134c15d51",
+      "verifiedDigest": "ca8df55d0faf7f7e1ddbdadd25416ee8cdfe687fc34bd9cdf4efd5b2476a6129",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
