@@ -70,7 +70,9 @@
 // the card says to checkpoint and stop new work so the operator can run /compact. It does not
 // say to write a handoff for the token count. A typed prompt past the line is blocked until
 // /compact, a handoff command, or a live Continue-until bound. Those commands, and a Grok
-// PreCompact, record the ceiling assessment. It unlocks later prompts in that band. The marker counts prompts: each UserPromptSubmit that shows no card adds
+// PreCompact, record the ceiling assessment. A Grok compact also admits the next blocked
+// prompt, which records the band that prompt sits in. The marker counts prompts: each
+// UserPromptSubmit that shows no card adds
 // one, and each shown card resets the count. Claude and Codex have no price line. Their card
 // fires on an operator prompt, so the hook cannot see an autonomous run there.
 //
@@ -228,7 +230,7 @@ async function grokPriceBlock(payload, sessionId, cwd) {
   if (prompt === null) return null;
   const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
   const {
-    residentContext, contextCeiling, ceilingBand, ceilingAssessmentBand, recordCeilingAssessment, sessionRecordPath,
+    residentContext, contextCeiling, ceilingBand, ceilingAssessmentBand, recordCeilingAssessment, takeCompactAdmission, sessionRecordPath,
   } = await import(pathToFileURL(libPath).href);
   const home = homedir();
   const context = residentContext(payload, { grok: true, home });
@@ -245,6 +247,7 @@ async function grokPriceBlock(payload, sessionId, cwd) {
   if (bound?.kind === 'turns') return null;
   if (bound?.kind === 'tokens' && context < bound.n) return null;
   if (ceiling !== null && ceilingAssessmentBand(cwd, sessionId, home) >= ceilingBand(context, ceiling)) return null;
+  if (takeCompactAdmission(cwd, sessionId, context, ceiling, home)) return null;
   return {
     decision: 'block',
     reason: 'This session is past 200,000 tokens, where Grok bills double. Run /compact. The suite snapshot outranks a normal summary and is named on the next tool result. A handoff is for new work or a failed compact.',

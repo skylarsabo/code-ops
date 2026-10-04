@@ -27,19 +27,27 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const text = (value) => (typeof value === 'string' && value ? value : undefined);
 const scripts = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
 
-// A Grok compact records the same ceiling assessment a typed /compact records, so the price-line
-// block unlocks even when the host consumes the slash command before UserPromptSubmit. The
-// snapshot switch does not gate this write. A missing context size records nothing.
+// A Grok compact records the same ceiling assessment a typed /compact records, and arms one
+// admission for the next typed prompt. The host consumes `/compact` before UserPromptSubmit, and
+// its event name may be `PreCompact` or `pre_compact`. The snapshot switch does not gate this
+// write. A missing context size still arms the admission, so the next prompt can record the band.
+function isCompactEvent(payload) {
+  const raw = String(payload?.hook_event_name ?? payload?.hookEventName ?? '').toLowerCase().replace(/_/g, '');
+  return raw === 'precompact' || raw === 'postcompact';
+}
+
 async function recordCompactUnlock(payload, sessionId, transcriptPath, cwd) {
-  const event = payload?.hook_event_name ?? payload?.hookEventName;
-  if ((event !== 'PreCompact' && event !== 'PostCompact') || !process.env.GROK_PLUGIN_ROOT) return;
+  if (!isCompactEvent(payload) || !process.env.GROK_PLUGIN_ROOT) return;
   try {
-    const { residentContext, contextCeiling, recordCeilingAssessment } = await import(pathToFileURL(join(scripts, 'transcript-lib.mjs')).href);
+    const { residentContext, contextCeiling, recordCeilingAssessment, armCompactAdmission } = await import(pathToFileURL(join(scripts, 'transcript-lib.mjs')).href);
+    const home = homedir();
     const context = residentContext(
       { ...payload, session_id: sessionId, transcript_path: transcriptPath, cwd },
-      { grok: true, home: homedir() },
+      { grok: true, home },
     );
-    if (typeof context === 'number') recordCeilingAssessment(cwd, sessionId, context, contextCeiling(), homedir());
+    const ceiling = contextCeiling();
+    if (typeof context === 'number') recordCeilingAssessment(cwd, sessionId, context, ceiling, home);
+    armCompactAdmission(cwd, sessionId, home);
   } catch { /* a missed unlock leaves the typed /compact path */ }
 }
 
