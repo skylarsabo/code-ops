@@ -8,8 +8,8 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "0071eb525cfbbed875d637422181aca31549cf61",
-      "verifiedDigest": "401c4369d8700f6653221b88f7bce99ff429d2c68807f9ae4d942aab58af0445",
+      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
+      "verifiedDigest": "c0f78213c4e1e3539ac346fc363c024d6c3e0318a47a2c96e472cf51ff2b3049",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -63,27 +63,37 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 386,
+          "line": 409,
           "anchor": "advice = 'This session is past the 200,000-token price line, where input is bill"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 388,
-          "anchor": "line to RUN_LOG.md. Ask the operator to run /compact. COMPACT_SNAPSHOT.md outran"
+          "line": 413,
+          "anchor": "line to RUN_LOG.md. The host compacts near 184,000 tokens. After it, read the ne"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 384,
+          "line": 417,
+          "anchor": "advice = 'Finish the step in flight and checkpoint. Start a new session and poin"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 305,
+          "anchor": "function grokRestoreLine(state) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 405,
           "anchor": "This session is past the 200,000-token price line, and no operator prompt has ar"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 88,
+          "line": 91,
           "anchor": "// feed, so no hook process is added. On PostToolUse of a Bash"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 363,
+          "line": 383,
           "anchor": "? (grok ? ' New dispatches are now gated until you run /compact or /code-ops-sui"
         },
         {
@@ -283,13 +293,18 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 84,
+          "line": 85,
           "anchor": "On Claude and Codex, context size alone never selects HANDOFF. Claude Code compa"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 95,
-          "anchor": "On Grok, compact at 150,000 tokens, before the 200,000-token price line, because"
+          "line": 96,
+          "anchor": "On Grok, the host compacts near 184,000 tokens. That is 72 percent of the 256,00"
+        },
+        {
+          "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
+          "line": 100,
+          "anchor": ". The latest such line wins, and a malformed one sets no bound. The card stays q"
         },
         {
           "file": "plugins/code-ops-suite/skills/conform/SKILL.md",
@@ -305,8 +320,8 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "9b505a3530a00b1447043f5510fb451e2f878a5a",
-      "verifiedDigest": "05b015793a3909652af5af3a544a5ce1ae0b7581e7ad45d35bba099498709283",
+      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
+      "verifiedDigest": "b694a01c68cfc4e67f8ed9d25a23d2bf37525df3b8fa5bf3b4e788984a5517d2",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -650,7 +665,7 @@
         },
         {
           "file": "scripts/atlas-check.mjs",
-          "line": 306,
+          "line": 308,
           "anchor": "let fenced = false;"
         },
         {
@@ -766,8 +781,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "9b505a3530a00b1447043f5510fb451e2f878a5a",
-      "verifiedDigest": "5236fea2d173b66d26538097b1afb4085f43335d92589c756162fbe4b92ba711",
+      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
+      "verifiedDigest": "8caf4cf2b41a329ad634f59385bf4998fc932a18e9e7545bcb2a0e06a6d6375a",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -876,7 +891,7 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 1010,
+          "line": 1019,
           "anchor": "line per live session of another program on the presence board, from the board"
         },
         {
@@ -976,47 +991,47 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 309,
+          "line": 310,
           "anchor": "// ---------------------------------------------------------------- lifecycle as"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 422,
+          "line": 423,
           "anchor": "// ---------------------------------------------------------------- Codex token-"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 357,
+          "line": 358,
           "anchor": "// ---------------------------------------------------------------- context ceil"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 363,
+          "line": 364,
           "anchor": "const gatedGrok = /New dispatches are now gated until you run \\/compact or \\/cod"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 123,
+          "line": 124,
           "anchor": "const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At t"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 124,
+          "line": 125,
           "anchor": "const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running w"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 126,
+          "line": 127,
           "anchor": "const BAND2 = 'Finish the step in flight and checkpoint as above. If the host ha"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 127,
+          "line": 128,
           "anchor": "const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 195,
+          "line": 196,
           "anchor": "// A lead whose shell changes directory reports a different payload cwd on each"
         },
         {
@@ -1059,8 +1074,8 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "9b505a3530a00b1447043f5510fb451e2f878a5a",
-      "verifiedDigest": "89c7f595eda58cf3c80d72803791b6e30048da2dbcc3f24b44e4335a84e52e87",
+      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
+      "verifiedDigest": "74d29d919ecccafd8d21077c89d446c246a636813ae012a1e59eaf385cd9ace7",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1104,7 +1119,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 379,
+          "line": 400,
           "anchor": ", because the Codex PreCompact hook does not fire.';"
         },
         {
@@ -1164,7 +1179,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 242,
+          "line": 235,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         },
         {
@@ -1246,8 +1261,8 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "217241bd9120ff23d53993025d070c34623bf8b2",
-      "verifiedDigest": "3d22f83ad8a540b259565600b399347a01b405de2c9e922a86aaefcbffee62a9",
+      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
+      "verifiedDigest": "79fa855ad5ba31d0c06ea630d64192fa9bd627468e73d8fca1aa47232882e5ba",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1271,7 +1286,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 71,
+          "line": 72,
           "anchor": "token pressure. First persist decisions, rejected approaches, authority boundari"
         },
         {
@@ -1286,7 +1301,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 73,
+          "line": 74,
           "anchor": ". Execute the host action only through a callable host"
         },
         {
@@ -1338,8 +1353,8 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "217241bd9120ff23d53993025d070c34623bf8b2",
-      "verifiedDigest": "4e32b2cd942007a7747c053afaf9b90ee5e1eda8d8a2c1973c308d8c470f91a7",
+      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
+      "verifiedDigest": "966fda99a76b33417b903ed7ac1d4fa9e78af464fa4eae21595757eb2f67f71c",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",
@@ -1354,31 +1369,26 @@
         {
           "file": "global-contracts/AGENTS.md",
           "line": 47,
-          "anchor": "agents and peers reachable, so the operator never repeats context. On Grok, comp"
+          "anchor": "agents and peers reachable, so the operator never repeats context. On Grok, the"
         },
         {
           "file": "global-contracts/AGENTS.md",
-          "line": 49,
-          "anchor": "outranks the host summary. A token count does not"
-        },
-        {
-          "file": "global-contracts/AGENTS.md",
-          "line": 148,
+          "line": 146,
           "anchor": "## Compact Instructions"
         },
         {
           "file": "global-contracts/AGENTS.md",
-          "line": 160,
+          "line": 158,
           "anchor": "- The next command."
         },
         {
           "file": "global-contracts/AGENTS.md",
-          "line": 162,
-          "anchor": "After a compaction, start from the SessionStart card and"
+          "line": 160,
+          "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
           "file": "global-contracts/AGENTS.md",
-          "line": 68,
+          "line": 66,
           "anchor": "On Grok every xai rung is one model, so the rung is not a variable there: premiu"
         }
       ]

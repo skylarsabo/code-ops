@@ -88,7 +88,7 @@ their own, so there is no second copy to drift.
 `scripts/atlas-check.mjs` is vendored into `plugins/code-ops-suite/scripts/`, because it
 runs inside target repos through `<plugin-root>`, and it uses `node:` builtins
 only. Reach the `check` mode as `co atlas check`, which inserts the `check` subcommand when
-the caller supplies none. The exit contract across all six modes is `0` clean, `1`
+the caller supplies none. The exit contract across all seven modes is `0` clean, `1`
 violation or gated, and `2` usage.
 
 | Mode | Behavior and exit contract |
@@ -97,6 +97,7 @@ violation or gated, and `2` usage.
 | `add --atlas <dir> --section <slug> --scope <pathspec> [--scope ...]` | registers a new section: appends a manifest entry pinned to `"unverified"` and writes a `sections/<slug>.md` stub with its title and a charter placeholder. `--scope` is repeatable. Refuses a duplicate slug, a non-kebab slug, a scope using pathspec magic, or an existing prose file. The section is **STALE until stamped**, which is the point: `add` registers the intent, `stamp` asserts the verification |
 | `check --atlas <dir> [--root <repo>] [--gate] [--claims-gate] [--stats]` | A matching `verifiedDigest` is FRESH, even when a squash or branch deletion makes `verifiedAt` unreachable. A mismatched or unavailable digest is always STALE. The checker uses `verifiedAt` only for changed-path diagnostics. Legacy sections without a digest retain commit-diff freshness. A dead scope is STALE. The atlas tree stays outside the diff and sweep. Each section's claim report prints beneath its verdict. Exit 0 is report-only. `--gate` exits 1 on STALE. `--claims-gate` exits 1 on any claim the classifier did not call FRESH. `--stats` adds the git subprocess count, for measuring the check's own cost. Malformed manifest data always exits 1 |
 | `stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]` | The default writes `verifiedAt` and `verifiedDigest`. It requires no scoped unstaged changes. It rejects unmerged, assume-unchanged, skip-worktree, and submodule checkout ambiguity. Scoped diffs override `diff.ignoreSubmodules`. `--at` is historical mode. It writes `verifiedAt` and clears `verifiedDigest`. Both modes rewrite `claims` from the section's current prose. The tool is the only stamp writer |
+| `retarget --atlas <dir> [--section <slug>] [--root <dir>] [--dry-run]` | Rewrites a `path:line` citation when its recorded anchor sits on exactly one other line of that file. A deleted anchor, an anchor on several lines, or a missing citation stays for judgment and the command exits 1. It does not edit the manifest and it does not stamp. Run it before hand-editing citations, because it rewrites every remaining copy of an old `path:line`. `--dry-run` prints the same report and writes nothing |
 | `scope <slug> --atlas <dir> --suggest [--root <dir>]` | prints the tracked files that import the section's current scope at depth 1, read from `context-query.mjs blast --json`, as a pathspec list for `add --scope`. It writes nothing. Suggesting is its only mode. A missing symbol index exits 1 naming the refresh command |
 | `inbox --atlas <dir> --note <text> [--root <dir>]` | appends `- <YYYY-MM-DD> <short-sha>: <text>` to `INBOX.md`, one line, and refuses an empty note |
 

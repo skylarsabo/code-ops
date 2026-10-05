@@ -83,7 +83,7 @@ export const PROVIDER_TIERS = {
     models: { light: 'grok-4.7', mid: 'grok-4.7', strong: 'grok-4.7', premium: 'grok-4.7', frontier: 'grok-4.7' },
     premiumCollapse: 'strong',
     notes:
-      'Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the suite compact sits at 150,000. `grok-build-0.1` is the fast coding specialist, not a default rung.',
+      'Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the host compacts near 184,000 tokens, at 72 percent of the 256,000-token window. `grok-build-0.1` is the fast coding specialist, not a default rung.',
   },
   openai: {
     id: 'openai',

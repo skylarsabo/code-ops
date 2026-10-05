@@ -962,6 +962,30 @@ function contextFile(payload, grok, home) {
   return existsSync(candidate) ? { path: candidate, grok: true } : null;
 }
 
+// Grok compact state beside the live window. `signals.json` holds `compactionCount`.
+// The newest `compaction/segment_NNN.md` is the host segments record. Both are absent
+// before the first compact, and on every other host. Never throws.
+export function grokCompactState(payload, home = homedir()) {
+  const none = { count: 0, segment: null };
+  try {
+    const file = contextFile(payload, true, home);
+    if (!file?.grok) return none;
+    const dir = dirname(file.path);
+    let count = 0;
+    try {
+      const n = JSON.parse(readFileSync(join(dir, 'signals.json'), 'utf8'))?.compactionCount;
+      if (typeof n === 'number' && Number.isSafeInteger(n) && n >= 0) count = n;
+    } catch { /* no signals file, or a shape this reader does not know */ }
+    let segment = null;
+    try {
+      const names = readdirSync(join(dir, 'compaction')).filter((name) => /^segment_\d+\.md$/i.test(name));
+      names.sort((a, b) => Number(/\d+/.exec(a)[0]) - Number(/\d+/.exec(b)[0]));
+      if (names.length) segment = join(dir, 'compaction', names[names.length - 1]);
+    } catch { /* no compaction folder yet */ }
+    return { count, segment };
+  } catch { return none; }
+}
+
 // The session's resident context in tokens from a hook payload, or null when it cannot be read.
 // Claude: input plus cache-read plus cache-creation on the last assistant usage record. Codex:
 // the last token_count snapshot's input_tokens. Grok (`grok: true`): `contextTokensUsed` in

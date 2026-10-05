@@ -672,6 +672,41 @@ try {
   check('y. a backtick in an anchor is MALFORMED (the register delimits anchors with backticks)',
     y9.status === 1 && /!!\s+MALFORMED\s+sections\[0\]\.claims\[0\]\.anchor/.test(y9.out), y9.out);
 
+  // A moved anchor is a line-number edit, not a judgment. retarget rewrites that citation and
+  // leaves a deleted or repeated anchor for a person. It does not stamp and it does not rewrite
+  // the manifest.
+  const RT = newRepo('retarget');
+  put(RT, 'src/app.js', 'export const app = 1;\nexport function boot() { return app; }\n');
+  commit(RT, 'init');
+  const atlasRT = join(RT, 'docs', 'atlas');
+  run(['init', '--atlas', atlasRT]);
+  run(['add', '--atlas', atlasRT, '--section', 'core', '--scope', 'src/**']);
+  put(RT, 'docs/atlas/sections/core.md', '# Core\n\nCharter: the src tree.\n\nBoot is src/app.js:2.\n');
+  commit(RT, 'atlas');
+  run(['stamp', '--atlas', atlasRT, '--section', 'core']);
+  put(RT, 'src/app.js', 'export const app = 1;\nexport const extra = 2;\nexport function boot() { return app; }\n');
+  const rtDry = run(['retarget', '--atlas', atlasRT, '--dry-run']);
+  const rtProse = () => readFileSync(join(atlasRT, 'sections', 'core.md'), 'utf8');
+  check('rt. dry-run names the moved citation and writes nothing',
+    rtDry.status === 0 && /src\/app\.js:2 -> 3/.test(rtDry.out) && rtProse().includes('src/app.js:2'), rtDry.out);
+  const rt = run(['retarget', '--atlas', atlasRT]);
+  check('rt. a unique anchor move rewrites the citation',
+    rt.status === 0 && /src\/app\.js:2 -> 3/.test(rt.out) && rtProse().includes('src/app.js:3') && !rtProse().includes('src/app.js:2'), rt.out);
+  check('rt. retarget does not rewrite the manifest claim',
+    JSON.parse(readFileSync(join(atlasRT, 'MANIFEST.json'), 'utf8')).sections[0].claims[0].line === 2);
+  const rtAgain = run(['retarget', '--atlas', atlasRT]);
+  check('rt. a second run is a no-op once the prose cites the new line',
+    rtAgain.status === 0 && /0 citation\(s\) moved/.test(rtAgain.out) && rtProse().includes('src/app.js:3'), rtAgain.out);
+  put(RT, 'docs/atlas/sections/core.md', '# Core\n\nCharter: the src tree.\n\nBoot is src/app.js:2.\n');
+  put(RT, 'src/app.js', 'export const app = 1;\nexport const extra = 2;\nexport function start() { return app; }\n');
+  const rtGone = run(['retarget', '--atlas', atlasRT]);
+  check('rt. a deleted anchor stays for judgment and the prose is unchanged',
+    rtGone.status === 1 && /anchor is not in the file/.test(rtGone.out) && rtProse().includes('src/app.js:2'), rtGone.out);
+  put(RT, 'src/app.js', 'export const moved = 0;\nexport const also = 1;\nexport function boot() { return app; }\nexport function boot() { return app; }\n');
+  const rtMany = run(['retarget', '--atlas', atlasRT]);
+  check('rt. an anchor on two lines stays for judgment',
+    rtMany.status === 1 && /anchor is on 2 lines/.test(rtMany.out) && rtProse().includes('src/app.js:2'), rtMany.out);
+
   // ============================================================ AA. manifest style preservation
   // A target repo's formatter or linter may own JSON style, and the atlas writer creates the
   // manifest, so a rewrite lands in the style the file already carries rather than imposing one.

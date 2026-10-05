@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // UserPromptSubmit hook: once a session's resident context crosses 150,000 tokens, and again
 // every further 150,000-token band, reminds the operator and the lead to checkpoint. On Claude
-// and Codex the relief is host auto-compaction. On Grok the relief is a suite compact before the
-// 200,000-token price line. It is not a host limit or a cost claim.
+// and Codex the relief is host auto-compaction. On Grok the relief is the host compact near
+// 184,000 tokens, before the 200,000-token price line. It is not a host limit or a cost claim.
 // The threshold moved from 200k to 150k on 2026-09-18, when a transcript audit found 71% of
 // lead input-side tokens spent above 200k. The exact value stays SPECULATIVE until session
 // receipts calibrate it. See the "Handoff card" pre-registration in MEASUREMENTS.md.
 //
 // The message escalates with the band. On Claude and Codex a higher band asks the lead to finish
-// the step and checkpoint. On Grok a higher band asks for another compact when the host summary
-// dropped the snapshot. The marker proves only that this hook wrote earlier advice, not that a
+// the step and checkpoint. On Grok a higher band says to start a new session pointed at the
+// newest compaction segment. The marker proves only that this hook wrote earlier advice, not that a
 // host displayed it or a boundary was available.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
@@ -44,10 +44,10 @@
 // `additionalContext`, which the model reads beside the tool result. Usage comes from the
 // session `updates.jsonl` (the payload's transcript path, its `chat_history.jsonl` sibling, or
 // `~/.grok/sessions/<encoded cwd>/<session id>/updates.jsonl`). Resident context there is the
-// last snapshot's `inputTokens`, the same figure `transcript-lib.mjs` stores as `contextAtEnd`.
+// `contextTokensUsed` in `signals.json`, else the last snapshot's `inputTokens`.
 // That path covers the TUI, headless `grok -p`, and the ACP agent (`grok agent`). A turn with
-// no tool call never fires it, so the instruction files still tell the lead to compact before
-// the 200,000-token price line. OpenCode has no transcript callback; its lifecycle plugin
+// no tool call never fires it, so the instruction files still tell the lead to checkpoint
+// before the host compact near 184,000 tokens. OpenCode has no transcript callback; its lifecycle plugin
 // carries the note instead.
 //
 // COMPACTION IS THE DEFAULT RELIEF (DEC-73). On Claude and Codex, routine context relief is host
@@ -62,15 +62,18 @@
 // compacts itself near the size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude with that variable
 // unset, the card adds one line naming it. Codex compacts natively and gets no line.
 //
-// PRICE LINE, GROK ONLY. Inside the bands, the card fires once more when context first reaches
-// `HANDOFF_POINT` (200,000 on Grok, where the price doubles). Every card at or past that line
-// says to checkpoint and ask the operator to run /compact. The hook writes COMPACT_SNAPSHOT.md
-// and names it on the card, then again on the next tool result after compaction. When no
-// operator prompt arrived since the last card of this arm, the session runs autonomously, and
-// the card says to checkpoint and stop new work so the operator can run /compact. It does not
-// say to write a handoff for the token count. A typed prompt past the line is blocked until
-// /compact, a handoff command, or a live Continue-until bound. Those commands, and a Grok
-// PreCompact, record the ceiling assessment. A Grok compact also admits the next blocked
+// PRICE LINE, GROK ONLY. The host compacts near 184,000 tokens, 72 percent of the 256,000-token
+// window. Band 1 under the price line checkpoints and waits for that compact. It does not ask
+// the operator to type /compact. The card fires once more when context first reaches
+// `HANDOFF_POINT` (200,000, where the price doubles). That card means the host compact did not
+// run, and it asks the operator to run /compact. A session that already compacted is told to
+// start a new session pointed at the newest compaction segment. The hook writes
+// COMPACT_SNAPSHOT.md and, on the next tool result after compaction, names that segment.
+// When no operator prompt arrived since the last card of this arm, the session runs
+// autonomously, and the card says to checkpoint and stop new work so the operator can run
+// /compact. It does not say to write a handoff for the token count. A typed prompt past the
+// line is blocked until /compact, a handoff command, or a live Continue-until bound. Those
+// commands, and a Grok PreCompact, record the ceiling assessment. A Grok compact also admits the next blocked
 // prompt, which records the band that prompt sits in. The marker counts prompts: each
 // UserPromptSubmit that shows no card adds
 // one, and each shown card resets the count. Claude and Codex have no price line. Their card
@@ -250,7 +253,7 @@ async function grokPriceBlock(payload, sessionId, cwd) {
   if (takeCompactAdmission(cwd, sessionId, context, ceiling, home)) return null;
   return {
     decision: 'block',
-    reason: 'This session is past 200,000 tokens, where Grok bills double. Run /compact. The suite snapshot outranks a normal summary and is named on the next tool result. A handoff is for new work or a failed compact.',
+    reason: 'This session is past 200,000 tokens, where Grok bills double. Run /compact. The host compact did not run. Then read the newest compaction segment. A handoff is for new work or a failed compact.',
   };
 }
 
@@ -297,10 +300,25 @@ async function main() {
   writeSync(1, `${JSON.stringify(body)}\n`);
 }
 
+// The line delivered once after a Grok compact. The segment file is the host record.
+// The suite snapshot stays on disk and is not what this line names.
+function grokRestoreLine(state) {
+  if (state.segment) {
+    const once = state.count >= 1
+      ? ' This session has compacted once. A later climb toward 184,000 tokens is a new session pointed at that segment.'
+      : '';
+    return `Read ${state.segment} before trusting the host summary. It holds the earlier work.${once}`;
+  }
+  if (state.count >= 1) {
+    return 'Read the newest segment_*.md in this session\'s compaction folder before trusting the host summary. It holds the earlier work. This session has compacted once. A later climb toward 184,000 tokens is a new session pointed at that segment.';
+  }
+  return 'After the host compact, read the newest segment_*.md in this session\'s compaction folder before trusting the host summary.';
+}
+
 // The context card. Returns its message when one is due, else null; writes only the marker.
 async function card(payload, sessionId, cwd, grok, promptOnly) {
   const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-lib.mjs');
-  const { residentContext, contextCeiling, handoffMarkerPath, handoffPeakBand, recordCeilingAssessment, sessionRecordPath } = await import(pathToFileURL(libPath).href);
+  const { residentContext, contextCeiling, handoffMarkerPath, handoffPeakBand, recordCeilingAssessment, sessionRecordPath, grokCompactState } = await import(pathToFileURL(libPath).href);
   const marker = handoffMarkerPath(cwd, sessionId, homedir());
   if (promptOnly) {
     const state = readMarker(marker);
@@ -309,6 +327,7 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   }
   const context = residentContext(payload, { grok, home: homedir() });
   if (typeof context !== 'number') return null;
+  const compactState = grok ? grokCompactState(payload, homedir()) : { count: 0, segment: null };
 
   const band = Math.floor(context / THRESHOLD);
   // A typed handoff command expands without a Skill tool call, so the dispatch guard never sees
@@ -349,7 +368,8 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
     if (!grok || promptOnly) return null;
     try {
       const snapLib = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'compact-snapshot.mjs')).href);
-      return snapLib.takeCompactLine(marker);
+      const pending = snapLib.takeCompactLine(marker);
+      return pending ? grokRestoreLine(compactState) : null;
     } catch { return null; }
   }
 
@@ -365,6 +385,7 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   // Autonomous: an earlier card of this arm was shown and no operator prompt followed it. Only
   // Grok counts prompts apart from cards; elsewhere the call showing this card is itself a prompt.
   const autonomous = grok && pastPoint && state.fired && state.prompts === 0;
+  const again = grok && compactState.count >= 1;
   let advice;
   if (!grok) {
     // Claude and Codex: host auto-compaction is the relief and the lead checkpoints; a token count
@@ -382,12 +403,18 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
       : `Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.${setting}`;
   } else if (autonomous) {
     advice = `This session is past the 200,000-token price line, and no operator prompt has arrived since the last card. At the next phase boundary, checkpoint and stop new work so the operator can run /compact. Do not write a handoff for the token count.`;
+  } else if (band === 1 && pastPoint && again) {
+    advice = 'This session is past the 200,000-token price line and has already compacted. Start a new session and point it at the newest compaction segment. Ask the operator to run /compact only when that session cannot be started.';
   } else if (band === 1 && pastPoint) {
-    advice = 'This session is past the 200,000-token price line, where input is billed double. Finish the step in flight, checkpoint, and ask the operator to run /compact. Read COMPACT_SNAPSHOT.md after the compact. It outranks the host summary. Hand off only when a compact has failed or the next step is new work.';
+    advice = 'This session is past the 200,000-token price line, where input is billed double. The host compact did not run. Finish the step in flight, checkpoint, and ask the operator to run /compact. Then read the newest compaction segment. Hand off only when a compact has failed or the next step is new work.';
+  } else if (band === 1 && again) {
+    advice = 'This session already compacted once. Start a new session and point it at the newest compaction segment. Another compact summarizes a summary. Checkpoint first: keep TASKS.md current and append a `Next:` line to RUN_LOG.md.';
   } else if (band === 1) {
-    advice = 'At the next safe boundary, compact this session before the 200,000-token price line. Checkpoint first: keep TASKS.md current and append a `Next:` line to RUN_LOG.md. Ask the operator to run /compact. COMPACT_SNAPSHOT.md outranks a normal host summary: it keeps operator words, running work, open items, and reply-owed peers. A token count does not select a handoff.';
+    advice = 'At the next safe boundary, checkpoint before the 200,000-token price line: keep TASKS.md current and append a `Next:` line to RUN_LOG.md. The host compacts near 184,000 tokens. After it, read the newest compaction segment before trusting the host summary. A token count does not select a handoff.';
+  } else if (again) {
+    advice = 'Finish the step in flight and checkpoint. This session already compacted once. Start a new session and point it at the newest compaction segment. Ask the operator to run /compact only when that session cannot be started.';
   } else {
-    advice = 'Finish the step in flight and compact again if the host summary dropped the snapshot. Checkpoint first, then ask the operator to run /compact. Read COMPACT_SNAPSHOT.md after it. Hand off only when a compact has failed or the next step is new work.';
+    advice = 'Finish the step in flight and checkpoint. Start a new session and point it at the newest compaction segment. Ask the operator to run /compact only when the host compact did not run. Hand off only when a compact has failed or the next step is new work.';
   }
   let restore = null;
   if (grok) {
@@ -396,7 +423,8 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
       const transcript = payload.transcript_path ?? payload.transcriptPath;
       const snap = snapLib.createSnapshot({ sessionId, transcriptPath: transcript, cwd, home: homedir() });
       if (snap?.path) snapLib.markCompactPending(marker, snap.path);
-      restore = snapLib.takeCompactLine(marker);
+      const pending = snapLib.takeCompactLine(marker);
+      if (pending && compactState.count >= 1) restore = grokRestoreLine(compactState);
     } catch { /* the compact advice still stands */ }
   }
   return held + after + advice + gated + (restore ? ` ${restore}` : '');

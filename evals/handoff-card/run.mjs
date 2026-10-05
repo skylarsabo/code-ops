@@ -23,12 +23,13 @@
 //     CLAUDECODE or CLAUDE_PROJECT_DIR. Band 2 and above says to finish the step, checkpoint, ask
 //     for /compact if the host has not compacted, and hand off only for new work or a clean session.
 //     No card says to hand off on a token count; on Claude, with CLAUDE_CODE_AUTO_COMPACT_WINDOW
-//     unset, the card adds one line naming it; on Grok each band asks for /compact and names
-//     COMPACT_SNAPSHOT.md. A higher band asks for another compact when the summary dropped it;
+//     unset, the card adds one line naming it; on Grok band 1 under the price line checkpoints
+//     and waits for the host compact near 184,000 tokens, then names the newest compaction
+//     segment. A higher band says to start a new session pointed at that segment;
 //   - a crossing at or past the context ceiling (CODE_OPS_CONTEXT_CEILING, default 300,000)
 //     ends with one sentence saying new dispatches are gated; off drops only that sentence, an
 //     override moves it, an invalid value falls back to 300,000, and Grok gets it from 200,000;
-//   - on Grok only, the card fires once more at the 200,000-token price line and asks for /compact;
+//   - on Grok only, the card fires once more at the 200,000-token price line when the host compact did not run and asks for /compact;
 //     with no operator prompt since the last card, it says to checkpoint and stop new work;
 //   - on Grok only, a Continue-until bound (tokens or turns) in the run's RUN_LOG.md holds the card
 //     until it passes, then the card fires once; a malformed bound sets none, and off still
@@ -348,10 +349,10 @@ const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
 
   // Grok asks for a suite compact and never gets the Claude setting line.
   const grokBand = (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(160_000), 'grok-band-updates.jsonl'), sessionId: 'sess-band-grok', eventName: 'PostToolUse' }), { home, grok: true, env: { CLAUDECODE: '1' } })) || {}).hookSpecificOutput?.additionalContext || '';
-  expect(/compact this session before the 200,000-token price line/.test(grokBand) && /COMPACT_SNAPSHOT\.md outranks/.test(grokBand) && !SETTING.test(grokBand) && !/auto-compaction/.test(grokBand), `Grok band 1 must ask for a suite compact with no Claude setting line, got ${grokBand}`);
+  expect(/The host compacts near 184,000 tokens/.test(grokBand) && /newest compaction segment/.test(grokBand) && !/Ask the operator to run \/compact/.test(grokBand) && !SETTING.test(grokBand) && !/auto-compaction/.test(grokBand), `Grok band 1 must wait for the host compact and name the segment, got ${grokBand}`);
   rmSync(dir, { recursive: true, force: true });
   cleanup();
-  console.log('ok   Claude and Codex cards pin exact text, with auto-compaction as the relief and no assessment; Claude gets the window setting line only while it is unset; Grok asks for a suite compact');
+  console.log('ok   Claude and Codex cards pin exact text, with auto-compaction as the relief and no assessment; Claude gets the window setting line only while it is unset; Grok waits for the host compact near 184,000');
 }
 
 // ---------------------------------------------------------------- context ceiling sentence
@@ -479,7 +480,15 @@ const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
   const grokAt = (context, sessionId, eventName = 'PostToolUse', opts = {}) => runHook(payloadFor({ transcript: writeTranscript(project, grokUsageLine(context), `${sessionId}-updates.jsonl`), sessionId, cwd: project, eventName }), { home, grok: true, ...opts });
   const grokFresh = message(grokAt(205_000, 'sess-point-grok-fresh'));
   expect(handOff.test(grokFresh) && !autonomousText.test(grokFresh), `a Grok card at 205,000 must ask for /compact past the price line, got ${grokFresh}`);
-  expect(/compact this session before the 200,000-token price line/.test(message(grokAt(190_000, 'sess-point-grok-under'))), 'a Grok band-1 card under 200,000 must ask for a compact before the price line');
+  const under = message(grokAt(190_000, 'sess-point-grok-under'));
+  expect(/The host compacts near 184,000 tokens/.test(under) && !/Ask the operator to run \/compact/.test(under), 'a Grok band-1 card under 200,000 must wait for the host compact');
+  const againDir = join(project, 'again-session');
+  mkdirSync(join(againDir, 'compaction'), { recursive: true });
+  const againUpdates = writeTranscript(againDir, grokUsageLine(190_000), 'updates.jsonl');
+  writeFileSync(join(againDir, 'signals.json'), `${JSON.stringify({ compactionCount: 1 })}\n`);
+  writeFileSync(join(againDir, 'compaction', 'segment_000.md'), '# segment\n');
+  const againNote = message(runHook(payloadFor({ transcript: againUpdates, sessionId: 'sess-grok-again', cwd: project, eventName: 'PostToolUse' }), { home, grok: true }));
+  expect(/already compacted once/.test(againNote) && /segment_000\.md/.test(againNote), `a Grok session that already compacted must name the segment and a new session, got ${againNote}`);
   expect(message(grokAt(206_000, 'sess-point-grok-fresh')) === '', 'the Grok handoff-point card must fire once per arm');
   grokAt(160_000, 'sess-grok-point');
   expect(grokAt(170_000, 'sess-grok-point', 'UserPromptSubmit').stdout === '', 'Grok UserPromptSubmit stays silent while it records the prompt');
@@ -487,7 +496,7 @@ const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
   expect(handOff.test(grokPoint) && !autonomousText.test(grokPoint), `Grok past 200,000 with a prompt between must get the prompted compact wording, got ${grokPoint}`);
   grokAt(171_000, 'sess-grok-point', 'UserPromptSubmit');
   const grokBand2 = message(grokAt(310_000, 'sess-grok-point'));
-  expect(/compact again if the host summary dropped the snapshot/.test(grokBand2) && !autonomousText.test(grokBand2), `Grok band 2 right after the price-line card must ask for another compact, got ${grokBand2}`);
+  expect(/Start a new session and point it at the newest compaction segment/.test(grokBand2) && /host compact did not run/.test(grokBand2) && !autonomousText.test(grokBand2), `Grok band 2 right after the price-line card must name a new session, got ${grokBand2}`);
   // Grok autonomous: a band-1 card, then tool calls with no prompt until the point.
   grokAt(160_000, 'sess-grok-auto');
   const grokAuto = message(grokAt(205_000, 'sess-grok-auto'));
@@ -639,7 +648,7 @@ function grokUsageLine(inputTokens) {
   const note = body.hookSpecificOutput?.additionalContext || '';
   expect(first.status === 0 && body.systemMessage === undefined
     && body.hookSpecificOutput?.hookEventName === 'PostToolUse'
-    && /160,000 tokens/.test(note) && /compact this session before the 200,000-token price line/.test(note),
+    && /160,000 tokens/.test(note) && /The host compacts near 184,000 tokens/.test(note) && !/Ask the operator to run \/compact/.test(note),
     `Grok PostToolUse must emit one additionalContext, got ${first.status}/${JSON.stringify(first.stdout)}`);
   const again = runHook(payloadFor({ transcript: updates, sessionId: 'sess-grok-tool', eventName: 'PostToolUse' }), { home, grok: true });
   expect(again.status === 0 && again.stdout === '', `the same Grok band must stay silent, got ${JSON.stringify(again.stdout)}`);

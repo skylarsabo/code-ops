@@ -6,6 +6,7 @@
 //   node scripts/atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]
 //   node scripts/atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--claims-gate] [--stats]
 //   node scripts/atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]
+//   node scripts/atlas-check.mjs retarget --atlas <dir> [--section <slug>] [--root <dir>] [--dry-run]
 //   node scripts/atlas-check.mjs scope <slug> --atlas <dir> --suggest [--root <dir>]
 //   node scripts/atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]
 //
@@ -108,6 +109,7 @@ function usage() {
   console.error('       atlas-check.mjs add   --atlas <dir> --section <slug> --scope <pathspec> [--scope <pathspec> ...]');
   console.error('       atlas-check.mjs check --atlas <dir> [--root <repo>] [--gate] [--claims-gate] [--stats]');
   console.error('       atlas-check.mjs stamp --atlas <dir> --section <slug> [--root <dir>] [--at <sha>]');
+  console.error('       atlas-check.mjs retarget --atlas <dir> [--section <slug>] [--root <dir>] [--dry-run]');
   console.error('       atlas-check.mjs scope <slug> --atlas <dir> --suggest [--root <dir>]');
   console.error('       atlas-check.mjs inbox --atlas <dir> --note <text> [--root <dir>]');
   process.exit(2);
@@ -946,6 +948,98 @@ function cmdInbox(args) {
   console.log(`(atlas) inbox += ${date} ${sha}: ${note}`);
 }
 
+// ---------------------------------------------------------------- retarget
+
+// Lines of `abs` that contain `anchor`, 1-based. The anchor is a verbatim substring, so the
+// test is includes, never a regex built from the anchor.
+function linesContaining(abs, anchor, cache) {
+  let text = cache.get(abs);
+  if (text === undefined) {
+    try { text = readFileSync(abs, 'utf8'); }
+    catch { text = null; }
+    cache.set(abs, text);
+  }
+  if (text === null) return null;
+  const hits = [];
+  const rows = text.split('\n');
+  for (let i = 0; i < rows.length; i++) if (rows[i].replace(/\r$/, '').includes(anchor)) hits.push(i + 1);
+  return hits;
+}
+
+// Rewrites a section citation from the recorded line to the single line that still holds its
+// anchor. A stamp copies the anchor from the line it verified. When that line moves, the prose
+// still names the old number and check reports DRIFTED, which is the slow repair this command
+// removes. It writes section prose only. The manifest and the stamp stay put until a person
+// re-reads the section and stamps it.
+function cmdRetarget(args) {
+  const dry = args.includes('--dry-run');
+  const rest = args.filter((a) => a !== '--dry-run');
+  const f = parseFlags(rest, new Set(['--atlas', '--section', '--root']));
+  if (!('--atlas' in f)) { console.error('x retarget needs --atlas'); usage(); }
+  const atlasDir = atlasDirOf(f);
+  const root = repoRootOf(atlasDir, f['--root']);
+  const { manifest, violations } = loadManifest(atlasDir);
+  if (violations.length) reportViolations(violations);
+
+  let sections = manifest.sections;
+  if ('--section' in f) {
+    sections = manifest.sections.filter((s) => s.slug === f['--section']);
+    if (!sections.length) {
+      const known = manifest.sections.map((s) => s.slug).join(', ') || '(none)';
+      console.error(`x unknown section slug: ${f['--section']} — known slugs: ${known}`);
+      process.exit(1);
+    }
+  }
+
+  const cache = new Map();
+  const refRe = new RegExp(CLAIM_REF_RE.source, 'gi');
+  let moved = 0;
+  let judgment = 0;
+  for (const section of sections) {
+    const prosePath = resolve(atlasDir, section.file);
+    let prose;
+    try { prose = readFileSync(prosePath, 'utf8'); }
+    catch (e) { console.log(`(atlas) retarget ${section.slug}: cannot read ${section.file}: ${e.message}`); judgment++; continue; }
+    const moves = new Map();
+    for (const claim of section.claims ?? []) {
+      if (typeof claim.anchor !== 'string' || claim.anchor === '' || claim.anchor === REDACTED_ANCHOR) continue;
+      const abs = resolve(root, claim.file);
+      if (abs !== root && !abs.startsWith(root + sep)) { console.log(`(atlas) retarget ${section.slug}: ${claim.file}:${claim.line} escapes the repo`); judgment++; continue; }
+      const hits = linesContaining(abs, claim.anchor, cache);
+      const where = `${claim.file}:${claim.line}`;
+      const cited = new RegExp(`\\b${claim.file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:${claim.line}\\b`);
+      if (hits === null) {
+        if (!cited.test(prose)) continue;
+        console.log(`(atlas) retarget ${section.slug}: ${where} — file is unreadable`);
+        judgment++;
+        continue;
+      }
+      if (hits.includes(claim.line)) continue;
+      if (!cited.test(prose)) continue;
+      if (hits.length !== 1) {
+        const why = hits.length === 0 ? 'anchor is not in the file' : `anchor is on ${hits.length} lines`;
+        console.log(`(atlas) retarget ${section.slug}: ${where} — ${why}`);
+        judgment++;
+        continue;
+      }
+      const next = hits[0];
+      moves.set(where, next);
+      console.log(`(atlas) retarget ${section.slug}: ${where} -> ${next}`);
+    }
+    if (!moves.size) continue;
+    const nextProse = prose.replace(refRe, (full, file, line) => {
+      const hit = moves.get(`${file}:${Number(line)}`);
+      return hit === undefined ? full : `${file}:${hit}`;
+    });
+    refRe.lastIndex = 0;
+    moved += moves.size;
+    if (!dry && nextProse !== prose) writeFileSync(prosePath, nextProse);
+  }
+  const mode = dry ? ' (dry-run)' : '';
+  console.log(`(atlas) retarget${mode}: ${moved} citation(s) moved, ${judgment} left for judgment.`);
+  if (judgment) process.exit(1);
+}
+
 // ---------------------------------------------------------------- dispatch
 
 const argv = process.argv.slice(2);
@@ -953,6 +1047,7 @@ if (argv[0] === 'init') cmdInit(argv.slice(1));
 else if (argv[0] === 'add') cmdAdd(argv.slice(1));
 else if (argv[0] === 'check') cmdCheck(argv.slice(1));
 else if (argv[0] === 'stamp') cmdStamp(argv.slice(1));
+else if (argv[0] === 'retarget') cmdRetarget(argv.slice(1));
 else if (argv[0] === 'scope') cmdScope(argv.slice(1));
 else if (argv[0] === 'inbox') cmdInbox(argv.slice(1));
 else usage();

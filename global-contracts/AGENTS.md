@@ -44,11 +44,9 @@ and Codex, host auto-compaction is the context relief, not a handoff. On Claude,
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended). Hand off only
 to start new work, or to move to a clean session that loads updated code-ops plugins or
 contracts. A host change or a failed compaction also needs one. A long session keeps its
-agents and peers reachable, so the operator never repeats context. On Grok, compact at 150,000
-tokens, before the 200,000-token price line. Checkpoint first, ask the operator to run `/compact`,
-and read the snapshot before the host summary. `COMPACT_SNAPSHOT.md` outranks the host summary. A token count does not
+agents and peers reachable, so the operator never repeats context. On Grok, the host compacts near 184,000 tokens, at 72 percent of the 256,000-token window, before the 200,000-token price line. Checkpoint first: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`. Stay on that window. After the compact, read the newest compaction segment before the host summary. A later climb toward 184,000 tokens is a new session pointed at that segment. A token count does not
 select a handoff. Past 200,000 tokens a typed prompt is blocked until `/compact`, a handoff
-command, or a live `Continue-until:` bound. That record unlocks later prompts in the same ceiling
+command, or a live `Continue-until:` bound, because the host compact did not run. That record unlocks later prompts in the same ceiling
 band. The next 150,000-token band blocks again. A unit too small to repay an operative's
 startup context stays inline, with the reason recorded. Past 300,000
 tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;
@@ -159,7 +157,7 @@ When the host compacts this session, keep these items in the summary:
 - Each in-flight `file:line` boundary.
 - The next command.
 
-After a compaction, start from the SessionStart card and `COMPACT_SNAPSHOT.md`, not a reread of `TASKS.md` and `RUN_LOG.md`.
+After a compaction, read the newest compaction segment before the host summary. On Grok, SessionStart does not deliver that file. A later climb toward 184,000 tokens is a new session pointed at the segment.
 
 ## Change and publishing standards
 

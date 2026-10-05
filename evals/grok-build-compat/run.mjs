@@ -152,7 +152,8 @@ expect(/`spawn_subagent` takes no model, no persona, and no reasoning_effort/.te
 expect(/`subagent_model_inheritance` is on, strip `model` from spawn calls/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer strips model from spawn calls under model inheritance');
 expect(/Session effort is `\[models\]\.default_reasoning_effort`/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names session effort as [models].default_reasoning_effort');
 expect(/send_subagent_message/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names send_subagent_message');
-expect(/COMPACT_SNAPSHOT\.md` outranks/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says COMPACT_SNAPSHOT.md outranks the host summary');
+expect(/newest compaction segment/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names the newest compaction segment');
+expect(/184,000/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names the 184,000-token host compact');
 
 // 7. Bonus leg: Grok Build's own validator, when the binary is available.
 // Windows resolves `grok` through a .cmd shim, which needs a shell. Passing the whole

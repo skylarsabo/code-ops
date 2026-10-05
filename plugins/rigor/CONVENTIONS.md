@@ -144,7 +144,7 @@ Clarity outranks conformance. When a rule would obscure meaning, break it and sa
 Full reference: [`writing-standard.md`](https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/writing-standard.md) in the code-ops repository.
 
 ## 12 · Code standard
-Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed.
+Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed. Leave what you change in a better state than you found it. Improve its modularity, its performance, and its quality, and keep that improvement inside the change.
 
 ## 13 · Workflow fan-out
 Use the Workflow tool only on Claude, only for wide independent fan-out, and only when the operator opted in to Workflow for this run or ultracode is on. Never start a Workflow on your own. Otherwise dispatch the same batches with Agent, Task, or the host's dispatch tool. Keep serial phases and gates with the lead.
