@@ -4,6 +4,13 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.42.0
+- On Grok, the host compacts near 184,000 tokens, at 72 percent of the 256,000-token window. At 150,000 tokens the handoff card checkpoints and waits for that compact.
+- A typed prompt past 200,000 tokens stays blocked until `/compact`, a handoff command, or a live `Continue-until:` bound, because that compact did not run.
+- After a compact, the next tool result names the newest compaction segment. A later climb toward 184,000 tokens is a new session pointed at that segment.
+- `atlas-check.mjs retarget` rewrites a citation whose anchor moved to one line. A deleted or repeated anchor stays for judgment.
+- The code standard says to leave changed code better than you found it, inside the change, in modularity, performance, and quality.
+
 ## 2.41.2
 - A field denial now opens with the missing brief labels. Grok keeps the start of a hook denial and drops the tail, which hid those labels from the retry.
 - A Grok ceiling denial opens with `/compact`, the unlock that host can run. The assessed-command line stays after it.

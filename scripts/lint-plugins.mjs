@@ -1042,7 +1042,7 @@ function checkSharedPassages() {
     { id: 'reply-links', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
       text: "Every reply to the operator links each repository file, run folder, open-item pointer, and PR it names. A skill's final report is a reply. Write a file as `[name](repo-relative/path:line)` and a PR as its full URL. A bare `#123` is never enough. Artifacts keep backticked `file:line` citations with anchors, because the checkers parse them." },
     { id: 'code-standard-core', files: CONVS('code-ops-suite', 'rigor', 'privacy-opsec-suite', 'researcher'),
-      text: "Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed." },
+      text: "Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed. Leave what you change in a better state than you found it. Improve its modularity, its performance, and its quality, and keep that improvement inside the change." },
   ];
 
   // Same drift gate as SHARED_PASSAGES, but for the operative agent definitions

@@ -127,6 +127,13 @@ token-equivalents across fix, rework, and two integrations. This cap does not re
 dispatch-ledger recovery. Resuming a hung or failed unit within the same phase stays allowed
 there.
 
+### 11. Leave it better
+
+Leave what you change in a better state than you found it. Improve its modularity, its
+performance, and its quality. Keep that improvement inside the change. Do not expand the edit
+into unrelated code to satisfy the rule. Measure a performance change before you claim the win.
+The pinned code-standard core in every plugin `CONVENTIONS.md` carries the first two sentences.
+
 ## What backs each rule
 
 A rule is mechanically backed when a script reports a violation without a reader. Review holds
@@ -144,6 +151,7 @@ every other rule: the lead's read of the final diff on every change, plus the le
 | 8. No slop | `scan-overbuild.mjs` COMMENTED-CODE and DUPLICATE-HELPER, advisory. | Every other tell in the `normalize` list. |
 | 9. Proportionate verification | `scan-overbuild.mjs` TEST-BLOAT, advisory. | Distinct, non-tautological tests, and review depth against risk. |
 | 10. No repeated work | `atlas-check.mjs` reports section freshness. `local-review-gate` receipts bind an exact SHA, and a new commit voids them. | Whether a re-run had a changed input or a disputed result, and whether each phase started a fresh operative. |
+| 11. Leave it better | The pinned code-standard core carries the rule in every plugin convention. | The touched code is better in modularity, performance, and quality, and the edit did not widen. |
 
 Only NEW-DEPENDENCY blocks. Every other scanner tell is a lead for review, and a clean scan is not
 proof of a right-sized change. The [scanner header](../../../scripts/scan-overbuild.mjs) states its

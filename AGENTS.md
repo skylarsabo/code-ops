@@ -80,8 +80,8 @@ copy in one commit.
 `INFRASTRUCTURE.md` under `code-ops-docs/` lists the suite hooks, their off switches, and
 the per-host coverage table. `CONTRACTS.md` owns each hook contract and `MEASUREMENTS.md` its
 measured effect. Use `scripts/co.mjs context skim|query` before loading large files or maps.
-On Grok the lead compacts at 150,000 tokens, before the 200,000-token price line, because
-Grok 4.7 bills double above that line. `COMPACT_SNAPSHOT.md` outranks the host summary.
+On Grok the lead checkpoints at 150,000 tokens. The host compacts near 184,000, before the 200,000-token price line, because
+Grok 4.7 bills double above that line. After the compact, read the newest compaction segment before the host summary.
 
 ## Before declaring any change done
 

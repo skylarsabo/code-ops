@@ -737,10 +737,11 @@ names host auto-compaction as the context relief. Evidence: `code-ops-docs/50 Pl
 `plugins/code-ops-suite/hooks/handoff-card.mjs`.
 
 Each band is an advisory reminder, not a host limit, restart threshold, delivery
-receipt, or cost proof. On Grok it directs the lead to compact at a safe boundary before the
-200,000-token price line. The card asks the operator to run `/compact`. `COMPACT_SNAPSHOT.md`
-outranks the host summary. A higher band says to compact again if the host summary dropped the
-snapshot. On Claude and Codex (DEC-73) the card names host auto-compaction as the context relief
+receipt, or cost proof. On Grok the host compacts near 184,000 tokens, at 72 percent of the
+256,000-token window, before the 200,000-token price line. Band 1 checkpoints and waits for
+that compact. It does not ask the operator to type `/compact`. The next tool result after the
+compact names the newest compaction segment. A higher band, or a session that already
+compacted, says to start a new session pointed at that segment. On Claude and Codex (DEC-73) the card names host auto-compaction as the context relief
 and asks the lead to checkpoint, not to assess. Band 1 says: "Host auto-compaction is the relief,
 so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a
 `Next:` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits."
@@ -764,7 +765,9 @@ displayed it, that a boundary existed, or that any action was chosen. Evidence:
 
 The price line exists on Grok only, at 200,000 tokens. Claude and Codex have none (DEC-73),
 because host auto-compaction is their context relief. The first time Grok context reaches the
-line, the card fires even without a band rise and says to checkpoint and run `/compact`.
+line, the card fires even without a band rise. That firing means the host compact did not run,
+and the card says to checkpoint and run `/compact`. A session that has already compacted is
+told to start a new session pointed at the newest compaction segment.
 The marker also records `point`, `fired`, `prompts` (operator prompts since the last card), and
 `until`. When a Grok card fires past the line after an earlier card and no operator prompt has
 arrived since, the card says to checkpoint and stop new work so the operator can run `/compact`.

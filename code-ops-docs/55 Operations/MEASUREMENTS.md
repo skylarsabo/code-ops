@@ -392,6 +392,8 @@ comparison closes DSN-3 in every case.
 
 **Amendment, 2026-10-04.** On Grok the 200,000-token line is a price line, not a handoff point. Context relief is a suite compact at 150,000 tokens. The card writes `COMPACT_SNAPSHOT.md` before compaction and names it on the next tool result, so the snapshot outranks the host summary. A typed prompt past the price line is blocked until `/compact`, a handoff command, or a live `Continue-until:` bound. A handoff remains for new work, a failed compact, updated plugins, or a host change. The hop-cost evidence in the 2026-09-30 amendment is why a token count does not select a handoff.
 
+**Amendment, 2026-10-04, host compact.** Three code-ops sessions landed at 143k, 160k, and 179k after one to three segments compacts. Compacting at 150,000 returned the window to the same band. The host now compacts near 184,000 tokens, at 72 percent of the 256,000-token window. Band 1 checkpoints and waits. The 200,000 block remains for a compact that did not run. The post-compact note names the newest compaction segment. A second climb is a new session pointed at that segment.
+
 **Compaction fidelity check (pre-registered).** On 2026-09-30 one Claude desktop session auto-compacted after a hand-written checkpoint. From the summary and the compact SessionStart card alone, the lead named every active item, every operator constraint verbatim, and every running agent. Agent ids were missing from the summary and came from host task notifications. No PreCompact snapshot hook existed. **CONFIRMED** for one session (n=1). The check repeats once the snapshot hook ships.
 
 ## Presence board hook latency, 2026-09-28
