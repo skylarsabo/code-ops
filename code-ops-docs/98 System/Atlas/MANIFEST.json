@@ -1353,7 +1353,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "a11426fe2233eef053a0e5020cc3389e785e6fc7",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",
@@ -1391,7 +1391,7 @@
           "anchor": "On Grok every xai rung is one model, so the rung is not a variable there: premiu"
         }
       ],
-      "verifiedDigest": "17c133b723100375f68bbdb217d7937f3ceb64fa9799d8aa5540ec86ea870b79"
+      "verifiedDigest": "df06cacf5ca1e69ad574d2e7afc031d9d8fc981e3ce05e5020abe61fe4928587"
     },
     {
       "slug": "runtime-toolchain",
