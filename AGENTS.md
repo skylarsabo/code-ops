@@ -141,4 +141,8 @@ so do not downgrade them to save tokens.
 `code-ops-docs/Standard.md`. `code-ops-docs/98 System/DOCS_MANIFEST.json` is the sole topic
 and source registry: run `node scripts/docs-manifest.mjs check` before trusting it, and
 `node scripts/records.mjs check --collection <id>` for each record collection.
+`docs-manifest.mjs sync` stamps digests only for domains that drifted (so parallel
+feature PRs stop colliding on the whole digest table). Pass `--base <ref>` to further
+limit stamping to domains whose sources or content paths differ from that ref; pass
+`--all` to restamp every domain. `integrate-branch.mjs` passes `--base` for you.
 `code-ops-docs/80 Runs/` is gitignored run scratch (ADR 0001 treatment).

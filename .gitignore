@@ -17,6 +17,7 @@ code-ops-docs/80 Runs/
 
 # local drop-in drafts and other session scratch
 tmp/
+.tmp/
 
 # Retired local-only documentation locations remain ignored for compatibility (ADR 0001).
 docs/specs/

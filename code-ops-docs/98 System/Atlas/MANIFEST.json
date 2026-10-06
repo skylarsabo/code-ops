@@ -8,8 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
-      "verifiedDigest": "c0f78213c4e1e3539ac346fc363c024d6c3e0318a47a2c96e472cf51ff2b3049",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -311,7 +310,8 @@
           "line": 215,
           "anchor": "## Derived-file merge driver: install"
         }
-      ]
+      ],
+      "verifiedDigest": "13032db18a2f9732d0739498a13b7e6483adf69fc2c110af518cf32b3d681fa9"
     },
     {
       "slug": "gate-scripts",
@@ -320,8 +320,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
-      "verifiedDigest": "b694a01c68cfc4e67f8ed9d25a23d2bf37525df3b8fa5bf3b4e788984a5517d2",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -340,7 +339,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 87,
+          "line": 88,
           "anchor": "// Manifest v3 profile blocks. This function validates their shape. Only"
         },
         {
@@ -365,7 +364,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 226,
+          "line": 227,
           "anchor": ".filter((collection) => collection && typeof collection === 'object' && !Array.i"
         },
         {
@@ -773,7 +772,8 @@
           "line": 95,
           "anchor": "distill: 'distill-check.mjs',"
         }
-      ]
+      ],
+      "verifiedDigest": "d92e06b989aa99cb5d12ac7b4b4050d8015e0ae97413492f3b72aeff214ea7ab"
     },
     {
       "slug": "evals-and-calibration",
@@ -1074,8 +1074,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
-      "verifiedDigest": "74d29d919ecccafd8d21077c89d446c246a636813ae012a1e59eaf385cd9ace7",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1187,7 +1186,8 @@
           "line": 87,
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
-      ]
+      ],
+      "verifiedDigest": "71b6e2012b727d86e552ea91d2efc00e96e3710ae586d68f4483e7441ad4365f"
     },
     {
       "slug": "ci-workflows",
@@ -1261,8 +1261,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
-      "verifiedDigest": "79fa855ad5ba31d0c06ea630d64192fa9bd627468e73d8fca1aa47232882e5ba",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1338,7 +1337,8 @@
           "line": 152,
           "anchor": "invoked: handoffInvoked(mainText),"
         }
-      ]
+      ],
+      "verifiedDigest": "34c8fc21e2ae584004abf2455a6101b6ada2da81c6addef2850b07911f32b469"
     },
     {
       "slug": "root-contracts",
@@ -1353,8 +1353,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
-      "verifiedDigest": "966fda99a76b33417b903ed7ac1d4fa9e78af464fa4eae21595757eb2f67f71c",
+      "verifiedAt": "a11426fe2233eef053a0e5020cc3389e785e6fc7",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",
@@ -1391,7 +1390,8 @@
           "line": 66,
           "anchor": "On Grok every xai rung is one model, so the rung is not a variable there: premiu"
         }
-      ]
+      ],
+      "verifiedDigest": "df06cacf5ca1e69ad574d2e7afc031d9d8fc981e3ce05e5020abe61fe4928587"
     },
     {
       "slug": "runtime-toolchain",
