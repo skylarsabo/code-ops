@@ -583,6 +583,7 @@ const STRUCTURAL_CHAIN = [
   { label: 'check-no-deps.mjs', args: [join(ROOT, 'scripts', 'check-no-deps.mjs')] },
   { label: 'build-codex-marketplace.mjs --check', args: [join(ROOT, 'scripts', 'build-codex-marketplace.mjs'), '--check'] },
   { label: 'build-opencode-dist.mjs --check', args: [join(ROOT, 'scripts', 'build-opencode-dist.mjs'), '--check'] },
+  { label: 'render-global-contracts.mjs --check', args: [join(ROOT, 'scripts', 'render-global-contracts.mjs'), '--check'] },
 ];
 
 // ---------------------------------------------------------------- CLI

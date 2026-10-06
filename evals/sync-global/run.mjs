@@ -27,12 +27,15 @@ mkdirSync(join(repo, 'global-contracts'));
 mkdirSync(join(repo, '.claude-plugin'));
 for (const f of ['sync-global.mjs', 'cli-lib.mjs']) copyFileSync(join(REPO, 'scripts', f), join(repo, 'scripts', f));
 writeFileSync(join(repo, '.claude-plugin', 'marketplace.json'), JSON.stringify({ name: 'code-ops', plugins: ['code-ops-suite', 'rigor', 'researcher', 'privacy-opsec-suite'].map((name) => ({ name })) }));
-const SRC_MAIN = '# Global contract\n\nShared rule.\n';
+const SRC_CLAUDE = '# Global contract\n\nClaude host rule.\n';
 const SRC_CODEX = '# Global contract\n\nCodex host rule.\n';
-const srcMain = join(repo, 'global-contracts', 'AGENTS.md');
+const SRC_GROK = '# Global contract\n\nGrok host rule.\n';
+const srcClaude = join(repo, 'global-contracts', 'AGENTS.claude.md');
 const srcCodex = join(repo, 'global-contracts', 'AGENTS.codex.md');
-writeFileSync(srcMain, SRC_MAIN);
+const srcGrok = join(repo, 'global-contracts', 'AGENTS.grok.md');
+writeFileSync(srcClaude, SRC_CLAUDE);
 writeFileSync(srcCodex, SRC_CODEX);
+writeFileSync(srcGrok, SRC_GROK);
 
 // Stub CLIs: each appends its argv to a log and answers the read-only list commands.
 const bin = join(tmp, 'bin');
@@ -87,10 +90,10 @@ try {
   const p = paths(home);
   let r = sync(home, ['--only', 'contracts']);
   check('fresh install exits 0', r.code === 0, r.out);
-  check('fresh install writes the Claude pair', read(p.claudeMd) === SRC_MAIN && read(p.claudeAgents) === SRC_MAIN);
+  check('fresh install writes the Claude pair', read(p.claudeMd) === SRC_CLAUDE && read(p.claudeAgents) === SRC_CLAUDE);
   check('Claude pair is byte-identical', readFileSync(p.claudeMd).equals(readFileSync(p.claudeAgents)));
   check('fresh install writes the Codex variant', read(p.codex) === SRC_CODEX);
-  check('fresh install creates the Grok rules file', read(p.grok) === SRC_MAIN);
+  check('fresh install creates the Grok rules file', read(p.grok) === SRC_GROK);
   check('fresh install records state', existsSync(p.state));
   check('contracts-only runs no host CLI', r.argv.length === 0, r.argv.join('\n'));
 
@@ -101,11 +104,13 @@ try {
   check('--check exits 0 when current', sync(home, ['--check']).code === 0);
 
   // A source change propagates to targets this script wrote, with a backup.
-  writeFileSync(srcMain, `${SRC_MAIN}Second rule.\n`);
+  writeFileSync(srcClaude, `${SRC_CLAUDE}Second rule.\n`);
+  writeFileSync(srcGrok, `${SRC_GROK}Second rule.\n`);
   r = sync(home, ['--only', 'contracts']);
-  check('source change updates recorded targets', r.code === 0 && read(p.claudeMd) === `${SRC_MAIN}Second rule.\n` && read(p.grok) === `${SRC_MAIN}Second rule.\n`, r.out);
+  check('source change updates recorded targets', r.code === 0 && read(p.claudeMd) === `${SRC_CLAUDE}Second rule.\n` && read(p.grok) === `${SRC_GROK}Second rule.\n`, r.out);
   check('source change backs up the old content', backups(p.claudeMd).length === 1);
-  writeFileSync(srcMain, SRC_MAIN);
+  writeFileSync(srcClaude, SRC_CLAUDE);
+  writeFileSync(srcGrok, SRC_GROK);
   sync(home, ['--only', 'contracts']);
 
   // Refusal on a local edit, then --check drift, then --force.
@@ -120,20 +125,23 @@ try {
   check('--force writes a dated backup of the edit', codexBackups.length === 1 && /\.bak-\d{4}-\d{2}-\d{2}$/.test(codexBackups[0])
     && read(join(dirname(p.codex), codexBackups[0])) === 'my own contract\n');
 
-  // --capture copies a live edit into the repo source and syncs it to the other targets.
-  writeFileSync(p.grok, `${SRC_MAIN}Grok-side edit.\n`);
+  // --capture copies a live edit into its derived source file and syncs the host's other target.
+  // The Claude edit updates the Claude source and the pair; Grok is untouched.
+  writeFileSync(p.claudeMd, `${SRC_CLAUDE}Claude-side edit.\n`);
   r = sync(home, ['--only', 'contracts', '--capture']);
   check('--capture exits 0', r.code === 0, r.out);
-  check('--capture updates the repo source', read(srcMain) === `${SRC_MAIN}Grok-side edit.\n`);
-  check('--capture syncs the Claude pair', read(p.claudeMd) === `${SRC_MAIN}Grok-side edit.\n` && readFileSync(p.claudeMd).equals(readFileSync(p.claudeAgents)));
+  check('--capture updates the Claude source', read(srcClaude) === `${SRC_CLAUDE}Claude-side edit.\n`);
+  check('--capture syncs the Claude pair', read(p.claudeAgents) === `${SRC_CLAUDE}Claude-side edit.\n` && readFileSync(p.claudeMd).equals(readFileSync(p.claudeAgents)));
+  check('--capture leaves Grok untouched', read(srcGrok) === SRC_GROK && read(p.grok) === SRC_GROK);
+  check('--capture warns to port the edit into AGENTS.source.md', /warn\s+claude\s+.*AGENTS\.source\.md/.test(r.out), r.out);
   check('--check exits 0 after capture', sync(home, ['--check']).code === 0);
-  writeFileSync(srcMain, SRC_MAIN);
+  writeFileSync(srcClaude, SRC_CLAUDE);
   sync(home, ['--only', 'contracts']);
 
   // A CRLF checkout of the source is not drift.
-  writeFileSync(srcMain, SRC_MAIN.replace(/\n/g, '\r\n'));
+  writeFileSync(srcClaude, SRC_CLAUDE.replace(/\n/g, '\r\n'));
   check('CRLF source reads as current', sync(home, ['--check']).code === 0);
-  writeFileSync(srcMain, SRC_MAIN);
+  writeFileSync(srcClaude, SRC_CLAUDE);
 
   // Dry run on a fresh home writes nothing and runs only the read-only list commands.
   const dryHome = makeHome('dry');

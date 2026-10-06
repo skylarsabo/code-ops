@@ -1,5 +1,7 @@
 # User-wide operating contract
 
+<!-- note: Edit this file only. Run node scripts/render-global-contracts.mjs to write the three derived AGENTS host files. -->
+
 ## Own the task
 
 Carry a clear request through implementation and proportionate verification. Treat “can
@@ -34,61 +36,149 @@ integration, and redirect operatives as evidence changes. Inline execution is an
 for a genuinely trivial or indivisible step; state the reason instead of silently absorbing
 busy work. Parallel edits require disjoint files; serialize shared files and dependency edges.
 
-A dispatch costs its resident context on every turn. Use the narrowest agent that fits the
-unit: `code-ops-suite:implementer` for build work, `code-ops-suite:web-researcher` for
-read-only web research, `code-ops-suite:probe` for read-only shell probes, never a
-general-purpose agent where a restricted one fits. Name a round budget and a report cap in
-each brief, and keep breadth agents at their declared tier. At 150,000 tokens of context the
-lead checkpoints: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`. On Claude
-and Codex, host auto-compaction is the context relief, not a handoff. On Claude, set
-`CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended). Hand off only
-to start new work, or to move to a clean session that loads updated code-ops plugins or
-contracts. A host change or a failed compaction also needs one. A long session keeps its
-agents and peers reachable, so the operator never repeats context. On Grok, the host compacts near 184,000 tokens, at 72 percent of the 256,000-token window, before the 200,000-token price line. Checkpoint first: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`. Stay on that window. After the compact, read the newest compaction segment before the host summary. A later climb toward 184,000 tokens is a new session pointed at that segment. A token count does not
-select a handoff. Past 200,000 tokens a typed prompt is blocked until `/compact`, a handoff
-command, or a live `Continue-until:` bound, because the host compact did not run. That record unlocks later prompts in the same ceiling
-band. The next 150,000-token band blocks again. A unit too small to repay an operative's
-startup context stays inline, with the reason recorded. Past 300,000
-tokens the dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs;
-on Grok that ceiling is 200,000. Run the assessment instead of raising or disabling the ceiling.
-
 Every new non-calibration substantive run uses a task-based Run Contract. Select each
 unit's role, model tier, and effort from its work and ambiguity. Record the routing rationale
 and preserve each agent's declared quality floor.
 
-Use the strong tier for judgment-bearing work. Use lower declared floors only for mechanical,
-low-ambiguity work. Permit one bounded frontier peer for architecture, refutation, mathematics,
-or synthesis, with a rationale, stopping criterion, and lead-owned blocking criterion.
+The code-ops `run-contract.mjs` validator checks each contract and has no off switch.
+<!-- backstop: scripts/run-contract.mjs -->
+
+<!-- host: claude,grok -->
+
+Use lower declared floors only for mechanical, low-ambiguity work. Permit one bounded
+frontier peer for architecture, refutation, mathematics, or synthesis, with a rationale,
+stopping criterion, and lead-owned blocking criterion.
 
 The session model leads and owns final verdicts and acceptance. Route effort by ambiguity and
 observed eval quality rather than by importance or price alone.
+
+<!-- /host -->
+
+<!-- host: claude,grok -->
+
+A dispatch costs its resident context on every turn. Use the narrowest agent that fits the
+unit: `code-ops-suite:implementer` for build work, `code-ops-suite:web-researcher` for
+read-only web research, `code-ops-suite:probe` for read-only shell probes, never a
+general-purpose agent where a restricted one fits. Name a round budget and a report cap in
+each brief, and keep breadth agents at their declared tier.
+
+<!-- /host -->
+
+<!-- host: claude -->
+
+The code-ops dispatch guard denies a wide-surface agent type or a dispatch below the routed rung.
+It also denies any dispatch past 1.5 times the round budget. Off switch: `CODE_OPS_DISPATCH_GUARD=off`.
+<!-- backstop: plugins/code-ops-suite/hooks/dispatch-guard.mjs switch=CODE_OPS_DISPATCH_GUARD -->
+
+<!-- /host -->
+
+<!-- host: codex -->
+
+Use the strong tier for judgment-bearing work. Use lower declared floors only for mechanical,
+low-ambiguity work. Permit one bounded Astra peer for architecture, refutation, mathematics,
+or synthesis, with a rationale, stopping criterion, and lead-owned blocking criterion.
+
+The session model leads and owns final verdicts and acceptance. Route effort by ambiguity: low for
+mechanical work, medium for scoped execution, high for review and difficult tracing, and
+higher only for unresolved critical judgments.
+
+A dispatch costs its resident context on every turn. Use the narrowest restricted agent that
+fits the unit. Name a round budget and a report cap in every brief.
+
+<!-- /host -->
+
+At the round budget, checkpoint to the report path and continue in a fresh operative.
+Do not fork or resume its context.
+
+At 150,000 tokens of context the lead checkpoints: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`.
+
+<!-- host: claude,codex -->
+
+On Claude and Codex, host auto-compaction is the context relief, not a handoff.
+
+<!-- /host -->
+
+<!-- host: claude -->
+
+On Claude, set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended).
+
+<!-- /host -->
+
+<!-- host: codex -->
+
+Codex auto-compacts near 215,000 tokens of its 258,000-token window.
+
+<!-- /host -->
+
+Hand off only to start new work, or to move to a clean session that loads updated code-ops plugins or contracts. A host change or a failed compaction also needs one. A long session keeps its agents and peers reachable, so the operator never repeats context.
+
+A unit too small to repay an operative's startup context stays inline, with the reason recorded.
+
+<!-- host: grok -->
+
+On Grok, the host compacts near 184,000 tokens, at 72 percent of the 256,000-token window, before the 200,000-token price line, because Grok 4.7 bills double above that line. Checkpoint first: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`. Stay on that window. After the compact, read the newest compaction segment before the host summary. A later climb toward 184,000 tokens is a new session pointed at that segment. A token count does not select a handoff. Past 200,000 tokens a typed prompt is blocked until `/compact`, a handoff command, or a live `Continue-until:` bound, because the host compact did not run. That record unlocks later prompts in the same ceiling band. The next 150,000-token band blocks again.
+
+Past 200,000 tokens the code-ops dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs. Off switch: `CODE_OPS_CONTEXT_CEILING=off`. Run the assessment instead of raising or disabling the ceiling.
+<!-- backstop: plugins/code-ops-suite/hooks/dispatch-guard.mjs switch=CODE_OPS_CONTEXT_CEILING -->
+
+<!-- /host -->
+
+<!-- host: claude -->
+
+Past 300,000 tokens the code-ops dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs. Off switch: `CODE_OPS_CONTEXT_CEILING=off`. Run the assessment instead of raising or disabling the ceiling. A handoff assessment unlocks one 150,000-token band, and the next band blocks again.
+<!-- backstop: plugins/code-ops-suite/hooks/dispatch-guard.mjs switch=CODE_OPS_CONTEXT_CEILING -->
+
+<!-- /host -->
+
+<!-- host: codex -->
+
+Past 300,000 tokens of context, run `code-ops-suite:handoff` assess before any new
+dispatch; do not raise or disable the ceiling to avoid it.
+
+<!-- /host -->
+
+An explicit budget constrains scope, never the quality floor. When it would force a lower tier
+or effort, return a checkpointed smaller unit or request a scope decision.
+
+<!-- host: claude -->
+
+Fable 5.1 uses adaptive thinking, so let the runtime control effort.
+
+<!-- /host -->
+
+Do not request or imitate a hidden reasoning trace. Keep the reusable instruction prefix
+stable and put changing task details in later turns. Preserve append-only conversation
+history. Do not rewrite earlier messages or thinking blocks. Do not require a tool call when
+the task does not need one. Batch independent tool calls and continue useful work while an
+operative runs.
+
+<!-- host: grok -->
 
 On Grok every xai rung is one model, so the rung is not a variable there: premium and frontier
 collapse onto it. `spawn_subagent` takes no model, no persona, and no reasoning_effort. Do not
 send those fields. When `subagent_model_inheritance` is on, strip `model` from spawn calls,
 because naming a model fails the spawn. Session effort is `[models].default_reasoning_effort`.
-`[subagents.models]` is the per-type pin when a second model exists. The agent ledger records
-each launch. A child cannot message the root. Its report is a file plus the stop result. With
+`[subagents.models]` is the per-type pin when a second model exists. A child cannot message the root. Its report is a file plus the stop result. With
 active agent messages on, steer an owned child with `send_subagent_message`, delivery `queue`.
 Use `interject` only to stop the child. Dashboard siblings are separate top-level sessions, and
 the operator is the bus: peek a reply, or dispatch a new row. Do not call `SendMessage` for a
-dashboard sibling. A subagent stays off the Agent Dashboard. Use one for a short unit this
+dashboard sibling. The agent ledger records each launch, and a subagent stays off the Agent Dashboard. Use one for a short unit this
 session accepts. Ask the operator to dispatch a dashboard row for work they should watch or run
 in a worktree. When a turn needs the operator, the last lines are the question peek can answer,
 the report path, and the token band. A handoff names the successor session and tells the
 operator to pin that row and close the finished one with Ctrl+X.
 
-At the round budget, checkpoint to the report path and continue in a fresh operative.
-Do not fork or resume its context.
+<!-- /host -->
 
-An explicit budget constrains scope, never the quality floor. When it would force a lower tier
-or effort, return a checkpointed smaller unit or request a scope decision.
+<!-- host: codex -->
 
-Fable 5.1 uses adaptive thinking, so let the runtime control effort. Do not request or
-imitate a hidden reasoning trace. Keep the reusable instruction prefix stable and put
-changing task details in later turns. Preserve append-only conversation history; do not
-rewrite earlier messages or thinking blocks. Do not require a tool call when the task does
-not need one. Batch independent tool calls and continue useful work while an operative runs.
+For Astra sessions, bias toward action and follow-through. State delegation expectations
+explicitly because the model may otherwise work inline. Keep output compact because the
+model may otherwise over-format. Test in proportion to the change and broaden only when a
+failure, risk, or repository gate justifies it. Do not repeat passing verification without a
+reason.
+
+<!-- /host -->
 
 ## Use code-ops deliberately
 
@@ -102,6 +192,13 @@ Operative reports are evidence, not acceptance. Briefs state the objective, scop
 authority, deterministic rules, risks, expected evidence, and return shape. Agents return
 concise `file:line` evidence, commands run, skipped areas, blockers, and confidence. A
 high-risk area nobody examined is a coverage gap.
+
+<!-- host: claude -->
+
+The code-ops dispatch guard denies a brief that lacks a required field.
+<!-- backstop: plugins/code-ops-suite/hooks/dispatch-guard.mjs -->
+
+<!-- /host -->
 
 ## Ground claims and verification
 
@@ -143,6 +240,8 @@ A new session is new work unless the operator resumes a handoff, and each sessio
 own run folder. Address a peer session by its program session name, and resolve the live
 successor with `co handoff live` before messaging, because a handed-off session is finished.
 
+<!-- host: claude,grok -->
+
 ## Compact Instructions
 
 When the host compacts this session, keep these items in the summary:
@@ -157,7 +256,19 @@ When the host compacts this session, keep these items in the summary:
 - Each in-flight `file:line` boundary.
 - The next command.
 
+<!-- /host -->
+
+<!-- host: claude -->
+
+After a compaction, read the newest compaction segment before the host summary.
+
+<!-- /host -->
+
+<!-- host: grok -->
+
 After a compaction, read the newest compaction segment before the host summary. On Grok, SessionStart does not deliver that file. A later climb toward 184,000 tokens is a new session pointed at the segment.
+
+<!-- /host -->
 
 ## Change and publishing standards
 
@@ -166,8 +277,10 @@ intentionally alters it. Measure before optimizing. Keep module boundaries clean
 library behavior against installed or current primary documentation.
 
 Follow the house code standard. The pinned Code standard section of each code-ops plugin's
-`CONVENTIONS.md` is the binding clause in every repository. The full rules and their backstops
-are at https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/code-standard.md.
+`CONVENTIONS.md` is the binding clause in every repository. Code-ops lint check 14 pins that
+clause text across those files and does not check code. The full rules are at
+https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/Techniques/code-standard.md.
+<!-- backstop: scripts/lint-plugins.mjs -->
 
 Preserve unrelated user changes in dirty worktrees. Use explicit paths for staging. Do not
 create branches, commits, pushes, pull requests, releases, or external messages without
@@ -178,6 +291,23 @@ At safe phase boundaries or observed context pressure, assess whether to continu
 hand off. Checkpoint durable state first. A pending host command is not execution, and existing
 same-task authority does not grant broader authority.
 
+<!-- host: claude,grok -->
+
 Repository `CLAUDE.md` and `AGENTS.md` files own repository facts, commands, gates, and
-local exceptions. Do not copy this user-wide doctrine into them. Keep
-`~/.claude/CLAUDE.md` and `~/.claude/AGENTS.md` byte-identical and verify them together.
+local exceptions. Do not copy this user-wide doctrine into them.
+
+<!-- /host -->
+
+<!-- host: claude -->
+
+Keep `~/.claude/CLAUDE.md` and `~/.claude/AGENTS.md` byte-identical and verify them together.
+
+<!-- /host -->
+
+<!-- host: codex -->
+
+Repository `AGENTS.md` files own repository facts, commands, gates, and local exceptions.
+Do not copy this user-wide doctrine into them. Higher-priority platform instructions always
+prevail. Update Codex memory only when the user explicitly asks.
+
+<!-- /host -->

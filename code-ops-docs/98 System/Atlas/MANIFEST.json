@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -311,7 +311,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "1cab46fac970ade96db3d6e0560d3e0a4ecc226abc90dbbafe31f94559a5b5ca"
+      "verifiedDigest": "b16dfc36c7bc7cabd386c932591a6fd02f743b3a6b8b59a9303bb5d0aad22d76"
     },
     {
       "slug": "gate-scripts",
@@ -320,7 +320,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -733,8 +733,13 @@
           "anchor": "['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, runn"
         },
         {
+          "file": "scripts/render-global-contracts.mjs",
+          "line": 94,
+          "anchor": "function renderHost(chunks, host) {"
+        },
+        {
           "file": "scripts/sync-global.mjs",
-          "line": 113,
+          "line": 115,
           "anchor": "function classify(file, source, state) {"
         },
         {
@@ -778,7 +783,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "a57cf210f30c87d393c5aec382e7f8780de5d99115ada57e2f88c9fc31f332c3"
+      "verifiedDigest": "457708c76d48ac0dd17c69de4c5d7fb7dda054c4468d6147a767b9a0070e6cb6"
     },
     {
       "slug": "evals-and-calibration",
@@ -786,8 +791,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
-      "verifiedDigest": "69237524ac5190cae613d0011fcf859772666cc52e3f1fb5e5e6f30d7e37c0a3",
+      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
+      "verifiedDigest": "3191ffc16dffabc9e7d1f0253015a4ffbf5f3ec984accce356da775a978d31d2",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1094,7 +1099,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1207,7 +1212,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "0bca8059f74df2564153c1d372e96e15b63886b7f0dbb6020925d095f43ee684"
+      "verifiedDigest": "42e88ff4dce337fbdfb5624dfcdc855ffbfb46b1da79a1144410a2469ba1a2c2"
     },
     {
       "slug": "ci-workflows",
@@ -1215,8 +1220,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
-      "verifiedDigest": "07910a75b1f56a09e44402e021e0d61f85b93ea333b56200e357b3b54cc467d6",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedDigest": "fb82c707d6b658b48d61132d4637596d402abb2f43eec1275c2810271028b6e6",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1281,7 +1286,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1373,45 +1378,50 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "a11426fe2233eef053a0e5020cc3389e785e6fc7",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 41,
-          "anchor": "each brief, and keep breadth agents at their declared tier. At 150,000 tokens of"
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 62,
+          "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
         },
         {
           "file": "global-contracts/AGENTS.codex.md",
-          "line": 55,
-          "anchor": "lead checkpoints: keep"
+          "line": 57,
+          "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
         },
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 47,
-          "anchor": "agents and peers reachable, so the operator never repeats context. On Grok, the"
+          "file": "global-contracts/AGENTS.grok.md",
+          "line": 65,
+          "anchor": ". Stay on that window. After the compact, read the newest compaction segment bef"
         },
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 146,
-          "anchor": "## Compact Instructions"
-        },
-        {
-          "file": "global-contracts/AGENTS.md",
-          "line": 158,
-          "anchor": "- The next command."
-        },
-        {
-          "file": "global-contracts/AGENTS.md",
-          "line": 160,
+          "file": "global-contracts/AGENTS.grok.md",
+          "line": 159,
           "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 66,
-          "anchor": "On Grok every xai rung is one model, so the rung is not a variable there: premiu"
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 140,
+          "anchor": "## Compact Instructions"
+        },
+        {
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 152,
+          "anchor": "- The next command."
+        },
+        {
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 154,
+          "anchor": "After a compaction, read the newest compaction segment before the host summary."
+        },
+        {
+          "file": "global-contracts/AGENTS.grok.md",
+          "line": 79,
+          "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "df06cacf5ca1e69ad574d2e7afc031d9d8fc981e3ce05e5020abe61fe4928587"
+      "verifiedDigest": "b1a6f97731e54fb2fec6f16c55f131bc457fb78b7fa3b713053777bed5666d76"
     },
     {
       "slug": "runtime-toolchain",

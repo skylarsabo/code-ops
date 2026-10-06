@@ -87,7 +87,7 @@ Task-based contracts cap effort at `high`, so an `xhigh` lead or unit is rejecte
 Selected views retain canonical binding, scope, completeness, and omission metadata at `scripts/context-bundle.mjs:264`.
 Generated hook text asks the lead to checkpoint at a safe boundary and assesses a handoff only where the host keeps one, instead of an automatic handoff, at `scripts/build-codex-marketplace.mjs:361`. The same table describes the `PreCompact` snapshot hook and the routing card at `scripts/build-codex-marketplace.mjs:355` and `scripts/build-codex-marketplace.mjs:356`.
 
-The global sync script installs the user-wide contracts and refreshes host plugin caches. It spawns each host CLI with allow-listed arguments and records the hash it last wrote, so it can refuse to overwrite a contract edited by hand at `scripts/sync-global.mjs:113`.
+The render script builds the three per-host user-wide contracts from one authored source and fails closed on a source error, a leaked host term, or drift (`scripts/render-global-contracts.mjs:94`). The global sync script installs those renders and refreshes host plugin caches. It spawns each host CLI with allow-listed arguments and records the hash it last wrote, so it can refuse to overwrite a contract edited by hand at `scripts/sync-global.mjs:115`.
 
 `lint-plugins.mjs` runs each numbered check as a named function, and `main` calls them in order. Messages, ordering, and exit codes did not change in the split. The script exit-code contract lives in `code-ops-docs/40 Engineering/ENGINEERING_STANDARDS.md`.
 
