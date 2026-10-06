@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.42.2
+- The `conform` global scope now names the one authored source, `global-contracts/AGENTS.source.md`, and the three renders that `scripts/render-global-contracts.mjs` writes from it. Edit the source, render, then run `sync-global.mjs`.
+
 ## 2.42.1
 - `docs-manifest.mjs sync` stamps digests only for domains that drifted, so parallel feature PRs stop colliding on the whole `DOCS_MANIFEST.json` digest table. Pass `--base <ref>` to further limit stamping to domains whose sources or content paths differ from that ref; pass `--all` to restamp every domain.
 - `integrate-branch.mjs` runs `docs-manifest.mjs sync --base <ref>` so the normal integrate path stays scoped.

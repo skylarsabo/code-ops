@@ -14,3 +14,8 @@ codex-marketplace/** merge=code-ops-derived
 opencode-dist/** merge=code-ops-derived
 DOCS_MANIFEST.json merge=code-ops-derived
 "**/98 System/Records/intake.jsonl" merge=union
+
+# The global contract renders from AGENTS.source.md and never hand-merges: re-run scripts/render-global-contracts.mjs.
+global-contracts/AGENTS.claude.md linguist-generated=true
+global-contracts/AGENTS.codex.md linguist-generated=true
+global-contracts/AGENTS.grok.md linguist-generated=true

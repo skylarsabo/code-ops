@@ -6,12 +6,14 @@
 //   node scripts/sync-global.mjs [--dry-run | --check] [--only contracts|caches]
 //                                [--hosts claude,codex,grok] [--force | --capture]
 //
-// Contracts. Each host has fixed targets:
-//   claude  ~/.claude/CLAUDE.md and ~/.claude/AGENTS.md    <- global-contracts/AGENTS.md
+// Contracts. Each host has fixed targets, and each source is a derived render of
+// global-contracts/AGENTS.source.md (scripts/render-global-contracts.mjs writes them):
+//   claude  ~/.claude/CLAUDE.md and ~/.claude/AGENTS.md    <- global-contracts/AGENTS.claude.md
 //           (byte-identical, verified after the write)
 //   codex   $CODEX_HOME/AGENTS.md (default ~/.codex)        <- global-contracts/AGENTS.codex.md
-//   grok    $GROK_HOME/rules/code-ops-global.md             <- global-contracts/AGENTS.md
+//   grok    $GROK_HOME/rules/code-ops-global.md             <- global-contracts/AGENTS.grok.md
 //           (default ~/.grok; Grok loads every rules/*.md as a global rule)
+// This script reads only the derived files and never runs the renderer.
 // A host whose home directory does not exist is skipped. Content is compared and written with
 // LF line endings, so a CRLF checkout on Windows never reads as drift.
 //
@@ -83,9 +85,9 @@ function hostHome(host) {
 
 function contractTargets(host) {
   const dir = hostHome(host);
-  if (host === 'claude') return { source: 'AGENTS.md', files: [join(dir, 'CLAUDE.md'), join(dir, 'AGENTS.md')] };
+  if (host === 'claude') return { source: 'AGENTS.claude.md', files: [join(dir, 'CLAUDE.md'), join(dir, 'AGENTS.md')] };
   if (host === 'codex') return { source: 'AGENTS.codex.md', files: [join(dir, 'AGENTS.md')] };
-  return { source: 'AGENTS.md', files: [join(dir, 'rules', 'code-ops-global.md')] };
+  return { source: 'AGENTS.grok.md', files: [join(dir, 'rules', 'code-ops-global.md')] };
 }
 
 const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return false; } };
@@ -144,6 +146,7 @@ function syncContracts(activeHosts) {
         }
         captured[plan.source] = c.live;
         line(dryRun ? 'would' : 'ok', plan.host, `capture ${file} -> ${join(SOURCE_DIR, plan.source)}`);
+        line('warn', plan.host, `${plan.source} is a derived render: port this edit into ${join(SOURCE_DIR, 'AGENTS.source.md')}, or render-global-contracts.mjs --check rejects it`);
       }
     }
     for (const [name, text] of Object.entries(captured)) {

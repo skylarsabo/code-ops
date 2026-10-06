@@ -162,6 +162,9 @@ jobs:
       - name: Codex marketplace render + drift check
         run: node scripts/build-codex-marketplace.mjs --check
 
+      - name: Global contract render + drift check
+        run: node scripts/render-global-contracts.mjs --check
+
       - name: opencode distribution render + drift check
         run: node scripts/build-opencode-dist.mjs --check
 
@@ -230,6 +233,9 @@ jobs:
 
       - name: Global sync regression eval
         run: node evals/sync-global/run.mjs
+
+      - name: Global contract render regression eval
+        run: node evals/render-global-contracts/run.mjs
 
       - name: Proof-receipt + proof-integrity eval
         run: node evals/proof-receipts/run.mjs
@@ -606,6 +612,9 @@ jobs:
       - name: Codex marketplace render + drift check
         run: node scripts/build-codex-marketplace.mjs --check
 
+      - name: Global contract render + drift check
+        run: node scripts/render-global-contracts.mjs --check
+
       - name: opencode distribution render + drift check
         run: node scripts/build-opencode-dist.mjs --check
 
@@ -693,6 +702,9 @@ jobs:
 
       - name: Global sync regression eval
         run: node evals/sync-global/run.mjs
+
+      - name: Global contract render regression eval
+        run: node evals/render-global-contracts/run.mjs
 
       # The win32-only .cmd-shim checks in this eval execute ONLY here — the ubuntu run
       # of the same eval no-ops that section.

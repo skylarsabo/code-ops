@@ -143,6 +143,27 @@ console.log(out.join('\n'));
   fi
 fi
 
+# ---- 1b. render the per-host global contracts -----------------------------------
+# global-contracts/AGENTS.source.md is the only authored global contract, and the three
+# AGENTS.<host>.md files beside it are derived from it. Render them when a staged change
+# touches the directory or the renderer, and refuse to mix a staged source with a different
+# unstaged or untracked renderer input, as the host renderer step below does.
+global_inputs="global-contracts/AGENTS.source.md scripts/render-global-contracts.mjs"
+global_outputs="global-contracts/AGENTS.claude.md global-contracts/AGENTS.codex.md global-contracts/AGENTS.grok.md"
+if ! git diff --cached --quiet -- global-contracts scripts/render-global-contracts.mjs; then
+  if ! git diff --quiet -- $global_inputs || test -n "$(git ls-files --others --exclude-standard -- $global_inputs)"; then
+    echo "Stage or stash the global contract source and its renderer before committing." >&2
+    exit 1
+  fi
+  command -v node >/dev/null 2>&1 || {
+    echo "node is required to render the global contracts." >&2
+    exit 1
+  }
+  snapshot_staged_tree
+  node scripts/render-global-contracts.mjs
+  retry_on_index_lock git add -- $global_outputs
+fi
+
 # Both host renderers read the same canonical source, so they share one input set and one
 # staleness gate. scripts/model-tiers.mjs is an input because the opencode renderer bakes
 # the tier bindings into its generated MODEL_TIERS.md and opencode.json.
@@ -151,6 +172,10 @@ renderer_paths="$renderer_inputs .agents/plugins/marketplace.json codex-marketpl
 
 # Do no work for commits unrelated to either source or generated marketplace artifacts.
 if git diff --cached --quiet -- $renderer_paths; then
+  # The global contract step above may have changed staged bytes the atlas and manifest cover.
+  if [ -n "$before_tree" ] && [ "$(git write-tree)" != "$before_tree" ]; then
+    check_derived_freshness || exit 1
+  fi
   exit 0
 fi
 
